@@ -9,5 +9,4 @@ from get_halo_center import *
 from plot_cell_vs_radius import * 
 from get_halo_catalog import * 
 from get_spec import * 
-
-from testpart import * 
+from get_background_density import * 
