@@ -2,6 +2,7 @@ import trident
 import numpy as np
 import yt
 import MISTY
+import sys
 
 import getpass
 
@@ -60,19 +61,20 @@ def generate_random_rays(ds, halo_center, **kwargs):
     ## for now, assume all are z-axis
     axis = "z"
     impacts = np.random.uniform(low=low_impact, high=high_impact, size=Nrays)
-    angles = np.random.uniform(low=0, high=2*pi, size=Nrays)
     out_ray_basename = ds.basename + "_ray_" + axis
 
-    for i in Nrays:
-        out_ray_name = out_ray_basename + "imp"+"{:.1f}".format(impacts[i]) + \
-                        "_ang"+"{:.2f}".format(angles[i])+".h5"
+    for i in range(Nrays):
+        out_ray_name = out_ray_basename + "_imp"+"{:05.1f}".format(impacts[i]) + \
+                        "_ang"+"{:4.2f}".format(angles[i])+".h5"
+        out_fits_name = out_ray_basename + "_imp"+"{:05.1f}".format(impacts[i]) + \
+                        "_ang"+"{:4.2f}".format(angles[i])+".fits"
         rs, re = get_ray_endpoints(ds, halo_center, impact=impacts[i], angle=angles[i], axis=axis)
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         ray = ds.ray(rs, re)
         ray.save_as_dataset(out_ray_name)
-        triray = trident.make_simple_ray(ds, start_position=rs,
-                                  end_position=re,
+        triray = trident.make_simple_ray(ds, start_position=rs.copy(),
+                                  end_position=re.copy(),
                                   data_filename=out_ray_name,
                                   lines=line_list,
                                   ftype='gas')
@@ -84,3 +86,21 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         hdulist = MISTY.write_header(triray,start_pos=ray_start,end_pos=ray_end,
                       lines=line_list, author=getpass.getuser())
+        tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
+
+        for line in line_list:
+            sg = MISTY.generate_line(triray,line,write=True,hdulist=hdulist)
+            # filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
+            # sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
+
+        MISTY.write_out(hdulist,filename=out_fits_name)
+
+
+
+if __name__ == "__main__":
+
+    # args = parse_args()
+    ds = yt.load("/Users/molly/foggie/halo_008508/nref10/RD0042/RD0042")
+    halo_center =  [0.4898, 0.4714, 0.5096]
+    generate_random_rays(ds, halo_center, Nrays=5)
+    sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
