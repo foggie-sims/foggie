@@ -56,18 +56,23 @@ def generate_random_rays(ds, halo_center, **kwargs):
     low_impact = kwargs.get("low_impact", 10.)
     high_impact = kwargs.get("high_impact", 200.)
     Nrays = kwargs.get("Nrays",50)
-    line_list = kwargs.get("line_list", ['H I','Si III','C IV', 'O VI'])
+    haloname = kwargs.get("haloname","somehalo")
+    # line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'C II 1334', 'Mg II 2796', 'C III 977', 'Si III 1207','C IV 1548', 'O VI 1032'])
+    line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'C II 1335', 'C III 977', 'Si III 1207','C IV 1548', 'O VI 1032'])
 
     ## for now, assume all are z-axis
     axis = "z"
+    np.random.seed(17)
     impacts = np.random.uniform(low=low_impact, high=high_impact, size=Nrays)
+    angles = np.random.uniform(low=0, high=2*pi, size=Nrays)
     out_ray_basename = ds.basename + "_ray_" + axis
 
     for i in range(Nrays):
-        out_ray_name = out_ray_basename + "_imp"+"{:05.1f}".format(impacts[i]) + \
-                        "_ang"+"{:4.2f}".format(angles[i])+".h5"
-        out_fits_name = out_ray_basename + "_imp"+"{:05.1f}".format(impacts[i]) + \
-                        "_ang"+"{:4.2f}".format(angles[i])+".fits"
+        this_out_ray_basename = out_ray_basename + "_imp"+"{:05.1f}".format(impacts[i]) + \
+                        "_ang"+"{:4.2f}".format(angles[i])
+        out_ray_name = this_out_ray_basename + ".h5"
+        out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impacts[i]) + \
+                        "-a"+"{:4.2f}".format(angles[i])+"_v1_los.fits"
         rs, re = get_ray_endpoints(ds, halo_center, impact=impacts[i], angle=angles[i], axis=axis)
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
@@ -81,7 +86,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         ray_start = triray.light_ray_solution[0]['start']
         ray_end = triray.light_ray_solution[0]['end']
-        filespecout_base = 'spectrum_'+triray.light_ray_solution[0]['filename']
+        filespecout_base = this_out_ray_basename + '_spec'
         print ray_start, ray_end, filespecout_base
 
         hdulist = MISTY.write_header(triray,start_pos=ray_start,end_pos=ray_end,
@@ -90,8 +95,8 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         for line in line_list:
             sg = MISTY.generate_line(triray,line,write=True,hdulist=hdulist)
-            # filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
-            # sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
+            filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
+            sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
 
         MISTY.write_out(hdulist,filename=out_fits_name)
 
@@ -101,6 +106,7 @@ if __name__ == "__main__":
 
     # args = parse_args()
     ds = yt.load("/Users/molly/foggie/halo_008508/nref10/RD0042/RD0042")
+    # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/nref10/RD0042/RD0042")
     halo_center =  [0.4898, 0.4714, 0.5096]
-    generate_random_rays(ds, halo_center, Nrays=5)
+    generate_random_rays(ds, halo_center, haloname="halo008508", Nrays=50)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
