@@ -108,5 +108,5 @@ if __name__ == "__main__":
     ds = yt.load("/Users/molly/foggie/halo_008508/nref10/RD0042/RD0042")
     # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/nref10/RD0042/RD0042")
     halo_center =  [0.4898, 0.4714, 0.5096]
-    generate_random_rays(ds, halo_center, haloname="halo008508", Nrays=50)
+    generate_random_rays(ds, halo_center, haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
