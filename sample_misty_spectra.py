@@ -96,6 +96,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
         for line in line_list:
             sg = MISTY.generate_line(triray,line,write=True,hdulist=hdulist)
             filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
+            ## if we write our own plotting routine, we can overplot the spectacle fits
             sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
 
         MISTY.write_out(hdulist,filename=out_fits_name)
@@ -108,5 +109,5 @@ if __name__ == "__main__":
     ds = yt.load("/Users/molly/foggie/halo_008508/nref10/RD0042/RD0042")
     # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/nref10/RD0042/RD0042")
     halo_center =  [0.4898, 0.4714, 0.5096]
-    generate_random_rays(ds, halo_center, haloname="halo008508", Nrays=100)
+    generate_random_rays(ds, halo_center, haloname="halo008508", Nrays=5)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
