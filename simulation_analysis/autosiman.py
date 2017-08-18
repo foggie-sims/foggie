@@ -1,3 +1,10 @@
+'''
+AUTHOR: Melissa Morris
+DATE: 08/18/2017
+NAME: autosiman.py
+DESCRIPTION: analyzes a set of simulations snapshots at a time, can calculate flow strengths, velocity flux profiles, and create movie frames
+'''
+
 import numpy as np
 import yt
 from astropy.table import Table

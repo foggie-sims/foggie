@@ -1,7 +1,9 @@
-
-# coding: utf-8
-
-# In[ ]:
+'''
+AUTHOR: Melissa Morris
+DATE: 08/18/2017
+NAME: siman.py
+DESCRIPTION: includes simulation analysis functions that can be called by other scripts and notebooks 
+'''
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,9 +14,8 @@ from yt.units import kpc,km,s,cm
 import astropy
 
 
-# # General Functions
+# General Functions
 
-# In[9]:
 
 '''
 Finds the center of the galaxy
@@ -55,16 +56,12 @@ def galaxy_center(filename):
     return ds,center
 
 
-# In[1]:
-
 '''
 Defines a gaussian curve for fitting purposes.
 '''
 def gaus(x,a,x0,sigma):
     return a*np.exp(-(x-x0)**2/(2*sigma**2))
 
-
-# In[2]:
 
 '''
 Calculates the angular momentum vector and a vector orthogonal to the angular momentum vector
@@ -90,8 +87,6 @@ def angular_momentum(sph):
     return l,lx # Angular momentum vector, Orthogonal vector
 
 
-# In[8]:
-
 '''
 Calculates the star formation history of a galaxy within a sphere of the specified radius
 
@@ -115,8 +110,6 @@ def make_sfh(ds,cen,rad):
     sfr = StarFormationRate(ds,data_source=sp,volume=sp.volume(),star_creation_time=ct[ct>0],star_mass=sm[ct>0])
     return sfr.redshift,sfr.Msol_yr
 
-
-# In[ ]:
 
 '''
 Finds the amount of feedback in specified simulation
@@ -149,9 +142,7 @@ def find_feedback(filename):
     return fdbk
 
 
-# # YT Derived Functions
-
-# In[ ]:
+# YT Derived Functions
 
 '''
 Calculates the velocity component parallel to the angular momentum vector
@@ -176,8 +167,6 @@ def _vflux(field,data):
     return Lxx+Ly+Lz
 
 
-# In[ ]:
-
 # Calculates the velocity component orthogonal to the angular momentum vector
 def _rflux(field,data):
     x = data['x-velocity'].in_units('km/s')
@@ -198,8 +187,6 @@ def _rflux(field,data):
     return Lxx+Ly+Lz
 
 
-# In[ ]:
-
 def _centpos(field,data):
     xpos = data['x'] - center[0]
     ypos = data['y'] - center[1]
@@ -208,11 +195,9 @@ def _centpos(field,data):
     return pos
 
 
-# # Making Galaxies Edge-On
-# 
+# Making Galaxies Edge-On
+ 
 # Finding the surface density of a fixed resolution buffer
-
-# In[3]:
 
 '''
 Calculates the distance of an element from the center of a 2D array.
@@ -235,8 +220,6 @@ def distance_from_center(i,j,rad,wid,res):
     fulldist = (xdist**2+ydist**2)**.5 # full distance from center
     return fulldist
 
-
-# In[4]:
 
 '''
 Calculates the radial surface density of a fixed resolution buffer
@@ -298,8 +281,6 @@ def find_completeness(v,xlist,ylist):
     return rad
 
 
-# In[7]:
-
 def surface_density_completeness(image,max_radius,width,resolution):
     radius_list = np.linspace(0,max_radius,20)
     density_profile = []
@@ -314,8 +295,6 @@ def surface_density_completeness(image,max_radius,width,resolution):
 
 
 # Super duper long method of finding the thinnest edge of the galaxy
-
-# In[5]:
 
 def thinnest_edge(ds,r,cen,wid,res):
     # r is the current radius around which the edge-on galaxy will be searched for
@@ -349,9 +328,7 @@ def thinnest_edge(ds,r,cen,wid,res):
     return rad[sig.index(min(sig))]
 
 
-# # Velocity Flux Calculating and Plot Making
-
-# In[ ]:
+# Velocity Flux Calculating and Plot Making
 
 '''
 Calculates the mean, median, 25th, and 75th percentile of the velocity
@@ -431,11 +408,9 @@ def calculate_vflux_profile(cyl,lower,upper,step,weight=False,flow='all'):
     return results
 
 
-# # Outflow and Inflow Calculations
+# Outflow and Inflow Calculations
 
 # Usage of these functions can be found in the flowstrength notebook.
-
-# In[1]:
 
 '''
 Calculates the mass outflow with given radial flux and mass
@@ -453,8 +428,6 @@ def calculate_mass_flow(flux,mass,step):
     flow = np.sum(np.multiply(flux,mass)/(step*kpc))
     return flow.in_units('Msun/yr')
 
-
-# In[2]:
 
 '''
 Calculates the mass flow rate at various distances from the galaxy
@@ -547,9 +520,7 @@ def calculate_mass_flow_profile(spcyl,L,lower=0,upper=100,step=5,pos='above',flo
     return height_list[:-1],outflow
 
 
-# # Movie Making
-
-# In[ ]:
+# Movie Making
 
 '''
 Makes a 4-panel plot of each snapshot that shows the star formation rate as a function of
@@ -650,9 +621,3 @@ def make_two_plots(file_name,ds,sph,center,L,Lx,z,sfr,zoom=70):
 
     # saves the figure
     plt.savefig(plot_dir+file_name[-6:]+'_plot.png',bbox_inches='tight')
-
-
-# In[ ]:
-
-
-
