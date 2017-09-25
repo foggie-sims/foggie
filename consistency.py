@@ -1,6 +1,6 @@
 import seaborn as sns
 
-default_width = 250.
+default_width = 250.  # kpc in projection 
 
 density_color_map = "RdBu"
 density_min = 1e-6
