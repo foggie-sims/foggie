@@ -12,8 +12,8 @@ import sys
 from consistency import *
 
 # foggie_dir = "/astro/simulations/FOGGIE/"
-foggie_dir = "/Users/molly/foggie/"
-dropbox_dir = "/Users/molly/Dropbox/foggie-collab/"
+foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
+dropbox_dir = "/Users/molly/Dropbox/foggie-collab/"  ## outputs go here
 
 
 def parse_args():
@@ -313,5 +313,5 @@ if __name__ == "__main__":
     if not args.clobber:
         print "NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY"
 
-    message = plot_script(8508, "nref11_refine200kpc_z4to2", "x")
+    message = plot_script(args.halo, "nref11_refine200kpc_z4to2", "x")
     sys.exit(message)
