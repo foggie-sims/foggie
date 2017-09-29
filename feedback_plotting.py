@@ -204,7 +204,7 @@ def get_evolultion_Lx(filenames,center_guess):
 
     return
 
-class RadialDat:
+class SphericalRadialDat:
     """Empty object container.
     """
     def __init__(self):
@@ -226,7 +226,7 @@ def spherical_radial_profile(r,y,dr,r_max=None):
     #dr = np.abs(r.max()-r.min()) * dr_width
     radial = np.arange(r_max/dr)*dr + dr/2.
     nrad = len(radial)
-    radialdata = RadialDat()
+    radialdata = SphericalRadialDat()
     radialdata.q25 = np.zeros(nrad)
     radialdata.q75 = np.zeros(nrad)
     radialdata.mean = np.zeros(nrad)
