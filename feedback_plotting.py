@@ -466,6 +466,28 @@ def plot_compare_basic_radial_profiles(filenames,fileout):
         ax[2].legend()
         plt.savefig(fileout)
     return
+
+def plot_cooling_time_histogram(filenames,fileout):
+    for i in range(len(filenames)):
+        ds = yt.load(filenames[i])
+        track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+        center_guess = initial_center_guess(ds,track_name)
+        halo_center = get_halo_center(ds,center_guess)
+        sim_label = filenames[i].split('/')[-3]
+        kwargs = plot_kwargs[sim_label]
+
+        rb = sym_refine_box(ds,halo_center)
+        cooling_time = rb['cooling_time'].in_units('Myr')
+        cooling_time = np.log10(cooling_time)
+        plt.hist(cooling_time,normed=True,bins=100,alpha=0.3,range=(0,6),
+                 color=kwargs['color'],label=sim_label)
+    hubble_time = 13e9/1.e6
+    plt.axvline(hubble_time,ls='--',color='k')
+    plt.legend()
+    plt.xlabel('Cooling Time [log(Myr)]')
+    plt.savefig(fileout)
+    return
+
 ###################################################################################################
 
 filenames = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2/RD0042/RD0042',
