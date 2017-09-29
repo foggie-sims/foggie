@@ -10,6 +10,7 @@ import os
 from radial_data_nozeros import *
 import trident
 import cPickle
+from astropy.table import Table
 
 def fdbk_refine_box(ds,halo_center):
     box_center = np.copy(halo_center)
@@ -22,6 +23,17 @@ def fdbk_refine_box(ds,halo_center):
 
     refine_box = ds.r[box_left[0]:box_right[0], box_left[1]:box_right[1], box_left[2]:box_right[2]]
     return refine_box
+
+def sym_refine_box(ds,halo_center):
+    dx = ds.arr(20.,'kpc').in_units('code_length').value
+    dy = ds.arr(50.,'kpc').in_units('code_length').value
+    box_left  = [halo_center[0]-dx, halo_center[1]-dy, halo_center[2]-dx]
+    box_right = [halo_center[0]+dx, halo_center[1]+dy, halo_center[2]+dx]
+    refine_box = ds.r[box_left[0]:box_right[0],
+                      box_left[1]:box_right[1],
+                      box_left[2]:box_right[2]]
+    return refine_box
+
 
 def formed_star(pfilter, data):
     filter = data["all", "creation_time"] > 0
@@ -38,6 +50,8 @@ plot_kwargs = {
     'nref10_z1_0.5_natural_lowfdbk_2' : {'ls':'--','color':'#1b9e77'}, #,'marker':'*','markersize':'0.25'},
     'nref10_z1_0.5_natural_lowfdbk_3' : {'ls':'--','color':'#7570b3'}, #,'marker':'^','markersize':'0.25'},
     'nref10_z1_0.5_natural_lowfdbk_4' : {'ls':'--','color':'#e6ab02'}, #,'marker':'p','markersize':'0.25'}
+    'nref11f_sym50kpc' : {'ls':'-','color':'#d95f02'},
+    'nref10f_sym50kpc' : {'ls':'-','color':'#e7298a'}
 }
 
 ### utility functions ###
@@ -50,6 +64,17 @@ def get_halo_center(ds, center_guess):
     halo_center = [x[imax[0]], y[imax[0]], z[imax[0]]]
     #print 'We have located the main halo at :', halo_center
     return halo_center
+
+def initial_center_guess(ds,track_name):
+    track = Table.read(track_name, format='ascii')
+    track.sort('col1')
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    centerx = np.interp(zsnap, track['col1'], track['col2'])
+    centery = np.interp(zsnap, track['col1'], track['col3'])
+    centerz = 0.5 * ( np.interp(zsnap, track['col1'], track['col4']) +
+                      np.interp(zsnap, track['col1'], track['col7']))
+    center = [centerx, centery+20. / 143886., centerz]
+    return center
 
 def diskVectors(ds, center):
     sphere = ds.sphere(center,(5.,'kpc'))
@@ -118,19 +143,14 @@ def make_frbs(filename,center,fields,ions,fdbk=False):
     else:
         print 'in else'
         halo_center = get_halo_center(ds,center)
-        box_center = np.copy(halo_center)
-        dx = ds.arr(60.,'kpc').in_units('code_length').value
-        box_left  = [box_center[0]-dx, box_center[1]-dx, box_center[2]-dx]
-        box_right = [box_center[0]+dx, box_center[1]+dx, box_center[2]+dx]
-
-        refine_box = ds.r[box_left[0]:box_right[0], box_left[1]:box_right[1],box_left[2]:box_right[2]]
-        width = [(120,'kpc'),(120.,'kpc')]
-        resolution = (240,240)
+        refine_box = sym_refine_box(ds,halo_center)
+        width = [(40,'kpc'),(100.,'kpc')]
+        resolution = (80,200)
 
         for field in fields:
             fileout = args[-3]+'_'+args[-2]+'_x_'+field+'.cpkl'
             obj = ds.proj(field,'x',data_source=refine_box)
-            frb = obj.to_frb(width,resolution,center=box_center)
+            frb = obj.to_frb(width,resolution,center=halo_center)
             cPickle.dump(frb[field],open(fileout,'wb'),protocol=-1)
     return
 
@@ -146,6 +166,21 @@ def fdbk_coldens_profile(frb):
     mask[280-80:280+80,280-40:280+280] = True
 
     xL = np.linspace(-140,140,560)
+    xL,yL = np.meshgrid(xL,xL)
+    rp = radial_data(whole_box,working_mask=mask,x=xL,y=yL)
+    return rp
+
+def sym_coldens_profile(frb):
+    whole_box = np.zeros((200,200))
+    dx = 40 #20/0.5
+    dy = 100 #50/0.5
+
+    #frb = frb.T
+    whole_box[100-dx:100+dx,:] = np.log10(frb)
+    mask = np.zeros((200,200),dtype=bool)
+    mask[100-dx:100+dx,:] = True
+
+    xL = np.linspace(-50,50,200)
     xL,yL = np.meshgrid(xL,xL)
     rp = radial_data(whole_box,working_mask=mask,x=xL,y=yL)
     return rp
@@ -168,6 +203,56 @@ def get_evolultion_Lx(filenames,center_guess):
                 timesteps[i] = ds.current_redshift
 
     return
+
+class RadialDat:
+    """Empty object container.
+    """
+    def __init__(self):
+        self.q75 = None
+        self.q25 = None
+        self.mean = None
+        self.std = None
+        self.median = None
+        self.numel = None
+        self.max = None
+        self.min = None
+        self.r = None
+        self.fractionAbove = None
+        self.fractionAboveidx = None
+
+def spherical_radial_profile(r,y,dr,r_max=None):
+    if r_max is None:
+        r_max = r.max()
+    #dr = np.abs(r.max()-r.min()) * dr_width
+    radial = np.arange(r_max/dr)*dr + dr/2.
+    nrad = len(radial)
+    radialdata = RadialDat()
+    radialdata.q25 = np.zeros(nrad)
+    radialdata.q75 = np.zeros(nrad)
+    radialdata.mean = np.zeros(nrad)
+    radialdata.std = np.zeros(nrad)
+    radialdata.median = np.zeros(nrad)
+    radialdata.numel = np.zeros(nrad)
+    radialdata.max = np.zeros(nrad)
+    radialdata.min = np.zeros(nrad)
+    radialdata.r = radial
+    radialdata.fractionAboveidx = []
+    radialdata.fractionAbove = np.zeros(nrad)
+    for irad in range(nrad): #= 1:numel(radial)
+      minrad = irad*dr
+      maxrad = minrad + dr
+      thisindex = (r>=minrad) * (r<maxrad) #* working_mask
+      datanow = y[thisindex]
+      radialdata.q25[irad] = np.percentile(datanow,25)
+      radialdata.q75[irad] = np.percentile(datanow,75)
+      radialdata.mean[irad] = datanow.mean()
+      radialdata.std[irad]  = datanow.std()
+      radialdata.median[irad] = np.median(datanow)
+      radialdata.numel[irad] = datanow.size
+      radialdata.max[irad] = datanow.max()
+      radialdata.min[irad] = datanow.min()
+      radialdata.fractionAbove[irad] = (len(np.where(datanow > datanow.mean())[0])/float(len(datanow)))
+    return radialdata
 
 ### plotting functions ###
 def plot_SFHS(filenames,center,radius,pltname):
@@ -342,6 +427,45 @@ def plot_phase_diagrams(filenames,center,fileout):
 
     plt.savefig(fileout)
     return
+
+def plot_compare_basic_radial_profiles(filenames,fileout):
+    fig,ax = plt.subplots(1,3)
+    fig.set_size_inches(12,4)
+    for i in range(len(filenames)):
+        ds = yt.load(filenames[i])
+        track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+        center_guess = initial_center_guess(ds,track_name)
+        halo_center = get_halo_center(ds,center_guess)
+        rb = sym_refine_box(ds,halo_center)
+
+        dens = np.log10(rb['H_nuclei_density'])
+        temp = np.log10(rb['Temperature'])
+        Zgas = np.log10(rb['metallicity'])
+        y_dists = [dens,temp,Zgas]
+        x = rb['x']
+        y = rb['y']
+        z = rb['z']
+
+        halo_center = ds.arr(halo_center,'code_length')
+        dist = np.sqrt((halo_center[0]-rb['x'])**2.+(halo_center[1]-rb['y'])**2.+(halo_center[2]-rb['z'])**2.).in_units('kpc')
+
+        sim_label = filenames[i].split('/')[-3]
+        kwargs = plot_kwargs[sim_label]
+        for j in range(len(y_dists)):
+            rp = spherical_radial_profile(dist,y_dists[j],0.5)
+            ax[j].plot(rp.r,rp.median,label=sim_label,**kwargs)
+            ax[j].plot(rp.r,rp.q25,**kwargs)
+            ax[j].plot(rp.r,rp.q75,**kwargs)
+            ax[j].fill_between(rp.r,rp.q25,rp.q75,alpha=0.3,color=kwargs['color'])
+            ax[j].set_xlabel('Radius [kpc]')
+            #if j == (len(y_dists)-1)
+
+        ax[0].set_title('Hydrogen Number Density')
+        ax[1].set_title('Temperature')
+        ax[2].set_title('Metallicity')
+        ax[2].legend()
+        plt.savefig(fileout)
+    return
 ###################################################################################################
 
 filenames = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2/RD0042/RD0042',
@@ -366,18 +490,23 @@ filenames_ts = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2',
              '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_3',
              '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_4']
 
+filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165',
+             '/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165']
+
+plot_compare_basic_radial_profiles(filenames,'basic_dists_quartile_nref1011.pdf')
+
 #filenames = ['/Users/dalek/data/Jason/nref10_track_lowfdbk_1/RD0042/RD0042']
 #ds = yt.load(filenames[0])
 #center = [0.48988587,0.47121728,0.50938220]
 #halo_center = get_halo_center(ds,center)
-halo_center = np.array([0.48984, 0.47133, 0.50956])
+#halo_center = np.array([0.48984, 0.47133, 0.50956])
 
-plot_point_radialprofiles(filenames,halo_center,'Density','dens_pt_profile.png',plt_log=True)
-plot_point_radialprofiles(filenames,halo_center,'Temperature','temp_pt_profile.png',plt_log=True)
-plot_point_radialprofiles(filenames,halo_center,'metallicity','metal_pt_profile.png',plt_log=False)
+#plot_point_radialprofiles(filenames,halo_center,'Density','dens_pt_profile.png',plt_log=True)
+#plot_point_radialprofiles(filenames,halo_center,'Temperature','temp_pt_profile.png',plt_log=True)
+#plot_point_radialprofiles(filenames,halo_center,'metallicity','metal_pt_profile.png',plt_log=False)
 
-gas_masses, stellar_masses, timesteps = compute_disk_masses(filenames_ts)
-plot_disk_gas_masses(filenames,timesteps,gas_masses,'fdbk_diskgasmass.pdf')
+#gas_masses, stellar_masses, timesteps = compute_disk_masses(filenames_ts)
+#plot_disk_gas_masses(filenames,timesteps,gas_masses,'fdbk_diskgasmass.pdf')
 
 #plot_phase_diagrams(filenames,halo_center,'fdbk_phase.pdf')
 
