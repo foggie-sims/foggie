@@ -515,6 +515,46 @@ def plot_cell_mass_histogram(filenames,fileout):
     plt.savefig(fileout)
     return
 
+def plot_mass_in_phase(filenames,fileout):
+    total_masses,cold_masses,cool_masses,warm_masses,hot_masses = [],[],[],[],[]
+    tick_labels = []
+    for i in range(len(filenames)):
+        ds = yt.load(filenames[i])
+        track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+        center_guess = initial_center_guess(ds,track_name)
+        halo_center = get_halo_center(ds,center_guess)
+        sim_label = filenames[i].split('/')[-3]
+        kwargs = plot_kwargs[sim_label]
+        tick_labels = np.append(tick_labels,sim_label)
+
+        rb = sym_refine_box(ds,halo_center)
+        temp = np.log10(rb['Temperature'])
+        cold = np.where(temp < 4.)[0]
+        cool = np.where((temp >= 4.) & (temp < 5.))[0]
+        warm = np.where((temp >= 5.) & (temp < 6.))[0]
+        hot = np.where(temp >= 6.)[0]
+
+        total_masses = np.append(total_masses,np.log10(np.sum(rb['cell_mass'].in_units('Msun'))))
+        cold_masses = np.append(cold_masses,np.log10(np.sum(rb['cell_mass'][cold].in_units('Msun'))))
+        cool_masses = np.append(cool_masses,np.log10(np.sum(rb['cell_mass'][cool].in_units('Msun'))))
+        warm_masses = np.append(warm_masses,np.log10(np.sum(rb['cell_mass'][warm].in_units('Msun'))))
+        hot_masses = np.append(hot_masses,np.log10(np.sum(rb['cell_mass'][hot].in_units('Msun'))))
+
+    width = 0.35
+    ind = np.arange(len(filenames))
+    p1 = plt.bar(ind,cold_masses,width,color='salmon')
+    p2 = plt.bar(ind,cool_masses,width,color='purple')
+    p3 = plt.bar(ind,warm_masses,width,color='green')
+    p4 = plt.bar(ind,hot_masses,width,color='yellow')
+
+    plt.xlabel('Simulation')
+    plt.ylabel('Gas Mass in Each Phase [log(Msun)]')
+    plt.legend((p1[0],p2[0],p3[0],p4[0]),('Cold','Cool','Warm','Hot'))
+
+
+    plt.xticks(ind,tick_labels)
+    plt.savefig(fileout)
+    return
 ###################################################################################################
 
 filenames = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2/RD0042/RD0042',
@@ -542,7 +582,8 @@ filenames_ts = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2',
 filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165',
              '/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165']
 
-plot_cell_mass_histogram(filenames,'cell_mass_dist_nref1011.pdf')
+plot_mass_in_phase(filenames,'gas_mass_by_phase_nref1011.pdf')
+#plot_cell_mass_histogram(filenames,'cell_mass_dist_nref1011.pdf')
 #plot_compare_basic_radial_profiles(filenames,'basic_dists_quartile_nref1011.pdf')
 
 #filenames = ['/Users/dalek/data/Jason/nref10_track_lowfdbk_1/RD0042/RD0042']
