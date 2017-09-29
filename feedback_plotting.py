@@ -488,6 +488,33 @@ def plot_cooling_time_histogram(filenames,fileout):
     plt.savefig(fileout)
     return
 
+def plot_cell_mass_histogram(filenames,fileout):
+    for i in range(len(filenames)):
+        ds = yt.load(filenames[i])
+        track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+        center_guess = initial_center_guess(ds,track_name)
+        halo_center = get_halo_center(ds,center_guess)
+        sim_label = filenames[i].split('/')[-3]
+        kwargs = plot_kwargs[sim_label]
+
+        rb = sym_refine_box(ds,halo_center)
+        cell_mass = rb['cell_mass'].in_units('Msun')
+        cell_mass = np.log10(cell_mass)
+        plt.hist(cell_mass,normed=True,bins=100,alpha=0.3,range=(-2,6.5),
+                 color=kwargs['color'],label=sim_label)
+    #hubble_time = 13e9/1.e6
+    #plt.axvline(hubble_time,ls='--',color='k')
+    plt.axvline(np.log10(2.2e5),ls='--',color='k') ## EAGLE https://arxiv.org/abs/1709.07577
+    plt.text(np.log10(2.2e5),1.0,'EAGLE')
+    plt.axvline(np.log10(7.1e3),ls='--',color='k') ## FIRE https://arxiv.org/abs/1606.09252
+    plt.text(np.log10(7.1e3),1.0,'FIRE')
+    plt.axvline(np.log10(1e6),ls='--',color='k') ## IllustrisTNG https://arxiv.org/abs/1703.02970
+    plt.text(np.log10(1e6)-0.5,0.9,'IllustrisTNG')
+    plt.legend()
+    plt.xlabel('Cell Mass [log(Msun)]')
+    plt.savefig(fileout)
+    return
+
 ###################################################################################################
 
 filenames = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2/RD0042/RD0042',
@@ -515,7 +542,8 @@ filenames_ts = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2',
 filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165',
              '/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165']
 
-plot_compare_basic_radial_profiles(filenames,'basic_dists_quartile_nref1011.pdf')
+plot_cell_mass_histogram(filenames,'cell_mass_dist_nref1011.pdf')
+#plot_compare_basic_radial_profiles(filenames,'basic_dists_quartile_nref1011.pdf')
 
 #filenames = ['/Users/dalek/data/Jason/nref10_track_lowfdbk_1/RD0042/RD0042']
 #ds = yt.load(filenames[0])
