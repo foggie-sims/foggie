@@ -263,7 +263,7 @@ def spherical_radial_profile(r,y,dr,r_max=None):
 def gas_mass_phase_evolution(basename,DDnums):
     gas_mass = np.zeros((5,len(DDnums)))
     for i in range(len(DDnums)):
-        ds = yt.load(basename+('/DD'+DDnums[i])*2)
+        ds = yt.load(basename+('/DD00'+str(DDnums[i]))*2)
         track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
         center_guess = initial_center_guess(ds,track_name)
         halo_center = get_halo_center(ds,center_guess)
@@ -600,34 +600,53 @@ def plot_mass_in_phase(filenames,fileout):
     plt.xticks(ind,tick_labels)
     plt.savefig(fileout)
     return
+
+def plot_mass_in_phase_evolution(basename,DDnums,fileout):
+    gas_mass = gas_mass_phase_evolution(basename,DDnums)
+    colors = ['salmon','purple','green','yellow']
+    labels = ['cold','cool','warm','hot']
+    for i in len(range(DDnums)):
+        plt.plot(gas_mass[0,:],gas_mass[i,:],color=colors[i],label=labels[i])
+
+    #plt.plot()
+    plt.xrange(gas_mass[0,:].min(),gas_mass[0,:].max())
+    plt.xlabel('Redshift')
+    plt.ylabel('log(Gas Mass) [Msun]')
+    plt.savefig(fileout)
+    plt.close()
+    return
 ###################################################################################################
+basenames = ['/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/']
+DDnums = np.arange(27,43)
 
-filenames = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2/RD0042/RD0042',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_1/RD0042/RD0042',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_2/RD0042/RD0042',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_3/RD0042/RD0042',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_4/RD0042/RD0042',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural/RD0042/RD0042',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_1/RD0042/RD0042',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_2/RD0042/RD0042',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_3/RD0042/RD0042',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_4/RD0042/RD0042']
+plot_mass_in_phase_evolution(basename,DDnums,'nref10f_gas_phase_evol.pdf')
 
-filenames_ts = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_1',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_2',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_3',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_4',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_1',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_2',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_3',
-             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_4']
+#filenames = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2/RD0042/RD0042',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_1/RD0042/RD0042',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_2/RD0042/RD0042',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_3/RD0042/RD0042',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_4/RD0042/RD0042',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural/RD0042/RD0042',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_1/RD0042/RD0042',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_2/RD0042/RD0042',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_3/RD0042/RD0042',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_4/RD0042/RD0042']
 
-filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165',
-             '/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165']
+#filenames_ts = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_1',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_2',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_3',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_4',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_1',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_2',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_3',
+#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_4']
 
-check_cooling_criteria(filenames)
+#filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165',
+#         '/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165']
+
+#check_cooling_criteria(filenames)
 #plot_cooling_time_histogram(filenames,'cooltime_hist_nref1011_weightmass.pdf')
 #plot_mass_in_phase(filenames,'gas_mass_by_phase_nref1011.pdf')
 #plot_cell_mass_histogram(filenames,'cell_mass_dist_nref1011.pdf')
