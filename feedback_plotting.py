@@ -12,6 +12,12 @@ import trident
 import cPickle
 from astropy.table import Table
 
+def _cooling_criteria(field,data):
+    return -1*data['cooling_time'] / ((data['dx']/data['sound_speed']).in_units('s'))
+
+yt.add_field(("gas","cooling_criteria"),function=_cooling_criteria,units=None)
+
+
 def fdbk_refine_box(ds,halo_center):
     box_center = np.copy(halo_center)
     box_center[1] = box_center[1]+ds.arr(60.,'kpc').in_units('code_length').value
@@ -254,6 +260,28 @@ def spherical_radial_profile(r,y,dr,r_max=None):
       radialdata.fractionAbove[irad] = (len(np.where(datanow > datanow.mean())[0])/float(len(datanow)))
     return radialdata
 
+def gas_mass_phase_evolution(basename,DDnums):
+    gas_mass = np.zeros((5,len(DDnums)))
+    for i in range(len(DDnums)):
+        ds = yt.load(basename+('/DD'+DDnums[i])*2)
+        track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+        center_guess = initial_center_guess(ds,track_name)
+        halo_center = get_halo_center(ds,center_guess)
+        rb = sym_refine_box(ds,halo_center)
+
+        temp = np.log10(rb['Temperature'])
+        cold = np.where(temp < 4.)[0]
+        cool = np.where((temp >= 4.) & (temp < 5.))[0]
+        warm = np.where((temp >= 5.) & (temp < 6.))[0]
+        hot = np.where(temp >= 6.)[0]
+
+        gas_mass[0,i] = ds.CosmologyCurrentRedshift
+        gas[1,i] = np.log10(np.sum(rb['cell_mass'][cold].in_units('Msun')
+        gas[2,i] = np.log10(np.sum(rb['cell_mass'][cool].in_units('Msun')
+        gas[3,i] = np.log10(np.sum(rb['cell_mass'][warm].in_units('Msun')
+        gas[4,i] = np.log10(np.sum(rb['cell_mass'][hot].in_units('Msun')
+    return gas_mass
+
 ### plotting functions ###
 def plot_SFHS(filenames,center,radius,pltname):
     fig,ax = plt.subplots(6,1,sharex=True,sharey=True)
@@ -291,6 +319,22 @@ def confirm_halo_centers(filenames,center):
         sl.annotate_text(center,'c')
         sl.save(args)
     return
+
+def check_cooling_criteria(filenames):
+        for i in range(len(filenames)):
+            ds = yt.load(filenames[i])
+            args = filenames[i].split('/')[-3]
+            track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+            center_guess = initial_center_guess(ds,track_name)
+            halo_center = get_halo_center(ds,center_guess)
+            rb = sym_refine_box(ds,halo_center)
+            proj = yt.ProjectionPlot(ds,'x',('gas','cooling_criteria'),
+                                    center=halo_center,width=(100,'kpc'),
+                                    method='mip',data_source=rb)
+            proj.set_zlim(('gas','cooling_criteria'),0.001,1.)
+            #proj.annotate_text(center,'c')
+            proj.save(args+'_refinebox')
+        return
 
 def confirm_disks(filenames,center):
     for i in range(len(filenames)):
@@ -479,9 +523,10 @@ def plot_cooling_time_histogram(filenames,fileout):
         rb = sym_refine_box(ds,halo_center)
         cooling_time = rb['cooling_time'].in_units('Myr')
         cooling_time = np.log10(cooling_time)
+        cell_mass = np.log10(rb['cell_mass'].in_units('Msun'))
         plt.hist(cooling_time,normed=True,bins=100,alpha=0.3,range=(0,6),
-                 color=kwargs['color'],label=sim_label)
-    hubble_time = 13e9/1.e6
+                 color=kwargs['color'],label=sim_label,weights=cell_mass)
+    hubble_time = np.log10(13e9/1.e6)
     plt.axvline(hubble_time,ls='--',color='k')
     plt.legend()
     plt.xlabel('Cooling Time [log(Myr)]')
@@ -582,7 +627,9 @@ filenames_ts = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2',
 filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165',
              '/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165']
 
-plot_mass_in_phase(filenames,'gas_mass_by_phase_nref1011.pdf')
+check_cooling_criteria(filenames)
+#plot_cooling_time_histogram(filenames,'cooltime_hist_nref1011_weightmass.pdf')
+#plot_mass_in_phase(filenames,'gas_mass_by_phase_nref1011.pdf')
 #plot_cell_mass_histogram(filenames,'cell_mass_dist_nref1011.pdf')
 #plot_compare_basic_radial_profiles(filenames,'basic_dists_quartile_nref1011.pdf')
 
