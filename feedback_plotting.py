@@ -33,8 +33,8 @@ def fdbk_refine_box(ds,halo_center):
     return refine_box
 
 def sym_refine_box(ds,halo_center):
-    dx = ds.arr(20.,'kpc').in_units('code_length').value
-    dy = ds.arr(50.,'kpc').in_units('code_length').value
+    dx = ds.arr(20.,'kpccm/h').in_units('code_length').value
+    dy = ds.arr(50.,'kpccm/h').in_units('code_length').value
     box_left  = [halo_center[0]-dx, halo_center[1]-dy, halo_center[2]-dx]
     box_right = [halo_center[0]+dx, halo_center[1]+dy, halo_center[2]+dx]
     refine_box = ds.r[box_left[0]:box_right[0],
@@ -642,6 +642,7 @@ def plot_mass_in_phase_evolution(basename,RDnums,prefix,fileout):
 def plot_entropy_profile_evolution(basename,RDnums,fileout):
     n = len(RDnums)
     colors = pl.cm.viridis(np.linspace(0,1,n))
+    #fig,ax = plt.subplots(2,1)
     for i in range(len(RDnums)):
         ds = yt.load(basename+('/RD00'+str(RDnums[i]))*2)
         center_guess = initial_center_guess(ds,track_name)
@@ -650,12 +651,24 @@ def plot_entropy_profile_evolution(basename,RDnums,fileout):
         rp = yt.create_profile(rb,'radius',['entropy'],
                                 units = {'radius':'kpc'},logs = {'radius':False})
         zhere = "%.2f" % ds.current_redshift
-        plt.plot(rp.x.value,np.log10(rp['entropy'].value),color=colors[i],lw=2.0,label=zhere)
 
+        plt.figure(1)
+        plt.plot(rp.x.value,rp['entropy'].value,color=colors[i],lw=2.0,label=zhere)
+        plt.figure(2)
+        plt.plot(rp.x.value,np.log10(rp['total_energy'].value),color=colors[i],lw=2.0,label=zhere)
+
+    plt.figure(1)
     plt.legend()
     plt.xlabel('Radius [kpc]')
-    plt.ylabel('log(Entropy)')
-    plt.savefig(fileout)
+    plt.ylabel('Entropy')
+    plt.savefig(fileout+'_entropy.pdf')
+
+    plt.figure(2)
+    plt.legend()
+    plt.xlabel('Radius [kpc]')
+    plt.ylabel('Energy')
+    plt.savefig(fileout+'_energy.pdf')
+
     plt.close()
 
     return
@@ -665,6 +678,8 @@ DDnums = np.arange(27,43)
 DDnums = np.arange(55,218)
 
 plot_mass_in_phase_evolution(basenames,DDnums,'DD','nref10f_gas_phase_evol.pdf')
+
+plot_entropy_profile_evolution(basename,DDnums,'nref10f_profile')
 
 #filenames = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2/RD0042/RD0042',
 #             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_1/RD0042/RD0042',
