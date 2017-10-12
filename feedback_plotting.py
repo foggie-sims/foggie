@@ -4,6 +4,7 @@ matplotlib.use('Agg')
 import yt
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.pylab as pl
 from yt.analysis_modules.star_analysis.api import StarFormationRate
 from yt.data_objects.particle_filters import add_particle_filter
 import os
@@ -261,10 +262,14 @@ def spherical_radial_profile(r,y,dr,r_max=None):
       radialdata.fractionAbove[irad] = (len(np.where(datanow > datanow.mean())[0])/float(len(datanow)))
     return radialdata
 
-def gas_mass_phase_evolution(basename,RDnums):
+def gas_mass_phase_evolution(basename,RDnums,prefix):
     gas_mass = np.zeros((5,len(RDnums)))
     for i in range(len(RDnums)):
-        ds = yt.load(basename+('/RD00'+str(RDnums[i]))*2)
+        if RDnums[i] < 100:
+            zero = '00'
+        else:
+            zero = '0'
+        ds = yt.load(basename+('/'+prefix+zero+str(RDnums[i]))*2)
         #track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
 
         center_guess = initial_center_guess(ds,track_name)
@@ -603,42 +608,63 @@ def plot_mass_in_phase(filenames,fileout):
     plt.savefig(fileout)
     return
 
-def plot_mass_in_phase_evolution(basename,RDnums,fileout):
-    gas_mass = gas_mass_phase_evolution(basename,RDnums)
+def plot_mass_in_phase_evolution(basename,RDnums,prefix,fileout):
+    gas_mass = gas_mass_phase_evolution(basename,RDnums,prefix)
     colors = ['salmon','purple','green','yellow']
     labels = ['cold','cool','warm','hot']
-    fig, axes = plt.subplots(nrows=2, ncols=1, sharex='col', sharey=True,
+    fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, sharey=False,
                                    gridspec_kw={'height_ratios': [3, 1]},
-                                   figsize=(4, 7))
-
+                                   figsize=(7, 5))
     for i in range(4):
         print i
         ax[0].plot(gas_mass[0,:],gas_mass[i+1,:],color=colors[i],label=labels[i])
 
-    #plt.plot()
-    ds = yt.load(basename+('/RD00'+str(RDnums[-1]))*2)
-    #track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+    ds = yt.load(basename+('/'+prefix+'0'+str(RDnums[-1]))*2)
     center_guess = initial_center_guess(ds,track_name)
     halo_center = get_halo_center(ds,center_guess)
-    sp = ds.sphere(center,(50.,'kpc'))
+    sp = ds.sphere(halo_center,(50.,'kpc'))
     sfr = StarFormationRate(ds, data_source=sp)
     ax[1].plot(sfr.redshift,sfr.Msol_yr,'k')
 
     ax[0].set_xlim(gas_mass[0,:].max(),gas_mass[0,:].min())
     ax[1].set_xlabel('Redshift')
-    ax[0].ylabel('log(Gas Mass) [Msun]')
-    ax[1].set_ylabel('Star Formation Rate [Msun/yr]')
+    ax[0].set_ylabel('log(Gas Mass) [Msun]')
+    ax[1].set_ylabel('SFR [Msun/yr]')
+    ax[0].legend()
+    ax[0].set_ylim(6,11)
+    ax[1].set_ylim(0,8)
 
-    plt.legend()
     plt.tight_layout()
     plt.savefig(fileout)
     plt.close()
     return
-###################################################################################################
-basenames = '/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref11f_50kpc'
-DDnums = np.arange(27,43)
 
-plot_mass_in_phase_evolution(basenames,DDnums,'nref10f_gas_phase_evol.pdf')
+def plot_entropy_profile_evolution(basename,RDnums,fileout):
+    n = len(RDnums)
+    colors = pl.cm.viridis(np.linspace(0,1,n))
+    for i in range(len(RDnums)):
+        ds = yt.load(basename+('/RD00'+str(RDnums[i]))*2)
+        center_guess = initial_center_guess(ds,track_name)
+        halo_center = get_halo_center(ds,center_guess)
+        rb = sym_refine_box(ds,halo_center)
+        rp = yt.create_profile(rb,'radius',['entropy'],
+                                units = {'radius':'kpc'},logs = {'radius':False})
+        zhere = "%.2f" % ds.current_redshift
+        plt.plot(rp.x.value,np.log10(rp['entropy'].value),color=colors[i],lw=2.0,label=zhere)
+
+    plt.legend()
+    plt.xlabel('Radius [kpc]')
+    plt.ylabel('log(Entropy)')
+    plt.savefig(fileout)
+    plt.close()
+
+    return
+###################################################################################################
+basenames = '/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc'
+DDnums = np.arange(27,43)
+DDnums = np.arange(55,218)
+
+plot_mass_in_phase_evolution(basenames,DDnums,'DD','nref10f_gas_phase_evol.pdf')
 
 #filenames = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2/RD0042/RD0042',
 #             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_1/RD0042/RD0042',
