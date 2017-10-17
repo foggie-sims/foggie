@@ -444,7 +444,7 @@ def plot_disk_gas_masses(filenames,timesteps,gas_masses,fileout):
     plt.savefig(fileout)
     return
 
-def plot_phase_diagrams(filenames,center,fileout):
+def plot_phase_diagrams(filenames,fileout):
     fig,ax = plt.subplots(2,5,sharex=True,sharey=True)
     ax = ax.flatten()
     fig.set_size_inches(14,8)
@@ -452,8 +452,9 @@ def plot_phase_diagrams(filenames,center,fileout):
     fig.subplots_adjust(right=0.8)
     for i in range(len(filenames)):
         ds = yt.load(filenames[i])
-        halo_center = get_halo_center(ds,center)
-        refine_box = fdbk_refine_box(ds,halo_center)
+        center_guess = initial_center_guess(ds,track_name)
+        halo_center = get_halo_center(ds,center_guess)
+        refine_box = sym_refine_box(ds,halo_center)
         cellmass = refine_box['cell_mass'].in_units('Msun')
         H, xedges, yedges = np.histogram2d(np.log10(refine_box[('gas','H_nuclei_density')]),
                                            np.log10(refine_box['Temperature']),
@@ -718,8 +719,10 @@ def plot_entropy_profile_evolution(basename,RDnums,fileout):
 ## for nref10 natural
 #DDnums= DDnums[(DDnums != 36) & (DDnums !=37)]
 
-#filenames = ['/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/RD0042/RD0042',
-#             '/astro/simulations/FOGGIE/halo_008508/natural/nref10/RD0042/RD0042']
+filenames = ['/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/RD0042/RD0042',
+             '/astro/simulations/FOGGIE/halo_008508/natural/nref10/RD0042/RD0042']
+
+plot_phase_diagrams(filenames,'nref10_fn_RD0042_phase.pdf')
 
 #plot_cooling_length_histogram(filenames,'nref10_fn_cooling_length_weight.pdf')
 
@@ -749,10 +752,11 @@ def plot_entropy_profile_evolution(basename,RDnums,fileout):
 #             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_3',
 #             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_4']
 
-filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165',
-         '/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165']
+#filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165',
+#         '/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165']
 
-plot_cooling_length_histogram(filenames,'cooling_length_test.pdf')
+
+#plot_cooling_length_histogram(filenames,'cooling_length_test.pdf')
 
 
 #check_cooling_criteria(filenames)
