@@ -18,7 +18,7 @@ track_name = '/astro/simulations/FOGGIE/halo_008508/complete_track_symmetric_50k
 def _cooling_criteria(field,data):
     return -1*data['cooling_time'] / ((data['dx']/data['sound_speed']).in_units('s'))
 
-yt.add_field(("gas","cooling_criteria"),function=_cooling_criteria,units=None)
+#yt.add_field(("gas","cooling_criteria"),function=_cooling_criteria,units=None)
 
 def fdbk_refine_box(ds,halo_center):
     box_center = np.copy(halo_center)
@@ -59,7 +59,8 @@ plot_kwargs = {
     'nref10_z1_0.5_natural_lowfdbk_3' : {'ls':'--','color':'#7570b3'}, #,'marker':'^','markersize':'0.25'},
     'nref10_z1_0.5_natural_lowfdbk_4' : {'ls':'--','color':'#e6ab02'}, #,'marker':'p','markersize':'0.25'}
     'nref11f_sym50kpc' : {'ls':'-','color':'#d95f02'},
-    'nref10f_sym50kpc' : {'ls':'-','color':'#e7298a'}
+    'nref10f_sym50kpc' : {'ls':'-','color':'#e7298a'},
+    'nref10' : {'ls':'--','color':'#7570b3'}
 }
 
 ### utility functions ###
@@ -74,6 +75,7 @@ def get_halo_center(ds, center_guess):
     return halo_center
 
 def initial_center_guess(ds,track_name):
+    print track_name
     track = Table.read(track_name, format='ascii')
     track.sort('col1')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
@@ -530,13 +532,38 @@ def plot_cooling_time_histogram(filenames,fileout):
         rb = sym_refine_box(ds,halo_center)
         cooling_time = rb['cooling_time'].in_units('Myr')
         cooling_time = np.log10(cooling_time)
-        cell_mass = np.log10(rb['cell_mass'].in_units('Msun'))
+        cell_mass = rb['cell_mass'].in_units('Msun')
         plt.hist(cooling_time,normed=True,bins=100,alpha=0.3,range=(0,6),
                  color=kwargs['color'],label=sim_label,weights=cell_mass)
     hubble_time = np.log10(13e9/1.e6)
     plt.axvline(hubble_time,ls='--',color='k')
     plt.legend()
     plt.xlabel('Cooling Time [log(Myr)]')
+    plt.savefig(fileout)
+    return
+
+def plot_cooling_length_histogram(filenames,fileout):
+    for i in range(len(filenames)):
+        ds = yt.load(filenames[i])
+        #track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+        center_guess = initial_center_guess(ds,track_name)
+        halo_center = get_halo_center(ds,center_guess)
+        sim_label = filenames[i].split('/')[-3]
+        kwargs = plot_kwargs[sim_label]
+
+        rb = sym_refine_box(ds,halo_center)
+        cooling_length = rb['cooling_time']*rb['sound_speed']
+        cooling_length = np.log10(cooling_length.in_units('kpc'))
+        cell_mass = rb['cell_mass'].in_units('Msun')
+        plt.hist(cooling_length,normed=True,bins=100,alpha=0.3,range=(-6,4),
+                 color=kwargs['color'],label=sim_label,weights=cell_mass)
+    #line for nref11
+    #plt.axvline(np.log10(0.176622518811),ls='--',color='k')
+    #line for nref10
+    plt.axvline(np.log10(0.353245037622),ls='--',color='k')
+
+    plt.legend()
+    plt.xlabel('Cooling Length [log(kpc)]')
     plt.savefig(fileout)
     return
 
@@ -618,8 +645,9 @@ def plot_mass_in_phase_evolution(basename,RDnums,prefix,fileout):
     for i in range(4):
         print i
         ax[0].plot(gas_mass[0,:],gas_mass[i+1,:],color=colors[i],label=labels[i])
-
-    ds = yt.load(basename+('/'+prefix+'0'+str(RDnums[-1]))*2)
+    zero = '00'
+    if RDnums[-1] > 100 : zero='0'
+    ds = yt.load(basename+('/'+prefix+zero+str(RDnums[-1]))*2)
     center_guess = initial_center_guess(ds,track_name)
     halo_center = get_halo_center(ds,center_guess)
     sp = ds.sphere(halo_center,(50.,'kpc'))
@@ -648,12 +676,13 @@ def plot_entropy_profile_evolution(basename,RDnums,fileout):
         center_guess = initial_center_guess(ds,track_name)
         halo_center = get_halo_center(ds,center_guess)
         rb = sym_refine_box(ds,halo_center)
-        rp = yt.create_profile(rb,'radius',['entropy'],
+        rp = yt.create_profile(rb,'radius',['entropy','total_energy'],
                                 units = {'radius':'kpc'},logs = {'radius':False})
         zhere = "%.2f" % ds.current_redshift
 
         plt.figure(1)
         plt.plot(rp.x.value,rp['entropy'].value,color=colors[i],lw=2.0,label=zhere)
+        plt.xlim(0,200)
         plt.figure(2)
         plt.plot(rp.x.value,np.log10(rp['total_energy'].value),color=colors[i],lw=2.0,label=zhere)
 
@@ -673,13 +702,21 @@ def plot_entropy_profile_evolution(basename,RDnums,fileout):
 
     return
 ###################################################################################################
-basenames = '/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc'
-DDnums = np.arange(27,43)
-DDnums = np.arange(55,218)
+#basename = '/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc'
+#basename = '/astro/simulations/FOGGIE/halo_008508/natural/nref10'
+#DDnums = np.arange(28,43)
+#DDnums = np.arange(55,218)
+## for nref10 natural
+#DDnums= DDnums[(DDnums != 36) & (DDnums !=37)]
 
-plot_mass_in_phase_evolution(basenames,DDnums,'DD','nref10f_gas_phase_evol.pdf')
+filenames = ['/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc',
+             '/astro/simulations/FOGGIE/halo_008508/natural/nref10/RD0042/RD0042']
 
-plot_entropy_profile_evolution(basename,DDnums,'nref10f_profile')
+plot_cooling_length_histogram(filenames,'nref10_fn_cooling_length_weight.pdf')
+
+
+#plot_mass_in_phase_evolution(basename,DDnums,'DD','nref10f_gas_phase_evol.pdf')
+#plot_entropy_profile_evolution(basename,DDnums,'nref10f_profile')
 
 #filenames = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2/RD0042/RD0042',
 #             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_1/RD0042/RD0042',
