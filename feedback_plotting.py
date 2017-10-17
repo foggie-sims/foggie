@@ -60,7 +60,9 @@ plot_kwargs = {
     'nref10_z1_0.5_natural_lowfdbk_4' : {'ls':'--','color':'#e6ab02'}, #,'marker':'p','markersize':'0.25'}
     'nref11f_sym50kpc' : {'ls':'-','color':'#d95f02'},
     'nref10f_sym50kpc' : {'ls':'-','color':'#e7298a'},
-    'nref10' : {'ls':'--','color':'#7570b3'}
+    'nref10' : {'ls':'--','color':'#7570b3'},
+    'nref11f_50kpc' : {'ls':'-','color':'#d95f02'},
+    'nref10f_50kpc' : {'ls':'-','color':'#e7298a'}
 }
 
 ### utility functions ###
@@ -543,6 +545,8 @@ def plot_cooling_time_histogram(filenames,fileout):
     return
 
 def plot_cooling_length_histogram(filenames,fileout):
+    fig,ax = plt.subplots(1,2,sharey=True)
+    fig.set_size_inches(10,5)
     for i in range(len(filenames)):
         ds = yt.load(filenames[i])
         #track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
@@ -555,15 +559,20 @@ def plot_cooling_length_histogram(filenames,fileout):
         cooling_length = rb['cooling_time']*rb['sound_speed']
         cooling_length = np.log10(cooling_length.in_units('kpc'))
         cell_mass = rb['cell_mass'].in_units('Msun')
-        plt.hist(cooling_length,normed=True,bins=100,alpha=0.3,range=(-6,4),
+        ax[0].hist(cooling_length,normed=True,bins=100,alpha=0.3,range=(-6,4),
                  color=kwargs['color'],label=sim_label,weights=cell_mass)
+
+        idx = np.where(rb['H_nuclei_density'] < 0.1)[0]
+        ax[1].hist(cooling_length[idx],normed=True,bins=100,alpha=0.3,range=(-6,4),
+                 color=kwargs['color'],label=sim_label,weights=cell_mass[idx])
     #line for nref11
     #plt.axvline(np.log10(0.176622518811),ls='--',color='k')
     #line for nref10
-    plt.axvline(np.log10(0.353245037622),ls='--',color='k')
+    ax[0].axvline(np.log10(0.353245037622),ls='--',color='k')
+    ax[1].axvline(np.log10(0.353245037622),ls='--',color='k')
 
-    plt.legend()
-    plt.xlabel('Cooling Length [log(kpc)]')
+    ax[1].legend()
+    fig.text(0.5, 0.04, 'Cooling Length [log(kpc)]', ha='center')
     plt.savefig(fileout)
     return
 
@@ -709,10 +718,10 @@ def plot_entropy_profile_evolution(basename,RDnums,fileout):
 ## for nref10 natural
 #DDnums= DDnums[(DDnums != 36) & (DDnums !=37)]
 
-filenames = ['/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc',
-             '/astro/simulations/FOGGIE/halo_008508/natural/nref10/RD0042/RD0042']
+#filenames = ['/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/RD0042/RD0042',
+#             '/astro/simulations/FOGGIE/halo_008508/natural/nref10/RD0042/RD0042']
 
-plot_cooling_length_histogram(filenames,'nref10_fn_cooling_length_weight.pdf')
+#plot_cooling_length_histogram(filenames,'nref10_fn_cooling_length_weight.pdf')
 
 
 #plot_mass_in_phase_evolution(basename,DDnums,'DD','nref10f_gas_phase_evol.pdf')
@@ -740,8 +749,11 @@ plot_cooling_length_histogram(filenames,'nref10_fn_cooling_length_weight.pdf')
 #             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_3',
 #             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_4']
 
-#filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165',
-#         '/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165']
+filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165',
+         '/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165']
+
+plot_cooling_length_histogram(filenames,'cooling_length_test.pdf')
+
 
 #check_cooling_criteria(filenames)
 #plot_cooling_time_histogram(filenames,'cooltime_hist_nref1011_weightmass.pdf')
