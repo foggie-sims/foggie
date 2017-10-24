@@ -1,8 +1,8 @@
 import seaborn as sns
 
-default_width = 250.  # kpc in projection 
+default_width = 150.  # kpc in projection
 
-density_color_map = "RdBu"
+density_color_map = sns.blend_palette(("black","#984ea3","#d73027","darkorange","#ffe34d","#4daf4a","white"), n_colors=60, as_cmap=True)
 density_min = 1e-6
 density_max = 0.1
 
@@ -20,7 +20,7 @@ entropy_max = 1.e3
 
 h1_color_map = sns.blend_palette(("white","#ababab","#565656","black","#4575b4","#984ea3","#d73027","darkorange","#ffe34d"), as_cmap=True)
 h1_min = 1.e11
-h1_max = 1.e18
+h1_max = 1.e21
 
 o6_color_map = "algae"
 o6_min = 1.e11

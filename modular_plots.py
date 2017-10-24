@@ -11,8 +11,8 @@ import sys
 
 from consistency import *
 
-# foggie_dir = "/astro/simulations/FOGGIE/"
-foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
+foggie_dir = "/astro/simulations/FOGGIE/"
+# foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
 dropbox_dir = "/Users/molly/Dropbox/foggie-collab/"  ## outputs go here
 
 
@@ -236,7 +236,6 @@ def plot_script(halo, run, axis, **kwargs):
     ## default is do allll the snaps in the directory
     ## want to add flag for if just one
     run_dir = foggie_dir + 'halo_00' + str(halo) + '/' + run
-    os.chdir(run_dir)
     prefix = dropbox_dir + 'plots/halo_00' + str(halo) + '/' + run + '/'
     if not (os.path.exists(prefix)):
         os.system("mkdir " + prefix)
@@ -245,7 +244,7 @@ def plot_script(halo, run, axis, **kwargs):
 
     if outs == "all":
         print "looking for outputs in ", run_dir
-        outs = glob.glob(os.path.join(".", '?D0???/?D0???'))
+        outs = glob.glob(os.path.join(run_dir, 'DD0???/?D0???'))
 
     print "making plots for ", axis, " axis in ", outs
 
@@ -253,7 +252,7 @@ def plot_script(halo, run, axis, **kwargs):
         # load the snapshot
         print('opening snapshot '+ snap)
         ds = yt.load(snap)
-        trident.add_ion_fields(ds, ions=['C IV', 'O VI', 'H I', 'Si III'])
+        trident.add_ion_fields(ds, ions=['C IV', 'O VI', 'H I', 'Si II', 'C II', 'Si III'])
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
         def _msun_density(field, data):
@@ -262,12 +261,18 @@ def plot_script(halo, run, axis, **kwargs):
         ds.add_field(("gas","Msun_density"),function=_msun_density, units="Msun/pc**3")
 
         # interpolate the center from the track
-        centerx = np.interp(zsnap, track['col1'], track['col2'])
-        centery = np.interp(zsnap, track['col1'], track['col3'])
+        centerx = 0.5 * ( np.interp(zsnap, track['col1'], track['col2']) + np.interp(zsnap, track['col1'], track['col5']))
+        ### np.interp(zsnap, track['col1'], track['col2'])
+        centery = 0.5 * ( np.interp(zsnap, track['col1'], track['col3']) + np.interp(zsnap, track['col1'], track['col6']))
+        #### np.interp(zsnap, track['col1'], track['col3'])
         centerz = 0.5 * ( np.interp(zsnap, track['col1'], track['col4']) + np.interp(zsnap, track['col1'], track['col7']))
 
-        center = [centerx, centery+20. / 143886., centerz]
+        center = [centerx, centery, centerz]
         box = ds.r[ center[0]-wide/143886:center[0]+wide/143886, center[1]-wide/143886.:center[1]+wide/143886., center[2]-wide/143886.:center[2]+wide/143886.]
+
+        #### this was for the off-center box
+        # center = [centerx, centery+20. / 143886., centerz]
+        # box = ds.r[ center[0]-wide/143886:center[0]+wide/143886, center[1]-wide/143886.:center[1]+wide/143886., center[2]-wide/143886.:center[2]+wide/143886.]
 
         refine_box, refine_box_center = get_refine_box(ds, zsnap, track)
 
@@ -313,5 +318,5 @@ if __name__ == "__main__":
     if not args.clobber:
         print "NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY"
 
-    message = plot_script(args.halo, "nref11_refine200kpc_z4to2", "x")
+    message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
     sys.exit(message)

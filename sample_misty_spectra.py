@@ -72,15 +72,16 @@ def generate_random_rays(ds, halo_center, **kwargs):
                         "_ang"+"{:4.2f}".format(angles[i])
         out_ray_name = this_out_ray_basename + ".h5"
         out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])+"_v1_los.fits"
+                        "-a"+"{:4.2f}".format(angles[i])+"_v2_los.fits"
         rs, re = get_ray_endpoints(ds, halo_center, impact=impacts[i], angle=angles[i], axis=axis)
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         ray = ds.ray(rs, re)
         ray.save_as_dataset(out_ray_name)
+        out_tri_name = this_out_ray_basename + "_tri.h5"
         triray = trident.make_simple_ray(ds, start_position=rs.copy(),
                                   end_position=re.copy(),
-                                  data_filename=out_ray_name,
+                                  data_filename=out_tri_name,
                                   lines=line_list,
                                   ftype='gas')
 
@@ -90,7 +91,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
         print ray_start, ray_end, filespecout_base
 
         hdulist = MISTY.write_header(triray,start_pos=ray_start,end_pos=ray_end,
-                      lines=line_list, author=getpass.getuser())
+                      lines=line_list, impact=impacts[i], angle=angles[i])
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
 
         for line in line_list:
@@ -109,5 +110,6 @@ if __name__ == "__main__":
     ds = yt.load("/Users/molly/foggie/halo_008508/nref10/RD0042/RD0042")
     # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/nref10/RD0042/RD0042")
     halo_center =  [0.4898, 0.4714, 0.5096]
-    generate_random_rays(ds, halo_center, haloname="halo008508", Nrays=5)
+    generate_random_rays(ds, halo_center, haloname="halo008508", Nrays=100)
+    # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
