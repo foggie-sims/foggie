@@ -2,7 +2,7 @@
 #matplotlib.use('Agg')
 
 import holoviews as hv
-import holoviews.util 
+import holoviews.util
 #hv.extension('bokeh')
 
 
@@ -26,6 +26,8 @@ from holoviews.operation.datashader import aggregate, datashade, dynspread, shad
 from holoviews.operation import decimate
 from holoviews.operation import histogram
 
+from yt.units import kpc,km,s,cm
+
 ## Many of these functions were envisioned to enable the comparison
 ## of different simulation outputs. Using too many simulations at the same
 ## time will result in plots that are too busy.
@@ -39,6 +41,36 @@ def _cooling_criteria(field,data):
 
 # Add field to any ds that gets loaded
 yt.add_field(("gas","cooling_criteria"),function=_cooling_criteria,units=None)
+
+
+def _cyl_vflux(field,data):
+    """
+    Code from Melissa for computing the velocity flux in a cylinder with the
+    disk angular momentum vector as the normal vector.
+    (or whatever you set equal to L,Lx)
+
+    NOTE: L,Lx must be defined before calling this field!
+    """
+    # Define x, y, and z coordinates
+    x = data['x-velocity'].in_units('km/s')
+    y = data['y-velocity'].in_units('km/s')
+    z = data['z-velocity'].in_units('km/s')
+    # Take dot product of bulk velocity and angular momentum vector
+    #print bulk_v[0],L
+    bx = np.multiply(bulk_v[0],L[0])
+    by = np.multiply(bulk_v[1],L[1])
+    bz = np.multiply(bulk_v[2],L[2])
+    leng = bx+by+bz
+    # Take dot product of new velocity and angular momentum vector
+    nx = x-leng
+    ny = y-leng
+    nz = z-leng
+    Lxx = np.multiply(nx,L[0])
+    Ly = np.multiply(ny,L[1])
+    Lz = np.multiply(nz,L[2])
+    return Lxx+Ly+Lz
+
+#yt.add_field('velocity_flux',function=_cyl_vflux,units='km/s',display_name='Velocity Flux')
 
 
 def fdbk_refine_box(ds,halo_center):
@@ -189,11 +221,13 @@ def diskVectors(ds, center):
     <returned value> : tuple
         Tuple containing the angular momentum vector and perpendicular unit vector
     """
-    sphere = ds.sphere(center,(5.,'kpc'))
-    angular_momentum = sphere.quantities['AngularMomentumVector']()
-    x = np.cross(angular_momentum,[1.0,0.0,0.0])
+    sphere = ds.sphere(center,(12.,'kpc'))
+    l = sphere.quantities['AngularMomentumVector']()
+    l /= np.linalg.norm(l)
+    x = np.cross(l,[1.0,0.0,0.0])
     x /= np.linalg.norm(x)
-    return (angular_momentum,x)
+    l,x = np.array(l),np.array(x)
+    return (l,x)
 
 def compute_cell_distance(halo_center,x,y,z):
     """
@@ -541,6 +575,100 @@ def gas_mass_phase_evolution(basename,RDnums,prefix):
         gas_mass[3,i] = np.log10(np.sum(rb['cell_mass'][warm].in_units('Msun')))
         gas_mass[4,i] = np.log10(np.sum(rb['cell_mass'][hot].in_units('Msun')))
     return gas_mass
+
+def calculate_vflux_profile(cyl,lower,upper,step,weight=False,flow='all'):
+    """
+    Calculates the velocity profile for a given cylinder.
+
+    Parameters
+    ----------
+    cyl : yt disk data container
+        cylinder/disk data container for which the profile will be calculated
+
+    lower : float
+        Lower height bound for which to calculate the profile
+
+    upper : float
+        Upper height bound for which to calculate the profile
+
+    step : int/float
+        Step size between adjacent height bins
+
+    weight : boolean
+        if set to False, no weight. If set to True, weighted by cell mass
+
+    flow : string
+        Options: "all", "in", "out"
+        out = v > 0; in = v < 0; all = all Cells
+        NOTE: beware which sign you are choosing relative to the height
+        above or below the diskVectors
+
+    Returns
+    -------
+    results : dictionary
+        Dictionary containing the heights, median, mean, 25th, 75th, weighted profiles
+
+    """
+
+    # List of heights over which the calculations are performed
+    height_list = np.arange(lower,upper+2*step,step)*kpc
+    # Height of each element in the data cylinder
+    height = cyl['height'].in_units('kpc')
+
+    # Creates an output dictionary, which can or cannot include the weighted_profile
+    #     keyword, depending on the specified weight argument.
+    if weight == False:
+        results = {'height':height_list[:len(height_list)-1],'mean_flux_profile':[],'median_flux_profile':[],'lowperlist':[],'highperlist':[]}
+    elif weight == True:
+        results = {'height':height_list[:len(height_list)-1],'mean_flux_profile':[],'median_flux_profile':[],'lowperlist':[],'highperlist':[],'weighted_profile':[]}
+
+    # Differentiates outflows and inflows by comparing the sign of the velocity flux.
+    # It is important to note that you must reverse the 'out' and 'in' keywords when
+    #     looking below the disk of the galaxy, due to the fact that the signs will be
+    #     reversed.
+
+    # Inflows: v < 0 above the disk, v > 0 below the disk
+    # Outflows: v > 0 above the disk, v < 0 below the disk
+    if flow =='out':
+        f = cyl['velocity_flux'] > 0
+    elif flow == 'in':
+        f = cyl['velocity_flux'] < 0
+    elif flow == 'all':
+        f = cyl['velocity_flux']
+    else:
+        print "error: flow not specified"
+        return None
+
+    #Loops through list of heights over which calculations are performed
+    for i in range(len(height_list)-1):
+        # Selects the indices where elements fall within the height range
+        x = np.where((height > height_list[i])&
+                     (height < height_list[i+1]))
+
+        # Calculates the mean velocity flux within the specified height range
+        mean_flux = np.mean(cyl['velocity_flux'][x].in_units('km/s'))
+        results['mean_flux_profile'].append(mean_flux)
+
+        # Calculates the median velocity flux within the specified height range
+        median_flux = np.median(cyl['velocity_flux'][x].in_units('km/s'))
+        results['median_flux_profile'].append(median_flux)
+
+        if flow == 'all':
+            # Calculates the 25th percentile for the specified height range
+            lowper = np.percentile(cyl['velocity_flux'][x].in_units('km/s'),25)
+            results['lowperlist'].append(lowper)
+
+            # Calculates the 75th percentile for the specified height range
+            highper = np.percentile(cyl['velocity_flux'][x].in_units('km/s'),75)
+            results['highperlist'].append(highper)
+
+        # If the weight parameter was set to True, calculates the mass-weighted velocity flux in
+        #    the specified height range
+        if weight == True:
+            weighted_flux = np.sum(np.multiply(cyl['velocity_flux'][x],cyl['cell_mass'][x]))/np.sum(cyl['cell_mass'][x])
+            results['weighted_profile'].append(weighted_flux)
+    return results
+
 
 ##########################
 ##########################
@@ -1162,6 +1290,67 @@ def plot_field_profile_evolution(basename,RDnums,prefix,field,fileout,plt_log=Tr
     plt.close()
 
     return
+
+def plot_cylindrical_velocity_profiles(filenames,fileout,hlower,hupper,hstep):
+    """
+    Plot velocity profiles of hden, temperature, and metallicity showing the
+    median and shading between the 25th and 75th quartiles
+
+    NOTE: Accepts many file names but they'll all be shaded onto the same subplots.
+
+    Parameters
+    ----------
+
+    filenames : array
+        Filenames to be loaded as yt data sources.
+
+    fileout : string
+        Name of resulting plot
+
+    hlower : float
+        Lower height for the profiles
+
+    hupper : float
+        Upper height for the profiles
+
+    hstep : float
+        Step size for the profile
+
+    """
+    global bulk_v
+    global L
+    global Lx
+
+    for i in range(len(filenames)):
+        ds = yt.load(filenames[i])
+
+        center_guess = initial_center_guess(ds,builtins.track_name)
+        halo_center = get_halo_center(ds,center_guess)
+        (L,Lx) = diskVectors(ds,halo_center)
+        sp = ds.sphere(halo_center,(12.,'kpc'))
+        bulk_v = sp.quantities.bulk_velocity().in_units('km/s')
+        dx = float(ds.arr(20.,'kpccm/h').in_units('code_length').value)
+        dy = float(ds.arr(50.,'kpccm/h').in_units('code_length').value)
+        cyl = ds.disk(halo_center,L,(dx,'code_length'),(dy,'code_length'))
+
+        sim_label = filenames[i].split('/')[-3]
+        kwargs = plot_kwargs[sim_label]
+
+        ds.add_field('velocity_flux',function=_cyl_vflux,units='km/s',display_name='Velocity Flux')
+
+        results = calculate_vflux_profile(cyl,hlower,hupper,hstep,weight=False,flow='all')
+
+        plt.plot(results['height'],results['mean_flux_profile'],label=sim_label,**kwargs)
+        plt.fill_between(results['height'],results['lowperlist'],results['highperlist'],
+                         alpha=0.3,color=kwargs['color'])
+
+    plt.xlabel('Height [kpc]')
+    plt.ylabel('Velocity [km/s]')
+    plt.legend()
+    plt.savefig(fileout)
+    plt.close()
+    return
+
 ###################################################################################################
 #####################
 ## HOLOVIEWS PLOTS ##
@@ -1269,4 +1458,3 @@ def plot_holoviews_phase_diagrams(filenames,fileout):
         renderer = hv.renderer('bokeh').instance(fig='html')
         renderer.save(phase_plot, fileout)
     return
-
