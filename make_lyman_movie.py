@@ -12,11 +12,11 @@ mpl.rcParams['font.family'] = 'stixgeneral'
 mpl.rcParams['font.size'] = 6.
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from mpl_toolkits.axes_grid1 import AxesGrid
 import matplotlib.ticker as ticker
 
 from astropy.table import Table
 from astropy.io import fits
+from astropy.convolution import Gaussian1DKernel, convolve
 
 from modular_plots import get_refine_box
 from consistency import *
@@ -75,12 +75,12 @@ def extract_spectra(ds, impact, **kwargs):
 
 def make_movie():
     # load the simulation
-#     ds = yt.load("/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
-#     track_name = "/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-#     output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/nref11_refine200kpc_z4to2/spectra/"
-    ds = yt.load("/Users/molly/foggie/halo_008508/natural/nref11/RD0020/RD0020")
+    ds = yt.load("/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
     track_name = "/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-    output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/natural/nref11/spectra/"
+    output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/nref11_refine200kpc_z4to2/spectra/"
+    #ds = yt.load("/Users/molly/foggie/halo_008508/natural/nref11/RD0020/RD0020")
+    #track_name = "/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/halo_track"
+    #output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/natural/nref11/spectra/"
     os.chdir(output_dir)
     track = Table.read(track_name, format='ascii')
     track.sort('col1')
@@ -99,16 +99,20 @@ def make_movie():
 
 
     # slice will be repeated, so let's make it first
-    slc = yt.SlicePlot(ds,'z',('gas','density'),center=halo_center,width=x_width)
+    slc = yt.SlicePlot(ds,'z',('gas','metallicity'),center=halo_center,width=x_width)
     ## slc = ds.r[xmin:xmax, ymin:ymax, halo_center[2]]
     res = [1000,1000]
     # frb = slc.frb(x_width, res)
-    frb = slc.frb['gas','density']
+    frb = slc.frb['gas','metallicity']
     # image = np.array(frb['gas', 'density'])
     image = np.array(frb)
-    print "min, max density = ", np.min(np.log10(image)), np.max(np.log10(image))
+    print "min, max metallicity = ", np.min(np.log10(image)), np.max(np.log10(image))
     # extent = [float(x.in_units('code_length')) for x in (pro.xlim + pro.ylim)]
     extent = [xmin, xmax, ymin, ymax]
+
+    # spectral features
+    g = Gaussian1DKernel((7/0.0267)/2.355)  # HIRES v_fwhm = 7 km/s
+    snr = 30.
 
 
     # get a spectrum!
@@ -118,7 +122,7 @@ def make_movie():
     for impact in impacts:
         out_fits_name = "hlsp_misty_foggie_halo008508_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impact) + \
                     "_dx"+"{:4.2f}".format(0.)+"_v2_los.fits"
-        out_plot_name = "slice_with_spectra_halo008508_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impact) + \
+        out_plot_name = "metallicity_slice_with_lots_spectra_halo008508_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impact) + \
                     "_dx"+"{:4.2f}".format(0.)+".png"
         hdulist, ray_start, ray_end = extract_spectra(ds, impact, read_fits_file=True,
                                 out_fits_name=out_fits_name,
@@ -126,42 +130,66 @@ def make_movie():
         print "(impact/proper_box_size)/x_width = ", (impact/proper_box_size)/x_width
 
         # start by setting up plots
-        fig = plt.figure(figsize=(12,6), dpi=100)
+        fig = plt.figure(figsize=(16,6), dpi=100)
 
         # creates grid on which the figure will be plotted
-        gs = gridspec.GridSpec(3, 2)
+        gs = gridspec.GridSpec(6, 3,
+                               width_ratios=[0.05, 1, 1])
 
         ## this will be the slice
-        ax_slice = fig.add_subplot(gs[:,0])
-        cax = ax_slice.imshow(np.log10(image), extent=extent, cmap=density_color_map, \
-                                        vmin = -29.6, vmax=-23.5)
+        ax_slice = fig.add_subplot(gs[:,1])
+        slc = ax_slice.imshow(np.log10(image), extent=extent, cmap=metal_color_map, \
+                                        vmin =-4, vmax=0.3)
         ax_slice.plot([ray_start[0], ray_end[0]], [ray_start[1], ray_end[1]], color="white", lw=2.)
         ax_slice.set_aspect('equal')
         ax_slice.xaxis.set_major_locator(ticker.NullLocator())
         ax_slice.yaxis.set_major_locator(ticker.NullLocator())
-        cbar = fig.colorbar(cax, orientation='vertical', pad=0.01, shrink=0.8)
-        cbar.set_label(r'log density [cm$^{-3}$]')
-        ## print ray_start, ray_end, extent
+        # cbar = fig.colorbar(cax, ax=ax_cbar, orientation='vertical', pad=0.01, shrink=0.8)
+        ax_cbar = fig.add_subplot(gs[:,0])
+        cbar = fig.colorbar(slc, cax=ax_cbar, extend='both')
+        ax_cbar.yaxis.set_ticks_position('left')
+        ax_cbar.yaxis.set_label_position('left')
+        cbar.set_label(r'log metallicity', fontsize=16.)
 
         zmin, zmax = 1.998, 2.004
         ## these will be the spectra
-        ax_spec1 = fig.add_subplot(gs[0,1])
+        ax_spec1 = fig.add_subplot(gs[0,2])
         ax_spec1.plot(hdulist["H I 1216"].data['redshift'], hdulist["H I 1216"].data['flux'], color="#4575b4",lw=2)
         ax_spec1.text(zmin+0.0003, 0, "H I 1216", fontsize=12.)
         plt.xlim(zmin, zmax)
         plt.ylim(-0.05, 1.05)
 
         ## these will be the spectra
-        ax_spec2 = fig.add_subplot(gs[1,1])
-        ax_spec2.plot(hdulist["C IV 1548"].data['redshift'], hdulist["C IV 1548"].data['flux'], color="#4575b4",lw=2)
-        ax_spec2.text(zmin+0.0003, 0, "C IV 1548", fontsize=12.)
+        ax_spec2 = fig.add_subplot(gs[1,2])
+        ax_spec2.plot(hdulist["H I 973"].data['redshift'], hdulist["H I 973"].data['flux'], color="#4575b4",lw=2)
+        ax_spec2.text(zmin+0.0003, 0, "Ly c", fontsize=12.)
         plt.xlim(zmin, zmax)
         plt.ylim(-0.05, 1.05)
 
         ## these will be the spectra
-        ax_spec3 = fig.add_subplot(gs[2,1])
-        ax_spec3.plot(hdulist["O VI 1032"].data['redshift'], hdulist["O VI 1032"].data['flux'], color="#4575b4",lw=2)
-        ax_spec3.text(zmin+0.0003, 0, "O VI 1032", fontsize=12.)
+        ax_spec3 = fig.add_subplot(gs[2,2])
+        ax_spec3.plot(hdulist["H I 919"].data['redshift'], hdulist["H I 919"].data['flux'], color="#4575b4",lw=2)
+        ax_spec3.text(zmin+0.0003, 0, "Ly 10", fontsize=12.)
+        plt.xlim(zmin, zmax)
+        plt.ylim(-0.05, 1.05)
+
+        ax_spec4 = fig.add_subplot(gs[3,2])
+        ax_spec4.plot(hdulist["Si II 1260"].data['redshift'], hdulist["Si II 1260"].data['flux'], color="#4575b4",lw=2)
+        ax_spec4.text(zmin+0.0003, 0, "Si II 1260", fontsize=12.)
+        plt.xlim(zmin, zmax)
+        plt.ylim(-0.05, 1.05)
+
+        ## these will be the spectra
+        ax_spec5 = fig.add_subplot(gs[4,2])
+        ax_spec5.plot(hdulist["C IV 1548"].data['redshift'], hdulist["C IV 1548"].data['flux'], color="#4575b4",lw=2)
+        ax_spec5.text(zmin+0.0003, 0, "C IV 1548", fontsize=12.)
+        plt.xlim(zmin, zmax)
+        plt.ylim(-0.05, 1.05)
+
+        ## these will be the spectra
+        ax_spec6 = fig.add_subplot(gs[5,2])
+        ax_spec6.plot(hdulist["O VI 1032"].data['redshift'], hdulist["O VI 1032"].data['flux'], color="#4575b4",lw=2)
+        ax_spec6.text(zmin+0.0003, 0, "O VI 1032", fontsize=12.)
         plt.xlim(zmin, zmax)
         plt.ylim(-0.05, 1.05)
 
