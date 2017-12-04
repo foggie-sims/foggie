@@ -2,7 +2,7 @@
 #matplotlib.use('Agg')
 
 import holoviews as hv
-import holoviews.util 
+import holoviews.util
 #hv.extension('bokeh')
 
 
@@ -121,7 +121,8 @@ plot_kwargs = {
     'nref10' : {'ls':'--','color':'#e7298a'},
     'nref11f_50kpc' : {'ls':'-','color':'#d95f02'},
     'nref10f_50kpc' : {'ls':'-','color':'#e7298a'},
-    'nref11' : {'ls':'--','color':'#d95f02'}
+    'nref11' : {'ls':'--','color':'#d95f02'},
+    'nref11n_nref10f_refine200kpc_z4to2' : {'ls' : '-', 'color' :'#e7298a'}
 }
 
 ### utility functions ###
@@ -1269,4 +1270,3 @@ def plot_holoviews_phase_diagrams(filenames,fileout):
         renderer = hv.renderer('bokeh').instance(fig='html')
         renderer.save(phase_plot, fileout)
     return
-
