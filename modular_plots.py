@@ -21,6 +21,10 @@ mpl.rcParams['font.family'] = 'stixgeneral'
 foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
 output_dir = "/Users/molly/Dropbox/foggie-collab/"  ## outputs go here
 
+## lou
+# foggie_dir = "/u/mpeeples/"  ## where the simulations live
+# output_dir = "/u/mpeeples/plots/"  ## outputs go here
+
 
 def parse_args():
     '''
@@ -216,7 +220,7 @@ def make_entropy_plots(ds, prefix, **kwargs):
     for ax in axis:
         if not (os.path.exists(prefix + 'physical/' )):
             os.system("mkdir " + prefix + 'physical/')
-        p = yt.SlicePlot(ds, axis, 'entropy', center=center, data_source=box, width=(width, 'kpc'))
+        p = yt.SlicePlot(ds, ax, 'entropy', center=center, data_source=box, width=(width, 'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="entropy", cmap=entropy_color_map)
         p.set_zlim("entropy", entropy_min, entropy_max)
@@ -235,12 +239,16 @@ def make_hi_plots(ds, prefix, **kwargs):
     for ax in axis:
         if not (os.path.exists(prefix + 'ions/' )):
             os.system("mkdir " + prefix + 'ions/' )
-        p = yt.ProjectionPlot(ds, axis, 'H_p0_number_density', center=center, data_source=box, width=(width,'kpc'))
+        p = yt.ProjectionPlot(ds, ax, 'H_p0_number_density', center=center, data_source=box, width=(width,'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="H_p0_number_density", cmap=h1_color_map)
         p.set_zlim("H_p0_number_density",h1_min, h1_max)
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
+        p._setup_plots()
+        colorbar.set_ticks([1e13,1e15,1e17,1e19,1e21,1e23])
+        colorbar.set_ticklabels(['13','15','17','19','21','23'])
+        colorbar.ax.tick_params(labelsize=20)
         p.save(prefix + 'ions/' + ds.basename + '_HI' + appendix)
 
 def make_o6_plots(ds, prefix, **kwargs):
@@ -254,7 +262,7 @@ def make_o6_plots(ds, prefix, **kwargs):
     for ax in axis:
         if not (os.path.exists(prefix + 'ions/' )):
             os.system("mkdir " + prefix + 'ions/' )
-        p = yt.ProjectionPlot(ds, axis, 'O_p5_number_density', center=center, data_source=box, width=(width,'kpc'))
+        p = yt.ProjectionPlot(ds, ax, 'O_p5_number_density', center=center, data_source=box, width=(width,'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="O_p5_number_density", cmap=o6_color_map)
         p.set_zlim("O_p5_number_density", o6_min, o6_max)
@@ -273,7 +281,7 @@ def make_c4_plots(ds, prefix, **kwargs):
     for ax in axis:
         if not (os.path.exists(prefix + 'ions/' )):
             os.system("mkdir " + prefix + 'ions/' )
-        p = yt.ProjectionPlot(ds, axis, 'C_p3_number_density', center=center, data_source=box, width=(width,'kpc'))
+        p = yt.ProjectionPlot(ds, ax, 'C_p3_number_density', center=center, data_source=box, width=(width,'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="C_p3_number_density", cmap=c4_color_map)
         p.set_zlim("C_p3_number_density", c4_min, c4_max)
@@ -292,7 +300,7 @@ def make_si2_plots(ds, prefix, **kwargs):
     for ax in axis:
         if not (os.path.exists(prefix + 'ions/' )):
             os.system("mkdir " + prefix + 'ions/' )
-        p = yt.ProjectionPlot(ds, axis, 'Si_p1_number_density', center=center, data_source=box, width=(width,'kpc'))
+        p = yt.ProjectionPlot(ds, ax, 'Si_p1_number_density', center=center, data_source=box, width=(width,'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="Si_p1_number_density", cmap=c4_color_map)
         p.set_zlim("Si_p1_number_density", c4_min, c4_max)
@@ -311,7 +319,7 @@ def make_si3_plots(ds, prefix, **kwargs):
     for ax in axis:
         if not (os.path.exists(prefix + 'ions/' )):
             os.system("mkdir " + prefix + 'ions/' )
-        p = yt.ProjectionPlot(ds, axis, 'Si_p2_number_density', center=center, data_source=box, width=(width,'kpc'))
+        p = yt.ProjectionPlot(ds, ax, 'Si_p2_number_density', center=center, data_source=box, width=(width,'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="Si_p2_number_density", cmap=si3_color_map)
         p.set_zlim("Si_p2_number_density", si3_min, si3_max)
