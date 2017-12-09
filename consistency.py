@@ -1,16 +1,18 @@
 import seaborn as sns
 
-default_width = 150.  # kpc in projection
+default_width = 50.  # kpc in projection
 
 density_color_map = sns.blend_palette(("black","#984ea3","#d73027","darkorange","#ffe34d","#4daf4a","white"), n_colors=60, as_cmap=True)
-density_min = 1e-6
-density_max = 0.1
+density_proj_min = 5e-2  ## msun / pc^2
+density_proj_max = 1e4
+density_slc_min = 5e-7  ## msun / pc^3
+density_slc_max = 5
 
-metal_color_map = "rainbow"
+metal_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a","#ffe34d","darkorange"), as_cmap=True)
 metal_min = 1.e-4
 metal_max = 2.
 
-temperature_color_map = "rainbow"
+temperature_color_map = sns.blend_palette(("black","#d73027","darkorange","#ffe34d"), n_colors=50, as_cmap=True)
 temperature_min = 5.e6
 temperature_max = 1.e4
 
@@ -30,6 +32,10 @@ c4_color_map = "algae"
 c4_min = 1.e11
 c4_max = 1.e15
 
+si2_color_map = "algae"
+si2_min = 1.e10
+si2_max = 1.e15
+
 si3_color_map = "algae"
 si3_min = 1.e11
-si3_max = 1.e15
+si3_max = 1.e16
