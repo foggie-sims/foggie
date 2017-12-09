@@ -24,7 +24,7 @@ h1_color_map = sns.blend_palette(("white","#ababab","#565656","black","#4575b4",
 h1_min = 1.e11
 h1_max = 1.e21
 
-o6_color_map = "algae"
+o6_color_map = sns.blend_palette(("white","black","#4daf4a","#4575b4","#984ea3","#d73027","darkorange"), as_cmap=True)
 o6_min = 1.e11
 o6_max = 1.e15
 
@@ -34,7 +34,7 @@ c4_max = 1.e15
 
 si2_color_map = "algae"
 si2_min = 1.e10
-si2_max = 1.e15
+si2_max = 1.e16
 
 si3_color_map = "algae"
 si3_min = 1.e11
