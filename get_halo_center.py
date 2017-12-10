@@ -1,17 +1,16 @@
 import yt
-import numpy as np 
- 
-def get_halo_center(ds, center_guess): 
+import numpy as np
 
-    # returns a list of the halo center coordinates  
-    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc 
+def get_halo_center(ds, center_guess):
 
-    # now determine the location of the highest DM density, which should be the center of the main halo 
-    ad = ds.sphere(center_guess, (200., 'kpc')) # extract a sphere centered at the middle of the box 
-    x,y,z = np.array(ad["x"]), np.array(ad["y"]), np.array(ad["z"]) 
-    dm_density =  ad['Dark_Matter_Density'] 
-    imax = (np.where(dm_density > 0.9999 * np.max(dm_density)))[0] 
-    halo_center = [x[imax[0]], y[imax[0]], z[imax[0]]] 
-    print 'We have located the main halo at :', halo_center 
-    
+    # returns a list of the halo center coordinates
+
+    # now determine the location of the highest DM density, which should be the center of the main halo
+    ad = ds.sphere(center_guess, (200., 'kpc')) # extract a sphere centered at the middle of the box
+    x,y,z = np.array(ad["x"]), np.array(ad["y"]), np.array(ad["z"])
+    dm_density =  ad['Dark_Matter_Density']
+    imax = (np.where(dm_density > 0.9999 * np.max(dm_density)))[0]
+    halo_center = [x[imax[0]], y[imax[0]], z[imax[0]]]
+    print 'We have located the main halo at :', halo_center
+
     return halo_center
