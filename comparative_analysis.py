@@ -142,7 +142,6 @@ def get_halo_center(ds, center_guess):
     -------
     halo_center: array of final, calculated halo center
     """
-    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
     ad = ds.sphere(center_guess, (200., 'kpc'))
     x,y,z = np.array(ad["x"]), np.array(ad["y"]), np.array(ad["z"])
     dm_density =  ad['Dark_Matter_Density']
