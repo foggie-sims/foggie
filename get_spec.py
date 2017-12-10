@@ -3,10 +3,12 @@ import numpy as np
 import yt
 import analysis
 
+from get_proper_box_size import get_proper_box_size
+
 def get_spec(ds, halo_center, rho_ray):
 
-    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
-    line_list = ['H', 'O', 'C', 'N', 'Si'] 
+    proper_box_size = get_proper_box_size(ds)
+    line_list = ['H', 'O', 'C', 'N', 'Si']
 
     # big rectangle box
     ray_start = [halo_center[0]-250./proper_box_size, halo_center[1]+71./proper_box_size, halo_center[2]-71./proper_box_size]
