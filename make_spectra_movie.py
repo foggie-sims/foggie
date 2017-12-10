@@ -20,6 +20,7 @@ from astropy.io import fits
 
 from modular_plots import get_refine_box
 from get_proper_box_size import get_proper_box_size
+from get_halo_center import get_halo_center
 from consistency import *
 
 def extract_spectra(ds, impact, **kwargs):
@@ -76,28 +77,25 @@ def extract_spectra(ds, impact, **kwargs):
 
 def make_movie():
     # load the simulation
-    # ds = yt.load("/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
-    # track_name = "/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-    # output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/spectra/"
-    ds = yt.load("/Users/molly/foggie/halo_008508/natural/nref11/RD0020/RD0020")
-    track_name = "/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-    output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/nref11n/natural/spectra/"
+    # ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
+    #  track_name = "/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
+    # output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/spectra/"
+    ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/natural/RD0020/RD0020")
+    track_name = "/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
+    output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra"
     os.chdir(output_dir)
     track = Table.read(track_name, format='ascii')
     track.sort('col1')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-    # interpolate the center from the track
-    centerx = 0.5 * ( np.interp(zsnap, track['col1'], track['col2']) + np.interp(zsnap, track['col1'], track['col5']))
-    centery = 0.5 * ( np.interp(zsnap, track['col1'], track['col3']) + np.interp(zsnap, track['col1'], track['col6']))
-    centerz = 0.5 * ( np.interp(zsnap, track['col1'], track['col4']) + np.interp(zsnap, track['col1'], track['col7']))
-    halo_center = [centerx, centery, centerz]
-    xmin = np.interp(zsnap, track['col1'], track['col2'])
-    xmax = np.interp(zsnap, track['col1'], track['col5'])
-    ymin = np.interp(zsnap, track['col1'], track['col3'])
-    ymax = np.interp(zsnap, track['col1'], track['col6'])
-    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
-    x_width = np.abs((np.interp(zsnap, track['col1'], track['col2']) - np.interp(zsnap, track['col1'], track['col5'])))
+    proper_box_size = get_proper_box_size(ds)
+    refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
+    halo_center = get_halo_center(ds, refine_box_center)
 
+    # interpolate the center from the track
+    x_left = np.float(refine_box.left_edge[0].value)
+    x_right = np.float(refine_box.right_edge[0].value)
+    y_left = np.float(refine_box.left_edge[1].value)
+    y_right = np.float(refine_box.right_edge[1].value)
 
     # slice will be repeated, so let's make it first
     slc = yt.SlicePlot(ds,'z',('gas','density'),center=halo_center,width=x_width)
@@ -109,7 +107,7 @@ def make_movie():
     image = np.array(frb)
     print "min, max density = ", np.min(np.log10(image)), np.max(np.log10(image))
     # extent = [float(x.in_units('code_length')) for x in (pro.xlim + pro.ylim)]
-    extent = [xmin, xmax, ymin, ymax]
+    extent = [x_left, x_right, y_left, y_right]
 
 
     # get a spectrum!
@@ -123,7 +121,7 @@ def make_movie():
                     "_dx"+"{:4.2f}".format(0.)+".png"
         hdulist, ray_start, ray_end = extract_spectra(ds, impact, read_fits_file=False,
                                 out_fits_name=out_fits_name,
-                                xmin=xmin, xmax=xmax, halo_center=halo_center)
+                                xmin=x_left, xmax=x_right, halo_center=halo_center)
         print "(impact/proper_box_size)/x_width = ", (impact/proper_box_size)/x_width
 
         # start by setting up plots
