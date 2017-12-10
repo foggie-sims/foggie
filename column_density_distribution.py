@@ -35,7 +35,7 @@ def calc_cddf(**kwargs):
 
     proper_box_size = get_proper_box_size(forced_ds)
     forced_box, forced_c, width = get_refine_box(forced_ds, zsnap, track)
-    natural_box, natural_c = forced_box, forced_c
+    natural_box, natural_c, width = get_refine_box(natural_ds, zsnap, track)
     width = width * proper_box_size
 
     # forced_box = forced_ds.box([xmin, ymin, zmin], [xmax, ymax, zmax])
