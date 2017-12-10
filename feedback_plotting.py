@@ -13,6 +13,8 @@ import trident
 import cPickle
 from astropy.table import Table
 
+from get_halo_center import get_halo_center
+
 track_name = '/astro/simulations/FOGGIE/halo_008508/complete_track_symmetric_50kpc'
 
 def _cooling_criteria(field,data):
@@ -64,17 +66,6 @@ plot_kwargs = {
     'nref11f_50kpc' : {'ls':'-','color':'#d95f02'},
     'nref10f_50kpc' : {'ls':'-','color':'#e7298a'}
 }
-
-### utility functions ###
-def get_halo_center(ds, center_guess):
-    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
-    ad = ds.sphere(center_guess, (200., 'kpc'))
-    x,y,z = np.array(ad["x"]), np.array(ad["y"]), np.array(ad["z"])
-    dm_density =  ad['Dark_Matter_Density']
-    imax = (np.where(dm_density > 0.9999 * np.max(dm_density)))[0]
-    halo_center = [x[imax[0]], y[imax[0]], z[imax[0]]]
-    #print 'We have located the main halo at :', halo_center
-    return halo_center
 
 def initial_center_guess(ds,track_name):
     print track_name
