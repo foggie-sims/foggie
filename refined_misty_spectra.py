@@ -8,6 +8,7 @@ import os
 from astropy.table import Table
 
 from modular_plots import get_refine_box
+from get_proper_box_size import get_proper_box_size
 
 import getpass
 
@@ -20,7 +21,7 @@ def get_refined_ray_endpoints(ds, halo_center, track, **kwargs):
     '''
     impact = kwargs.get("impact", 25.)
     dx = kwargs.get("dx", 5.)
-    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
+    proper_box_size = get_proper_box_size(ds)
 
     ray_start = np.zeros(3)
     ray_end = np.zeros(3)
@@ -50,8 +51,8 @@ def generate_random_rays(ds, halo_center, **kwargs):
     line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973', 'H I 950', 'H I 919', 'Si II 1260', 'C II 1335', 'C III 977', 'Si III 1207','C IV 1548', 'O VI 1032'])
     # line_list = kwargs.get("line_list", ['Si II 1260','O VI 1032'])
 
-    x_width = np.abs((np.interp(zsnap, track['col1'], track['col2']) - np.interp(zsnap, track['col1'], track['col5'])))
-    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
+    proper_box_size = get_proper_box_size(ds)
+    refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     proper_x_width = x_width*proper_box_size
 
     ## for now, assume all are z-axis
@@ -120,14 +121,7 @@ if __name__ == "__main__":
     track = Table.read(track_name, format='ascii')
     track.sort('col1')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-    # interpolate the center from the track
-    centerx = 0.5 * ( np.interp(zsnap, track['col1'], track['col2']) + np.interp(zsnap, track['col1'], track['col5']))
-    ### np.interp(zsnap, track['col1'], track['col2'])
-    centery = 0.5 * ( np.interp(zsnap, track['col1'], track['col3']) + np.interp(zsnap, track['col1'], track['col6']))
-    #### np.interp(zsnap, track['col1'], track['col3'])
-    centerz = 0.5 * ( np.interp(zsnap, track['col1'], track['col4']) + np.interp(zsnap, track['col1'], track['col7']))
-
-    halo_center = [centerx, centery, centerz]
+    halo_center = get_halo_center(ds, zsnap, track)
 
     generate_random_rays(ds, halo_center, haloname="halo008508", track=track, output_dir=output_dir, Nrays=100)
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
