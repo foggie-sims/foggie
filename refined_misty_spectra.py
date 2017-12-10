@@ -121,7 +121,8 @@ if __name__ == "__main__":
     track = Table.read(track_name, format='ascii')
     track.sort('col1')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-    halo_center = get_halo_center(ds, zsnap, track)
+    refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
+    halo_center = get_halo_center(ds, refine_box_center)
 
     generate_random_rays(ds, halo_center, haloname="halo008508", track=track, output_dir=output_dir, Nrays=100)
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
