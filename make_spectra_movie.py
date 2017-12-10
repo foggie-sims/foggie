@@ -19,6 +19,7 @@ from astropy.table import Table
 from astropy.io import fits
 
 from modular_plots import get_refine_box
+from get_proper_box_size import get_proper_box_size
 from consistency import *
 
 def extract_spectra(ds, impact, **kwargs):
@@ -39,7 +40,7 @@ def extract_spectra(ds, impact, **kwargs):
                float(ray_end_str.split(",")[2])]
         return hdulist, ray_start, ray_end
     else:
-        proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
+        proper_box_size = get_proper_box_size(ds)
         # line_list = ['H I 1216', 'Ly b', 'Ly c', 'Ly d', 'Ly 10', 'Si II 1260', 'C IV 1548', 'O VI 1032']
         line_list = ['H I 1216', 'H I 1026', 'H I 973', 'H I 950', 'H I 919', 'Si II 1260', 'Si III 1207', 'C II 1335', 'C IV 1548', 'O VI 1032']
 
@@ -75,12 +76,12 @@ def extract_spectra(ds, impact, **kwargs):
 
 def make_movie():
     # load the simulation
-#     ds = yt.load("/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
-#     track_name = "/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-#     output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/nref11_refine200kpc_z4to2/spectra/"
+    # ds = yt.load("/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
+    # track_name = "/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/halo_track"
+    # output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/spectra/"
     ds = yt.load("/Users/molly/foggie/halo_008508/natural/nref11/RD0020/RD0020")
     track_name = "/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-    output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/natural/nref11/spectra/"
+    output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/nref11n/natural/spectra/"
     os.chdir(output_dir)
     track = Table.read(track_name, format='ascii')
     track.sort('col1')
@@ -120,7 +121,7 @@ def make_movie():
                     "_dx"+"{:4.2f}".format(0.)+"_v2_los.fits"
         out_plot_name = "slice_with_spectra_halo008508_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impact) + \
                     "_dx"+"{:4.2f}".format(0.)+".png"
-        hdulist, ray_start, ray_end = extract_spectra(ds, impact, read_fits_file=True,
+        hdulist, ray_start, ray_end = extract_spectra(ds, impact, read_fits_file=False,
                                 out_fits_name=out_fits_name,
                                 xmin=xmin, xmax=xmax, halo_center=halo_center)
         print "(impact/proper_box_size)/x_width = ", (impact/proper_box_size)/x_width
