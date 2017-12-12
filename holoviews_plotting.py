@@ -3,8 +3,8 @@ import holoviews.util
 hv.extension('bokeh')
 #hv.extension('matplotlib')
 
-from holoviews import Store
-import holoviews.plotting.mpl
+#from holoviews import Store
+#import holoviews.plotting.mpl
 
 import numpy as np
 import yt
@@ -22,6 +22,8 @@ from holoviews.operation import decimate
 from holoviews.operation import histogram
 
 track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/complete_track_symmetric_50kpc'
+#track_name = '/astro/simulations/FOGGIE/halo_008508/complete_track_symmetric_50kpc'
+
 
 def _cooling_criteria(field,data):
     return data['cooling_time'] / ((data['dx']/data['sound_speed']).in_units('s'))
@@ -140,10 +142,13 @@ def plot_phase_diagrams(filenames,fileout):
 #def plot_cooling_criteria(filenames,fileout):
 #    return
 
-filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165',
-             '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165']
-fileout = 'nref10_nf_basic_rp_props'
-fileout = 'nref10_phase_test'
+#filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165','/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165']
 
-#plot_radial_profiles(filenames,fileout)
-plot_phase_diagrams(filenames,fileout)
+filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/RD0042/RD0042',
+             '/Users/dalek/data/Jason/natural/nref11/RD0042/RD0042']
+#filenames10 = ['/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/RD0042/RD0042',
+#               '/astro/simulations/FOGGIE/halo_008508/natural/nref10/RD0042/RD0042']
+
+plot_radial_profiles(filenames,'nref11_fn_RD0042_basic')
+plot_phase_diagrams(filenames,'nref11_fn_RD0042_phase')
+

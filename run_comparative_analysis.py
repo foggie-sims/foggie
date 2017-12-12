@@ -34,7 +34,7 @@ for RD in RDs:
   #-----------------------------
   plot_phase_diagrams(filenames,file_out+'_phase.pdf')
   plot_cooling_time_histogram(filenames,file_out+'_cooltime_hist.pdf')
-  plot_cylindrical_velocity_profiles(filenames,file_out+'_velprof.pdf',-50,50,2)
+  plot_cylindrical_velocity_profiles(filenames,file_out+'_velprof.pdf',-50,50,0.5)
 
   if RD == RDs[-1]:
     #ONCE ON LATEST

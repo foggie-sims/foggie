@@ -129,6 +129,35 @@ def sym_refine_box(ds,halo_center):
     return refine_box
 
 
+def highz_refine_box(ds,halo_center):
+    """
+    Find the refinement box in the high-z symmetric resolution runs
+
+    Parameters
+    ----------
+
+    :ds: enzo dataoutput
+        Enzo data output to be analyzed
+
+    :halo_center: array
+        Location of halo center of interest in code units
+
+    Returns
+    -------
+    enzo region encompassing the must refine region
+    """
+
+    #dx = ds.arr(100.,'kpccm/h').in_units('code_length').value
+    #dy = ds.arr(100.,'kpccm/h').in_units('code_length').value
+    dx = ds.arr(76.29,'kpccm/h').in_units('code_length').value
+    dy = ds.arr(76.29,'kpccm/h').in_units('code_length').value
+    box_left  = [halo_center[0]-dx, halo_center[1]-dy, halo_center[2]-dx]
+    box_right = [halo_center[0]+dx, halo_center[1]+dy, halo_center[2]+dx]
+    refine_box = ds.r[box_left[0]:box_right[0],
+                      box_left[1]:box_right[1],
+                      box_left[2]:box_right[2]]
+    return refine_box
+
 def formed_star(pfilter, data):
     """
     yt filter for identifying star particles in a data region
@@ -181,6 +210,26 @@ def get_halo_center(ds, center_guess):
     halo_center = [x[imax[0]], y[imax[0]], z[imax[0]]]
     #print 'We have located the main halo at :', halo_center
     return halo_center
+
+
+def get_refine_box(ds, track_name):
+    track = Table.read(builtins.track_name, format='ascii')
+    track.sort('col1')
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    x_left = np.interp(zsnap, track['col1'], track['col2'])
+    y_left = np.interp(zsnap, track['col1'], track['col3'])
+    z_left = np.interp(zsnap, track['col1'], track['col4'])
+    x_right = np.interp(zsnap, track['col1'], track['col5'])
+    y_right = np.interp(zsnap, track['col1'], track['col6'])
+    z_right = np.interp(zsnap, track['col1'], track['col7'])
+
+    refine_box_center = [0.5*(x_left+x_right), 0.5*(y_left+y_right), 0.5*(z_left+z_right)]
+    refine_box = ds.r[x_left:x_right, y_left:y_right, z_left:z_right]
+
+    return refine_box, refine_box_center
+
+
 
 def initial_center_guess(ds,track_name):
     """
@@ -311,7 +360,7 @@ def compute_disk_masses(basenames,RDnums,prefix):
     #cPickle.dump(data,open('disk_mass_evol.cpkl','wb'),protocol=-1)
     return gas_masses,stellar_masses,timesteps
 
-def make_frbs(filename,fields,ions,asym=False):
+def make_frbs(filename,fields,ions,run_type=None):
     """
     Compute column densities for the given ions for the must refine regions
     in either the asymmetric or symmetric runs.
@@ -330,9 +379,9 @@ def make_frbs(filename,fields,ions,asym=False):
         Array of ion names to be passed to trident for the new coldens fields
         e.g. "O VI"
 
-    asym : boolean
-        Does the shape of the frb match the asymmetric or symmetric runs.
-        Default : false for symmetric
+    run_type: string
+        Give a string so corresponding to asym, sym, highz
+        Default : None - must be specified
 
     Returns
     -------
@@ -346,7 +395,7 @@ def make_frbs(filename,fields,ions,asym=False):
     center_guess = initial_center_guess(ds,builtins.track_name)
     halo_center = get_halo_center(ds,center_guess)
 
-    if asym == True:
+    if run_type == 'asym':
         #print 'in fdbk'
         refine_box = fdbk_refine_box(ds,halo_center)
         width = [(160,'kpc'),(80.,'kpc')]
@@ -356,7 +405,7 @@ def make_frbs(filename,fields,ions,asym=False):
             obj = ds.proj(field,axis,data_source=refine_box)
             frb = obj.to_frb(width,resolution,center=box_center)
             cPickle.dump(frb[field],open(fileout,'wb'),protocol=-1)
-    else:
+    if run_type == 'sym':
         #print 'in else'
         refine_box = sym_refine_box(ds,halo_center)
         width = [(40,'kpc'),(100.,'kpc')]
@@ -365,6 +414,17 @@ def make_frbs(filename,fields,ions,asym=False):
         for field in fields:
             fileout = args[-3]+'_'+args[-2]+'_x_'+field+'.cpkl'
             obj = ds.proj(field,axis,data_source=refine_box)
+            frb = obj.to_frb(width,resolution,center=halo_center)
+            cPickle.dump(frb[field],open(fileout,'wb'),protocol=-1)
+
+    if run_type == 'highz':
+        refine_box = highz_refine_box(ds,halo_center)
+        width = [(100,'kpccm/h'),(100.,'kpccm/h')]
+        resolution = (524,524)
+
+        for field in fields:
+            fileout = args[-3]+'_'+args[-2]+'_x_'+field+'.cpkl'
+            obj = ds.proj(field,'x',data_source=refine_box)
             frb = obj.to_frb(width,resolution,center=halo_center)
             cPickle.dump(frb[field],open(fileout,'wb'),protocol=-1)
     return
@@ -432,6 +492,28 @@ def sym_coldens_profile(frb):
     xL = np.linspace(-50,50,200)
     xL,yL = np.meshgrid(xL,xL)
     rp = radial_data(whole_box,working_mask=mask,x=xL,y=yL)
+    return rp
+
+def highz_coldens_profile(frb):
+    """
+    Plots radial profiles of the column densities made above.
+    NOTE: HARD CODED FOR THE SYMMETRIC RUNS
+
+    Parameters
+    ----------
+
+    frb : fixed resolution buffer array
+        Already loaded output of make_frbs - NOT THE filenames
+
+    Returns
+    -------
+
+    rp : radial profile object
+        Radial profile object with quantities stored
+    """
+    x = np.linspace(-36.59,36.41,524)
+    xL,yL = np.meshgrid(xL,xL)
+    rp = radial_data(np.log10(frb),x=xL,y=yL)
     return rp
 
 def get_evolultion_Lx(filenames,center_guess):
@@ -629,15 +711,8 @@ def calculate_vflux_profile(cyl,lower,upper,step,weight=False,flow='all'):
 
     # Inflows: v < 0 above the disk, v > 0 below the disk
     # Outflows: v > 0 above the disk, v < 0 below the disk
-    if flow =='out':
-        f = cyl['velocity_flux'] > 0
-    elif flow == 'in':
-        f = cyl['velocity_flux'] < 0
-    elif flow == 'all':
-        f = cyl['velocity_flux']
-    else:
-        print "error: flow not specified"
-        return None
+
+    # The loop checking the height position accounts for this.
 
     #Loops through list of heights over which calculations are performed
     for i in range(len(height_list)-1):
@@ -645,27 +720,39 @@ def calculate_vflux_profile(cyl,lower,upper,step,weight=False,flow='all'):
         x = np.where((height > height_list[i])&
                      (height < height_list[i+1]))
 
+        if flow != 'all':
+            above = (height_list[i+1] > 0)
+            if above:
+                if flow == 'in':
+                    idx = np.where(cyl['velocity_flux'][x] < 0)[0]
+                if flow == 'out':
+                    idx = np.where(cyl['velocity_flux'][x] > 0)[0]
+            else:
+                if flow == 'in':
+                    idx = np.where(cyl['velocity_flux'][x] < 0)[0]
+                if flow == 'out':
+                    idx = np.where(cyl['velocity_flux'][x] > 0)[0]
+        else:
+            idx = None
+
         # Calculates the mean velocity flux within the specified height range
-        mean_flux = np.mean(cyl['velocity_flux'][x].in_units('km/s'))
+        mean_flux = np.mean(np.absolute(cyl['velocity_flux'][x][idx].in_units('km/s')))
         results['mean_flux_profile'].append(mean_flux)
-
         # Calculates the median velocity flux within the specified height range
-        median_flux = np.median(cyl['velocity_flux'][x].in_units('km/s'))
+        median_flux = np.median(np.absolute(cyl['velocity_flux'][x][idx].in_units('km/s')))
         results['median_flux_profile'].append(median_flux)
-
-        if flow == 'all':
-            # Calculates the 25th percentile for the specified height range
-            lowper = np.percentile(cyl['velocity_flux'][x].in_units('km/s'),25)
-            results['lowperlist'].append(lowper)
-
-            # Calculates the 75th percentile for the specified height range
-            highper = np.percentile(cyl['velocity_flux'][x].in_units('km/s'),75)
-            results['highperlist'].append(highper)
+        # Calculates the 25th percentile for the specified height range
+        lowper = np.percentile(np.absolute(cyl['velocity_flux'][x][idx].in_units('km/s')),25)
+        results['lowperlist'].append(lowper)
+        # Calculates the 75th percentile for the specified height range
+        highper = np.percentile(np.absolute(cyl['velocity_flux'][x][idx].in_units('km/s')),75)
+        results['highperlist'].append(highper)
 
         # If the weight parameter was set to True, calculates the mass-weighted velocity flux in
         #    the specified height range
         if weight == True:
-            weighted_flux = np.sum(np.multiply(cyl['velocity_flux'][x],cyl['cell_mass'][x]))/np.sum(cyl['cell_mass'][x])
+            weighted_flux = np.sum(np.multiply(np.absolute(cyl['velocity_flux'][x][idx]),
+                                   cyl['cell_mass'][x][idx]))/np.sum(cyl['cell_mass'][x][idx])
             results['weighted_profile'].append(weighted_flux)
     return results
 
@@ -1321,7 +1408,16 @@ def plot_cylindrical_velocity_profiles(filenames,fileout,hlower,hupper,hstep):
     global L
     global Lx
 
+    numplots = len(filenames)/2
+    fig,ax = plt.subplots(2,numplots,sharex=True)#,sharey=True
+    fig.set_size_inches(len(filenames)/2*4.5,6)
+    ax = ax.flatten()
+
+
+    j = 0
     for i in range(len(filenames)):
+        if (i % 2 == 0) & (i != 0):
+            j = j + 1
         ds = yt.load(filenames[i])
 
         center_guess = initial_center_guess(ds,builtins.track_name)
@@ -1338,15 +1434,24 @@ def plot_cylindrical_velocity_profiles(filenames,fileout,hlower,hupper,hstep):
 
         ds.add_field('velocity_flux',function=_cyl_vflux,units='km/s',display_name='Velocity Flux')
 
-        results = calculate_vflux_profile(cyl,hlower,hupper,hstep,weight=False,flow='all')
-
-        plt.plot(results['height'],results['mean_flux_profile'],label=sim_label,**kwargs)
-        plt.fill_between(results['height'],results['lowperlist'],results['highperlist'],
+        print 'flow in'
+        results = calculate_vflux_profile(cyl,hlower,hupper,hstep,weight=False,flow='in')
+        ax[j].plot(results['height'],results['median_flux_profile'],label=sim_label,**kwargs)
+        ax[j].fill_between(results['height'],results['lowperlist'],results['highperlist'],
                          alpha=0.3,color=kwargs['color'])
 
-    plt.xlabel('Height [kpc]')
-    plt.ylabel('Velocity [km/s]')
-    plt.legend()
+        ax[j].legend()
+        print 'flow out'
+        results = calculate_vflux_profile(cyl,hlower,hupper,hstep,weight=False,flow='out')
+        #print results['mean_flux_profile'][0:10]
+        ax[j+numplots].plot(results['height'],results['median_flux_profile'],**kwargs)
+        ax[j+numplots].fill_between(results['height'],results['lowperlist'],results['highperlist'],
+                         alpha=0.3,color=kwargs['color'])
+
+        ax[j+numplots].set_xlabel('Height [kpc]')
+        ax[j+numplots].set_ylabel('Velocity [km/s]')
+
+
     plt.savefig(fileout)
     plt.close()
     return
