@@ -13,6 +13,8 @@ import trident
 import cPickle
 from astropy.table import Table
 
+from get_halo_center import get_halo_center
+
 track_name = '/astro/simulations/FOGGIE/halo_008508/complete_track_symmetric_50kpc'
 
 def _cooling_criteria(field,data):
