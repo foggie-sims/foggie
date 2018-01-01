@@ -20,7 +20,7 @@ track_name = '/astro/simulations/FOGGIE/halo_008508/complete_track_symmetric_50k
 def _cooling_criteria(field,data):
     return -1*data['cooling_time'] / ((data['dx']/data['sound_speed']).in_units('s'))
 
-#yt.add_field(("gas","cooling_criteria"),function=_cooling_criteria,units=None)
+yt.add_field(("gas","cooling_criteria"),function=_cooling_criteria,units=None)
 
 def fdbk_refine_box(ds,halo_center):
     box_center = np.copy(halo_center)
@@ -62,13 +62,24 @@ plot_kwargs = {
     'nref10_z1_0.5_natural_lowfdbk_4' : {'ls':'--','color':'#e6ab02'}, #,'marker':'p','markersize':'0.25'}
     'nref11f_sym50kpc' : {'ls':'-','color':'#d95f02'},
     'nref10f_sym50kpc' : {'ls':'-','color':'#e7298a'},
-    'nref10' : {'ls':'--','color':'#7570b3'},
+    'nref10' : {'ls':'--','color':'#e7298a'},
     'nref11f_50kpc' : {'ls':'-','color':'#d95f02'},
-    'nref10f_50kpc' : {'ls':'-','color':'#e7298a'}
+    'nref10f_50kpc' : {'ls':'-','color':'#e7298a'},
+    'nref11' : {'ls':'--','color':'#d95f02'}
 }
 
-def initial_center_guess(ds,track_name):
-    print track_name
+### utility functions ###
+def get_halo_center(ds, center_guess):
+    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
+    ad = ds.sphere(center_guess, (200., 'kpc'))
+    x,y,z = np.array(ad["x"]), np.array(ad["y"]), np.array(ad["z"])
+    dm_density =  ad['Dark_Matter_Density']
+    imax = (np.where(dm_density > 0.9999 * np.max(dm_density)))[0]
+    halo_center = [x[imax[0]], y[imax[0]], z[imax[0]]]
+    #print 'We have located the main halo at :', halo_center
+    return halo_center
+
+def initial_center_guess(ds):
     track = Table.read(track_name, format='ascii')
     track.sort('col1')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
@@ -265,7 +276,6 @@ def gas_mass_phase_evolution(basename,RDnums,prefix):
         else:
             zero = '0'
         ds = yt.load(basename+('/'+prefix+zero+str(RDnums[i]))*2)
-        #track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
 
         center_guess = initial_center_guess(ds,track_name)
         halo_center = get_halo_center(ds,center_guess)
@@ -284,8 +294,28 @@ def gas_mass_phase_evolution(basename,RDnums,prefix):
         gas_mass[4,i] = np.log10(np.sum(rb['cell_mass'][hot].in_units('Msun')))
     return gas_mass
 
-### plotting functions ###
-def plot_SFHS(filenames,center,radius,pltname):
+##########################
+##########################
+### PLOTTING FUNCTIONS ###
+##########################
+##########################
+
+def plot_SFHS(filenames,pltname,redshift_limits=None):
+    """Plot SFHs for whatever filenames are provided with given redshift limits.
+       Uses default line styles/colors set above.
+
+       ** Parameters **
+
+        :filenames: array of strings
+            Array of enzo output filenames.
+
+        :fileout: strings
+            Name of output file to be saved
+
+        :redshift_limits: array
+            Array with left and right redshift limits.
+            Default : 'None' means set automatically
+    """
     fig,ax = plt.subplots(6,1,sharex=True,sharey=True)
     fig.set_size_inches(6,14)
     fig.subplots_adjust(hspace=0.1,wspace=0.1)
@@ -326,7 +356,7 @@ def check_cooling_criteria(filenames):
         for i in range(len(filenames)):
             ds = yt.load(filenames[i])
             args = filenames[i].split('/')[-3]
-            track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+
             center_guess = initial_center_guess(ds,track_name)
             halo_center = get_halo_center(ds,center_guess)
             rb = sym_refine_box(ds,halo_center)
@@ -436,7 +466,7 @@ def plot_disk_gas_masses(filenames,timesteps,gas_masses,fileout):
     return
 
 def plot_phase_diagrams(filenames,fileout):
-    fig,ax = plt.subplots(2,5,sharex=True,sharey=True)
+    fig,ax = plt.subplots(1,2,sharex=True,sharey=True)
     ax = ax.flatten()
     fig.set_size_inches(14,8)
     fig.subplots_adjust(hspace=0.1,wspace=0.1)
@@ -454,8 +484,6 @@ def plot_phase_diagrams(filenames,fileout):
         im = ax[i].imshow(np.log10(H.T),extent=[-6,0,3,8],interpolation='nearest',
                      origin='lower',cmap='plasma',vmin=4,vmax=8)
 
-        ax[i].set_xlim([-6,0])
-        ax[i].set_ylim([3,8])
         ax[i].set_title(filenames[i].split('/')[-3])
         ax[i].grid(which='major', axis='x', linewidth=0.75, linestyle='-', color='0.87')
         ax[i].grid(which='minor', axis='x', linewidth=0.25, linestyle='-', color='0.87',alpha=0.2)
@@ -463,9 +491,13 @@ def plot_phase_diagrams(filenames,fileout):
         ax[i].grid(which='minor', axis='y', linewidth=0.25, linestyle='-', color='0.87',alpha=0.2)
         ax[i].tick_params(axis='x',which='both',bottom='off',top='off',labelbottom='on')
         ax[i].tick_params(axis='y',which='both',bottom='off',top='off',labelbottom='off')
+        ax[i].set_xlim([-6,0])
+        ax[i].set_ylim([3,8])
+
 
     ax[0].set_ylabel('Temperature [log(K)]')
-    ax[7].set_xlabel('nH [log(cm^-3)]')
+    fig.text(0.5, 0.04, 'nH [log(cm^-3)]', ha='center')
+    #ax[0].set_xlabel('nH [log(cm^-3)]')
     #ax[0].set_xbound(lower=-6,upper=0)
     #ax[0].set_ybound(lower=3,upper=8)
 
@@ -480,7 +512,7 @@ def plot_compare_basic_radial_profiles(filenames,fileout):
     fig.set_size_inches(12,4)
     for i in range(len(filenames)):
         ds = yt.load(filenames[i])
-        track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+
         center_guess = initial_center_guess(ds,track_name)
         halo_center = get_halo_center(ds,center_guess)
         rb = sym_refine_box(ds,halo_center)
@@ -517,7 +549,7 @@ def plot_compare_basic_radial_profiles(filenames,fileout):
 def plot_cooling_time_histogram(filenames,fileout):
     for i in range(len(filenames)):
         ds = yt.load(filenames[i])
-        track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+
         center_guess = initial_center_guess(ds,track_name)
         halo_center = get_halo_center(ds,center_guess)
         sim_label = filenames[i].split('/')[-3]
@@ -541,7 +573,7 @@ def plot_cooling_length_histogram(filenames,fileout):
     fig.set_size_inches(10,5)
     for i in range(len(filenames)):
         ds = yt.load(filenames[i])
-        #track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+
         center_guess = initial_center_guess(ds,track_name)
         halo_center = get_halo_center(ds,center_guess)
         sim_label = filenames[i].split('/')[-3]
@@ -571,7 +603,7 @@ def plot_cooling_length_histogram(filenames,fileout):
 def plot_cell_mass_histogram(filenames,fileout):
     for i in range(len(filenames)):
         ds = yt.load(filenames[i])
-        track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+
         center_guess = initial_center_guess(ds,track_name)
         halo_center = get_halo_center(ds,center_guess)
         sim_label = filenames[i].split('/')[-3]
@@ -580,7 +612,7 @@ def plot_cell_mass_histogram(filenames,fileout):
         rb = sym_refine_box(ds,halo_center)
         cell_mass = rb['cell_mass'].in_units('Msun')
         cell_mass = np.log10(cell_mass)
-        plt.hist(cell_mass,normed=True,bins=100,alpha=0.3,range=(-2,6.5),
+        plt.hist(cell_mass,normed=True,bins=100,alpha=0.6,range=(-2,6.5),
                  color=kwargs['color'],label=sim_label)
     #hubble_time = 13e9/1.e6
     #plt.axvline(hubble_time,ls='--',color='k')
@@ -600,7 +632,7 @@ def plot_mass_in_phase(filenames,fileout):
     tick_labels = []
     for i in range(len(filenames)):
         ds = yt.load(filenames[i])
-        track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/complete_track_symmetric_100kpc'
+
         center_guess = initial_center_guess(ds,track_name)
         halo_center = get_halo_center(ds,center_guess)
         sim_label = filenames[i].split('/')[-3]
@@ -703,94 +735,3 @@ def plot_entropy_profile_evolution(basename,RDnums,fileout):
 
     return
 ###################################################################################################
-#basename = '/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc'
-#basename = '/astro/simulations/FOGGIE/halo_008508/natural/nref10'
-#DDnums = np.arange(28,43)
-#DDnums = np.arange(55,218)
-## for nref10 natural
-#DDnums= DDnums[(DDnums != 36) & (DDnums !=37)]
-
-filenames = ['/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/RD0042/RD0042',
-             '/astro/simulations/FOGGIE/halo_008508/natural/nref10/RD0042/RD0042']
-
-plot_phase_diagrams(filenames,'nref10_fn_RD0042_phase.pdf')
-
-#plot_cooling_length_histogram(filenames,'nref10_fn_cooling_length_weight.pdf')
-
-
-#plot_mass_in_phase_evolution(basename,DDnums,'DD','nref10f_gas_phase_evol.pdf')
-#plot_entropy_profile_evolution(basename,DDnums,'nref10f_profile')
-
-#filenames = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2/RD0042/RD0042',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_1/RD0042/RD0042',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_2/RD0042/RD0042',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_3/RD0042/RD0042',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_4/RD0042/RD0042',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural/RD0042/RD0042',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_1/RD0042/RD0042',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_2/RD0042/RD0042',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_3/RD0042/RD0042',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_4/RD0042/RD0042']
-
-#filenames_ts = ['/astro/simulations/FOGGIE/halo_008508/nref10_track_2',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_1',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_2',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_3',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_track_lowfdbk_4',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_1',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_2',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_3',
-#             '/astro/simulations/FOGGIE/halo_008508/nref10_z1_0.5_natural_lowfdbk_4']
-
-#filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/DD0165/DD0165',
-#         '/Users/dalek/data/Jason/symmetric_box_tracking/nref10f_sym50kpc/DD0165/DD0165']
-
-
-#plot_cooling_length_histogram(filenames,'cooling_length_test.pdf')
-
-
-#check_cooling_criteria(filenames)
-#plot_cooling_time_histogram(filenames,'cooltime_hist_nref1011_weightmass.pdf')
-#plot_mass_in_phase(filenames,'gas_mass_by_phase_nref1011.pdf')
-#plot_cell_mass_histogram(filenames,'cell_mass_dist_nref1011.pdf')
-#plot_compare_basic_radial_profiles(filenames,'basic_dists_quartile_nref1011.pdf')
-
-#filenames = ['/Users/dalek/data/Jason/nref10_track_lowfdbk_1/RD0042/RD0042']
-#ds = yt.load(filenames[0])
-#center = [0.48988587,0.47121728,0.50938220]
-#halo_center = get_halo_center(ds,center)
-#halo_center = np.array([0.48984, 0.47133, 0.50956])
-
-#plot_point_radialprofiles(filenames,halo_center,'Density','dens_pt_profile.png',plt_log=True)
-#plot_point_radialprofiles(filenames,halo_center,'Temperature','temp_pt_profile.png',plt_log=True)
-#plot_point_radialprofiles(filenames,halo_center,'metallicity','metal_pt_profile.png',plt_log=False)
-
-#gas_masses, stellar_masses, timesteps = compute_disk_masses(filenames_ts)
-#plot_disk_gas_masses(filenames,timesteps,gas_masses,'fdbk_diskgasmass.pdf')
-
-#plot_phase_diagrams(filenames,halo_center,'fdbk_phase.pdf')
-
-#fields = ['H_p0_number_density','O_p5_number_density','C_p3_number_density','C_p2_number_density',
-#          'Si_p2_number_density','Si_p3_number_density']
-
-#plot_coldens_radialprofiles(filenames,fields,fdbk=True)
-
-#ions = ['O VI','C IV','C III','Si III','Si IV']
-#for filename in filenames:
-#    make_frbs(filename,halo_center,fields,ions,fdbk=True)
-
-
-#Cfields  = ['C_p3_number_density','C_p2_number_density']
-#SiFields = ['Si_p2_number_density','Si_p3_number_density']
-#OFields  = ['O_p5_number_density']
-
-#plot_coldens_radialprofiles(filenames,['H_p0_number_density'],6,14,
-#			    'coldensH.pdf',fdbk=True)
-#plot_coldens_radialprofiles(filenames,Cfields,12,14,'coldensC.pdf',fdbk=True)
-#plot_coldens_radialprofiles(filenames,SiFields,12,14,'coldensSi.pdf',fdbk=True)
-#plot_coldens_radialprofiles(filenames,OFields,6,14,'coldensO.pdf',fdbk=True)
-#plot_coldens_radialprofiles(filenames,fields,24,14,'coldensALL.pdf',fdbk=True)
-
-#plot_SFHS(filenames,halo_center,(300.,'kpc'),'feedback_SFHs.pdf')
-#confirm_halo_centers(filenames,halo_center)
