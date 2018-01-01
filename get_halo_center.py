@@ -3,7 +3,7 @@ import numpy as np
 
 def get_halo_center(ds, center_guess, **kwargs):
     # returns a list of the halo center coordinates
-    kwargs.get("radius", 100.)  # search radius in kpc
+    radius = kwargs.get("radius", 100.)  # search radius in kpc
 
     # now determine the location of the highest DM density, which should be the center of the main halo
     ad = ds.sphere(center_guess, (radius, 'kpc')) # extract a sphere centered at the middle of the box
