@@ -247,7 +247,8 @@ def make_hi_plots(ds, prefix, **kwargs):
         p.set_zlim("H_p0_number_density",h1_proj_min, h1_proj_max)
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
-        colorbar = p.cb()
+        pp = p.plots['H_p0_number_density']
+        colorbar = pp.cb
         p._setup_plots()
         colorbar.set_ticks([1e13,1e15,1e17,1e19,1e21,1e23])
         colorbar.set_ticklabels(['13','15','17','19','21','23'])
