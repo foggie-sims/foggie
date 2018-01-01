@@ -1,4 +1,3 @@
-from astropy.table import Table
 import numpy as np
 
 import yt
@@ -9,16 +8,19 @@ import os
 import glob
 import sys
 
+from astropy.table import Table
+
 from consistency import *
-from comparative_analysis import get_halo_center
+from get_halo_center import get_halo_center
+from get_proper_box_size import get_proper_box_size
 
 import seaborn as sns
 sns.set_style("whitegrid", {'axes.grid' : False})
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 
-# foggie_dir = "/astro/simulations/FOGGIE/"
-foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
+foggie_dir = "/astro/simulations/FOGGIE/"
+# foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
 output_dir = "/Users/molly/Dropbox/foggie-collab/"  ## outputs go here
 
 ## lou
@@ -200,7 +202,7 @@ def make_temperature_projection_plot(ds, prefix, **kwargs):
     for ax in axis:
         if not (os.path.exists(prefix + 'physical/')):
             os.system("mkdir " + prefix + 'physical/')
-        p = yt.ProjectionPlot(ds,axis,('gas','temperature'), weight_field=("gas","density"),\
+        p = yt.ProjectionPlot(ds, ax,('gas','temperature'), weight_field=("gas","density"),\
                               center=center, data_source=box, width=(width, 'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="temperature", cmap=temperature_color_map)
@@ -372,6 +374,12 @@ def plot_script(halo, run, axis, **kwargs):
     if outs == "all":
         print "looking for outputs in ", run_dir
         outs = glob.glob(os.path.join(run_dir, '?D0???/?D0???'))
+    else:
+        print "outs = ", outs
+        new_outs = [glob.glob(os.path.join(run_dir, snap)) for snap in outs]
+        print "new_outs = ", new_outs
+        new_new_outs = [snap[0] for snap in new_outs]
+        outs = new_new_outs
 
     print "making plots for ", axis, " axis in ", outs
 
@@ -387,7 +395,7 @@ def plot_script(halo, run, axis, **kwargs):
             trident.add_ion_fields(ds, ions=['Si II', 'Si III'])
 
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-        proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') / ((1 + zsnap) * ds.get_parameter('CosmologyHubbleConstantNow')) * 1000. # in kpc
+        proper_box_size = get_proper_box_size(ds)
 
         refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track)
         refine_width = refine_width * proper_box_size
@@ -470,5 +478,6 @@ if __name__ == "__main__":
         print "NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber"
 
     # message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
-    message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc_z4to2", "all")
+    # message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc_z4to2", "all", outs=["RD0015/RD0015"])
+    message = plot_script(args.halo, "nref11n/nref11f_refine200kpc_z4to2", "all")
     sys.exit(message)
