@@ -163,7 +163,7 @@ def make_metal_projection_plot(ds, prefix, **kwargs):
     for ax in axis:
         if not (os.path.exists(prefix + 'physical/')):
             os.system("mkdir " + prefix + 'physical/')
-        p = yt.ProjectionPlot(ds,axis,('gas','metallicity'),weight_field=("gas","density"),\
+        p = yt.ProjectionPlot(ds, ax,('gas','metallicity'),weight_field=("gas","density"),\
                             center=center, data_source=box, width=(width, 'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="metallicity", cmap=metal_color_map)
@@ -244,9 +244,10 @@ def make_hi_plots(ds, prefix, **kwargs):
         p = yt.ProjectionPlot(ds, ax, 'H_p0_number_density', center=center, data_source=box, width=(width,'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="H_p0_number_density", cmap=h1_color_map)
-        p.set_zlim("H_p0_number_density",h1_min, h1_max)
+        p.set_zlim("H_p0_number_density",h1_proj_min, h1_proj_max)
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
+        colorbar = p.cb()
         p._setup_plots()
         colorbar.set_ticks([1e13,1e15,1e17,1e19,1e21,1e23])
         colorbar.set_ticklabels(['13','15','17','19','21','23'])
@@ -478,6 +479,6 @@ if __name__ == "__main__":
         print "NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber"
 
     # message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
-    # message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc_z4to2", "all", outs=["RD0015/RD0015"])
-    message = plot_script(args.halo, "nref11n/nref11f_refine200kpc_z4to2", "all")
+    message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc_z4to2", "all", outs=["RD0015/RD0015"])
+    # message = plot_script(args.halo, "nref11n/nref11f_refine200kpc_z4to2", "all")
     sys.exit(message)
