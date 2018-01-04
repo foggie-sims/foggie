@@ -9,6 +9,7 @@ from astropy.table import Table
 
 from modular_plots import get_refine_box
 from get_proper_box_size import get_proper_box_size
+from get_halo_center import get_halo_center
 
 import getpass
 
@@ -20,20 +21,19 @@ def get_refined_ray_endpoints(ds, halo_center, track, **kwargs):
     impact parameter along a given axis, only within the refined box
     '''
     impact = kwargs.get("impact", 25.)
-    dx = kwargs.get("dx", 5.)
+    angle = kwargs.get("angle", 2*pi*np.random.uniform())
+    refine_box, refine_box_center, x_width = get_refine_box(ds, ds.current_redshift, track)
     proper_box_size = get_proper_box_size(ds)
 
     ray_start = np.zeros(3)
     ray_end = np.zeros(3)
     #### for now, ray has random y (sets impact), goes from -z to +z, in y direction, x is random
-    ray_start[0] = halo_center[0] + (dx/proper_box_size)
-    ray_end[0] = ray_start[0]
-
-    ray_start[1] = (impact/proper_box_size) + halo_center[1]
-    ray_end[1] = ray_start[1]
-
-    ray_start[2] = np.interp(zsnap, track['col1'], track['col4'])
-    ray_end[2] = np.interp(zsnap, track['col1'], track['col7'])
+    ray_start[0] = np.float(refine_box.left_edge[0].value)
+    ray_end[0] = np.float(refine_box.right_edge[0].value)
+    ray_start[1] = halo_center[1] + (impact/proper_box_size) * np.cos(angle)
+    ray_end[1] = halo_center[1] + (impact/proper_box_size) * np.cos(angle)
+    ray_start[2] = halo_center[2] + (impact/proper_box_size) * np.sin(angle)
+    ray_end[2] = halo_center[2] + (impact/proper_box_size) * np.sin(angle)
 
     return np.array(ray_start), np.array(ray_end)
 
@@ -42,7 +42,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
     generate some random rays
     '''
     low_impact = kwargs.get("low_impact", 10.)
-    high_impact = kwargs.get("high_impact", 50.)
+    high_impact = kwargs.get("high_impact", 45.)
     track = kwargs.get("track","halo_track")
     Nrays = kwargs.get("Nrays",50)
     output_dir = kwargs.get("output_dir",".")
@@ -56,20 +56,20 @@ def generate_random_rays(ds, halo_center, **kwargs):
     proper_x_width = x_width*proper_box_size
 
     ## for now, assume all are z-axis
-    axis = "z"
+    axis = "x"
     np.random.seed(17)
     impacts = np.random.uniform(low=low_impact, high=high_impact, size=Nrays)
-    dx = np.random.uniform(low=-0.5*proper_x_width, high=0.5*proper_x_width, size=Nrays)
+    angles = np.random.uniform(low=0, high=2*pi, size=Nrays)
     out_ray_basename = ds.basename + "_ray_" + axis
 
     for i in range(Nrays):
         os.chdir(output_dir)
-        this_out_ray_basename = out_ray_basename + "_imp"+"{:05.1f}".format(impacts[i]) + \
-                        "_dx"+"{:4.2f}".format(dx[i])
+        this_out_ray_basename = out_ray_basename + "_i"+"{:05.1f}".format(impacts[i]) + \
+                        "-a"+"{:4.2f}".format(angles[i])
         out_ray_name =  this_out_ray_basename + ".h5"
         rs, re = get_refined_ray_endpoints(ds, halo_center, track, impact=impacts[i])
         out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "_dx"+"{:4.2f}".format(dx[i])+"_v2_los.fits"
+                        "-a"+"{:4.2f}".format(angles[i])+"_v2_los.fits"
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         ray = ds.ray(rs, re)
@@ -109,12 +109,13 @@ if __name__ == "__main__":
     # ds = yt.load("/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
     # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/DD0165/DD0165")
     ### halo_center =  [0.4898, 0.4714, 0.5096]
-    # track_name = "/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-    track_name = "/astro/simulations/FOGGIE/halo_008508/big_box/nref11n_nref10f_refine200kpc_z4to2/halo_track"
+    track_name = "/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
+    # track_name = "/astro/simulations/FOGGIE/halo_008508/big_box/nref11n_nref10f_refine200kpc_z4to2/halo_track"
     # track_name = "/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/halo_track"
     # output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/symmetric_box_tracking/nref10f_50kpc/spectra"
-    ds = yt.load("/astro/simulations/FOGGIE/halo_008508/natural/nref11/RD0020/RD0020")
-    output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/natural/nref11/spectra/"
+    ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/natural/RD0020/RD0020")
+    # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/natural/nref11/RD0020/RD0020")
+    output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/"
     # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/big_box/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
     # output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/nref11_refine200kpc_z4to2/spectra"
     print("opening track: " + track_name)
@@ -124,6 +125,6 @@ if __name__ == "__main__":
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     halo_center = get_halo_center(ds, refine_box_center)
 
-    generate_random_rays(ds, halo_center, haloname="halo008508", track=track, output_dir=output_dir, Nrays=100)
+    generate_random_rays(ds, halo_center, haloname="halo008508_nref11n", track=track, output_dir=output_dir, Nrays=100)
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
