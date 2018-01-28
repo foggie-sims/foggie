@@ -21,8 +21,10 @@ entropy_min = 1.e-4
 entropy_max = 1.e3
 
 h1_color_map = sns.blend_palette(("white","#ababab","#565656","black","#4575b4","#984ea3","#d73027","darkorange","#ffe34d"), as_cmap=True)
-h1_min = 1.e11
-h1_max = 1.e21
+h1_proj_min = 1.e11
+h1_proj_max = 1.e21
+h1_slc_min = 1.e-14
+h1_slc_max = 1.e2
 
 o6_color_map = sns.blend_palette(("white","black","#4daf4a","#4575b4","#984ea3","#d73027","darkorange"), as_cmap=True)
 o6_min = 1.e11
