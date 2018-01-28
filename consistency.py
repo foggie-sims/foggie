@@ -1,3 +1,5 @@
+import matplotlib as mpl
+mpl.use('agg')
 import seaborn as sns
 
 default_width = 50.  # kpc in projection
