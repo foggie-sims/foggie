@@ -92,7 +92,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
 
         for line in line_list:
-            sg = MISTY.generate_line(triray,line,write=True,hdulist=hdulist)
+            sg = MISTY.generate_line(triray,line,write=True,hdulist=hdulist,use_spectacle=True)
             filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
             ## if we write our own plotting routine, we can overplot the spectacle fits
             sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
@@ -125,6 +125,6 @@ if __name__ == "__main__":
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     halo_center = get_halo_center(ds, refine_box_center)
 
-    generate_random_rays(ds, halo_center, haloname="halo008508_nref11n", track=track, output_dir=output_dir, Nrays=100)
+    generate_random_rays(ds, halo_center, haloname="halo008508_nref11n", track=track, output_dir=output_dir, Nrays=1)
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
