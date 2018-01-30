@@ -8,6 +8,8 @@ import os
 import glob
 import sys
 
+import cPickle
+
 from astropy.table import Table
 
 from consistency import *
@@ -103,19 +105,23 @@ def make_density_projection_plot(ds, prefix, **kwargs):
     center = kwargs.get("center", "")
     appendix = kwargs.get("appendix", "")
     width = kwargs.get("width", default_width)
+    resolution = kwargs.get("resolution", (524,524)) # correct for the nref11n_nref10f_refine200kpc_z4to2 box
+    basename = prefix + 'physical/' + ds.basename + appendix
     if not (os.path.exists(prefix + 'physical/' )):
         os.system("mkdir " + prefix + 'physical' )
     for ax in axis:
         if not (os.path.exists(prefix + 'physical')):
             os.system("mkdir " + prefix + 'physical')
         p = yt.ProjectionPlot(ds, ax, 'density', center=center, data_source=box, width=(width, 'kpc'))
+        frb = p.data_source.to_frb(width, resolution, center=center)
+        cPickle.dump(frb['density'], open(basename + 'Projection_' + ax + '_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="density", cmap=density_color_map)
         p.set_unit(('gas','density'),'Msun/pc**2')
         p.set_zlim("density", density_proj_min, density_proj_max)
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
-        p.save(prefix + 'physical/' + ds.basename + appendix)
+        p.save(basename)
 
 def make_density_slice_plot(ds, prefix, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
@@ -414,7 +420,11 @@ def plot_script(halo, run, axis, **kwargs):
         # center = [centerx, centery+20. / 143886., centerz]
         # box = ds.r[ center[0]-wide/143886:center[0]+wide/143886, center[1]-wide/143886.:center[1]+wide/143886., center[2]-wide/143886.:center[2]+wide/143886.]
 
-        if not noslices:
+        refine_box, refine_box_center, refine_width = get_refine_box(ds, ds.current_redshift, track)
+        center = get_halo_center(ds, refine_box_center)
+        box = refine_box
+
+        if not args.noslices:
             if args.all or args.physical or args.density or args.slices:
                 make_density_slice_plot(ds, prefix, axis=axis, center=center, box=refine_box, \
                                    width=(refine_width-10.), appendix="_refine")
