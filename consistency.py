@@ -4,6 +4,11 @@ import seaborn as sns
 
 default_width = 50.  # kpc in projection
 
+phase_color_key = {b'cold':'salmon',
+                   b'hot':'#ffe34d',
+                   b'warm':'#4daf4a',
+                   b'cool':'#984ea3'}
+
 density_color_map = sns.blend_palette(("black","#984ea3","#d73027","darkorange","#ffe34d","#4daf4a","white"), n_colors=60, as_cmap=True)
 density_proj_min = 5e-2  ## msun / pc^2
 density_proj_max = 1e4
