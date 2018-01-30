@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import numpy as np
 
 import yt
@@ -347,7 +349,7 @@ def get_refine_box(ds, zsnap, track):
     ## find closest output, modulo not updating before printout
     diff = track['col1'] - zsnap
     this_loc = track[np.where(diff == np.min(diff[np.where(diff > 1.e-6)]))]
-    print "using this loc:", this_loc
+    print("using this loc:", this_loc)
     x_left = this_loc['col2'][0]
     y_left = this_loc['col3'][0]
     z_left = this_loc['col4'][0]
@@ -386,16 +388,16 @@ def plot_script(halo, run, axis, **kwargs):
         os.system("mkdir " + prefix)
 
     if outs == "all":
-        print "looking for outputs in ", run_dir
+        print("looking for outputs in ", run_dir)
         outs = glob.glob(os.path.join(run_dir, '?D0???/?D0???'))
     else:
-        print "outs = ", outs
+        print("outs = ", outs)
         new_outs = [glob.glob(os.path.join(run_dir, snap)) for snap in outs]
-        print "new_outs = ", new_outs
+        print("new_outs = ", new_outs)
         new_new_outs = [snap[0] for snap in new_outs]
         outs = new_new_outs
 
-    print "making plots for ", axis, " axis in ", outs
+    print("making plots for ", axis, " axis in ", outs)
 
     for snap in outs:
         # load the snapshot
@@ -428,7 +430,7 @@ def plot_script(halo, run, axis, **kwargs):
                                       width=(refine_width-10.), appendix="_refine")
 
         if args.all or args.physical or args.density:
-            print width, refine_width, default_width
+            print(width, refine_width, default_width)
             make_density_projection_plot(ds, prefix, axis=axis, center=center, box=box, \
                                width=width, appendix="_box")
             make_density_projection_plot(ds, prefix, axis=axis, center=refine_box_center, box=refine_box, \
@@ -478,7 +480,7 @@ if __name__ == "__main__":
     args = parse_args()
 
     if not args.clobber:
-        print "NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber"
+        print("NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber")
 
     # message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
     # message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc_z4to2", "all", outs=["RD0015/RD0015"])
