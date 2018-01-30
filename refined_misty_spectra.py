@@ -3,7 +3,6 @@ import trident
 import numpy as np
 import yt
 import os
-os.sys.path.insert(0, '/Users/nearl/projects/MISTY')
 import MISTY
 import sys
 import os
@@ -141,9 +140,9 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         for line in line_list:
             sg = MISTY.generate_line(triray, line,
-                                    write=True,
-                                    hdulist=hdulist,
-                                    use_spectacle=False)
+                                     write=True,
+                                     hdulist=hdulist,
+                                     use_spectacle=True)
             filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
             ## if we write our own plotting routine, we can overplot the spectacle fits
             sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
