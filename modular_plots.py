@@ -86,7 +86,11 @@ def parse_args():
 
     parser.add_argument('--slices', dest='slices', action='store_true',
                         help='make only slice plots?, default if not')
-    parser.set_defaults(metals=False)
+    parser.set_defaults(slices=False)
+
+    parser.add_argument('--noslices', dest='noslices', action='store_true',
+                        help='make no slice plots?, default if not')
+    parser.set_defaults(noslices=False)
 
 
     args = parser.parse_args()
@@ -276,6 +280,14 @@ def make_o6_plots(ds, prefix, **kwargs):
         p.hide_axes()
         p.save(prefix + 'ions/' + ds.basename + '_OVI' + appendix)
 
+        p = yt.ProjectionPlot(ds, ax, 'O_p5_ion_fraction', center=center, data_source=box, width=(width,'kpc'))
+        p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
+        p.set_cmap(field="O_p5_ion_fraction", cmap=o6_color_map)
+        ## p.set_zlim("O_p5_ion_fraction", o6_min, o6_max)
+        p.annotate_scale(size_bar_args={'color':'white'})
+        p.hide_axes()
+        p.save(prefix + 'ions/' + ds.basename + '_OVI' + appendix)
+
 def make_c4_plots(ds, prefix, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
     box = kwargs.get("box", "")
@@ -398,35 +410,24 @@ def plot_script(halo, run, axis, **kwargs):
         if args.silicon:
             trident.add_ion_fields(ds, ions=['Si II', 'Si III'])
 
-        zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-        proper_box_size = get_proper_box_size(ds)
-
-        refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track)
-        refine_width = refine_width * proper_box_size
-
-        # center is trying to be the center of the halo
-        center = get_halo_center(ds, refine_box_center)
-        width_code = width / proper_box_size ## needs to be in code units
-        box = ds.r[center[0] - 0.5*width_code : center[0] + 0.5*width_code, \
-                   center[1] - 0.5*width_code : center[1] + 0.5*width_code, \
-                   center[2] - 0.5*width_code : center[2] + 0.5*width_code]
         # box = ds.r[ center[0]-wide/143886:center[0]+wide/143886, center[1]-wide/143886.:center[1]+wide/143886., center[2]-wide/143886.:center[2]+wide/143886.]
 
         #### this was for the off-center box
         # center = [centerx, centery+20. / 143886., centerz]
         # box = ds.r[ center[0]-wide/143886:center[0]+wide/143886, center[1]-wide/143886.:center[1]+wide/143886., center[2]-wide/143886.:center[2]+wide/143886.]
 
-        if args.all or args.physical or args.density or args.slices:
-            make_density_slice_plot(ds, prefix, axis=axis, center=center, box=refine_box, \
-                               width=(refine_width-10.), appendix="_refine")
+        if not noslices:
+            if args.all or args.physical or args.density or args.slices:
+                make_density_slice_plot(ds, prefix, axis=axis, center=center, box=refine_box, \
+                                   width=(refine_width-10.), appendix="_refine")
 
-        if args.all or args.physical or args.metals or args.slices:
-            make_metal_slice_plot(ds, prefix, axis=axis, center=center, box=refine_box, \
-                                  width=(refine_width-10.), appendix="_refine")
+            if args.all or args.physical or args.metals or args.slices:
+                make_metal_slice_plot(ds, prefix, axis=axis, center=center, box=refine_box, \
+                                      width=(refine_width-10.), appendix="_refine")
 
-        if args.all or args.physical or args.slices:
-            make_temperature_slice_plot(ds, prefix, axis=axis, center=center, box=refine_box, \
-                                  width=(refine_width-10.), appendix="_refine")
+            if args.all or args.physical or args.slices:
+                make_temperature_slice_plot(ds, prefix, axis=axis, center=center, box=refine_box, \
+                                      width=(refine_width-10.), appendix="_refine")
 
         if args.all or args.physical or args.density:
             print(width, refine_width, default_width)
@@ -482,6 +483,7 @@ if __name__ == "__main__":
         print("NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber")
 
     # message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
-    message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc_z4to2", "all", outs=["RD0015/RD0015"])
+    # message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc_z4to2", "all", outs=["RD0015/RD0015"])
     # message = plot_script(args.halo, "nref11n/nref11f_refine200kpc_z4to2", "all")
+    message = plot_script(args.halo, "nref11n/natural", "all", outs=["RD0015/RD0015"])
     sys.exit(message)
