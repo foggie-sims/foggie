@@ -5,6 +5,7 @@ import yt
 import MISTY
 import sys
 import os
+import argparse
 
 from astropy.table import Table
 
@@ -12,11 +13,25 @@ from modular_plots import get_refine_box
 from get_proper_box_size import get_proper_box_size
 from get_halo_center import get_halo_center
 
-import show_velphase as sv 
+import show_velphase as sv
 
 import getpass
 
 from math import pi
+
+def parse_args():
+    '''
+    Parse command line arguments.  Returns args object.
+    '''
+    parser = argparse.ArgumentParser(description="extracts spectra from refined region")
+
+    parser.add_argument('--velocities', dest='velocities', action='store_true',
+                            help='make the velocity plots?, default is no')
+    parser.set_defaults(velocities=False)
+
+    args = parser.parse_args()
+    return args
+
 
 def get_refined_ray_endpoints(ds, halo_center, track, **kwargs):
     '''
@@ -40,16 +55,17 @@ def get_refined_ray_endpoints(ds, halo_center, track, **kwargs):
 
     return np.array(ray_start), np.array(ray_end)
 
-def quick_spectrum(ds, triray, filename, **kwargs): 
+def quick_spectrum(ds, triray, filename, **kwargs):
 
     line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'Mg II 2796', 'C III 977', 'C IV 1548', 'O VI 1032'])
     redshift = ds.get_parameter('CosmologyCurrentRedshift')
 
+    ldb = trident.LineDatabase('atom_wave_gamma_f.dat')
     sg = trident.SpectrumGenerator(lambda_min=1000.,
                                        lambda_max=4000.,
                                        dlambda=0.01,
                                        line_database='atom_wave_gamma_f.dat')
-        
+
     sg.make_spectrum(triray, line_list, min_tau=1.e-5,store_observables=True)
 
     restwave = sg.lambda_field / (1. + redshift)
@@ -89,14 +105,16 @@ def generate_random_rays(ds, halo_center, **kwargs):
                         "-a"+"{:4.2f}".format(angles[i])+"_v2_los.fits"
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
-        trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II', 'C III', 'C IV', 'O VI', 'Mg II'])
+        if args.velocities:
+            trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II', 'C III', 'C IV', 'O VI', 'Mg II'])
         ray = ds.ray(rs, re)
         ray.save_as_dataset(out_ray_name, fields=["density","temperature", "metallicity"])
 
-        ray_df =  ray.to_dataframe(["x","y","z","density","temperature","metallicity","HI_Density", 
-                                    "x-velocity", "y-velocity", "z-velocity", 
+        if args.velocities:
+            ray_df =  ray.to_dataframe(["x","y","z","density","temperature","metallicity","HI_Density",
+                                    "x-velocity", "y-velocity", "z-velocity",
                                     "C_p2_number_density", "C_p3_number_density", "H_p0_number_density",
-                                    "Mg_p1_number_density", "O_p5_number_density","Si_p2_number_density"]) 
+                                    "Mg_p1_number_density", "O_p5_number_density","Si_p2_number_density"])
 
         out_tri_name = this_out_ray_basename + "_tri.h5"
         triray = trident.make_simple_ray(ds, start_position=rs.copy(),
@@ -113,23 +131,26 @@ def generate_random_rays(ds, halo_center, **kwargs):
                       lines=line_list, impact=impacts[i])
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
 
-        quick_spectrum(ds, triray, filespecout_base)
+        # quick_spectrum(ds, triray, filespecout_base)
 
         for line in line_list:
-            sg = MISTY.generate_line(triray,line,write=True,hdulist=hdulist) # JT commented out ,use_spectacle=True)
+            sg = MISTY.generate_line(triray, line,
+                                    write=True,
+                                    hdulist=hdulist,
+                                    use_spectacle=False)
             filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
             ## if we write our own plotting routine, we can overplot the spectacle fits
             sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
-            if ('H' in line): 
-                sv.show_velphase(ds, ray_df, rs, re, triray, filespecout_base) 
+            if args.velocities and ('H' in line):
+                sv.show_velphase(ds, ray_df, rs, re, triray, filespecout_base)
 
-        #JT MISTY.write_out(hdulist,filename=out_fits_name)
+        MISTY.write_out(hdulist,filename=out_fits_name)
 
 
 
 if __name__ == "__main__":
 
-    # args = parse_args()
+    args = parse_args()
     # ds = yt.load("/Users/molly/foggie/halo_008508/symmetric_box_tracking/nref10f_50kpc/RD0042/RD0042")
     # ds = yt.load("/Users/molly/foggie/halo_008508/symmetric_box_tracking/nref10f_50kpc/DD0165/DD0165")
     # ds = yt.load("/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
