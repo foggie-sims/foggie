@@ -44,6 +44,7 @@ def parse_args():
     parser.add_argument("--inflowrate","-i",dest='inflowrate',action='store_true',help='calculates inflow rate profile')
     parser.add_argument("--snapshot","-s",dest='snap',type=int,nargs=2,help='specify the snapshots over which to perform the calculation')
     parser.add_argument("--check",'-c',dest='check',action='store_true',help='checks plot directory for files already created and omits those snapshots')
+    parser.add_argument("--energy","-e",dest='energy',action='store_true',help='calculates thermal and kinetic energy profile for each snapshot')
     
     args = parser.parse_args()
     return args
@@ -158,6 +159,19 @@ def calculate_mass_flow_profile(sp,lower=0,upper=100,step=5,pos='above',flow='ou
                      (p))[0]
         outflow.append(calculate_mass_flow(sp[met][x],sp['cell_mass'][x],step))
     return height_list[:-1],outflow
+
+
+def calculate_energy_profile(sp,lower=0,upper=150,step=5):
+    radius = sp['radius'].in_units('kpc')
+    thermal_energy = np.multiply(sp['thermal_energy'],sp['cell_mass']).in_units('erg')
+    kinetic_energy = np.multiply(sp['kinetic_energy'],sp['cell_volume']).in_units('erg')
+
+    thermlist = []
+    kinlist = []
+    x = np.where((radius > lower)&
+                 (radius < upper))[0]
+    return np.sum(thermal_energy[x]),np.sum(kinetic_energy[x])
+
 
 def final_sfh(pack):
     sfile,j,L,Lx,args = pack
@@ -468,6 +482,19 @@ def save_flow_rate(file_name,sp,f='out',p='above'):
     outrate.flush()
     outrate.close()
 
+# Calculates the thermal and kinetic energy flux and saves to file
+def save_energy_profile(sp):
+    thermal_energy,kinetic_energy = calculate_energy_profile(sp)
+    if plot_dir+'energy.dat' not in glob(plot_dir+'*'):
+        energyfil =  open(plot_dir+'energy.dat','a')
+        energyfil.write('\nz\tSFR\tThermalEn\tKineticEn')
+    else:
+        energyfil =  open(plot_dir+'energy.dat','a')
+    energyfil.write('\n'+str(current_z)+'\t'+str(current_sfr)+'\t'+str(thermal_energy)+'\t'+str(kinetic_energy))
+    energyfil.flush()
+    energyfil.close()
+
+
 def do_the_thing(pack):
     sfile,_,L,Lx,args = pack
 
@@ -513,6 +540,9 @@ def do_the_thing(pack):
     ds.add_field('velocity_flux',function=_vflux,units='km/s',display_name='Velocity Flux')
     if args.movie:
         make_two_plots(sfile,ds,sp,center,L,Lx,z,sfr,zoom=args.zoommovie)
+        if args.energy:
+        ds.add_field('center_position',force_override=True, function=_centpos,units='', take_log=False,display_name='Position from Galaxy')
+        save_energy_profile(sp)
     if args.wvprofile:
         save_vflux_profile(sfile,ds,center,L,Lx,weight=True)
     elif args.vprofile:
