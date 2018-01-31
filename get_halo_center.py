@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import yt
 import numpy as np
 
@@ -11,6 +13,6 @@ def get_halo_center(ds, center_guess, **kwargs):
     dm_density =  ad['Dark_Matter_Density']
     imax = (np.where(dm_density > 0.9999 * np.max(dm_density)))[0]
     halo_center = [x[imax[0]], y[imax[0]], z[imax[0]]]
-    print 'We have located the main halo at :', halo_center
+    print('We have located the main halo at :', halo_center)
 
     return halo_center
