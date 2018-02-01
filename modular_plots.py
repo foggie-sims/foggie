@@ -107,7 +107,7 @@ def make_density_projection_plot(ds, prefix, **kwargs):
     center = kwargs.get("center", "")
     appendix = kwargs.get("appendix", "")
     width = kwargs.get("width", default_width)
-    resolution = kwargs.get("resolution", (524,524)) # correct for the nref11n_nref10f_refine200kpc_z4to2 box
+    resolution = kwargs.get("resolution", (1048,1048)) # correct for the nref11f box
     basename = prefix + 'physical/' + ds.basename + appendix
     if not (os.path.exists(prefix + 'physical/' )):
         os.system("mkdir " + prefix + 'physical' )
@@ -116,7 +116,7 @@ def make_density_projection_plot(ds, prefix, **kwargs):
             os.system("mkdir " + prefix + 'physical')
         p = yt.ProjectionPlot(ds, ax, 'density', center=center, data_source=box, width=(width, 'kpc'))
         frb = p.data_source.to_frb(width, resolution, center=center)
-        cPickle.dump(frb['density'], open(basename + 'Projection_' + ax + '_density.cpkl','wb'), protocol=-1)
+        cPickle.dump(frb['density'], open(basename + '_Projection_' + ax + '_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="density", cmap=density_color_map)
         p.set_unit(('gas','density'),'Msun/pc**2')
@@ -422,9 +422,19 @@ def plot_script(halo, run, axis, **kwargs):
         # center = [centerx, centery+20. / 143886., centerz]
         # box = ds.r[ center[0]-wide/143886:center[0]+wide/143886, center[1]-wide/143886.:center[1]+wide/143886., center[2]-wide/143886.:center[2]+wide/143886.]
 
-        refine_box, refine_box_center, refine_width = get_refine_box(ds, ds.current_redshift, track)
+        zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+        proper_box_size = get_proper_box_size(ds)
+
+        refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track)
+        refine_width = refine_width * proper_box_size
+
+        # center is trying to be the center of the halo
         center = get_halo_center(ds, refine_box_center)
-        box = refine_box
+        width_code = width / proper_box_size ## needs to be in code units
+        box = ds.r[center[0] - 0.5*width_code : center[0] + 0.5*width_code, \
+                  center[1] - 0.5*width_code : center[1] + 0.5*width_code, \
+                  center[2] - 0.5*width_code : center[2] + 0.5*width_code]
+
 
         if not args.noslices:
             if args.all or args.physical or args.density or args.slices:

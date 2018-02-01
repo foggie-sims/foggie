@@ -1,3 +1,10 @@
+'''
+sample_misty_spectra.py
+
+this is outdated; you probably want refined_misty_spectra.py
+
+'''
+
 import trident
 import numpy as np
 import yt
@@ -18,7 +25,7 @@ def get_ray_endpoints(ds, halo_center, **kwargs):
     impact = kwargs.get("impact", 100.)
     angle = kwargs.get("angle", 2*pi*np.random.uniform())
     dl = kwargs.get("dl", 500.)  # pathlength of ray
-    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
+    proper_box_size = get_proper_box_size(ds)
 
     ray_start = np.zeros(3)
     ray_end = np.zeros(3)

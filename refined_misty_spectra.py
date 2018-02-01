@@ -140,6 +140,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         for line in line_list:
             sg = MISTY.generate_line(triray, line,
+                                     redshift=ds.current_redshift,
                                      write=True,
                                      hdulist=hdulist,
                                      use_spectacle=True)
@@ -161,13 +162,16 @@ if __name__ == "__main__":
     # ds = yt.load("/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
     # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/DD0165/DD0165")
     ### halo_center =  [0.4898, 0.4714, 0.5096]
-    track_name = "/Users/nearl/data/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
+    # track_name = "/Users/nearl/data/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
     # track_name = "/astro/simulations/FOGGIE/halo_008508/big_box/nref11n_nref10f_refine200kpc_z4to2/halo_track"
     # track_name = "/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/halo_track"
     # output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/symmetric_box_tracking/nref10f_50kpc/spectra"
-    ds = yt.load("/Users/nearl/data/halo_008508/nref11n/natural/RD0020/RD0020")
+    ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/natural/RD0020/RD0020")
+    track_name = "/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
+    output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/"
+    # ds = yt.load("/Users/nearl/data/halo_008508/nref11n/natural/RD0020/RD0020")
     # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/natural/nref11/RD0020/RD0020")
-    output_dir = "/Users/nearl/Desktop"
+    # output_dir = "/Users/nearl/Desktop"
     # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/big_box/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
     # output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/nref11_refine200kpc_z4to2/spectra"
     print("opening track: " + track_name)
