@@ -1,3 +1,10 @@
+'''
+sample_misty_spectra.py
+
+this is outdated; you probably want refined_misty_spectra.py
+
+'''
+
 import trident
 import numpy as np
 import yt
