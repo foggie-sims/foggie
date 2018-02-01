@@ -23,8 +23,8 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 
-foggie_dir = "/astro/simulations/FOGGIE/"
-# foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
+# foggie_dir = "/astro/simulations/FOGGIE/"
+foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
 output_dir = "/Users/molly/Dropbox/foggie-collab/"  ## outputs go here
 
 ## lou
@@ -170,6 +170,8 @@ def make_metal_projection_plot(ds, prefix, **kwargs):
     center = kwargs.get("center", "")
     appendix = kwargs.get("appendix", "")
     width = kwargs.get("width", default_width)
+    resolution = kwargs.get("resolution", (1048,1048)) # correct for the nref11f box
+    basename = prefix + 'physical/' + ds.basename + appendix
     if not (os.path.exists(prefix + 'physical/' )):
         os.system("mkdir " + prefix + 'physical/' )
     for ax in axis:
@@ -177,12 +179,14 @@ def make_metal_projection_plot(ds, prefix, **kwargs):
             os.system("mkdir " + prefix + 'physical/')
         p = yt.ProjectionPlot(ds, ax,('gas','metallicity'),weight_field=("gas","density"),\
                             center=center, data_source=box, width=(width, 'kpc'))
+        frb = p.data_source.to_frb(width, resolution, center=center)
+        cPickle.dump(frb['gas', 'metallicity'], open(basename + '_Projection_' + ax + '_metallicity_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="metallicity", cmap=metal_color_map)
         p.set_zlim("metallicity", metal_min, metal_max)
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
-        p.save(prefix + 'physical/' + ds.basename + appendix)
+        p.save(basename)
 
 def make_temperature_slice_plot(ds, prefix, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
@@ -209,6 +213,8 @@ def make_temperature_projection_plot(ds, prefix, **kwargs):
     center = kwargs.get("center", "")
     appendix = kwargs.get("appendix", "")
     width = kwargs.get("width", default_width)
+    resolution = kwargs.get("resolution", (1048,1048)) # correct for the nref11f box
+    basename = prefix + 'physical/' + ds.basename + appendix
     if not (os.path.exists(prefix + 'physical/' )):
         os.system("mkdir " + prefix + 'physical/' )
     for ax in axis:
@@ -216,14 +222,16 @@ def make_temperature_projection_plot(ds, prefix, **kwargs):
             os.system("mkdir " + prefix + 'physical/')
         p = yt.ProjectionPlot(ds, ax,('gas','temperature'), weight_field=("gas","density"),\
                               center=center, data_source=box, width=(width, 'kpc'))
+        frb = p.data_source.to_frb(width, resolution, center=center)
+        cPickle.dump(frb['gas', 'temperature'], open(basename + '_Projection_' + ax + '_temperature_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="temperature", cmap=temperature_color_map)
         p.set_zlim("temperature", temperature_min, temperature_max)
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
-        p.save(prefix + 'physical/' + ds.basename + appendix)
+        p.save(basename)
 
-def make_entropy_plots(ds, prefix, **kwargs):
+def make_entropy_slice_plot(ds, prefix, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
     box = kwargs.get("box", "")
     center = kwargs.get("center", "")
@@ -248,12 +256,16 @@ def make_hi_plots(ds, prefix, **kwargs):
     center = kwargs.get("center", "")
     appendix = kwargs.get("appendix", "")
     width = kwargs.get("width", default_width)
+    resolution = kwargs.get("resolution", (1048,1048)) # correct for the nref11f box
+    basename = prefix + 'ions/' + ds.basename + '_HI' + appendix
     if not (os.path.exists(prefix + 'ions/' )):
         os.system("mkdir " + prefix + 'ions/' )
     for ax in axis:
         if not (os.path.exists(prefix + 'ions/' )):
             os.system("mkdir " + prefix + 'ions/' )
         p = yt.ProjectionPlot(ds, ax, 'H_p0_number_density', center=center, data_source=box, width=(width,'kpc'))
+        frb = p.data_source.to_frb(width, resolution, center=center)
+        cPickle.dump(frb['H_p0_number_density'], open(basename + '_Projection_' + ax + '_H_p0_number_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="H_p0_number_density", cmap=h1_color_map)
         p.set_zlim("H_p0_number_density",h1_proj_min, h1_proj_max)
@@ -265,7 +277,7 @@ def make_hi_plots(ds, prefix, **kwargs):
         colorbar.set_ticks([1e13,1e15,1e17,1e19,1e21,1e23])
         colorbar.set_ticklabels(['13','15','17','19','21','23'])
         colorbar.ax.tick_params(labelsize=20)
-        p.save(prefix + 'ions/' + ds.basename + '_HI' + appendix)
+        p.save(basename)
 
 def make_o6_plots(ds, prefix, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
@@ -273,18 +285,23 @@ def make_o6_plots(ds, prefix, **kwargs):
     center = kwargs.get("center", "")
     appendix = kwargs.get("appendix", "")
     width = kwargs.get("width", default_width)
+    resolution = kwargs.get("resolution", (1048,1048)) # correct for the nref11f box
+    basename = prefix + 'ions/' + ds.basename + '_OVI' + appendix
     if not (os.path.exists(prefix + 'ions/' )):
         os.system("mkdir " + prefix + 'ions/' )
     for ax in axis:
         if not (os.path.exists(prefix + 'ions/' )):
             os.system("mkdir " + prefix + 'ions/' )
         p = yt.ProjectionPlot(ds, ax, 'O_p5_number_density', center=center, data_source=box, width=(width,'kpc'))
+        frb = p.data_source.to_frb(width, resolution, center=center)
+        cPickle.dump(frb['O_p5_number_density'], \
+                     open(basename + '_Projection_' + ax + '_O_p5_number_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="O_p5_number_density", cmap=o6_color_map)
         p.set_zlim("O_p5_number_density", o6_min, o6_max)
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
-        p.save(prefix + 'ions/' + ds.basename + '_OVI' + appendix)
+        p.save(basename)
 
         p = yt.ProjectionPlot(ds, ax, 'O_p5_ion_fraction', center=center, data_source=box, width=(width,'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
@@ -292,7 +309,7 @@ def make_o6_plots(ds, prefix, **kwargs):
         ## p.set_zlim("O_p5_ion_fraction", o6_min, o6_max)
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
-        p.save(prefix + 'ions/' + ds.basename + '_OVI' + appendix)
+        p.save(basename)
 
 def make_c4_plots(ds, prefix, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
@@ -300,18 +317,23 @@ def make_c4_plots(ds, prefix, **kwargs):
     center = kwargs.get("center", "")
     appendix = kwargs.get("appendix", "")
     width = kwargs.get("width", default_width)
+    resolution = kwargs.get("resolution", (1048,1048)) # correct for the nref11f box
+    basename = prefix + 'ions/' + ds.basename + '_CIV' + appendix
     if not (os.path.exists(prefix + 'ions/' )):
         os.system("mkdir " + prefix + 'ions/' )
     for ax in axis:
         if not (os.path.exists(prefix + 'ions/' )):
             os.system("mkdir " + prefix + 'ions/' )
         p = yt.ProjectionPlot(ds, ax, 'C_p3_number_density', center=center, data_source=box, width=(width,'kpc'))
+        frb = p.data_source.to_frb(width, resolution, center=center)
+        cPickle.dump(frb['C_p3_number_density'], \
+                         open(basename + '_Projection_' + ax + '_C_p3_number_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="C_p3_number_density", cmap=c4_color_map)
         p.set_zlim("C_p3_number_density", c4_min, c4_max)
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
-        p.save(prefix + 'ions/' + ds.basename + '_CIV' + appendix)
+        p.save(basename)
 
 def make_si2_plots(ds, prefix, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
@@ -319,18 +341,23 @@ def make_si2_plots(ds, prefix, **kwargs):
     center = kwargs.get("center", "")
     appendix = kwargs.get("appendix", "")
     width = kwargs.get("width", default_width)
+    resolution = kwargs.get("resolution", (1048,1048)) # correct for the nref11f box
+    basename = prefix + 'ions/' + ds.basename + '_SiII' + appendix
     if not (os.path.exists(prefix + 'ions/' )):
         os.system("mkdir " + prefix + 'ions/' )
     for ax in axis:
         if not (os.path.exists(prefix + 'ions/' )):
             os.system("mkdir " + prefix + 'ions/' )
         p = yt.ProjectionPlot(ds, ax, 'Si_p1_number_density', center=center, data_source=box, width=(width,'kpc'))
+        frb = p.data_source.to_frb(width, resolution, center=center)
+        cPickle.dump(frb['Si_p1_number_density'], \
+                         open(basename + '_Projection_' + ax + '_Si_p1_number_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="Si_p1_number_density", cmap=c4_color_map)
         p.set_zlim("Si_p1_number_density", c4_min, c4_max)
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
-        p.save(prefix + 'ions/' + ds.basename + '_SiII' + appendix)
+        p.save(basename)
 
 def make_si3_plots(ds, prefix, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
@@ -338,12 +365,17 @@ def make_si3_plots(ds, prefix, **kwargs):
     center = kwargs.get("center", "")
     appendix = kwargs.get("appendix", "")
     width = kwargs.get("width", default_width)
+    resolution = kwargs.get("resolution", (1048,1048)) # correct for the nref11f box
+    basename = prefix + 'ions/' + ds.basename + '_SiIII' + appendix
     if not (os.path.exists(prefix + 'ions/' )):
         os.system("mkdir " + prefix + 'ions/' )
     for ax in axis:
         if not (os.path.exists(prefix + 'ions/' )):
             os.system("mkdir " + prefix + 'ions/' )
         p = yt.ProjectionPlot(ds, ax, 'Si_p2_number_density', center=center, data_source=box, width=(width,'kpc'))
+        frb = p.data_source.to_frb(width, resolution, center=center)
+        cPickle.dump(frb['Si_p2_number_density'], \
+                         open(basename + '_Projection_' + ax + '_Si_p2_number_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="Si_p2_number_density", cmap=si3_color_map)
         p.set_zlim("Si_p2_number_density", si3_min, si3_max)
@@ -448,6 +480,10 @@ def plot_script(halo, run, axis, **kwargs):
             if args.all or args.physical or args.slices:
                 make_temperature_slice_plot(ds, prefix, axis=axis, center=center, box=refine_box, \
                                       width=(refine_width-10.), appendix="_refine")
+                make_entropy_slice_plot(ds, prefix, axis=axis, center=center, box=box, width=width, appendix="_box")
+                make_entropy_slice_plot(ds, prefix, axis=axis, center=refine_box_center, \
+                                      box=refine_box, width=refine_width, appendix="_refine")
+
 
         if args.all or args.physical or args.density:
             print(width, refine_width, default_width)
@@ -460,10 +496,6 @@ def plot_script(halo, run, axis, **kwargs):
             make_temperature_projection_plot(ds, prefix, axis=axis, center=refine_box_center,\
                              box=refine_box, width=refine_width, appendix="_refine")
             make_temperature_projection_plot(ds, prefix, axis=axis, center=center, box=box, width=width, appendix="_box")
-
-            make_entropy_plots(ds, prefix, axis=axis, center=center, box=box, width=width, appendix="_box")
-            make_entropy_plots(ds, prefix, axis=axis, center=refine_box_center, \
-                               box=refine_box, width=refine_width, appendix="_refine")
 
         if args.all or args.physical or args.metals:
             make_metal_projection_plot(ds, prefix, axis=axis, center=refine_box_center,\
@@ -505,5 +537,6 @@ if __name__ == "__main__":
     # message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
     # message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc_z4to2", "all", outs=["RD0015/RD0015"])
     # message = plot_script(args.halo, "nref11n/nref11f_refine200kpc_z4to2", "all")
-    message = plot_script(args.halo, "nref11n/natural", "all", outs=["RD0015/RD0015"])
+    # message = plot_script(args.halo, "nref11n/natural", "all", outs=["RD0015/RD0015"])
+    message = plot_script(args.halo, "nref11n/natural", "all")
     sys.exit(message)
