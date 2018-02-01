@@ -29,6 +29,7 @@ def extract_spectra(ds, impact, **kwargs):
     xmin = kwargs.get("xmin", 0)
     xmax = kwargs.get("xmax", 1)
     halo_center = kwargs.get("halo_center", [0.5, 0.5, 0.5])
+    refine_box_center = kwargs.get("refine_box_center", halo_center)
     if read_fits_file:
         print "opening ", out_fits_name
         hdulist = fits.open(out_fits_name)
@@ -50,9 +51,9 @@ def extract_spectra(ds, impact, **kwargs):
         ray_start[0] = xmin
         ray_end[0] = xmax
         ray_start[1] = halo_center[1] + (impact/proper_box_size)
-        ray_end[1] = ray_start[1]
+        ray_end[1] = halo_center[1] + (impact/proper_box_size)
         ray_start[2] = halo_center[2]
-        ray_end[2] = ray_start[2]
+        ray_end[2] = halo_center[2]
         rs, re = np.array(ray_start), np.array(ray_end)
     #    out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impacts[i]) + \
     #                    "_dx"+"{:4.2f}".format(dx[i])+"_v2_los.fits"
@@ -70,18 +71,18 @@ def extract_spectra(ds, impact, **kwargs):
                         lines=line_list, impact=impact)
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
         for line in line_list:
-            sg = MISTY.generate_line(triray,line,write=True,use_spectacle=False,hdulist=hdulist)
+            sg = MISTY.generate_line(triray,line,write=True,use_spectacle=True,hdulist=hdulist)
             MISTY.write_out(hdulist,filename=out_fits_name)
 
         return hdulist, ray_start, ray_end
 
 def make_movie():
     # load the simulation
-    #ds = yt.load("/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
-    #output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/spectra/"
-    ds = yt.load("/Users/molly/foggie/halo_008508/natural/nref11/RD0020/RD0020")
-    track_name = "/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-    output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/"
+    ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
+    output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/spectra/"
+    # ds = yt.load("/Users/molly/foggie/halo_008508/natural/nref11/RD0020/RD0020")
+    track_name = "/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
+    # output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/"
     os.chdir(output_dir)
     track = Table.read(track_name, format='ascii')
     track.sort('col1')
@@ -96,36 +97,43 @@ def make_movie():
 
 
     # slice will be repeated, so let's make it first
-    slc = yt.SlicePlot(ds,'z',('gas','temperature'),center=halo_center,width=x_width)
+    z_center = [refine_box_center[0], refine_box_center[1], halo_center[2]]
+    slc = yt.SlicePlot(ds,'z',('gas','H_p0_number_density'),center=z_center,width=1.5*x_width)
     ## slc = ds.r[xmin:xmax, ymin:ymax, halo_center[2]]
     res = [1000,1000]
     # frb = slc.frb(x_width, res)
-    frb = slc.frb['gas','temperature']
+    frb = slc.frb['gas','H_p0_number_density']
     # image = np.array(frb['gas', 'density'])
     image = np.array(frb)
-    print "min, max temperature = ", np.min(np.log10(image)), np.max(np.log10(image))
+    print "min, max H I density = ", np.min(np.log10(image)), np.max(np.log10(image))
     # extent = [float(x.in_units('code_length')) for x in (pro.xlim + pro.ylim)]
     extent = [x_left, x_right, y_left, y_right]
 
     # spectral features
-    g = Gaussian1DKernel((7/0.0267)/2.355)  # HIRES v_fwhm = 7 km/s
-    snr = 30.
+    #g = Gaussian1DKernel((7/0.0267)/2.355)  # HIRES v_fwhm = 7 km/s
+    #snr = 30.
 
 
     # get a spectrum!
     # impact = 25.
     # impacts = np.arange(25.,50.5,0.5)
-    impacts = np.arange(-50., -24.5, 0.5)
-    # impacts = [-25.]
+    #impacts = np.arange(-50., -24.5, 0.5)
+    impacts = [-50.]
     for impact in impacts:
         out_fits_name = "hlsp_misty_foggie_halo008508_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impact) + \
                     "_dx"+"{:4.2f}".format(0.)+"_v2_los.fits"
-        out_plot_name = "temperature_slice_with_lots_spectra_halo008508_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impact) + \
+        out_plot_name = "HI_slice_with_lots_spectra_halo008508_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impact) + \
                     "_dx"+"{:4.2f}".format(0.)+".png"
         hdulist, ray_start, ray_end = extract_spectra(ds, impact, read_fits_file=False,
                                 out_fits_name=out_fits_name,
-                                xmin=x_left, xmax=x_right, halo_center=halo_center)
+                                xmin=x_left, xmax=x_right, halo_center=halo_center, refine_box_center=refine_box_center)
         print "(impact/proper_box_size)/x_width = ", (impact/proper_box_size)/x_width
+
+        print "ray start:", ray_start
+        print "ray end:", ray_end
+        print "refine box center:", refine_box_center
+        print "halo center:", halo_center
+        print "z_center:", z_center
 
         # start by setting up plots
         fig = plt.figure(figsize=(16,6), dpi=100)
@@ -136,8 +144,8 @@ def make_movie():
 
         ## this will be the slice
         ax_slice = fig.add_subplot(gs[:,1])
-        slc = ax_slice.imshow(np.log10(image), extent=extent, cmap=temperature_color_map, \
-                                        vmin=np.log10(temperature_min), vmax=np.log10(temperature_max))
+        slc = ax_slice.imshow(np.log10(image), extent=extent, cmap=h1_color_map, \
+                                        vmin=np.log10(h1_slc_min), vmax=np.log10(h1_slc_max))
         ax_slice.plot([ray_start[0], ray_end[0]], [ray_start[1], ray_end[1]], color="white", lw=2.)
         ax_slice.set_aspect('equal')
         ax_slice.xaxis.set_major_locator(ticker.NullLocator())
@@ -147,7 +155,7 @@ def make_movie():
         cbar = fig.colorbar(slc, cax=ax_cbar, extend='both')
         ax_cbar.yaxis.set_ticks_position('left')
         ax_cbar.yaxis.set_label_position('left')
-        cbar.set_label(r'log temperature', fontsize=16.)
+        cbar.set_label(r'log HI density', fontsize=16.)
 
         ## these will be the spectra
         zmin, zmax = 1.998, 2.004
@@ -178,7 +186,7 @@ def make_movie():
         ax_spec3 = fig.add_subplot(gs[2,2])
         velocity = ((hdulist["H I 919"].data['wavelength'] / hdulist['H I 919'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
         flux = hdulist["H I 973"].data['flux']
-        v_conv = convolve(velocity, g)
+        # v_conv = convolve(velocity, g)
         # ax_spec3.step(v_conv, flux, color="#4575b4",lw=2)
         ax_spec3.plot(velocity, hdulist["H I 919"].data['flux'], color='darkorange',lw=1)
         ax_spec3.text(vmin + 100, 0, "Ly 10", fontsize=12.)
@@ -207,8 +215,6 @@ def make_movie():
         ax_spec6 = fig.add_subplot(gs[5,2])
         velocity = ((hdulist["O VI 1032"].data['wavelength'] / hdulist['O VI 1032'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
         flux = hdulist["O VI 1032"].data['flux']
-        v_conv = convolve(velocity, g)
-        # ax_spec6.step(v_conv, flux, color="#4575b4",lw=2)
         ax_spec6.plot(velocity, flux, color='darkorange',lw=1)
         ax_spec6.text(vmin + 100, 0, "O VI 1032", fontsize=12.)
         plt.xlim(vmin, vmax)
