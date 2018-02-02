@@ -140,7 +140,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         for line in line_list:
             sg = MISTY.generate_line(triray, line,
-                                     redshift=ds.current_redshift,
+                                     zsnap=ds.current_redshift,
                                      write=True,
                                      hdulist=hdulist,
                                      use_spectacle=True)
