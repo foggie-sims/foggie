@@ -99,7 +99,9 @@ def parse_args():
     return args
 
 #-----------------------------------------------------------------------------------------------------
-
+def _metal_density(field, data):
+    return data["gas", "density"] * data["gas", "metallicity"] / 0.02  ## idk if this is the solar metallicity in enzo
+#-----------------------------------------------------------------------------------------------------
 
 def make_density_projection_plot(ds, prefix, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
@@ -184,6 +186,31 @@ def make_metal_projection_plot(ds, prefix, **kwargs):
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="metallicity", cmap=metal_color_map)
         p.set_zlim("metallicity", metal_min, metal_max)
+        p.annotate_scale(size_bar_args={'color':'white'})
+        p.hide_axes()
+        p.save(basename)
+
+def make_metal_density_projection_plot(ds, prefix, **kwargs):
+    axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
+    box = kwargs.get("box", "")
+    center = kwargs.get("center", "")
+    appendix = kwargs.get("appendix", "")
+    width = kwargs.get("width", default_width)
+    resolution = kwargs.get("resolution", (1048,1048)) # correct for the nref11f box
+    basename = prefix + 'physical/' + ds.basename + appendix
+    if not (os.path.exists(prefix + 'physical/' )):
+        os.system("mkdir " + prefix + 'physical/' )
+    for ax in axis:
+        if not (os.path.exists(prefix + 'physical/')):
+            os.system("mkdir " + prefix + 'physical/')
+        p = yt.ProjectionPlot(ds, ax,('gas','metal_density'),\
+                            center=center, data_source=box, width=(width, 'kpc'))
+        frb = p.data_source.to_frb(width, resolution, center=center)
+        cPickle.dump(frb['gas', 'metal_density'], open(basename + '_Projection_' + ax + '_metal_density.cpkl','wb'), protocol=-1)
+        p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
+        p.set_unit(('gas','metal_density'),'Msun/pc**2')
+        p.set_cmap(field="metal_density", cmap=metal_color_map)
+        p.set_zlim("metal_density", metal_density_min, metal_density_max)
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
         p.save(basename)
@@ -448,6 +475,10 @@ def plot_script(halo, run, axis, **kwargs):
         if args.silicon:
             trident.add_ion_fields(ds, ions=['Si II', 'Si III'])
 
+        ## add metal density
+        ds.add_field(("gas", "metal_density"), function=_metal_density, units="g/cm**2")
+
+
         # box = ds.r[ center[0]-wide/143886:center[0]+wide/143886, center[1]-wide/143886.:center[1]+wide/143886., center[2]-wide/143886.:center[2]+wide/143886.]
 
         #### this was for the off-center box
@@ -498,9 +529,13 @@ def plot_script(halo, run, axis, **kwargs):
             make_temperature_projection_plot(ds, prefix, axis=axis, center=center, box=box, width=width, appendix="_box")
 
         if args.all or args.physical or args.metals:
-            make_metal_projection_plot(ds, prefix, axis=axis, center=refine_box_center,\
+            #make_metal_projection_plot(ds, prefix, axis=axis, center=refine_box_center,\
+            #                 box=refine_box, width=refine_width, appendix="_refine")
+            #make_metal_projection_plot(ds, prefix, axis=axis, center=center, box=box, width=width, appendix="_box")
+
+            make_metal_density_projection_plot(ds, prefix, axis=axis, center=refine_box_center,\
                              box=refine_box, width=refine_width, appendix="_refine")
-            make_metal_projection_plot(ds, prefix, axis=axis, center=center, box=box, width=width, appendix="_box")
+            make_metal_density_projection_plot(ds, prefix, axis=axis, center=center, box=box, width=width, appendix="_box")
 
         if args.all or args.ions or args.hi:
             make_hi_plots(ds, prefix,  center=refine_box_center, \
@@ -535,8 +570,8 @@ if __name__ == "__main__":
         print("NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber")
 
     # message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
-    # message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc_z4to2", "all", outs=["RD0015/RD0015"])
+    message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc_z4to2", "all", outs=["RD0020/RD0020"])
     # message = plot_script(args.halo, "nref11n/nref11f_refine200kpc_z4to2", "all")
     # message = plot_script(args.halo, "nref11n/natural", "all", outs=["RD0015/RD0015"])
-    message = plot_script(args.halo, "nref11n/natural", "all")
+    # message = plot_script(args.halo, "nref11n/natural", "all")
     sys.exit(message)
