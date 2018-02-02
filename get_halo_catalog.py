@@ -20,8 +20,8 @@ def get_halo_catalog(ds):
     t['rvir'] = [1., 4]
     
     for i in hc.catalog: 
-        print i['particle_identifier'],i['particle_position_x'],i['particle_position_y'], \
-              i['particle_position_z'],i['particle_mass'], i['virial_radius']
+        print(i['particle_identifier'],i['particle_position_x'],i['particle_position_y'], \
+              i['particle_position_z'],i['particle_mass'], i['virial_radius']) 
         t.add_row([i['particle_identifier'],\
                    i['particle_position_x']/units.kpc.to('cm'), 
                    i['particle_position_y']/units.kpc.to('cm'), 
@@ -49,7 +49,7 @@ def get_stellar_masses(ds, halo_table):
         mass = ad['particle_mass'].convert_to_units('Msun') 
         StarMass = np.sum(mass[ptype == 2])
         halo0['Mstar'] = StarMass 
-        print halo0 
+        print(halo0) 
 
     ms = halo_table[[halo_table['Mstar'] > 1e3]]
 
