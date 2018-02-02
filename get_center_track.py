@@ -7,7 +7,7 @@ def get_center_track(first_center, firstsnap, lastsnap, interval):
 
     snaplist = range(firstsnap+1)
     snaplist.reverse()
-    print snaplist 
+    print(snaplist) 
 
     t = Table([[0., 0.], [0.0,0.0], [0.0, 0.0], [0.0, 0.0], ['       ', '       ']],
         names=('redshift', 'x0', 'y0', 'z0', 'name'))
@@ -19,7 +19,7 @@ def get_center_track(first_center, firstsnap, lastsnap, interval):
         if (isnap <= 99): name = 'DD00'+str(isnap)
         if (isnap <= 9): name = 'DD000'+str(isnap)
 
-        print name 
+        print(name) 
         ds = yt.load(name+'/'+name) 
         comoving_box_size = ds.get_parameter('CosmologyComovingBoxSize') 
 
@@ -39,7 +39,7 @@ def get_center_track(first_center, firstsnap, lastsnap, interval):
         #p = yt.ProjectionPlot(ds, 'z', 'density', center=new_center, width=(300., 'kpc')) 
         #p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         #p.save() 
-        print t 
+        print(t) 
 
     t = t[2:] 
 
@@ -52,8 +52,6 @@ def get_center_track(first_center, firstsnap, lastsnap, interval):
 
     tt = Table([ newredshift, newx, newy, newz], names=('redshift','x','y','z')) 
  
-    print t
-    print tt 
     t.write('track.fits',overwrite=True) 
     tt.write('track_interpolate.fits',overwrite=True) 
 

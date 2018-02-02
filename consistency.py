@@ -27,6 +27,8 @@ density_slc_max = 5
 metal_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a","#ffe34d","darkorange"), as_cmap=True)
 metal_min = 1.e-4
 metal_max = 2.
+metal_density_min = 1.e-5
+metal_density_max = 250.
 
 temperature_color_map = sns.blend_palette(("black","#d73027","darkorange","#ffe34d"), n_colors=50, as_cmap=True)
 temperature_min = 5.e6

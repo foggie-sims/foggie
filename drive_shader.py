@@ -11,9 +11,9 @@ def drive_shader(halo, run, axis, firstsnap, lastsnap, trackname):
     track = Table.read(track_name, format='ascii') 
     track.sort('col1') 
 
-    print firstsnap, lastsnap 
+    print(firstsnap, lastsnap) 
     outs = [x+firstsnap for x in range(lastsnap+1-firstsnap)]
-    print outs 
+    print(outs) 
 
     os.chdir('/astro/simulations/FOGGIE/halo_00'+halo+'/'+run) 
     prefix = '/Users/tumlinson/Dropbox/foggie/plots/halo_00'+halo+'/'+run+'/'
