@@ -8,7 +8,7 @@ import socket
 def get_path_names():
     username = getpass.getuser()
     hostname = socket.gethostname()
-    foggie_dir, output_dir = ""
+    foggie_dir, output_dir = "", ""
     if username == "molly" and hostname == "dhumuha-2.local":
         foggie_dir = "/Users/molly/foggie/"
         output_dir = "/Users/molly/Dropbox/foggie-collab/"
