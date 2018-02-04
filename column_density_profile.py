@@ -7,7 +7,10 @@ import matplotlib.pyplot as plt
 import os
 import glob
 
+from manage_path_names import get_path_names
+
 def get_column_densities():
+    output_dir = get_path_names()
     DATA_DIR = "./spectra"
     dataset_list = glob.glob(os.path.join(DATA_DIR, 'hlsp*.fits'))
 
@@ -22,4 +25,5 @@ def get_column_densities():
     return columns.sort("impact")
 
 def plot_column_densities():
+    
     columns = get_column_densities()
