@@ -10,7 +10,10 @@ import os
 import glob
 import sys
 
-import cPickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 from astropy.table import Table
 
@@ -116,7 +119,7 @@ def make_density_projection_plot(ds, prefix, **kwargs):
             os.system("mkdir " + prefix + 'physical')
         p = yt.ProjectionPlot(ds, ax, 'density', center=center, data_source=box, width=(width, 'kpc'))
         frb = p.data_source.to_frb(width, resolution, center=center)
-        cPickle.dump(frb['density'], open(basename + '_Projection_' + ax + '_density.cpkl','wb'), protocol=-1)
+        pickle.dump(frb['density'], open(basename + '_Projection_' + ax + '_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="density", cmap=density_color_map)
         p.set_unit(('gas','density'),'Msun/pc**2')
@@ -180,7 +183,7 @@ def make_metal_projection_plot(ds, prefix, **kwargs):
         p = yt.ProjectionPlot(ds, ax,('gas','metallicity'),weight_field=("gas","density"),\
                             center=center, data_source=box, width=(width, 'kpc'))
         frb = p.data_source.to_frb(width, resolution, center=center)
-        cPickle.dump(frb['gas', 'metallicity'], open(basename + '_Projection_' + ax + '_metallicity_density.cpkl','wb'), protocol=-1)
+        pickle.dump(frb['gas', 'metallicity'], open(basename + '_Projection_' + ax + '_metallicity_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="metallicity", cmap=metal_color_map)
         p.set_zlim("metallicity", metal_min, metal_max)
@@ -223,7 +226,7 @@ def make_temperature_projection_plot(ds, prefix, **kwargs):
         p = yt.ProjectionPlot(ds, ax,('gas','temperature'), weight_field=("gas","density"),\
                               center=center, data_source=box, width=(width, 'kpc'))
         frb = p.data_source.to_frb(width, resolution, center=center)
-        cPickle.dump(frb['gas', 'temperature'], open(basename + '_Projection_' + ax + '_temperature_density.cpkl','wb'), protocol=-1)
+        pickle.dump(frb['gas', 'temperature'], open(basename + '_Projection_' + ax + '_temperature_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="temperature", cmap=temperature_color_map)
         p.set_zlim("temperature", temperature_min, temperature_max)
@@ -265,7 +268,7 @@ def make_hi_plots(ds, prefix, **kwargs):
             os.system("mkdir " + prefix + 'ions/' )
         p = yt.ProjectionPlot(ds, ax, 'H_p0_number_density', center=center, data_source=box, width=(width,'kpc'))
         frb = p.data_source.to_frb(width, resolution, center=center)
-        cPickle.dump(frb['H_p0_number_density'], open(basename + '_Projection_' + ax + '_H_p0_number_density.cpkl','wb'), protocol=-1)
+        pickle.dump(frb['H_p0_number_density'], open(basename + '_Projection_' + ax + '_H_p0_number_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="H_p0_number_density", cmap=h1_color_map)
         p.set_zlim("H_p0_number_density",h1_proj_min, h1_proj_max)
@@ -294,7 +297,7 @@ def make_o6_plots(ds, prefix, **kwargs):
             os.system("mkdir " + prefix + 'ions/' )
         p = yt.ProjectionPlot(ds, ax, 'O_p5_number_density', center=center, data_source=box, width=(width,'kpc'))
         frb = p.data_source.to_frb(width, resolution, center=center)
-        cPickle.dump(frb['O_p5_number_density'], \
+        pickle.dump(frb['O_p5_number_density'], \
                      open(basename + '_Projection_' + ax + '_O_p5_number_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="O_p5_number_density", cmap=o6_color_map)
@@ -326,7 +329,7 @@ def make_c4_plots(ds, prefix, **kwargs):
             os.system("mkdir " + prefix + 'ions/' )
         p = yt.ProjectionPlot(ds, ax, 'C_p3_number_density', center=center, data_source=box, width=(width,'kpc'))
         frb = p.data_source.to_frb(width, resolution, center=center)
-        cPickle.dump(frb['C_p3_number_density'], \
+        pickle.dump(frb['C_p3_number_density'], \
                          open(basename + '_Projection_' + ax + '_C_p3_number_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="C_p3_number_density", cmap=c4_color_map)
@@ -350,7 +353,7 @@ def make_si2_plots(ds, prefix, **kwargs):
             os.system("mkdir " + prefix + 'ions/' )
         p = yt.ProjectionPlot(ds, ax, 'Si_p1_number_density', center=center, data_source=box, width=(width,'kpc'))
         frb = p.data_source.to_frb(width, resolution, center=center)
-        cPickle.dump(frb['Si_p1_number_density'], \
+        pickle.dump(frb['Si_p1_number_density'], \
                          open(basename + '_Projection_' + ax + '_Si_p1_number_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="Si_p1_number_density", cmap=c4_color_map)
@@ -374,7 +377,7 @@ def make_si3_plots(ds, prefix, **kwargs):
             os.system("mkdir " + prefix + 'ions/' )
         p = yt.ProjectionPlot(ds, ax, 'Si_p2_number_density', center=center, data_source=box, width=(width,'kpc'))
         frb = p.data_source.to_frb(width, resolution, center=center)
-        cPickle.dump(frb['Si_p2_number_density'], \
+        pickle.dump(frb['Si_p2_number_density'], \
                          open(basename + '_Projection_' + ax + '_Si_p2_number_density.cpkl','wb'), protocol=-1)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.set_cmap(field="Si_p2_number_density", cmap=si3_color_map)

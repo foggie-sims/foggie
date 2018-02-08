@@ -3,6 +3,7 @@ import trident
 import numpy as np
 import yt
 import os
+os.sys.path.insert(0, '/Users/nearl/projects/MISTY')
 import MISTY
 import sys
 import os
@@ -84,7 +85,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
     output_dir = kwargs.get("output_dir",".")
     haloname = kwargs.get("haloname","somehalo")
     # line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'C II 1334', 'Mg II 2796', 'C III 977', 'Si III 1207','C IV 1548', 'O VI 1032'])
-    line_list = kwargs.get("line_list", ['H I 1216'])#, 'H I 1026', 'H I 973', 'H I 950', 'H I 919', 'Si II 1260', 'C II 1335', 'C III 977', 'Si III 1207','C IV 1548', 'O VI 1032'])
+    line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973', 'H I 950', 'H I 919', 'Si II 1260', 'C II 1335', 'C III 977', 'Si III 1207','C IV 1548', 'O VI 1032'])
     # line_list = kwargs.get("line_list", ['Si II 1260','O VI 1032'])
 
     proper_box_size = get_proper_box_size(ds)
@@ -140,7 +141,6 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         for line in line_list:
             sg = MISTY.generate_line(triray, line,
-                                     redshift=ds.current_redshift,
                                      write=True,
                                      hdulist=hdulist,
                                      use_spectacle=True)
@@ -162,16 +162,13 @@ if __name__ == "__main__":
     # ds = yt.load("/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
     # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/DD0165/DD0165")
     ### halo_center =  [0.4898, 0.4714, 0.5096]
-    # track_name = "/Users/nearl/data/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
+    track_name = "/Users/nearl/data/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
     # track_name = "/astro/simulations/FOGGIE/halo_008508/big_box/nref11n_nref10f_refine200kpc_z4to2/halo_track"
     # track_name = "/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/halo_track"
     # output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/symmetric_box_tracking/nref10f_50kpc/spectra"
-    ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/natural/RD0020/RD0020")
-    track_name = "/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-    output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/"
-    # ds = yt.load("/Users/nearl/data/halo_008508/nref11n/natural/RD0020/RD0020")
+    ds = yt.load("/Users/nearl/data/halo_008508/nref11n/natural/RD0020/RD0020")
     # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/natural/nref11/RD0020/RD0020")
-    # output_dir = "/Users/nearl/Desktop"
+    output_dir = "/Users/nearl/Desktop"
     # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/big_box/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
     # output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/nref11_refine200kpc_z4to2/spectra"
     print("opening track: " + track_name)
