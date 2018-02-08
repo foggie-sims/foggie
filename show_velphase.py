@@ -61,9 +61,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, triray, filename):
     x_vx = tf.spread(img, px=1, shape='square')
     x_vx.to_pil().save(filename+'_x_vs_vx.png')
 
-    species_dict =  {'CIII':'C_p2_number_density', 'CIV':'C_p3_number_density', 'HI':'H_p0_number_density',
-                     'MgII':'Mg_p1_number_density', 'OVI':'O_p5_number_density', 'SiIII':"Si_p2_number_density"}
-
     for species in species_dict.keys():
         cvs = dshader.Canvas(plot_width=imsize, plot_height=imsize, x_range=(rs[0],re[0]), y_range=(-0.008,0.008))
         vx = tf.shade(cvs.points(ray_df, 'x', 'x-velocity', agg=reductions.mean(species_dict[species])), how='eq_hist')

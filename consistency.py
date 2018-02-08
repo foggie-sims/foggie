@@ -9,6 +9,15 @@ phase_color_key = {b'cold':'salmon',
                    b'warm':'#4daf4a',
                    b'cool':'#984ea3'}
 
+
+species_dict =  {'CIII':'C_p2_number_density',
+                 'CIV':'C_p3_number_density',
+                 'HI':'H_p0_number_density',
+                 'MgII':'Mg_p1_number_density',
+                 'OVI':'O_p5_number_density',
+                 'SiIII':"Si_p2_number_density"}
+
+
 density_color_map = sns.blend_palette(("black","#984ea3","#d73027","darkorange","#ffe34d","#4daf4a","white"), n_colors=60, as_cmap=True)
 density_proj_min = 5e-2  ## msun / pc^2
 density_proj_max = 1e4
@@ -18,6 +27,8 @@ density_slc_max = 5
 metal_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a","#ffe34d","darkorange"), as_cmap=True)
 metal_min = 1.e-4
 metal_max = 2.
+metal_density_min = 1.e-5
+metal_density_max = 250.
 
 temperature_color_map = sns.blend_palette(("black","#d73027","darkorange","#ffe34d"), n_colors=50, as_cmap=True)
 temperature_min = 5.e6

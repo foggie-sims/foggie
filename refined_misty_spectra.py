@@ -11,7 +11,7 @@ import argparse
 
 from astropy.table import Table
 
-from modular_plots import get_refine_box
+from get_refine_box import get_refine_box
 from get_proper_box_size import get_proper_box_size
 from get_halo_center import get_halo_center
 
@@ -106,7 +106,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
         out_ray_name =  this_out_ray_basename + ".h5"
         rs, re = get_refined_ray_endpoints(ds, halo_center, track, impact=impacts[i])
         out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])+"_v2_los.fits"
+                        "-a"+"{:4.2f}".format(angles[i])+"_v3_los.fits"
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         if args.velocities:
@@ -141,6 +141,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         for line in line_list:
             sg = MISTY.generate_line(triray, line,
+                                     zsnap=ds.current_redshift,
                                      write=True,
                                      hdulist=hdulist,
                                      use_spectacle=True)
@@ -178,6 +179,6 @@ if __name__ == "__main__":
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     halo_center = get_halo_center(ds, refine_box_center)
 
-    generate_random_rays(ds, halo_center, haloname="halo008508_nref11n", track=track, output_dir=output_dir, Nrays=1)
+    generate_random_rays(ds, halo_center, haloname="halo008508_nref11n", track=track, output_dir=output_dir, Nrays=100)
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
