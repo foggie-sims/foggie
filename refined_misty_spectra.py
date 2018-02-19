@@ -30,6 +30,22 @@ def parse_args():
                             help='make the velocity plots?, default is no')
     parser.set_defaults(velocities=False)
 
+    parser.add_argument('--run', metavar='run', type=str, action='store',
+                        help='which run? default is natural')
+    parser.set_defaults(run="natural")
+
+    parser.add_argument('--output', metavar='output', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(output="RD0020")
+
+    parser.add_argument('--system', metavar='system', type=str, action='store',
+                        help='which system are you on? default is oak')
+    parser.set_defaults(system="oak")
+
+    parser.add_argument('--Nrays', metavar='Nrays', type=int, action='store',
+                        help='how many sightlines do you want? default is 1')
+    parser.set_defaults(Nrays="1")
+
     args = parser.parse_args()
     return args
 
@@ -83,9 +99,12 @@ def generate_random_rays(ds, halo_center, **kwargs):
     Nrays = kwargs.get("Nrays",50)
     output_dir = kwargs.get("output_dir",".")
     haloname = kwargs.get("haloname","somehalo")
-    # line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'C II 1334', 'Mg II 2796', 'C III 977', 'Si III 1207','C IV 1548', 'O VI 1032'])
-    line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973', 'H I 950', 'H I 919', 'Si II 1260', 'C II 1335', 'C III 977', 'Si III 1207','C IV 1548', 'O VI 1032'])
-    # line_list = kwargs.get("line_list", ['Si II 1260','O VI 1032'])
+    # line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'C II 1334', 'Mg II 2796', 'C III 977', 'Si III 1207', 'C IV 1548', 'O VI 1032'])
+    line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973', 'H I 950', 'H I 919', \
+                     'Si II 1260', 'Si III 1207', 'Si IV 1394'\
+                     'C II 1335', 'C III 977', 'C IV 1548', \
+                     'O VI 1032'])
+    # line_list = kwargs.get("line_list", ['H I 1216', 'Si III 1207','O VI 1032'])
 
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
@@ -157,23 +176,34 @@ def generate_random_rays(ds, halo_center, **kwargs):
 if __name__ == "__main__":
 
     args = parse_args()
-    # ds = yt.load("/Users/molly/foggie/halo_008508/symmetric_box_tracking/nref10f_50kpc/RD0042/RD0042")
-    # ds = yt.load("/Users/molly/foggie/halo_008508/symmetric_box_tracking/nref10f_50kpc/DD0165/DD0165")
-    # ds = yt.load("/Users/molly/foggie/halo_008508/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
-    # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/DD0165/DD0165")
-    ### halo_center =  [0.4898, 0.4714, 0.5096]
-    # track_name = "/Users/nearl/data/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-    # track_name = "/astro/simulations/FOGGIE/halo_008508/big_box/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-    # track_name = "/astro/simulations/FOGGIE/halo_008508/symmetric_box_tracking/nref10f_50kpc/halo_track"
-    # output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/symmetric_box_tracking/nref10f_50kpc/spectra"
-    ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/natural/RD0020/RD0020")
-    track_name = "/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
-    output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/"
-    # ds = yt.load("/Users/nearl/data/halo_008508/nref11n/natural/RD0020/RD0020")
-    # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/natural/nref11/RD0020/RD0020")
-    # output_dir = "/Users/nearl/Desktop"
-    # ds = yt.load("/astro/simulations/FOGGIE/halo_008508/big_box/nref11n_nref10f_refine200kpc_z4to2/RD0020/RD0020")
-    # output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/nref11_refine200kpc_z4to2/spectra"
+    if args.system == "oak":
+        ds_base = "/astro/simulations/FOGGIE/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "dhumuha" or args.system == "palmetto":
+        ds_base = "/Users/molly/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "nmearl":
+        ds_base = "/Users/nearl/data/"
+        output_path = "/Users/nearl/Desktop/"
+
+    if args.run == "natural":
+        ds_loc = ds_base + "halo_008508/nref11n/natural/" + args.output + "/" + args.output
+        track_name = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
+        output_dir = output_path + "plots_halo_008508/nref11n/natural/spectra/"
+        haloname = "halo008508_nref11n"
+    elif args.run == "nref10f":
+        ds_loc =  ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/" + args.output + "/" + args.output
+        track_name = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
+        output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
+        haloname = "halo008508_nref11n_nref10f"
+    elif args.run == "nref11f":
+        ds_loc =  ds_base + "halo_008508/nref11n/nref11f_refine200kpc/" + args.output + "/" + args.output
+        track_name = ds_base + "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
+        output_dir = output_path + "plots_halo_008508/nref11n/nref11f_refine200kpc/spectra/"
+        haloname = "halo008508_nref11f"
+
+    ds = yt.load(ds_loc)
+
     print("opening track: " + track_name)
     track = Table.read(track_name, format='ascii')
     track.sort('col1')
@@ -181,6 +211,8 @@ if __name__ == "__main__":
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     halo_center = get_halo_center(ds, refine_box_center)
 
-    generate_random_rays(ds, halo_center, haloname="halo008508_nref11n", track=track, output_dir=output_dir, Nrays=100)
+    generate_random_rays(ds, halo_center, haloname=haloname, track=track, \
+                         output_dir=output_dir, Nrays=args.Nrays)
+
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
