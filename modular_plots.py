@@ -350,49 +350,57 @@ def plot_script(halo, run, axis, **kwargs):
 
         if args.all or args.ions or args.hi:
             make_projection_plot(ds, prefix, "HI",  \
-                            h1_proj_min, h1_proj_max, h1_color_map \
+                            h1_proj_min, h1_proj_max, h1_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
             make_projection_plot(ds, prefix, "HI",  \
-                            h1_proj_min, h1_proj_max, h1_color_map \
+                            h1_proj_min, h1_proj_max, h1_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
         if args.all or args.ions or args.ovi:
             make_projection_plot(ds, prefix, "OVI",  \
-                            o6_min, o6_max, o6_color_map \
+                            o6_min, o6_max, o6_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
             make_projection_plot(ds, prefix, "OVI",  \
-                            o6_min, o6_max, o6_color_map \
+                            o6_min, o6_max, o6_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
         if args.all or args.ions or args.civ:
             make_projection_plot(ds, prefix, "CIV",  \
-                            c4_min, c4_max, c4_color_map \
+                            c4_min, c4_max, c4_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
             make_projection_plot(ds, prefix, "CIV",  \
-                            c4_min, c4_max, c4_color_map \
+                            c4_min, c4_max, c4_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
         if args.all or args.ions or args.silicon:
+            make_projection_plot(ds, prefix, "SiIV",  \
+                            si4_min, si4_max, si4_color_map, \
+                            ision=True, center=center, axis=axis, box=refine_box, \
+                            width=refine_width, appendix="_refine")
+            make_projection_plot(ds, prefix, "SiIV",  \
+                            si4_min, si4_max, si4_color_map, \
+                            ision=True, center=center, axis=axis, box=box, \
+                            width=width, appendix="_box")
             make_projection_plot(ds, prefix, "SiIII",  \
-                            si3_min, si3_max, si3_color_map \
+                            si3_min, si3_max, si3_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
             make_projection_plot(ds, prefix, "SiIII",  \
-                            si3_min, si3_max, si3_color_map \
+                            si3_min, si3_max, si3_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
             make_projection_plot(ds, prefix, "SiII",  \
-                            si2_min, si2_max, si2_color_map \
+                            si2_min, si2_max, si2_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
             make_projection_plot(ds, prefix, "SiII",  \
-                            si2_min, si2_max, si2_color_map \
+                            si2_min, si2_max, si2_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
