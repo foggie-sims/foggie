@@ -137,8 +137,8 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
             p.set_unit(('gas','density'),'Msun/pc**2')
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
-        p.save(basename + '_Projection_' + ax + '_' + field ++'.png')
-        p.save(basename + '_Projection_' + ax + '_' + field ++'.pdf')
+        p.save(basename + '_Projection_' + ax + '_' + field + '.png')
+        p.save(basename + '_Projection_' + ax + '_' + field + '.pdf')
         frb = p.data_source.to_frb(width, resolution, center=center)
         cPickle.dump(frb[field], open(basename + '_Projection_' + ax + '_' + field + '.cpkl','wb'), protocol=-1)
 
