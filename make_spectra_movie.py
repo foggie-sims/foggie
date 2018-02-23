@@ -18,7 +18,7 @@ import matplotlib.ticker as ticker
 from astropy.table import Table
 from astropy.io import fits
 
-from modular_plots import get_refine_box
+from get_refine_box import get_refine_box
 from get_proper_box_size import get_proper_box_size
 from get_halo_center import get_halo_center
 from consistency import *
