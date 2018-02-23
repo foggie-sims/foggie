@@ -137,8 +137,8 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
             p.set_unit(('gas','density'),'Msun/pc**2')
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
-        p.save(basename+'.png')
-        p.save(basename+'.pdf')
+        p.save(basename + '_Projection_' + ax + '_' + field ++'.png')
+        p.save(basename + '_Projection_' + ax + '_' + field ++'.pdf')
         frb = p.data_source.to_frb(width, resolution, center=center)
         cPickle.dump(frb[field], open(basename + '_Projection_' + ax + '_' + field + '.cpkl','wb'), protocol=-1)
 
@@ -261,7 +261,7 @@ def plot_script(halo, run, axis, **kwargs):
         print('opening snapshot '+ snap)
         ds = yt.load(snap)
         if args.all or args.ions:
-            trident.add_ion_fields(ds, ions=['C IV', 'O VI', 'H I', 'Si II', 'C II', 'Si III'])
+            trident.add_ion_fields(ds, ions=['C IV', 'O VI', 'H I', 'Si II', 'C II', 'Si III', 'Si IV'])
         if args.hi:
             trident.add_ion_fields(ds, ions=['H I'])
         if args.silicon:
@@ -419,7 +419,7 @@ if __name__ == "__main__":
 
     # message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
     message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc", "all", \
-                 outs=["DD0907/DD0907"])
+                 outs=["DD0956/DD0956"])
 #                outs=["RD0027/RD0027","RD0026/RD0026","RD0025/RD0025","RD0024/RD0024","RD0023/RD0023"])
 #    message = plot_script(args.halo, "nref11n/nref11f_refine200kpc", "all", outs=['RD0016/RD0016'])
 #    message = plot_script(args.halo, "nref11n/natural", "all", outs=["RD0016/RD0016"])
