@@ -137,7 +137,8 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
             p.set_unit(('gas','density'),'Msun/pc**2')
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
-        p.save(basename)
+        p.save(basename+'.png')
+        p.save(basename+'.pdf')
         frb = p.data_source.to_frb(width, resolution, center=center)
         cPickle.dump(frb[field], open(basename + '_Projection_' + ax + '_' + field + '.cpkl','wb'), protocol=-1)
 
@@ -225,7 +226,6 @@ def make_entropy_slice_plot(ds, prefix, **kwargs):
 def plot_script(halo, run, axis, **kwargs):
     outs = kwargs.get("outs", "all")
     trackname = kwargs.get("trackname", "halo_track")
-    width = kwargs.get("width", default_width) ## kpc
     if axis == "all":
         axis = ['x','y','z']
 
@@ -265,7 +265,7 @@ def plot_script(halo, run, axis, **kwargs):
         if args.hi:
             trident.add_ion_fields(ds, ions=['H I'])
         if args.silicon:
-            trident.add_ion_fields(ds, ions=['Si II', 'Si III'])
+            trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV'])
 
         ## add metal density
         ds.add_field(("gas", "metal_density"), function=_metal_density, units="g/cm**2")
@@ -285,6 +285,7 @@ def plot_script(halo, run, axis, **kwargs):
 
         # center is trying to be the center of the halo
         center = get_halo_center(ds, refine_box_center)
+        width = refine_width + 10. ## add a little on the edges
         width_code = width / proper_box_size ## needs to be in code units
         box = ds.r[center[0] - 0.5*width_code : center[0] + 0.5*width_code, \
                   center[1] - 0.5*width_code : center[1] + 0.5*width_code, \
