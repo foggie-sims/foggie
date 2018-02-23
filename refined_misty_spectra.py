@@ -101,7 +101,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
     haloname = kwargs.get("haloname","somehalo")
     # line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'C II 1334', 'Mg II 2796', 'C III 977', 'Si III 1207', 'C IV 1548', 'O VI 1032'])
     line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973', 'H I 950', 'H I 919', \
-                     'Si II 1260', 'Si III 1207', 'Si IV 1394'\
+                     'Si II 1260', 'Si III 1207', 'Si IV 1394', \
                      'C II 1335', 'C III 977', 'C IV 1548', \
                      'O VI 1032'])
     # line_list = kwargs.get("line_list", ['H I 1216', 'Si III 1207','O VI 1032'])
