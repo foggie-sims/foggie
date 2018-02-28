@@ -2,7 +2,7 @@ import matplotlib as mpl
 mpl.use('agg')
 import seaborn as sns
 
-default_width = 50.  # kpc in projection
+default_width = 70.  # kpc in projection
 
 phase_color_key = {b'cold':'salmon',
                    b'hot':'#ffe34d',
