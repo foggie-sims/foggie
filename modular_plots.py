@@ -24,8 +24,8 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 
-# foggie_dir = "/astro/simulations/FOGGIE/"
-foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
+foggie_dir = "/astro/simulations/FOGGIE/"
+# foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
 output_dir = "/Users/molly/Dropbox/foggie-collab/"  ## outputs go here
 
 ## lou
@@ -133,6 +133,11 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         if field == "density" or field == "metal_density":
             p.set_unit(('gas','density'),'Msun/pc**2')
+        if field == 'HI' or 'H_p0H_p0_number_density':
+            colorbar = p.cb()
+            p._setup_plots()
+            colorbar.set_ticks([1e13,1e15,1e17,1e19,1e21,1e23])
+            colorbar.set_ticklabels(['13','15','17','19','21','23'])
         p.annotate_scale(size_bar_args={'color':'white'})
         p.hide_axes()
         p.save(basename + '_Projection_' + ax + '_' + field + '.png')
