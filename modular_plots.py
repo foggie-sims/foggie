@@ -24,8 +24,8 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 
-foggie_dir = "/astro/simulations/FOGGIE/"
-# foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
+#foggie_dir = "/astro/simulations/FOGGIE/"
+foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
 output_dir = "/Users/molly/Dropbox/foggie-collab/"  ## outputs go here
 
 ## lou
@@ -133,8 +133,9 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         if field == "density" or field == "metal_density":
             p.set_unit(('gas','density'),'Msun/pc**2')
-        if field == 'HI' or 'H_p0H_p0_number_density':
-            colorbar = p.cb()
+        if field == 'HI' or 'H_p0_number_density':
+            plot = p.plots['H_p0_number_density']
+            colorbar = plot.cb
             p._setup_plots()
             colorbar.set_ticks([1e13,1e15,1e17,1e19,1e21,1e23])
             colorbar.set_ticklabels(['13','15','17','19','21','23'])
@@ -143,7 +144,10 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
         p.save(basename + '_Projection_' + ax + '_' + field + '.png')
         p.save(basename + '_Projection_' + ax + '_' + field + '.pdf')
         frb = p.data_source.to_frb(width, resolution, center=center)
-        cPickle.dump(frb[field], open(basename + '_Projection_' + ax + '_' + field + '.cpkl','wb'), protocol=-1)
+        if ision:
+            cPickle.dump(frb[species_dict[field]], open(basename + '_Projection_' + ax + '_' + species_dict[field] + '.cpkl','wb'), protocol=-1)
+        else:
+            cPickle.dump(frb[field], open(basename + '_Projection_' + ax + '_' + field + '.cpkl','wb'), protocol=-1)
 
 #-----------------------------------------------------------------------------------------------------
 
@@ -247,7 +251,7 @@ def plot_script(halo, run, axis, **kwargs):
         refine_width = refine_width * proper_box_size
 
         # center is trying to be the center of the halo
-        center = get_halo_center(ds, refine_box_center)
+        center, velocity = get_halo_center(ds, refine_box_center)
 
         ## if want to add to the edges, need to loop over axes so unrefined
         ## region not in foreground / background
