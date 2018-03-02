@@ -6,32 +6,38 @@ import pandas as pd
 import yt
 import matplotlib.pyplot as plt 
 import numpy as np 
+from astropy.table import Table 
 from functools import partial
 from datashader.utils import export_image
 from datashader.colors import colormap_select, Greys9, Hot, viridis, inferno
 from IPython.core.display import HTML, display
+from foggie.get_refine_box import get_refine_box as grb 
 
-def movie_script(fname): 
+def movie_script(fname, trackfile): 
 
-    background = 'black'  
     export = partial(export_image, background = background, export_path="export")
     cm = partial(colormap_select, reverse=(background!="black"))
 
+    # preliminaries - get the snapshot, and its refine box, and then "all_data" 
     ds=yt.load(fname) 
-    region = ds.r[0.40:0.55, 0.40:0.55, 0.40:0.56]  
-
-    ad = region 
+    track = Table.read(trackfile, format='ascii') 
+    track.sort('col1') 
+    refine_box, refine_box_center, refine_width = grb(ds, ds.current_redshift, track) 
+    ad = refine_box
     
     cell_vol = ad["cell_volume"]
+    cell_mass = ad["cell_volume"].in_units('kpc**3') * ad["density"].in_units('Msun / kpc**3') 
     cell_size = np.array(cell_vol)**(1./3.)
 
     x_particles = ad['x'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1. ) 
-    x_particles = ( x_particles - 0.4899 ) / 0.001 
     y_particles = ad['y'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1. ) 
-    y_particles = ( y_particles - 0.47102 ) / 0.001  
     z_particles = ad['z'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1. ) 
+    x_particles = (x_particles - refine_box.center[0].ndarray_view()) / (refine_width/2.) 
+    y_particles = (y_particles - refine_box.center[1].ndarray_view()) / (refine_width/2.) 
+    z_particles = (z_particles - refine_box.center[2].ndarray_view()) / (refine_width/2.) 
     dens = np.log10(ad['density']) 
     temp = np.log10(ad['temperature']) 
+    mass = np.log10(cell_mass) # log of the cell mass in Msun 
 
     if (False): 
         #categorize by metallicity' 
@@ -49,20 +55,23 @@ def movie_script(fname):
     phase[temp < 6.] = 'warm'
     phase[temp < 5.] = 'cool'
     phase[temp < 4.] = 'cold'
-    phase_color_key = {'hot':'yellow', 'warm':'green', 'cool':'purple', 'cold':'salmon'}
+    phase_color_key = {b'hot':'yellow', b'warm':'green', b'cool':'purple', b'cold':'salmon'}
     dens = (dens + 24.) / 6. 
     temp = (temp - 6.5) / 3. 
+    print('Masses:', np.min(mass), np.max(mass)) 
+    mass = (mass - 3.0) / 5. 
 
     df = pd.DataFrame({'x':x_particles, 'y':y_particles, 'z':z_particles, \
-         'temp':temp, 'dens':dens, 'phase':phase}) 
+         'temp':temp, 'dens':dens, 'mass': mass, 'phase':phase}) 
     df.phase = df.phase.astype('category')
     #df.metal_label = df.metal_label.astype('category')
     
-    galaxy =    ((-1.,1.0), (-1.0,1.0)) 
-    x_center = 0.49
-    y_center = 0.471 
+    galaxy =    ( (-1.1,1.1), (-1.0,1.0)) 
+    x_center = 0. 
+    y_center = 0. 
     d_center = 0.0   
     t_center = 0.0 
+    m_center = 0.0 
 
     background = "white"
     plot_width  = int(1080)
@@ -72,22 +81,14 @@ def movie_script(fname):
     def create_image(x_range, y_range, w=plot_width, h=plot_height):
         cvs = dshader.Canvas(plot_width=w, plot_height=h, x_range=x_range, y_range=y_range)
         agg = cvs.points(df, 'x', 'y', dshader.count_cat('phase'))
-        #img = tf.colorize(agg, phase_color_key, how='eq_hist')
         img = tf.shade(agg, color_key=phase_color_key, how='eq_hist')
         return img
     
     def create_image2(x_range, y_range, w=plot_width, h=plot_height):
         cvs = dshader.Canvas(plot_width=w, plot_height=h, x_range=x_range, y_range=y_range)
-        agg = cvs.points(df, 'dens', 'y', dshader.count_cat('phase'))
-        img = tf.colorize(agg, phase_color_key, how='eq_hist')
-        export(tf.shade(agg, cmap = cm(Greys9), how='linear'),"census_gray_linear")
-        return img
-    
-    def create_image3(x_range, y_range, w=plot_width, h=plot_height):
-        cvs = dshader.Canvas(plot_width=w, plot_height=h, x_range=x_range, y_range=y_range)
-        agg = cvs.points(df, 'dens', 'temp', dshader.count_cat('phase')) 
-        img = tf.colorize(agg, phase_color_key, how='eq_hist')
-        export(tf.shade(agg, cmap = cm(Greys9), how='linear'),"census_gray_linear")
+        agg = cvs.points(df, 'x', 'mass', dshader.count_cat('phase'))
+        raw = tf.shade(agg, color_key=phase_color_key, how='eq_hist')
+        img = tf.spread(raw, px=2, shape='square') 
         return img
     
     def cart2pol(x, y):
@@ -95,6 +96,17 @@ def movie_script(fname):
     
     def pol2cart(rho, phi):
         return rho * np.cos(phi), rho * np.sin(phi) 
+
+    # this function rotates from x/y plane to x / mass 
+    for ii in np.arange(100): 
+        
+        rr, phi = cart2pol(df['y'] - x_center, df['mass'] - d_center) 
+        xxxx, yyyy = pol2cart(rr, phi - np.pi / 2. / 100.) 
+        df.y = xxxx+y_center 
+        df.mass = yyyy+m_center 
+    
+        export(create_image(*galaxy),"Phase_"+str(5000+ii))
+        print(ii) 
     
     # this function rotates from x/y plane to density / y 
     for ii in np.arange(100): 

@@ -344,7 +344,7 @@ def compute_disk_masses(basenames,RDnums,prefix):
             ds = yt.load(basename+('/'+prefix+zero+str(RDnums[i]))*2)
             ds.add_particle_filter('formed_star')
             center_guess = initial_center_guess(ds,builtins.track_name)
-            halo_center = get_halo_center(ds,center_guess)
+            halo_center, halo_velocity = get_halo_center(ds,center_guess)
             center_guess = halo_center
             (Lx,x) = diskVectors(ds,halo_center)
             disk = ds.disk(halo_center,Lx,(40.,'kpc'),(20.,'kpc'))
@@ -393,7 +393,7 @@ def make_frbs(filename,fields,ions,run_type=None):
     args = filename.split('/')
     trident.add_ion_fields(ds,ions=ions)
     center_guess = initial_center_guess(ds,builtins.track_name)
-    halo_center = get_halo_center(ds,center_guess)
+    halo_center, halo_velocity = get_halo_center(ds,center_guess)
 
     if run_type == 'asym':
         #print 'in fdbk'
@@ -530,7 +530,7 @@ def get_evolultion_Lx(filenames,center_guess):
         for i in range(len(rds)):
             filein = filenames[i]+'/RD00'+str(rds[i])+'/RD00'+str(rds[i])
             ds = yt.load(filein)
-            halo_center = get_halo_center(ds,center_guess)
+            halo_center, halo_velocity = get_halo_center(ds,center_guess)
             (Lx,x) = diskVectors(ds,halo_center)
             lvectors[j,i] = Lx
 
@@ -642,7 +642,7 @@ def gas_mass_phase_evolution(basename,RDnums,prefix):
         ds = yt.load(basename+('/'+prefix+zero+str(RDnums[i]))*2)
 
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         rb = sym_refine_box(ds,halo_center)
 
         temp = np.log10(rb['Temperature'])
@@ -784,7 +784,7 @@ def plot_SFHs(filenames,pltname,redshift_limits=None):
     for i in range(len(filenames)):
         ds = yt.load(filenames[i])
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
 
         sp = ds.sphere(halo_center,(50.,'kpc'))
         sfr = StarFormationRate(ds, data_source=sp)
@@ -816,7 +816,7 @@ def confirm_halo_centers(filenames):
         ds = yt.load(filenames[i])
         args = filenames[i].split('/')[-3]
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         sl = yt.SlicePlot(ds,'x','Density',center=halo_center,width=(200,'kpc'))
         sl.annotate_text(center,'c')
         sl.save(args)
@@ -839,7 +839,7 @@ def check_cooling_criteria(filenames):
         args = filenames[i].split('/')[-3]
 
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         rb = sym_refine_box(ds,halo_center)
         proj = yt.ProjectionPlot(ds,'x',('gas','cooling_criteria'),
                                  center=halo_center,width=(100,'kpc'),
@@ -866,7 +866,7 @@ def confirm_disks(filenames):
         ds = yt.load(filenames[i])
         args = filenames[i].split('/')[-3]
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         (Lx,x) = diskVectors(ds, halo_center)
         disk = ds.disk(halo_center,Lx,(100.,'kpc'),(20.,'kpc'))
         sl = yt.ProjectionPlot(ds,'y','Density',center=halo_center,width=(200,'kpc'),
@@ -908,7 +908,7 @@ def plot_point_radialprofiles(filenames,field,fileout,plt_log=True):
         kwargs = plot_kwargs[filenames[i].split('/')[-3]]
         ds = yt.load(filenames[i])
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         refine_box = sym_refine_box(ds,halo_center)
         halo_center = ds.arr(halo_center,'code_length')
         dists = compute_cell_distance(halo_center,refine_box['x'],
@@ -995,7 +995,7 @@ def plot_phase_diagrams(filenames,fileout):
     for i in range(len(filenames)):
         ds = yt.load(filenames[i])
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         refine_box = sym_refine_box(ds,halo_center)
         cellmass = refine_box['cell_mass'].in_units('Msun')
         H, xedges, yedges = np.histogram2d(np.log10(refine_box[('gas','H_nuclei_density')]),
@@ -1051,7 +1051,7 @@ def plot_compare_basic_radial_profiles(filenames,fileout):
         ds = yt.load(filenames[i])
 
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         rb = sym_refine_box(ds,halo_center)
 
         dens = np.log10(rb['H_nuclei_density'])
@@ -1102,7 +1102,7 @@ def plot_cooling_time_histogram(filenames,fileout):
         ds = yt.load(filenames[i])
 
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         sim_label = filenames[i].split('/')[-3]
         kwargs = plot_kwargs[sim_label]
 
@@ -1141,7 +1141,7 @@ def plot_cooling_length_histogram(filenames,fileout):
         ds = yt.load(filenames[i])
 
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         sim_label = filenames[i].split('/')[-3]
         kwargs = plot_kwargs[sim_label]
 
@@ -1189,7 +1189,7 @@ def plot_cell_mass_histogram(filenames,fileout):
         ds = yt.load(filenames[i])
 
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         sim_label = filenames[i].split('/')[-3]
         kwargs = plot_kwargs[sim_label]
 
@@ -1233,7 +1233,7 @@ def plot_mass_in_phase(filenames,fileout):
         ds = yt.load(filenames[i])
 
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         sim_label = filenames[i].split('/')[-3]
         kwargs = plot_kwargs[sim_label]
         tick_labels = np.append(tick_labels,sim_label)
@@ -1303,7 +1303,7 @@ def plot_mass_in_phase_evolution(basename,RDnums,prefix,fileout):
     if RDnums[-1] > 100 : zero='0'
     ds = yt.load(basename+('/'+prefix+zero+str(RDnums[-1]))*2)
     center_guess = initial_center_guess(ds,builtins.track_name)
-    halo_center = get_halo_center(ds,center_guess)
+    halo_center, halo_velocity = get_halo_center(ds,center_guess)
     sp = ds.sphere(halo_center,(50.,'kpc'))
     sfr = StarFormationRate(ds, data_source=sp)
     ax[1].plot(sfr.redshift,sfr.Msol_yr,'k')
@@ -1359,7 +1359,7 @@ def plot_field_profile_evolution(basename,RDnums,prefix,field,fileout,plt_log=Tr
             zero = '0'
         ds = yt.load(basename+('/'+prefix+zero+str(RDnums[i]))*2)
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         rb = sym_refine_box(ds,halo_center)
         rp = yt.create_profile(rb,'radius',[field],
                                 units = {'radius':'kpc'},logs = {'radius':False})
@@ -1421,7 +1421,7 @@ def plot_cylindrical_velocity_profiles(filenames,fileout,hlower,hupper,hstep):
         ds = yt.load(filenames[i])
 
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         (L,Lx) = diskVectors(ds,halo_center)
         sp = ds.sphere(halo_center,(12.,'kpc'))
         bulk_v = sp.quantities.bulk_velocity().in_units('km/s')
@@ -1481,7 +1481,7 @@ def plot_holoviews_radial_profiles(filenames,fileout):
         #print 'i: ',i
         ds = yt.load(filenames[i])
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         rb = sym_refine_box(ds,halo_center)
 
         args = filenames[i].split('/')
@@ -1538,7 +1538,7 @@ def plot_holoviews_phase_diagrams(filenames,fileout):
         #print 'i: ',i
         ds = yt.load(filenames[i])
         center_guess = initial_center_guess(ds,builtins.track_name)
-        halo_center = get_halo_center(ds,center_guess)
+        halo_center, halo_velocity = get_halo_center(ds,center_guess)
         rb = sym_refine_box(ds,halo_center)
 
         args = filenames[i].split('/')
