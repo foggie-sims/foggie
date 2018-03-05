@@ -24,8 +24,9 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 
-#foggie_dir = "/astro/simulations/FOGGIE/"
-foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
+foggie_dir = "/astro/simulations/FOGGIE/"
+#foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
+#foggie_dir = '/Volumes/new-black-harddrive/'
 output_dir = "/Users/molly/Dropbox/foggie-collab/"  ## outputs go here
 
 ## lou
@@ -127,13 +128,16 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
             p.set_zlim(species_dict[field], zmin, zmax)
             p.set_cmap(field=species_dict[field], cmap=cmap)
         else:
-            p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, width=(width, 'kpc'))
+            if field != 'density':
+                p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, weight_field=("gas","density"), width=(width, 'kpc'))
+            else:
+                p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, width=(width, 'kpc'))
             p.set_zlim(field, zmin, zmax)
             p.set_cmap(field=field, cmap=cmap)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         if field == "density" or field == "metal_density":
             p.set_unit(('gas','density'),'Msun/pc**2')
-        if field == 'HI' or 'H_p0_number_density':
+        if field == 'HI' or field == 'H_p0_number_density':
             plot = p.plots['H_p0_number_density']
             colorbar = plot.cb
             p._setup_plots()
@@ -214,6 +218,7 @@ def plot_script(halo, run, axis, **kwargs):
     if outs == "all":
         print("looking for outputs in ", run_dir)
         outs = glob.glob(os.path.join(run_dir, '?D0???/?D0???'))
+        outs.remove('/Volumes/new-black-harddrive/halo_008508/nref10n/nref10n_nref9f_refine200kpc/DD0015/DD0015')
     else:
         print("outs = ", outs)
         new_outs = [glob.glob(os.path.join(run_dir, snap)) for snap in outs]
@@ -228,7 +233,7 @@ def plot_script(halo, run, axis, **kwargs):
         print('opening snapshot '+ snap)
         ds = yt.load(snap)
         if args.all or args.ions:
-            trident.add_ion_fields(ds, ions=['C IV', 'O VI', 'H I', 'Si II', 'C II', 'Si III', 'Si IV'])
+            trident.add_ion_fields(ds, ions=['H I','C IV', 'O VI', 'H I', 'Si II', 'C II', 'Si III', 'Si IV'])
         if args.hi:
             trident.add_ion_fields(ds, ions=['H I'])
         if args.silicon:
@@ -396,9 +401,11 @@ if __name__ == "__main__":
         print("NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber")
 
     # message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
-    message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc", "all", \
+    message = plot_script(args.halo, "nref10n/nref10n_nref9f_refine200kpc", "all", \
+                outs=['RD0020/RD0020', 'RD0017/RD0017'])
+#    message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc", "all", \
 #                 outs=["DD0956/DD0956"])
-                 outs=['RD0020/RD0020'])
+#                 outs=['RD0020/RD0020'])
 #                outs=["RD0027/RD0027","RD0026/RD0026","RD0025/RD0025","RD0024/RD0024","RD0023/RD0023"])
 #    message = plot_script(args.halo, "nref11n/nref11f_refine200kpc", "all", outs=['RD0016/RD0016'])
 #    message = plot_script(args.halo, "nref11n/natural", "all", outs=["RD0016/RD0016"])
