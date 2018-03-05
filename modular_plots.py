@@ -128,15 +128,14 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
             p.set_zlim(species_dict[field], zmin, zmax)
             p.set_cmap(field=species_dict[field], cmap=cmap)
         else:
-            if field != 'density':
-                p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, weight_field=("gas","density"), width=(width, 'kpc'))
-            else:
+            if field == "density" or field == "metal_density":
                 p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, width=(width, 'kpc'))
+                p.set_unit(('gas','density'),'Msun/pc**2')
+            else:
+                p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, weight_field=("gas","density"), width=(width, 'kpc'))
             p.set_zlim(field, zmin, zmax)
             p.set_cmap(field=field, cmap=cmap)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
-        if field == "density" or field == "metal_density":
-            p.set_unit(('gas','density'),'Msun/pc**2')
         if field == 'HI' or field == 'H_p0_number_density':
             plot = p.plots['H_p0_number_density']
             colorbar = plot.cb
@@ -218,7 +217,6 @@ def plot_script(halo, run, axis, **kwargs):
     if outs == "all":
         print("looking for outputs in ", run_dir)
         outs = glob.glob(os.path.join(run_dir, '?D0???/?D0???'))
-        outs.remove('/Volumes/new-black-harddrive/halo_008508/nref10n/nref10n_nref9f_refine200kpc/DD0015/DD0015')
     else:
         print("outs = ", outs)
         new_outs = [glob.glob(os.path.join(run_dir, snap)) for snap in outs]
@@ -402,7 +400,7 @@ if __name__ == "__main__":
 
     # message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
     message = plot_script(args.halo, "nref10n/nref10n_nref9f_refine200kpc", "all", \
-                outs=['RD0020/RD0020', 'RD0017/RD0017'])
+                outs=['RD0020/RD0020','RD0019/RD0019','RD0018/RD0018','RD0017/RD0017'])
 #    message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc", "all", \
 #                 outs=["DD0956/DD0956"])
 #                 outs=['RD0020/RD0020'])
