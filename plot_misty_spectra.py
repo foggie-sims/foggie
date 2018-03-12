@@ -25,6 +25,8 @@ from spectacle.modeling import Resample
 def plot_misty_spectra(hdulist, **kwargs):
     outname = kwargs.get('outname', 'test.png')
 
+    ## 0.0267 = (2 km/s)/ c) *4005 angstrom
+
     ## how many lines are there?
     Nlines = np.int(hdulist[0].header['Nlines'])
     print "there are ", Nlines, ' lines'
@@ -68,11 +70,11 @@ def plot_misty_spectra(hdulist, **kwargs):
 
 if __name__ == "__main__":
 
-    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rsp.fits'))
+    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*los.fits'))
     dataset_list = long_dataset_list
 
     for filename in dataset_list:
-        plotname = filename.strip('fits') + 'png'
+        plotname = '.' + filename.strip('los.fits') + 'los.png'
         print('plotting spectra in ', filename, ' and saving as ', plotname)
         hdulist = fits.open(filename)
         plot_misty_spectra(hdulist, outname=plotname)
