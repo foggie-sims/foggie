@@ -2,7 +2,7 @@ import matplotlib as mpl
 mpl.use('agg')
 import seaborn as sns
 
-default_width = 70.  # kpc in projection
+default_width = 85.  # kpc in projection
 
 phase_color_key = {b'cold':'salmon',
                    b'hot':'#ffe34d',
@@ -41,8 +41,8 @@ entropy_min = 1.e-4
 entropy_max = 1.e3
 
 h1_color_map = sns.blend_palette(("white","#ababab","#565656","black","#4575b4","#984ea3","#d73027","darkorange","#ffe34d"), as_cmap=True)
-h1_proj_min = 1.e11
-h1_proj_max = 1.e21
+h1_proj_min = 1.e12
+h1_proj_max = 1.e24
 h1_slc_min = 1.e-14
 h1_slc_max = 1.e2
 
