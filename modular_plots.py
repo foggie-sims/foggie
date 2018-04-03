@@ -24,10 +24,10 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 
-foggie_dir = "/astro/simulations/FOGGIE/"
+#foggie_dir = "/astro/simulations/FOGGIE/"
 #foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
-#foggie_dir = '/Volumes/new-black-harddrive/'
-output_dir = "/Users/molly/Dropbox/foggie-collab/"  ## outputs go here
+#foggie_dir = '/Volumes/foggie/'
+#output_dir = "/Users/molly/Dropbox/foggie-collab/"  ## outputs go here
 
 ## lou
 # foggie_dir = "/u/mpeeples/"  ## where the simulations live
@@ -49,6 +49,19 @@ def parse_args():
     parser.add_argument('--clobber', dest='clobber', action='store_true')
     parser.add_argument('--no-clobber', dest='clobber', action='store_false', help="default is no clobber")
     parser.set_defaults(clobber=False)
+
+    ## what are we plotting and where is it
+    parser.add_argument('--run', metavar='run', type=str, action='store',
+                        help='which run? default is natural')
+    parser.set_defaults(run="natural")
+
+    parser.add_argument('--output', metavar='output', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(output="RD0020")
+
+    parser.add_argument('--system', metavar='system', type=str, action='store',
+                        help='which system are you on? default is oak')
+    parser.set_defaults(system="oak")
 
     ## plot groups
     parser.add_argument('--all', dest='all', action='store_true',
@@ -74,6 +87,14 @@ def parse_args():
 
     parser.add_argument('--ovi', dest='ovi', action='store_true',
                         help='make OVI?, default if not')
+    parser.set_defaults(ovi=False)
+
+    parser.add_argument('--mgii', dest='mgii', action='store_true',
+                        help='make MgII?, default if not')
+    parser.set_defaults(ovi=False)
+
+    parser.add_argument('--neviii', dest='neviii', action='store_true',
+                        help='make NeVIII?, default if not')
     parser.set_defaults(ovi=False)
 
     parser.add_argument('--silicon', dest='silicon', action='store_true',
@@ -131,6 +152,7 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
             if field == "density" or field == "metal_density":
                 p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, width=(width, 'kpc'))
                 p.set_unit(('gas','density'),'Msun/pc**2')
+                p.set_unit(('gas','metal_density'),'Msun/pc**2')
             else:
                 p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, weight_field=("gas","density"), width=(width, 'kpc'))
             p.set_zlim(field, zmin, zmax)
@@ -187,18 +209,19 @@ def make_slice_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
         s.hide_axes()
         s.save(basename + '_Slice_' + ax + '_' + field + '.png')
         s.save(basename + '_Slice_' + ax + '_' + field + '.pdf')
-        frb = s.data_source.to_frb(width, resolution, center=center)
-        cPickle.dump(frb[field], open(basename + '_Slice_' + ax + '_' + field + '.cpkl','wb'), protocol=-1)
+        #frb = s.data_source.to_frb(width, resolution, center=center)
+        #cPickle.dump(frb[field], open(basename + '_Slice_' + ax + '_' + field + '.cpkl','wb'), protocol=-1)
 
 
 #-----------------------------------------------------------------------------------------------------
 
-def plot_script(halo, run, axis, **kwargs):
+def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
     outs = kwargs.get("outs", "all")
     trackname = kwargs.get("trackname", "halo_track")
     if axis == "all":
         axis = ['x','y','z']
 
+    print(foggie_dir)
     track_name = foggie_dir + 'halo_00' + str(halo) + '/' + run + '/' + trackname
     print("opening track: " + track_name)
     track = Table.read(track_name, format='ascii')
@@ -231,9 +254,11 @@ def plot_script(halo, run, axis, **kwargs):
         print('opening snapshot '+ snap)
         ds = yt.load(snap)
         if args.all or args.ions:
-            trident.add_ion_fields(ds, ions=['H I','C IV', 'O VI', 'H I', 'Si II', 'C II', 'Si III', 'Si IV'])
-        if args.hi:
-            trident.add_ion_fields(ds, ions=['H I'])
+            trident.add_ion_fields(ds, ions=['C IV', 'O VI', 'Mg II', 'Si II', 'C II', 'Si III', 'Si IV', 'Ne VIII'])
+        if args.mgii or args.ions:
+            trident.add_ion_fields(ds, ions=['Mg II'])
+        if args.neviii or args.ions:
+            trident.add_ion_fields(ds, ions=['Ne VIII'])
         if args.silicon:
             trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV'])
 
@@ -329,6 +354,11 @@ def plot_script(halo, run, axis, **kwargs):
                             metal_min, metal_max, metal_color_map, \
                             ision=False, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
+        if args.hi:
+            make_slice_plot(ds, prefix, "HI", \
+                                h1_slc_min, h1_slc_max, h1_color_map,\
+                                ision=True, axis=axis, center=center, box=refine_box, \
+                                width=refine_width, appendix="_refine")
 
         if args.all or args.ions or args.hi:
             make_projection_plot(ds, prefix, "HI",  \
@@ -347,6 +377,16 @@ def plot_script(halo, run, axis, **kwargs):
                             width=refine_width, appendix="_refine")
             make_projection_plot(ds, prefix, "OVI",  \
                             o6_min, o6_max, o6_color_map, \
+                            ision=True, center=center, axis=axis, box=box, \
+                            width=width, appendix="_box")
+
+        if args.all or args.ions or args.mgii:
+            make_projection_plot(ds, prefix, "MgII",  \
+                            mg2_min, mg2_max, mg2_color_map, \
+                            ision=True, center=center, axis=axis, box=refine_box, \
+                            width=refine_width, appendix="_refine")
+            make_projection_plot(ds, prefix, "MgII",  \
+                            mg2_min, mg2_max, mg2_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
@@ -386,6 +426,15 @@ def plot_script(halo, run, axis, **kwargs):
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
+        if args.all or args.ions or args.neviii:
+            make_projection_plot(ds, prefix, "NeVIII",  \
+                            ne8_min, ne8_max, ne8_color_map, \
+                            ision=True, center=center, axis=axis, box=refine_box, \
+                            width=refine_width, appendix="_refine")
+            make_projection_plot(ds, prefix, "NeVIII",  \
+                            ne8_min, ne8_max, ne8_color_map, \
+                            ision=True, center=center, axis=axis, box=box, \
+                            width=width, appendix="_box")
 
     return "yay plots! all done!"
 
@@ -398,14 +447,44 @@ if __name__ == "__main__":
     if not args.clobber:
         print("NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber")
 
+    if args.system == "oak":
+        foggie_dir = "/astro/simulations/FOGGIE/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "dhumuha" or args.system == "palmetto":
+        foggie_dir = "/Users/molly/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "harddrive":
+        foggie_dir = "/Volumes/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "nmearl":
+        foggie_dir = "/Users/nearl/data/"
+        output_path = "/Users/nearl/Desktop/"
+
+    if args.run == "natural":
+        run_loc = "nref11n/natural/"
+        trackname = "halo_track"
+        haloname = "halo008508_nref11n"
+    elif args.run == "nref10f":
+        run_loc = "nref11n/nref11n_nref10f_refine200kpc/"
+        trackname = "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
+        haloname = "halo008508_nref11n_nref10f"
+    elif args.run == "nref11f":
+        run_loc = "nref11n/nref11f_refine200kpc/"
+        trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
+        haloname = "halo008508_nref11f"
+
+    print("for now I am assume you are using the Tempest halo even if you passed in something different")
+
+    message = plot_script(args.halo, foggie_dir, output_path, run_loc, "all", outs=[args.output + "/" + args.output])
+
     # message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
-    message = plot_script(args.halo, "nref10n/nref10n_nref9f_refine200kpc", "all", \
-                outs=['RD0020/RD0020','RD0019/RD0019','RD0018/RD0018','RD0017/RD0017'])
-#    message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc", "all", \
-#                 outs=["DD0956/DD0956"])
-#                 outs=['RD0020/RD0020'])
+#    message = plot_script(args.halo, "nref10n/nref10n_nref9f_refine200kpc", "all", \
+#                outs=['RD0020/RD0020','RD0019/RD0019','RD0018/RD0018','RD0017/RD0017'])
+#    message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc", "all",
+#                 outs=["RD0033/RD0033"])
+#                 outs=['RD0042/RD0042'])
 #                outs=["RD0027/RD0027","RD0026/RD0026","RD0025/RD0025","RD0024/RD0024","RD0023/RD0023"])
-#    message = plot_script(args.halo, "nref11n/nref11f_refine200kpc", "all", outs=['RD0016/RD0016'])
-#    message = plot_script(args.halo, "nref11n/natural", "all", outs=["RD0016/RD0016"])
-    # message = plot_script(args.halo, "nref11n/natural", "all")
+#    message = plot_script(args.halo, "nref11n/nref11f_refine200kpc", "all", outs=['RD0017/RD0017'])
+#    message = plot_script(args.halo, "nref11n/natural", "all")
+#    message = plot_script(args.halo, "nref11n/natural", "all")
     sys.exit(message)
