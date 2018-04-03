@@ -17,7 +17,8 @@ species_dict =  {'CIII':'C_p2_number_density',
                  'OVI':'O_p5_number_density',
                  'SiII':"Si_p1_number_density",
                  'SiIII':"Si_p2_number_density",
-                 'SiIV':"Si_p3_number_density"}
+                 'SiIV':"Si_p3_number_density",
+                 'NeVIII':'Ne_p7_number_density'}
 
 
 density_color_map = sns.blend_palette(("black","#984ea3","#d73027","darkorange","#ffe34d","#4daf4a","white"), n_colors=60, as_cmap=True)
@@ -54,6 +55,10 @@ c4_color_map = "inferno"
 c4_min = 1.e11
 c4_max = 1.e15
 
+mg2_color_map = "plasma"
+mg2_min = 1.e10
+mg2_max = 1.e17
+
 si2_color_map = "plasma"
 si2_min = 1.e10
 si2_max = 1.e17
@@ -65,3 +70,7 @@ si3_max = 1.e16
 si4_color_map = "inferno"
 si4_min = 1.e11
 si4_max = 1.e15
+
+ne8_color_map = "magma"
+ne8_min = 1.e11
+ne8_max = 1.e15
