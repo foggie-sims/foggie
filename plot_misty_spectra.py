@@ -18,14 +18,13 @@ from astropy.io import fits
 from astropy.convolution import Gaussian1DKernel, convolve
 import astropy.units as u
 
-from spectacle.modeling import Resample
+from spectacle.analysis import Resample
 
 # from consistency import *
 
 def plot_misty_spectra(hdulist, **kwargs):
     outname = kwargs.get('outname', 'test.png')
-
-    ## 0.0267 = (2 km/s)/ c) *4005 angstrom
+    overplot = kwargs.get('overplot', False)
 
     ## how many lines are there?
     Nlines = np.int(hdulist[0].header['Nlines'])
@@ -44,21 +43,15 @@ def plot_misty_spectra(hdulist, **kwargs):
     for line in np.arange(Nlines):
         ax_spec = fig.add_subplot(gs[line, 0])
         try:
-            redshift = (hdulist[line+2].data['wavelength'] / hdulist[line+2].header['restwave']) - 1
-            print('redshift: ',np.min(redshift), np.max(redshift))
-            velocity = (redshift - zsnap) * 299792.458
-            flux = hdulist[line+2].data['flux']
-            print('flux for line ',hdulist[line+2].header['LINENAME'],': ',np.min(flux),np.max(flux))
-            # v_conv = convolve(velocity, g)
-            # ax_spec1.step(v_conv, flux, color="#4575b4",lw=2)
-            ax_spec.step(redshift, flux, color='darkorange',lw=1)
+            ### _lsf.fits files have '_obs' while _los.fits files don't
+            # ax_spec.step(redshift, flux, color='darkorange',lw=1)
+            ax_spec.step(hdulist[line+2].data['redshift_obs'], hdulist[line+2].data['flux_obs'], color='purple', lw=1)
+            if overplot:
+                ax_spec.step(hdulist[line+2].data['redshift_obs'], hdulist[line+2].data['flux_obs'], color='darkorange', lw=1)
             ax_spec.text(zmin + 0.0001, 0, hdulist[line+2].header['LINENAME'], fontsize=10.)
         except:
             print('plotting faaaaailed :-()')
-        # nstep = np.round((vmax - vmin)/2.)  ## 2 km/s
-        # new_vel = np.linspace(np.min(velocity), np.max(velocity), nstep) * u.km / u.s
-        # new_flux = Resample(velocity, new_vel)(flux)
-        # ax_spec.step(new_vel, new_flux, color='purple',lw=1)
+        ## eventually want to plot in velocity space and actually label the bottom axis but :shrug:
         ax_spec.xaxis.set_major_locator(ticker.NullLocator())
         plt.xlim(zmin, zmax)
         plt.ylim(-0.05, 1.05)
@@ -70,12 +63,12 @@ def plot_misty_spectra(hdulist, **kwargs):
 
 if __name__ == "__main__":
 
-    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*los.fits'))
+    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*lsf.fits.gz'))
     dataset_list = long_dataset_list
 
     for filename in dataset_list:
-        plotname = '.' + filename.strip('los.fits') + 'los.png'
+        plotname = '.' + filename.strip('lsf.fits.gz') + 'lsf.png'
         print('plotting spectra in ', filename, ' and saving as ', plotname)
         hdulist = fits.open(filename)
-        plot_misty_spectra(hdulist, outname=plotname)
+        plot_misty_spectra(hdulist, overplot=False, outname=plotname)
         hdulist.close()
