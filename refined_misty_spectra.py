@@ -184,7 +184,7 @@ if __name__ == "__main__":
         ds_base = "/Users/molly/foggie/"
         output_path = "/Users/molly/Dropbox/foggie-collab/"
     elif args.system == "nmearl":
-        ds_base = "/Users/nearl/data/"
+        ds_base = "/astro/simulations/FOGGIE/"
         output_path = "/Users/nearl/Desktop/"
 
     if args.run == "natural":
@@ -210,7 +210,7 @@ if __name__ == "__main__":
     track.sort('col1')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
-    halo_center = get_halo_center(ds, refine_box_center)
+    halo_center = get_halo_center(ds, refine_box_center)[0]
 
     generate_random_rays(ds, halo_center, haloname=haloname, track=track, \
                          output_dir=output_dir, Nrays=args.Nrays)
