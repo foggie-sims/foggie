@@ -3,7 +3,6 @@ import trident
 import numpy as np
 import yt
 import os
-os.sys.path.insert(0, '/Users/nearl/projects/MISTY')
 import MISTY
 import sys
 import os
