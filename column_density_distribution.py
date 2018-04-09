@@ -16,7 +16,7 @@ from mpl_toolkits.axes_grid1 import AxesGrid
 from astropy.table import Table
 from astropy.io import fits
 
-from modular_plots import get_refine_box
+from get_refine_box import get_refine_box
 from get_proper_box_size import get_proper_box_size
 from consistency import *
 
