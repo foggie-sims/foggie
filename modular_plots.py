@@ -10,7 +10,10 @@ import os
 import glob
 import sys
 
-import cPickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 from astropy.table import Table
 
