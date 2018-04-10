@@ -1,5 +1,5 @@
 import numpy as np
-import MISTY
+# import MISTY
 import sys
 import os
 import glob
@@ -45,7 +45,8 @@ def plot_misty_spectra(hdulist, **kwargs):
         try:
             ### _lsf.fits files have '_obs' while _los.fits files don't
             # ax_spec.step(redshift, flux, color='darkorange',lw=1)
-            ax_spec.step(hdulist[line+2].data['redshift_obs'], hdulist[line+2].data['flux_obs'], color='purple', lw=1)
+            #ax_spec.step(hdulist[line+2].data['redshift_obs'], hdulist[line+2].data['flux_obs'], color='purple', lw=1)
+            ax_spec.step(hdulist[line+2].data['redshift'], hdulist[line+2].data['flux'], color='purple', lw=1)
             if overplot:
                 ax_spec.step(hdulist[line+2].data['redshift_obs'], hdulist[line+2].data['flux_obs'], color='darkorange', lw=1)
             ax_spec.text(zmin + 0.0001, 0, hdulist[line+2].header['LINENAME'], fontsize=10.)
@@ -63,11 +64,11 @@ def plot_misty_spectra(hdulist, **kwargs):
 
 if __name__ == "__main__":
 
-    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*lsf.fits.gz'))
+    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*dd*los.fits.gz'))
     dataset_list = long_dataset_list
 
     for filename in dataset_list:
-        plotname = '.' + filename.strip('lsf.fits.gz') + 'lsf.png'
+        plotname = '.' + filename.strip('los.fits.gz') + 'los.png'
         print('plotting spectra in ', filename, ' and saving as ', plotname)
         hdulist = fits.open(filename)
         plot_misty_spectra(hdulist, overplot=False, outname=plotname)
