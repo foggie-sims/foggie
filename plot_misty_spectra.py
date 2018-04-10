@@ -1,5 +1,6 @@
 import numpy as np
-# import MISTY
+import MISTY
+import logging
 import sys
 import os
 import glob
@@ -19,6 +20,7 @@ from astropy.convolution import Gaussian1DKernel, convolve
 import astropy.units as u
 
 from spectacle.analysis import Resample
+from spectacle.core.spectrum import Spectrum1D
 
 # from consistency import *
 
@@ -28,7 +30,7 @@ def plot_misty_spectra(hdulist, **kwargs):
 
     ## how many lines are there?
     Nlines = np.int(hdulist[0].header['Nlines'])
-    print "there are ", Nlines, ' lines'
+    print("there are ", Nlines, ' lines')
     # start by setting up plots
     fig = plt.figure(dpi=300)
     fig.set_figheight(11)
@@ -36,11 +38,30 @@ def plot_misty_spectra(hdulist, **kwargs):
     # creates grid on which the figure will be plotted
     gs = gridspec.GridSpec(Nlines, 1)
 
-    zsnap = np.median(hdulist[3].data['redshift'])  ## hack
+    zsnap = np.median(hdulist[3].data['redshift_obs'])  ## hack
     zmin, zmax = (zsnap-0.004), (zsnap+0.004)
     vmin, vmax = -1000, 1000
 
-    for line in np.arange(Nlines):
+    # Construct spectacle spectrum
+    spectrum = Spectrum1D(redshift=zsnap)
+
+    for line in range(Nlines):
+        ext = hdulist[line+2]
+        name = ext.header['LINENAME']
+        lambda_0 = ext.header['RESTWAVE'] * u.AA
+        f_value = ext.header['F_VALUE']
+        gamma = ext.header['GAMMA']
+
+        for i in range(len([x for x in ext.header if 'FITLCEN' in x])):
+            centroid = ext.header['FITLCEN{}'.format(i)] * u.AA
+            delta = centroid - lambda_0
+            col_dens = ext.header['FITCOL{}'.format(i)] * u.Unit('1/cm2')
+            v_dop = ext.header['FITB{}'.format(i)] * u.Unit('cm/s')
+
+            spectrum.add_line(name=name, lambda_0=lambda_0, f_value=f_value,
+                              gamma=gamma, column_density=col_dens, v_doppler=v_dop,
+                              delta_lambda=delta)
+
         ax_spec = fig.add_subplot(gs[line, 0])
         try:
             ### _lsf.fits files have '_obs' while _los.fits files don't
@@ -48,10 +69,10 @@ def plot_misty_spectra(hdulist, **kwargs):
             #ax_spec.step(hdulist[line+2].data['redshift_obs'], hdulist[line+2].data['flux_obs'], color='purple', lw=1)
             ax_spec.step(hdulist[line+2].data['redshift'], hdulist[line+2].data['flux'], color='purple', lw=1)
             if overplot:
-                ax_spec.step(hdulist[line+2].data['redshift_obs'], hdulist[line+2].data['flux_obs'], color='darkorange', lw=1)
+                ax_spec.step(hdulist[line+2].data['redshift_obs'], spectrum.flux(hdulist[line+2].data['disp_obs'] * u.AA), color='darkorange', lw=1)
             ax_spec.text(zmin + 0.0001, 0, hdulist[line+2].header['LINENAME'], fontsize=10.)
-        except:
-            print('plotting faaaaailed :-()')
+        except Exception as e:
+            logging.error("Plotting failed because: \n%s", e)
         ## eventually want to plot in velocity space and actually label the bottom axis but :shrug:
         ax_spec.xaxis.set_major_locator(ticker.NullLocator())
         plt.xlim(zmin, zmax)
