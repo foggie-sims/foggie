@@ -3,6 +3,8 @@ import trident
 import numpy as np
 import yt
 import os
+
+os.sys.path.insert(0, '/Users/molly/Dropbox/misty/MISTY-pipeline/MISTY')
 import MISTY
 import sys
 import os
@@ -13,6 +15,7 @@ from astropy.table import Table
 from get_refine_box import get_refine_box
 from get_proper_box_size import get_proper_box_size
 from get_halo_center import get_halo_center
+from plot_misty_spectra import plot_misty_spectra
 
 import show_velphase as sv
 
@@ -96,11 +99,12 @@ def generate_random_rays(ds, halo_center, **kwargs):
     low_impact = kwargs.get("low_impact", 10.)
     high_impact = kwargs.get("high_impact", 45.)
     track = kwargs.get("track","halo_track")
-    Nrays = kwargs.get("Nrays",50)
-    output_dir = kwargs.get("output_dir",".")
+    Nrays = kwargs.get("Nrays",2)
+    output_dir = kwargs.get("output_dir", ".")
     haloname = kwargs.get("haloname","somehalo")
     # line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'C II 1334', 'Mg II 2796', 'C III 977', 'Si III 1207', 'C IV 1548', 'O VI 1032'])
     line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973', 'H I 950', 'H I 919', \
+                     'Mg II 2796', \
                      'Si II 1260', 'Si III 1207', 'Si IV 1394', \
                      'C II 1335', 'C III 977', 'C IV 1548', \
                      'O VI 1032'])
@@ -111,9 +115,11 @@ def generate_random_rays(ds, halo_center, **kwargs):
     proper_x_width = x_width*proper_box_size
 
     ## for now, assume all are z-axis
-    axis = "x"
-    np.random.seed(17)
+    axis = "y"
+    np.random.seed(34)
+    high_impact = 0.45*proper_x_width
     impacts = np.random.uniform(low=low_impact, high=high_impact, size=Nrays)
+    print('impacts = ', impacts)
     angles = np.random.uniform(low=0, high=2*pi, size=Nrays)
     out_ray_basename = ds.basename + "_ray_" + axis
 
@@ -123,8 +129,10 @@ def generate_random_rays(ds, halo_center, **kwargs):
                         "-a"+"{:4.2f}".format(angles[i])
         out_ray_name =  this_out_ray_basename + ".h5"
         rs, re = get_refined_ray_endpoints(ds, halo_center, track, impact=impacts[i])
-        out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])+"_v3_los.fits"
+        out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+"_i"+"{:05.1f}".format(impacts[i]) + \
+                        "-a"+"{:4.2f}".format(angles[i])+"_v4_los.fits.gz"
+        out_plot_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+"_i"+"{:05.1f}".format(impacts[i]) + \
+                        "-a"+"{:4.2f}".format(angles[i])+"_v4_los.png"
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         if args.velocities:
@@ -162,7 +170,8 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                      zsnap=ds.current_redshift,
                                      write=True,
                                      hdulist=hdulist,
-                                     use_spectacle=True)
+                                     use_spectacle=False,
+                                     resample=True)
             filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
             ## if we write our own plotting routine, we can overplot the spectacle fits
             sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
@@ -170,6 +179,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
                 sv.show_velphase(ds, ray_df, rs, re, triray, filespecout_base)
 
         MISTY.write_out(hdulist,filename=out_fits_name)
+        plot_misty_spectra(hdulist, outname=out_plot_name)
 
 
 
@@ -181,6 +191,9 @@ if __name__ == "__main__":
         output_path = "/Users/molly/Dropbox/foggie-collab/"
     elif args.system == "dhumuha" or args.system == "palmetto":
         ds_base = "/Users/molly/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "harddrive":
+        ds_base = "/Volumes/foggie/"
         output_path = "/Users/molly/Dropbox/foggie-collab/"
     elif args.system == "nmearl":
         ds_base = "/Users/nearl/data/"
@@ -209,7 +222,7 @@ if __name__ == "__main__":
     track.sort('col1')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
-    halo_center = get_halo_center(ds, refine_box_center)
+    halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
 
     generate_random_rays(ds, halo_center, haloname=haloname, track=track, \
                          output_dir=output_dir, Nrays=args.Nrays)
