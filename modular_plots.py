@@ -10,7 +10,10 @@ import os
 import glob
 import sys
 
-import cPickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 from astropy.table import Table
 
@@ -42,7 +45,7 @@ def parse_args():
 
     ## optional arguments
     parser.add_argument('--halo', metavar='halo', type=str, action='store',
-                        help='which halo? default is 8508')
+                        help='which halo? default is 8508 (Tempest)')
     parser.set_defaults(halo="8508")
 
     ## clobber?
@@ -459,6 +462,9 @@ if __name__ == "__main__":
     elif args.system == "nmearl":
         foggie_dir = "/Users/nearl/data/"
         output_path = "/Users/nearl/Desktop/"
+    elif args.system == "pleiades":
+        foggie_dir = "/nobackup/mpeeples/"
+        output_path = "/nobackup/mpeeples/"
 
     if args.run == "natural":
         run_loc = "nref11n/natural/"
@@ -472,8 +478,10 @@ if __name__ == "__main__":
         run_loc = "nref11n/nref11f_refine200kpc/"
         trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
         haloname = "halo008508_nref11f"
+        if args.system == "pleiades":
+            trackname = "halo_008508/nref11f_refine200kpc/halo_track"
 
-    print("for now I am assume you are using the Tempest halo even if you passed in something different")
+    print("for now I am assuming you are using the Tempest halo even if you passed in something different")
 
     message = plot_script(args.halo, foggie_dir, output_path, run_loc, "all", outs=[args.output + "/" + args.output])
 
