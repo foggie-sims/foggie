@@ -219,6 +219,9 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
 
     print(foggie_dir)
     track_name = foggie_dir + 'halo_00' + str(halo) + '/' + run + '/' + trackname
+    if args.system == "pleiades":
+        track_name = "halo_008508/nref11f_refine200kpc/halo_track"
+
     print("opening track: " + track_name)
     track = Table.read(track_name, format='ascii')
     track.sort('col1')
