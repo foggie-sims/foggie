@@ -27,14 +27,7 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 
-#foggie_dir = "/astro/simulations/FOGGIE/"
-#foggie_dir = "/Users/molly/foggie/"  ## where the simulations live
-#foggie_dir = '/Volumes/foggie/'
-#output_dir = "/Users/molly/Dropbox/foggie-collab/"  ## outputs go here
-
-## lou
-# foggie_dir = "/u/mpeeples/"  ## where the simulations live
-# output_dir = "/u/mpeeples/plots/"  ## outputs go here
+yt.enable_parallelism()
 
 
 def parse_args():
