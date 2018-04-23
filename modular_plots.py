@@ -336,14 +336,14 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             width=width, appendix="_box")
 
         if args.all or args.physical or args.metals:
-            make_projection_plot(ds, prefix, "metal_density",  \
-                            metal_density_min, metal_density_max, metal_color_map, \
-                            ision=False, center=center, axis=axis, box=refine_box, \
-                            width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "metal_density",  \
-                            metal_density_min, metal_density_max, metal_color_map, \
-                            ision=False, center=center, axis=axis, box=box, \
-                            width=width, appendix="_box")
+            # make_projection_plot(ds, prefix, "metal_density",  \
+            #                 metal_density_min, metal_density_max, metal_color_map, \
+            #                 ision=False, center=center, axis=axis, box=refine_box, \
+            #                 width=refine_width, appendix="_refine")
+            # make_projection_plot(ds, prefix, "metal_density",  \
+            #                 metal_density_min, metal_density_max, metal_color_map, \
+            #                 ision=False, center=center, axis=axis, box=box, \
+            #                 width=width, appendix="_box")
 
             make_projection_plot(ds, prefix, "metallicity",  \
                             metal_min, metal_max, metal_color_map, \
