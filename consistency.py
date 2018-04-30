@@ -41,6 +41,10 @@ entropy_color_map = "Spectral"
 entropy_min = 1.e-4
 entropy_max = 1.e3
 
+pressure_color_map = "Spectral"
+pressure_min = 1.e-16
+pressure_max = 1.e-9
+
 h1_color_map = sns.blend_palette(("white","#ababab","#565656","black","#4575b4","#984ea3","#d73027","darkorange","#ffe34d"), as_cmap=True)
 h1_proj_min = 1.e12
 h1_proj_max = 1.e24

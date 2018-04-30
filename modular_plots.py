@@ -312,6 +312,10 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                                 entropy_min, entropy_max, entropy_color_map, \
                                 ision=False, axis=axis, center=center, box=refine_box, \
                                 width=refine_width, appendix="_refine")
+                make_slice_plot(ds, prefix, "pressure", \
+                                pressure_min, pressure_max, pressure_color_map, \
+                                ision=False, axis=axis, center=center, box=refine_box, \
+                                width=refine_width, appendix="_refine")
 
 
         if args.all or args.physical or args.density:
