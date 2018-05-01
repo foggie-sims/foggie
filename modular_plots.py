@@ -498,16 +498,9 @@ if __name__ == "__main__":
 
     print("for now I am assuming you are using the Tempest halo even if you passed in something different")
 
-    message = plot_script(args.halo, foggie_dir, output_path, run_loc, "all", outs=[args.output + "/" + args.output])
+    if args.output == "all":
+        message = plot_script(args.halo, foggie_dir, output_path, run_loc, "all", outs=args.output)
+    else:
+        message = plot_script(args.halo, foggie_dir, output_path, run_loc, "all", outs=[args.output + "/" + args.output])
 
-    # message = plot_script(args.halo, "symmetric_box_tracking/nref11f_50kpc", "x")
-#    message = plot_script(args.halo, "nref10n/nref10n_nref9f_refine200kpc", "all", \
-#                outs=['RD0020/RD0020','RD0019/RD0019','RD0018/RD0018','RD0017/RD0017'])
-#    message = plot_script(args.halo, "nref11n/nref11n_nref10f_refine200kpc", "all",
-#                 outs=["RD0033/RD0033"])
-#                 outs=['RD0042/RD0042'])
-#                outs=["RD0027/RD0027","RD0026/RD0026","RD0025/RD0025","RD0024/RD0024","RD0023/RD0023"])
-#    message = plot_script(args.halo, "nref11n/nref11f_refine200kpc", "all", outs=['RD0017/RD0017'])
-#    message = plot_script(args.halo, "nref11n/natural", "all")
-#    message = plot_script(args.halo, "nref11n/natural", "all")
     sys.exit(message)
