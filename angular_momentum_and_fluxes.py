@@ -72,6 +72,37 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
     outs = kwargs.get("outs", "all")
     trackname = kwargs.get("trackname", "halo_track")
 
+    ### set up the table of all the stuff we want
+    data = Table(names=('redshift', 'radius', 'nref_mode', \
+                        'net_mass_flux', 'net_metal_flux', \
+                        'mass_flux_in', 'mass_flux_out', \
+                        'metal_flux_in', 'metal_flux_out', \
+                        'net_cold_mass_flux', 'cold_mass_flux_in', 'cold_mass_flux_out', \
+                        'net_cool_mass_flux', 'cool_mass_flux_in', 'cool_mass_flux_out', \
+                        'net_warm_mass_flux', 'warm_mass_flux_in', 'warm_mass_flux_out', \
+                        'net_hot_mass_flux', 'hot_mass_flux_in', 'hot_mass_flux_out', \
+                        'annular_ang_mom_gas_x', 'annular_ang_mom_gas_y','annular_ang_mom_gas_z', \
+                        'annular_spec_ang_mom_gas_x', 'annular_spec_ang_mom_gas_y','annular_spec_ang_mom_gas_z',\
+                        'annular_ang_mom_dm_x', 'annular_ang_mom_dm_y','annular_ang_mom_dm_z', \
+                        'annular_spec_ang_mom_dm_x', 'annular_spec_ang_mom_dm_y', 'annular_spec_ang_mom_dm_z', \
+                        'outside_ang_mom_gas_x', 'outside_ang_mom_gas_y', 'outside_ang_mom_gas_z',  \
+                        'outside_spec_ang_mom_gas_x', 'outside_spec_ang_mom_gas_y', 'outside_spec_ang_mom_gas_z', \
+                        'outside_ang_mom_dm_x', 'outside_ang_mom_dm_y','outside_ang_mom_dm_z',\
+                        'outside_spec_ang_mom_dm_x', 'outside_spec_ang_mom_dm_y', 'outside_spec_ang_mom_dm_z', \
+                        'inside_ang_mom_stars_x', 'inside_ang_mom_stars_y', 'inside_ang_mom_stars_z', \
+                        'inside_spec_ang_mom_stars_x', 'inside_spec_ang_mom_stars_y', 'inside_spec_ang_mom_stars_z'),
+                  dtype=('f8', 'f8', 'i8',
+                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8'
+                        ))
+
+
     print(foggie_dir)
     track_name = foggie_dir + 'halo_00' + str(halo) + '/' + run + '/' + trackname
     if args.system == "pleiades":
@@ -115,36 +146,6 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
         # center is trying to be the center of the halo
         halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
-
-        ### set up the table of all the stuff we want
-        data = Table(names=('redshift','radius', 'nref_mode', \
-                            'net_mass_flux', 'net_metal_flux', \
-                            'mass_flux_in', 'mass_flux_out', \
-                            'metal_flux_in', 'metal_flux_out', \
-                            'net_cold_mass_flux', 'cold_mass_flux_in', 'cold_mass_flux_out', \
-                            'net_cool_mass_flux', 'cool_mass_flux_in', 'cool_mass_flux_out', \
-                            'net_warm_mass_flux', 'warm_mass_flux_in', 'warm_mass_flux_out', \
-                            'net_hot_mass_flux', 'hot_mass_flux_in', 'hot_mass_flux_out', \
-                            'annular_ang_mom_gas_x', 'annular_ang_mom_gas_y','annular_ang_mom_gas_z', \
-                            'annular_spec_ang_mom_gas_x', 'annular_spec_ang_mom_gas_y','annular_spec_ang_mom_gas_z',\
-                            'annular_ang_mom_dm_x', 'annular_ang_mom_dm_y','annular_ang_mom_dm_z', \
-                            'annular_spec_ang_mom_dm_x', 'annular_spec_ang_mom_dm_y', 'annular_spec_ang_mom_dm_z', \
-                            'outside_ang_mom_gas_x', 'outside_ang_mom_gas_y', 'outside_ang_mom_gas_z',  \
-                            'outside_spec_ang_mom_gas_x', 'outside_spec_ang_mom_gas_y', 'outside_spec_ang_mom_gas_z', \
-                            'outside_ang_mom_dm_x', 'outside_ang_mom_dm_y','outside_ang_mom_dm_z',\
-                            'outside_spec_ang_mom_dm_x', 'outside_spec_ang_mom_dm_y', 'outside_spec_ang_mom_dm_z', \
-                            'inside_ang_mom_stars_x', 'inside_ang_mom_stars_y', 'inside_ang_mom_stars_z', \
-                            'inside_spec_ang_mom_stars_x', 'inside_spec_ang_mom_stars_y', 'inside_spec_ang_mom_stars_z'),
-                      dtype=('f8', 'f8', 'i8',
-                             'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
-                             'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
-                             'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
-                             'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
-                             'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
-                             'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
-                             'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
-                             'f8', 'f8', 'f8', 'f8', 'f8', 'f8'
-                            ))
 
         ### OK, now want to set up some spheres of some sizes and get the stuff
         radii = refine_width_code*0.5*np.arange(0.9, 0.1, -0.1)  # 0.5 because radius
