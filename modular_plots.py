@@ -239,6 +239,9 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
     if outs == "all":
         print("looking for outputs in ", run_dir)
         outs = glob.glob(os.path.join(run_dir, '?D0???/?D0???'))
+    elif outs == "RD":
+        print("looking for just the RD outputs in ", run_dir)
+        outs = glob.glob(os.path.join(run_dir, 'RD0???/RD0???'))
     else:
         print("outs = ", outs)
         new_outs = [glob.glob(os.path.join(run_dir, snap)) for snap in outs]
@@ -262,7 +265,7 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
             trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV'])
 
         ## add metal density
-        ds.add_field(("gas", "metal_density"), function=_metal_density, units="g/cm**2")
+        # ds.add_field(("gas", "metal_density"), function=_metal_density, units="g/cm**2")
 
 
         # box = ds.r[ center[0]-wide/143886:center[0]+wide/143886, center[1]-wide/143886.:center[1]+wide/143886., center[2]-wide/143886.:center[2]+wide/143886.]
@@ -481,6 +484,13 @@ if __name__ == "__main__":
         if args.system == "pleiades":
             trackname = "halo_008508/nref11f_refine200kpc/halo_track"
             run_loc = "nref11n_selfshield/"
+    elif args.run == "nref11n_startest_selfshield":
+        run_loc = "nref11n/nref11n_startest_selfshield/"
+        trackname = "halo_008508/nref11n/nref11n_selfshield/halo_track"
+        haloname = "halo008508_nref11n_startest_selfshield"
+        if args.system == "pleiades":
+            trackname = "halo_008508/nref11f_refine200kpc/halo_track"
+            run_loc = "nref11n_selfshield/"
     elif args.run == "nref10n_nref8f_selfshield":
         run_loc = "nref10n/nref10n_nref8f_selfshield/"
         trackname = "halo_008508/nref10n/nref10n_nref8f_selfshield/halo_track"
@@ -488,6 +498,17 @@ if __name__ == "__main__":
         if args.system == "pleiades":
             trackname = "halo_008508/nref10n_nref8f_selfshield/halo_track"
             run_loc = "nref10n_nref8f_selfshield/"
+    elif args.run == "nref11n_nref9f_startest":
+        run_loc = "nref11n/nref11n_nref9f_startest/"
+        trackname = "halo_008508/nref11n_nref9f_startest/halo_track"
+        haloname = "halo008508_nref11n_nref9f_startest"
+    elif args.run == "nref10n_nref8f_startest_selfshield":
+        run_loc = "nref10n/nref10n_nref8f_startest_selfshield/"
+        trackname = "halo_008508/nref10n/nref10n_nref8f_startest_selfshield/halo_track"
+        haloname = "halo008508_nref10n_nref8f_startest_selfshield"
+        if args.system == "pleiades":
+            trackname = "halo_008508/nref10n_nref8f_startest_selfshield/halo_track"
+            run_loc = "nref10n_nref8f_startest_selfshield/"
     elif args.run == "nref11f":
         run_loc = "nref11n/nref11f_refine200kpc/"
         trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
@@ -498,7 +519,7 @@ if __name__ == "__main__":
 
     print("for now I am assuming you are using the Tempest halo even if you passed in something different")
 
-    if args.output == "all":
+    if args.output == "all" or args.output == "RD":
         message = plot_script(args.halo, foggie_dir, output_path, run_loc, "all", outs=args.output)
     else:
         message = plot_script(args.halo, foggie_dir, output_path, run_loc, "all", outs=[args.output + "/" + args.output])
