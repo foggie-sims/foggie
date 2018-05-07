@@ -16,6 +16,7 @@ except ImportError:
     import pickle
 
 from astropy.table import Table
+from astropy.io import ascii
 
 from consistency import *
 from get_refine_box import get_refine_box
