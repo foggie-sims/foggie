@@ -509,6 +509,27 @@ if __name__ == "__main__":
         if args.system == "pleiades":
             trackname = "halo_008508/nref10n_nref8f_startest_selfshield/halo_track"
             run_loc = "nref10n_nref8f_startest_selfshield/"
+    elif args.run == "nref10n_nref8f_startest10000_selfshield":
+        run_loc = "nref10n/nref10n_nref8f_startest10000_selfshield/"
+        trackname = "halo_008508/nref10n/nref10n_nref8f_startest10000_selfshield/halo_track"
+        haloname = "halo008508_nref10n_nref8f_startest10000_selfshield"
+        if args.system == "pleiades":
+            trackname = "halo_008508/nref10n_nref8f_startest10000_selfshield/halo_track"
+            run_loc = "nref10n_nref8f_startest10000_selfshield/"
+    elif args.run == "nref10n_nref8f_startest5000_selfshield":
+        run_loc = "nref10n/nref10n_nref8f_startest5000_selfshield/"
+        trackname = "halo_008508/nref10n/nref10n_nref8f_startest5000_selfshield/halo_track"
+        haloname = "halo008508_nref10n_nref8f_startest5000_selfshield"
+        if args.system == "pleiades":
+            trackname = "halo_008508/nref10n_nref8f_startest5000_selfshield/halo_track"
+            run_loc = "nref10n_nref8f_startest5000_selfshield/"
+    elif args.run == "nref10n_nref8f_startest_selfshield":
+        run_loc = "nref10n/nref10n_nref8f_startest_selfshield/"
+        trackname = "halo_008508/nref10n/nref10n_nref8f_startest_selfshield/halo_track"
+        haloname = "halo008508_nref10n_nref8f_startest_selfshield"
+        if args.system == "pleiades":
+            trackname = "halo_008508/nref10n_nref8f_startest_selfshield/halo_track"
+            run_loc = "nref10n_nref8f_startest_selfshield/"
     elif args.run == "nref11f":
         run_loc = "nref11n/nref11f_refine200kpc/"
         trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
