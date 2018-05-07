@@ -27,16 +27,6 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 
 yt.enable_parallelism()
 
-@yt.particle_filter(requires=["particle_type"], filtered_type='all')
-def stars(pfilter, data):
-    filter = data[(pfilter.filtered_type, "particle_type")] == 2
-    return filter
-
-## these are the must refine particles; no dm particle type 0's should be there!
-def dm(pfilter, data):
-    filter = data[(pfilter.filtered_type, "particle_type")] == 4
-    return filter
-
 
 def parse_args():
     '''
@@ -65,6 +55,133 @@ def parse_args():
 
     args = parser.parse_args()
     return args
+
+#-----------------------------------------------------------------------------------------------------
+####################    PARTICLES          ######################################
+@yt.particle_filter(requires=["particle_type"], filtered_type='all')
+def stars(pfilter, data):
+    filter = data[(pfilter.filtered_type, "particle_type")] == 2
+    return filter
+
+## these are the must refine particles; no dm particle type 0's should be there!
+@yt.particle_filter(requires=["particle_type"], filtered_type='all')
+def dm(pfilter, data):
+    filter = data[(pfilter.filtered_type, "particle_type")] == 4
+    return filter
+
+####################    FLUXES          ######################################
+@derived_field(name="gas_density_in", units="Msun/kpc**3", force_override=True)
+def _gas_density_in(field, data):
+    gas_density_in = data['density']
+    values_flags = data['radial_velocity'] > 0.  ## positive radial velocity = gas going out
+    gas_density_in[values_flags] = 0
+    return gas_density_in
+
+@derived_field(name="gas_density_out", units="Msun/kpc**3", force_override=True)
+def _gas_density_out(field, data):
+    gas_density_out = data['density']
+    values_flags = data['radial_velocity'] < 0.  ## positive radial velocity = gas going out
+    gas_density_out[values_flags] = 0
+    return gas_density_out
+
+@derived_field(name="metal_density_in", units="Msun/kpc**3", force_override=True)
+def _metal_density_in(field, data):
+    metal_density_in = data['metal_density']
+    values_flags = data['radial_velocity'] > 0.  ## positive radial velocity = metal going out
+    metal_density_in[values_flags] = 0
+    return metal_density_in
+
+@derived_field(name="metal_density_out", units="Msun/kpc**3", force_override=True)
+def _metal_density_out(field, data):
+    metal_density_out = data['metal_density']
+    values_flags = data['radial_velocity'] < 0.  ## positive radial velocity = metal going out
+    metal_density_out[values_flags] = 0
+    return metal_density_out
+
+@derived_field(name="hot_gas_density", units="Msun/kpc**3", force_override=True)
+def _hot_gas_density(field, data):
+    gas_density = data['density']
+    values_flags = (data['temperature'].in_units('K') < 1.e6)
+    gas_density[values_flags] = 0
+    return gas_density
+
+@derived_field(name="hot_gas_density_in", units="Msun/kpc**3", force_override=True)
+def _hot_gas_density_in(field, data):
+    gas_density_in = data['density']
+    values_flags = (data['radial_velocity'] > 0.) | (data['temperature'].in_units('K') < 1.e6)
+    gas_density_in[values_flags] = 0
+    return gas_density_in
+
+@derived_field(name="hot_gas_density_out", units="Msun/kpc**3", force_override=True)
+def _hot_gas_density_out(field, data):
+    gas_density_out = data['density']
+    values_flags = (data['radial_velocity'] < 0.) | (data['temperature'].in_units('K') < 1.e6)
+    gas_density_out[values_flags] = 0
+    return gas_density_out
+
+@derived_field(name="warm_gas_density", units="Msun/kpc**3", force_override=True)
+def _warm_gas_density(field, data):
+    gas_density = data['density']
+    values_flags =(data['temperature'].in_units('K') < 1.e5) | (data['temperature'].in_units('K') >= 1.e6)
+    gas_density[values_flags] = 0
+    return gas_density
+
+@derived_field(name="warm_gas_density_in", units="Msun/kpc**3", force_override=True)
+def _warm_gas_density_in(field, data):
+    gas_density_in = data['density']
+    values_flags = (data['radial_velocity'] > 0.) | (data['temperature'].in_units('K') < 1.e5) | (data['temperature'].in_units('K') >= 1.e6)
+    gas_density_in[values_flags] = 0
+    return gas_density_in
+
+@derived_field(name="warm_gas_density_out", units="Msun/kpc**3", force_override=True)
+def _warm_gas_density_out(field, data):
+    gas_density_out = data['density']
+    values_flags = (data['radial_velocity'] < 0.) | (data['temperature'].in_units('K') < 1.e5) | (data['temperature'].in_units('K') >= 1.e6)
+    gas_density_out[values_flags] = 0
+    return gas_density_out
+
+@derived_field(name="cool_gas_density", units="Msun/kpc**3", force_override=True)
+def _cool_gas_density(field, data):
+    gas_density = data['density']
+    values_flags = (data['temperature'].in_units('K') < 1.e4) | (data['temperature'].in_units('K') >= 1.e5)
+    gas_density[values_flags] = 0
+    return gas_density
+
+@derived_field(name="cool_gas_density_in", units="Msun/kpc**3", force_override=True)
+def _cool_gas_density_in(field, data):
+    gas_density_in = data['density']
+    values_flags = (data['radial_velocity'] > 0.) | (data['temperature'].in_units('K') < 1.e4) | (data['temperature'].in_units('K') >= 1.e5)
+    gas_density_in[values_flags] = 0
+    return gas_density_in
+
+@derived_field(name="cool_gas_density_out", units="Msun/kpc**3", force_override=True)
+def _cool_gas_density_out(field, data):
+    gas_density_out = data['density']
+    values_flags = (data['radial_velocity'] < 0.) | (data['temperature'].in_units('K') < 1.e4) | (data['temperature'].in_units('K') >= 1.e5)
+    gas_density_out[values_flags] = 0
+    return gas_density_out
+
+@derived_field(name="cold_gas_density", units="Msun/kpc**3", force_override=True)
+def _cold_gas_density(field, data):
+    gas_density = data['density']
+    values_flags = (data['temperature'].in_units('K') >= 1.e4)
+    gas_density[values_flags] = 0
+    return gas_density
+
+@derived_field(name="cold_gas_density_in", units="Msun/kpc**3", force_override=True)
+def _cold_gas_density_in(field, data):
+    gas_density_in = data['density']
+    values_flags = (data['radial_velocity'] > 0.) | (data['temperature'].in_units('K') >= 1.e4)
+    gas_density_in[values_flags] = 0
+    return gas_density_in
+
+@derived_field(name="cold_gas_density_out", units="Msun/kpc**3", force_override=True)
+def _cold_gas_density_out(field, data):
+    gas_density_out = data['density']
+    values_flags = (data['radial_velocity'] < 0.) | (data['temperature'].in_units('K') >= 1.e4)
+    gas_density_out[values_flags] = 0
+    return gas_density_out
+
 
 #-----------------------------------------------------------------------------------------------------
 
@@ -136,8 +253,29 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         # load the snapshot
         print('opening snapshot '+ snap)
         ds = yt.load(snap)
+
+        # add all the things
         ds.add_particle_filter('stars')
         ds.add_particle_filter('dm')
+        ds.add_field(('gas_density_in'), function=_gas_density_in, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('gas_density_out'), function=_gas_density_out, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('metal_density_in'), function=_metal_density_in, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('metal_density_out'), function=_metal_density_out, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('hot_gas_density'), function=_hot_gas_density, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('hot_gas_density_in'), function=_hot_gas_density_in, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('hot_gas_density_out'), function=_hot_gas_density_out, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('warm_gas_density'), function=_warm_gas_density, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('warm_gas_density_in'), function=_warm_gas_density_in, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('warm_gas_density_out'), function=_warm_gas_density_out, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('cool_gas_density'), function=_cool_gas_density, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('cool_gas_density_in'), function=_cool_gas_density_in, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('cool_gas_density_out'), function=_cool_gas_density_out, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('cold_gas_density'), function=_cold_gas_density, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('cold_gas_density_in'), function=_cold_gas_density_in, units="Msun/kpc**3", force_override=True)
+        ds.add_field(('cold_gas_density_out'), function=_cold_gas_density_out, units="Msun/kpc**3", force_override=True)
+
+
+        # create all the regions
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
         proper_box_size = get_proper_box_size(ds)
 
