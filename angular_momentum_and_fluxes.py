@@ -322,13 +322,12 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 big_annulus = big_sphere - this_sphere
                 # note that refine_fracs is in decreasing order!
                 this_annulus = last_sphere - this_sphere
-                inside_sphere = ds.sphere(halo_center, radius)
-                inside_ang_mom_stars_x = inside_sphere['stars', 'particle_angular_momentum_x'].sum()
-                inside_ang_mom_stars_y = inside_sphere['stars', 'particle_angular_momentum_y'].sum()
-                inside_ang_mom_stars_z = inside_sphere['stars', 'particle_angular_momentum_z'].sum()
-                inside_spec_ang_mom_stars_x = inside_sphere['stars', 'particle_specific_angular_momentum_x'].mean()
-                inside_spec_ang_mom_stars_y = inside_sphere['stars', 'particle_specific_angular_momentum_y'].mean()
-                inside_spec_ang_mom_stars_z = inside_sphere['stars', 'particle_specific_angular_momentum_z'].mean()
+                inside_ang_mom_stars_x = this_sphere['stars', 'particle_angular_momentum_x'].sum()
+                inside_ang_mom_stars_y = this_sphere['stars', 'particle_angular_momentum_y'].sum()
+                inside_ang_mom_stars_z = this_sphere['stars', 'particle_angular_momentum_z'].sum()
+                inside_spec_ang_mom_stars_x = this_sphere['stars', 'particle_specific_angular_momentum_x'].mean()
+                inside_spec_ang_mom_stars_y = this_sphere['stars', 'particle_specific_angular_momentum_y'].mean()
+                inside_spec_ang_mom_stars_z = this_sphere['stars', 'particle_specific_angular_momentum_z'].mean()
 
                 ## ok want angular momenta
                 annular_ang_mom_gas_x = this_annulus[('gas', 'angular_momentum_x')].sum()
