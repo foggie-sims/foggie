@@ -295,7 +295,9 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         for radius in radii:
             this_sphere = ds.sphere(halo_center, radius)
             if radius != np.max(radii):
+                # region (big_sphere) must be larger than surface, defined here by "radius"
                 surface = ds.surface(big_sphere, 'radius', (radius, 'code_length'))
+
                 nref_mode = stats.mode(surface[('index', 'grid_level')])
                 gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "density")
                 metal_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "metal_density")
@@ -383,7 +385,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
             last_sphere = this_sphere
 
     # perhaps we should save the table?
-    tablename = rundir + + '/' + args.run + '_angular_momenta_and_fluxes.dat'
+    tablename = run_dir + '/' + args.run + '_angular_momenta_and_fluxes.dat'
     ascii.write(data, tablename, format='fixed_width')
 
     return "whooooo angular momentum wheeeeeeee"
