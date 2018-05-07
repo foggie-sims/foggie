@@ -292,7 +292,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
         for radius in radii:
             this_sphere = ds.sphere(halo_center, radius)
-            if radius != np.max(refine_fracs):
+            if radius != np.max(radii):
                 surface = ds.surface(big_sphere, 'radius', (radius, 'code_length'))
                 nref_mode = stats.mode(surface[('index', 'grid_level')])
                 gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "density")
@@ -338,6 +338,13 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 annular_spec_ang_mom_gas_y = this_annulus[('gas', 'specific_angular_momentum_y')].mean()
                 annular_spec_ang_mom_gas_z = this_annulus[('gas', 'specific_angular_momentum_z')].mean()
 
+                annular_ang_mom_dm_x = this_annulus[('dm', 'particle_angular_momentum_x')].sum()
+                annular_ang_mom_dm_y = this_annulus[('dm', 'particle_angular_momentum_y')].sum()
+                annular_ang_mom_dm_z = this_annulus[('dm', 'particle_angular_momentum_z')].sum()
+                annular_spec_ang_mom_dm_x = this_annulus[('dm', 'particle_specific_angular_momentum_x')].mean()
+                annular_spec_ang_mom_dm_y = this_annulus[('dm', 'particle_specific_angular_momentum_y')].mean()
+                annular_spec_ang_mom_dm_z = this_annulus[('dm', 'particle_specific_angular_momentum_z')].mean()
+
                 outside_ang_mom_gas_x = big_annulus[('gas', 'angular_momentum_x')].sum()
                 outside_ang_mom_gas_y = big_annulus[('gas', 'angular_momentum_y')].sum()
                 outside_ang_mom_gas_z = big_annulus[('gas', 'angular_momentum_z')].sum()
@@ -351,6 +358,24 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 outside_spec_ang_mom_dm_x = big_annulus[('dm', 'particle_specific_angular_momentum_x')].mean()
                 outside_spec_ang_mom_dm_y = big_annulus[('dm', 'particle_specific_angular_momentum_y')].mean()
                 outside_spec_ang_mom_dm_z = big_annulus[('dm', 'particle_specific_angular_momentum_z')].mean()
+
+                # let's add everything to the giant table!
+                data.add_row([zsnap, radius, int(nref_mode[0][0]), gas_flux, metal_flux, \
+                                gas_flux_in, gas_flux_out, metal_flux_in, metal_flux_out, \
+                                cold_gas_flux, cold_gas_flux_in, cold_gas_flux_out, \
+                                cool_gas_flux, cool_gas_flux_in, cool_gas_flux_out, \
+                                warm_gas_flux, warm_gas_flux_in, warm_gas_flux_out, \
+                                hot_gas_flux, hot_gas_flux_in, hot_gas_flux_out,
+                                annular_ang_mom_gas_x, annular_ang_mom_gas_y,annular_ang_mom_gas_z, \
+                                annular_spec_ang_mom_gas_x, annular_spec_ang_mom_gas_y,annular_spec_ang_mom_gas_z,\
+                                annular_ang_mom_dm_x, annular_ang_mom_dm_y,annular_ang_mom_dm_z, \
+                                annular_spec_ang_mom_dm_x, annular_spec_ang_mom_dm_y, annular_spec_ang_mom_dm_z, \
+                                outside_ang_mom_gas_x, outside_ang_mom_gas_y, outside_ang_mom_gas_z,  \
+                                outside_spec_ang_mom_gas_x, outside_spec_ang_mom_gas_y, outside_spec_ang_mom_gas_z, \
+                                outside_ang_mom_dm_x, outside_ang_mom_dm_y,outside_ang_mom_dm_z,\
+                                outside_spec_ang_mom_dm_x, outside_spec_ang_mom_dm_y, outside_spec_ang_mom_dm_z, \
+                                inside_ang_mom_stars_x, inside_ang_mom_stars_y, inside_ang_mom_stars_z, \
+                                inside_spec_ang_mom_stars_x, inside_spec_ang_mom_stars_y, inside_spec_ang_mom_stars_z])
 
                 # this apparently makes fluxes work in a loop?
                 surface._vertices = None
