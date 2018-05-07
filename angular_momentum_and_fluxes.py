@@ -380,7 +380,9 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 surface._vertices = None
             last_sphere = this_sphere
 
-
+    # perhaps we should save the table?
+    tablename = run + '_angular_momenta_and_fluxes.dat'
+    ascii.write(data, tablename, format='fixed_width')
 
     return "whooooo angular momentum wheeeeeeee"
 
