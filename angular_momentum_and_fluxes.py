@@ -295,11 +295,28 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
             if radius != np.max(refine_fracs):
                 surface = ds.surface(big_sphere, 'radius', (radius, 'code_length'))
                 nref_mode = stats.mode(surface[('index', 'grid_level')])
-                mass_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "density")
+                gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "density")
                 metal_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "metal_density")
                 ## also want to filter based on radial velocity to get fluxes in and mass flux out
+                gas_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "gas_density_in")
+                metal_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "metal_density_in")
+                gas_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "gas_density_out")
+                metal_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "metal_density_out")
 
-                ## and want to filter based on temperature
+
+                ## aaand want to filter based on temperature
+                hot_gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "hot_gas_density")
+                hot_gas_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "hot_gas_density_in")
+                hot_gas_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "hot_gas_density_out")
+                warm_gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "warm_gas_density")
+                warm_gas_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "warm_gas_density_in")
+                warm_gas_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "warm_gas_density_out")
+                cool_gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cool_gas_density")
+                cool_gas_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cool_gas_density_in")
+                cool_gas_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cool_gas_density_out")
+                cold_gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cold_gas_density")
+                cold_gas_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cold_gas_density_in")
+                cold_gas_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cold_gas_density_out")
 
                 # annuli
                 big_annulus = big_sphere - this_sphere
@@ -335,7 +352,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 outside_spec_ang_mom_dm_y = big_annulus[('dm', 'particle_specific_angular_momentum_y')].mean()
                 outside_spec_ang_mom_dm_z = big_annulus[('dm', 'particle_specific_angular_momentum_z')].mean()
 
+                # this apparently makes fluxes work in a loop?
+                surface._vertices = None
             last_sphere = this_sphere
+
 
 
     return "whooooo angular momentum wheeeeeeee"
