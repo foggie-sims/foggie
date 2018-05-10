@@ -164,11 +164,11 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
         p.hide_axes()
         p.save(basename + '_Projection_' + ax + '_' + field + '.png')
         p.save(basename + '_Projection_' + ax + '_' + field + '.pdf')
-        frb = p.data_source.to_frb(width, resolution, center=center)
-        if ision:
-            pickle.dump(frb[species_dict[field]], open(basename + '_Projection_' + ax + '_' + species_dict[field] + '.cpkl','wb'), protocol=-1)
-        else:
-            pickle.dump(frb[field], open(basename + '_Projection_' + ax + '_' + field + '.cpkl','wb'), protocol=-1)
+        # frb = p.data_source.to_frb(width, resolution, center=center)
+        # if ision:
+        #     pickle.dump(frb[species_dict[field]], open(basename + '_Projection_' + ax + '_' + species_dict[field] + '.cpkl','wb'), protocol=-1)
+        # else:
+        #     pickle.dump(frb[field], open(basename + '_Projection_' + ax + '_' + field + '.cpkl','wb'), protocol=-1)
 
 #-----------------------------------------------------------------------------------------------------
 
