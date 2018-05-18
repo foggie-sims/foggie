@@ -72,6 +72,10 @@ def parse_args():
                         help='make plots of physical properties?, default if not')
     parser.set_defaults(physical=False)
 
+    parser.add_argument('--box', dest='box', action='store_true',
+                        help='make plots of fixed physical width?, default is no')
+    parser.set_defaults(box=False)
+
     ## individual plots
     parser.add_argument('--hi', dest='hi', action='store_true',
                         help='make HI plot?, default if not')
@@ -327,7 +331,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             density_proj_min, density_proj_max, density_color_map, \
                             ision=False, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "density",  \
+            if args.box:
+                make_projection_plot(ds, prefix, "density",  \
                             density_proj_min, density_proj_max, density_color_map, \
                             ision=False, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
@@ -337,7 +342,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             temperature_min, temperature_max, temperature_color_map, \
                             ision=False, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "temperature",  \
+            if args.box:
+                make_projection_plot(ds, prefix, "temperature",  \
                             temperature_min, temperature_max, temperature_color_map, \
                             ision=False, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
@@ -356,7 +362,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             metal_min, metal_max, metal_color_map, \
                             ision=False, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "metallicity",  \
+            if args.box:
+                make_projection_plot(ds, prefix, "metallicity",  \
                             metal_min, metal_max, metal_color_map, \
                             ision=False, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
@@ -371,7 +378,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             h1_proj_min, h1_proj_max, h1_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "HI",  \
+            if args.box:
+                make_projection_plot(ds, prefix, "HI",  \
                             h1_proj_min, h1_proj_max, h1_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
@@ -381,7 +389,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             o6_min, o6_max, o6_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "OVI",  \
+            if args.box:
+                make_projection_plot(ds, prefix, "OVI",  \
                             o6_min, o6_max, o6_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
@@ -391,7 +400,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             mg2_min, mg2_max, mg2_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "MgII",  \
+            if args.box:
+                make_projection_plot(ds, prefix, "MgII",  \
                             mg2_min, mg2_max, mg2_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
@@ -401,7 +411,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             c4_min, c4_max, c4_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "CIV",  \
+            if args.box:
+                make_projection_plot(ds, prefix, "CIV",  \
                             c4_min, c4_max, c4_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
@@ -411,7 +422,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             si4_min, si4_max, si4_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "SiIV",  \
+            if args.box:
+                make_projection_plot(ds, prefix, "SiIV",  \
                             si4_min, si4_max, si4_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
@@ -419,7 +431,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             si3_min, si3_max, si3_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "SiIII",  \
+            if args.box:
+                make_projection_plot(ds, prefix, "SiIII",  \
                             si3_min, si3_max, si3_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
@@ -427,7 +440,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             si2_min, si2_max, si2_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "SiII",  \
+            if args.box:
+                make_projection_plot(ds, prefix, "SiII",  \
                             si2_min, si2_max, si2_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
@@ -437,7 +451,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             ne8_min, ne8_max, ne8_color_map, \
                             ision=True, center=center, axis=axis, box=refine_box, \
                             width=refine_width, appendix="_refine")
-            make_projection_plot(ds, prefix, "NeVIII",  \
+            if args.box:
+                make_projection_plot(ds, prefix, "NeVIII",  \
                             ne8_min, ne8_max, ne8_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
@@ -530,6 +545,17 @@ if __name__ == "__main__":
         if args.system == "pleiades":
             trackname = "halo_008508/nref10n_nref8f_startest_selfshield/halo_track"
             run_loc = "nref10n_nref8f_startest_selfshield/"
+    elif args.run == "nref11n_selfshield_z15":
+        run_loc = "nref11n_selfshield_z15/natural/"
+        trackname = "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
+        haloname = "halo008508_nref11n_selfshield_z15"
+        if args.system == "pleiades":
+            trackname = "halo_008508/nref11n_nref10f_selfshield_z6/halo_track"
+            run_loc = "nref11n_selfshield_z15/"
+    elif args.run == "nref11n_nref10f_selfshield_z6":
+        run_loc = "nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/"
+        trackname = "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
+        haloname = "halo008508_nref11n_nref10f_selfshield_z6"
     elif args.run == "nref11f":
         run_loc = "nref11n/nref11f_refine200kpc/"
         trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
