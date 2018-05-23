@@ -1,4 +1,110 @@
+from __future__ import print_function
+
+import numpy as np
 from scipy import stats
+
+import yt
+from yt import derived_field
+
+import argparse
+import os
+import glob
+import sys
+
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
+from astropy.table import Table
+from astropy.io import ascii
+
+from consistency import *
+from get_refine_box import get_refine_box
+from get_halo_center import get_halo_center
+from get_proper_box_size import get_proper_box_size
+
+import seaborn as sns
+sns.set_style("whitegrid", {'axes.grid' : False})
+
+yt.enable_parallelism()
+
+def parse_args():
+    '''
+    Parse command line arguments.  Returns args object.
+    '''
+    parser = argparse.ArgumentParser(description="makes a bunch of plots")
+
+    ## optional arguments
+    parser.add_argument('--halo', metavar='halo', type=str, action='store',
+                        help='which halo? default is 8508 (Tempest)')
+    parser.set_defaults(halo="8508")
+
+    ## what are we plotting and where is it
+    parser.add_argument('--run', metavar='run', type=str, action='store',
+                        help='which run? default is natural')
+    parser.set_defaults(run="natural")
+
+    parser.add_argument('--output', metavar='output', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(output="RD0020")
+
+    parser.add_argument('--system', metavar='system', type=str, action='store',
+                        help='which system are you on? default is oak')
+    parser.set_defaults(system="oak")
+
+
+    args = parser.parse_args()
+    return args
+
+#-----------------------------------------------------------------------------------------------------
+####################    PARTICLES          ######################################
+@yt.particle_filter(requires=["particle_type"], filtered_type='all')
+def stars(pfilter, data):
+    filter = data[(pfilter.filtered_type, "particle_type")] == 2
+    return filter
+
+## these are the must refine particles; no dm particle type 0's should be there!
+@yt.particle_filter(requires=["particle_type"], filtered_type='all')
+def dm(pfilter, data):
+    filter = data[(pfilter.filtered_type, "particle_type")] == 4
+    return filter
+
+####################    HALO CENTER CODE    ######################################
+def get_halo_center(ds, center_guess, **kwargs):
+    # returns a list of the halo center coordinates
+    radius = kwargs.get("radius", 50.)  # search radius in kpc
+    vel_radius = kwargs.get('vel_radius', 2.)
+    # now determine the location of the highest DM density, which should be the center of the main halo
+    ad = ds.sphere(center_guess, (radius, 'kpc')) # extract a sphere centered at the middle of the box
+    x,y,z = np.array(ad["x"]), np.array(ad["y"]), np.array(ad["z"])
+    dm_density =  ad['Dark_Matter_Density']
+    imax = (np.where(dm_density > 0.9999 * np.max(dm_density)))[0]
+    halo_center = [x[imax[0]], y[imax[0]], z[imax[0]]]
+    print('We have located the main halo at :', halo_center)
+    sph = ds.sphere(halo_center, (vel_radius,'kpc'))
+    velocity = [np.mean(sph['x-velocity']), np.mean(sph['y-velocity']), np.mean(sph['z-velocity'])]
+    return halo_center, velocity
+
+def get_refine_box(ds, zsnap, track):
+    ## find closest output, modulo not updating before printout
+    diff = track['col1'] - zsnap
+    this_loc = track[np.where(diff == np.min(diff[np.where(diff > 1.e-6)]))]
+    print("using this loc:", this_loc)
+    x_left = this_loc['col2'][0]
+    y_left = this_loc['col3'][0]
+    z_left = this_loc['col4'][0]
+    x_right = this_loc['col5'][0]
+    y_right = this_loc['col6'][0]
+    z_right = this_loc['col7'][0]
+
+    refine_box_center = [0.5*(x_left+x_right), 0.5*(y_left+y_right), 0.5*(z_left+z_right)]
+    refine_box = ds.r[x_left:x_right, y_left:y_right, z_left:z_right]
+    refine_width = np.abs(x_right - x_left)
+
+    return refine_box, refine_box_center, refine_width
+
+
 
 def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
     outs = kwargs.get("outs", "all")
@@ -74,7 +180,9 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
         # create all the regions
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-        proper_box_size = get_proper_box_size(ds)
+        #proper_box_size = get_proper_box_size(ds)
+        # another option than the function:
+        proper_box_size = ds.quan(1.,'code_length').to('kpc')
 
         refine_box, refine_box_center, refine_width_code = get_refine_box(ds, zsnap, track)
         refine_width = refine_width_code * proper_box_size
@@ -83,7 +191,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
 
         ### OK, now want to set up some spheres of some sizes and get the stuff
-        radii = refine_width_code*0.5*np.arange(0.9, 0.1, -0.1)  # 0.5 because radius
+        radii = refine_width*0.5*np.arange(0.9, 0.1, -0.1)  # 0.5 because radius
         small_sphere = ds.sphere(halo_center, 0.05*refine_width_code) # R=10ckpc/h
         big_sphere = ds.sphere(halo_center, 0.45*refine_width_code)
 
@@ -92,14 +200,15 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
         # find number of cells for the FRB
         # by default, it uses nref10 as the cell size for the frb
+        # then create the 3D FRB for calculating the fluxes
         cell_size = np.unique(big_sphere['dx'].in_units('kpc'))[1]
-        nbins = np.ceil(refine_width/cell_size)
+        box_width = ds.quan(0.9*refine_width,'kpc')
+        nbins = int(np.ceil(box_width/cell_size).value)
 
-        #create the 3D FRB for calculating the fluxes
-        box_width = 0.45*refine_width
-        xL,xR = pos[0]-box_width/2.,pos[0]+box_width/2.
-        yL,yR = pos[1]-box_width/2.,pos[1]+box_width/2.
-        zL,zR = pos[2]-box_width/2.,pos[2]+box_width/2.
+        halo_center = ds.arr(halo_center,'code_length')
+        xL,xR = halo_center[0]-box_width/2.,halo_center[0]+box_width/2.
+        yL,yR = halo_center[1]-box_width/2.,halo_center[1]+box_width/2.
+        zL,zR = halo_center[2]-box_width/2.,halo_center[2]+box_width/2.
         jnbins = complex(0,nbins)
         box = ds.r[xL:xR:jnbins,yL:yR:jnbins,zL:zR:jnbins]
         box.set_field_parameter("center",halo_center)
@@ -138,12 +247,13 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         dm_spec_ang_mom_z = big_sphere['dm', 'particle_specific_angular_momentum_z']
 
         for rad in radii:
-            this_sphere = ds.sphere(halo_center, rad)
+            #this_sphere = ds.sphere(halo_center, rad)
             if rad != np.max(radii):
-                if rad == radii[0]:
-                    minrad,max_rad = ds.quan(0.,'kpc'),radii[i]
+                if rad == radii[-1]:
+                    minrad,maxrad = ds.quan(0.,'kpc'),rad
                 else:
-                    min_rad,max_rad = radii[i],radii[i+1]
+                    idI = np.where(radii == rad)[0]
+                    maxrad,minrad = rad,radii[idI[0]+1]
 
                 # some radius / geometry things
                 dr = max_rad - min_rad
@@ -155,7 +265,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 idCl = np.where((radius >= minrad) & (radius < maxrad) & (temperature >1e4) & (temperature <= 1e5))[0]
                 idW =  np.where((radius >= minrad) & (radius < maxrad) & (temperature >1e5) & (temperature <= 1e6))[0]
                 idH = np.where((radius >= minrad) & (radius < maxrad) & (temperature >= 1e6))
-                big_annulus = np.where(radius >= rad_here))[0]
+                big_annulus = np.where(radius >= rad_here)[0]
                 inside = np.where(radius < rad_here)[0]
 
 
