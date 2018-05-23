@@ -364,3 +364,65 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
     ascii.write(data, tablename, format='fixed_width')
 
     return "whooooo angular momentum wheeeeeeee"
+
+
+
+#-----------------------------------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    args = parse_args()
+
+    if args.system == "oak":
+        foggie_dir = "/astro/simulations/FOGGIE/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "dhumuha" or args.system == "palmetto":
+        foggie_dir = "/Users/molly/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "harddrive":
+        foggie_dir = "/Volumes/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "nmearl":
+        foggie_dir = "/Users/nearl/data/"
+        output_path = "/Users/nearl/Desktop/"
+    elif args.system == "pleiades":
+        foggie_dir = "/nobackup/mpeeples/"
+        output_path = "/nobackup/mpeeples/"
+
+    if args.run == "natural":
+        run_loc = "nref11n/natural/"
+        trackname = "halo_track"
+        haloname = "halo008508_nref11n"
+    elif args.run == "nref10f":
+        run_loc = "nref11n/nref11n_nref10f_refine200kpc/"
+        trackname = "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
+        haloname = "halo008508_nref11n_nref10f"
+    elif args.run == "nref11n_selfshield":
+        run_loc = "nref11n/nref11n_selfshield/"
+        trackname = "halo_008508/nref11n/nref11n_selfshield/halo_track"
+        haloname = "halo008508_nref11n_selfshield"
+        if args.system == "pleiades":
+            trackname = "halo_008508/nref11f_refine200kpc/halo_track"
+            run_loc = "nref11n_selfshield/"
+    elif args.run == "nref10n_nref8f_selfshield":
+        run_loc = "nref10n/nref10n_nref8f_selfshield/"
+        trackname = "halo_008508/nref10n/nref10n_nref8f_selfshield/halo_track"
+        haloname = "halo008508_nref10n_nref8f_selfshield"
+        if args.system == "pleiades":
+            trackname = "halo_008508/nref10n_nref8f_selfshield/halo_track"
+            run_loc = "nref10n_nref8f_selfshield/"
+    elif args.run == "nref11f":
+        run_loc = "nref11n/nref11f_refine200kpc/"
+        trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
+        haloname = "halo008508_nref11f"
+        if args.system == "pleiades":
+            trackname = "halo_008508/nref11f_refine200kpc/halo_track"
+            run_loc = "nref11f_refine200kpc_z4to2/"
+
+    print("---->>>>> for now I am assuming you are using the Tempest halo even if you passed in something different")
+
+    if args.output == "all":
+        message = calc_ang_mom_and_fluxes(args.halo, foggie_dir, output_path, run_loc, outs=args.output)
+    else:
+        message = calc_ang_mom_and_fluxes(args.halo, foggie_dir, output_path, run_loc, outs=[args.output + "/" + args.output])
+
+    sys.exit(message)
