@@ -217,34 +217,34 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         ### OK, now want to call the fields that we'll need for the fluxes
         ### otherwise, the code crashes when trying to select subsets of the data
         ## GAS FIELDS
-        temperature = box['Temperature']
-        cell_mass = box['cell_mass'].to("Msun")
-        metal_mass = box[('gas', 'metal_mass')].to("Msun")
-        radius = box['radius'].to("kpc")
-        radial_velocity = box['radial_velocity'].to('kpc/yr')
-        grid_levels = box['index', 'grid_level']
-        gas_ang_mom_x = box[('gas', 'angular_momentum_x')]
-        gas_ang_mom_y = box[('gas', 'angular_momentum_y')]
-        gas_ang_mom_z = box[('gas', 'angular_momentum_z')]
-        gas_spec_ang_mom_x = box[('gas','specific_angular_momentum_x')]
-        gas_spec_ang_mom_y = box[('gas','specific_angular_momentum_y')]
-        gas_spec_ang_mom_z = box[('gas','specific_angular_momentum_z')]
+        temperature = box['Temperature'].flatten()
+        cell_mass = box['cell_mass'].to("Msun").flatten()
+        metal_mass = box[('gas', 'metal_mass')].to("Msun").flatten()
+        radius = box['radius'].to("kpc").flatten()
+        radial_velocity = box['radial_velocity'].to('kpc/yr').flatten()
+        #grid_levels = box['index', 'grid_level']
+        gas_ang_mom_x = box[('gas', 'angular_momentum_x')].flatten()
+        gas_ang_mom_y = box[('gas', 'angular_momentum_y')].flatten()
+        gas_ang_mom_z = box[('gas', 'angular_momentum_z')].flatten()
+        gas_spec_ang_mom_x = box[('gas','specific_angular_momentum_x')].flatten()
+        gas_spec_ang_mom_y = box[('gas','specific_angular_momentum_y')].flatten()
+        gas_spec_ang_mom_z = box[('gas','specific_angular_momentum_z')].flatten()
 
         ## STAR PARTICLE FIELDS
-        star_ang_mom_x = big_sphere['stars', 'particle_angular_momentum_x']
-        star_ang_mom_y = big_sphere['stars', 'particle_angular_momentum_y']
-        star_ang_mom_z = big_sphere['stars', 'particle_angular_momentum_z']
-        star_spec_ang_mom_x = big_sphere['stars', 'particle_specific_angular_momentum_x']
-        star_spec_ang_mom_y = big_sphere['stars', 'particle_specific_angular_momentum_y']
-        star_spec_ang_mom_z = big_sphere['stars', 'particle_specific_angular_momentum_z']
+        star_ang_mom_x = big_sphere['stars', 'particle_angular_momentum_x'].flatten()
+        star_ang_mom_y = big_sphere['stars', 'particle_angular_momentum_y'].flatten()
+        star_ang_mom_z = big_sphere['stars', 'particle_angular_momentum_z'].flatten()
+        star_spec_ang_mom_x = big_sphere['stars', 'particle_specific_angular_momentum_x'].flatten()
+        star_spec_ang_mom_y = big_sphere['stars', 'particle_specific_angular_momentum_y'].flatten()
+        star_spec_ang_mom_z = big_sphere['stars', 'particle_specific_angular_momentum_z'].flatten()
 
         ## STAR PARTICLE FIELDS
-        dm_ang_mom_x = big_sphere['dm', 'particle_angular_momentum_x']
-        dm_ang_mom_y = big_sphere['dm', 'particle_angular_momentum_y']
-        dm_ang_mom_z = big_sphere['dm', 'particle_angular_momentum_z']
-        dm_spec_ang_mom_x = big_sphere['dm', 'particle_specific_angular_momentum_x']
-        dm_spec_ang_mom_y = big_sphere['dm', 'particle_specific_angular_momentum_y']
-        dm_spec_ang_mom_z = big_sphere['dm', 'particle_specific_angular_momentum_z']
+        dm_ang_mom_x = big_sphere['dm', 'particle_angular_momentum_x'].flatten()
+        dm_ang_mom_y = big_sphere['dm', 'particle_angular_momentum_y'].flatten()
+        dm_ang_mom_z = big_sphere['dm', 'particle_angular_momentum_z'].flatten()
+        dm_spec_ang_mom_x = big_sphere['dm', 'particle_specific_angular_momentum_x'].flatten()
+        dm_spec_ang_mom_y = big_sphere['dm', 'particle_specific_angular_momentum_y'].flatten()
+        dm_spec_ang_mom_z = big_sphere['dm', 'particle_specific_angular_momentum_z'].flatten()
 
         for rad in radii:
             #this_sphere = ds.sphere(halo_center, rad)
@@ -256,8 +256,8 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                     maxrad,minrad = rad,radii[idI[0]+1]
 
                 # some radius / geometry things
-                dr = max_rad - min_rad
-                rad_here = (min_rad+max_rad) / 2.
+                dr = maxrad - minrad
+                rad_here = (minrad+maxrad) / 2.
 
                 # find the indices that I'm going to need
                 idR = np.where((radius >= minrad) & (radius < maxrad))[0]
