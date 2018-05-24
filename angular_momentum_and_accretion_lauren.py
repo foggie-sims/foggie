@@ -237,14 +237,22 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         star_spec_ang_mom_x = big_sphere['stars', 'particle_specific_angular_momentum_x'].flatten()
         star_spec_ang_mom_y = big_sphere['stars', 'particle_specific_angular_momentum_y'].flatten()
         star_spec_ang_mom_z = big_sphere['stars', 'particle_specific_angular_momentum_z'].flatten()
+        star_distance = np.sqrt((big_sphere['stars','particle_position_x']-halo_center[0])**2. +
+                        (big_sphere['stars','particle_position_y']-halo_center[1])**2. +
+                        (big_sphere['stars','particle_position_z']-halo_center[2])**2.).to("kpc")
 
-        ## STAR PARTICLE FIELDS
+
+        ## DM PARTICLE FIELDS
         dm_ang_mom_x = big_sphere['dm', 'particle_angular_momentum_x'].flatten()
         dm_ang_mom_y = big_sphere['dm', 'particle_angular_momentum_y'].flatten()
         dm_ang_mom_z = big_sphere['dm', 'particle_angular_momentum_z'].flatten()
         dm_spec_ang_mom_x = big_sphere['dm', 'particle_specific_angular_momentum_x'].flatten()
         dm_spec_ang_mom_y = big_sphere['dm', 'particle_specific_angular_momentum_y'].flatten()
         dm_spec_ang_mom_z = big_sphere['dm', 'particle_specific_angular_momentum_z'].flatten()
+        dm_distance   = np.sqrt((big_sphere['dm','particle_position_x']-halo_center[0])**2. +
+                        (big_sphere['dm','particle_position_y']-halo_center[1])**2. +
+                        (big_sphere['dm','particle_position_z']-halo_center[2])**2.).to("kpc")
+
 
         for rad in radii:
             #this_sphere = ds.sphere(halo_center, rad)
@@ -265,8 +273,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 idCl = np.where((radius >= minrad) & (radius < maxrad) & (temperature >1e4) & (temperature <= 1e5))[0]
                 idW =  np.where((radius >= minrad) & (radius < maxrad) & (temperature >1e5) & (temperature <= 1e6))[0]
                 idH = np.where((radius >= minrad) & (radius < maxrad) & (temperature >= 1e6))
-                big_annulus = np.where(radius >= rad_here)[0]
-                inside = np.where(radius < rad_here)[0]
+                big_annulusGAS = np.where(radius >= rad_here)[0]
+                big_annulusDM  = np.where(dm_distance >= rad_here)[0]
+                inside = np.where(star_distance < rad_here)[0]
+
 
 
                 # most common refinement level
@@ -285,19 +295,19 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 ## and filter on temperature! and velocity! woo!
                 idVin = np.where(radial_velocity[idH] <= 0. )[0]
                 idVout = np.where(radial_velocity[idH] > 0.)[0]
-                hot_gas_flux = (np.sum(cell_mass[idCd]*radial_velocity[idCd])/dr).to("Msun/yr")
+                hot_gas_flux = (np.sum(cell_mass[idH]*radial_velocity[idH])/dr).to("Msun/yr")
                 hot_gas_flux_in  = (np.sum(cell_mass[idH][idVin]*radial_velocity[idH][idVin])/dr).to("Msun/yr")
                 hot_gas_flux_out = (np.sum(cell_mass[idH][idVout]*radial_velocity[idH][idVout])/dr).to("Msun/yr")
 
                 idVin = np.where(radial_velocity[idW] <= 0. )[0]
                 idVout = np.where(radial_velocity[idW] > 0.)[0]
-                warm_gas_flux = (np.sum(cell_mass[idW]*radial_velocity[idCd])/dr).to("Msun/yr")
+                warm_gas_flux = (np.sum(cell_mass[idW]*radial_velocity[idW])/dr).to("Msun/yr")
                 warm_gas_flux_in  = (np.sum(cell_mass[idW][idVin]*radial_velocity[idW][idVin])/dr).to("Msun/yr")
                 warm_gas_flux_out = (np.sum(cell_mass[idW][idVout]*radial_velocity[idW][idVout])/dr).to("Msun/yr")
 
                 idVin = np.where(radial_velocity[idCl] <= 0. )[0]
                 idVout = np.where(radial_velocity[idCl] > 0.)[0]
-                cool_gas_flux = (np.sum(cell_mass[idCl]*radial_velocity[idCd])/dr).to("Msun/yr")
+                cool_gas_flux = (np.sum(cell_mass[idCl]*radial_velocity[idCl])/dr).to("Msun/yr")
                 cool_gas_flux_in  = (np.sum(cell_mass[idCl][idVin]*radial_velocity[idCl][idVin])/dr).to("Msun/yr")
                 cool_gas_flux_out = (np.sum(cell_mass[idCl][idVout]*radial_velocity[idCl][idVout])/dr).to("Msun/yr")
 
