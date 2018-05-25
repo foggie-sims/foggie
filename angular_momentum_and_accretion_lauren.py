@@ -281,15 +281,15 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 # most common refinement level
                 nref_mode = stats.mode(grid_levels[idR])
                 # mass fluxes
-                gas_flux = (np.sum(cell_mass[idR]*radial_velocity[idR])/dR).to("Msun/yr")
-                metal_flux = ()
+                gas_flux = (np.sum(cell_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
+                metal_flux = (np.sum(metal_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
                 ## also filter based off radial velocity
-idVin = np.where(radial_velocity[idR] <= 0. )[0]
-idVout = np.where(radial_velocity[idR] > 0.)[0]
-gas_flux_in = (np.sum(cell_mass[idR][idVin]*radial_velocity[idR][idVin])/dr).to("Msun/yr")
-gas_flux_out = (np.sum(cell_mass[idR][idVout]*radial_velocity[idR][idVout])/dr).to("Msun/yr")
-metal_flux_in = (np.sum(metal_mass[idR][idVin]*radial_velocity[idR][idVin])/dr).to("Msun/yr")
-metal_flux_out = (np.sum(metal_mass[idR][idVout]*radial_velocity[idR][idVout])/dr).to("Msun/yr")
+                idVin = np.where(radial_velocity[idR] <= 0. )[0]
+                idVout = np.where(radial_velocity[idR] > 0.)[0]
+                gas_flux_in = (np.sum(cell_mass[idR][idVin]*radial_velocity[idR][idVin])/dr).to("Msun/yr")
+                gas_flux_out = (np.sum(cell_mass[idR][idVout]*radial_velocity[idR][idVout])/dr).to("Msun/yr")
+                metal_flux_in = (np.sum(metal_mass[idR][idVin]*radial_velocity[idR][idVin])/dr).to("Msun/yr")
+                metal_flux_out = (np.sum(metal_mass[idR][idVout]*radial_velocity[idR][idVout])/dr).to("Msun/yr")
 
                 ## and filter on temperature! and velocity! woo!
                 idVin = np.where(radial_velocity[idH] <= 0. )[0]
@@ -393,7 +393,7 @@ def set_table_units(table):
              'outside_ang_mom_dm_x'      :'cm**2*g/s', 'outside_ang_mom_dm_y'      :'cm**2*g/s','outside_ang_mom_dm_z'      :'cm**2*g/s',\
              'outside_spec_ang_mom_dm_x' :'cm**2/s',   'outside_spec_ang_mom_dm_y' :'cm**2/s',  'outside_spec_ang_mom_dm_z' :'cm**2/s', \
              'inside_ang_mom_stars_x'    :'cm**2*g/s', 'inside_ang_mom_stars_y'    :'cm**2*g/s','inside_ang_mom_stars_z'    :'cm**2*g/s', \
-             'inside_spec_ang_mom_stars_x':'cm**2/s',  'inside_spec_ang_mom_stars_y':'cm**2/s', 'inside_spec_ang_mom_stars_z':'cm**2/s'),
+             'inside_spec_ang_mom_stars_x':'cm**2/s',  'inside_spec_ang_mom_stars_y':'cm**2/s', 'inside_spec_ang_mom_stars_z':'cm**2/s'}
 
     for key in table.keys():
         table[key].unit = table_units[key]
