@@ -372,7 +372,8 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
     data = set_table_units(data)
     tablename = run_dir + '/' + args.run + '_angular_momenta_and_fluxes.dat'
-    ascii.write(data, tablename, format='fixed_width')
+    #ascii.write(data, tablename, format='fixed_width')
+    data.write(tablename,path='data',serialize_meta=True,overwrite=True)
 
     return "whooooo angular momentum wheeeeeeee"
 
@@ -394,10 +395,8 @@ def set_table_units(table):
              'outside_spec_ang_mom_dm_x' :'cm**2/s',   'outside_spec_ang_mom_dm_y' :'cm**2/s',  'outside_spec_ang_mom_dm_z' :'cm**2/s', \
              'inside_ang_mom_stars_x'    :'cm**2*g/s', 'inside_ang_mom_stars_y'    :'cm**2*g/s','inside_ang_mom_stars_z'    :'cm**2*g/s', \
              'inside_spec_ang_mom_stars_x':'cm**2/s',  'inside_spec_ang_mom_stars_y':'cm**2/s', 'inside_spec_ang_mom_stars_z':'cm**2/s'}
-
     for key in table.keys():
         table[key].unit = table_units[key]
-
     return table
 
 
