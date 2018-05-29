@@ -191,7 +191,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
 
         ### OK, now want to set up some spheres of some sizes and get the stuff
-        radii = refine_width*0.5*np.arange(0.9, 0.1, -0.1)  # 0.5 because radius
+        radii = refine_width*0.5*np.arange(0.9, 0.1, -0.01)  # 0.5 because radius
         small_sphere = ds.sphere(halo_center, 0.05*refine_width_code) # R=10ckpc/h
         big_sphere = ds.sphere(halo_center, 0.45*refine_width_code)
 
@@ -279,7 +279,8 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 inside = np.where(star_distance < rad_here)[0]
 
                 # most common refinement level
-                nref_mode = stats.mode(grid_levels[idR])
+                #nref_mode = stats.mode(grid_levels[idR])
+                nref_mode = 10. ## FIX FOR NOW! 
                 # mass fluxes
                 gas_flux = (np.sum(cell_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
                 metal_flux = (np.sum(metal_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
@@ -371,8 +372,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                                 inside_spec_ang_mom_stars_x, inside_spec_ang_mom_stars_y, inside_spec_ang_mom_stars_z])
 
     data = set_table_units(data)
-    tablename = run_dir + '/' + args.run + '_angular_momenta_and_fluxes.dat'
-    #ascii.write(data, tablename, format='fixed_width')
+    tablename = run_dir + '/' + args.run + '_angular_momenta_and_fluxes.hdf5'
     data.write(tablename,path='data',serialize_meta=True,overwrite=True)
 
     return "whooooo angular momentum wheeeeeeee"
