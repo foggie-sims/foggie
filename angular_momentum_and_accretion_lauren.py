@@ -133,7 +133,8 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                         'outside_spec_ang_mom_dm_x', 'outside_spec_ang_mom_dm_y', 'outside_spec_ang_mom_dm_z', \
                         'inside_ang_mom_stars_x', 'inside_ang_mom_stars_y', 'inside_ang_mom_stars_z', \
                         'inside_spec_ang_mom_stars_x', 'inside_spec_ang_mom_stars_y', 'inside_spec_ang_mom_stars_z'),
-                  dtype=('f8', 'f8', 'i8',
+                  dtype=('f8', 'f8', 'i8','f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8','f8', 'f8', 'f8',
                          'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
                          'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
                          'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
@@ -226,6 +227,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         metal_mass = box[('gas', 'metal_mass')].to("Msun").flatten()
         radius = box['radius'].to("kpc").flatten()
         radial_velocity = box['radial_velocity'].to('kpc/yr').flatten()
+        cell_volume = box['cell_volume'].flatten()
         #grid_levels = box['index', 'grid_level']
         gas_ang_mom_x = box[('gas', 'angular_momentum_x')].flatten()
         gas_ang_mom_y = box[('gas', 'angular_momentum_y')].flatten()
@@ -292,8 +294,8 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 # mass fluxes
                 gas_flux = (np.sum(cell_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
                 metal_flux = (np.sum(metal_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
-                kinetic_energy_flux = (np.sum(kinetic_energy[idR]*radial_velocity[idR])/dr).to("erg/g*yr")
-                thermal_energy_flux = (np.sum(thermal_energy[idR]*radial_velocity[idR])/dr).to("erg/g*yr")
+                kinetic_energy_flux = (np.sum(kinetic_energy[idR]*radial_velocity[idR])/dr).to("erg/(g*yr)")
+                thermal_energy_flux = (np.sum(thermal_energy[idR]*radial_velocity[idR])/dr).to("erg/(g*yr)")
                 entropy_flux = (np.sum(entropy[idR]*radial_velocity[idR])/dr)
 
                 ## also filter based off radial velocity
