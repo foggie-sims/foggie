@@ -115,6 +115,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                         'net_mass_flux', 'net_metal_flux', \
                         'mass_flux_in', 'mass_flux_out', \
                         'metal_flux_in', 'metal_flux_out', \
+                        'net_kinetic_energy_flux','net_thermal_energy_flux','net_entropy_flux',\
+                        'kinetic_energy_flux_in','kinetic_energy_flux_out',\
+                        'thermal_energy_flux_in','thermal_energy_flux_out',\
+                        'entropy_flux_in','entropy_flux_out',\
                         'net_cold_mass_flux', 'cold_mass_flux_in', 'cold_mass_flux_out', \
                         'net_cool_mass_flux', 'cool_mass_flux_in', 'cool_mass_flux_out', \
                         'net_warm_mass_flux', 'warm_mass_flux_in', 'warm_mass_flux_out', \
@@ -229,6 +233,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         gas_spec_ang_mom_x = box[('gas','specific_angular_momentum_x')].flatten()
         gas_spec_ang_mom_y = box[('gas','specific_angular_momentum_y')].flatten()
         gas_spec_ang_mom_z = box[('gas','specific_angular_momentum_z')].flatten()
+        kinetic_energy = box['gas','kinetic_energy'].flatten()
+        kinetic_energy = (kinetic_energy*cell_volume/cell_mass).to('erg/g')
+        thermal_energy = box['gas','thermal_energy'].flatten()
+        entropy = box['entropy'].flatten()
 
         ## STAR PARTICLE FIELDS
         star_ang_mom_x = big_sphere['stars', 'particle_angular_momentum_x'].flatten()
@@ -280,10 +288,14 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
                 # most common refinement level
                 #nref_mode = stats.mode(grid_levels[idR])
-                nref_mode = 10. ## FIX FOR NOW! 
+                nref_mode = 10. ## FIX FOR NOW!
                 # mass fluxes
                 gas_flux = (np.sum(cell_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
                 metal_flux = (np.sum(metal_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
+                kinetic_energy_flux = (np.sum(kinetic_energy[idR]*radial_velocity[idR])/dr).to("erg/g*yr")
+                thermal_energy_flux = (np.sum(thermal_energy[idR]*radial_velocity[idR])/dr).to("erg/g*yr")
+                entropy_flux = (np.sum(entropy[idR]*radial_velocity[idR])/dr)
+
                 ## also filter based off radial velocity
                 idVin = np.where(radial_velocity[idR] <= 0. )[0]
                 idVout = np.where(radial_velocity[idR] > 0.)[0]
@@ -291,6 +303,12 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 gas_flux_out = (np.sum(cell_mass[idR][idVout]*radial_velocity[idR][idVout])/dr).to("Msun/yr")
                 metal_flux_in = (np.sum(metal_mass[idR][idVin]*radial_velocity[idR][idVin])/dr).to("Msun/yr")
                 metal_flux_out = (np.sum(metal_mass[idR][idVout]*radial_velocity[idR][idVout])/dr).to("Msun/yr")
+                kinetic_energy_flux_in = (np.sum(kinetic_energy[idR][idVin]*radial_velocity[idR][idVin])/dr).to("erg/g*yr")
+                kinetic_energy_flux_out = (np.sum(kinetic_energy[idR][idVout]*radial_velocity[idR][idVout])/dr).to("erg/g*yr")
+                thermal_energy_flux_in = (np.sum(thermal_energy[idR][idVin]*radial_velocity[idR][idVin])/dr).to("erg/g*yr")
+                thermal_energy_flux_out = (np.sum(thermal_energy[idR][idVout]*radial_velocity[idR][idVout])/dr).to("erg/g*yr")
+                entropy_flux_in = (np.sum(entropy[idR][idVin]*radial_velocity[idR][idVin][idVout])/dr)
+                entropy_flux_out = (np.sum(entropy[idR][idVout]*radial_velocity[idR][idVout])/dr)
 
                 ## and filter on temperature! and velocity! woo!
                 idVin = np.where(radial_velocity[idH] <= 0. )[0]
@@ -356,6 +374,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
                 data.add_row([zsnap, rad, nref_mode, gas_flux, metal_flux, \
                                 gas_flux_in, gas_flux_out, metal_flux_in, metal_flux_out, \
+                                kinetic_energy_flux, thermal_energy_flux, entropy_flux,\
+                                kinetic_energy_flux_in,kinetic_energy_flux_out,\
+                                thermal_energy_flux_in,thermal_energy_flux_out,\
+                                entropy_flux_in,entropy_flux_out,\
                                 cold_gas_flux, cold_gas_flux_in, cold_gas_flux_out, \
                                 cool_gas_flux, cool_gas_flux_in, cool_gas_flux_out, \
                                 warm_gas_flux, warm_gas_flux_in, warm_gas_flux_out, \
@@ -380,7 +402,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 def set_table_units(table):
     table_units = {'redshift':None,'radius':'kpc','nref_mode':None,'net_mass_flux':'Msun/yr', \
              'net_metal_flux':'Msun/yr', 'mass_flux_in'  :'Msun/yr','mass_flux_out':'Msun/yr', \
-             'metal_flux_in' :'Msun/yr', 'metal_flux_out':'Msun/yr',
+             'metal_flux_in' :'Msun/yr', 'metal_flux_out':'Msun/yr','net_entropy_flux':'cm**2*keV/yr',\
+             'net_kinetic_energy_flux':'erg/g*yr','net_thermal_energy_flux':'erg/g*yr',\
+             'kinetic_energy_flux_in':'erg/g*yr','kinetic_energy_flux_out':'erg/g*yr',\
+             'thermal_energy_flux_in':'erg/g*yr','thermal_energy_flux_out':'erg/g*yr',\
              'net_cold_mass_flux':'Msun/yr', 'cold_mass_flux_in':'Msun/yr', 'cold_mass_flux_out':'Msun/yr', \
              'net_cool_mass_flux':'Msun/yr', 'cool_mass_flux_in':'Msun/yr', 'cool_mass_flux_out':'Msun/yr', \
              'net_warm_mass_flux':'Msun/yr', 'warm_mass_flux_in':'Msun/yr', 'warm_mass_flux_out':'Msun/yr', \
