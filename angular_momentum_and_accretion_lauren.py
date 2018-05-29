@@ -309,7 +309,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 kinetic_energy_flux_out = (np.sum(kinetic_energy[idR][idVout]*radial_velocity[idR][idVout])/dr).to("erg/(g*yr)")
                 thermal_energy_flux_in = (np.sum(thermal_energy[idR][idVin]*radial_velocity[idR][idVin])/dr).to("erg/(g*yr)")
                 thermal_energy_flux_out = (np.sum(thermal_energy[idR][idVout]*radial_velocity[idR][idVout])/dr).to("erg/(g*yr)")
-                entropy_flux_in = (np.sum(entropy[idR][idVin]*radial_velocity[idR][idVin][idVout])/dr)
+                entropy_flux_in = (np.sum(entropy[idR][idVin]*radial_velocity[idR][idVin])/dr)
                 entropy_flux_out = (np.sum(entropy[idR][idVout]*radial_velocity[idR][idVout])/dr)
 
                 ## and filter on temperature! and velocity! woo!
