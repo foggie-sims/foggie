@@ -408,6 +408,7 @@ def set_table_units(table):
              'net_kinetic_energy_flux':'erg/g*yr','net_thermal_energy_flux':'erg/g*yr',\
              'kinetic_energy_flux_in':'erg/g*yr','kinetic_energy_flux_out':'erg/g*yr',\
              'thermal_energy_flux_in':'erg/g*yr','thermal_energy_flux_out':'erg/g*yr',\
+             'entropy_flux_in':'cm**2*keV/yr','entropy_flux_out':'cm**2*keV/yr',\
              'net_cold_mass_flux':'Msun/yr', 'cold_mass_flux_in':'Msun/yr', 'cold_mass_flux_out':'Msun/yr', \
              'net_cool_mass_flux':'Msun/yr', 'cool_mass_flux_in':'Msun/yr', 'cool_mass_flux_out':'Msun/yr', \
              'net_warm_mass_flux':'Msun/yr', 'warm_mass_flux_in':'Msun/yr', 'warm_mass_flux_out':'Msun/yr', \
