@@ -70,42 +70,7 @@ def dm(pfilter, data):
     filter = data[(pfilter.filtered_type, "particle_type")] == 4
     return filter
 
-####################    HALO CENTER CODE    ######################################
-def get_halo_center(ds, center_guess, **kwargs):
-    # returns a list of the halo center coordinates
-    radius = kwargs.get("radius", 50.)  # search radius in kpc
-    vel_radius = kwargs.get('vel_radius', 2.)
-    # now determine the location of the highest DM density, which should be the center of the main halo
-    ad = ds.sphere(center_guess, (radius, 'kpc')) # extract a sphere centered at the middle of the box
-    x,y,z = np.array(ad["x"]), np.array(ad["y"]), np.array(ad["z"])
-    dm_density =  ad['Dark_Matter_Density']
-    imax = (np.where(dm_density > 0.9999 * np.max(dm_density)))[0]
-    halo_center = [x[imax[0]], y[imax[0]], z[imax[0]]]
-    print('We have located the main halo at :', halo_center)
-    sph = ds.sphere(halo_center, (vel_radius,'kpc'))
-    velocity = [np.mean(sph['x-velocity']), np.mean(sph['y-velocity']), np.mean(sph['z-velocity'])]
-    return halo_center, velocity
-
-def get_refine_box(ds, zsnap, track):
-    ## find closest output, modulo not updating before printout
-    diff = track['col1'] - zsnap
-    this_loc = track[np.where(diff == np.min(diff[np.where(diff > 1.e-6)]))]
-    print("using this loc:", this_loc)
-    x_left = this_loc['col2'][0]
-    y_left = this_loc['col3'][0]
-    z_left = this_loc['col4'][0]
-    x_right = this_loc['col5'][0]
-    y_right = this_loc['col6'][0]
-    z_right = this_loc['col7'][0]
-
-    refine_box_center = [0.5*(x_left+x_right), 0.5*(y_left+y_right), 0.5*(z_left+z_right)]
-    refine_box = ds.r[x_left:x_right, y_left:y_right, z_left:z_right]
-    refine_width = np.abs(x_right - x_left)
-
-    return refine_box, refine_box_center, refine_width
-
-
-
+####################    FLUX CALCULATION   ######################################
 def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
     outs = kwargs.get("outs", "all")
     trackname = kwargs.get("trackname", "halo_track")
