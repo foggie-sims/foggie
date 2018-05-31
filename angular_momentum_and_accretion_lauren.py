@@ -144,6 +144,24 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                          'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
                          'f8', 'f8', 'f8', 'f8', 'f8', 'f8'
                         ))
+    data2 = Table(names=('redshift', 'radius',
+                        'net_mass_flux', 'net_metal_flux', \
+                        'mass_flux_in', 'mass_flux_out', \
+                        'metal_flux_in', 'metal_flux_out', \
+                        'net_cold_mass_flux', 'cold_mass_flux_in', 'cold_mass_flux_out', \
+                        'net_cool_mass_flux', 'cool_mass_flux_in', 'cool_mass_flux_out', \
+                        'net_warm_mass_flux', 'warm_mass_flux_in', 'warm_mass_flux_out', \
+                        'net_hot_mass_flux', 'hot_mass_flux_in', 'hot_mass_flux_out', \
+                        'annular_ang_mom_gas_x', 'annular_ang_mom_gas_y','annular_ang_mom_gas_z', \
+                        'annular_spec_ang_mom_gas_x', 'annular_spec_ang_mom_gas_y','annular_spec_ang_mom_gas_z',\
+                        'outside_ang_mom_gas_x', 'outside_ang_mom_gas_y', 'outside_ang_mom_gas_z',  \
+                        'outside_spec_ang_mom_gas_x', 'outside_spec_ang_mom_gas_y', 'outside_spec_ang_mom_gas_z'), \
+                    dtype=('f8', 'f8', 'f8','f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8','f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                         'f8', 'f8'))
 
     print(foggie_dir)
     track_name = foggie_dir + 'halo_00' + str(halo) + '/' + run + '/' + trackname
@@ -239,6 +257,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         kinetic_energy = (kinetic_energy*cell_volume/cell_mass).to('erg/g')
         thermal_energy = box['gas','thermal_energy'].flatten()
         entropy = box['entropy'].flatten()
+        hden = box['H_nuclei_density'].flatten()
 
         ## STAR PARTICLE FIELDS
         star_ang_mom_x = big_sphere['stars', 'particle_angular_momentum_x'].flatten()
@@ -395,9 +414,85 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                                 inside_ang_mom_stars_x, inside_ang_mom_stars_y, inside_ang_mom_stars_z, \
                                 inside_spec_ang_mom_stars_x, inside_spec_ang_mom_stars_y, inside_spec_ang_mom_stars_z])
 
+###################### REPEATING THE CALCUATION WITHOUT THE DENSEST ISM-LIKE GAS ######################################
+                idR = np.where((radius >= minrad) & (radius < maxrad) & (hden < 0.1))[0]
+                idCd = np.where((radius >= minrad) & (radius < maxrad) & (temperature <= 1e4) & (hden < 0.1))[0]
+                idCl = np.where((radius >= minrad) & (radius < maxrad) & (temperature >1e4) & (temperature <= 1e5) & (hden < 0.1))[0]
+                idW =  np.where((radius >= minrad) & (radius < maxrad) & (temperature >1e5) & (temperature <= 1e6) & (hden < 0.1))[0]
+                idH = np.where((radius >= minrad) & (radius < maxrad) & (temperature >= 1e6) & (hden < 0.1))
+                big_annulusGAS = np.where((radius >= rad_here) & (hden < 0.1))[0]
+
+                # mass fluxes
+                gas_flux = (np.sum(cell_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
+                metal_flux = (np.sum(metal_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
+
+                ## also filter based off radial velocity
+                idVin = np.where(radial_velocity[idR] <= 0. )[0]
+                idVout = np.where(radial_velocity[idR] > 0.)[0]
+                gas_flux_in = (np.sum(cell_mass[idR][idVin]*radial_velocity[idR][idVin])/dr).to("Msun/yr")
+                gas_flux_out = (np.sum(cell_mass[idR][idVout]*radial_velocity[idR][idVout])/dr).to("Msun/yr")
+                metal_flux_in = (np.sum(metal_mass[idR][idVin]*radial_velocity[idR][idVin])/dr).to("Msun/yr")
+                metal_flux_out = (np.sum(metal_mass[idR][idVout]*radial_velocity[idR][idVout])/dr).to("Msun/yr")
+
+                ## and filter on temperature! and velocity! woo!
+                idVin = np.where(radial_velocity[idH] <= 0. )[0]
+                idVout = np.where(radial_velocity[idH] > 0.)[0]
+                hot_gas_flux = (np.sum(cell_mass[idH]*radial_velocity[idH])/dr).to("Msun/yr")
+                hot_gas_flux_in  = (np.sum(cell_mass[idH][idVin]*radial_velocity[idH][idVin])/dr).to("Msun/yr")
+                hot_gas_flux_out = (np.sum(cell_mass[idH][idVout]*radial_velocity[idH][idVout])/dr).to("Msun/yr")
+
+                idVin = np.where(radial_velocity[idW] <= 0. )[0]
+                idVout = np.where(radial_velocity[idW] > 0.)[0]
+                warm_gas_flux = (np.sum(cell_mass[idW]*radial_velocity[idW])/dr).to("Msun/yr")
+                warm_gas_flux_in  = (np.sum(cell_mass[idW][idVin]*radial_velocity[idW][idVin])/dr).to("Msun/yr")
+                warm_gas_flux_out = (np.sum(cell_mass[idW][idVout]*radial_velocity[idW][idVout])/dr).to("Msun/yr")
+
+                idVin = np.where(radial_velocity[idCl] <= 0. )[0]
+                idVout = np.where(radial_velocity[idCl] > 0.)[0]
+                cool_gas_flux = (np.sum(cell_mass[idCl]*radial_velocity[idCl])/dr).to("Msun/yr")
+                cool_gas_flux_in  = (np.sum(cell_mass[idCl][idVin]*radial_velocity[idCl][idVin])/dr).to("Msun/yr")
+                cool_gas_flux_out = (np.sum(cell_mass[idCl][idVout]*radial_velocity[idCl][idVout])/dr).to("Msun/yr")
+
+                idVin = np.where(radial_velocity[idCd] <= 0. )[0]
+                idVout = np.where(radial_velocity[idCd] > 0.)[0]
+                cold_gas_flux = (np.sum(cell_mass[idCd]*radial_velocity[idCd])/dr).to("Msun/yr")
+                cold_gas_flux_in  = (np.sum(cell_mass[idCd][idVin]*radial_velocity[idCd][idVin])/dr).to("Msun/yr")
+                cold_gas_flux_out = (np.sum(cell_mass[idCd][idVout]*radial_velocity[idCd][idVout])/dr).to("Msun/yr")
+
+                ## GAS angular momentum!
+                annular_ang_mom_gas_x = np.sum(gas_ang_mom_x[idR])
+                annular_ang_mom_gas_y = np.sum(gas_ang_mom_y[idR])
+                annular_ang_mom_gas_z = np.sum(gas_ang_mom_z[idR])
+                annular_spec_ang_mom_gas_x = np.mean(gas_spec_ang_mom_x[idR])
+                annular_spec_ang_mom_gas_y = np.mean(gas_spec_ang_mom_y[idR])
+                annular_spec_ang_mom_gas_z = np.mean(gas_spec_ang_mom_z[idR])
+
+                outside_ang_mom_gas_x = np.sum(gas_ang_mom_x[big_annulusGAS])
+                outside_ang_mom_gas_y = np.sum(gas_ang_mom_y[big_annulusGAS])
+                outside_ang_mom_gas_z = np.sum(gas_ang_mom_z[big_annulusGAS])
+                outside_spec_ang_mom_gas_x = np.mean(gas_spec_ang_mom_x[big_annulusGAS])
+                outside_spec_ang_mom_gas_y = np.mean(gas_spec_ang_mom_y[big_annulusGAS])
+                outside_spec_ang_mom_gas_z = np.mean(gas_spec_ang_mom_z[big_annulusGAS])
+
+
+                data2.add_row([zsnap, rad,gas_flux, metal_flux, \
+                                gas_flux_in, gas_flux_out, metal_flux_in, metal_flux_out, \
+                                cold_gas_flux, cold_gas_flux_in, cold_gas_flux_out, \
+                                cool_gas_flux, cool_gas_flux_in, cool_gas_flux_out, \
+                                warm_gas_flux, warm_gas_flux_in, warm_gas_flux_out, \
+                                hot_gas_flux, hot_gas_flux_in, hot_gas_flux_out,
+                                annular_ang_mom_gas_x, annular_ang_mom_gas_y,annular_ang_mom_gas_z, \
+                                annular_spec_ang_mom_gas_x, annular_spec_ang_mom_gas_y,annular_spec_ang_mom_gas_z,\
+                                outside_ang_mom_gas_x, outside_ang_mom_gas_y, outside_ang_mom_gas_z,  \
+                                outside_spec_ang_mom_gas_x, outside_spec_ang_mom_gas_y, outside_spec_ang_mom_gas_z])
+
+
+
     data = set_table_units(data)
+    data2 = set_table_units(data2)
     tablename = run_dir + '/' + args.run + '_angular_momenta_and_fluxes.hdf5'
-    data.write(tablename,path='data',serialize_meta=True,overwrite=True)
+    data.write(tablename,path='all_data',serialize_meta=True,overwrite=True)
+    data2.write(tablename,path='noISM_data',serialize_meta=True,overwrite=False,append=True)
 
     return "whooooo angular momentum wheeeeeeee"
 
