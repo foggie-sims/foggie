@@ -1,114 +1,122 @@
+""" a module for datashader renders of phase diagrams"""
+
+from functools import partial
 import datashader as dshader
 from datashader.utils import export_image
 import datashader.transfer_functions as tf
 import pandas as pd
 import yt
-import trident 
+import trident
 import numpy as np
 from astropy.table import Table
-from functools import partial
-from datashader.utils import export_image
-from datashader.colors import colormap_select, Greys9, Hot, viridis, inferno
+#from datashader.colors import colormap_select, Greys9, Hot, viridis, inferno
 from get_refine_box import get_refine_box as grb
+from consistency import ion_frac_color_key
 
-# this will show phase diagrams with the category coding done by ion 
-# fraction instead of "temperature" or whatever 
+def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
+    """prepares the dataset for rendering by extracting box or sphere"""
+    data_set = yt.load(fname)
 
-from consistency import *
-
-def plot(fname, trackfile, ion_list=['O VI'], radius=5000.):
-
-    background = 'white'
-    plot_width  = int(1080)
-    plot_height = int(1080)
-
-    export = partial(export_image, background = background, export_path="export")
-    cm = partial(colormap_select, reverse=(background != "black"))
-
-    # preliminaries - get the snapshot, add ion field, obtain the refine box, and then "all_data"
-    ds=yt.load(fname)
-
-    trident.add_ion_fields(ds, ions=ion_list) # ask trident to add fields for the ions you want 
+    trident.add_ion_fields(data_set, ions=ion_list)
 
     track = Table.read(trackfile, format='ascii')
     track.sort('col1')
-    refine_box, refine_box_center, refine_width = grb(ds, ds.current_redshift, track)
-    print('Refine box : ', refine_box) 
-    print('Refine box center: ', refine_box_center) 
-  
-    #replace with sphere 
-    print('Extracting sphere of radius: ', radius) 
-    sph = ds.sphere(center=refine_box_center, radius=(5000, 'kpc'))
-    ad = sph 
+    refine_box, refine_box_center, refine_width = \
+            grb(data_set, data_set.current_redshift, track)
+    print('Refine box corners: ', refine_box)
+    print('           center : ', refine_box_center)
 
-    cell_vol = ad["cell_volume"]
-    cell_mass = ad["cell_volume"].in_units('kpc**3') * ad["density"].in_units('Msun / kpc**3')
+    if region == 'trackbox':
+        all_data = refine_box
+    elif region == 'sphere':
+        sph = data_set.sphere(center=refine_box_center, radius=(500, 'kpc'))
+        all_data = sph
+    else:
+        print("your region is invalid!")
+
+    return all_data, refine_box, refine_width
+
+
+def prep_dataframe(all_data, refine_box, refine_width):
+    """ add fields to the dataset, create dataframe for rendering"""
+
+    cell_vol = all_data["cell_volume"]
+    cell_mass = all_data["cell_volume"].in_units('kpc**3') * \
+                    all_data["density"].in_units('Msun / kpc**3')
     cell_size = np.array(cell_vol)**(1./3.)
-    print(cell_vol) 
 
-    x_particles = ad['x'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1. )
-    y_particles = ad['y'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1. )
-    z_particles = ad['z'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1. )
+    x_particles = all_data['x'].ndarray_view() + \
+                cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1.)
+    y_particles = all_data['y'].ndarray_view() + \
+                cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1.)
+    z_particles = all_data['z'].ndarray_view() + \
+                cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1.)
     x_particles = (x_particles - refine_box.center[0].ndarray_view()) / (refine_width/2.)
     y_particles = (y_particles - refine_box.center[1].ndarray_view()) / (refine_width/2.)
     z_particles = (z_particles - refine_box.center[2].ndarray_view()) / (refine_width/2.)
-    dens = np.log10(ad['density'])
-    temp = np.log10(ad['temperature'])
+    dens = np.log10(all_data['density'])
+    temp = np.log10(all_data['temperature'])
     mass = np.log10(cell_mass) # log of the cell mass in Msun
-    f_o6 = ad['O_p5_ion_fraction'] 
-    print('X min max', np.min(x_particles), np.max(x_particles)) 
-    print('Y min max', np.min(y_particles), np.max(y_particles)) 
-    print('Z min max', np.min(z_particles), np.max(z_particles)) 
 
-    #categorize by ion fraction 
+    f_o6 = all_data['O_p5_ion_fraction']
+    #f_c4 = ad['O_c3_ion_fraction']
+    #f_si4 = ad['O_si3_ion_fraction']
+
+    #categorize by ion fraction
     frac = np.chararray(np.size(dens), 4)
     frac[f_o6 > -10.] = 'all'
-    frac[f_o6 > 0.01] = 'low' # yellow 
-    frac[f_o6 > 0.1] = 'med'  # orange 
-    frac[f_o6 > 0.2] = 'high' # red 
+    frac[f_o6 > 0.01] = 'low' # yellow
+    frac[f_o6 > 0.1] = 'med'  # orange
+    frac[f_o6 > 0.2] = 'high' # red
+
     dens = (dens + 25.) / 6.
     temp = (temp - 5.0) / 3.
     mass = (mass - 3.0) / 5.
-    print(np.min(f_o6), np.max(f_o6)) 
 
-    frac_color_key = {b'all':'black',
-                      b'high':'red',
-                      b'med':'yellow',
-                      b'low':'green'}
+    data_frame = pd.DataFrame({'x':x_particles, 'y':y_particles, \
+                               'z':z_particles, 'temp':temp, 'dens':dens, \
+                               'mass': mass, 'frac':frac})
+    data_frame.frac = data_frame.frac.astype('category')
 
-    df = pd.DataFrame({'x':x_particles, 'y':y_particles, 'z':z_particles, \
-         'temp':temp, 'dens':dens, 'mass': mass, 'frac':frac})
-    df.frac = df.frac.astype('category')
+    return data_frame
 
-    phase  = ((-1.1,1.1),(-1.0,1.0))
-    galaxy = ((-3.1,3.1),(-3.1,3.1))
 
-    def create_image(frame, x_range, y_range, w=plot_width, h=plot_height):
-        cvs = dshader.Canvas(plot_width=w, plot_height=h, x_range=x_range, y_range=y_range)
+def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
+    """this function drives datashaded phase plots"""
+
+    all_data, refine_box, refine_width = \
+        prep_dataset(fname, trackfile, ion_list=ion_list, region='sphere')
+
+    data_frame = prep_dataframe(all_data, refine_box, refine_width)
+
+    phase = ((-1.1, 1.1), (-1.0, 1.0))
+    galaxy = ((-3.1, 3.1), (-3.1, 3.1))
+
+    def create_image(frame, x_range, y_range):
+        """ renders density and temperature 'Phase' with linear aggregation"""
+        cvs = dshader.Canvas(plot_width=1080, plot_height=1080,
+                             x_range=x_range, y_range=y_range)
         agg = cvs.points(frame, 'dens', 'temp', dshader.count_cat('frac'))
-        img = tf.shade(agg, color_key=frac_color_key, how='linear')
+        img = tf.shade(agg, color_key=ion_frac_color_key, how='linear')
         return img
 
-    def create_image2(frame, x_range, y_range, w=plot_width, h=plot_height):
-        cvs = dshader.Canvas(plot_width=w, plot_height=h, x_range=x_range, y_range=y_range)
+    def create_image2(frame, x_range, y_range):
+        """ renders x and y 'Proj' with linear aggregation"""
+        cvs = dshader.Canvas(plot_width=1080, plot_height=1080,
+                             x_range=x_range, y_range=y_range)
         agg = cvs.points(frame, 'x', 'y', dshader.count_cat('frac'))
-        img = tf.shade(agg, color_key=frac_color_key, how='linear')
+        img = tf.shade(agg, color_key=ion_frac_color_key, how='linear')
         return img
 
-    # all cells 
-    export(create_image(df, *phase),fname[0:6]+"_O6frac_Phase_All")
-    export(create_image2(df, *galaxy),fname[0:6]+"_O6frac_Proj_All")
+    #this part renders the images
+    export = partial(export_image, background='white', export_path="export")
 
-    frame = df[df['frac'] == b'high']
-    export(create_image(frame, *phase),fname[0:6]+"_O6frac_Phase_High")
-    export(create_image2(frame, *galaxy),fname[0:6]+"_O6frac_Proj_High")
+    # all cells
+    export(create_image(data_frame, *phase), fname[0:6]+"_O6frac_Phase_All")
+    export(create_image2(data_frame, *galaxy), fname[0:6]+"_O6frac_Proj_All")
 
-    frame = df[df['frac'] == b'med']
-    export(create_image(frame, *phase),fname[0:6]+"_O6frac_Phase_Med")
-    export(create_image2(frame, *galaxy),fname[0:6]+"_O6frac_Proj_Med")
-
-    frame = df[df['frac'] == b'low']
-    export(create_image(frame, *phase),fname[0:6]+"_O6frac_Phase_Low")
-    export(create_image2(frame, *galaxy),fname[0:6]+"_O6frac_Proj_Low")
-
+    for part in [b'high', b'med', b'low']:
+        frame = data_frame[data_frame['frac'] == part]
+        export(create_image(frame, *phase), fname[0:6]+"_O6frac_Phase_"+part)
+        export(create_image2(frame, *galaxy), fname[0:6]+"_O6frac_Proj_"+part)
 
