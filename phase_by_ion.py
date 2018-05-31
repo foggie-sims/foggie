@@ -17,6 +17,8 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere"""
     data_set = yt.load(fname)
 
+    ds_test = 4
+
     trident.add_ion_fields(data_set, ions=ion_list)
 
     track = Table.read(trackfile, format='ascii')
@@ -119,4 +121,3 @@ def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
         frame = data_frame[data_frame['frac'] == part]
         export(create_image(frame, *phase), fname[0:6]+"_O6frac_Phase_"+part)
         export(create_image2(frame, *galaxy), fname[0:6]+"_O6frac_Proj_"+part)
-
