@@ -110,6 +110,7 @@ def prep_dataframe(all_data, refine_box, refine_width):
                                'mass': mass, \
                                'phase':phase, \
                                'lx':lx, 'ly':ly, 'lz':lz, \
+                               'f_o6':f_o6, 'f_c4':f_c4, 'f_si4':f_si4, \
                                'o6frac':categorize_by_fraction(f_o6),\
                                'c4frac':categorize_by_fraction(f_c4),\
                                'si4frac':categorize_by_fraction(f_si4)})
@@ -157,6 +158,7 @@ def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
         render_image(data_frame, 'x', 'y', ion+'frac', *proj,
                      'RD0020_proj_'+ion)
 
+    render_image(data_frame, 'temp', 'f_o6', 'phase', *phase, 'RD0020_ionfrac')
     render_image(data_frame, 'dens', 'temp', 'phase', *phase, 'RD0020_phase')
     render_image(data_frame, 'x', 'y', 'phase', *proj, 'RD0020_proj')
     render_image(data_frame, 'x', 'mass', 'phase', *proj, 'RD0020_mass')
