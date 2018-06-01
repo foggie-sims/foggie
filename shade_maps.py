@@ -12,6 +12,7 @@ from get_refine_box import get_refine_box as grb
 from consistency import ion_frac_color_key, phase_color_key, metal_color_key
 
 
+
 def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere"""
     data_set = yt.load(fname)
@@ -66,6 +67,10 @@ def categorize_by_metallicity(metallicity):
     metal_label[metallicity < 0.0000001] = 'poor'
     return metal
 
+def scale_lvec(lvec):
+    lvec[lvec > 0.] = (np.log10(lvec[lvec > 0.]) - 25.) / 8.
+    lvec[lvec < 0.] = (-1. * np.log10(-1.*lvec[lvec < 0.]) + 25.) / 8.
+    return lvec
 
 
 def prep_dataframe(all_data, refine_box, refine_width):
@@ -87,6 +92,10 @@ def prep_dataframe(all_data, refine_box, refine_width):
     y_particles = (y_particles - refine_box.center[1].ndarray_view()) / (refine_width/2.)
     z_particles = (z_particles - refine_box.center[2].ndarray_view()) / (refine_width/2.)
 
+    lx = scale_lvec(all_data['specific_angular_momentum_x'])
+    ly = scale_lvec(all_data['specific_angular_momentum_y'])
+    lz = scale_lvec(all_data['specific_angular_momentum_z'])
+
     f_o6 = all_data['O_p5_ion_fraction']
     f_c4 = all_data['C_p3_ion_fraction']
     f_si4 = all_data['Si_p3_ion_fraction']
@@ -100,8 +109,9 @@ def prep_dataframe(all_data, refine_box, refine_width):
                                'z':z_particles, 'temp':temp, 'dens':dens, \
                                'mass': mass, \
                                'phase':phase, \
-                               'o6frac':categorize_by_fraction(f_o6),
-                               'c4frac':categorize_by_fraction(f_c4),
+                               'lx':lx, 'ly':ly, 'lz':lz, \
+                               'o6frac':categorize_by_fraction(f_o6),\
+                               'c4frac':categorize_by_fraction(f_c4),\
                                'si4frac':categorize_by_fraction(f_si4)})
     data_frame.o6frac = data_frame.o6frac.astype('category')
     data_frame.c4frac = data_frame.c4frac.astype('category')
@@ -129,6 +139,7 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
 
 
 
+
 def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
     """this function drives datashaded phase plots"""
 
@@ -147,11 +158,48 @@ def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
                      'RD0020_proj_'+ion)
 
     render_image(data_frame, 'dens', 'temp', 'phase', *phase, 'RD0020_phase')
-    render_image(data_frame, 'x', 'y', 'phase', *proj, 'RD0020_proj_')
+    render_image(data_frame, 'x', 'y', 'phase', *proj, 'RD0020_proj')
+    render_image(data_frame, 'x', 'mass', 'phase', *proj, 'RD0020_mass')
+    render_image(data_frame, 'x', 'lz', 'phase', *phase, 'RD0020_lz')
 
 
 
 
-def rotate_box():
+
+def cart2pol(x, y):
+    return np.sqrt(x**2 + y**2), np.arctan2(y, x)
+
+def pol2cart(rho, phi):
+    return rho * np.cos(phi), rho * np.sin(phi)
+
+def rotate_box(fname, trackfile, x1, x2, y1, y2):
     """ not yet functional"""
-    print("This doesn't work yet!")
+
+    all_data, refine_box, refine_width = \
+        prep_dataset(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI'],
+                     region='sphere')
+
+    data_frame = prep_dataframe(all_data, refine_box, refine_width)
+
+    phase = ((-1.1, 1.1), (-1.1, 1.1))
+    proj = ((-3.1, 3.1), (-3.1, 3.1))#take in four fields, x1-->x2, y1-->y2
+
+    # this function rotates from x/y plane to density / y
+    for ii in np.arange(100):
+        x_center, d_center = 0.5, 0.5
+        rr, phi = cart2pol(data_frame['x'] - x_center, data_frame['dens'] - d_center)
+        xxxx, yyyy = pol2cart(rr, phi - np.pi / 2. / 100.)
+        data_frame.x = xxxx+x_center
+        data_frame.dens = yyyy+d_center
+        render_image(data_frame, 'x', 'y', 'phase', *phase, 'RD0020_phase'+str(1000+ii))
+        print(ii)
+
+    # now start with dens / y and gradually turn y into temp
+    for ii in np.arange(100):
+        y_center, t_center = 0.5, 0.5
+        rr, phi = cart2pol(data_frame['y'] - y_center, data_frame['temp'] - t_center)
+        xxxx, yyyy = pol2cart(rr, phi - np.pi / 2. / 100.)
+        data_frame.y = xxxx+y_center
+        data_frame.temp = yyyy+t_center
+        render_image(data_frame, 'x', 'y', 'phase', *phase, 'RD0020_phase'+str(2000+ii))
+        print(ii)
