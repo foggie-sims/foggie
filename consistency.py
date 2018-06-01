@@ -20,6 +20,10 @@ species_dict =  {'CIII':'C_p2_number_density',
                  'SiIV':"Si_p3_number_density",
                  'NeVIII':'Ne_p7_number_density'}
 
+ion_frac_color_key = {b'all':'black', 
+                      b'low':'yellow',  
+                      b'med':'orange', 
+                      b'high':'red'}
 
 density_color_map = sns.blend_palette(("black","#984ea3","#d73027","darkorange","#ffe34d","#4daf4a","white"), n_colors=60, as_cmap=True)
 density_proj_min = 5e-2  ## msun / pc^2
