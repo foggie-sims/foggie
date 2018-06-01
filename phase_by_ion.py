@@ -9,7 +9,7 @@ import trident
 import numpy as np
 from astropy.table import Table
 from get_refine_box import get_refine_box as grb
-from consistency import ion_frac_color_key
+from consistency import ion_frac_color_key, phase_color_key, metal_color_key
 
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
@@ -40,7 +40,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
 
 def categorize_by_temp(temp):
     """ define the temp category strings"""
-    phase = np.chararray(np.size(tmep), 4)
+    phase = np.chararray(np.size(temp), 4)
     phase[temp < 9.] = 'hot'
     phase[temp < 6.] = 'warm'
     phase[temp < 5.] = 'cool'
@@ -56,6 +56,15 @@ def categorize_by_fraction(f_ion):
     frac[f_ion > 0.1] = 'med'  # orange
     frac[f_ion > 0.2] = 'high' # red
     return frac
+
+def categorize_by_metallicity(metallicity):
+    """ define the metallicity category strings"""
+    metal_label = np.chararray(np.size(metal), 5)
+    metal_label[metallicity < 10.] = 'high'
+    metal_label[metallicity < 0.005] = 'solar'
+    metal_label[metallicity < 0.000001] = 'low'
+    metal_label[metallicity < 0.0000001] = 'poor'
+    return metal
 
 
 
@@ -97,19 +106,25 @@ def prep_dataframe(all_data, refine_box, refine_width):
     data_frame.o6frac = data_frame.o6frac.astype('category')
     data_frame.c4frac = data_frame.c4frac.astype('category')
     data_frame.si4frac = data_frame.si4frac.astype('category')
+    data_frame.phase = data_frame.phase.astype('category')
 
     return data_frame
 
 
 def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
-
     """ renders density and temperature 'Phase' with linear aggregation"""
+
     export = partial(export_image, background='white', export_path="export")
     cvs = dshader.Canvas(plot_width=1080, plot_height=1080,
                          x_range=x_range, y_range=y_range)
     agg = cvs.points(frame, field1, field2, dshader.count_cat(count_cat))
-    img = tf.shade(agg, color_key=ion_frac_color_key, how='linear')
-    print('filename:', filename)
+
+    if 'frac' in count_cat:
+        color_key = ion_frac_color_key
+    elif 'phase' in count_cat:
+        color_key = phase_color_key
+
+    img = tf.shade(agg, color_key=color_key, how='linear')
     export(img, filename)
 
 
@@ -125,16 +140,16 @@ def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
     phase = ((-1.1, 1.1), (-1.1, 1.1))
     proj = ((-3.1, 3.1), (-3.1, 3.1))
 
-    render_image(data_frame, 'dens', 'temp', 'o6frac', *phase, 'RD0020_o6_phase')
-    render_image(data_frame, 'x', 'y', 'o6frac', *proj, 'RD0020_o6_proj')
+    for ion in ['o6', 'c4', 'si4']:
+        render_image(data_frame, 'dens', 'temp', ion+'frac', *phase,
+                     'RD0020_phase_'+ion)
+        render_image(data_frame, 'x', 'y', ion+'frac', *proj,
+                     'RD0020_proj_'+ion)
 
-    render_image(data_frame, 'dens', 'temp', 'c4frac', *phase, 'RD0020_c4_phase')
-    render_image(data_frame, 'x', 'y', 'c4frac', *proj, 'RD0020_c4_proj')
+    render_image(data_frame, 'dens', 'temp', 'phase', *phase, 'RD0020_phase')
+    render_image(data_frame, 'x', 'y', 'phase', *proj, 'RD0020_proj_')
 
-    render_image(data_frame, 'dens', 'temp', 'si4frac', *phase, 'RD0020_si4_phase')
-    render_image(data_frame, 'x', 'y', 'si4frac', *proj, 'RD0020_si4_proj')
 
-    render_image(data_frame, 'x', 'y', 'phase', *proj, 'RD0020_temp_proj')
 
 
 def rotate_box():
