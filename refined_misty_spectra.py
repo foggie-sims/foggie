@@ -104,10 +104,11 @@ def generate_random_rays(ds, halo_center, **kwargs):
     haloname = kwargs.get("haloname","somehalo")
     # line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'C II 1334', 'Mg II 2796', 'C III 977', 'Si III 1207', 'C IV 1548', 'O VI 1032'])
     line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973', 'H I 950', 'H I 919', \
-                     'Mg II 2796', \
+                     #'Mg II 2796', \
+                     'Al II 1671', 'Al III 1855', \
                      'Si II 1260', 'Si III 1207', 'Si IV 1394', \
                      'C II 1335', 'C III 977', 'C IV 1548', \
-                     'O VI 1032'])
+                     'O VI 1032', 'Ne VIII 770'])
     # line_list = kwargs.get("line_list", ['H I 1216', 'Si III 1207','O VI 1032'])
 
     proper_box_size = get_proper_box_size(ds)
@@ -115,8 +116,8 @@ def generate_random_rays(ds, halo_center, **kwargs):
     proper_x_width = x_width*proper_box_size
 
     ## for now, assume all are z-axis
-    axis = "y"
-    np.random.seed(34)
+    axis = "x"
+    np.random.seed(52)
     high_impact = 0.45*proper_x_width
     impacts = np.random.uniform(low=low_impact, high=high_impact, size=Nrays)
     print('impacts = ', impacts)
@@ -172,9 +173,9 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                      hdulist=hdulist,
                                      use_spectacle=False,
                                      resample=True)
-            filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
-            ## if we write our own plotting routine, we can overplot the spectacle fits
-            sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
+            # the trident plots are not needed ; just take up lots of space
+            ## filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
+            ## sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
             if args.velocities and ('H' in line):
                 sv.show_velphase(ds, ray_df, rs, re, triray, filespecout_base)
 
@@ -196,7 +197,7 @@ if __name__ == "__main__":
         ds_base = "/Volumes/foggie/"
         output_path = "/Users/molly/Dropbox/foggie-collab/"
     elif args.system == "nmearl":
-        ds_base = "/Users/nearl/data/"
+        ds_base = "/astro/simulations/FOGGIE/"
         output_path = "/Users/nearl/Desktop/"
 
     if args.run == "natural":
@@ -223,6 +224,7 @@ if __name__ == "__main__":
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
+    halo_center = get_halo_center(ds, refine_box_center)[0]
 
     generate_random_rays(ds, halo_center, haloname=haloname, track=track, \
                          output_dir=output_dir, Nrays=args.Nrays)
