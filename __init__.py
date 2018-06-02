@@ -1,5 +1,4 @@
 
-from basic_funcs import * 
 from get_dataset import *
 from get_halo_catalog import * 
 from open_script import *  

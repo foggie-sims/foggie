@@ -9,10 +9,10 @@ phase_color_key = {b'cold':'salmon',
                    b'warm':'#4daf4a',
                    b'cool':'#984ea3'}
 
-metal_color_key = {'high':'yellow',
-                   'solar':'green',
-                   'low':'purple',
-                   'poor':'salmon'}
+metal_color_key = {b'high':'yellow',
+                   b'solar':'green',
+                   b'low':'purple',
+                   b'poor':'salmon'}
 
 species_dict =  {'CIII':'C_p2_number_density',
                  'CIV':'C_p3_number_density',
