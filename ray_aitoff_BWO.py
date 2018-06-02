@@ -12,6 +12,8 @@ from mpi4py import MPI
 import os
 import shutil
 
+from get_halo_center import get_halo_center
+
 comm = MPI.COMM_WORLD
 
 t_start = time.time()
@@ -29,7 +31,8 @@ ds = yt.load(fn)
 trident.add_ion_fields(ds, ions=['O VI', 'H I'], ftype="gas")
 
 # Specify position where the ray starts (position in the volume)
-c = ds.arr([0.5, 0.5, 0.5], 'unitary')
+refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track)
+c, v = get_halo_center(ds, refine_box_center)
 c = c.in_units('kpc')
 
 # location in the disk where we're setting our observations
@@ -76,9 +79,9 @@ if comm.rank == 0 and MakeProjections == True:
     for this_scale in proj_scales:
 
         sp = ds.sphere(c, (this_scale/2.,'kpc'))
-    
+
         for this_dict in field_dicts:
-            
+
             for this_dim in proj_dims:
 
                 proj = yt.ProjectionPlot(ds, 'x', this_dict['field'], weight_field='cell_mass', data_source=sp, width=(this_scale,'kpc'))
@@ -147,7 +150,7 @@ for i in range(start_index,end_index):
     dz = R*np.cos(phi)
 
     dv = YTArray([dx, dy, dz], 'kpc')
-    
+
     ray_end = ray_start + dv
 
     padded_num = '{:05d}'.format(i)
@@ -156,35 +159,35 @@ for i in range(start_index,end_index):
         rayfile = 'ray_files/ray'+str(ds)+'_'+padded_num+'.h5'
     else:
         rayfile = None
- 
+
     ray = trident.make_simple_ray(ds,
                                   start_position=ray_start,
                                   end_position=ray_end,
                                   data_filename=rayfile,
                                   fields=field_list,
                                   ftype='gas')
-    
+
     ray_data = ray.all_data()
 
     path_length = ray_data['dl'].convert_to_units('kpc').d
-        
+
 
 
     # Remove the first N kpc from the ray data
     path = np.zeros(len(path_length))
-        
+
     for h in range(len(path_length)-1):
         dl = path_length[h]
         p = path[h]
         path[h+1] = dl + p
-        
+
     for g in range(len(path)):
         if path[g] < remove_first_N_kpc:
             continue
         else:
             start = g
         break
-        
+
     path_mod = path[start:]
 
 
@@ -194,8 +197,8 @@ for i in range(start_index,end_index):
     H_I_density = H_I_density.in_units('cm**-2')
     H_I_density_mod = H_I_density[start:]
     H_I_column_density = sum(H_I_density_mod.d)
-    H_I_column = np.append(H_I_column, H_I_column_density)        
-        
+    H_I_column = np.append(H_I_column, H_I_column_density)
+
     O_VI_number_density_mod = ray_data['O_p5_number_density'][start:]
     O_VI_density = ray_data['dl']*ray_data['O_p5_number_density']
     O_VI_density = O_VI_density.in_units('cm**-2')
@@ -208,13 +211,13 @@ for i in range(start_index,end_index):
 
     los_mod = H_I_density_mod*los_mod
     mean_los = sum(los_mod.d)/sum(H_I_density_mod.d)
-    
+
 
     # Save column densities to arrays
     H_I[i] += H_I_column_density
     O_VI[i] += O_VI_column_density
     vel_los[i] += mean_los
-    
+
     r = npr.uniform()
 
     if r <= fraction_ray_plots:
@@ -224,7 +227,7 @@ for i in range(start_index,end_index):
         plt.xlabel("Distance (kpc)")
         plt.ylabel('H I Density')
         plt.title("H I density")
-        plt.grid()        
+        plt.grid()
 
         plt.subplot(322)
         plt.semilogy(path_mod, O_VI_number_density_mod, color='blue')
@@ -233,7 +236,7 @@ for i in range(start_index,end_index):
         plt.ylabel('O VI Density')
         plt.title("O VI density")
         plt.grid()
-       
+
         plt.subplot(323)
         plt.semilogy(path, ray_data['temperature'], 'r-')
         #plt.ylim(10**5, 10**8.5)
@@ -241,7 +244,7 @@ for i in range(start_index,end_index):
         plt.xlabel('Distance (kpc)')
         plt.ylabel('Temperature (K)')
         plt.grid()
-    
+
         plt.subplot(324)
         plt.semilogy(path, ray_data['density'], 'g-')
         #plt.ylim(10**-28.8, 10**-26)
@@ -249,7 +252,7 @@ for i in range(start_index,end_index):
         plt.ylabel('Density (g/cm^2)')
         plt.title("Density")
         plt.grid()
-	
+
         plt.subplot(325)
         plt.semilogy(path, ray_data['metallicity'], linestyle='-',color='orange')
         plt.xlabel('Distance (kpc)')
@@ -257,7 +260,7 @@ for i in range(start_index,end_index):
         plt.title('Metallicity')
         plt.grid()
 
-        v_los = ray_data['velocity_los'].in_units('km/s')        
+        v_los = ray_data['velocity_los'].in_units('km/s')
 
         plt.subplot(326)
         plt.plot(path, v_los, color='black')
@@ -268,7 +271,7 @@ for i in range(start_index,end_index):
 
         plt.tight_layout()
         plt.savefig('ray_data_'+str(ds)+'_'+str(i)+'.png')
-       
+
         plt.clf()
 
 raygen_end =  time.time()
@@ -357,7 +360,7 @@ if comm.rank == 0:
     plt.savefig('HI_LOS_aitoff_'+str(ds)+'.png',bbox_inches='tight',dpi=400)
 
     plt.clf()
-    
+
 
     logH_I = np.reshape(logH_I, -1)
     logO_VI = np.reshape(logO_VI, -1)

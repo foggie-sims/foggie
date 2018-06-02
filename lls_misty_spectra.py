@@ -116,30 +116,32 @@ def generate_random_rays(ds, halo_center, **kwargs):
     proper_x_width = x_width*proper_box_size
 
     ## for now, assume all are z-axis
-    axis = "x"
-    np.random.seed(52)
+    axis = "z"
+    np.random.seed(17)
     high_impact = 0.45*proper_x_width
     impacts = np.random.uniform(low=low_impact, high=high_impact, size=Nrays)
     print('impacts = ', impacts)
     angles = np.random.uniform(low=0, high=2*pi, size=Nrays)
     out_ray_basename = ds.basename + "_ray_" + axis
 
-    for i in range(Nrays):
+    i = 0
+    while i < Nrays:
         os.chdir(output_dir)
         this_out_ray_basename = out_ray_basename + "_i"+"{:05.1f}".format(impacts[i]) + \
                         "-a"+"{:4.2f}".format(angles[i])
         out_ray_name =  this_out_ray_basename + ".h5"
         rs, re = get_refined_ray_endpoints(ds, halo_center, track, impact=impacts[i])
         out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])+"_v4_los.fits.gz"
+                        "-a"+"{:4.2f}".format(angles[i])+"_v5_los.fits.gz"
         out_plot_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])+"_v4_los.png"
+                        "-a"+"{:4.2f}".format(angles[i])+"_v5_los.png"
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         if args.velocities:
             trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II', 'C III', 'C IV', 'O VI', 'Mg II'])
         ray = ds.ray(rs, re)
         ray.save_as_dataset(out_ray_name, fields=["density","temperature", "metallicity"])
+
 
         if args.velocities:
             ray_df =  ray.to_dataframe(["x","y","z","density","temperature","metallicity","HI_Density",
@@ -152,7 +154,12 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                   end_position=re.copy(),
                                   data_filename=out_tri_name,
                                   lines=line_list,
-                                  ftype='gas')
+                                  ftype='gas',
+                                  fields=['metallicity', 'H_p0_number_density'])
+
+        ### we only want N_HI > 16 !!
+        if np.log10((triray.r['H_p0_number_density']*triray.r['dl']).sum().d) < 16:
+            continue
 
         ray_start = triray.light_ray_solution[0]['start']
         ray_end = triray.light_ray_solution[0]['end']
@@ -181,6 +188,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         MISTY.write_out(hdulist,filename=out_fits_name)
         plot_misty_spectra(hdulist, outname=out_plot_name)
+        i = i+1
 
 
 

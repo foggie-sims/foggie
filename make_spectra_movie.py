@@ -81,7 +81,7 @@ def make_movie():
     #  track_name = "/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
     # output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/spectra/"
     ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/natural/RD0020/RD0020")
-    track_name = "/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc_z4to2/halo_track"
+    track_name = "/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
     output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra"
     os.chdir(output_dir)
     track = Table.read(track_name, format='ascii')
@@ -89,7 +89,7 @@ def make_movie():
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
-    halo_center = get_halo_center(ds, refine_box_center)
+    halo_center, v = get_halo_center(ds, refine_box_center)
 
     # interpolate the center from the track
     x_left = np.float(refine_box.left_edge[0].value)
