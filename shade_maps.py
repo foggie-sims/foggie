@@ -128,6 +128,30 @@ def prep_dataframe(all_data, refine_box, refine_width):
 
     return data_frame
 
+def wrap_axes():
+    img=mpimg.imread('RD0020_dens_temp_o6frac.png')
+img2 = np.flip(img,0)
+fig = plt.figure(figsize=(8,8))
+ax = fig.add_axes([0.1, 0.1, 0.8, 0.89])
+ax.imshow(img2)
+xtext = ax.set_xlabel('log Density [g / cm$^3$]')
+ytext = ax.set_ylabel('log Temperature [K]')
+ax.set_yticks([100, 550, 800])
+ax.set_yticklabels(['100', '550', '800'])
+
+
+#add an axis:
+
+ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
+color = 'tab:blue'
+ax2.set_ylabel('Temperature', color=color)  # we already handled the x-label with ax1
+ax2.plot([1.], [1.], color=color)
+ax2.tick_params(axis='y', labelcolor=color)
+ax2.set_ylim(2,8)
+
+plt.show()
+plt.savefig('filename')
+
 def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     """ renders density and temperature 'Phase' with linear aggregation"""
 
@@ -145,20 +169,23 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
 
     img = tf.shade(agg, color_key=color_key, how='eq_hist')
     export(img, filename)
+    help(img)
+    return img
 
-def holoviews(frame):
+
+def holoviews(frame, field1, field2, x_range, y_range, outfile):
     """ for JT to learn DS stuff with axes - based on LC code"""
 
-    phase = hv.Scatter(frame,kdims=['dens'],vdims=['temp'],label="phase")
-    phase_shade = aggregate(hv.Scatter(frame, ['dens', 'temp']),
-                            y_range=(-1, 1), x_range=(-1,1),
-                            aggregator=dshader.count_cat('phase'))
-    phase_shade = phase_shade.opts(plot=dict(colorbar=False, aspect='square',
-                            logz=True, height=1080, width=1080),
-                            style=dict(cmap=cm.Reds, alpha=0.6))
-    renderer = Store.renderers['matplotlib'].instance(fig='pdf', holomap='gif')
-    renderer.save(phase_shade, "phase_red")
+    points = hv.Points(frame, [field1, field2])
+    phase_shade = datashade(points, cmap=cm.Reds, dynamic=False)
+    hv.opts("RGB [width=400 height=800 xaxis=bottom yaxis=left]")
+    phase_shade.opts(plot=dict(colorbar=True, fig_size=1000, aspect='square'))
+
+    renderer = Store.renderers['matplotlib'].instance(fig='png', holomap='gif', dpi=300)
+    renderer.save(phase_shade, 'export/'+outfile)
+
     return
+
 
 def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
     """this function drives datashaded phase plots"""
@@ -167,8 +194,6 @@ def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
         prep_dataset(fname, trackfile, ion_list=ion_list, region='sphere')
 
     data_frame = prep_dataframe(all_data, refine_box, refine_width)
-
-    holoviews(data_frame)
 
     for ion in ['o6', 'c4', 'si4']:
         render_image(data_frame, 'dens', 'temp', ion+'frac',
@@ -179,11 +204,29 @@ def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
     render_image(data_frame, 'temp', 'logf_o6', 'phase', (2,8), (-5,0), 'RD0020_ionfrac')
     render_image(data_frame, 'dens', 'temp', 'phase', (-31,-20), (2,8), 'RD0020_phase')
     render_image(data_frame, 'x', 'y', 'phase', (-3,3), (-3,3), 'RD0020_proj')
-    #render_image(data_frame, 'x', 'mass', 'phase', (-3.1, 3.1), (-3.1, 3.1), 'RD0020_mass')
-    #erender_image(data_frame, 'x', 'lz', 'phase', (-1.1, 1.1), (-1.1, 1.1), 'RD0020_lz')
+    render_image(data_frame, 'x', 'mass', 'phase', (-3.1, 3.1), (-1, 8), 'RD0020_mass')
+    render_image(data_frame, 'x', 'lz', 'phase', (-1.1, 1.1), (-1.1, 1.1), 'RD0020_lz')
 
-def howto():
-    """illustrates how to use this module for datashaded FOGGIE plots"""
+
+
+def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, *outfile):
+    """This function makes a simple plot with two fields plotted against
+        one another. The color coding is given by variable 'colorcode'
+        which can be phase, metal, or an ionization fraction"""
+
+    all_data, refine_box, refine_width = \
+        prep_dataset(fname, trackfile,
+        ion_list=['H I', 'C IV', 'Si IV', 'O VI'], region='sphere')
+
+    data_frame = prep_dataframe(all_data, refine_box, refine_width)
+
+    if len(outfile) == 0:
+        outfile = fname[0:6] + '_' + field1 + '_' + field2 + '_' + colorcode
+        print(outfile)
+
+    render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
+    image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
+    help(image)
 
 def cart2pol(x, y):
     return np.sqrt(x**2 + y**2), np.arctan2(y, x)
@@ -191,9 +234,10 @@ def cart2pol(x, y):
 def pol2cart(rho, phi):
     return rho * np.cos(phi), rho * np.sin(phi)
 
-def rotate_box(fname, trackfile, x1, x2, y1, y2):
+def rotate_box(fname, trackfile, x1, y1, x2, y2):
     """ not yet functional"""
 
+    print("NEED TO DO VARIABLE NORMALIZATION HERE SINCE IT IS NOT DONE ANYWEHRE ELSE NOW")
     all_data, refine_box, refine_width = \
         prep_dataset(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI'],
                      region='sphere')
@@ -201,7 +245,7 @@ def rotate_box(fname, trackfile, x1, x2, y1, y2):
     data_frame = prep_dataframe(all_data, refine_box, refine_width)
 
     phase = ((-1.1, 1.1), (-1.1, 1.1))
-    proj = ((-3.1, 3.1), (-3.1, 3.1))#take in four fields, x1-->x2, y1-->y2
+    proj = ((-3.1, 3.1), (-3.1, 3.1))
 
     # this function rotates from x/y plane to density / y
     for ii in np.arange(100):
