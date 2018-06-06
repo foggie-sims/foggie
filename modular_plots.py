@@ -221,7 +221,6 @@ def make_resolution_slice(ds, prefix, **kwargs):
     center = kwargs.get("center", "")
     appendix = kwargs.get("appendix", "")
     width = kwargs.get("width", default_width)
-    discrete_cmap = mpl.colors.ListedColormap(['#565656','#4daf4a',"#d73027","#984ea3","#ffe34d",'#4575b4','darkorange'])
     basename = prefix + 'physical/' + ds.basename + appendix
     s = yt.SlicePlot(ds, "y", 'dy', center=center, width=(1.5*width, 'kpc'))
     s.set_cmap('dy', discrete_cmap)
