@@ -163,9 +163,11 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         new_new_outs = [snap[0] for snap in new_outs]
         outs = new_new_outs
 
-    for snap in outs:
+    dataset_series = yt.load(outs)
+    storage = {}
+    for sto,ds in ts.piter(storage=storage):
         # load the snapshot
-        print('opening snapshot '+ snap)
+        #print('opening snapshot '+ snap)
         ds = yt.load(snap)
 
         # add the particle filters
@@ -465,12 +467,17 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         for i in range(table2.shape[0]):
             table2[i,:] = comm.mpi_allreduce(table2[i,:],op="sum")
 
-        if yt.is_root():
+        sto.result = (table1,table2)
+        sto.result_id = str(ds)
+
+
+    if yt.is_root():
+        for key in storage.keys():
+            table1,table2 = storage[key]
             for i in range(table1.shape[0]-1):
                 data.add_row(table1[i+1,:])
                 data2.add_row(table2[i+1,:])
 
-    if yt.is_root():
         data = set_table_units(data)
         data2 = set_table_units(data2)
         tablename = run_dir + '/' + args.run + '_angular_momenta_and_fluxes.hdf5'
