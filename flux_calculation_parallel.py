@@ -167,7 +167,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
     print (outs)
     dataset_series = yt.load(outs)
     storage = {}
-    for sto,ds in ts.piter(storage=storage):
+    for sto,ds in dataset_series.piter(storage=storage):
         # load the snapshot
         #print('opening snapshot '+ snap)
         ds = yt.load(snap)
