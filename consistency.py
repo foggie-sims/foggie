@@ -4,6 +4,16 @@ import seaborn as sns
 
 default_width = 85.  # kpc in projection
 
+axes_label_dict = {'density':'log Density [g / cm$^3$]',
+                   'temperature': 'log Temperature [K]',
+                   'O_p5_ion_fraction':'log [O VI Ionization Fraction]',
+                   'O_p5_number_density':'log [O VI Number Density]',
+                   'C_p3_ion_fraction':'log [C IV Ionization Fraction]',
+                   'C_p3_number_density':'log [C IV Number Density]',
+                   'Si_p3_ion_fraction':'log [Si IV Ionization Fraction]',
+                   'Si_p3_number_density':'log [Si IV Number Density]',
+                   }
+
 phase_color_key = {b'cold':'salmon',
                    b'hot':'#ffe34d',
                    b'warm':'#4daf4a',
@@ -37,7 +47,8 @@ density_proj_max = 1e4
 density_slc_min = 5e-7  ## msun / pc^3
 density_slc_max = 5
 
-metal_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a","#ffe34d","darkorange"), as_cmap=True)
+metal_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a",
+                    "#ffe34d","darkorange"), as_cmap=True)
 metal_min = 1.e-4
 metal_max = 2.
 metal_density_min = 1.e-5
