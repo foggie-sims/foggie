@@ -64,6 +64,10 @@ def parse_args():
                         help='make all plots?, default if not')
     parser.set_defaults(all=False)
 
+    parser.add_argument('--resolution', dest='resolution', action='store_true',
+                        help='make resolution slice plot?, default if not')
+    parser.set_defaults(ions=False)
+
     parser.add_argument('--ions', dest='ions', action='store_true',
                         help='make plots of ions?, default if not')
     parser.set_defaults(ions=False)
@@ -212,6 +216,26 @@ def make_slice_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
         #frb = s.data_source.to_frb(width, resolution, center=center)
         #cPickle.dump(frb[field], open(basename + '_Slice_' + ax + '_' + field + '.cpkl','wb'), protocol=-1)
 
+#-----------------------------------------------------------------------------------------------------
+
+def make_resolution_slice(ds, prefix, **kwargs):
+    box = kwargs.get("box", "")
+    center = kwargs.get("center", "")
+    appendix = kwargs.get("appendix", "")
+    width = kwargs.get("width", default_width)
+    discrete_cmap = mpl.colors.ListedColormap(['#565656','#4daf4a',"#d73027","#984ea3","#ffe34d",'#4575b4','darkorange'])
+    basename = prefix + 'physical/' + ds.basename + appendix
+    s = yt.SlicePlot(ds, "y", 'dy', center=center, width=(1.5*width, 'kpc'))
+    s.set_cmap('dy', discrete_cmap)
+    s.set_unit('dy','kpc')
+    #s.set_cmap(('index','grid_level'), discrete_cmap)
+    #s.set_zlim(('index','grid_level'),6,11)
+    plot = s.plots['dy']
+    s._setup_plots()
+    colorbar = plot.cb
+    colorbar.set_label('cell size (kpc)')
+    s.save(basename + '_Slice_y_cellsize_dy.png')
+
 
 #-----------------------------------------------------------------------------------------------------
 
@@ -298,6 +322,10 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
 
 
         if not args.noslices:
+            if args.all or args.resolution:
+                make_resolution_slice(ds, prefix, center=center, box=refine_box, \
+                                width=refine_width)
+
             if args.all or args.physical or args.density or args.slices:
                 make_slice_plot(ds, prefix, "density", \
                                 density_slc_min, density_slc_max, density_color_map, \
@@ -556,6 +584,10 @@ if __name__ == "__main__":
         run_loc = "nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/"
         trackname = "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
         haloname = "halo008508_nref11n_nref10f_selfshield_z6"
+    elif args.run == "nref11c_nref9f":
+        run_loc = "nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/"
+        trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/halo_track"
+        haloname = "halo008508_nref11c_nref9f_selfshield_z6"
     elif args.run == "nref11f":
         run_loc = "nref11n/nref11f_refine200kpc/"
         trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
