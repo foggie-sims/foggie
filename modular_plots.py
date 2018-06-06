@@ -27,8 +27,6 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 
-yt.enable_parallelism()
-
 
 def parse_args():
     '''
