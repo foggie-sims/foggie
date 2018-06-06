@@ -10,7 +10,7 @@ import glob
 from manage_path_names import get_path_names
 
 def rerun_spectacle(DATA_DIR):
-    dataset_list = glob.glob(os.path.join(DATA_DIR, 'hlsp*v3_los.fits'))
+    dataset_list = glob.glob(os.path.join(DATA_DIR, 'hlsp*v5_lsf.fits'))
     for filename in dataset_list:
         add_spectacle_to_fits(filename,filename)
 
@@ -18,7 +18,7 @@ def rerun_spectacle(DATA_DIR):
 def get_column_densities():
     output_dir = get_path_names()
     DATA_DIR = "./spectra"
-    dataset_list = glob.glob(os.path.join(DATA_DIR, 'hlsp*v3_los.fits'))
+    dataset_list = glob.glob(os.path.join(DATA_DIR, 'hlsp*v5_lsf.fits'))
 
     columns = Table(names=("impact","line","regdv90","totew","totcol"),dtype=("f8","S10","f8","f8","f8"))
 

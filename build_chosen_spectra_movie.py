@@ -34,7 +34,7 @@ def get_short_spectrum(ds, ray_start, ray_end, **kwargs):
     line_list = ['H I 1216', 'Si II 1260', 'Si III 1207', 'C II 1335', 'C IV 1548', 'O VI 1032']
     triray = trident.make_simple_ray(ds, start_position=rs.copy(),
                       end_position=re.copy(),
-                      data_filename="temp.h5",
+                      data_filename="blah.h5",
                       lines=line_list,
                       ftype='gas')
 
@@ -86,8 +86,10 @@ def make_movie():
 
 
     ## first, read in the full spectrum
-    fits_name = 'hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0020_axz_i016.6-a5.84_v5_los.fits.gz'
-    fits_name_base = 'hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0020_axz_i016.6-a5.84_v5_los'
+#    fits_name = 'hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0020_axz_i016.6-a5.84_v5_los.fits.gz'
+    fits_name = 'hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0020_axz_i010.5-a6.01_v5_los.fits.gz'
+    ## fits_name_base = fits_name.split('.fits.gz')[0]
+    fits_name_base = fits_name.strip('.fits.gz')
     hdulist, ray_start, ray_end, ray, impact = read_spectrum(ds, fits_name)
     ray_sort = np.argsort(ray['t'])
     ray_min = np.min(ray['x'][ray_sort])
@@ -103,11 +105,12 @@ def make_movie():
     z_center = refine_box_center
     ## center needs to be where the ray is
     z_center = [refine_box_center[0], refine_box_center[1], ray_start[2]]
-    slc = yt.SlicePlot(ds, 'z', ('gas','metallicity'), center=z_center, width=x_width)
+    # slc = yt.SlicePlot(ds, 'z', ('gas','metallicity'), center=z_center, width=x_width)
+    slc = yt.SlicePlot(ds, 'z', ('gas','H_p0_number_density'), center=z_center, width=x_width)
     res = [1000,1000]
-    frb = slc.frb['gas','metallicity']
+    frb = slc.frb['gas','H_p0_number_density']
     image = np.array(frb)
-    print "min, max metallicity = ", np.min(np.log10(image)), np.max(np.log10(image))
+    print "min, max HI = ", np.min(np.log10(image)), np.max(np.log10(image))
     # extent = [float(x.in_units('code_length')) for x in (pro.xlim + pro.ylim)]
     # extent = [x_left, x_right, y_left, y_right]
 ##########
@@ -130,7 +133,7 @@ def make_movie():
         print "ray end:", this_ray_end[0]
 
         out_fits_name = fits_name_base + "_build_lots_los_dx"+"{:0.3f}".format(dx)+".fits"
-        out_plot_name = "metallicity_slice_build_spectrum_" + fits_name_base + "_build_lots_los_dx"+"{:0.3f}".format(dx)+".png"
+        out_plot_name = "HI_slice_build_spectrum_" + fits_name_base + "_build_lots_los_dx"+"{:0.3f}".format(dx)+".png"
         if os.path.exists(out_fits_name):
             hdulist, ray_start, this_ray_end, ray, dummy = read_spectrum(ds, out_fits_name)
         else:
@@ -145,18 +148,18 @@ def make_movie():
         print "refine right:", refine_box.right_edge
 
         # start by setting up plots
-        fig = plt.figure(figsize=(16,6), dpi=100)
+        fig = plt.figure(figsize=(14,6), dpi=100)
 
         # creates grid on which the figure will be plotted
         gs = gridspec.GridSpec(7, 3,
-                               width_ratios=[0.05, 1, 1.5])
+                               width_ratios=[0.05, 1.25, 1.5])
 
         ## this will be the slice
         ax_slice = fig.add_subplot(gs[:,1])
-        slc = ax_slice.imshow(np.log10(image), extent=extent, cmap=metal_color_map, \
-                                        vmin=np.log10(metal_min), vmax=np.log10(metal_max))
-#        slc = ax_slice.imshow(np.log10(image), extent=extent, cmap=temperature_color_map, \
-#                                        vmin=np.log10(temperature_min), vmax=np.log10(temperature_max))
+#        slc = ax_slice.imshow(np.log10(image), extent=extent, cmap=metal_color_map, \
+#                                        vmin=np.log10(metal_min), vmax=np.log10(metal_max))
+        slc = ax_slice.imshow(np.log10(image), extent=extent, cmap=density_color_map, \
+                                        vmin=-14, vmax=-3)
         ax_slice.plot([ray_start[0], this_ray_end[0]], [ray_start[1], this_ray_end[1]], color="white", lw=2.)
         ax_slice.set_aspect('equal')
         ax_slice.xaxis.set_major_locator(ticker.NullLocator())
@@ -166,7 +169,7 @@ def make_movie():
         cbar = fig.colorbar(slc, cax=ax_cbar, extend='both')
         ax_cbar.yaxis.set_ticks_position('left')
         ax_cbar.yaxis.set_label_position('left')
-        cbar.set_label(r'log metallicity', fontsize=16.)
+        cbar.set_label(r'log HI number density', fontsize=16.)
 
         ## these will be the spectra
         zmin, zmax = 1.998, 2.004
@@ -177,15 +180,15 @@ def make_movie():
         plt.xlim(ray_min, ray_max)
         plt.ylim(-29, -25)
         ymin, ymax = ax_spec0.get_ylim()
-        ax_spec0.text(ray_min + (ray_max - ray_min)*0.05, ymax - (ymax-ymin)*0.25, "density", fontsize=12.)
+        ax_spec0.text(ray_min + (ray_max - ray_min)*0.05, ymax - (ymax-ymin)*0.25, "density", fontsize=16.)
         ax_spec0.xaxis.set_major_locator(ticker.NullLocator())
 
         ax_spec1 = fig.add_subplot(gs[1,2])
         ax_spec1.plot(ray['x'][ray_sort], np.log10(ray['temperature'][ray_sort]), color='#984ea3',lw=1)
         plt.xlim(ray_min, ray_max)
-        plt.ylim(4, 6.5)
+        plt.ylim(3.9, 6.5)
         ymin, ymax = ax_spec1.get_ylim()
-        ax_spec1.text(ray_min + (ray_max - ray_min)*0.05, 4.2, "temperature", fontsize=12.)
+        ax_spec1.text(ray_min + (ray_max - ray_min)*0.05, 4.2, "temperature", fontsize=16.)
         ax_spec1.xaxis.set_major_locator(ticker.NullLocator())
 
         ax_spec2 = fig.add_subplot(gs[2,2])
@@ -193,14 +196,14 @@ def make_movie():
         plt.xlim(ray_min, ray_max)
         plt.ylim(-2.5,0.2)
         ymin, ymax = ax_spec2.get_ylim()
-        ax_spec2.text(ray_min + (ray_max - ray_min)*0.05, ymax - (ymax-ymin)*0.25, "metallicity", fontsize=12.)
+        ax_spec2.text(ray_min + (ray_max - ray_min)*0.05, ymax - (ymax-ymin)*0.25, "metallicity", fontsize=16.)
         ax_spec2.xaxis.set_major_locator(ticker.NullLocator())
 
         ax_spec3 = fig.add_subplot(gs[3,2])
         velocity = ((hdulist["H I 1216"].data['wavelength'] / hdulist['H I 1216'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
         flux = hdulist["H I 1216"].data['flux']
         ax_spec3.plot(velocity, flux, color='darkorange',lw=1)
-        ax_spec3.text(vmin + 100, 0, "H I 1216", fontsize=12.)
+        ax_spec3.text(vmin + 100, 0, "H I 1216", fontsize=16.)
         ax_spec3.xaxis.set_major_locator(ticker.NullLocator())
         plt.xlim(vmin, vmax)
         plt.ylim(-0.05, 1.05)
@@ -209,7 +212,7 @@ def make_movie():
         velocity = ((hdulist["Si III 1207"].data['wavelength'] / hdulist['Si III 1207'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
         flux = hdulist["Si III 1207"].data['flux']
         ax_spec4.plot(velocity, flux, color='darkorange',lw=1)
-        ax_spec4.text(vmin + 100, 0, "Si III 1207", fontsize=12.)
+        ax_spec4.text(vmin + 100, 0, "Si III 1207", fontsize=16.)
         ax_spec4.xaxis.set_major_locator(ticker.NullLocator())
         plt.xlim(vmin, vmax)
         plt.ylim(-0.05, 1.05)
@@ -218,7 +221,7 @@ def make_movie():
         velocity = ((hdulist["C IV 1548"].data['wavelength'] / hdulist['C IV 1548'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
         flux = hdulist["C IV 1548"].data['flux']
         ax_spec5.plot(velocity, flux, color='darkorange',lw=1)
-        ax_spec5.text(vmin + 100, 0, "C IV 1548", fontsize=12.)
+        ax_spec5.text(vmin + 100, 0, "C IV 1548", fontsize=16.)
         ax_spec5.xaxis.set_major_locator(ticker.NullLocator())
         plt.xlim(vmin, vmax)
         plt.ylim(-0.05, 1.05)
@@ -227,12 +230,12 @@ def make_movie():
         velocity = ((hdulist["O VI 1032"].data['wavelength'] / hdulist['O VI 1032'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
         flux = hdulist["O VI 1032"].data['flux']
         ax_spec6.plot(velocity, flux, color='darkorange',lw=1)
-        ax_spec6.text(vmin + 100, 0, "O VI 1032", fontsize=12.)
+        ax_spec6.text(vmin + 100, 0, "O VI 1032", fontsize=16.)
         plt.xlim(vmin, vmax)
         plt.ylim(-0.05, 1.05)
 
         fig.tight_layout()
-        gs.update(hspace=0.0)
+        gs.update(hspace=0.0, wspace=0.03)
         plt.savefig(out_plot_name)
         plt.close()
 
