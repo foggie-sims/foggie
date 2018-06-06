@@ -135,7 +135,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                          'f8', 'f8'))
 
     print(foggie_dir)
-    track_name = foggie_dir + 'halo_00' + str(halo) + '/' + run + '/' + trackname
+    track_name = foggie_dir + 'halo_00' + str(halo) + '/' + run + trackname
     if args.system == "pleiades":
         track_name = foggie_dir + "halo_008508/nref11f_refine200kpc_z4to2/halo_track"
 
@@ -163,6 +163,8 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         new_new_outs = [snap[0] for snap in new_outs]
         outs = new_new_outs
 
+    print("outs:")
+    print (outs)
     dataset_series = yt.load(outs)
     storage = {}
     for sto,ds in ts.piter(storage=storage):
@@ -533,6 +535,9 @@ if __name__ == "__main__":
     elif args.system == "pleiades":
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackup/mpeeples/"
+    elif args.system == "lauren":
+        foggie_dir = "/nobackupnfs2/lcorlies/"
+        output_path = "/nobackupnfs2/lcorlies/"
 
     if args.run == "natural":
         run_loc = "nref11n/natural/"
