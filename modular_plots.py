@@ -124,9 +124,6 @@ def parse_args():
     return args
 
 #-----------------------------------------------------------------------------------------------------
-def _metal_density(field, data):
-    return data["gas", "density"] * data["gas", "metallicity"] / 0.02  ## idk if this is the solar metallicity in enzo
-#-----------------------------------------------------------------------------------------------------
 
 def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
