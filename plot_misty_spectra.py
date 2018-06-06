@@ -38,7 +38,10 @@ def plot_misty_spectra(hdulist, **kwargs):
     # creates grid on which the figure will be plotted
     gs = gridspec.GridSpec(Nlines, 1)
 
-    zsnap = np.median(hdulist[3].data['redshift_obs'])  ## hack
+    try:
+        zsnap = np.median(hdulist[3].data['redshift_obs'])  ## hack
+    except:
+        zsnap = np.median(hdulist[3].data['redshift'])
     zmin, zmax = (zsnap-0.004), (zsnap+0.004)
     vmin, vmax = -1000, 1000
 
@@ -66,8 +69,10 @@ def plot_misty_spectra(hdulist, **kwargs):
         try:
             ### _lsf.fits files have '_obs' while _los.fits files don't
             # ax_spec.step(redshift, flux, color='darkorange',lw=1)
-            #ax_spec.step(hdulist[line+2].data['redshift_obs'], hdulist[line+2].data['flux_obs'], color='purple', lw=1)
-            ax_spec.step(hdulist[line+2].data['redshift'], hdulist[line+2].data['flux'], color='purple', lw=1)
+            try:
+                ax_spec.step(hdulist[line+2].data['redshift'], hdulist[line+2].data['flux'], color='purple', lw=1)
+            except:
+                ax_spec.step(hdulist[line+2].data['redshift_obs'], hdulist[line+2].data['flux_obs'], color='purple', lw=1)
             if overplot:
                 ax_spec.step(hdulist[line+2].data['redshift_obs'], spectrum.flux(hdulist[line+2].data['disp_obs'] * u.AA), color='darkorange', lw=1)
             ax_spec.text(zmin + 0.0001, 0, hdulist[line+2].header['LINENAME'], fontsize=10.)
