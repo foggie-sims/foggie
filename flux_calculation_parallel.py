@@ -170,7 +170,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
     for sto,ds in dataset_series.piter(storage=storage):
         # load the snapshot
         #print('opening snapshot '+ snap)
-        ds = yt.load(snap)
+        #ds = yt.load(snap)
 
         # add the particle filters
         ds.add_particle_filter('stars')
@@ -261,6 +261,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         table1 = np.zeros((len(radii),len(data.keys())))
         table2 = np.zeros((len(radii),len(data2.keys())))
         for rad in parallel_objects(radii):
+            print(rad)
             if rad != np.max(radii):
                 idI = np.where(radii == rad)[0]
                 if rad == radii[-1]:
@@ -461,7 +462,9 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                                 outside_ang_mom_gas_x, outside_ang_mom_gas_y, outside_ang_mom_gas_z,  \
                                 outside_spec_ang_mom_gas_x, outside_spec_ang_mom_gas_y, outside_spec_ang_mom_gas_z]
 
-
+        print("#################")
+        print("combining threads")
+        print("#################")
         comm = communication_system.communicators[-1]
         for i in range(table1.shape[0]):
             table1[i,:] = comm.mpi_allreduce(table1[i,:], op="sum")
@@ -474,6 +477,9 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
 
     if yt.is_root():
+        print("####################")
+        print("In final table build")
+        print("####################")
         for key in storage.keys():
             table1,table2 = storage[key]
             for i in range(table1.shape[0]-1):
