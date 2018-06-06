@@ -7,12 +7,14 @@ import datashader.transfer_functions as tf
 import holoviews as hv
 import pandas as pd
 import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import yt
 import trident
 import numpy as np
 from astropy.table import Table
 from get_refine_box import get_refine_box as grb
-from consistency import ion_frac_color_key, phase_color_key, metal_color_key
+from consistency import ion_frac_color_key, phase_color_key, metal_color_key, axes_label_dict
 from holoviews.operation.datashader import datashade, aggregate
 from holoviews import Store
 hv.extension('matplotlib')
@@ -74,89 +76,102 @@ def scale_lvec(lvec):
     lvec[lvec < 0.] = (-1. * np.log10(-1.*lvec[lvec < 0.]) + 25.) / 8.
     return lvec
 
-def prep_dataframe(all_data, refine_box, refine_width):
-    """ add fields to the dataset, create dataframe for rendering"""
+def prep_dataframe(all_data, refine_box, refine_width, field1, field2):
+    """ add fields to the dataset, create dataframe for rendering
+        The enzo fields x, y, z, temperature, density, cell_vol, cell_mass,
+        and metallicity will always be included, others will be included
+        if they are requested as fields. """
 
+    # obtain fields that we'll use no matter what the input fields.
     density = all_data['density']
-    temperature = all_data['temperature']
-    cell_vol = all_data["cell_volume"]
-    cell_mass = cell_vol.in_units('kpc**3') * density.in_units('Msun / kpc**3')
-    cell_size = np.array(cell_vol)**(1./3.)
+    cell_mass = all_data['cell_volume'].in_units('kpc**3') * density.in_units('Msun / kpc**3')
+    cell_size = np.array(all_data["cell_volume"])**(1./3.)
 
-    x_particles = all_data['x'].ndarray_view() + \
-                cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1.)
-    y_particles = all_data['y'].ndarray_view() + \
-                cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1.)
-    z_particles = all_data['z'].ndarray_view() + \
-                cell_size * (np.random.rand(np.size(cell_vol)) * 2. - 1.)
-    x_particles = (x_particles - refine_box.center[0].ndarray_view()) / (refine_width/2.)
-    y_particles = (y_particles - refine_box.center[1].ndarray_view()) / (refine_width/2.)
-    z_particles = (z_particles - refine_box.center[2].ndarray_view()) / (refine_width/2.)
+    x = all_data['x'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
+    y = all_data['y'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
+    z = all_data['z'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
+    x = (x - refine_box.center[0].ndarray_view()) / (refine_width/2.)
+    y = (y - refine_box.center[1].ndarray_view()) / (refine_width/2.)
+    z = (z - refine_box.center[2].ndarray_view()) / (refine_width/2.)
 
-    lx = scale_lvec(all_data['specific_angular_momentum_x'])
-    ly = scale_lvec(all_data['specific_angular_momentum_y'])
-    lz = scale_lvec(all_data['specific_angular_momentum_z'])
-
-    f_o6 = all_data['O_p5_ion_fraction']
-    logf_o6 = np.log10(all_data['O_p5_ion_fraction'] + 1e-9)
-    f_c4 = all_data['C_p3_ion_fraction']
-    f_si4 = all_data['Si_p3_ion_fraction']
-    phase = categorize_by_temp(np.log10(temperature))
+    density = np.log10(density)
+    temperature = np.log10(all_data['temperature'])
+    mass = np.log10(cell_mass)
+    phase = categorize_by_temp(temperature)
     metal = categorize_by_metallicity(all_data['metallicity'])
 
-    dens = np.log10(density)      # (np.log10(density) + 25.) / 6.
-    temp = np.log10(temperature)  # (np.log10(all_data['temperature']) - 5.0) / 3.
-    mass = np.log10(cell_mass)    # (np.log10(cell_mass) - 3.0) / 5.
-
-    data_frame = pd.DataFrame({'x':x_particles, 'y':y_particles, \
-                               'z':z_particles, 'temp':temp, 'dens':dens, \
-                               'cell_volume':cell_vol, \
-                               'mass': mass, \
-                               'phase':phase, \
-                               'lx':lx, 'ly':ly, 'lz':lz, \
-                               'f_o6':f_o6, 'f_c4':f_c4, 'f_si4':f_si4, \
-                               'logf_o6':logf_o6, \
-                               'metal': metal, \
-                               'o6frac':categorize_by_fraction(f_o6),\
-                               'c4frac':categorize_by_fraction(f_c4),\
-                               'si4frac':categorize_by_fraction(f_si4)})
-    data_frame.o6frac = data_frame.o6frac.astype('category')
-    data_frame.c4frac = data_frame.c4frac.astype('category')
-    data_frame.si4frac = data_frame.si4frac.astype('category')
+    # build data_frame with mandatory fields
+    data_frame = pd.DataFrame({'x':x, 'y':y, 'z':z, 'temperature':temperature, \
+                               'density':density, 'cell_mass': mass, \
+                               'phase':phase, 'metal':metal})
     data_frame.phase = data_frame.phase.astype('category')
     data_frame.metal = data_frame.metal.astype('category')
 
+    # now add the optional fields
+    print("you have requested fields ", field1, field2)
+
+    # add those two fields
+    logfields = ('density', 'temperature', 'entropy', 'O_p5_ion_fraction',
+                'C_p3_ion_fraction', 'Si_p3_ion_fraction', 'O_p5_number_density',
+                'C_p3_number_density', 'Si_p3_number_density')
+    if field1 not in data_frame.columns:
+        print("Did not find "+field1+" in the dataframe, will add it.")
+        if field1 in logfields:
+            print("Field 1, "+field1+" is a log field.")
+            data_frame[field1] = np.log10(all_data[field1])
+        else:
+            data_frame[field1] = all_data[field1]
+    if field2 not in data_frame.columns:
+        print("Did not find "+field2+" in the dataframe, will add it.")
+        if field2 in logfields:
+            print("Field 2, "+field2+" is a log field.")
+            data_frame[field2] = np.log10(all_data[field2])
+        else:
+            data_frame[field2] = all_data[field2]
+
+    #logf_o6 = np.log10(O_p5_ion_fraction + 1e-9)
+    #logf_o6 = np.log10(C_p3_ion_fraction + 1e-9)
+    #logf_o6 = np.log10(Si_p3_ion_fraction + 1e-9)
+
+
+    #lx = scale_lvec(all_data['specific_angular_momentum_x'])
+    #ly = scale_lvec(all_data['specific_angular_momentum_y'])
+    #lz = scale_lvec(all_data['specific_angular_momentum_z'])
+
+    #data_frame.o6frac = data_frame.o6frac.astype('category')
+    #data_frame.c4frac = data_frame.c4frac.astype('category')
+    #data_frame.si4frac = data_frame.si4frac.astype('category')
+
+
     return data_frame
 
-def wrap_axes():
-    img=mpimg.imread('RD0020_dens_temp_o6frac.png')
-img2 = np.flip(img,0)
-fig = plt.figure(figsize=(8,8))
-ax = fig.add_axes([0.1, 0.1, 0.8, 0.89])
-ax.imshow(img2)
-xtext = ax.set_xlabel('log Density [g / cm$^3$]')
-ytext = ax.set_ylabel('log Temperature [K]')
-ax.set_yticks([100, 550, 800])
-ax.set_yticklabels(['100', '550', '800'])
 
+def wrap_axes(filename, field1, field2, ranges):
+    """intended to be run after render_image, take the image and wraps it in
+        axes using matplotlib and so offering full customization."""
 
-#add an axis:
+    img = mpimg.imread(filename+'.png')
+    img2 = np.flip(img,0)
+    fig = plt.figure(figsize=(8,8))
+    ax = fig.add_axes([0.1, 0.1, 0.88, 0.88])
+    ax.imshow(img2)
 
-ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-color = 'tab:blue'
-ax2.set_ylabel('Temperature', color=color)  # we already handled the x-label with ax1
-ax2.plot([1.], [1.], color=color)
-ax2.tick_params(axis='y', labelcolor=color)
-ax2.set_ylim(2,8)
+    xtext = ax.set_xlabel(axes_label_dict[field1], fontname='Arial', fontsize=20)
+    ax.set_xticks(np.arange((ranges[0][1] - ranges[0][0]) + 1.) * 1000. / (ranges[0][1] - ranges[0][0]))
+    ax.set_xticklabels([ str(int(s)) for s in np.arange((ranges[0][1] - ranges[0][0]) + 1.) +  ranges[0][0] ], fontname='Arial', fontsize=20)
 
-plt.show()
-plt.savefig('filename')
+    ytext = ax.set_ylabel(axes_label_dict[field2], fontname='Arial', fontsize=20)
+    ax.set_yticks(np.arange((ranges[1][1] - ranges[1][0]) + 1.) * 1000. / (ranges[1][1] - ranges[1][0]))
+    ax.set_yticklabels([ str(int(s)) for s in np.arange((ranges[1][1] - ranges[1][0]) + 1.) +  ranges[1][0] ], fontname='Arial', fontsize=20)
+
+    plt.savefig(filename)
+
 
 def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     """ renders density and temperature 'Phase' with linear aggregation"""
 
-    export = partial(export_image, background='white', export_path="export")
-    cvs = dshader.Canvas(plot_width=1080, plot_height=1080,
+    export = partial(export_image, background='white', export_path="./")
+    cvs = dshader.Canvas(plot_width=1000, plot_height=1000,
                          x_range=x_range, y_range=y_range)
     agg = cvs.points(frame, field1, field2, dshader.count_cat(count_cat))
 
@@ -169,22 +184,8 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
 
     img = tf.shade(agg, color_key=color_key, how='eq_hist')
     export(img, filename)
-    help(img)
     return img
 
-
-def holoviews(frame, field1, field2, x_range, y_range, outfile):
-    """ for JT to learn DS stuff with axes - based on LC code"""
-
-    points = hv.Points(frame, [field1, field2])
-    phase_shade = datashade(points, cmap=cm.Reds, dynamic=False)
-    hv.opts("RGB [width=400 height=800 xaxis=bottom yaxis=left]")
-    phase_shade.opts(plot=dict(colorbar=True, fig_size=1000, aspect='square'))
-
-    renderer = Store.renderers['matplotlib'].instance(fig='png', holomap='gif', dpi=300)
-    renderer.save(phase_shade, 'export/'+outfile)
-
-    return
 
 
 def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
@@ -193,16 +194,16 @@ def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
     all_data, refine_box, refine_width = \
         prep_dataset(fname, trackfile, ion_list=ion_list, region='sphere')
 
-    data_frame = prep_dataframe(all_data, refine_box, refine_width)
+    data_frame = prep_dataframe(all_data, refine_box, refine_width, field1, field2)
 
     for ion in ['o6', 'c4', 'si4']:
-        render_image(data_frame, 'dens', 'temp', ion+'frac',
+        render_image(data_frame, 'density', 'temperature', ion+'frac',
                      (-31, -20), (2,8), 'RD0020_phase_'+ion)
         render_image(data_frame, 'x', 'y', ion+'frac',
                      (-3,3), (-3,3), 'RD0020_proj_'+ion)
 
-    render_image(data_frame, 'temp', 'logf_o6', 'phase', (2,8), (-5,0), 'RD0020_ionfrac')
-    render_image(data_frame, 'dens', 'temp', 'phase', (-31,-20), (2,8), 'RD0020_phase')
+    render_image(data_frame, 'temperature', 'logf_o6', 'phase', (2, 8), (-5, 0), 'RD0020_ionfrac')
+    render_image(data_frame, 'density', 'temperature', 'phase', (-31, -20), (2, 8), 'RD0020_phase')
     render_image(data_frame, 'x', 'y', 'phase', (-3,3), (-3,3), 'RD0020_proj')
     render_image(data_frame, 'x', 'mass', 'phase', (-3.1, 3.1), (-1, 8), 'RD0020_mass')
     render_image(data_frame, 'x', 'lz', 'phase', (-1.1, 1.1), (-1.1, 1.1), 'RD0020_lz')
@@ -218,15 +219,16 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, *outfile):
         prep_dataset(fname, trackfile,
         ion_list=['H I', 'C IV', 'Si IV', 'O VI'], region='sphere')
 
-    data_frame = prep_dataframe(all_data, refine_box, refine_width)
+    data_frame = prep_dataframe(all_data, refine_box, refine_width, field1, field2)
 
     if len(outfile) == 0:
         outfile = fname[0:6] + '_' + field1 + '_' + field2 + '_' + colorcode
         print(outfile)
 
-    render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
-    help(image)
+    wrap_axes(outfile, field1, field2, ranges)
+    return data_frame
+
 
 def cart2pol(x, y):
     return np.sqrt(x**2 + y**2), np.arctan2(y, x)
@@ -257,12 +259,12 @@ def rotate_box(fname, trackfile, x1, y1, x2, y2):
         render_image(data_frame, 'x', 'y', 'phase', *phase, 'RD0020_phase'+str(1000+ii))
         print(ii)
 
-    # now start with dens / y and gradually turn y into temp
+    # now start with dens / y and gradually turn y into temperature
     for ii in np.arange(100):
         y_center, t_center = 0.5, 0.5
-        rr, phi = cart2pol(data_frame['y'] - y_center, data_frame['temp'] - t_center)
+        rr, phi = cart2pol(data_frame['y'] - y_center, data_frame['temperature'] - t_center)
         xxxx, yyyy = pol2cart(rr, phi - np.pi / 2. / 100.)
         data_frame.y = xxxx+y_center
-        data_frame.temp = yyyy+t_center
+        data_frame.temperature = yyyy+t_center
         render_image(data_frame, 'x', 'y', 'phase', *phase, 'RD0020_phase'+str(2000+ii))
         print(ii)
