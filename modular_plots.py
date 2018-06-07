@@ -318,7 +318,7 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
 
         if not args.noslices:
             if args.all or args.resolution:
-                make_resolution_slice(ds, prefix, center=center, box=refine_box, \
+                make_resolution_slice(ds, prefix, center=refine_box_center, box=refine_box, \
                                 width=refine_width)
 
             if args.all or args.physical or args.density or args.slices:
