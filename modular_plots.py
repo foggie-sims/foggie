@@ -222,6 +222,7 @@ def make_resolution_slice(ds, prefix, **kwargs):
     s = yt.SlicePlot(ds, "y", 'dy', center=center, width=(1.5*width, 'kpc'))
     s.set_cmap('dy', discrete_cmap)
     s.set_unit('dy','kpc')
+    s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
     #s.set_cmap(('index','grid_level'), discrete_cmap)
     #s.set_zlim(('index','grid_level'),6,11)
     plot = s.plots['dy']
@@ -317,7 +318,7 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
 
         if not args.noslices:
             if args.all or args.resolution:
-                make_resolution_slice(ds, prefix, center=center, box=refine_box, \
+                make_resolution_slice(ds, prefix, center=refine_box_center, box=refine_box, \
                                 width=refine_width)
 
             if args.all or args.physical or args.density or args.slices:
