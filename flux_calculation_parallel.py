@@ -163,14 +163,15 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         new_new_outs = [snap[0] for snap in new_outs]
         outs = new_new_outs
 
-    print("outs:")
-    print (outs)
-    dataset_series = yt.load(outs)
+    #print("outs:")
+    #print (outs)
+    #dataset_series = yt.load(outs)
     storage = {}
-    for sto,ds in dataset_series.piter(storage=storage):
+    #for sto,ds in dataset_series.piter(storage=storage):
+    for sto,snap in yt.parallel_objects(outs,2,storage=storage):
         # load the snapshot
         #print('opening snapshot '+ snap)
-        #ds = yt.load(snap)
+        ds = yt.load(snap)
 
         # add the particle filters
         ds.add_particle_filter('stars')
