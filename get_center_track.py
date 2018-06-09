@@ -36,13 +36,13 @@ def get_center_track(first_center, latesnap, earlysnap, interval):
 
         center_guess = new_center
 
-        p = yt.ProjectionPlot(ds, 'x', 'density', center=new_center, width=(500., 'kpc'))
+        p = yt.ProjectionPlot(ds, 'x', 'density', center=new_center, width=(200., 'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.save()
-        p = yt.ProjectionPlot(ds, 'y', 'density', center=new_center, width=(500., 'kpc'))
+        p = yt.ProjectionPlot(ds, 'y', 'density', center=new_center, width=(200., 'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.save()
-        p = yt.ProjectionPlot(ds, 'z', 'density', center=new_center, width=(500., 'kpc'))
+        p = yt.ProjectionPlot(ds, 'z', 'density', center=new_center, width=(200., 'kpc'))
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.save()
         print(t)
