@@ -46,6 +46,7 @@ def get_center_track(first_center, latesnap, earlysnap, interval):
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.save()
         print(t)
+        ascii.write(t, 'track_temp.dat', format='fixed_width_two_line', overwrite=True)
         print
         print
 
