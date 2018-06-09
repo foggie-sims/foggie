@@ -84,4 +84,4 @@ if __name__ == "__main__":
     ## first_center is the center at the last output; working backwards
     ## DD0493 for nref11n_selfshield_z15
     first_center = [0.49400806427001953, 0.48881053924560547, 0.50222492218017578]
-    get_center_track(first_center, 'DD0493', 'DD0040', 0.001)
+    get_center_track(first_center, 493, 40, 0.001)
