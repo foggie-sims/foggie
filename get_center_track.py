@@ -49,6 +49,16 @@ def get_center_track(first_center, latesnap, earlysnap, interval):
         print
         print
 
+        ### just in case memory becomes a problem
+        ds.index.clear_all_data()
+        del ds.index.grid_dimensions
+        del ds.index.grid_left_edge
+        del ds.index.grid_right_edge
+        del ds.index.grid_levels
+        del ds.index.grid_particle_count
+        del ds.index.grids
+
+
     t = t[2:]
     print(t)
 
