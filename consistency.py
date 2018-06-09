@@ -6,6 +6,10 @@ default_width = 85.  # kpc in projection
 
 axes_label_dict = {'density':'log Density [g / cm$^3$]',
                    'temperature': 'log Temperature [K]',
+                   'cell_mass': 'log Cell Mass [Msun]',
+                   'x': 'X coordinate [comoving]',
+                   'y': 'Y coordinate [comoving]',
+                   'z': 'Z coordinate [comoving]',
                    'O_p5_ion_fraction':'log [O VI Ionization Fraction]',
                    'O_p5_number_density':'log [O VI Number Density]',
                    'C_p3_ion_fraction':'log [C IV Ionization Fraction]',
@@ -13,6 +17,13 @@ axes_label_dict = {'density':'log Density [g / cm$^3$]',
                    'Si_p3_ion_fraction':'log [Si IV Ionization Fraction]',
                    'Si_p3_number_density':'log [Si IV Number Density]',
                    }
+
+#this is a dictionary of fields where we prefer to
+# plot or visualize them in the log rather than the original yt / enzo
+# field. Try "if field_name in logfields: field_name = log10(field_name)"
+logfields = ('density', 'temperature', 'entropy', 'O_p5_ion_fraction',
+                'C_p3_ion_fraction', 'Si_p3_ion_fraction', 'O_p5_number_density',
+                'C_p3_number_density', 'Si_p3_number_density')
 
 phase_color_key = {b'cold':'salmon',
                    b'hot':'#ffe34d',
