@@ -194,11 +194,11 @@ def make_slice_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
     for ax in axis:
         if ision:
             print("field = ", species_dict[field])
-            s = yt.SlicePlot(ds, ax, species_dict[field], center=center, data_source=box, width=(width, 'kpc'))
+            s = yt.SlicePlot(ds, ax, species_dict[field], center=center,  width=(1.5*width, 'kpc'))
             s.set_zlim(species_dict[field], zmin, zmax)
             s.set_cmap(field=species_dict[field], cmap=cmap)
         else:
-            s = yt.SlicePlot(ds, ax, field, center=center, data_source=box, width=(width, 'kpc'))
+            s = yt.SlicePlot(ds, ax, field, center=center,  width=(1.5*width, 'kpc'))
             s.set_zlim(field, zmin, zmax)
             s.set_cmap(field=field, cmap=cmap)
         s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
@@ -305,6 +305,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
 
         # center is trying to be the center of the halo
         center, velocity = get_halo_center(ds, refine_box_center)
+
+        print('halo center = ', center, ' and refine_box_center = ', refine_box_center)
 
         ## if want to add to the edges, need to loop over axes so unrefined
         ## region not in foreground / background
@@ -579,6 +581,9 @@ if __name__ == "__main__":
         run_loc = "nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/"
         trackname = "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
         haloname = "halo008508_nref11n_nref10f_selfshield_z6"
+        if args.system == "pleiades":
+            trackname = "halo_track"
+            run_loc = "./"
     elif args.run == "nref11c_nref9f":
         run_loc = "nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/"
         trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/halo_track"
