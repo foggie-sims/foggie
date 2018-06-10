@@ -28,7 +28,7 @@ def get_center_track(first_center, latesnap, earlysnap, interval):
         print('Comoving Box Size:', comoving_box_size)
 
         # decreased these from 500 to 100 because outputs so short spaced now
-        new_center, vel_center = get_halo_center(ds, center_guess, radius=100., vel_radius=100.)
+        new_center, vel_center = get_halo_center(ds, center_guess, radius=5., vel_radius=5.) ### unclear what the difference is now
         print(new_center)
 
         t.add_row( [ds.get_parameter('CosmologyCurrentRedshift'),
