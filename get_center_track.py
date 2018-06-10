@@ -14,6 +14,7 @@ def get_center_track(first_center, latesnap, earlysnap, interval):
         names=('redshift', 'x0', 'y0', 'z0', 'name'))
 
     center_guess = first_center
+    search_radius = 5. ### COMOVING KPC
 
     for isnap in snaplist:
         if (isnap <= 999): name = 'DD0'+str(isnap)
@@ -28,7 +29,8 @@ def get_center_track(first_center, latesnap, earlysnap, interval):
         print('Comoving Box Size:', comoving_box_size)
 
         # decreased these from 500 to 100 because outputs so short spaced now
-        new_center, vel_center = get_halo_center(ds, center_guess, radius=5., vel_radius=5.)
+        this_search_radius = search_radius / (1+ds.get_parameter('CosmologyCurrentRedshift'))  ## search radius is in PHYSICAL kpc
+        new_center, vel_center = get_halo_center(ds, center_guess, radius=this_search_radius, vel_radius=this_search_radius)
         print(new_center)
 
         t.add_row( [ds.get_parameter('CosmologyCurrentRedshift'),
