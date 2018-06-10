@@ -14,7 +14,7 @@ def get_center_track(first_center, latesnap, earlysnap, interval):
         names=('redshift', 'x0', 'y0', 'z0', 'name'))
 
     center_guess = first_center
-    search_radius = 5. ### COMOVING KPC
+    search_radius = 10. ### COMOVING KPC
 
     for isnap in snaplist:
         if (isnap <= 999): name = 'DD0'+str(isnap)
