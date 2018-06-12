@@ -229,6 +229,7 @@ def make_resolution_slice(ds, prefix, **kwargs):
     s._setup_plots()
     colorbar = plot.cb
     colorbar.set_label('cell size (kpc)')
+    s.save(ds.basename + '_Slice_y_cellsize_dy.png')
     s.save(basename + '_Slice_y_cellsize_dy.png')
 
 
@@ -242,8 +243,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
 
     print(foggie_dir)
     track_name = foggie_dir + 'halo_00' + str(halo) + '/' + run + '/' + trackname
-    if args.system == "pleiades":
-        track_name = foggie_dir + "halo_008508/nref11f_refine200kpc_z4to2/halo_track"
+#    if args.system == "pleiades":
+#        track_name = foggie_dir + "halo_008508/nref11f_refine200kpc_z4to2/halo_track"
 
     print("opening track: " + track_name)
     track = Table.read(track_name, format='ascii')
@@ -253,7 +254,7 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
     ## want to add flag for if just one
     run_dir = foggie_dir + 'halo_00' + str(halo) + '/' + run
     if halo == "8508":
-        prefix = output_dir + 'plots_halo_008508/' + run + '/'
+        prefix = output_dir + 'plots_halo_008508/' + run
     else:
         prefix = output_dir + 'other_halo_plots/' + str(halo) + '/' + run + '/'
     if not (os.path.exists(prefix)):
@@ -304,7 +305,9 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
         refine_width = refine_width * proper_box_size
 
         # center is trying to be the center of the halo
-        center, velocity = get_halo_center(ds, refine_box_center)
+        search_radius = 10.
+        this_search_radius = search_radius / (1+ds.get_parameter('CosmologyCurrentRedshift'))
+        center, velocity = get_halo_center(ds, refine_box_center, radius=this_search_radius)
 
         print('halo center = ', center, ' and refine_box_center = ', refine_box_center)
 
@@ -582,7 +585,7 @@ if __name__ == "__main__":
         trackname = "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
         haloname = "halo008508_nref11n_nref10f_selfshield_z6"
         if args.system == "pleiades":
-            trackname = "halo_track"
+            trackname = "./halo_track"
             run_loc = "./"
     elif args.run == "nref11c_nref9f":
         run_loc = "nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/"
