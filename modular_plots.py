@@ -219,6 +219,8 @@ def make_resolution_slice(ds, prefix, **kwargs):
     appendix = kwargs.get("appendix", "")
     width = kwargs.get("width", default_width)
     basename = prefix + 'physical/' + ds.basename + appendix
+    if not (os.path.exists(prefix + 'physical/' )):
+        os.system("mkdir " + prefix + 'physical' )
     s = yt.SlicePlot(ds, "y", 'dy', center=center, width=(1.5*width, 'kpc'))
     s.set_cmap('dy', discrete_cmap)
     s.set_unit('dy','kpc')
@@ -591,6 +593,10 @@ if __name__ == "__main__":
         run_loc = "nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/"
         trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/halo_track"
         haloname = "halo008508_nref11c_nref9f_selfshield_z6"
+    elif args.run == "nref11c_400kpc":
+        run_loc = "nref11n_selfshield_z15/nref11c_nref5f_400kpc/"
+        trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref5f_400kpc/halo_track"
+        haloname = "halo008508_nref11c_nref5f_400kpc"
     elif args.run == "nref11f":
         run_loc = "nref11n/nref11f_refine200kpc/"
         trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
