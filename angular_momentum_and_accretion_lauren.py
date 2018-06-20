@@ -379,7 +379,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                                 inside_ang_mom_stars_x, inside_ang_mom_stars_y, inside_ang_mom_stars_z, \
                                 inside_spec_ang_mom_stars_x, inside_spec_ang_mom_stars_y, inside_spec_ang_mom_stars_z])
 
-###################### REPEATING THE CALCUATION WITHOUT THE DENSEST ISM-LIKE GAS ######################################
+                ####### REPEATING THE CALCUATION WITHOUT THE DENSEST ISM-LIKE GAS #########
                 idR = np.where((radius >= minrad) & (radius < maxrad) & (hden < 0.1))[0]
                 idCd = np.where((radius >= minrad) & (radius < maxrad) & (temperature <= 1e4) & (hden < 0.1))[0]
                 idCl = np.where((radius >= minrad) & (radius < maxrad) & (temperature >1e4) & (temperature <= 1e5) & (hden < 0.1))[0]
