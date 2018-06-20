@@ -22,7 +22,7 @@ def scrape_misty_headers():
                      'O VI 1032', 'Ne VIII 770']
     ### 'H I 1026', 'H I 973', 'H I 950' probably also exist but ignore for now
 
-    data = Table(names=("impact","HI_col","HI_1216_Nmin","HI_1216_Ncomp","HI_919_Nmin","HI_919_Ncomp",\
+    all_data = Table(names=("impact","HI_col","HI_1216_Nmin","HI_1216_Ncomp","HI_919_Nmin","HI_919_Ncomp",\
                     'Si_II_col','Si_II_Nmin','Si_II_Ncomp','Si_II_EW','Si_II_dv90',\
                     'Si_III_col','Si_III_Nmin','Si_III_Ncomp','Si_III_EW','Si_III_dv90',\
                     'Si_IV_col','Si_IV_Nmin','Si_IV_Ncomp','Si_IV_EW','Si_IV_dv90',\
@@ -39,6 +39,23 @@ def scrape_misty_headers():
                     'f8','f8','f8','f8','f8',  # C IV
                     'f8',"f8",'f8','f8',"f8")) # O VI
 
+    # for now, different tables for different ions
+    si2_component_data = Table(names=('impact', 'losnum', 'tot_col', 'component', 'comp_col', 'comp_b'), \
+                               dtype=('f8', 'i8', 'f8', 'i8', 'f8', 'f8'))
+    si4_component_data = Table(names=('impact', 'losnum', 'tot_col', 'component', 'comp_col', 'comp_b'), \
+                               dtype=('f8', 'i8', 'f8', 'i8', 'f8', 'f8'))
+    c4_component_data = Table(names=('impact', 'losnum', 'tot_col', 'component', 'comp_col', 'comp_b'), \
+                               dtype=('f8', 'i8', 'f8', 'i8', 'f8', 'f8'))
+    o6_component_data = Table(names=('impact', 'losnum', 'tot_col', 'component', 'comp_col', 'comp_b'), \
+                               dtype=('f8', 'i8', 'f8', 'i8', 'f8', 'f8'))
+
+    ion_table_name_dict = {'Si II 1260' : si2_component_data, \
+                           'Si IV 1394' : si4_component_data, \
+                           'C IV 1548'  : c4_component_data, \
+                           'O VI 1032'  : o6_component_data}
+
+
+    i_file = 0
     for filename in dataset_list:
         with fits.open(filename) as f:
             row = [f[0].header['impact'], f['H I 1216'].header["tot_column"], f['H I 1216'].header["Nmin"]]
@@ -56,6 +73,17 @@ def scrape_misty_headers():
                     row = np.append(row, [f[ion].header["tot_column"], f[ion].header["Nmin"]], axis=0)
                     if 'Ncomp' in f[ion].header:
                         row = np.append(row, [f[ion].header['Ncomp']], axis=0)
+                        if ion in ion_table_name_dict.keys():
+                            Ncomp = f[ion].header['NCOMP']
+                            if Ncomp > 0:
+                                comp_row_start = [f[0].header['impact'], i_file, f[ion].header["tot_column"]]
+                                # comp_row = comp_row_start
+                                for comp in range(Ncomp):
+                                    bkey = 'fitb' + str(comp)
+                                    colkey = 'fitcol' + str(comp)
+                                    comp_row = np.append(comp_row_start, [comp, f[ion].header[colkey], f[ion].header[bkey]], axis=0)
+                                # print 'comp_row = ', comp_row
+                                ion_table_name_dict[ion].add_row(comp_row)
                     else:
                         row = np.append(row, [-1], axis=0)
                     if 'regEW0' in f[ion].header:
@@ -72,10 +100,15 @@ def scrape_misty_headers():
                     row = np.append(row, [-1], axis=0)
                     row = np.append(row, [-1], axis=0)
                     row = np.append(row, [-1], axis=0)
-            data.add_row(row)
+            all_data.add_row(row)
+            i_file = i_file + 1
 
     # now let's save the table!
-    ascii.write(data, 'misty_v5_lsf.dat', format='fixed_width', overwrite=True)
+    ascii.write(all_data, 'misty_v5_lsf.dat', format='fixed_width', overwrite=True)
+    ascii.write(si2_component_data, 'misty_si2_v5_lsf.dat', format='fixed_width', overwrite=True)
+    ascii.write(si4_component_data, 'misty_si4_v5_lsf.dat', format='fixed_width', overwrite=True)
+    ascii.write(c4_component_data, 'misty_c4_v5_lsf.dat', format='fixed_width', overwrite=True)
+    ascii.write(o6_component_data, 'misty_o6_v5_lsf.dat', format='fixed_width', overwrite=True)
 
 
 if __name__ == "__main__":

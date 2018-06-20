@@ -49,24 +49,24 @@ def plot_misty_spectra(hdulist, **kwargs):
     spectrum = Spectrum1D(redshift=zsnap)
 
     for line in range(Nlines):
-        ext = hdulist[line+2]
-        name = ext.header['LINENAME']
-        lambda_0 = ext.header['RESTWAVE'] * u.AA
-        f_value = ext.header['F_VALUE']
-        gamma = ext.header['GAMMA']
-
-        for i in range(len([x for x in ext.header if 'FITLCEN' in x])):
-            centroid = ext.header['FITLCEN{}'.format(i)] * u.AA
-            delta = centroid - lambda_0
-            col_dens = ext.header['FITCOL{}'.format(i)] * u.Unit('1/cm2')
-            v_dop = ext.header['FITB{}'.format(i)] * u.Unit('cm/s')
-
-            spectrum.add_line(name=name, lambda_0=lambda_0, f_value=f_value,
-                              gamma=gamma, column_density=col_dens, v_doppler=v_dop,
-                              delta_lambda=delta)
-
         ax_spec = fig.add_subplot(gs[line, 0])
         try:
+            ext = hdulist[line+2]
+            name = ext.header['LINENAME']
+            lambda_0 = ext.header['RESTWAVE'] * u.AA
+            f_value = ext.header['F_VALUE']
+            gamma = ext.header['GAMMA']
+
+            for i in range(len([x for x in ext.header if 'FITLCEN' in x])):
+                centroid = ext.header['FITLCEN{}'.format(i)] * u.AA
+                delta = centroid - lambda_0
+                col_dens = ext.header['FITCOL{}'.format(i)] * u.Unit('1/cm2')
+                v_dop = ext.header['FITB{}'.format(i)] * u.Unit('cm/s')
+
+                spectrum.add_line(name=name, lambda_0=lambda_0, f_value=f_value,
+                                  gamma=gamma, column_density=col_dens, v_doppler=v_dop,
+                                  delta_lambda=delta)
+
             ### _lsf.fits files have '_obs' while _los.fits files don't
             # ax_spec.step(redshift, flux, color='darkorange',lw=1)
             try:

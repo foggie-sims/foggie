@@ -505,6 +505,9 @@ if __name__ == "__main__":
     elif args.system == "nmearl":
         foggie_dir = "/Users/nearl/data/"
         output_path = "/Users/nearl/Desktop/"
+    elif args.system == "pancho" or args.system == "lefty":
+        foggie_dir = "/astro/simulations/FOGGIE/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-collab/"
     elif args.system == "pleiades":
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackup/mpeeples/"
