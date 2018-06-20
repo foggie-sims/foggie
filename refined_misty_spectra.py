@@ -49,6 +49,14 @@ def parse_args():
                         help='how many sightlines do you want? default is 1')
     parser.set_defaults(Nrays="1")
 
+    parser.add_argument('--seed', metavar='seed', type=int, action='store',
+                        help='random seed? default is 17')
+    parser.set_defaults(seed="17")
+
+    parser.add_argument('--axis', metavar='axis', type=str, action='store',
+                        help='which axis? default is x')
+    parser.set_defaults(seed="x")
+
     args = parser.parse_args()
     return args
 
@@ -100,6 +108,8 @@ def generate_random_rays(ds, halo_center, **kwargs):
     high_impact = kwargs.get("high_impact", 45.)
     track = kwargs.get("track","halo_track")
     Nrays = kwargs.get("Nrays",2)
+    seed = kwargs.get("seed",17)
+    axis = kwargs.get("axis",'x')
     output_dir = kwargs.get("output_dir", ".")
     haloname = kwargs.get("haloname","somehalo")
     # line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'C II 1334', 'Mg II 2796', 'C III 977', 'Si III 1207', 'C IV 1548', 'O VI 1032'])
@@ -115,9 +125,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     proper_x_width = x_width*proper_box_size
 
-    ## for now, assume all are z-axis
-    axis = "x"
-    np.random.seed(52)
+    np.random.seed(seed)
     high_impact = 0.45*proper_x_width
     impacts = np.random.uniform(low=low_impact, high=high_impact, size=Nrays)
     print('impacts = ', impacts)
@@ -227,7 +235,7 @@ if __name__ == "__main__":
     halo_center = get_halo_center(ds, refine_box_center)[0]
 
     generate_random_rays(ds, halo_center, haloname=haloname, track=track, \
-                         output_dir=output_dir, Nrays=args.Nrays)
+                         output_dir=output_dir, Nrays=args.Nrays, seed=args.seed, axis=args.axis)
 
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
