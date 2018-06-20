@@ -207,6 +207,9 @@ if __name__ == "__main__":
     elif args.system == "nmearl":
         ds_base = "/astro/simulations/FOGGIE/"
         output_path = "/Users/nearl/Desktop/"
+    elif args.system == "pancho":
+        ds_base = "/astro/simulations/FOGGIE/"
+        output_path = "/Users/tumlinson/foggie-test/"
 
     if args.run == "natural":
         ds_loc = ds_base + "halo_008508/nref11n/natural/" + args.output + "/" + args.output
