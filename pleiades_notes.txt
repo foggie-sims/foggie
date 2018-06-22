@@ -10,20 +10,25 @@ cd grackle
 ./configure
 cd src/clib
 
-Edit Make.mach.nasa-pleiades as needed
+Get the fresh enzo from Brian:
+hg clone ssh://hg@bitbucket.org/bwoshea/enzo-dev-nsf-cgm
+and do
+cd enzo-dev-nsf-cgm
+hg update week-of-code
+./configure
+cd src/enzo
+Edit Make.mach.nasa-pleiades as needed (mostly the grackle install location)
 Then:
 make machine-nasa-pleiades
-make
+make grackle-yes
+make opt-high
+make max-subgrids 200000
+make -j16
 make install
 
 The grackle parameters get set in the same parameter file as we run Enzo in. See https://grackle.readthedocs.io/en/grackle-3.1/Parameters.html
 To turn self-shielding on, after z=15.3 (I use the z=15 output), stop it and set self_shielding_method = 3, and restart.
 
-for enzo:
-make machine-nasa-pleiades
-make grackle-yes
-make opt-high
-make max-subgrids 200000
 
 
 In your pbs script:
