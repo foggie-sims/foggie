@@ -148,11 +148,11 @@ def make_movie():
         print "refine right:", refine_box.right_edge
 
         # start by setting up plots
-        fig = plt.figure(figsize=(14,6), dpi=100)
+        fig = plt.figure(figsize=(14,7), dpi=100)
 
         # creates grid on which the figure will be plotted
-        gs = gridspec.GridSpec(7, 3,
-                               width_ratios=[0.05, 1.25, 1.5])
+        gs = gridspec.GridSpec(8, 3,
+                               width_ratios=[0.05, 1.5, 1.5])
 
         ## this will be the slice
         ax_slice = fig.add_subplot(gs[:,1])
@@ -199,43 +199,52 @@ def make_movie():
         ax_spec2.text(ray_min + (ray_max - ray_min)*0.05, ymax - (ymax-ymin)*0.25, "metallicity", fontsize=16.)
         ax_spec2.xaxis.set_major_locator(ticker.NullLocator())
 
+        ### this is NOT the same as the los velocity --- there may be a sign difference !!!
         ax_spec3 = fig.add_subplot(gs[3,2])
-        velocity = ((hdulist["H I 1216"].data['wavelength'] / hdulist['H I 1216'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
-        flux = hdulist["H I 1216"].data['flux']
-        ax_spec3.plot(velocity, flux, color='darkorange',lw=1)
-        ax_spec3.text(vmin + 100, 0, "H I 1216", fontsize=16.)
+        ax_spec3.plot(ray['x'][ray_sort], ray['x-velocity'][ray_sort].in_units('km/s'), color='#984ea3',lw=1)
+        plt.xlim(ray_min, ray_max)
+        plt.ylim(-220,50)
+        ymin, ymax = ax_spec3.get_ylim()
+        ax_spec3.text(ray_min + (ray_max - ray_min)*0.05, ymin + (ymax-ymin)*0.05, "velocity", fontsize=16.)
         ax_spec3.xaxis.set_major_locator(ticker.NullLocator())
-        plt.xlim(vmin, vmax)
-        plt.ylim(-0.05, 1.05)
 
         ax_spec4 = fig.add_subplot(gs[4,2])
-        velocity = ((hdulist["Si III 1207"].data['wavelength'] / hdulist['Si III 1207'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
-        flux = hdulist["Si III 1207"].data['flux']
+        velocity = ((hdulist["H I 1216"].data['wavelength'] / hdulist['H I 1216'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
+        flux = hdulist["H I 1216"].data['flux']
         ax_spec4.plot(velocity, flux, color='darkorange',lw=1)
-        ax_spec4.text(vmin + 100, 0, "Si III 1207", fontsize=16.)
+        ax_spec4.text(vmin + 100, 0, "H I 1216", fontsize=16.)
         ax_spec4.xaxis.set_major_locator(ticker.NullLocator())
         plt.xlim(vmin, vmax)
         plt.ylim(-0.05, 1.05)
 
         ax_spec5 = fig.add_subplot(gs[5,2])
-        velocity = ((hdulist["C IV 1548"].data['wavelength'] / hdulist['C IV 1548'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
-        flux = hdulist["C IV 1548"].data['flux']
+        velocity = ((hdulist["Si III 1207"].data['wavelength'] / hdulist['Si III 1207'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
+        flux = hdulist["Si III 1207"].data['flux']
         ax_spec5.plot(velocity, flux, color='darkorange',lw=1)
-        ax_spec5.text(vmin + 100, 0, "C IV 1548", fontsize=16.)
+        ax_spec5.text(vmin + 100, 0, "Si III 1207", fontsize=16.)
         ax_spec5.xaxis.set_major_locator(ticker.NullLocator())
         plt.xlim(vmin, vmax)
         plt.ylim(-0.05, 1.05)
 
         ax_spec6 = fig.add_subplot(gs[6,2])
+        velocity = ((hdulist["C IV 1548"].data['wavelength'] / hdulist['C IV 1548'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
+        flux = hdulist["C IV 1548"].data['flux']
+        ax_spec6.plot(velocity, flux, color='darkorange',lw=1)
+        ax_spec6.text(vmin + 100, 0, "C IV 1548", fontsize=16.)
+        ax_spec6.xaxis.set_major_locator(ticker.NullLocator())
+        plt.xlim(vmin, vmax)
+        plt.ylim(-0.05, 1.05)
+
+        ax_spec7 = fig.add_subplot(gs[7,2])
         velocity = ((hdulist["O VI 1032"].data['wavelength'] / hdulist['O VI 1032'].header['restwave']) - 1 - ds.current_redshift) * 299792.458 - 250
         flux = hdulist["O VI 1032"].data['flux']
-        ax_spec6.plot(velocity, flux, color='darkorange',lw=1)
-        ax_spec6.text(vmin + 100, 0, "O VI 1032", fontsize=16.)
+        ax_spec7.plot(velocity, flux, color='darkorange',lw=1)
+        ax_spec7.text(vmin + 100, 0, "O VI 1032", fontsize=16.)
         plt.xlim(vmin, vmax)
         plt.ylim(-0.05, 1.05)
 
         fig.tight_layout()
-        gs.update(hspace=0.0, wspace=0.03)
+        gs.update(hspace=0.0, wspace=0.1)
         plt.savefig(out_plot_name)
         plt.close()
 
