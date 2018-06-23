@@ -128,9 +128,9 @@ def generate_random_rays(ds, halo_center, **kwargs):
     ## for now, assume all are z-axis
     np.random.seed(seed)
     high_impact = 0.45*proper_x_width
-    impacts = np.random.uniform(low=low_impact, high=high_impact, size=Nrays)
+    impacts = np.random.uniform(low=low_impact, high=high_impact, size=5*Nrays) ## not all sightlines will be LLS!
     print('impacts = ', impacts)
-    angles = np.random.uniform(low=0, high=2*pi, size=Nrays)
+    angles = np.random.uniform(low=0, high=2*pi, size=5*Nrays)
     out_ray_basename = ds.basename + "_ray_" + axis
 
     i = 0
@@ -243,7 +243,7 @@ if __name__ == "__main__":
     halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
     halo_center = get_halo_center(ds, refine_box_center)[0]
 
-    generate_random_rays(ds, halo_center, haloname=haloname, track=track, \
+    generate_random_rays(ds, halo_center, haloname=haloname, track=track, axis=args.axis, \
                          output_dir=output_dir, Nrays=args.Nrays)
 
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
