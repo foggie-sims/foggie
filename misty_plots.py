@@ -10,8 +10,8 @@ mpl.rcParams['font.size'] = 16.
 
 def make_misty_plots():
     # for now, be lazy and hardcode the paths to the files
-    nat = Table.read('/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/misty_v5_lsf.dat', format='ascii.fixed_width')
-    ref = Table.read('/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/misty_v5_lsf.dat', format='ascii.fixed_width')
+    nat = Table.read('/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/misty_v4_lsf.dat', format='ascii.fixed_width')
+    ref = Table.read('/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/misty_v4_lsf.dat', format='ascii.fixed_width')
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
@@ -29,8 +29,6 @@ def make_misty_plots():
     ax = fig.add_subplot(111)
     ax.scatter(nat['impact'], nat['O_VI_Nmin'], marker='D', color='#4daf4a',label='natural')
     ax.scatter(ref['impact'], ref['O_VI_Nmin'], color='#984ea3', label='refined')
-    #ax.plot([10,45],[10,1],color='#4daf4a')
-    #ax.plot([12,45],[17,4],color='#984ea3')
     plt.legend(loc='upper right')
     plt.xlabel('impact parameter [kpc]')
     plt.ylabel('number of O VI minima')
