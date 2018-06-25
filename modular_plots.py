@@ -604,8 +604,8 @@ if __name__ == "__main__":
         trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
         haloname = "halo008508_nref11f"
         if args.system == "pleiades":
-            trackname = "halo_008508/nref11f_refine200kpc/halo_track"
-            run_loc = "nref11f_refine200kpc_z4to2/"
+            trackname = "halo_008508/orig/nref11f_refine200kpc_z4to2/halo_track"
+            run_loc = "orig/nref11f_refine200kpc_z4to2/"
 
     print("for now I am assuming you are using the Tempest halo even if you passed in something different")
 
