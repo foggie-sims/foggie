@@ -116,8 +116,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
         ax.set_xticklabels(['-300', '-200', '-100', '0', '100', '200', '300'])
 
 
-
-
     vel = (line_dict['H I 1216'].lambda_field.ndarray_view()/3. - 1215.67) / 1215.67 * 3e5
     ax5.plot(vel, line_dict['H I 1216'].flux_field)
     ax5.set_xlim(-300,300)
@@ -129,13 +127,11 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
     ax6.set_ylim(0,1)
     ax6.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
-
     vel = (line_dict['O VI 1032'].lambda_field.ndarray_view()/3. - 1031.9261) / 1031.9261 * 3e5
     ax7.plot(vel, line_dict['O VI 1032'].flux_field)
     ax7.set_xlim(-300,300)
     ax7.set_ylim(0,1)
     ax7.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-
 
     ax4.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax4.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
