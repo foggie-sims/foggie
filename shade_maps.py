@@ -111,18 +111,17 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2):
     print("you have requested fields ", field1, field2)
 
     # add those two fields
-    logfields = ('density', 'temperature', 'entropy', 'O_p5_ion_fraction',
-                'C_p3_ion_fraction', 'Si_p3_ion_fraction', 'O_p5_number_density',
-                'C_p3_number_density', 'Si_p3_number_density')
     if field1 not in data_frame.columns:
-        print("Did not find "+field1+" in the dataframe, will add it.")
+        print("Did not find field 1 = "+field1+" in the dataframe, will add it.")
+        print(logfields) 
+        print(field1 in logfields) 
         if field1 in logfields:
             print("Field 1, "+field1+" is a log field.")
             data_frame[field1] = np.log10(all_data[field1])
         else:
             data_frame[field1] = all_data[field1]
     if field2 not in data_frame.columns:
-        print("Did not find "+field2+" in the dataframe, will add it.")
+        print("Did not find field 2 = "+field2+" in the dataframe, will add it.")
         if field2 in logfields:
             print("Field 2, "+field2+" is a log field.")
             data_frame[field2] = np.log10(all_data[field2])

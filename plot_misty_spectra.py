@@ -48,6 +48,9 @@ def plot_misty_spectra(hdulist, **kwargs):
     # Construct spectacle spectrum
     spectrum = Spectrum1D(redshift=zsnap)
 
+    print("                   ")
+    print("before line loops")
+    print("                   ")
     for line in range(Nlines):
         ax_spec = fig.add_subplot(gs[line, 0])
         try:
@@ -83,6 +86,9 @@ def plot_misty_spectra(hdulist, **kwargs):
         plt.xlim(zmin, zmax)
         plt.ylim(-0.05, 1.05)
         plt.subplots_adjust(wspace=None, hspace=None)
+    print("                   ")
+    print("before fig commands")
+    print("                   ")
     fig.tight_layout()
     plt.savefig(outname)
     plt.close(fig)
