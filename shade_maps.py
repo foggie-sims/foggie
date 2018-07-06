@@ -113,8 +113,8 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2):
     # add those two fields
     if field1 not in data_frame.columns:
         print("Did not find field 1 = "+field1+" in the dataframe, will add it.")
-        print(logfields) 
-        print(field1 in logfields) 
+        print(logfields)
+        print(field1 in logfields)
         if field1 in logfields:
             print("Field 1, "+field1+" is a log field.")
             data_frame[field1] = np.log10(all_data[field1])

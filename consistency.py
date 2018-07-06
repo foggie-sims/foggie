@@ -1,4 +1,5 @@
 import matplotlib as mpl
+import numpy as np
 mpl.use('agg')
 import seaborn as sns
 
@@ -11,9 +12,9 @@ axes_label_dict = {'density':'log Density [g / cm$^3$]',
                    'x': 'X coordinate [comoving]',
                    'y': 'Y coordinate [comoving]',
                    'z': 'Z coordinate [comoving]',
-                   'x-velocity': 'X velocity [units?]', 
-                   'y-velocity': 'Y velocity [units?]', 
-                   'z-velocity': 'Z velocity [units?]', 
+                   'x-velocity': 'X velocity [units?]',
+                   'y-velocity': 'Y velocity [units?]',
+                   'z-velocity': 'Z velocity [units?]',
                    'O_p5_ion_fraction':'log [O VI Ionization Fraction]',
                    'O_p5_number_density':'log [O VI Number Density]',
                    'C_p3_ion_fraction':'log [C IV Ionization Fraction]',
@@ -34,10 +35,10 @@ phase_color_key = {b'cold':'salmon',
                    b'warm':'#4daf4a',
                    b'cool':'#984ea3'}
 
-metal_color_key = {b'high':'yellow',
-                   b'solar':'green',
-                   b'low':'purple',
-                   b'poor':'salmon'}
+metal_color_key = {b'high':'darkorange',
+                   b'solar':'#ffe34d',
+                   b'low':'#4575b4',
+                   b'poor':'black'}
 
 species_dict =  {'CIII':'C_p2_number_density',
                  'CIV':'C_p3_number_density',
@@ -115,3 +116,30 @@ si4_max = 1.e15
 ne8_color_map = "magma"
 ne8_min = 1.e11
 ne8_max = 1.e15
+
+def categorize_by_temp(temp):
+    """ define the temp category strings"""
+    phase = np.chararray(np.size(temp), 4)
+    phase[temp < 9.] = b'hot'
+    phase[temp < 6.] = b'warm'
+    phase[temp < 5.] = b'cool'
+    phase[temp < 4.] = b'cold'
+    return phase
+
+def categorize_by_fraction(f_ion):
+    """ define the ionization category strings"""
+    frac = np.chararray(np.size(f_ion), 4)
+    frac[f_ion > -10.] = b'all'
+    frac[f_ion > 0.01] = b'low' # yellow
+    frac[f_ion > 0.1] = b'med'  # orange
+    frac[f_ion > 0.2] = b'high' # red
+    return frac
+
+def categorize_by_metallicity(metallicity):
+    """ define the metallicity category strings"""
+    metal_label = np.chararray(np.size(metallicity), 5)
+    metal_label[metallicity < 10.] = b'high'
+    metal_label[metallicity < 0.05] = b'solar'
+    metal_label[metallicity < 0.001] = b'low'
+    metal_label[metallicity < 0.0001] = b'poor'
+    return metal_label
