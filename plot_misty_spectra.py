@@ -69,13 +69,19 @@ def plot_misty_spectra(hdulist, **kwargs):
                 spectrum.add_line(name=name, lambda_0=lambda_0, f_value=f_value,
                                   gamma=gamma, column_density=col_dens, v_doppler=v_dop,
                                   delta_lambda=delta)
+                z_comp = zsnap + (delta / lambda_0) * zsnap
+                ax_spec.plot([z_comp, z_comp], [1.05, 0.95], color='k')
 
             ### _lsf.fits files have '_obs' while _los.fits files don't
             # ax_spec.step(redshift, flux, color='darkorange',lw=1)
             try:
-                ax_spec.step(hdulist[line+2].data['redshift'], hdulist[line+2].data['flux'], color='purple', lw=1)
+                redshift = hdulist[line+2].data['redshift']
+                flux = hdulist[line+2].data['flux']
             except:
-                ax_spec.step(hdulist[line+2].data['redshift_obs'], hdulist[line+2].data['flux_obs'], color='purple', lw=1)
+                redshift = hdulist[line+2].data['redshift_obs']
+                flux = hdulist[line+2].data['flux_obs']
+            ax_spec.plot(redshift, np.ones(len(redshift)),color='k',lw=1, ls=":")
+            ax_spec.step(redshift, flux, color='purple', lw=1)
             if overplot:
                 ax_spec.step(hdulist[line+2].data['redshift_obs'], spectrum.flux(hdulist[line+2].data['disp_obs'] * u.AA), color='darkorange', lw=1)
             ax_spec.text(zmin + 0.0001, 0, hdulist[line+2].header['LINENAME'], fontsize=10.)
@@ -96,11 +102,11 @@ def plot_misty_spectra(hdulist, **kwargs):
 
 if __name__ == "__main__":
 
-    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd*axx*v4*lsf.fits.gz'))
+    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd0020*axx*v5*rsp.fits.gz'))
     dataset_list = long_dataset_list
 
     for filename in dataset_list:
-        plotname = '.' + filename.strip('lsf.fits.gz') + 'lsf.png'
+        plotname = '.' + filename.strip('rsp.fits.gz') + 'rsp.png'
         print('plotting spectra in ', filename, ' and saving as ', plotname)
         hdulist = fits.open(filename)
         plot_misty_spectra(hdulist, overplot=False, outname=plotname)
