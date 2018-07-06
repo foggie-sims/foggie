@@ -69,7 +69,7 @@ def plot_misty_spectra(hdulist, **kwargs):
                 spectrum.add_line(name=name, lambda_0=lambda_0, f_value=f_value,
                                   gamma=gamma, column_density=col_dens, v_doppler=v_dop,
                                   delta_lambda=delta)
-                z_comp = zsnap + (delta / lambda_0) * zsnap
+                z_comp = zsnap + (delta / lambda_0) * (1+zsnap)
                 ax_spec.plot([z_comp, z_comp], [1.05, 0.95], color='k')
 
             ### _lsf.fits files have '_obs' while _los.fits files don't
@@ -109,5 +109,5 @@ if __name__ == "__main__":
         plotname = '.' + filename.strip('rsp.fits.gz') + 'rsp.png'
         print('plotting spectra in ', filename, ' and saving as ', plotname)
         hdulist = fits.open(filename)
-        plot_misty_spectra(hdulist, overplot=False, outname=plotname)
+        plot_misty_spectra(hdulist, overplot=True, outname=plotname)
         hdulist.close()
