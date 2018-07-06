@@ -1,13 +1,13 @@
 from __future__ import print_function
+import os
+import sys
+import os
 import trident
 import numpy as np
 import yt
-import os
 
 os.sys.path.insert(0, '/Users/molly/Dropbox/misty/MISTY-pipeline/MISTY')
 import MISTY
-import sys
-import os
 import argparse
 
 from astropy.table import Table
@@ -85,7 +85,8 @@ def get_refined_ray_endpoints(ds, halo_center, track, **kwargs):
 
 def quick_spectrum(ds, triray, filename, **kwargs):
 
-    line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'Mg II 2796', 'C III 977', 'C IV 1548', 'O VI 1032'])
+    line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'Mg II 2796',
+                            'C III 977', 'C IV 1548', 'O VI 1032'])
     redshift = ds.get_parameter('CosmologyCurrentRedshift')
 
     ldb = trident.LineDatabase('atom_wave_gamma_f.dat')
@@ -112,14 +113,11 @@ def generate_random_rays(ds, halo_center, **kwargs):
     axis = kwargs.get("axis",'x')
     output_dir = kwargs.get("output_dir", ".")
     haloname = kwargs.get("haloname","somehalo")
-    # line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'C II 1334', 'Mg II 2796', 'C III 977', 'Si III 1207', 'C IV 1548', 'O VI 1032'])
-    line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973', 'H I 950', 'H I 919', \
-                     #'Mg II 2796', \
-                     'Al II 1671', 'Al III 1855', \
-                     'Si II 1260', 'Si III 1207', 'Si IV 1394', \
-                     'C II 1335', 'C III 977', 'C IV 1548', \
-                     'O VI 1032', 'Ne VIII 770'])
-    # line_list = kwargs.get("line_list", ['H I 1216', 'Si III 1207','O VI 1032'])
+    line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973',
+                           'H I 950', 'H I 919', 'Al II 1671', 'Al III 1855', \
+                           'Si II 1260', 'Si III 1206', 'Si IV 1394', \
+                           'C II 1335', 'C III 977', 'C IV 1548', \
+                           'O VI 1032', 'Ne VIII 770'])
 
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
@@ -145,15 +143,27 @@ def generate_random_rays(ds, halo_center, **kwargs):
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         if args.velocities:
-            trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II', 'C III', 'C IV', 'O VI', 'Mg II'])
+            trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
+                            'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
         ray = ds.ray(rs, re)
+        ray["x-velocity"] = ray["x-velocity"].in_units('km / s')
         ray.save_as_dataset(out_ray_name, fields=["density","temperature", "metallicity"])
 
+        ray["x-velocity"] = ray["x-velocity"].in_units('km / s')
         if args.velocities:
-            ray_df =  ray.to_dataframe(["x","y","z","density","temperature","metallicity","HI_Density",
+            ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
+            ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
+            ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
+            ray_df = ray.to_dataframe(["x", "y", "z", "density", "temperature",
+                                    "metallicity", "HI_Density",
                                     "x-velocity", "y-velocity", "z-velocity",
-                                    "C_p2_number_density", "C_p3_number_density", "H_p0_number_density",
-                                    "Mg_p1_number_density", "O_p5_number_density","Si_p2_number_density"])
+                                    "C_p2_number_density", "C_p3_number_density",
+                                    "H_p0_number_density",
+                                    "Mg_p1_number_density", "O_p5_number_density",
+                                    "Si_p2_number_density",
+                                    "Si_p1_number_density", "Si_p3_number_density",
+                                    "Ne_p7_number_density"])
+            print(ray_df)
 
         out_tri_name = this_out_ray_basename + "_tri.h5"
         triray = trident.make_simple_ray(ds, start_position=rs.copy(),
@@ -172,8 +182,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
                       lines=line_list, impact=impacts[i])
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
 
-        # quick_spectrum(ds, triray, filespecout_base)
-
+        line_dict = {}
         for line in line_list:
             sg = MISTY.generate_line(triray, line,
                                      zsnap=ds.current_redshift,
@@ -182,15 +191,17 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                      use_spectacle=False,
                                      resample=True)
             # the trident plots are not needed ; just take up lots of space
-            ## filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
-            ## sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
-            if args.velocities and ('H' in line):
-                sv.show_velphase(ds, ray_df, rs, re, triray, filespecout_base)
+            filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
+            sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
+            line_dict[line] = sg
+
+        if args.velocities:
+            sv.show_velphase(ds, ray_df, rs, re, line_dict, filespecout_base)
 
         MISTY.write_out(hdulist,filename=out_fits_name)
         plot_misty_spectra(hdulist, outname=out_plot_name)
 
-
+        print("done with generate_random_rays")
 
 if __name__ == "__main__":
 
@@ -208,8 +219,11 @@ if __name__ == "__main__":
         ds_base = "/astro/simulations/FOGGIE/"
         output_path = "/Users/nearl/Desktop/"
     elif args.system == "pancho":
-        ds_base = "/astro/simulations/FOGGIE/"
-        output_path = "/Users/tumlinson/foggie-test/"
+        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
+    elif args.system == "lefty":
+        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
 
     if args.run == "natural":
         ds_loc = ds_base + "halo_008508/nref11n/natural/" + args.output + "/" + args.output
@@ -221,11 +235,21 @@ if __name__ == "__main__":
         track_name = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
         output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
         haloname = "halo008508_nref11n_nref10f"
+    elif args.run == "nref9f":
+        path_part = "halo_008508/nref11n/nref11n_"+args.run+"_refine200kpc/"
+        ds_loc =  ds_base + path_part + args.output + "/" + args.output
+        track_name = ds_base + path_part + "halo_track"
+        output_dir = output_path + "plots_"+path_part+"spectra/"
+        haloname = "halo008508_nref11n_nref9f"
     elif args.run == "nref11f":
         ds_loc =  ds_base + "halo_008508/nref11n/nref11f_refine200kpc/" + args.output + "/" + args.output
         track_name = ds_base + "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
         output_dir = output_path + "plots_halo_008508/nref11n/nref11f_refine200kpc/spectra/"
         haloname = "halo008508_nref11f"
+
+
+
+
 
     ds = yt.load(ds_loc)
 
@@ -240,5 +264,4 @@ if __name__ == "__main__":
     generate_random_rays(ds, halo_center, haloname=haloname, track=track, \
                          output_dir=output_dir, Nrays=args.Nrays, seed=args.seed, axis=args.axis)
 
-    # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
