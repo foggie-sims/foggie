@@ -221,18 +221,38 @@ def make_resolution_slice(ds, prefix, **kwargs):
     basename = prefix + 'physical/' + ds.basename + appendix
     if not (os.path.exists(prefix + 'physical/' )):
         os.system("mkdir " + prefix + 'physical' )
+    s = yt.SlicePlot(ds, "x", 'dx', center=center, width=(1.5*width, 'kpc'))
+    s.set_cmap('dx', discrete_cmap)
+    s.set_unit('dx','kpc')
+    s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
+    plot = s.plots['dx']
+    s._setup_plots()
+    colorbar = plot.cb
+    colorbar.set_label('cell size (kpc)')
+    s.save(ds.basename + '_Slice_x_cellsize_dx.png')
+    s.save(basename + '_Slice_x_cellsize_dx.png')
+
     s = yt.SlicePlot(ds, "y", 'dy', center=center, width=(1.5*width, 'kpc'))
     s.set_cmap('dy', discrete_cmap)
     s.set_unit('dy','kpc')
     s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
-    #s.set_cmap(('index','grid_level'), discrete_cmap)
-    #s.set_zlim(('index','grid_level'),6,11)
     plot = s.plots['dy']
     s._setup_plots()
     colorbar = plot.cb
     colorbar.set_label('cell size (kpc)')
     s.save(ds.basename + '_Slice_y_cellsize_dy.png')
     s.save(basename + '_Slice_y_cellsize_dy.png')
+
+    s = yt.SlicePlot(ds, "z", 'dz', center=center, width=(1.5*width, 'kpc'))
+    s.set_cmap('dz', discrete_cmap)
+    s.set_unit('dz','kpc')
+    s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
+    plot = s.plots['dz']
+    s._setup_plots()
+    colorbar = plot.cb
+    colorbar.set_label('cell size (kpc)')
+    s.save(ds.basename + '_Slice_z_cellsize_dz.png')
+    s.save(basename + '_Slice_z_cellsize_dz.png')
 
 
 #-----------------------------------------------------------------------------------------------------
@@ -607,7 +627,7 @@ if __name__ == "__main__":
         haloname = "halo008508_nref11c_nref8f_600kpc"
         if args.system == "pleiades":
             trackname = "halo_008508/orig/nref11f_refine200kpc_z4to2/halo_track"
-            run_loc = "nref11c_nref8f_600kpc"
+            run_loc = "nref11c_nref8f_600kpc/"
     elif args.run == "nref11f":
         run_loc = "nref11n/nref11f_refine200kpc/"
         trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
