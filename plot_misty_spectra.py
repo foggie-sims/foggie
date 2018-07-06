@@ -90,11 +90,11 @@ def plot_misty_spectra(hdulist, **kwargs):
 
 if __name__ == "__main__":
 
-    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*dd*los.fits.gz'))
+    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd*axx*v4*lsf.fits.gz'))
     dataset_list = long_dataset_list
 
     for filename in dataset_list:
-        plotname = '.' + filename.strip('los.fits.gz') + 'los.png'
+        plotname = '.' + filename.strip('lsf.fits.gz') + 'lsf.png'
         print('plotting spectra in ', filename, ' and saving as ', plotname)
         hdulist = fits.open(filename)
         plot_misty_spectra(hdulist, overplot=False, outname=plotname)
