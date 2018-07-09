@@ -282,6 +282,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
         prefix = output_dir + 'other_halo_plots/' + str(halo) + '/' + run + '/'
     if not (os.path.exists(prefix)):
         os.system("mkdir " + prefix)
+    if args.system == 'pleiades' and args.run == 'nref11c_400kpc':
+        prefix = './'
 
     if outs == "all":
         print("looking for outputs in ", run_dir)
@@ -628,6 +630,13 @@ if __name__ == "__main__":
         if args.system == "pleiades":
             trackname = "halo_008508/orig/nref11f_refine200kpc_z4to2/halo_track"
             run_loc = "nref11c_nref8f_600kpc/"
+    elif args.run == "nref11c_400kpc":
+        run_loc = "nref11n_selfshield_z15/nref11c_nref8f_400kpc/"
+        trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref8f_400kpc/halo_track"
+        haloname = "halo008508_nref11c_nref8f_600kpc"
+        if args.system == "pleiades":
+            trackname = "./halo_track"
+            run_loc = "nref11c_nref8f_400kpc/"
     elif args.run == "nref11f":
         run_loc = "nref11n/nref11f_refine200kpc/"
         trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
