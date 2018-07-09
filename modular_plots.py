@@ -283,6 +283,7 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
     if not (os.path.exists(prefix)):
         os.system("mkdir " + prefix)
     if args.system == 'pleiades' and args.run == 'nref11c_400kpc':
+        run_dir = '/nobackup/mpeeples/halo_008508/nref11c_nref8f_400kpc/'
         prefix = './'
 
     if outs == "all":
