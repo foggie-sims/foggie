@@ -20,7 +20,7 @@ from astropy.convolution import Gaussian1DKernel, convolve
 import astropy.units as u
 
 from spectacle.analysis import Resample
-from spectacle.core.spectrum import Spectrum1D
+from spectacle.core.spectrum import Spectrum1DModel
 
 # from consistency import *
 
@@ -46,7 +46,7 @@ def plot_misty_spectra(hdulist, **kwargs):
     vmin, vmax = -1000, 1000
 
     # Construct spectacle spectrum
-    spectrum = Spectrum1D(redshift=zsnap)
+    spectrum = Spectrum1DModel(redshift=zsnap)
 
     print("                   ")
     print("before line loops")
@@ -102,7 +102,7 @@ def plot_misty_spectra(hdulist, **kwargs):
 
 if __name__ == "__main__":
 
-    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd0020*axx*v5*rsp.fits.gz'))
+    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd0020*axz*v5*rsp.fits.gz'))
     dataset_list = long_dataset_list
 
     for filename in dataset_list:
