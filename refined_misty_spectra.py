@@ -120,6 +120,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
                            'O VI 1032', 'Ne VIII 770'])
 
     proper_box_size = get_proper_box_size(ds)
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     proper_x_width = x_width*proper_box_size
 
