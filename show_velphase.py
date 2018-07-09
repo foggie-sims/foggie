@@ -11,7 +11,13 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from consistency import phase_color_key, metal_color_key, species_dict, categorize_by_temp, categorize_by_fraction, categorize_by_metallicity, metal_color_map
 
+
 CORE_WIDTH = 20.
+
+def blank_tickmarks(axis):
+    axis.set_xticklabels(np.full(100, ' '))
+    axis.set_yticklabels(np.full(100, ' '))
+    return axis
 
 def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
     """ the docstring is missing, is it??? """
@@ -129,7 +135,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
                              y_range=(-300,300))
         vx_render = tf.shade(cvs.points(ray_df, 'x', 'x-velocity',
                                         agg=reductions.mean(species_dict[species])),
-                                        how='log') 
+                                        how='log')
         ray_vx = tf.spread(vx_render, px=2, shape='square')
 
 
@@ -146,9 +152,20 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
 
         ax.imshow(np.rot90(x_vx_phase.to_pil()))
         ax.imshow(np.rot90(ray_vx.to_pil()))
-        ax.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-        ax.set_xticks([0, 50, 100, 150, 200, 250, 300])
-        ax.set_xticklabels(['-300', '-200', '-100', '0', '100', '200', '300'])
+        #ax.set_xticks([0, 50, 100, 150, 200, 250, 300])
+        #ax.set_xticklabels(['-300', '-200', '-100', '0', '100', '200', '300'])
+
+        ax.set_xlim(0,300)
+        ax.set_ylim(0,800)
+
+    x_ray = 0.695 * 8 * 0.001 * proper_box_size * (ray_df['x']-ray_s[0]) / (ray_e[0] - ray_s[0])
+    h1 = 40. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density'])
+    si1 = 40. * ray_df['Si_p1_number_density']/np.max(ray_df['Si_p1_number_density'])
+    o6 = 40. * ray_df['O_p5_number_density']/np.max(ray_df['O_p5_number_density'])
+    ax2.plot(h1[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)])
+    ax3.plot(si1[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)])
+    ax4.plot(o6[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)])
+
 
     vel = (line_dict['H I 1216'].lambda_field.ndarray_view()/(1.+current_redshift) - 1215.67) / 1215.67 * 3e5
     ax7.plot(vel, line_dict['H I 1216'].flux_field)
@@ -167,9 +184,14 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
     ax9.set_ylim(0,1)
     ax9.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
-    ax5.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    ax5.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    ax6.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    ax6.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
+    ax0.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+    ax1.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+    ax2 = blank_tickmarks(ax2)
+    ax3 = blank_tickmarks(ax3)
+    ax4 = blank_tickmarks(ax4)
+    ax5 = blank_tickmarks(ax5)
+    ax6 = blank_tickmarks(ax6)
+
+    gs.update(hspace=0.0, wspace=0.1)
     plt.savefig(fileroot+'_velphase.png', dpi=300)
