@@ -221,16 +221,16 @@ def make_resolution_slice(ds, prefix, **kwargs):
     basename = prefix + 'physical/' + ds.basename + appendix
     if not (os.path.exists(prefix + 'physical/' )):
         os.system("mkdir " + prefix + 'physical' )
-    s = yt.SlicePlot(ds, "x", 'dx', center=center, width=(1.5*width, 'kpc'))
-    s.set_cmap('dx', discrete_cmap)
-    s.set_unit('dx','kpc')
-    s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
-    plot = s.plots['dx']
-    s._setup_plots()
-    colorbar = plot.cb
-    colorbar.set_label('cell size (kpc)')
-    s.save(ds.basename + '_Slice_x_cellsize_dx.png')
-    s.save(basename + '_Slice_x_cellsize_dx.png')
+    # s = yt.SlicePlot(ds, "x", 'dx', center=center, width=(1.5*width, 'kpc'))
+    # s.set_cmap('dx', discrete_cmap)
+    # s.set_unit('dx','kpc')
+    # s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
+    # plot = s.plots['dx']
+    # s._setup_plots()
+    # colorbar = plot.cb
+    # colorbar.set_label('cell size (kpc)')
+    # s.save(ds.basename + '_Slice_x_cellsize_dx.png')
+    # s.save(basename + '_Slice_x_cellsize_dx.png')
 
     s = yt.SlicePlot(ds, "y", 'dy', center=center, width=(1.5*width, 'kpc'))
     s.set_cmap('dy', discrete_cmap)
@@ -243,16 +243,16 @@ def make_resolution_slice(ds, prefix, **kwargs):
     s.save(ds.basename + '_Slice_y_cellsize_dy.png')
     s.save(basename + '_Slice_y_cellsize_dy.png')
 
-    s = yt.SlicePlot(ds, "z", 'dz', center=center, width=(1.5*width, 'kpc'))
-    s.set_cmap('dz', discrete_cmap)
-    s.set_unit('dz','kpc')
-    s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
-    plot = s.plots['dz']
-    s._setup_plots()
-    colorbar = plot.cb
-    colorbar.set_label('cell size (kpc)')
-    s.save(ds.basename + '_Slice_z_cellsize_dz.png')
-    s.save(basename + '_Slice_z_cellsize_dz.png')
+    # s = yt.SlicePlot(ds, "z", 'dz', center=center, width=(1.5*width, 'kpc'))
+    # s.set_cmap('dz', discrete_cmap)
+    # s.set_unit('dz','kpc')
+    # s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
+    # plot = s.plots['dz']
+    # s._setup_plots()
+    # colorbar = plot.cb
+    # colorbar.set_label('cell size (kpc)')
+    # s.save(ds.basename + '_Slice_z_cellsize_dz.png')
+    # s.save(basename + '_Slice_z_cellsize_dz.png')
 
 
 #-----------------------------------------------------------------------------------------------------
