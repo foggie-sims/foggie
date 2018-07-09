@@ -95,7 +95,7 @@ o6_max = 1.e15
 
 c4_color_map = "inferno"
 c4_min = 1.e11
-c4_max = 1.e15
+c4_max = 1.e16
 
 mg2_color_map = "plasma"
 mg2_min = 1.e10
