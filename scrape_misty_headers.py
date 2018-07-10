@@ -58,7 +58,7 @@ def scrape_misty_headers():
 
 
     i_file = 0
-    for filename in dataset_list:
+    for i_file, filename in enumerate(dataset_list):
         with fits.open(filename) as f:
             row = [f[0].header['impact'], f['H I 1216'].header["tot_column"], f['H I 1216'].header["Nmin"]]
             if 'totEW' in f['H I 1216'].header:
@@ -110,7 +110,6 @@ def scrape_misty_headers():
                     row = np.append(row, [-1], axis=0)
                     row = np.append(row, [-1], axis=0)
             all_data.add_row(row)
-            i_file = i_file + 1
 
     # now let's save the table!
     ascii.write(all_data, 'misty_rd0020_v5_rsp.dat', format='fixed_width', overwrite=True)
