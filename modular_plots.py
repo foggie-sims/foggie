@@ -544,6 +544,8 @@ if __name__ == "__main__":
         run_loc = "nref11n/natural/"
         trackname = "halo_track"
         haloname = "halo008508_nref11n"
+        if args.system == 'pleiades':
+            run_loc = 'orig/nref11n_orig/'
     elif args.run == "nref10f":
         run_loc = "nref11n/nref11n_nref10f_refine200kpc/"
         trackname = "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
