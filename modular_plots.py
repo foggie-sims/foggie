@@ -550,6 +550,8 @@ if __name__ == "__main__":
         run_loc = "nref11n/nref11n_nref10f_refine200kpc/"
         trackname = "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
         haloname = "halo008508_nref11n_nref10f"
+        if args.system == 'pleiades':
+            run_loc = 'orig/nref11n_nref10f_orig/'
     elif args.run == "nref11n_selfshield":
         run_loc = "nref11n/nref11n_selfshield/"
         trackname = "halo_008508/nref11n/nref11n_selfshield/halo_track"
