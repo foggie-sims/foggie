@@ -5,6 +5,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 from astropy.io import ascii
+import astropy.units as u
+c = 299792.458 * u.Unit('km/s')
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -12,9 +14,15 @@ import matplotlib as mpl
 import os
 import glob
 
+os.sys.path.insert(0, '/Users/molly/Dropbox/misty/MISTY-pipeline/spectacle')
+from spectacle.analysis.statistics import delta_v_90, equivalent_width
+from spectacle.analysis import Resample
+from spectacle.analysis.line_finding import LineFinder
+
+
 def run_spectacle_on_kodiaq(**kwargs):
     plotting = kwargs.get('plotting', False)
-    
+
     # first, read in the dataset
     kodiaq_file = '/Users/molly/Dropbox/kodiaq/tab_fit_result.txt'
     kodiaq = ascii.read(kodiaq_file)
