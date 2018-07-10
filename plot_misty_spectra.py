@@ -63,7 +63,7 @@ def plot_misty_spectra(hdulist, **kwargs):
             for i in range(len([x for x in ext.header if 'FITLCEN' in x])):
                 centroid = ext.header['FITLCEN{}'.format(i)] * u.AA
                 delta = centroid - lambda_0
-                col_dens = ext.header['FITCOL{}'.format(i)] * u.Unit('1/cm2')
+                col_dens = ext.header['FITCOL{}'.format(i)] 
                 v_dop = ext.header['FITB{}'.format(i)] * u.Unit('cm/s')
 
                 spectrum.add_line(name=name, lambda_0=lambda_0, f_value=f_value,
