@@ -25,18 +25,19 @@ from scipy.signal import argrelextrema
 
 def run_spectacle_on_kodiaq(**kwargs):
     plotting = kwargs.get('plotting', False)
+    threshold = kwargs.get('threshold', 0.01)
 
     # first, read in the dataset
     kodiaq_file = 'tab_fit_result.txt'
     kodiaq = ascii.read(kodiaq_file)
 
     # output table has Nmin, Ncomp_in, Ncomp_out, EW, dv90
-    all_data = Table(names=('los', 'HI_col',
+    all_data = Table(names=('los', 'z', 'HI_col',
                     'Si_II_col','Si_II_Nmin','Si_II_Ncomp','Si_II_EW','Si_II_dv90',\
                     'Si_IV_col','Si_IV_Nmin','Si_IV_Ncomp','Si_IV_EW','Si_IV_dv90',\
                     'C_IV_col','C_IV_Nmin','C_IV_Ncomp','C_IV_EW','C_IV_dv90',\
                     'O_VI_col','O_VI_Nmin',"O_VI_Ncomp","O_VI_EW",'O_VI_dv90'), \
-             dtype=('S16', 'f8',  # HI
+             dtype=('S16', 'f8', 'f8',  # HI
                     "f8","f8",'f8','f8','f8',  # Si II
                     'f8','f8','f8','f8','f8',  # Si IV
                     'f8','f8','f8','f8','f8',  # C IV
@@ -44,14 +45,14 @@ def run_spectacle_on_kodiaq(**kwargs):
 
 
     # assume KODIAQ has SiII, SiIV, CIV, OVI per each
-    si2_component_data = Table(names=('los', 'tot_col', 'component', 'comp_col', 'comp_b'), \
-                               dtype=('S16', 'f8', 'i8', 'f8', 'f8'))
-    si4_component_data = Table(names=('los', 'tot_col', 'component', 'comp_col', 'comp_b'), \
-                               dtype=('S16', 'f8', 'i8', 'f8', 'f8'))
-    c4_component_data = Table(names=('los', 'tot_col', 'component', 'comp_col', 'comp_b'), \
-                               dtype=('S16', 'f8', 'i8', 'f8', 'f8'))
-    o6_component_data = Table(names=('los', 'tot_col', 'component', 'comp_col', 'comp_b'), \
-                               dtype=('S16',  'f8', 'i8', 'f8', 'f8'))
+    si2_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b'), \
+                               dtype=('S16', 'f8', 'f8', 'i8', 'f8', 'f8'))
+    si4_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b'), \
+                               dtype=('S16', 'f8', 'f8', 'i8', 'f8', 'f8'))
+    c4_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b'), \
+                               dtype=('S16', 'f8', 'f8', 'i8', 'f8', 'f8'))
+    o6_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b'), \
+                               dtype=('S16',  'f8', 'f8', 'i8', 'f8', 'f8'))
     ion_dict =  collections.OrderedDict()
     ion_dict['SiII'] = 'Si II 1206'
     ion_dict['CIV'] = 'C IV 1548'
@@ -66,13 +67,13 @@ def run_spectacle_on_kodiaq(**kwargs):
 
     redshift = 0.0
     print('constructing with redshift = ',redshift,'!!!')
-            velocity = np.arange(-500,500,2) * u.Unit('km/s')
+    velocity = np.arange(-500,500,2) * u.Unit('km/s')
 
 
-    # group by sightline
-    kodiaq_los = kodiaq.group_by('Name')
+    # group by absorber
+    kodiaq_los = kodiaq.group_by('z_abs')
     for this_los in kodiaq_los.groups:
-        row = [this_los['Name'][0], this_los['logN_HI'][0]]
+        row = [this_los['Name'][0], this_los['z_abs'][0], this_los['logN_HI'][0]]
         these_ions = this_los.group_by(['Ion'])
         for ion in ion_dict.keys():
             mask = these_ions.groups.keys['Ion'] == ion
@@ -80,7 +81,7 @@ def run_spectacle_on_kodiaq(**kwargs):
             # for each ion in sightline, generate spectrum
             spectrum = Spectrum1DModel(redshift=redshift)
             for comp in range(len(this_ion)):
-                comp_row_start = [this_los['Name'][0]]
+                comp_row_start = [this_los['Name'][0], this_los['z_abs'][0]]
                 delta_v = this_ion['v_i'][comp] * u.Unit('km/s')
                 col_dens = this_ion['log_N_i'][comp]
                 v_dop = this_ion['b_i'][comp] * u.Unit('km/s')
@@ -104,19 +105,28 @@ def run_spectacle_on_kodiaq(**kwargs):
                                      redshift=redshift,
                                      data_type='flux',
                                      defaults=default_values,
-                                     threshold=0.01, # flux decrement has to be > threshold; default 0.01
+                                     threshold=threshold, # flux decrement has to be > threshold; default 0.01
                                      min_distance=2. * u.Unit('km/s'), # The distance between minima, in dispersion units!
                                      max_iter=2000 # The number of fitter iterations; reduce to speed up fitting at the cost of possibly poorer fits
                                      )
             print('*~*~*~*~*~> running the fitter now *~*~*~*~*~>')
             spec_mod = line_finder(velocity, flux)
             # OK, now save this information as a row in the relevant table
-            comp_table = spec_mod.stats(velocity)
             tot_col = np.log10(np.sum(np.power(10.0,comp_table['col_dens'])))
+            Nmin = np.size(np.where(flux[argrelextrema(flux, np.less)[0]] < (1-threshold)))
+            tot_ew = equivalent_width(disp, flux, continuum=1.0)
+            reg_dv90_array = []
+            for reg in spec_mod.regions:
+                mask = [(disp > disp[reg[0]]) & (disp < disp[reg[1]])]
+                reg_dv90 = delta_v_90(disp[mask], flux[mask], continuum=1.0)
+                reg_dv90_array.append(reg_dv90)
+            tot_dv90 = max(reg_dv90_array)   # bit of a hack!
+            comp_table = spec_mod.stats(velocity)
             for i, comp in enumerate(comp_table):
                 comp_row = comp_row_start + [tot_col, int(i), comp['col_dens'], comp['v_dop'].value]
                 ion_table_name_dict[ion].add_row(comp_row)
-
+            row = row + [tot_col, Nmin, len(comp_table), tot_ew, tot_dv90.value]
+        all_data.add_row(row)
         # plotting is optional once implemented
 
     # and save that info to the all_data table and the individual measures tables
