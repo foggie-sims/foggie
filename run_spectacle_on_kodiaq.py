@@ -8,8 +8,14 @@ from astropy.io import ascii
 import astropy.units as u
 c = 299792.458 * u.Unit('km/s')
 
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import seaborn as sns
+sns.set_style("whitegrid", {'axes.grid' : False})
+mpl.rcParams['font.family'] = 'stixgeneral'
+mpl.rcParams['font.size'] = 6.
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import matplotlib.ticker as ticker
 
 import os
 import glob
@@ -19,6 +25,7 @@ os.sys.path.insert(0, '/Users/molly/Dropbox/misty/MISTY-pipeline/spectacle')
 from spectacle.analysis.statistics import delta_v_90, equivalent_width
 from spectacle.analysis import Resample
 from spectacle.analysis.line_finding import LineFinder
+from spectacle.core.spectrum import Spectrum1DModel
 
 from scipy.signal import argrelextrema
 
@@ -67,15 +74,20 @@ def run_spectacle_on_kodiaq(**kwargs):
 
     redshift = 0.0
     print('constructing with redshift = ',redshift,'!!!')
-    velocity = np.arange(-500,500,2) * u.Unit('km/s')
+    velocity = np.arange(-500,500,0.5) * u.Unit('km/s')
 
 
     # group by absorber
     kodiaq_los = kodiaq.group_by('z_abs')
     for this_los in kodiaq_los.groups:
+        fig = plt.figure(dpi=300)
+        fig.set_figheight(8)
+        fig.set_figwidth(6)
+        gs = gridspec.GridSpec(4, 1)
+
         row = [this_los['Name'][0], this_los['z_abs'][0], this_los['logN_HI'][0]]
         these_ions = this_los.group_by(['Ion'])
-        for ion in ion_dict.keys():
+        for i, ion in enumerate(ion_dict.keys()):
             mask = these_ions.groups.keys['Ion'] == ion
             this_ion = these_ions.groups[mask]
             # for each ion in sightline, generate spectrum
@@ -111,7 +123,16 @@ def run_spectacle_on_kodiaq(**kwargs):
                                      )
             print('*~*~*~*~*~> running the fitter now *~*~*~*~*~>')
             spec_mod = line_finder(velocity, flux)
+            ax_spec = fig.add_subplot(gs[i, 0])
+            ax_spec.plot(disp, np.ones(len(disp)),color='k',lw=1, ls=":")
+            ax_spec.step(disp, flux, color='purple')
+            ax_spec.step(disp, spec_mod.flux(disp), color='orange')
+            if i < 3:
+                ax_spec.xaxis.set_major_locator(ticker.NullLocator())
+            plt.subplots_adjust(wspace=None, hspace=None)
+
             # OK, now save this information as a row in the relevant table
+            comp_table = spec_mod.stats(velocity)
             tot_col = np.log10(np.sum(np.power(10.0,comp_table['col_dens'])))
             Nmin = np.size(np.where(flux[argrelextrema(flux, np.less)[0]] < (1-threshold)))
             tot_ew = equivalent_width(disp, flux, continuum=1.0)
@@ -121,13 +142,17 @@ def run_spectacle_on_kodiaq(**kwargs):
                 reg_dv90 = delta_v_90(disp[mask], flux[mask], continuum=1.0)
                 reg_dv90_array.append(reg_dv90)
             tot_dv90 = max(reg_dv90_array)   # bit of a hack!
-            comp_table = spec_mod.stats(velocity)
             for i, comp in enumerate(comp_table):
                 comp_row = comp_row_start + [tot_col, int(i), comp['col_dens'], comp['v_dop'].value]
                 ion_table_name_dict[ion].add_row(comp_row)
             row = row + [tot_col, Nmin, len(comp_table), tot_ew, tot_dv90.value]
         all_data.add_row(row)
-        # plotting is optional once implemented
+        fig.tight_layout()
+        outname = 'kodiaq_' + this_los['Name'][0] + '_' + str(this_los['z_abs'][0])  + '.png'
+        plt.savefig(outname)
+        plt.close(fig)
+
+
 
     # and save that info to the all_data table and the individual measures tables
     ascii.write(all_data, 'kodiaq_spectacle_all.dat', format='fixed_width', overwrite=True)
