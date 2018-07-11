@@ -74,7 +74,7 @@ def run_spectacle_on_kodiaq(**kwargs):
 
     redshift = 0.0
     print('constructing with redshift = ',redshift,'!!!')
-    velocity = np.arange(-500,500,0.5) * u.Unit('km/s')
+    velocity = np.arange(-500,500,2) * u.Unit('km/s')
 
 
     # group by absorber
@@ -103,7 +103,6 @@ def run_spectacle_on_kodiaq(**kwargs):
                                   v_doppler=v_dop,
                                   delta_v=delta_v)
             # run spectacle and calculate non-parametric measures
-            disp = velocity
             flux = spectrum.flux(velocity)
             default_values = dict(
                 bounds={
@@ -112,7 +111,7 @@ def run_spectacle_on_kodiaq(**kwargs):
                         }
             )
             print('*~*~*~*~*~> setting up the LineFinder *~*~*~*~*~>')
-            print('length of arrays:', len(disp), len(velocity), len(flux))
+            print('length of arrays:', len(velocity), len(velocity), len(flux))
             line_finder = LineFinder(ion_name = ion_dict[ion],
                                      redshift=redshift,
                                      data_type='flux',
@@ -124,9 +123,14 @@ def run_spectacle_on_kodiaq(**kwargs):
             print('*~*~*~*~*~> running the fitter now *~*~*~*~*~>')
             spec_mod = line_finder(velocity, flux)
             ax_spec = fig.add_subplot(gs[i, 0])
-            ax_spec.plot(disp, np.ones(len(disp)),color='k',lw=1, ls=":")
-            ax_spec.step(disp, flux, color='purple')
-            ax_spec.step(disp, spec_mod.flux(disp), color='orange')
+            ax_spec.plot(velocity, np.ones(len(velocity)),color='k',lw=1, ls=":")
+            ax_spec.step(velocity, flux, color='purple')
+            ax_spec.step(velocity, spec_mod.flux(velocity), color='orange')
+            ax_spec.text(-450, 0, ion_dict[ion], fontsize=10.)
+            for comp in range(len(this_ion)):
+                delta_v = this_ion['v_i'][comp] * u.Unit('km/s')
+                ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='purple')
+
             if i < 3:
                 ax_spec.xaxis.set_major_locator(ticker.NullLocator())
             plt.subplots_adjust(wspace=None, hspace=None)
@@ -135,16 +139,18 @@ def run_spectacle_on_kodiaq(**kwargs):
             comp_table = spec_mod.stats(velocity)
             tot_col = np.log10(np.sum(np.power(10.0,comp_table['col_dens'])))
             Nmin = np.size(np.where(flux[argrelextrema(flux, np.less)[0]] < (1-threshold)))
-            tot_ew = equivalent_width(disp, flux, continuum=1.0)
+            tot_ew = equivalent_width(velocity, flux, continuum=1.0)
             reg_dv90_array = []
             for reg in spec_mod.regions:
-                mask = [(disp > disp[reg[0]]) & (disp < disp[reg[1]])]
-                reg_dv90 = delta_v_90(disp[mask], flux[mask], continuum=1.0)
+                mask = [(velocity > velocity[reg[0]]) & (velocity < velocity[reg[1]])]
+                reg_dv90 = delta_v_90(velocity[mask], flux[mask], continuum=1.0)
                 reg_dv90_array.append(reg_dv90)
             tot_dv90 = max(reg_dv90_array)   # bit of a hack!
             for i, comp in enumerate(comp_table):
                 comp_row = comp_row_start + [tot_col, int(i), comp['col_dens'], comp['v_dop'].value]
                 ion_table_name_dict[ion].add_row(comp_row)
+                delta_v = comp['v_dop']
+                ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='orange')
             row = row + [tot_col, Nmin, len(comp_table), tot_ew, tot_dv90.value]
         all_data.add_row(row)
         fig.tight_layout()
