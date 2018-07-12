@@ -12,7 +12,7 @@ import matplotlib as mpl
 import seaborn as sns
 sns.set_style("whitegrid", {'axes.grid' : False})
 mpl.rcParams['font.family'] = 'stixgeneral'
-mpl.rcParams['font.size'] = 6.
+mpl.rcParams['font.size'] = 12.
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.ticker as ticker
@@ -74,7 +74,10 @@ def run_spectacle_on_kodiaq(**kwargs):
 
     redshift = 0.0
     print('constructing with redshift = ',redshift,'!!!')
-    velocity = np.arange(-500,500,2) * u.Unit('km/s')
+    vmin = -600.
+    vmax = 600.
+    dv = 1.
+    velocity = np.arange(vmin, vmax, dv) * u.Unit('km/s')
 
 
     # group by absorber
@@ -92,66 +95,70 @@ def run_spectacle_on_kodiaq(**kwargs):
             this_ion = these_ions.groups[mask]
             # for each ion in sightline, generate spectrum
             spectrum = Spectrum1DModel(redshift=redshift)
-            for comp in range(len(this_ion)):
-                comp_row_start = [this_los['Name'][0], this_los['z_abs'][0]]
-                delta_v = this_ion['v_i'][comp] * u.Unit('km/s')
-                col_dens = this_ion['log_N_i'][comp]
-                v_dop = this_ion['b_i'][comp] * u.Unit('km/s')
-                print(col_dens, v_dop, delta_v)
-                spectrum.add_line(name=ion_dict[ion],
-                                  column_density=col_dens,
-                                  v_doppler=v_dop,
-                                  delta_v=delta_v)
-            # run spectacle and calculate non-parametric measures
-            flux = spectrum.flux(velocity)
-            default_values = dict(
-                bounds={
-                        'column_density': (10, 17), # Global bounds in log,
-                        'v_doppler': (3, 1e3) # Global bounds in km/s
-                        }
-            )
-            print('*~*~*~*~*~> setting up the LineFinder *~*~*~*~*~>')
-            print('length of arrays:', len(velocity), len(velocity), len(flux))
-            line_finder = LineFinder(ion_name = ion_dict[ion],
-                                     redshift=redshift,
-                                     data_type='flux',
-                                     defaults=default_values,
-                                     threshold=threshold, # flux decrement has to be > threshold; default 0.01
-                                     min_distance=2. * u.Unit('km/s'), # The distance between minima, in dispersion units!
-                                     max_iter=2000 # The number of fitter iterations; reduce to speed up fitting at the cost of possibly poorer fits
-                                     )
-            print('*~*~*~*~*~> running the fitter now *~*~*~*~*~>')
-            spec_mod = line_finder(velocity, flux)
-            ax_spec = fig.add_subplot(gs[i, 0])
-            ax_spec.plot(velocity, np.ones(len(velocity)),color='k',lw=1, ls=":")
-            ax_spec.step(velocity, flux, color='purple')
-            ax_spec.step(velocity, spec_mod.flux(velocity), color='orange')
-            ax_spec.text(-450, 0, ion_dict[ion], fontsize=10.)
-            for comp in range(len(this_ion)):
-                delta_v = this_ion['v_i'][comp] * u.Unit('km/s')
-                ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='purple')
+            if(len(this_ion) == 0):
+                 row = row + [-1, -1, -1, -1, -1]
+            else:
+                for comp in range(len(this_ion)):
+                    comp_row_start = [this_los['Name'][0], this_los['z_abs'][0]]
+                    delta_v = this_ion['v_i'][comp] * u.Unit('km/s')
+                    col_dens = this_ion['log_N_i'][comp]
+                    v_dop = this_ion['b_i'][comp] * u.Unit('km/s')
+                    print(col_dens, v_dop, delta_v)
+                    spectrum.add_line(name=ion_dict[ion],
+                                      column_density=col_dens,
+                                      v_doppler=v_dop,
+                                      delta_v=delta_v)
+                # run spectacle and calculate non-parametric measures
+                flux = spectrum.flux(velocity)
+                default_values = dict(
+                    bounds={
+                            'column_density': (11, 18), # Global bounds in log,
+                            'v_doppler': (2, 500.) # Global bounds in km/s
+                            }
+                )
+                print('*~*~*~*~*~> setting up the LineFinder *~*~*~*~*~>')
+                print('length of arrays:', len(velocity), len(velocity), len(flux))
+                line_finder = LineFinder(ion_name = ion_dict[ion],
+                                         redshift=redshift,
+                                         data_type='flux',
+                                         defaults=default_values,
+                                         threshold=threshold, # flux decrement has to be > threshold; default 0.01
+                                         min_distance=2. * u.Unit('km/s'), # The distance between minima, in dispersion units!
+                                         max_iter=2000 # The number of fitter iterations; reduce to speed up fitting at the cost of possibly poorer fits
+                                         )
+                print('*~*~*~*~*~> running the fitter now *~*~*~*~*~>')
+                spec_mod = line_finder(velocity, flux)
+                ax_spec = fig.add_subplot(gs[i, 0])
+                ax_spec.plot(velocity, np.ones(len(velocity)),color='k',lw=1, ls=":")
+                ax_spec.step(velocity, flux, color='purple')
+                ax_spec.step(velocity, spec_mod.flux(velocity), lw=1, ls="--", dashes=(5, 2), color='orange')
+                ax_spec.text(-550, 0, ion_dict[ion], fontsize=10.)
+                for comp in range(len(this_ion)):
+                    delta_v = this_ion['v_i'][comp] * u.Unit('km/s')
+                    ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='purple')
 
-            if i < 3:
-                ax_spec.xaxis.set_major_locator(ticker.NullLocator())
-            plt.subplots_adjust(wspace=None, hspace=None)
+                plt.xlim(vmin, vmax)
+                plt.ylim(-0.05, 1.05)
+                if i < 3:
+                    ax_spec.xaxis.set_major_locator(ticker.NullLocator())
+                if i == 0:
+                    hi_text = 'HI column = '+str(this_los['logN_HI'][0])
+                    ax_spec.text(-550, 0.9, hi_text, fontsize=10.)
+                plt.subplots_adjust(wspace=None, hspace=None)
 
-            # OK, now save this information as a row in the relevant table
-            comp_table = spec_mod.stats(velocity)
-            tot_col = np.log10(np.sum(np.power(10.0,comp_table['col_dens'])))
-            Nmin = np.size(np.where(flux[argrelextrema(flux, np.less)[0]] < (1-threshold)))
-            tot_ew = equivalent_width(velocity, flux, continuum=1.0)
-            reg_dv90_array = []
-            for reg in spec_mod.regions:
-                mask = [(velocity > velocity[reg[0]]) & (velocity < velocity[reg[1]])]
-                reg_dv90 = delta_v_90(velocity[mask], flux[mask], continuum=1.0)
-                reg_dv90_array.append(reg_dv90)
-            tot_dv90 = max(reg_dv90_array)   # bit of a hack!
-            for i, comp in enumerate(comp_table):
-                comp_row = comp_row_start + [tot_col, int(i), comp['col_dens'], comp['v_dop'].value]
-                ion_table_name_dict[ion].add_row(comp_row)
-                delta_v = comp['v_dop']
-                ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='orange')
-            row = row + [tot_col, Nmin, len(comp_table), tot_ew, tot_dv90.value]
+                # OK, now save this information as a row in the relevant table
+                comp_table = spec_mod.stats(velocity)
+                print(comp_table)
+                tot_col = np.log10(np.sum(np.power(10.0,comp_table['col_dens'])))
+                Nmin = np.size(np.where(flux[argrelextrema(flux, np.less)[0]] < (1-threshold)))
+                tot_ew = equivalent_width(velocity, flux, continuum=1.0)
+                tot_dv90 = delta_v_90(velocity, flux, continuum=1.0)
+                for i, comp in enumerate(comp_table):
+                    comp_row = comp_row_start + [tot_col, int(i), comp['col_dens'], comp['v_dop'].value]
+                    ion_table_name_dict[ion].add_row(comp_row)
+                    delta_v = comp['centroid']
+                    ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='orange')
+                row = row + [tot_col, Nmin, len(comp_table), tot_ew, tot_dv90.value]
         all_data.add_row(row)
         fig.tight_layout()
         outname = 'kodiaq_' + this_los['Name'][0] + '_' + str(this_los['z_abs'][0])  + '.png'
