@@ -61,7 +61,7 @@ def run_spectacle_on_kodiaq(**kwargs):
     o6_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b'), \
                                dtype=('S16',  'f8', 'f8', 'i8', 'f8', 'f8'))
     ion_dict =  collections.OrderedDict()
-    ion_dict['SiII'] = 'Si II 1206'
+    ion_dict['SiII'] = 'Si II 1260'
     ion_dict['CIV'] = 'C IV 1548'
     ion_dict['SiIV'] = 'Si IV 1394'
     ion_dict['OVI'] = 'O VI 1032'
