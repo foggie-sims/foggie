@@ -4,15 +4,20 @@ from scipy import stats
 from astropy.table import Table
 from astropy.io import ascii
 
-import matplotlib.pyplot as plt
 import matplotlib as mpl
-mpl.rcParams['font.size'] = 16.
+import seaborn as sns
+sns.set_style("whitegrid", {'axes.grid' : False})
+mpl.rcParams['font.family'] = 'stixgeneral'
+mpl.rcParams['font.size'] = 12.
+import matplotlib.pyplot as plt
 
 
 def make_misty_plots():
     # for now, be lazy and hardcode the paths to the files
     nat = Table.read('/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/misty_rd0020_v5_rsp.dat', format='ascii.fixed_width')
     ref = Table.read('/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/misty_rd0020_v5_rsp.dat', format='ascii.fixed_width')
+    kodiaq = Table.read('/Users/molly/Dropbox/kodiaq/kodiaq_spectacle_all.dat', format='ascii.fixed_width')
+    print len(nat), len(ref)
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
@@ -64,11 +69,12 @@ def make_misty_plots():
     ax = fig.add_subplot(111)
     ax.scatter(nat['Si_IV_col'],nat['Si_IV_dv90'], marker='D', s=60, color='#4daf4a',alpha=0.5, label='natural')
     ax.scatter(ref['Si_IV_col'],ref['Si_IV_dv90'], color='#984ea3', marker='o',s=100, alpha=0.5, label='refined')
+    ax.scatter(kodiaq['Si_IV_col'], kodiaq['Si_IV_dv90'], color='k', marker='*', s=100, alpha=0.5, label='KODIAQ')
     plt.legend(loc='upper left')
-    #plt.xlim(xmin=0)
+    plt.xlim(xmin=10)
     plt.ylim(ymin=0)
     plt.xlabel('Si IV column density')
-    plt.ylabel(r'Si II $\Delta v_{90}$')
+    plt.ylabel(r'Si IV $\Delta v_{90}$')
     fig.tight_layout()
     fig.savefig('SiIV_col_dv90.png')
 
@@ -91,18 +97,37 @@ def make_misty_plots():
     print(d, p)
     ax.scatter(nat['HI_col'],nat['Si_II_Nmin'], marker='D', s=60, color='#4daf4a',alpha=0.5,label='natural')
     ax.scatter(ref['HI_col'],ref['Si_II_Nmin'], color='#984ea3', marker='o',s=100, alpha=0.5,label='refined')
+    ax.scatter(kodiaq['HI_col'], kodiaq['Si_II_Nmin'], color='k', marker='*', s=100, alpha=0.7, label='KODIAQ')
     plt.legend(loc='upper left', frameon=False)
     plt.xlim(xmin=16)
     plt.ylim(ymin=0)
-    plt.xlabel(r'HI column density')
+    plt.xlabel(r'log HI column density')
     plt.ylabel('# of Si II 1260 minima')
     fig.tight_layout()
     fig.savefig('HI_col_vs_SiII_Nmin.png')
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
-    ax.scatter(nat['O_VI_Nmin'],nat['Si_II_Nmin'], marker='D', s=60, color='#4daf4a',alpha=0.5,label='natural')
-    ax.scatter(ref['O_VI_Nmin'],ref['Si_II_Nmin'], color='#984ea3', marker='o',s=100, alpha=0.5,label='refined')
+    d, p = stats.ks_2samp(nat['Si_IV_Nmin'], ref['Si_IV_Nmin'])
+    print(d, p)
+    ax.scatter(nat['HI_col'],nat['Si_IV_Nmin'], marker='D', s=60, color='#4daf4a',alpha=0.5,label='natural')
+    ax.scatter(ref['HI_col'],ref['Si_IV_Nmin'], color='#984ea3', marker='o',s=100, alpha=0.5,label='refined')
+    ax.scatter(kodiaq['HI_col'], kodiaq['Si_IV_Nmin'], color='k', marker='*', s=100, alpha=0.7, label='KODIAQ')
+    plt.legend(loc='upper left', frameon=False)
+    plt.xlim(xmin=16)
+    plt.ylim(ymin=0)
+    plt.xlabel(r'log HI column density')
+    plt.ylabel('# of Si IV 1394 minima')
+    fig.tight_layout()
+    fig.savefig('HI_col_vs_SiIV_Nmin.png')
+
+    fig = plt.figure(figsize=(9,7))
+    ax = fig.add_subplot(111)
+    sns.stripplot(x=nat['O_VI_Nmin'], y=nat['Si_II_Nmin']+0.1,jitter=True, color='#4daf4a', dodge=True,edgecolor='none',s=5, marker='D',alpha=0.5)
+    sns.stripplot(x=ref['O_VI_Nmin'], y=ref['Si_II_Nmin']-0.1,jitter=True, color='#984ea3', dodge=True,edgecolor='none',s=5, marker='o',alpha=0.5)
+    # ax.scatter(nat['O_VI_Nmin'],nat['Si_II_Nmin'], marker='D', s=60, color='#4daf4a',alpha=0.5,label='natural')
+#    ax.scatter(ref['O_VI_Nmin'],ref['Si_II_Nmin'], color='#984ea3', marker='o',s=100, alpha=0.5,label='refined')
+    ax.scatter(kodiaq['O_VI_Nmin'], kodiaq['Si_II_Nmin'], color='k', marker='*', s=100, alpha=0.7, label='KODIAQ',zorder=100)
     plt.legend(loc='upper left', frameon=False)
     plt.xlim(xmin=0)
     plt.ylim(ymin=0)
