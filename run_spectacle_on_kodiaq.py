@@ -83,6 +83,7 @@ def run_spectacle_on_kodiaq(**kwargs):
     # group by absorber
     kodiaq_los = kodiaq.group_by('z_abs')
     for this_los in kodiaq_los.groups:
+        print('starting ',this_los['Name'][0])
         fig = plt.figure(dpi=300)
         fig.set_figheight(8)
         fig.set_figwidth(6)
@@ -162,6 +163,8 @@ def run_spectacle_on_kodiaq(**kwargs):
         all_data.add_row(row)
         fig.tight_layout()
         outname = 'kodiaq_' + this_los['Name'][0] + '_' + str(this_los['z_abs'][0])  + '.png'
+        plt.savefig(outname)
+        outname = 'kodiaq_' + this_los['Name'][0] + '_' + str(this_los['z_abs'][0])  + '.pdf'
         plt.savefig(outname)
         plt.close(fig)
 
