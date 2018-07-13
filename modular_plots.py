@@ -99,6 +99,10 @@ def parse_args():
                         help='make NeVIII?, default if not')
     parser.set_defaults(ovi=False)
 
+    parser.add_argument('--fexiv', dest='fexiv', action='store_true',
+                        help='make FeXIV?, default if not')
+    parser.set_defaults(ovi=False)
+
     parser.add_argument('--silicon', dest='silicon', action='store_true',
                         help='make Silicon plots?, default if not')
     parser.set_defaults(ovi=False)
@@ -313,6 +317,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
             trident.add_ion_fields(ds, ions=['Ne VIII'])
         if args.silicon:
             trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV'])
+        if args.fexiv:
+            trident.add_ion_fields(ds, ions=['Fe XIV'])
 
         ## add metal density
         # ds.add_field(("gas", "metal_density"), function=_metal_density, units="g/cm**2")
@@ -510,6 +516,17 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
             if args.box:
                 make_projection_plot(ds, prefix, "NeVIII",  \
                             ne8_min, ne8_max, ne8_color_map, \
+                            ision=True, center=center, axis=axis, box=box, \
+                            width=width, appendix="_box")
+
+        if args.fexiv:
+            make_projection_plot(ds, prefix, "FeXIV",  \
+                            fe14_min, fe14_max, fe14_color_map, \
+                            ision=True, center=center, axis=axis, box=refine_box, \
+                            width=refine_width, appendix="_refine")
+            if args.box:
+                make_projection_plot(ds, prefix, "FeXIV",  \
+                            fe14_min, fe14_max, fe14_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
