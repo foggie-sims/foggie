@@ -274,7 +274,9 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
                 # most common refinement level
                 #nref_mode = stats.mode(grid_levels[idR])
-                nref_mode = 10. ## FIX FOR NOW!
+                sp_out, sp_in = ds.sphere(halo_center, max_rad), ds.sphere(halo_center,min_rad)
+                shell = sp_out - sp_in
+                nref_mode = stats.mode(shell['index','grid_level'])
                 # mass fluxes
                 gas_flux = (np.sum(cell_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
                 metal_flux = (np.sum(metal_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
