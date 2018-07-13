@@ -30,6 +30,8 @@ from spectacle.core.spectrum import Spectrum1DModel
 def plot_misty_spectra(hdulist, **kwargs):
     outname = kwargs.get('outname', 'test.png')
     overplot = kwargs.get('overplot', False)
+    offset = kwargs.get('offset', 0.0)
+    box_redshift = kwargs.get('box_redshift', 2.0)
 
     ### these are the lines we want
     line_list = ['H I 1216', 'H I 919', \
@@ -48,7 +50,7 @@ def plot_misty_spectra(hdulist, **kwargs):
     except:
         zsnap = np.median(hdulist[3].data['redshift'])
     zmin, zmax = (zsnap-0.004), (zsnap+0.004)
-    vmin, vmax = -800, 800
+    vmin, vmax = -700, 700
     print(zsnap)
 
     for line, line_name in enumerate(line_list):
@@ -65,13 +67,19 @@ def plot_misty_spectra(hdulist, **kwargs):
             for i in range(len([x for x in ext.header if 'FITLCEN' in x])):
                 delta_v = ext.header['FITLCEN{}'.format(i)] * u.Unit('km/s')
                 col_dens = ext.header['FITCOL{}'.format(i)]
-                v_dop = ext.header['FITB{}'.format(i)] * u.Unit('km/s')
-                # print(ext.header['FITLCEN{}'.format(i)], ext.header['FITCOL{}'.format(i)], ext.header['FITB{}'.format(i)])
+                v_dop = ext.header['FITB{}'.format(i)]
+                print(ext.header['FITLCEN{}'.format(i)], ext.header['FITCOL{}'.format(i)], ext.header['FITB{}'.format(i)])
+                if col_dens > 100.:
+                    col_dens = np.log10(col_dens)
+                if v_dop < 1000.:
+                    v_dop = v_dop*u.Unit('km/s')
+                else:
+                    v_dop = v_dop*u.Unit('cm/s')
                 print('i:',i,delta_v, col_dens, v_dop)
                 spectrum.add_line(name=name, lambda_0=lambda_0, f_value=f_value,
                                   gamma=gamma, column_density=col_dens, v_doppler=v_dop,
-                                  delta_v=delta_v/(1+2.5))
-                ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='k')
+                                  delta_v=delta_v/(1+box_redshift))
+                ax_spec.plot([delta_v.value+offset, delta_v.value+offset], [1.05, 0.95], color='k')
 
             ### _lsf.fits files have '_obs' while _los.fits files don't
             # ax_spec.step(redshift, flux, color='darkorange',lw=1)
@@ -86,10 +94,9 @@ def plot_misty_spectra(hdulist, **kwargs):
                 wavelength_obs = hdulist[line_name].data['disp_obs'] * u.AA
             with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(lambda_0)):
                 velocity = (wavelength_obs / (1 + zsnap)).to('km/s') * (1 + zsnap)
-            # print(velocity)
-            ax_spec.plot(velocity, np.ones(len(velocity)),color='k',lw=1, ls=":")
-            ax_spec.step(velocity, flux, color='#984ea3')
-            ax_spec.step(velocity, spectrum.flux(velocity), color='darkorange', lw=1, ls="--", dashes=(5, 2))
+            ax_spec.plot(velocity + offset*u.Unit('km/s'), np.ones(len(velocity)),color='k',lw=1, ls=":")
+            ax_spec.step(velocity + offset*u.Unit('km/s'), flux, color='#984ea3')
+            ax_spec.step(velocity + offset*u.Unit('km/s'), spectrum.flux(velocity), color='darkorange', lw=1, ls="--", dashes=(5, 2))
             if overplot:
                 ax_spec.step(hdulist[line_name].data['redshift_obs'], spectrum.flux(hdulist[line_name].data['disp_obs'] * u.AA), color='darkorange', lw=1)
 
@@ -110,12 +117,13 @@ def plot_misty_spectra(hdulist, **kwargs):
 if __name__ == "__main__":
 
     # dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0020_axx_i012.3-a3.40_v5_rsp.fits.gz']
-    dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axy_i018.2-a2.09_v5_rsp.fits.gz']
+    # dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axy_i018.2-a2.09_v5_rsp.fits.gz']
+    dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i010.4-a2.25_v5_rsp.fits.gz']
     output_dir = '/Users/molly/Dropbox/foggie-collab/papers/absorption_peeples/Figures/'
 
     for filename in dataset_list:
         plotname = output_dir + filename.strip('rsp.fits.gz') + 'rsp.png'
         print('plotting spectra in ', filename, ' and saving as ', plotname)
         hdulist = fits.open(filename)
-        plot_misty_spectra(hdulist, overplot=False, outname=plotname)
+        plot_misty_spectra(hdulist, overplot=False, outname=plotname, offset=-500.,box_redshift=2.5)
         hdulist.close()
