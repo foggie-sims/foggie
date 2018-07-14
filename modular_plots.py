@@ -630,13 +630,13 @@ if __name__ == "__main__":
         if args.system == "pleiades":
             trackname = "halo_008508/nref11n_nref10f_selfshield_z6/halo_track"
             run_loc = "nref11n_selfshield_z15/"
-    elif args.run == "nref11n_nref10f_selfshield_z6":
+    elif args.run == "nref10f_selfshield":
         run_loc = "nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/"
         trackname = "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
         haloname = "halo008508_nref11n_nref10f_selfshield_z6"
         if args.system == "pleiades":
-            trackname = "./halo_track"
-            run_loc = "./"
+            trackname = "nref11n_nref10f_selfshield_z6/halo_track"
+            run_loc = "nref11n_nref10f_selfshield_z6/"
     elif args.run == "nref11c_nref9f":
         run_loc = "nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/"
         trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/halo_track"
