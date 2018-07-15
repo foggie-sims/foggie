@@ -131,12 +131,12 @@ def run_spectacle_on_kodiaq(**kwargs):
                 spec_mod = line_finder(velocity, flux)
                 ax_spec = fig.add_subplot(gs[i, 0])
                 ax_spec.plot(velocity, np.ones(len(velocity)),color='k',lw=1, ls=":")
-                ax_spec.step(velocity, flux, color='purple')
+                ax_spec.step(velocity, flux, color='#984ea3')
                 ax_spec.step(velocity, spec_mod.flux(velocity), lw=1, ls="--", dashes=(5, 2), color='darkorange')
                 ax_spec.text(-550, 0, ion_dict[ion], fontsize=10.)
                 for comp in range(len(this_ion)):
                     delta_v = this_ion['v_i'][comp] * u.Unit('km/s')
-                    ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='#984ea3)
+                    ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='#984ea3')
 
                 plt.xlim(vmin, vmax)
                 plt.ylim(-0.05, 1.05)
@@ -157,7 +157,7 @@ def run_spectacle_on_kodiaq(**kwargs):
                 for i, comp in enumerate(comp_table):
                     comp_row = comp_row_start + [tot_col, int(i), comp['col_dens'], comp['v_dop'].value]
                     ion_table_name_dict[ion].add_row(comp_row)
-                    delta_v = comp['centroid']
+                    delta_v = comp['delta_v']
                     ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='darkorange')
                 row = row + [tot_col, Nmin, len(comp_table), tot_ew, tot_dv90.value]
         all_data.add_row(row)
