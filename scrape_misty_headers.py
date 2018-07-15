@@ -119,11 +119,11 @@ def scrape_misty_headers():
             all_data.add_row(row)
 
     # now let's save the table!
-    ascii.write(all_data, 'misty_v5_rsp.dat', format='fixed_width', bookend=False, delimiter=None, overwrite=True)
-    ascii.write(si2_component_data, 'misty_si2_v5_rsp.dat', format='fixed_width', bookend=False, delimiter=None, overwrite=True)
-    ascii.write(si4_component_data, 'misty_si4_v5_rsp.dat', format='fixed_width', bookend=False, delimiter=None, overwrite=True)
-    ascii.write(c4_component_data, 'misty_c4_v5_rsp.dat', format='fixed_width', bookend=False, delimiter=None, overwrite=True)
-    ascii.write(o6_component_data, 'misty_o6_v5_rsp.dat', format='fixed_width', bookend=False, delimiter=None, overwrite=True)
+    ascii.write(all_data, 'misty_v5_rsp.dat', format='fixed_width', overwrite=True)
+    ascii.write(si2_component_data, 'misty_si2_v5_rsp.dat', format='fixed_width', overwrite=True)
+    ascii.write(si4_component_data, 'misty_si4_v5_rsp.dat', format='fixed_width', overwrite=True)
+    ascii.write(c4_component_data, 'misty_c4_v5_rsp.dat', format='fixed_width', overwrite=True)
+    ascii.write(o6_component_data, 'misty_o6_v5_rsp.dat', format='fixed_width', overwrite=True)
 
 
 if __name__ == '__main__':
