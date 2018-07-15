@@ -54,6 +54,8 @@ def plot_misty_spectra(hdulist, **kwargs):
     for line in range(Nlines):
         ax_spec = fig.add_subplot(gs[line, 0])
         try:
+            # Construct spectacle spectrum
+            spectrum = Spectrum1DModel(redshift=zsnap)
             ext = hdulist[line+2]
             name = ext.header['LINENAME']
             lambda_0 = ext.header['RESTWAVE'] * u.AA
@@ -61,8 +63,7 @@ def plot_misty_spectra(hdulist, **kwargs):
             gamma = ext.header['GAMMA']
             Ncomp = ext.header['NCOMP']
             print(line, name)
-            # print(ext.header)
-            # for i in range(len([x for x in ext.header if 'FITVCEN0' in x])):
+
             for i in range(Ncomp):
                 delta_v = ext.header['FITVCEN{}'.format(i)] * u.Unit('km/s')
                 col_dens = ext.header['FITCOL{}'.format(i)]
