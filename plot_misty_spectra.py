@@ -63,8 +63,6 @@ def plot_misty_spectra(hdulist, **kwargs):
             print(line, name)
             # print(ext.header)
             # for i in range(len([x for x in ext.header if 'FITVCEN0' in x])):
-            # Construct spectacle spectrum
-            spectrum = Spectrum1DModel(redshift=zsnap)
             for i in range(Ncomp):
                 delta_v = ext.header['FITVCEN{}'.format(i)] * u.Unit('km/s')
                 col_dens = ext.header['FITCOL{}'.format(i)]
@@ -110,11 +108,10 @@ def plot_misty_spectra(hdulist, **kwargs):
 if __name__ == "__main__":
 
     long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd0018*axx*v5*rsp.fits.gz'))
-    dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axy_i029.4-a5.40_v5_rsp.fits.gz']
-#    dataset_list = long_dataset_list
+    dataset_list = long_dataset_list
 
     for filename in dataset_list:
-        plotname = './' + filename.strip('rsp.fits.gz') + 'rsp.png'
+        plotname = '.' + filename.strip('rsp.fits.gz') + 'rsp.png'
         print('plotting spectra in ', filename, ' and saving as ', plotname)
         hdulist = fits.open(filename)
         plot_misty_spectra(hdulist, overplot=True, outname=plotname)
