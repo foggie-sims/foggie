@@ -45,7 +45,7 @@ def plot_misty_spectra(hdulist, **kwargs):
     except:
         zsnap = np.median(hdulist[3].data['redshift'])
     zmin, zmax = (zsnap-0.004), (zsnap+0.004)
-    vmin, vmax = -1000, 1000
+    vmin, vmax = -800, 800
 
 
     print("                   ")
@@ -56,6 +56,7 @@ def plot_misty_spectra(hdulist, **kwargs):
         try:
             # Construct spectacle spectrum
             spectrum = Spectrum1DModel(redshift=zsnap)
+            # spectrum = Spectrum1DModel(redshift=0.0)
             ext = hdulist[line+2]
             name = ext.header['LINENAME']
             lambda_0 = ext.header['RESTWAVE'] * u.AA
@@ -72,7 +73,7 @@ def plot_misty_spectra(hdulist, **kwargs):
                 spectrum.add_line(name=name, lambda_0=lambda_0, f_value=f_value,
                                   gamma=gamma, column_density=col_dens, v_doppler=v_dop,
                                   delta_v=delta_v)
-                ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='k')
+                ax_spec.plot([delta_v.value * (1 + zsnap), delta_v.value * (1 + zsnap)], [1.05, 0.95], color='k')
 
             ### _lsf.fits files have '_obs' while _los.fits files don't
             # ax_spec.step(redshift, flux, color='darkorange',lw=1)
