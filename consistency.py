@@ -32,8 +32,8 @@ logfields = ('Dark_Matter_Density', 'density', 'temperature', 'entropy', 'O_p5_i
 
 phase_color_key = {b'cold':'salmon',
                    b'hot':'#ffe34d',
-                   b'warm':'#984ea3',
-                   b'cool':'#4daf4a'}
+                   b'warm':'#4daf4a',
+                   b'cool':'#984ea3'}
 
 metal_color_key = {b'high':'darkorange',
                    b'solar':'#ffe34d',
