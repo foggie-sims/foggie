@@ -179,6 +179,44 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
 
 #-----------------------------------------------------------------------------------------------------
 
+def make_projection_plot_no_labels(ds, prefix, field, zmin, zmax, cmap, **kwargs):
+    axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
+    box = kwargs.get("box", "")
+    center = kwargs.get("center", "")
+    appendix = kwargs.get("appendix", "")
+    width = kwargs.get("width", default_width)
+    resolution = kwargs.get("resolution", (1048,1048)) # correct for the nref11f box
+    ision  = kwargs.get("ision", False)
+    if ision:
+        basename = prefix + 'ions/' + ds.basename + appendix
+        if not (os.path.exists(prefix + 'ions/' )):
+            os.system("mkdir " + prefix + 'ions/' )
+    else:
+        basename = prefix + 'physical/' + ds.basename + appendix
+        if not (os.path.exists(prefix + 'physical/' )):
+            os.system("mkdir " + prefix + 'physical' )
+    for ax in axis:
+        if ision:
+            print("field = ", species_dict[field])
+            p = yt.ProjectionPlot(ds, ax, species_dict[field], center=center, data_source=box, width=(width, 'kpc'))
+            p.set_zlim(species_dict[field], zmin, zmax)
+            p.set_cmap(field=species_dict[field], cmap=cmap)
+        else:
+            if field == "density" or field == "metal_density":
+                p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, width=(width, 'kpc'))
+                p.set_unit(('gas','density'),'Msun/pc**2')
+                p.set_unit(('gas','metal_density'),'Msun/pc**2')
+            else:
+                p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, weight_field=("gas","density"), width=(width, 'kpc'))
+            p.set_zlim(field, zmin, zmax)
+            p.set_cmap(field=field, cmap=cmap)
+        p.hide_colorbar()
+        p.hide_axes()
+        p.save(basename + '_Projection_' + ax + '_' + field + '.png')
+        p.save(basename + '_Projection_' + ax + '_' + field + '.pdf')
+
+#-----------------------------------------------------------------------------------------------------
+
 def make_slice_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
     box = kwargs.get("box", "")
@@ -520,10 +558,10 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             width=width, appendix="_box")
 
         if args.fexiv:
-            make_projection_plot(ds, prefix, "FeXIV",  \
+            make_projection_plot_no_labels(ds, prefix, "FeXIV",  \
                             fe14_min, fe14_max, fe14_color_map, \
-                            ision=True, center=center, axis=axis, box=refine_box, \
-                            width=refine_width, appendix="_refine")
+                            ision=True, center=center, axis='x', box=refine_box, \
+                            width=refine_width, appendix="_refine_no_labels")
             if args.box:
                 make_projection_plot(ds, prefix, "FeXIV",  \
                             fe14_min, fe14_max, fe14_color_map, \
