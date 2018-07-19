@@ -7,7 +7,11 @@ import numpy as np
 
 def get_center_track(first_center, latesnap, earlysnap, interval):
 
-    snaplist = np.flipud(np.arange(earlysnap,latesnap+1))
+    ### do this way at high-redshift
+    ### snaplist = np.flipud(np.arange(earlysnap,latesnap+1))
+
+    ### do this way at later times
+    snaplist = np.arange(earlysnap,latesnap+1)
     print(snaplist)
 
     t = Table([[0.0,0.0],[0.0,0.0],[0.0,0.0],[0.0,0.0], ['       ', '       ']],
