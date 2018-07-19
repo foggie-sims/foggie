@@ -55,7 +55,7 @@ def parse_args():
 
     parser.add_argument('--axis', metavar='axis', type=str, action='store',
                         help='which axis? default is x')
-    parser.set_defaults(seed="x")
+    parser.set_defaults(axis="x")
 
     args = parser.parse_args()
     return args
