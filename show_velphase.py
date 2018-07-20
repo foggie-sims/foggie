@@ -276,7 +276,7 @@ if __name__ == "__main__":
     dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i010.4-a2.25_v5_los.fits.gz']
 
     for filename in dataset_list:
-        print "opening ", out_fits_name
+        print "opening ", filename
         hdulist = fits.open(filename)
         ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
         ray_start = [float(ray_start_str.split(",")[0]), \
