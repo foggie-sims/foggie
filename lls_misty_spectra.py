@@ -57,6 +57,10 @@ def parse_args():
                         help='which axis? default is x')
     parser.set_defaults(seed="x")
 
+    parser.add_argument('--linelist', metavar='linelist', type=str, action='store',
+                        help='which linelist: long, kodiaq, or short? default is short')
+    parser.set_defaults(axis="short")
+
     args = parser.parse_args()
     return args
 
@@ -112,14 +116,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
     axis = kwargs.get("axis",'x')
     output_dir = kwargs.get("output_dir", ".")
     haloname = kwargs.get("haloname","somehalo")
-    # line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'C II 1334', 'Mg II 2796', 'C III 977', 'Si III 1207', 'C IV 1548', 'O VI 1032'])
-    line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973', 'H I 950', 'H I 919', \
-                     #'Mg II 2796', \
-                     'Al II 1671', 'Al III 1855', \
-                     'Si II 1260', 'Si III 1207', 'Si IV 1394', \
-                     'C II 1335', 'C III 977', 'C IV 1548', \
-                     'O VI 1032', 'Ne VIII 770'])
-    # line_list = kwargs.get("line_list", ['H I 1216', 'Si III 1207','O VI 1032'])
+    line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260',  'O VI 1032']))
 
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
@@ -141,9 +138,9 @@ def generate_random_rays(ds, halo_center, **kwargs):
         out_ray_name =  this_out_ray_basename + ".h5"
         rs, re = get_refined_ray_endpoints(ds, halo_center, track, impact=impacts[i])
         out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])+"_v5_los.fits.gz"
+                        "-a"+"{:4.2f}".format(angles[i])+"_v6_los.fits.gz"
         out_plot_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])+"_v5_los.png"
+                        "-a"+"{:4.2f}".format(angles[i])+"_v6_los.png"
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         if args.velocities:
@@ -227,11 +224,28 @@ if __name__ == "__main__":
         track_name = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
         output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
         haloname = "halo008508_nref11n_nref10f"
+    elif args.run == "nref10nref10f_selfshield":
+        ds_loc =  ds_base + "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/" + args.output + "/" + args.output
+        track_name = ds_base + "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
+        output_dir = output_path + "plots_halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/spectra/"
+        haloname = "halo008508_nref11n_nref10f_selfshield"
     elif args.run == "nref11f":
         ds_loc =  ds_base + "halo_008508/nref11n/nref11f_refine200kpc/" + args.output + "/" + args.output
         track_name = ds_base + "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
         output_dir = output_path + "plots_halo_008508/nref11n/nref11f_refine200kpc/spectra/"
         haloname = "halo008508_nref11f"
+
+    if args.linelist == 'long':
+        line_list = ['H I 1216', 'H I 1026', 'H I 973',
+                       'H I 950', 'H I 919', 'Al II 1671', 'Al III 1855', \
+                       'Si II 1260', 'Si III 1206', 'Si IV 1394', \
+                       'C II 1335', 'C III 977', 'C IV 1548', \
+                       'O VI 1032', 'Ne VIII 770']
+    elif args.linelist == 'kodiaq':
+        line_list = ['H I 1216', 'H I 919', \
+                        'Si II 1260', 'Si IV 1394', 'C IV 1548', 'O VI 1032']
+    else: ## short --- these are what show_velphase has
+        line_list = ['H I 1216', 'Si II 1260', 'O VI 1032']
 
     ds = yt.load(ds_loc)
 
@@ -243,7 +257,7 @@ if __name__ == "__main__":
     halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
     halo_center = get_halo_center(ds, refine_box_center)[0]
 
-    generate_random_rays(ds, halo_center, haloname=haloname, track=track, axis=args.axis, \
+    generate_random_rays(ds, halo_center, haloname=haloname, track=track, axis=args.axis, line_list=line_list,\
                          output_dir=output_dir, Nrays=args.Nrays)
 
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
