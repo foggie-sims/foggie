@@ -32,7 +32,7 @@ from scipy.signal import argrelextrema
 
 def run_spectacle_on_kodiaq(**kwargs):
     plotting = kwargs.get('plotting', False)
-    threshold = kwargs.get('threshold', 0.01)
+    threshold = kwargs.get('threshold', 0.02)
 
     # first, read in the dataset
     kodiaq_file = 'tab_fit_result.txt'
@@ -52,6 +52,7 @@ def run_spectacle_on_kodiaq(**kwargs):
 
 
     # assume KODIAQ has SiII, SiIV, CIV, OVI per each
+    # ADD THE DELTA_Vs TO THESE TABLES !!!!
     si2_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b'), \
                                dtype=('S16', 'f8', 'f8', 'i8', 'f8', 'f8'))
     si4_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b'), \
@@ -95,7 +96,7 @@ def run_spectacle_on_kodiaq(**kwargs):
             mask = these_ions.groups.keys['Ion'] == ion
             this_ion = these_ions.groups[mask]
             # for each ion in sightline, generate spectrum
-            spectrum = Spectrum1DModel(redshift=redshift)
+            spectrum = Spectrum1DModel(redshift=redshift, ion_name=ion_dict[ion])
             if(len(this_ion) == 0):
                  row = row + [-1, -1, -1, -1, -1]
             else:
@@ -105,10 +106,12 @@ def run_spectacle_on_kodiaq(**kwargs):
                     col_dens = this_ion['log_N_i'][comp]
                     v_dop = this_ion['b_i'][comp] * u.Unit('km/s')
                     print(col_dens, v_dop, delta_v)
-                    spectrum.add_line(name=ion_dict[ion],
-                                      column_density=col_dens,
+                    spectrum.add_line(column_density=col_dens,
                                       v_doppler=v_dop,
                                       delta_v=delta_v)
+                lambda_0 = spectrum.rest_wavelength
+                with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(lambda_0)):
+                    wavelength_rest = velocity.to('Angstrom')
                 # run spectacle and calculate non-parametric measures
                 flux = spectrum.flux(velocity)
                 default_values = dict(
@@ -152,8 +155,9 @@ def run_spectacle_on_kodiaq(**kwargs):
                 print(comp_table)
                 tot_col = np.log10(np.sum(np.power(10.0,comp_table['col_dens'])))
                 Nmin = np.size(np.where(flux[argrelextrema(flux, np.less)[0]] < (1-threshold)))
-                tot_ew = equivalent_width(velocity, flux, continuum=1.0)
+                tot_ew = equivalent_width(wavelength_rest, flux, continuum=1.0)
                 tot_dv90 = delta_v_90(velocity, flux, continuum=1.0)
+                print("col, EW, dv90 = ", tot_col, tot_ew, tot_dv90)
                 for i, comp in enumerate(comp_table):
                     comp_row = comp_row_start + [tot_col, int(i), comp['col_dens'], comp['v_dop'].value]
                     ion_table_name_dict[ion].add_row(comp_row)
