@@ -197,7 +197,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                      resample=True)
             # the trident plots are not needed ; just take up lots of space
             filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
-            sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
+            # sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
             line_dict[line] = sg
 
         if args.velocities:
