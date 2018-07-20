@@ -15,6 +15,8 @@ from consistency import phase_color_key, metal_color_key, species_dict, categori
 
 import argparse
 
+import trident
+
 
 CORE_WIDTH = 20.
 
@@ -265,6 +267,9 @@ if __name__ == "__main__":
         haloname = "halo008508_nref11f"
 
     ds = yt.load(ds_loc)
+    trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
+                    'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
+
     dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i010.4-a2.25_v5_rsp.fits.gz']
 
     for filename in dataset_list:
