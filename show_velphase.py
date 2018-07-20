@@ -200,9 +200,69 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
     plt.close(fig)
 
 
+def parse_args():
+    '''
+    Parse command line arguments.  Returns args object.
+    '''
+    parser = argparse.ArgumentParser(description="extracts spectra from refined region")
+
+    parser.add_argument('--run', metavar='run', type=str, action='store',
+                        help='which run? default is nref9f')
+    parser.set_defaults(run="nref9f")
+
+    parser.add_argument('--output', metavar='output', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(output="RD0020")
+
+    parser.add_argument('--system', metavar='system', type=str, action='store',
+                        help='which system are you on? default is oak')
+    parser.set_defaults(system="oak")
+
+    parser.add_argument('--fitsfile', metavar='fitsfile', type=str, action='store',
+                        help='what fitsfile would you like to read in? this does not work yet')
+
+
+    args = parser.parse_args()
+    return args
+
 if __name__ == "__main__":
 
-    
+    args = parse_args()
+    if args.system == "oak":
+        ds_base = "/astro/simulations/FOGGIE/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "dhumuha" or args.system == "palmetto":
+        ds_base = "/Users/molly/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "harddrive":
+        ds_base = "/Volumes/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "pancho":
+        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
+    elif args.system == "lefty":
+        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
+
+    if args.run == "natural":
+        ds_loc = ds_base + "halo_008508/nref11n/natural/" + args.output + "/" + args.output
+        output_dir = output_path + "plots_halo_008508/nref11n/natural/spectra/"
+        haloname = "halo008508_nref11n"
+    elif args.run == "nref10f":
+        ds_loc =  ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/" + args.output + "/" + args.output
+        output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
+        haloname = "halo008508_nref11n_nref10f"
+    elif args.run == "nref9f":
+        path_part = "halo_008508/nref11n/nref11n_"+args.run+"_refine200kpc/"
+        ds_loc =  ds_base + path_part + args.output + "/" + args.output
+        output_dir = output_path + "plots_"+path_part+"spectra/"
+        haloname = "halo008508_nref11n_nref9f"
+    elif args.run == "nref11f":
+        ds_loc =  ds_base + "halo_008508/nref11n/nref11f_refine200kpc/" + args.output + "/" + args.output
+        output_dir = output_path + "plots_halo_008508/nref11n/nref11f_refine200kpc/spectra/"
+        haloname = "halo008508_nref11f"
+
+    ds = yt.load(ds_loc)
     dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i010.4-a2.25_v5_rsp.fits.gz']
 
     for filename in dataset_list:
