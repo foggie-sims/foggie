@@ -3,6 +3,10 @@ import numpy as np
 mpl.use('agg')
 import seaborn as sns
 
+import astropy.units as u
+c = 299792.458 * u.Unit('km/s')
+c_kms = 299792.458
+
 default_width = 85.  # kpc in projection
 
 axes_label_dict = {'density':'log Density [g / cm$^3$]',
