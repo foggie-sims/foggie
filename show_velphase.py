@@ -11,16 +11,17 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 from matplotlib.gridspec import GridSpec
-from consistency import phase_color_key, metal_color_key, species_dict, categorize_by_temp, categorize_by_fraction, categorize_by_metallicity, metal_color_map
+from consistency import *
 
 import argparse
 
 import trident
 
 
+
 CORE_WIDTH = 20.
 
-def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
+def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     """ the docstring is missing, is it??? """
 
     ray_s = ray_start.ndarray_view()
@@ -167,20 +168,22 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
     ax3.step(si1[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)])
     ax4.step(o6[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)])
 
-
-    vel = (line_dict['H I 1216'].lambda_field.ndarray_view()/(1.+current_redshift) - 1215.67) / 1215.67 * 3e5
-    ax7.step(vel, line_dict['H I 1216'].flux_field)
+    restwave = hdulist['H I 1216'].header['RESTWAVE']
+    vel = (hdulist['H I 1216'].data['disp']/(1.+current_redshift) - restwave) / restwave * c_kms
+    ax7.step(vel, hdulist['H I 1216'].data['flux'])
     ax7.set_xlim(-300,300)
     ax7.set_ylim(0,1)
 
-    vel = (line_dict['Si II 1260'].lambda_field.ndarray_view()/(1.+current_redshift) - 1260.4221) / 1260.4221 * 3e5
-    ax8.step(vel, line_dict['Si II 1260'].flux_field)
+    restwave = hdulist['Si II 1260'].header['RESTWAVE']
+    vel = (hdulist['Si II 1260'].data['disp']/(1.+current_redshift) - restwave) / restwave * c_kms
+    ax8.step(vel, hdulist['Si II 1260'].data['flux'])
     ax8.set_xlim(-300,300)
     ax8.set_ylim(0,1)
     ax8.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
-    vel = (line_dict['O VI 1032'].lambda_field.ndarray_view()/(1.+current_redshift) - 1031.9261) / 1031.9261 * 3e5
-    ax9.step(vel, line_dict['O VI 1032'].flux_field)
+    restwave = hdulist['O VI 1032'].header['RESTWAVE']
+    vel = (hdulist['O VI 1032'].data['disp']/(1.+current_redshift) - restwave) / restwave * c_kms
+    ax9.step(vel, hdulist['O VI 1032'].data['flux'])
     ax9.set_xlim(-300,300)
     ax9.set_ylim(0,1)
     ax9.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
@@ -270,7 +273,7 @@ if __name__ == "__main__":
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
                     'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
 
-    dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i010.4-a2.25_v5_rsp.fits.gz']
+    dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i010.4-a2.25_v5_los.fits.gz']
 
     for filename in dataset_list:
         print "opening ", out_fits_name
@@ -295,6 +298,6 @@ if __name__ == "__main__":
                                 "Si_p2_number_density",
                                 "Si_p1_number_density", "Si_p3_number_density",
                                 "Ne_p7_number_density"])
-
-        show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot)
+        fileroot = filename.strip('_los.fits.gz')
+        show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot)
         hdulist.close()
