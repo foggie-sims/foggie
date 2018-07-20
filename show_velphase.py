@@ -170,20 +170,20 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax4.step(o6[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)])
 
     restwave = hdulist['H I 1216'].header['RESTWAVE']
-    vel = (hdulist['H I 1216'].data['disp']/(1.+current_redshift) - restwave) / restwave * c_kms
+    vel = (hdulist['H I 1216'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
     ax7.step(vel, hdulist['H I 1216'].data['flux'])
     ax7.set_xlim(-300,300)
     ax7.set_ylim(0,1)
 
     restwave = hdulist['Si II 1260'].header['RESTWAVE']
-    vel = (hdulist['Si II 1260'].data['disp']/(1.+current_redshift) - restwave) / restwave * c_kms
+    vel = (hdulist['Si II 1260'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
     ax8.step(vel, hdulist['Si II 1260'].data['flux'])
     ax8.set_xlim(-300,300)
     ax8.set_ylim(0,1)
     ax8.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
     restwave = hdulist['O VI 1032'].header['RESTWAVE']
-    vel = (hdulist['O VI 1032'].data['disp']/(1.+current_redshift) - restwave) / restwave * c_kms
+    vel = (hdulist['O VI 1032'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
     ax9.step(vel, hdulist['O VI 1032'].data['flux'])
     ax9.set_xlim(-300,300)
     ax9.set_ylim(0,1)
@@ -286,6 +286,9 @@ if __name__ == "__main__":
         ray_end = [float(ray_end_str.split(",")[0].strip('unitary')), \
                float(ray_end_str.split(",")[1].strip('unitary')), \
                float(ray_end_str.split(",")[2].strip('unitary'))]
+        rs, re = np.array(ray_start), np.array(ray_end)
+        rs = ds.arr(rs, "code_length")
+        re = ds.arr(re, "code_length")
         ray = ds.ray(rs, re)
         ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
         ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
@@ -300,5 +303,5 @@ if __name__ == "__main__":
                                 "Si_p1_number_density", "Si_p3_number_density",
                                 "Ne_p7_number_density"])
         fileroot = filename.strip('_los.fits.gz')
-        show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot)
+        show_velphase(ds, ray_df, rs, re, hdulist, fileroot)
         hdulist.close()
