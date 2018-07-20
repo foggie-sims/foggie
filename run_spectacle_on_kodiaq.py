@@ -153,7 +153,7 @@ def run_spectacle_on_kodiaq(**kwargs):
                 # OK, now save this information as a row in the relevant table
                 comp_table = spec_mod.stats(velocity)
                 print(comp_table)
-                tot_col = np.log10(np.sum(np.power(10.0,comp_table['col_dens'])))
+                tot_col = np.log10(np.sum(np.power(10.0,this_ion['log_N_i'][comp])))
                 Nmin = np.size(np.where(flux[argrelextrema(flux, np.less)[0]] < (1-threshold)))
                 tot_ew = equivalent_width(wavelength_rest, flux, continuum=1.0)
                 tot_dv90 = delta_v_90(velocity, flux, continuum=1.0)
