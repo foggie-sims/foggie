@@ -61,8 +61,8 @@ def parse_args():
     parser.set_defaults(axis="short")
 
     parser.add_argument('--plot', metavar='plot', action='store_true',
-    parser.add_argument('--no-plot', metavar='plot', action='store_false',
                         help='make plots?')
+    parser.add_argument('--no-plot', metavar='plot', action='store_false')
     parser.set_defaults(plot=False)
 
     args = parser.parse_args()
