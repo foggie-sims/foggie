@@ -59,12 +59,12 @@ def extract_spectra(ds, impact, **kwargs):
         print "opening ", out_fits_name
         hdulist = fits.open(out_fits_name)
         ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
-        ray_start = [float(ray_start_str.split(",")[0]), \
-               float(ray_start_str.split(",")[1]), \
-               float(ray_start_str.split(",")[2])]
-        ray_end = [float(ray_end_str.split(",")[0]), \
-               float(ray_end_str.split(",")[1]), \
-               float(ray_end_str.split(",")[2])]
+        ray_start = [float(ray_start_str.split(",")[0].strip('unitary')), \
+               float(ray_start_str.split(",")[1].strip('unitary')), \
+               float(ray_start_str.split(",")[2].strip('unitary'))]
+        ray_end = [float(ray_end_str.split(",")[0].strip('unitary')), \
+               float(ray_end_str.split(",")[1].strip('unitary')), \
+               float(ray_end_str.split(",")[2].strip('unitary'))]
         rs, re = np.array(ray_start), np.array(ray_end)
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")

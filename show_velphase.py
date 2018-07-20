@@ -280,12 +280,12 @@ if __name__ == "__main__":
         print "opening ", filename
         hdulist = fits.open(filename)
         ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
-        ray_start = [float(ray_start_str.split(",")[0]), \
-               float(ray_start_str.split(",")[1]), \
-               float(ray_start_str.split(",")[2])]
-        ray_end = [float(ray_end_str.split(",")[0]), \
-               float(ray_end_str.split(",")[1]), \
-               float(ray_end_str.split(",")[2])]
+        ray_start = [float(ray_start_str.split(",")[0].strip('unitary')), \
+               float(ray_start_str.split(",")[1].strip('unitary')), \
+               float(ray_start_str.split(",")[2].strip('unitary'))]
+        ray_end = [float(ray_end_str.split(",")[0].strip('unitary')), \
+               float(ray_end_str.split(",")[1].strip('unitary')), \
+               float(ray_end_str.split(",")[2].strip('unitary'))]
         ray = ds.ray(rs, re)
         ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
         ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
