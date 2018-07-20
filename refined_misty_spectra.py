@@ -60,9 +60,9 @@ def parse_args():
                         help='which linelist: long, kodiaq, or short? default is short')
     parser.set_defaults(axis="short")
 
-    parser.add_argument('--plot', metavar='plot', action='store_true',
+    parser.add_argument('--plot', dest='plot', action='store_true',
                         help='make plots?')
-    parser.add_argument('--no-plot', metavar='plot', action='store_false')
+    parser.add_argument('--no-plot', dest='plot', action='store_false')
     parser.set_defaults(plot=False)
 
     args = parser.parse_args()
