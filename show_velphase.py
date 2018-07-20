@@ -17,6 +17,7 @@ import argparse
 
 import trident
 import yt
+from astropy.io import fits
 
 
 CORE_WIDTH = 20.
