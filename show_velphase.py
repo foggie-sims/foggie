@@ -277,6 +277,19 @@ if __name__ == "__main__":
         ray_end = [float(ray_end_str.split(",")[0]), \
                float(ray_end_str.split(",")[1]), \
                float(ray_end_str.split(",")[2])]
+        ray = ds.ray(rs, re)
+        ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
+        ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
+        ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
+        ray_df = ray.to_dataframe(["x", "y", "z", "density", "temperature",
+                                "metallicity", "HI_Density",
+                                "x-velocity", "y-velocity", "z-velocity",
+                                "C_p2_number_density", "C_p3_number_density",
+                                "H_p0_number_density",
+                                "Mg_p1_number_density", "O_p5_number_density",
+                                "Si_p2_number_density",
+                                "Si_p1_number_density", "Si_p3_number_density",
+                                "Ne_p7_number_density"])
 
         show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot)
         hdulist.close()
