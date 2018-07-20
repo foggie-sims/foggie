@@ -15,7 +15,6 @@ from astropy.table import Table
 from get_refine_box import get_refine_box
 from get_proper_box_size import get_proper_box_size
 from get_halo_center import get_halo_center
-from plot_misty_spectra import plot_misty_spectra
 
 import show_velphase as sv
 
@@ -60,6 +59,11 @@ def parse_args():
     parser.add_argument('--linelist', metavar='linelist', type=str, action='store',
                         help='which linelist: long, kodiaq, or short? default is short')
     parser.set_defaults(axis="short")
+
+    parser.add_argument('--plot', metavar='plot', action='store_true',
+    parser.add_argument('--no-plot', metavar='plot', action='store_false',
+                        help='make plots?')
+    parser.set_defaults(plot=False)
 
     args = parser.parse_args()
     return args
@@ -200,13 +204,17 @@ def generate_random_rays(ds, halo_center, **kwargs):
             sv.show_velphase(ds, ray_df, rs, re, line_dict, filespecout_base)
 
         MISTY.write_out(hdulist,filename=out_fits_name)
-        plot_misty_spectra(hdulist, outname=out_plot_name)
+        if args.plot:
+            plot_misty_spectra(hdulist, outname=out_plot_name)
 
         print("done with generate_random_rays")
 
 if __name__ == "__main__":
 
     args = parse_args()
+    if args.plot:
+        from plot_misty_spectra import plot_misty_spectra
+
     if args.system == "oak":
         ds_base = "/astro/simulations/FOGGIE/"
         output_path = "/Users/molly/Dropbox/foggie-collab/"
@@ -257,7 +265,7 @@ if __name__ == "__main__":
     elif args.linelist == 'kodiaq':
         line_list = ['H I 1216', 'H I 919', \
                         'Si II 1260', 'Si IV 1394', 'C IV 1548', 'O VI 1032']
-    else: ## short
+    else: ## short --- these are what show_velphase has
         line_list = ['H I 1216', 'Si II 1260', 'O VI 1032']
 
     ds = yt.load(ds_loc)
