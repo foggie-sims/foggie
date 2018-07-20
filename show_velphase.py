@@ -13,6 +13,8 @@ mpl.rcParams['font.family'] = 'stixgeneral'
 from matplotlib.gridspec import GridSpec
 from consistency import phase_color_key, metal_color_key, species_dict, categorize_by_temp, categorize_by_fraction, categorize_by_metallicity, metal_color_map
 
+import argparse
+
 
 CORE_WIDTH = 20.
 
