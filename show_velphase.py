@@ -202,9 +202,19 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
 
 if __name__ == "__main__":
 
+    
     dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i010.4-a2.25_v5_rsp.fits.gz']
 
     for filename in dataset_list:
+        print "opening ", out_fits_name
         hdulist = fits.open(filename)
+        ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
+        ray_start = [float(ray_start_str.split(",")[0]), \
+               float(ray_start_str.split(",")[1]), \
+               float(ray_start_str.split(",")[2])]
+        ray_end = [float(ray_end_str.split(",")[0]), \
+               float(ray_end_str.split(",")[1]), \
+               float(ray_end_str.split(",")[2])]
+
         show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot)
         hdulist.close()
