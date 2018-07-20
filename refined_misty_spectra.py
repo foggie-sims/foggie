@@ -57,6 +57,10 @@ def parse_args():
                         help='which axis? default is x')
     parser.set_defaults(axis="x")
 
+    parser.add_argument('--linelist', metavar='linelist', type=str, action='store',
+                        help='which linelist: long, kodiaq, or short? default is short')
+    parser.set_defaults(axis="short")
+
     args = parser.parse_args()
     return args
 
@@ -113,14 +117,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
     axis = kwargs.get("axis",'x')
     output_dir = kwargs.get("output_dir", ".")
     haloname = kwargs.get("haloname","somehalo")
-    long_line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973',
-                           'H I 950', 'H I 919', 'Al II 1671', 'Al III 1855', \
-                           'Si II 1260', 'Si III 1206', 'Si IV 1394', \
-                           'C II 1335', 'C III 977', 'C IV 1548', \
-                           'O VI 1032', 'Ne VIII 770'])
-
-    line_list = kwargs.get("line_list", ['H I 1216', 'H I 919', \
-                        'Si II 1260', 'Si IV 1394', 'C IV 1548', 'O VI 1032'])
+    line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'O VI 1032'])
 
     proper_box_size = get_proper_box_size(ds)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
@@ -251,9 +248,17 @@ if __name__ == "__main__":
         output_dir = output_path + "plots_halo_008508/nref11n/nref11f_refine200kpc/spectra/"
         haloname = "halo008508_nref11f"
 
-
-
-
+    if args.linelist == 'long':
+        line_list = ['H I 1216', 'H I 1026', 'H I 973',
+                       'H I 950', 'H I 919', 'Al II 1671', 'Al III 1855', \
+                       'Si II 1260', 'Si III 1206', 'Si IV 1394', \
+                       'C II 1335', 'C III 977', 'C IV 1548', \
+                       'O VI 1032', 'Ne VIII 770']
+    elif args.linelist == 'kodiaq':
+        line_list = ['H I 1216', 'H I 919', \
+                        'Si II 1260', 'Si IV 1394', 'C IV 1548', 'O VI 1032']
+    else: ## short
+        line_list = ['H I 1216', 'Si II 1260', 'O VI 1032']
 
     ds = yt.load(ds_loc)
 
@@ -265,7 +270,7 @@ if __name__ == "__main__":
     halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
     halo_center = get_halo_center(ds, refine_box_center)[0]
 
-    generate_random_rays(ds, halo_center, haloname=haloname, track=track, \
+    generate_random_rays(ds, halo_center, haloname=haloname, track=track, line_list=line_list, \
                          output_dir=output_dir, Nrays=args.Nrays, seed=args.seed, axis=args.axis)
 
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
