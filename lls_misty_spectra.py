@@ -177,7 +177,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
         print(ray_start, ray_end, filespecout_base)
 
         hdulist = MISTY.write_header(triray,start_pos=ray_start,end_pos=ray_end,
-                      lines=line_list, impact=impacts[i])
+                      lines=line_list, impact=impacts[i], redshift=ds.current_redshift)
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
 
         # quick_spectrum(ds, triray, filespecout_base)

@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import numpy as np
 import MISTY
 import logging
@@ -20,7 +22,7 @@ from astropy.convolution import Gaussian1DKernel, convolve
 import astropy.units as u
 
 from spectacle.analysis import Resample
-from spectacle.core.spectrum import Spectrum1D
+from spectacle.core.spectrum import Spectrum1DModel
 
 # from consistency import *
 
@@ -43,10 +45,8 @@ def plot_misty_spectra(hdulist, **kwargs):
     except:
         zsnap = np.median(hdulist[3].data['redshift'])
     zmin, zmax = (zsnap-0.004), (zsnap+0.004)
-    vmin, vmax = -1000, 1000
+    vmin, vmax = -800, 800
 
-    # Construct spectacle spectrum
-    spectrum = Spectrum1D(redshift=zsnap)
 
     print("                   ")
     print("before line loops")
@@ -54,42 +54,49 @@ def plot_misty_spectra(hdulist, **kwargs):
     for line in range(Nlines):
         ax_spec = fig.add_subplot(gs[line, 0])
         try:
+            # Construct spectacle spectrum
+            spectrum = Spectrum1DModel(redshift=zsnap)
+            # spectrum = Spectrum1DModel(redshift=0.0)
             ext = hdulist[line+2]
             name = ext.header['LINENAME']
             lambda_0 = ext.header['RESTWAVE'] * u.AA
             f_value = ext.header['F_VALUE']
             gamma = ext.header['GAMMA']
+            Ncomp = ext.header['NCOMP']
+            print(line, name)
 
-            for i in range(len([x for x in ext.header if 'FITLCEN' in x])):
-                centroid = ext.header['FITLCEN{}'.format(i)] * u.AA
-                delta = centroid - lambda_0
-                col_dens = ext.header['FITCOL{}'.format(i)] * u.Unit('1/cm2')
-                v_dop = ext.header['FITB{}'.format(i)] * u.Unit('cm/s')
-
+            for i in range(Ncomp):
+                delta_v = ext.header['FITVCEN{}'.format(i)] * u.Unit('km/s')
+                col_dens = ext.header['FITCOL{}'.format(i)]
+                v_dop = ext.header['FITB{}'.format(i)] * u.Unit('km/s')
+                print('i:',i,delta_v, col_dens, v_dop)
                 spectrum.add_line(name=name, lambda_0=lambda_0, f_value=f_value,
                                   gamma=gamma, column_density=col_dens, v_doppler=v_dop,
-                                  delta_lambda=delta)
-                z_comp = zsnap + (delta / lambda_0) * (1+zsnap)
-                ax_spec.plot([z_comp, z_comp], [1.05, 0.95], color='k')
+                                  delta_v=delta_v)
+                ax_spec.plot([delta_v.value * (1 + zsnap), delta_v.value * (1 + zsnap)], [1.05, 0.95], color='k')
 
             ### _lsf.fits files have '_obs' while _los.fits files don't
             # ax_spec.step(redshift, flux, color='darkorange',lw=1)
             try:
                 redshift = hdulist[line+2].data['redshift']
                 flux = hdulist[line+2].data['flux']
+                wavelength_obs = hdulist[line_name].data['disp'] * u.AA
             except:
                 redshift = hdulist[line+2].data['redshift_obs']
                 flux = hdulist[line+2].data['flux_obs']
-            ax_spec.plot(redshift, np.ones(len(redshift)),color='k',lw=1, ls=":")
-            ax_spec.step(redshift, flux, color='purple', lw=1)
+                wavelength_obs = hdulist[name].data['disp_obs'] * u.AA
+            with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(lambda_0)):
+                velocity = (wavelength_obs / (1 + zsnap)).to('km/s') * (1 + zsnap)
+            ax_spec.plot(velocity, np.ones(len(velocity)),color='k',lw=1, ls=":")
+            ax_spec.step(velocity, flux, color='#984ea3')
             if overplot:
-                ax_spec.step(hdulist[line+2].data['redshift_obs'], spectrum.flux(hdulist[line+2].data['disp_obs'] * u.AA), color='darkorange', lw=1)
-            ax_spec.text(zmin + 0.0001, 0, hdulist[line+2].header['LINENAME'], fontsize=10.)
+                ax_spec.step(velocity, spectrum.flux(velocity), color='darkorange', lw=1, ls="--", dashes=(5, 2))
+            ax_spec.text(vmin + 50, 0, hdulist[line+2].header['LINENAME'], fontsize=10.)
         except Exception as e:
             logging.error("Plotting failed because: \n%s", e)
-        ## eventually want to plot in velocity space and actually label the bottom axis but :shrug:
-        ax_spec.xaxis.set_major_locator(ticker.NullLocator())
-        plt.xlim(zmin, zmax)
+        if line < (Nlines-1):
+            ax_spec.xaxis.set_major_locator(ticker.NullLocator())
+        plt.xlim(vmin, vmax)
         plt.ylim(-0.05, 1.05)
         plt.subplots_adjust(wspace=None, hspace=None)
     print("                   ")
@@ -102,7 +109,7 @@ def plot_misty_spectra(hdulist, **kwargs):
 
 if __name__ == "__main__":
 
-    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd0020*axx*v5*rsp.fits.gz'))
+    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd0018*axx*v5*rsp.fits.gz'))
     dataset_list = long_dataset_list
 
     for filename in dataset_list:

@@ -8,16 +8,13 @@ from datashader import reductions
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+mpl.rcParams['font.family'] = 'stixgeneral'
 from matplotlib.gridspec import GridSpec
 from consistency import phase_color_key, metal_color_key, species_dict, categorize_by_temp, categorize_by_fraction, categorize_by_metallicity, metal_color_map
 
 
 CORE_WIDTH = 20.
-
-def blank_tickmarks(axis):
-    axis.set_xticklabels(np.full(100, ' '))
-    axis.set_yticklabels(np.full(100, ' '))
-    return axis
 
 def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
     """ the docstring is missing, is it??? """
@@ -55,7 +52,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
     df.metal_label = df.metal_label.astype('category')
 
     #establish the grid of plots and obtain the axis objects
-    plt.figure(figsize=(8,6))
+    fig = plt.figure(figsize=(8,6))
     gs = GridSpec(2, 5, width_ratios=[1, 1, 5, 5, 5], height_ratios=[4, 1])
     ax0 = plt.subplot(gs[0])
     ax1 = plt.subplot(gs[1])
@@ -127,7 +124,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
 
 
     #now iterate over the species to get the ion fraction plots
-    for species, ax, lax in zip(['HI', 'SiIII', 'OVI'], [ax2, ax3, ax4], [ax7, ax8, ax9]):
+    for species, ax, lax in zip(['HI', 'SiII', 'OVI'], [ax2, ax3, ax4], [ax7, ax8, ax9]):
 
         print("Current species: ", species)
         cvs = dshader.Canvas(plot_width=800, plot_height=300,
@@ -168,18 +165,18 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
 
 
     vel = (line_dict['H I 1216'].lambda_field.ndarray_view()/(1.+current_redshift) - 1215.67) / 1215.67 * 3e5
-    ax7.plot(vel, line_dict['H I 1216'].flux_field)
+    ax7.step(vel, line_dict['H I 1216'].flux_field)
     ax7.set_xlim(-300,300)
     ax7.set_ylim(0,1)
 
     vel = (line_dict['Si II 1260'].lambda_field.ndarray_view()/(1.+current_redshift) - 1260.4221) / 1260.4221 * 3e5
-    ax8.plot(vel, line_dict['Si II 1260'].flux_field)
+    ax8.step(vel, line_dict['Si II 1260'].flux_field)
     ax8.set_xlim(-300,300)
     ax8.set_ylim(0,1)
     ax8.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
     vel = (line_dict['O VI 1032'].lambda_field.ndarray_view()/(1.+current_redshift) - 1031.9261) / 1031.9261 * 3e5
-    ax9.plot(vel, line_dict['O VI 1032'].flux_field)
+    ax9.step(vel, line_dict['O VI 1032'].flux_field)
     ax9.set_xlim(-300,300)
     ax9.set_ylim(0,1)
     ax9.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
@@ -187,11 +184,27 @@ def show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot):
 
     ax0.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax1.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    ax2 = blank_tickmarks(ax2)
-    ax3 = blank_tickmarks(ax3)
-    ax4 = blank_tickmarks(ax4)
-    ax5 = blank_tickmarks(ax5)
-    ax6 = blank_tickmarks(ax6)
+    ax2.axes.get_xaxis().set_ticks([])
+    ax2.axes.get_yaxis().set_ticks([])
+    ax3.axes.get_xaxis().set_ticks([])
+    ax3.axes.get_yaxis().set_ticks([])
+    ax4.axes.get_xaxis().set_ticks([])
+    ax4.axes.get_yaxis().set_ticks([])
+    ax5.axes.get_xaxis().set_ticks([])
+    ax5.axes.get_yaxis().set_ticks([])
+    ax6.axes.get_xaxis().set_ticks([])
+    ax6.axes.get_yaxis().set_ticks([])
 
     gs.update(hspace=0.0, wspace=0.1)
     plt.savefig(fileroot+'_velphase.png', dpi=300)
+    plt.close(fig)
+
+
+if __name__ == "__main__":
+
+    dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i010.4-a2.25_v5_rsp.fits.gz']
+
+    for filename in dataset_list:
+        hdulist = fits.open(filename)
+        show_velphase(ds, ray_df, ray_start, ray_end, line_dict, fileroot)
+        hdulist.close()

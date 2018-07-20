@@ -99,6 +99,10 @@ def parse_args():
                         help='make NeVIII?, default if not')
     parser.set_defaults(ovi=False)
 
+    parser.add_argument('--fexiv', dest='fexiv', action='store_true',
+                        help='make FeXIV?, default if not')
+    parser.set_defaults(ovi=False)
+
     parser.add_argument('--silicon', dest='silicon', action='store_true',
                         help='make Silicon plots?, default if not')
     parser.set_defaults(ovi=False)
@@ -175,6 +179,44 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
 
 #-----------------------------------------------------------------------------------------------------
 
+def make_projection_plot_no_labels(ds, prefix, field, zmin, zmax, cmap, **kwargs):
+    axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
+    box = kwargs.get("box", "")
+    center = kwargs.get("center", "")
+    appendix = kwargs.get("appendix", "")
+    width = kwargs.get("width", default_width)
+    resolution = kwargs.get("resolution", (1048,1048)) # correct for the nref11f box
+    ision  = kwargs.get("ision", False)
+    if ision:
+        basename = prefix + 'ions/' + ds.basename + appendix
+        if not (os.path.exists(prefix + 'ions/' )):
+            os.system("mkdir " + prefix + 'ions/' )
+    else:
+        basename = prefix + 'physical/' + ds.basename + appendix
+        if not (os.path.exists(prefix + 'physical/' )):
+            os.system("mkdir " + prefix + 'physical' )
+    for ax in axis:
+        if ision:
+            print("field = ", species_dict[field])
+            p = yt.ProjectionPlot(ds, ax, species_dict[field], center=center, data_source=box, width=(width, 'kpc'))
+            p.set_zlim(species_dict[field], zmin, zmax)
+            p.set_cmap(field=species_dict[field], cmap=cmap)
+        else:
+            if field == "density" or field == "metal_density":
+                p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, width=(width, 'kpc'))
+                p.set_unit(('gas','density'),'Msun/pc**2')
+                p.set_unit(('gas','metal_density'),'Msun/pc**2')
+            else:
+                p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, weight_field=("gas","density"), width=(width, 'kpc'))
+            p.set_zlim(field, zmin, zmax)
+            p.set_cmap(field=field, cmap=cmap)
+        p.hide_colorbar()
+        p.hide_axes()
+        p.save(basename + '_Projection_' + ax + '_' + field + '.png')
+        p.save(basename + '_Projection_' + ax + '_' + field + '.pdf')
+
+#-----------------------------------------------------------------------------------------------------
+
 def make_slice_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
     axis = kwargs.get("axis", ['x','y','z']) # if axis not set, do all
     box = kwargs.get("box", "")
@@ -221,16 +263,16 @@ def make_resolution_slice(ds, prefix, **kwargs):
     basename = prefix + 'physical/' + ds.basename + appendix
     if not (os.path.exists(prefix + 'physical/' )):
         os.system("mkdir " + prefix + 'physical' )
-    s = yt.SlicePlot(ds, "x", 'dx', center=center, width=(1.5*width, 'kpc'))
-    s.set_cmap('dx', discrete_cmap)
-    s.set_unit('dx','kpc')
-    s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
-    plot = s.plots['dx']
-    s._setup_plots()
-    colorbar = plot.cb
-    colorbar.set_label('cell size (kpc)')
-    s.save(ds.basename + '_Slice_x_cellsize_dx.png')
-    s.save(basename + '_Slice_x_cellsize_dx.png')
+    # s = yt.SlicePlot(ds, "x", 'dx', center=center, width=(1.5*width, 'kpc'))
+    # s.set_cmap('dx', discrete_cmap)
+    # s.set_unit('dx','kpc')
+    # s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
+    # plot = s.plots['dx']
+    # s._setup_plots()
+    # colorbar = plot.cb
+    # colorbar.set_label('cell size (kpc)')
+    # s.save(ds.basename + '_Slice_x_cellsize_dx.png')
+    # s.save(basename + '_Slice_x_cellsize_dx.png')
 
     s = yt.SlicePlot(ds, "y", 'dy', center=center, width=(1.5*width, 'kpc'))
     s.set_cmap('dy', discrete_cmap)
@@ -243,16 +285,16 @@ def make_resolution_slice(ds, prefix, **kwargs):
     s.save(ds.basename + '_Slice_y_cellsize_dy.png')
     s.save(basename + '_Slice_y_cellsize_dy.png')
 
-    s = yt.SlicePlot(ds, "z", 'dz', center=center, width=(1.5*width, 'kpc'))
-    s.set_cmap('dz', discrete_cmap)
-    s.set_unit('dz','kpc')
-    s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
-    plot = s.plots['dz']
-    s._setup_plots()
-    colorbar = plot.cb
-    colorbar.set_label('cell size (kpc)')
-    s.save(ds.basename + '_Slice_z_cellsize_dz.png')
-    s.save(basename + '_Slice_z_cellsize_dz.png')
+    # s = yt.SlicePlot(ds, "z", 'dz', center=center, width=(1.5*width, 'kpc'))
+    # s.set_cmap('dz', discrete_cmap)
+    # s.set_unit('dz','kpc')
+    # s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
+    # plot = s.plots['dz']
+    # s._setup_plots()
+    # colorbar = plot.cb
+    # colorbar.set_label('cell size (kpc)')
+    # s.save(ds.basename + '_Slice_z_cellsize_dz.png')
+    # s.save(basename + '_Slice_z_cellsize_dz.png')
 
 
 #-----------------------------------------------------------------------------------------------------
@@ -265,8 +307,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
 
     print(foggie_dir)
     track_name = foggie_dir + 'halo_00' + str(halo) + '/' + run + '/' + trackname
-#    if args.system == "pleiades":
-#        track_name = foggie_dir + "halo_008508/nref11f_refine200kpc_z4to2/halo_track"
+    if args.system == "pleiades" and args.run == 'nref11c_400kpc':
+        track_name = foggie_dir + "halo_008508/nref11c_nref8f_400kpc/halo_track"
     #### track_name = '/astro/simulations/FOGGIE/halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track'
 
     print("opening track: " + track_name)
@@ -282,6 +324,9 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
         prefix = output_dir + 'other_halo_plots/' + str(halo) + '/' + run + '/'
     if not (os.path.exists(prefix)):
         os.system("mkdir " + prefix)
+    if args.system == 'pleiades' and args.run == 'nref11c_400kpc':
+        run_dir = '/nobackup/mpeeples/halo_008508/nref11c_nref8f_400kpc/'
+        prefix = './'
 
     if outs == "all":
         print("looking for outputs in ", run_dir)
@@ -310,6 +355,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
             trident.add_ion_fields(ds, ions=['Ne VIII'])
         if args.silicon:
             trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV'])
+        if args.fexiv:
+            trident.add_ion_fields(ds, ions=['Fe XIV'])
 
         ## add metal density
         # ds.add_field(("gas", "metal_density"), function=_metal_density, units="g/cm**2")
@@ -510,6 +557,17 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
+        if args.fexiv:
+            make_projection_plot_no_labels(ds, prefix, "FeXIV",  \
+                            fe14_min, fe14_max, fe14_color_map, \
+                            ision=True, center=center, axis='x', box=refine_box, \
+                            width=refine_width, appendix="_refine_no_labels")
+            if args.box:
+                make_projection_plot(ds, prefix, "FeXIV",  \
+                            fe14_min, fe14_max, fe14_color_map, \
+                            ision=True, center=center, axis=axis, box=box, \
+                            width=width, appendix="_box")
+
     return "yay plots! all done!"
 
 
@@ -541,10 +599,14 @@ if __name__ == "__main__":
         run_loc = "nref11n/natural/"
         trackname = "halo_track"
         haloname = "halo008508_nref11n"
+        if args.system == 'pleiades':
+            run_loc = 'orig/nref11n_orig/'
     elif args.run == "nref10f":
         run_loc = "nref11n/nref11n_nref10f_refine200kpc/"
         trackname = "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
         haloname = "halo008508_nref11n_nref10f"
+        if args.system == 'pleiades':
+            run_loc = 'orig/nref11n_nref10f_orig/'
     elif args.run == "nref11n_selfshield":
         run_loc = "nref11n/nref11n_selfshield/"
         trackname = "halo_008508/nref11n/nref11n_selfshield/halo_track"
@@ -606,13 +668,13 @@ if __name__ == "__main__":
         if args.system == "pleiades":
             trackname = "halo_008508/nref11n_nref10f_selfshield_z6/halo_track"
             run_loc = "nref11n_selfshield_z15/"
-    elif args.run == "nref11n_nref10f_selfshield_z6":
+    elif args.run == "nref10f_selfshield":
         run_loc = "nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/"
         trackname = "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
         haloname = "halo008508_nref11n_nref10f_selfshield_z6"
         if args.system == "pleiades":
-            trackname = "./halo_track"
-            run_loc = "./"
+            trackname = "nref11n_nref10f_selfshield_z6/halo_track"
+            run_loc = "nref11n_nref10f_selfshield_z6/"
     elif args.run == "nref11c_nref9f":
         run_loc = "nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/"
         trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/halo_track"
@@ -626,8 +688,15 @@ if __name__ == "__main__":
         trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref8f_600kpc/halo_track"
         haloname = "halo008508_nref11c_nref8f_600kpc"
         if args.system == "pleiades":
-            trackname = "halo_008508/orig/nref11f_refine200kpc_z4to2/halo_track"
+            trackname = "halo_008508/nref11c_nref8f_600kpc/halo_track"
             run_loc = "nref11c_nref8f_600kpc/"
+    elif args.run == "nref11c_400kpc":
+        run_loc = "nref11n_selfshield_z15/nref11c_nref8f_400kpc/"
+        trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref8f_400kpc/halo_track"
+        haloname = "halo008508_nref11c_nref8f_400kpc"
+        if args.system == "pleiades":
+            trackname = "halo_008508/nref11c_nref8f_600kpc/halo_track"
+            run_loc = "nref11c_nref8f_400kpc/"
     elif args.run == "nref11f":
         run_loc = "nref11n/nref11f_refine200kpc/"
         trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"

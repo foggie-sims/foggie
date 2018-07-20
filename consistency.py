@@ -48,7 +48,8 @@ species_dict =  {'CIII':'C_p2_number_density',
                  'SiII':"Si_p1_number_density",
                  'SiIII':"Si_p2_number_density",
                  'SiIV':"Si_p3_number_density",
-                 'NeVIII':'Ne_p7_number_density'}
+                 'NeVIII':'Ne_p7_number_density',
+                 'FeXIV':'Fe_p13_number_density'}
 
 ion_frac_color_key = {b'all':'black',
                       b'low':'yellow',
@@ -67,7 +68,7 @@ density_slc_max = 5
 metal_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a",
                     "#ffe34d","darkorange"), as_cmap=True)
 metal_min = 1.e-4
-metal_max = 2.
+metal_max = 3.
 metal_density_min = 1.e-5
 metal_density_max = 250.
 
@@ -95,7 +96,7 @@ o6_max = 1.e15
 
 c4_color_map = "inferno"
 c4_min = 1.e11
-c4_max = 1.e15
+c4_max = 1.e16
 
 mg2_color_map = "plasma"
 mg2_min = 1.e10
@@ -116,6 +117,10 @@ si4_max = 1.e15
 ne8_color_map = "magma"
 ne8_min = 1.e11
 ne8_max = 1.e15
+
+fe14_color_map = "inferno"
+fe14_min = 1.e10
+fe14_max = 1.e15
 
 def categorize_by_temp(temp):
     """ define the temp category strings"""

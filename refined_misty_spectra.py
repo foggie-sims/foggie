@@ -55,7 +55,7 @@ def parse_args():
 
     parser.add_argument('--axis', metavar='axis', type=str, action='store',
                         help='which axis? default is x')
-    parser.set_defaults(seed="x")
+    parser.set_defaults(axis="x")
 
     args = parser.parse_args()
     return args
@@ -113,11 +113,14 @@ def generate_random_rays(ds, halo_center, **kwargs):
     axis = kwargs.get("axis",'x')
     output_dir = kwargs.get("output_dir", ".")
     haloname = kwargs.get("haloname","somehalo")
-    line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973',
+    long_line_list = kwargs.get("line_list", ['H I 1216', 'H I 1026', 'H I 973',
                            'H I 950', 'H I 919', 'Al II 1671', 'Al III 1855', \
                            'Si II 1260', 'Si III 1206', 'Si IV 1394', \
                            'C II 1335', 'C III 977', 'C IV 1548', \
                            'O VI 1032', 'Ne VIII 770'])
+
+    line_list = kwargs.get("line_list", ['H I 1216', 'H I 919', \
+                        'Si II 1260', 'Si IV 1394', 'C IV 1548', 'O VI 1032'])
 
     proper_box_size = get_proper_box_size(ds)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
@@ -180,7 +183,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
         print(ray_start, ray_end, filespecout_base)
 
         hdulist = MISTY.write_header(triray,start_pos=ray_start,end_pos=ray_end,
-                      lines=line_list, impact=impacts[i])
+                      lines=line_list, impact=impacts[i], redshift=ds.current_redshift)
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
 
         line_dict = {}
