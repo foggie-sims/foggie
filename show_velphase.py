@@ -16,7 +16,7 @@ from consistency import *
 import argparse
 
 import trident
-
+import yt
 
 
 CORE_WIDTH = 20.
