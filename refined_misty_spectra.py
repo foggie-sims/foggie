@@ -223,7 +223,7 @@ if __name__ == "__main__":
         from plot_misty_spectra import plot_misty_spectra
 
     foggie_dir, output_path, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
-    ds_loc = foggie_dir + run_loc  + args.output + "/" + args.output
+    ds_loc = foggie_dir + run_loc + args.output + "/" + args.output
 
     if args.linelist == 'long':
         line_list = ['H I 1216', 'H I 1026', 'H I 973',

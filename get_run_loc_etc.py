@@ -34,14 +34,14 @@ def get_run_loc_etc(args):
         if args.system == 'pleiades':
             run_loc = 'orig/nref11n_orig/'
     elif args.run == "nref10f":
-        run_loc = "halo_00"+ args.halo + "nref11n/nref11n_nref10f_refine200kpc/"
+        run_loc = "halo_00"+ args.halo + "/nref11n/nref11n_nref10f_refine200kpc/"
         trackname = foggie_dir + "halo_00"+ args.halo +"/nref11n/nref11n_nref10f_refine200kpc/halo_track"
         haloname = "halo008508_nref11n_nref10f"
         spectra_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
         if args.system == 'pleiades':
             run_loc = 'orig/nref11n_nref10f_orig/'
     elif args.run == "nref9f":
-        run_loc = "halo_00"+ args.halo + "nref11n/nref11n_nref9f_refine200kpc/"
+        run_loc = "halo_00"+ args.halo + "/nref11n/nref11n_nref9f_refine200kpc/"
         trackname = foggie_dir + "halo_00"+ args.halo +"/nref11n/nref11n_nref9f_refine200kpc/halo_track"
         haloname = "halo008508_nref11n_nref9f"
         path_part = "halo_008508/nref11n/nref11n_"+args.run+"_refine200kpc/"
