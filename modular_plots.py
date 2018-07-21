@@ -21,6 +21,7 @@ from consistency import *
 from get_refine_box import get_refine_box
 from get_halo_center import get_halo_center
 from get_proper_box_size import get_proper_box_size
+from get_run_loc_etc import get_run_loc_etc
 
 import seaborn as sns
 sns.set_style("whitegrid", {'axes.grid' : False})
@@ -579,133 +580,7 @@ if __name__ == "__main__":
     if not args.clobber:
         print("NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber")
 
-    if args.system == "oak":
-        foggie_dir = "/astro/simulations/FOGGIE/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "dhumuha" or args.system == "palmetto":
-        foggie_dir = "/Users/molly/foggie/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "harddrive":
-        foggie_dir = "/Volumes/foggie/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "nmearl":
-        foggie_dir = "/Users/nearl/data/"
-        output_path = "/Users/nearl/Desktop/"
-    elif args.system == "pleiades":
-        foggie_dir = "/nobackup/mpeeples/"
-        output_path = "/nobackup/mpeeples/"
-
-    if args.run == "natural":
-        run_loc = "nref11n/natural/"
-        trackname = "halo_track"
-        haloname = "halo008508_nref11n"
-        if args.system == 'pleiades':
-            run_loc = 'orig/nref11n_orig/'
-    elif args.run == "nref10f":
-        run_loc = "nref11n/nref11n_nref10f_refine200kpc/"
-        trackname = "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
-        haloname = "halo008508_nref11n_nref10f"
-        if args.system == 'pleiades':
-            run_loc = 'orig/nref11n_nref10f_orig/'
-    elif args.run == "nref11n_selfshield":
-        run_loc = "nref11n/nref11n_selfshield/"
-        trackname = "halo_008508/nref11n/nref11n_selfshield/halo_track"
-        haloname = "halo008508_nref11n_selfshield"
-        if args.system == "pleiades":
-            trackname = "halo_008508/nref11f_refine200kpc/halo_track"
-            run_loc = "nref11n_selfshield/"
-    elif args.run == "nref11n_startest_selfshield":
-        run_loc = "nref11n/nref11n_startest_selfshield/"
-        trackname = "halo_008508/nref11n/nref11n_selfshield/halo_track"
-        haloname = "halo008508_nref11n_startest_selfshield"
-        if args.system == "pleiades":
-            trackname = "halo_008508/nref11f_refine200kpc/halo_track"
-            run_loc = "nref11n_selfshield/"
-    elif args.run == "nref10n_nref8f_selfshield":
-        run_loc = "nref10n/nref10n_nref8f_selfshield/"
-        trackname = "halo_008508/nref10n/nref10n_nref8f_selfshield/halo_track"
-        haloname = "halo008508_nref10n_nref8f_selfshield"
-        if args.system == "pleiades":
-            trackname = "halo_008508/nref10n_nref8f_selfshield/halo_track"
-            run_loc = "nref10n_nref8f_selfshield/"
-    elif args.run == "nref11n_nref9f_startest":
-        run_loc = "nref11n/nref11n_nref9f_startest/"
-        trackname = "halo_008508/nref11n_nref9f_startest/halo_track"
-        haloname = "halo008508_nref11n_nref9f_startest"
-    elif args.run == "nref10n_nref8f_startest_selfshield":
-        run_loc = "nref10n/nref10n_nref8f_startest_selfshield/"
-        trackname = "halo_008508/nref10n/nref10n_nref8f_startest_selfshield/halo_track"
-        haloname = "halo008508_nref10n_nref8f_startest_selfshield"
-        if args.system == "pleiades":
-            trackname = "halo_008508/nref10n_nref8f_startest_selfshield/halo_track"
-            run_loc = "nref10n_nref8f_startest_selfshield/"
-    elif args.run == "nref10n_nref8f_startest10000_selfshield":
-        run_loc = "nref10n/nref10n_nref8f_startest10000_selfshield/"
-        trackname = "halo_008508/nref10n/nref10n_nref8f_startest10000_selfshield/halo_track"
-        haloname = "halo008508_nref10n_nref8f_startest10000_selfshield"
-        if args.system == "pleiades":
-            trackname = "halo_008508/nref10n_nref8f_startest10000_selfshield/halo_track"
-            run_loc = "nref10n_nref8f_startest10000_selfshield/"
-    elif args.run == "nref10n_nref8f_startest5000_selfshield":
-        run_loc = "nref10n/nref10n_nref8f_startest5000_selfshield/"
-        trackname = "halo_008508/nref10n/nref10n_nref8f_startest5000_selfshield/halo_track"
-        haloname = "halo008508_nref10n_nref8f_startest5000_selfshield"
-        if args.system == "pleiades":
-            trackname = "halo_008508/nref10n_nref8f_startest5000_selfshield/halo_track"
-            run_loc = "nref10n_nref8f_startest5000_selfshield/"
-    elif args.run == "nref10n_nref8f_startest_selfshield":
-        run_loc = "nref10n/nref10n_nref8f_startest_selfshield/"
-        trackname = "halo_008508/nref10n/nref10n_nref8f_startest_selfshield/halo_track"
-        haloname = "halo008508_nref10n_nref8f_startest_selfshield"
-        if args.system == "pleiades":
-            trackname = "halo_008508/nref10n_nref8f_startest_selfshield/halo_track"
-            run_loc = "nref10n_nref8f_startest_selfshield/"
-    elif args.run == "nref11n_selfshield_z15":
-        run_loc = "nref11n_selfshield_z15/natural/"
-        # trackname = "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
-        trackname = "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
-        haloname = "halo008508_nref11n_selfshield_z15"
-        if args.system == "pleiades":
-            trackname = "halo_008508/nref11n_nref10f_selfshield_z6/halo_track"
-            run_loc = "nref11n_selfshield_z15/"
-    elif args.run == "nref10f_selfshield":
-        run_loc = "nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/"
-        trackname = "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
-        haloname = "halo008508_nref11n_nref10f_selfshield_z6"
-        if args.system == "pleiades":
-            trackname = "nref11n_nref10f_selfshield_z6/halo_track"
-            run_loc = "nref11n_nref10f_selfshield_z6/"
-    elif args.run == "nref11c_nref9f":
-        run_loc = "nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/"
-        trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref9f_selfshield_z6/halo_track"
-        haloname = "halo008508_nref11c_nref9f_selfshield_z6"
-    elif args.run == "nref11c_400kpc":
-        run_loc = "nref11n_selfshield_z15/nref11c_nref5f_400kpc/"
-        trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref5f_400kpc/halo_track"
-        haloname = "halo008508_nref11c_nref5f_400kpc"
-    elif args.run == "nref11c_600kpc":
-        run_loc = "nref11n_selfshield_z15/nref11c_nref8f_600kpc/"
-        trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref8f_600kpc/halo_track"
-        haloname = "halo008508_nref11c_nref8f_600kpc"
-        if args.system == "pleiades":
-            trackname = "halo_008508/nref11c_nref8f_600kpc/halo_track"
-            run_loc = "nref11c_nref8f_600kpc/"
-    elif args.run == "nref11c_400kpc":
-        run_loc = "nref11n_selfshield_z15/nref11c_nref8f_400kpc/"
-        trackname = "halo_008508/nref11n_selfshield_z15/nref11c_nref8f_400kpc/halo_track"
-        haloname = "halo008508_nref11c_nref8f_400kpc"
-        if args.system == "pleiades":
-            trackname = "halo_008508/nref11c_nref8f_600kpc/halo_track"
-            run_loc = "nref11c_nref8f_400kpc/"
-    elif args.run == "nref11f":
-        run_loc = "nref11n/nref11f_refine200kpc/"
-        trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
-        haloname = "halo008508_nref11f"
-        if args.system == "pleiades":
-            trackname = "halo_008508/orig/nref11f_refine200kpc_z4to2/halo_track"
-            run_loc = "orig/nref11f_refine200kpc_z4to2/"
-
-    print("for now I am assuming you are using the Tempest halo even if you passed in something different")
+    foggie_dir, output_dir, run_loc, trackname, haloname = get_run_loc_etc(args)
 
     if args.output == "all" or args.output == "RD":
         message = plot_script(args.halo, foggie_dir, output_path, run_loc, "all", outs=args.output)

@@ -15,6 +15,7 @@ from astropy.table import Table
 from get_refine_box import get_refine_box
 from get_proper_box_size import get_proper_box_size
 from get_halo_center import get_halo_center
+from get_run_loc_etc import get_run_loc_etc
 
 import show_velphase as sv
 
@@ -217,46 +218,8 @@ if __name__ == "__main__":
     if args.plot:
         from plot_misty_spectra import plot_misty_spectra
 
-    if args.system == "oak":
-        ds_base = "/astro/simulations/FOGGIE/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "dhumuha" or args.system == "palmetto":
-        ds_base = "/Users/molly/foggie/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "harddrive":
-        ds_base = "/Volumes/foggie/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "nmearl":
-        ds_base = "/astro/simulations/FOGGIE/"
-        output_path = "/Users/nearl/Desktop/"
-    elif args.system == "pancho":
-        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
-        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
-    elif args.system == "lefty":
-        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
-        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
-
-    if args.run == "natural":
-        ds_loc = ds_base + "halo_008508/nref11n/natural/" + args.output + "/" + args.output
-        track_name = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
-        output_dir = output_path + "plots_halo_008508/nref11n/natural/spectra/"
-        haloname = "halo008508_nref11n"
-    elif args.run == "nref10f":
-        ds_loc =  ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/" + args.output + "/" + args.output
-        track_name = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
-        output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
-        haloname = "halo008508_nref11n_nref10f"
-    elif args.run == "nref9f":
-        path_part = "halo_008508/nref11n/nref11n_"+args.run+"_refine200kpc/"
-        ds_loc =  ds_base + path_part + args.output + "/" + args.output
-        track_name = ds_base + path_part + "halo_track"
-        output_dir = output_path + "plots_"+path_part+"spectra/"
-        haloname = "halo008508_nref11n_nref9f"
-    elif args.run == "nref11f":
-        ds_loc =  ds_base + "halo_008508/nref11n/nref11f_refine200kpc/" + args.output + "/" + args.output
-        track_name = ds_base + "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
-        output_dir = output_path + "plots_halo_008508/nref11n/nref11f_refine200kpc/spectra/"
-        haloname = "halo008508_nref11f"
+    foggie_dir, output_path, run_loc, trackname, haloname = get_run_loc_etc(args)
+    ds_loc = run_loc  + args.output + "/" + args.output
 
     if args.linelist == 'long':
         line_list = ['H I 1216', 'H I 1026', 'H I 973',
