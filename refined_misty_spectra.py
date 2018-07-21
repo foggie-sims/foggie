@@ -33,6 +33,10 @@ def parse_args():
                             help='make the velocity plots?, default is no')
     parser.set_defaults(velocities=False)
 
+    parser.add_argument('--halo', metavar='halo', type=str, action='store',
+                        help='which halo? default is 8508 (Tempest)')
+    parser.set_defaults(halo="8508")
+
     parser.add_argument('--run', metavar='run', type=str, action='store',
                         help='which run? default is natural')
     parser.set_defaults(run="natural")
@@ -219,7 +223,7 @@ if __name__ == "__main__":
         from plot_misty_spectra import plot_misty_spectra
 
     foggie_dir, output_path, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
-    ds_loc = run_loc  + args.output + "/" + args.output
+    ds_loc = foggie_dir + run_loc  + args.output + "/" + args.output
 
     if args.linelist == 'long':
         line_list = ['H I 1216', 'H I 1026', 'H I 973',
@@ -235,8 +239,8 @@ if __name__ == "__main__":
 
     ds = yt.load(ds_loc)
 
-    print("opening track: " + track_name)
-    track = Table.read(track_name, format='ascii')
+    print("opening track: " + trackname)
+    track = Table.read(trackname, format='ascii')
     track.sort('col1')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
