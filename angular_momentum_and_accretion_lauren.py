@@ -253,7 +253,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
             print('doing radius ', rad, '.......')
             if rad != np.max(radii):
                 if rad == radii[-1]:
-                    minrad,maxrad = ds.quan(0.,'kpc'),rad
+                    minrad,maxrad = ds.quan(0.5,'kpc'),rad
                 else:
                     idI = np.where(radii == rad)[0]
                     maxrad,minrad = rad,radii[idI[0]+1]
