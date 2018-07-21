@@ -141,10 +141,10 @@ def generate_random_rays(ds, halo_center, **kwargs):
                         "-a"+"{:4.2f}".format(angles[i])
         out_ray_name =  this_out_ray_basename + ".h5"
         rs, re = get_refined_ray_endpoints(ds, halo_center, track, impact=impacts[i])
-        out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])+"_v4_los.fits.gz"
-        out_plot_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])+"_v4_los.png"
+        out_name_base = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+"_i"+"{:05.1f}".format(impacts[i]) + \
+                        "-a"+"{:4.2f}".format(angles[i])+"_v4_los"
+        out_fits_name = out_name_base + ".fits.gz"
+        out_plot_name = out_name_base + ".png"
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         if args.velocities:
@@ -187,7 +187,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
                       lines=line_list, impact=impacts[i], redshift=ds.current_redshift)
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
 
-        line_dict = {}
+#        line_dict = {}
         for line in line_list:
             sg = MISTY.generate_line(triray, line,
                                      zsnap=ds.current_redshift,
@@ -196,12 +196,12 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                      use_spectacle=False,
                                      resample=True)
             # the trident plots are not needed ; just take up lots of space
-            filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
+            # filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
             # sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
-            line_dict[line] = sg
+            # line_dict[line] = sg
 
         if args.velocities:
-            sv.show_velphase(ds, ray_df, rs, re, line_dict, filespecout_base)
+            sv.show_velphase(ds, ray_df, rs, re, hdulist, out_name_base)
 
         MISTY.write_out(hdulist,filename=out_fits_name)
         if args.plot:
