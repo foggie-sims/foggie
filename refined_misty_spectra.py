@@ -200,10 +200,12 @@ def generate_random_rays(ds, halo_center, **kwargs):
             # sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
             # line_dict[line] = sg
 
+        MISTY.write_out(hdulist,filename=out_fits_name)
+
         if args.velocities:
+            print('making the velphase plot....')
             sv.show_velphase(ds, ray_df, rs, re, hdulist, out_name_base)
 
-        MISTY.write_out(hdulist,filename=out_fits_name)
         if args.plot:
             plot_misty_spectra(hdulist, outname=out_plot_name)
 
