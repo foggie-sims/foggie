@@ -580,7 +580,7 @@ if __name__ == "__main__":
     if not args.clobber:
         print("NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber")
 
-    foggie_dir, output_dir, run_loc, trackname, haloname = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dr = get_run_loc_etc(args)
 
     if args.output == "all" or args.output == "RD":
         message = plot_script(args.halo, foggie_dir, output_path, run_loc, "all", outs=args.output)

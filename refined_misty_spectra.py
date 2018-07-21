@@ -218,7 +218,7 @@ if __name__ == "__main__":
     if args.plot:
         from plot_misty_spectra import plot_misty_spectra
 
-    foggie_dir, output_path, run_loc, trackname, haloname = get_run_loc_etc(args)
+    foggie_dir, output_path, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
     ds_loc = run_loc  + args.output + "/" + args.output
 
     if args.linelist == 'long':
@@ -244,6 +244,6 @@ if __name__ == "__main__":
     halo_center = get_halo_center(ds, refine_box_center)[0]
 
     generate_random_rays(ds, halo_center, haloname=haloname, track=track, line_list=line_list, \
-                         output_dir=output_dir, Nrays=args.Nrays, seed=args.seed, axis=args.axis)
+                         output_dir=spectra_dir, Nrays=args.Nrays, seed=args.seed, axis=args.axis)
 
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")

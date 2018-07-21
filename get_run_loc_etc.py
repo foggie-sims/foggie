@@ -18,19 +18,42 @@ def get_run_loc_etc(args):
     elif args.system == "pleiades":
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackup/mpeeples/"
+    elif args.system == "pancho":
+        foggie_dir = "/Users/tumlinson/Dropbox/foggie-test/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
+    elif args.system == "lefty":
+        foggie_dir = "/Users/tumlinson/Dropbox/foggie-test/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
+
 
     if args.run == "natural":
         run_loc = "nref11n/natural/"
         trackname = "halo_track"
         haloname = "halo008508_nref11n"
+        spectra_dir = output_path + "plots_halo_008508/nref11n/natural/spectra/"
         if args.system == 'pleiades':
             run_loc = 'orig/nref11n_orig/'
     elif args.run == "nref10f":
         run_loc = "nref11n/nref11n_nref10f_refine200kpc/"
         trackname = "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
         haloname = "halo008508_nref11n_nref10f"
+        spectra_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
         if args.system == 'pleiades':
             run_loc = 'orig/nref11n_nref10f_orig/'
+    elif args.run == "nref9f":
+        run_loc = "nref11n/nref11n_nref9f_refine200kpc/"
+        trackname = "halo_008508/nref11n/nref11n_nref9f_refine200kpc/halo_track"
+        haloname = "halo008508_nref11n_nref9f"
+        path_part = "halo_008508/nref11n/nref11n_"+args.run+"_refine200kpc/"
+        spectra_dir = output_path + "plots_"+path_part+"spectra/"
+    elif args.run == "nref11f":
+        run_loc = "nref11n/nref11f_refine200kpc/"
+        trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
+        haloname = "halo008508_nref11f"
+        spectra_dir = output_path + "plots_halo_008508/nref11n/nref11f_refine200kpc/spectra/"
+        if args.system == "pleiades":
+            trackname = "halo_008508/orig/nref11f_refine200kpc_z4to2/halo_track"
+            run_loc = "orig/nref11f_refine200kpc_z4to2/"
     elif args.run == "nref11n_selfshield":
         run_loc = "nref11n/nref11n_selfshield/"
         trackname = "halo_008508/nref11n/nref11n_selfshield/halo_track"
@@ -121,12 +144,5 @@ def get_run_loc_etc(args):
         if args.system == "pleiades":
             trackname = "halo_008508/nref11c_nref8f_600kpc/halo_track"
             run_loc = "nref11c_nref8f_400kpc/"
-    elif args.run == "nref11f":
-        run_loc = "nref11n/nref11f_refine200kpc/"
-        trackname =  "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
-        haloname = "halo008508_nref11f"
-        if args.system == "pleiades":
-            trackname = "halo_008508/orig/nref11f_refine200kpc_z4to2/halo_track"
-            run_loc = "orig/nref11f_refine200kpc_z4to2/"
 
-    return foggie_dir, output_dir, run_loc, trackname, haloname
+    return foggie_dir, output_path, run_loc, trackname, haloname, spectra_dir
