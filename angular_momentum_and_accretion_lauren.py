@@ -277,7 +277,8 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 #nref_mode = stats.mode(grid_levels[idR])
                 sp_out, sp_in = ds.sphere(halo_center, maxrad), ds.sphere(halo_center,minrad)
                 shell = sp_out - sp_in
-                nref_mode = stats.mode(shell['index','grid_level'])
+                print('nref mode = ', stats.mode(shell['index','grid_level']))
+                nref_mode = stats.mode(shell['index','grid_level'])[0]
                 # mass fluxes
                 gas_flux = (np.sum(cell_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
                 metal_flux = (np.sum(metal_mass[idR]*radial_velocity[idR])/dr).to("Msun/yr")
