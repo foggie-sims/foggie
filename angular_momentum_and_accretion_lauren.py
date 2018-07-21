@@ -250,6 +250,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
         for rad in radii:
             #this_sphere = ds.sphere(halo_center, rad)
+            print('doing radius ', rad, '.......')
             if rad != np.max(radii):
                 if rad == radii[-1]:
                     minrad,maxrad = ds.quan(0.,'kpc'),rad
