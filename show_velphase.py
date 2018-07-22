@@ -165,9 +165,9 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     h1 = 40. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density'])
     si1 = 40. * ray_df['Si_p1_number_density']/np.max(ray_df['Si_p1_number_density'])
     o6 = 40. * ray_df['O_p5_number_density']/np.max(ray_df['O_p5_number_density'])
-    ax2.step(h1[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)])
-    ax3.step(si1[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)])
-    ax4.step(o6[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)])
+    ax2.step(h1[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)], linewidth=0.5)
+    ax3.step(si1[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)], linewidth=0.5)
+    ax4.step(o6[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)], linewidth=0.5)
 
     restwave = hdulist['H I 1216'].header['RESTWAVE']
     vel = (hdulist['H I 1216'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
