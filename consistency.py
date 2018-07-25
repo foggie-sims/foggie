@@ -169,13 +169,15 @@ new_phase_color_key = {b'cold':to_hex(temp_colors[0]),
                     b'warm2':to_hex(temp_colors[10]),
                     b'warm3':to_hex(temp_colors[11]),
                     b'hot':to_hex(temp_colors[12]), ## yellow
-                    b'hot1':to_hex(temp_colors[13]) ### don't use the rest!
+                    b'hot1':to_hex(temp_colors[13]),
+                    b'hot2':to_hex(temp_colors[14]) ### don't use the rest!
 }
 
 def new_categorize_by_temp(temp):
     """ define the temp category strings"""
     phase = np.chararray(np.size(temp), 5)
-    phase[temp < 9.] = b'hot1'
+    phase[temp < 9.] = b'hot2'
+    phase[temp < 6.4] = b'hot1'
     phase[temp < 6.2] = b'hot'
     phase[temp < 6.] = b'warm3'
     phase[temp < 5.8] = b'warm2'
