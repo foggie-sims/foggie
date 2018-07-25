@@ -53,14 +53,14 @@ def run_spectacle_on_kodiaq(**kwargs):
 
     # assume KODIAQ has SiII, SiIV, CIV, OVI per each
     # ADD THE DELTA_Vs TO THESE TABLES !!!!
-    si2_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b'), \
-                               dtype=('S16', 'f8', 'f8', 'i8', 'f8', 'f8'))
-    si4_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b'), \
-                               dtype=('S16', 'f8', 'f8', 'i8', 'f8', 'f8'))
-    c4_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b'), \
-                               dtype=('S16', 'f8', 'f8', 'i8', 'f8', 'f8'))
-    o6_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b'), \
-                               dtype=('S16',  'f8', 'f8', 'i8', 'f8', 'f8'))
+    si2_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b', 'delta_v'), \
+                               dtype=('S16', 'f8', 'f8', 'i8', 'f8', 'f8', 'f8'))
+    si4_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b', 'delta_v'), \
+                               dtype=('S16', 'f8', 'f8', 'i8', 'f8', 'f8', 'f8'))
+    c4_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b', 'delta_v'), \
+                               dtype=('S16', 'f8', 'f8', 'i8', 'f8', 'f8', 'f8'))
+    o6_component_data = Table(names=('los', 'z', 'tot_col', 'component', 'comp_col', 'comp_b', 'delta_v'), \
+                               dtype=('S16',  'f8', 'f8', 'i8', 'f8', 'f8', 'f8'))
     ion_dict =  collections.OrderedDict()
     ion_dict['SiII'] = 'Si II 1260'
     ion_dict['CIV'] = 'C IV 1548'
@@ -159,7 +159,7 @@ def run_spectacle_on_kodiaq(**kwargs):
                 tot_dv90 = delta_v_90(velocity, flux, continuum=1.0)
                 print("col, EW, dv90 = ", tot_col, tot_ew, tot_dv90)
                 for i, comp in enumerate(comp_table):
-                    comp_row = comp_row_start + [tot_col, int(i), comp['col_dens'], comp['v_dop'].value]
+                    comp_row = comp_row_start + [tot_col, int(i), comp['col_dens'], comp['v_dop'].value, comp['delta_v'].value]
                     ion_table_name_dict[ion].add_row(comp_row)
                     delta_v = comp['delta_v']
                     ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='darkorange')

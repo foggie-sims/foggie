@@ -1,4 +1,5 @@
 import matplotlib as mpl
+from matplotlib.colors import to_hex
 import numpy as np
 mpl.use('agg')
 import seaborn as sns
@@ -66,7 +67,7 @@ discrete_cmap_rainbow = mpl.colors.ListedColormap(['#4daf4a',"#ffe34d",'darkoran
 density_color_map = sns.blend_palette(("black","#984ea3","#d73027","darkorange","#ffe34d","#4daf4a","white"), n_colors=60, as_cmap=True)
 density_proj_min = 5e-2  ## msun / pc^2
 density_proj_max = 1e4
-density_slc_min = 5e-7  ## msun / pc^3
+density_slc_min = 5e-8  ## msun / pc^3
 density_slc_max = 5
 
 metal_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a",
@@ -152,3 +153,39 @@ def categorize_by_metallicity(metallicity):
     metal_label[metallicity < 0.001] = b'low'
     metal_label[metallicity < 0.0001] = b'poor'
     return metal_label
+
+
+temp_colors = sns.blend_palette(('salmon',"#984ea3","#4daf4a","#ffe34d",'darkorange'), n_colors=17)
+new_phase_color_key = {b'cold':to_hex(temp_colors[0]),
+                    b'cold1':to_hex(temp_colors[1]),
+                    b'cold2':to_hex(temp_colors[2]),
+                    b'cold3':to_hex(temp_colors[3]),
+                    b'cool':to_hex(temp_colors[4]), ## purple
+                    b'cool1':to_hex(temp_colors[5]),
+                    b'cool2':to_hex(temp_colors[6]),
+                    b'cool3':to_hex(temp_colors[7]),
+                    b'warm':to_hex(temp_colors[8]), ## green
+                    b'warm1':to_hex(temp_colors[9]),
+                    b'warm2':to_hex(temp_colors[10]),
+                    b'warm3':to_hex(temp_colors[11]),
+                    b'hot':to_hex(temp_colors[12]), ## yellow
+                    b'hot1':to_hex(temp_colors[13]) ### don't use the rest!
+}
+
+def new_categorize_by_temp(temp):
+    """ define the temp category strings"""
+    phase = np.chararray(np.size(temp), 5)
+    phase[temp < 9.] = b'hot1'
+    phase[temp < 6.2] = b'hot'
+    phase[temp < 6.] = b'warm3'
+    phase[temp < 5.8] = b'warm2'
+    phase[temp < 5.6] = b'warm1'
+    phase[temp < 5.4] = b'warm'
+    phase[temp < 5.2] = b'cool3'
+    phase[temp < 5.] = b'cool2'
+    phase[temp < 4.8] = b'cool1'
+    phase[temp < 4.6] = b'cool'
+    phase[temp < 4.4] = b'cold3'
+    phase[temp < 4.2] = b'cold2'
+    phase[temp < 4.] = b'cold1'
+    return phase

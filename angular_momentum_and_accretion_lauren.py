@@ -11,11 +11,6 @@ import os
 import glob
 import sys
 
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
-
 from astropy.table import Table
 from astropy.io import ascii
 
@@ -23,9 +18,6 @@ from consistency import *
 from get_refine_box import get_refine_box
 from get_halo_center import get_halo_center
 from get_proper_box_size import get_proper_box_size
-
-import seaborn as sns
-sns.set_style("whitegrid", {'axes.grid' : False})
 
 yt.enable_parallelism()
 
