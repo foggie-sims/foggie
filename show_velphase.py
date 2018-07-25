@@ -43,7 +43,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     temp = np.log10(all_data['temperature'].ndarray_view())
     metallicity = all_data['metallicity'].ndarray_view()
 
-    phase_label = categorize_by_temp(temp)
+    phase_label = new_categorize_by_temp(temp)
     metal_label = categorize_by_metallicity(metallicity)
 
     df = pd.DataFrame({'x':all_data['x'].ndarray_view() * proper_box_size,
@@ -92,7 +92,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                          y_range=(np.mean(df['y'])-CORE_WIDTH/0.695,
                                   np.mean(df['y'])+CORE_WIDTH/0.695))
     agg = cvs.points(df, 'x', 'y', dshader.count_cat('phase_label'))
-    img = tf.shade(agg, color_key=phase_color_key)
+    img = tf.shade(agg, color_key=new_phase_color_key)
     x_y_phase = tf.spread(img, px=2, shape='square')
 
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
@@ -126,7 +126,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                          x_range=(np.min(df['x']), np.max(df['x'])),
                          y_range=(-300, 300)) # < ----- what units?
     agg = cvs.points(df, 'x', 'vx', dshader.count_cat('phase_label'))
-    x_vx_phase = tf.spread(tf.shade(agg, color_key=phase_color_key), shape='square')
+    x_vx_phase = tf.spread(tf.shade(agg, color_key=new_phase_color_key), shape='square')
 
 
     #now iterate over the species to get the ion fraction plots
@@ -274,10 +274,10 @@ if __name__ == "__main__":
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
                     'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
 
-    dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i010.4-a2.25_v5_los.fits.gz']
+    dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i011.1-a1.53_v5_los.fits.gz']
 
     for filename in dataset_list:
-        print("opening ", filename) 
+        print("opening ", filename)
         hdulist = fits.open(filename)
         ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
         ray_start = [float(ray_start_str.split(",")[0].strip('unitary')), \
