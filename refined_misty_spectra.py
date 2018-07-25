@@ -173,7 +173,6 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                     "Si_p2_number_density",
                                     "Si_p1_number_density", "Si_p3_number_density",
                                     "Ne_p7_number_density"])
-            print(ray_df)
 
         out_tri_name = this_out_ray_basename + "_tri.h5"
         triray = trident.make_simple_ray(ds, start_position=rs.copy(),

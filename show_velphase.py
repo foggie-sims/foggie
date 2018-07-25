@@ -7,20 +7,74 @@ import datashader.transfer_functions as tf
 from datashader import reductions
 import numpy as np
 import pandas as pd
+import pickle
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 from matplotlib.gridspec import GridSpec
 from consistency import *
 
+import copy
+
 import argparse
 
 import trident
 import yt
 from astropy.io import fits
-
+from astropy.table import Table
 
 CORE_WIDTH = 20.
+
+def get_fion_threshold(ion_to_use, coldens_fraction):
+    cut = 0.999
+    total = np.sum(ion_to_use)
+    ratio = 0.01
+    while ratio < coldens_fraction:
+        part = np.sum(ion_to_use[ion_to_use > cut * np.max(ion_to_use)])
+        ratio = part / total
+        cut = cut - 0.01
+
+    threshold = cut * np.max(ion_to_use)
+    number_of_cells_above_threshold = np.size(np.where(ion_to_use > threshold))
+
+    return threshold, number_of_cells_above_threshold
+
+
+
+
+def get_sizes(x, ion_to_use, coldens_threshold):
+
+    threshold, number_of_cells = get_fion_threshold(ion_to_use, coldens_threshold)
+
+    sizes = []
+    indices = []
+    xs = []
+    for m in np.arange(100):
+        i = np.squeeze(np.where(np.array(ion_to_use) > threshold))
+        if np.size(i) >= 1:
+            startindex = np.min(i)
+            f = ion_to_use[startindex]
+            index = startindex
+            ion_to_use[startindex] = 0.0
+            count = 0
+            while f > threshold:
+                count += 1
+                index += 1
+                if index == np.size(x): # this means we're at the edge
+                    index = np.size(x)-1
+                    f = 0.0
+                else:
+                    f = ion_to_use[index]
+                    ion_to_use[index] = 0.0
+                if ((count % 10) == 0): print("count",count)
+
+            sizes.append(x[startindex]-x[index])
+            indices.append(index)
+            xs.append(x[index])
+
+    return xs, indices, sizes, number_of_cells
+
+
 
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     """ the docstring is missing, is it??? """
@@ -31,6 +85,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     # take out a "core sample" along the ray with a width given by core_width
     proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
         / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
+    print("PROPER BOX SIZE : ", proper_box_size)
     current_redshift = ds.get_parameter('CosmologyCurrentRedshift')
     print("Current Redshift = ", current_redshift)
     all_data = ds.r[ray_s[0]:ray_e[0],
@@ -100,7 +155,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                          y_range=(np.mean(df['y'])-CORE_WIDTH/0.695,
                                   np.mean(df['y'])+CORE_WIDTH/0.695))
     agg = cvs.points(df, 'x', 'y', dshader.count_cat('metal_label'))
-#    img = tf.shade(agg, color_key=metal_color_key)
     img = tf.shade(agg, cmap = metal_color_map, how='log')
     x_y_metal = tf.spread(img, px=2, shape='square')
 
@@ -141,39 +195,71 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                                         how='log')
         ray_vx = tf.spread(vx_render, px=2, shape='square')
 
-
-#        ray_df = ray.to_dataframe(["x", "y", "z", "density", "temperature",
-#                                "metallicity", "HI_Density",
-#                                "x-velocity", "y-velocity", "z-velocity",
-#                                "C_p2_number_density", "C_p3_number_density",
-#                                "H_p0_number_density",
-#                                "Mg_p1_number_density", "O_p5_number_density",
-#                                "Si_p2_number_density",
-#                                "Si_p1_number_density", "Si_p3_number_density",
-#                                "Ne_p7_number_density"])
-
-
         ax.imshow(np.rot90(x_vx_phase.to_pil()))
         ax.imshow(np.rot90(ray_vx.to_pil()))
-        #ax.set_xticks([0, 50, 100, 150, 200, 250, 300])
-        #ax.set_xticklabels(['-300', '-200', '-100', '0', '100', '200', '300'])
 
         ax.set_xlim(0,300)
         ax.set_ylim(0,800)
 
-    x_ray = 0.695 * 8 * 0.001 * proper_box_size * (ray_df['x']-ray_s[0]) / (ray_e[0] - ray_s[0])
+
+    x_ray = ds.get_parameter('CosmologyHubbleConstantNow') * 8 * 0.001 * \
+                proper_box_size * (ray_df['x']-ray_s[0]) / (ray_e[0] - ray_s[0])
+    print('x_ray: ', np.min(x_ray), np.max(x_ray))
+
+    comoving_x = (ray_df['x']-ray_s[0]) * proper_box_size * ds.get_parameter('CosmologyHubbleConstantNow')
+    print('comoving_x: ', np.min(comoving_x), np.max(comoving_x))
+    x_ray = comoving_x
+
     h1 = 40. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density'])
-    si1 = 40. * ray_df['Si_p1_number_density']/np.max(ray_df['Si_p1_number_density'])
+    si2 = 40. * ray_df['Si_p1_number_density']/np.max(ray_df['Si_p1_number_density'])
     o6 = 40. * ray_df['O_p5_number_density']/np.max(ray_df['O_p5_number_density'])
-    ax2.step(h1[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)], linewidth=0.5)
-    ax3.step(si1[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)], linewidth=0.5)
-    ax4.step(o6[np.argsort(x_ray)], 800. - x_ray[np.argsort(x_ray)], linewidth=0.5)
+    ax2.step(h1[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
+    ax3.step(si2[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
+    ax4.step(o6[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
+
+    ######
+    x = np.array(200. - x_ray[np.argsort(x_ray)])
+    h1  = np.array(ray_df['H_p0_number_density'][np.argsort(x_ray)])
+    si2 = np.array(ray_df['Si_p1_number_density'][np.argsort(x_ray)])
+    o6  = np.array(ray_df['O_p5_number_density'][np.argsort(x_ray)])
+
+    #get the cloud sizes for the top 80% of the column density
+    print("About to attempt size stuff:")
+    size_dict = {'coldens_threshold':0.8}
+    xs, indices, sizes, n_cells = get_sizes(x, h1, 0.8)
+    size_dict['h1_xs'] = xs
+    size_dict['h1_indices'] = indices
+    size_dict['h1_sizes'] = sizes
+    size_dict['h1_n_cells'] = n_cells
+    print('H I cloud positions: ', xs)
+    print('H I cloud sizes: ', sizes)
+    print("Number of cells contributing to 80 percent column density: ", n_cells)
+    for xx, ss in zip(xs, sizes):
+        ax2.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
+
+    xs, indices, sizes, n_cells = get_sizes(x, o6, 0.8)
+    size_dict['o6_xs'] = xs
+    size_dict['o6_indices'] = indices
+    size_dict['o6_sizes'] = sizes
+    size_dict['o6_n_cells'] = n_cells
+    print('O VI cloud positions: ', xs)
+    print('O VI cloud sizes: ', sizes)
+    for xx, ss in zip(xs, sizes):
+        ax4.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
+    print("Number of cells contributing to 80 percent column density: ", n_cells)
+
+    pickle.dump( size_dict, open( fileroot+"_sizes.pkl", "wb" ) )
+
+    fion = Table([x, h1, si2, o6], names=('x','h1','si2','o6') )
+    fion.write(fileroot+'_fion.fits', overwrite=True)
+    ######
 
     restwave = hdulist['H I 1216'].header['RESTWAVE']
     vel = (hdulist['H I 1216'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
     ax7.step(vel, hdulist['H I 1216'].data['flux'])
     ax7.set_xlim(-300,300)
     ax7.set_ylim(0,1)
+    ax7.set_yticklabels(['0','0.5',''])
 
     restwave = hdulist['Si II 1260'].header['RESTWAVE']
     vel = (hdulist['Si II 1260'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
@@ -277,7 +363,7 @@ if __name__ == "__main__":
     dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i010.4-a2.25_v5_los.fits.gz']
 
     for filename in dataset_list:
-        print("opening ", filename) 
+        print("opening ", filename)
         hdulist = fits.open(filename)
         ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
         ray_start = [float(ray_start_str.split(",")[0].strip('unitary')), \
