@@ -42,23 +42,26 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
 
 
 
-def get_sizes(x, ion_to_use, coldens_threshold):
+def get_sizes(species, x, ion_to_use, cell_mass, coldens_threshold):
 
     threshold, number_of_cells = get_fion_threshold(ion_to_use, coldens_threshold)
 
     sizes = []
+    masses = []
     indices = []
     xs = []
-    for m in np.arange(100):
+    for m in np.arange(100): # can find up to 100 peaks
         i = np.squeeze(np.where(np.array(ion_to_use) > threshold))
         if np.size(i) >= 1:
             startindex = np.min(i)
             f = ion_to_use[startindex]
             index = startindex
             ion_to_use[startindex] = 0.0
+            sum_mass = cell_mass[startindex]
             count = 0
-            while f > threshold:
+            while (f > threshold) and (index < np.size(x)-1):
                 count += 1
+                if (count > 10000): sys.exit('stuck in the size finding loop')
                 index += 1
                 if index == np.size(x): # this means we're at the edge
                     index = np.size(x)-1
@@ -66,13 +69,21 @@ def get_sizes(x, ion_to_use, coldens_threshold):
                 else:
                     f = ion_to_use[index]
                     ion_to_use[index] = 0.0
+                    sum_mass = sum_mass + cell_mass[index]
                 if ((count % 10) == 0): print("count",count)
 
             sizes.append(x[startindex]-x[index])
+            masses.append(sum_mass)
             indices.append(index)
             xs.append(x[index])
 
-    return xs, indices, sizes, number_of_cells
+    size_dict = {'coldens_threshold':coldens_threshold}
+    size_dict[species+'_xs'] = xs
+    size_dict[species+'_indices'] = indices
+    size_dict[species+'_sizes'] = sizes
+    size_dict[species+'_n_cells'] = number_of_cells
+    size_dict[species+'_cell_masses'] = masses
+    return size_dict
 
 
 
@@ -82,12 +93,10 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ray_s = ray_start.ndarray_view()
     ray_e = ray_end.ndarray_view()
 
-    # take out a "core sample" along the ray with a width given by core_width
     proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
         / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
     print("PROPER BOX SIZE : ", proper_box_size)
     current_redshift = ds.get_parameter('CosmologyCurrentRedshift')
-    print("Current Redshift = ", current_redshift)
     all_data = ds.r[ray_s[0]:ray_e[0],
                     ray_s[1]-0.5*CORE_WIDTH/proper_box_size:ray_s[1]+
                     0.5*CORE_WIDTH/proper_box_size,
@@ -107,6 +116,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                        'vx':all_data["x-velocity"].in_units('km/s'),
                        'vy':all_data["y-velocity"].in_units('km/s'),
                        'vz':all_data["z-velocity"].in_units('km/s'),
+                       'cell_mass':all_data['cell_mass'].in_units('Msun'),
                        'temp':temp, 'dens':dens, 'phase_label':phase_label,
                        'metal_label':metal_label})
     df.phase_label = df.phase_label.astype('category')
@@ -201,97 +211,74 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_xlim(0,300)
         ax.set_ylim(0,800)
 
+    x_ray = (ray_df['x']-ray_s[0]) * proper_box_size * \
+                ds.get_parameter('CosmologyHubbleConstantNow') # comoving kpc
 
-    x_ray = ds.get_parameter('CosmologyHubbleConstantNow') * 8 * 0.001 * \
-                proper_box_size * (ray_df['x']-ray_s[0]) / (ray_e[0] - ray_s[0])
-    print('x_ray: ', np.min(x_ray), np.max(x_ray))
-
-    comoving_x = (ray_df['x']-ray_s[0]) * proper_box_size * ds.get_parameter('CosmologyHubbleConstantNow')
-    print('comoving_x: ', np.min(comoving_x), np.max(comoving_x))
-    x_ray = comoving_x
-
-    h1 = 40. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density'])
-    si2 = 40. * ray_df['Si_p1_number_density']/np.max(ray_df['Si_p1_number_density'])
-    o6 = 40. * ray_df['O_p5_number_density']/np.max(ray_df['O_p5_number_density'])
+    h1 = 50. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density'])
+    si2 = 50. * ray_df['Si_p1_number_density']/np.max(ray_df['Si_p1_number_density'])
+    o6 = 50. * ray_df['O_p5_number_density']/np.max(ray_df['O_p5_number_density'])
     ax2.step(h1[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
     ax3.step(si2[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
     ax4.step(o6[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
 
-    ######
     x = np.array(200. - x_ray[np.argsort(x_ray)])
     h1  = np.array(ray_df['H_p0_number_density'][np.argsort(x_ray)])
     si2 = np.array(ray_df['Si_p1_number_density'][np.argsort(x_ray)])
     o6  = np.array(ray_df['O_p5_number_density'][np.argsort(x_ray)])
+    cell_mass = np.array(ray_df['cell_mass'][np.argsort(x_ray)])
 
     #get the cloud sizes for the top 80% of the column density
-    print("About to attempt size stuff:")
-    size_dict = {'coldens_threshold':0.8}
-    xs, indices, sizes, n_cells = get_sizes(x, h1, 0.8)
-    size_dict['h1_xs'] = xs
-    size_dict['h1_indices'] = indices
-    size_dict['h1_sizes'] = sizes
-    size_dict['h1_n_cells'] = n_cells
-    print('H I cloud positions: ', xs)
-    print('H I cloud sizes: ', sizes)
-    print("Number of cells contributing to 80 percent column density: ", n_cells)
-    for xx, ss in zip(xs, sizes):
+    h1_size_dict = get_sizes('h1', x, h1, cell_mass, 0.8)
+    for xx, ss in zip(h1_size_dict['h1_xs'], h1_size_dict['h1_sizes']):
         ax2.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
 
-    xs, indices, sizes, n_cells = get_sizes(x, o6, 0.8)
-    size_dict['o6_xs'] = xs
-    size_dict['o6_indices'] = indices
-    size_dict['o6_sizes'] = sizes
-    size_dict['o6_n_cells'] = n_cells
-    print('O VI cloud positions: ', xs)
-    print('O VI cloud sizes: ', sizes)
-    for xx, ss in zip(xs, sizes):
+    o6_size_dict = get_sizes('o6', x, o6, cell_mass, 0.8)
+    for xx, ss in zip(o6_size_dict['o6_xs'], o6_size_dict['o6_sizes']):
         ax4.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
-    print("Number of cells contributing to 80 percent column density: ", n_cells)
 
+    size_dict = {**h1_size_dict, **o6_size_dict}
     pickle.dump( size_dict, open( fileroot+"_sizes.pkl", "wb" ) )
 
-    fion = Table([x, h1, si2, o6], names=('x','h1','si2','o6') )
+    fion = Table([x, cell_mass, h1, si2, o6], names=('x','mass','h1','si2','o6') )
     fion.write(fileroot+'_fion.fits', overwrite=True)
-    ######
 
-    restwave = hdulist['H I 1216'].header['RESTWAVE']
-    vel = (hdulist['H I 1216'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
-    ax7.step(vel, hdulist['H I 1216'].data['flux'])
-    ax7.set_xlim(-300,300)
-    ax7.set_ylim(0,1)
-    ax7.set_yticklabels(['0','0.5',''])
+    for ax, key in zip([ax7, ax8, ax9], ['H I 1216', 'Si II 1260', 'O VI 1032']):
+        ax.set_xlim(-300,300)
+        ax.set_ylim(0,1)
+        ax.set_yticklabels(['0','0.5',''])
+        if (hdulist.__contains__(key)):
+            restwave = hdulist[key].header['RESTWAVE']
+            vel = (hdulist[key].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
+            ax.step(vel, hdulist[key].data['flux'])
 
-    restwave = hdulist['Si II 1260'].header['RESTWAVE']
-    vel = (hdulist['Si II 1260'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
-    ax8.step(vel, hdulist['Si II 1260'].data['flux'])
-    ax8.set_xlim(-300,300)
-    ax8.set_ylim(0,1)
-    ax8.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+    #ax8.set_xlim(-300,300)
+    #ax8.set_ylim(0,1)
+    #ax8.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+    #if (hdulist.__contains__('Si II 1260')):
+#        restwave = hdulist['Si II 1260'].header['RESTWAVE']
+#        vel = (hdulist['Si II 1260'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
+#        ax8.step(vel, hdulist['Si II 1260'].data['flux'])
 
-    restwave = hdulist['O VI 1032'].header['RESTWAVE']
-    vel = (hdulist['O VI 1032'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
-    ax9.step(vel, hdulist['O VI 1032'].data['flux'])
-    ax9.set_xlim(-300,300)
-    ax9.set_ylim(0,1)
-    ax9.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-
+#    ax9.set_xlim(-300,300)
+#    ax9.set_ylim(0,1)
+#    ax9.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+#    if (hdulist.__contains__('O VI 1032')):
+#        restwave = hdulist['O VI 1032'].header['RESTWAVE']
+#        vel = (hdulist['O VI 1032'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
+#        ax9.step(vel, hdulist['O VI 1032'].data['flux'])
 
     ax0.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax1.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    ax2.axes.get_xaxis().set_ticks([])
-    ax2.axes.get_yaxis().set_ticks([])
-    ax3.axes.get_xaxis().set_ticks([])
-    ax3.axes.get_yaxis().set_ticks([])
-    ax4.axes.get_xaxis().set_ticks([])
-    ax4.axes.get_yaxis().set_ticks([])
-    ax5.axes.get_xaxis().set_ticks([])
-    ax5.axes.get_yaxis().set_ticks([])
-    ax6.axes.get_xaxis().set_ticks([])
-    ax6.axes.get_yaxis().set_ticks([])
+    for ax in [ax2, ax3, ax4, ax5, ax6]:
+        ax.axes.get_xaxis().set_ticks([])
+        ax.axes.get_yaxis().set_ticks([])
 
     gs.update(hspace=0.0, wspace=0.1)
     plt.savefig(fileroot+'_velphase.png', dpi=300)
     plt.close(fig)
+
+
+
 
 
 def parse_args():
@@ -318,6 +305,11 @@ def parse_args():
 
     args = parser.parse_args()
     return args
+
+
+
+
+
 
 if __name__ == "__main__":
 
