@@ -164,8 +164,10 @@ def generate_random_rays(ds, halo_center, **kwargs):
             ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
             ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
             ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
+            ray['cell_mass'] = ray['cell_mass'].convert_to_units('Msun')
             ray_df = ray.to_dataframe(["x", "y", "z", "density", "temperature",
                                     "metallicity", "HI_Density",
+                                    "cell_mass",
                                     "x-velocity", "y-velocity", "z-velocity",
                                     "C_p2_number_density", "C_p3_number_density",
                                     "H_p0_number_density",
@@ -173,7 +175,6 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                     "Si_p2_number_density",
                                     "Si_p1_number_density", "Si_p3_number_density",
                                     "Ne_p7_number_density"])
-            print(ray_df)
 
         out_tri_name = this_out_ray_basename + "_tri.h5"
         triray = trident.make_simple_ray(ds, start_position=rs.copy(),
@@ -192,7 +193,6 @@ def generate_random_rays(ds, halo_center, **kwargs):
                       lines=line_list, impact=impacts[i], redshift=ds.current_redshift)
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
 
-#        line_dict = {}
         for line in line_list:
             sg = MISTY.generate_line(triray, line,
                                      zsnap=ds.current_redshift,
@@ -200,10 +200,6 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                      hdulist=hdulist,
                                      use_spectacle=False,
                                      resample=True)
-            # the trident plots are not needed ; just take up lots of space
-            # filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
-            # sg.plot_spectrum(filespecout,flux_limits=(0.0,1.0))
-            # line_dict[line] = sg
 
         MISTY.write_out(hdulist,filename=out_fits_name)
 
