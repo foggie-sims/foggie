@@ -93,6 +93,7 @@ def run_spectacle_on_kodiaq(**kwargs):
         row = [this_los['Name'][0], this_los['z_abs'][0], this_los['logN_HI'][0]]
         these_ions = this_los.group_by(['Ion'])
         for i, ion in enumerate(ion_dict.keys()):
+            ax_spec = fig.add_subplot(gs[i, 0])
             mask = these_ions.groups.keys['Ion'] == ion
             this_ion = these_ions.groups[mask]
             # for each ion in sightline, generate spectrum
@@ -100,6 +101,9 @@ def run_spectacle_on_kodiaq(**kwargs):
             if(len(this_ion) == 0):
                  row = row + [-1, -1, -1, -1, -1]
             else:
+                lambda_0 = spectrum.rest_wavelength
+                with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(lambda_0)):
+                    wavelength_rest = velocity.to('Angstrom')
                 for comp in range(len(this_ion)):
                     comp_row_start = [this_los['Name'][0], this_los['z_abs'][0]]
                     delta_v = this_ion['v_i'][comp] * u.Unit('km/s')
@@ -109,9 +113,13 @@ def run_spectacle_on_kodiaq(**kwargs):
                     spectrum.add_line(column_density=col_dens,
                                       v_doppler=v_dop,
                                       delta_v=delta_v)
-                lambda_0 = spectrum.rest_wavelength
-                with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(lambda_0)):
-                    wavelength_rest = velocity.to('Angstrom')
+                    this_comp = Spectrum1DModel(redshift=redshift, ion_name=ion_dict[ion])
+                    this_comp.add_line(column_density=col_dens,
+                                      v_doppler=v_dop,
+                                      delta_v=delta_v)
+                    this_flux = this_comp.flux(velocity)
+                    ax_spec.step(velocity, this_flux, color='#984ea3', alpha=0.5)
+
                 # run spectacle and calculate non-parametric measures
                 flux = spectrum.flux(velocity)
                 default_values = dict(
@@ -132,13 +140,12 @@ def run_spectacle_on_kodiaq(**kwargs):
                                          )
                 print('*~*~*~*~*~> running the fitter now *~*~*~*~*~>')
                 spec_mod = line_finder(velocity, flux)
-                ax_spec = fig.add_subplot(gs[i, 0])
                 ax_spec.plot(velocity, np.ones(len(velocity)),color='k',lw=1, ls=":")
-                ax_spec.step(velocity, flux, color='#984ea3')
-                ax_spec.step(velocity, spec_mod.flux(velocity), lw=1, ls="--", dashes=(5, 2), color='darkorange')
+                # ax_spec.step(velocity, flux, color='#984ea3')
+                # ax_spec.step(velocity, spec_mod.flux(velocity), lw=1, ls="--", dashes=(5, 2), color='darkorange')
                 ax_spec.text(-550, 0, ion_dict[ion], fontsize=10.)
-                for comp in range(len(this_ion)):
-                    delta_v = this_ion['v_i'][comp] * u.Unit('km/s')
+                for k in range(len(this_ion)):
+                    delta_v = this_ion['v_i'][k] * u.Unit('km/s')
                     ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='#984ea3')
 
                 plt.xlim(vmin, vmax)
@@ -153,16 +160,22 @@ def run_spectacle_on_kodiaq(**kwargs):
                 # OK, now save this information as a row in the relevant table
                 comp_table = spec_mod.stats(velocity)
                 print(comp_table)
-                tot_col = np.log10(np.sum(np.power(10.0,this_ion['log_N_i'][comp])))
+                tot_col = np.log10(np.sum(np.power(10.0,this_ion['log_N_i'])))
                 Nmin = np.size(np.where(flux[argrelextrema(flux, np.less)[0]] < (1-threshold)))
                 tot_ew = equivalent_width(wavelength_rest, flux, continuum=1.0)
                 tot_dv90 = delta_v_90(velocity, flux, continuum=1.0)
                 print("col, EW, dv90 = ", tot_col, tot_ew, tot_dv90)
-                for i, comp in enumerate(comp_table):
-                    comp_row = comp_row_start + [tot_col, int(i), comp['col_dens'], comp['v_dop'].value, comp['delta_v'].value]
+                for ic, comp in enumerate(comp_table):
+                    comp_row = comp_row_start + [tot_col, int(ic), comp['col_dens'], comp['v_dop'].value, comp['delta_v'].value]
                     ion_table_name_dict[ion].add_row(comp_row)
                     delta_v = comp['delta_v']
                     ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='darkorange')
+                    this_comp = Spectrum1DModel(redshift=redshift, ion_name=ion_dict[ion])
+                    this_comp.add_line(column_density=comp['col_dens'],
+                                      v_doppler=comp['v_dop'],
+                                      delta_v=comp['delta_v'])
+                    this_flux = this_comp.flux(velocity)
+                    ax_spec.step(velocity, this_flux, color='darkorange', ls="--", dashes=(5,2), alpha=0.5)
                 row = row + [tot_col, Nmin, len(comp_table), tot_ew, tot_dv90.value]
         all_data.add_row(row)
         fig.tight_layout()
