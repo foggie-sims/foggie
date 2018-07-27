@@ -8,6 +8,8 @@ from datashader import reductions
 import numpy as np
 import pandas as pd
 import pickle
+import glob
+import os
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
@@ -93,10 +95,11 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ray_s = ray_start.ndarray_view()
     ray_e = ray_end.ndarray_view()
 
-    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
-        / ds.get_parameter('CosmologyHubbleConstantNow') * 1000. # in kpc
-    print("PROPER BOX SIZE : ", proper_box_size)
     current_redshift = ds.get_parameter('CosmologyCurrentRedshift')
+    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
+        / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.  #\
+    #    / (1.+current_redshift)# in kpc
+    print("PROPER BOX SIZE : ", proper_box_size)
     all_data = ds.r[ray_s[0]:ray_e[0],
                     ray_s[1]-0.5*CORE_WIDTH/proper_box_size:ray_s[1]+
                     0.5*CORE_WIDTH/proper_box_size,
@@ -211,6 +214,9 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_xlim(0,300)
         ax.set_ylim(0,800)
 
+    print(ray_df['dx'])
+
+    #NOW READY TO DO COLUMN DENSITIES AND CUT ON THEM 
     x_ray = (ray_df['x']-ray_s[0]) * proper_box_size * \
                 ds.get_parameter('CosmologyHubbleConstantNow') # comoving kpc
 
@@ -250,22 +256,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
             restwave = hdulist[key].header['RESTWAVE']
             vel = (hdulist[key].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
             ax.step(vel, hdulist[key].data['flux'])
-
-    #ax8.set_xlim(-300,300)
-    #ax8.set_ylim(0,1)
-    #ax8.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    #if (hdulist.__contains__('Si II 1260')):
-#        restwave = hdulist['Si II 1260'].header['RESTWAVE']
-#        vel = (hdulist['Si II 1260'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
-#        ax8.step(vel, hdulist['Si II 1260'].data['flux'])
-
-#    ax9.set_xlim(-300,300)
-#    ax9.set_ylim(0,1)
-#    ax9.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-#    if (hdulist.__contains__('O VI 1032')):
-#        restwave = hdulist['O VI 1032'].header['RESTWAVE']
-#        vel = (hdulist['O VI 1032'].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
-#        ax9.step(vel, hdulist['O VI 1032'].data['flux'])
 
     ax0.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax1.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
@@ -325,7 +315,7 @@ if __name__ == "__main__":
         output_path = "/Users/molly/Dropbox/foggie-collab/"
     elif args.system == "pancho":
         ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
-        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-collab/"
     elif args.system == "lefty":
         ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
         output_path = "/Users/tumlinson/Dropbox/foggie-test/"
@@ -341,7 +331,7 @@ if __name__ == "__main__":
     elif args.run == "nref9f":
         path_part = "halo_008508/nref11n/nref11n_"+args.run+"_refine200kpc/"
         ds_loc =  ds_base + path_part + args.output + "/" + args.output
-        output_dir = output_path + "plots_"+path_part+"spectra/"
+        output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref9f_refine200kpc/spectra/"
         haloname = "halo008508_nref11n_nref9f"
     elif args.run == "nref11f":
         ds_loc =  ds_base + "halo_008508/nref11n/nref11f_refine200kpc/" + args.output + "/" + args.output
@@ -352,11 +342,16 @@ if __name__ == "__main__":
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
                     'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
 
-    dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_i011.1-a1.53_v5_los.fits.gz']
+
+    #dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref9f_rd0020_axx_i017.3-a4.88_v4_los.fits.gz']
+    print(output_dir)
+    dataset_list = glob.glob(os.path.join(output_dir, '*v4_los.fits.gz'))
+    print(dataset_list)
 
     for filename in dataset_list:
-        print("opening ", filename)
-        hdulist = fits.open(filename)
+        complete_filename = filename
+        print("opening ", complete_filename)
+        hdulist = fits.open(complete_filename)
         ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
         ray_start = [float(ray_start_str.split(",")[0].strip('unitary')), \
                float(ray_start_str.split(",")[1].strip('unitary')), \
@@ -371,8 +366,12 @@ if __name__ == "__main__":
         ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
         ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
         ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
+        ray['dx'] = ray['dx'].convert_to_units('cm')
+
         ray_df = ray.to_dataframe(["x", "y", "z", "density", "temperature",
                                 "metallicity", "HI_Density",
+                                "cell_mass",
+                                "dx",
                                 "x-velocity", "y-velocity", "z-velocity",
                                 "C_p2_number_density", "C_p3_number_density",
                                 "H_p0_number_density",
@@ -380,6 +379,6 @@ if __name__ == "__main__":
                                 "Si_p2_number_density",
                                 "Si_p1_number_density", "Si_p3_number_density",
                                 "Ne_p7_number_density"])
-        fileroot = filename.strip('_los.fits.gz')
+        fileroot = complete_filename.strip('los.fits.gz')
         show_velphase(ds, ray_df, rs, re, hdulist, fileroot)
         hdulist.close()
