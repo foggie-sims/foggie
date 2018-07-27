@@ -172,8 +172,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
         ### OK, now want to set up some spheres of some sizes and get the stuff
         radii = refine_width*0.5*np.arange(0.9, 0.1, -0.01)  # 0.5 because radius
+        print(radii)
         small_sphere = ds.sphere(halo_center, 0.05*refine_width_code) # R=10ckpc/h
         big_sphere = ds.sphere(halo_center, 0.45*refine_width_code)
+        print(small_sphere.radius.in_units('kpc'))
 
         # we want to subtract the bulk velocity from the radial velocities
         bulk_velocity = big_sphere.quantities["BulkVelocity"]()
@@ -181,7 +183,8 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         # find number of cells for the FRB
         # by default, it uses nref10 as the cell size for the frb
         # then create the 3D FRB for calculating the fluxes
-        cell_size = np.unique(big_sphere['dx'].in_units('kpc'))[1]
+        print(np.unique(big_sphere['dx'].in_units('kpc')))
+        cell_size = np.unique(big_sphere['dx'].in_units('kpc'))[0] ### changed this to 0
         box_width = ds.quan(0.9*refine_width,'kpc')
         nbins = int(np.ceil(box_width/cell_size).value)
 
@@ -245,11 +248,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
             print('doing radius ', rad, '.......')
             if rad != np.max(radii):
                 if rad == radii[-1]:
-                    minrad,maxrad = ds.quan(0.5,'kpc'),rad
+                    minrad,maxrad = ds.quan(1,'kpc'),rad
                 else:
                     idI = np.where(radii == rad)[0]
                     maxrad,minrad = rad,radii[idI[0]+1]
-
                 # some radius / geometry things
                 dr = maxrad - minrad
                 rad_here = (minrad+maxrad) / 2.
@@ -267,6 +269,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
                 # most common refinement level
                 #nref_mode = stats.mode(grid_levels[idR])
+                print("min,max = ", minrad, maxrad)
                 sp_out, sp_in = ds.sphere(halo_center, maxrad), ds.sphere(halo_center,minrad)
                 shell = sp_out - sp_in
                 print('nref mode = ', stats.mode(shell['index','grid_level']))
