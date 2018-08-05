@@ -32,6 +32,7 @@ def plot_misty_spectra(hdulist, **kwargs):
 
     ## how many lines are there?
     Nlines = np.int(hdulist[0].header['Nlines'])
+    Nlines = 6
     print("there are ", Nlines, ' lines')
     # start by setting up plots
     fig = plt.figure(dpi=300)
@@ -45,12 +46,9 @@ def plot_misty_spectra(hdulist, **kwargs):
     except:
         zsnap = np.median(hdulist[3].data['redshift'])
     zmin, zmax = (zsnap-0.004), (zsnap+0.004)
-    vmin, vmax = -800, 800
+    vmin, vmax = -400, 400
 
 
-    print("                   ")
-    print("before line loops")
-    print("                   ")
     for line in range(Nlines):
         ax_spec = fig.add_subplot(gs[line, 0])
         try:
@@ -64,19 +62,6 @@ def plot_misty_spectra(hdulist, **kwargs):
             gamma = ext.header['GAMMA']
             Ncomp = ext.header['NCOMP']
             print(line, name)
-
-            for i in range(Ncomp):
-                delta_v = ext.header['FITVCEN{}'.format(i)] * u.Unit('km/s')
-                col_dens = ext.header['FITCOL{}'.format(i)]
-                v_dop = ext.header['FITB{}'.format(i)] * u.Unit('km/s')
-                print('i:',i,delta_v, col_dens, v_dop)
-                spectrum.add_line(name=name, lambda_0=lambda_0, f_value=f_value,
-                                  gamma=gamma, column_density=col_dens, v_doppler=v_dop,
-                                  delta_v=delta_v)
-                ax_spec.plot([delta_v.value * (1 + zsnap), delta_v.value * (1 + zsnap)], [1.05, 0.95], color='k')
-
-            ### _lsf.fits files have '_obs' while _los.fits files don't
-            # ax_spec.step(redshift, flux, color='darkorange',lw=1)
             try:
                 redshift = hdulist[line+2].data['redshift']
                 flux = hdulist[line+2].data['flux']
@@ -86,11 +71,34 @@ def plot_misty_spectra(hdulist, **kwargs):
                 flux = hdulist[line+2].data['flux_obs']
                 wavelength_obs = hdulist[name].data['disp_obs'] * u.AA
             with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(lambda_0)):
-                velocity = (wavelength_obs / (1 + zsnap)).to('km/s') * (1 + zsnap)
+                velocity = (wavelength_obs / (1 + zsnap)).to('km/s')
+                velocity_obs = velocity * (1 + zsnap)
+
+            for i in range(Ncomp):
+                delta_v = ext.header['FITVCEN{}'.format(i)] * u.Unit('km/s')
+                col_dens = ext.header['FITCOL{}'.format(i)]
+                v_dop = ext.header['FITB{}'.format(i)] * u.Unit('km/s')
+                print('i:',i,delta_v, col_dens, v_dop)
+                spectrum.add_line(lambda_0=lambda_0, f_value=f_value,
+                                  gamma=gamma, column_density=col_dens, v_doppler=v_dop,
+                                  delta_v=delta_v)
+                # ax_spec.plot([delta_v.value * (1 + zsnap), delta_v.value * (1 + zsnap)], [1.05, 0.95], color='k')
+                ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='k')
+                ### plot component here
+                this_comp = Spectrum1DModel(redshift=redshift)
+                this_comp.add_line(lambda_0=lambda_0, f_value=f_value,
+                                  gamma=gamma, column_density=col_dens, v_doppler=v_dop,
+                                  delta_v=delta_v)
+                this_flux = this_comp.flux(velocity_obs)
+                ax_spec.step(velocity, this_flux, color='darkorange', ls="--", dashes=(5,2), alpha=0.5)
+
+
+            ### _lsf.fits files have '_obs' while _los.fits files don't
+            # ax_spec.step(redshift, flux, color='darkorange',lw=1)
             ax_spec.plot(velocity, np.ones(len(velocity)),color='k',lw=1, ls=":")
             ax_spec.step(velocity, flux, color='#984ea3')
             if overplot:
-                ax_spec.step(velocity, spectrum.flux(velocity), color='darkorange', lw=1, ls="--", dashes=(5, 2))
+                ax_spec.step(velocity, spectrum.flux(velocity_obs), color='darkorange', lw=1, ls="--", dashes=(5, 2))
             ax_spec.text(vmin + 50, 0, hdulist[line+2].header['LINENAME'], fontsize=10.)
         except Exception as e:
             logging.error("Plotting failed because: \n%s", e)
@@ -109,7 +117,7 @@ def plot_misty_spectra(hdulist, **kwargs):
 
 if __name__ == "__main__":
 
-    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd0018*axx*v5*rsp.fits.gz'))
+    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd00*ax*v5*rsp.fits.gz'))
     dataset_list = long_dataset_list
 
     for filename in dataset_list:
