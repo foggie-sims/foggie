@@ -171,7 +171,7 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     export(img, 'imageout')
     return img
 
-def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
+def drive(fname, trackfile, field1, field2, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
     """this function drives datashaded phase plots"""
 
     all_data, refine_box, refine_width = \
@@ -200,12 +200,13 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, *outfile):
 
     all_data, refine_box, refine_width = \
         prep_dataset(fname, trackfile,
-        ion_list=['H I', 'C IV', 'Si IV', 'O VI'], region='sphere')
+            ion_list=['H I', 'C IV', 'Si IV', 'O VI'], region='sphere')
 
     data_frame = prep_dataframe(all_data, refine_box, refine_width, field1, field2)
 
     if len(outfile) == 0:
         outfile = fname[0:6] + '_' + field1 + '_' + field2 + '_' + colorcode
+        outfile = 'imageout'
         print(outfile)
 
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
