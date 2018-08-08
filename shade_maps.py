@@ -13,8 +13,8 @@ import yt
 import trident
 import numpy as np
 from astropy.table import Table
-from get_refine_box import get_refine_box as grb
-from consistency import ion_frac_color_key, phase_color_key, metal_color_key, axes_label_dict, logfields
+from .get_refine_box import get_refine_box as grb
+from .consistency import ion_frac_color_key, phase_color_key, metal_color_key, axes_label_dict, logfields
 from holoviews.operation.datashader import datashade, aggregate
 from holoviews import Store
 hv.extension('matplotlib')
