@@ -208,10 +208,8 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, *outfile):
         outfile = fname[0:6] + '_' + field1 + '_' + field2 + '_' + colorcode
         print(outfile)
 
-    outfile = 'imageout'
-
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
-    #wrap_axes(outfile, field1, field2, ranges)
+    wrap_axes(outfile, field1, field2, ranges)
     return data_frame
 
 
