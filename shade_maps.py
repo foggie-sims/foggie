@@ -128,20 +128,6 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2):
         else:
             data_frame[field2] = all_data[field2]
 
-    #logf_o6 = np.log10(O_p5_ion_fraction + 1e-9)
-    #logf_o6 = np.log10(C_p3_ion_fraction + 1e-9)
-    #logf_o6 = np.log10(Si_p3_ion_fraction + 1e-9)
-
-
-    #lx = scale_lvec(all_data['specific_angular_momentum_x'])
-    #ly = scale_lvec(all_data['specific_angular_momentum_y'])
-    #lz = scale_lvec(all_data['specific_angular_momentum_z'])
-
-    #data_frame.o6frac = data_frame.o6frac.astype('category')
-    #data_frame.c4frac = data_frame.c4frac.astype('category')
-    #data_frame.si4frac = data_frame.si4frac.astype('category')
-
-
     return data_frame
 
 
@@ -182,10 +168,8 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
         color_key = metal_color_key
 
     img = tf.shade(agg, color_key=color_key, how='eq_hist')
-    export(img, filename)
+    export(img, 'imageout')
     return img
-
-
 
 def drive(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
     """this function drives datashaded phase plots"""
@@ -224,9 +208,15 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, *outfile):
         outfile = fname[0:6] + '_' + field1 + '_' + field2 + '_' + colorcode
         print(outfile)
 
+    outfile = 'imageout'
+
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
-    wrap_axes(outfile, field1, field2, ranges)
+    #wrap_axes(outfile, field1, field2, ranges)
     return data_frame
+
+
+
+
 
 
 def cart2pol(x, y):

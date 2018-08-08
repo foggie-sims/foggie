@@ -25,7 +25,11 @@ import yt
 from astropy.io import fits
 from astropy.table import Table
 
+import shade_maps as sm
+
 CORE_WIDTH = 20.
+
+
 
 def get_fion_threshold(ion_to_use, coldens_fraction):
     cut = 0.999
@@ -90,15 +94,14 @@ def get_sizes(species, x, ion_to_use, cell_mass, coldens_threshold):
 
 
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
-    """ the docstring is missing, is it??? """
+    """ oh, the docstring is missing, is it??? """
 
     ray_s = ray_start.ndarray_view()
     ray_e = ray_end.ndarray_view()
 
     current_redshift = ds.get_parameter('CosmologyCurrentRedshift')
     proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
-        / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.  #\
-    #    / (1.+current_redshift)# in kpc
+        / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
     print("PROPER BOX SIZE : ", proper_box_size)
     all_data = ds.r[ray_s[0]:ray_e[0],
                     ray_s[1]-0.5*CORE_WIDTH/proper_box_size:ray_s[1]+
@@ -147,12 +150,15 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax6.spines["left"].set_color('white')
     ax6.spines["right"].set_color('white')
     ax7 = plt.subplot(gs[7])
-    ax7.set_ylabel('Flux')
+    ax7.set_ylabel(' ')
     ax7.set_xlabel(' ')
     ax8 = plt.subplot(gs[8])
     ax8.set_xlabel('Velocity [km / s]')
     ax9 = plt.subplot(gs[9])
     ax9.set_xlabel(' ')
+    ax7.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+    ax8.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+    ax9.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
     # this one makes the datashaded "core sample" with phase coloring
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
@@ -162,47 +168,42 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     agg = cvs.points(df, 'x', 'y', dshader.count_cat('phase_label'))
     img = tf.shade(agg, color_key=new_phase_color_key)
     x_y_phase = tf.spread(img, px=2, shape='square')
+    ax0.imshow(np.rot90(x_y_phase.to_pil()))
 
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
                          x_range=(np.min(df['x']), np.max(df['x'])),
                          y_range=(np.mean(df['y'])-CORE_WIDTH/0.695,
                                   np.mean(df['y'])+CORE_WIDTH/0.695))
     agg = cvs.points(df, 'x', 'y', dshader.count_cat('metal_label'))
-    img = tf.shade(agg, cmap = metal_color_map, how='log')
+    img = tf.shade(agg, cmap=metal_color_map, how='log')
     x_y_metal = tf.spread(img, px=2, shape='square')
-
-    ax0.imshow(np.rot90(x_y_phase.to_pil()))
+    ax1.imshow(np.rot90(x_y_metal.to_pil()))
 
     ytext = ax0.set_ylabel('x [comoving kpc]', fontname='Arial', fontsize=10)
     ax0.set_yticks([0, 200, 400, 600, 800])
-    ax0.set_yticklabels([ str(int(s)) for s in [0, 50, 100, 150, 200]],
+    ax0.set_yticklabels([ str(int(s)) for s in [0, 50, 100, 150, 201]],
                         fontname='Arial', fontsize=8)
-    ax0.set_xticks([0, 100, 200])
-    ax0.set_xticklabels([ str(s) for s in [-50, 0, 50]], fontname='Arial',
-                        fontsize=8)
 
-    ax1.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    ax1.set_xticks([0, 100, 200])
-    ax1.set_xticklabels([ str(s) for s in [-50, 0, 50]], fontname='Arial',
-                        fontsize=8)
 
-    ax1.imshow(np.rot90(x_y_metal.to_pil()))
+
 
     # render x vs. vx but don't show it yet.
     cvs = dshader.Canvas(plot_width=800, plot_height=300,
                          x_range=(np.min(df['x']), np.max(df['x'])),
-                         y_range=(-300, 300)) # < ----- what units?
+                         y_range=(-350, 350)) # < ----- what units?
     agg = cvs.points(df, 'x', 'vx', dshader.count_cat('phase_label'))
     x_vx_phase = tf.spread(tf.shade(agg, color_key=new_phase_color_key), shape='square')
 
+    ax0.set_xlim(60,140)
+    ax1.set_xlim(60,140)
 
     #now iterate over the species to get the ion fraction plots
-    for species, ax, lax in zip(['HI', 'SiII', 'OVI'], [ax2, ax3, ax4], [ax7, ax8, ax9]):
+    for species, ax in zip( ['HI', 'SiII', 'OVI'], [ax2, ax3, ax4] ):
 
         print("Current species: ", species)
         cvs = dshader.Canvas(plot_width=800, plot_height=300,
                              x_range=(ray_s[0], ray_e[0]),
-                             y_range=(-300,300))
+                             y_range=(-350,350))
         vx_render = tf.shade(cvs.points(ray_df, 'x', 'x-velocity',
                                         agg=reductions.mean(species_dict[species])),
                                         how='log')
@@ -214,18 +215,29 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_xlim(0,300)
         ax.set_ylim(0,800)
 
-    print(ray_df['dx'])
+    nh1 = np.sum(np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
+    nsi2 = np.sum(np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
+    no6 = np.sum(np.array(ray_df['dx'] * ray_df['O_p5_number_density']))
+    print('N(H I)/1e16 = ', 1e-16*nh1)
+    print('N(SiII)/1e13 = ', 1e-13*nsi2)
+    print('N(OVI)/1e13 = ', 1e-13*no6)
 
-    #NOW READY TO DO COLUMN DENSITIES AND CUT ON THEM 
     x_ray = (ray_df['x']-ray_s[0]) * proper_box_size * \
                 ds.get_parameter('CosmologyHubbleConstantNow') # comoving kpc
 
+    # Add the ionization fraction traces to the datashaded velocity vs. x plots
     h1 = 50. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density'])
     si2 = 50. * ray_df['Si_p1_number_density']/np.max(ray_df['Si_p1_number_density'])
     o6 = 50. * ray_df['O_p5_number_density']/np.max(ray_df['O_p5_number_density'])
     ax2.step(h1[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
     ax3.step(si2[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
     ax4.step(o6[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
+
+    vx = 300. - 300.*((ray_df['x-velocity'] + 350.) / 700.)
+
+    ax2.step(vx[np.argsort(vx)], h1[np.argsort(vx)], linewidth=0.5, color='darkblue')
+    ax3.step(vx[np.argsort(vx)], si2[np.argsort(vx)], linewidth=0.5, color='darkblue')
+    ax4.step(vx[np.argsort(vx)], o6[np.argsort(vx)], linewidth=0.5, color='darkblue')
 
     x = np.array(200. - x_ray[np.argsort(x_ray)])
     h1  = np.array(ray_df['H_p0_number_density'][np.argsort(x_ray)])
@@ -237,21 +249,29 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     h1_size_dict = get_sizes('h1', x, h1, cell_mass, 0.8)
     for xx, ss in zip(h1_size_dict['h1_xs'], h1_size_dict['h1_sizes']):
         ax2.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
+    h1_size_dict['nh1'] = nh1
+
+    si2_size_dict = get_sizes('si2', x, si2, cell_mass, 0.8)
+    for xx, ss in zip(si2_size_dict['si2_xs'], si2_size_dict['si2_sizes']):
+        ax3.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
+    si2_size_dict['nsi2'] = nsi2
 
     o6_size_dict = get_sizes('o6', x, o6, cell_mass, 0.8)
     for xx, ss in zip(o6_size_dict['o6_xs'], o6_size_dict['o6_sizes']):
         ax4.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
+    o6_size_dict['no6'] = no6
 
-    size_dict = {**h1_size_dict, **o6_size_dict}
-    pickle.dump( size_dict, open( fileroot+"_sizes.pkl", "wb" ) )
+    size_dict = {**h1_size_dict, **si2_size_dict, **o6_size_dict}
+    pickle.dump( size_dict, open( fileroot+"sizes.pkl", "wb" ) )
 
     fion = Table([x, cell_mass, h1, si2, o6], names=('x','mass','h1','si2','o6') )
-    fion.write(fileroot+'_fion.fits', overwrite=True)
+    fion.write(fileroot+'fion.fits', overwrite=True)
+
 
     for ax, key in zip([ax7, ax8, ax9], ['H I 1216', 'Si II 1260', 'O VI 1032']):
-        ax.set_xlim(-300,300)
+        ax.set_xlim(-350,350)
         ax.set_ylim(0,1)
-        ax.set_yticklabels(['0','0.5',''])
+        ax.set_yticklabels([' ',' ',''])
         if (hdulist.__contains__(key)):
             restwave = hdulist[key].header['RESTWAVE']
             vel = (hdulist[key].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
@@ -264,7 +284,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.axes.get_yaxis().set_ticks([])
 
     gs.update(hspace=0.0, wspace=0.1)
-    plt.savefig(fileroot+'_velphase.png', dpi=300)
+    plt.savefig(fileroot+'velphase.png', dpi=300)
     plt.close(fig)
 
 
@@ -328,6 +348,7 @@ if __name__ == "__main__":
         ds_loc =  ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/" + args.output + "/" + args.output
         output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
         haloname = "halo008508_nref11n_nref10f"
+        trackfile = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
     elif args.run == "nref9f":
         path_part = "halo_008508/nref11n/nref11n_"+args.run+"_refine200kpc/"
         ds_loc =  ds_base + path_part + args.output + "/" + args.output
@@ -342,11 +363,8 @@ if __name__ == "__main__":
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
                     'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
 
-
-    #dataset_list = ['hlsp_misty_foggie_halo008508_nref11n_nref9f_rd0020_axx_i017.3-a4.88_v4_los.fits.gz']
-    print(output_dir)
-    dataset_list = glob.glob(os.path.join(output_dir, '*v4_los.fits.gz'))
-    print(dataset_list)
+    dataset_list = glob.glob(os.path.join(output_dir, '*axx_i011.2-a3.21*v4_los*fits.gz'))
+    #dataset_list = glob.glob(os.path.join(output_dir, 'hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0020_axz_i010.5-a6.01_v5_los.fits.gz'))
 
     for filename in dataset_list:
         complete_filename = filename
@@ -380,5 +398,7 @@ if __name__ == "__main__":
                                 "Si_p1_number_density", "Si_p3_number_density",
                                 "Ne_p7_number_density"])
         fileroot = complete_filename.strip('los.fits.gz')
+        print('about to run velphase')
         show_velphase(ds, ray_df, rs, re, hdulist, fileroot)
+        print('have just run velphase')
         hdulist.close()
