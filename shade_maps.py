@@ -136,7 +136,7 @@ def wrap_axes(filename, field1, field2, ranges):
         axes using matplotlib and so offering full customization."""
 
     img = mpimg.imread(filename+'.png')
-    img2 = np.flip(img,0)
+    #img2 = np.flip(img,0)
     fig = plt.figure(figsize=(8,8))
     ax = fig.add_axes([0.1, 0.1, 0.88, 0.88])
     ax.imshow(img2)

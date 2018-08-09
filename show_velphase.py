@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 from matplotlib.gridspec import GridSpec
-from consistency import *
+from foggie.consistency import *
 
 import copy
 
@@ -25,9 +25,52 @@ import yt
 from astropy.io import fits
 from astropy.table import Table
 
-import shade_maps as sm
+#import shade_maps as sm
+import foggie.shade_maps as sm
 
 CORE_WIDTH = 20.
+
+
+def get_path_info(args):
+
+    args = parse_args()
+    if args.system == "oak":
+        ds_base = "/astro/simulations/FOGGIE/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "dhumuha" or args.system == "palmetto":
+        ds_base = "/Users/molly/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "harddrive":
+        ds_base = "/Volumes/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "pancho":
+        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-collab/"
+    elif args.system == "lefty":
+        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
+
+    if args.run == "natural":
+        ds_loc = ds_base + "halo_008508/nref11n/natural/" + args.output + "/" + args.output
+        output_dir = output_path + "plots_halo_008508/nref11n/natural/spectra/"
+        haloname = "halo008508_nref11n"
+    elif args.run == "nref10f":
+        ds_loc =  ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/" + args.output + "/" + args.output
+        output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
+        haloname = "halo008508_nref11n_nref10f"
+        trackfile = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
+    elif args.run == "nref9f":
+        path_part = "halo_008508/nref11n/nref11n_"+args.run+"_refine200kpc/"
+        ds_loc =  ds_base + path_part + args.output + "/" + args.output
+        output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref9f_refine200kpc/spectra/"
+        haloname = "halo008508_nref11n_nref9f"
+    elif args.run == "nref11f":
+        ds_loc =  ds_base + "halo_008508/nref11n/nref11f_refine200kpc/" + args.output + "/" + args.output
+        output_dir = output_path + "plots_halo_008508/nref11n/nref11f_refine200kpc/spectra/"
+        haloname = "halo008508_nref11f"
+
+    return ds_loc, output_path, output_dir, haloname
+
 
 
 
@@ -318,53 +361,17 @@ def parse_args():
 
 
 
+#this route in uses a function
+def drive_velphase(ds_name, wildcard):
 
+    ds = yt.load(ds_name)
 
-
-if __name__ == "__main__":
-
-    args = parse_args()
-    if args.system == "oak":
-        ds_base = "/astro/simulations/FOGGIE/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "dhumuha" or args.system == "palmetto":
-        ds_base = "/Users/molly/foggie/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "harddrive":
-        ds_base = "/Volumes/foggie/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "pancho":
-        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
-        output_path = "/Users/tumlinson/Dropbox/foggie-collab/"
-    elif args.system == "lefty":
-        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
-        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
-
-    if args.run == "natural":
-        ds_loc = ds_base + "halo_008508/nref11n/natural/" + args.output + "/" + args.output
-        output_dir = output_path + "plots_halo_008508/nref11n/natural/spectra/"
-        haloname = "halo008508_nref11n"
-    elif args.run == "nref10f":
-        ds_loc =  ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/" + args.output + "/" + args.output
-        output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
-        haloname = "halo008508_nref11n_nref10f"
-        trackfile = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
-    elif args.run == "nref9f":
-        path_part = "halo_008508/nref11n/nref11n_"+args.run+"_refine200kpc/"
-        ds_loc =  ds_base + path_part + args.output + "/" + args.output
-        output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref9f_refine200kpc/spectra/"
-        haloname = "halo008508_nref11n_nref9f"
-    elif args.run == "nref11f":
-        ds_loc =  ds_base + "halo_008508/nref11n/nref11f_refine200kpc/" + args.output + "/" + args.output
-        output_dir = output_path + "plots_halo_008508/nref11n/nref11f_refine200kpc/spectra/"
-        haloname = "halo008508_nref11f"
-
-    ds = yt.load(ds_loc)
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
                     'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
 
-    dataset_list = glob.glob(os.path.join(output_dir, '*axx_i011.2-a3.21*v4_los*fits.gz'))
-    #dataset_list = glob.glob(os.path.join(output_dir, 'hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0020_axz_i010.5-a6.01_v5_los.fits.gz'))
+    dataset_list = glob.glob(os.path.join(os.getcwd(), wildcard))
+
+    print(" Called from module: ", dataset_list)
 
     for filename in dataset_list:
         complete_filename = filename
@@ -398,7 +405,56 @@ if __name__ == "__main__":
                                 "Si_p1_number_density", "Si_p3_number_density",
                                 "Ne_p7_number_density"])
         fileroot = complete_filename.strip('los.fits.gz')
-        print('about to run velphase')
+        print(ray_df)
         show_velphase(ds, ray_df, rs, re, hdulist, fileroot)
-        print('have just run velphase')
+        hdulist.close()
+
+
+
+#this route in uses the command line interface
+if __name__ == "__main__":
+
+    args = parse_args()
+    ds_loc, output_path, output_dir, haloname = get_path_info(args)
+
+    dataset_list = glob.glob(os.path.join(output_dir, '*axx_i011.2-a3.21*v4_los*fits.gz'))
+    print(" Called from command line: ", dataset_list)
+
+    ds = yt.load(ds_loc)
+    trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
+                    'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
+
+    for filename in dataset_list:
+        complete_filename = filename
+        print("opening ", complete_filename)
+        hdulist = fits.open(complete_filename)
+        ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
+        ray_start = [float(ray_start_str.split(",")[0].strip('unitary')), \
+               float(ray_start_str.split(",")[1].strip('unitary')), \
+               float(ray_start_str.split(",")[2].strip('unitary'))]
+        ray_end = [float(ray_end_str.split(",")[0].strip('unitary')), \
+               float(ray_end_str.split(",")[1].strip('unitary')), \
+               float(ray_end_str.split(",")[2].strip('unitary'))]
+        rs, re = np.array(ray_start), np.array(ray_end)
+        rs = ds.arr(rs, "code_length")
+        re = ds.arr(re, "code_length")
+        ray = ds.ray(rs, re)
+        ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
+        ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
+        ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
+        ray['dx'] = ray['dx'].convert_to_units('cm')
+
+        ray_df = ray.to_dataframe(["x", "y", "z", "density", "temperature",
+                                "metallicity", "HI_Density",
+                                "cell_mass",
+                                "dx",
+                                "x-velocity", "y-velocity", "z-velocity",
+                                "C_p2_number_density", "C_p3_number_density",
+                                "H_p0_number_density",
+                                "Mg_p1_number_density", "O_p5_number_density",
+                                "Si_p2_number_density",
+                                "Si_p1_number_density", "Si_p3_number_density",
+                                "Ne_p7_number_density"])
+        fileroot = complete_filename.strip('los.fits.gz')
+        show_velphase(ds, ray_df, rs, re, hdulist, fileroot)
         hdulist.close()
