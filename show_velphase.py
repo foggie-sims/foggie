@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 from matplotlib.gridspec import GridSpec
-from foggie.consistency import *
+os.sys.path.insert(0, os.environ['FOGGIE_REPO']) 
+from consistency import *
 
 import copy
 

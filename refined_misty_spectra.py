@@ -7,6 +7,7 @@ import numpy as np
 import yt
 
 os.sys.path.insert(0, '/Users/molly/Dropbox/misty/MISTY-pipeline/MISTY')
+os.sys.path.insert(0, os.environ['FOGGIE_REPO']) 
 import MISTY
 import argparse
 
