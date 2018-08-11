@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 from matplotlib.gridspec import GridSpec
-os.sys.path.insert(0, os.environ['FOGGIE_REPO']) 
+os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 from consistency import *
 
 import copy
@@ -31,7 +31,6 @@ import foggie.shade_maps as sm
 
 CORE_WIDTH = 20.
 
-
 def get_path_info(args):
 
     args = parse_args()
@@ -44,9 +43,11 @@ def get_path_info(args):
     elif args.system == "harddrive":
         ds_base = "/Volumes/foggie/"
         output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "pancho":
-        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
-        output_path = "/Users/tumlinson/Dropbox/foggie-collab/"
+    elif args.system == "townes":
+        print("SYSTEM = ", args.system)
+        ds_base = "/Users/tumlinson/Dropbox/FOGGIE/outputs/"
+        output_path = "/Users/tumlinson/Dropbox/foggie/collab/"
+        print(ds_base, output_path)
     elif args.system == "lefty":
         ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
         output_path = "/Users/tumlinson/Dropbox/foggie-test/"
@@ -72,9 +73,6 @@ def get_path_info(args):
 
     return ds_loc, output_path, output_dir, haloname
 
-
-
-
 def get_fion_threshold(ion_to_use, coldens_fraction):
     cut = 0.999
     total = np.sum(ion_to_use)
@@ -88,9 +86,6 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
     number_of_cells_above_threshold = np.size(np.where(ion_to_use > threshold))
 
     return threshold, number_of_cells_above_threshold
-
-
-
 
 def get_sizes(species, x, ion_to_use, cell_mass, coldens_threshold):
 
@@ -134,8 +129,6 @@ def get_sizes(species, x, ion_to_use, cell_mass, coldens_threshold):
     size_dict[species+'_n_cells'] = number_of_cells
     size_dict[species+'_cell_masses'] = masses
     return size_dict
-
-
 
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     """ oh, the docstring is missing, is it??? """
@@ -331,10 +324,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     plt.savefig(fileroot+'velphase.png', dpi=300)
     plt.close(fig)
 
-
-
-
-
 def parse_args():
     '''
     Parse command line arguments.  Returns args object.
@@ -356,24 +345,10 @@ def parse_args():
     parser.add_argument('--fitsfile', metavar='fitsfile', type=str, action='store',
                         help='what fitsfile would you like to read in? this does not work yet')
 
-
     args = parser.parse_args()
     return args
 
-
-
-#this route in uses a function
-def drive_velphase(ds_name, wildcard):
-
-    ds = yt.load(ds_name)
-
-    trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
-                    'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
-
-    dataset_list = glob.glob(os.path.join(os.getcwd(), wildcard))
-
-    print(" Called from module: ", dataset_list)
-
+def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
         complete_filename = filename
         print("opening ", complete_filename)
@@ -406,56 +381,31 @@ def drive_velphase(ds_name, wildcard):
                                 "Si_p1_number_density", "Si_p3_number_density",
                                 "Ne_p7_number_density"])
         fileroot = complete_filename.strip('los.fits.gz')
-        print(ray_df)
         show_velphase(ds, ray_df, rs, re, hdulist, fileroot)
         hdulist.close()
 
 
 
-#this route in uses the command line interface
+
+def drive_velphase(ds_name, wildcard):
+
+    ds = yt.load(ds_name)
+    trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
+                    'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
+
+    dataset_list = glob.glob(os.path.join(os.getcwd(), wildcard))
+    loop_over_rays(ds, dataset_list)
+
 if __name__ == "__main__":
 
     args = parse_args()
     ds_loc, output_path, output_dir, haloname = get_path_info(args)
 
-    dataset_list = glob.glob(os.path.join(output_dir, '*axx_i011.2-a3.21*v4_los*fits.gz'))
+    dataset_list = glob.glob(os.path.join(output_dir, 'axx_i035.0-a4.96_v4_los.fits.gz'))
     print(" Called from command line: ", dataset_list)
 
     ds = yt.load(ds_loc)
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
                     'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
 
-    for filename in dataset_list:
-        complete_filename = filename
-        print("opening ", complete_filename)
-        hdulist = fits.open(complete_filename)
-        ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
-        ray_start = [float(ray_start_str.split(",")[0].strip('unitary')), \
-               float(ray_start_str.split(",")[1].strip('unitary')), \
-               float(ray_start_str.split(",")[2].strip('unitary'))]
-        ray_end = [float(ray_end_str.split(",")[0].strip('unitary')), \
-               float(ray_end_str.split(",")[1].strip('unitary')), \
-               float(ray_end_str.split(",")[2].strip('unitary'))]
-        rs, re = np.array(ray_start), np.array(ray_end)
-        rs = ds.arr(rs, "code_length")
-        re = ds.arr(re, "code_length")
-        ray = ds.ray(rs, re)
-        ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
-        ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
-        ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
-        ray['dx'] = ray['dx'].convert_to_units('cm')
-
-        ray_df = ray.to_dataframe(["x", "y", "z", "density", "temperature",
-                                "metallicity", "HI_Density",
-                                "cell_mass",
-                                "dx",
-                                "x-velocity", "y-velocity", "z-velocity",
-                                "C_p2_number_density", "C_p3_number_density",
-                                "H_p0_number_density",
-                                "Mg_p1_number_density", "O_p5_number_density",
-                                "Si_p2_number_density",
-                                "Si_p1_number_density", "Si_p3_number_density",
-                                "Ne_p7_number_density"])
-        fileroot = complete_filename.strip('los.fits.gz')
-        show_velphase(ds, ray_df, rs, re, hdulist, fileroot)
-        hdulist.close()
+    loop_over_rays(ds, dataset_list)
