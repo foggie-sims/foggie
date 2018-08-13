@@ -46,7 +46,9 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
 
     return threshold, number_of_cells_above_threshold
 
-def get_sizes(species, x, ion_to_use, cell_mass, coldens_threshold):
+def get_sizes(ray_df, species, x, ion_to_use, cell_mass, coldens_threshold):
+
+    print(ray_df)
 
     threshold, number_of_cells = get_fion_threshold(ion_to_use, coldens_threshold)
 
@@ -161,12 +163,10 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     for species, ax in zip( ['HI', 'SiII', 'OVI'], [ax2, ax3, ax4] ):
 
         print("Current species: ", species)
-        cvs = dshader.Canvas(plot_width=800, plot_height=300,
-                             x_range=(ray_start[0], ray_end[0]),
-                             y_range=(-350,350))
-        vx_render = tf.shade(cvs.points(ray_df, 'x', 'x-velocity',
-                                        agg=reductions.mean(species_dict[species])),
-                                        how='log')
+        cvs = dshader.Canvas(plot_width=800, plot_height=300, y_range=(-350,350),
+                             x_range=(ray_start[0], ray_end[0]))
+        vx_render = tf.shade(cvs.points(ray_df, 'x', 'x-velocity', how='log'
+                                        agg=reductions.mean(species_dict[species])))
         ray_vx = tf.spread(vx_render, px=2, shape='square')
 
         ax.imshow(np.rot90(x_vx_phase.to_pil()))
@@ -178,15 +178,17 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     nh1 = np.sum(np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
     nsi2 = np.sum(np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
     no6 = np.sum(np.array(ray_df['dx'] * ray_df['O_p5_number_density']))
-    print('N(H I)/1e16 = ', 1e-16*nh1)
-    print('N(SiII)/1e13 = ', 1e-13*nsi2)
-    print('N(OVI)/1e13 = ', 1e-13*no6)
 
-    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
+    comoving_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
         / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
 
-    x_ray = (ray_df['x']-ray_start[0]) * proper_box_size * \
+    x_ray = (ray_df['x']-ray_start[0]) * comoving_box_size * \
                 ds.get_parameter('CosmologyHubbleConstantNow') # comoving kpc
+    ray_df['x_ray'] = x_ray[np.argsort(x_ray)]
+    #can add stuff to the ray df instead of computing new variables
+
+    ray_length = ds.get_parameter('CosmologyHubbleConstantNow') * \
+                    comoving_box_size * (ray_end[0] - ray_start[0])
 
     # Add the ionization fraction traces to the datashaded velocity vs. x plots
     h1 = 50. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density'])
@@ -202,24 +204,24 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax3.step(vx[np.argsort(vx)], si2[np.argsort(vx)], linewidth=0.5, color='darkblue')
     ax4.step(vx[np.argsort(vx)], o6[np.argsort(vx)], linewidth=0.5, color='darkblue')
 
-    x = np.array(200. - x_ray[np.argsort(x_ray)])
+    x = np.array(ray_length - x_ray[np.argsort(x_ray)])
     h1  = np.array(ray_df['H_p0_number_density'][np.argsort(x_ray)])
     si2 = np.array(ray_df['Si_p1_number_density'][np.argsort(x_ray)])
     o6  = np.array(ray_df['O_p5_number_density'][np.argsort(x_ray)])
     cell_mass = np.array(ray_df['cell_mass'][np.argsort(x_ray)])
 
     #get the cloud sizes for the top 80% of the column density
-    h1_size_dict = get_sizes('h1', x, h1, cell_mass, 0.8)
+    h1_size_dict = get_sizes(ray_df, 'h1', x, h1, cell_mass, 0.8)
     for xx, ss in zip(h1_size_dict['h1_xs'], h1_size_dict['h1_sizes']):
         ax2.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     h1_size_dict['nh1'] = nh1
 
-    si2_size_dict = get_sizes('si2', x, si2, cell_mass, 0.8)
+    si2_size_dict = get_sizes(ray_df, 'si2', x, si2, cell_mass, 0.8)
     for xx, ss in zip(si2_size_dict['si2_xs'], si2_size_dict['si2_sizes']):
         ax3.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     si2_size_dict['nsi2'] = nsi2
 
-    o6_size_dict = get_sizes('o6', x, o6, cell_mass, 0.8)
+    o6_size_dict = get_sizes(ray_df, 'o6', x, o6, cell_mass, 0.8)
     for xx, ss in zip(o6_size_dict['o6_xs'], o6_size_dict['o6_sizes']):
         ax4.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     o6_size_dict['no6'] = no6
@@ -298,9 +300,7 @@ def grab_ray_file(ds, filename):
 
 def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
-
         ray_df, rs, re, hdulist = grab_ray_file(ds, filename)
-
         show_velphase(ds, ray_df, rs, re, hdulist, filename.strip('los.fits.gz'))
 
 def drive_velphase(ds_name, wildcard):
@@ -321,9 +321,7 @@ if __name__ == "__main__":
     args = futils.parse_args()
     ds_loc, output_path, output_dir, haloname = futils.get_path_info(args)
 
-    print("output_dir CLI: ", output_dir)
     dataset_list = glob.glob(os.path.join(output_dir, '*v4_los.fits.gz'))
-    print("dataset_list (CLI): ", dataset_list)
 
     ds = yt.load(ds_loc)
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
