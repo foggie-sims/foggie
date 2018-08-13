@@ -32,49 +32,6 @@ import foggie.shade_maps as sm
 
 CORE_WIDTH = 20.
 
-
-def get_path_info(args):
-
-    args = parse_args()
-    if args.system == "oak":
-        ds_base = "/astro/simulations/FOGGIE/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "dhumuha" or args.system == "palmetto":
-        ds_base = "/Users/molly/foggie/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "harddrive":
-        ds_base = "/Volumes/foggie/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "townes":
-        print("SYSTEM = ", args.system)
-        ds_base = "/Users/tumlinson/Dropbox/FOGGIE/outputs/"
-        output_path = "/Users/tumlinson/Dropbox/foggie/collab/"
-        print(ds_base, output_path)
-    elif args.system == "lefty":
-        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
-        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
-
-    if args.run == "natural":
-        ds_loc = ds_base + "halo_008508/nref11n/natural/" + args.output + "/" + args.output
-        output_dir = output_path + "plots_halo_008508/nref11n/natural/spectra/"
-        haloname = "halo008508_nref11n"
-    elif args.run == "nref10f":
-        ds_loc =  ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/" + args.output + "/" + args.output
-        output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
-        haloname = "halo008508_nref11n_nref10f"
-        trackfile = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
-    elif args.run == "nref9f":
-        path_part = "halo_008508/nref11n/nref11n_"+args.run+"_refine200kpc/"
-        ds_loc =  ds_base + path_part + args.output + "/" + args.output
-        output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref9f_refine200kpc/spectra/"
-        haloname = "halo008508_nref11n_nref9f"
-    elif args.run == "nref11f":
-        ds_loc =  ds_base + "halo_008508/nref11n/nref11f_refine200kpc/" + args.output + "/" + args.output
-        output_dir = output_path + "plots_halo_008508/nref11n/nref11f_refine200kpc/spectra/"
-        haloname = "halo008508_nref11f"
-
-    return ds_loc, output_path, output_dir, haloname
-
 def get_fion_threshold(ion_to_use, coldens_fraction):
     cut = 0.999
     total = np.sum(ion_to_use)
@@ -200,8 +157,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     agg = cvs.points(df, 'x', 'vx', dshader.count_cat('phase_label'))
     x_vx_phase = tf.spread(tf.shade(agg, color_key=new_phase_color_key), shape='square')
 
-
-
     #now iterate over the species to get the ion fraction plots
     for species, ax in zip( ['HI', 'SiII', 'OVI'], [ax2, ax3, ax4] ):
 
@@ -305,31 +260,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     plt.savefig(fileroot+'velphase.png', dpi=300)
     plt.close(fig)
 
-
-def parse_args():
-    '''
-    Parse command line arguments.  Returns args object.
-    '''
-    parser = argparse.ArgumentParser(description="extracts spectra from refined region")
-
-    parser.add_argument('--run', metavar='run', type=str, action='store',
-                        help='which run? default is nref9f')
-    parser.set_defaults(run="nref9f")
-
-    parser.add_argument('--output', metavar='output', type=str, action='store',
-                        help='which output? default is RD0020')
-    parser.set_defaults(output="RD0020")
-
-    parser.add_argument('--system', metavar='system', type=str, action='store',
-                        help='which system are you on? default is oak')
-    parser.set_defaults(system="oak")
-
-    parser.add_argument('--fitsfile', metavar='fitsfile', type=str, action='store',
-                        help='what fitsfile would you like to read in? this does not work yet')
-
-    args = parser.parse_args()
-    return args
-
 def grab_ray_file(ds, filename):
     """
     opens a fits file containing a FOGGIE / Trident ray and returns a dataframe
@@ -388,8 +318,8 @@ if __name__ == "__main__":
     """
     for running at the command line.
     """
-    args = parse_args()
-    ds_loc, output_path, output_dir, haloname = get_path_info(args)
+    args = futils.parse_args()
+    ds_loc, output_path, output_dir, haloname = futils.get_path_info(args)
 
     print("output_dir CLI: ", output_dir)
     dataset_list = glob.glob(os.path.join(output_dir, '*v4_los.fits.gz'))
