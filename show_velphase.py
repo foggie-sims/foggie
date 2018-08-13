@@ -10,16 +10,17 @@ import pandas as pd
 import pickle
 import glob
 import os
+from consistency import *
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 from matplotlib.gridspec import GridSpec
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-from consistency import *
 
 import copy
-
 import argparse
+
+import foggie_utils as futils
 
 import trident
 import yt
@@ -30,6 +31,7 @@ from astropy.table import Table
 import foggie.shade_maps as sm
 
 CORE_WIDTH = 20.
+
 
 def get_path_info(args):
 
@@ -133,37 +135,7 @@ def get_sizes(species, x, ion_to_use, cell_mass, coldens_threshold):
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     """ oh, the docstring is missing, is it??? """
 
-    ray_s = ray_start.ndarray_view()
-    ray_e = ray_end.ndarray_view()
-
-    current_redshift = ds.get_parameter('CosmologyCurrentRedshift')
-    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
-        / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
-    print("PROPER BOX SIZE : ", proper_box_size)
-    all_data = ds.r[ray_s[0]:ray_e[0],
-                    ray_s[1]-0.5*CORE_WIDTH/proper_box_size:ray_s[1]+
-                    0.5*CORE_WIDTH/proper_box_size,
-                    ray_s[2]-0.5*CORE_WIDTH/proper_box_size:ray_s[2]+
-                    0.5*CORE_WIDTH/proper_box_size]
-
-    dens = np.log10(all_data['density'].ndarray_view())
-    temp = np.log10(all_data['temperature'].ndarray_view())
-    metallicity = all_data['metallicity'].ndarray_view()
-
-    phase_label = new_categorize_by_temp(temp)
-    metal_label = categorize_by_metallicity(metallicity)
-
-    df = pd.DataFrame({'x':all_data['x'].ndarray_view() * proper_box_size,
-                       'y':all_data['y'].ndarray_view() * proper_box_size,
-                       'z':all_data['z'].ndarray_view() * proper_box_size,
-                       'vx':all_data["x-velocity"].in_units('km/s'),
-                       'vy':all_data["y-velocity"].in_units('km/s'),
-                       'vz':all_data["z-velocity"].in_units('km/s'),
-                       'cell_mass':all_data['cell_mass'].in_units('Msun'),
-                       'temp':temp, 'dens':dens, 'phase_label':phase_label,
-                       'metal_label':metal_label})
-    df.phase_label = df.phase_label.astype('category')
-    df.metal_label = df.metal_label.astype('category')
+    df = futils.ds_to_df(ds, ray_start, ray_end)
 
     #establish the grid of plots and obtain the axis objects
     fig = plt.figure(figsize=(8,6))
@@ -218,11 +190,8 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     ytext = ax0.set_ylabel('x [comoving kpc]', fontname='Arial', fontsize=10)
     ax0.set_yticks([0, 200, 400, 600, 800])
-    ax0.set_yticklabels([ str(int(s)) for s in [0, 50, 100, 150, 201]],
+    ax0.set_yticklabels([ str(int(s)) for s in [0, 50, 100, 150, 200]],
                         fontname='Arial', fontsize=8)
-
-
-
 
     # render x vs. vx but don't show it yet.
     cvs = dshader.Canvas(plot_width=800, plot_height=300,
@@ -231,15 +200,14 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     agg = cvs.points(df, 'x', 'vx', dshader.count_cat('phase_label'))
     x_vx_phase = tf.spread(tf.shade(agg, color_key=new_phase_color_key), shape='square')
 
-    ax0.set_xlim(60,140)
-    ax1.set_xlim(60,140)
+
 
     #now iterate over the species to get the ion fraction plots
     for species, ax in zip( ['HI', 'SiII', 'OVI'], [ax2, ax3, ax4] ):
 
         print("Current species: ", species)
         cvs = dshader.Canvas(plot_width=800, plot_height=300,
-                             x_range=(ray_s[0], ray_e[0]),
+                             x_range=(ray_start[0], ray_end[0]),
                              y_range=(-350,350))
         vx_render = tf.shade(cvs.points(ray_df, 'x', 'x-velocity',
                                         agg=reductions.mean(species_dict[species])),
@@ -259,7 +227,10 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     print('N(SiII)/1e13 = ', 1e-13*nsi2)
     print('N(OVI)/1e13 = ', 1e-13*no6)
 
-    x_ray = (ray_df['x']-ray_s[0]) * proper_box_size * \
+    proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
+        / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
+
+    x_ray = (ray_df['x']-ray_start[0]) * proper_box_size * \
                 ds.get_parameter('CosmologyHubbleConstantNow') # comoving kpc
 
     # Add the ionization fraction traces to the datashaded velocity vs. x plots
@@ -298,6 +269,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax4.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     o6_size_dict['no6'] = no6
 
+    # concatenate the dictionaries for the various species
     size_dict = {**h1_size_dict, **si2_size_dict, **o6_size_dict}
     pickle.dump( size_dict, open( fileroot+"sizes.pkl", "wb" ) )
 
@@ -308,21 +280,31 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     for ax, key in zip([ax7, ax8, ax9], ['H I 1216', 'Si II 1260', 'O VI 1032']):
         ax.set_xlim(-350,350)
         ax.set_ylim(0,1)
-        ax.set_yticklabels([' ',' ',''])
+        ax.set_yticklabels([' ',' ',' '])
         if (hdulist.__contains__(key)):
             restwave = hdulist[key].header['RESTWAVE']
-            vel = (hdulist[key].data['wavelength']/(1.+current_redshift) - restwave) / restwave * c_kms
+            vel = (hdulist[key].data['wavelength']/(1.+\
+                ds.get_parameter('CosmologyCurrentRedshift')) - restwave) / restwave * c_kms
             ax.step(vel, hdulist[key].data['flux'])
 
     ax0.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax1.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+    ax1.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+
     for ax in [ax2, ax3, ax4, ax5, ax6]:
         ax.axes.get_xaxis().set_ticks([])
         ax.axes.get_yaxis().set_ticks([])
 
+    ax1.set_yticks([])
+    ax0.set_xticks([])
+    ax1.set_xticks([])
+    ax0.set_xlim(60,140)
+    ax1.set_xlim(60,140)
+
     gs.update(hspace=0.0, wspace=0.1)
     plt.savefig(fileroot+'velphase.png', dpi=300)
     plt.close(fig)
+
 
 def parse_args():
     '''
@@ -348,47 +330,53 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+def grab_ray_file(ds, filename):
+    """
+    opens a fits file containing a FOGGIE / Trident ray and returns a dataframe
+    with useful quantities along the ray
+    """
+    print("grab_ray_file is opening: ", filename)
+    hdulist = fits.open(filename)
+    ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
+    ray_start = [float(ray_start_str.split(",")[0].strip('unitary')), \
+           float(ray_start_str.split(",")[1].strip('unitary')), \
+           float(ray_start_str.split(",")[2].strip('unitary'))]
+    ray_end = [float(ray_end_str.split(",")[0].strip('unitary')), \
+           float(ray_end_str.split(",")[1].strip('unitary')), \
+           float(ray_end_str.split(",")[2].strip('unitary'))]
+    rs, re = np.array(ray_start), np.array(ray_end)
+    rs = ds.arr(rs, "code_length")
+    re = ds.arr(re, "code_length")
+    ray = ds.ray(rs, re)
+    rs = rs.ndarray_view()
+    re = re.ndarray_view()
+    ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
+    ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
+    ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
+    ray['dx'] = ray['dx'].convert_to_units('cm')
+
+    ray_df = ray.to_dataframe(["x", "y", "z", "density", "temperature",
+                            "metallicity", "HI_Density", "cell_mass", "dx",
+                            "x-velocity", "y-velocity", "z-velocity",
+                            "C_p2_number_density", "C_p3_number_density",
+                            "H_p0_number_density", "Mg_p1_number_density",
+                            "O_p5_number_density", "Si_p2_number_density",
+                            "Si_p1_number_density", "Si_p3_number_density",
+                            "Ne_p7_number_density"])
+    #hdulist.close()
+    return ray_df, rs, re, hdulist
+
 def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
-        complete_filename = filename
-        print("opening ", complete_filename)
-        hdulist = fits.open(complete_filename)
-        ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
-        ray_start = [float(ray_start_str.split(",")[0].strip('unitary')), \
-               float(ray_start_str.split(",")[1].strip('unitary')), \
-               float(ray_start_str.split(",")[2].strip('unitary'))]
-        ray_end = [float(ray_end_str.split(",")[0].strip('unitary')), \
-               float(ray_end_str.split(",")[1].strip('unitary')), \
-               float(ray_end_str.split(",")[2].strip('unitary'))]
-        rs, re = np.array(ray_start), np.array(ray_end)
-        rs = ds.arr(rs, "code_length")
-        re = ds.arr(re, "code_length")
-        ray = ds.ray(rs, re)
-        ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
-        ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
-        ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
-        ray['dx'] = ray['dx'].convert_to_units('cm')
 
-        ray_df = ray.to_dataframe(["x", "y", "z", "density", "temperature",
-                                "metallicity", "HI_Density",
-                                "cell_mass",
-                                "dx",
-                                "x-velocity", "y-velocity", "z-velocity",
-                                "C_p2_number_density", "C_p3_number_density",
-                                "H_p0_number_density",
-                                "Mg_p1_number_density", "O_p5_number_density",
-                                "Si_p2_number_density",
-                                "Si_p1_number_density", "Si_p3_number_density",
-                                "Ne_p7_number_density"])
-        fileroot = complete_filename.strip('los.fits.gz')
-        show_velphase(ds, ray_df, rs, re, hdulist, fileroot)
-        hdulist.close()
+        ray_df, rs, re, hdulist = grab_ray_file(ds, filename)
 
-
-
+        show_velphase(ds, ray_df, rs, re, hdulist, filename.strip('los.fits.gz'))
 
 def drive_velphase(ds_name, wildcard):
-
+    """
+    for running as imported module.
+    """
     ds = yt.load(ds_name)
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
                     'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
@@ -397,12 +385,15 @@ def drive_velphase(ds_name, wildcard):
     loop_over_rays(ds, dataset_list)
 
 if __name__ == "__main__":
-
+    """
+    for running at the command line.
+    """
     args = parse_args()
     ds_loc, output_path, output_dir, haloname = get_path_info(args)
 
-    dataset_list = glob.glob(os.path.join(output_dir, 'axx_i035.0-a4.96_v4_los.fits.gz'))
-    print(" Called from command line: ", dataset_list)
+    print("output_dir CLI: ", output_dir)
+    dataset_list = glob.glob(os.path.join(output_dir, '*v4_los.fits.gz'))
+    print("dataset_list (CLI): ", dataset_list)
 
     ds = yt.load(ds_loc)
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
