@@ -70,8 +70,7 @@ density_proj_max = 1e4
 density_slc_min = 5e-8  ## msun / pc^3
 density_slc_max = 5
 
-metal_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a",
-                    "#ffe34d","darkorange"), as_cmap=True)
+metal_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a","#ffe34d","darkorange"), as_cmap=True)
 metal_min = 1.e-4
 metal_max = 3.
 metal_density_min = 1.e-5
@@ -219,11 +218,11 @@ new_metals_color_key = {b'free':to_hex(metallicity_colors[0]),
                     b'high3':to_hex(metallicity_colors[20]) ## orange
 }
 
-metal_vals = np.power(10.0,np.linspace(start=np.log10(metal_min), stop=np.log10(metal_max), num=21)))
+metal_vals = np.power(10.0,np.linspace(start=np.log10(metal_min), stop=np.log10(metal_max), num=21))
 def new_categorize_by_metals(metal):
     """ define the temp category strings"""
     phase = np.chararray(np.size(metal), 6)
-    phase[metal < 5*metal_vals[20]] = b'high3'
+    phase[metal < 5*metal_vals[20]] = b'high3',
     phase[metal < metal_vals[19]] = b'high2'
     phase[metal < metal_vals[18]] = b'high1'
     phase[metal < metal_vals[17]] = b'high'
@@ -243,3 +242,4 @@ def new_categorize_by_metals(metal):
     phase[metal < metal_vals[2]] = b'free2'
     phase[metal < metal_vals[1]] = b'free1'
     phase[metal < metal_vals[0]] = b'free'
+    return phase
