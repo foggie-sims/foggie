@@ -1,7 +1,7 @@
 """
-creates "core sample" velocity plots
-JT 070318
+creates "core sample" velocity plots - JT 070318
 """
+
 import datashader as dshader
 import datashader.transfer_functions as tf
 from datashader import reductions
@@ -48,7 +48,7 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
 
 def get_sizes(ray_df, species, x, ion_to_use, cell_mass, coldens_threshold):
 
-    print(ray_df)
+    print("RAY_DF INSIDE GET_SIZES", ray_df)
 
     threshold, number_of_cells = get_fion_threshold(ion_to_use, coldens_threshold)
 
@@ -118,12 +118,12 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax6.spines["left"].set_color('white')
     ax6.spines["right"].set_color('white')
     ax7 = plt.subplot(gs[7])
-    ax7.set_ylabel(' ')
-    ax7.set_xlabel(' ')
+    #ax7.set_ylabel(' ')
+    #ax7.set_xlabel(' ')
     ax8 = plt.subplot(gs[8])
     ax8.set_xlabel('Velocity [km / s]')
     ax9 = plt.subplot(gs[9])
-    ax9.set_xlabel(' ')
+    #ax9.set_xlabel(' ')
     ax7.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax8.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax9.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
@@ -165,8 +165,9 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         print("Current species: ", species)
         cvs = dshader.Canvas(plot_width=800, plot_height=300, y_range=(-350,350),
                              x_range=(ray_start[0], ray_end[0]))
-        vx_render = tf.shade(cvs.points(ray_df, 'x', 'x-velocity', how='log'
-                                        agg=reductions.mean(species_dict[species])))
+        vx_render = tf.shade(cvs.points(ray_df, 'x', 'x-velocity',
+                                        agg=reductions.mean(species_dict[species])),
+                                        how='log')
         ray_vx = tf.spread(vx_render, px=2, shape='square')
 
         ax.imshow(np.rot90(x_vx_phase.to_pil()))
@@ -194,34 +195,29 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     h1 = 50. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density'])
     si2 = 50. * ray_df['Si_p1_number_density']/np.max(ray_df['Si_p1_number_density'])
     o6 = 50. * ray_df['O_p5_number_density']/np.max(ray_df['O_p5_number_density'])
-    ax2.step(h1[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
-    ax3.step(si2[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
-    ax4.step(o6[np.argsort(x_ray)], 800. - 4. * x_ray[np.argsort(x_ray)], linewidth=0.5)
+    ax2.step(h1, 800. - 4. * x_ray, linewidth=0.5)
+    ax3.step(si2, 800. - 4. * x_ray, linewidth=0.5)
+    ax4.step(o6, 800. - 4. * x_ray, linewidth=0.5)
 
     vx = 300. - 300.*((ray_df['x-velocity'] + 350.) / 700.)
-
     ax2.step(vx[np.argsort(vx)], h1[np.argsort(vx)], linewidth=0.5, color='darkblue')
     ax3.step(vx[np.argsort(vx)], si2[np.argsort(vx)], linewidth=0.5, color='darkblue')
     ax4.step(vx[np.argsort(vx)], o6[np.argsort(vx)], linewidth=0.5, color='darkblue')
 
-    x = np.array(ray_length - x_ray[np.argsort(x_ray)])
-    h1  = np.array(ray_df['H_p0_number_density'][np.argsort(x_ray)])
-    si2 = np.array(ray_df['Si_p1_number_density'][np.argsort(x_ray)])
-    o6  = np.array(ray_df['O_p5_number_density'][np.argsort(x_ray)])
-    cell_mass = np.array(ray_df['cell_mass'][np.argsort(x_ray)])
+    x = np.array(ray_length - x_ray)
+    cell_mass = np.array(ray_df['cell_mass'])
 
-    #get the cloud sizes for the top 80% of the column density
-    h1_size_dict = get_sizes(ray_df, 'h1', x, h1, cell_mass, 0.8)
+    h1_size_dict = get_sizes(ray_df, 'h1', x, np.array(ray_df['H_p0_number_density']), cell_mass, 0.8)
     for xx, ss in zip(h1_size_dict['h1_xs'], h1_size_dict['h1_sizes']):
         ax2.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     h1_size_dict['nh1'] = nh1
 
-    si2_size_dict = get_sizes(ray_df, 'si2', x, si2, cell_mass, 0.8)
+    si2_size_dict = get_sizes(ray_df, 'si2', x, np.array(ray_df['Si_p1_number_density']), cell_mass, 0.8)
     for xx, ss in zip(si2_size_dict['si2_xs'], si2_size_dict['si2_sizes']):
         ax3.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     si2_size_dict['nsi2'] = nsi2
 
-    o6_size_dict = get_sizes(ray_df, 'o6', x, o6, cell_mass, 0.8)
+    o6_size_dict = get_sizes(ray_df, 'o6', x, np.array(ray_df['O_p5_number_density']), cell_mass, 0.8)
     for xx, ss in zip(o6_size_dict['o6_xs'], o6_size_dict['o6_sizes']):
         ax4.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     o6_size_dict['no6'] = no6
@@ -229,10 +225,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     # concatenate the dictionaries for the various species
     size_dict = {**h1_size_dict, **si2_size_dict, **o6_size_dict}
     pickle.dump( size_dict, open( fileroot+"sizes.pkl", "wb" ) )
-
-    fion = Table([x, cell_mass, h1, si2, o6], names=('x','mass','h1','si2','o6') )
-    fion.write(fileroot+'fion.fits', overwrite=True)
-
 
     for ax, key in zip([ax7, ax8, ax9], ['H I 1216', 'Si II 1260', 'O VI 1032']):
         ax.set_xlim(-350,350)
@@ -245,7 +237,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
             ax.step(vel, hdulist[key].data['flux'])
 
     ax0.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    ax1.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax1.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
     for ax in [ax2, ax3, ax4, ax5, ax6]:
@@ -295,7 +286,9 @@ def grab_ray_file(ds, filename):
                             "O_p5_number_density", "Si_p2_number_density",
                             "Si_p1_number_density", "Si_p3_number_density",
                             "Ne_p7_number_density"])
-    #hdulist.close()
+
+    ray_df = ray_df.sort_values(by=['x'])
+
     return ray_df, rs, re, hdulist
 
 def loop_over_rays(ds, dataset_list):
@@ -321,7 +314,7 @@ if __name__ == "__main__":
     args = futils.parse_args()
     ds_loc, output_path, output_dir, haloname = futils.get_path_info(args)
 
-    dataset_list = glob.glob(os.path.join(output_dir, '*v4_los.fits.gz'))
+    dataset_list = glob.glob(os.path.join(output_dir, '*rd0020*v5_los*fits.gz'))
 
     ds = yt.load(ds_loc)
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
