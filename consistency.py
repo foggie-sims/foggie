@@ -1,4 +1,4 @@
-highimport matplotlib as mpl
+import matplotlib as mpl
 from matplotlib.colors import to_hex
 import numpy as np
 mpl.use('agg')
