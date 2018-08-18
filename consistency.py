@@ -218,9 +218,9 @@ new_metals_color_key = {b'free':to_hex(metallicity_colors[0]),
                     b'high3':to_hex(metallicity_colors[20]) ## orange
 }
 
-metal_vals = np.power(10.0,np.linspace(start=np.log10(metal_min), stop=np.log10(metal_max), num=21))
 def new_categorize_by_metals(metal):
     """ define the temp category strings"""
+    metal_vals = np.power(10.0,np.linspace(start=np.log10(metal_min), stop=np.log10(metal_max), num=21))
     phase = np.chararray(np.size(metal), 6)
     phase[metal < 5*metal_vals[20]] = b'high3'
     phase[metal < metal_vals[19]] = b'high2'
