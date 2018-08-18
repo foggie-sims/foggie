@@ -143,7 +143,11 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                          y_range=(np.mean(df['y'])-CORE_WIDTH/0.695,
                                   np.mean(df['y'])+CORE_WIDTH/0.695))
     agg = cvs.points(df, 'x', 'y', dshader.count_cat('metal_label'))
-    img = tf.shade(agg, cmap=metal_color_map, how='log')
+    #img = tf.shade(agg, cmap=metal_color_map, how='log')
+    #img = tf.shade(agg, cmap=new_metals_color_key, how='log')
+    img = tf.shade(agg, cmap=new_metals_color_key)
+
+
     x_y_metal = tf.spread(img, px=2, shape='square')
     ax1.imshow(np.rot90(x_y_metal.to_pil()))
 
