@@ -103,7 +103,7 @@ def ds_to_df(ds, ray_start, ray_end):
     metallicity = all_data['metallicity'].ndarray_view()
 
     phase_label = new_categorize_by_temp(temp)
-    metal_label = categorize_by_metallicity(metallicity)
+    metal_label = new_categorize_by_metals(metallicity)
 
     df = pd.DataFrame({'x':all_data['x'].ndarray_view() * proper_box_size,
                        'y':all_data['y'].ndarray_view() * proper_box_size,
