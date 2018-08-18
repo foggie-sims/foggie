@@ -210,7 +210,7 @@ new_metals_color_key = {b'free':to_hex(metallicity_colors[0]),
                     b'solar':to_hex(metallicity_colors[12]), ## green
                     b'solar1':to_hex(metallicity_colors[13]),
                     b'solar2':to_hex(metallicity_colors[14]),
-                    b'solar3':to_hex(metallicity_colors[15])
+                    b'solar3':to_hex(metallicity_colors[15]), 
                     b'high':to_hex(metallicity_colors[16]), ## yellow
                     b'high1':to_hex(metallicity_colors[17]),
                     b'high2':to_hex(metallicity_colors[18]),
