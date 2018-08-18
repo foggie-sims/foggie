@@ -1,4 +1,4 @@
-import matplotlib as mpl
+highimport matplotlib as mpl
 from matplotlib.colors import to_hex
 import numpy as np
 mpl.use('agg')
@@ -193,3 +193,53 @@ def new_categorize_by_temp(temp):
     phase[temp < 4.2] = b'cold2'
     phase[temp < 4.] = b'cold1'
     return phase
+
+
+metallicity_colors = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a","#ffe34d","darkorange"), n_colors=21)
+new_metals_color_key = {b'free':to_hex(metallicity_colors[0]),
+                    b'free1':to_hex(metallicity_colors[1]),
+                    b'free2':to_hex(metallicity_colors[2]),
+                    b'free3':to_hex(metallicity_colors[3]),
+                    b'poor':to_hex(metallicity_colors[4]), ## purple
+                    b'poor1':to_hex(metallicity_colors[5]),
+                    b'poor2':to_hex(metallicity_colors[6]),
+                    b'poor3':to_hex(metallicity_colors[7]),
+                    b'low':to_hex(metallicity_colors[8]), ## blue
+                    b'low1':to_hex(metallicity_colors[9]),
+                    b'low2':to_hex(metallicity_colors[10]),
+                    b'low3':to_hex(metallicity_colors[11]),
+                    b'solar':to_hex(metallicity_colors[12]), ## green
+                    b'solar1':to_hex(metallicity_colors[13]),
+                    b'solar2':to_hex(metallicity_colors[14]),
+                    b'solar3':to_hex(metallicity_colors[15])
+                    b'high':to_hex(metallicity_colors[16]), ## yellow
+                    b'high1':to_hex(metallicity_colors[17]),
+                    b'high2':to_hex(metallicity_colors[18]),
+                    b'high3':to_hex(metallicity_colors[19]),
+                    b'high3':to_hex(metallicity_colors[20]) ## orange
+}
+
+metal_vals = np.power(10.0,np.linspace(start=np.log10(metal_min), stop=np.log10(metal_max), num=21)))
+def new_categorize_by_metals(metal):
+    """ define the temp category strings"""
+    phase = np.chararray(np.size(metal), 6)
+    phase[metal < 5*metal_vals[20]] = b'high3'
+    phase[metal < metal_vals[19]] = b'high2'
+    phase[metal < metal_vals[18]] = b'high1'
+    phase[metal < metal_vals[17]] = b'high'
+    phase[metal < metal_vals[16]] = b'solar3'
+    phase[metal < metal_vals[15]] = b'solar2'
+    phase[metal < metal_vals[14]] = b'solar1'
+    phase[metal < metal_vals[13]] = b'solar'
+    phase[metal < metal_vals[12]] = b'low3'
+    phase[metal < metal_vals[11]] = b'low2'
+    phase[metal < metal_vals[10]] = b'low1'
+    phase[metal < metal_vals[9]] = b'low'
+    phase[metal < metal_vals[8]] = b'poor3'
+    phase[metal < metal_vals[7]] = b'poor2'
+    phase[metal < metal_vals[6]] = b'poor1'
+    phase[metal < metal_vals[4]] = b'poor'
+    phase[metal < metal_vals[3]] = b'free3'
+    phase[metal < metal_vals[2]] = b'free2'
+    phase[metal < metal_vals[1]] = b'free1'
+    phase[metal < metal_vals[0]] = b'free'
