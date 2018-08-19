@@ -269,7 +269,7 @@ if __name__ == "__main__":
     lls_dir = output_dir + "lls/"
 
     generate_random_rays(ds, halo_center, haloname=haloname, track=track, axis=args.axis, line_list=line_list,\
-                         output_dir=output_dir, Nrays=args.Nrays)
+                         output_dir=lls_dir, Nrays=args.Nrays)
 
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
