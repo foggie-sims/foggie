@@ -17,7 +17,7 @@ from get_proper_box_size import get_proper_box_size
 from get_halo_center import get_halo_center
 from plot_misty_spectra import plot_misty_spectra
 
-import show_velphase as sv
+# import show_velphase as sv
 
 import getpass
 
@@ -75,6 +75,8 @@ def get_random_ray_endpoints(ds, halo_center, track, axis, **kwargs):
     proper_box_size = get_proper_box_size(ds)
     dy = x_width * (0.05 + 0.9 * np.random.uniform())  ## don't want to be too close to box edges
     dz = x_width * (0.05 + 0.9 * np.random.uniform())
+    dy_prop = proper_box_size * dy
+    dz_prop = proper_box_size * dz
 
     ray_start = np.zeros(3)
     ray_end = np.zeros(3)
@@ -82,14 +84,17 @@ def get_random_ray_endpoints(ds, halo_center, track, axis, **kwargs):
         ray_ax = 0
         axy = 1
         axz = 2
-    else if axis == 'y' or axis == 1:
+        deltas = "_dy"+"{:05.1f}".format(dy_prop) + "_dz"+"{:05.1f}".format(dz_prop)
+    elif axis == 'y' or axis == 1:
         ray_ax = 1
         axy = 0
         axz = 2
-    else if axis == 'z' or axis == 2:
+        deltas = "_dx"+"{:05.1f}".format(dy_prop) + "_dz"+"{:05.1f}".format(dz_prop)
+    elif axis == 'z' or axis == 2:
         ray_ax = 2
         axy = 0
         axz = 1
+        deltas = "_dx"+"{:05.1f}".format(dy_prop) + "_dy"+"{:05.1f}".format(dz_prop)
 
     ray_start[ray_ax] = np.float(refine_box.left_edge[ray_ax].value)
     ray_end[ray_ax] = np.float(refine_box.right_edge[ray_ax].value)
@@ -100,7 +105,7 @@ def get_random_ray_endpoints(ds, halo_center, track, axis, **kwargs):
 
     impact = proper_box_size * np.sqrt((halo_center[axy] - ray_start[axy])**2 + (halo_center[axz] - ray_start[axz])**2)
 
-    return np.array(ray_start), np.array(ray_end), dy, dz, impact
+    return np.array(ray_start), np.array(ray_end), deltas, impact
 
 def quick_spectrum(ds, triray, filename, **kwargs):
 
@@ -123,15 +128,13 @@ def generate_random_rays(ds, halo_center, **kwargs):
     '''
     generate some random rays
     '''
-    low_impact = kwargs.get("low_impact", 10.)
-    high_impact = kwargs.get("high_impact", 45.)
     track = kwargs.get("track","halo_track")
     Nrays = kwargs.get("Nrays",2)
     seed = kwargs.get("seed",17)
     axis = kwargs.get("axis",'x')
     output_dir = kwargs.get("output_dir", ".")
     haloname = kwargs.get("haloname","somehalo")
-    line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260',  'O VI 1032']))
+    line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260',  'O VI 1032'])
 
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
@@ -139,30 +142,22 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
     ## for now, assume all are z-axis
     np.random.seed(seed)
-    high_impact = 0.45*proper_x_width
-    impacts = np.random.uniform(low=low_impact, high=high_impact, size=5*Nrays) ## not all sightlines will be LLS!
-    print('impacts = ', impacts)
-    angles = np.random.uniform(low=0, high=2*pi, size=5*Nrays)
     out_ray_basename = ds.basename + "_ray_" + axis
 
     i = 0
     while i < Nrays:
         os.chdir(output_dir)
-        this_out_ray_basename = out_ray_basename + "_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])
+        rs, re, deltas, impact = get_random_ray_endpoints(ds, halo_center, track, axis)
+        this_out_ray_basename = out_ray_basename + deltas
         out_ray_name =  this_out_ray_basename + ".h5"
-        rs, re = get_refined_ray_endpoints(ds, halo_center, track, impact=impacts[i])
-        out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])+"_v6_los.fits.gz"
-        out_plot_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+"_i"+"{:05.1f}".format(impacts[i]) + \
-                        "-a"+"{:4.2f}".format(angles[i])+"_v6_los.png"
+        out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+deltas+"_v6_los.fits.gz"
+        out_plot_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+deltas+"_v6_los.png"
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         if args.velocities:
             trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II', 'C III', 'C IV', 'O VI', 'Mg II'])
         ray = ds.ray(rs, re)
         ray.save_as_dataset(out_ray_name, fields=["density","temperature", "metallicity"])
-
 
         if args.velocities:
             ray_df =  ray.to_dataframe(["x","y","z","density","temperature","metallicity","HI_Density",
@@ -189,7 +184,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
         print(ray_start, ray_end, filespecout_base)
 
         hdulist = MISTY.write_header(triray,start_pos=ray_start,end_pos=ray_end,
-                      lines=line_list, impact=impacts[i], redshift=ds.current_redshift)
+                      lines=line_list, impact=impact, redshift=ds.current_redshift)
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
 
         # quick_spectrum(ds, triray, filespecout_base)
@@ -271,6 +266,7 @@ if __name__ == "__main__":
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
     halo_center = get_halo_center(ds, refine_box_center)[0]
+    lls_dir = output_dir + "lls/"
 
     generate_random_rays(ds, halo_center, haloname=haloname, track=track, axis=args.axis, line_list=line_list,\
                          output_dir=output_dir, Nrays=args.Nrays)
