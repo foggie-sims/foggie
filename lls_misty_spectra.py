@@ -65,27 +65,42 @@ def parse_args():
     return args
 
 
-def get_refined_ray_endpoints(ds, halo_center, track, **kwargs):
+def get_random_ray_endpoints(ds, halo_center, track, axis, **kwargs):
     '''
-    returns ray_start and ray_end for a ray with a given
-    impact parameter along a given axis, only within the refined box
+    returns ray_start and ray_end for a ray along a given axis,
+    within the refined region. returns the ray endpoints, the
+    offsets, and the impact parameter to the center (that is passed in)
     '''
-    impact = kwargs.get("impact", 25.)
-    angle = kwargs.get("angle", 2*pi*np.random.uniform())
     refine_box, refine_box_center, x_width = get_refine_box(ds, ds.current_redshift, track)
     proper_box_size = get_proper_box_size(ds)
+    dy = x_width * (0.05 + 0.9 * np.random.uniform())  ## don't want to be too close to box edges
+    dz = x_width * (0.05 + 0.9 * np.random.uniform())
 
     ray_start = np.zeros(3)
     ray_end = np.zeros(3)
-    #### for now, ray has random y (sets impact), goes from -z to +z, in y direction, x is random
-    ray_start[0] = np.float(refine_box.left_edge[0].value)
-    ray_end[0] = np.float(refine_box.right_edge[0].value)
-    ray_start[1] = halo_center[1] + (impact/proper_box_size) * np.cos(angle)
-    ray_end[1] = halo_center[1] + (impact/proper_box_size) * np.cos(angle)
-    ray_start[2] = halo_center[2] + (impact/proper_box_size) * np.sin(angle)
-    ray_end[2] = halo_center[2] + (impact/proper_box_size) * np.sin(angle)
+    if axis == 'x' or axis == 0:
+        ray_ax = 0
+        axy = 1
+        axz = 2
+    else if axis == 'y' or axis == 1:
+        ray_ax = 1
+        axy = 0
+        axz = 2
+    else if axis == 'z' or axis == 2:
+        ray_ax = 2
+        axy = 0
+        axz = 1
 
-    return np.array(ray_start), np.array(ray_end)
+    ray_start[ray_ax] = np.float(refine_box.left_edge[ray_ax].value)
+    ray_end[ray_ax] = np.float(refine_box.right_edge[ray_ax].value)
+    ray_start[axy] = np.float(refine_box.left_edge[axy].value) + dy
+    ray_end[axy] = np.float(refine_box.left_edge[axy].value) + dy
+    ray_start[axz] = np.float(refine_box.left_edge[axz].value) + dz
+    ray_end[axz] = np.float(refine_box.left_edge[axz].value) + dz
+
+    impact = proper_box_size * np.sqrt((halo_center[axy] - ray_start[axy])**2 + (halo_center[axz] - ray_start[axz])**2)
+
+    return np.array(ray_start), np.array(ray_end), dy, dz, impact
 
 def quick_spectrum(ds, triray, filename, **kwargs):
 
