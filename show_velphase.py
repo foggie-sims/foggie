@@ -97,8 +97,8 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     df = futils.ds_to_df(ds, ray_start, ray_end)
 
     #establish the grid of plots and obtain the axis objects
-    fig = plt.figure(figsize=(8,6))
-    gs = GridSpec(2, 5, width_ratios=[1, 1, 5, 5, 5], height_ratios=[4, 1])
+    fig = plt.figure(figsize=(9,6))
+    gs = GridSpec(2, 6, width_ratios=[1, 1, 5, 5, 5, 5], height_ratios=[4, 1])
     ax0 = plt.subplot(gs[0])
     ax1 = plt.subplot(gs[1])
     ax2 = plt.subplot(gs[2])
@@ -106,27 +106,29 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax3 = plt.subplot(gs[3])
     ax3.set_title('Si II 1260')
     ax4 = plt.subplot(gs[4])
-    ax4.set_title('O VI 1032')
+    ax4.set_title('C IV 1548')
     ax5 = plt.subplot(gs[5])
-    ax5.spines["top"].set_color('white')
-    ax5.spines["bottom"].set_color('white')
-    ax5.spines["left"].set_color('white')
-    ax5.spines["right"].set_color('white')
+    ax5.set_title('O VI 1032')
+
     ax6 = plt.subplot(gs[6])
     ax6.spines["top"].set_color('white')
     ax6.spines["bottom"].set_color('white')
     ax6.spines["left"].set_color('white')
     ax6.spines["right"].set_color('white')
     ax7 = plt.subplot(gs[7])
-    #ax7.set_ylabel(' ')
-    #ax7.set_xlabel(' ')
+    ax7.spines["top"].set_color('white')
+    ax7.spines["bottom"].set_color('white')
+    ax7.spines["left"].set_color('white')
+    ax7.spines["right"].set_color('white')
     ax8 = plt.subplot(gs[8])
-    ax8.set_xlabel('Velocity [km / s]')
     ax9 = plt.subplot(gs[9])
-    #ax9.set_xlabel(' ')
-    ax7.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+    ax9.set_xlabel('Velocity [km / s]')
+    ax10 = plt.subplot(gs[10])
+    ax11 = plt.subplot(gs[11])
     ax8.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax9.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+    ax10.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+    ax11.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
     # this one makes the datashaded "core sample" with phase coloring
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
@@ -162,7 +164,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     x_vx_phase = tf.spread(tf.shade(agg, color_key=new_phase_color_key), shape='square')
 
     #now iterate over the species to get the ion fraction plots
-    for species, ax in zip( ['HI', 'SiII', 'OVI'], [ax2, ax3, ax4] ):
+    for species, ax in zip( ['HI', 'SiII', 'CIV', 'OVI'], [ax2, ax3, ax4, ax5] ):
 
         print("Current species: ", species)
         cvs = dshader.Canvas(plot_width=800, plot_height=300, y_range=(-350,350),
@@ -180,6 +182,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     nh1 = np.sum(np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
     nsi2 = np.sum(np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
+    nc4 = np.sum(np.array(ray_df['dx'] * ray_df['C_p3_number_density']))
     no6 = np.sum(np.array(ray_df['dx'] * ray_df['O_p5_number_density']))
 
     comoving_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
@@ -196,15 +199,21 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     # Add the ionization fraction traces to the datashaded velocity vs. x plots
     h1 = 50. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density'])
     si2 = 50. * ray_df['Si_p1_number_density']/np.max(ray_df['Si_p1_number_density'])
+    c4 = 50. * ray_df['C_p3_number_density']/np.max(ray_df['C_p3_number_density'])
     o6 = 50. * ray_df['O_p5_number_density']/np.max(ray_df['O_p5_number_density'])
     ax2.step(h1, 800. - 4. * x_ray, linewidth=0.5)
     ax3.step(si2, 800. - 4. * x_ray, linewidth=0.5)
-    ax4.step(o6, 800. - 4. * x_ray, linewidth=0.5)
+    ax4.step(c4, 800. - 4. * x_ray, linewidth=0.5)
+    ax5.step(o6, 800. - 4. * x_ray, linewidth=0.5)
 
     vx = 300. - 300.*((ray_df['x-velocity'] + 350.) / 700.)
-    ax2.step(vx[np.argsort(vx)], h1[np.argsort(vx)], linewidth=0.5, color='darkblue')
-    ax3.step(vx[np.argsort(vx)], si2[np.argsort(vx)], linewidth=0.5, color='darkblue')
-    ax4.step(vx[np.argsort(vx)], o6[np.argsort(vx)], linewidth=0.5, color='darkblue')
+    ax2.step(vx, h1, linewidth=0.5, color='darkblue')
+    print("VX", np.size(vx), vx)
+    print("HI", np.size(h1), h1)
+    for v,h in zip(vx, h1): print("VH", v,h)
+    ax3.step(vx, si2, linewidth=0.5, color='darkblue')
+    ax4.step(vx, c4, linewidth=0.5, color='darkblue')
+    ax5.step(vx, o6, linewidth=0.5, color='darkblue')
 
     x = np.array(ray_length - x_ray)
     cell_mass = np.array(ray_df['cell_mass'])
@@ -219,16 +228,21 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax3.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     si2_size_dict['nsi2'] = nsi2
 
+    c4_size_dict = get_sizes(ray_df, 'c4', x, np.array(ray_df['C_p3_number_density']), cell_mass, 0.8)
+    for xx, ss in zip(c4_size_dict['c4_xs'], c4_size_dict['c4_sizes']):
+        ax4.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
+    c4_size_dict['nc4'] = nc4
+
     o6_size_dict = get_sizes(ray_df, 'o6', x, np.array(ray_df['O_p5_number_density']), cell_mass, 0.8)
     for xx, ss in zip(o6_size_dict['o6_xs'], o6_size_dict['o6_sizes']):
-        ax4.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
+        ax5.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     o6_size_dict['no6'] = no6
 
     # concatenate the dictionaries for the various species
-    size_dict = {**h1_size_dict, **si2_size_dict, **o6_size_dict}
+    size_dict = {**h1_size_dict, **si2_size_dict, **c4_size_dict, **o6_size_dict}
     pickle.dump( size_dict, open( fileroot+"sizes.pkl", "wb" ) )
 
-    for ax, key in zip([ax7, ax8, ax9], ['H I 1216', 'Si II 1260', 'O VI 1032']):
+    for ax, key in zip([ax8, ax9, ax10, ax11], ['H I 1216', 'Si II 1260', 'C IV 1548', 'O VI 1032']):
         ax.set_xlim(-350,350)
         ax.set_ylim(0,1)
         ax.set_yticklabels([' ',' ',' '])
@@ -238,10 +252,11 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                 ds.get_parameter('CosmologyCurrentRedshift')) - restwave) / restwave * c_kms
             ax.step(vel, hdulist[key].data['flux'])
 
-    ax0.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    ax1.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
-    for ax in [ax2, ax3, ax4, ax5, ax6]:
+    for ax in [ax0, ax1, ax6, ax7]:
+        ax.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+
+    for ax in [ax2, ax3, ax4, ax5, ax6, ax7]:
         ax.axes.get_xaxis().set_ticks([])
         ax.axes.get_yaxis().set_ticks([])
 
