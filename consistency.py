@@ -210,7 +210,7 @@ new_metals_color_key = {b'free':to_hex(metallicity_colors[0]),
                     b'solar':to_hex(metallicity_colors[12]), ## green
                     b'solar1':to_hex(metallicity_colors[13]),
                     b'solar2':to_hex(metallicity_colors[14]),
-                    b'solar3':to_hex(metallicity_colors[15]), 
+                    b'solar3':to_hex(metallicity_colors[15]),
                     b'high':to_hex(metallicity_colors[16]), ## yellow
                     b'high1':to_hex(metallicity_colors[17]),
                     b'high2':to_hex(metallicity_colors[18]),
@@ -221,6 +221,7 @@ new_metals_color_key = {b'free':to_hex(metallicity_colors[0]),
 def new_categorize_by_metals(metal):
     """ define the temp category strings"""
     metal_vals = np.power(10.0,np.linspace(start=np.log10(metal_min), stop=np.log10(metal_max), num=21))
+    print(metal_vals)
     phase = np.chararray(np.size(metal), 6)
     phase[metal < 5*metal_vals[20]] = b'high3'
     phase[metal < metal_vals[19]] = b'high2'

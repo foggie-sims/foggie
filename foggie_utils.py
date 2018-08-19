@@ -100,7 +100,7 @@ def ds_to_df(ds, ray_start, ray_end):
 
     dens = np.log10(all_data['density'].ndarray_view())
     temp = np.log10(all_data['temperature'].ndarray_view())
-    metallicity = all_data['metallicity'].ndarray_view()
+    metallicity = all_data['metallicity'].ndarray_view() #* 0.0 + 0.009
 
     phase_label = new_categorize_by_temp(temp)
     metal_label = new_categorize_by_metals(metallicity)
@@ -108,6 +108,7 @@ def ds_to_df(ds, ray_start, ray_end):
     df = pd.DataFrame({'x':all_data['x'].ndarray_view() * proper_box_size,
                        'y':all_data['y'].ndarray_view() * proper_box_size,
                        'z':all_data['z'].ndarray_view() * proper_box_size,
+                       'metallicity':metallicity,
                        'vx':all_data["x-velocity"].in_units('km/s'),
                        'vy':all_data["y-velocity"].in_units('km/s'),
                        'vz':all_data["z-velocity"].in_units('km/s'),
@@ -116,5 +117,7 @@ def ds_to_df(ds, ray_start, ray_end):
                        'metal_label':metal_label})
     df.phase_label = df.phase_label.astype('category')
     df.metal_label = df.metal_label.astype('category')
+
+    print(df)
 
     return df
