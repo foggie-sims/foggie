@@ -173,10 +173,6 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                   ftype='gas',
                                   fields=['metallicity', 'H_p0_number_density'])
 
-        ### we only want N_HI > 16 !!
-        if np.log10((triray.r['H_p0_number_density']*triray.r['dl']).sum().d) < 16:
-            continue
-
         ray_start = triray.light_ray_solution[0]['start']
         ray_end = triray.light_ray_solution[0]['end']
         print("final start, end = ", ray_start, ray_end)
@@ -266,10 +262,10 @@ if __name__ == "__main__":
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
     halo_center = get_halo_center(ds, refine_box_center)[0]
-    lls_dir = output_dir + "lls/"
+    random_dir = output_dir + "random/"
 
     generate_random_rays(ds, halo_center, haloname=haloname, track=track, axis=args.axis, line_list=line_list,\
-                         output_dir=lls_dir, Nrays=args.Nrays)
+                         output_dir=random_dir, Nrays=args.Nrays)
 
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
