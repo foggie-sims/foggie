@@ -32,6 +32,17 @@ import foggie.shade_maps as sm
 
 CORE_WIDTH = 20.
 
+def reduce_ion_vector(vx, ion ): # this will "histogram" H1 so we can plot it.
+
+    v = np.arange(1001) - 500
+    ion_hist = v * 0.
+    index = np.around(vx) + 500 # now ranges over [0,1000]
+    for i in np.arange(np.size(ion)):
+        ion_hist[int(index[i])] = ion_hist[int(index[i])] + ion[int(i)]
+
+    return v, ion_hist
+
+
 def get_fion_threshold(ion_to_use, coldens_fraction):
     cut = 0.999
     total = np.sum(ion_to_use)
@@ -47,8 +58,6 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
     return threshold, number_of_cells_above_threshold
 
 def get_sizes(ray_df, species, x, ion_to_use, cell_mass, coldens_threshold):
-
-    print("RAY_DF INSIDE GET_SIZES", ray_df)
 
     threshold, number_of_cells = get_fion_threshold(ion_to_use, coldens_threshold)
 
@@ -197,7 +206,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                     comoving_box_size * (ray_end[0] - ray_start[0])
 
     # Add the ionization fraction traces to the datashaded velocity vs. x plots
-    h1 = 50. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density'])
+    h1 = np.array(50. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density']))
     si2 = 50. * ray_df['Si_p1_number_density']/np.max(ray_df['Si_p1_number_density'])
     c4 = 50. * ray_df['C_p3_number_density']/np.max(ray_df['C_p3_number_density'])
     o6 = 50. * ray_df['O_p5_number_density']/np.max(ray_df['O_p5_number_density'])
@@ -206,14 +215,20 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax4.step(c4, 800. - 4. * x_ray, linewidth=0.5)
     ax5.step(o6, 800. - 4. * x_ray, linewidth=0.5)
 
-    vx = 300. - 300.*((ray_df['x-velocity'] + 350.) / 700.)
-    ax2.step(vx, h1, linewidth=0.5, color='darkblue')
-    print("VX", np.size(vx), vx)
-    print("HI", np.size(h1), h1)
-    for v,h in zip(vx, h1): print("VH", v,h)
-    ax3.step(vx, si2, linewidth=0.5, color='darkblue')
-    ax4.step(vx, c4, linewidth=0.5, color='darkblue')
-    ax5.step(vx, o6, linewidth=0.5, color='darkblue')
+    #vx = np.array(300. - 300.*((ray_df['x-velocity'] + 350.) / 700.))
+    vx = ray_df['x-velocity']
+    vxhist, h1hist = reduce_ion_vector(vx, h1) # this will "histogram" H1 so we can plot it.
+    vxhist, si2hist = reduce_ion_vector(vx, si2) # this will "histogram" H1 so we can plot it.
+    vxhist, c4hist = reduce_ion_vector(vx, c4) # this will "histogram" H1 so we can plot it.
+    vxhist, o6hist = reduce_ion_vector(vx, o6) # this will "histogram" H1 so we can plot it.
+    vxhist = np.flip((vxhist + 500.) * 300. / 1000., 0)
+    print("VXHIST", vxhist, o6hist)
+
+
+    ax2.plot(vxhist, h1hist, linewidth=0.5, color='darkblue')
+    ax3.plot(vxhist, si2hist, linewidth=0.5, color='darkblue')
+    ax4.plot(vxhist, c4hist, linewidth=0.5, color='darkblue')
+    ax5.plot(vxhist, o6hist, linewidth=0.5, color='darkblue')
 
     x = np.array(ray_length - x_ray)
     cell_mass = np.array(ray_df['cell_mass'])
@@ -251,7 +266,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
             vel = (hdulist[key].data['wavelength']/(1.+\
                 ds.get_parameter('CosmologyCurrentRedshift')) - restwave) / restwave * c_kms
             ax.step(vel, hdulist[key].data['flux'])
-
 
     for ax in [ax0, ax1, ax6, ax7]:
         ax.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])

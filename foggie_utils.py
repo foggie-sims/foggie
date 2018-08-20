@@ -91,7 +91,7 @@ def ds_to_df(ds, ray_start, ray_end):
     current_redshift = ds.get_parameter('CosmologyCurrentRedshift')
     proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
         / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
-    print("PROPER BOX SIZE : ", proper_box_size)
+    #print("COMOVING BOX SIZE : ", proper_box_size)
     all_data = ds.r[ray_start[0]:ray_end[0],
                     ray_start[1]-0.5*CORE_WIDTH/proper_box_size:ray_start[1]+
                     0.5*CORE_WIDTH/proper_box_size,
@@ -117,7 +117,5 @@ def ds_to_df(ds, ray_start, ray_end):
                        'metal_label':metal_label})
     df.phase_label = df.phase_label.astype('category')
     df.metal_label = df.metal_label.astype('category')
-
-    print(df)
 
     return df
