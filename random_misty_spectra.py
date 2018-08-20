@@ -173,6 +173,9 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                   ftype='gas',
                                   fields=['metallicity', 'H_p0_number_density'])
 
+        hi_col = np.log10((triray.r['H_p0_number_density']*triray.r['dl']).sum().d)
+        print('log HI column = ', hi_col, '...')
+
         ray_start = triray.light_ray_solution[0]['start']
         ray_end = triray.light_ray_solution[0]['end']
         print("final start, end = ", ray_start, ray_end)
@@ -201,6 +204,11 @@ def generate_random_rays(ds, halo_center, **kwargs):
         MISTY.write_out(hdulist,filename=out_fits_name)
         plot_misty_spectra(hdulist, outname=out_plot_name)
         i = i+1
+        print('''
+                    ~~~~~~~~~~~~ i = ''',i,''' done  ~~~~~~~~~~~~~~~~~~~
+              ''')
+
+    print('Nrays = ',Nrays,' and i = ', i)
 
 
 
