@@ -174,7 +174,8 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                   fields=['metallicity', 'H_p0_number_density'])
 
         ### we only want N_HI > 16 !!
-        if np.log10((triray.r['H_p0_number_density']*triray.r['dl']).sum().d) < 16:
+        hi_col = np.log10((triray.r['H_p0_number_density']*triray.r['dl']).sum().d)
+        if hi_col < 16 or hi_col > 23:
             continue
 
         ray_start = triray.light_ray_solution[0]['start']
@@ -205,8 +206,11 @@ def generate_random_rays(ds, halo_center, **kwargs):
         MISTY.write_out(hdulist,filename=out_fits_name)
         plot_misty_spectra(hdulist, outname=out_plot_name)
         i = i+1
+        print('''
+                    ~~~~~~~~~~~~ i = ''',i,''' done  ~~~~~~~~~~~~~~~~~~~
+              ''')
 
-
+    print('Nrays = ',Nrays,' and i = ', i)
 
 if __name__ == "__main__":
 
