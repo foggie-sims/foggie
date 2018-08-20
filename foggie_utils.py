@@ -56,8 +56,9 @@ def get_path_info(args):
         output_path = "/Users/tumlinson/Dropbox/foggie/collab/"
         print(ds_base, output_path)
     elif args.system == "lefty":
-        ds_base = "/Users/tumlinson/Dropbox/foggie-test/"
-        output_path = "/Users/tumlinson/Dropbox/foggie-test/"
+        print("SYSTEM = ", args.system)
+        ds_base = "/Users/tumlinson/Dropbox/FOGGIE/outputs/"
+        output_path = "/Users/tumlinson/Dropbox/FOGGIE/collab/"
 
     if args.run == "natural":
         ds_loc = ds_base + "halo_008508/nref11n/natural/" + args.output + "/" + args.output

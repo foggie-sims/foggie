@@ -14,7 +14,9 @@ import trident
 import numpy as np
 from astropy.table import Table
 from .get_refine_box import get_refine_box as grb
-from .consistency import ion_frac_color_key, phase_color_key, metal_color_key, axes_label_dict, logfields
+from .get_halo_center import get_halo_center
+from .consistency import ion_frac_color_key, new_phase_color_key, \
+        metal_color_key, axes_label_dict, logfields, new_categorize_by_temp
 from holoviews.operation.datashader import datashade, aggregate
 from holoviews import Store
 hv.extension('matplotlib')
@@ -32,7 +34,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     refine_box, refine_box_center, refine_width = \
             grb(data_set, data_set.current_redshift, track)
     print('Refine box corners: ', refine_box)
-    print('           center : ', refine_box_center)
+    print('            center: ', refine_box_center)
 
     if region == 'trackbox':
         all_data = refine_box
@@ -42,16 +44,18 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     else:
         print("your region is invalid!")
 
-    return all_data, refine_box, refine_width
+    halo_center, halo_vcenter = get_halo_center(data_set, refine_box_center)
 
-def categorize_by_temp(temp):
-    """ define the temp category strings"""
-    phase = np.chararray(np.size(temp), 4)
-    phase[temp < 9.] = 'hot'
-    phase[temp < 6.] = 'warm'
-    phase[temp < 5.] = 'cool'
-    phase[temp < 4.] = 'cold'
-    return phase
+    return all_data, refine_box, refine_width, halo_center, halo_vcenter
+
+#def categorize_by_temp(temp):
+#    """ define the temp category strings"""
+#    phase = np.chararray(np.size(temp), 4)
+#    phase[temp < 9.] = 'hot'
+#    phase[temp < 6.] = 'warm'
+#    phase[temp < 5.] = 'cool'
+#    phase[temp < 4.] = 'cold'
+#    return phase
 
 def categorize_by_fraction(f_ion):
     """ define the ionization category strings"""
@@ -76,7 +80,8 @@ def scale_lvec(lvec):
     lvec[lvec < 0.] = (-1. * np.log10(-1.*lvec[lvec < 0.]) + 25.) / 8.
     return lvec
 
-def prep_dataframe(all_data, refine_box, refine_width, field1, field2):
+def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
+                        halo_center, halo_vcenter):
     """ add fields to the dataset, create dataframe for rendering
         The enzo fields x, y, z, temperature, density, cell_vol, cell_mass,
         and metallicity will always be included, others will be included
@@ -97,8 +102,10 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2):
     density = np.log10(density)
     temperature = np.log10(all_data['temperature'])
     mass = np.log10(cell_mass)
-    phase = categorize_by_temp(temperature)
+    phase = new_categorize_by_temp(temperature)
     metal = categorize_by_metallicity(all_data['metallicity'])
+
+    print("LOOK I KNOW THE HALO CENTER!! ", halo_center, halo_vcenter)
 
     # build data_frame with mandatory fields
     data_frame = pd.DataFrame({'x':x, 'y':y, 'z':z, 'temperature':temperature, \
@@ -136,7 +143,7 @@ def wrap_axes(filename, field1, field2, ranges):
         axes using matplotlib and so offering full customization."""
 
     img = mpimg.imread(filename+'.png')
-    #img2 = np.flip(img,0)
+    img2 = np.flip(img,0)
     fig = plt.figure(figsize=(8,8))
     ax = fig.add_axes([0.1, 0.1, 0.88, 0.88])
     ax.imshow(img2)
@@ -163,7 +170,7 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     if 'frac' in count_cat:
         color_key = ion_frac_color_key
     elif 'phase' in count_cat:
-        color_key = phase_color_key
+        color_key = new_phase_color_key
     elif 'metal' in count_cat:
         color_key = metal_color_key
 
@@ -198,11 +205,12 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile):
         one another. The color coding is given by variable 'colorcode'
         which can be phase, metal, or an ionization fraction"""
 
-    all_data, refine_box, refine_width = \
+    all_data, refine_box, refine_width, halo_center, halo_vcenter = \
         prep_dataset(fname, trackfile,
-            ion_list=['H I', 'C IV', 'Si IV', 'O VI'], region='sphere')
+            ion_list=['H I', 'C IV', 'Si IV', 'O VI'], region='trackbox')
 
-    data_frame = prep_dataframe(all_data, refine_box, refine_width, field1, field2)
+    data_frame = prep_dataframe(all_data, refine_box, refine_width, \
+                                field1, field2, halo_center, halo_vcenter)
 
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
     wrap_axes(outfile, field1, field2, ranges)
@@ -212,6 +220,11 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile):
 
 
 
+
+
+
+
+# code below here is in storage for later use in building rorating movies.
 
 def cart2pol(x, y):
     return np.sqrt(x**2 + y**2), np.arctan2(y, x)

@@ -33,7 +33,9 @@ import foggie.shade_maps as sm
 CORE_WIDTH = 20.
 
 def reduce_ion_vector(vx, ion ): # this will "histogram" H1 so we can plot it.
-
+    """ this function takes in two vectors for velocity and ionization
+        fraction and chunks the ionization fraction into a uniform velocity
+        grid. JT 082018"""
     v = np.arange(1001) - 500
     ion_hist = v * 0.
     index = np.around(vx) + 500 # now ranges over [0,1000]
@@ -61,18 +63,27 @@ def get_sizes(ray_df, species, x, ion_to_use, cell_mass, coldens_threshold):
 
     threshold, number_of_cells = get_fion_threshold(ion_to_use, coldens_threshold)
 
-    sizes = []
+    dx = np.array(ray_df['dx'])
+    ion_density = copy.deepcopy(ion_to_use)
+
+    indexsizes = []
+    kpcsizes = []
+    column_densities = []
     masses = []
+    centers = []
     indices = []
     xs = []
     for m in np.arange(100): # can find up to 100 peaks
+        # find the indices where ionization fraction is greater than the threshold
         i = np.squeeze(np.where(np.array(ion_to_use) > threshold))
+
         if np.size(i) >= 1:
             startindex = np.min(i)
             f = ion_to_use[startindex]
             index = startindex
             ion_to_use[startindex] = 0.0
             sum_mass = cell_mass[startindex]
+            sum_coldens = ion_density[startindex] * dx[index]
             count = 0
             while (f > threshold) and (index < np.size(x)-1):
                 count += 1
@@ -85,19 +96,31 @@ def get_sizes(ray_df, species, x, ion_to_use, cell_mass, coldens_threshold):
                     f = ion_to_use[index]
                     ion_to_use[index] = 0.0
                     sum_mass = sum_mass + cell_mass[index]
+                    sum_coldens = sum_coldens + ion_density[index] * dx[index]
                 if ((count % 10) == 0): print("count",count)
 
-            sizes.append(x[startindex]-x[index])
+            ion_center = np.sum(x[startindex:index] * ion_density[startindex:index]) / np.sum(x[startindex:index])
+
+            indexsizes.append(index - startindex)
+            kpcsizes.append(x[startindex]-x[index])
+            column_densities.append(sum_coldens)
             masses.append(sum_mass)
+            centers.append(ion_center)
             indices.append(index)
             xs.append(x[index])
 
+            #could take the cloud center right here if you like
+
     size_dict = {'coldens_threshold':coldens_threshold}
-    size_dict[species+'_xs'] = xs
+    size_dict[species+'_xs'] = xs                           # x coordinate of
     size_dict[species+'_indices'] = indices
-    size_dict[species+'_sizes'] = sizes
+    size_dict[species+'_kpcsizes'] = kpcsizes
+    size_dict[species+'_indexsizes'] = indexsizes
+    size_dict[species+'_coldens'] = column_densities
     size_dict[species+'_n_cells'] = number_of_cells
     size_dict[species+'_cell_masses'] = masses
+    size_dict[species+'_centers'] = centers
+
     return size_dict
 
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
@@ -215,16 +238,11 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax4.step(c4, 800. - 4. * x_ray, linewidth=0.5)
     ax5.step(o6, 800. - 4. * x_ray, linewidth=0.5)
 
-    #vx = np.array(300. - 300.*((ray_df['x-velocity'] + 350.) / 700.))
-    vx = ray_df['x-velocity']
-    vxhist, h1hist = reduce_ion_vector(vx, h1) # this will "histogram" H1 so we can plot it.
-    vxhist, si2hist = reduce_ion_vector(vx, si2) # this will "histogram" H1 so we can plot it.
-    vxhist, c4hist = reduce_ion_vector(vx, c4) # this will "histogram" H1 so we can plot it.
-    vxhist, o6hist = reduce_ion_vector(vx, o6) # this will "histogram" H1 so we can plot it.
+    vxhist, h1hist = reduce_ion_vector(ray_df['x-velocity'], h1) # this will "histogram" H1 so we can plot it.
+    vxhist, si2hist = reduce_ion_vector(ray_df['x-velocity'], si2) # this will "histogram" H1 so we can plot it.
+    vxhist, c4hist = reduce_ion_vector(ray_df['x-velocity'], c4) # this will "histogram" H1 so we can plot it.
+    vxhist, o6hist = reduce_ion_vector(ray_df['x-velocity'], o6) # this will "histogram" H1 so we can plot it.
     vxhist = np.flip((vxhist + 500.) * 300. / 1000., 0)
-    print("VXHIST", vxhist, o6hist)
-
-
     ax2.plot(vxhist, h1hist, linewidth=0.5, color='darkblue')
     ax3.plot(vxhist, si2hist, linewidth=0.5, color='darkblue')
     ax4.plot(vxhist, c4hist, linewidth=0.5, color='darkblue')
@@ -234,22 +252,22 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     cell_mass = np.array(ray_df['cell_mass'])
 
     h1_size_dict = get_sizes(ray_df, 'h1', x, np.array(ray_df['H_p0_number_density']), cell_mass, 0.8)
-    for xx, ss in zip(h1_size_dict['h1_xs'], h1_size_dict['h1_sizes']):
+    for xx, ss in zip(h1_size_dict['h1_xs'], h1_size_dict['h1_kpcsizes']):
         ax2.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     h1_size_dict['nh1'] = nh1
 
     si2_size_dict = get_sizes(ray_df, 'si2', x, np.array(ray_df['Si_p1_number_density']), cell_mass, 0.8)
-    for xx, ss in zip(si2_size_dict['si2_xs'], si2_size_dict['si2_sizes']):
+    for xx, ss in zip(si2_size_dict['si2_xs'], si2_size_dict['si2_kpcsizes']):
         ax3.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     si2_size_dict['nsi2'] = nsi2
 
     c4_size_dict = get_sizes(ray_df, 'c4', x, np.array(ray_df['C_p3_number_density']), cell_mass, 0.8)
-    for xx, ss in zip(c4_size_dict['c4_xs'], c4_size_dict['c4_sizes']):
+    for xx, ss in zip(c4_size_dict['c4_xs'], c4_size_dict['c4_kpcsizes']):
         ax4.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     c4_size_dict['nc4'] = nc4
 
     o6_size_dict = get_sizes(ray_df, 'o6', x, np.array(ray_df['O_p5_number_density']), cell_mass, 0.8)
-    for xx, ss in zip(o6_size_dict['o6_xs'], o6_size_dict['o6_sizes']):
+    for xx, ss in zip(o6_size_dict['o6_xs'], o6_size_dict['o6_kpcsizes']):
         ax5.plot([50.,50.], [4. * xx, 4. * (xx+ss)], '-')
     o6_size_dict['no6'] = no6
 

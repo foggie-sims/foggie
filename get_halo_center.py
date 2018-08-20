@@ -1,22 +1,37 @@
+"""
+Obtains center position for a halo, and the x,y,z velocity components.
+"""
 from __future__ import print_function
-
-import yt
 import numpy as np
 
 def get_halo_center(ds, center_guess, **kwargs):
+    """
+    Inputs are a dataset, and the center_guess.
+    Outputs center and velocity tuples.
+    """
     # returns a list of the halo center coordinates
     radius = kwargs.get("radius", 50.)  # search radius in kpc
     vel_radius = kwargs.get('vel_radius', 2.)
 
-    # now determine the location of the highest DM density, which should be the center of the main halo
-    ad = ds.sphere(center_guess, (radius, 'kpc')) # extract a sphere centered at the middle of the box
-    x,y,z = np.array(ad["x"]), np.array(ad["y"]), np.array(ad["z"])
-    dm_density =  ad['Dark_Matter_Density']
-    imax = (np.where(dm_density > 0.9999 * np.max(dm_density)))[0]
-    halo_center = [x[imax[0]], y[imax[0]], z[imax[0]]]
-    print('We have located the main halo at :', halo_center)
+    # extract a sphere centered at the guess
 
-    sph = ds.sphere(halo_center, (vel_radius,'kpc'))
-    velocity = [np.mean(sph['x-velocity']), np.mean(sph['y-velocity']), np.mean(sph['z-velocity'])]
+    sphere_region = ds.sphere(center_guess, (radius, 'kpc'))
+
+    x_pos, y_pos, z_pos = np.array(sphere_region["x"]), \
+                          np.array(sphere_region["y"]), \
+                          np.array(sphere_region["z"])
+
+    dm_density = sphere_region['Dark_Matter_Density']
+
+    # now determine the location of the highest DM density, which should be the
+    # center of the main halo
+    imax = (np.where(dm_density > 0.9999 * np.max(dm_density)))[0]
+    halo_center = [x_pos[imax[0]], y_pos[imax[0]], z_pos[imax[0]]]
+    print('Located the main halo at:', halo_center)
+
+    sph = ds.sphere(halo_center, (vel_radius, 'kpc'))
+    velocity = [np.mean(sph['x-velocity']),
+                np.mean(sph['y-velocity']),
+                np.mean(sph['z-velocity'])]
 
     return halo_center, velocity
