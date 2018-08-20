@@ -175,7 +175,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         ### we only want N_HI > 16 !!
         hi_col = np.log10((triray.r['H_p0_number_density']*triray.r['dl']).sum().d)
-        if hi_col < 16 or hi_col > 23:
+        if hi_col < 16 or hi_col > 22.5:
             continue
 
         ray_start = triray.light_ray_solution[0]['start']
