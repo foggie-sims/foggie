@@ -153,7 +153,7 @@ def wrap_axes(filename, field1, field2, ranges):
     img = mpimg.imread(filename+'.png')
     img2 = np.flip(img,0)
     fig = plt.figure(figsize=(8,8))
-    ax = fig.add_axes([0.13, 0.13, 0.88, 0.88])
+    ax = fig.add_axes([0.13, 0.13, 0.85, 0.85])
     ax.imshow(img2)
 
     xtext = ax.set_xlabel(axes_label_dict[field1], fontname='Arial', fontsize=20)
