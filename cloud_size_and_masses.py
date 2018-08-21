@@ -33,52 +33,52 @@ def plot_cloud_size_and_masses():
     h1_n_cells = []
     h1masses = []
     h1columns = []
+    h1cloudcolumns = []
 
     o6sizes = []
     o6_n_cells = []
     o6masses = []
     o6columns = []
+    o6cloudcolumns = []
 
     si2sizes = []
     si2_n_cells = []
     si2masses = []
     si2columns = []
+    si2cloudcolumns = []
 
+    c4cloudcolumns = []
+    
     nref10_cell = 1000 * 100 / (256 * np.power(2,10)) ## ckpc/h
     hist_bins = nref10_cell * (np.arange(1000)+1.)
 
     for file in filelist:
 
         size_dict = pickle.load( open( file, "rb" ) )
+
         ### make this limit different for each ion
         if (size_dict['nh1'] > h1_limit):
-for file in filelist:
+            for item in size_dict['h1_kpcsizes']: h1sizes.append(item)
+            for item in size_dict['h1_cell_masses']: h1masses.append(item)
+            for item in size_dict['h1_coldens']: h1cloudcolumns.append(item)
+            h1_n_cells.append(size_dict['h1_n_cells'])
+            h1columns.append(size_dict['nh1'])
 
-    size_dict = pickle.load( open( file, "rb" ) )
+        if (size_dict['nsi2'] > si2_limit):
+            for item in size_dict['si2_kpcsizes']: si2sizes.append(item)
+            for item in size_dict['si2_cell_masses']: si2masses.append(item)
+            for item in size_dict['si2_coldens']: si2cloudcolumns.append(item)
+            si2_n_cells.append(size_dict['si2_n_cells'])
+            si2columns.append(size_dict['nsi2'])
 
-    ### make this limit different for each ion
-    if (size_dict['nh1'] > h1_limit):
-        for item in size_dict['h1_kpcsizes']: h1sizes.append(item)
-        for item in size_dict['h1_cell_masses']: h1masses.append(item)
-        for item in size_dict['h1_coldens']: h1cloudcolumns.append(item)
-        h1_n_cells.append(size_dict['h1_n_cells'])
-        h1columns.append(size_dict['nh1'])
+        if (size_dict['no6'] > o6_limit):
+            for item in size_dict['o6_kpcsizes']: o6sizes.append(item)
+            for item in size_dict['o6_cell_masses']: o6masses.append(item)
+            for item in size_dict['o6_coldens']: o6cloudcolumns.append(item)
+            o6_n_cells.append(size_dict['o6_n_cells'])
+            o6columns.append(size_dict['no6'])
 
-    if (size_dict['nsi2'] > si2_limit):
-        for item in size_dict['si2_kpcsizes']: si2sizes.append(item)
-        for item in size_dict['si2_cell_masses']: si2masses.append(item)
-        for item in size_dict['si2_coldens']: si2cloudcolumns.append(item)
-        si2_n_cells.append(size_dict['si2_n_cells'])
-        si2columns.append(size_dict['nsi2'])
-
-    if (size_dict['no6'] > o6_limit):
-        for item in size_dict['o6_kpcsizes']: o6sizes.append(item)
-        for item in size_dict['o6_cell_masses']: o6masses.append(item)
-        for item in size_dict['o6_coldens']: o6cloudcolumns.append(item)
-        o6_n_cells.append(size_dict['o6_n_cells'])
-        o6columns.append(size_dict['no6'])
-
-    for item in size_dict['c4_coldens']: c4cloudcolumns.append(item)
+        for item in size_dict['c4_coldens']: c4cloudcolumns.append(item)
 
     #########################################
     ####### histogram of sizes ##############
