@@ -44,7 +44,8 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     else:
         print("your region is invalid!")
 
-    halo_center, halo_vcenter = get_halo_center(data_set, refine_box_center)
+    halo_center, halo_vcenter = get_halo_center(data_set, refine_box_center, \
+                                        units = 'physical')
 
     return all_data, refine_box, refine_width, halo_center, halo_vcenter
 
@@ -120,13 +121,12 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
     # add those two fields
     if field1 not in data_frame.columns:
         print("Did not find field 1 = "+field1+" in the dataframe, will add it.")
-        print(logfields)
-        print(field1 in logfields)
         if field1 in logfields:
             print("Field 1, "+field1+" is a log field.")
             data_frame[field1] = np.log10(all_data[field1])
         else:
             data_frame[field1] = all_data[field1]
+            if ('vel' in field1): data_frame[field1] = all_data[field1].in_units('km/s')
     if field2 not in data_frame.columns:
         print("Did not find field 2 = "+field2+" in the dataframe, will add it.")
         if field2 in logfields:
@@ -134,6 +134,7 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
             data_frame[field2] = np.log10(all_data[field2])
         else:
             data_frame[field2] = all_data[field2]
+            if ('vel' in field2): data_frame[field2] = all_data[field2].in_units('km/s')
 
     return data_frame
 
@@ -145,16 +146,22 @@ def wrap_axes(filename, field1, field2, ranges):
     img = mpimg.imread(filename+'.png')
     img2 = np.flip(img,0)
     fig = plt.figure(figsize=(8,8))
-    ax = fig.add_axes([0.1, 0.1, 0.88, 0.88])
+    ax = fig.add_axes([0.13, 0.13, 0.88, 0.88])
     ax.imshow(img2)
 
     xtext = ax.set_xlabel(axes_label_dict[field1], fontname='Arial', fontsize=20)
     ax.set_xticks(np.arange((ranges[0][1] - ranges[0][0]) + 1.) * 1000. / (ranges[0][1] - ranges[0][0]))
     ax.set_xticklabels([ str(int(s)) for s in np.arange((ranges[0][1] - ranges[0][0]) + 1.) +  ranges[0][0] ], fontname='Arial', fontsize=20)
 
+    if (ranges[1][1] > 10.): step = 10
+    if (ranges[1][1] > 100.): step = 100
     ytext = ax.set_ylabel(axes_label_dict[field2], fontname='Arial', fontsize=20)
-    ax.set_yticks(np.arange((ranges[1][1] - ranges[1][0]) + 1.) * 1000. / (ranges[1][1] - ranges[1][0]))
-    ax.set_yticklabels([ str(int(s)) for s in np.arange((ranges[1][1] - ranges[1][0]) + 1.) +  ranges[1][0] ], fontname='Arial', fontsize=20)
+    ax.set_yticks(np.arange((ranges[1][1] - ranges[1][0]) + 1., step=step) * 1000. / (ranges[1][1] - ranges[1][0]))
+    ax.set_yticklabels([ str(int(s)) for s in np.arange((ranges[1][1] - ranges[1][0]) + 1., step=step) +  ranges[1][0] ], fontname='Arial', fontsize=20)
+
+    print('Wrap axis y tick range0: ', ranges[1][1], ranges[1][0])
+    print('Wrap axis y tick range1: ', np.arange((ranges[1][1] - ranges[1][0]) + 1.))
+    print('Wrap axis y tick range2: ', np.arange((ranges[1][1] - ranges[1][0]) + 1.) * 1000. / (ranges[1][1] - ranges[1][0]))
 
     plt.savefig(filename)
 
