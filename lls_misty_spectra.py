@@ -175,7 +175,9 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         ### we only want N_HI > 16 !!
         hi_col = np.log10((triray.r['H_p0_number_density']*triray.r['dl']).sum().d)
+        print('log HI column = ', hi_col, '...')
         if hi_col < 16 or hi_col > 22.5:
+            print('...skipping!')
             continue
 
         ray_start = triray.light_ray_solution[0]['start']
@@ -273,7 +275,7 @@ if __name__ == "__main__":
     lls_dir = output_dir + "lls/"
 
     generate_random_rays(ds, halo_center, haloname=haloname, track=track, axis=args.axis, line_list=line_list,\
-                         output_dir=lls_dir, Nrays=args.Nrays)
+                         output_dir=lls_dir, seed=args.seed, Nrays=args.Nrays)
 
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
