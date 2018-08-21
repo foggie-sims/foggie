@@ -3,10 +3,10 @@ import os
 import pickle
 import numpy as np
 
-import seaborn as sns
+#import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-sns.set_style("whitegrid", {'axes.grid' : False})
+#sns.set_style("whitegrid", {'axes.grid' : False})
 mpl.rcParams['font.family'] = 'stixgeneral'
 mpl.rcParams['font.size'] = 16.
 
@@ -48,7 +48,7 @@ def plot_cloud_size_and_masses():
     si2cloudcolumns = []
 
     c4cloudcolumns = []
-    
+
     nref10_cell = 1000 * 100 / (256 * np.power(2,10)) ## ckpc/h
     hist_bins = nref10_cell * (np.arange(1000)+1.)
 
@@ -97,9 +97,9 @@ def plot_cloud_size_and_masses():
     #n, bins, patches = plt.hist(o6sizes, hist_bins, range=(0, 100), cumulative=-1, facecolor=ovi_color, alpha=0.75, label='O VI')
     #n, bins, patches = plt.hist(si2sizes, hist_bins, range=(0, 100), cumulative=-1, facecolor=si2_color, alpha=0.75, label='Si II')
     #n, bins, patches = plt.hist(h1sizes, hist_bins, range=(0, 100), cumulative=-1, facecolor=hi_color, alpha=0.75, label='H I')
-    n, bins, patches = plt.hist(h1sizes, hist_bins, range=(0, 500), cumulative=-1,normed=True,color=hi_color, histtype='step',lw=3, label='H I')
-    n, bins, patches = plt.hist(si2sizes, hist_bins, range=(0, 500), cumulative=-1,normed=True,color=si2_color, histtype='step',lw=3, label='Si II')
-    n, bins, patches = plt.hist(o6sizes, hist_bins, range=(0, 500), cumulative=-1,normed=True,color=ovi_color, histtype='step',lw=3, label='O VI')
+    ax.hist(h1sizes, hist_bins, range=(0, 500), cumulative=-1,normed=True,color=hi_color, histtype='step',lw=3, label='H I')
+    ax.hist(si2sizes, hist_bins, range=(0, 500), cumulative=-1,normed=True,color=si2_color, histtype='step',lw=3, label='Si II')
+    ax.hist(o6sizes, hist_bins, range=(0, 500), cumulative=-1,normed=True,color=ovi_color, histtype='step',lw=3, label='O VI')
 
     plt.xlabel('Sizes [kpc]')
     plt.ylabel('Fraction of clouds with larger size')
@@ -108,8 +108,11 @@ def plot_cloud_size_and_masses():
     #plt.text(13, 46, 'N$_{clouds}(H I)$ = '+str(np.size(h1sizes)), fontsize='large')
     #plt.text(13, 42, 'N$_{clouds}(O VI)$ = '+str(np.size(o6sizes)), fontsize='large')
     plt.xscale('log')
+    ax.set_xticks((0.1, 1, 10, 100))
+    ax.set_xticklabels(('0.1','1','10','100'))
     plt.grid(True)
     plt.legend(loc='upper right')
+    plt.tight_layout()
     plt.savefig('cloud_size_histogram.png')
     plt.savefig('cloud_size_histogram.pdf')
 
@@ -131,6 +134,7 @@ def plot_cloud_size_and_masses():
     plt.axis([0, 200, 0, 35])
     plt.legend(loc='upper right')
     plt.grid(True)
+    plt.tight_layout()
     plt.savefig('cloud_cells_histogram.png')
     plt.savefig('cloud_cells_histogram.pdf')
 
@@ -154,6 +158,7 @@ def plot_cloud_size_and_masses():
     plt.xscale('log')
     plt.legend(loc='upper right')
     plt.grid(True)
+    plt.tight_layout()
     plt.savefig('cloud_masses_histogram.png')
     plt.savefig('cloud_masses_histogram.pdf')
 
