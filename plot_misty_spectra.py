@@ -60,7 +60,6 @@ def plot_misty_spectra(hdulist, **kwargs):
             lambda_0 = ext.header['RESTWAVE'] * u.AA
             f_value = ext.header['F_VALUE']
             gamma = ext.header['GAMMA']
-            Ncomp = ext.header['NCOMP']
             print(line, name)
             try:
                 redshift = hdulist[line+2].data['redshift']
@@ -74,23 +73,25 @@ def plot_misty_spectra(hdulist, **kwargs):
                 velocity = (wavelength_obs / (1 + zsnap)).to('km/s')
                 velocity_obs = velocity * (1 + zsnap)
 
-            for i in range(Ncomp):
-                delta_v = ext.header['FITVCEN{}'.format(i)] * u.Unit('km/s')
-                col_dens = ext.header['FITCOL{}'.format(i)]
-                v_dop = ext.header['FITB{}'.format(i)] * u.Unit('km/s')
-                print('i:',i,delta_v, col_dens, v_dop)
-                spectrum.add_line(lambda_0=lambda_0, f_value=f_value,
-                                  gamma=gamma, column_density=col_dens, v_doppler=v_dop,
-                                  delta_v=delta_v)
-                # ax_spec.plot([delta_v.value * (1 + zsnap), delta_v.value * (1 + zsnap)], [1.05, 0.95], color='k')
-                ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='k')
-                ### plot component here
-                this_comp = Spectrum1DModel(redshift=redshift)
-                this_comp.add_line(lambda_0=lambda_0, f_value=f_value,
-                                  gamma=gamma, column_density=col_dens, v_doppler=v_dop,
-                                  delta_v=delta_v)
-                this_flux = this_comp.flux(velocity_obs)
-                ax_spec.step(velocity, this_flux, color='darkorange', ls="--", dashes=(5,2), alpha=0.5)
+            if 'NCOMP' in ext.header.keys():
+                Ncomp = ext.header['NCOMP']
+                for i in range(Ncomp):
+                    delta_v = ext.header['FITVCEN{}'.format(i)] * u.Unit('km/s')
+                    col_dens = ext.header['FITCOL{}'.format(i)]
+                    v_dop = ext.header['FITB{}'.format(i)] * u.Unit('km/s')
+                    print('i:',i,delta_v, col_dens, v_dop)
+                    spectrum.add_line(lambda_0=lambda_0, f_value=f_value,
+                                      gamma=gamma, column_density=col_dens, v_doppler=v_dop,
+                                      delta_v=delta_v)
+                    # ax_spec.plot([delta_v.value * (1 + zsnap), delta_v.value * (1 + zsnap)], [1.05, 0.95], color='k')
+                    ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='k')
+                    ### plot component here
+                    this_comp = Spectrum1DModel(redshift=redshift)
+                    this_comp.add_line(lambda_0=lambda_0, f_value=f_value,
+                                      gamma=gamma, column_density=col_dens, v_doppler=v_dop,
+                                      delta_v=delta_v)
+                    this_flux = this_comp.flux(velocity_obs)
+                    ax_spec.step(velocity, this_flux, color='darkorange', ls="--", dashes=(5,2), alpha=0.5)
 
 
             ### _lsf.fits files have '_obs' while _los.fits files don't
