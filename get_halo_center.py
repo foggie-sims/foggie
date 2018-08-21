@@ -9,16 +9,15 @@ def get_halo_center(ds, center_guess, **kwargs):
     Inputs are a dataset, and the center_guess.
     Outputs center and velocity tuples.
     """
-    # returns a list of the halo center coordinates
+
     radius = kwargs.get('radius', 50.)  # search radius in kpc
-    vel_radius = kwargs.get('vel_radius', 2.)
+    vel_radius = kwargs.get('vel_radius', 20.)
     units = kwargs.get('units', 'code')
 
     length = 'code_length'
     vel = 'code_velocity'
 
-    print('GET HALO CENTER UNITS', length, vel)
-    # extract a sphere centered at the guess
+    print('get_halo_centers: ', length, vel)
     sphere_region = ds.sphere(center_guess, (radius, 'kpc'))
 
     x_pos, y_pos, z_pos = np.array(sphere_region["x"].in_units(length)), \
@@ -46,6 +45,5 @@ def get_halo_center(ds, center_guess, **kwargs):
                         np.mean(sph['z-velocity'].in_units('km/s'))]
 
     print('Located the main halo at:', halo_center, velocity)
-
 
     return halo_center, velocity

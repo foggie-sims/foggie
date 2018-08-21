@@ -106,7 +106,6 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
     phase = new_categorize_by_temp(temperature)
     metal = categorize_by_metallicity(all_data['metallicity'])
 
-    print("LOOK I KNOW THE HALO CENTER!! ", halo_center, halo_vcenter)
 
     # build data_frame with mandatory fields
     data_frame = pd.DataFrame({'x':x, 'y':y, 'z':z, 'temperature':temperature, \
@@ -114,6 +113,14 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
                                'phase':phase, 'metal':metal})
     data_frame.phase = data_frame.phase.astype('category')
     data_frame.metal = data_frame.metal.astype('category')
+
+    print("LOOK I KNOW THE HALO CENTER!! ", halo_center, halo_vcenter)
+
+
+    relative_velocity = ( (all_data['x-velocity'].in_units('km/s')-halo_vcenter[0])**2 \
+                        + (all_data['y-velocity'].in_units('km/s')-halo_vcenter[1])**2 \
+                        + (all_data['z-velocity'].in_units('km/s')-halo_vcenter[2])**2 )**0.5
+    data_frame['relative_velocity'] = relative_velocity
 
     # now add the optional fields
     print("you have requested fields ", field1, field2)
@@ -146,7 +153,7 @@ def wrap_axes(filename, field1, field2, ranges):
     img = mpimg.imread(filename+'.png')
     img2 = np.flip(img,0)
     fig = plt.figure(figsize=(8,8))
-    ax = fig.add_axes([0.13, 0.13, 0.88, 0.88])
+    ax = fig.add_axes([0.13, 0.13, 0.85, 0.85])
     ax.imshow(img2)
 
     xtext = ax.set_xlabel(axes_label_dict[field1], fontname='Arial', fontsize=20)
@@ -158,10 +165,6 @@ def wrap_axes(filename, field1, field2, ranges):
     ytext = ax.set_ylabel(axes_label_dict[field2], fontname='Arial', fontsize=20)
     ax.set_yticks(np.arange((ranges[1][1] - ranges[1][0]) + 1., step=step) * 1000. / (ranges[1][1] - ranges[1][0]))
     ax.set_yticklabels([ str(int(s)) for s in np.arange((ranges[1][1] - ranges[1][0]) + 1., step=step) +  ranges[1][0] ], fontname='Arial', fontsize=20)
-
-    print('Wrap axis y tick range0: ', ranges[1][1], ranges[1][0])
-    print('Wrap axis y tick range1: ', np.arange((ranges[1][1] - ranges[1][0]) + 1.))
-    print('Wrap axis y tick range2: ', np.arange((ranges[1][1] - ranges[1][0]) + 1.) * 1000. / (ranges[1][1] - ranges[1][0]))
 
     plt.savefig(filename)
 
