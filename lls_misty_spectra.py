@@ -51,7 +51,7 @@ def parse_args():
 
     parser.add_argument('--seed', metavar='seed', type=int, action='store',
                         help='random seed? default is 17')
-    parser.set_defaults(seed="17")
+    parser.set_defaults(seed=17)
 
     parser.add_argument('--axis', metavar='axis', type=str, action='store',
                         help='which axis? default is x')
@@ -176,7 +176,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
         ### we only want N_HI > 16 !!
         hi_col = np.log10((triray.r['H_p0_number_density']*triray.r['dl']).sum().d)
         print('log HI column = ', hi_col, '...')
-        if hi_col < 16 or hi_col > 22.5:
+        if hi_col < 16 or hi_col > 21:
             print('...skipping!')
             continue
 
