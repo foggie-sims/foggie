@@ -216,7 +216,7 @@ new_metals_color_key = {b'free':to_hex(metallicity_colors[0]),
                         b'high1':to_hex(metallicity_colors[17]),
                         b'high2':to_hex(metallicity_colors[18]),
                         b'high3':to_hex(metallicity_colors[19]),
-                        b'high3':to_hex(metallicity_colors[20]) ## orange
+                        b'high4':to_hex(metallicity_colors[20]) ## orange
 }
 
 
@@ -247,4 +247,5 @@ def new_categorize_by_metals(metal):
    phase[metal < metal_vals[2]] = b'free2'
    phase[metal < metal_vals[1]] = b'free1'
    phase[metal < metal_vals[0]] = b'free'
+
    return phase

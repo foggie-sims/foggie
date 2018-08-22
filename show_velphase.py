@@ -10,12 +10,12 @@ import pandas as pd
 import pickle
 import glob
 import os
+os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 from consistency import *
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 from matplotlib.gridspec import GridSpec
-os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 
 import copy
 import argparse

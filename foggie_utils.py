@@ -92,7 +92,6 @@ def ds_to_df(ds, ray_start, ray_end):
     current_redshift = ds.get_parameter('CosmologyCurrentRedshift')
     proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
         / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
-    #print("COMOVING BOX SIZE : ", proper_box_size)
     all_data = ds.r[ray_start[0]:ray_end[0],
                     ray_start[1]-0.5*CORE_WIDTH/proper_box_size:ray_start[1]+
                     0.5*CORE_WIDTH/proper_box_size,
@@ -101,7 +100,7 @@ def ds_to_df(ds, ray_start, ray_end):
 
     dens = np.log10(all_data['density'].ndarray_view())
     temp = np.log10(all_data['temperature'].ndarray_view())
-    metallicity = all_data['metallicity'].ndarray_view() #* 0.0 + 0.009
+    metallicity = all_data['metallicity'].ndarray_view() 
 
     phase_label = new_categorize_by_temp(temp)
     metal_label = new_categorize_by_metals(metallicity)
