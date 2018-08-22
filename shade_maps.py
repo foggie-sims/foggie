@@ -9,6 +9,9 @@ import pandas as pd
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import matplotlib as mpl
+mpl.rcParams['font.family'] = 'stixgeneral'
+
 import yt
 import trident
 import numpy as np
@@ -160,15 +163,15 @@ def wrap_axes(filename, field1, field2, ranges):
     ax = fig.add_axes([0.13, 0.13, 0.85, 0.85])
     ax.imshow(img2)
 
-    xtext = ax.set_xlabel(axes_label_dict[field1], fontname='Arial', fontsize=20)
+    xtext = ax.set_xlabel(axes_label_dict[field1], fontsize=20)
     ax.set_xticks(np.arange((ranges[0][1] - ranges[0][0]) + 1.) * 1000. / (ranges[0][1] - ranges[0][0]))
-    ax.set_xticklabels([ str(int(s)) for s in np.arange((ranges[0][1] - ranges[0][0]) + 1.) +  ranges[0][0] ], fontname='Arial', fontsize=20)
+    ax.set_xticklabels([ str(int(s)) for s in np.arange((ranges[0][1] - ranges[0][0]) + 1.) +  ranges[0][0] ], fontsize=20)
 
     if (ranges[1][1] > 10.): step = 10
     if (ranges[1][1] > 100.): step = 100
-    ytext = ax.set_ylabel(axes_label_dict[field2], fontname='Arial', fontsize=20)
+    ytext = ax.set_ylabel(axes_label_dict[field2], fontsize=20)
     ax.set_yticks(np.arange((ranges[1][1] - ranges[1][0]) + 1., step=step) * 1000. / (ranges[1][1] - ranges[1][0]))
-    ax.set_yticklabels([ str(int(s)) for s in np.arange((ranges[1][1] - ranges[1][0]) + 1., step=step) +  ranges[1][0] ], fontname='Arial', fontsize=20)
+    ax.set_yticklabels([ str(int(s)) for s in np.arange((ranges[1][1] - ranges[1][0]) + 1., step=step) +  ranges[1][0] ], fontsize=20)
 
     plt.savefig(filename)
 
