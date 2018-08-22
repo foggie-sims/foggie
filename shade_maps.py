@@ -13,13 +13,17 @@ import yt
 import trident
 import numpy as np
 from astropy.table import Table
-from .get_refine_box import get_refine_box as grb
-from .get_halo_center import get_halo_center
-from .consistency import ion_frac_color_key, new_phase_color_key, \
-        metal_color_key, axes_label_dict, logfields, new_categorize_by_temp
 from holoviews.operation.datashader import datashade, aggregate
 from holoviews import Store
 hv.extension('matplotlib')
+
+import os
+os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
+
+from get_refine_box import get_refine_box as grb
+from get_halo_center import get_halo_center
+from consistency import ion_frac_color_key, new_phase_color_key, \
+        metal_color_key, axes_label_dict, logfields, new_categorize_by_temp
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere"""

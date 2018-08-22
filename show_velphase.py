@@ -27,8 +27,8 @@ import yt
 from astropy.io import fits
 from astropy.table import Table
 
-#import shade_maps as sm
-import foggie.shade_maps as sm
+import shade_maps as sm
+#import foggie.shade_maps as sm
 
 CORE_WIDTH = 20.
 
@@ -363,10 +363,11 @@ if __name__ == "__main__":
     args = futils.parse_args()
     ds_loc, output_path, output_dir, haloname = futils.get_path_info(args)
 
-    dataset_list = glob.glob(os.path.join(output_dir, '*rd0020*v5_los*fits.gz'))
+    dataset_list = glob.glob(os.path.join(output_dir, '*rd0020*v6_los*fits.gz'))
 
     ds = yt.load(ds_loc)
-    trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
-                    'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
+#    trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
+#                    'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
+    trident.add_ion_fields(ds, ions=['Si II', 'Si IV', 'C IV', 'O VI'])
 
     loop_over_rays(ds, dataset_list)
