@@ -363,11 +363,14 @@ if __name__ == "__main__":
     args = futils.parse_args()
     ds_loc, output_path, output_dir, haloname = futils.get_path_info(args)
 
-    dataset_list = glob.glob(os.path.join(output_dir, '*rd0020*v6_los*fits.gz'))
+    dataset_list = glob.glob(os.path.join('.', '*rd0020*v6_los*fits.gz'))
+    print('there are ',len(dataset_list), 'files')
 
     ds = yt.load(ds_loc)
-#    trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
-#                    'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
-    trident.add_ion_fields(ds, ions=['Si II', 'Si IV', 'C IV', 'O VI'])
+    trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
+                    'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
+#    trident.add_ion_fields(ds, ions=['Si II', 'Si IV', 'C IV', 'O VI'])
 
+    print('going to loop over rays now')
     loop_over_rays(ds, dataset_list)
+    print('~~~ all done! ~~~')
