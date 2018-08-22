@@ -219,29 +219,32 @@ new_metals_color_key = {b'free':to_hex(metallicity_colors[0]),
                         b'high3':to_hex(metallicity_colors[20]) ## orange
 }
 
+
 def new_categorize_by_metals(metal):
-    """ define the temp category strings"""
-    metal_vals = np.power(10.0, np.linspace(start=np.log10(metal_min), \
-                            stop=np.log10(metal_max), num=21))
-    phase = np.chararray(np.size(metal), 6)
-    phase[metal < 5*metal_vals[20]] = b'high3'
-    phase[metal < metal_vals[19]] = b'high2'
-    phase[metal < metal_vals[18]] = b'high1'
-    phase[metal < metal_vals[17]] = b'high'
-    phase[metal < metal_vals[16]] = b'solar3'
-    phase[metal < metal_vals[15]] = b'solar2'
-    phase[metal < metal_vals[14]] = b'solar1'
-    phase[metal < metal_vals[13]] = b'solar'
-    phase[metal < metal_vals[12]] = b'low3'
-    phase[metal < metal_vals[11]] = b'low2'
-    phase[metal < metal_vals[10]] = b'low1'
-    phase[metal < metal_vals[9]] = b'low'
-    phase[metal < metal_vals[8]] = b'poor3'
-    phase[metal < metal_vals[7]] = b'poor2'
-    phase[metal < metal_vals[6]] = b'poor1'
-    phase[metal < metal_vals[4]] = b'poor'
-    phase[metal < metal_vals[3]] = b'free3'
-    phase[metal < metal_vals[2]] = b'free2'
-    phase[metal < metal_vals[1]] = b'free1'
-    phase[metal < metal_vals[0]] = b'free'
-    return phase
+   """ define the temp category strings"""
+   metal_vals = np.power(10.0, np.linspace(start=np.log10(metal_min), \
+                           stop=np.log10(metal_max), num=21))
+   print(metal_vals)
+   phase = np.chararray(np.size(metal), 6)
+   phase[metal < 50. * metal_vals[20]] = b'high4'
+   phase[metal < metal_vals[19]] = b'high3'
+   phase[metal < metal_vals[18]] = b'high2'
+   phase[metal < metal_vals[17]] = b'high1'
+   phase[metal < metal_vals[16]] = b'high'
+   phase[metal < metal_vals[15]] = b'solar3'
+   phase[metal < metal_vals[14]] = b'solar2'
+   phase[metal < metal_vals[13]] = b'solar1'
+   phase[metal < metal_vals[12]] = b'solar'
+   phase[metal < metal_vals[11]] = b'low3'
+   phase[metal < metal_vals[10]] = b'low2'
+   phase[metal < metal_vals[9]] = b'low1'
+   phase[metal < metal_vals[8]] = b'low'
+   phase[metal < metal_vals[7]] = b'poor3'
+   phase[metal < metal_vals[6]] = b'poor2'
+   phase[metal < metal_vals[5]] = b'poor1'
+   phase[metal < metal_vals[4]] = b'poor'
+   phase[metal < metal_vals[3]] = b'free3'
+   phase[metal < metal_vals[2]] = b'free2'
+   phase[metal < metal_vals[1]] = b'free1'
+   phase[metal < metal_vals[0]] = b'free'
+   return phase
