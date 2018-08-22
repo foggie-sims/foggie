@@ -26,6 +26,7 @@ import trident
 import yt
 from astropy.io import fits
 from astropy.table import Table
+import astropy.units as u
 
 import shade_maps as sm
 #import foggie.shade_maps as sm
@@ -280,9 +281,9 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_ylim(0,1)
         ax.set_yticklabels([' ',' ',' '])
         if (hdulist.__contains__(key)):
-            restwave = hdulist[key].header['RESTWAVE']
-            vel = (hdulist[key].data['wavelength']/(1.+\
-                ds.get_parameter('CosmologyCurrentRedshift')) - restwave) / restwave * c_kms
+            restwave = hdulist[key].header['RESTWAVE'] * u.AA
+            with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(restwave)):
+                vel = (hdulist[key].data['wavelength']*u.AA / (1 + ds.get_parameter('CosmologyCurrentRedshift'))).to('km/s')
             ax.step(vel, hdulist[key].data['flux'])
 
     for ax in [ax0, ax1, ax6, ax7]:
