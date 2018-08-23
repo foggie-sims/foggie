@@ -65,7 +65,7 @@ ion_frac_color_key = {b'all':'black',
 discrete_cmap = mpl.colors.ListedColormap(['#565656','#4daf4a',"#d73027","#984ea3","#ffe34d",'#4575b4','darkorange'])
 discrete_cmap_rainbow = mpl.colors.ListedColormap(['#4daf4a',"#ffe34d",'darkorange',"#d73027","#984ea3",'#4575b4','#565656'])
 
-density_color_map = sns.blend_palette(("black","#984ea3","#d73027","darkorange","#ffe34d","#4daf4a","white"), n_colors=60, as_cmap=True)
+density_color_map = sns.blend_palette(("black","#984ea3","#d73027","darkorange","#ffe34d","#4daf4a","white"), as_cmap=True)
 density_proj_min = 5e-2  ## msun / pc^2
 density_proj_max = 1e4
 density_slc_min = 5e-8  ## msun / pc^3
@@ -77,7 +77,7 @@ metal_max = 3.
 metal_density_min = 1.e-5
 metal_density_max = 250.
 
-temperature_color_map = sns.blend_palette(("black","#d73027","darkorange","#ffe34d"), n_colors=50, as_cmap=True)
+temperature_color_map = sns.blend_palette(("black","#d73027","darkorange","#ffe34d"), as_cmap=True)
 temperature_min = 5.e6
 temperature_max = 1.e4
 
