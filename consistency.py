@@ -65,13 +65,15 @@ ion_frac_color_key = {b'all':'black',
 discrete_cmap = mpl.colors.ListedColormap(['#565656','#4daf4a',"#d73027","#984ea3","#ffe34d",'#4575b4','darkorange'])
 discrete_cmap_rainbow = mpl.colors.ListedColormap(['#4daf4a',"#ffe34d",'darkorange',"#d73027","#984ea3",'#4575b4','#565656'])
 
-density_color_map = sns.blend_palette(("black","#984ea3","#d73027","darkorange","#ffe34d","#4daf4a","white"), as_cmap=True)
+old_density_color_map = sns.blend_palette(("black","#984ea3","#d73027","darkorange","#ffe34d","#4daf4a","white"), as_cmap=True)
+density_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a","#ffe34d","darkorange"), as_cmap=True)
 density_proj_min = 5e-2  ## msun / pc^2
 density_proj_max = 1e4
 density_slc_min = 5e-8  ## msun / pc^3
 density_slc_max = 5
 
-metal_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a","#ffe34d","darkorange"), as_cmap=True)
+metal_color_map = sns.blend_palette(("black","#4575b4","#984ea3","#984ea3","#d73027","darkorange","#ffe34d"), as_cmap=True)
+old_metal_color_map = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a","#ffe34d","darkorange"), as_cmap=True)
 metal_min = 1.e-4
 metal_max = 3.
 metal_density_min = 1.e-5
@@ -195,7 +197,8 @@ def new_categorize_by_temp(temp):
     return phase
 
 
-metallicity_colors = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a","#ffe34d","darkorange"), n_colors=21)
+old_metallicity_colors = sns.blend_palette(("black","#984ea3","#4575b4","#4daf4a","#ffe34d","darkorange"), n_colors=21)
+metallicity_colors = sns.blend_palette(("black","#4575b4","#984ea3","#984ea3","#d73027","darkorange","#ffe34d"), n_colors=21)
 new_metals_color_key = {b'free':to_hex(metallicity_colors[0]),
                         b'free1':to_hex(metallicity_colors[1]),
                         b'free2':to_hex(metallicity_colors[2]),
