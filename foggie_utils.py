@@ -14,6 +14,23 @@ from consistency import *
 
 CORE_WIDTH = 20.
 
+def get_ray_axis(ray_start, ray_end):
+    """ takes in ray and returns an integer, 0, 1, 2 for x, y, z, orients"""
+    ray_length = ray_end-ray_start
+    if (ray_length[0] > 0.):
+        ray_index = 0
+        return ray_index
+    elif (ray_length[1] > 0.):
+        ray_index = 1
+        return ray_index
+    elif (ray_length[2] > 0.):
+        ray_index = 2
+        return ray_index
+    else:
+        print('Your ray is bogus, try again!')
+        return False
+
+
 def parse_args():
     '''
     Parse command line arguments.  Returns args object.
@@ -92,15 +109,32 @@ def ds_to_df(ds, ray_start, ray_end):
     current_redshift = ds.get_parameter('CosmologyCurrentRedshift')
     proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
         / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
-    all_data = ds.r[ray_start[0]:ray_end[0],
-                    ray_start[1]-0.5*CORE_WIDTH/proper_box_size:ray_start[1]+
-                    0.5*CORE_WIDTH/proper_box_size,
-                    ray_start[2]-0.5*CORE_WIDTH/proper_box_size:ray_start[2]+
-                    0.5*CORE_WIDTH/proper_box_size]
+
+    ray_index = get_ray_axis(ray_start, ray_end)
+    if (ray_index == 0):
+        all_data = ds.r[ray_start[0]:ray_end[0],
+                        ray_start[1]-0.5*CORE_WIDTH/proper_box_size:ray_start[1]+
+                        0.5*CORE_WIDTH/proper_box_size,
+                        ray_start[2]-0.5*CORE_WIDTH/proper_box_size:ray_start[2]+
+                        0.5*CORE_WIDTH/proper_box_size]
+    elif (ray_index == 1):
+        all_data = ds.r[ray_start[0]-0.5*CORE_WIDTH/proper_box_size:ray_start[0]+
+                        0.5*CORE_WIDTH/proper_box_size,
+                        ray_start[1]:ray_end[1],
+                        ray_start[2]-0.5*CORE_WIDTH/proper_box_size:ray_start[2]+
+                        0.5*CORE_WIDTH/proper_box_size]
+    elif (ray_index == 2):
+        all_data = ds.r[ray_start[0]-0.5*CORE_WIDTH/proper_box_size:ray_start[0]+
+                        0.5*CORE_WIDTH/proper_box_size,
+                        ray_start[1]-0.5*CORE_WIDTH/proper_box_size:ray_start[1]+
+                        0.5*CORE_WIDTH/proper_box_size,
+                        ray_start[2]:ray_end[2]]
+    else:
+        print('Your ray is bogus, try again!')
 
     dens = np.log10(all_data['density'].ndarray_view())
     temp = np.log10(all_data['temperature'].ndarray_view())
-    metallicity = all_data['metallicity'].ndarray_view() 
+    metallicity = all_data['metallicity'].ndarray_view()
 
     phase_label = new_categorize_by_temp(temp)
     metal_label = new_categorize_by_metals(metallicity)

@@ -37,9 +37,9 @@ def reduce_ion_vector(vx, ion ): # this will "histogram" H1 so we can plot it.
     """ this function takes in two vectors for velocity and ionization
         fraction and chunks the ionization fraction into a uniform velocity
         grid. JT 082018"""
-    v = np.arange(1001) - 500
+    v = np.arange(3001) - 1500
     ion_hist = v * 0.
-    index = np.around(vx) + 500 # now ranges over [0,1000]
+    index = np.around(vx) + 1500 # now ranges over [0,1000]
     for i in np.arange(np.size(ion)):
         ion_hist[int(index[i])] = ion_hist[int(index[i])] + ion[int(i)]
 
@@ -127,7 +127,9 @@ def get_sizes(ray_df, species, x, ion_to_use, cell_mass, coldens_threshold):
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     """ oh, the docstring is missing, is it??? """
 
+    # converts the provided yt dataset to a dataframe - needs 3D ray endpoints
     df = futils.ds_to_df(ds, ray_start, ray_end)
+    ray_index = futils.get_ray_axis(ray_start, ray_end)
 
     #establish the grid of plots and obtain the axis objects
     fig = plt.figure(figsize=(9,6))
@@ -201,7 +203,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
         print("Current species: ", species)
         cvs = dshader.Canvas(plot_width=800, plot_height=300, y_range=(-350,350),
-                             x_range=(ray_start[0], ray_end[0]))
+                             x_range=(ray_start[ray_index], ray_end[ray_index]))
         vx_render = tf.shade(cvs.points(ray_df, 'x', 'x-velocity',
                                         agg=reductions.mean(species_dict[species])),
                                         how='log')
@@ -221,13 +223,13 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     comoving_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
         / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
 
-    x_ray = (ray_df['x']-ray_start[0]) * comoving_box_size * \
+    x_ray = (ray_df['x']-ray_start[ray_index]) * comoving_box_size * \
                 ds.get_parameter('CosmologyHubbleConstantNow') # comoving kpc
     ray_df['x_ray'] = x_ray[np.argsort(x_ray)]
     #can add stuff to the ray df instead of computing new variables
 
     ray_length = ds.get_parameter('CosmologyHubbleConstantNow') * \
-                    comoving_box_size * (ray_end[0] - ray_start[0])
+                    comoving_box_size * (ray_end[ray_index] - ray_start[ray_index])
 
     # Add the ionization fraction traces to the datashaded velocity vs. x plots
     h1 = np.array(50. * ray_df['H_p0_number_density']/np.max(ray_df['H_p0_number_density']))
@@ -311,6 +313,8 @@ def grab_ray_file(ds, filename):
     print("grab_ray_file is opening: ", filename)
     hdulist = fits.open(filename)
     ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
+    print("Ray ray_start_str: ", ray_start_str)
+    print("Ray ray_end_str: ", ray_end_str)
     ray_start = [float(ray_start_str.split(",")[0].strip('unitary')), \
            float(ray_start_str.split(",")[1].strip('unitary')), \
            float(ray_start_str.split(",")[2].strip('unitary'))]
@@ -323,6 +327,8 @@ def grab_ray_file(ds, filename):
     ray = ds.ray(rs, re)
     rs = rs.ndarray_view()
     re = re.ndarray_view()
+    print("Ray start: ", rs)
+    print("Ray end: ", re)
     ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
     ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
     ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
