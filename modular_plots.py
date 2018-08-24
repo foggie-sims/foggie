@@ -308,19 +308,18 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
 
     print(foggie_dir)
     # track_name = foggie_dir + 'halo_00' + str(halo) + '/' + run + '/' + trackname
-    track_name = foggie_dir + '/' + trackname
     #if args.system == "pleiades" and args.run == 'nref11c_400kpc':
     #    track_name = foggie_dir + "halo_008508/nref11c_nref8f_400kpc/halo_track"
     #### track_name = '/astro/simulations/FOGGIE/halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track'
 
-    print("opening track: " + track_name)
-    track = Table.read(track_name, format='ascii')
+    print("opening track: " + trackname)
+    track = Table.read(trackname, format='ascii')
     track.sort('col1')
 
     ## default is do allll the snaps in the directory
     ## want to add flag for if just one
     # run_dir = foggie_dir + 'halo_00' + str(halo) + '/' + run
-    run_dir = foggie_dir + '/' + run
+    run_dir = foggie_dir 
     prefix = output_dir ## + '/' + run
     print('prefix = ', prefix)
     print('run_dir = ', run_dir)
@@ -587,9 +586,10 @@ if __name__ == "__main__":
 
     foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
 
+    run_dir = foggie_dir + run_loc
     if args.output == "all" or args.output == "RD":
-        message = plot_script(args.halo, foggie_dir, output_dir, run_loc,  "all", trackname=trackname, outs=args.output)
+        message = plot_script(args.halo, run_dir, output_dir, run_loc,  "all", trackname=trackname, outs=args.output)
     else:
-        message = plot_script(args.halo, foggie_dir, output_dir, run_loc,  "all", trackname=trackname, outs=[args.output + "/" + args.output])
+        message = plot_script(args.halo, run_dir, output_dir, run_loc,  "all", trackname=trackname, outs=[args.output + "/" + args.output])
 
     sys.exit(message)
