@@ -97,7 +97,8 @@ h1_proj_max = 1.e24
 h1_slc_min = 1.e-14
 h1_slc_max = 1.e2
 
-o6_color_map = sns.blend_palette(("white","black","#4daf4a","#4575b4","#984ea3","#d73027","darkorange"), as_cmap=True)
+old_o6_color_map = sns.blend_palette(("white","black","#4daf4a","#4575b4","#984ea3","#d73027","darkorange"), as_cmap=True)
+o6_color_map = "magma"
 o6_min = 1.e11
 o6_max = 1.e15
 

@@ -319,7 +319,7 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
     ## default is do allll the snaps in the directory
     ## want to add flag for if just one
     # run_dir = foggie_dir + 'halo_00' + str(halo) + '/' + run
-    run_dir = foggie_dir 
+    run_dir = foggie_dir
     prefix = output_dir ## + '/' + run
     print('prefix = ', prefix)
     print('run_dir = ', run_dir)
@@ -500,17 +500,6 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
-        if args.all or args.ions or args.mgii:
-            make_projection_plot(ds, prefix, "MgII",  \
-                            mg2_min, mg2_max, mg2_color_map, \
-                            ision=True, center=center, axis=axis, box=refine_box, \
-                            width=refine_width, appendix="_refine")
-            if args.box:
-                make_projection_plot(ds, prefix, "MgII",  \
-                            mg2_min, mg2_max, mg2_color_map, \
-                            ision=True, center=center, axis=axis, box=box, \
-                            width=width, appendix="_box")
-
         if args.all or args.ions or args.civ:
             make_projection_plot(ds, prefix, "CIV",  \
                             c4_min, c4_max, c4_color_map, \
@@ -559,6 +548,17 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
             if args.box:
                 make_projection_plot(ds, prefix, "NeVIII",  \
                             ne8_min, ne8_max, ne8_color_map, \
+                            ision=True, center=center, axis=axis, box=box, \
+                            width=width, appendix="_box")
+
+        if args.all or args.ions or args.mgii:
+            make_projection_plot(ds, prefix, "MgII",  \
+                            mg2_min, mg2_max, mg2_color_map, \
+                            ision=True, center=center, axis=axis, box=refine_box, \
+                            width=refine_width, appendix="_refine")
+            if args.box:
+                make_projection_plot(ds, prefix, "MgII",  \
+                            mg2_min, mg2_max, mg2_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
