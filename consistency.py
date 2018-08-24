@@ -227,7 +227,6 @@ def new_categorize_by_metals(metal):
    """ define the temp category strings"""
    metal_vals = np.power(10.0, np.linspace(start=np.log10(metal_min), \
                            stop=np.log10(metal_max), num=21))
-   print(metal_vals)
    phase = np.chararray(np.size(metal), 6)
    phase[metal < 50. * metal_vals[20]] = b'high4'
    phase[metal < metal_vals[19]] = b'high3'

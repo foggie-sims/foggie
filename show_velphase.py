@@ -141,7 +141,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax3 = plt.subplot(gs[3])
     ax3.set_title('Si II 1260')
     ax4 = plt.subplot(gs[4])
-    ax4.set_title('C IV 1548')
+    ax4.set_title('Si IV 1396')
     ax5 = plt.subplot(gs[5])
     ax5.set_title('O VI 1032')
 
@@ -278,7 +278,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     size_dict = {**h1_size_dict, **si2_size_dict, **c4_size_dict, **o6_size_dict}
     pickle.dump( size_dict, open( fileroot+"sizes.pkl", "wb" ) )
 
-    for ax, key in zip([ax8, ax9, ax10, ax11], ['H I 1216', 'Si II 1260', 'C IV 1548', 'O VI 1032']):
+    for ax, key in zip([ax8, ax9, ax10, ax11], ['H I 1216', 'Si II 1260', 'Si IV 1396', 'O VI 1032']):
         ax.set_xlim(-350,350)
         ax.set_ylim(0,1)
         ax.set_yticklabels([' ',' ',' '])
@@ -376,7 +376,6 @@ if __name__ == "__main__":
     ds = yt.load(ds_loc)
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
                     'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
-#    trident.add_ion_fields(ds, ions=['Si II', 'Si IV', 'C IV', 'O VI'])
 
     print('going to loop over rays now')
     loop_over_rays(ds, dataset_list)
