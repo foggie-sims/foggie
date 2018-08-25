@@ -191,10 +191,9 @@ def plot_cloud_size_and_masses():
     ####################################################
     fig = plt.figure(figsize=(14,9))
     axtop = fig.add_axes([0.1, 0.52, 0.88, 0.42],
-                   xticklabels=[], ylim=(0, 1.05), xlim=(0.1, 60))
+                   ylim=(0, 1.05), xlim=(0.1, 60))
     axbot = fig.add_axes([0.1, 0.1, 0.88, 0.42],
                    ylim=(0, 1.05), xlim=(0.1, 60))
-
     hist_bins = 0.5 * nref10_cell * (np.arange(2000)+1.)
     for i in np.arange(7)+1.:
         axtop.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', color='grey')
@@ -207,7 +206,7 @@ def plot_cloud_size_and_masses():
     axtop.hist(natural_c4sizes, hist_bins, range=(0, 500), cumulative=-1,normed=True,color=c4_color, histtype='step',lw=3, label='C IV')
     axtop.hist(natural_o6sizes, hist_bins, range=(0, 500), cumulative=-1,normed=True,color=ovi_color, histtype='step',lw=3, label='O VI')
     axtop.set_xscale('log')
-    axtop.set_xticks(())
+    #axtop.set_xticks(())
     axtop.set_xticklabels(())
     axtop.set_yticks((0.25, 0.5, 0.75, 1.0))
     axtop.set_yticklabels(('0.25','0.5','0.75','1.00'))
@@ -241,7 +240,7 @@ def plot_cloud_size_and_masses():
     ####################################################
     fig = plt.figure(figsize=(14,9))
     axtop = fig.add_axes([0.1, 0.52, 0.88, 0.42],
-                   xticklabels=[], ylim=(0, 1.05), xlim=(0.1, 60))
+                   ylim=(0, 1.05), xlim=(0.1, 60))
     axbot = fig.add_axes([0.1, 0.1, 0.88, 0.42],
                    ylim=(0, 1.05), xlim=(0.1, 60))
 
@@ -258,7 +257,7 @@ def plot_cloud_size_and_masses():
     axtop.hist(natural_c4sizes, hist_bins, range=(0, 500), normed=True, edgecolor=c4_color, hatch='--', lw=2,histtype='step',align='left',label='C IV')
     axtop.hist(natural_o6sizes, hist_bins, range=(0, 500), normed=True,edgecolor=ovi_color, hatch='\\\\', lw=2,histtype='step', align='left',label='O VI')
     axtop.set_xscale('log')
-    axtop.set_xticks(())
+    #axtop.set_xticks(())
     axtop.set_xticklabels(())
     axtop.set_yticks((0.25, 0.5, 0.75, 1.0))
     axtop.set_yticklabels(('0.25','0.5','0.75','1.00'))
@@ -291,7 +290,7 @@ def plot_cloud_size_and_masses():
     ####################################################
     fig = plt.figure(figsize=(14,9))
     axtop = fig.add_axes([0.1, 0.52, 0.88, 0.42],
-                   xticklabels=[], ylim=(0, 1.05), xlim=(0, 200))
+                   ylim=(0, 1.05), xlim=(0, 200))
     axbot = fig.add_axes([0.1, 0.1, 0.88, 0.42],
                    ylim=(0, 1.05), xlim=(0, 200))
     axtop.hist(natural_h1_n_cells, 200, range=(0, 200), cumulative=-1,normed=True,edgecolor=hi_color,lw=2,histtype='step', label='H I')
@@ -299,13 +298,13 @@ def plot_cloud_size_and_masses():
     axtop.hist(natural_c4_n_cells, 200, range=(0, 200), cumulative=-1,normed=True, edgecolor=c4_color, lw=2,histtype='step',label='C IV')
     axtop.hist(natural_o6_n_cells, 200, range=(0, 200),cumulative=-1,normed=True, edgecolor=ovi_color, lw=2,histtype='step', label='O VI')
     #axtop.grid()
-    axtop.set_xticks(())
+    #axtop.set_xticks(())
     axtop.set_xticklabels(())
     axtop.set_yticks((0.2, 0.4, 0.6, 0.8, 1.0))
     axtop.set_yticklabels(('0.2','0.4','0.6','0.8','1.0'))
-    axtop.grid(axis='both')
+    axtop.grid(True)
     axtop.legend(loc='upper right')
-    fig.text(0.4, 0.88, 'standard resolution', fontsize=22, ha='center')
+    fig.text(0.42, 0.88, 'standard resolution', fontsize=22, ha='center')
 
 
     axbot.hist(nref10f_h1_n_cells, 250, range=(0, 250), cumulative=-1,normed=True,edgecolor=hi_color,lw=2,histtype='step', label='H I')
@@ -317,7 +316,7 @@ def plot_cloud_size_and_masses():
     #axbot.set_xticks((0.1, 1, 10))
     #axbot.set_xticklabels(('0.1','1','10'))
     axbot.grid(True)
-    fig.text(0.4, 0.45, 'high resolution', fontsize=22, ha='center')
+    fig.text(0.42, 0.45, 'high resolution', fontsize=22, ha='center')
 
     fig.text(0.5, 0.02, 'Number of cells giving 80 percent of column', fontsize=22, ha='center')
     fig.text(0.02, 0.5, 'Fraction of sightlines with more cells', fontsize=22, va='center', rotation='vertical')
@@ -344,8 +343,9 @@ def plot_cloud_size_and_masses():
     axtop.hist(np.log10(np.array(natural_h1masses)/1.989e33), nbins, range=(0,8), histtype='step', lw=2, edgecolor=hi_color,hatch='XX', label='H I',zorder=5)
     #n, bins, patches = plt.hist(np.array(si2masses)/1.989e33, 500, range=(0,10000), color=si2_color, histtype='step',lw=2, label=None)
     axtop.hist(np.log10(np.array(natural_o6masses)/1.989e33), nbins, range=(0,8), color=ovi_color, histtype='step',lw=2, label=None, zorder=9)
+    #axtop.set_xticks(())
+    axtop.set_xticklabels(())
     axtop.grid(True)
-    axtop.set_xticks(())
     axtop.legend(loc='upper left')
 
     axbot.hist(np.log10(np.array(nref10f_o6masses)/1.989e33), nbins, range=(0,8), histtype='step', lw=2, edgecolor=ovi_color, hatch='\\\\', label='O VI',zorder=3)
