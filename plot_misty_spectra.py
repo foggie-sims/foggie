@@ -41,10 +41,7 @@ def plot_misty_spectra(hdulist, **kwargs):
     # creates grid on which the figure will be plotted
     gs = gridspec.GridSpec(Nlines, 1)
 
-    try:
-        zsnap = np.median(hdulist[3].data['redshift_obs'])  ## hack
-    except:
-        zsnap = np.median(hdulist[3].data['redshift'])
+    zsnap = hdulist[0].header['REDSHIFT']
     zmin, zmax = (zsnap-0.004), (zsnap+0.004)
     vmin, vmax = -400, 400
 
@@ -69,9 +66,8 @@ def plot_misty_spectra(hdulist, **kwargs):
                 redshift = hdulist[line+2].data['redshift_obs']
                 flux = hdulist[line+2].data['flux_obs']
                 wavelength_obs = hdulist[name].data['disp_obs'] * u.AA
-            with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(lambda_0)):
-                velocity = (wavelength_obs / (1 + zsnap)).to('km/s')
-                velocity_obs = velocity * (1 + zsnap)
+            with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(lambda_0*(1+zsnap))):
+                velocity = (wavelength_obs).to('km/s')
 
             if 'NCOMP' in ext.header.keys():
                 Ncomp = ext.header['NCOMP']
@@ -90,7 +86,7 @@ def plot_misty_spectra(hdulist, **kwargs):
                     this_comp.add_line(lambda_0=lambda_0, f_value=f_value,
                                       gamma=gamma, column_density=col_dens, v_doppler=v_dop,
                                       delta_v=delta_v)
-                    this_flux = this_comp.flux(velocity_obs)
+                    this_flux = this_comp.flux(velocity)
                     ax_spec.step(velocity, this_flux, color='darkorange', ls="--", dashes=(5,2), alpha=0.5)
 
 
@@ -99,7 +95,7 @@ def plot_misty_spectra(hdulist, **kwargs):
             ax_spec.plot(velocity, np.ones(len(velocity)),color='k',lw=1, ls=":")
             ax_spec.step(velocity, flux, color='#984ea3')
             if overplot:
-                ax_spec.step(velocity, spectrum.flux(velocity_obs), color='darkorange', lw=1, ls="--", dashes=(5, 2))
+                ax_spec.step(velocity, spectrum.flux(velocity), color='darkorange', lw=1, ls="--", dashes=(5, 2))
             ax_spec.text(vmin + 50, 0, hdulist[line+2].header['LINENAME'], fontsize=10.)
         except Exception as e:
             logging.error("Plotting failed because: \n%s", e)
@@ -118,7 +114,7 @@ def plot_misty_spectra(hdulist, **kwargs):
 
 if __name__ == "__main__":
 
-    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd00*ax*v5*rsp.fits.gz'))
+    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd00*ax*v6*rsp.fits.gz'))
     dataset_list = long_dataset_list
 
     for filename in dataset_list:
