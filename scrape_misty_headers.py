@@ -44,15 +44,15 @@ def scrape_misty_headers():
     #                 'f8','f8','f8','f8','f8')) # O VI
 
     all_data = Table(names=('z','impact','HI_col','HI_1216_Nmin','HI_1216_EW','HI_1216_Ncomp','HI_919_Nmin','HI_919_Ncomp',\
-                    'Si_II_col','Si_II_Nmin','Si_II_Ncomp','Si_II_EW','Si_II_dv90',\
-                    'Si_IV_col','Si_IV_Nmin','Si_IV_Ncomp','Si_IV_EW','Si_IV_dv90',\
-                    'C_IV_col','C_IV_Nmin','C_IV_Ncomp','C_IV_EW','C_IV_dv90',\
-                    'O_VI_col','O_VI_Nmin','O_VI_Ncomp','O_VI_EW','O_VI_dv90'), \
+                    'Si_II_col','Si_II_Nmin','Si_II_Ncomp','Si_II_Nreg','Si_II_EW','Si_II_dv90',\
+                    'Si_IV_col','Si_IV_Nmin','Si_IV_Ncomp','Si_IV_Nreg','Si_IV_EW','Si_IV_dv90',\
+                    'C_IV_col','C_IV_Nmin','C_IV_Ncomp','C_IV_Nreg','C_IV_EW','C_IV_dv90',\
+                    'O_VI_col','O_VI_Nmin','O_VI_Ncomp','O_VI_Nreg','O_VI_EW','O_VI_dv90'), \
              dtype=('f8','f8','f8','f8','f8','f8','f8','f8',
-                    'f8','f8','f8','f8','f8',  # Si II
-                    'f8','f8','f8','f8','f8',  # Si IV
-                    'f8','f8','f8','f8','f8',  # C IV
-                    'f8','f8','f8','f8','f8')) # O VI
+                    'f8','f8','f8','f8','f8','f8',  # Si II
+                    'f8','f8','f8','f8','f8','f8',  # Si IV
+                    'f8','f8','f8','f8','f8','f8',  # C IV
+                    'f8','f8','f8','f8','f8','f8')) # O VI
 
 
     # for now, different tables for different ions
@@ -65,10 +65,24 @@ def scrape_misty_headers():
     o6_component_data = Table(names=('z','impact', 'losnum', 'tot_col', 'component', 'comp_col', 'comp_b', 'comp_dv'), \
                                dtype=('f8','f8', 'i8', 'f8', 'i8', 'f8', 'f8', 'f8'))
 
+    si2_region_data = Table(names=('z','impact', 'losnum', 'tot_col', 'region', 'reg_dv90', 'reg_EW', 'Nmin'), \
+                               dtype=('f8','f8', 'i8', 'f8', 'i8', 'f8', 'f8', 'i8'))
+    si4_region_data = Table(names=('z','impact', 'losnum', 'tot_col', 'region', 'reg_dv90', 'reg_EW', 'Nmin'), \
+                               dtype=('f8','f8', 'i8', 'f8', 'i8', 'f8', 'f8', 'i8'))
+    c4_region_data = Table(names=('z','impact', 'losnum', 'tot_col', 'region', 'reg_dv90', 'reg_EW', 'Nmin'), \
+                               dtype=('f8','f8', 'i8', 'f8', 'i8', 'f8', 'f8', 'i8'))
+    o6_region_data = Table(names=('z','impact', 'losnum', 'tot_col', 'region', 'reg_dv90', 'reg_EW', 'Nmin'), \
+                               dtype=('f8','f8', 'i8', 'f8', 'i8', 'f8', 'f8', 'i8'))
+
+
     ion_table_name_dict = {'Si II 1260' : si2_component_data, \
                            'Si IV 1394' : si4_component_data, \
                            'C IV 1548'  : c4_component_data, \
                            'O VI 1032'  : o6_component_data}
+    ion_table_name_region_dict = {'Si II 1260' : si2_region_data, \
+                           'Si IV 1394' : si4_region_data, \
+                           'C IV 1548'  : c4_region_data, \
+                           'O VI 1032'  : o6_region_data}
 
 
     i_file = 0
@@ -99,6 +113,7 @@ def scrape_misty_headers():
                     row = np.append(row, [-1], axis=0)
             else:
                 row = np.append(row, [-1,-1], axis=0)
+            # print(len(row))
             # for ion in ['Si II 1260', 'Si III 1207', 'Si IV 1394','C II 1335', 'C III 977', 'C IV 1548', 'O VI 1032']:
             for ion in ['Si II 1260', 'Si IV 1394','C IV 1548', 'O VI 1032']:
                 if any([x.name.upper() == ion.upper() for x in f]):
@@ -121,6 +136,27 @@ def scrape_misty_headers():
                                     ion_table_name_dict[ion].add_row(comp_row)
                     else:
                         row = np.append(row, [-1], axis=0)
+                    if 'Nreg' in f[ion].header:
+                        if ion in ion_table_name_dict.keys():
+                            Nreg = f[ion].header['Nreg']
+                            Nreg_real = Nreg
+                            if Nreg > 0:
+                                reg_row_start = [z, f[0].header['impact'], i_file, f[ion].header['tot_column']]
+                                # comp_row = comp_row_start
+                                for reg in range(Nreg):
+                                    ewkey = 'regEW' + str(reg)
+                                    dvkey = 'regdv90' + str(reg)
+                                    nminkey = 'regNmin' + str(reg)
+                                    if ewkey in f[ion].header:
+                                        reg_row = np.append(reg_row_start, [reg, f[ion].header[ewkey], f[ion].header[dvkey], f[ion].header[nminkey]], axis=0)
+                                        # print('reg_row = ', reg_row)
+                                        ion_table_name_region_dict[ion].add_row(reg_row)
+                                    else:
+                                        Nreg_real = Nreg_real - 1
+                        # print(Nreg, Nreg_real)
+                        row = np.append(row, [Nreg_real], axis=0)
+                    else:
+                        row = np.append(row, [-1], axis=0)
                     if 'totEW' in f[ion].header:
                         row = np.append(row, [f[ion].header['totEW']], axis=0)
                     else:
@@ -129,20 +165,31 @@ def scrape_misty_headers():
                         row = np.append(row, [f[ion].header['totdv90']], axis=0)
                     else:
                         row = np.append(row, [-1], axis=0)
+                    # print(ion, len(row))
                 else:
                     row = np.append(row, [-1], axis=0)
                     row = np.append(row, [-1], axis=0)
                     row = np.append(row, [-1], axis=0)
                     row = np.append(row, [-1], axis=0)
                     row = np.append(row, [-1], axis=0)
+                    row = np.append(row, [-1], axis=0)
+                    # print(ion, len(row))
+            # print(len(row))
+            # print(row)
             all_data.add_row(row)
 
     # now let's save the table!
     ascii.write(all_data, 'misty_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
+
     ascii.write(si2_component_data, 'misty_si2_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
     ascii.write(si4_component_data, 'misty_si4_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
     ascii.write(c4_component_data, 'misty_c4_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
     ascii.write(o6_component_data, 'misty_o6_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
+
+    ascii.write(si2_region_data, 'misty_si2_reg_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
+    ascii.write(si4_region_data, 'misty_si4_reg_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
+    ascii.write(c4_region_data, 'misty_c4_reg_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
+    ascii.write(o6_region_data, 'misty_o6_reg_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
 
 
 if __name__ == '__main__':

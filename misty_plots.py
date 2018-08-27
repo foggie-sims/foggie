@@ -273,12 +273,50 @@ def make_misty_plots():
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
     print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
+    idn = [nat['Si_II_Nmin'] > 4]
+    idr = [ref['Si_II_Nmin'] > 4]
+    #ax.hist(kodiaq['Si_II_Nreg'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
+    ax.hist(nat['Si_II_Nmin'][idn]/nat['Si_II_Nreg'][idn], bins=bins,normed=True, align='left',histtype='step',lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['Si_II_Nmin'][idr]/ref['Si_II_Nreg'][idr], bins=bins,normed=True, align='left',histtype='step',lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    plt.legend(loc='upper right')
+    plt.xlabel('# of Si II 1260 minima / regions')
+    plt.ylabel('fraction of sightlines with > 4 minima')
+    ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+    ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
+    fig.tight_layout()
+    fig.savefig('Si_II_regions_fraction_histograms.png')
+
+    bins = np.arange(1,20,1)
+    fig = plt.figure(figsize=(9,7))
+    ax = fig.add_subplot(111)
+    print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
+    idn = [nat['Si_II_Nmin'] > 4]
+    idr = [ref['Si_II_Nmin'] > 4]
+    #idh = [hires['Si_II_col'] > 12]
+    #ax.hist(kodiaq['Si_II_Nreg'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
+    ax.hist(nat['Si_II_Nreg'][idn], bins=bins,normed=True, histtype='step',lw=3,align='left', edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['Si_II_Nreg'][idr], bins=bins,normed=True, histtype='step',lw=3, align='left',edgecolor=ref_color, hatch='//', label='refined')
+    plt.legend(loc='upper right')
+    plt.xlabel('# of Si II 1260 regions')
+    plt.ylabel('fraction of sightlines with > 4 minima')
+    ax.set_xticks((1,2,3,4,5,6,7,8,9,10))
+    ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10'))
+    plt.xlim(0,11)
+    fig.tight_layout()
+    fig.savefig('Si_II_regions_histograms.png')
+
+    bins = np.arange(1,20,1)
+    fig = plt.figure(figsize=(9,7))
+    ax = fig.add_subplot(111)
+    print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
     idn = [nat['Si_II_col'] > 12]
     idr = [ref['Si_II_col'] > 12]
     idh = [hires['Si_II_col'] > 12]
-    ax.hist(kodiaq['Si_II_Nmin'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
-    ax.hist(nat['Si_II_Nmin'][idn], bins=bins,normed=True, histtype='step',lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
-    ax.hist(ref['Si_II_Nmin'][idr], bins=bins,normed=True, histtype='step',lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    ax.hist(kodiaq['Si_II_Nmin'], color='k',bins=bins,normed=True,histtype='step',align='left',lw=3,label='KODIAQ'  )
+    ax.hist(nat['Si_II_Nmin'][idn], bins=bins,normed=True, histtype='step',lw=3, align='left',edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['Si_II_Nmin'][idr], bins=bins,normed=True, histtype='step',lw=3, align='left',edgecolor=ref_color, hatch='//', label='refined')
+    ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+    ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
     plt.legend(loc='upper right')
     plt.xlabel('# of Si II 1260 minima')
     fig.tight_layout()
