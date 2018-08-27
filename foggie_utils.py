@@ -14,6 +14,7 @@ from consistency import *
 
 CORE_WIDTH = 20.
 
+
 def get_ray_axis(ray_start, ray_end):
     """ takes in ray and returns an integer, 0, 1, 2 for x, y, z, orients"""
     ray_length = ray_end-ray_start

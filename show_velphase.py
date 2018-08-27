@@ -60,6 +60,31 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
 
     return threshold, number_of_cells_above_threshold
 
+def create_cmap():
+
+    temp = np.random.uniform(low=4, high=8, size=1000001)  # ranges from 4-8
+    x = np.random.uniform(0.1, high=0.9, size=1000001) # ranges from 0-1
+    y = np.random.uniform(0.1, high=0.9, size=1000001)
+    temp = x * 0.0 + 5.
+    #temp[y > 0.5] = 6.
+#   temp[y < 0.5] = 4.5
+
+    phase_label = new_categorize_by_temp(temp)
+
+    df = pd.DataFrame({'temp':temp, 'x':x, 'y':y, 'phase_label': phase_label})
+    df.phase_label = df.phase_label.astype('category')
+
+    print(df)
+
+    cvs = dshader.Canvas(plot_width=50, plot_height=50,
+                        x_range=(0, 1), y_range=(0, 1) )
+    agg = cvs.points(df, 'x', 'y', dshader.count_cat('phase_label'))
+    img = tf.shade(agg, color_key=new_phase_color_key, how='eq_hist')
+
+    print(np.shape(img))
+    return(img)
+
+
 def get_sizes(ray_df, species, x, ion_to_use, cell_mass, coldens_threshold):
 
     threshold, number_of_cells = get_fion_threshold(ion_to_use, coldens_threshold)
@@ -133,11 +158,14 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     #establish the grid of plots and obtain the axis objects
     fig = plt.figure(figsize=(9,6))
+    fig.text(0.55, 0.04, r'Velocity [km s$^{-1}$]', ha='center', va='center')
     gs = GridSpec(2, 6, width_ratios=[1, 1, 5, 5, 5, 5], height_ratios=[4, 1])
     ax0 = plt.subplot(gs[0])
+    ax0.set_title('T')
     ax1 = plt.subplot(gs[1])
+    ax1.set_title('Z')
     ax2 = plt.subplot(gs[2])
-    ax2.set_title('HI Lya')
+    ax2.set_title(r'H I Ly$\alpha$')
     ax3 = plt.subplot(gs[3])
     ax3.set_title('Si II 1260')
     ax4 = plt.subplot(gs[4])
@@ -146,24 +174,27 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax5.set_title('O VI 1032')
 
     ax6 = plt.subplot(gs[6])
-    ax6.spines["top"].set_color('white')
+    ax6.spines["top"].set_color('black')
     ax6.spines["bottom"].set_color('white')
     ax6.spines["left"].set_color('white')
     ax6.spines["right"].set_color('white')
     ax7 = plt.subplot(gs[7])
-    ax7.spines["top"].set_color('white')
+    ax7.spines["top"].set_color('black')
     ax7.spines["bottom"].set_color('white')
     ax7.spines["left"].set_color('white')
     ax7.spines["right"].set_color('white')
     ax8 = plt.subplot(gs[8])
     ax9 = plt.subplot(gs[9])
-    ax9.set_xlabel('Velocity [km / s]')
+    #ax9.set_xlabel('Velocity [km / s]')
     ax10 = plt.subplot(gs[10])
     ax11 = plt.subplot(gs[11])
+
     ax8.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax9.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax10.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
     ax11.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+
+
 
     # this one makes the datashaded "core sample" with phase coloring
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
@@ -180,11 +211,11 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                          y_range=(np.mean(df['y'])-CORE_WIDTH/0.695,
                                   np.mean(df['y'])+CORE_WIDTH/0.695))
     agg = cvs.points(df, 'x', 'y', dshader.count_cat('metal_label'))
-    #img = tf.shade(agg, cmap=metal_color_map, how='log')
     img = tf.shade(agg, color_key=new_metals_color_key, how='eq_hist')
-
     x_y_metal = tf.spread(img, px=2, shape='square')
     ax1.imshow(np.rot90(x_y_metal.to_pil()))
+
+
 
     ytext = ax0.set_ylabel('x [comoving kpc]', fontname='Arial', fontsize=10)
     ax0.set_yticks([0, 200, 400, 600, 800])
@@ -214,6 +245,17 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
         ax.set_xlim(0,300)
         ax.set_ylim(0,800)
+
+    #FAKING UP THE "COLORMAP"
+    ii = create_cmap()
+    ax6.imshow(ii)
+    ax6.set_xlim(0,50)
+    ax6.set_ylim(0,50)
+
+    ax7.imshow(ii)
+    ax7.set_xlim(0,60)
+    ax7.set_ylim(0,60)
+
 
     nh1 = np.sum(np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
     nsi2 = np.sum(np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
@@ -250,6 +292,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax3.plot(vxhist, si2hist, linewidth=0.5, color='darkblue')
     ax4.plot(vxhist, c4hist, linewidth=0.5, color='darkblue')
     ax5.plot(vxhist, o6hist, linewidth=0.5, color='darkblue')
+
 
     x = np.array(ray_length - x_ray)
     cell_mass = np.array(ray_df['cell_mass'])
