@@ -50,21 +50,22 @@ def plot_misty_spectra(hdulist, **kwargs):
         ax_spec = fig.add_subplot(gs[line, 0])
         try:
             # Construct spectacle spectrum
-            spectrum = Spectrum1DModel(redshift=zsnap)
             # spectrum = Spectrum1DModel(redshift=0.0)
             ext = hdulist[line+2]
             name = ext.header['LINENAME']
             lambda_0 = ext.header['RESTWAVE'] * u.AA
             f_value = ext.header['F_VALUE']
             gamma = ext.header['GAMMA']
+            # spectrum = Spectrum1DModel(redshift=0.0, lambda_0=lambda_0, f_value=f_value, gamma=gamma )
+            spectrum = Spectrum1DModel(redshift=0.0, ion_name=name )
             print(line, name)
             try:
-                redshift = hdulist[line+2].data['redshift']
-                flux = hdulist[line+2].data['flux']
-                wavelength_obs = hdulist[line_name].data['disp'] * u.AA
+                redshift = hdulist[name].data['redshift']
+                flux = hdulist[name].data['flux']
+                wavelength_obs = hdulist[name].data['disp'] * u.AA
             except:
-                redshift = hdulist[line+2].data['redshift_obs']
-                flux = hdulist[line+2].data['flux_obs']
+                redshift = hdulist[name].data['redshift_obs']
+                flux = hdulist[name].data['flux_obs']
                 wavelength_obs = hdulist[name].data['disp_obs'] * u.AA
             with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(lambda_0*(1+zsnap))):
                 velocity = (wavelength_obs).to('km/s')
@@ -76,18 +77,16 @@ def plot_misty_spectra(hdulist, **kwargs):
                     col_dens = ext.header['FITCOL{}'.format(i)]
                     v_dop = ext.header['FITB{}'.format(i)] * u.Unit('km/s')
                     print('i:',i,delta_v, col_dens, v_dop)
-                    spectrum.add_line(lambda_0=lambda_0, f_value=f_value,
-                                      gamma=gamma, column_density=col_dens, v_doppler=v_dop,
-                                      delta_v=delta_v)
-                    # ax_spec.plot([delta_v.value * (1 + zsnap), delta_v.value * (1 + zsnap)], [1.05, 0.95], color='k')
+                    spectrum.add_line(column_density=col_dens, v_doppler=v_dop, delta_v=delta_v)
                     ax_spec.plot([delta_v.value, delta_v.value], [1.05, 0.95], color='k')
-                    ### plot component here
-                    this_comp = Spectrum1DModel(redshift=redshift)
-                    this_comp.add_line(lambda_0=lambda_0, f_value=f_value,
-                                      gamma=gamma, column_density=col_dens, v_doppler=v_dop,
-                                      delta_v=delta_v)
-                    this_flux = this_comp.flux(velocity)
-                    ax_spec.step(velocity, this_flux, color='darkorange', ls="--", dashes=(5,2), alpha=0.5)
+            #         ### plot component here
+            #         this_comp = Spectrum1DModel(redshift=redshift)
+            #         this_comp.add_line(lambda_0=lambda_0, f_value=f_value,
+            #                           gamma=gamma, column_density=col_dens, v_doppler=v_dop,
+            #                           delta_v=delta_v)
+            #         this_flux = this_comp.flux(velocity)
+            #         ax_spec.step(velocity, this_flux, color='darkorange', ls="--", dashes=(5,2), alpha=0.5)
+            #         print('ok?')
 
 
             ### _lsf.fits files have '_obs' while _los.fits files don't
@@ -96,7 +95,7 @@ def plot_misty_spectra(hdulist, **kwargs):
             ax_spec.step(velocity, flux, color='#984ea3')
             if overplot:
                 ax_spec.step(velocity, spectrum.flux(velocity), color='darkorange', lw=1, ls="--", dashes=(5, 2))
-            ax_spec.text(vmin + 50, 0, hdulist[line+2].header['LINENAME'], fontsize=10.)
+            ax_spec.text(vmin + 50, 0, name, fontsize=10.)
         except Exception as e:
             logging.error("Plotting failed because: \n%s", e)
         if line < (Nlines-1):
