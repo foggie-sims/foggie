@@ -28,7 +28,7 @@ def get_run_loc_etc(args):
 
     if args.run == "natural":
         run_loc = "halo_00"+ args.halo + "/nref11n/natural/"
-        trackname = foggie_dir + "halo_00"+ args.halo +"/nref11n/nref11n_nref9f_refine200kpc/halo_track"
+        trackname = foggie_dir + "halo_00"+ args.halo +"/nref11n/nref11n_nref10f_refine200kpc/halo_track"
         haloname = "halo008508_nref11n"
         path_part = run_loc
         output_dir = output_path + "plots_"+path_part
