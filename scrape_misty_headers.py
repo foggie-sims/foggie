@@ -73,7 +73,7 @@ def scrape_misty_headers():
 
     i_file = 0
     for i_file, filename in enumerate(dataset_list):
-        print("trying ",filename)
+        ## print("trying ",filename)
         with fits.open(filename) as f:
             ### some genius forgot to put the redshift in the header, so, hack:
             if 'rd0018' in filename:
@@ -91,11 +91,14 @@ def scrape_misty_headers():
                 row = np.append(row, [f['H I 1216'].header['Ncomp']], axis=0)
             else:
                 row = np.append(row, [-1], axis=0)
-            row = np.append(row, [f['H I 919'].header['Nmin']], axis=0)
-            if 'Ncomp' in f['H I 919'].header:
-                row = np.append(row, [f['H I 919'].header['Ncomp']], axis=0)
+            if 'H I 919' in f:
+                row = np.append(row, [f['H I 919'].header['Nmin']], axis=0)
+                if 'Ncomp' in f['H I 919'].header:
+                    row = np.append(row, [f['H I 919'].header['Ncomp']], axis=0)
+                else:
+                    row = np.append(row, [-1], axis=0)
             else:
-                row = np.append(row, [-1], axis=0)
+                row = np.append(row, [-1,-1], axis=0)
             # for ion in ['Si II 1260', 'Si III 1207', 'Si IV 1394','C II 1335', 'C III 977', 'C IV 1548', 'O VI 1032']:
             for ion in ['Si II 1260', 'Si IV 1394','C IV 1548', 'O VI 1032']:
                 if any([x.name.upper() == ion.upper() for x in f]):
@@ -135,11 +138,11 @@ def scrape_misty_headers():
             all_data.add_row(row)
 
     # now let's save the table!
-    ascii.write(all_data, 'misty_v5_rsp.dat', format='fixed_width', overwrite=True)
-    ascii.write(si2_component_data, 'misty_si2_v5_rsp.dat', format='fixed_width', overwrite=True)
-    ascii.write(si4_component_data, 'misty_si4_v5_rsp.dat', format='fixed_width', overwrite=True)
-    ascii.write(c4_component_data, 'misty_c4_v5_rsp.dat', format='fixed_width', overwrite=True)
-    ascii.write(o6_component_data, 'misty_o6_v5_rsp.dat', format='fixed_width', overwrite=True)
+    ascii.write(all_data, 'misty_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
+    ascii.write(si2_component_data, 'misty_si2_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
+    ascii.write(si4_component_data, 'misty_si4_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
+    ascii.write(c4_component_data, 'misty_c4_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
+    ascii.write(o6_component_data, 'misty_o6_v6_lsf_lls.dat', format='fixed_width', overwrite=True)
 
 
 if __name__ == '__main__':
