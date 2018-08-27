@@ -350,7 +350,7 @@ def grab_ray_file(ds, filename):
 def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
         ray_df, rs, re, hdulist = grab_ray_file(ds, filename)
-        show_velphase(ds, ray_df, rs, re, hdulist, filename.strip('los.fits.gz'))
+        show_velphase(ds, ray_df, rs, re, hdulist, '.'+filename.strip('los.fits.gz'))
 
 def drive_velphase(ds_name, wildcard):
     """
