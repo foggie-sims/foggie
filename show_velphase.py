@@ -49,45 +49,38 @@ def reduce_ion_vector(vx, ion ): # this will "histogram" H1 so we can plot it.
 def get_fion_threshold(ion_to_use, coldens_fraction):
     cut = 0.999
     total = np.sum(ion_to_use)
-    ratio = 0.01
+    ratio = 0.001
     while ratio < coldens_fraction:
         part = np.sum(ion_to_use[ion_to_use > cut * np.max(ion_to_use)])
         ratio = part / total
-        cut = cut - 0.01
+        cut = cut - 0.001
+        #print("GET_FION_THRESHOLD: ", part, total, ratio, cut)
 
     threshold = cut * np.max(ion_to_use)
     number_of_cells_above_threshold = np.size(np.where(ion_to_use > threshold))
 
     return threshold, number_of_cells_above_threshold
 
-def create_cmap():
 
-    temp = np.random.uniform(low=4, high=8, size=1000001)  # ranges from 4-8
-    x = np.random.uniform(0.1, high=0.9, size=1000001) # ranges from 0-1
-    y = np.random.uniform(0.1, high=0.9, size=1000001)
-    temp = x * 0.0 + 5.
-    #temp[y > 0.5] = 6.
-#   temp[y < 0.5] = 4.5
 
-    phase_label = new_categorize_by_temp(temp)
-
-    df = pd.DataFrame({'temp':temp, 'x':x, 'y':y, 'phase_label': phase_label})
-    df.phase_label = df.phase_label.astype('category')
-
-    print(df)
-
-    cvs = dshader.Canvas(plot_width=50, plot_height=50,
-                        x_range=(0, 1), y_range=(0, 1) )
+def create_cmap(df): # trying to do the colomap here but it doesn't work
+    cvs = dshader.Canvas(plot_width=800, plot_height=200,
+                         x_range=(np.min(df['x']), np.max(df['x'])),
+                         y_range=(np.mean(df['y'])-20/0.695,
+                                  np.mean(df['y'])+20/0.695))
     agg = cvs.points(df, 'x', 'y', dshader.count_cat('phase_label'))
-    img = tf.shade(agg, color_key=new_phase_color_key, how='eq_hist')
-
-    print(np.shape(img))
+    im = tf.shade(agg, color_key=new_phase_color_key)
+    img = tf.spread(im, px=2, shape='square')
     return(img)
+
+
 
 
 def get_sizes(ray_df, species, x, ion_to_use, cell_mass, coldens_threshold):
 
     threshold, number_of_cells = get_fion_threshold(ion_to_use, coldens_threshold)
+
+    print("COLDENS THRESHOLD: ", species, threshold, number_of_cells)
 
     dx = np.array(ray_df['dx'])
     ion_density = copy.deepcopy(ion_to_use)
@@ -185,16 +178,11 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax7.spines["right"].set_color('white')
     ax8 = plt.subplot(gs[8])
     ax9 = plt.subplot(gs[9])
-    #ax9.set_xlabel('Velocity [km / s]')
     ax10 = plt.subplot(gs[10])
     ax11 = plt.subplot(gs[11])
 
-    ax8.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    ax9.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    ax10.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-    ax11.set_yticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
-
-
+    for ax in [ax8, ax9, ax10, ax11]:
+        ax.set_yticklabels(['', '', '', '', '', '', '', '', '', '', ''])
 
     # this one makes the datashaded "core sample" with phase coloring
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
@@ -247,15 +235,14 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_ylim(0,800)
 
     #FAKING UP THE "COLORMAP"
-    ii = create_cmap()
-    ax6.imshow(ii)
-    ax6.set_xlim(0,50)
-    ax6.set_ylim(0,50)
+    #ii = create_cmap(df)
+    #ax6.imshow(np.rot90(x_y_phase.to_pil()))
+    #ax6.set_xlim(0,300)
+    #ax6.set_ylim(0,800)
 
-    ax7.imshow(ii)
-    ax7.set_xlim(0,60)
-    ax7.set_ylim(0,60)
-
+    #ax7.imshow(np.rot90(ii.to_pil()))
+    #ax7.set_xlim(0,300)
+    #ax7.set_ylim(0,800)
 
     nh1 = np.sum(np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
     nsi2 = np.sum(np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
@@ -319,6 +306,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     # concatenate the dictionaries for the various species
     size_dict = {**h1_size_dict, **si2_size_dict, **c4_size_dict, **o6_size_dict}
+    print(fileroot)
     pickle.dump( size_dict, open( fileroot+"sizes.pkl", "wb" ) )
 
     for ax, key in zip([ax8, ax9, ax10, ax11], ['H I 1216', 'Si II 1260', 'Si IV 1396', 'O VI 1032']):
@@ -356,8 +344,6 @@ def grab_ray_file(ds, filename):
     print("grab_ray_file is opening: ", filename)
     hdulist = fits.open(filename)
     ray_start_str, ray_end_str = hdulist[0].header['RAYSTART'], hdulist[0].header['RAYEND']
-    print("Ray ray_start_str: ", ray_start_str)
-    print("Ray ray_end_str: ", ray_end_str)
     ray_start = [float(ray_start_str.split(",")[0].strip('unitary')), \
            float(ray_start_str.split(",")[1].strip('unitary')), \
            float(ray_start_str.split(",")[2].strip('unitary'))]
@@ -370,8 +356,6 @@ def grab_ray_file(ds, filename):
     ray = ds.ray(rs, re)
     rs = rs.ndarray_view()
     re = re.ndarray_view()
-    print("Ray start: ", rs)
-    print("Ray end: ", re)
     ray['x-velocity'] = ray['x-velocity'].convert_to_units('km/s')
     ray['y-velocity'] = ray['y-velocity'].convert_to_units('km/s')
     ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
@@ -393,7 +377,7 @@ def grab_ray_file(ds, filename):
 def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
         ray_df, rs, re, hdulist = grab_ray_file(ds, filename)
-        show_velphase(ds, ray_df, rs, re, hdulist, '.'+filename.strip('los.fits.gz'))
+        show_velphase(ds, ray_df, rs, re, hdulist, filename.strip('los.fits.gz'))
 
 def drive_velphase(ds_name, wildcard):
     """
