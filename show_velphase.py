@@ -33,13 +33,13 @@ import shade_maps as sm
 
 CORE_WIDTH = 20.
 
-def reduce_ion_vector(vx, ion ): # this will "histogram" H1 so we can plot it.
+def reduce_ion_vector(vx, ion): # this will "histogram" ion so we can plot it.
     """ this function takes in two vectors for velocity and ionization
         fraction and chunks the ionization fraction into a uniform velocity
         grid. JT 082018"""
     v = np.arange(3001) - 1500
     ion_hist = v * 0.
-    index = np.around(vx) + 1500 # now ranges over [0,1000]
+    index = np.clip(np.around(vx) + 1500, 0, 2999) # now ranges over [0,1000]
     for i in np.arange(np.size(ion)):
         ion_hist[int(index[i])] = ion_hist[int(index[i])] + ion[int(i)]
 
