@@ -54,7 +54,6 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
         part = np.sum(ion_to_use[ion_to_use > cut * np.max(ion_to_use)])
         ratio = part / total
         cut = cut - 0.001
-        #print("GET_FION_THRESHOLD: ", part, total, ratio, cut)
 
     threshold = cut * np.max(ion_to_use)
     number_of_cells_above_threshold = np.size(np.where(ion_to_use > threshold))
@@ -64,6 +63,29 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
 
 
 def create_cmap(df): # trying to do the colomap here but it doesn't work
+    print("HAHA X: ", np.max(df['x'])-np.min(df['x']))
+    deltax = np.max(df['x'])-np.min(df['x'])
+
+    colors = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2', \
+              b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot', \
+              b'hot1', b'hot2', b'hot3']
+    print(df.phase_label.unique())
+    #df['phase_label'][df['x'] > 71235.76651374214-287.06*15./15.] = colors[14] # highest T
+    #df['phase_label'][df['x'] > 71235.76651374214-287.06*14./15.] = colors[13] # highest T
+    #df['phase_label'][df['x'] > 71235.76651374214-287.06*13./15.] = colors[12] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*12./12.] = colors[11] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*11./12.] = colors[10] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*10./12.] = colors[9] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*9./12.] = colors[8] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*8./12.] = colors[7] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*7./12.] = colors[6] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*6./12.] = colors[5]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*5./12.] = colors[4]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*4./12.] = colors[3]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*3./12.] = colors[2]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*2./12.] = colors[1]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*1./12.] = colors[0] # lowest T
+
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
                          x_range=(np.min(df['x']), np.max(df['x'])),
                          y_range=(np.mean(df['y'])-20/0.695,
@@ -74,13 +96,9 @@ def create_cmap(df): # trying to do the colomap here but it doesn't work
     return(img)
 
 
-
-
 def get_sizes(ray_df, species, x, ion_to_use, cell_mass, coldens_threshold):
 
     threshold, number_of_cells = get_fion_threshold(ion_to_use, coldens_threshold)
-
-    print("COLDENS THRESHOLD: ", species, threshold, number_of_cells)
 
     dx = np.array(ray_df['dx'])
     ion_density = copy.deepcopy(ion_to_use)
@@ -171,6 +189,8 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax6.spines["bottom"].set_color('white')
     ax6.spines["left"].set_color('white')
     ax6.spines["right"].set_color('white')
+    ax6.set_ylabel('log T',fontname='Arial', fontsize=8)
+
     ax7 = plt.subplot(gs[7])
     ax7.spines["top"].set_color('black')
     ax7.spines["bottom"].set_color('white')
@@ -235,14 +255,10 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_ylim(0,800)
 
     #FAKING UP THE "COLORMAP"
-    #ii = create_cmap(df)
-    #ax6.imshow(np.rot90(x_y_phase.to_pil()))
-    #ax6.set_xlim(0,300)
-    #ax6.set_ylim(0,800)
-
-    #ax7.imshow(np.rot90(ii.to_pil()))
-    #ax7.set_xlim(0,300)
-    #ax7.set_ylim(0,800)
+    ii = create_cmap(df)
+    ax6.imshow(np.rot90(ii.to_pil()))
+    ax6.set_xlim(60,140)
+    ax6.set_ylim(-100,900)
 
     nh1 = np.sum(np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
     nsi2 = np.sum(np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
@@ -319,12 +335,15 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                 vel = (hdulist[key].data['wavelength']*u.AA / (1 + ds.get_parameter('CosmologyCurrentRedshift'))).to('km/s')
             ax.step(vel, hdulist[key].data['flux'])
 
-    for ax in [ax0, ax1, ax6, ax7]:
+    for ax in [ax0, ax1, ax7]:
         ax.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
     for ax in [ax2, ax3, ax4, ax5, ax6, ax7]:
         ax.axes.get_xaxis().set_ticks([])
         ax.axes.get_yaxis().set_ticks([])
+
+    ax6.set_yticks([0, 400, 800])
+    ax6.set_yticklabels(['4','5','6'], fontname='Arial', fontsize=7)
 
     ax1.set_yticks([])
     ax0.set_xticks([])
