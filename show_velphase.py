@@ -43,6 +43,15 @@ def reduce_ion_vector(vx, ion): # this will "histogram" ion so we can plot it.
     for i in np.arange(np.size(ion)):
         ion_hist[int(index[i])] = ion_hist[int(index[i])] + ion[int(i)]
 
+#    print("VVVVVV", v[[1200, 1300, 1400, 1500, 1600, 1700, 1800]])
+#    ion_hist[1200] = np.max(ion_hist)
+#    ion_hist[1300] = 1.5 * np.max(ion_hist)
+#    ion_hist[1400] = 1.5 * np.max(ion_hist)
+#    ion_hist[1500] = 1.5 * np.max(ion_hist)
+#    ion_hist[1600] = 1.5 * np.max(ion_hist)
+#    ion_hist[1700] = 1.5 * np.max(ion_hist)
+#    ion_hist[1800] = 1.5 * np.max(ion_hist)
+
     return v, ion_hist
 
 
@@ -71,18 +80,18 @@ def create_temp_cmap(df): # trying to do the colomap here but it doesn't work
     df['phase_label'][df['x'] > 71235.76651374214-287.06*15./15.] = phase_colors[14] # highest T
     df['phase_label'][df['x'] > 71235.76651374214-287.06*14./15.] = phase_colors[13]
     df['phase_label'][df['x'] > 71235.76651374214-287.06*13./15.] = phase_colors[12]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*12./12.] = phase_colors[11]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*11./12.] = phase_colors[10]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*10./12.] = phase_colors[9]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*9./12.] = phase_colors[8]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*8./12.] = phase_colors[7]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*7./12.] = phase_colors[6]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*6./12.] = phase_colors[5]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*5./12.] = phase_colors[4]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*4./12.] = phase_colors[3]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*3./12.] = phase_colors[2]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*2./12.] = phase_colors[1]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*1./12.] = phase_colors[0] # lowest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*12./15.] = phase_colors[11]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*11./15.] = phase_colors[10]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*10./15.] = phase_colors[9]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*9./15.] = phase_colors[8]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*8./15.] = phase_colors[7]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*7./15.] = phase_colors[6]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*6./15.] = phase_colors[5]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*5./15.] = phase_colors[4]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*4./15.] = phase_colors[3]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*3./15.] = phase_colors[2]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*2./15.] = phase_colors[1]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*1./15.] = phase_colors[0] # lowest T
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
                          x_range=(np.min(df['x']), np.max(df['x'])),
                          y_range=(np.mean(df['y'])-20/0.695,
@@ -92,29 +101,33 @@ def create_temp_cmap(df): # trying to do the colomap here but it doesn't work
     img = tf.spread(im, px=2, shape='square')
     return(img)
 
-
-
 def create_metals_cmap(df): # trying to do the colomap here but it doesn't work
     metal_colors = [b'free', b'free1', b'free2', b'free3', b'poor', \
                     b'poor1', b'poor2', b'poor3', b'low', b'low1', \
                     b'low2', b'low3', b'solar', b'solar1', b'solar2', b'solar3', \
                     b'high', b'high1', b'high2', b'high3', b'high4']
     print("METALS", df.metal_label.unique())
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*15./15.] = metal_colors[14] # highest Z
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*14./15.] = metal_colors[13]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*13./15.] = metal_colors[12]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*12./12.] = metal_colors[11]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*11./12.] = metal_colors[10]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*10./12.] = metal_colors[9]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*9./12.] = metal_colors[8]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*8./12.] = metal_colors[7]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*7./12.] = metal_colors[6]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*6./12.] = metal_colors[5]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*5./12.] = metal_colors[4]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*4./12.] = metal_colors[3]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*3./12.] = metal_colors[2]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*2./12.] = metal_colors[1]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*1./12.] = metal_colors[0] # lowest T
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*21./21.] = metal_colors[20] # highest Z
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*20./21.] = metal_colors[19] # highest Z
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*19./21.] = metal_colors[18] # highest Z
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*18./21.] = metal_colors[17] # highest Z
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*17./21.] = metal_colors[16] # highest Z
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*16./21.] = metal_colors[15] # highest Z
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*15./21.] = metal_colors[14] # highest Z
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*14./21.] = metal_colors[13]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*13./21.] = metal_colors[12]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*12./21.] = metal_colors[11]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*11./21.] = metal_colors[10]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*10./21.] = metal_colors[9]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*9./21.] = metal_colors[8]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*8./21.] = metal_colors[7]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*7./21.] = metal_colors[6]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*6./21.] = metal_colors[5]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*5./21.] = metal_colors[4]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*4./21.] = metal_colors[3]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*3./21.] = metal_colors[2]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*2./21.] = metal_colors[1]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*1./21.] = metal_colors[0] # lowest T
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
                          x_range=(np.min(df['x']), np.max(df['x'])),
                          y_range=(np.mean(df['y'])-20/0.695,
@@ -252,8 +265,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     x_y_metal = tf.spread(img, px=2, shape='square')
     ax1.imshow(np.rot90(x_y_metal.to_pil()))
 
-
-
     ytext = ax0.set_ylabel('x [comoving kpc]', fontname='Arial', fontsize=10)
     ax0.set_yticks([0, 200, 400, 600, 800])
     ax0.set_yticklabels([ str(int(s)) for s in [0, 50, 100, 150, 200]],
@@ -262,7 +273,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     # render x vs. vx but don't show it yet.
     cvs = dshader.Canvas(plot_width=800, plot_height=300,
                          x_range=(np.min(df['x']), np.max(df['x'])),
-                         y_range=(-350, 350)) # < ----- what units?
+                         y_range=(-350, 350)) # velocities range over [-350,350]
     agg = cvs.points(df, 'x', 'vx', dshader.count_cat('phase_label'))
     x_vx_phase = tf.spread(tf.shade(agg, color_key=new_phase_color_key), shape='square')
 
@@ -293,7 +304,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax7.imshow(np.rot90(metal_colormap.to_pil()))
     ax7.set_xlim(60,180)
     ax7.set_ylim(0,900)
-    #ax7.yaxis.tick_right()
 
     nh1 = np.sum(np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
     nsi2 = np.sum(np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
@@ -325,12 +335,17 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     vxhist, si2hist = reduce_ion_vector(ray_df['x-velocity'], si2) # this will "histogram" H1 so we can plot it.
     vxhist, c4hist = reduce_ion_vector(ray_df['x-velocity'], c4) # this will "histogram" H1 so we can plot it.
     vxhist, o6hist = reduce_ion_vector(ray_df['x-velocity'], o6) # this will "histogram" H1 so we can plot it.
-    vxhist = np.flip((vxhist + 500.) * 300. / 1000., 0)
-    ax2.plot(vxhist, h1hist, linewidth=0.5, color='darkblue')
-    ax3.plot(vxhist, si2hist, linewidth=0.5, color='darkblue')
-    ax4.plot(vxhist, c4hist, linewidth=0.5, color='darkblue')
-    ax5.plot(vxhist, o6hist, linewidth=0.5, color='darkblue')
 
+    #ax8.plot(np.flip(vxhist,0), h1hist / np.max(h1hist))
+    #ax9.plot(np.flip(vxhist,0), si2hist / np.max(h1hist))
+    #ax10.plot(np.flip(vxhist,0), c4hist / np.max(h1hist))
+    #ax11.plot(np.flip(vxhist,0), o6hist / np.max(h1hist))
+
+    vxhist = (vxhist + 350.) / 7. * 3.
+    ax2.plot(np.flip(vxhist,0), h1hist, linewidth=0.5, color='darkblue')
+    ax3.plot(np.flip(vxhist,0), si2hist, linewidth=0.5, color='darkblue')
+    ax4.plot(np.flip(vxhist,0), c4hist, linewidth=0.5, color='darkblue')
+    ax5.plot(np.flip(vxhist,0), o6hist, linewidth=0.5, color='darkblue')
 
     x = np.array(ray_length - x_ray)
     cell_mass = np.array(ray_df['cell_mass'])

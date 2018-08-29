@@ -160,10 +160,7 @@ def ds_to_df(ds, ray_start, ray_end):
     for label in phase_labels:
         if (not (label in existing_categories)):
             df.phase_label = df.phase_label.cat.add_categories([label])
-    #        print("Adding category", label)s
-    #print("Done with categories: ", df.phase_label.unique())
 
-    #now do the same things for the metals
     existing_categories = df.metal_label.unique()
     for label in metal_labels:
         if (not (label in existing_categories)):
