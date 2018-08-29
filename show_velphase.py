@@ -63,28 +63,26 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
 
 
 def create_cmap(df): # trying to do the colomap here but it doesn't work
-    print("HAHA X: ", np.max(df['x'])-np.min(df['x']))
     deltax = np.max(df['x'])-np.min(df['x'])
-
-    colors = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2', \
+    phase_colors = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2', \
               b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot', \
               b'hot1', b'hot2', b'hot3']
     print(df.phase_label.unique())
-    #df['phase_label'][df['x'] > 71235.76651374214-287.06*15./15.] = colors[14] # highest T
-    #df['phase_label'][df['x'] > 71235.76651374214-287.06*14./15.] = colors[13] # highest T
-    #df['phase_label'][df['x'] > 71235.76651374214-287.06*13./15.] = colors[12] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*12./12.] = colors[11] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*11./12.] = colors[10] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*10./12.] = colors[9] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*9./12.] = colors[8] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*8./12.] = colors[7] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*7./12.] = colors[6] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*6./12.] = colors[5]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*5./12.] = colors[4]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*4./12.] = colors[3]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*3./12.] = colors[2]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*2./12.] = colors[1]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*1./12.] = colors[0] # lowest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*15./15.] = phase_colors[14] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*14./15.] = phase_colors[13] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*13./15.] = phase_colors[12] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*12./12.] = phase_colors[11] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*11./12.] = phase_colors[10] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*10./12.] = phase_colors[9] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*9./12.] = phase_colors[8] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*8./12.] = phase_colors[7] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*7./12.] = phase_colors[6] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*6./12.] = phase_colors[5]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*5./12.] = phase_colors[4]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*4./12.] = phase_colors[3]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*3./12.] = phase_colors[2]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*2./12.] = phase_colors[1]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*1./12.] = phase_colors[0] # lowest T
 
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
                          x_range=(np.min(df['x']), np.max(df['x'])),

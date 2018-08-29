@@ -137,6 +137,7 @@ def ds_to_df(ds, ray_start, ray_end):
     temp = np.log10(all_data['temperature'].ndarray_view())
     metallicity = all_data['metallicity'].ndarray_view()
 
+    # creates the phase_label as a set of nonsense strings.
     phase_label = new_categorize_by_temp(temp)
     metal_label = new_categorize_by_metals(metallicity)
 
@@ -150,7 +151,16 @@ def ds_to_df(ds, ray_start, ray_end):
                        'cell_mass':all_data['cell_mass'].in_units('Msun'),
                        'temp':temp, 'dens':dens, 'phase_label':phase_label,
                        'metal_label':metal_label})
+
     df.phase_label = df.phase_label.astype('category')
     df.metal_label = df.metal_label.astype('category')
+
+    # this is awful, but we have to add categories that don't exist to use them later.
+    existing_categories = df.phase_label.unique()
+    for label in phase_labels:
+        if (not (label in existing_categories)):
+            df.phase_label = df.phase_label.cat.add_categories([label])
+    #        print("Adding category", label)s
+    #print("Done with categories: ", df.phase_label.unique())
 
     return df
