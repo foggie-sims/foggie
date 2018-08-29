@@ -62,28 +62,27 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
 
 
 
-def create_cmap(df): # trying to do the colomap here but it doesn't work
-    deltax = np.max(df['x'])-np.min(df['x'])
+def create_temp_cmap(df): # trying to do the colomap here but it doesn't work
     phase_colors = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2', \
               b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot', \
               b'hot1', b'hot2', b'hot3']
-    print(df.phase_label.unique())
+    print("TEMPS", df.phase_label.unique())
+
     df['phase_label'][df['x'] > 71235.76651374214-287.06*15./15.] = phase_colors[14] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*14./15.] = phase_colors[13] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*13./15.] = phase_colors[12] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*12./12.] = phase_colors[11] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*11./12.] = phase_colors[10] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*10./12.] = phase_colors[9] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*9./12.] = phase_colors[8] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*8./12.] = phase_colors[7] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*7./12.] = phase_colors[6] # highest T
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*14./15.] = phase_colors[13]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*13./15.] = phase_colors[12]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*12./12.] = phase_colors[11]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*11./12.] = phase_colors[10]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*10./12.] = phase_colors[9]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*9./12.] = phase_colors[8]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*8./12.] = phase_colors[7]
+    df['phase_label'][df['x'] > 71235.76651374214-287.06*7./12.] = phase_colors[6]
     df['phase_label'][df['x'] > 71235.76651374214-287.06*6./12.] = phase_colors[5]
     df['phase_label'][df['x'] > 71235.76651374214-287.06*5./12.] = phase_colors[4]
     df['phase_label'][df['x'] > 71235.76651374214-287.06*4./12.] = phase_colors[3]
     df['phase_label'][df['x'] > 71235.76651374214-287.06*3./12.] = phase_colors[2]
     df['phase_label'][df['x'] > 71235.76651374214-287.06*2./12.] = phase_colors[1]
     df['phase_label'][df['x'] > 71235.76651374214-287.06*1./12.] = phase_colors[0] # lowest T
-
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
                          x_range=(np.min(df['x']), np.max(df['x'])),
                          y_range=(np.mean(df['y'])-20/0.695,
@@ -92,6 +91,39 @@ def create_cmap(df): # trying to do the colomap here but it doesn't work
     im = tf.shade(agg, color_key=new_phase_color_key)
     img = tf.spread(im, px=2, shape='square')
     return(img)
+
+
+
+def create_metals_cmap(df): # trying to do the colomap here but it doesn't work
+    metal_colors = [b'free', b'free1', b'free2', b'free3', b'poor', \
+                    b'poor1', b'poor2', b'poor3', b'low', b'low1', \
+                    b'low2', b'low3', b'solar', b'solar1', b'solar2', b'solar3', \
+                    b'high', b'high1', b'high2', b'high3', b'high4']
+    print("METALS", df.metal_label.unique())
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*15./15.] = metal_colors[14] # highest Z
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*14./15.] = metal_colors[13]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*13./15.] = metal_colors[12]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*12./12.] = metal_colors[11]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*11./12.] = metal_colors[10]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*10./12.] = metal_colors[9]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*9./12.] = metal_colors[8]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*8./12.] = metal_colors[7]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*7./12.] = metal_colors[6]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*6./12.] = metal_colors[5]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*5./12.] = metal_colors[4]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*4./12.] = metal_colors[3]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*3./12.] = metal_colors[2]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*2./12.] = metal_colors[1]
+    df['metal_label'][df['x'] > 71235.76651374214-287.06*1./12.] = metal_colors[0] # lowest T
+    cvs = dshader.Canvas(plot_width=800, plot_height=200,
+                         x_range=(np.min(df['x']), np.max(df['x'])),
+                         y_range=(np.mean(df['y'])-20/0.695,
+                                  np.mean(df['y'])+20/0.695))
+    agg = cvs.points(df, 'x', 'y', dshader.count_cat('metal_label'))
+    im = tf.shade(agg, color_key=new_metals_color_key)
+    img = tf.spread(im, px=2, shape='square')
+    return(img)
+
 
 
 def get_sizes(ray_df, species, x, ion_to_use, cell_mass, coldens_threshold):
@@ -187,7 +219,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax6.spines["bottom"].set_color('white')
     ax6.spines["left"].set_color('white')
     ax6.spines["right"].set_color('white')
-    ax6.set_ylabel('log T',fontname='Arial', fontsize=8)
 
     ax7 = plt.subplot(gs[7])
     ax7.spines["top"].set_color('black')
@@ -253,10 +284,16 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_ylim(0,800)
 
     #FAKING UP THE "COLORMAP"
-    ii = create_cmap(df)
-    ax6.imshow(np.rot90(ii.to_pil()))
-    ax6.set_xlim(60,140)
-    ax6.set_ylim(-100,900)
+    temp_colormap = create_temp_cmap(df)
+    ax6.imshow(np.rot90(temp_colormap.to_pil()))
+    ax6.set_xlim(60,180)
+    ax6.set_ylim(0,900)
+
+    metal_colormap = create_metals_cmap(df)
+    ax7.imshow(np.rot90(metal_colormap.to_pil()))
+    ax7.set_xlim(60,180)
+    ax7.set_ylim(0,900)
+    #ax7.yaxis.tick_right()
 
     nh1 = np.sum(np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
     nsi2 = np.sum(np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
@@ -342,6 +379,11 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     ax6.set_yticks([0, 400, 800])
     ax6.set_yticklabels(['4','5','6'], fontname='Arial', fontsize=7)
+    ax6.set_xlabel('log T',fontname='Arial', fontsize=8)
+
+    ax7.set_yticks([0, 400, 800])
+    ax7.set_yticklabels(['-4','-2','0'], fontname='Arial', fontsize=7)
+    ax7.set_xlabel('log Z',fontname='Arial', fontsize=8)
 
     ax1.set_yticks([])
     ax0.set_xticks([])

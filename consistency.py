@@ -177,9 +177,7 @@ new_phase_color_key = {b'cold':to_hex(temp_colors[0]),
                     b'hot3':to_hex(temp_colors[15])
 }
 
-phase_labels= [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2', \
-                b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot', \
-                b'hot1', b'hot2', b'hot3']
+phase_labels =  new_phase_color_key.keys()
 
 def new_categorize_by_temp(temp):
     """ define the temp category strings"""
@@ -227,11 +225,13 @@ new_metals_color_key = {b'free':to_hex(metallicity_colors[0]),
                         b'high4':to_hex(metallicity_colors[20]) ## orange
 }
 
+metal_labels = new_metals_color_key.keys()
 
 def new_categorize_by_metals(metal):
    """ define the temp category strings"""
    metal_vals = np.power(10.0, np.linspace(start=np.log10(metal_min), \
                            stop=np.log10(metal_max), num=21))
+   print("METAL VALUES", metal_vals)
    phase = np.chararray(np.size(metal), 6)
    phase[metal < 50. * metal_vals[20]] = b'high4'
    phase[metal < metal_vals[19]] = b'high3'
