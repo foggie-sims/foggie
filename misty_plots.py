@@ -29,19 +29,31 @@ def make_misty_plots():
     hires_p = hires.to_pandas()
     kod_p = kodiaq.to_pandas()
 
-    idn = [nat['Si_II_col'] > 12]
-    idr = [ref['Si_II_col'] > 12]
-    idh = [hires['Si_II_col'] > 12]
+    idn = [(nat['Si_II_Nmin'] > 0) & (nat['Si_II_col'] > 12)]
+    idr = [(ref['Si_II_Nmin'] > 0) & (ref['Si_II_col'] > 12)]
+#    idh = [hires['Si_II_col'] > 12]
     nat_si2 = nat[idn].to_pandas()
     ref_si2 = ref[idr].to_pandas()
-    hires_si2 = hires[idh].to_pandas()
+#    hires_si2 = hires[idh].to_pandas()
 
-    idn = [nat['O_VI_col'] > 13] ## 11.2
-    idr = [ref['O_VI_col'] > 13] ## 11.2
-    idh = [hires['O_VI_col'] > 13]
+    idn = [(nat['Si_IV_Nmin'] > 0) & (nat['Si_IV_col'] > 11.5)]
+    idr = [(ref['Si_IV_Nmin'] > 0) & (ref['Si_IV_col'] > 11.5)]
+#    idh = [hires['Si_IV_col'] > 11.5]
+    nat_si4 = nat[idn].to_pandas()
+    ref_si4 = ref[idr].to_pandas()
+    #hires_si2 = hires[idh].to_pandas()
+
+    idn = [(nat['C_IV_Nmin'] > 0) & (nat['C_IV_col'] > 12)]
+    idr = [(ref['C_IV_Nmin'] > 0) & (ref['C_IV_col'] > 12)]
+    nat_c4 = nat[idn].to_pandas()
+    ref_c4 = ref[idr].to_pandas()
+
+    idn = [(nat['O_VI_Nmin'] > 0) & (nat['O_VI_col'] > 13)]
+    idr = [(ref['O_VI_Nmin'] > 0) & (ref['O_VI_col'] > 13)]
+    #idh = [hires['O_VI_col'] > 13]
     nat_o6 = nat[idn].to_pandas()
     ref_o6 = ref[idr].to_pandas()
-    hires_o6 = hires[idh].to_pandas()
+    #hires_o6 = hires[idh].to_pandas()
 
 
     fig = plt.figure(figsize=(9,7))
@@ -100,6 +112,23 @@ def make_misty_plots():
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
+    sns.swarmplot(x="Si_II_dv90", y="Si_II_Nmin", data=nat_si2, color=nat_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="Si_II_dv90", y="Si_II_Nmin", data=ref_si2, color=ref_color,alpha=0.7,orient='h')
+#    sns.swarmplot(x="Si_II_dv90", y="Si_II_Ncomp", data=hires_si2, color='#984ea3',alpha=0.7,orient='h')
+    # sns.swarmplot(x="Si_II_dv90", y="Si_II_Ncomp", data=kod_p, color='k',alpha=0.7,orient='h')
+    #ax.scatter(nat['Si_II_dv90'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,alpha=0.5,label='natural')
+    #ax.scatter(ref['Si_II_dv90'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, alpha=0.5,label='refined')
+    ax.scatter(kodiaq['Si_II_dv90'], kodiaq['Si_II_Nmin'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    plt.legend(loc='lower right')
+    plt.xlim(xmin=0)
+    plt.ylim(-0.5,14.5)
+    plt.xlabel(r'Si II $\Delta v_{90}$ [km/s]')
+    plt.ylabel('# of Si II 1260 minima')
+    fig.tight_layout()
+    fig.savefig('SiII_dv90_vs_Nmin.png')
+
+    fig = plt.figure(figsize=(9,7))
+    ax = fig.add_subplot(111)
     sns.swarmplot(x="O_VI_dv90", y="O_VI_Nmin", data=nat_o6, color=nat_color,alpha=0.7,orient='h')
     sns.swarmplot(x="O_VI_dv90", y="O_VI_Nmin", data=ref_o6, color=ref_color,alpha=0.7,orient='h')
 #    sns.swarmplot(x="O_VI_dv90", y="O_VI_Nmin", data=hires_o6, color='#984ea3',alpha=0.7,orient='h')
@@ -107,9 +136,9 @@ def make_misty_plots():
     #ax.scatter(nat['Si_II_dv90'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,alpha=0.5,label='natural')
     #ax.scatter(ref['Si_II_dv90'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, alpha=0.5,label='refined')
     ax.scatter(kodiaq['O_VI_dv90'], kodiaq['O_VI_Nmin'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
-    plt.legend(loc='upper left')
+    plt.legend(loc='upper right')
     plt.xlim(xmin=0)
-    plt.ylim(-0.5,14.5)
+    plt.ylim(0.5,14.5)
     plt.xlabel(r'O VI $\Delta v_{90}$ [km/s]')
     plt.ylabel('# of O VI 1032 minima')
     fig.tight_layout()
@@ -118,20 +147,53 @@ def make_misty_plots():
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
-    sns.swarmplot(x="Si_II_EW", y="Si_II_Ncomp", data=nat_si2, color=nat_color,alpha=0.7,orient='h')
-    sns.swarmplot(x="Si_II_EW", y="Si_II_Ncomp", data=ref_si2, color=ref_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="C_IV_dv90", y="C_IV_Nmin", data=nat_c4, color=nat_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="C_IV_dv90", y="C_IV_Nmin", data=ref_c4, color=ref_color,alpha=0.7,orient='h')
+#    sns.swarmplot(x="O_VI_dv90", y="O_VI_Nmin", data=hires_o6, color='#984ea3',alpha=0.7,orient='h')
+    # sns.swarmplot(x="Si_II_dv90", y="Si_II_Ncomp", data=kod_p, color='k',alpha=0.7,orient='h')
+    #ax.scatter(nat['Si_II_dv90'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,alpha=0.5,label='natural')
+    #ax.scatter(ref['Si_II_dv90'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, alpha=0.5,label='refined')
+    ax.scatter(kodiaq['C_IV_dv90'], kodiaq['C_IV_Nmin'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    plt.legend(loc='upper right')
+    plt.xlim(0,500)
+    plt.ylim(0.5,14.5)
+    plt.xlabel(r'C IV $\Delta v_{90}$ [km/s]')
+    plt.ylabel('# of C IV 1548 minima')
+    fig.tight_layout()
+    fig.savefig('CIV_dv90_vs_Nmin.png')
+
+
+    fig = plt.figure(figsize=(11,7))
+    ax = fig.add_subplot(111)
+    sns.swarmplot(x="Si_II_EW", y="Si_II_Nmin", data=nat_si2, color=nat_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="Si_II_EW", y="Si_II_Nmin", data=ref_si2, color=ref_color,alpha=0.7,orient='h')
     #ax.scatter(nat['Si_II_EW'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,label='natural')
     #ax.scatter(ref['Si_II_EW'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, label='refined')
     ax.scatter(kodiaq['Si_II_EW'], kodiaq['Si_II_Nmin'], color='k', marker='*', s=100, label='KODIAQ', zorder=200)
     plt.legend(loc='lower right')
     plt.xlim(xmin=0)
-    plt.ylim(1.5,14.5)
+    plt.ylim(0.5,14.5)
     plt.xlabel(r'Si II EW')
-    plt.ylabel('# of Si II 1260 components')
+    plt.ylabel('# of Si II 1260 minima')
     fig.tight_layout()
-    fig.savefig('SiII_EW_vs_Ncomp.png')
+    fig.savefig('SiII_EW_vs_Nmin.png')
 
-    fig = plt.figure(figsize=(9,7))
+    fig = plt.figure(figsize=(11,7))
+    ax = fig.add_subplot(111)
+    sns.swarmplot(x="O_VI_EW", y="O_VI_Nmin", data=nat_o6, color=nat_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="O_VI_EW", y="O_VI_Nmin", data=ref_o6, color=ref_color,alpha=0.7,orient='h')
+    #ax.scatter(nat['Si_II_EW'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,label='natural')
+    #ax.scatter(ref['Si_II_EW'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, label='refined')
+    ax.scatter(kodiaq['O_VI_EW'], kodiaq['O_VI_Nmin'], color='k', marker='*', s=100, label='KODIAQ', zorder=200)
+    plt.legend(loc='lower right')
+    plt.xlim(xmin=0)
+    plt.ylim(0.5,14.5)
+    plt.xlabel(r'O VI EW')
+    plt.ylabel('# of O VI 1032 minima')
+    fig.tight_layout()
+    fig.savefig('OVI_EW_vs_Nmin.png')
+
+    fig = plt.figure(figsize=(11,7))
     ax = fig.add_subplot(111)
     sns.swarmplot(x="Si_II_EW", y="Si_II_Nreg", data=nat_si2, color=nat_color,alpha=0.7,orient='h')
     sns.swarmplot(x="Si_II_EW", y="Si_II_Nreg", data=ref_si2, color=ref_color,alpha=0.7,orient='h')
@@ -146,14 +208,31 @@ def make_misty_plots():
     fig.tight_layout()
     fig.savefig('SiII_EW_vs_Nreg.png')
 
+    fig = plt.figure(figsize=(11,7))
+    ax = fig.add_subplot(111)
+    sns.swarmplot(x="O_VI_EW", y="O_VI_Nreg", data=nat_si2, color=nat_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="O_VI_EW", y="O_VI_Nreg", data=ref_si2, color=ref_color,alpha=0.7,orient='h')
+    #ax.scatter(nat['Si_II_EW'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,label='natural')
+    #ax.scatter(ref['Si_II_EW'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, label='refined')
+    ##ax.scatter(kodiaq['Si_II_EW'], kodiaq['Si_II_Nmin'], color='k', marker='*', s=100, label='KODIAQ', zorder=200)
+    plt.legend(loc='lower right')
+    plt.xlim(xmin=0)
+    plt.ylim(0.5,7.5)
+    plt.xlabel(r'O VI EW')
+    plt.ylabel('# of O VI 1032 regions')
+    fig.tight_layout()
+    fig.savefig('OVI_EW_vs_Nreg.png')
+
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
-    ax.scatter(nat['Si_IV_col'],nat['Si_IV_dv90'], marker='D', s=30, color=nat_color,alpha=0.5, label='natural')
-    ax.scatter(ref['Si_IV_col'],ref['Si_IV_dv90'], color=ref_color, marker='o',s=50, alpha=0.5, label='refined')
+    idn = [nat['Si_IV_col'] > 11.5]
+    idr = [ref['Si_IV_col'] > 11.5]
+    ax.scatter(nat['Si_IV_col'][idn],nat['Si_IV_dv90'][idn], marker='D', s=30, color=nat_color,alpha=0.5, label='natural')
+    ax.scatter(ref['Si_IV_col'][idr],ref['Si_IV_dv90'][idr], color=ref_color, marker='o',s=50, alpha=0.5, label='refined')
     ax.scatter(kodiaq['Si_IV_col'], kodiaq['Si_IV_dv90'], color='k', marker='*', s=100, label='KODIAQ')
     plt.legend(loc='upper left')
-    plt.xlim(xmin=10)
-    plt.ylim(ymin=0)
+    plt.xlim(xmin=11.5)
+    plt.ylim(0,600)
     plt.xlabel('Si IV column density')
     plt.ylabel(r'Si IV $\Delta v_{90}$')
     fig.tight_layout()
@@ -164,8 +243,8 @@ def make_misty_plots():
     ax.scatter(nat['O_VI_col'],nat['O_VI_dv90'], marker='D', s=30, color=nat_color,alpha=0.5, label='natural')
     ax.scatter(ref['O_VI_col'],ref['O_VI_dv90'], color=ref_color, marker='o',s=50, alpha=0.5, label='refined')
     ax.scatter(kodiaq['O_VI_col'], kodiaq['O_VI_dv90'], color='k', marker='*', s=100, label='KODIAQ')
-    plt.legend(loc='upper left')
-    plt.xlim(xmin=10)
+    plt.legend(loc='upper right')
+    plt.xlim(xmin=13)
     plt.ylim(ymin=0)
     plt.xlabel('O VI column density')
     plt.ylabel(r'O VI $\Delta v_{90}$ [km/s]')
@@ -200,29 +279,44 @@ def make_misty_plots():
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
-    sns.swarmplot(x="Si_IV_col", y="Si_IV_Nmin", data=nat_p, color=nat_color,alpha=0.7,orient='h')
-    sns.swarmplot(x="Si_IV_col", y="Si_II_Nmin", data=ref_p, color=ref_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="Si_IV_col", y="Si_IV_Nmin", data=nat_si4, color=nat_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="Si_IV_col", y="Si_IV_Nmin", data=ref_si4, color=ref_color,alpha=0.7,orient='h')
     #ax.scatter(nat['HI_col'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,alpha=0.5,label='natural')
     #ax.scatter(ref['HI_col'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, alpha=0.5,label='refined')
     ax.scatter(kodiaq['Si_IV_col'], kodiaq['Si_IV_Nmin'], color='k', marker='*', s=100, alpha=0.7, label='KODIAQ',zorder=100)
     plt.legend(loc='upper left', frameon=False)
-    plt.xlim(xmin=10)
+    plt.xlim(xmin=11.5)
     plt.ylim(0.5,14.5)
     plt.xlabel(r'log SiIV column density')
     plt.ylabel('# of Si IV 1394 minima')
     fig.tight_layout()
-    fig.savefig('SiIV_col_vs_Ncomp.png')
+    fig.savefig('SiIV_col_vs_Nmin.png')
+
+    fig = plt.figure(figsize=(11,7))
+    ax = fig.add_subplot(111)
+    sns.swarmplot(x="O_VI_col", y="O_VI_Nmin", data=nat_o6, color=nat_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="O_VI_col", y="O_VI_Nmin", data=ref_o6, color=ref_color,alpha=0.7,orient='h')
+    #ax.scatter(nat['HI_col'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,alpha=0.5,label='natural')
+    #ax.scatter(ref['HI_col'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, alpha=0.5,label='refined')
+    ax.scatter(kodiaq['O_VI_col'], kodiaq['O_VI_Nmin'], color='k', marker='*', s=100, alpha=0.7, label='KODIAQ',zorder=100)
+    plt.legend(loc='upper left', frameon=False)
+    plt.xlim(xmin=13)
+    plt.ylim(0.5,16.5)
+    plt.xlabel(r'log OVI column density')
+    plt.ylabel('# of O VI 1032 minima')
+    fig.tight_layout()
+    fig.savefig('OVI_col_vs_Nmin.png')
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
-    sns.swarmplot(x="HI_col", y="Si_II_Nmin", data=nat_p, color=nat_color,alpha=0.7,orient='h')
-    sns.swarmplot(x="HI_col", y="Si_II_Nmin", data=ref_p, color=ref_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="HI_col", y="Si_II_Nmin", data=nat_si2, color=nat_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="HI_col", y="Si_II_Nmin", data=ref_si2, color=ref_color,alpha=0.7,orient='h')
     #ax.scatter(nat['HI_col'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,alpha=0.5,label='natural')
     #ax.scatter(ref['HI_col'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, alpha=0.5,label='refined')
     ax.scatter(kodiaq['HI_col'], kodiaq['Si_II_Nmin'], color='k', marker='*', s=100, alpha=0.7, label='KODIAQ',zorder=100)
     plt.legend(loc='upper left', frameon=False)
     plt.xlim(xmin=16)
-    plt.ylim(0,14)
+    plt.ylim(0.5,14)
     plt.xlabel(r'log HI column density')
     plt.ylabel('# of Si II 1260 minima')
     fig.tight_layout()
@@ -230,12 +324,12 @@ def make_misty_plots():
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
-    ax.scatter(nat['HI_col'],nat['Si_IV_Nmin'], marker='D', s=60, color=nat_color,alpha=0.5,label='natural')
-    ax.scatter(ref['HI_col'],ref['Si_IV_Nmin'], color=ref_color, marker='o',s=100, alpha=0.5,label='refined')
+    sns.swarmplot(x="HI_col", y="Si_IV_Nmin", data=nat_si4, color=nat_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="HI_col", y="Si_IV_Nmin", data=ref_si4, color=ref_color,alpha=0.7,orient='h')
     ax.scatter(kodiaq['HI_col'], kodiaq['Si_IV_Nmin'], color='k', marker='*', s=100, alpha=0.7, label='KODIAQ',zorder=100)
     plt.legend(loc='upper left', frameon=False)
     plt.xlim(xmin=16)
-    plt.ylim(ymin=0)
+    plt.ylim(0.5,12)
     plt.xlabel(r'log HI column density')
     plt.ylabel('# of Si IV 1394 minima')
     fig.tight_layout()
@@ -270,28 +364,44 @@ def make_misty_plots():
 
 
     bins = np.arange(1,20,1)
-    fig = plt.figure(figsize=(9,7))
+    fig = plt.figure(figsize=(11,7))
+    ax = fig.add_subplot(111)
+    idn = [(nat['O_VI_Nmin'] > 4) & (nat['O_VI_col'] > 13)]
+    idr = [(ref['O_VI_Nmin'] > 4) & (ref['O_VI_col'] > 13)]
+    #ax.hist(kodiaq['Si_II_Nreg'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
+    ax.hist(nat['O_VI_Nmin'][idn]/nat['O_VI_Nreg'][idn], bins=bins,normed=True, align='left',histtype='step',lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['O_VI_Nmin'][idr]/ref['O_VI_Nreg'][idr], bins=bins,normed=True, align='left',histtype='step',lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    plt.legend(loc='upper right')
+    plt.xlabel('# of O VI 1032 minima / regions')
+    plt.ylabel('normalized fraction of sightlines')
+    ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+    ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
+    fig.tight_layout()
+    fig.savefig('O_VI_regions_fraction_histograms.png')
+
+    bins = np.arange(1,20,1)
+    fig = plt.figure(figsize=(11,7))
     ax = fig.add_subplot(111)
     print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
-    idn = [nat['Si_II_Nmin'] > 4]
-    idr = [ref['Si_II_Nmin'] > 4]
+    idn = [(nat['Si_II_Nmin'] > 4) & (nat['Si_II_col'] > 12)]
+    idr = [(ref['Si_II_Nmin'] > 4) & (ref['Si_II_col'] > 12)]
     #ax.hist(kodiaq['Si_II_Nreg'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
     ax.hist(nat['Si_II_Nmin'][idn]/nat['Si_II_Nreg'][idn], bins=bins,normed=True, align='left',histtype='step',lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
     ax.hist(ref['Si_II_Nmin'][idr]/ref['Si_II_Nreg'][idr], bins=bins,normed=True, align='left',histtype='step',lw=3, edgecolor=ref_color, hatch='//', label='refined')
     plt.legend(loc='upper right')
     plt.xlabel('# of Si II 1260 minima / regions')
-    plt.ylabel('fraction of sightlines with > 4 minima')
+    plt.ylabel('normalized fraction of sightlines with Nmin > 4')
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
     fig.tight_layout()
     fig.savefig('Si_II_regions_fraction_histograms.png')
 
     bins = np.arange(1,20,1)
-    fig = plt.figure(figsize=(9,7))
+    fig = plt.figure(figsize=(11,7))
     ax = fig.add_subplot(111)
     print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
-    idn = [nat['Si_II_Nmin'] > 4]
-    idr = [ref['Si_II_Nmin'] > 4]
+    idn = [(nat['Si_II_Nmin'] > 4) & (nat['Si_II_col'] > 12)]
+    idr = [(ref['Si_II_Nmin'] > 4) & (ref['Si_II_col'] > 12)]
     #idh = [hires['Si_II_col'] > 12]
     #ax.hist(kodiaq['Si_II_Nreg'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
     ax.hist(nat['Si_II_Nreg'][idn], bins=bins,normed=True, histtype='step',lw=3,align='left', edgecolor=nat_color, hatch='\\\\', label='natural')
@@ -303,10 +413,67 @@ def make_misty_plots():
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10'))
     plt.xlim(0,11)
     fig.tight_layout()
+    fig.savefig('Si_II_regions_histograms_Nmingt4.png')
+
+    bins = np.arange(1,20,1)
+    fig = plt.figure(figsize=(11,7))
+    ax = fig.add_subplot(111)
+    print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
+    idn = [nat['Si_II_col'] > 12]
+    idr = [ref['Si_II_col'] > 12]
+    #idh = [hires['Si_II_col'] > 12]
+    #ax.hist(kodiaq['Si_II_Nreg'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
+    ax.hist(nat['Si_II_Nreg'][idn], bins=bins,normed=True, histtype='step',lw=3,align='left', edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['Si_II_Nreg'][idr], bins=bins,normed=True, histtype='step',lw=3, align='left',edgecolor=ref_color, hatch='//', label='refined')
+    plt.legend(loc='upper right')
+    plt.xlabel('# of Si II 1260 regions')
+    plt.ylabel('normalized fraction of sightlines')
+    ax.set_xticks((1,2,3,4,5,6,7,8,9,10))
+    ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10'))
+    plt.xlim(0,11)
+    fig.tight_layout()
     fig.savefig('Si_II_regions_histograms.png')
 
     bins = np.arange(1,20,1)
-    fig = plt.figure(figsize=(9,7))
+    fig = plt.figure(figsize=(11,7))
+    ax = fig.add_subplot(111)
+    print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
+    idn = [(nat['O_VI_Nmin'] > 4) & (nat['O_VI_col'] > 13)]
+    idr = [(ref['O_VI_Nmin'] > 4) & (ref['O_VI_col'] > 13)]
+    #idh = [hires['Si_II_col'] > 12]
+    #ax.hist(kodiaq['Si_II_Nreg'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
+    ax.hist(nat['O_VI_Nreg'][idn], bins=bins,normed=True, histtype='step',lw=3,align='left', edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['O_VI_Nreg'][idr], bins=bins,normed=True, histtype='step',lw=3, align='left',edgecolor=ref_color, hatch='//', label='refined')
+    plt.legend(loc='upper right')
+    plt.xlabel('# of O VI 1032 regions')
+    plt.ylabel('fraction of sightlines with > 4 minima')
+    ax.set_xticks((1,2,3,4,5,6,7,8,9,10))
+    ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10'))
+    plt.xlim(0,11)
+    fig.tight_layout()
+    fig.savefig('O_VI_regions_histograms_Nmingt4.png')
+
+    bins = np.arange(1,20,1)
+    fig = plt.figure(figsize=(11,7))
+    ax = fig.add_subplot(111)
+    print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
+    idn = [nat['O_VI_col'] > 13]
+    idr = [ref['O_VI_col'] > 13]
+    #idh = [hires['Si_II_col'] > 12]
+    #ax.hist(kodiaq['Si_II_Nreg'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
+    ax.hist(nat['O_VI_Nreg'][idn], bins=bins,normed=True, histtype='step',lw=3,align='left', edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['O_VI_Nreg'][idr], bins=bins,normed=True, histtype='step',lw=3, align='left',edgecolor=ref_color, hatch='//', label='refined')
+    plt.legend(loc='upper right')
+    plt.xlabel('# of O VI 1032 regions')
+    plt.ylabel('normalized fraction of sightlines')
+    ax.set_xticks((1,2,3,4,5,6,7,8,9,10))
+    ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10'))
+    plt.xlim(0,11)
+    fig.tight_layout()
+    fig.savefig('O_VI_regions_histograms.png')
+
+    bins = np.arange(1,20,1)
+    fig = plt.figure(figsize=(11,7))
     ax = fig.add_subplot(111)
     print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
     idn = [nat['Si_II_col'] > 12]
@@ -319,67 +486,77 @@ def make_misty_plots():
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
     plt.legend(loc='upper right')
     plt.xlabel('# of Si II 1260 minima')
+    plt.ylabel('normalized fraction')
     fig.tight_layout()
     fig.savefig('Si_II_histograms.png')
 
-    fig = plt.figure(figsize=(9,7))
+    fig = plt.figure(figsize=(11,7))
     ax = fig.add_subplot(111)
-    sns.swarmplot(x="Si_II_col", y="Si_II_Nmin", data=nat_p, color=nat_color,alpha=0.7,orient='h')
-    sns.swarmplot(x="Si_II_col", y="Si_II_Nmin", data=ref_p, color=ref_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="Si_II_col", y="Si_II_Nmin", data=nat_si2, color=nat_color,alpha=0.7,orient='h')
+    sns.swarmplot(x="Si_II_col", y="Si_II_Nmin", data=ref_si2, color=ref_color,alpha=0.7,orient='h')
     #ax.scatter(nat['HI_col'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,alpha=0.5,label='natural')
     #ax.scatter(ref['HI_col'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, alpha=0.5,label='refined')
     ax.scatter(kodiaq['Si_II_col'], kodiaq['Si_II_Nmin'], color='k', marker='*', s=100, alpha=0.7, label='KODIAQ',zorder=100)
     plt.legend(loc='upper left', frameon=False)
-    plt.xlim(xmin=10)
-    plt.ylim(1.5,14.5)
+    plt.xlim(xmin=12)
+    plt.ylim(0.5,14.5)
     plt.xlabel(r'log SiII column density')
     plt.ylabel('# of Si II 1260 minima')
     fig.tight_layout()
     fig.savefig('SiII_col_vs_Nmin.png')
 
-    fig = plt.figure(figsize=(9,7))
+    fig = plt.figure(figsize=(11,7))
     ax = fig.add_subplot(111)
     print('min KODIAQ SiIV col = ', min(kodiaq['Si_IV_col'][kodiaq['Si_IV_col'] > 0]))
     idn = [nat['Si_IV_col'] > 11.5]
     idr = [ref['Si_IV_col'] > 11.5]
-    ax.hist(kodiaq['Si_IV_Nmin'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
-    ax.hist(nat['Si_IV_Nmin'][idn], bins=bins,normed=True, histtype='step',lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
-    ax.hist(ref['Si_IV_Nmin'][idr], bins=bins,normed=True, histtype='step',lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    ax.hist(kodiaq['Si_IV_Nmin'], color='k',bins=bins,normed=True,histtype='step',align='left', lw=3,label='KODIAQ'  )
+    ax.hist(nat['Si_IV_Nmin'][idn], bins=bins,normed=True, histtype='step',align='left', lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['Si_IV_Nmin'][idr], bins=bins,normed=True, histtype='step',align='left', lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+    ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
     plt.legend(loc='upper right')
     plt.xlabel('# of Si IV 1260 minima')
+    plt.ylabel('normalized fraction')
     fig.tight_layout()
     fig.savefig('Si_IV_histograms.png')
 
-    fig = plt.figure(figsize=(9,7))
+    fig = plt.figure(figsize=(11,7))
     ax = fig.add_subplot(111)
     print('min KODIAQ CIV col = ', min(kodiaq['C_IV_col'][kodiaq['C_IV_col'] > 0]))
     idn = [nat['C_IV_col'] > 12]
     idr = [ref['C_IV_col'] > 12]
-    ax.hist(kodiaq['C_IV_Nmin'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ' )
-    ax.hist(nat['C_IV_Nmin'][idn], bins=bins, normed=True, histtype='step',lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
-    ax.hist(ref['C_IV_Nmin'][idr], bins=bins,normed=True, histtype='step',lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    ax.hist(kodiaq['C_IV_Nmin'], color='k',bins=bins,normed=True,histtype='step',align='left', lw=3,label='KODIAQ' )
+    ax.hist(nat['C_IV_Nmin'][idn], bins=bins, normed=True, histtype='step',align='left', lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['C_IV_Nmin'][idr], bins=bins,normed=True, histtype='step',align='left', lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+    ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
     plt.legend(loc='upper right')
     plt.xlabel('# of C IV 1548 minima')
+    plt.ylabel('normalized fraction')
     fig.tight_layout()
     fig.savefig('C_IV_histograms.png')
 
-    fig = plt.figure(figsize=(9,7))
+    fig = plt.figure(figsize=(11,7))
     ax = fig.add_subplot(111)
     print('min KODIAQ OVI col = ', min(kodiaq['O_VI_col'][kodiaq['O_VI_col'] > 0]))
     idn = [nat['O_VI_col'] > 13] ## 11.2
     idr = [ref['O_VI_col'] > 13]
-    ax.hist(kodiaq['O_VI_Nmin'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ')
-    ax.hist(nat['O_VI_Nmin'][idn], bins=bins,normed=True, histtype='step', lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
-    ax.hist(ref['O_VI_Nmin'][idr], bins=bins,normed=True, histtype='step', lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    ax.hist(kodiaq['O_VI_Nmin'], color='k',bins=bins,normed=True,histtype='step',align='left', lw=3,label='KODIAQ')
+    ax.hist(nat['O_VI_Nmin'][idn], bins=bins,normed=True, histtype='step', align='left', lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['O_VI_Nmin'][idr], bins=bins,normed=True, histtype='step', align='left', lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+    ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
     plt.legend(loc='upper right')
     plt.xlabel('# of O VI 1032 minima')
+    plt.ylabel('normalized fraction')
     fig.tight_layout()
     fig.savefig('O_VI_histograms.png')
 
     ## KS-test
-    for key in ['Si_II_Nmin','Si_IV_Nmin', 'C_IV_Nmin', 'O_VI_Nmin']:
-        print(key, 'nat vs. KODIAQ:', stats.ks_2samp(np.array(nat[key][key > 0])[0], np.array(kodiaq[key][key > 0])[0]))
-        print(key, 'ref vs. KODIAQ:', stats.ks_2samp(np.array(ref[key][key > 0])[0], np.array(kodiaq[key][key > 0])[0]))
+#    for key in ['Si_II_Nmin','Si_IV_Nmin', 'C_IV_Nmin', 'O_VI_Nmin']:
+#        print(key, 'nat vs. KODIAQ:', stats.ks_2samp(np.array(nat[key][key > 0])[0], np.array(kodiaq[key][key > 0])[0]))
+#        print(key, 'ref vs. KODIAQ:', stats.ks_2samp(np.array(ref[key][key > 0])[0], np.array(kodiaq[key][key > 0])[0]))
 
 
 if __name__ == "__main__":

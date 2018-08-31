@@ -95,7 +95,8 @@ def plot_cloud_size_and_masses():
     ####################################################
     ####### cumulative histogram of sizes ##############
     ####################################################
-    fig = plt.figure(figsize=(14,7))
+    # fig = plt.figure(figsize=(14,7))
+    fig = plt.figure(figsize=(12,14))
     ax = fig.add_subplot(111)
     hist_bins = 0.5 * nref10_cell * (np.arange(2000)+1.)
     for i in np.arange(5)+1.:
@@ -129,7 +130,8 @@ def plot_cloud_size_and_masses():
     #########################################
     ####### histogram of sizes ##############
     #########################################
-    fig = plt.figure(figsize=(14,7))
+    # fig = plt.figure(figsize=(14,7))
+    fig = plt.figure(figsize=(12,8))
     ax = fig.add_subplot(111)
     hist_bins = nref10_cell * (np.arange(2000)+1.)
     hist_bins = np.concatenate((0.5*nref10_cell, hist_bins), axis=None)
@@ -146,17 +148,17 @@ def plot_cloud_size_and_masses():
     ax.hist(c4sizes, hist_bins, range=(0, 500), normed=True, edgecolor=c4_color, hatch='--', histtype='step',align='left',label='C IV')
     ax.hist(o6sizes, hist_bins, range=(0, 500), normed=True,edgecolor=ovi_color, hatch='\\\\', histtype='step', align='left',label='O VI')
 
-    plt.xlabel('Cloud size [kpc]', fontsize=22)
-    plt.ylabel('Fraction of clouds', fontsize=22)
+    plt.xlabel('Cloud size [kpc]', fontsize=26)
+    plt.ylabel('Fraction of clouds', fontsize=26)
     plt.axis([0.1, 60, 0, 1.05])
     #plt.text(13, 53, 'N$_{los}$ = '+str(np.size(o6columns)), fontsize='x-large')
     #plt.text(13, 46, 'N$_{clouds}(H I)$ = '+str(np.size(h1sizes)), fontsize='large')
     #plt.text(13, 42, 'N$_{clouds}(O VI)$ = '+str(np.size(o6sizes)), fontsize='large')
     plt.xscale('log')
     ax.set_xticks((0.1, 1, 10))
-    ax.set_xticklabels(('0.1','1','10'))
+    ax.set_xticklabels(('0.1','1','10'),fontsize=24)
     plt.grid(True)
-    plt.legend(loc='upper right')
+    plt.legend(loc='upper right',fontsize=26)
     plt.tight_layout()
     plt.savefig('cloud_size_histogram.png')
     plt.savefig('cloud_size_histogram.pdf')
@@ -217,7 +219,7 @@ def plot_cloud_size_and_masses():
     #########################################
     ####### 3d masses and sizes #############
     #########################################
-    fig = plt.figure(figsize=(9,7))
+    fig = plt.figure(figsize=(12,7))
     ax = fig.add_subplot(111)
 
     h1_cloud_ncells = np.array(h1sizes) / np.array(nref10_cell)

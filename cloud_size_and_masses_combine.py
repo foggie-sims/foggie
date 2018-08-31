@@ -333,9 +333,9 @@ def plot_cloud_size_and_masses():
     #########################################
     fig = plt.figure(figsize=(14,9))
     axtop = fig.add_axes([0.1, 0.52, 0.88, 0.42],
-                 ylim=(0, 300), xlim=(0, 7.3))
+                 ylim=(0, 200), xlim=(0, 7.3))
     axbot = fig.add_axes([0.1, 0.1, 0.88, 0.42],
-                   ylim=(0, 300), xlim=(0, 7.3))
+                   ylim=(0, 200), xlim=(0, 7.3))
     nbins = 100
     axtop.hist(np.log10(np.array(natural_o6masses)/1.989e33), nbins, range=(0,8), histtype='step', lw=2, edgecolor=ovi_color, hatch='\\\\', label='O VI',zorder=3)
     axtop.hist(np.log10(np.array(natural_c4masses)/1.989e33), nbins, range=(0,8), histtype='step',lw=2, edgecolor=c4_color, hatch='--', label='C IV',zorder=4)
