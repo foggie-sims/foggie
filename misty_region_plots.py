@@ -70,6 +70,41 @@ def make_misty_component_plots():
     fig.tight_layout()
     fig.savefig('Si_II_region_minima.png')
 
+    bins = np.arange(0,150,2)
+    fig = plt.figure(figsize=(9,7))
+    ax = fig.add_subplot(111)
+    ## print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
+    idn = [nat['tot_col'] > 12]
+    idr = [ref['tot_col'] > 12]
+    print(max(nat['Nmin'][idn]), max(ref['Nmin'][idr]))
+    ##idh = [hires['Si_II_col'] > 12]
+    ## ax.hist(kodiaq['Si_II_Nmin'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
+    ax.hist(nat['reg_dv90'][idn], bins=300,normed=True, cumulative=-1,histtype='step',lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['reg_dv90'][idr], bins=300,normed=True, cumulative=-1,histtype='step',lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    plt.legend(loc='upper right')
+    plt.xlim(0,40)
+    plt.ylabel('fraction less than')
+    plt.xlabel('Si II 1260 dv90 per region')
+    fig.tight_layout()
+    fig.savefig('Si_II_region_dv90.png')
+
+    bins = np.arange(0,150,2)
+    fig = plt.figure(figsize=(9,7))
+    ax = fig.add_subplot(111)
+    ## print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
+    idn = [nat['tot_col'] > 12]
+    idr = [ref['tot_col'] > 12]
+    print(max(nat['Nmin'][idn]), max(ref['Nmin'][idr]))
+    ##idh = [hires['Si_II_col'] > 12]
+    ## ax.hist(kodiaq['Si_II_Nmin'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
+    ax.hist(nat['reg_EW'][idn], bins=300,normed=True, cumulative=-1,histtype='step',lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['reg_EW'][idr], bins=300,normed=True, cumulative=-1,histtype='step',lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    plt.legend(loc='upper right')
+    #plt.xlim(0,40)
+    plt.ylabel('fraction less than')
+    plt.xlabel('Si II 1260 EW per region')
+    fig.tight_layout()
+    fig.savefig('Si_II_region_EW.png')
 
     nat = Table.read('/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/lls/misty_o6_reg_v6_lsf_lls.dat', format='ascii.fixed_width')
     ref = Table.read('/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/lls/misty_o6_reg_v6_lsf_lls.dat', format='ascii.fixed_width')
@@ -89,6 +124,25 @@ def make_misty_component_plots():
     plt.xlabel('cumulative fraction of O VI 1032 minima per region')
     fig.tight_layout()
     fig.savefig('O_VI_region_minima.png')
+
+    bins = np.arange(0,150,2)
+    fig = plt.figure(figsize=(9,7))
+    ax = fig.add_subplot(111)
+    ## print('min KODIAQ SiII col = ', min(kodiaq['Si_II_col']))
+    idn = [nat['tot_col'] > 13]
+    idr = [ref['tot_col'] > 13]
+    print(max(nat['Nmin'][idn]), max(ref['Nmin'][idr]))
+    ##idh = [hires['Si_II_col'] > 12]
+    ## ax.hist(kodiaq['Si_II_Nmin'], color='k',bins=bins,normed=True,histtype='step',lw=3,label='KODIAQ'  )
+    ax.hist(nat['reg_dv90'][idn], bins=300,normed=True, cumulative=-1,histtype='step',lw=3, edgecolor=nat_color, hatch='\\\\', label='natural')
+    ax.hist(ref['reg_dv90'][idr], bins=300,normed=True, cumulative=-1,histtype='step',lw=3, edgecolor=ref_color, hatch='//', label='refined')
+    plt.legend(loc='upper right')
+    plt.xlim(0,40)
+    plt.ylabel('fraction less than')
+    plt.xlabel('O VI 1032 dv90 per region')
+    fig.tight_layout()
+    fig.savefig('O_VI_region_dv90.png')
+
 
 
 if __name__ == "__main__":
