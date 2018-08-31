@@ -17,16 +17,26 @@ CORE_WIDTH = 20.
 
 def get_ray_axis(ray_start, ray_end):
     """ takes in ray and returns an integer, 0, 1, 2 for x, y, z, orients"""
+
+    axes_labels = ['x','y','z']
+    second_axes = {'x':'y', 'y':'z', 'z':'x'}
+
     ray_length = ray_end-ray_start
     if (ray_length[0] > 0.):
         ray_index = 0
-        return ray_index
+        first_axis = axes_labels[ray_index]
+        second_axis = second_axes[first_axis]
+        return ray_index, first_axis, second_axis
     elif (ray_length[1] > 0.):
         ray_index = 1
-        return ray_index
+        first_axis = axes_labels[ray_index]
+        second_axis = second_axes[first_axis]
+        return ray_index, first_axis, second_axis
     elif (ray_length[2] > 0.):
         ray_index = 2
-        return ray_index
+        first_axis = axes_labels[ray_index]
+        second_axis = second_axes[first_axis]
+        return ray_index, first_axis, second_axis
     else:
         print('Your ray is bogus, try again!')
         return False
@@ -111,7 +121,7 @@ def ds_to_df(ds, ray_start, ray_end):
     proper_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
         / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
 
-    ray_index = get_ray_axis(ray_start, ray_end)
+    ray_index, first_axis, second_axis = get_ray_axis(ray_start, ray_end)
     if (ray_index == 0):
         all_data = ds.r[ray_start[0]:ray_end[0],
                         ray_start[1]-0.5*CORE_WIDTH/proper_box_size:ray_start[1]+

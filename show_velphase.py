@@ -1,7 +1,6 @@
 """
 creates "core sample" velocity plots - JT 070318
 """
-
 import datashader as dshader
 import datashader.transfer_functions as tf
 from datashader import reductions
@@ -43,14 +42,15 @@ def reduce_ion_vector(vx, ion): # this will "histogram" ion so we can plot it.
     for i in np.arange(np.size(ion)):
         ion_hist[int(index[i])] = ion_hist[int(index[i])] + ion[int(i)]
 
-#    print("VVVVVV", v[[1200, 1300, 1400, 1500, 1600, 1700, 1800]])
-#    ion_hist[1200] = np.max(ion_hist)
-#    ion_hist[1300] = 1.5 * np.max(ion_hist)
-#    ion_hist[1400] = 1.5 * np.max(ion_hist)
-#    ion_hist[1500] = 1.5 * np.max(ion_hist)
-#    ion_hist[1600] = 1.5 * np.max(ion_hist)
-#    ion_hist[1700] = 1.5 * np.max(ion_hist)
-#    ion_hist[1800] = 1.5 * np.max(ion_hist)
+# add a distinctive velocity "comb" for debugging purposes
+    #print("VVVVVV", v[[1200, 1300, 1400, 1500, 1600, 1700, 1800]])
+    #ion_hist[1200] = np.max(ion_hist)
+    #ion_hist[1300] = 1.5 * np.max(ion_hist)
+    #ion_hist[1400] = 1.5 * np.max(ion_hist)
+    #ion_hist[1500] = 1.5 * np.max(ion_hist)
+    #ion_hist[1600] = 1.5 * np.max(ion_hist)
+    #ion_hist[1700] = 1.5 * np.max(ion_hist)
+    #ion_hist[1800] = 1.5 * np.max(ion_hist)
 
     return v, ion_hist
 
@@ -71,68 +71,37 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
 
 
 
-def create_temp_cmap(df): # trying to do the colomap here but it doesn't work
+def create_temp_cmap(df, axis_to_use, second_axis): # trying to do the colomap here but it doesn't work
     phase_colors = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2', \
               b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot', \
               b'hot1', b'hot2', b'hot3']
-    print("TEMPS", df.phase_label.unique())
+    value = np.max(df[axis_to_use])
+    for index in [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]:
+        df['phase_label'][df[axis_to_use] > value-287.06*(1.*index+1)/15.] = phase_colors[index]
 
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*15./15.] = phase_colors[14] # highest T
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*14./15.] = phase_colors[13]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*13./15.] = phase_colors[12]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*12./15.] = phase_colors[11]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*11./15.] = phase_colors[10]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*10./15.] = phase_colors[9]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*9./15.] = phase_colors[8]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*8./15.] = phase_colors[7]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*7./15.] = phase_colors[6]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*6./15.] = phase_colors[5]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*5./15.] = phase_colors[4]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*4./15.] = phase_colors[3]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*3./15.] = phase_colors[2]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*2./15.] = phase_colors[1]
-    df['phase_label'][df['x'] > 71235.76651374214-287.06*1./15.] = phase_colors[0] # lowest T
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
-                         x_range=(np.min(df['x']), np.max(df['x'])),
-                         y_range=(np.mean(df['y'])-20/0.695,
-                                  np.mean(df['y'])+20/0.695))
-    agg = cvs.points(df, 'x', 'y', dshader.count_cat('phase_label'))
+                         x_range=(np.min(df[axis_to_use]), np.max(df[axis_to_use])),
+                         y_range=(np.mean(df[second_axis])-20/0.695,
+                                  np.mean(df[second_axis])+20/0.695))
+    agg = cvs.points(df, axis_to_use, second_axis, dshader.count_cat('phase_label'))
     im = tf.shade(agg, color_key=new_phase_color_key)
     img = tf.spread(im, px=2, shape='square')
     return(img)
 
-def create_metals_cmap(df): # trying to do the colomap here but it doesn't work
+def create_metals_cmap(df, axis_to_use, second_axis): # trying to do the colomap here but it doesn't work
     metal_colors = [b'free', b'free1', b'free2', b'free3', b'poor', \
                     b'poor1', b'poor2', b'poor3', b'low', b'low1', \
                     b'low2', b'low3', b'solar', b'solar1', b'solar2', b'solar3', \
                     b'high', b'high1', b'high2', b'high3', b'high4']
-    print("METALS", df.metal_label.unique())
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*21./21.] = metal_colors[20] # highest Z
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*20./21.] = metal_colors[19] # highest Z
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*19./21.] = metal_colors[18] # highest Z
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*18./21.] = metal_colors[17] # highest Z
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*17./21.] = metal_colors[16] # highest Z
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*16./21.] = metal_colors[15] # highest Z
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*15./21.] = metal_colors[14] # highest Z
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*14./21.] = metal_colors[13]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*13./21.] = metal_colors[12]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*12./21.] = metal_colors[11]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*11./21.] = metal_colors[10]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*10./21.] = metal_colors[9]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*9./21.] = metal_colors[8]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*8./21.] = metal_colors[7]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*7./21.] = metal_colors[6]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*6./21.] = metal_colors[5]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*5./21.] = metal_colors[4]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*4./21.] = metal_colors[3]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*3./21.] = metal_colors[2]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*2./21.] = metal_colors[1]
-    df['metal_label'][df['x'] > 71235.76651374214-287.06*1./21.] = metal_colors[0] # lowest T
+    value = np.max(df[axis_to_use])
+    for index in [20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]:
+        df['metal_label'][df[axis_to_use] > value-287.06*(1.*index+1)/21.] = metal_colors[index]
+
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
-                         x_range=(np.min(df['x']), np.max(df['x'])),
-                         y_range=(np.mean(df['y'])-20/0.695,
-                                  np.mean(df['y'])+20/0.695))
-    agg = cvs.points(df, 'x', 'y', dshader.count_cat('metal_label'))
+                         x_range=(np.min(df[axis_to_use]), np.max(df[axis_to_use])),
+                         y_range=(np.mean(df[second_axis])-20/0.695,
+                                  np.mean(df[second_axis])+20/0.695))
+    agg = cvs.points(df, axis_to_use, second_axis, dshader.count_cat('metal_label'))
     im = tf.shade(agg, color_key=new_metals_color_key)
     img = tf.spread(im, px=2, shape='square')
     return(img)
@@ -177,7 +146,6 @@ def get_sizes(ray_df, species, x, ion_to_use, cell_mass, coldens_threshold):
                     ion_to_use[index] = 0.0
                     sum_mass = sum_mass + cell_mass[index]
                     sum_coldens = sum_coldens + ion_density[index] * dx[index]
-                if ((count % 10) == 0): print("count",count)
 
             ion_center = np.sum(x[startindex:index] * ion_density[startindex:index]) / np.sum(x[startindex:index])
 
@@ -208,7 +176,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     # converts the provided yt dataset to a dataframe - needs 3D ray endpoints
     df = futils.ds_to_df(ds, ray_start, ray_end)
-    ray_index = futils.get_ray_axis(ray_start, ray_end)
+    ray_index, axis_to_use, second_axis = futils.get_ray_axis(ray_start, ray_end)
 
     #establish the grid of plots and obtain the axis objects
     fig = plt.figure(figsize=(9,6))
@@ -223,7 +191,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax3 = plt.subplot(gs[3])
     ax3.set_title('Si II 1260')
     ax4 = plt.subplot(gs[4])
-    ax4.set_title('Si IV 1396')
+    ax4.set_title('C IV 1548')
     ax5 = plt.subplot(gs[5])
     ax5.set_title('O VI 1032')
 
@@ -246,24 +214,34 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     for ax in [ax8, ax9, ax10, ax11]:
         ax.set_yticklabels(['', '', '', '', '', '', '', '', '', '', ''])
 
+
+
+
     # this one makes the datashaded "core sample" with phase coloring
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
-                         x_range=(np.min(df['x']), np.max(df['x'])),
-                         y_range=(np.mean(df['y'])-CORE_WIDTH/0.695,
-                                  np.mean(df['y'])+CORE_WIDTH/0.695))
-    agg = cvs.points(df, 'x', 'y', dshader.count_cat('phase_label'))
-    img = tf.shade(agg, color_key=new_phase_color_key)
+                         x_range=(np.min(df[axis_to_use]), np.max(df[axis_to_use])),
+                         y_range=(np.mean(df[second_axis])-CORE_WIDTH/0.695,
+                                  np.mean(df[second_axis])+CORE_WIDTH/0.695))
+    agg = cvs.points(df, axis_to_use, second_axis, dshader.count_cat('phase_label'))
+    img = tf.shade(agg, color_key=new_phase_color_key, how='eq_hist')
     x_y_phase = tf.spread(img, px=2, shape='square')
+
     ax0.imshow(np.rot90(x_y_phase.to_pil()))
 
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
-                         x_range=(np.min(df['x']), np.max(df['x'])),
-                         y_range=(np.mean(df['y'])-CORE_WIDTH/0.695,
-                                  np.mean(df['y'])+CORE_WIDTH/0.695))
-    agg = cvs.points(df, 'x', 'y', dshader.count_cat('metal_label'))
+                         x_range=(np.min(df[axis_to_use]), np.max(df[axis_to_use])),
+                         y_range=(np.mean(df[second_axis])-CORE_WIDTH/0.695,
+                                  np.mean(df[second_axis])+CORE_WIDTH/0.695))
+    agg = cvs.points(df, axis_to_use, second_axis, dshader.count_cat('metal_label'))
     img = tf.shade(agg, color_key=new_metals_color_key, how='eq_hist')
     x_y_metal = tf.spread(img, px=2, shape='square')
+
     ax1.imshow(np.rot90(x_y_metal.to_pil()))
+
+
+
+
+
 
     ytext = ax0.set_ylabel('x [comoving kpc]', fontname='Arial', fontsize=10)
     ax0.set_yticks([0, 200, 400, 600, 800])
@@ -272,21 +250,21 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     # render x vs. vx but don't show it yet.
     cvs = dshader.Canvas(plot_width=800, plot_height=300,
-                         x_range=(np.min(df['x']), np.max(df['x'])),
+                         x_range=(np.min(df[axis_to_use]), np.max(df[axis_to_use])),
                          y_range=(-350, 350)) # velocities range over [-350,350]
-    agg = cvs.points(df, 'x', 'vx', dshader.count_cat('phase_label'))
+    agg = cvs.points(df, axis_to_use, 'v'+axis_to_use, dshader.count_cat('phase_label'))
     x_vx_phase = tf.spread(tf.shade(agg, color_key=new_phase_color_key), shape='square')
 
     #now iterate over the species to get the ion fraction plots
-    for species, ax in zip( ['HI', 'SiII', 'CIV', 'OVI'], [ax2, ax3, ax4, ax5] ):
+    for species, ax in zip( ['HI', 'SiII', 'SiIV', 'OVI'], [ax2, ax3, ax4, ax5] ):
 
         print("Current species: ", species)
         cvs = dshader.Canvas(plot_width=800, plot_height=300, y_range=(-350,350),
                              x_range=(ray_start[ray_index], ray_end[ray_index]))
-        vx_render = tf.shade(cvs.points(ray_df, 'x', 'x-velocity',
+        vx_render = tf.shade(cvs.points(ray_df, axis_to_use, axis_to_use+'-velocity',
                                         agg=reductions.mean(species_dict[species])),
                                         how='log')
-        ray_vx = tf.spread(vx_render, px=2, shape='square')
+        ray_vx = tf.spread(vx_render, px=3, shape='circle')
 
         ax.imshow(np.rot90(x_vx_phase.to_pil()))
         ax.imshow(np.rot90(ray_vx.to_pil()))
@@ -295,12 +273,12 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_ylim(0,800)
 
     #FAKING UP THE "COLORMAP"
-    temp_colormap = create_temp_cmap(df)
+    temp_colormap = create_temp_cmap(df, axis_to_use, second_axis)
     ax6.imshow(np.rot90(temp_colormap.to_pil()))
     ax6.set_xlim(60,180)
     ax6.set_ylim(0,900)
 
-    metal_colormap = create_metals_cmap(df)
+    metal_colormap = create_metals_cmap(df, axis_to_use, second_axis)
     ax7.imshow(np.rot90(metal_colormap.to_pil()))
     ax7.set_xlim(60,180)
     ax7.set_ylim(0,900)
@@ -313,10 +291,9 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     comoving_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
         / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
 
-    x_ray = (ray_df['x']-ray_start[ray_index]) * comoving_box_size * \
+    x_ray = (ray_df[axis_to_use]-ray_start[ray_index]) * comoving_box_size * \
                 ds.get_parameter('CosmologyHubbleConstantNow') # comoving kpc
     ray_df['x_ray'] = x_ray[np.argsort(x_ray)]
-    #can add stuff to the ray df instead of computing new variables
 
     ray_length = ds.get_parameter('CosmologyHubbleConstantNow') * \
                     comoving_box_size * (ray_end[ray_index] - ray_start[ray_index])
@@ -331,21 +308,21 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax4.step(c4, 800. - 4. * x_ray, linewidth=0.5)
     ax5.step(o6, 800. - 4. * x_ray, linewidth=0.5)
 
-    vxhist, h1hist = reduce_ion_vector(ray_df['x-velocity'], h1) # this will "histogram" H1 so we can plot it.
-    vxhist, si2hist = reduce_ion_vector(ray_df['x-velocity'], si2) # this will "histogram" H1 so we can plot it.
-    vxhist, c4hist = reduce_ion_vector(ray_df['x-velocity'], c4) # this will "histogram" H1 so we can plot it.
-    vxhist, o6hist = reduce_ion_vector(ray_df['x-velocity'], o6) # this will "histogram" H1 so we can plot it.
+    vxhist, h1hist = reduce_ion_vector(-1.*ray_df['x-velocity'], h1) # this will "histogram" H1 so we can plot it.
+    vxhist, si2hist = reduce_ion_vector(-1.*ray_df['x-velocity'], si2) # this will "histogram" H1 so we can plot it.
+    vxhist, c4hist = reduce_ion_vector(-1.*ray_df['x-velocity'], c4) # this will "histogram" H1 so we can plot it.
+    vxhist, o6hist = reduce_ion_vector(-1.*ray_df['x-velocity'], o6) # this will "histogram" H1 so we can plot it.
 
-    #ax8.plot(np.flip(vxhist,0), h1hist / np.max(h1hist))
-    #ax9.plot(np.flip(vxhist,0), si2hist / np.max(h1hist))
-    #ax10.plot(np.flip(vxhist,0), c4hist / np.max(h1hist))
-    #ax11.plot(np.flip(vxhist,0), o6hist / np.max(h1hist))
+    #ax8.plot(vxhist, h1hist / np.max(h1hist))
+    #ax9.plot(vxhist, si2hist / np.max(h1hist))
+    #ax10.plot(vxhist, c4hist / np.max(h1hist))
+    #ax11.plot(vxhist, o6hist / np.max(h1hist))
 
     vxhist = (vxhist + 350.) / 7. * 3.
-    ax2.plot(np.flip(vxhist,0), h1hist, linewidth=0.5, color='darkblue')
-    ax3.plot(np.flip(vxhist,0), si2hist, linewidth=0.5, color='darkblue')
-    ax4.plot(np.flip(vxhist,0), c4hist, linewidth=0.5, color='darkblue')
-    ax5.plot(np.flip(vxhist,0), o6hist, linewidth=0.5, color='darkblue')
+    #ax2.plot(vxhist, h1hist, linewidth=0.5, color='darkblue')
+    #ax3.plot(vxhist, si2hist, linewidth=0.5, color='darkblue')
+    #ax4.plot(vxhist, c4hist, linewidth=0.5, color='darkblue')
+    #ax5.plot(vxhist, o6hist, linewidth=0.5, color='darkblue')
 
     x = np.array(ray_length - x_ray)
     cell_mass = np.array(ray_df['cell_mass'])
@@ -375,7 +352,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     print(fileroot)
     pickle.dump( size_dict, open( fileroot+"sizes.pkl", "wb" ) )
 
-    for ax, key in zip([ax8, ax9, ax10, ax11], ['H I 1216', 'Si II 1260', 'Si IV 1396', 'O VI 1032']):
+    for ax, key in zip([ax8, ax9, ax10, ax11], ['H I 1216', 'Si II 1260', 'C IV 1548', 'O VI 1032']):
         ax.set_xlim(-350,350)
         ax.set_ylim(0,1)
         ax.set_yticklabels([' ',' ',' '])
@@ -444,13 +421,15 @@ def grab_ray_file(ds, filename):
                             "Si_p1_number_density", "Si_p3_number_density",
                             "Ne_p7_number_density"])
 
-    ray_df = ray_df.sort_values(by=['x'])
+    ray_index, first_axis, second_axis = futils.get_ray_axis(rs, re)
 
-    return ray_df, rs, re, hdulist
+    ray_df = ray_df.sort_values(by=[first_axis])
+
+    return ray_df, rs, re, first_axis, hdulist
 
 def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
-        ray_df, rs, re, hdulist = grab_ray_file(ds, filename)
+        ray_df, rs, re, axis_to_use, hdulist = grab_ray_file(ds, filename)
         show_velphase(ds, ray_df, rs, re, hdulist, filename.strip('los.fits.gz'))
 
 def drive_velphase(ds_name, wildcard):
@@ -463,6 +442,7 @@ def drive_velphase(ds_name, wildcard):
 
     dataset_list = glob.glob(os.path.join(os.getcwd(), wildcard))
     loop_over_rays(ds, dataset_list)
+
 
 if __name__ == "__main__":
     """

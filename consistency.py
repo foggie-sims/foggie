@@ -231,9 +231,10 @@ def new_categorize_by_metals(metal):
    """ define the temp category strings"""
    metal_vals = np.power(10.0, np.linspace(start=np.log10(metal_min), \
                            stop=np.log10(metal_max), num=21))
-   print("METAL VALUES", metal_vals)
+   metal_vals[20] = 50. * metal_vals[20] # make the highest value really high
    phase = np.chararray(np.size(metal), 6)
-   phase[metal < 50. * metal_vals[20]] = b'high4'
+   #need to do this by iterating over keys insteard of hard coding indices
+   phase[metal < metal_vals[20]] = b'high4'
    phase[metal < metal_vals[19]] = b'high3'
    phase[metal < metal_vals[18]] = b'high2'
    phase[metal < metal_vals[17]] = b'high1'
