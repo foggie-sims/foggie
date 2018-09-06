@@ -15,197 +15,26 @@ import trident
 import yt
 from astropy.io import fits
 from matplotlib.gridspec import GridSpec
-from consistency import new_phase_color_key, new_metals_color_key, species_dict
-import astropy.units as u
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
+from consistency import new_phase_color_key, new_metals_color_key, species_dict, phase_color_labels, metal_color_labels
+import astropy.units as u
 mpl.rcParams['font.family'] = 'stixgeneral'
 import foggie_utils as futils
+import cmap_utils as cmaps
+import cloud_utils as clouds
 
 CORE_WIDTH = 20.
-
-
-def reduce_ion_vector(vx, ion):
-    """ this function takes in two vectors for velocity and ionization
-        fraction and chunks the ionization fraction into a uniform velocity
-        grid. JT 082018"""
-    v = np.arange(3001) - 1500
-    ion_hist = v * 0.
-    index = np.clip(np.around(vx) + 1500, 0, 2999)
-    for i in np.arange(np.size(ion)):
-        ion_hist[int(index[i])] = ion_hist[int(
-            index[i])] + ion[int(i)]
-
-# add a distinctive velocity "comb" for debugging purposes
-#       print("VVVVVV", v[[1200, 1300, 1400, 1500, 1600, 1700, 1800]])
-# ion_hist[1200] = np.max(ion_hist)
-# ion_hist[1300] = 1.5 * np.max(ion_hist)
-# ion_hist[1400] = 1.5 * np.max(ion_hist)
-# ion_hist[1500] = 1.5 * np.max(ion_hist)
-# ion_hist[1600] = 1.5 * np.max(ion_hist)
-# ion_hist[1700] = 1.5 * np.max(ion_hist)
-# ion_hist[1800] = 1.5 * np.max(ion_hist)
-
-    return v, ion_hist
-
-
-def get_fion_threshold(ion_to_use, coldens_fraction):
-    cut = 0.999
-    total = np.sum(ion_to_use)
-    ratio = 0.001
-    while ratio < coldens_fraction:
-        part = np.sum(
-            ion_to_use[ion_to_use > cut * np.max(ion_to_use)])
-        ratio = part / total
-        cut = cut - 0.001
-
-    threshold = cut * np.max(ion_to_use)
-    number_of_cells_above_threshold = np.size(
-        np.where(ion_to_use > threshold))
-
-    return threshold, number_of_cells_above_threshold
-
-
-def create_temp_cmap(df, axis_to_use, second_axis):
-    phase_colors = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2',
-                    b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot',
-                    b'hot1', b'hot2', b'hot3']
-    value = np.max(df[axis_to_use])
-    for index in [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]:
-        df['phase_label'][df[axis_to_use] >
-                          value-287.06*(1.*index+1)/15.] = phase_colors[index]
-
-    cvs = dshader.Canvas(plot_width=800, plot_height=200,
-                         x_range=(np.min(df[axis_to_use]), np.max(
-                             df[axis_to_use])),
-                         y_range=(np.mean(df[second_axis])-20/0.695,
-                                  np.mean(df[second_axis])+20/0.695))
-    agg = cvs.points(df, axis_to_use, second_axis,
-                     dshader.count_cat('phase_label'))
-    im = tf.shade(agg, color_key=new_phase_color_key)
-    img = tf.spread(im, px=2, shape='square')
-    return(img)
-
-
-# trying to do the colomap here but it doesn't work
-def create_metals_cmap(df, axis_to_use, second_axis):
-    metal_colors = [b'free', b'free1', b'free2', b'free3', b'poor',
-                    b'poor1', b'poor2', b'poor3', b'low', b'low1',
-                    b'low2', b'low3', b'solar', b'solar1', b'solar2',
-                    b'solar3', b'high', b'high1', b'high2', b'high3', b'high4']
-    value = np.max(df[axis_to_use])
-    for index in [20, 19, 18, 17, 16, 15, 14, 13, 12, 11,
-                  10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]:
-        df['metal_label'][df[axis_to_use] > value -
-                          287.06*(1.*index+1)/21.] = metal_colors[index]
-
-    cvs = dshader.Canvas(plot_width=800, plot_height=200,
-                         x_range=(np.min(df[axis_to_use]), np.max(
-                             df[axis_to_use])),
-                         y_range=(np.mean(df[second_axis])-20/0.695,
-                                  np.mean(df[second_axis])+20/0.695))
-    agg = cvs.points(df, axis_to_use, second_axis,
-                     dshader.count_cat('metal_label'))
-    im = tf.shade(agg, color_key=new_metals_color_key)
-    img = tf.spread(im, px=2, shape='square')
-    return(img)
-
-
-def get_sizes(ray_df, species, x, axis_to_use, ion_to_use,
-              cell_mass, coldens_threshold):
-
-    threshold, number_of_cells = get_fion_threshold(
-        ion_to_use, coldens_threshold)
-
-    dx = np.array(ray_df['dx'])
-    ion_density = copy.deepcopy(ion_to_use)
-
-    axis_velocity = np.array(ray_df[axis_to_use+'-velocity'])
-    print('V'+axis_to_use, axis_velocity)
-    print(axis_to_use, x)
-
-    indexsizes = []
-    kpcsizes = []
-    column_densities = []
-    masses = []
-    centers = []
-    velocities = []
-    indices = []
-    xs = []
-    for m in np.arange(100):  # can find up to 100 peaks
-        i = np.squeeze(np.where(np.array(ion_to_use) > threshold))
-
-        if np.size(i) >= 1:
-            startindex = np.min(i)
-            f = ion_to_use[startindex]
-            index = startindex
-            ion_to_use[startindex] = 0.0
-            sum_mass = cell_mass[startindex]
-            sum_coldens = ion_density[startindex] * dx[index]
-            count = 0
-            velsum = 0.
-            while (f > threshold) and (index < np.size(x)-1):
-                count += 1
-                if (count > 10000):
-                    os.sys.exit('stuck in the size finding loop')
-                index += 1
-                if index == np.size(x):  # this means we're at the edge
-                    index = np.size(x)-1
-                    f = 0.0
-                else:
-                    f = ion_to_use[index]
-                    ion_to_use[index] = 0.0
-                    sum_mass = sum_mass + cell_mass[index]
-                    velsum = velsum + \
-                        cell_mass[index] * axis_velocity[index]
-                    sum_coldens = sum_coldens + \
-                        ion_density[index] * dx[index]
-
-            x_coord = x[startindex:index]
-            ion_center = np.sum(x_coord * ion_density[startindex:index]) / np.sum(ion_density[startindex:index])
-
-            print("You are hearing me talk.")
-
-            indexsizes.append(index - startindex)
-            kpcsizes.append(x[startindex]-x[index])
-            column_densities.append(sum_coldens)
-            masses.append(sum_mass)
-            # should end up with mass-weighted velocity along LOS
-            velocities.append(velsum / sum_mass)
-            centers.append(ion_center)
-            indices.append(index)
-            xs.append(x[index])
-
-    size_dict = {'coldens_threshold': coldens_threshold}
-    # x coordinate of
-    size_dict[species+'_xs'] = xs
-    size_dict[species+'_indices'] = indices
-    size_dict[species+'_kpcsizes'] = kpcsizes
-    size_dict[species+'_indexsizes'] = indexsizes
-    size_dict[species+'_coldens'] = column_densities
-    size_dict[species+'_n_cells'] = number_of_cells
-    size_dict[species+'_cell_masses'] = masses
-    size_dict[species+'_centers'] = centers
-    size_dict[species+'_velocities'] = velocities
-
-    print("Cloud Velocities")
-
-    return size_dict
-
 
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     """ oh, the docstring is missing, is it??? """
 
-    # converts the provided yt dataset to a dataframe - needs 3D ray endpoints
     df = futils.ds_to_df(ds, ray_start, ray_end)
-    ray_index, axis_to_use, second_axis = futils.get_ray_axis(
-        ray_start, ray_end)
+    ray_index, axis_to_use, second_axis = futils.get_ray_axis(ray_start, ray_end)
 
     # establish the grid of plots and obtain the axis objects
     fig = plt.figure(figsize=(9, 6))
-    fig.text(
-        0.55, 0.04, r'Velocity [km s$^{-1}$]', ha='center', va='center')
-    gs = GridSpec(2, 6, width_ratios=[
-                  1, 1, 5, 5, 5, 5], height_ratios=[4, 1])
+    fig.text(0.55, 0.04, r'Velocity [km s$^{-1}$]', ha='center', va='center')
+    gs = GridSpec(2, 6, width_ratios=[1, 1, 5, 5, 5, 5], height_ratios=[4, 1])
     ax0 = plt.subplot(gs[0])
     ax0.set_title('T')
     ax1 = plt.subplot(gs[1])
@@ -235,9 +64,8 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax10 = plt.subplot(gs[10])
     ax11 = plt.subplot(gs[11])
 
-    for ax in [ax8, ax9, ax10, ax11]:
-        ax.set_yticklabels(
-            ['', '', '', '', '', '', '', '', '', '', ''])
+    #for ax in [ax8, ax9, ax10, ax11]:
+    #    ax.set_yticklabels(['', '', '', '', '', '', '', '', '', '', ''])
 
     # this one makes the datashaded "core sample" with phase coloring
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
@@ -280,8 +108,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         tf.shade(agg, color_key=new_phase_color_key), shape='square')
 
     # now iterate over the species to get the ion fraction plots
-    for species, ax in zip(['HI', 'SiII', 'SiIV', 'OVI'],
-                           [ax2, ax3, ax4, ax5]):
+    for species, ax in zip(['HI', 'SiII', 'CIV', 'OVI'], [ax2, ax3, ax4, ax5]):
 
         print("Current species: ", species)
         cvs = dshader.Canvas(plot_width=800, plot_height=300,
@@ -300,13 +127,12 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_xlim(0, 300)
         ax.set_ylim(0, 800)
 
-    # FAKING UP THE "COLORMAP"
-    temp_colormap = create_temp_cmap(df, axis_to_use, second_axis)
+    temp_colormap = cmaps.create_foggie_cmap(df, axis_to_use, second_axis, 'phase_label', new_phase_color_key)
     ax6.imshow(np.rot90(temp_colormap.to_pil()))
     ax6.set_xlim(60, 180)
     ax6.set_ylim(0, 900)
 
-    metal_colormap = create_metals_cmap(df, axis_to_use, second_axis)
+    metal_colormap = cmaps.create_foggie_cmap(df, axis_to_use, second_axis, 'metal_label', new_metals_color_key)
     ax7.imshow(np.rot90(metal_colormap.to_pil()))
     ax7.set_xlim(60, 180)
     ax7.set_ylim(0, 900)
@@ -346,33 +172,33 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax5.step(o6, 800. - 4. * x_ray, linewidth=0.5)
 
     # this will "histogram" the ions so we can plot them
-    vxhist, h1hist = reduce_ion_vector(-1.*ray_df['x-velocity'], h1)
-    vxhist, si2hist = reduce_ion_vector(-1.*ray_df['x-velocity'], si2)
-    vxhist, c4hist = reduce_ion_vector(-1.*ray_df['x-velocity'], c4)
-    vxhist, o6hist = reduce_ion_vector(-1.*ray_df['x-velocity'], o6)
+    vxhist, h1hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], h1)
+    vxhist, si2hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], si2)
+    vxhist, c4hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], c4)
+    vxhist, o6hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], o6)
 
     x = np.array(ray_length - x_ray)
     cell_mass = np.array(ray_df['cell_mass'])
 
-    h1_size_dict = get_sizes(ray_df, 'h1', x, axis_to_use, np.array(
+    h1_size_dict = clouds.get_sizes(ray_df, 'h1', x, axis_to_use, np.array(
         ray_df['H_p0_number_density']), cell_mass, 0.8)
     for xx, ss in zip(h1_size_dict['h1_xs'], h1_size_dict['h1_kpcsizes']):
         ax2.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
     h1_size_dict['nh1'] = nh1
 
-    si2_size_dict = get_sizes(ray_df, 'si2', x, axis_to_use, np.array(
+    si2_size_dict = clouds.get_sizes(ray_df, 'si2', x, axis_to_use, np.array(
         ray_df['Si_p1_number_density']), cell_mass, 0.8)
     for xx, ss in zip(si2_size_dict['si2_xs'], si2_size_dict['si2_kpcsizes']):
         ax3.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
     si2_size_dict['nsi2'] = nsi2
 
-    c4_size_dict = get_sizes(ray_df, 'c4', x, axis_to_use, np.array(
+    c4_size_dict = clouds.get_sizes(ray_df, 'c4', x, axis_to_use, np.array(
         ray_df['C_p3_number_density']), cell_mass, 0.8)
     for xx, ss in zip(c4_size_dict['c4_xs'], c4_size_dict['c4_kpcsizes']):
         ax4.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
     c4_size_dict['nc4'] = nc4
 
-    o6_size_dict = get_sizes(ray_df, 'o6', x, axis_to_use, np.array(
+    o6_size_dict = clouds.get_sizes(ray_df, 'o6', x, axis_to_use, np.array(
         ray_df['O_p5_number_density']), cell_mass, 0.8)
     for xx, ss in zip(o6_size_dict['o6_xs'], o6_size_dict['o6_kpcsizes']):
         ax5.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
@@ -396,20 +222,19 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
             ax.step(vel, hdulist[key].data['flux'])
 
     for v in np.flip(h1_size_dict['h1_velocities'], 0):
-        ax8.plot(v, np.array(v)*0.0 + 0.1, '|')
+        ax8.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
 
     for v in np.flip(si2_size_dict['si2_velocities'], 0):
-        ax9.plot(v, np.array(v)*0.0 + 0.1, '|')
+        ax9.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
 
     for v in np.flip(c4_size_dict['c4_velocities'], 0):
-        ax10.plot(v, np.array(v)*0.0 + 0.1, '|')
+        ax10.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
 
     for v in np.flip(o6_size_dict['o6_velocities'], 0):
-        ax11.plot(v, np.array(v)*0.0 + 0.1, '|')
+        ax11.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
 
-    for ax in [ax0, ax1, ax7]:
-        ax.set_xticklabels(
-            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
+    #for ax in [ax0, ax1, ax7]:
+    #    ax.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
     for ax in [ax2, ax3, ax4, ax5, ax6, ax7]:
         ax.axes.get_xaxis().set_ticks([])
@@ -433,6 +258,10 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     gs.update(hspace=0.0, wspace=0.1)
     plt.savefig(fileroot+'velphase.png', dpi=300)
     plt.close(fig)
+
+
+
+
 
 
 def grab_ray_file(ds, filename):
@@ -476,14 +305,12 @@ def grab_ray_file(ds, filename):
 
     return ray_df, rs, re, first_axis, hdulist
 
-
 def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
         ray_df, rs, re, axis_to_use, hdulist = grab_ray_file(
             ds, filename)
         show_velphase(ds, ray_df, rs, re, hdulist,
                       filename.strip('los.fits.gz'))
-
 
 def drive_velphase(ds_name, wildcard):
     """
@@ -496,7 +323,6 @@ def drive_velphase(ds_name, wildcard):
 
     dataset_list = glob.glob(os.path.join(os.getcwd(), wildcard))
     loop_over_rays(ds, dataset_list)
-
 
 if __name__ == "__main__":
     """

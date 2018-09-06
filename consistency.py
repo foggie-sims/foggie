@@ -180,6 +180,11 @@ def categorize_by_metallicity(metallicity):
 
 temp_colors = sns.blend_palette(
     ('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), n_colors=17)
+
+phase_color_labels = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2',
+                      b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot',
+                      b'hot1', b'hot2', b'hot3']
+
 new_phase_color_key = {b'cold': to_hex(temp_colors[0]),
                        b'cold1': to_hex(temp_colors[1]),
                        b'cold2': to_hex(temp_colors[2]),
@@ -199,7 +204,6 @@ new_phase_color_key = {b'cold': to_hex(temp_colors[0]),
                        }
 
 phase_labels = new_phase_color_key.keys()
-
 
 def new_categorize_by_temp(temp):
     """ define the temp category strings"""
@@ -221,6 +225,11 @@ def new_categorize_by_temp(temp):
     phase[temp < 4.] = b'cold1'
     return phase
 
+
+metal_color_labels = [b'free', b'free1', b'free2', b'free3', b'poor',
+                      b'poor1', b'poor2', b'poor3', b'low', b'low1',
+                      b'low2', b'low3', b'solar', b'solar1', b'solar2',
+                      b'solar3', b'high', b'high1', b'high2', b'high3', b'high4']
 
 old_metallicity_colors = sns.blend_palette(
     ("black", "#984ea3", "#4575b4", "#4daf4a", "#ffe34d", "darkorange"),
