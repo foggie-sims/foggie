@@ -10,6 +10,7 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import matplotlib as mpl
+from matplotlib.gridspec import GridSpec
 mpl.rcParams['font.family'] = 'stixgeneral'
 
 import yt
@@ -22,11 +23,13 @@ hv.extension('matplotlib')
 
 import os
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
+import cmap_utils as cmaps
 
 from get_refine_box import get_refine_box as grb
 from get_halo_center import get_halo_center
 from consistency import ion_frac_color_key, new_phase_color_key, \
-        metal_color_key, axes_label_dict, logfields, new_categorize_by_temp
+        metal_color_key, axes_label_dict, logfields, new_categorize_by_temp, \
+        new_categorize_by_metals
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere"""
@@ -56,33 +59,6 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
 
     return all_data, refine_box, refine_width, halo_center, halo_vcenter
 
-#def categorize_by_temp(temp):
-#    """ define the temp category strings"""
-#    phase = np.chararray(np.size(temp), 4)
-#    phase[temp < 9.] = 'hot'
-#    phase[temp < 6.] = 'warm'
-#    phase[temp < 5.] = 'cool'
-#    phase[temp < 4.] = 'cold'
-#    return phase
-
-def categorize_by_fraction(f_ion):
-    """ define the ionization category strings"""
-    frac = np.chararray(np.size(f_ion), 4)
-    frac[f_ion > -10.] = 'all'
-    frac[f_ion > 0.01] = 'low' # yellow
-    frac[f_ion > 0.1] = 'med'  # orange
-    frac[f_ion > 0.2] = 'high' # red
-    return frac
-
-def categorize_by_metallicity(metallicity):
-    """ define the metallicity category strings"""
-    metal_label = np.chararray(np.size(metallicity), 5)
-    metal_label[metallicity < 10.] = 'high'
-    metal_label[metallicity < 0.005] = 'solar'
-    metal_label[metallicity < 0.000001] = 'low'
-    metal_label[metallicity < 0.0000001] = 'poor'
-    return metal_label
-
 def scale_lvec(lvec):
     lvec[lvec > 0.] = (np.log10(lvec[lvec > 0.]) - 25.) / 8.
     lvec[lvec < 0.] = (-1. * np.log10(-1.*lvec[lvec < 0.]) + 25.) / 8.
@@ -98,21 +74,29 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
     # obtain fields that we'll use no matter what the input fields.
     density = all_data['density']
     cell_mass = all_data['cell_volume'].in_units('kpc**3') * density.in_units('Msun / kpc**3')
-    cell_size = np.array(all_data["cell_volume"])**(1./3.)
+    cell_size = np.array(all_data["cell_volume"].in_units('kpc**3'))**(1./3.)
 
-    x = all_data['x'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
-    y = all_data['y'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
-    z = all_data['z'].ndarray_view() + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
-    x = (x - refine_box.center[0].ndarray_view()) / (refine_width/2.)
-    y = (y - refine_box.center[1].ndarray_view()) / (refine_width/2.)
-    z = (z - refine_box.center[2].ndarray_view()) / (refine_width/2.)
+    x = (all_data['x'].in_units('kpc')).ndarray_view()
+    y = (all_data['y'].in_units('kpc')).ndarray_view()
+    z = (all_data['y'].in_units('kpc')).ndarray_view()
+
+    print("cell size", np.min(cell_size), np.max(cell_size))
+
+    x = x + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
+    y = y + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
+    z = y + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
+    x = x - np.min(x)
+    y = y - np.min(y)
+    z = z - np.min(z)
 
     density = np.log10(density)
     temperature = np.log10(all_data['temperature'])
     mass = np.log10(cell_mass)
     phase = new_categorize_by_temp(temperature)
-    metal = categorize_by_metallicity(all_data['metallicity'])
+    metal = new_categorize_by_metals(all_data['metallicity'])
 
+    # ADD IN THE HALO RADIUS HERE
+    print("ADD RADIUS HERE")
 
     # build data_frame with mandatory fields
     data_frame = pd.DataFrame({'x':x, 'y':y, 'z':z, 'temperature':temperature, \
@@ -120,9 +104,6 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
                                'phase':phase, 'metal':metal})
     data_frame.phase = data_frame.phase.astype('category')
     data_frame.metal = data_frame.metal.astype('category')
-
-    print("LOOK I KNOW THE HALO CENTER!! ", halo_center, halo_vcenter)
-
 
     relative_velocity = ( (all_data['x-velocity'].in_units('km/s')-halo_vcenter[0])**2 \
                         + (all_data['y-velocity'].in_units('km/s')-halo_vcenter[1])**2 \
@@ -153,27 +134,63 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
     return data_frame
 
 
+
 def wrap_axes(filename, field1, field2, ranges):
     """intended to be run after render_image, take the image and wraps it in
         axes using matplotlib and so offering full customization."""
 
+
+
     img = mpimg.imread(filename+'.png')
-    img2 = np.flip(img,0)
+    print('IMG', np.shape(img[:,:,0:3]))
+    #img[:,:,3] = 3. * img[:,:,3]
+    #img2 = np.flip(img[:,:,0:2],0)
     fig = plt.figure(figsize=(8,8))
+
     ax = fig.add_axes([0.13, 0.13, 0.85, 0.85])
-    ax.imshow(img2)
+    ax.imshow(np.flip(img[:,:,0:3],0), alpha=1.)
 
+
+    xstep = 1
+    x_max = ranges[0][1]
+    x_min = ranges[0][0]
+    if (x_max > 10.): xstep = 10
+    if (x_max > 100.): xstep = 100
     xtext = ax.set_xlabel(axes_label_dict[field1], fontsize=20)
-    ax.set_xticks(np.arange((ranges[0][1] - ranges[0][0]) + 1.) * 1000. / (ranges[0][1] - ranges[0][0]))
-    ax.set_xticklabels([ str(int(s)) for s in np.arange((ranges[0][1] - ranges[0][0]) + 1.) +  ranges[0][0] ], fontsize=20)
+    ax.set_xticks(np.arange((x_max - x_min) + 1., step=xstep) * 1000. / (x_max - x_min))
+    ax.set_xticklabels([ str(int(s)) for s in \
+        np.arange((x_max - x_min) + 1., step=xstep) +  x_min ], fontsize=20)
 
-    if (ranges[1][1] > 10.): step = 10
-    if (ranges[1][1] > 100.): step = 100
+    ystep = 1
+    y_max = ranges[1][1]
+    y_min = ranges[1][0]
+    if (y_max > 10.): ystep = 10
+    if (y_max > 100.): ystep = 100
     ytext = ax.set_ylabel(axes_label_dict[field2], fontsize=20)
-    ax.set_yticks(np.arange((ranges[1][1] - ranges[1][0]) + 1., step=step) * 1000. / (ranges[1][1] - ranges[1][0]))
-    ax.set_yticklabels([ str(int(s)) for s in np.arange((ranges[1][1] - ranges[1][0]) + 1., step=step) +  ranges[1][0] ], fontsize=20)
+    ax.set_yticks(np.arange((y_max - y_min) + 1., step=ystep) * 1000. / (y_max - y_min))
+    ax.set_yticklabels([ str(int(s)) for s in \
+        np.arange((y_max - y_min) + 1., step=ystep) + y_min], fontsize=20)
+
+    ax2 = fig.add_axes([0.7, 0.91, 0.25, 0.06])
+    phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
+    ax2.imshow(np.flip(phase_cmap.to_pil(), 1))
+    ax2.spines["top"].set_color('white')
+    ax2.spines["bottom"].set_color('white')
+    ax2.spines["left"].set_color('white')
+    ax2.spines["right"].set_color('white')
+    ax2.set_ylim(60, 180)
+    ax2.set_xlim(-10, 800)
+    ax2.set_yticklabels([])
+    ax2.set_xticks([100,350,600])
+    ax2.set_yticks([])
+    ax2.set_xticklabels(['4','5','6',' '])
+    ax2.set_xlabel('log T [K]')
+    xx = 800. / 16.
+
 
     plt.savefig(filename)
+
+
 
 
 def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
@@ -191,9 +208,11 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     elif 'metal' in count_cat:
         color_key = metal_color_key
 
-    img = tf.shade(agg, color_key=color_key, how='eq_hist')
+    img = tf.shade(agg, color_key=color_key, how='log')
     export(img, filename)
     return img
+
+
 
 def drive(fname, trackfile, field1, field2, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
     """this function drives datashaded phase plots"""

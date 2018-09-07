@@ -64,34 +64,17 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax10 = plt.subplot(gs[10])
     ax11 = plt.subplot(gs[11])
 
-    # COULD COMPRESS THESE
-    # this one makes the datashaded "core sample" with phase coloring
-    cvs = dshader.Canvas(plot_width=800, plot_height=200,
-                         x_range=(np.min(df[axis_to_use]), np.max(
-                             df[axis_to_use])),
-                         y_range=(np.mean(df[second_axis])-CORE_WIDTH/0.695,
-                                  np.mean(df[second_axis])+CORE_WIDTH/0.695))
-    agg = cvs.points(df, axis_to_use, second_axis,
-                     dshader.count_cat('phase_label'))
-    img = tf.shade(agg, color_key=new_phase_color_key, how='eq_hist')
-    x_y_phase = tf.spread(img, px=2, shape='square')
-    ax0.imshow(np.rot90(x_y_phase.to_pil()))
-
-    cvs = dshader.Canvas(plot_width=800, plot_height=200,
-                         x_range=(np.min(df[axis_to_use]), np.max(
-                             df[axis_to_use])),
-                         y_range=(np.mean(df[second_axis])-CORE_WIDTH/0.695,
-                                  np.mean(df[second_axis])+CORE_WIDTH/0.695))
-    agg = cvs.points(df, axis_to_use, second_axis,
-                     dshader.count_cat('metal_label'))
-    img = tf.shade(agg, color_key=new_metals_color_key, how='eq_hist')
-    x_y_metal = tf.spread(img, px=2, shape='square')
-    ax1.imshow(np.rot90(x_y_metal.to_pil()))
-
-
-
-
-
+    # add in the temperature and metallicity core sample renders
+    for ax, label in zip([ax0, ax1], ['phase_label','metal_label']):
+        color_keys = {'phase_label':new_phase_color_key, 'metal_label':new_metals_color_key}
+        cvs = dshader.Canvas(plot_width=800, plot_height=200,
+                                x_range=(np.min(df[axis_to_use]), np.max(df[axis_to_use])),
+                                y_range=(np.mean(df[second_axis])-CORE_WIDTH/0.695,
+                                         np.mean(df[second_axis])+CORE_WIDTH/0.695))
+        agg = cvs.points(df, axis_to_use, second_axis, dshader.count_cat(label))
+        img = tf.shade(agg, color_key=color_keys[label], how='eq_hist')
+        img_to_show = tf.spread(img, px=2, shape='square')
+        ax.imshow(np.rot90(img_to_show.to_pil()))
 
     ax0.set_ylabel('x [comoving kpc]', fontname='Arial', fontsize=10)
     ax0.set_yticks([0, 200, 400, 600, 800])
@@ -128,18 +111,14 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_xlim(0, 300)
         ax.set_ylim(0, 800)
 
-    pp, mm = cmaps.create_foggie_cmap() 
+    phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
 
-    #temp_colormap = cmaps.grab_cmap(df, axis_to_use, second_axis, 
-    #                                         'phase_label', new_phase_color_key)
-    temp_colormap = pp 
+    temp_colormap = phase_cmap
     ax6.imshow(np.rot90(temp_colormap.to_pil()))
     ax6.set_xlim(60, 180)
     ax6.set_ylim(0, 900)
 
-    #metal_colormap = cmaps.grab_cmap(df, axis_to_use, second_axis, 
-    #                                          'metal_label', new_metals_color_key)
-    metal_colormap = mm 
+    metal_colormap = metal_cmap
     ax7.imshow(np.rot90(metal_colormap.to_pil()))
     ax7.set_xlim(60, 180)
     ax7.set_ylim(0, 900)
@@ -163,12 +142,12 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     # Add the ionization fraction traces to the datashaded velocity vs. x plots
     h1 = np.array(50. * ray_df['H_p0_number_density'] /
                   np.max(ray_df['H_p0_number_density']))
-    si2 = 50. * ray_df['Si_p1_number_density'] / \
-        np.max(ray_df['Si_p1_number_density'])
-    c4 = 50. * ray_df['C_p3_number_density'] / \
-        np.max(ray_df['C_p3_number_density'])
-    o6 = 50. * ray_df['O_p5_number_density'] / \
-        np.max(ray_df['O_p5_number_density'])
+    si2 = np.array(50. * ray_df['Si_p1_number_density'] / \
+        np.max(ray_df['Si_p1_number_density']))
+    c4 = np.array(50. * ray_df['C_p3_number_density'] / \
+        np.max(ray_df['C_p3_number_density']))
+    o6 = np.array(50. * ray_df['O_p5_number_density'] / \
+        np.max(ray_df['O_p5_number_density']))
     ax2.step(h1, 800. - 4. * x_ray, linewidth=0.5)
     ax3.step(si2, 800. - 4. * x_ray, linewidth=0.5)
     ax4.step(c4, 800. - 4. * x_ray, linewidth=0.5)
@@ -258,9 +237,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     gs.update(hspace=0.0, wspace=0.1)
     plt.savefig(fileroot+'velphase.png', dpi=300)
     plt.close(fig)
-
-
-
 
 
 
