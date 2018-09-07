@@ -202,6 +202,13 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                 vel = (hdulist[key].data['wavelength']*u.AA /
                        (1 + ds.get_parameter('CosmologyCurrentRedshift'))).to('km/s')
             ax.step(vel, hdulist[key].data['flux'])
+            n,bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity']), bins=70, range=(-350,350))
+            ax.step(bins[0:70]+5.,n/50, color='red')
+
+    ax11.text(360,0.95, '50 Cells', color='red')
+    ax11.text(360,0.45, '25', color='red')
+    ax11.text(360,-0.05, '0', color='red')
+
 
     for v in np.flip(h1_size_dict['h1_velocities'], 0):
         ax8.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
@@ -219,7 +226,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.axes.get_xaxis().set_ticks([])
         ax.axes.get_yaxis().set_ticks([])
 
-    ax6.set_yticks([0, 400, 800])
+    ax6.set_yticks([100, 350, 600])
     ax6.set_yticklabels(['4', '5', '6'], fontname='Arial', fontsize=7)
     ax6.set_xlabel('log T', fontname='Arial', fontsize=8)
 
