@@ -64,9 +64,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax10 = plt.subplot(gs[10])
     ax11 = plt.subplot(gs[11])
 
-    #for ax in [ax8, ax9, ax10, ax11]:
-    #    ax.set_yticklabels(['', '', '', '', '', '', '', '', '', '', ''])
-
+    # COULD COMPRESS THESE
     # this one makes the datashaded "core sample" with phase coloring
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
                          x_range=(np.min(df[axis_to_use]), np.max(
@@ -77,7 +75,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                      dshader.count_cat('phase_label'))
     img = tf.shade(agg, color_key=new_phase_color_key, how='eq_hist')
     x_y_phase = tf.spread(img, px=2, shape='square')
-
     ax0.imshow(np.rot90(x_y_phase.to_pil()))
 
     cvs = dshader.Canvas(plot_width=800, plot_height=200,
@@ -89,8 +86,12 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                      dshader.count_cat('metal_label'))
     img = tf.shade(agg, color_key=new_metals_color_key, how='eq_hist')
     x_y_metal = tf.spread(img, px=2, shape='square')
-
     ax1.imshow(np.rot90(x_y_metal.to_pil()))
+
+
+
+
+
 
     ax0.set_ylabel('x [comoving kpc]', fontname='Arial', fontsize=10)
     ax0.set_yticks([0, 200, 400, 600, 800])
@@ -127,24 +128,26 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_xlim(0, 300)
         ax.set_ylim(0, 800)
 
-    temp_colormap = cmaps.create_foggie_cmap(df, axis_to_use, second_axis, 'phase_label', new_phase_color_key)
+    pp, mm = cmaps.create_foggie_cmap() 
+
+    #temp_colormap = cmaps.grab_cmap(df, axis_to_use, second_axis, 
+    #                                         'phase_label', new_phase_color_key)
+    temp_colormap = pp 
     ax6.imshow(np.rot90(temp_colormap.to_pil()))
     ax6.set_xlim(60, 180)
     ax6.set_ylim(0, 900)
 
-    metal_colormap = cmaps.create_foggie_cmap(df, axis_to_use, second_axis, 'metal_label', new_metals_color_key)
+    #metal_colormap = cmaps.grab_cmap(df, axis_to_use, second_axis, 
+    #                                          'metal_label', new_metals_color_key)
+    metal_colormap = mm 
     ax7.imshow(np.rot90(metal_colormap.to_pil()))
     ax7.set_xlim(60, 180)
     ax7.set_ylim(0, 900)
 
-    nh1 = np.sum(
-        np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
-    nsi2 = np.sum(
-        np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
-    nc4 = np.sum(
-        np.array(ray_df['dx'] * ray_df['C_p3_number_density']))
-    no6 = np.sum(
-        np.array(ray_df['dx'] * ray_df['O_p5_number_density']))
+    nh1 = np.sum(np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
+    nsi2 = np.sum(np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
+    nc4 = np.sum(np.array(ray_df['dx'] * ray_df['C_p3_number_density']))
+    no6 = np.sum(np.array(ray_df['dx'] * ray_df['O_p5_number_density']))
 
     comoving_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
         / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
@@ -232,9 +235,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     for v in np.flip(o6_size_dict['o6_velocities'], 0):
         ax11.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
-
-    #for ax in [ax0, ax1, ax7]:
-    #    ax.set_xticklabels([' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '])
 
     for ax in [ax2, ax3, ax4, ax5, ax6, ax7]:
         ax.axes.get_xaxis().set_ticks([])
