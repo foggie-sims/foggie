@@ -17,10 +17,12 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                    'x': 'X coordinate [pkpc]',
                    'y': 'Y coordinate [pkpc]',
                    'z': 'Z coordinate [pkpc]',
-                   'x-velocity': 'X velocity [km/s]',
-                   'y-velocity': 'Y velocity [km/s]',
-                   'z-velocity': 'Z velocity [km/s]',
+                   'radius': 'Radius [pkpc]',
+                   'x-velocity': 'X velocity [km s$^{-1}$]',
+                   'y-velocity': 'Y velocity [km s$^{-1}$]',
+                   'z-velocity': 'Z velocity [km s$^{-1}$]',
                    'relative_velocity': 'Relative Velocity [km s$^{-1}$]',
+                   'metallicity': 'log Z',
                    'O_p5_ion_fraction': 'log [O VI Ionization Fraction]',
                    'O_p5_number_density': 'log [O VI Number Density]',
                    'C_p3_ion_fraction': 'log [C IV Ionization Fraction]',
@@ -35,7 +37,7 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
 logfields = ('Dark_Matter_Density', 'density', 'temperature', 'entropy',
              'O_p5_ion_fraction', 'C_p3_ion_fraction', 'Si_p3_ion_fraction',
              'O_p5_number_density', 'C_p3_number_density',
-             'Si_p3_number_density')
+             'Si_p3_number_density', 'metallicity')
 
 phase_color_key = {b'cold': 'salmon',
                    b'hot': '#ffe34d',
@@ -147,17 +149,6 @@ fe14_color_map = "inferno"
 fe14_min = 1.e10
 fe14_max = 1.e15
 
-
-def categorize_by_temp(temp):
-    """ define the temp category strings"""
-    phase = np.chararray(np.size(temp), 4)
-    phase[temp < 9.] = b'hot'
-    phase[temp < 6.] = b'warm'
-    phase[temp < 5.] = b'cool'
-    phase[temp < 4.] = b'cold'
-    return phase
-
-
 def categorize_by_fraction(f_ion):
     """ define the ionization category strings"""
     frac = np.chararray(np.size(f_ion), 4)
@@ -167,43 +158,15 @@ def categorize_by_fraction(f_ion):
     frac[f_ion > 0.2] = b'high'  # red
     return frac
 
-
-def categorize_by_metallicity(metallicity):
-    """ define the metallicity category strings"""
-    metal_label = np.chararray(np.size(metallicity), 5)
-    metal_label[metallicity < 10.] = b'high'
-    metal_label[metallicity < 0.05] = b'solar'
-    metal_label[metallicity < 0.001] = b'low'
-    metal_label[metallicity < 0.0001] = b'poor'
-    return metal_label
-
-
+# set up the new temperature colormap
 temp_colors = sns.blend_palette(
     ('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), n_colors=17)
-
 phase_color_labels = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2',
                       b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot',
                       b'hot1', b'hot2', b'hot3']
-
-new_phase_color_key = {b'cold': to_hex(temp_colors[0]),
-                       b'cold1': to_hex(temp_colors[1]),
-                       b'cold2': to_hex(temp_colors[2]),
-                       b'cold3': to_hex(temp_colors[3]),
-                       b'cool': to_hex(temp_colors[4]),  # purple
-                       b'cool1': to_hex(temp_colors[5]),
-                       b'cool2': to_hex(temp_colors[6]),
-                       b'cool3': to_hex(temp_colors[7]),
-                       b'warm': to_hex(temp_colors[8]),  # green
-                       b'warm1': to_hex(temp_colors[9]),
-                       b'warm2': to_hex(temp_colors[10]),
-                       b'warm3': to_hex(temp_colors[11]),
-                       b'hot': to_hex(temp_colors[12]),  # yellow
-                       b'hot1': to_hex(temp_colors[13]),
-                       b'hot2': to_hex(temp_colors[14]),
-                       b'hot3': to_hex(temp_colors[15])
-                       }
-
-phase_labels = new_phase_color_key.keys()
+new_phase_color_key = {}
+for i in np.arange(np.size(phase_color_labels)):
+    new_phase_color_key[phase_color_labels[i]] = to_hex(temp_colors[i])
 
 def new_categorize_by_temp(temp):
     """ define the temp category strings"""
@@ -225,15 +188,11 @@ def new_categorize_by_temp(temp):
     phase[temp < 4.] = b'cold1'
     return phase
 
-
 metal_color_labels = [b'free', b'free1', b'free2', b'free3', b'poor',
                       b'poor1', b'poor2', b'poor3', b'low', b'low1',
                       b'low2', b'low3', b'solar', b'solar1', b'solar2',
                       b'solar3', b'high', b'high1', b'high2', b'high3', b'high4']
 
-old_metallicity_colors = sns.blend_palette(
-    ("black", "#984ea3", "#4575b4", "#4daf4a", "#ffe34d", "darkorange"),
-    n_colors=21)
 metallicity_colors = sns.blend_palette(
     ("black", "#4575b4", "#984ea3", "#984ea3", "#d73027",
      "darkorange", "#ffe34d"), n_colors=21)
@@ -266,7 +225,6 @@ new_metals_color_key = {b'free': to_hex(metallicity_colors[0]),
 
 metal_labels = new_metals_color_key.keys()
 
-
 def new_categorize_by_metals(metal):
     """ define the temp category strings"""
     metal_vals = np.power(10.0, np.linspace(start=np.log10(metal_min),
@@ -296,5 +254,5 @@ def new_categorize_by_metals(metal):
     phase[metal < metal_vals[2]] = b'free2'
     phase[metal < metal_vals[1]] = b'free1'
     phase[metal < metal_vals[0]] = b'free'
-
+    print(phase)
     return phase

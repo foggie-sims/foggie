@@ -28,7 +28,7 @@ import cmap_utils as cmaps
 from get_refine_box import get_refine_box as grb
 from get_halo_center import get_halo_center
 from consistency import ion_frac_color_key, new_phase_color_key, \
-        metal_color_key, axes_label_dict, logfields, new_categorize_by_temp, \
+        new_metals_color_key, axes_label_dict, logfields, new_categorize_by_temp, \
         new_categorize_by_metals
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
@@ -78,16 +78,16 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
 
     x = (all_data['x'].in_units('kpc')).ndarray_view()
     y = (all_data['y'].in_units('kpc')).ndarray_view()
-    z = (all_data['y'].in_units('kpc')).ndarray_view()
-
-    print("cell size", np.min(cell_size), np.max(cell_size))
+    z = (all_data['z'].in_units('kpc')).ndarray_view()
 
     x = x + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
     y = y + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
-    z = y + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
+    z = z + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
+    halo_center = np.array(halo_center) - np.array([np.min(x), np.min(y), np.min(z)])
     x = x - np.min(x)
     y = y - np.min(y)
     z = z - np.min(z)
+    radius = ((x-halo_center[0])**2 + (y-halo_center[1])**2 + (z-halo_center[2])**2 )**0.5
 
     density = np.log10(density)
     temperature = np.log10(all_data['temperature'])
@@ -95,12 +95,9 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
     phase = new_categorize_by_temp(temperature)
     metal = new_categorize_by_metals(all_data['metallicity'])
 
-    # ADD IN THE HALO RADIUS HERE
-    print("ADD RADIUS HERE")
-
     # build data_frame with mandatory fields
     data_frame = pd.DataFrame({'x':x, 'y':y, 'z':z, 'temperature':temperature, \
-                               'density':density, 'cell_mass': mass, \
+                               'density':density, 'cell_mass': mass, 'radius':radius, \
                                'phase':phase, 'metal':metal})
     data_frame.phase = data_frame.phase.astype('category')
     data_frame.metal = data_frame.metal.astype('category')
@@ -135,21 +132,16 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
 
 
 
-def wrap_axes(filename, field1, field2, ranges):
+def wrap_axes(filename, field1, field2, colorcode, ranges):
     """intended to be run after render_image, take the image and wraps it in
         axes using matplotlib and so offering full customization."""
 
-
-
     img = mpimg.imread(filename+'.png')
     print('IMG', np.shape(img[:,:,0:3]))
-    #img[:,:,3] = 3. * img[:,:,3]
-    #img2 = np.flip(img[:,:,0:2],0)
     fig = plt.figure(figsize=(8,8))
 
     ax = fig.add_axes([0.13, 0.13, 0.85, 0.85])
     ax.imshow(np.flip(img[:,:,0:3],0), alpha=1.)
-
 
     xstep = 1
     x_max = ranges[0][1]
@@ -173,7 +165,18 @@ def wrap_axes(filename, field1, field2, ranges):
 
     ax2 = fig.add_axes([0.7, 0.91, 0.25, 0.06])
     phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
-    ax2.imshow(np.flip(phase_cmap.to_pil(), 1))
+
+    if 'phase' in colorcode:
+        ax2.imshow(np.flip(phase_cmap.to_pil(), 1))
+        ax2.set_xticks([100,350,600])
+        ax2.set_xticklabels(['4','5','6',' '])
+        ax2.set_xlabel('log T [K]')
+    elif 'metal' in colorcode:
+        ax2.imshow(np.flip(metal_cmap.to_pil(), 1))
+        ax2.set_xticks([0, 400, 800])
+        ax2.set_xticklabels(['-4', '-2', '0'])
+        ax2.set_xlabel('log Z')
+
     ax2.spines["top"].set_color('white')
     ax2.spines["bottom"].set_color('white')
     ax2.spines["left"].set_color('white')
@@ -181,12 +184,7 @@ def wrap_axes(filename, field1, field2, ranges):
     ax2.set_ylim(60, 180)
     ax2.set_xlim(-10, 800)
     ax2.set_yticklabels([])
-    ax2.set_xticks([100,350,600])
     ax2.set_yticks([])
-    ax2.set_xticklabels(['4','5','6',' '])
-    ax2.set_xlabel('log T [K]')
-    xx = 800. / 16.
-
 
     plt.savefig(filename)
 
@@ -206,7 +204,7 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     elif 'phase' in count_cat:
         color_key = new_phase_color_key
     elif 'metal' in count_cat:
-        color_key = metal_color_key
+        color_key = new_metals_color_key
 
     img = tf.shade(agg, color_key=color_key, how='log')
     export(img, filename)
@@ -249,7 +247,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile):
                                 field1, field2, halo_center, halo_vcenter)
 
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
-    wrap_axes(outfile, field1, field2, ranges)
+    wrap_axes(outfile, field1, field2, colorcode, ranges)
     return data_frame
 
 

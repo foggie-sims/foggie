@@ -9,7 +9,7 @@ JT 081318
 import pandas as pd
 import numpy as np
 import argparse
-from consistency import phase_labels, metal_labels, \
+from consistency import phase_color_labels, metal_labels, \
     new_categorize_by_temp, new_categorize_by_metals
 
 CORE_WIDTH = 20.
@@ -175,7 +175,7 @@ def ds_to_df(ds, ray_start, ray_end):
 
     # this is awful, but have to add categories that don't exist to use later.
     existing_categories = df.phase_label.unique()
-    for label in phase_labels:
+    for label in phase_color_labels:
         if (not (label in existing_categories)):
             df.phase_label = df.phase_label.cat.add_categories([
                                                                label])
