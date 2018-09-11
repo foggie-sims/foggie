@@ -9,6 +9,7 @@ import numpy as np
 import pickle
 import glob
 import os
+import astropy.units as u
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import trident
@@ -16,8 +17,7 @@ import yt
 from astropy.io import fits
 from matplotlib.gridspec import GridSpec
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-from consistency import new_phase_color_key, new_metals_color_key, species_dict, phase_color_labels, metal_color_labels
-import astropy.units as u
+from consistency import new_phase_color_key, new_metals_color_key, species_dict
 mpl.rcParams['font.family'] = 'stixgeneral'
 import foggie_utils as futils
 import cmap_utils as cmaps
@@ -25,28 +25,32 @@ import cloud_utils as clouds
 
 CORE_WIDTH = 20.
 
+
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     """ oh, the docstring is missing, is it??? """
 
+    impact = hdulist[0].header['IMPACT']
+
     df = futils.ds_to_df(ds, ray_start, ray_end)
-    ray_index, axis_to_use, second_axis = futils.get_ray_axis(ray_start, ray_end)
+    ray_index, axis_to_use, second_axis = futils.get_ray_axis(
+        ray_start, ray_end)
 
     # establish the grid of plots and obtain the axis objects
     fig = plt.figure(figsize=(9, 6))
-    fig.text(0.55, 0.04, r'Velocity [km s$^{-1}$]', ha='center', va='center')
-    gs = GridSpec(2, 6, width_ratios=[1, 1, 5, 5, 5, 5], height_ratios=[4, 1])
+    fig.text(
+        0.55, 0.04, r'Velocity [km s$^{-1}$]', ha='center', va='center')
+    fig.text(
+        0.16, 0.93, r'R = '+"{:.2F}".format(impact)+' kpc', ha='center', va='center')
+    gs = GridSpec(2, 6, width_ratios=[
+                  1, 1, 5, 5, 5, 5], height_ratios=[4, 1])
     ax0 = plt.subplot(gs[0])
     ax0.set_title('T')
     ax1 = plt.subplot(gs[1])
     ax1.set_title('Z')
     ax2 = plt.subplot(gs[2])
-    ax2.set_title(r'H I Ly$\alpha$')
     ax3 = plt.subplot(gs[3])
-    ax3.set_title('Si II 1260')
     ax4 = plt.subplot(gs[4])
-    ax4.set_title('C IV 1548')
     ax5 = plt.subplot(gs[5])
-    ax5.set_title('O VI 1032')
 
     ax6 = plt.subplot(gs[6])
     ax6.spines["top"].set_color('black')
@@ -65,14 +69,18 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax11 = plt.subplot(gs[11])
 
     # add in the temperature and metallicity core sample renders
-    for ax, label in zip([ax0, ax1], ['phase_label','metal_label']):
-        color_keys = {'phase_label':new_phase_color_key, 'metal_label':new_metals_color_key}
+    for ax, label in zip([ax0, ax1], ['phase_label', 'metal_label']):
+        color_keys = {'phase_label': new_phase_color_key,
+                      'metal_label': new_metals_color_key}
         cvs = dshader.Canvas(plot_width=800, plot_height=200,
-                                x_range=(np.min(df[axis_to_use]), np.max(df[axis_to_use])),
-                                y_range=(np.mean(df[second_axis])-CORE_WIDTH/0.695,
-                                         np.mean(df[second_axis])+CORE_WIDTH/0.695))
-        agg = cvs.points(df, axis_to_use, second_axis, dshader.count_cat(label))
-        img = tf.shade(agg, color_key=color_keys[label], how='eq_hist')
+                             x_range=(np.min(df[axis_to_use]), np.max(
+                                 df[axis_to_use])),
+                             y_range=(np.mean(df[second_axis])-CORE_WIDTH/0.695,
+                                      np.mean(df[second_axis])+CORE_WIDTH/0.695))
+        agg = cvs.points(df, axis_to_use, second_axis,
+                         dshader.count_cat(label))
+        img = tf.shade(
+            agg, color_key=color_keys[label], how='eq_hist')
         img_to_show = tf.spread(img, px=2, shape='square')
         ax.imshow(np.rot90(img_to_show.to_pil()))
 
@@ -123,10 +131,19 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax7.set_xlim(60, 180)
     ax7.set_ylim(0, 900)
 
-    nh1 = np.sum(np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
-    nsi2 = np.sum(np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
-    nc4 = np.sum(np.array(ray_df['dx'] * ray_df['C_p3_number_density']))
-    no6 = np.sum(np.array(ray_df['dx'] * ray_df['O_p5_number_density']))
+    nh1 = np.sum(
+        np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
+    nsi2 = np.sum(
+        np.array(ray_df['dx'] * ray_df['Si_p1_number_density']))
+    nc4 = np.sum(
+        np.array(ray_df['dx'] * ray_df['C_p3_number_density']))
+    no6 = np.sum(
+        np.array(ray_df['dx'] * ray_df['O_p5_number_density']))
+
+    ax2.set_title(r"\center{H I Ly$\alpha$  \newline \small{N = " +"{:.2F}".format(np.log10(nh1))+"}}")
+    ax3.set_title(r"\center{Si II 1260 \newline \small{N = " +"{:.2F}".format(np.log10(nsi2))+"}}")
+    ax4.set_title(r"\center{C IV 1548 \newline \small{N = " +"{:.2F}".format(np.log10(nc4))+"}}")
+    ax5.set_title(r"\center{O VI 1032 \newline \small{N = " +"{:.2F}".format(np.log10(no6))+"}}")
 
     comoving_box_size = ds.get_parameter('CosmologyComovingBoxSize') \
         / ds.get_parameter('CosmologyHubbleConstantNow') * 1000.
@@ -142,22 +159,26 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     # Add the ionization fraction traces to the datashaded velocity vs. x plots
     h1 = np.array(50. * ray_df['H_p0_number_density'] /
                   np.max(ray_df['H_p0_number_density']))
-    si2 = np.array(50. * ray_df['Si_p1_number_density'] / \
-        np.max(ray_df['Si_p1_number_density']))
-    c4 = np.array(50. * ray_df['C_p3_number_density'] / \
-        np.max(ray_df['C_p3_number_density']))
-    o6 = np.array(50. * ray_df['O_p5_number_density'] / \
-        np.max(ray_df['O_p5_number_density']))
+    si2 = np.array(50. * ray_df['Si_p1_number_density'] /
+                   np.max(ray_df['Si_p1_number_density']))
+    c4 = np.array(50. * ray_df['C_p3_number_density'] /
+                  np.max(ray_df['C_p3_number_density']))
+    o6 = np.array(50. * ray_df['O_p5_number_density'] /
+                  np.max(ray_df['O_p5_number_density']))
     ax2.step(h1, 800. - 4. * x_ray, linewidth=0.5)
     ax3.step(si2, 800. - 4. * x_ray, linewidth=0.5)
     ax4.step(c4, 800. - 4. * x_ray, linewidth=0.5)
     ax5.step(o6, 800. - 4. * x_ray, linewidth=0.5)
 
     # this will "histogram" the ions so we can plot them
-    vxhist, h1hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], h1)
-    vxhist, si2hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], si2)
-    vxhist, c4hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], c4)
-    vxhist, o6hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], o6)
+    vxhist, h1hist = clouds.reduce_ion_vector(
+        -1.*ray_df['x-velocity'], h1)
+    vxhist, si2hist = clouds.reduce_ion_vector(
+        -1.*ray_df['x-velocity'], si2)
+    vxhist, c4hist = clouds.reduce_ion_vector(
+        -1.*ray_df['x-velocity'], c4)
+    vxhist, o6hist = clouds.reduce_ion_vector(
+        -1.*ray_df['x-velocity'], o6)
 
     x = np.array(ray_length - x_ray)
     cell_mass = np.array(ray_df['cell_mass'])
@@ -188,7 +209,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     size_dict = {**h1_size_dict, **si2_size_dict,  # concatenate the dicts
                  **c4_size_dict, **o6_size_dict}
-    pickle.dump(size_dict, open(fileroot+"sizes.pkl", "wb"))
 
     for ax, key in zip([ax8, ax9, ax10, ax11],
                        ['H I 1216', 'Si II 1260', 'C IV 1548', 'O VI 1032']):
@@ -202,13 +222,22 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                 vel = (hdulist[key].data['wavelength']*u.AA /
                        (1 + ds.get_parameter('CosmologyCurrentRedshift'))).to('km/s')
             ax.step(vel, hdulist[key].data['flux'])
-            n,bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity']), bins=70, range=(-350,350))
-            ax.step(bins[0:70]+5.,n/50, color='red')
+            n, bins = np.histogram(-1.*np.array(
+                ray_df[axis_to_use+'-velocity']), bins=70, range=(-350, 350))
+            ax.step(bins[0:70]+5., n/50, color='red')
+            print("HISTO", n,bins)
+            n1, bins1 = np.histogram(-1.*np.array(
+                ray_df[axis_to_use+'-velocity']), bins=700, range=(-350, 350))
+            print("HISTO", n1, bins1)
+            print("USE THIS FINE HISTOGRAM IN THE PKLS")
 
-    ax11.text(360,0.95, '50 Cells', color='red')
-    ax11.text(360,0.45, '25', color='red')
-    ax11.text(360,-0.05, '0', color='red')
+    size_dict['n1'] = n1
+    size_dict['bins1'] = bins1
+    pickle.dump(size_dict, open(fileroot+"sizes.pkl", "wb"))
 
+    ax11.text(360, 0.95, '50 Cells', color='red')
+    ax11.text(360, 0.45, '25', color='red')
+    ax11.text(360, -0.05, '0', color='red')
 
     for v in np.flip(h1_size_dict['h1_velocities'], 0):
         ax8.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
@@ -226,25 +255,29 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.axes.get_xaxis().set_ticks([])
         ax.axes.get_yaxis().set_ticks([])
 
-    ax6.set_yticks([100, 350, 600])
-    ax6.set_yticklabels(['4', '5', '6'], fontname='Arial', fontsize=7)
     ax6.set_xlabel('log T', fontname='Arial', fontsize=8)
-
-    ax7.set_yticks([0, 400, 800])
-    ax7.set_yticklabels(['-4', '-2', '0'],
-                        fontname='Arial', fontsize=7)
+    for y, l in zip([100,350,600],['4','5','6']):
+        ax6.text(50, y, l, fontname='Arial', fontsize=8,
+                verticalalignment='center', horizontalalignment='right')
     ax7.set_xlabel('log Z', fontname='Arial', fontsize=8)
+    for y, l in zip([0,400,800],['-4','-2','0']):
+        ax7.text(50, y, l, fontname='Arial', fontsize=8,
+                verticalalignment='center', horizontalalignment='right')
 
     ax1.set_yticks([])
     ax0.set_xticks([])
     ax1.set_xticks([])
     ax0.set_xlim(60, 140)
     ax1.set_xlim(60, 140)
+    ax0.set_ylim(0, 800)
+    ax1.set_ylim(0, 800)
+
+    ax0.plot([100, 100], [0, 800], color='white')
+    ax1.plot([100, 100], [0, 800], color='white')
 
     gs.update(hspace=0.0, wspace=0.1)
     plt.savefig(fileroot+'velphase.png', dpi=300)
     plt.close(fig)
-
 
 
 def grab_ray_file(ds, filename):
@@ -288,12 +321,14 @@ def grab_ray_file(ds, filename):
 
     return ray_df, rs, re, first_axis, hdulist
 
+
 def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
         ray_df, rs, re, axis_to_use, hdulist = grab_ray_file(
             ds, filename)
         show_velphase(ds, ray_df, rs, re, hdulist,
                       filename.strip('los.fits.gz'))
+
 
 def drive_velphase(ds_name, wildcard):
     """
@@ -306,6 +341,7 @@ def drive_velphase(ds_name, wildcard):
 
     dataset_list = glob.glob(os.path.join(os.getcwd(), wildcard))
     loop_over_rays(ds, dataset_list)
+
 
 if __name__ == "__main__":
     """
