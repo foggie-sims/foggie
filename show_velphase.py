@@ -171,38 +171,33 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax5.step(o6, 800. - 4. * x_ray, linewidth=0.5)
 
     # this will "histogram" the ions so we can plot them
-    vxhist, h1hist = clouds.reduce_ion_vector(
-        -1.*ray_df['x-velocity'], h1)
-    vxhist, si2hist = clouds.reduce_ion_vector(
-        -1.*ray_df['x-velocity'], si2)
-    vxhist, c4hist = clouds.reduce_ion_vector(
-        -1.*ray_df['x-velocity'], c4)
-    vxhist, o6hist = clouds.reduce_ion_vector(
-        -1.*ray_df['x-velocity'], o6)
+    vxhist, h1hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], h1)
+    vxhist, si2hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], si2)
+    vxhist, c4hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], c4)
+    vxhist, o6hist = clouds.reduce_ion_vector(-1.*ray_df['x-velocity'], o6)
 
     x = np.array(ray_length - x_ray)
-    cell_mass = np.array(ray_df['cell_mass'])
 
     h1_size_dict = clouds.get_sizes(ray_df, 'h1', x, axis_to_use, np.array(
-        ray_df['H_p0_number_density']), cell_mass, 0.8)
+        ray_df['H_p0_number_density']), 0.8)
     for xx, ss in zip(h1_size_dict['h1_xs'], h1_size_dict['h1_kpcsizes']):
         ax2.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
     h1_size_dict['nh1'] = nh1
 
     si2_size_dict = clouds.get_sizes(ray_df, 'si2', x, axis_to_use, np.array(
-        ray_df['Si_p1_number_density']), cell_mass, 0.8)
+        ray_df['Si_p1_number_density']), 0.8)
     for xx, ss in zip(si2_size_dict['si2_xs'], si2_size_dict['si2_kpcsizes']):
         ax3.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
     si2_size_dict['nsi2'] = nsi2
 
     c4_size_dict = clouds.get_sizes(ray_df, 'c4', x, axis_to_use, np.array(
-        ray_df['C_p3_number_density']), cell_mass, 0.8)
+        ray_df['C_p3_number_density']), 0.8)
     for xx, ss in zip(c4_size_dict['c4_xs'], c4_size_dict['c4_kpcsizes']):
         ax4.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
     c4_size_dict['nc4'] = nc4
 
     o6_size_dict = clouds.get_sizes(ray_df, 'o6', x, axis_to_use, np.array(
-        ray_df['O_p5_number_density']), cell_mass, 0.8)
+        ray_df['O_p5_number_density']), 0.8)
     for xx, ss in zip(o6_size_dict['o6_xs'], o6_size_dict['o6_kpcsizes']):
         ax5.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
     o6_size_dict['no6'] = no6
@@ -222,22 +217,21 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                 vel = (hdulist[key].data['wavelength']*u.AA /
                        (1 + ds.get_parameter('CosmologyCurrentRedshift'))).to('km/s')
             ax.step(vel, hdulist[key].data['flux'])
-            n, bins = np.histogram(-1.*np.array(
-                ray_df[axis_to_use+'-velocity']), bins=70, range=(-350, 350))
-            ax.step(bins[0:70]+5., n/50, color='red')
-            print("HISTO", n,bins)
-            n1, bins1 = np.histogram(-1.*np.array(
-                ray_df[axis_to_use+'-velocity']), bins=700, range=(-350, 350))
-            print("HISTO", n1, bins1)
-            print("USE THIS FINE HISTOGRAM IN THE PKLS")
+                # this line here plots the spectrum
 
-    size_dict['n1'] = n1
-    size_dict['bins1'] = bins1
+    # H I number of cells per velocity
+    n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['h1_cloud_flag'] > 0]), bins=70, range=(-350, 350))
+    ax8.step(bins[0:70]+5., n/20, color='red')
+    n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['si2_cloud_flag'] > 0]), bins=70, range=(-350, 350))
+    ax9.step(bins[0:70]+5., n/20, color='red')
+    n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['c4_cloud_flag'] > 0]), bins=70, range=(-350, 350))
+    ax10.step(bins[0:70]+5., n/20, color='red')
+    n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['o6_cloud_flag'] > 0]), bins=70, range=(-350, 350))
+    ax11.step(bins[0:70]+5., n/20, color='red')
+
+    size_dict['ray_df'] = ray_df
+
     pickle.dump(size_dict, open(fileroot+"sizes.pkl", "wb"))
-
-    ax11.text(360, 0.95, '50 Cells', color='red')
-    ax11.text(360, 0.45, '25', color='red')
-    ax11.text(360, -0.05, '0', color='red')
 
     for v in np.flip(h1_size_dict['h1_velocities'], 0):
         ax8.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
@@ -264,6 +258,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax7.text(50, y, l, fontname='Arial', fontsize=8,
                 verticalalignment='center', horizontalalignment='right')
 
+    # all plot settings and manipulation go here.
     ax1.set_yticks([])
     ax0.set_xticks([])
     ax1.set_xticks([])
@@ -274,6 +269,12 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     ax0.plot([100, 100], [0, 800], color='white')
     ax1.plot([100, 100], [0, 800], color='white')
+
+    ax11.text(360, 0.95, '20 Cells', color='red')
+    ax11.text(360, 0.45, '10', color='red')
+    ax11.text(360, -0.05, '0', color='red')
+
+
 
     gs.update(hspace=0.0, wspace=0.1)
     plt.savefig(fileroot+'velphase.png', dpi=300)

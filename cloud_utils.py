@@ -33,17 +33,19 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
 
     return threshold, number_of_cells_above_threshold
 
-def get_sizes(ray_df, species, x, axis_to_use, ion_to_use, cell_mass, coldens_threshold):
+def get_sizes(ray_df, species, x, axis_to_use, ion_to_use, coldens_threshold):
 
     threshold, number_of_cells = get_fion_threshold(
         ion_to_use, coldens_threshold)
 
+    cell_mass = np.array(ray_df['cell_mass'])
     dx = np.array(ray_df['dx'])
+    axis_velocity = np.array(ray_df[axis_to_use+'-velocity'])
+
     ion_density = copy.deepcopy(ion_to_use)
 
-    axis_velocity = np.array(ray_df[axis_to_use+'-velocity'])
-    print('V'+axis_to_use, axis_velocity)
-    print(axis_to_use, x)
+    #insert a cloud flag vector that IDs the cloud
+    cloud_flag = np.zeros(np.size(dx), dtype=np.int8)
 
     indexsizes = []
     kpcsizes = []
@@ -67,6 +69,7 @@ def get_sizes(ray_df, species, x, axis_to_use, ion_to_use, cell_mass, coldens_th
             velsum = 0.
             while (f > threshold) and (index < np.size(x)-1):
                 count += 1
+                cloud_flag[index] = m+1 # place cloud number in flag vector
                 if (count > 10000):
                     os.sys.exit('stuck in the size finding loop')
                 index += 1
@@ -107,5 +110,6 @@ def get_sizes(ray_df, species, x, axis_to_use, ion_to_use, cell_mass, coldens_th
     size_dict[species+'_centers'] = centers
     size_dict[species+'_velocities'] = velocities
 
-    return size_dict
+    ray_df[species+'_cloud_flag'] = cloud_flag
 
+    return size_dict
