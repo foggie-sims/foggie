@@ -4,7 +4,7 @@ import yt
 from yt import YTArray
 plt.ioff()
 plt.close('all')
-if False:
+if True:
     print 'Loading nref11n_selfshield_z15...'
     ds_1 = yt.load('~/Dropbox/rcs_foggie/data/halo_008508/nref11n_selfshield_z15/RD0018/RD0018')
 
@@ -40,17 +40,11 @@ if True:
 
 N = 400
 
-zlim_max = log10(1.e-4)
-zlim_min = log10(10.)
-
-for i in arange(1, 2):
+for i in arange(N):
     print i, 1.*cos(pi*(i)/100.),1*sin(pi*(i)/100.)
 
-    #L = [max(1*cos(pi*(i)/100.), 1.e-1),0, max(1*sin(pi*(i)/100.), 1.e-1)] # vector normal to cutting plane
+    L = [max(1*cos(pi*(i)/100.), 1.e-1),0, max(1*sin(pi*(i)/100.), 1.e-1)] # vector normal to cutting plane
 
-
-    L =[-0.37085436,  0.14802026,  0.91681898]
-    L = [ 0.8390849 , -0.46594005,  0.2807782 ]
 
     north_vector = [0,1,0]
     
@@ -75,10 +69,6 @@ for i in arange(1, 2):
     N = 512
     image1 = yt.off_axis_projection(ds_1, cen_1, L, W, N, ('gas', 'density'), north_vector =  north_vector)
     image2 = yt.off_axis_projection(ds_2, cen_2, L, W, N, ('gas', 'density'), north_vector =  north_vector)
-    #image1 = yt.off_axis_projection(ds_1, cen_1, L, W, N, "density", north_vector =  north_vector)
-    #image2 = yt.off_axis_projection(ds_2, cen_2, L, W, N, "density", north_vector =  north_vector)
-    #im1 = yt.write_image(np.log10(image1), "../figures/foggie/movie/temp/im1_%i_offaxis_projection.png" % i)  
-    #im2 = yt.write_image(np.log10(image2), "../figures/foggie/movie/temp/im2_%i_offaxis_projection.png" % i)  
     fig, axes = subplots(1,2, figsize = (10.8, 5))
 
 
@@ -118,6 +108,3 @@ for i in arange(1, 2):
 
     plt.close('all')
 
-
-    '''
-    '''
