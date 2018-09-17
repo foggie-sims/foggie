@@ -23,6 +23,7 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                    'z-velocity': 'Z velocity [km s$^{-1}$]',
                    'relative_velocity': 'Relative Velocity [km s$^{-1}$]',
                    'metallicity': 'log Z',
+                   'pressure': 'log P [g cm$^{-1}$ s$^{-2}$ ]',
                    'O_p5_ion_fraction': 'log [O VI Ionization Fraction]',
                    'O_p5_number_density': 'log [O VI Number Density]',
                    'C_p3_ion_fraction': 'log [C IV Ionization Fraction]',
@@ -34,7 +35,7 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
 # this is a dictionary of fields where we prefer to
 # plot or visualize them in the log rather than the original yt / enzo
 # field. Try "if field_name in logfields: field_name = log10(field_name)"
-logfields = ('Dark_Matter_Density', 'density', 'temperature', 'entropy',
+logfields = ('Dark_Matter_Density', 'density', 'temperature', 'entropy', 'pressure',
              'O_p5_ion_fraction', 'C_p3_ion_fraction', 'Si_p3_ion_fraction',
              'O_p5_number_density', 'C_p3_number_density',
              'Si_p3_number_density', 'metallicity')
