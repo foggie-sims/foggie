@@ -64,7 +64,8 @@ species_dict = {'CIII': 'C_p2_number_density',
 ion_frac_color_key = {b'all': 'black',
                       b'low': 'yellow',
                       b'med': 'orange',
-                      b'high': 'red'}
+                      b'high': 'red',
+                      b'phot': 'purple'}
 
 discrete_cmap = mpl.colors.ListedColormap(
     ['#565656', '#4daf4a', '#d73027', "#984ea3",
@@ -150,14 +151,16 @@ fe14_color_map = "inferno"
 fe14_min = 1.e10
 fe14_max = 1.e15
 
-def categorize_by_fraction(f_ion):
+def categorize_by_fraction(f_ion, temperature):
     """ define the ionization category strings"""
     frac = np.chararray(np.size(f_ion), 4)
     frac[f_ion > -10.] = b'all'
     frac[f_ion > 0.01] = b'low'  # yellow
     frac[f_ion > 0.1] = b'med'  # orange
     frac[f_ion > 0.2] = b'high'  # red
+    frac[(f_ion > 0.2) & (temperature < 1e5)] = b'phot'
     return frac
+
 
 # set up the new temperature colormap
 temp_colors = sns.blend_palette(
