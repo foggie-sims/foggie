@@ -93,27 +93,27 @@ def calc_cddf(**kwargs):
         print("trying ",ion)
 
         frb = dp_natural_x.data_source.to_frb((width,'kpc'), resolution)
-        natural = np.array(np.log10(frb))
+        natural = np.array(np.log10(frb[ion]))
         coln = np.append(coln, natural.ravel(), axis=None)
 
         frb = dp_natural_y.data_source.to_frb((width,'kpc'), resolution)
-        natural = np.array(np.log10(frb))
+        natural = np.array(np.log10(frb[ion]))
         coln = np.append(coln, natural.ravel(), axis=None)
 
         frb = dp_natural_z.data_source.to_frb((width,'kpc'), resolution)
-        natural = np.array(np.log10(frb))
+        natural = np.array(np.log10(frb[ion]))
         coln = np.append(coln, natural.ravel(), axis=None)
 
         frb = dp_forced_x.data_source.to_frb((width,'kpc'), resolution)
-        forced = np.array(np.log10(frb))
+        forced = np.array(np.log10(frb[ion]))
         colr = np.append(colr, forced.ravel(), axis=None)
 
         frb = dp_forced_y.data_source.to_frb((width,'kpc'), resolution)
-        forced = np.array(np.log10(frb))
+        forced = np.array(np.log10(frb[ion]))
         colr = np.append(colr, forced.ravel(), axis=None)
 
         frb = dp_forced_z.data_source.to_frb((width,'kpc'), resolution)
-        forced = np.array(np.log10(frb))
+        forced = np.array(np.log10(frb[ion]))
         colr = np.append(colr, forced.ravel(), axis=None)
 
         colr[colr == -np.inf] = 1

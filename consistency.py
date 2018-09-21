@@ -297,7 +297,7 @@ hi_color_key = {b'free': to_hex(hi_colors[0]),
 hi_labels = hi_color_key.keys()
 def categorize_by_hi(hi):
     """ define the temp category strings"""
-    hi_vals = np.linspace(start=np.log10(h1_min),np.log10(h1_max), num=26)
+    hi_vals = np.linspace(start=np.log10(h1_proj_min),stop=np.log10(h1_proj_max), num=26)
     # make the highest value really high
     hi_vals[25] = 50. * hi_vals[25]
     phase = np.chararray(np.size(hi), 6)
