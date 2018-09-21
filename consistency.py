@@ -260,3 +260,73 @@ def new_categorize_by_metals(metal):
     phase[metal < metal_vals[0]] = b'free'
     print(phase)
     return phase
+
+
+
+
+hi_colors =  sns.blend_palette(("white", "#ababab", "#565656", "black",
+                                  "#4575b4", "#984ea3", "#d73027",
+                                  "darkorange", "#ffe34d"), n_colors=26)
+hi_color_key = {b'free': to_hex(hi_colors[0]),
+                        b'free1': to_hex(hi_colors[1]),
+                        b'free2': to_hex(hi_colors[2]),
+                        b'free3': to_hex(hi_colors[3]),
+                        b'poor': to_hex(hi_colors[4]),
+                        b'poor1': to_hex(hi_colors[5]),
+                        b'poor2': to_hex(hi_colors[6]),
+                        b'poor3': to_hex(hi_colors[7]),
+                        b'low': to_hex(hi_colors[8]),  # blue
+                        b'low1': to_hex(hi_colors[9]),
+                        b'low2': to_hex(hi_colors[10]),
+                        b'low3': to_hex(hi_colors[11]),
+                        b'solar': to_hex(hi_colors[12]),
+                        b'solar1': to_hex(hi_colors[13]),
+                        b'solar2': to_hex(hi_colors[14]),
+                        b'solar3': to_hex(hi_colors[15]),
+                        b'high': to_hex(hi_colors[16]),
+                        b'high1': to_hex(hi_colors[17]),
+                        b'high2': to_hex(hi_colors[18]),
+                        b'high3': to_hex(hi_colors[19]),
+                        b'high4': to_hex(hi_colors[20]),
+                        b'moar': to_hex(hi_colors[21]),
+                        b'moar1': to_hex(hi_colors[22]),
+                        b'moar2': to_hex(hi_colors[23]),
+                        b'moar3': to_hex(hi_colors[24]),
+                        b'moar4': to_hex(hi_colors[25])
+                        }
+hi_labels = hi_color_key.keys()
+def categorize_by_hi(hi):
+    """ define the temp category strings"""
+    hi_vals = np.linspace(start=np.log10(h1_min),np.log10(h1_max), num=26)
+    # make the highest value really high
+    hi_vals[25] = 50. * hi_vals[25]
+    phase = np.chararray(np.size(hi), 6)
+    # need to do this by iterating over keys insteard of hard coding indices
+    phase[hi < hi_vals[25]] = b'moar4'
+    phase[hi < hi_vals[24]] = b'moar3'
+    phase[hi < hi_vals[23]] = b'moar2'
+    phase[hi < hi_vals[22]] = b'moar1'
+    phase[hi < hi_vals[21]] = b'moar'
+    phase[hi < hi_vals[20]] = b'high4'
+    phase[hi < hi_vals[19]] = b'high3'
+    phase[hi < hi_vals[18]] = b'high2'
+    phase[hi < hi_vals[17]] = b'high1'
+    phase[hi < hi_vals[16]] = b'high'
+    phase[hi < hi_vals[15]] = b'solar3'
+    phase[hi < hi_vals[14]] = b'solar2'
+    phase[hi < hi_vals[13]] = b'solar1'
+    phase[hi < hi_vals[12]] = b'solar'
+    phase[hi < hi_vals[11]] = b'low3'
+    phase[hi < hi_vals[10]] = b'low2'
+    phase[hi < hi_vals[9]] = b'low1'
+    phase[hi < hi_vals[8]] = b'low'
+    phase[hi < hi_vals[7]] = b'poor3'
+    phase[hi < hi_vals[6]] = b'poor2'
+    phase[hi < hi_vals[5]] = b'poor1'
+    phase[hi < hi_vals[4]] = b'poor'
+    phase[hi < hi_vals[3]] = b'free3'
+    phase[hi < hi_vals[2]] = b'free2'
+    phase[hi < hi_vals[1]] = b'free1'
+    phase[hi < hi_vals[0]] = b'free'
+    #print(phase)
+    return phase
