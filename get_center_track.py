@@ -21,6 +21,7 @@ def get_center_track(first_center, latesnap, earlysnap, interval):
     search_radius = 10. ### COMOVING KPC
 
     for isnap in snaplist:
+        if (isnap > 999): name = 'DD'+str(isnap)
         if (isnap <= 999): name = 'DD0'+str(isnap)
         if (isnap <= 99): name = 'DD00'+str(isnap)
         if (isnap <= 9): name = 'DD000'+str(isnap)
@@ -96,4 +97,7 @@ if __name__ == "__main__":
 
     ### DD0752 for nref11n_selfshield_z15
     first_center = [0.493138313293, 0.485363960266, 0.503630638123 ]
+
+    ### DD0999 for nref11n_selfshield_z15
+    first_center = [0.492419242859, 0.482583045959, 0.504755973816]
     get_center_track(first_center, 1086, 752, 0.002)
