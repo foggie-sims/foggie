@@ -100,4 +100,4 @@ if __name__ == "__main__":
 
     ### DD0999 for nref11n_selfshield_z15
     first_center = [0.492419242859, 0.482583045959, 0.504755973816]
-    get_center_track(first_center, 1086, 752, 0.002)
+    get_center_track(first_center, 1088, 752, 0.002)
