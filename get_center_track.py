@@ -96,8 +96,8 @@ if __name__ == "__main__":
     ### first_center = [ 0.49400806427, 0.488810539246,  0.50222492218 ]
 
     ### DD0752 for nref11n_selfshield_z15
-    first_center = [0.493138313293, 0.485363960266, 0.503630638123 ]
+    # first_center = [0.493138313293, 0.485363960266, 0.503630638123 ]
 
     ### DD0999 for nref11n_selfshield_z15
     first_center = [0.492419242859, 0.482583045959, 0.504755973816]
-    get_center_track(first_center, 1088, 752, 0.002)
+    get_center_track(first_center, 1088, 999, 0.002)
