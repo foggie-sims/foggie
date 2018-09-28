@@ -136,7 +136,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_xlim(0, 300)
         ax.set_ylim(0, 800)
 
-    phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
+    phase_cmap, metal_cmap = cmaps.create_foggie_cmap(ds)
 
     temp_colormap = phase_cmap
     ax6.imshow(np.rot90(temp_colormap.to_pil()))
