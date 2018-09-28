@@ -204,33 +204,6 @@ new_metals_color_key = collections.OrderedDict()
 for i in np.arange(np.size(metal_color_labels)):
     new_metals_color_key[metal_color_labels[i]] = to_hex(metallicity_colors[i])
 
-# new_metals_color_key = {b'free': to_hex(metallicity_colors[0]),
-#                         b'free1': to_hex(metallicity_colors[1]),
-#                         b'free2': to_hex(metallicity_colors[2]),
-#                         b'free3': to_hex(metallicity_colors[3]),
-#                         # purple
-#                         b'poor': to_hex(metallicity_colors[4]),
-#                         b'poor1': to_hex(metallicity_colors[5]),
-#                         b'poor2': to_hex(metallicity_colors[6]),
-#                         b'poor3': to_hex(metallicity_colors[7]),
-#                         b'low': to_hex(metallicity_colors[8]),  # blue
-#                         b'low1': to_hex(metallicity_colors[9]),
-#                         b'low2': to_hex(metallicity_colors[10]),
-#                         b'low3': to_hex(metallicity_colors[11]),
-#                         # green
-#                         b'solar': to_hex(metallicity_colors[12]),
-#                         b'solar1': to_hex(metallicity_colors[13]),
-#                         b'solar2': to_hex(metallicity_colors[14]),
-#                         b'solar3': to_hex(metallicity_colors[15]),
-#                         # yellow
-#                         b'high': to_hex(metallicity_colors[16]),
-#                         b'high1': to_hex(metallicity_colors[17]),
-#                         b'high2': to_hex(metallicity_colors[18]),
-#                         b'high3': to_hex(metallicity_colors[19]),
-#                         # orange
-#                         b'high4': to_hex(metallicity_colors[20])
-#                         }
-
 metal_labels = new_metals_color_key.keys()
 
 def new_categorize_by_metals(metal):
