@@ -98,8 +98,8 @@ def get_path_info(args):
         output_dir = output_path + "plots_halo_008508/nref11n/natural/spectra/"
         haloname = "halo008508_nref11n"
     elif args.run == "nref10f":
-        ds_loc = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/"
-        + args.output + "/" + args.output
+        ds_loc = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/" + \
+            args.output + "/" + args.output
         output_dir = output_path + \
             "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
         haloname = "halo008508_nref11n_nref10f"
