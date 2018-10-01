@@ -38,7 +38,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     # establish the grid of plots and obtain the axis objects
     fig = plt.figure(figsize=(9, 6))
     fig.text(
-        0.55, 0.04, r'Velocity [km s$^{-1}$]', ha='center', va='center')
+        0.55, 0.04, r'relative line-of-sight velocity [km s$^{-1}$]', ha='center', va='center', fontsize=12.)
     fig.text(
         0.16, 0.93, r'R = '+"{:.2F}".format(impact)+' kpc', ha='center', va='center')
     gs = GridSpec(2, 6, width_ratios=[
@@ -101,10 +101,9 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         img_to_show = tf.spread(img, px=2, shape='square')
         ax.imshow(np.rot90(img_to_show.to_pil()))
 
-    ax0.set_ylabel('x [comoving kpc]', fontname='Arial', fontsize=10)
+    ax0.set_ylabel(r'line-of-sight position [comoving kpc/$h$]', fontsize=12)
     ax0.set_yticks([0, 200, 400, 600, 800])
-    ax0.set_yticklabels([str(int(s)) for s in [0, 50, 100, 150, 200]],
-                        fontname='Arial', fontsize=8)
+    ax0.set_yticklabels([str(int(s)) for s in [0, 50, 100, 150, 200]],fontsize=8)
 
     # render x vs. vx but don't show it yet.
     cvs = dshader.Canvas(plot_width=800, plot_height=300,
@@ -136,7 +135,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_xlim(0, 300)
         ax.set_ylim(0, 800)
 
-    phase_cmap, metal_cmap = cmaps.create_foggie_cmap(ds)
+    phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
 
     temp_colormap = phase_cmap
     ax6.imshow(np.rot90(temp_colormap.to_pil()))
@@ -252,7 +251,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     size_dict['ray_df'] = ray_df
 
-    pickle.dump(size_dict, open(fileroot+"sizes.pkl", "wb"))
+    pickle.dump(size_dict, open('.' + fileroot+"sizes.pkl", "wb"))
 
     for v in np.flip(h1_size_dict['h1_velocities'], 0):
         ax8.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
@@ -270,13 +269,13 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.axes.get_xaxis().set_ticks([])
         ax.axes.get_yaxis().set_ticks([])
 
-    ax6.set_xlabel('log T', fontname='Arial', fontsize=8)
+    ax6.set_xlabel('log T', fontsize=8)
     for y, l in zip([100,350,600],['4','5','6']):
-        ax6.text(50, y, l, fontname='Arial', fontsize=8,
+        ax6.text(50, y, l, fontsize=8,
                 verticalalignment='center', horizontalalignment='right')
-    ax7.set_xlabel('log Z', fontname='Arial', fontsize=8)
+    ax7.set_xlabel('log Z', fontsize=8)
     for y, l in zip([0,400,800],['-4','-2','0']):
-        ax7.text(50, y, l, fontname='Arial', fontsize=8,
+        ax7.text(50, y, l,  fontsize=8,
                 verticalalignment='center', horizontalalignment='right')
 
     # all plot settings and manipulation go here.
@@ -304,7 +303,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
 
     gs.update(hspace=0.0, wspace=0.1)
-    plt.savefig(fileroot+'velphase.png', dpi=300)
+    plt.savefig('.' + fileroot+'velphase.png', dpi=300)
     plt.close(fig)
 
 
@@ -380,7 +379,7 @@ if __name__ == "__main__":
         args)
 
     dataset_list = glob.glob(
-        os.path.join('.', '*rd0020*v6_los*fits.gz'))
+        os.path.join('.', '*rd0018*v6_los*fits.gz'))
     print('there are ', len(dataset_list), 'files')
 
     ds = yt.load(ds_loc)
