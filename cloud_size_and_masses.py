@@ -235,10 +235,10 @@ def plot_cloud_size_and_masses():
     c4_implied_ncells = 4.12 * ((np.random.normal(0,0.25,size=len(c4_cloud_ncells)) + c4_cloud_ncells)**2)
     o6_implied_ncells = 4.12 * ((np.random.normal(0,0.25,size=len(o6_cloud_ncells)) + o6_cloud_ncells)**2)
 
-    ax.scatter(np.log10(o6_implied_ncells), np.log10(o6_implied_spherical_masses), marker='*', alpha=0.6, color=hi_color, label='H I',zorder=1)
-    ax.scatter(np.log10(si2_implied_ncells), np.log10(si2_implied_spherical_masses), marker='s', alpha=0.5, color=si2_color, label='Si II',zorder=7)
-    ax.scatter(np.log10(c4_implied_ncells), np.log10(c4_implied_spherical_masses), marker='D', alpha=0.4, color=c4_color, label='C IV',zorder=3)
-    ax.scatter(np.log10(h1_implied_ncells), np.log10(h1_implied_spherical_masses), marker='o', alpha=0.5, color=ovi_color, label='O VI',zorder=5)
+    ax.scatter(np.log10(h1_implied_ncells), np.log10(h1_implied_spherical_masses), marker='*', alpha=0.6, color=hi_color, label='H I',zorder=10)
+    ax.scatter(np.log10(si2_implied_ncells), np.log10(si2_implied_spherical_masses), marker='s', alpha=0.4, color=si2_color, label='Si II',zorder=10)
+    ax.scatter(np.log10(c4_implied_ncells), np.log10(c4_implied_spherical_masses), marker='D', alpha=0.4, color=c4_color, label='C IV',zorder=5)
+    ax.scatter(np.log10(o6_implied_ncells), np.log10(o6_implied_spherical_masses), marker='o', alpha=0.5, color=ovi_color, label='O VI',zorder=3)
 
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
