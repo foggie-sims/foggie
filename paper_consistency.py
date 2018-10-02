@@ -120,16 +120,16 @@ h1_slc_max = 1.e2
 old_o6_color_map = sns.blend_palette(
     ("white", "black", "#4daf4a", "#4575b4", "#984ea3", "#d73027",
      "darkorange"), as_cmap=True)
-o6_color_map = "magma"
+o6_color_map = mpl.cm.get_cmap("magma")
 o6_min = 1.e11
 o6_max = 1.e15
 
 
-mg2_color_map = "plasma"
+mg2_color_map = mpl.cm.get_cmap("plasma")
 mg2_min = 1.e10
 mg2_max = 1.e17
 
-si2_color_map = "plasma"
+si2_color_map = mpl.cm.get_cmap("plasma")
 si2_min = 1.e10
 si2_max = 1.e17
 
@@ -137,19 +137,19 @@ si3_color_map = temperature_color_map ## "cividis"
 si3_min = 1.e11
 si3_max = 1.e15
 
-c4_color_map = "inferno"
+c4_color_map = mpl.cm.get_cmap("inferno")
 c4_min = 1.e11
 c4_max = 1.e15
 
-si4_color_map = "magma"
+si4_color_map = mpl.cm.get_cmap("magma")
 si4_min = 1.e11
 si4_max = 1.e15
 
-ne8_color_map = "magma"
+ne8_color_map = mpl.cm.get_cmap("magma")
 ne8_min = 1.e11
 ne8_max = 1.e15
 
-fe14_color_map = "inferno"
+fe14_color_map = mpl.cm.get_cmap("inferno")
 fe14_min = 1.e10
 fe14_max = 1.e15
 
@@ -245,6 +245,7 @@ def new_categorize_by_metals(metal):
 hi_colors =  sns.blend_palette(("white", "#ababab", "#565656", "black",
                                   "#4575b4", "#984ea3", "#d73027",
                                   "darkorange", "#ffe34d"), n_colors=26)
+hi_discrete_colormap = mpl.colors.ListedColormap(hi_colors)
 hi_color_key = {b'free': to_hex(hi_colors[0]),
                         b'free1': to_hex(hi_colors[1]),
                         b'free2': to_hex(hi_colors[2]),
