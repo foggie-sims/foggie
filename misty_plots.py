@@ -10,16 +10,16 @@ import matplotlib as mpl
 import seaborn as sns
 sns.set_style("whitegrid", {'axes.grid' : False})
 mpl.rcParams['font.family'] = 'stixgeneral'
-mpl.rcParams['font.size'] = 16.
+mpl.rcParams['font.size'] = 22.
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 
 def make_misty_plots():
-    ref_color = 'darkorange' ###  '#4575b4' # purple
-    nat_color = '#4daf4a' # green
+    ref_color = 'darkorange' ###  r'#4575b4' # purple
+    nat_color = r'#4daf4a' # green
     palette = sns.blend_palette((nat_color, ref_color),n_colors=2)
-    si2_limit = 12
+    si2_limit = 11
     c4_limit = 12
     si4_limit = 13
     o6_limit = 13
@@ -96,8 +96,8 @@ def make_misty_plots():
     ax.set_yticklabels(('0','5','10','15','20'))
     plt.xlim(0.5,62)
     plt.ylim(0.5,23.5)
-    plt.xlabel('impact parameter [kpc]')
-    plt.ylabel('number of Si II 1260 minima')
+    plt.xlabel('impact parameter [kpc]', fontsize=34)
+    plt.ylabel('number of Si II 1260 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('SiII_Nmin_vs_impact.png')
 
@@ -111,8 +111,8 @@ def make_misty_plots():
     ax.set_yticklabels(('0','5','10','15','20'))
     plt.xlim(0.5,62)
     plt.ylim(0.5,23.5)
-    plt.xlabel('impact parameter [kpc]')
-    plt.ylabel('number of O VI 1032 minima')
+    plt.xlabel('impact parameter [kpc]', fontsize=34)
+    plt.ylabel('number of O VI 1032 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('OVI_Nmin_vs_impact.png')
 
@@ -126,8 +126,8 @@ def make_misty_plots():
     ax.set_yticklabels(('0','5','10','15','20'))
     plt.xlim(0.5,62)
     plt.ylim(0.5,23.5)
-    plt.xlabel('impact parameter [kpc]')
-    plt.ylabel('number of C IV 1548 minima')
+    plt.xlabel('impact parameter [kpc]', fontsize=34)
+    plt.ylabel('number of C IV 1548 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('CIV_Nmin_vs_impact.png')
 
@@ -152,8 +152,8 @@ def make_misty_plots():
     ax.set_yticks((0,5,10,15))
     ax.set_yticklabels(('0','5','10','15'))
     plt.ylim(0.5,15.5)
-    plt.xlabel(r'Si II $\Delta v_{90}$ [km/s]')
-    plt.ylabel('# of Si II 1260 components')
+    plt.xlabel(r'Si II $\Delta v_{90}$ [km/s]', fontsize=34)
+    plt.ylabel(r'number of Si II 1260 components', fontsize=34)
     fig.tight_layout()
     fig.savefig('SiII_dv90_vs_Ncomp.png')
 
@@ -167,7 +167,7 @@ def make_misty_plots():
     ax.set_yticklabels(('0','5','10','15','20'))
     plt.ylim(0.5,23.5)
     plt.xlabel(r'Si II $\Delta v_{90}$ [km/s]')
-    plt.ylabel('# of Si II 1260 minima')
+    plt.ylabel(r'number of Si II 1260 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('SiII_dv90_vs_Nmin.png')
 
@@ -181,8 +181,8 @@ def make_misty_plots():
     ax.set_yticks((0,5,10,15,20))
     ax.set_yticklabels(('0','5','10','15','20'))
     plt.ylim(0.5,23.5)
-    plt.xlabel(r'log Si II column density')
-    plt.ylabel('# of Si II 1260 minima')
+    plt.xlabel(r'log Si II column density', fontsize=34)
+    plt.ylabel(r'number of Si II 1260 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('SiII_col_vs_Nmin.png')
 
@@ -197,8 +197,8 @@ def make_misty_plots():
     ax.set_yticks((0,5,10,15,20))
     ax.set_yticklabels(('0','5','10','15','20'))
     plt.ylim(0.5,23.5)
-    plt.xlabel(r'log C IV column density')
-    plt.ylabel('# of C IV 1548 minima')
+    plt.xlabel(r'log C IV column density', fontsize=34)
+    plt.ylabel(r'number of C IV 1548 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('CIV_col_vs_Nmin.png')
 
@@ -213,8 +213,8 @@ def make_misty_plots():
     ax.set_yticks((0,5,10,15,20))
     ax.set_yticklabels(('0','5','10','15','20'))
     plt.ylim(0.5,23.5)
-    plt.xlabel(r'log Si IV column density')
-    plt.ylabel('# of Si IV 1394 minima')
+    plt.xlabel(r'log Si IV column density', fontsize=34)
+    plt.ylabel(r'number of Si IV 1394 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('SiIV_col_vs_Nmin.png')
 
@@ -229,8 +229,8 @@ def make_misty_plots():
     ax.set_yticks((0,5,10,15,20))
     ax.set_yticklabels(('0','5','10','15','20'))
     plt.ylim(0.5,23.5)
-    plt.xlabel(r'log O VI column density')
-    plt.ylabel('# of O VI 1032 minima')
+    plt.xlabel(r'log O VI column density', fontsize=34)
+    plt.ylabel(r'number of O VI 1032 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('OVI_col_vs_Nmin.png')
 
@@ -238,7 +238,7 @@ def make_misty_plots():
     ax = fig.add_subplot(111)
     sns.swarmplot(x="O_VI_dv90", y="O_VI_Nmin", data=nat_o6, color=nat_color,alpha=0.7,orient='h')
     sns.swarmplot(x="O_VI_dv90", y="O_VI_Nmin", data=ref_o6, color=ref_color,alpha=0.7,orient='h')
-#    sns.swarmplot(x="O_VI_dv90", y="O_VI_Nmin", data=hires_o6, color='#984ea3',alpha=0.7,orient='h')
+#    sns.swarmplot(x="O_VI_dv90", y="O_VI_Nmin", data=hires_o6, color=r'number984ea3',alpha=0.7,orient='h')
     # sns.swarmplot(x="Si_II_dv90", y="Si_II_Ncomp", data=kod_p, color='k',alpha=0.7,orient='h')
     #ax.scatter(nat['Si_II_dv90'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,alpha=0.5,label='standard')
     #ax.scatter(ref['Si_II_dv90'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, alpha=0.5,label='refined')
@@ -246,8 +246,8 @@ def make_misty_plots():
     plt.legend(loc='upper right')
     plt.xlim(xmin=0)
     plt.ylim(0.5,14.5)
-    plt.xlabel(r'O VI $\Delta v_{90}$ [km/s]')
-    plt.ylabel('# of O VI 1032 minima')
+    plt.xlabel(r'O VI $\Delta v_{90}$ [km/s]', fontsize=34)
+    plt.ylabel(r'number of O VI 1032 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('OVI_dv90_vs_Nmin.png')
 
@@ -256,7 +256,7 @@ def make_misty_plots():
     ax = fig.add_subplot(111)
     sns.swarmplot(x="C_IV_dv90", y="C_IV_Nmin", data=nat_c4, color=nat_color,alpha=0.7,orient='h')
     sns.swarmplot(x="C_IV_dv90", y="C_IV_Nmin", data=ref_c4, color=ref_color,alpha=0.7,orient='h')
-#    sns.swarmplot(x="O_VI_dv90", y="O_VI_Nmin", data=hires_o6, color='#984ea3',alpha=0.7,orient='h')
+#    sns.swarmplot(x="O_VI_dv90", y="O_VI_Nmin", data=hires_o6, color=r'number984ea3',alpha=0.7,orient='h')
     # sns.swarmplot(x="Si_II_dv90", y="Si_II_Ncomp", data=kod_p, color='k',alpha=0.7,orient='h')
     #ax.scatter(nat['Si_II_dv90'],nat['Si_II_Nmin'], marker='D', s=60, color=nat_color,alpha=0.5,label='standard')
     #ax.scatter(ref['Si_II_dv90'],ref['Si_II_Nmin'], color=ref_color, marker='o',s=100, alpha=0.5,label='refined')
@@ -264,8 +264,8 @@ def make_misty_plots():
     plt.legend(loc='upper right')
     plt.xlim(0,500)
     plt.ylim(0.5,14.5)
-    plt.xlabel(r'C IV $\Delta v_{90}$ [km/s]')
-    plt.ylabel('# of C IV 1548 minima')
+    plt.xlabel(r'C IV $\Delta v_{90}$ [km/s]', fontsize=34)
+    plt.ylabel(r'number of C IV 1548 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('CIV_dv90_vs_Nmin.png')
 
@@ -280,8 +280,8 @@ def make_misty_plots():
     plt.legend(loc='lower right')
     plt.xlim(xmin=0)
     plt.ylim(0.5,14.5)
-    plt.xlabel(r'Si II EW')
-    plt.ylabel('# of Si II 1260 minima')
+    plt.xlabel(r'Si II EW', fontsize=34)
+    plt.ylabel(r'number of Si II 1260 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('SiII_EW_vs_Nmin.png')
 
@@ -295,8 +295,8 @@ def make_misty_plots():
     plt.legend(loc='lower right')
     plt.xlim(xmin=0)
     plt.ylim(0.5,14.5)
-    plt.xlabel(r'O VI EW')
-    plt.ylabel('# of O VI 1032 minima')
+    plt.xlabel(r'O VI EW', fontsize=34)
+    plt.ylabel(r'number of O VI 1032 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('OVI_EW_vs_Nmin.png')
 
@@ -310,8 +310,8 @@ def make_misty_plots():
     plt.legend(loc='lower right')
     plt.xlim(xmin=0)
     plt.ylim(0.5,7.5)
-    plt.xlabel(r'Si II EW')
-    plt.ylabel('# of Si II 1260 regions')
+    plt.xlabel(r'Si II EW', fontsize=34)
+    plt.ylabel(r'number of Si II 1260 regions', fontsize=34)
     fig.tight_layout()
     fig.savefig('SiII_EW_vs_Nreg.png')
 
@@ -325,8 +325,8 @@ def make_misty_plots():
     plt.legend(loc='lower right')
     plt.xlim(xmin=0)
     plt.ylim(0.5,7.5)
-    plt.xlabel(r'O VI EW')
-    plt.ylabel('# of O VI 1032 regions')
+    plt.xlabel(r'O VI EW', fontsize=34)
+    plt.ylabel(r'number of O VI 1032 regions', fontsize=34)
     fig.tight_layout()
     fig.savefig('OVI_EW_vs_Nreg.png')
 
@@ -340,8 +340,8 @@ def make_misty_plots():
     plt.legend(loc='upper left')
     plt.xlim(xmin=11.5)
     plt.ylim(0,600)
-    plt.xlabel('Si IV column density')
-    plt.ylabel(r'Si IV $\Delta v_{90}$')
+    plt.xlabel('Si IV column density', fontsize=34)
+    plt.ylabel(r'Si IV $\Delta v_{90}$', fontsize=34)
     fig.tight_layout()
     fig.savefig('SiIV_col_dv90.png')
 
@@ -353,8 +353,8 @@ def make_misty_plots():
     plt.legend(loc='upper right')
     plt.xlim(xmin=13)
     plt.ylim(ymin=0)
-    plt.xlabel('O VI column density')
-    plt.ylabel(r'O VI $\Delta v_{90}$ [km/s]')
+    plt.xlabel('O VI column density', fontsize=34)
+    plt.ylabel(r'O VI $\Delta v_{90}$ [km/s]', fontsize=34)
     fig.tight_layout()
     fig.savefig('OVI_col_dv90.png')
 
@@ -365,8 +365,8 @@ def make_misty_plots():
     plt.legend(loc='upper left')
     #plt.xlim(xmin=0)
     plt.ylim(ymin=0)
-    plt.xlabel('HI column density')
-    plt.ylabel(r'HI 1216 EW')
+    plt.xlabel('HI column density', fontsize=34)
+    plt.ylabel(r'HI 1216 EW', fontsize=34)
     fig.tight_layout()
     fig.savefig('HI_col_vs_ew.png')
 
@@ -379,8 +379,8 @@ def make_misty_plots():
     plt.legend(loc='upper left')
     #plt.xlim(xmin=0)
     #plt.ylim(ymin=0)
-    plt.xlabel('O VI column density')
-    plt.ylabel(r'O VI 1032 EW')
+    plt.xlabel('O VI column density', fontsize=34)
+    plt.ylabel(r'O VI 1032 EW', fontsize=34)
     fig.tight_layout()
     fig.savefig('OVI_col_ew.png')
 
@@ -395,7 +395,7 @@ def make_misty_plots():
     # plt.xlim(xmin=11.5)
     # plt.ylim(0.5,14.5)
     # plt.xlabel(r'log SiIV column density')
-    # plt.ylabel('# of Si IV 1394 minima')
+    # plt.ylabel(r'number of Si IV 1394 minima', fontsize=34)
     # fig.tight_layout()
     # fig.savefig('SiIV_col_vs_Nmin.png')
     #
@@ -410,7 +410,7 @@ def make_misty_plots():
     # plt.xlim(xmin=13)
     # plt.ylim(0.5,16.5)
     # plt.xlabel(r'log OVI column density')
-    # plt.ylabel('# of O VI 1032 minima')
+    # plt.ylabel(r'number of O VI 1032 minima', fontsize=34)
     # fig.tight_layout()
     # fig.savefig('OVI_col_vs_Nmin.png')
 
@@ -424,8 +424,8 @@ def make_misty_plots():
     plt.legend(loc='upper left', frameon=False)
     plt.xlim(xmin=16)
     plt.ylim(0.5,14)
-    plt.xlabel(r'log HI column density')
-    plt.ylabel('# of Si II 1260 minima')
+    plt.xlabel(r'log HI column density', fontsize=34)
+    plt.ylabel(r'number of Si II 1260 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('HI_col_vs_SiII_Nmin.png')
 
@@ -437,8 +437,8 @@ def make_misty_plots():
     plt.legend(loc='upper left', frameon=False)
     plt.xlim(xmin=16)
     plt.ylim(0.5,12)
-    plt.xlabel(r'log HI column density')
-    plt.ylabel('# of Si IV 1394 minima')
+    plt.xlabel(r'log HI column density', fontsize=34)
+    plt.ylabel(r'number of Si IV 1394 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('HI_col_vs_SiIV_Nmin.png')
 
@@ -452,8 +452,8 @@ def make_misty_plots():
     plt.legend(loc='upper left', frameon=False)
     plt.xlim(xmin=0)
     plt.ylim(ymin=0)
-    plt.xlabel('# of O VI 1032 minima')
-    plt.ylabel('# of Si II 1260 minima')
+    plt.xlabel(r'number of O VI 1032 minima', fontsize=34)
+    plt.ylabel(r'number of Si II 1260 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('OVI_Nmin_vs_SiII_Nmin.png')
 
@@ -465,7 +465,7 @@ def make_misty_plots():
     # plt.xlim(xmin=0)
     # plt.ylim(ymin=0)
     # plt.xlabel(r'C II $\Delta v_{90}$')
-    # plt.ylabel('# of C II 1335 components')
+    # plt.ylabel(r'number of C II 1335 components')
     # fig.tight_layout()
     # fig.savefig('CII_dv90_vs_Ncomp.png')
 
@@ -479,7 +479,7 @@ def make_misty_plots():
     ax.hist(nat['O_VI_Nmin'][idn]/nat['O_VI_Nreg'][idn], bins=bins,normed=True, align='left',histtype='step',lw=3, edgecolor=nat_color, hatch='\\\\', label='standard')
     ax.hist(ref['O_VI_Nmin'][idr]/ref['O_VI_Nreg'][idr], bins=bins,normed=True, align='left',histtype='step',lw=3, edgecolor=ref_color, hatch='//', label='refined')
     plt.legend(loc='upper right')
-    plt.xlabel('# of O VI 1032 minima / regions')
+    plt.xlabel(r'number of O VI 1032 minima / regions')
     plt.ylabel('normalized fraction of sightlines')
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
@@ -496,7 +496,7 @@ def make_misty_plots():
     ax.hist(nat['Si_II_Nmin'][idn]/nat['Si_II_Nreg'][idn], bins=bins,normed=True, align='left',histtype='step',lw=3, edgecolor=nat_color, hatch='\\\\', label='standard')
     ax.hist(ref['Si_II_Nmin'][idr]/ref['Si_II_Nreg'][idr], bins=bins,normed=True, align='left',histtype='step',lw=3, edgecolor=ref_color, hatch='//', label='refined')
     plt.legend(loc='upper right')
-    plt.xlabel('# of Si II 1260 minima / regions')
+    plt.xlabel(r'number of Si II 1260 minima / regions')
     plt.ylabel('normalized fraction of sightlines with Nmin > 4')
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
@@ -514,8 +514,8 @@ def make_misty_plots():
     ax.hist(nat['Si_II_Nreg'][idn], bins=bins,normed=True, histtype='step',lw=3,align='left', edgecolor=nat_color, hatch='\\\\', label='standard')
     ax.hist(ref['Si_II_Nreg'][idr], bins=bins,normed=True, histtype='step',lw=3, align='left',edgecolor=ref_color, hatch='//', label='refined')
     plt.legend(loc='upper right')
-    plt.xlabel('# of Si II 1260 regions')
-    plt.ylabel('fraction of sightlines with > 4 minima')
+    plt.xlabel(r'number of Si II 1260 regions')
+    plt.ylabel('fraction of sightlines with > 4 minima', fontsize=34)
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10'))
     plt.xlim(0,11)
@@ -533,7 +533,7 @@ def make_misty_plots():
     ax.hist(nat['Si_II_Nreg'][idn], bins=bins,normed=True, histtype='step',lw=3,align='left', edgecolor=nat_color, hatch='\\\\', label='standard')
     ax.hist(ref['Si_II_Nreg'][idr], bins=bins,normed=True, histtype='step',lw=3, align='left',edgecolor=ref_color, hatch='//', label='refined')
     plt.legend(loc='upper right')
-    plt.xlabel('# of Si II 1260 regions')
+    plt.xlabel(r'number of Si II 1260 regions')
     plt.ylabel('normalized fraction of sightlines')
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10'))
@@ -552,8 +552,8 @@ def make_misty_plots():
     ax.hist(nat['O_VI_Nreg'][idn], bins=bins,normed=True, histtype='step',lw=3,align='left', edgecolor=nat_color, hatch='\\\\', label='standard')
     ax.hist(ref['O_VI_Nreg'][idr], bins=bins,normed=True, histtype='step',lw=3, align='left',edgecolor=ref_color, hatch='//', label='refined')
     plt.legend(loc='upper right')
-    plt.xlabel('# of O VI 1032 regions')
-    plt.ylabel('fraction of sightlines with > 4 minima')
+    plt.xlabel(r'number of O VI 1032 regions')
+    plt.ylabel('fraction of sightlines with > 4 minima', fontsize=34)
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10'))
     plt.xlim(0,11)
@@ -571,7 +571,7 @@ def make_misty_plots():
     ax.hist(nat['O_VI_Nreg'][idn], bins=bins,normed=True, histtype='step',lw=3,align='left', edgecolor=nat_color, hatch='\\\\', label='standard')
     ax.hist(ref['O_VI_Nreg'][idr], bins=bins,normed=True, histtype='step',lw=3, align='left',edgecolor=ref_color, hatch='//', label='refined')
     plt.legend(loc='upper right')
-    plt.xlabel('# of O VI 1032 regions')
+    plt.xlabel(r'number of O VI 1032 regions')
     plt.ylabel('normalized fraction of sightlines')
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10'))
@@ -593,8 +593,8 @@ def make_misty_plots():
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
     plt.legend(loc='upper right')
-    plt.xlabel('# of Si II 1260 minima')
-    plt.ylabel('normalized fraction')
+    plt.xlabel(r'number of Si II 1260 minima', fontsize=34)
+    plt.ylabel('normalized fraction', fontsize=34)
     fig.tight_layout()
     fig.savefig('Si_II_histograms.png')
     #
@@ -609,7 +609,7 @@ def make_misty_plots():
     # plt.xlim(xmin=12)
     # plt.ylim(0.5,14.5)
     # plt.xlabel(r'log SiII column density')
-    # plt.ylabel('# of Si II 1260 minima')
+    # plt.ylabel(r'number of Si II 1260 minima', fontsize=34)
     # fig.tight_layout()
     # fig.savefig('SiII_col_vs_Nmin.png')
 
@@ -626,8 +626,8 @@ def make_misty_plots():
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
     plt.legend(loc='upper right')
-    plt.xlabel('# of Si IV 1260 minima')
-    plt.ylabel('normalized fraction')
+    plt.xlabel(r'number of Si IV 1260 minima', fontsize=34)
+    plt.ylabel('normalized fraction', fontsize=34)
     fig.tight_layout()
     fig.savefig('Si_IV_histograms.png')
 
@@ -644,8 +644,8 @@ def make_misty_plots():
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
     plt.legend(loc='upper right')
-    plt.xlabel('# of C IV 1548 minima')
-    plt.ylabel('normalized fraction')
+    plt.xlabel(r'number of C IV 1548 minima', fontsize=34)
+    plt.ylabel('normalized fraction', fontsize=34)
     fig.tight_layout()
     fig.savefig('C_IV_histograms.png')
 
@@ -662,15 +662,40 @@ def make_misty_plots():
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
     plt.legend(loc='upper right')
-    plt.xlabel('# of O VI 1032 minima')
-    plt.ylabel('normalized fraction')
+    plt.xlabel(r'number of O VI 1032 minima', fontsize=34)
+    plt.ylabel('normalized fraction', fontsize=34)
     fig.tight_layout()
     fig.savefig('O_VI_histograms.png')
 
-    ## KS-test
-#    for key in ['Si_II_Nmin','Si_IV_Nmin', 'C_IV_Nmin', 'O_VI_Nmin']:
-#        print(key, 'nat vs. KODIAQ:', stats.ks_2samp(np.array(nat[key][key > 0])[0], np.array(kodiaq[key][key > 0])[0]))
-#        print(key, 'ref vs. KODIAQ:', stats.ks_2samp(np.array(ref[key][key > 0])[0], np.array(kodiaq[key][key > 0])[0]))
+
+    idn = [(nat['Si_II_Nmin'] > 0) & (nat['Si_II_col'] > si2_limit) & (nat['HI_col'] > 0)]
+    idr = [(ref['Si_II_Nmin'] > 0) & (ref['Si_II_col'] > si2_limit)]
+    nat_si2 = nat[idn]
+    ref_si2 = ref[idr]
+    key = 'Si_II_Nmin'
+    print(key, 'nat vs ref:', stats.ks_2samp(np.array(nat_si2[key]), np.array(ref_si2[key])))
+
+
+    idn = [(nat['Si_IV_Nmin'] > 0) & (nat['Si_IV_col'] > si4_limit) & (nat['HI_col'] > 0)]
+    idr = [(ref['Si_IV_Nmin'] > 0) & (ref['Si_IV_col'] > si4_limit)]
+    nat_si4 = nat[idn]
+    ref_si4 = ref[idr]
+    key = 'Si_IV_Nmin'
+    print(key, 'nat vs ref:', stats.ks_2samp(np.array(nat_si4[key]), np.array(ref_si4[key])))
+
+    idn = [(nat['C_IV_Nmin'] > 0) & (nat['C_IV_col'] > c4_limit) & (nat['HI_col'] > 0)]
+    idr = [(ref['C_IV_Nmin'] > 0) & (ref['C_IV_col'] > c4_limit)]
+    nat_c4 = nat[idn]
+    ref_c4 = ref[idr]
+    key = 'C_IV_Nmin'
+    print(key, 'nat vs ref:', stats.ks_2samp(np.array(nat_c4[key]), np.array(ref_c4[key])))
+
+    idn = [(nat['O_VI_Nmin'] > 0) & (nat['O_VI_col'] > o6_limit) & (nat['HI_col'] > 0)]
+    idr = [(ref['O_VI_Nmin'] > 0) & (ref['O_VI_col'] > o6_limit)]
+    nat_o6 = nat[idn]
+    ref_o6 = ref[idr]
+    key = 'O_VI_Nmin'
+    print(key, 'nat vs ref:', stats.ks_2samp(np.array(nat_o6[key]), np.array(ref_o6[key])))
 
 
 if __name__ == "__main__":

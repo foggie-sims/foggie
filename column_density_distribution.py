@@ -252,7 +252,7 @@ def plot_cddf():
     plt.legend(loc = 'upper right')
     xlabel = 'log HI column density'
     plt.xlabel(xlabel,fontsize=22)
-    plt.ylabel('fraction of sightlines with > N',fontsize=22)
+    plt.ylabel(r'fraction of sightlines with > N',fontsize=22)
     plt.tight_layout()
     plotname = output_dir + 'HI_cddf.png'
     plt.savefig(plotname)
@@ -274,7 +274,7 @@ def plot_cddf():
     axbot.hist(si2_colr[llsr],bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,lw=2)
     axbot.hist(si2_coln[llsn],bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,lw=2)
     axbot.set_xlabel('log Si II column density',fontsize=22)
-    axbot.set_ylabel('fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
     plt.tight_layout()
     plotname = output_dir + 'SiII_both_cddf.png'
     plt.savefig(plotname)
@@ -297,7 +297,7 @@ def plot_cddf():
     axbot.set_xticks((12,13,14,15))
     axbot.set_xticklabels(('12','13','14','15'))
     axbot.set_xlabel('log Si IV column density',fontsize=22)
-    axbot.set_ylabel('fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
     plt.tight_layout()
     plotname = output_dir + 'SiIV_both_cddf.png'
     plt.savefig(plotname)
@@ -320,7 +320,7 @@ def plot_cddf():
     axbot.set_xticks((11,12,13,14,15))
     axbot.set_xticklabels(('11','12','13','14','15'))
     axbot.set_xlabel('log C IV column density',fontsize=22)
-    axbot.set_ylabel('fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
     plt.tight_layout()
     plotname = output_dir + 'CIV_both_cddf.png'
     plt.savefig(plotname)
@@ -343,7 +343,7 @@ def plot_cddf():
     axbot.set_xticks((12,13,14,15))
     axbot.set_xticklabels(('12','13','14','15'))
     axbot.set_xlabel('log O VI column density',fontsize=22)
-    axbot.set_ylabel('fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
     plt.tight_layout()
     plotname = output_dir + 'OVI_both_cddf.png'
     plt.savefig(plotname)
@@ -499,6 +499,6 @@ def plot_cddf():
 
 
 if __name__ == "__main__":
-    calc_cddf()
-    ## plot_cddf()
+    ## calc_cddf()
+    plot_cddf()
     sys.exit("~~~*~*~*~*~*~all done!!!! yay column densities!")

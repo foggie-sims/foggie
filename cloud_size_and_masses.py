@@ -8,11 +8,11 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 sns.set_style("whitegrid", {'axes.grid' : False})
 mpl.rcParams['font.family'] = 'stixgeneral'
-mpl.rcParams['font.size'] = 20.
+mpl.rcParams['font.size'] = 26.
 
 def plot_cloud_size_and_masses():
     h1_limit = 1.e13
-    si2_limit = 1.e12
+    si2_limit = 1.e11
     c4_limit = 1.e12
     o6_limit = 1.e13
 
@@ -219,7 +219,7 @@ def plot_cloud_size_and_masses():
     #########################################
     ####### 3d masses and sizes #############
     #########################################
-    fig = plt.figure(figsize=(12,7))
+    fig = plt.figure(figsize=(14,11))
     ax = fig.add_subplot(111)
 
     h1_cloud_ncells = np.array(h1sizes) / np.array(nref10_cell)
@@ -248,8 +248,8 @@ def plot_cloud_size_and_masses():
     ax.set_xticklabels((r'10',r'100',r'1000',r'10$^4$',r'10$^5$'))
     ax.set_yticks((1,2,3,4,5,6,7,8))
     ax.set_yticklabels((r'10',r'100',r'1000',r'10$^4$',r'10$^5$',r'10$^6$',r'10$^7$',r'10$^8$'))
-    plt.xlabel(r'log (Number of Cells in Implied 3D cloud)')
-    plt.ylabel(r'log (Total Mass of Implied 3D cloud)')
+    plt.xlabel(r'log (number of cells in implied 3D cloud)', fontsize=34)
+    plt.ylabel(r'log (total mass of implied 3D cloud)', fontsize=34)
     plt.legend(loc='lower right', handletextpad=0.1)
     plt.grid(True)
     plt.tight_layout()
