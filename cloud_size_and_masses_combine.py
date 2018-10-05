@@ -392,6 +392,23 @@ def plot_cloud_size_and_masses():
     plt.savefig(output_dir + 'cloud_cells_histogram.png')
     plt.savefig(output_dir + 'cloud_cells_histogram.pdf')
 
+    ## calculate the fractions:
+    h1f = np.array(nref10f_h1_n_cells)
+    h1n = np.array(natural_h1_n_cells)
+    print("natural HI cells fraction <= 5: ", len(h1n[h1n <= 5]) / len(h1n),"== 1: ",len(h1n[h1n == 1]) / len(h1n))
+    print("refined HI cells fraction <= 5: ", len(h1f[h1f <= 5]) / len(h1f),"== 1: ",len(h1f[h1f == 1]) / len(h1f))
+    si2f = np.array(nref10f_si2_n_cells)
+    si2n = np.array(natural_si2_n_cells)
+    print("natural SiII cells fraction <= 5: ", len(si2n[si2n <= 5]) / len(si2n),"== 1: ",len(si2n[si2n == 1]) / len(si2n))
+    print("refined SiII cells fraction <= 5: ", len(si2f[si2f <= 5]) / len(si2f),"== 1: ",len(si2f[si2f == 1]) / len(si2f))
+    c4f = np.array(nref10f_c4_n_cells)
+    c4n = np.array(natural_c4_n_cells)
+    print("natural CIV cells fraction <= 5: ", len(c4n[c4n <= 5]) / len(c4n),"== 1: ",len(c4n[c4n == 1]) / len(c4n))
+    print("refined CIV cells fraction <= 5: ", len(c4f[c4f <= 5]) / len(c4f),"== 1: ",len(c4f[c4f == 1]) / len(c4f))
+    o6f = np.array(nref10f_o6_n_cells)
+    o6n = np.array(natural_o6_n_cells)
+    print("natural OVI cells fraction <= 5: ", len(o6n[o6n <= 5]) / len(o6n),"== 1: ",len(o6n[o6n == 1]) / len(o6n))
+    print("refined OVI cells fraction <= 5: ", len(o6f[o6f <= 5]) / len(o6f),"== 1: ",len(o6f[o6f == 1]) / len(o6f))
 
 
 
