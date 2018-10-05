@@ -6,6 +6,7 @@ import datashader as dshader
 import datashader.transfer_functions as tf
 from datashader import reductions
 import numpy as np
+from scipy.signal import argrelextrema
 import pickle
 import glob
 import os
@@ -28,8 +29,9 @@ CORE_WIDTH = 20.
 
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     """ oh, the docstring is missing, is it??? """
-
     impact = hdulist[0].header['IMPACT']
+    lsffile = '.' + fileroot.strip('los.fits.gz') + 'lsf.fits.gz'
+    lsfhdu = fits.open(lsffile)
 
     df = futils.ds_to_df(ds, ray_start, ray_end)
     ray_index, axis_to_use, second_axis = futils.get_ray_axis(
@@ -233,6 +235,17 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                        (1 + ds.get_parameter('CosmologyCurrentRedshift'))).to('km/s')
             ax.step(vel, hdulist[key].data['flux'])
                 # this line here plots the spectrum
+            ### find the minima!
+            if (lsfhdu.__contains__(key)):
+                flux = lsfhdu[key].data['flux_obs']
+                hdu_velocity = lsfhdu[key].data['velocity']
+                vi = argrelextrema(flux, np.less)[0]
+                #print(velocity[vi[flux[vi] < 0.95]])
+                vmin = hdu_velocity[vi[flux[vi] < 0.95]]
+                for v in vmin:
+                    ax.plot(v, np.array(v)*0.0 + 0.1, '|')
+
+
 
     # H I number of cells per velocity
     #n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['h1_cloud_flag'] > 0]), bins=70, range=(-350, 350))
@@ -252,17 +265,17 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     pickle.dump(size_dict, open('.' + fileroot+"sizes.pkl", "wb"))
 
-    for v in np.flip(h1_size_dict['h1_velocities'], 0):
-        ax8.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
-
-    for v in np.flip(si2_size_dict['si2_velocities'], 0):
-        ax9.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
-
-    for v in np.flip(c4_size_dict['c4_velocities'], 0):
-        ax10.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
-
-    for v in np.flip(o6_size_dict['o6_velocities'], 0):
-        ax11.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
+    # for v in np.flip(h1_size_dict['h1_velocities'], 0):
+    #     ax8.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
+    #
+    # for v in np.flip(si2_size_dict['si2_velocities'], 0):
+    #     ax9.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
+    #
+    # for v in np.flip(c4_size_dict['c4_velocities'], 0):
+    #     ax10.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
+    #
+    # for v in np.flip(o6_size_dict['o6_velocities'], 0):
+    #     ax11.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
 
     for ax in [ax2, ax3, ax4, ax5, ax6, ax7]:
         ax.axes.get_xaxis().set_ticks([])
@@ -361,8 +374,7 @@ def grab_ray_file(ds, filename):
 def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
         ray_df, rs, re, axis_to_use, hdulist = grab_ray_file(ds, filename)
-        show_velphase(ds, ray_df, rs, re, hdulist,
-                      filename.strip('los.fits.gz'))
+        show_velphase(ds, ray_df, rs, re, hdulist, filename.strip('los.fits.gz'))
 
 
 def drive_velphase(ds_name, wildcard):
