@@ -228,8 +228,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_yticklabels([' ', ' ', ' '])
         if (hdulist.__contains__(key)):
             restwave = hdulist[key].header['RESTWAVE'] * u.AA
-            with u.set_enabled_equivalencies(
-                    u.equivalencies.doppler_relativistic(restwave)):
+            with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(restwave)):
                 vel = (hdulist[key].data['wavelength']*u.AA /
                        (1 + ds.get_parameter('CosmologyCurrentRedshift'))).to('km/s')
             ax.step(vel, hdulist[key].data['flux'])
@@ -309,7 +308,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
 def grab_ray_file(ds, filename):
     """
-    opens a fits file containing a FOGGIE / Trident ray and returns a dataframe
+    opens a fits file containing a FOGGIE spectrum and returns a dataframe
     with useful quantities along the ray
     """
     print("grab_ray_file is opening: ", filename)
@@ -333,26 +332,35 @@ def grab_ray_file(ds, filename):
     ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
     ray['dx'] = ray['dx'].convert_to_units('cm')
 
-    ray_df = ray.to_dataframe(["x", "y", "z", "density", "temperature",
+    ray_field_list = ["x", "y", "z", "density", "temperature",
                                "metallicity", "HI_Density", "cell_mass", "dx",
                                "x-velocity", "y-velocity", "z-velocity",
                                "C_p2_number_density", "C_p3_number_density",
                                "H_p0_number_density", "Mg_p1_number_density",
                                "O_p5_number_density", "Si_p2_number_density",
                                "Si_p1_number_density", "Si_p3_number_density",
-                               "Ne_p7_number_density"])
+                               "Ne_p7_number_density"]
+    ray_df = ray.to_dataframe(ray_field_list)
 
     ray_index, first_axis, second_axis = futils.get_ray_axis(rs, re)
 
     ray_df = ray_df.sort_values(by=[first_axis])
+
+    ## we also need the trident ray
+#    triray = trident.make_simple_ray(ds, start_position=rs.copy(),
+#                  end_position=re.copy(),
+#                  data_filename="test.h5",
+#                  lines=line_list,
+#                  ftype='gas',
+#                  fields=field_list)
+
 
     return ray_df, rs, re, first_axis, hdulist
 
 
 def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
-        ray_df, rs, re, axis_to_use, hdulist = grab_ray_file(
-            ds, filename)
+        ray_df, rs, re, axis_to_use, hdulist = grab_ray_file(ds, filename)
         show_velphase(ds, ray_df, rs, re, hdulist,
                       filename.strip('los.fits.gz'))
 
@@ -379,7 +387,7 @@ if __name__ == "__main__":
         args)
 
     dataset_list = glob.glob(
-        os.path.join('.', '*rd0018*v6_los*fits.gz'))
+        os.path.join('.', '*rd0020*v6_los*fits.gz'))
     print('there are ', len(dataset_list), 'files')
 
     ds = yt.load(ds_loc)

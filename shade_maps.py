@@ -133,7 +133,7 @@ def wrap_axes(filename, field1, field2, colorcode, ranges):
 
     img = mpimg.imread(filename+'.png')
     print('IMG', np.shape(img[:,:,0:3]))
-    fig = plt.figure(figsize=(8,8))
+    fig = plt.figure(figsize=(8,8),dpi=300)
 
     ax = fig.add_axes([0.13, 0.13, 0.85, 0.85])
     ax.imshow(np.flip(img[:,:,0:3],0), alpha=1.)
@@ -143,20 +143,20 @@ def wrap_axes(filename, field1, field2, colorcode, ranges):
     x_min = ranges[0][0]
     if (x_max > 10.): xstep = 10
     if (x_max > 100.): xstep = 100
-    xtext = ax.set_xlabel(axes_label_dict[field1], fontsize=20)
+    xtext = ax.set_xlabel(axes_label_dict[field1], fontsize=24)
     ax.set_xticks(np.arange((x_max - x_min) + 1., step=xstep) * 1000. / (x_max - x_min))
     ax.set_xticklabels([ str(int(s)) for s in \
-        np.arange((x_max - x_min) + 1., step=xstep) +  x_min ], fontsize=20)
+        np.arange((x_max - x_min) + 1., step=xstep) +  x_min ], fontsize=22)
 
     ystep = 1
     y_max = ranges[1][1]
     y_min = ranges[1][0]
     if (y_max > 10.): ystep = 10
     if (y_max > 100.): ystep = 100
-    ytext = ax.set_ylabel(axes_label_dict[field2], fontsize=20)
+    ytext = ax.set_ylabel(axes_label_dict[field2], fontsize=24)
     ax.set_yticks(np.arange((y_max - y_min) + 1., step=ystep) * 1000. / (y_max - y_min))
     ax.set_yticklabels([ str(int(s)) for s in \
-        np.arange((y_max - y_min) + 1., step=ystep) + y_min], fontsize=20)
+        np.arange((y_max - y_min) + 1., step=ystep) + y_min], fontsize=22)
 
     ax2 = fig.add_axes([0.7, 0.91, 0.25, 0.06])
     phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
@@ -164,13 +164,14 @@ def wrap_axes(filename, field1, field2, colorcode, ranges):
     if 'phase' in colorcode:
         ax2.imshow(np.flip(phase_cmap.to_pil(), 1))
         ax2.set_xticks([100,350,600])
-        ax2.set_xticklabels(['4','5','6',' '])
-        ax2.set_xlabel('log T [K]')
+        ax2.set_xticklabels(['4','5','6',' '],fontsize=11)
+        #ax2.xaxis.set_label_position('top')
+        ax2.text(230, 150, 'log T [K]',fontsize=13)
     elif 'metal' in colorcode:
         ax2.imshow(np.flip(metal_cmap.to_pil(), 1))
         ax2.set_xticks([0, 400, 800])
         ax2.set_xticklabels(['-4', '-2', '0'])
-        ax2.set_xlabel('log Z')
+        ax2.set_xlabel('log Z',fontsize=13)
 
     ax2.spines["top"].set_color('white')
     ax2.spines["bottom"].set_color('white')
@@ -202,7 +203,7 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     elif 'metal' in count_cat:
         color_key = new_metals_color_key
 
-    img = tf.shade(agg, color_key=color_key, how='log')
+    img = tf.shade(agg, color_key=color_key, how='log',min_alpha=230)
     export(img, filename)
     return img
 
