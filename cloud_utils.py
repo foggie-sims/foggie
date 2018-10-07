@@ -4,7 +4,6 @@ useful stuff for cloud analysis JT090618
 import copy
 import numpy as np
 
-
 def reduce_ion_vector(vx, ion):
     """ this function takes in two vectors for velocity and ionization
         fraction and chunks the ionization fraction into a uniform velocity
