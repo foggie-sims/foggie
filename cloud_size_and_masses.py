@@ -226,14 +226,14 @@ def plot_cloud_size_and_masses():
     si2_cloud_ncells = np.array(si2sizes) / np.array(nref10_cell)
     c4_cloud_ncells = np.array(c4sizes) / np.array(nref10_cell)
     o6_cloud_ncells = np.array(o6sizes) / np.array(nref10_cell)
-    h1_implied_spherical_masses = (h1_cloud_ncells**2) * np.array(h1masses)/1.989e33 / 2.
-    si2_implied_spherical_masses = (si2_cloud_ncells**2) * np.array(si2masses)/1.989e33 / 2.
-    c4_implied_spherical_masses = (c4_cloud_ncells**2) * np.array(c4masses)/1.989e33 / 2.
-    o6_implied_spherical_masses = (o6_cloud_ncells**2) * np.array(o6masses)/1.989e33 / 2.
-    h1_implied_ncells = 4.12 * ((np.random.normal(0,0.25,size=len(h1_cloud_ncells)) + h1_cloud_ncells)**2)
-    si2_implied_ncells = 4.12 * ((np.random.normal(0,0.25,size=len(si2_cloud_ncells)) + si2_cloud_ncells)**2)
-    c4_implied_ncells = 4.12 * ((np.random.normal(0,0.25,size=len(c4_cloud_ncells)) + c4_cloud_ncells)**2)
-    o6_implied_ncells = 4.12 * ((np.random.normal(0,0.25,size=len(o6_cloud_ncells)) + o6_cloud_ncells)**2)
+    h1_implied_spherical_masses = (np.pi/6) * (h1_cloud_ncells**2) * np.array(h1masses)/1.989e33 / 2.
+    si2_implied_spherical_masses = (np.pi/6) * (si2_cloud_ncells**2) * np.array(si2masses)/1.989e33 / 2.
+    c4_implied_spherical_masses = (np.pi/6) * (c4_cloud_ncells**2) * np.array(c4masses)/1.989e33 / 2.
+    o6_implied_spherical_masses = (np.pi/6) * (o6_cloud_ncells**2) * np.array(o6masses)/1.989e33 / 2.
+    h1_implied_ncells = (np.pi/6) * ((np.random.normal(0,0.25,size=len(h1_cloud_ncells)) + h1_cloud_ncells)**2)
+    si2_implied_ncells = (np.pi/6) * ((np.random.normal(0,0.25,size=len(si2_cloud_ncells)) + si2_cloud_ncells)**2)
+    c4_implied_ncells = (np.pi/6) * ((np.random.normal(0,0.25,size=len(c4_cloud_ncells)) + c4_cloud_ncells)**2)
+    o6_implied_ncells = (np.pi/6) * ((np.random.normal(0,0.25,size=len(o6_cloud_ncells)) + o6_cloud_ncells)**2)
 
     ax.scatter(np.log10(h1_implied_ncells), np.log10(h1_implied_spherical_masses), marker='*', alpha=0.6, color=hi_color, label='H I',zorder=10)
     ax.scatter(np.log10(si2_implied_ncells), np.log10(si2_implied_spherical_masses), marker='s', alpha=0.4, color=si2_color, label='Si II',zorder=10)
@@ -243,13 +243,13 @@ def plot_cloud_size_and_masses():
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
 
-    plt.axis([0.1,5,0.5,8.2])
-    ax.set_xticks((1,2,3,4,5))
-    ax.set_xticklabels((r'10',r'100',r'1000',r'10$^4$',r'10$^5$'))
+    plt.axis([0.1,4,0.5,8.2])
+    ax.set_xticks((0,1,2,3,4))
+    ax.set_xticklabels((r'1',r'10',r'100',r'1000',r'10$^4$'))
     ax.set_yticks((1,2,3,4,5,6,7,8))
     ax.set_yticklabels((r'10',r'100',r'1000',r'10$^4$',r'10$^5$',r'10$^6$',r'10$^7$',r'10$^8$'))
-    plt.xlabel(r'log (number of cells in implied 3D cloud)', fontsize=34)
-    plt.ylabel(r'log (total mass of implied 3D cloud)', fontsize=34)
+    plt.xlabel(r'number of cells in implied 3D cloud', fontsize=34)
+    plt.ylabel(r'total mass of implied 3D cloud', fontsize=34)
     plt.legend(loc='lower right', handletextpad=0.1)
     plt.grid(True)
     plt.tight_layout()
