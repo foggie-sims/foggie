@@ -220,11 +220,11 @@ def plot_cloud_size_and_masses():
                    ylim=(0, 1.05), xlim=(0.1, 60))
     hist_bins = 0.5 * nref10_cell * (np.arange(2000)+1.)
     for i in np.arange(7)+1.:
-        axtop.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', color='grey')
-        axbot.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', color='grey')
+        axtop.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', lw=5, color='grey')
+        axbot.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', lw=5, color='grey')
     for i in np.arange(2)+2.:
-        axtop.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', color='grey')
-        axbot.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', color='grey')
+        axtop.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', lw=5, color='grey')
+        axbot.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', lw=5, color='grey')
     axtop.hist(natural_h1sizes, hist_bins, range=(0, 500), cumulative=-1,normed=True,color=hi_color, histtype='step',lw=3, label='H I')
     axtop.hist(natural_si2sizes, hist_bins, range=(0, 500), cumulative=-1,normed=True,color=si2_color, histtype='step',lw=3, label='Si II')
     axtop.hist(natural_c4sizes, hist_bins, range=(0, 500), cumulative=-1,normed=True,color=c4_color, histtype='step',lw=3, label='C IV')
@@ -262,7 +262,7 @@ def plot_cloud_size_and_masses():
     ####################################################
     #######  histogram of sizes ########################
     ####################################################
-    fig = plt.figure(figsize=(14,11))
+    fig = plt.figure(figsize=(14,11), dpi=300)
     axtop = fig.add_axes([0.1, 0.52, 0.88, 0.42],
                    ylim=(0, 0.85), xlim=(0.1, 60))
     axbot = fig.add_axes([0.1, 0.1, 0.88, 0.42],
@@ -271,11 +271,11 @@ def plot_cloud_size_and_masses():
     hist_bins = nref10_cell * (np.arange(2000)+1.) - 0.5*nref10_cell
     #hist_bins = np.concatenate((0.5*nref10_cell, hist_bins), axis=None)
     for i in np.arange(7)+1.:
-        axtop.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', color='grey')
-        axbot.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', color='grey')
+        axtop.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],':',lw=4, color='grey',zorder=0)
+        axbot.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],':',lw=4, color='grey',zorder=0)
     for i in np.arange(2)+2.:
-        axtop.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', color='grey')
-        axbot.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],'--', color='grey')
+        axtop.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],':', lw=4, color='grey',zorder=0)
+        axbot.plot([0.5 * nref10_cell*2.**i, nref10_cell*2.**i],[0,2000],':', lw=4, color='grey',zorder=0)
     axtop.hist(natural_h1sizes, hist_bins, range=(0, 500), normed=True,edgecolor=hi_color,hatch='XX', lw=3,histtype='step',align='mid', label='H I')
     axtop.hist(natural_si2sizes, hist_bins, range=(0, 500), normed=True, edgecolor=si2_color, hatch='////', lw=3, histtype='step', align='mid',label='Si II')
     axtop.hist(natural_c4sizes, hist_bins, range=(0, 500), normed=True, edgecolor=c4_color, hatch='--', lw=3,histtype='step',align='mid',label='C IV')
@@ -287,7 +287,7 @@ def plot_cloud_size_and_masses():
     axtop.set_yticklabels(('0.2','0.4','0.6','0.8'))
     axtop.grid(True)
     axtop.legend(loc='upper right')
-    fig.text(0.11, 0.87, 'standard resolution', fontsize=32, ha='left')
+    fig.text(0.11, 0.87, 'standard resolution', fontsize=32, ha='left', backgroundcolor='white')
 
 
     axbot.hist(nref10f_h1sizes, hist_bins, range=(0, 500), normed=True,edgecolor=hi_color,hatch='XX', lw=3,histtype='step',align='mid', label='H I',zorder=8)
@@ -298,7 +298,7 @@ def plot_cloud_size_and_masses():
     axbot.set_xticks((0.1, 1, 10))
     axbot.set_xticklabels(('0.1','1','10'))
     axbot.grid(True)
-    fig.text(0.11, 0.46, 'high resolution', fontsize=32, ha='left')
+    fig.text(0.11, 0.46, 'high resolution', fontsize=32, ha='left', backgroundcolor='white')
 
     fig.text(0.5, 0.02, r'cloud size [$h^{-1}$ comoving kpc]', fontsize=34, ha='center')
     fig.text(0.02, 0.5, 'fraction of clouds', fontsize=34, va='center', rotation='vertical')
