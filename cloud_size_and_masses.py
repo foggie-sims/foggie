@@ -250,7 +250,7 @@ def plot_cloud_size_and_masses():
     ax.set_yticklabels((r'10',r'100',r'1000',r'10$^4$',r'10$^5$',r'10$^6$',r'10$^7$',r'10$^8$'))
     plt.xlabel(r'number of cells in implied 3D cloud', fontsize=34)
     plt.ylabel(r'total mass of implied 3D cloud', fontsize=34)
-    plt.legend(loc='lower right', handletextpad=0.1)
+    plt.legend(loc='lower right', handletextpad=0.1, markerscale=2)
     plt.grid(True)
     plt.tight_layout()
     plt.savefig('cloud_3d.png')
