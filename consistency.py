@@ -169,6 +169,7 @@ temp_colors = sns.blend_palette(
 phase_color_labels = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2',
                       b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot',
                       b'hot1', b'hot2', b'hot3']
+temperature_discrete_cmap = mpl.colors.ListedColormap(temp_colors)
 new_phase_color_key = collections.OrderedDict()
 for i in np.arange(np.size(phase_color_labels)):
     new_phase_color_key[phase_color_labels[i]] = to_hex(temp_colors[i])
@@ -197,9 +198,9 @@ metal_color_labels = [b'free', b'free1', b'free2', b'free3', b'poor',
                       b'poor1', b'poor2', b'poor3', b'low', b'low1',
                       b'low2', b'low3', b'solar', b'solar1', b'solar2',
                       b'solar3', b'high', b'high1', b'high2', b'high3', b'high4']
-
 metallicity_colors = sns.blend_palette(("black", "#4575b4", "#984ea3", "#984ea3", "#d73027",
      "darkorange", "#ffe34d"), n_colors=21)
+metal_discrete_cmap = mpl.colors.ListedColormap(metallicity_colors)
 new_metals_color_key = collections.OrderedDict()
 for i in np.arange(np.size(metal_color_labels)):
     new_metals_color_key[metal_color_labels[i]] = to_hex(metallicity_colors[i])
