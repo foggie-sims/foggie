@@ -387,7 +387,7 @@ def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
         ray_df, rs, re, axis_to_use, hdulist = grab_ray_file(ds, filename)
         fileroot = filename.strip('los.fits.gz').replace('.','')
-        show_velphase(ds, ray_df, rs, re, hdulist, filename.strip('los.fits.gz'))
+        show_velphase(ds, ray_df, rs, re, hdulist, fileroot)
 
 
 def drive_velphase(ds_name, wildcard):
@@ -412,7 +412,7 @@ if __name__ == "__main__":
         args)
 
     dataset_list = glob.glob(
-        os.path.join('.', '*rd0018*axx*v6_los*fits.gz'))
+        os.path.join('.', '*rd0020*v6_los*fits.gz'))
     print('there are ', len(dataset_list), 'files')
 
     #### dataset_list = ['./hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0020_axz_i010.5-a6.01_v5_los.fits.gz']
