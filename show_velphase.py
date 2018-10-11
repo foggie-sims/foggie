@@ -17,8 +17,9 @@ import trident
 import yt
 from astropy.io import fits
 from matplotlib.gridspec import GridSpec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-from consistency import new_phase_color_key, new_metals_color_key, species_dict
+from consistency import * ## new_phase_color_key, new_metals_color_key, species_dict
 mpl.rcParams['font.family'] = 'stixgeneral'
 import foggie_utils as futils
 import cmap_utils as cmaps
@@ -31,7 +32,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     """ oh, the docstring is missing, is it??? """
     impact = hdulist[0].header['IMPACT']
     lsffile = '.' + fileroot.strip('los.fits.gz') + 'lsf.fits.gz'
-    lsfhdu = fits.open(lsffile)
+    #lsfhdu = fits.open(lsffile)
 
     df = futils.ds_to_df(ds, ray_start, ray_end)
     ray_index, axis_to_use, second_axis = futils.get_ray_axis(
@@ -145,9 +146,23 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax6.set_ylim(0, 900)
 
     metal_colormap = metal_cmap
+    # divider = make_axes_locatable(ax7)
+    # cax = divider.append_axes("right", size="50%", pad=0.05)
+    # norm = mpl.colors.Normalize(vmin=np.log10(metal_min), vmax=np.log10(metal_max))
+    # cb = mpl.colorbar.ColorbarBase(cax, cmap=metal_discrete_cmap,
+    #                                 norm=norm,
+    #                                 orientation='vertical',
+    #                                 extend='both')
+    # cb.ax.tick_params(labelsize=8.)
+    # cb.set_ticks([-4, -2, 0])
+    # cb.set_ticklabels(['-4','-2','0'])
     ax7.imshow(np.rot90(metal_colormap.to_pil()))
     ax7.set_xlim(60, 180)
     ax7.set_ylim(0, 900)
+    for y, l in zip([0,350,700],['-4','-2','0']):
+       ax7.text(50, y, l,  fontsize=8,
+               verticalalignment='center', horizontalalignment='right')
+    ax7.set_xlabel('log Z', fontsize=8)
 
     nh1 = np.sum(
         np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
@@ -236,14 +251,15 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
             ax.step(vel, hdulist[key].data['flux'])
                 # this line here plots the spectrum
             ### find the minima!
-            if (lsfhdu.__contains__(key)):
-                flux = lsfhdu[key].data['flux_obs']
-                hdu_velocity = lsfhdu[key].data['velocity']
-                vi = argrelextrema(flux, np.less)[0]
-                #print(velocity[vi[flux[vi] < 0.95]])
-                vmin = hdu_velocity[vi[flux[vi] < 0.95]]
-                for v in vmin:
-                    ax.plot(v, np.array(v)*0.0 + 0.1, '|')
+            if False:
+                if (lsfhdu.__contains__(key)):
+                    flux = lsfhdu[key].data['flux_obs']
+                    hdu_velocity = lsfhdu[key].data['velocity']
+                    vi = argrelextrema(flux, np.less)[0]
+                    #print(velocity[vi[flux[vi] < 0.95]])
+                    vmin = hdu_velocity[vi[flux[vi] < 0.95]]
+                    for v in vmin:
+                        ax.plot(v, np.array(v)*0.0 + 0.1, '|')
 
 
 
@@ -284,10 +300,6 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax6.set_xlabel('log T', fontsize=8)
     for y, l in zip([100,350,600],['4','5','6']):
         ax6.text(50, y, l, fontsize=8,
-                verticalalignment='center', horizontalalignment='right')
-    ax7.set_xlabel('log Z', fontsize=8)
-    for y, l in zip([0,400,800],['-4','-2','0']):
-        ax7.text(50, y, l,  fontsize=8,
                 verticalalignment='center', horizontalalignment='right')
 
     # all plot settings and manipulation go here.
@@ -374,6 +386,7 @@ def grab_ray_file(ds, filename):
 def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
         ray_df, rs, re, axis_to_use, hdulist = grab_ray_file(ds, filename)
+        fileroot = filename.strip('los.fits.gz').replace('.','')
         show_velphase(ds, ray_df, rs, re, hdulist, filename.strip('los.fits.gz'))
 
 
@@ -399,8 +412,10 @@ if __name__ == "__main__":
         args)
 
     dataset_list = glob.glob(
-        os.path.join('.', '*rd0020*v6_los*fits.gz'))
+        os.path.join('.', '*rd0018*axx*v6_los*fits.gz'))
     print('there are ', len(dataset_list), 'files')
+
+    #### dataset_list = ['./hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0020_axz_i010.5-a6.01_v5_los.fits.gz']
 
     ds = yt.load(ds_loc)
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
