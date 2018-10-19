@@ -138,6 +138,7 @@ def get_run_loc_etc(args):
         haloname = "halo008508_nref11c_nref9f_selfshield_z6"
         path_part = "halo_008508/nref11n_selfshield_z15/"+args.run+"_selfshield_z6/"
         output_dir = output_path + "plots_"+path_part
+        spectra_dir = output_dir+"spectra/"
         if args.system == "pleiades":
             trackname = "halo_008508/nref11c_nref9f_selfshield_z6/halo_track"
             run_loc = "halo_008508/nref11c_nref9f_selfshield_z6/"
