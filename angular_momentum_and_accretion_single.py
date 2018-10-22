@@ -64,7 +64,7 @@ def dm(pfilter, data):
     return filter
 
 ####################    FLUX CALCULATION   ######################################
-def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
+def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
     outs = kwargs.get("outs", "all")
     trackname = kwargs.get("trackname", "halo_track")
 
@@ -497,6 +497,6 @@ if __name__ == "__main__":
 
     print("---->>>>> for now I am assuming you are using the Tempest halo even if you passed in something different")
 
-    message = calc_ang_mom_and_fluxes(args.halo, foggie_dir, output_path, run_loc, outs=[args.output + "/" + args.output])
+    message = calc_ang_mom_and_fluxes(args.halo, foggie_dir, run_loc, outs=[args.output + "/" + args.output])
 
     sys.exit(message)
