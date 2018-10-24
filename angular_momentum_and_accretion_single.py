@@ -134,14 +134,6 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
     ## default is do allll the snaps in the directory
     ## want to add flag for if just one
     run_dir = foggie_dir + 'halo_00' + str(halo) + '/' + run
-    if halo == "8508":
-        prefix = output_dir + 'plots_halo_008508/' + run + '/'
-    else:
-        prefix = output_dir + 'other_halo_plots/' + str(halo) + '/' + run + '/'
-    if args.system == "pleiades":
-        prefix = output_dir
-    if not (os.path.exists(prefix)):
-        os.system("mkdir " + prefix)
 
     if outs == "all":
         print("looking for outputs in ", run_dir)
