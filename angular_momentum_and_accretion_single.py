@@ -459,6 +459,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
     data = set_table_units(data)
     data2 = set_table_units(data2)
     tablename = run_dir + '/' + args.run + '_' + args.output + '_angular_momenta_and_fluxes.hdf5'
+    print('writing to ',tablename)
     data.write(tablename,path='all_data',serialize_meta=True,overwrite=True)
     data2.write(tablename,path='noISM_data',serialize_meta=True,overwrite=False,append=True)
 
