@@ -138,6 +138,8 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
         prefix = output_dir + 'plots_halo_008508/' + run + '/'
     else:
         prefix = output_dir + 'other_halo_plots/' + str(halo) + '/' + run + '/'
+    if args.system == "pleiades":
+        prefix = output_dir
     if not (os.path.exists(prefix)):
         os.system("mkdir " + prefix)
 
