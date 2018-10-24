@@ -125,6 +125,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
     track_name = foggie_dir + 'halo_00' + str(halo) + '/' + run + '/' + trackname
     if args.system == "pleiades":
         track_name = foggie_dir + "halo_008508/nref11n_nref10f_selfshield_z6/halo_track"
+        output_dir = './'
 
     print("opening track: " + track_name)
     track = Table.read(track_name, format='ascii')
