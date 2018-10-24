@@ -52,9 +52,10 @@ def get_run_loc_etc(args):
         output_dir = output_path + "plots_"+path_part
         spectra_dir = output_dir+"spectra/"
     elif args.run == "nref11f":
-        run_loc = "halo_00"+ args.halo + "nref11n/nref11f_refine200kpc/"
+        run_loc = "halo_00"+ args.halo + "/nref11n/nref11f_refine200kpc/"
         trackname =  foggie_dir + "halo_00"+ args.halo + "/nref11n/nref11f_refine200kpc/halo_track"
         haloname = "halo008508_nref11f"
+        path_part = "halo_008508/nref11n/nref11f_refine200kpc/"
         output_dir = output_path + "plots_"+path_part
         spectra_dir = output_dir+"spectra/"
         if args.system == "pleiades":
