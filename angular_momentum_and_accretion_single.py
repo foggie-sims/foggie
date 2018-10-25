@@ -134,14 +134,6 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
     ## default is do allll the snaps in the directory
     ## want to add flag for if just one
     run_dir = foggie_dir + 'halo_00' + str(halo) + '/' + run
-    if halo == "8508":
-        prefix = output_dir + 'plots_halo_008508/' + run + '/'
-    else:
-        prefix = output_dir + 'other_halo_plots/' + str(halo) + '/' + run + '/'
-    if args.system == "pleiades":
-        prefix = output_dir
-    if not (os.path.exists(prefix)):
-        os.system("mkdir " + prefix)
 
     if outs == "all":
         print("looking for outputs in ", run_dir)
@@ -459,6 +451,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
     data = set_table_units(data)
     data2 = set_table_units(data2)
     tablename = run_dir + '/' + args.run + '_' + args.output + '_angular_momenta_and_fluxes.hdf5'
+    print('writing to ',tablename)
     data.write(tablename,path='all_data',serialize_meta=True,overwrite=True)
     data2.write(tablename,path='noISM_data',serialize_meta=True,overwrite=False,append=True)
 
