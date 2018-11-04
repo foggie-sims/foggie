@@ -193,6 +193,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
         box.set_field_parameter("center",halo_center)
         box.set_field_parameter("bulk_velocity",bulk_velocity)
 
+        print('setting up gas fields...')
         ### OK, now want to call the fields that we'll need for the fluxes
         ### otherwise, the code crashes when trying to select subsets of the data
         ## GAS FIELDS
@@ -215,6 +216,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
         entropy = box['entropy'].flatten()
         hden = box['H_nuclei_density'].flatten()
 
+        print('setting up star fields...')
         ## STAR PARTICLE FIELDS
         star_ang_mom_x = big_sphere['stars', 'particle_angular_momentum_x'].flatten()
         star_ang_mom_y = big_sphere['stars', 'particle_angular_momentum_y'].flatten()
@@ -227,6 +229,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
                         (big_sphere['stars','particle_position_z']-halo_center[2])**2.).to("kpc")
 
 
+        print('setting up dark matter fields...')
         ## DM PARTICLE FIELDS
         dm_ang_mom_x = big_sphere['dm', 'particle_angular_momentum_x'].flatten()
         dm_ang_mom_y = big_sphere['dm', 'particle_angular_momentum_y'].flatten()
