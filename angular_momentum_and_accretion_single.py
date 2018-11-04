@@ -168,10 +168,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
 
         ### OK, now want to set up some spheres of some sizes and get the stuff
         radii = refine_width*0.5*np.arange(0.9, 0.1, -0.01)  # 0.5 because radius
-        print(radii)
+        print('radii: ',radii)
         small_sphere = ds.sphere(halo_center, 0.05*refine_width_code) # R=10ckpc/h
         big_sphere = ds.sphere(halo_center, 0.45*refine_width_code)
-        print(small_sphere.radius.in_units('kpc'))
+        print('small sphere radius: ',small_sphere.radius.in_units('kpc'))
 
         # we want to subtract the bulk velocity from the radial velocities
         bulk_velocity = big_sphere.quantities["BulkVelocity"]()
@@ -179,7 +179,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
         # find number of cells for the FRB
         # by default, it uses nref10 as the cell size for the frb
         # then create the 3D FRB for calculating the fluxes
-        print(np.unique(big_sphere['dx'].in_units('kpc')))
+        print('big sphere unique:', np.unique(big_sphere['dx'].in_units('kpc')))
         cell_size = np.unique(big_sphere['dx'].in_units('kpc'))[0] ### changed this to 0
         box_width = ds.quan(0.9*refine_width,'kpc')
         nbins = int(np.ceil(box_width/cell_size).value)
