@@ -173,7 +173,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
         halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
 
         ### OK, now want to set up some spheres of some sizes and get the stuff
-        radii = refine_width*0.5*np.arange(0.9, 0.1, -0.5)  # 0.5 because radius
+        radii = refine_width*0.5*np.arange(0.9, 0.1, -0.01)  # 0.5 because radius
         print('radii: ',radii)
         small_sphere = ds.sphere(halo_center, 0.05*refine_width_code) # R=10ckpc/h
         big_sphere = ds.sphere(halo_center, 0.45*refine_width_code)
