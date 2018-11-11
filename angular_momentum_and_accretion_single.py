@@ -137,7 +137,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
     run_dir = foggie_dir + run
     if args.system == "pleiades":
         track_name = foggie_dir + "halo_008508/nref11n_nref10f_selfshield_z6/halo_track"
-        run_dir = foggie_dir +  "halo_008508/" + run
+        run_dir = foggie_dir  + run
         output_dir = './'
     print('run_dir = ', run_dir)
 
