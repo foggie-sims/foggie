@@ -110,7 +110,7 @@ def get_run_loc_etc(args):
         spectra_dir = output_dir+"spectra/"
         if args.system == "pleiades":
             trackname = "halo_008508/nref11n_nref10f_selfshield_z6/halo_track"
-            run_loc = "nref11n_selfshield_z15/"
+            run_loc = "alo_008508/nref11n_selfshield_z15/"
     elif args.run == "nref10f_selfshield":
         run_loc = "halo_00"+ args.halo + "/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/"
         trackname = foggie_dir + "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
