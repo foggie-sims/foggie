@@ -13,6 +13,7 @@ import sys
 
 from astropy.table import Table
 from astropy.io import ascii
+import h5py.highlevel
 
 from consistency import *
 from get_refine_box import get_refine_box
@@ -133,9 +134,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
 
     ## default is do allll the snaps in the directory
     ## want to add flag for if just one
-    run_dir = foggie_dir +  "halo_008508/" + run
+    run_dir = foggie_dir + run
     if args.system == "pleiades":
         track_name = foggie_dir + "halo_008508/nref11n_nref10f_selfshield_z6/halo_track"
+        run_dir = foggie_dir +  "halo_008508/" + run
         output_dir = './'
     print('run_dir = ', run_dir)
 
@@ -171,7 +173,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
         halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
 
         ### OK, now want to set up some spheres of some sizes and get the stuff
-        radii = refine_width*0.5*np.arange(0.9, 0.1, -0.01)  # 0.5 because radius
+        radii = refine_width*0.5*np.arange(0.9, 0.1, -0.5)  # 0.5 because radius
         print('radii: ',radii)
         small_sphere = ds.sphere(halo_center, 0.05*refine_width_code) # R=10ckpc/h
         big_sphere = ds.sphere(halo_center, 0.45*refine_width_code)
