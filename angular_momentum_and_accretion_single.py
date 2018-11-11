@@ -121,8 +121,8 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
                          'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
                          'f8', 'f8'))
 
-    print(foggie_dir)
-    track_name = foggie_dir + 'halo_00' + str(halo) + '/' + run + '/' + trackname
+    print('foggie_dir = ',foggie_dir, 'run = ',run, 'trackname = ',trackname)
+    track_name = foggie_dir + '/' + run + '/' + trackname
     if args.system == "pleiades":
         track_name = foggie_dir + "halo_008508/nref11n_nref10f_selfshield_z6/halo_track"
         output_dir = './'
@@ -133,7 +133,8 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
 
     ## default is do allll the snaps in the directory
     ## want to add flag for if just one
-    run_dir = foggie_dir + 'halo_00' + str(halo) + '/' + run
+    run_dir = foggie_dir + run
+    print('run_dir = ', run_dir)
 
     if outs == "all":
         print("looking for outputs in ", run_dir)
@@ -167,7 +168,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
         halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
 
         ### OK, now want to set up some spheres of some sizes and get the stuff
-        radii = refine_width*0.5*np.arange(0.9, 0.1, -0.01)  # 0.5 because radius
+        radii = refine_width*0.5*np.arange(0.9, 0.1, -0.025)  # 0.5 because radius
         print('radii: ',radii)
         small_sphere = ds.sphere(halo_center, 0.05*refine_width_code) # R=10ckpc/h
         big_sphere = ds.sphere(halo_center, 0.45*refine_width_code)
@@ -180,9 +181,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
         # by default, it uses nref10 as the cell size for the frb
         # then create the 3D FRB for calculating the fluxes
         print('big sphere unique:', np.unique(big_sphere['dx'].in_units('kpc')))
-        cell_size = np.unique(big_sphere['dx'].in_units('kpc'))[0] ### changed this to 0
+        cell_size = np.unique(big_sphere['dx'].in_units('kpc'))[1] ### 
         box_width = ds.quan(0.9*refine_width,'kpc')
         nbins = int(np.ceil(box_width/cell_size).value)
+        print('there will be ',nbins**3,' bins')
 
         halo_center = ds.arr(halo_center,'code_length')
         xL,xR = halo_center[0]-box_width/2.,halo_center[0]+box_width/2.
@@ -204,13 +206,16 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
         radial_velocity = box['radial_velocity'].to('kpc/yr').flatten()
         cell_volume = box['cell_volume'].flatten()
         #grid_levels = box['index', 'grid_level']
+        print('here ????')
         gas_ang_mom_x = box[('gas', 'angular_momentum_x')].flatten()
         gas_ang_mom_y = box[('gas', 'angular_momentum_y')].flatten()
         gas_ang_mom_z = box[('gas', 'angular_momentum_z')].flatten()
+        print('i have gotten to here')
         gas_spec_ang_mom_x = box[('gas','specific_angular_momentum_x')].flatten()
         gas_spec_ang_mom_y = box[('gas','specific_angular_momentum_y')].flatten()
         gas_spec_ang_mom_z = box[('gas','specific_angular_momentum_z')].flatten()
         kinetic_energy = box['gas','kinetic_energy'].flatten()
+        print('and now to here')
         kinetic_energy = (kinetic_energy*cell_volume/cell_mass).to('erg/g')
         thermal_energy = box['gas','thermal_energy'].flatten()
         entropy = box['entropy'].flatten()
