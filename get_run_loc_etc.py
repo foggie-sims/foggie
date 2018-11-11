@@ -101,9 +101,9 @@ def get_run_loc_etc(args):
             trackname = "halo_008508/nref10n_nref8f_startest_selfshield/halo_track"
             run_loc = "nref10n_nref8f_startest_selfshield/"
     elif args.run == "nref11n_selfshield_z15":
-        run_loc = "nref11n_selfshield_z15/natural/"
-        # trackname = "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
-        trackname = "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
+        run_loc =  "halo_008508/nref11n_selfshield_z15/natural/"
+        trackname = foggie_dir + "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
+        #trackname = "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
         haloname = "halo008508_nref11n_selfshield_z15"
         path_part = "halo_008508/nref11n_selfshield_z15/natural/"
         output_dir = output_path + "plots_"+path_part
@@ -113,7 +113,7 @@ def get_run_loc_etc(args):
             run_loc = "nref11n_selfshield_z15/"
     elif args.run == "nref10f_selfshield":
         run_loc = "halo_00"+ args.halo + "/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/"
-        trackname = "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
+        trackname = foggie_dir + "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
         haloname = "halo008508_nref11n_nref10f_selfshield_z6"
         path_part = "halo_008508/nref11n_selfshield_z15/nref11n_"+args.run+"_z6/"
         output_dir = output_path + "plots_"+path_part
