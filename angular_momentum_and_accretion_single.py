@@ -133,7 +133,10 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, run, **kwargs):
 
     ## default is do allll the snaps in the directory
     ## want to add flag for if just one
-    run_dir = foggie_dir + run
+    run_dir = foggie_dir +  "halo_008508/" + run
+    if args.system == "pleiades":
+        track_name = foggie_dir + "halo_008508/nref11n_nref10f_selfshield_z6/halo_track"
+        output_dir = './'
     print('run_dir = ', run_dir)
 
     if outs == "all":
