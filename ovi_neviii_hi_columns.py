@@ -6,15 +6,6 @@ import argparse
 
 import pickle
 
-import matplotlib as mpl
-import seaborn as sns
-sns.set_style("whitegrid", {'axes.grid' : False})
-mpl.rcParams['font.family'] = 'stixgeneral'
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from mpl_toolkits.axes_grid1 import AxesGrid
-mpl.rcParams['font.size'] = 20.
-
 from astropy.table import Table
 from astropy.io import fits
 
@@ -32,6 +23,9 @@ def parse_args():
     parser.add_argument('--output', metavar='output', type=str, action='store',
                         help='which output? default is RD0020')
     parser.set_defaults(output="RD0020")
+
+    args = parser.parse_args()
+    return args
 
 
 def calc_cddf(output):
