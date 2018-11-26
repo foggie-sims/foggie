@@ -105,5 +105,5 @@ def calc_cddf(output):
 
 if __name__ == "__main__":
     args = parse_args()
-    calc_cddf()
+    calc_cddf(args.output)
     sys.exit("~~~*~*~*~*~*~all done!!!! yay column densities!")
