@@ -34,7 +34,7 @@ def calc_cddf(output):
     outputds = output + '/' + output
     forced_ds = yt.load(outputds)
 
-    track_name = "halo_track"
+    track_name = "./halo_track"
     output_dir = "/nobackupp2/mpeeples/halo_008508/orig/nref11n_nref10f_orig/ovi_neviii/"
     ## output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/natural/nref11/spectra/"
     os.chdir(output_dir)
