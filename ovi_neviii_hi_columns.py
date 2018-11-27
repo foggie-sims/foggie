@@ -36,7 +36,7 @@ def calc_cddf(output):
     track_name = "/nobackupp2/mpeeples/halo_008508/orig/nref11n_nref10f_orig/halo_track"
     output_dir = "/nobackupp2/mpeeples/halo_008508/orig/nref11n_nref10f_orig/ovi_neviii/"
     ## output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/natural/nref11/spectra/"
-    os.chdir(output_dir)
+    ## os.chdir(output_dir)
     track = Table.read(track_name, format='ascii')
     track.sort('col1')
     zsnap = forced_ds.get_parameter('CosmologyCurrentRedshift')
@@ -53,7 +53,7 @@ def calc_cddf(output):
         for y in range(0, 1048):
             radii[x,y] = (width / 1048) * np.sqrt((524-x)**2 + (524-y)**2)
     big_radii = np.concatenate((radii, radii, radii), axis=None)
-    pkl_name = 'radii_' + output + '_physicalkpc.pkl'
+    pkl_name = output_dir + 'radii_' + output + '_physicalkpc.pkl'
     print("saving to ", pkl_name)
     pickle.dump(big_radii, open( pkl_name, "wb" ) )
 
@@ -92,7 +92,7 @@ def calc_cddf(output):
         colr[colr == -np.inf] = 1
 
 
-        pkl_name = ion + '_nref10f_' + output + '_column_densities.pkl'
+        pkl_name = output_dir + ion + '_nref10f_' + output + '_column_densities.pkl'
         print("saving to ", pkl_name)
         pickle.dump(colr, open( pkl_name, "wb" ) )
 
