@@ -59,7 +59,7 @@ def calc_cddf(output):
 
     trident.add_ion_fields(forced_ds, ions=['O VI', 'Ne VIII'])
 
-    ions = ['H_p0_number_density', 'O_p5_number_density']
+    ions = ['H_p0_number_density', 'O_p5_number_density', 'Ne_p7_number_density']
     fields = []
     for ion in ions:
         field = ('gas', ion)
