@@ -28,8 +28,8 @@ def parse_args():
     parser.set_defaults(calc=False)
 
     parser.add_argument('--compile', dest='comp', action='store_true')
-    parser.add_argument('--no-compile', dest='comp', action='store_false', help="default is no compiling")
-    parser.set_defaults(comp=False)
+    parser.add_argument('--no-compile', dest='comp', action='store_false', help="default is compiling")
+    parser.set_defaults(comp=True)
 
     args = parser.parse_args()
     return args
@@ -106,6 +106,7 @@ def calc_cddf(output):
 
 def compile_columns():
     min_o6 = 12.75
+    print('I AM DOING A THING HERE')
     outputs = ascii.read('outputs.txt')
     data = Table(names=('DD', 'redshift',
         'ovi10', 'ovi25', 'ovi34', 'ovi50', 'ovi68', 'ovi75', 'ovi90',
