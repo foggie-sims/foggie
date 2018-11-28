@@ -124,12 +124,18 @@ def compile_columns():
             # print("trying ",ion)
             pkl_name = ion + '_nref10f_' + dd + '_column_densities.pkl'
             print("opening ", pkl_name)
-            o6 = pickle.load(open( pkl_name, "rb" ) ,encoding='latin1')
+            try:
+                o6 = pickle.load(open( pkl_name, "rb" ) ,encoding='latin1')
+            except:
+                o6 = pickle.load(open( pkl_name, "rb" ))
             ion = 'Ne_p7_number_density'
             # print("trying ",ion)
             pkl_name = ion + '_nref10f_' + dd + '_column_densities.pkl'
             print("opening ", pkl_name)
-            ne8 = pickle.load(open( pkl_name, "rb"), encoding='latin1' )
+            try:
+                ne8 = pickle.load(open( pkl_name, "rb"), encoding='latin1' )
+            except:
+                ne8 = pickle.load(open( pkl_name, "rb"))
             ratio = np.power(10.0, ne8) / np.power(10.0, o6)
             print(np.percentile(ratio, 10), np.percentile(ratio, 50), np.percentile(ratio, 90))
             ind = np.where(o6 > min_o6)
