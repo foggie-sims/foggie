@@ -29,7 +29,7 @@ def parse_args():
 
     parser.add_argument('--compile', dest='compile', action='store_true')
     parser.add_argument('--no-compile', dest='compile', action='store_false', help="default is compiling")
-    parser.set_defaults(compile=True)
+    parser.set_defaults(compile=False)
 
     args = parser.parse_args()
     return args
