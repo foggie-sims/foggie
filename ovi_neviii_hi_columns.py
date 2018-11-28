@@ -23,6 +23,14 @@ def parse_args():
                         help='which output? default is RD0020')
     parser.set_defaults(output="RD0020")
 
+    parser.add_argument('--calc', dest='calc', action='store_true')
+    parser.add_argument('--no-calc', dest='calc', action='store_false', help="default is no calc")
+    parser.set_defaults(calc=False)
+
+    parser.add_argument('--compile', dest='comp', action='store_true')
+    parser.add_argument('--no-compile', dest='comp', action='store_false', help="default is no compiling")
+    parser.set_defaults(comp=False)
+
     args = parser.parse_args()
     return args
 
@@ -96,7 +104,53 @@ def calc_cddf(output):
         print("saving to ", pkl_name)
         pickle.dump(colr, open( pkl_name, "wb" ) )
 
+def compile_columns():
+    min_o6 = 12.75
+    outputs = ascii.read('outputs.txt')
+    data = Table(names=('DD', 'redshift',
+        'ovi10', 'ovi25', 'ovi34', 'ovi50', 'ovi68', 'ovi75', 'ovi90',
+        'neviii10', 'neviii25', 'neviii34', 'neviii50', 'neviii68', 'neviii75', 'neviii90',
+        'neviiilim10', 'neviiilim25', 'neviiilim34', 'neviiilim50', 'neviiilim68', 'neviiilim75', 'neviiilim90',
+        'ratio10', 'ratio25', 'ratio34','ratio50', 'ratio68',' ratio75', 'ratio90',
+        'ratiolim10', 'ratiolim25', 'ratiolim34', 'ratiolim50', 'ratiolim68', 'ratiolim75', 'ratiolim90'))
+    data['DD'] = data['DD'].astype('str')
+
+    for i, dd in enumerate(outputs['dd']):
+        redshift = outputs['redshift'][i]
+        ion = 'O_p5_number_density'
+        # print("trying ",ion)
+        pkl_name = ion + '_nref10f_' + dd + '_column_densities.pkl'
+        print("opening ", pkl_name)
+        o6 = pickle.load(open( pkl_name, "rb" ) ,encoding='latin1')
+        ion = 'Ne_p7_number_density'
+        # print("trying ",ion)
+        pkl_name = ion + '_nref10f_' + dd + '_column_densities.pkl'
+        print("opening ", pkl_name)
+        ne8 = pickle.load(open( pkl_name, "rb"), encoding='latin1' )
+        ratio = np.power(10.0, ne8) / np.power(10.0, o6)
+        # print(np.percentile(ratio, 10), np.percentile(ratio, 50), np.percentile(ratio, 90))
+        ind = np.where(o6 > min_o6)
+        ratiolim = np.power(10.0, ne8[ind]) / np.power(10.0, o6[ind])
+        # print(np.percentile(ratiolim, 10), np.percentile(ratiolim, 50), np.percentile(ratiolim, 90))
+        ne8lim = ne8[ind]
+        data.add_row([dd, redshift,
+              np.percentile(o6, 10), np.percentile(o6, 25), np.percentile(o6, 34), np.percentile(o6, 50),
+              np.percentile(o6, 68),  np.percentile(o6, 75), np.percentile(o6, 90),
+              np.percentile(ne8, 10), np.percentile(ne8, 25), np.percentile(ne8, 34), np.percentile(ne8, 50),
+              np.percentile(ne8, 68),  np.percentile(ne8, 75), np.percentile(ne8, 90),
+              np.percentile(ne8lim, 10), np.percentile(ne8lim, 25), np.percentile(ne8lim, 34), np.percentile(ne8lim, 50),
+              np.percentile(ne8lim, 68),  np.percentile(ne8lim, 75), np.percentile(ne8lim, 90),
+              np.percentile(ratio, 10), np.percentile(ratio, 25), np.percentile(ratio, 34), np.percentile(ratio, 50),
+              np.percentile(ratio, 68),  np.percentile(ratio, 75), np.percentile(ratio, 90),
+              np.percentile(ratiolim, 10), np.percentile(ratiolim, 25), np.percentile(ratiolim, 34), np.percentile(ratiolim, 50),
+              np.percentile(ratiolim, 68),  np.percentile(ratiolim, 75), np.percentile(ratiolim, 90)])
+
+        data.write('nref10f_o6_ne8.dat', format='ascii.basic')
+
 if __name__ == "__main__":
     args = parse_args()
-    calc_cddf(args.output)
+    if args.calc:
+        calc_cddf(args.output)
+    if args.comp:
+        compile_columns()
     sys.exit("~~~*~*~*~*~*~all done!!!! yay column densities!")
