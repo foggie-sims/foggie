@@ -156,6 +156,6 @@ if __name__ == "__main__":
     args = parse_args()
     if args.calc:
         calc_cddf(args.output)
-    if args.comp:
+    if args.compile:
         compile_columns()
     sys.exit("~~~*~*~*~*~*~all done!!!! yay column densities!")
