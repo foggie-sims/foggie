@@ -154,6 +154,7 @@ def compile_columns():
 
 if __name__ == "__main__":
     args = parse_args()
+    print(args)
     if args.calc:
         calc_cddf(args.output)
     if args.compile:
