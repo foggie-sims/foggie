@@ -27,9 +27,9 @@ def parse_args():
     parser.add_argument('--no-calc', dest='calc', action='store_false', help="default is no calc")
     parser.set_defaults(calc=False)
 
-    parser.add_argument('--compile', dest='comp', action='store_true')
-    parser.add_argument('--no-compile', dest='comp', action='store_false', help="default is compiling")
-    parser.set_defaults(comp=True)
+    parser.add_argument('--compile', dest='compile', action='store_true')
+    parser.add_argument('--no-compile', dest='compile', action='store_false', help="default is compiling")
+    parser.set_defaults(compile=True)
 
     args = parser.parse_args()
     return args
