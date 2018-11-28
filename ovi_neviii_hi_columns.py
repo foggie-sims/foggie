@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import numpy as np
 import yt
 import sys
@@ -106,7 +108,6 @@ def calc_cddf(output):
 
 def compile_columns():
     min_o6 = 12.75
-    print('I AM DOING A THING HERE')
     outputs = ascii.read('outputs.txt')
     data = Table(names=('DD', 'redshift',
         'ovi10', 'ovi25', 'ovi34', 'ovi50', 'ovi68', 'ovi75', 'ovi90',
@@ -159,12 +160,10 @@ def compile_columns():
             print('output ', dd, ' does not seem to have any pkls, so sad')
 
 if __name__ == "__main__":
-    print('am i even trying idk')
     args = parse_args()
     print(args)
     if args.calc:
         calc_cddf(args.output)
     if args.compile:
-        print('???')
         compile_columns()
     sys.exit("~~~*~*~*~*~*~all done!!!! yay column densities!")
