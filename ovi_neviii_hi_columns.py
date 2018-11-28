@@ -153,6 +153,7 @@ def compile_columns():
             print('output ', dd, ' does not seem to have any pkls, so sad')
 
 if __name__ == "__main__":
+    print('am i even trying idk')
     args = parse_args()
     print(args)
     if args.calc:
