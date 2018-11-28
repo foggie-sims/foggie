@@ -117,6 +117,7 @@ def compile_columns():
 
     for i, dd in enumerate(outputs['dd']):
         redshift = outputs['redshift'][i]
+        print('trying ', dd)
         try:
             ion = 'O_p5_number_density'
             # print("trying ",ion)
@@ -129,10 +130,10 @@ def compile_columns():
             print("opening ", pkl_name)
             ne8 = pickle.load(open( pkl_name, "rb"), encoding='latin1' )
             ratio = np.power(10.0, ne8) / np.power(10.0, o6)
-            # print(np.percentile(ratio, 10), np.percentile(ratio, 50), np.percentile(ratio, 90))
+            print(np.percentile(ratio, 10), np.percentile(ratio, 50), np.percentile(ratio, 90))
             ind = np.where(o6 > min_o6)
             ratiolim = np.power(10.0, ne8[ind]) / np.power(10.0, o6[ind])
-            # print(np.percentile(ratiolim, 10), np.percentile(ratiolim, 50), np.percentile(ratiolim, 90))
+            print(np.percentile(ratiolim, 10), np.percentile(ratiolim, 50), np.percentile(ratiolim, 90))
             ne8lim = ne8[ind]
             data.add_row([dd, redshift,
                   np.percentile(o6, 10), np.percentile(o6, 25), np.percentile(o6, 34), np.percentile(o6, 50),
