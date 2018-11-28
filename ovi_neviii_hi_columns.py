@@ -117,35 +117,38 @@ def compile_columns():
 
     for i, dd in enumerate(outputs['dd']):
         redshift = outputs['redshift'][i]
-        ion = 'O_p5_number_density'
-        # print("trying ",ion)
-        pkl_name = ion + '_nref10f_' + dd + '_column_densities.pkl'
-        print("opening ", pkl_name)
-        o6 = pickle.load(open( pkl_name, "rb" ) ,encoding='latin1')
-        ion = 'Ne_p7_number_density'
-        # print("trying ",ion)
-        pkl_name = ion + '_nref10f_' + dd + '_column_densities.pkl'
-        print("opening ", pkl_name)
-        ne8 = pickle.load(open( pkl_name, "rb"), encoding='latin1' )
-        ratio = np.power(10.0, ne8) / np.power(10.0, o6)
-        # print(np.percentile(ratio, 10), np.percentile(ratio, 50), np.percentile(ratio, 90))
-        ind = np.where(o6 > min_o6)
-        ratiolim = np.power(10.0, ne8[ind]) / np.power(10.0, o6[ind])
-        # print(np.percentile(ratiolim, 10), np.percentile(ratiolim, 50), np.percentile(ratiolim, 90))
-        ne8lim = ne8[ind]
-        data.add_row([dd, redshift,
-              np.percentile(o6, 10), np.percentile(o6, 25), np.percentile(o6, 34), np.percentile(o6, 50),
-              np.percentile(o6, 68),  np.percentile(o6, 75), np.percentile(o6, 90),
-              np.percentile(ne8, 10), np.percentile(ne8, 25), np.percentile(ne8, 34), np.percentile(ne8, 50),
-              np.percentile(ne8, 68),  np.percentile(ne8, 75), np.percentile(ne8, 90),
-              np.percentile(ne8lim, 10), np.percentile(ne8lim, 25), np.percentile(ne8lim, 34), np.percentile(ne8lim, 50),
-              np.percentile(ne8lim, 68),  np.percentile(ne8lim, 75), np.percentile(ne8lim, 90),
-              np.percentile(ratio, 10), np.percentile(ratio, 25), np.percentile(ratio, 34), np.percentile(ratio, 50),
-              np.percentile(ratio, 68),  np.percentile(ratio, 75), np.percentile(ratio, 90),
-              np.percentile(ratiolim, 10), np.percentile(ratiolim, 25), np.percentile(ratiolim, 34), np.percentile(ratiolim, 50),
-              np.percentile(ratiolim, 68),  np.percentile(ratiolim, 75), np.percentile(ratiolim, 90)])
+        try:
+            ion = 'O_p5_number_density'
+            # print("trying ",ion)
+            pkl_name = ion + '_nref10f_' + dd + '_column_densities.pkl'
+            print("opening ", pkl_name)
+            o6 = pickle.load(open( pkl_name, "rb" ) ,encoding='latin1')
+            ion = 'Ne_p7_number_density'
+            # print("trying ",ion)
+            pkl_name = ion + '_nref10f_' + dd + '_column_densities.pkl'
+            print("opening ", pkl_name)
+            ne8 = pickle.load(open( pkl_name, "rb"), encoding='latin1' )
+            ratio = np.power(10.0, ne8) / np.power(10.0, o6)
+            # print(np.percentile(ratio, 10), np.percentile(ratio, 50), np.percentile(ratio, 90))
+            ind = np.where(o6 > min_o6)
+            ratiolim = np.power(10.0, ne8[ind]) / np.power(10.0, o6[ind])
+            # print(np.percentile(ratiolim, 10), np.percentile(ratiolim, 50), np.percentile(ratiolim, 90))
+            ne8lim = ne8[ind]
+            data.add_row([dd, redshift,
+                  np.percentile(o6, 10), np.percentile(o6, 25), np.percentile(o6, 34), np.percentile(o6, 50),
+                  np.percentile(o6, 68),  np.percentile(o6, 75), np.percentile(o6, 90),
+                  np.percentile(ne8, 10), np.percentile(ne8, 25), np.percentile(ne8, 34), np.percentile(ne8, 50),
+                  np.percentile(ne8, 68),  np.percentile(ne8, 75), np.percentile(ne8, 90),
+                  np.percentile(ne8lim, 10), np.percentile(ne8lim, 25), np.percentile(ne8lim, 34), np.percentile(ne8lim, 50),
+                  np.percentile(ne8lim, 68),  np.percentile(ne8lim, 75), np.percentile(ne8lim, 90),
+                  np.percentile(ratio, 10), np.percentile(ratio, 25), np.percentile(ratio, 34), np.percentile(ratio, 50),
+                  np.percentile(ratio, 68),  np.percentile(ratio, 75), np.percentile(ratio, 90),
+                  np.percentile(ratiolim, 10), np.percentile(ratiolim, 25), np.percentile(ratiolim, 34), np.percentile(ratiolim, 50),
+                  np.percentile(ratiolim, 68),  np.percentile(ratiolim, 75), np.percentile(ratiolim, 90)])
 
-        data.write('nref10f_o6_ne8.dat', format='ascii.basic')
+            data.write('nref10f_o6_ne8.dat', format='ascii.basic')
+        except:
+            print('output ', dd, ' does not seem to have any pkls, so sad')
 
 if __name__ == "__main__":
     args = parse_args()
