@@ -17,6 +17,7 @@ def reduce_ion_vector(vx, ion):
 
     return v, ion_hist
 
+
 def get_fion_threshold(ion_to_use, coldens_fraction):
     cut = 0.999
     total = np.sum(ion_to_use)
@@ -33,6 +34,7 @@ def get_fion_threshold(ion_to_use, coldens_fraction):
 
     return threshold, number_of_cells_above_threshold
 
+
 def get_sizes(ray_df, species, x, axis_to_use, ion_to_use, coldens_threshold):
 
     threshold, number_of_cells = get_fion_threshold(
@@ -44,7 +46,7 @@ def get_sizes(ray_df, species, x, axis_to_use, ion_to_use, coldens_threshold):
 
     ion_density = copy.deepcopy(ion_to_use)
 
-    #insert a cloud flag vector that IDs the cloud
+    # insert a cloud flag vector that IDs the cloud
     cloud_flag = np.zeros(np.size(dx), dtype=np.int8)
 
     indexsizes = []

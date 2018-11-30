@@ -311,7 +311,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
     #if args.system == "pleiades" and args.run == 'nref11c_400kpc':
     #    track_name = foggie_dir + "halo_008508/nref11c_nref8f_400kpc/halo_track"
     #### track_name = '/astro/simulations/FOGGIE/halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track'
-
+    if args.system == 'pleiades':
+        trackname = './halo_track'
     print("opening track: " + trackname)
     track = Table.read(trackname, format='ascii')
     track.sort('col1')
@@ -366,12 +367,6 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
         ## add metal density
         # ds.add_field(("gas", "metal_density"), function=_metal_density, units="g/cm**2")
 
-
-        # box = ds.r[ center[0]-wide/143886:center[0]+wide/143886, center[1]-wide/143886.:center[1]+wide/143886., center[2]-wide/143886.:center[2]+wide/143886.]
-
-        #### this was for the off-center box
-        # center = [centerx, centery+20. / 143886., centerz]
-        # box = ds.r[ center[0]-wide/143886:center[0]+wide/143886, center[1]-wide/143886.:center[1]+wide/143886., center[2]-wide/143886.:center[2]+wide/143886.]
 
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
         proper_box_size = get_proper_box_size(ds)

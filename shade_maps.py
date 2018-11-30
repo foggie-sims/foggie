@@ -4,7 +4,6 @@ from functools import partial
 import datashader as dshader
 from datashader.utils import export_image
 import datashader.transfer_functions as tf
-import holoviews as hv
 import pandas as pd
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -17,9 +16,6 @@ import yt
 import trident
 import numpy as np
 from astropy.table import Table
-from holoviews.operation.datashader import datashade, aggregate
-from holoviews import Store
-hv.extension('matplotlib')
 
 import os
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
@@ -29,7 +25,7 @@ from get_refine_box import get_refine_box as grb
 from get_halo_center import get_halo_center
 from consistency import ion_frac_color_key, new_phase_color_key, \
         new_metals_color_key, axes_label_dict, logfields, new_categorize_by_temp, \
-        new_categorize_by_metals
+        new_categorize_by_metals, categorize_by_fraction
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere"""
@@ -94,24 +90,24 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
     mass = np.log10(cell_mass)
     phase = new_categorize_by_temp(temperature)
     metal = new_categorize_by_metals(all_data['metallicity'])
+    frac = categorize_by_fraction(all_data['O_p5_ion_fraction'], all_data['temperature'])
 
     # build data_frame with mandatory fields
     data_frame = pd.DataFrame({'x':x, 'y':y, 'z':z, 'temperature':temperature, \
                                'density':density, 'cell_mass': mass, 'radius':radius, \
-                               'phase':phase, 'metal':metal})
+                               'phase':phase, 'metal':metal, 'frac':frac})
     data_frame.phase = data_frame.phase.astype('category')
     data_frame.metal = data_frame.metal.astype('category')
+    data_frame.frac  = data_frame.frac.astype('category')
 
     relative_velocity = ( (all_data['x-velocity'].in_units('km/s')-halo_vcenter[0])**2 \
                         + (all_data['y-velocity'].in_units('km/s')-halo_vcenter[1])**2 \
                         + (all_data['z-velocity'].in_units('km/s')-halo_vcenter[2])**2 )**0.5
     data_frame['relative_velocity'] = relative_velocity
 
-    # now add the optional fields
     print("you have requested fields ", field1, field2)
 
-    # add those two fields
-    if field1 not in data_frame.columns:
+    if field1 not in data_frame.columns:    #  add those two fields
         print("Did not find field 1 = "+field1+" in the dataframe, will add it.")
         if field1 in logfields:
             print("Field 1, "+field1+" is a log field.")
@@ -131,14 +127,13 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
     return data_frame
 
 
-
 def wrap_axes(filename, field1, field2, colorcode, ranges):
     """intended to be run after render_image, take the image and wraps it in
         axes using matplotlib and so offering full customization."""
 
     img = mpimg.imread(filename+'.png')
     print('IMG', np.shape(img[:,:,0:3]))
-    fig = plt.figure(figsize=(8,8))
+    fig = plt.figure(figsize=(8,8),dpi=300)
 
     ax = fig.add_axes([0.13, 0.13, 0.85, 0.85])
     ax.imshow(np.flip(img[:,:,0:3],0), alpha=1.)
@@ -148,20 +143,20 @@ def wrap_axes(filename, field1, field2, colorcode, ranges):
     x_min = ranges[0][0]
     if (x_max > 10.): xstep = 10
     if (x_max > 100.): xstep = 100
-    xtext = ax.set_xlabel(axes_label_dict[field1], fontsize=20)
+    xtext = ax.set_xlabel(axes_label_dict[field1], fontsize=24)
     ax.set_xticks(np.arange((x_max - x_min) + 1., step=xstep) * 1000. / (x_max - x_min))
     ax.set_xticklabels([ str(int(s)) for s in \
-        np.arange((x_max - x_min) + 1., step=xstep) +  x_min ], fontsize=20)
+        np.arange((x_max - x_min) + 1., step=xstep) +  x_min ], fontsize=22)
 
     ystep = 1
     y_max = ranges[1][1]
     y_min = ranges[1][0]
     if (y_max > 10.): ystep = 10
     if (y_max > 100.): ystep = 100
-    ytext = ax.set_ylabel(axes_label_dict[field2], fontsize=20)
+    ytext = ax.set_ylabel(axes_label_dict[field2], fontsize=24)
     ax.set_yticks(np.arange((y_max - y_min) + 1., step=ystep) * 1000. / (y_max - y_min))
     ax.set_yticklabels([ str(int(s)) for s in \
-        np.arange((y_max - y_min) + 1., step=ystep) + y_min], fontsize=20)
+        np.arange((y_max - y_min) + 1., step=ystep) + y_min], fontsize=22)
 
     ax2 = fig.add_axes([0.7, 0.91, 0.25, 0.06])
     phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
@@ -169,13 +164,14 @@ def wrap_axes(filename, field1, field2, colorcode, ranges):
     if 'phase' in colorcode:
         ax2.imshow(np.flip(phase_cmap.to_pil(), 1))
         ax2.set_xticks([100,350,600])
-        ax2.set_xticklabels(['4','5','6',' '])
-        ax2.set_xlabel('log T [K]')
+        ax2.set_xticklabels(['4','5','6',' '],fontsize=11)
+        #ax2.xaxis.set_label_position('top')
+        ax2.text(230, 150, 'log T [K]',fontsize=13)
     elif 'metal' in colorcode:
         ax2.imshow(np.flip(metal_cmap.to_pil(), 1))
         ax2.set_xticks([0, 400, 800])
         ax2.set_xticklabels(['-4', '-2', '0'])
-        ax2.set_xlabel('log Z')
+        ax2.set_xlabel('log Z',fontsize=13)
 
     ax2.spines["top"].set_color('white')
     ax2.spines["bottom"].set_color('white')
@@ -197,6 +193,7 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     export = partial(export_image, background='white', export_path="./")
     cvs = dshader.Canvas(plot_width=1000, plot_height=1000,
                          x_range=x_range, y_range=y_range)
+    print("count_cat: ", count_cat)
     agg = cvs.points(frame, field1, field2, dshader.count_cat(count_cat))
 
     if 'frac' in count_cat:
@@ -206,10 +203,9 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     elif 'metal' in count_cat:
         color_key = new_metals_color_key
 
-    img = tf.shade(agg, color_key=color_key, how='log')
+    img = tf.shade(agg, color_key=color_key, how='log',min_alpha=230)
     export(img, filename)
     return img
-
 
 
 def drive(fname, trackfile, field1, field2, ion_list=['H I', 'C IV', 'Si IV', 'O VI']):
@@ -226,14 +222,6 @@ def drive(fname, trackfile, field1, field2, ion_list=['H I', 'C IV', 'Si IV', 'O
         render_image(data_frame, 'x', 'y', ion+'frac',
                      (-3,3), (-3,3), 'RD0020_proj_'+ion)
 
-    render_image(data_frame, 'temperature', 'logf_o6', 'phase', (2, 8), (-5, 0), 'RD0020_ionfrac')
-    render_image(data_frame, 'density', 'temperature', 'phase', (-31, -20), (2, 8), 'RD0020_phase')
-    render_image(data_frame, 'x', 'y', 'phase', (-3,3), (-3,3), 'RD0020_proj')
-    render_image(data_frame, 'x', 'mass', 'phase', (-3.1, 3.1), (-1, 8), 'RD0020_mass')
-    render_image(data_frame, 'x', 'lz', 'phase', (-1.1, 1.1), (-1.1, 1.1), 'RD0020_lz')
-
-
-
 def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile):
     """This function makes a simple plot with two fields plotted against
         one another. The color coding is given by variable 'colorcode'
@@ -242,6 +230,8 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile):
     all_data, refine_box, refine_width, halo_center, halo_vcenter = \
         prep_dataset(fname, trackfile,
             ion_list=['H I', 'C IV', 'Si IV', 'O VI'], region='trackbox')
+
+    prof = yt.Profile1D(all_data, "pressure", 100, 1e-16, 1e-9, True, weight_field="cell_mass")
 
     data_frame = prep_dataframe(all_data, refine_box, refine_width, \
                                 field1, field2, halo_center, halo_vcenter)

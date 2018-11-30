@@ -6,6 +6,7 @@ import datashader as dshader
 import datashader.transfer_functions as tf
 from datashader import reductions
 import numpy as np
+from scipy.signal import argrelextrema
 import pickle
 import glob
 import os
@@ -16,8 +17,9 @@ import trident
 import yt
 from astropy.io import fits
 from matplotlib.gridspec import GridSpec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-from consistency import new_phase_color_key, new_metals_color_key, species_dict
+from consistency import * ## new_phase_color_key, new_metals_color_key, species_dict
 mpl.rcParams['font.family'] = 'stixgeneral'
 import foggie_utils as futils
 import cmap_utils as cmaps
@@ -28,8 +30,9 @@ CORE_WIDTH = 20.
 
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     """ oh, the docstring is missing, is it??? """
-
     impact = hdulist[0].header['IMPACT']
+    lsffile = '.' + fileroot.strip('los.fits.gz') + 'lsf.fits.gz'
+    #lsfhdu = fits.open(lsffile)
 
     df = futils.ds_to_df(ds, ray_start, ray_end)
     ray_index, axis_to_use, second_axis = futils.get_ray_axis(
@@ -38,7 +41,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     # establish the grid of plots and obtain the axis objects
     fig = plt.figure(figsize=(9, 6))
     fig.text(
-        0.55, 0.04, r'Velocity [km s$^{-1}$]', ha='center', va='center')
+        0.55, 0.04, r'relative line-of-sight velocity [km s$^{-1}$]', ha='center', va='center', fontsize=12.)
     fig.text(
         0.16, 0.93, r'R = '+"{:.2F}".format(impact)+' kpc', ha='center', va='center')
     gs = GridSpec(2, 6, width_ratios=[
@@ -68,6 +71,23 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax10 = plt.subplot(gs[10])
     ax11 = plt.subplot(gs[11])
 
+    for x in 150 + 300/350.*np.array([-300., -250., -200., -150., -100, -50., 0., 50., 100., 150., 200., 300.]):
+        for y in [100,200,300,400,500,600,700]:
+            ax2.plot([x,x],[0,800], linestyle='--', color='#aaaaaa', linewidth=0.5)
+            ax2.plot([0,300],[y,y], linestyle='--', color='#aaaaaa', linewidth=0.5)
+            ax3.plot([x,x],[0,800], linestyle='--', color='#aaaaaa', linewidth=0.5)
+            ax3.plot([0,300],[y,y], linestyle='--', color='#aaaaaa', linewidth=0.5)
+            ax4.plot([x,x],[0,800], linestyle='--', color='#aaaaaa', linewidth=0.5)
+            ax4.plot([0,300],[y,y], linestyle='--', color='#aaaaaa', linewidth=0.5)
+            ax5.plot([x,x],[0,800], linestyle='--', color='#aaaaaa', linewidth=0.5)
+            ax5.plot([0,300],[y,y], linestyle='--', color='#aaaaaa', linewidth=0.5)
+
+    for x in [-300,-200,-100, 0, 100,200, 300]:
+            ax8.plot([x,x],[0,1], linestyle='--', color='#aaaaaa', linewidth=0.5)
+            ax9.plot([x,x],[0,1], linestyle='--', color='#aaaaaa', linewidth=0.5)
+            ax10.plot([x,x],[0,1], linestyle='--', color='#aaaaaa', linewidth=0.5)
+            ax11.plot([x,x],[0,1], linestyle='--', color='#aaaaaa', linewidth=0.5)
+
     # add in the temperature and metallicity core sample renders
     for ax, label in zip([ax0, ax1], ['phase_label', 'metal_label']):
         color_keys = {'phase_label': new_phase_color_key,
@@ -80,14 +100,13 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         agg = cvs.points(df, axis_to_use, second_axis,
                          dshader.count_cat(label))
         img = tf.shade(
-            agg, color_key=color_keys[label], how='eq_hist')
+            agg, color_key=color_keys[label], min_alpha=200, how='eq_hist')
         img_to_show = tf.spread(img, px=2, shape='square')
         ax.imshow(np.rot90(img_to_show.to_pil()))
 
-    ax0.set_ylabel('x [comoving kpc]', fontname='Arial', fontsize=10)
+    ax0.set_ylabel(r'line-of-sight position [comoving kpc/$h$]', fontsize=12)
     ax0.set_yticks([0, 200, 400, 600, 800])
-    ax0.set_yticklabels([str(int(s)) for s in [0, 50, 100, 150, 200]],
-                        fontname='Arial', fontsize=8)
+    ax0.set_yticklabels([str(int(s)) for s in [0, 50, 100, 150, 200]],fontsize=8)
 
     # render x vs. vx but don't show it yet.
     cvs = dshader.Canvas(plot_width=800, plot_height=300,
@@ -97,7 +116,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     agg = cvs.points(df, axis_to_use, 'v'+axis_to_use,
                      dshader.count_cat('phase_label'))
     x_vx_phase = tf.spread(
-        tf.shade(agg, color_key=new_phase_color_key), shape='square')
+        tf.shade(agg, min_alpha=200, color_key=new_phase_color_key), shape='square')
 
     # now iterate over the species to get the ion fraction plots
     for species, ax in zip(['HI', 'SiII', 'CIV', 'OVI'], [ax2, ax3, ax4, ax5]):
@@ -110,7 +129,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         vx_points = cvs.points(ray_df, axis_to_use,
                                axis_to_use + '-velocity',
                                agg=reductions.mean(species_dict[species]))
-        vx_render = tf.shade(vx_points, how='log')
+        vx_render = tf.shade(vx_points, min_alpha=200, how='log')
         ray_vx = tf.spread(vx_render, px=3, shape='circle')
 
         ax.imshow(np.rot90(x_vx_phase.to_pil()))
@@ -127,9 +146,23 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax6.set_ylim(0, 900)
 
     metal_colormap = metal_cmap
+    # divider = make_axes_locatable(ax7)
+    # cax = divider.append_axes("right", size="50%", pad=0.05)
+    # norm = mpl.colors.Normalize(vmin=np.log10(metal_min), vmax=np.log10(metal_max))
+    # cb = mpl.colorbar.ColorbarBase(cax, cmap=metal_discrete_cmap,
+    #                                 norm=norm,
+    #                                 orientation='vertical',
+    #                                 extend='both')
+    # cb.ax.tick_params(labelsize=8.)
+    # cb.set_ticks([-4, -2, 0])
+    # cb.set_ticklabels(['-4','-2','0'])
     ax7.imshow(np.rot90(metal_colormap.to_pil()))
     ax7.set_xlim(60, 180)
     ax7.set_ylim(0, 900)
+    for y, l in zip([0,350,700],['-4','-2','0']):
+       ax7.text(50, y, l,  fontsize=8,
+               verticalalignment='center', horizontalalignment='right')
+    ax7.set_xlabel('log Z', fontsize=8)
 
     nh1 = np.sum(
         np.array(ray_df['dx'] * ray_df['H_p0_number_density']))
@@ -181,25 +214,25 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     h1_size_dict = clouds.get_sizes(ray_df, 'h1', x, axis_to_use, np.array(
         ray_df['H_p0_number_density']), 0.8)
     for xx, ss in zip(h1_size_dict['h1_xs'], h1_size_dict['h1_kpcsizes']):
-        ax2.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
+        ax2.plot([75., 75.], [4. * xx, 4. * (xx+ss)], '-')
     h1_size_dict['nh1'] = nh1
 
     si2_size_dict = clouds.get_sizes(ray_df, 'si2', x, axis_to_use, np.array(
         ray_df['Si_p1_number_density']), 0.8)
     for xx, ss in zip(si2_size_dict['si2_xs'], si2_size_dict['si2_kpcsizes']):
-        ax3.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
+        ax3.plot([75., 75.], [4. * xx, 4. * (xx+ss)], '-')
     si2_size_dict['nsi2'] = nsi2
 
     c4_size_dict = clouds.get_sizes(ray_df, 'c4', x, axis_to_use, np.array(
         ray_df['C_p3_number_density']), 0.8)
     for xx, ss in zip(c4_size_dict['c4_xs'], c4_size_dict['c4_kpcsizes']):
-        ax4.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
+        ax4.plot([75., 75.], [4. * xx, 4. * (xx+ss)], '-')
     c4_size_dict['nc4'] = nc4
 
     o6_size_dict = clouds.get_sizes(ray_df, 'o6', x, axis_to_use, np.array(
         ray_df['O_p5_number_density']), 0.8)
     for xx, ss in zip(o6_size_dict['o6_xs'], o6_size_dict['o6_kpcsizes']):
-        ax5.plot([50., 50.], [4. * xx, 4. * (xx+ss)], '-')
+        ax5.plot([75., 75.], [4. * xx, 4. * (xx+ss)], '-')
     o6_size_dict['no6'] = no6
 
     size_dict = {**h1_size_dict, **si2_size_dict,  # concatenate the dicts
@@ -212,50 +245,61 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax.set_yticklabels([' ', ' ', ' '])
         if (hdulist.__contains__(key)):
             restwave = hdulist[key].header['RESTWAVE'] * u.AA
-            with u.set_enabled_equivalencies(
-                    u.equivalencies.doppler_relativistic(restwave)):
+            with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(restwave)):
                 vel = (hdulist[key].data['wavelength']*u.AA /
                        (1 + ds.get_parameter('CosmologyCurrentRedshift'))).to('km/s')
             ax.step(vel, hdulist[key].data['flux'])
                 # this line here plots the spectrum
+            ### find the minima!
+            if False:
+                if (lsfhdu.__contains__(key)):
+                    flux = lsfhdu[key].data['flux_obs']
+                    hdu_velocity = lsfhdu[key].data['velocity']
+                    vi = argrelextrema(flux, np.less)[0]
+                    #print(velocity[vi[flux[vi] < 0.95]])
+                    vmin = hdu_velocity[vi[flux[vi] < 0.95]]
+                    for v in vmin:
+                        ax.plot(v, np.array(v)*0.0 + 0.1, '|')
+
+
 
     # H I number of cells per velocity
-    n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['h1_cloud_flag'] > 0]), bins=70, range=(-350, 350))
-    ax8.step(bins[0:70]+5., n/20, color='red')
-    n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['si2_cloud_flag'] > 0]), bins=70, range=(-350, 350))
-    ax9.step(bins[0:70]+5., n/20, color='red')
-    n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['c4_cloud_flag'] > 0]), bins=70, range=(-350, 350))
-    ax10.step(bins[0:70]+5., n/20, color='red')
-    n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['o6_cloud_flag'] > 0]), bins=70, range=(-350, 350))
-    ax11.step(bins[0:70]+5., n/20, color='red')
+    #n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['h1_cloud_flag'] > 0]), bins=70, range=(-350, 350))
+    #ax8.step(bins[0:70]+5., n/20, color='red')
+    #n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['si2_cloud_flag'] > 0]), bins=70, range=(-350, 350))
+    #ax9.step(bins[0:70]+5., n/20, color='red')
+    #n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['c4_cloud_flag'] > 0]), bins=70, range=(-350, 350))
+    #ax10.step(bins[0:70]+5., n/20, color='red')
+    #n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['o6_cloud_flag'] > 0]), bins=70, range=(-350, 350))
+    #ax11.step(bins[0:70]+5., n/20, color='red')
+
+
+
+
 
     size_dict['ray_df'] = ray_df
 
-    pickle.dump(size_dict, open(fileroot+"sizes.pkl", "wb"))
+    pickle.dump(size_dict, open('.' + fileroot+"sizes.pkl", "wb"))
 
-    for v in np.flip(h1_size_dict['h1_velocities'], 0):
-        ax8.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
-
-    for v in np.flip(si2_size_dict['si2_velocities'], 0):
-        ax9.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
-
-    for v in np.flip(c4_size_dict['c4_velocities'], 0):
-        ax10.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
-
-    for v in np.flip(o6_size_dict['o6_velocities'], 0):
-        ax11.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
+    # for v in np.flip(h1_size_dict['h1_velocities'], 0):
+    #     ax8.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
+    #
+    # for v in np.flip(si2_size_dict['si2_velocities'], 0):
+    #     ax9.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
+    #
+    # for v in np.flip(c4_size_dict['c4_velocities'], 0):
+    #     ax10.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
+    #
+    # for v in np.flip(o6_size_dict['o6_velocities'], 0):
+    #     ax11.plot(-1.*v, np.array(v)*0.0 + 0.1, '|')
 
     for ax in [ax2, ax3, ax4, ax5, ax6, ax7]:
         ax.axes.get_xaxis().set_ticks([])
         ax.axes.get_yaxis().set_ticks([])
 
-    ax6.set_xlabel('log T', fontname='Arial', fontsize=8)
+    ax6.set_xlabel('log T', fontsize=8)
     for y, l in zip([100,350,600],['4','5','6']):
-        ax6.text(50, y, l, fontname='Arial', fontsize=8,
-                verticalalignment='center', horizontalalignment='right')
-    ax7.set_xlabel('log Z', fontname='Arial', fontsize=8)
-    for y, l in zip([0,400,800],['-4','-2','0']):
-        ax7.text(50, y, l, fontname='Arial', fontsize=8,
+        ax6.text(50, y, l, fontsize=8,
                 verticalalignment='center', horizontalalignment='right')
 
     # all plot settings and manipulation go here.
@@ -267,23 +311,29 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     ax0.set_ylim(0, 800)
     ax1.set_ylim(0, 800)
 
+    ax2.grid(True, zorder=12)
+    ax3.grid(True, zorder=12)
+    ax4.grid(True, zorder=12)
+    ax5.grid(True, zorder=12)
+
+
     ax0.plot([100, 100], [0, 800], color='white')
     ax1.plot([100, 100], [0, 800], color='white')
 
-    ax11.text(360, 0.95, '20 Cells', color='red')
-    ax11.text(360, 0.45, '10', color='red')
-    ax11.text(360, -0.05, '0', color='red')
+    #ax11.text(360, 0.95, '20 Cells', color='red')
+    #ax11.text(360, 0.45, '10', color='red')
+    #ax11.text(360, -0.05, '0', color='red')
 
 
 
     gs.update(hspace=0.0, wspace=0.1)
-    plt.savefig(fileroot+'velphase.png', dpi=300)
+    plt.savefig('.' + fileroot+'velphase.png', dpi=300)
     plt.close(fig)
 
 
 def grab_ray_file(ds, filename):
     """
-    opens a fits file containing a FOGGIE / Trident ray and returns a dataframe
+    opens a fits file containing a FOGGIE spectrum and returns a dataframe
     with useful quantities along the ray
     """
     print("grab_ray_file is opening: ", filename)
@@ -307,28 +357,37 @@ def grab_ray_file(ds, filename):
     ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
     ray['dx'] = ray['dx'].convert_to_units('cm')
 
-    ray_df = ray.to_dataframe(["x", "y", "z", "density", "temperature",
+    ray_field_list = ["x", "y", "z", "density", "temperature",
                                "metallicity", "HI_Density", "cell_mass", "dx",
                                "x-velocity", "y-velocity", "z-velocity",
                                "C_p2_number_density", "C_p3_number_density",
                                "H_p0_number_density", "Mg_p1_number_density",
                                "O_p5_number_density", "Si_p2_number_density",
                                "Si_p1_number_density", "Si_p3_number_density",
-                               "Ne_p7_number_density"])
+                               "Ne_p7_number_density"]
+    ray_df = ray.to_dataframe(ray_field_list)
 
     ray_index, first_axis, second_axis = futils.get_ray_axis(rs, re)
 
     ray_df = ray_df.sort_values(by=[first_axis])
+
+    ## we also need the trident ray
+#    triray = trident.make_simple_ray(ds, start_position=rs.copy(),
+#                  end_position=re.copy(),
+#                  data_filename="test.h5",
+#                  lines=line_list,
+#                  ftype='gas',
+#                  fields=field_list)
+
 
     return ray_df, rs, re, first_axis, hdulist
 
 
 def loop_over_rays(ds, dataset_list):
     for filename in dataset_list:
-        ray_df, rs, re, axis_to_use, hdulist = grab_ray_file(
-            ds, filename)
-        show_velphase(ds, ray_df, rs, re, hdulist,
-                      filename.strip('los.fits.gz'))
+        ray_df, rs, re, axis_to_use, hdulist = grab_ray_file(ds, filename)
+        fileroot = filename.strip('los.fits.gz').replace('.','')
+        show_velphase(ds, ray_df, rs, re, hdulist, fileroot)
 
 
 def drive_velphase(ds_name, wildcard):
@@ -355,6 +414,8 @@ if __name__ == "__main__":
     dataset_list = glob.glob(
         os.path.join('.', '*rd0020*v6_los*fits.gz'))
     print('there are ', len(dataset_list), 'files')
+
+    #### dataset_list = ['./hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0020_axz_i010.5-a6.01_v5_los.fits.gz']
 
     ds = yt.load(ds_loc)
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',

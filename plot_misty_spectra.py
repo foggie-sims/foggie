@@ -10,8 +10,8 @@ import glob
 import matplotlib as mpl
 import seaborn as sns
 sns.set_style("whitegrid", {'axes.grid' : False})
-mpl.rcParams['font.family'] = 'stixgeneral'
-mpl.rcParams['font.size'] = 6.
+mpl.rcParams['font.family'] = 'serif'
+mpl.rcParams['font.size'] = 14.
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.ticker as ticker
@@ -37,17 +37,19 @@ def plot_misty_spectra(hdulist, **kwargs):
     # start by setting up plots
     fig = plt.figure(dpi=300)
     fig.set_figheight(11)
-    fig.set_figwidth(6)
+    fig.set_figwidth(5)
     # creates grid on which the figure will be plotted
     gs = gridspec.GridSpec(Nlines, 1)
 
     zsnap = hdulist[0].header['REDSHIFT']
     zmin, zmax = (zsnap-0.004), (zsnap+0.004)
-    vmin, vmax = -400, 400
+    vmin, vmax = -300, 300
 
 
     for line in range(Nlines):
-        ax_spec = fig.add_subplot(gs[line, 0])
+        ## fig.add_subplot(gs[line, 0])
+        height = 1./Nlines - 0.012
+        ax_spec = fig.add_axes([0.15, 0.06+ (Nlines-line -1)*height, 0.82, height],xlim=(vmin, vmax), ylim=(-0.05,1.05))
         try:
             # Construct spectacle spectrum
             # spectrum = Spectrum1DModel(redshift=0.0)
@@ -56,6 +58,7 @@ def plot_misty_spectra(hdulist, **kwargs):
             lambda_0 = ext.header['RESTWAVE'] * u.AA
             f_value = ext.header['F_VALUE']
             gamma = ext.header['GAMMA']
+            tot_column = ext.header['TOT_COLUMN']
             # spectrum = Spectrum1DModel(redshift=0.0, lambda_0=lambda_0, f_value=f_value, gamma=gamma )
             spectrum = Spectrum1DModel(redshift=0.0, ion_name=name )
             print(line, name)
@@ -63,14 +66,16 @@ def plot_misty_spectra(hdulist, **kwargs):
                 redshift = hdulist[name].data['redshift']
                 flux = hdulist[name].data['flux']
                 wavelength_obs = hdulist[name].data['disp'] * u.AA
+                with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(lambda_0*(1+zsnap))):
+                    velocity = (wavelength_obs).to('km/s')
             except:
                 redshift = hdulist[name].data['redshift_obs']
                 flux = hdulist[name].data['flux_obs']
                 wavelength_obs = hdulist[name].data['disp_obs'] * u.AA
-            with u.set_enabled_equivalencies(u.equivalencies.doppler_relativistic(lambda_0*(1+zsnap))):
-                velocity = (wavelength_obs).to('km/s')
+                velocity = hdulist[name].data['velocity'] * u.Unit('km/s')
 
-            if 'NCOMP' in ext.header.keys():
+            if False:
+#            if 'NCOMP' in ext.header.keys():
                 Ncomp = ext.header['NCOMP']
                 for i in range(Ncomp):
                     delta_v = ext.header['FITVCEN{}'.format(i)] * u.Unit('km/s')
@@ -95,29 +100,35 @@ def plot_misty_spectra(hdulist, **kwargs):
             ax_spec.step(velocity, flux, color='#984ea3')
             if overplot:
                 ax_spec.step(velocity, spectrum.flux(velocity), color='darkorange', lw=1, ls="--", dashes=(5, 2))
-            ax_spec.text(vmin + 50, 0, name, fontsize=10.)
+            ax_spec.text(vmin + 25, 0.15, name, fontsize=16.)
+            coldens = "N = " + "{:4.2f}".format(tot_column)
+            ax_spec.text(vmin + 25, 0, coldens, fontsize=16.)
         except Exception as e:
             logging.error("Plotting failed because: \n%s", e)
         if line < (Nlines-1):
             ax_spec.xaxis.set_major_locator(ticker.NullLocator())
-        plt.xlim(vmin, vmax)
-        plt.ylim(-0.05, 1.05)
-        plt.subplots_adjust(wspace=None, hspace=None)
+        else:
+            plt.xlabel('velocity [km/s]',fontsize=24.)
+        #plt.xlim(vmin, vmax)
+        #plt.ylim(-0.05, 1.05)
+        #plt.subplots_adjust(wspace=None, hspace=None)
     print("                   ")
     print("before fig commands")
     print("                   ")
-    fig.tight_layout()
+    fig.text(0.02, 0.5, 'normalized flux', fontsize=24., va='center', rotation='vertical')
+    #fig.tight_layout()
     plt.savefig(outname)
     plt.close(fig)
 
 
 if __name__ == "__main__":
 
-    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd00*ax*v6*rsp.fits.gz'))
+    long_dataset_list = glob.glob(os.path.join(".", 'hlsp*rd00*ax*v6*lsf.fits.gz'))
     dataset_list = long_dataset_list
+    ### dataset_list = ['./hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axy_dx053.4_dz039.5_v6_lsf.fits.gz']
 
     for filename in dataset_list:
-        plotname = '.' + filename.strip('rsp.fits.gz') + 'rsp.png'
+        plotname = '.' + filename.strip('lsf.fits.gz') + 'lsf.png'
         print('plotting spectra in ', filename, ' and saving as ', plotname)
         hdulist = fits.open(filename)
         plot_misty_spectra(hdulist, overplot=True, outname=plotname)

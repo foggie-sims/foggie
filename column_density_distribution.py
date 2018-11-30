@@ -25,10 +25,10 @@ def calc_cddf(**kwargs):
     import trident
     ion = kwargs.get("ion","H I 1216")
     # load the simulation
-    forced_ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc/RD0018/RD0018")
+    forced_ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc/RD0020/RD0020")
     track_name = "/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
-    output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/comparisons/"
-    natural_ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/natural/RD0018/RD0018")
+    output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/comparisons/cddf/"
+    natural_ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/natural/RD0020/RD0020")
     ## output_dir = "/Users/molly/Dropbox/foggie-collab/plots/halo_008508/natural/nref11/spectra/"
     os.chdir(output_dir)
     track = Table.read(track_name, format='ascii')
@@ -47,7 +47,17 @@ def calc_cddf(**kwargs):
     # width = (197./forced_ds.hubble_constant)/(1+forced_ds.current_redshift)
     print("width = ", width, "kpc")
 
-    res = [1000,1000]
+    resolution = (1048,1048)
+    radii = np.zeros(resolution)
+    indices = np.indices(resolution)
+    for x in range(0, 1048):
+        for y in range(0, 1048):
+            radii[x,y] = (width / 1048) * np.sqrt((524-x)**2 + (524-y)**2)
+    big_radii = np.concatenate((radii, radii, radii), axis=None)
+    pkl_name = 'radii_RD0020_physicalkpc.pkl'
+    print("saving to ", pkl_name)
+    pickle.dump(big_radii, open( pkl_name, "wb" ) )
+
 
     trident.add_ion_fields(forced_ds, ions=['Si II', 'Si IV', 'C IV', 'O VI'])
     trident.add_ion_fields(natural_ds, ions=['Si II', 'Si IV', 'C IV', 'O VI'])
@@ -81,35 +91,39 @@ def calc_cddf(**kwargs):
         colr = np.array([])
         coln = np.array([])
         print("trying ",ion)
-        frb = dp_natural_x.frb['gas',ion]
-        natural = np.array(np.log10(frb))
+
+        frb = dp_natural_x.data_source.to_frb((width,'kpc'), resolution)
+        natural = np.array(np.log10(frb[ion]))
         coln = np.append(coln, natural.ravel(), axis=None)
 
-        frb = dp_natural_y.frb['gas',ion]
-        natural = np.array(np.log10(frb))
+        frb = dp_natural_y.data_source.to_frb((width,'kpc'), resolution)
+        natural = np.array(np.log10(frb[ion]))
         coln = np.append(coln, natural.ravel(), axis=None)
 
-        frb = dp_natural_z.frb['gas',ion]
-        natural = np.array(np.log10(frb))
+        frb = dp_natural_z.data_source.to_frb((width,'kpc'), resolution)
+        natural = np.array(np.log10(frb[ion]))
         coln = np.append(coln, natural.ravel(), axis=None)
 
-        frb = dp_forced_x.frb['gas',ion]
-        forced = np.array(np.log10(frb))
+        frb = dp_forced_x.data_source.to_frb((width,'kpc'), resolution)
+        forced = np.array(np.log10(frb[ion]))
         colr = np.append(colr, forced.ravel(), axis=None)
 
-        frb = dp_forced_y.frb['gas',ion]
-        forced = np.array(np.log10(frb))
+        frb = dp_forced_y.data_source.to_frb((width,'kpc'), resolution)
+        forced = np.array(np.log10(frb[ion]))
         colr = np.append(colr, forced.ravel(), axis=None)
 
-        frb = dp_forced_z.frb['gas',ion]
-        forced = np.array(np.log10(frb))
+        frb = dp_forced_z.data_source.to_frb((width,'kpc'), resolution)
+        forced = np.array(np.log10(frb[ion]))
         colr = np.append(colr, forced.ravel(), axis=None)
 
+        colr[colr == -np.inf] = 1
+        coln[coln == -np.inf] = 1
 
-        pkl_name = ion + '_nref10f_RD0018_column_densities.pkl'
+
+        pkl_name = ion + '_nref10f_RD0020_column_densities.pkl'
         print("saving to ", pkl_name)
         pickle.dump(colr, open( pkl_name, "wb" ) )
-        pkl_name = ion + '_natural_RD0018_column_densities.pkl'
+        pkl_name = ion + '_natural_RD0020_column_densities.pkl'
         print("saving to ", pkl_name)
         pickle.dump(coln, open( pkl_name, "wb" ) )
 
@@ -238,27 +252,14 @@ def plot_cddf():
     plt.legend(loc = 'upper right')
     xlabel = 'log HI column density'
     plt.xlabel(xlabel,fontsize=22)
-    plt.ylabel('fraction of sightlines with > N',fontsize=22)
+    plt.ylabel(r'fraction of sightlines with > N',fontsize=22)
     plt.tight_layout()
     plotname = output_dir + 'HI_cddf.png'
     plt.savefig(plotname)
 
-    fig, ax = plt.subplots(figsize=(9,6))
-    ax.hist(si4_colr,bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,label="refined",lw=2)
-    ax.hist(si4_coln,bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,label="standard",lw=2)
-    plt.xlim(si4_limit,15)
-    plt.ylim(0,0.1)
-    plt.legend(loc = 'upper right')
-    xlabel = 'log Si IV column density'
-    plt.xlabel(xlabel,fontsize=22)
-    plt.ylabel('fraction of sightlines with > N',fontsize=22)
-    plt.tight_layout()
-    plotname = output_dir + 'SiIV_cddf.png'
-    plt.savefig(plotname)
 
 
-
-    fig = plt.figure(figsize=(9,10))
+    fig = plt.figure(figsize=(8,10))
     axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
                    ylim=(0, 0.25), xlim=(si2_limit-1,17.5))
     axbot = fig.add_axes([0.1, 0.1, 0.88, 0.44],
@@ -273,13 +274,13 @@ def plot_cddf():
     axbot.hist(si2_colr[llsr],bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,lw=2)
     axbot.hist(si2_coln[llsn],bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,lw=2)
     axbot.set_xlabel('log Si II column density',fontsize=22)
-    axbot.set_ylabel('fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
     plt.tight_layout()
     plotname = output_dir + 'SiII_both_cddf.png'
     plt.savefig(plotname)
 
 
-    fig = plt.figure(figsize=(9,10))
+    fig = plt.figure(figsize=(8,10))
     axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
                    ylim=(0, 0.2), xlim=(si4_limit-1,15.4))
     axbot = fig.add_axes([0.1, 0.1, 0.88, 0.44],
@@ -296,13 +297,13 @@ def plot_cddf():
     axbot.set_xticks((12,13,14,15))
     axbot.set_xticklabels(('12','13','14','15'))
     axbot.set_xlabel('log Si IV column density',fontsize=22)
-    axbot.set_ylabel('fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
     plt.tight_layout()
     plotname = output_dir + 'SiIV_both_cddf.png'
     plt.savefig(plotname)
 
 
-    fig = plt.figure(figsize=(9,10))
+    fig = plt.figure(figsize=(8,10))
     axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
                    ylim=(0, 0.85), xlim=(c4_limit-1,15.4))
     axbot = fig.add_axes([0.1, 0.1, 0.88, 0.44],
@@ -319,13 +320,13 @@ def plot_cddf():
     axbot.set_xticks((11,12,13,14,15))
     axbot.set_xticklabels(('11','12','13','14','15'))
     axbot.set_xlabel('log C IV column density',fontsize=22)
-    axbot.set_ylabel('fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
     plt.tight_layout()
     plotname = output_dir + 'CIV_both_cddf.png'
     plt.savefig(plotname)
 
 
-    fig = plt.figure(figsize=(9,10))
+    fig = plt.figure(figsize=(8,10))
     axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
                    ylim=(0, 1.05), xlim=(o6_limit-1,15))
     axbot = fig.add_axes([0.1, 0.1, 0.88, 0.44],
@@ -342,140 +343,99 @@ def plot_cddf():
     axbot.set_xticks((12,13,14,15))
     axbot.set_xticklabels(('12','13','14','15'))
     axbot.set_xlabel('log O VI column density',fontsize=22)
-    axbot.set_ylabel('fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
     plt.tight_layout()
     plotname = output_dir + 'OVI_both_cddf.png'
     plt.savefig(plotname)
 
-
-    fig, ax = plt.subplots(figsize=(9,6))
-    ax.hist(si2_colr,bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,label="refined",lw=2)
-    ax.hist(si2_coln,bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,label="standard",lw=2)
-    plt.xlim(si2_limit,19)
-    plt.ylim(0,0.3)
-    plt.legend(loc = 'upper right')
-    xlabel = 'log Si II column density'
-    plt.xlabel(xlabel,fontsize=22)
-    plt.ylabel('fraction of sightlines with > N',fontsize=22)
-    plt.tight_layout()
-    plotname = output_dir + 'SiII_cddf.png'
-    plt.savefig(plotname)
-
-    fig, ax = plt.subplots(figsize=(9,6))
-    ax.hist(si2_colr[llsr],bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,label="refined",lw=2)
-    ax.hist(si2_coln[llsn],bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,label="standard",lw=2)
-    plt.xlim(si2_limit,19)
-    plt.ylim(0,0.9)
-    plt.legend(loc = 'upper right')
-    xlabel = 'log Si II column density'
-    plt.xlabel(xlabel,fontsize=22)
-    plt.ylabel('fraction of LLS sightlines with > N',fontsize=22)
-    plt.tight_layout()
-    plotname = output_dir + 'SiII_lls_cddf.png'
-    plt.savefig(plotname)
-
-    fig, ax = plt.subplots(figsize=(9,6))
-    hb = ax.hexbin(hi_colr, si2_colr,cmap='Oranges',extent=(13,22,si2_limit-1.5,19),mincnt=1,gridsize=200, vmin=0, vmax=1000)
-    ax.scatter(kodiaq['HI_col'], kodiaq['Si_II_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
-    cb = fig.colorbar(hb, ax=ax)
-    cb.set_label('counts, refined simulation')
-    plt.legend(loc='upper left')
-    plt.ylim(ymin=si2_limit-1.5)
-    plt.xlabel('log HI column density',fontsize=22)
-    plt.ylabel('log Si II column density',fontsize=22)
-    plt.tight_layout()
-    plotname = output_dir + 'HI_SiII_refined.png'
-    plt.savefig(plotname)
-
-    fig, ax = plt.subplots(figsize=(9,6))
-    hb = ax.hexbin(hi_coln, si2_coln,cmap='Greens',extent=(13,22,si2_limit-1.5,19),mincnt=1,gridsize=200, vmin=0, vmax=1000)
-    ax.scatter(kodiaq['HI_col'], kodiaq['Si_II_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
-    cb = fig.colorbar(hb, ax=ax)
+    fig = plt.figure(figsize=(8,10))
+    axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
+                   ylim=(si2_limit-1.5,17.8), xlim=(13, 22))
+    axbot = fig.add_axes([0.1, 0.1, 0.88, 0.44],
+                   ylim=(si2_limit-1.5,17.8), xlim=(13, 22))
+    hb = axtop.hexbin(hi_coln, si2_coln,cmap='Greens',extent=(13,22,si2_limit-1.5,18),mincnt=1,gridsize=200, vmin=0, vmax=999)
+    axtop.scatter(kodiaq['HI_col'], kodiaq['Si_II_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    cb = fig.colorbar(hb, ax=axtop)
     cb.set_label('counts, standard simulation')
-    plt.legend(loc='upper left')
-    plt.ylim(ymin=si2_limit-1.5)
-    plt.xlabel('log HI column density',fontsize=22)
-    plt.ylabel('log Si II column density',fontsize=22)
-    plt.tight_layout()
-    plotname = output_dir + 'HI_SiII_natural.png'
-    plt.savefig(plotname)
-
-    fig, ax = plt.subplots(figsize=(9,9))
-    hb = ax.hexbin(hi_colr, si4_colr,cmap='Oranges',extent=(13,22,si4_limit-2.5,18),mincnt=1,gridsize=200, vmin=0, vmax=500)
-    ax.scatter(kodiaq['HI_col'], kodiaq['Si_IV_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
-    cb = fig.colorbar(hb, ax=ax)
+    axtop.legend(loc='upper left')
+    axtop.set_xticklabels(())
+    hb = axbot.hexbin(hi_colr, si2_colr,cmap='Oranges',extent=(13,22,si2_limit-1.5,18),mincnt=1,gridsize=200, vmin=0, vmax=1000)
+    axbot.scatter(kodiaq['HI_col'], kodiaq['Si_II_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    cb = fig.colorbar(hb, ax=axbot, ticks=[0, 200, 400, 600, 800])
     cb.set_label('counts, refined simulation')
-    plt.legend(loc='upper left')
-    plt.ylim(ymin=si4_limit-2.5)
-    plt.xlabel('log HI column density',fontsize=22)
-    plt.ylabel('log Si IV column density',fontsize=22)
+    #cb.ax.set_xticklabels(['0','200','400','600','800',r'    '])
+    axbot.set_xlabel('log HI column density',fontsize=22)
+    fig.text(0.02, 0.5, 'log Si II column density', fontsize=22, va='center', rotation='vertical')
     plt.tight_layout()
-    plotname = output_dir + 'HI_SiIV_refined.png'
+    plotname = output_dir + 'HI_SiII_both.png'
     plt.savefig(plotname)
 
-    fig, ax = plt.subplots(figsize=(9,9))
-    hb = ax.hexbin(hi_coln, si4_coln,cmap='Greens',extent=(13,22,si4_limit-2.5,18),mincnt=1,gridsize=200, vmin=0, vmax=500)
-    ax.scatter(kodiaq['HI_col'], kodiaq['Si_IV_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
-    cb = fig.colorbar(hb, ax=ax)
+
+    fig = plt.figure(figsize=(8,10))
+    axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
+                   ylim=(si4_limit-2.5, 17.8), xlim=(13, 22))
+    axbot = fig.add_axes([0.1, 0.1, 0.88, 0.44],
+                   ylim=(si4_limit-2.5, 17.8), xlim=(13, 22))
+    hb = axtop.hexbin(hi_coln, si4_coln,cmap='Greens',extent=(13,22,si4_limit-2.5,18),mincnt=1,gridsize=200, vmin=0, vmax=500)
+    axtop.scatter(kodiaq['HI_col'], kodiaq['Si_IV_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    cb = fig.colorbar(hb, ax=axtop)
     cb.set_label('counts, standard simulation')
-    plt.legend(loc='upper left')
-    plt.ylim(ymin=si4_limit-2.5)
-    plt.xlabel('log HI column density',fontsize=22)
-    plt.ylabel('log Si IV column density',fontsize=22)
-    plt.tight_layout()
-    plotname = output_dir + 'HI_SiIV_natural.png'
-    plt.savefig(plotname)
-
-    fig, ax = plt.subplots(figsize=(9,6))
-    hb = ax.hexbin(hi_colr, c4_colr,cmap='Oranges',extent=(13,22,c4_limit-2.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
-    ax.scatter(kodiaq['HI_col'], kodiaq['C_IV_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
-    cb = fig.colorbar(hb, ax=ax)
+    axtop.legend(loc='upper left')
+    axtop.set_xticklabels(())
+    hb = axbot.hexbin(hi_colr, si4_colr,cmap='Oranges',extent=(13,22,si4_limit-2.5,18),mincnt=1,gridsize=200, vmin=0, vmax=500)
+    axbot.scatter(kodiaq['HI_col'], kodiaq['Si_IV_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    cb = fig.colorbar(hb, ax=axbot, ticks=[0, 100, 200, 300, 400])
     cb.set_label('counts, refined simulation')
-    plt.legend(loc='upper left')
-    plt.ylim(ymin=c4_limit-2.5)
-    plt.xlabel('log HI column density',fontsize=22)
-    plt.ylabel('log C IV column density',fontsize=22)
+    #cb.ax.set_xticklabels(['100','200','300','400']
+    axbot.set_xlabel('log HI column density',fontsize=22)
+    fig.text(0.02, 0.5, 'log Si IV column density', fontsize=22, va='center', rotation='vertical')
     plt.tight_layout()
-    plotname = output_dir + 'HI_CIV_refined.png'
+    plotname = output_dir + 'HI_SiIV_both.png'
     plt.savefig(plotname)
 
-    fig, ax = plt.subplots(figsize=(9,6))
-    hb = ax.hexbin(hi_coln, c4_coln,cmap='Greens',extent=(13,22,c4_limit-2.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
-    ax.scatter(kodiaq['HI_col'], kodiaq['C_IV_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
-    cb = fig.colorbar(hb, ax=ax)
+    fig = plt.figure(figsize=(8,10))
+    axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
+                   ylim=(c4_limit-2.5,16), xlim=(13, 22))
+    axbot = fig.add_axes([0.1, 0.1, 0.88, 0.44],
+                   ylim=(c4_limit-2.5,16), xlim=(13, 22))
+    hb = axtop.hexbin(hi_coln, c4_coln,cmap='Greens',extent=(13,22,c4_limit-2.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
+    axtop.scatter(kodiaq['HI_col'], kodiaq['C_IV_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    cb = fig.colorbar(hb, ax=axtop, ticks=[0, 500, 1000, 1500, 2000])
     cb.set_label('counts, standard simulation')
-    plt.legend(loc='upper left')
-    plt.ylim(ymin=c4_limit-2.5)
-    plt.xlabel('log HI column density',fontsize=22)
-    plt.ylabel('log C IV column density',fontsize=22)
-    plt.tight_layout()
-    plotname = output_dir + 'HI_CIV_natural.png'
-    plt.savefig(plotname)
-
-    fig, ax = plt.subplots(figsize=(9,6))
-    hb = ax.hexbin(hi_colr, o6_colr,cmap='Oranges',extent=(13,22,o6_limit-1.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
-    ax.scatter(kodiaq['HI_col'], kodiaq['O_VI_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
-    cb = fig.colorbar(hb, ax=ax)
+    axtop.legend(loc='upper left')
+    axtop.set_xticklabels(())
+    hb = axbot.hexbin(hi_colr, c4_colr,cmap='Oranges',extent=(13,22,c4_limit-2.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
+    axbot.scatter(kodiaq['HI_col'], kodiaq['C_IV_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    cb = fig.colorbar(hb, ax=axbot, ticks=[0, 500, 1000, 1500])
     cb.set_label('counts, refined simulation')
-    plt.legend(loc='upper left')
-    plt.ylim(ymin=o6_limit-1.5)
-    plt.xlabel('log HI column density',fontsize=22)
-    plt.ylabel('log O VI column density',fontsize=22)
+    #cb.ax.set_xticklabels(['100','200','300','400']
+    axbot.set_xlabel('log HI column density',fontsize=22)
+    fig.text(0.02, 0.5, 'log C IV column density', fontsize=22, va='center', rotation='vertical')
     plt.tight_layout()
-    plotname = output_dir + 'HI_OVI_refined.png'
+    plotname = output_dir + 'HI_CIV_both.png'
     plt.savefig(plotname)
 
-    fig, ax = plt.subplots(figsize=(9,6))
-    hb = ax.hexbin(hi_coln, o6_coln,cmap='Greens',extent=(13,22,o6_limit-1.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
-    ax.scatter(kodiaq['HI_col'], kodiaq['O_VI_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
-    cb = fig.colorbar(hb, ax=ax)
+    fig = plt.figure(figsize=(8,10))
+    axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
+                   ylim=(o6_limit-1.5,16), xlim=(13, 22))
+    axbot = fig.add_axes([0.1, 0.1, 0.88, 0.44],
+                   ylim=(o6_limit-1.5,16), xlim=(13, 22))
+    axtop.scatter(kodiaq['HI_col'], kodiaq['O_VI_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+
+    hb = axtop.hexbin(hi_colr, o6_colr,cmap='Oranges',extent=(13,22,o6_limit-1.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
+    cb = fig.colorbar(hb, ax=axtop, ticks=[0, 500, 1000, 1500, 2000])
     cb.set_label('counts, standard simulation')
-    plt.legend(loc='upper left')
-    plt.ylim(ymin=o6_limit-1.5)
-    plt.xlabel('log HI column density',fontsize=22)
-    plt.ylabel('log O VI column density',fontsize=22)
+    axtop.legend(loc='upper left')
+    axtop.set_xticklabels(())
+    hb = axbot.hexbin(hi_coln, o6_coln,cmap='Greens',extent=(13,22,o6_limit-1.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
+    axbot.scatter(kodiaq['HI_col'], kodiaq['O_VI_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    cb = fig.colorbar(hb, ax=axbot, ticks=[0, 500, 1000, 1500])
+    cb.set_label('counts, refined simulation')
+    #cb.ax.set_xticklabels(['100','200','300','400']
+    axbot.set_xlabel('log HI column density',fontsize=22)
+    fig.text(0.02, 0.5, 'log O VI column density', fontsize=22, va='center', rotation='vertical')
     plt.tight_layout()
-    plotname = output_dir + 'HI_OVI_natural.png'
+    plotname = output_dir + 'HI_OVI_both.png'
     plt.savefig(plotname)
 
 
