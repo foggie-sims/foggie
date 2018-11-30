@@ -11,7 +11,7 @@ print('tap tap is this thing on')
 
 ### WE ARE ON PLEIADES AND THIS IS THE RD0018 OUTPUT OF THE NREF11F BOX
 dsr = yt.load('RD0018/RD0018')
-halo_track = 'halo_track'
+track_name = 'halo_track'
 
 track = Table.read(track_name, format='ascii')
 track.sort('col1')
