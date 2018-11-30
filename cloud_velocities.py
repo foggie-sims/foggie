@@ -38,10 +38,10 @@ def plot_cloud_size_and_masses():
 
     nref10_cell = 1000. * 100 / (256 * np.power(2,10)) ## ckpc/h
 
-    output_dir = '/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/comparisons/clouds/'
+    output_dir = '/Users/molly/Dropbox/foggie-collab/papers/absorption_peeples/Figures/appendix/'
 
     ### this will only work in python 3 !!
-    filelist = glob.glob(os.path.join('/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/lls', '*.pkl'))
+    filelist = glob.glob(os.path.join('/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/natural/spectra/lls', '*rd0018*.pkl'))
     # filelist = filelist[0:100]
     print('there are ',np.size(filelist),'files')
     natural_size_dict = pickle.load( open( filelist[0], "rb" ) )
@@ -167,6 +167,11 @@ def plot_cloud_size_and_masses():
     natural_si2_ratio[natural_si2_ratio == np.nan] = 1e6
     natural_c4_ratio[natural_c4_ratio == np.nan] = 1e6
     natural_o6_ratio[natural_o6_ratio == np.nan] = 1e6
+    natural_h1_ratio[natural_h1_ratio == np.inf] = 1e6
+    natural_si2_ratio[natural_si2_ratio == np.inf] = 1e6
+    natural_c4_ratio[natural_c4_ratio == np.inf] = 1e6
+    natural_o6_ratio[natural_o6_ratio == np.inf] = 1e6
+
 
     filelist = glob.glob(os.path.join('/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/lls', '*.pkl'))
     # filelist = filelist[0:100]
@@ -295,6 +300,10 @@ def plot_cloud_size_and_masses():
     nref10f_si2_ratio[nref10f_si2_ratio == np.nan] = 1e6
     nref10f_c4_ratio[nref10f_c4_ratio == np.nan] = 1e6
     nref10f_o6_ratio[nref10f_o6_ratio == np.nan] = 1e6
+    nref10f_h1_ratio[nref10f_h1_ratio == np.inf] = 1e6
+    nref10f_si2_ratio[nref10f_si2_ratio == np.inf] = 1e6
+    nref10f_c4_ratio[nref10f_c4_ratio == np.inf] = 1e6
+    nref10f_o6_ratio[nref10f_o6_ratio == np.inf] = 1e6
 
 
     ################################################################
@@ -345,6 +354,15 @@ def plot_cloud_size_and_masses():
     plt.savefig(output_dir + 'cloud_velocities.png')
     plt.savefig(output_dir + 'cloud_velocities.pdf')
 
+
+    print("natural HI < 1: ", len(natural_h1_ratio[natural_h1_ratio < 1]) / len(natural_h1_ratio),"< 0.5: ",len(natural_h1_ratio[natural_h1_ratio < 0.5]) / len(natural_h1_ratio))
+    print("natural SiII < 1: ", len(natural_si2_ratio[natural_si2_ratio < 1]) / len(natural_si2_ratio),"< 0.5: ",len(natural_si2_ratio[natural_si2_ratio < 0.5]) / len(natural_si2_ratio))
+    print("natural CIV < 1: ", len(natural_c4_ratio[natural_c4_ratio < 1]) / len(natural_c4_ratio),"< 0.5: ",len(natural_c4_ratio[natural_c4_ratio < 0.5]) / len(natural_c4_ratio))
+    print("natural OVI < 1: ", len(natural_o6_ratio[natural_o6_ratio < 1]) / len(natural_o6_ratio),"< 0.5: ",len(natural_o6_ratio[natural_o6_ratio < 0.5]) / len(natural_o6_ratio))
+    print("ref HI < 1: ", len(nref10f_h1_ratio[nref10f_h1_ratio < 1]) / len(nref10f_h1_ratio),"< 0.5: ",len(nref10f_h1_ratio[nref10f_h1_ratio < 0.5]) / len(nref10f_h1_ratio))
+    print("ref SiII < 1: ", len(nref10f_si2_ratio[nref10f_si2_ratio < 1]) / len(nref10f_si2_ratio),"< 0.5: ",len(nref10f_si2_ratio[nref10f_si2_ratio < 0.5]) / len(nref10f_si2_ratio))
+    print("ref CIV < 1: ", len(nref10f_c4_ratio[nref10f_c4_ratio < 1]) / len(nref10f_c4_ratio),"< 0.5: ",len(nref10f_c4_ratio[nref10f_c4_ratio < 0.5]) / len(nref10f_c4_ratio))
+    print("ref OVI < 1: ", len(nref10f_o6_ratio[nref10f_o6_ratio < 1]) / len(nref10f_o6_ratio),"< 0.5: ",len(nref10f_o6_ratio[nref10f_o6_ratio < 0.5]) / len(nref10f_o6_ratio))
 
 
 

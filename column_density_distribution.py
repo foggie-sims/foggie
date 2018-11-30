@@ -7,7 +7,7 @@ import pickle
 
 import matplotlib as mpl
 import seaborn as sns
-sns.set_style("whitegrid", {'axes.grid' : False})
+#sns.set_style("whitegrid", {'axes.grid' : False})
 mpl.rcParams['font.family'] = 'stixgeneral'
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -247,14 +247,17 @@ def plot_cddf():
     fig, ax = plt.subplots(figsize=(9,6))
     ax.hist(hi_colr,bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,label="refined",lw=2)
     ax.hist(hi_coln,bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,label="standard",lw=2)
+    ax.grid(True)
     plt.xlim(15,20)
     plt.ylim(0,0.5)
     plt.legend(loc = 'upper right')
     xlabel = 'log HI column density'
     plt.xlabel(xlabel,fontsize=22)
-    plt.ylabel(r'fraction of sightlines with > N',fontsize=22)
+    plt.ylabel(r'fraction of sightlines with $ > N$',fontsize=22)
     plt.tight_layout()
     plotname = output_dir + 'HI_cddf.png'
+    plt.savefig(plotname)
+    plotname = output_dir + 'HI_cddf.pdf'
     plt.savefig(plotname)
 
 
@@ -266,17 +269,21 @@ def plot_cddf():
                    ylim=(0, 0.9), xlim=(si2_limit-1,17.5))
     axtop.hist(si2_colr,bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,label="refined",lw=2)
     axtop.hist(si2_coln,bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,label="standard",lw=2)
-    axtop.set_ylabel('fraction of sightlines with > N',fontsize=20)
+    axtop.set_ylabel('fraction of sightlines with $ > N$',fontsize=20)
     axtop.set_xticklabels(())
-    axtop.set_yticks((0.0,0.1, 0.2))
-    axtop.set_yticklabels(('0','0.1','0.2'))
+    axtop.set_yticks((0.0, 0.05, 0.1, 0.15, 0.2))
+    axtop.set_yticklabels(('0','','0.1','','0.2'))
+    axtop.grid(True)
     axtop.legend(loc = 'upper right')
     axbot.hist(si2_colr[llsr],bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,lw=2)
     axbot.hist(si2_coln[llsn],bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,lw=2)
     axbot.set_xlabel('log Si II column density',fontsize=22)
-    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with $ > N$',fontsize=20)
+    axbot.grid(True)
     plt.tight_layout()
     plotname = output_dir + 'SiII_both_cddf.png'
+    plt.savefig(plotname)
+    plotname = output_dir + 'SiII_both_cddf.pdf'
     plt.savefig(plotname)
 
 
@@ -287,19 +294,24 @@ def plot_cddf():
                    ylim=(0, 0.68), xlim=(si4_limit-1,15.4))
     axtop.hist(si4_colr,bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,label="refined",lw=2)
     axtop.hist(si4_coln,bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,label="standard",lw=2)
-    axtop.set_ylabel('fraction of sightlines with > N',fontsize=20)
+    axtop.set_ylabel('fraction of sightlines with $ > N$',fontsize=20)
+    axtop.set_xticks((12,12.5,13,13.5,14,14.5,15))
     axtop.set_xticklabels(())
-    axtop.set_yticks((0.0,0.1, 0.2))
-    axtop.set_yticklabels(('0','0.1','0.2'))
+    axtop.set_yticks((0.0, 0.05, 0.1, 0.15, 0.2))
+    axtop.set_yticklabels(('0','','0.1','','0.2'))
+    axtop.grid(True)
     axtop.legend(loc = 'upper right')
     axbot.hist(si4_colr[llsr],bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,lw=2)
     axbot.hist(si4_coln[llsn],bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,lw=2)
-    axbot.set_xticks((12,13,14,15))
-    axbot.set_xticklabels(('12','13','14','15'))
+    axbot.set_xticks((12,12.5,13,13.5,14,14.5,15))
+    axbot.set_xticklabels(('12','','13','','14','','15'))
     axbot.set_xlabel('log Si IV column density',fontsize=22)
-    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with $ > N$',fontsize=20)
+    axbot.grid(True)
     plt.tight_layout()
     plotname = output_dir + 'SiIV_both_cddf.png'
+    plt.savefig(plotname)
+    plotname = output_dir + 'SiIV_both_cddf.pdf'
     plt.savefig(plotname)
 
 
@@ -310,19 +322,24 @@ def plot_cddf():
                    ylim=(0, 1.05), xlim=(c4_limit-1,15.4))
     axtop.hist(c4_colr,bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,label="refined",lw=2)
     axtop.hist(c4_coln,bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,label="standard",lw=2)
-    axtop.set_ylabel('fraction of sightlines with > N',fontsize=20)
+    axtop.set_ylabel('fraction of sightlines with $ > N$',fontsize=20)
+    axtop.set_xticks((11.5,12,12.5,13,13.5,14,14.5,15))
     axtop.set_xticklabels(())
+    axtop.grid(True)
     #axtop.set_yticks((0.0,0.1, 0.2))
     #axtop.set_yticklabels(('0','0.1','0.2'))
     axtop.legend(loc = 'upper right')
     axbot.hist(c4_colr[llsr],bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,lw=2)
     axbot.hist(c4_coln[llsn],bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,lw=2)
-    axbot.set_xticks((11,12,13,14,15))
-    axbot.set_xticklabels(('11','12','13','14','15'))
+    axbot.set_xticks((11.5,12,12.5,13,13.5,14,14.5,15))
+    axbot.set_xticklabels(('11','','12','','13','','14','','15'))
     axbot.set_xlabel('log C IV column density',fontsize=22)
-    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with $ > N$',fontsize=20)
+    axbot.grid(True)
     plt.tight_layout()
     plotname = output_dir + 'CIV_both_cddf.png'
+    plt.savefig(plotname)
+    plotname = output_dir + 'CIV_both_cddf.pdf'
     plt.savefig(plotname)
 
 
@@ -333,19 +350,26 @@ def plot_cddf():
                    ylim=(0, 1.05), xlim=(o6_limit-1,15))
     axtop.hist(o6_colr,bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,label="refined",lw=2)
     axtop.hist(o6_coln,bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,label="standard",lw=2)
-    axtop.set_ylabel('fraction of sightlines with > N',fontsize=20)
+    axtop.set_ylabel('fraction of sightlines with $ > N$',fontsize=20)
+    axtop.set_xticks((12,12.5,13,13.5,14,14.5,15))
     axtop.set_xticklabels(())
+    axtop.set_xticklabels(())
+    axtop.grid(True)
     #axtop.set_yticks((0.0,0.1, 0.2))
     #axtop.set_yticklabels(('0','0.1','0.2'))
     axtop.legend(loc = 'upper right')
     axbot.hist(o6_colr[llsr],bins=5000,histtype='step',normed=True,cumulative=-1,color=ref_color,lw=2)
     axbot.hist(o6_coln[llsn],bins=5000,histtype='step',normed=True,cumulative=-1,color=nat_color,lw=2)
     axbot.set_xticks((12,13,14,15))
-    axbot.set_xticklabels(('12','13','14','15'))
+    axbot.set_xticks((12,12.5,13,13.5,14,14.5,15))
+    axbot.set_xticklabels(('12','','13','','14','','15'))
     axbot.set_xlabel('log O VI column density',fontsize=22)
-    axbot.set_ylabel(r'fraction of LLS sightlines with > N',fontsize=20)
+    axbot.set_ylabel(r'fraction of LLS sightlines with $ > N$',fontsize=20)
+    axbot.grid(True)
     plt.tight_layout()
     plotname = output_dir + 'OVI_both_cddf.png'
+    plt.savefig(plotname)
+    plotname = output_dir + 'OVI_both_cddf.pdf'
     plt.savefig(plotname)
 
     fig = plt.figure(figsize=(8,10))
@@ -368,6 +392,8 @@ def plot_cddf():
     fig.text(0.02, 0.5, 'log Si II column density', fontsize=22, va='center', rotation='vertical')
     plt.tight_layout()
     plotname = output_dir + 'HI_SiII_both.png'
+    plt.savefig(plotname)
+    plotname = output_dir + 'HI_SiII_both.pdf'
     plt.savefig(plotname)
 
 
@@ -392,6 +418,8 @@ def plot_cddf():
     plt.tight_layout()
     plotname = output_dir + 'HI_SiIV_both.png'
     plt.savefig(plotname)
+    plotname = output_dir + 'HI_SiIV_both.pdf'
+    plt.savefig(plotname)
 
     fig = plt.figure(figsize=(8,10))
     axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
@@ -414,6 +442,8 @@ def plot_cddf():
     plt.tight_layout()
     plotname = output_dir + 'HI_CIV_both.png'
     plt.savefig(plotname)
+    plotname = output_dir + 'HI_CIV_both.pdf'
+    plt.savefig(plotname)
 
     fig = plt.figure(figsize=(8,10))
     axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
@@ -422,12 +452,12 @@ def plot_cddf():
                    ylim=(o6_limit-1.5,16), xlim=(13, 22))
     axtop.scatter(kodiaq['HI_col'], kodiaq['O_VI_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
 
-    hb = axtop.hexbin(hi_colr, o6_colr,cmap='Oranges',extent=(13,22,o6_limit-1.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
+    hb = axtop.hexbin(hi_coln, o6_coln,cmap='Greens',extent=(13,22,o6_limit-1.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
     cb = fig.colorbar(hb, ax=axtop, ticks=[0, 500, 1000, 1500, 2000])
     cb.set_label('counts, standard simulation')
     axtop.legend(loc='upper left')
     axtop.set_xticklabels(())
-    hb = axbot.hexbin(hi_coln, o6_coln,cmap='Greens',extent=(13,22,o6_limit-1.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
+    hb = axbot.hexbin(hi_colr, o6_colr,cmap='Oranges',extent=(13,22,o6_limit-1.5,16),mincnt=1,gridsize=200, vmin=0, vmax=2000)
     axbot.scatter(kodiaq['HI_col'], kodiaq['O_VI_col'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
     cb = fig.colorbar(hb, ax=axbot, ticks=[0, 500, 1000, 1500])
     cb.set_label('counts, refined simulation')
@@ -436,6 +466,8 @@ def plot_cddf():
     fig.text(0.02, 0.5, 'log O VI column density', fontsize=22, va='center', rotation='vertical')
     plt.tight_layout()
     plotname = output_dir + 'HI_OVI_both.png'
+    plt.savefig(plotname)
+    plotname = output_dir + 'HI_OVI_both.pdf'
     plt.savefig(plotname)
 
 

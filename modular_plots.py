@@ -355,6 +355,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
         ds = yt.load(snap)
         if args.all or args.ions:
             trident.add_ion_fields(ds, ions=['C IV', 'O VI', 'Mg II', 'Si II', 'C II', 'Si III', 'Si IV', 'Ne VIII'])
+        if args.ovi:
+            trident.add_ion_fields(ds, ions=['O VI'])
         if args.mgii or args.ions:
             trident.add_ion_fields(ds, ions=['Mg II'])
         if args.neviii or args.ions:

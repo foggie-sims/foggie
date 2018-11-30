@@ -23,7 +23,7 @@ def plot_cloud_size_and_masses():
 
 
     ### this will only work in python 3 !!
-    filelist = glob.glob(os.path.join('.', '*.pkl'))
+    filelist = glob.glob(os.path.join('.', '*v6*.pkl'))
     # filelist = filelist[0:100]
     print('there are ',np.size(filelist),'files')
     size_dict = pickle.load( open( filelist[0], "rb" ) )
@@ -194,7 +194,7 @@ def plot_cloud_size_and_masses():
     #########################################
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
-    nbins = 70
+    nbins = 100
     ax.hist(np.log10(np.array(o6masses)/1.989e33), nbins, range=(0,7), histtype='step', lw=2, edgecolor=ovi_color, hatch='\\\\', label='O VI',zorder=3)
     ax.hist(np.log10(np.array(c4masses)/1.989e33), nbins, range=(0,7), histtype='step',lw=2, edgecolor=c4_color, hatch='--', label='C IV',zorder=4)
     ax.hist(np.log10(np.array(si2masses)/1.989e33), nbins, range=(0,7), histtype='step',lw=2, edgecolor=si2_color, hatch='////', label='Si II',zorder=7)

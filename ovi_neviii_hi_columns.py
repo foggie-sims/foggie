@@ -8,8 +8,6 @@ import argparse
 
 import pickle
 
-from astropy.table import Table
-from astropy.io import ascii
 
 from get_refine_box import get_refine_box
 from get_proper_box_size import get_proper_box_size
@@ -30,8 +28,12 @@ def parse_args():
     parser.set_defaults(calc=False)
 
     parser.add_argument('--compile', dest='compile', action='store_true')
-    parser.add_argument('--no-compile', dest='compile', action='store_false', help="default is compiling")
+    parser.add_argument('--no-compile', dest='compile', action='store_false', help="default is not compiling the big table")
     parser.set_defaults(compile=False)
+
+    parser.add_argument('--plot', dest='plot', action='store_true')
+    parser.add_argument('--no-plot', dest='plot', action='store_false', help="default is no plotting")
+    parser.set_defaults(plot=False)
 
     args = parser.parse_args()
     return args
@@ -107,6 +109,8 @@ def calc_cddf(output):
         pickle.dump(colr, open( pkl_name, "wb" ) )
 
 def compile_columns():
+    from astropy.table import Table
+    from astropy.io import ascii
     min_o6 = 12.75
     outputs = ascii.read('outputs.txt')
     data = Table(names=('DD', 'redshift',
@@ -138,10 +142,10 @@ def compile_columns():
             except:
                 ne8 = pickle.load(open( pkl_name, "rb"))
             ratio = np.power(10.0, ne8) / np.power(10.0, o6)
-            print(np.percentile(ratio, 10), np.percentile(ratio, 50), np.percentile(ratio, 90))
+            #print(np.percentile(ratio, 10), np.percentile(ratio, 50), np.percentile(ratio, 90))
             ind = np.where(o6 > min_o6)
             ratiolim = np.power(10.0, ne8[ind]) / np.power(10.0, o6[ind])
-            print(np.percentile(ratiolim, 10), np.percentile(ratiolim, 50), np.percentile(ratiolim, 90))
+            #print(np.percentile(ratiolim, 10), np.percentile(ratiolim, 50), np.percentile(ratiolim, 90))
             ne8lim = ne8[ind]
             data.add_row([dd, redshift,
                   np.percentile(o6, 10), np.percentile(o6, 25), np.percentile(o6, 34), np.percentile(o6, 50),
@@ -159,6 +163,56 @@ def compile_columns():
         except:
             print('output ', dd, ' does not seem to have any pkls, so sad')
 
+def plot_columns():
+    from astropy.io import ascii
+    data = ascii.read('nref10f_o6_ne8.dat')
+    import matplotlib.pyplot as plt
+    import matplotlib as mpl
+    mpl.rcParams['font.family'] = 'stixgeneral'
+    mpl.rcParams['font.size'] = 26.
+
+
+    fig = plt.figure(figsize=(16,8))
+    ax = fig.add_subplot(111)
+    ax.fill_between(data['redshift'], np.log10(data['ratiolim10']), np.log10(data['ratiolim90']), facecolor='darkorange', alpha=0.2)
+    ax.fill_between(data['redshift'], np.log10(data['ratiolim25']), np.log10(data['ratiolim75']), facecolor='darkorange', alpha=0.2)
+    ax.step(data['redshift'], np.log10(data['ratiolim50']), lw=5, color='darkorange')
+    ax.text(0.5, 0.25, 'min log N(OVI) = 12.75', fontsize=34)
+    plt.xlabel(r'redshift', fontsize=34)
+    plt.ylabel('log [N(NeVIII)/N(OVI)]', fontsize=34)
+    fig.tight_layout()
+    fig.savefig('redshift_ratiolim.png')
+
+    fig = plt.figure(figsize=(16,8))
+    ax = fig.add_subplot(111)
+    ax.fill_between(data['redshift'], np.log10(data['ratiolim10']), np.log10(data['ratiolim90']), facecolor='darkorange', alpha=0.2)
+    ax.fill_between(data['redshift'], np.log10(data['ratiolim25']), np.log10(data['ratiolim75']), facecolor='darkorange', alpha=0.2)
+    ax.step(data['redshift'], np.log10(data['ratiolim50']), lw=5, color='darkorange')
+    ax.step(data['redshift'], np.log10(data['ratio10']), color='#4daf4a', ls=':')
+    ax.step(data['redshift'], np.log10(data['ratio90']), color='#4daf4a', ls=':')
+    ax.step(data['redshift'], np.log10(data['ratio50']), lw=5, color='#4daf4a')
+    ax.text(0.5, 0.45, 'min log N(OVI) = 12.75', color='darkorange',fontsize=34)
+    plt.xlabel(r'redshift', fontsize=34)
+    plt.ylabel('log [N(NeVIII)/N(OVI)]', fontsize=34)
+    fig.tight_layout()
+    fig.savefig('redshift_ratioboth.png')
+
+    fig = plt.figure(figsize=(16,8))
+    ax = fig.add_subplot(111)
+    ax.fill_between(data['redshift'], data['ovi10'], data['ovi90'], facecolor='darkorange', alpha=0.2)
+    ax.fill_between(data['redshift'], data['ovi25'], data['ovi75'], facecolor='darkorange', alpha=0.2)
+    ax.step(data['redshift'], data['ovi50'], lw=5, color='darkorange', label='O VI ')
+    ax.fill_between(data['redshift'], data['neviii10'], data['neviii90'], facecolor='#4daf4a', alpha=0.2)
+    ax.fill_between(data['redshift'], data['neviii25'], data['neviii75'], facecolor='#4daf4a', alpha=0.2)
+    ax.step(data['redshift'], data['neviii50'], lw=5, color='#4daf4a', label='Ne VIII')
+    # ax.text(0.5, 0.45, 'min log N(OVI) = 12.75', color='darkorange',fontsize=34)
+    plt.legend(loc='upper left')
+    plt.xlabel(r'redshift', fontsize=34)
+    plt.ylabel('log column density', fontsize=34)
+    fig.tight_layout()
+    fig.savefig('redshift_o6ne8.png')
+
+
 if __name__ == "__main__":
     args = parse_args()
     print(args)
@@ -166,4 +220,6 @@ if __name__ == "__main__":
         calc_cddf(args.output)
     if args.compile:
         compile_columns()
+    if args.plot:
+        plot_columns()
     sys.exit("~~~*~*~*~*~*~all done!!!! yay column densities!")

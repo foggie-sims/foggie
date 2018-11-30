@@ -6,6 +6,7 @@ import logging
 import sys
 import os
 import glob
+from scipy.signal import argrelextrema
 
 import matplotlib as mpl
 import seaborn as sns
@@ -98,6 +99,10 @@ def plot_misty_spectra(hdulist, **kwargs):
             # ax_spec.step(redshift, flux, color='darkorange',lw=1)
             ax_spec.plot(velocity, np.ones(len(velocity)),color='k',lw=1, ls=":")
             ax_spec.step(velocity, flux, color='#984ea3')
+            vi = argrelextrema(flux, np.less)[0]
+            #print(velocity[vi[flux[vi] < 0.95]])
+            vmin = velocity[vi[flux[vi] < 0.95]]
+            ax_spec.plot(vmin, np.array(vmin)*0.0 + 1, '|',color='black')
             if overplot:
                 ax_spec.step(velocity, spectrum.flux(velocity), color='darkorange', lw=1, ls="--", dashes=(5, 2))
             ax_spec.text(vmin + 25, 0.15, name, fontsize=16.)

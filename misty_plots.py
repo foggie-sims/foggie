@@ -100,6 +100,7 @@ def make_misty_plots():
     plt.ylabel('number of Si II 1260 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('SiII_Nmin_vs_impact.png')
+    fig.savefig('SiII_Nmin_vs_impact.pdf')
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
@@ -115,6 +116,7 @@ def make_misty_plots():
     plt.ylabel('number of O VI 1032 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('OVI_Nmin_vs_impact.png')
+    fig.savefig('OVI_Nmin_vs_impact.pdf')
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
@@ -130,6 +132,7 @@ def make_misty_plots():
     plt.ylabel('number of C IV 1548 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('CIV_Nmin_vs_impact.png')
+    fig.savefig('CIV_Nmin_vs_impact.pdf')
 
     # fig = plt.figure(figsize=(9,7))
     # ax = fig.add_subplot(111)
@@ -185,6 +188,7 @@ def make_misty_plots():
     plt.ylabel(r'number of Si II 1260 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('SiII_col_vs_Nmin.png')
+    fig.savefig('SiII_col_vs_Nmin.pdf')
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
@@ -201,6 +205,7 @@ def make_misty_plots():
     plt.ylabel(r'number of C IV 1548 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('CIV_col_vs_Nmin.png')
+    fig.savefig('CIV_col_vs_Nmin.pdf')
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
@@ -217,6 +222,7 @@ def make_misty_plots():
     plt.ylabel(r'number of Si IV 1394 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('SiIV_col_vs_Nmin.png')
+    fig.savefig('SiIV_col_vs_Nmin.pdf')
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
@@ -233,6 +239,7 @@ def make_misty_plots():
     plt.ylabel(r'number of O VI 1032 minima', fontsize=34)
     fig.tight_layout()
     fig.savefig('OVI_col_vs_Nmin.png')
+    fig.savefig('OVI_col_vs_Nmin.pdf')
 
     fig = plt.figure(figsize=(9,7))
     ax = fig.add_subplot(111)
@@ -597,6 +604,7 @@ def make_misty_plots():
     plt.ylabel('normalized fraction', fontsize=34)
     fig.tight_layout()
     fig.savefig('Si_II_histograms.png')
+    fig.savefig('Si_II_histograms.pdf')
     #
     # fig = plt.figure(figsize=(11,7))
     # ax = fig.add_subplot(111)
@@ -626,10 +634,11 @@ def make_misty_plots():
     ax.set_xticks((1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
     ax.set_xticklabels(('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'))
     plt.legend(loc='upper right')
-    plt.xlabel(r'number of Si IV 1260 minima', fontsize=34)
+    plt.xlabel(r'number of Si IV 1394 minima', fontsize=34)
     plt.ylabel('normalized fraction', fontsize=34)
     fig.tight_layout()
     fig.savefig('Si_IV_histograms.png')
+    fig.savefig('Si_IV_histograms.pdf')
 
     fig = plt.figure(figsize=(11,7))
     ax = fig.add_subplot(111)
@@ -648,6 +657,7 @@ def make_misty_plots():
     plt.ylabel('normalized fraction', fontsize=34)
     fig.tight_layout()
     fig.savefig('C_IV_histograms.png')
+    fig.savefig('C_IV_histograms.pdf')
 
     fig = plt.figure(figsize=(11,7))
     ax = fig.add_subplot(111)
@@ -666,6 +676,7 @@ def make_misty_plots():
     plt.ylabel('normalized fraction', fontsize=34)
     fig.tight_layout()
     fig.savefig('O_VI_histograms.png')
+    fig.savefig('O_VI_histograms.pdf')
 
 
     idn = [(nat['Si_II_Nmin'] > 0) & (nat['Si_II_col'] > si2_limit) & (nat['HI_col'] > 0)]

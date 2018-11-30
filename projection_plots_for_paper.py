@@ -79,6 +79,7 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
             p = yt.ProjectionPlot(ds, ax, species_dict[field], center=center, data_source=box, width=(width, 'kpc'))
             p.set_zlim(species_dict[field], zmin, zmax)
             p.set_cmap(field=species_dict[field], cmap=cmap)
+            p.set_background_color(species_dict[field], color=cmap(0))
         else:
             if field == "density" or field == "metal_density":
                 p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, width=(width, 'kpc'))
@@ -312,6 +313,10 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                         h1_proj_min, h1_proj_max, h1_color_map, \
                         ision=True, center=box.center, axis=axis, box=box, \
                         width=width, appendix="_righthand")
+        make_projection_plot(ds, prefix, "SiII",  \
+                        si2_min, si2_max, si2_color_map, \
+                        ision=True, center=box.center, axis=axis, box=box, \
+                        width=refine_width, appendix="_righthand")
         make_projection_plot(ds, prefix, "OVI",  \
                         o6_min, o6_max, o6_color_map, \
                         ision=True, center=box.center, axis=axis, box=box, \
@@ -326,10 +331,6 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                         width=refine_width, appendix="_righthand")
         make_projection_plot(ds, prefix, "SiIII",  \
                         si3_min, si3_max, si3_color_map, \
-                        ision=True, center=box.center, axis=axis, box=box, \
-                        width=refine_width, appendix="_righthand")
-        make_projection_plot(ds, prefix, "SiII",  \
-                        si2_min, si2_max, si2_color_map, \
                         ision=True, center=box.center, axis=axis, box=box, \
                         width=refine_width, appendix="_righthand")
         make_projection_plot(ds, prefix, "NeVIII",  \
@@ -351,7 +352,7 @@ if __name__ == "__main__":
     foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
     output_dir = '/Users/molly/Dropbox/foggie-collab/papers/absorption_peeples/Figures/projections/'
 
-    run_dir = foggie_dir + run_loc
+    run_dir = foggie_dir +  run_loc
     if args.output == "all" or args.output == "RD":
         message = plot_script(args.halo, run_dir, output_dir, run_loc,  "all", trackname=trackname, outs=args.output)
     else:

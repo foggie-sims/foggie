@@ -51,7 +51,7 @@ def parse_args():
 
     parser.add_argument('--seed', metavar='seed', type=int, action='store',
                         help='random seed? default is 17')
-    parser.set_defaults(seed="17")
+    parser.set_defaults(seed=17)
 
     parser.add_argument('--axis', metavar='axis', type=str, action='store',
                         help='which axis? default is x')
@@ -150,8 +150,8 @@ def generate_random_rays(ds, halo_center, **kwargs):
         rs, re, deltas, impact = get_random_ray_endpoints(ds, halo_center, track, axis)
         this_out_ray_basename = out_ray_basename + deltas
         out_ray_name =  this_out_ray_basename + ".h5"
-        out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+deltas+"_v6_los.fits.gz"
-        out_plot_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+deltas+"_v6_los.png"
+        out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+deltas+"_vjt_los.fits.gz"
+        out_plot_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+deltas+"_vjt_los.png"
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         if args.velocities:
@@ -238,7 +238,7 @@ if __name__ == "__main__":
         track_name = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
         output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
         haloname = "halo008508_nref11n_nref10f"
-    elif args.run == "nref10nref10f_selfshield":
+    elif args.run == "nref10f_selfshield":
         ds_loc =  ds_base + "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/" + args.output + "/" + args.output
         track_name = ds_base + "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
         output_dir = output_path + "plots_halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/spectra/"
@@ -256,6 +256,11 @@ if __name__ == "__main__":
                        'C II 1335', 'C III 977', 'C IV 1548', \
                        'O VI 1032', 'Ne VIII 770']
     elif args.linelist == 'kodiaq':
+        line_list = ['H I 1216', 'H I 919', \
+                        'Si II 1260', 'Si III 1206', 'Si IV 1394',
+                        'C II 1335', 'C III 977', 'C IV 1548',
+                         'O VI 1032']
+    elif args.linelist == 'jt':
         line_list = ['H I 1216', 'H I 919', \
                         'Si II 1260', 'Si IV 1394', 'C IV 1548', 'O VI 1032']
     else: ## short --- these are what show_velphase has
