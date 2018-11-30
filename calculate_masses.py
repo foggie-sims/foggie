@@ -17,7 +17,7 @@ track = Table.read(track_name, format='ascii')
 track.sort('col1')
 proper_box_size = get_proper_box_size(dsr)
 width = 15. #kpc
-
+zsnap = dsr.current_redshift
 refine_box, refine_box_center, refine_width = get_refine_box(dsr, zsnap, track)
 
 mH = 1.6737236e-24 * u.g
