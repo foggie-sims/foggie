@@ -49,36 +49,39 @@ def make_misty_plots():
     frames = [nat_p, ref_p]
     both_p = pandas.concat(frames)
 
-    idn = [(nat['Si_II_Nmin'] > 0) & (nat['Si_II_col'] > si2_limit)]
-    idr = [(ref['Si_II_Nmin'] > 0) & (ref['Si_II_col'] > si2_limit)]
-#    idh = [hires['Si_II_col'] > 12]
+
+    idn = [(nat['Si_II_Nmin'] > 0) & (nat['Si_II_col'] > si2_limit) & (nat['impact'] > 0)]
+    idr = [(ref['Si_II_Nmin'] > 0) & (ref['Si_II_col'] > si2_limit) & (ref['impact'] > 0)]
+    #    idh = [hires['Si_II_col'] > 12]
     nat_si2 = nat[idn].to_pandas()
     ref_si2 = ref[idr].to_pandas()
     frames = [nat_si2, ref_si2]
     si2 = pandas.concat(frames)
-#    hires_si2 = hires[idh].to_pandas()
+    #    hires_si2 = hires[idh].to_pandas()
 
-    idn = [(nat['Si_IV_Nmin'] > 0) & (nat['Si_IV_col'] > si4_limit)]
-    idr = [(ref['Si_IV_Nmin'] > 0) & (ref['Si_IV_col'] > si4_limit)]
-#    idh = [hires['Si_IV_col'] > 11.5]
+    idn = [(nat['Si_IV_Nmin'] > 0) & (nat['Si_IV_col'] > si4_limit) & (nat['impact'] > 0)]
+    idr = [(ref['Si_IV_Nmin'] > 0) & (ref['Si_IV_col'] > si4_limit) & (ref['impact'] > 0)]
+    #    idh = [hires['Si_IV_col'] > 11.5]
     nat_si4 = nat[idn].to_pandas()
     ref_si4 = ref[idr].to_pandas()
     frames = [nat_si4, ref_si4]
     si4 = pandas.concat(frames)
     #hires_si2 = hires[idh].to_pandas()
 
-    idn = [(nat['C_IV_Nmin'] > 0) & (nat['C_IV_col'] > c4_limit)]
-    idr = [(ref['C_IV_Nmin'] > 0) & (ref['C_IV_col'] > c4_limit)]
+    idn = [(nat['C_IV_Nmin'] > 0) & (nat['C_IV_col'] > c4_limit) & (nat['impact'] > 0)]
+    idr = [(ref['C_IV_Nmin'] > 0) & (ref['C_IV_col'] > c4_limit) & (ref['impact'] > 0)]
     nat_c4 = nat[idn].to_pandas()
     ref_c4 = ref[idr].to_pandas()
     frames = [nat_c4, ref_c4]
     c4 = pandas.concat(frames)
 
-    idn = [(nat['O_VI_Nmin'] > 0) & (nat['O_VI_col'] > o6_limit)]
-    idr = [(ref['O_VI_Nmin'] > 0) & (ref['O_VI_col'] > o6_limit)]
+    idn = [(nat['O_VI_Nmin'] > 0) & (nat['O_VI_col'] > o6_limit) & (nat['impact'] > 0)]
+    idr = [(ref['O_VI_Nmin'] > 0) & (ref['O_VI_col'] > o6_limit) & (ref['impact'] > 0)]
+    idrs = [(ref['O_VI_Nmin'] > 0) & (ref['O_VI_col'] > o6_limit) & (ref['impact'] > 0) & (ref['O_VI_col'] < 14.5)]
     #idh = [hires['O_VI_col'] > 13]
     nat_o6 = nat[idn].to_pandas()
     ref_o6 = ref[idr].to_pandas()
+    ref_o6_s = ref[idrs].to_pandas()
     frames = [nat_o6, ref_o6]
     o6 = pandas.concat(frames)
     #hires_o6 = hires[idh].to_pandas()
@@ -179,6 +182,8 @@ def make_misty_plots():
     ax = fig.add_subplot(111)
     g = sns.swarmplot(x="Si_II_col", y="Si_II_Nmin", data=si2, hue='simulation', palette=palette, alpha=0.7,orient='h')
     ax.scatter(kodiaq['Si_II_col'], kodiaq['Si_II_Nmin'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    sns.regplot(nat_si2['Si_II_col'], nat_si2['Si_II_Nmin'], logx=True, truncate=True, scatter=False, color=nat_color)
+    sns.regplot(ref_si2['Si_II_col'], ref_si2['Si_II_Nmin'], logx=True, truncate=True, scatter=False, color=ref_color)
     ax.legend()
     plt.xlim(si2_limit, 17)
     ax.set_yticks((0,5,10,15,20))
@@ -194,6 +199,8 @@ def make_misty_plots():
     ax = fig.add_subplot(111)
     g = sns.swarmplot(x="C_IV_col", y="C_IV_Nmin", data=c4, hue='simulation', palette=palette, alpha=0.7,orient='h')
     ax.scatter(kodiaq['C_IV_col'], kodiaq['C_IV_Nmin'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    sns.regplot(nat_c4['C_IV_col'], nat_c4['C_IV_Nmin'], logx=True, truncate=True, scatter=False, color=nat_color)
+    sns.regplot(ref_c4['C_IV_col'], ref_c4['C_IV_Nmin'], logx=True, truncate=True, scatter=False, color=ref_color)
     ax.legend()
     plt.xlim(c4_limit, 15.5)
     ax.set_xticks((12,13,14,15))
@@ -211,6 +218,8 @@ def make_misty_plots():
     ax = fig.add_subplot(111)
     g = sns.swarmplot(x="Si_IV_col", y="Si_IV_Nmin", data=c4, hue='simulation', palette=palette, alpha=0.7,orient='h')
     ax.scatter(kodiaq['Si_IV_col'], kodiaq['Si_IV_Nmin'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    sns.regplot(nat_si4['Si_IV_col'], nat_si4['Si_IV_Nmin'], logx=True, truncate=True, scatter=False, color=nat_color)
+    sns.regplot(ref_si4['Si_IV_col'], ref_si4['Si_IV_Nmin'], logx=True, truncate=True, scatter=False, color=ref_color)
     ax.legend()
     plt.xlim(si4_limit, 15.5)
     ax.set_xticks((12,13,14,15))
@@ -228,6 +237,8 @@ def make_misty_plots():
     ax = fig.add_subplot(111)
     g = sns.swarmplot(x="O_VI_col", y="O_VI_Nmin", data=o6, hue='simulation', palette=palette, alpha=0.7,orient='h')
     ax.scatter(kodiaq['O_VI_col'], kodiaq['O_VI_Nmin'], color='k', marker='*', s=100, label='KODIAQ',zorder=100)
+    sns.regplot(nat_o6['O_VI_col'], nat_o6['O_VI_Nmin'], logx=True, truncate=True, scatter=False, color=nat_color)
+    sns.regplot(ref_o6['O_VI_col'], ref_o6['O_VI_Nmin'], logx=True, truncate=True, scatter=False, color=ref_color)
     ax.legend()
     plt.xlim(o6_limit, 15.5)
     ax.set_xticks((13,14,15))
