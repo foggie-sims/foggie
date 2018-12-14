@@ -5,6 +5,13 @@ from astropy.io import ascii
 from get_halo_center import get_halo_center
 import numpy as np
 
+import seaborn as sns
+density_color_map = sns.blend_palette(
+    ("black", "#4575b4", "#4daf4a", "#ffe34d", "darkorange"), as_cmap=True)
+density_proj_min = 5e-2  # msun / pc^2
+density_proj_max = 1e4
+
+
 def get_center_track(first_center, latesnap, earlysnap, interval):
 
     ### do this way at high-redshift
@@ -44,12 +51,18 @@ def get_center_track(first_center, latesnap, earlysnap, interval):
         center_guess = new_center
 
         p = yt.ProjectionPlot(ds, 'x', 'density', center=new_center, width=(200., 'kpc'))
+        p.set_zlim('density', density_proj_min, density_proj_max)
+        p.set_cmap(field='density', cmap=density_color_map)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.save()
         p = yt.ProjectionPlot(ds, 'y', 'density', center=new_center, width=(200., 'kpc'))
+        p.set_zlim('density', density_proj_min, density_proj_max)
+        p.set_cmap(field='density', cmap=density_color_map)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.save()
         p = yt.ProjectionPlot(ds, 'z', 'density', center=new_center, width=(200., 'kpc'))
+        p.set_zlim('density', density_proj_min, density_proj_max)
+        p.set_cmap(field='density', cmap=density_color_map)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.save()
         print(t)
@@ -100,4 +113,7 @@ if __name__ == "__main__":
 
     ### DD0999 for nref11n_selfshield_z15
     first_center = [0.492419242859, 0.482583045959, 0.504755973816]
-    get_center_track(first_center, 1088, 999, 0.002)
+
+    ### DD1088 for nref11n_selfshield_z15
+    first_center = [0.492186546326, 0.481648445129, 0.505097389221]
+    get_center_track(first_center, 1547, 1088, 0.002)
