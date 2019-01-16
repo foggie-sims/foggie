@@ -178,7 +178,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         print(small_sphere.radius.in_units('kpc'))
 
         # we want to subtract the bulk velocity from the radial velocities
-        bulk_velocity = big_sphere.quantities["BulkVelocity"]()
+        bulk_velocity = small_sphere.quantities["BulkVelocity"]()
 
         # find number of cells for the FRB
         # by default, it uses nref10 as the cell size for the frb
