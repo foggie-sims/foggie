@@ -8,6 +8,7 @@ from yt.units.yt_array import YTArray
 from yt.funcs import mylog
 import numpy as np
 import pandas as pd
+import glob
 import matplotlib.pyplot as plt
 import datashader as dshader
 import datashader.transfer_functions as tf
@@ -240,7 +241,7 @@ def get_subregions(dsname, minsigma, interval):
 
 
 
-def drive_halo_finding(dsname, minsigma, interval, n_processes):
+def wrap_halo_finding(dsname, minsigma, interval, n_processes):
     """ This is the main function call to drive halo finding.
     Parameters are the dataset name, the minimum projected density
     to count as halos, and the dx/dy/dz interval for the subregions
@@ -249,4 +250,17 @@ def drive_halo_finding(dsname, minsigma, interval, n_processes):
     subregion_list = get_subregions(dsname, minsigma, interval)
     pool = mp.Pool(processes=n_processes)
     list_of_halos = pool.starmap(find_halos_in_region, subregion_list)
-    return list_of_halos
+
+    halo_catalog = pd.concat(list_of_halos)
+
+    used_particle_files = glob.glob('used_particles*pkl')
+    used_particles = [pd.read_pickle(used_particle_files[0])] #<---- a list
+
+    for file in used_particle_files[1:]:
+        uu = pd.read_pickle(file)
+        used_particles.append(uu)
+
+    used_particles_df = pd.concat(used_particles)
+    #used_particles_df.to_pickle('used_particles_all.pkl')
+
+    return halo_catalog, used_particles_df

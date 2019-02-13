@@ -5,13 +5,14 @@ import os
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 import get_background_density
 
-def get_halo_profile(ds, halo_center):
+def get_halo_profile(dataset, halo_center):
 
-    BoxDensity = get_background_density.get_background_density(ds)
-    radii = ds.arr((np.arange(100) * 3. + 10.), 'kpc').in_units('Mpc')
+    BoxDensity = get_background_density.get_background_density(dataset)
+    print("background density computed as :", BoxDensity) 
+    radii = dataset.arr((np.arange(100) * 10. + 10.), 'kpc').in_units('Mpc')
 
     for radius_to_analyze in radii:
-        sphere = ds.sphere(halo_center, radius_to_analyze)
+        sphere = dataset.sphere(halo_center, radius_to_analyze)
         baryon_mass, particle_mass = sphere.quantities.total_quantity(["cell_mass", "particle_mass"])
         print("baryons:  ", baryon_mass)
         print("particles:", particle_mass)
@@ -30,5 +31,4 @@ def get_halo_profile(ds, halo_center):
         print()
 
         if (HaloOverDensity < 200.):
-                
-	           return radius_to_analyze.in_units('kpc'), TotalMass, ParticleMass, GasMass, StarMass
+            return radius_to_analyze.in_units('kpc'), TotalMass, ParticleMass, GasMass, StarMass
