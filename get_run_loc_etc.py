@@ -1,0 +1,53 @@
+from __future__ import print_function
+
+def get_run_loc_etc(args):
+    print("for now I am assuming you are using the Tempest halo even if you passed in something different")
+
+    if args.system == "oak":
+        foggie_dir = "/astro/simulations/FOGGIE/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "dhumuha" or args.system == "palmetto":
+        foggie_dir = "/Users/molly/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+        code_path = '/Users/molly/Dropbox/foggie/foggie/'
+    elif args.system == "harddrive":
+        foggie_dir = "/Volumes/foggie/"
+        output_path = "/Users/molly/Dropbox/foggie-collab/"
+    elif args.system == "nmearl":
+        foggie_dir = "/Users/nearl/data/"
+        output_path = "/Users/nearl/Desktop/"
+    elif args.system == "pleiades":
+        foggie_dir = "/nobackup/mpeeples/"
+        output_path = "/nobackup/mpeeples/"
+    elif args.system == "pancho":
+        foggie_dir = "/Users/tumlinson/Dropbox/foggie-test/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-collab/"
+    elif args.system == "lefty":
+        foggie_dir = "/Users/tumlinson/Dropbox/foggie-test/"
+        output_path = "/Users/tumlinson/Dropbox/foggie-collab/"
+
+
+    if args.run == "natural":
+        run_loc = "halo_00"+ args.halo + "/nref11n/"
+        trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref9"
+        haloname = "halo_00"+ args.halo + "_nref11n"
+        path_part = run_loc
+        output_dir = output_path + "plots_"+path_part
+        spectra_dir = output_dir+"spectra/"
+    elif args.run == "nref10f":
+        run_loc = "halo_00"+ args.halo + "/nref11n_nref10f/"
+        trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref10"
+        haloname = "halo_00"+ args.halo + "_nref11n_nref10f"
+        path_part = run_loc
+        output_dir = output_path + "plots_"+path_part
+        spectra_dir = output_dir+"spectra/"
+    elif args.run == "nref11c_nref9f" or args.run == "nref11c":
+        run_loc = "halo_00"+ args.halo + "/nref11c_nref9f/"
+        trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref9"
+        haloname = "halo_00"+ args.halo + "_nref11c_nref9f"
+        path_part = run_loc
+        output_dir = output_path + "plots_"+path_part
+        spectra_dir = output_dir+"spectra/"
+
+
+    return foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir
