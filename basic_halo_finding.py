@@ -6,6 +6,10 @@ Started January 2019 by JT.
 import yt
 from yt.units.yt_array import YTArray
 from yt.funcs import mylog
+import collections
+import datashader as dshader
+from functools import partial
+from datashader.utils import export_image
 import numpy as np
 import pandas as pd
 import glob
@@ -49,7 +53,7 @@ def create_particle_df(box):
     particle_df['y_proj_density'] = particle_df['position_y'] * 0.
     particle_df['z_proj_density'] = particle_df['position_z'] * 0.
     particle_df['sum_proj_density'] = particle_df['position_x'] * 0.
-    print("Done with particle masses")
+    print("Done with particle projected densities")
 
 
     halo_cat_dict = {'x0': [0., 0.], 'y0':[0.0, 0.0], 'z0':[0.0,0.0],
@@ -108,7 +112,7 @@ def assign_densities(particle_df):
 
     particle_df.sort_values('sum_proj_density', ascending=False, inplace=True)
 
-    print("Done assigning densities: ")
+    print("Done assigning densities.")
 
     return {'agg_x':agg_x, 'agg_y':agg_y, 'agg_z':agg_z}, particle_df
 
@@ -215,12 +219,67 @@ def find_halos_in_region(dsname, minsigma, qnumber, x0, y0, z0, x1, y1, z1):
         print("Halo in octant: ", qnumber, hh)
 
     halo_catalog = halo_catalog[2:]
-    halo_catalog.to_pickle('halo_octant_'+str(qnumber)+'.pkl' )
-    used_particles.to_pickle('used_particles_'+str(qnumber)+'.pkl' )
+    #halo_catalog.to_pickle('halo_octant_'+str(qnumber)+'.pkl' )
+#    used_particles.to_pickle('used_particles_'+str(qnumber)+'.pkl' )
 
     return halo_catalog
 
 
+
+
+def color_code_dm(dsname): 
+
+    ds = yt.load(dsname) 
+    box = ds.r[0:1, 0:1, 0:1]
+    particle_df, used_particles, halo_catalog = create_particle_df(box)
+
+    particle_df['position_x'] = particle_df['position_x'] * (1. + ds.current_redshift)
+    particle_df['position_y'] = particle_df['position_y'] * (1. + ds.current_redshift)
+    particle_df['position_z'] = particle_df['position_z'] * (1. + ds.current_redshift)
+    particle_df['level'] = 'LX'   
+
+    particle_df.loc[particle_df.mass > 1e5, 'level'] = 'L3' 
+    particle_df.loc[particle_df.mass > 1e6, 'level'] = 'L2' 
+    particle_df.loc[particle_df.mass > 1e7, 'level'] = 'L1' 
+    particle_df.loc[particle_df.mass > 1e8, 'level'] = 'L0' 
+    particle_df.level = particle_df.level.astype('category')
+
+    agg = aggregate_particles(particle_df, 'position_y', 'position_z', 800)
+    color_key = collections.OrderedDict([('L0', '#666666'),('L1', '#FF0000'),('L2', '#00FF00'),('L3', '#0000FF')])
+
+    cvs = dshader.Canvas(plot_width=1000, plot_height=1000,
+                             x_range=[0,25000], y_range=[0,25000])
+    agg = cvs.points(particle_df, 'position_y', 'position_z', dshader.count_cat('level'))
+    img = tf.shade(agg, color_key=color_key, how='log')
+    export = partial(export_image, background='white', export_path="./")
+    export(img, dsname[7:]+'_particles_yz')
+
+    return img 
+
+
+
+def find_halos_in_particle_dataframe(dsname, particle_df, used_particles, halo_catalog, minsigma): 
+    """ this is for finding halos in a previously constructed df, however derived
+    it could for instance use a df that has already been screened on particle location, 
+    mass, type (stars) or whatever. 
+ 
+    inputs: dataset name, particle_df, used_particles, and minimum projected density. 
+    outputs: halo_catalog 
+    """ 
+
+    dataset = yt.load(dsname)
+    agg_dict, particle_df = assign_densities(particle_df)
+    while (np.max(particle_df['sum_proj_density']) > minsigma):
+        particle_df, used_particles, hh, pindex = find_a_halo(dataset, particle_df, used_particles, halo_catalog, get_box_density(dataset))
+        halo_catalog = halo_catalog.append(hh, ignore_index=True)
+        print("New halo dataframe : ", hh)
+
+    halo_catalog = halo_catalog[2:]
+
+    return halo_catalog
+
+
+   
 
 
 
