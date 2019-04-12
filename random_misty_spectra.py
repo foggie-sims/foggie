@@ -15,7 +15,8 @@ from astropy.table import Table
 from get_refine_box import get_refine_box
 from get_proper_box_size import get_proper_box_size
 from get_halo_center import get_halo_center
-from plot_misty_spectra import plot_misty_spectra
+#from plot_misty_spectra import plot_misty_spectra
+from get_run_loc_etc import get_run_loc_etc
 
 # import show_velphase as sv
 
@@ -32,6 +33,10 @@ def parse_args():
     parser.add_argument('--velocities', dest='velocities', action='store_true',
                             help='make the velocity plots?, default is no')
     parser.set_defaults(velocities=False)
+
+    parser.add_argument('--halo', metavar='halo', type=str, action='store',
+                        help='which halo? default is 8508 (Tempest)')
+    parser.set_defaults(halo="8508")
 
     parser.add_argument('--run', metavar='run', type=str, action='store',
                         help='which run? default is natural')
@@ -202,7 +207,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
                 sv.show_velphase(ds, ray_df, rs, re, triray, filespecout_base)
 
         MISTY.write_out(hdulist,filename=out_fits_name)
-        plot_misty_spectra(hdulist, outname=out_plot_name)
+        # plot_misty_spectra(hdulist, outname=out_plot_name)
         i = i+1
         print('''
                     ~~~~~~~~~~~~ i = ''',i,''' done  ~~~~~~~~~~~~~~~~~~~
@@ -215,39 +220,8 @@ def generate_random_rays(ds, halo_center, **kwargs):
 if __name__ == "__main__":
 
     args = parse_args()
-    if args.system == "oak":
-        ds_base = "/astro/simulations/FOGGIE/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "dhumuha" or args.system == "palmetto":
-        ds_base = "/Users/molly/foggie/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "harddrive":
-        ds_base = "/Volumes/foggie/"
-        output_path = "/Users/molly/Dropbox/foggie-collab/"
-    elif args.system == "nmearl":
-        ds_base = "/astro/simulations/FOGGIE/"
-        output_path = "/Users/nearl/Desktop/"
-
-    if args.run == "natural":
-        ds_loc = ds_base + "halo_008508/nref11n/natural/" + args.output + "/" + args.output
-        track_name = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
-        output_dir = output_path + "plots_halo_008508/nref11n/natural/spectra/"
-        haloname = "halo008508_nref11n"
-    elif args.run == "nref10f":
-        ds_loc =  ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/" + args.output + "/" + args.output
-        track_name = ds_base + "halo_008508/nref11n/nref11n_nref10f_refine200kpc/halo_track"
-        output_dir = output_path + "plots_halo_008508/nref11n/nref11n_nref10f_refine200kpc/spectra/"
-        haloname = "halo008508_nref11n_nref10f"
-    elif args.run == "nref10f_selfshield":
-        ds_loc =  ds_base + "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/" + args.output + "/" + args.output
-        track_name = ds_base + "halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/halo_track"
-        output_dir = output_path + "plots_halo_008508/nref11n_selfshield_z15/nref11n_nref10f_selfshield_z6/spectra/"
-        haloname = "halo008508_nref11n_nref10f_selfshield"
-    elif args.run == "nref11f":
-        ds_loc =  ds_base + "halo_008508/nref11n/nref11f_refine200kpc/" + args.output + "/" + args.output
-        track_name = ds_base + "halo_008508/nref11n/nref11f_refine200kpc/halo_track"
-        output_dir = output_path + "plots_halo_008508/nref11n/nref11f_refine200kpc/spectra/"
-        haloname = "halo008508_nref11f"
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    run_dir = foggie_dir + run_loc
 
     if args.linelist == 'long':
         line_list = ['H I 1216', 'H I 1026', 'H I 973',
@@ -262,14 +236,18 @@ if __name__ == "__main__":
                          'O VI 1032']
     elif args.linelist == 'jt':
         line_list = ['H I 1216', 'H I 919', \
-                        'Si II 1260', 'Si IV 1394', 'C IV 1548', 'O VI 1032']
+                        'Mg II 2796', 'Si II 1260', 'Si III 1206', 'Si IV 1394', \
+                        'C II 1335', 'C III 977', 'C IV 1548',\
+                        'O VI 1032', 'Ne VIII 770']
     else: ## short --- these are what show_velphase has
         line_list = ['H I 1216', 'Si II 1260', 'O VI 1032']
 
+    ds_loc = run_dir + args.output + "/" + args.output
+    print(ds_loc)
     ds = yt.load(ds_loc)
 
-    print("opening track: " + track_name)
-    track = Table.read(track_name, format='ascii')
+    print("opening track: " + trackname)
+    track = Table.read(trackname, format='ascii')
     track.sort('col1')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
