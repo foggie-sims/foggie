@@ -151,7 +151,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
     i = 0
     while i < Nrays:
-        os.chdir(output_dir)
+        os.chdir(spectra_dir + 'random/')
         rs, re, deltas, impact = get_random_ray_endpoints(ds, halo_center, track, axis)
         this_out_ray_basename = out_ray_basename + deltas
         out_ray_name =  this_out_ray_basename + ".h5"
