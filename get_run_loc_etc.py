@@ -6,6 +6,7 @@ def get_run_loc_etc(args):
     if args.system == "oak":
         foggie_dir = "/astro/simulations/FOGGIE/"
         output_path = "/Users/molly/Dropbox/foggie-collab/"
+        code_path = '/Users/molly/Dropbox/foggie/foggie/'
     elif args.system == "dhumuha" or args.system == "palmetto":
         foggie_dir = "/Users/molly/foggie/"
         output_path = "/Users/molly/Dropbox/foggie-collab/"
