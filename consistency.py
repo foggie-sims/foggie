@@ -101,7 +101,7 @@ temperature_color_map = sns.blend_palette(
 temperature_min = 5.e6
 temperature_max = 1.e4
 
-entropy_color_map = "Spectral"
+entropy_color_map = "Spectral_r"
 entropy_min = 1.e-4
 entropy_max = 1.e3
 
