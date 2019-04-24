@@ -3,6 +3,14 @@ from __future__ import print_function
 def get_run_loc_etc(args):
     print("for now I am assuming you are using the Tempest halo even if you passed in something different")
 
+    if args.pwd:
+        foggie_dir = '.'
+        output_path = '.'
+        run_loc = '.'
+        trackname = 'halo_track'
+        haloname = 'halo'
+        spectra_dir = '.'
+
     if args.system == "oak":
         foggie_dir = "/astro/simulations/FOGGIE/"
         output_path = "/Users/molly/Dropbox/foggie-collab/"
