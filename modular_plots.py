@@ -46,6 +46,10 @@ def parse_args():
     parser.set_defaults(clobber=False)
 
     ## what are we plotting and where is it
+    parser.add_argument('--pwd', dest='pwd', action='store_true',
+                        help='just use the pwd?, default is no')
+    parser.set_defaults(pwd=False)
+
     parser.add_argument('--run', metavar='run', type=str, action='store',
                         help='which run? default is natural')
     parser.set_defaults(run="natural")
@@ -583,7 +587,10 @@ if __name__ == "__main__":
 
     foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
 
-    run_dir = foggie_dir + run_loc
+    if args.pwd:
+        run_dir = '.'
+    else:
+        run_dir = foggie_dir + run_loc
     if args.output == "all" or args.output == "RD":
         message = plot_script(args.halo, run_dir, output_dir, run_loc,  "all", trackname=trackname, outs=args.output)
     else:
