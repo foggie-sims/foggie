@@ -19,6 +19,12 @@ import datashader.transfer_functions as tf
 import multiprocessing as mp
 from astropy.cosmology import WMAP9
 
+@yt.particle_filter(requires=["particle_type"], filtered_type='all')
+def stars(pfilter, data):
+    filter = data[(pfilter.filtered_type, "particle_type")] == 2
+    return filter
+
+
 def get_box_density(dataset):
     """ gets the total box density in Msun / Mpc***3 for a yt dataset"""
     return WMAP9.critical_density(0).value * \
@@ -159,7 +165,31 @@ def obtain_rvir(dataset, first_particle_position, total_box_density, central_sig
 
     return halo_mass, radius
 
+def get_stellar_mass(sph):
+    tot_star_mass = sph['stars', 'particle_mass'].sum().in_units('Msun')
+    print(tot_star_mass)
+    if tot_star_mass == 0:
+        return 0, -1
+    halo_center = sph.center
+    star_distance = np.sqrt((sph['stars','particle_position_x']-halo_center[0])**2. +
+                    (sph['stars','particle_position_y']-halo_center[1])**2. +
+                    (sph['stars','particle_position_z']-halo_center[2])**2.).to("kpc")
 
+    startab = Table([sph['stars','particle_index'], star_distance, sph['stars', 'particle_mass'].in_units('Msun')],
+                    names=('id','radius','mass'))
+    print(startab)
+    startab.sort('radius')
+
+    # define the galaxy stellar mass as the mass within twice the half-mass radius
+    cumulative_star_mass = np.cumsum(startab['mass'])
+    print(cumulative_star_mass)
+    idr = (np.abs(cumulative_star_mass.quantity - 0.5*tot_star_mass)).argmin()
+    print(startab[idr])
+    half_mass_radius = startab[idr]['radius']
+    idhm = (np.abs(startab['radius'] - 2*half_mass_radius)).argmin()
+    print(startab[idhm])
+    stellar_mass = startab[idhm]['mass']
+    return stellar_mass, half_mass_radius
 
 
 def find_a_halo(dataset, particle_df, used_particles, halo_catalog, total_box_density):
@@ -179,10 +209,12 @@ def find_a_halo(dataset, particle_df, used_particles, halo_catalog, total_box_de
     print("FAH, with Mass :", halo_mass.value/1e12, 'e12 Msun and radius :', radius, 'Mpc')
 
     sph = dataset.sphere(first_particle_position, (radius, 'Mpc') )
+    #<---- want to get more information about what is in this halo
+    stellar_mass, half_mass_radius = get_stellar_mass(sph)
 
     sph.save_as_dataset(filename = 'halo_'+str(int(first_particle_index))+'.h5',
         fields = ["particle_position_x", "particle_position_y", "particle_position_z",
-                  "particle_index", "particle_mass"])
+                  "particle_index", "particle_mass", "particle_type"])
         #<---- these filenames should always be unique since no two halos should
         # have the same key particle
 
@@ -196,10 +228,12 @@ def find_a_halo(dataset, particle_df, used_particles, halo_catalog, total_box_de
     print("FAH dropping ", pindex.size, " particles from the dataframe")
     particle_df.drop(pindex, inplace=True, errors='ignore') #<---- ignore means particles that don't exist will be ignored.
 
-    hh = pd.DataFrame([[first_particle_position[0], first_particle_position[1],
-                         first_particle_position[2], halo_mass.value, radius,
-                         ss, first_particle_index, pindex.size]],
-                         columns=['x0','y0','z0','mass','r200', 'sum_dens', 'key_particle', 'n_particles'])
+    hh = pd.DataFrame([[first_particle_position[0], 
+                     first_particle_position[1],
+                     first_particle_position[2],
+                     halo_mass.value, radius, ss, first_particle_index, pindex.size]],
+                     columns=['x0','y0','z0','mass','r200', 'sum_dens', 'key_particle', 'n_particles'])
+
 
     return particle_df, used_particles, hh, pindex
 
@@ -210,6 +244,7 @@ def find_halos_in_region(dsname, minsigma, qnumber, x0, y0, z0, x1, y1, z1):
 
     print("Analyzing Octant : ", qnumber)
     dataset = yt.load(dsname)
+    dataset.add_particle_filter('stars')
     box = dataset.r[x0:x1, y0:y1, z0:z1]
     particle_df, used_particles, halo_catalog = create_particle_df(box)
     agg_dict, particle_df = assign_densities(particle_df)
@@ -227,21 +262,21 @@ def find_halos_in_region(dsname, minsigma, qnumber, x0, y0, z0, x1, y1, z1):
 
 
 
-def color_code_dm(dsname): 
+def color_code_dm(dsname):
 
-    ds = yt.load(dsname) 
+    ds = yt.load(dsname)
     box = ds.r[0:1, 0:1, 0:1]
     particle_df, used_particles, halo_catalog = create_particle_df(box)
 
     particle_df['position_x'] = particle_df['position_x'] * (1. + ds.current_redshift)
     particle_df['position_y'] = particle_df['position_y'] * (1. + ds.current_redshift)
     particle_df['position_z'] = particle_df['position_z'] * (1. + ds.current_redshift)
-    particle_df['level'] = 'LX'   
+    particle_df['level'] = 'LX'
 
-    particle_df.loc[particle_df.mass > 1e5, 'level'] = 'L3' 
-    particle_df.loc[particle_df.mass > 1e6, 'level'] = 'L2' 
-    particle_df.loc[particle_df.mass > 1e7, 'level'] = 'L1' 
-    particle_df.loc[particle_df.mass > 1e8, 'level'] = 'L0' 
+    particle_df.loc[particle_df.mass > 1e5, 'level'] = 'L3'
+    particle_df.loc[particle_df.mass > 1e6, 'level'] = 'L2'
+    particle_df.loc[particle_df.mass > 1e7, 'level'] = 'L1'
+    particle_df.loc[particle_df.mass > 1e8, 'level'] = 'L0'
     particle_df.level = particle_df.level.astype('category')
 
     agg = aggregate_particles(particle_df, 'position_y', 'position_z', 800)
@@ -254,18 +289,18 @@ def color_code_dm(dsname):
     export = partial(export_image, background='white', export_path="./")
     export(img, dsname[7:]+'_particles_yz')
 
-    return img 
+    return img
 
 
 
-def find_halos_in_particle_dataframe(dsname, particle_df, used_particles, halo_catalog, minsigma): 
+def find_halos_in_particle_dataframe(dsname, particle_df, used_particles, halo_catalog, minsigma):
     """ this is for finding halos in a previously constructed df, however derived
-    it could for instance use a df that has already been screened on particle location, 
-    mass, type (stars) or whatever. 
- 
-    inputs: dataset name, particle_df, used_particles, and minimum projected density. 
-    outputs: halo_catalog 
-    """ 
+    it could for instance use a df that has already been screened on particle location,
+    mass, type (stars) or whatever.
+
+    inputs: dataset name, particle_df, used_particles, and minimum projected density.
+    outputs: halo_catalog
+    """
 
     dataset = yt.load(dsname)
     agg_dict, particle_df = assign_densities(particle_df)
@@ -279,7 +314,7 @@ def find_halos_in_particle_dataframe(dsname, particle_df, used_particles, halo_c
     return halo_catalog
 
 
-   
+
 
 
 
