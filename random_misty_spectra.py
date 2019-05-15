@@ -30,6 +30,11 @@ def parse_args():
     '''
     parser = argparse.ArgumentParser(description="extracts spectra from refined region")
 
+    ## what are we plotting and where is it
+    parser.add_argument('--pwd', dest='pwd', action='store_true',
+                        help='just use the pwd?, default is no')
+    parser.set_defaults(pwd=False)
+
     parser.add_argument('--velocities', dest='velocities', action='store_true',
                             help='make the velocity plots?, default is no')
     parser.set_defaults(velocities=False)
