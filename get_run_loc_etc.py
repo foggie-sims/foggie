@@ -21,6 +21,7 @@ def get_run_loc_etc(args):
     elif args.system == "pleiades":
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackup/mpeeples/"
+        code_path = '/pleiades/u/mpeeples/foggie/'
     elif args.system == "pancho":
         foggie_dir = "/Users/tumlinson/Dropbox/foggie-test/"
         output_path = "/Users/tumlinson/Dropbox/foggie-collab/"
