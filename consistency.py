@@ -68,6 +68,13 @@ ion_frac_color_key = {b'all': 'black',
                       b'high': 'red',
                       b'phot': 'purple'}
 
+halo_dict = {   2392  :  'hurricane' ,
+                2878  :  'Cyclone' ,
+                4123  :  'Wigshifter' ,
+                5016  :  'Squall' ,
+                5036  :  'Maelstrom' ,
+                8508  :  'Tempest' }
+
 discrete_cmap = mpl.colors.ListedColormap(
     ['#565656', '#4daf4a', '#d73027', "#984ea3",
      '#ffe34d', '#4575b4', 'darkorange'])

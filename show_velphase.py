@@ -10,6 +10,7 @@ from scipy.signal import argrelextrema
 import pickle
 import glob
 import os
+import argparse
 import astropy.units as u
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -24,8 +25,45 @@ mpl.rcParams['font.family'] = 'stixgeneral'
 import foggie_utils as futils
 import cmap_utils as cmaps
 import cloud_utils as clouds
+from get_run_loc_etc import get_run_loc_etc
 
 CORE_WIDTH = 20.
+
+def parse_args():
+    '''
+    Parse command line arguments.  Returns args object.
+    '''
+    parser = argparse.ArgumentParser(description="makes a bunch of plots")
+
+    ## optional arguments
+    parser.add_argument('--halo', metavar='halo', type=str, action='store',
+                        help='which halo? default is 8508 (Tempest)')
+    parser.set_defaults(halo="8508")
+
+    ## clobber?
+    parser.add_argument('--clobber', dest='clobber', action='store_true')
+    parser.add_argument('--no-clobber', dest='clobber', action='store_false', help="default is no clobber")
+    parser.set_defaults(clobber=False)
+
+    ## what are we plotting and where is it
+    parser.add_argument('--pwd', dest='pwd', action='store_true',
+                        help='just use the pwd?, default is no')
+    parser.set_defaults(pwd=False)
+
+    parser.add_argument('--run', metavar='run', type=str, action='store',
+                        help='which run? default is natural')
+    parser.set_defaults(run="natural")
+
+    parser.add_argument('--output', metavar='output', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(output="RD0020")
+
+    parser.add_argument('--system', metavar='system', type=str, action='store',
+                        help='which system are you on? default is oak')
+    parser.set_defaults(system="oak")
+
+    args = parser.parse_args()
+    return args
 
 
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
@@ -328,6 +366,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     gs.update(hspace=0.0, wspace=0.1)
     plt.savefig('.' + fileroot+'velphase.png', dpi=300)
+    plt.savefig('.' + fileroot+'velphase.pdf', dpi=300)
     plt.close(fig)
 
 
@@ -407,15 +446,29 @@ if __name__ == "__main__":
     """
     for running at the command line.
     """
-    args = futils.parse_args()
-    ds_loc, output_path, output_dir, haloname = futils.get_path_info(
-        args)
+#    args = futils.parse_args()
+#    ds_loc, output_path, output_dir, haloname = futils.get_path_info(args)
+
+    args = parse_args()
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    if args.pwd:
+        run_dir = '.'
+    else:
+        run_dir = foggie_dir + run_loc
+    ds_loc = run_dir + args.output + "/" + args.output
+
 
     dataset_list = glob.glob(
-        os.path.join('.', '*rd0020*v6_los*fits.gz'))
+        os.path.join('.', '*vjt_los*fits.gz'))
     print('there are ', len(dataset_list), 'files')
 
-    #### dataset_list = ['./hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0020_axz_i010.5-a6.01_v5_los.fits.gz']
+#    dataset_list = ['./hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_dy015.6_dz043.4_v6_los.fits.gz',
+#        './hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_dy038.2_dz021.4_v6_los.fits.gz',
+#        './hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_dy038.3_dz028.9_v6_los.fits.gz']
+#    dataset_list = ['./hlsp_misty_foggie_halo008508_nref11n_rd0020_axx_dy060.3_dz049.2_v6_los.fits.gz',
+#        './hlsp_misty_foggie_halo008508_nref11n_rd0020_axy_dx057.6_dz055.5_v6_los.fits.gz',
+#        './hlsp_misty_foggie_halo008508_nref11n_rd0020_axz_dx045.1_dy048.2_v6_los.fits.gz',
+#        './hlsp_misty_foggie_halo008508_nref11n_rd0020_axz_dx051.1_dy039.2_v6_los.fits.gz']
 
     ds = yt.load(ds_loc)
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
