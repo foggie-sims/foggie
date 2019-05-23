@@ -22,12 +22,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackup/mpeeples/"
         code_path = '/pleiades/u/mpeeples/foggie/'
-    elif args.system == "pancho":
-        foggie_dir = "/Users/tumlinson/Dropbox/foggie-test/"
-        output_path = "/Users/tumlinson/Dropbox/foggie-collab/"
     elif args.system == "lefty":
-        foggie_dir = "/Users/tumlinson/Dropbox/foggie-test/"
-        output_path = "/Users/tumlinson/Dropbox/foggie-collab/"
+        foggie_dir = "/astro/simulations/FOGGIE/"
+        output_path = "/Users/tumlinson/Dropbox/foggie/collab/"
+        code_path = '/Users/tumlinson/Dropbox/FOGGIE/foggie/'
 
 
     if args.run == "natural":
