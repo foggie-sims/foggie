@@ -20,7 +20,7 @@ from astropy.io import fits
 from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-from consistency import * ## new_phase_color_key, new_metals_color_key, species_dict
+from consistency import new_phase_color_key, new_metals_color_key, species_dict
 mpl.rcParams['font.family'] = 'stixgeneral'
 import foggie_utils as futils
 import cmap_utils as cmaps
@@ -69,8 +69,6 @@ def parse_args():
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
     """ oh, the docstring is missing, is it??? """
     impact = hdulist[0].header['IMPACT']
-    lsffile = '.' + fileroot.strip('los.fits.gz') + 'lsf.fits.gz'
-    #lsfhdu = fits.open(lsffile)
 
     df = futils.ds_to_df(ds, ray_start, ray_end)
     ray_index, axis_to_use, second_axis = futils.get_ray_axis(
@@ -128,15 +126,17 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     # add in the temperature and metallicity core sample renders
     for ax, label in zip([ax0, ax1], ['phase_label', 'metal_label']):
+        
         color_keys = {'phase_label': new_phase_color_key,
                       'metal_label': new_metals_color_key}
         cvs = dshader.Canvas(plot_width=800, plot_height=200,
-                             x_range=(np.min(df[axis_to_use]), np.max(
-                                 df[axis_to_use])),
+                             x_range=(np.min(df[axis_to_use]), np.max(df[axis_to_use])),
                              y_range=(np.mean(df[second_axis])-CORE_WIDTH/0.695,
                                       np.mean(df[second_axis])+CORE_WIDTH/0.695))
-        agg = cvs.points(df, axis_to_use, second_axis,
-                         dshader.count_cat(label))
+        print("I am going to use label: ",label, axis_to_use, second_axis)
+        print(df)
+       
+        agg = cvs.points(df, axis_to_use, second_axis, dshader.count_cat(label))
         img = tf.shade(
             agg, color_key=color_keys[label], min_alpha=200, how='eq_hist')
         img_to_show = tf.spread(img, px=2, shape='square')
@@ -301,7 +301,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
 
 
-    # H I number of cells per velocity
+    # number of cells per velocity
     #n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['h1_cloud_flag'] > 0]), bins=70, range=(-350, 350))
     #ax8.step(bins[0:70]+5., n/20, color='red')
     #n, bins = np.histogram(-1.*np.array(ray_df[axis_to_use+'-velocity'][ray_df['si2_cloud_flag'] > 0]), bins=70, range=(-350, 350))
@@ -410,15 +410,6 @@ def grab_ray_file(ds, filename):
 
     ray_df = ray_df.sort_values(by=[first_axis])
 
-    ## we also need the trident ray
-#    triray = trident.make_simple_ray(ds, start_position=rs.copy(),
-#                  end_position=re.copy(),
-#                  data_filename="test.h5",
-#                  lines=line_list,
-#                  ftype='gas',
-#                  fields=field_list)
-
-
     return ray_df, rs, re, first_axis, hdulist
 
 
@@ -442,12 +433,11 @@ def drive_velphase(ds_name, wildcard):
     loop_over_rays(ds, dataset_list)
 
 
+
 if __name__ == "__main__":
     """
     for running at the command line.
     """
-#    args = futils.parse_args()
-#    ds_loc, output_path, output_dir, haloname = futils.get_path_info(args)
 
     args = parse_args()
     foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
@@ -458,17 +448,8 @@ if __name__ == "__main__":
     ds_loc = run_dir + args.output + "/" + args.output
 
 
-    dataset_list = glob.glob(
-        os.path.join('.', '*vjt_los*fits.gz'))
+    dataset_list = glob.glob(os.path.join('.', '*vjt_los*fits.gz'))
     print('there are ', len(dataset_list), 'files')
-
-#    dataset_list = ['./hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_dy015.6_dz043.4_v6_los.fits.gz',
-#        './hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_dy038.2_dz021.4_v6_los.fits.gz',
-#        './hlsp_misty_foggie_halo008508_nref11n_nref10f_rd0018_axx_dy038.3_dz028.9_v6_los.fits.gz']
-#    dataset_list = ['./hlsp_misty_foggie_halo008508_nref11n_rd0020_axx_dy060.3_dz049.2_v6_los.fits.gz',
-#        './hlsp_misty_foggie_halo008508_nref11n_rd0020_axy_dx057.6_dz055.5_v6_los.fits.gz',
-#        './hlsp_misty_foggie_halo008508_nref11n_rd0020_axz_dx045.1_dy048.2_v6_los.fits.gz',
-#        './hlsp_misty_foggie_halo008508_nref11n_rd0020_axz_dx051.1_dy039.2_v6_los.fits.gz']
 
     ds = yt.load(ds_loc)
     trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
