@@ -160,8 +160,8 @@ def generate_random_rays(ds, halo_center, **kwargs):
         rs, re, deltas, impact = get_random_ray_endpoints(ds, halo_center, track, axis)
         this_out_ray_basename = out_ray_basename + deltas
         out_ray_name =  this_out_ray_basename + ".h5"
-        out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+deltas+"_vjt_los.fits.gz"
-        out_plot_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+deltas+"_vjt_los.png"
+        out_fits_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+deltas.replace('.','')+"_vjt_los.fits.gz"
+        out_plot_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+deltas.replace('.','')+"_vjt_los.png"
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
         if args.velocities:
