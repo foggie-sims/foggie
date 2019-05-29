@@ -181,7 +181,11 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                   data_filename=out_tri_name,
                                   lines=line_list,
                                   ftype='gas',
-                                  fields=['metallicity', 'H_p0_number_density'])
+                                  fields=['metallicity', 'H_p0_number_density', 
+         				'C_p2_number_density', 'C_p3_number_density', 
+  				        'Mg_p1_number_density', 'Ne_p7_number_density',
+  				        'O_p5_number_density', 'Si_p1_number_density', 'Si_p2_number_density',
+  				        'Si_p3_number_density', 'cell_mass']) 
 
         hi_col = np.log10((triray.r['H_p0_number_density']*triray.r['dl']).sum().d)
         print('log HI column = ', hi_col, '...')
