@@ -21,9 +21,8 @@ def plot_cloud_size_and_masses():
     si2_color = '#984ea3' # 'darkorange'
     c4_color = "#4575b4" # blue 'darkorange'
 
-
     ### this will only work in python 3 !!
-    filelist = glob.glob(os.path.join('.', '*v6*.pkl'))
+    filelist = glob.glob(os.path.join('.', '*vjt*.pkl'))
     # filelist = filelist[0:100]
     print('there are ',np.size(filelist),'files')
     size_dict = pickle.load( open( filelist[0], "rb" ) )
