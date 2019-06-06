@@ -4,7 +4,6 @@ import collections
 import astropy.units as u
 from matplotlib.colors import to_hex
 import numpy as np
-mpl.use('agg')
 
 c = 299792.458 * u.Unit('km/s')
 c_kms = 299792.458

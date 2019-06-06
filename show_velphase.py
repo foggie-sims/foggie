@@ -20,7 +20,7 @@ from astropy.io import fits
 from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-from consistency import new_phase_color_key, new_metals_color_key, species_dict
+from .consistency import new_phase_color_key, new_metals_color_key, species_dict
 mpl.rcParams['font.family'] = 'stixgeneral'
 import foggie_utils as futils
 import cmap_utils as cmaps
@@ -273,8 +273,8 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
         ax5.plot([75., 75.], [4. * xx, 4. * (xx+ss)], '-')
     o6_size_dict['no6'] = no6
 
-    size_dict = {**h1_size_dict, **si2_size_dict,  # concatenate the dicts
-                 **c4_size_dict, **o6_size_dict}
+    # concatenate the dicts
+    size_dict = {**h1_size_dict, **si2_size_dict,  **c4_size_dict, **o6_size_dict}
 
     for ax, key in zip([ax8, ax9, ax10, ax11],
                        ['H I 1216', 'Si II 1260', 'C IV 1548', 'O VI 1032']):
@@ -287,7 +287,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                 vel = (hdulist[key].data['wavelength']*u.AA /
                        (1 + ds.get_parameter('CosmologyCurrentRedshift'))).to('km/s')
             ax.step(vel, hdulist[key].data['flux'])
-                # this line here plots the spectrum
+            # this line here plots the spectrum
             ### find the minima!
             if False:
                 if (lsfhdu.__contains__(key)):

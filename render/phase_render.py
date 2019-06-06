@@ -35,7 +35,7 @@ df = pd.DataFrame({'x':x_particles, 'y':y_particles, 'z':z_particles, \
      'temp':temp, 'dens':dens, 'phase':phase}) 
 df.phase = df.phase.astype('category')
 
-print df[phase == 'hot']
+print(df[phase == 'hot'])
 
 galaxy =    ((10.0,11.4), (7.8,9.2)) 
 galaxy =    ((halo_center[0]-1000.,halo_center[0]+1000.), (halo_center[1]-1000.,halo_center[1]+1000.)) 

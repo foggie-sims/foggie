@@ -2,6 +2,7 @@
 """
 This file contains useful helper functions for FOGGIE
 use it as:
+
 import foggie.utils as futils
 
 JT 081318
@@ -15,7 +16,7 @@ from .consistency import phase_color_labels, metal_labels, \
 
 CORE_WIDTH = 20.
 
-def get_list_of_spectra(halo, run): 
+def get_list_of_spectra(halo, run, wildcard): 
     """ This helper function obtains a list of FOGGIE spectra 
 	in 'pkl' files as usually stored in the collab 
 	Dropbox. You need to set your FOGGIE_COLLAB env variable 
@@ -26,7 +27,23 @@ def get_list_of_spectra(halo, run):
 
     filelist = [] 
     path = os.environ['FOGGIE_COLLAB'] + '/plots_halo_00'+halo+'/'+run+'/spectra/random/' 
-    filelist = glob.glob(os.path.join(path, '*vjt*.pkl'))
+    filelist = glob.glob(os.path.join(path,  wildcard+'.pkl'))
+  
+    return filelist 
+
+def get_list_of_trident_rays(halo, run, wildcard): 
+    """ This helper function obtains a list of trident 
+    ray HDF5 files from the FOGGIE pipeline. These will 
+    be called something_something_tri.h5.  
+    You need to set your FOGGIE_COLLAB env variable 
+	for it to work properly. 
+
+	Accepts halo number (as string) and the run (e.g. 
+	nref11c_nref9f and returns a list of files.""" 
+
+    filelist = [] 
+    path = os.environ['FOGGIE_COLLAB'] + '/plots_halo_00'+halo+'/'+run+'/spectra/random/' 
+    filelist = glob.glob(os.path.join(path,  wildcard+'_tri.h5'))
   
     return filelist 
 
