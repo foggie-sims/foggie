@@ -6,12 +6,13 @@ use it as:
 import foggie.utils as futils
 
 JT 081318
+
 """
 import pandas as pd
 import numpy as np
 import glob, os
 import argparse
-from consistency import phase_color_labels, metal_labels, \
+from .consistency import phase_color_labels, metal_labels, \
     new_categorize_by_temp, new_categorize_by_metals
 
 CORE_WIDTH = 20.
