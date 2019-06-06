@@ -149,6 +149,10 @@ def generate_random_rays(ds, halo_center, **kwargs):
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     proper_x_width = x_width*proper_box_size
+    if args.velocities:
+        trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II', 'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
+    if args.linelist == 'jt':
+        trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II', 'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
 
     ## for now, assume all are z-axis
     np.random.seed(seed)
@@ -164,8 +168,6 @@ def generate_random_rays(ds, halo_center, **kwargs):
         out_plot_name = "hlsp_misty_foggie_"+haloname+"_"+ds.basename.lower()+"_ax"+axis+deltas.replace('.','')+"_vjt_los.png"
         rs = ds.arr(rs, "code_length")
         re = ds.arr(re, "code_length")
-        if args.velocities:
-            trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II', 'C III', 'C IV', 'O VI', 'Mg II'])
         ray = ds.ray(rs, re)
         ray.save_as_dataset(out_ray_name, fields=["density","temperature", "metallicity"])
 
@@ -176,16 +178,20 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                     "Mg_p1_number_density", "O_p5_number_density","Si_p2_number_density"])
 
         out_tri_name = this_out_ray_basename + "_tri.h5"
+        if args.linelist == 'jt':
+            fields = ['metallicity', 'H_p0_number_density',
+                      'C_p1_number_density', 'C_p2_number_density', 'C_p3_number_density',
+                      'Mg_p1_number_density', 'Ne_p7_number_density',
+                      'O_p5_number_density', 'Si_p1_number_density', 'Si_p2_number_density',
+                      'Si_p3_number_density', 'cell_mass']
+        else:
+            fields = []
         triray = trident.make_simple_ray(ds, start_position=rs.copy(),
                                   end_position=re.copy(),
                                   data_filename=out_tri_name,
                                   lines=line_list,
                                   ftype='gas',
-                                  fields=['metallicity', 'H_p0_number_density', 
-         				'C_p2_number_density', 'C_p3_number_density', 
-  				        'Mg_p1_number_density', 'Ne_p7_number_density',
-  				        'O_p5_number_density', 'Si_p1_number_density', 'Si_p2_number_density',
-  				        'Si_p3_number_density', 'cell_mass']) 
+                                  fields=fields)
 
         hi_col = np.log10((triray.r['H_p0_number_density']*triray.r['dl']).sum().d)
         print('log HI column = ', hi_col, '...')

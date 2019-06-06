@@ -24,7 +24,7 @@ from .consistency import new_phase_color_key, new_metals_color_key, species_dict
 mpl.rcParams['font.family'] = 'stixgeneral'
 import foggie_utils as futils
 import cmap_utils as cmaps
-import cloud_utils as clouds
+import clouds.cloud_utils as clouds
 from get_run_loc_etc import get_run_loc_etc
 
 CORE_WIDTH = 20.
@@ -126,7 +126,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     # add in the temperature and metallicity core sample renders
     for ax, label in zip([ax0, ax1], ['phase_label', 'metal_label']):
-        
+
         color_keys = {'phase_label': new_phase_color_key,
                       'metal_label': new_metals_color_key}
         cvs = dshader.Canvas(plot_width=800, plot_height=200,
@@ -135,7 +135,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                                       np.mean(df[second_axis])+CORE_WIDTH/0.695))
         print("I am going to use label: ",label, axis_to_use, second_axis)
         print(df)
-       
+
         agg = cvs.points(df, axis_to_use, second_axis, dshader.count_cat(label))
         img = tf.shade(
             agg, color_key=color_keys[label], min_alpha=200, how='eq_hist')

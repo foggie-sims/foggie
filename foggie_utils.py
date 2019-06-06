@@ -9,21 +9,22 @@ JT 081318
 """
 import pandas as pd
 import numpy as np
-import glob, os 
+import glob, os
 import argparse
-from .consistency import phase_color_labels, metal_labels, \
+from consistency import phase_color_labels, metal_labels, \
     new_categorize_by_temp, new_categorize_by_metals
 
 CORE_WIDTH = 20.
 
+<<<<<<< HEAD
 def get_list_of_spectra(halo, run, wildcard): 
     """ This helper function obtains a list of FOGGIE spectra 
 	in 'pkl' files as usually stored in the collab 
 	Dropbox. You need to set your FOGGIE_COLLAB env variable 
 	for it to work properly. 
 
-	Accepts halo number (as string) and the run (e.g. 
-	nref11c_nref9f and returns a list of files.""" 
+	Accepts halo number (as string) and the run (e.g.
+	nref11c_nref9f and returns a list of files."""
 
     filelist = [] 
     path = os.environ['FOGGIE_COLLAB'] + '/plots_halo_00'+halo+'/'+run+'/spectra/random/' 
