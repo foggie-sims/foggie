@@ -122,11 +122,11 @@ def quick_spectrum(ds, triray, filename, **kwargs):
     line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260', 'Mg II 2796', 'C III 977', 'C IV 1548', 'O VI 1032'])
     redshift = ds.get_parameter('CosmologyCurrentRedshift')
 
-    ldb = trident.LineDatabase('atom_wave_gamma_f.dat')
+    ldb = trident.LineDatabase('data/atom_wave_gamma_f.dat')
     sg = trident.SpectrumGenerator(lambda_min=1000.,
                                        lambda_max=4000.,
                                        dlambda=0.01,
-                                       line_database='atom_wave_gamma_f.dat')
+                                       line_database='data/atom_wave_gamma_f.dat')
 
     sg.make_spectrum(triray, line_list, min_tau=1.e-5,store_observables=True)
 

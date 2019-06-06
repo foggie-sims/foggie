@@ -17,4 +17,8 @@ def get_path_names():
         foggie_dir = "/astro/simulations/FOGGIE/"
         output_dir = "/Users/molly/Dropbox/foggie-collab/"
 
+    if username == "tumlinson": 
+        foggie_dir = "/astro/simulations/FOGGIE/"
+        output_dir = "/Users/molly/Dropbox/FOGGIE/collab/"
+
     return foggie_dir, output_dir
