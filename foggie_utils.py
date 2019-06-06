@@ -16,7 +16,6 @@ from consistency import phase_color_labels, metal_labels, \
 
 CORE_WIDTH = 20.
 
-<<<<<<< HEAD
 def get_list_of_spectra(halo, run, wildcard): 
     """ This helper function obtains a list of FOGGIE spectra 
 	in 'pkl' files as usually stored in the collab 
