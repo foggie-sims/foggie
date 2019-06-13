@@ -28,7 +28,8 @@ import seaborn as sns
 sns.set_style("whitegrid", {'axes.grid' : False})
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
-import matplotlib.colorbar as cb
+mpl.rcParams['font.size'] = 30.
+
 from matplotlib.colors import LogNorm
 
 #-----------------------------------------------------------------------------------------------------
@@ -105,7 +106,7 @@ def make_slice_plot_no_colorbar(ds, output_dir, field, zmin, zmax, cmap, **kwarg
             s.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         if field == "density" or field == "metal_density":
             s.set_unit(('gas','density'),'Msun/pc**3')
-        #s.annotate_scale(size_bar_args={'color':'white'})
+        s.annotate_scale(size_bar_args={'color':'white'}, text_args={'size':28})
         s.hide_axes()
         s.hide_colorbar()
         s.save(basename + '_Slice_' + ax + '_' + field + '.png')
@@ -223,7 +224,7 @@ if __name__ == "__main__":
 
     ## actually ...
     args.run = 'natural'
-    args.output = 'RD0020'
+    args.output = 'RD0018'
     foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
     run_dir = foggie_dir + run_loc
     print('run_dir = ', run_dir)
@@ -241,12 +242,22 @@ if __name__ == "__main__":
     snap = run_dir + outs
     dsr = yt.load(snap)
 
+    args.run = 'nref11f'
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    run_dir = foggie_dir + run_loc
+    print('run_dir = ', run_dir)
+    outs = args.output + '/' + args.output
+    print("outs = ", outs)
+    snap = run_dir + outs
+    dsh = yt.load(snap)
+
     print("opening track: " + trackname)
     track = Table.read(trackname, format='ascii')
     track.sort('col1')
     zsnap = dsn.get_parameter('CosmologyCurrentRedshift')
     proper_box_size = get_proper_box_size(dsn)
 
+    refine_boxh, refine_box_centerh, refine_width = get_refine_box(dsh, zsnap, track)
     refine_boxr, refine_box_centerr, refine_width = get_refine_box(dsr, zsnap, track)
     refine_boxn, refine_box_centern, refine_width = get_refine_box(dsn, zsnap, track)
     refine_width = refine_width * proper_box_size
@@ -254,14 +265,20 @@ if __name__ == "__main__":
     # center is trying to be the center of the halo
     search_radius = 10.
     this_search_radius = search_radius / (1+dsr.get_parameter('CosmologyCurrentRedshift'))
+    #centerh, velocity = get_halo_center(dsh, refine_box_centerh, radius=this_search_radius)
+    centerh = [0.4946298599243164, 0.49077510833740234, 0.5014429092407227]  # RD0018 nref11f
     centerr, velocity = get_halo_center(dsr, refine_box_centerr, radius=this_search_radius)
     centern, velocity = get_halo_center(dsn, refine_box_centern, radius=this_search_radius)
 
+    print('halo center = ', centerh, ' and refine_box_center = ', refine_box_centerh)
     print('halo center = ', centerr, ' and refine_box_center = ', refine_box_centerr)
     print('halo center = ', centern, ' and refine_box_center = ', refine_box_centern)
 
     width = default_width
     width_code = width / proper_box_size ## needs to be in code units
+    boxh = dsh.r[centerh[0] - 0.5*width_code : centerh[0] + 0.5*width_code, \
+              centerh[1] - 0.5*width_code : centerh[1] + 0.5*width_code, \
+                  centerh[2] - 0.5*width_code : centerh[2] + 0.5*width_code]
     boxr = dsr.r[centerr[0] - 0.5*width_code : centerr[0] + 0.5*width_code, \
               centerr[1] - 0.5*width_code : centerr[1] + 0.5*width_code, \
                   centerr[2] - 0.5*width_code : centerr[2] + 0.5*width_code]
@@ -273,11 +290,26 @@ if __name__ == "__main__":
     output_dir = '/Users/molly/Dropbox/foggie-collab/papers/absorption_peeples/Figures/'
 
 
-    axis = 'x'
+    axis = 'z'
+    make_slice_plot_no_colorbar(dsh, output_dir, "density", \
+                    density_slc_min, density_slc_max, density_color_map, \
+                    ision=False, axis=axis, center=centerh, box=refine_boxh, \
+                    width=refine_width, appendix="_nref11f")
+
+    make_slice_plot_no_colorbar(dsh, output_dir, "metallicity", \
+                    metal_min, metal_max, metal_color_map, \
+                    ision=False, axis=axis, center=centerh, box=refine_boxh, \
+                    width=refine_width, appendix="_nref11f")
+
+    make_slice_plot_no_colorbar(dsh, output_dir, "temperature", \
+                    temperature_min, temperature_max, temperature_color_map, \
+                    ision=False, axis=axis, center=centerh, box=refine_boxh, \
+                    width=refine_width, appendix="_nref11f")
+
     make_slice_plot_no_colorbar(dsn, output_dir, "density", \
                     density_slc_min, density_slc_max, density_color_map, \
                     ision=False, axis=axis, center=centern, box=refine_boxn, \
-                    width=refine_width, appendix="_natural", timestamp=True)
+                    width=refine_width, appendix="_natural", timestamp=False)
 
     make_slice_plot_no_colorbar(dsn, output_dir, "metallicity", \
                     metal_min, metal_max, metal_color_map, \
@@ -289,17 +321,17 @@ if __name__ == "__main__":
                     ision=False, axis=axis, center=centern, box=refine_boxn, \
                     width=refine_width, appendix="_natural")
 
-    make_slice_plot(dsr, output_dir, "density", \
+    make_slice_plot_no_colorbar(dsr, output_dir, "density", \
                     density_slc_min, density_slc_max, density_color_map, \
                     ision=False, axis=axis, center=centerr, box=refine_boxr, \
                     width=refine_width, appendix="_nref10f")
 
-    make_slice_plot(dsr, output_dir, "metallicity", \
+    make_slice_plot_no_colorbar(dsr, output_dir, "metallicity", \
                     metal_min, metal_max, metal_color_map, \
                     ision=False, axis=axis, center=centerr, box=refine_boxr, \
                     width=refine_width, appendix="_nref10f")
 
-    make_slice_plot(dsr, output_dir, "temperature", \
+    make_slice_plot_no_colorbar(dsr, output_dir, "temperature", \
                     temperature_min, temperature_max, temperature_color_map, \
                     ision=False, axis=axis, center=centerr, box=refine_boxr, \
                     width=refine_width, appendix="_nref10f")
