@@ -136,7 +136,7 @@ def plot_cddf():
     ref_color = 'darkorange' ###  '#4575b4' # purple
     nat_color = '#4daf4a' # green
 
-    output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/nref11n/comparisons/cddf/"
+    output_dir = "/Users/molly/Dropbox/foggie-collab/plots_halo_008508/orig_nref11n/comparisons/cddf"
 
 
     ## screw it, let's brute force this
@@ -256,9 +256,9 @@ def plot_cddf():
     plt.ylabel(r'fraction of sightlines with $ > N$',fontsize=22)
     plt.tight_layout()
     plotname = output_dir + 'HI_cddf.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
     plotname = output_dir + 'HI_cddf.pdf'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
 
 
@@ -282,9 +282,9 @@ def plot_cddf():
     axbot.grid(True)
     plt.tight_layout()
     plotname = output_dir + 'SiII_both_cddf.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
     plotname = output_dir + 'SiII_both_cddf.pdf'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
 
     fig = plt.figure(figsize=(8,10))
@@ -310,9 +310,9 @@ def plot_cddf():
     axbot.grid(True)
     plt.tight_layout()
     plotname = output_dir + 'SiIV_both_cddf.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
     plotname = output_dir + 'SiIV_both_cddf.pdf'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
 
     fig = plt.figure(figsize=(8,10))
@@ -338,9 +338,9 @@ def plot_cddf():
     axbot.grid(True)
     plt.tight_layout()
     plotname = output_dir + 'CIV_both_cddf.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
     plotname = output_dir + 'CIV_both_cddf.pdf'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
 
     fig = plt.figure(figsize=(8,10))
@@ -368,9 +368,9 @@ def plot_cddf():
     axbot.grid(True)
     plt.tight_layout()
     plotname = output_dir + 'OVI_both_cddf.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
     plotname = output_dir + 'OVI_both_cddf.pdf'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
     fig = plt.figure(figsize=(8,10))
     axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
@@ -392,9 +392,9 @@ def plot_cddf():
     fig.text(0.02, 0.5, 'log Si II column density', fontsize=22, va='center', rotation='vertical')
     plt.tight_layout()
     plotname = output_dir + 'HI_SiII_both.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
     plotname = output_dir + 'HI_SiII_both.pdf'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
 
     fig = plt.figure(figsize=(8,10))
@@ -417,9 +417,9 @@ def plot_cddf():
     fig.text(0.02, 0.5, 'log Si IV column density', fontsize=22, va='center', rotation='vertical')
     plt.tight_layout()
     plotname = output_dir + 'HI_SiIV_both.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
     plotname = output_dir + 'HI_SiIV_both.pdf'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
     fig = plt.figure(figsize=(8,10))
     axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
@@ -441,9 +441,9 @@ def plot_cddf():
     fig.text(0.02, 0.5, 'log C IV column density', fontsize=22, va='center', rotation='vertical')
     plt.tight_layout()
     plotname = output_dir + 'HI_CIV_both.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
     plotname = output_dir + 'HI_CIV_both.pdf'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
     fig = plt.figure(figsize=(8,10))
     axtop = fig.add_axes([0.1, 0.54, 0.88, 0.44],
@@ -466,9 +466,9 @@ def plot_cddf():
     fig.text(0.02, 0.5, 'log O VI column density', fontsize=22, va='center', rotation='vertical')
     plt.tight_layout()
     plotname = output_dir + 'HI_OVI_both.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
     plotname = output_dir + 'HI_OVI_both.pdf'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
 
     fig, ax = plt.subplots(figsize=(9,6))
@@ -483,7 +483,7 @@ def plot_cddf():
     plt.ylabel('log Si IV column density',fontsize=22)
     plt.tight_layout()
     plotname = output_dir + 'SiII_SiIV_refined.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
     fig, ax = plt.subplots(figsize=(9,6))
     hb = ax.hexbin(si2_coln, si4_coln,cmap='Greens',extent=(si2_limit-1.5,19,si4_limit-1.5,16),mincnt=1,gridsize=200, vmin=0, vmax=500)
@@ -497,7 +497,7 @@ def plot_cddf():
     plt.ylabel('log Si IV column density',fontsize=22)
     plt.tight_layout()
     plotname = output_dir + 'SiII_SiIV_natural.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
 
     fig, ax = plt.subplots(figsize=(9,6))
@@ -512,7 +512,7 @@ def plot_cddf():
     plt.ylabel('log Si IV column density',fontsize=22)
     plt.tight_layout()
     plotname = output_dir + 'CIV_SiIV_refined.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
     fig, ax = plt.subplots(figsize=(9,6))
     hb = ax.hexbin(c4_coln, si4_coln,cmap='Greens',extent=(c4_limit-1.5,16,si4_limit-1.5,16),mincnt=1,gridsize=200, vmin=0, vmax=500)
@@ -526,7 +526,7 @@ def plot_cddf():
     plt.ylabel('log Si IV column density',fontsize=22)
     plt.tight_layout()
     plotname = output_dir + 'CIV_SiIV_natural.png'
-    plt.savefig(plotname)
+    plt.savefig(plotname, transparency=False)
 
 
 
