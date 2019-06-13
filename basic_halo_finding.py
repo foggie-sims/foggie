@@ -18,6 +18,7 @@ import datashader as dshader
 import datashader.transfer_functions as tf
 import multiprocessing as mp
 from astropy.cosmology import WMAP9
+from astropy.table import Table
 
 @yt.particle_filter(requires=["particle_type"], filtered_type='all')
 def stars(pfilter, data):
@@ -228,11 +229,12 @@ def find_a_halo(dataset, particle_df, used_particles, halo_catalog, total_box_de
     print("FAH dropping ", pindex.size, " particles from the dataframe")
     particle_df.drop(pindex, inplace=True, errors='ignore') #<---- ignore means particles that don't exist will be ignored.
 
-    hh = pd.DataFrame([[first_particle_position[0], 
+    hh = pd.DataFrame([[first_particle_position[0],
                      first_particle_position[1],
                      first_particle_position[2],
-                     halo_mass.value, radius, ss, first_particle_index, pindex.size]],
-                     columns=['x0','y0','z0','mass','r200', 'sum_dens', 'key_particle', 'n_particles'])
+                     halo_mass.value, radius, ss,
+                     stellar_mass, half_mass_radius, first_particle_index, pindex.size]],
+                     columns=['x0','y0','z0','Mhalo','r200', 'sum_dens', 'Mstar', 'rhalf', 'key_particle', 'n_particles'])
 
 
     return particle_df, used_particles, hh, pindex
