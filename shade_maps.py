@@ -99,6 +99,7 @@ def prep_dataframe(all_data, refine_box, refine_width, field1, field2, \
     data_frame.phase = data_frame.phase.astype('category')
     data_frame.metal = data_frame.metal.astype('category')
     data_frame.frac  = data_frame.frac.astype('category')
+    print('there are ', len(data_frame['x']), ' cells in this region')
 
     relative_velocity = ( (all_data['x-velocity'].in_units('km/s')-halo_vcenter[0])**2 \
                         + (all_data['y-velocity'].in_units('km/s')-halo_vcenter[1])**2 \
