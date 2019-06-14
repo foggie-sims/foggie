@@ -16,7 +16,7 @@ def create_foggie_cmap(**kwargs):
     #ds = kwargs.get('ds', yt.load("""/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc/RD0020/RD0020"""))
     #ds = kwargs.get('ds', yt.load("""/astro/simulations/FOGGIE/halo_008508/nref11n/nref11n_nref10f_refine200kpc/RD0020/RD0020"""))
     # ds = yt.load("""/Users/tumlinson/Dropbox/FOGGIE/outputs/halo_008508/nref11n/nref11n_nref10f_refine200kpc/RD0020/RD0020""")
-    ds = yt.load("""/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc/RD0020/RD0020""")
+    ds = yt.load("""/Users/molly/foggie/halo_008508/nref11n_nref10f/RD0020/RD0020""")
 
     ray_start = np.array([0.49441502, 0.488119, 0.50229639])
     ray_end = np.array([0.49441502, 0.490119, 0.50229639])
