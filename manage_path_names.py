@@ -9,7 +9,7 @@ def get_path_names():
     username = getpass.getuser()
     hostname = socket.gethostname()
     foggie_dir, output_dir = "", ""
-    if username == "molly" and "dhumuha" in hostname:
+    if username == "molly" and "palmetto" in hostname:
         foggie_dir = "/Users/molly/foggie/"
         output_dir = "/Users/molly/Dropbox/foggie-collab/"
 
@@ -17,7 +17,7 @@ def get_path_names():
         foggie_dir = "/astro/simulations/FOGGIE/"
         output_dir = "/Users/molly/Dropbox/foggie-collab/"
 
-    if username == "tumlinson": 
+    if username == "tumlinson":
         foggie_dir = "/astro/simulations/FOGGIE/"
         output_dir = "/Users/molly/Dropbox/FOGGIE/collab/"
 
