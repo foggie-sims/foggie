@@ -1,13 +1,16 @@
 import numpy as np
 import yt
 
-def get_refine_box(ds, zsnap, track):
-    ## find closest output, modulo not updating before printout
+def get_refine_box(ds, zsnap, track, **kwargs):
+    ## find closest output
+    old = kwargs.get("old",False) # modulo not updating before printout -- old runs
     print("inside get_refine_box", zsnap)
     diff = np.abs(track['col1'] - zsnap)
 
-    #this_loc = track[np.where(diff == np.min(diff[np.where(diff > 1.e-6)]))]
-    this_loc = track[np.where(diff == np.min(diff))]
+    if old:
+        this_loc = track[np.where(diff == np.min(diff[np.where(diff > 1.e-6)]))]
+    else:
+        this_loc = track[np.where(diff == np.min(diff))]
     print("using this loc:", this_loc)
     x_left = this_loc['col2'][0]
     y_left = this_loc['col3'][0]
