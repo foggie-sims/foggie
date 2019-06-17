@@ -26,8 +26,7 @@ import cmap_utils as cmaps
 from get_refine_box import get_refine_box as grb
 from get_halo_center import get_halo_center
 from consistency import ion_frac_color_key, new_phase_color_key, \
-        new_metals_color_key, axes_label_dict, logfields, new_categorize_by_temp, \
-        new_categorize_by_metals, categorize_by_fraction
+        new_metals_color_key, axes_label_dict
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere"""
@@ -54,8 +53,6 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
 
     halo_center, halo_vcenter = get_halo_center(data_set, refine_box_center, \
                                         units = 'physical')
-
-    #halo_center, halo_vcenter = 0.0, 0.0 
 
     return all_data, refine_box, refine_width, halo_center, halo_vcenter
 
@@ -156,6 +153,9 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile):
 
     wrap_axes(outfile, field1, field2, colorcode, ranges)
     return data_frame
+
+
+
 
 
 

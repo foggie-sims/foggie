@@ -65,9 +65,7 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
             print("Did not find field = "+thisfield+" in the dataframe, will add it.")
             if thisfield in logfields:
                 print("Field "+thisfield+" is a log field.")
-                print("what the hell is taking so long? 1")
                 data_frame[thisfield] = np.log10(all_data[thisfield])
-                print("what the hell is taking so long? 2")
             else:
                 data_frame[thisfield] = all_data[thisfield]
                 if ('vel' in thisfield): data_frame[thisfield] = all_data[thisfield].in_units('km/s')

@@ -12,8 +12,8 @@ import argparse
 
 from astropy.table import Table
 
-from get_refine_box import get_refine_box
-from get_proper_box_size import get_proper_box_size
+from utils.get_refine_box import get_refine_box
+from utils.get_proper_box_size import get_proper_box_size
 from get_halo_center import get_halo_center
 #from plot_misty_spectra import plot_misty_spectra
 from get_run_loc_etc import get_run_loc_etc

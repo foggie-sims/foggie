@@ -17,8 +17,8 @@ mpl.rcParams['font.size'] = 20.
 from astropy.table import Table
 from astropy.io import fits
 
-from get_refine_box import get_refine_box
-from get_proper_box_size import get_proper_box_size
+from utils.get_refine_box import get_refine_box
+from utils.get_proper_box_size import get_proper_box_size
 from consistency import *
 
 def calc_cddf(**kwargs):
