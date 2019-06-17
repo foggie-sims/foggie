@@ -1,31 +1,33 @@
-
 """
 This is a utility function that accepts a dataset and other arguments
 and returns a dataframe with the requested fields as columns. 
 This is useful to put datasets in the proper dataframe format, 
 correct units, log scales, etc. for shading by other code. 
-
-This was forked out of shade_maps into a freestanding function 
-on 061419 JT. 
 """ 
 import pandas as pd
+import numpy as np 
+from foggie.consistency import axes_label_dict, logfields, new_categorize_by_temp, \
+        new_categorize_by_metals, categorize_by_fraction
 
+def prep_dataframe(all_data, field1, field2, category, **kwargs):
+    """ add fields1 and 2 to the dataframe, and any intermediate 
+        fields that are needed to derive those two.  
+        
+        Currently takes two fields only, field1 and field2. 
 
-def prep_dataframe(ds, refine_box, refine_width, field1, field2, \
-                        halo_center, halo_vcenter):
-    """ add fields to the dataset, create dataframe for rendering
-        The enzo fields x, y, z, temperature, density, cell_vol, cell_mass,
-        and metallicity will always be included, others will be included
-        if they are requested as fields. """
+        These are checked against the "logfields" dictionary in 
+        consistency to take their log before placing into the df. 
 
-    all_data = ds.all_data() 
+        """
     
+    field_list = [field1, field2]
     field_names = field1+'_'+field2
-    print('field_names: ', field_names)
     
-    temperature = np.log10(all_data['temperature'])
-    data_frame = pd.DataFrame({'temperature':temperature}) 
+    print("you have requested fields ", field_list)
 
+    data_frame = pd.DataFrame({}) # create the empty dataframe to which we will add 
+                                  # the desired fields. 
+        
     if ('position' in field_names):
         cell_size = np.array(all_data["cell_volume"].in_units('kpc**3'))**(1./3.)
 
@@ -48,49 +50,53 @@ def prep_dataframe(ds, refine_box, refine_width, field1, field2, \
             data_frame['position_z'] = z
 
 
-    #if ('rad' in field1 or 'rad' in field2): 
-    #    radius = ((x-halo_center[0])**2 + (y-halo_center[1])**2 + (z-halo_center[2])**2 )**0.5
-    
-    phase = new_categorize_by_temp(temperature)
-    data_frame['phase'] = phase
-    metal = new_categorize_by_metals(all_data['metallicity'])
-    data_frame['metal'] = metal
-    frac = categorize_by_fraction(all_data['O_p5_ion_fraction'], all_data['temperature'])
-    data_frame['frac'] = frac
-    data_frame.phase = data_frame.phase.astype('category')
-    data_frame.metal = data_frame.metal.astype('category')
-    data_frame.frac  = data_frame.frac.astype('category')
+    if ('cell_mass' in field_names):  
+        data_frame['cell_mass'] = all_data['cell_volume'].in_units('kpc**3') * \
+                                    all_data['density'].in_units('Msun / kpc**3') 
 
-    if ('density' in field1 or 'density' in field2):  
-        data_frame['cell_mass'] = np.log10(all_data['density']) 
-
-    if ('cell_mass' in field1 or 'cell_mass' in field2):  
-        data_frame['cell_mass'] = np.log10(get_cell_mass(all_data))
-
-    if ('relative_velocity' in field1 or 'relative_velocity' in field2): 
+    if ('relative_velocity' in field_names): 
         relative_velocity = ( (all_data['x-velocity'].in_units('km/s')-halo_vcenter[0])**2 \
                             + (all_data['y-velocity'].in_units('km/s')-halo_vcenter[1])**2 \
                             + (all_data['z-velocity'].in_units('km/s')-halo_vcenter[2])**2 )**0.5
         data_frame['relative_velocity'] = relative_velocity
 
-    print("you have requested fields ", field1, field2)
+    for thisfield in field_list: 
+        if thisfield not in data_frame.columns:    #  add those two fields
+            print("Did not find field = "+thisfield+" in the dataframe, will add it.")
+            if thisfield in logfields:
+                print("Field "+thisfield+" is a log field.")
+                print("what the hell is taking so long? 1")
+                data_frame[thisfield] = np.log10(all_data[thisfield])
+                print("what the hell is taking so long? 2")
+            else:
+                data_frame[thisfield] = all_data[thisfield]
+                if ('vel' in thisfield): data_frame[thisfield] = all_data[thisfield].in_units('km/s')
 
-    if field1 not in data_frame.columns:    #  add those two fields
-        print("Did not find field 1 = "+field1+" in the dataframe, will add it.")
-        if field1 in logfields:
-            print("Field 1, "+field1+" is a log field.")
-            data_frame[field1] = np.log10(all_data[field1])
-        else:
-            data_frame[field1] = all_data[field1]
-            if ('vel' in field1): data_frame[field1] = all_data[field1].in_units('km/s')
-    if field2 not in data_frame.columns:
-        print("Did not find field 2 = "+field2+" in the dataframe, will add it.")
-        if field2 in logfields:
-            print("Field 2, "+field2+" is a log field.")
-            data_frame[field2] = np.log10(all_data[field2])
-        else:
-            data_frame[field2] = all_data[field2]
-            if ('vel' in field2): data_frame[field2] = all_data[field2].in_units('km/s')
+
+    if ('phase' in category): 
+        if ('temperature' not in data_frame.columns): 
+            data_frame['temperature'] = all_data['temperature']
+        
+        data_frame['phase'] = new_categorize_by_temp(data_frame['temperature'])
+        data_frame.phase = data_frame.phase.astype('category')
+        print('Added phase category to the dataframe')
+    
+
+    if ('metal' in category): 
+        if ('metallicity' not in data_frame.columns): 
+            data_frame['metallicity'] = all_data['metallicity']
+        
+        data_frame['metal'] = new_categorize_by_metals(all_data['metallicity'])
+        data_frame.metal = data_frame.metal.astype('category')
+        print('Added metal category to the dataframe')
+
+    if ('frac' in category): 
+        if ('O_p5_ion_fraction' not in data_frame.columns): 
+            data_frame['O_p5_ion_fraction'] = all_data['O_p5_ion_fraction']
+        
+        data_frame['frac'] = categorize_by_fraction(all_data['O_p5_ion_fraction'], all_data['temperature'])
+        data_frame.frac = data_frame.frac.astype('category')
+        print('Added frac category to the dataframe')
 
     return data_frame
 

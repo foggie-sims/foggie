@@ -20,7 +20,7 @@ from astropy.io import fits
 from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-from .consistency import new_phase_color_key, new_metals_color_key, species_dict
+from consistency import new_phase_color_key, new_metals_color_key, species_dict
 mpl.rcParams['font.family'] = 'stixgeneral'
 import foggie_utils as futils
 import cmap_utils as cmaps

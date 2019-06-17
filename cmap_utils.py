@@ -8,15 +8,15 @@ import yt
 import datashader as dshader
 import datashader.transfer_functions as tf
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-import foggie_utils as futils
+from foggie.utils import foggie_utils as futils
+import manage_path_names as pathnames 
 from consistency import new_phase_color_key, new_metals_color_key
 
 def create_foggie_cmap(**kwargs):
     """ returns two colormaps"""
-    #ds = kwargs.get('ds', yt.load("""/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc/RD0020/RD0020"""))
-    #ds = kwargs.get('ds', yt.load("""/astro/simulations/FOGGIE/halo_008508/nref11n/nref11n_nref10f_refine200kpc/RD0020/RD0020"""))
-    # ds = yt.load("""/Users/tumlinson/Dropbox/FOGGIE/outputs/halo_008508/nref11n/nref11n_nref10f_refine200kpc/RD0020/RD0020""")
-    ds = yt.load("""/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc/RD0020/RD0020""")
+
+    filename_prefix =  pathnames.get_path_names()[0] 
+    ds = yt.load(filename_prefix + "/halo_008508/nref11n/natural/RD0020/RD0020""") 
 
     ray_start = np.array([0.49441502, 0.488119, 0.50229639])
     ray_end = np.array([0.49441502, 0.490119, 0.50229639])
@@ -27,6 +27,7 @@ def create_foggie_cmap(**kwargs):
     metal_img = grab_cmap(df, 'y', 'z', 'metal_label', new_metals_color_key)
 
     return phase_img, metal_img
+
 
 def grab_cmap(df, axis_to_use, second_axis, labels_to_use, color_key):
     """

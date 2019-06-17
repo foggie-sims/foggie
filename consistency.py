@@ -11,25 +11,28 @@ c_kms = 299792.458
 default_width = 85.  # kpc in projection
 
 axes_label_dict = {'density': 'log Density [g / cm$^3$]',
-                   'Dark_Matter_Density': 'log DM Density [g / cm$^3$]',
-                   'temperature': 'log Temperature [K]',
-                   'cell_mass': 'log cell mass [M$_{\odot}$]',
-                   'x': '$x$ coordinate [pkpc]',
-                   'y': '$y$ coordinate [pkpc]',
-                   'z': '$z$ coordinate [pkpc]',
-                   'radius': 'Radius [pkpc]',
-                   'x-velocity': 'X velocity [km s$^{-1}$]',
-                   'y-velocity': 'Y velocity [km s$^{-1}$]',
-                   'z-velocity': 'Z velocity [km s$^{-1}$]',
-                   'relative_velocity': 'Relative Velocity [km s$^{-1}$]',
-                   'metallicity': 'log Z/Z$_{\odot}$',
-                   'pressure': 'log P [g cm$^{-1}$ s$^{-2}$ ]',
-                   'O_p5_ion_fraction': 'log [O VI Ionization Fraction]',
-                   'O_p5_number_density': 'log [O VI Number Density]',
-                   'C_p3_ion_fraction': 'log [C IV Ionization Fraction]',
-                   'C_p3_number_density': 'log [C IV Number Density]',
-                   'Si_p3_ion_fraction': 'log [Si IV Ionization Fraction]',
-                   'Si_p3_number_density': 'log [Si IV Number Density]',
+                    'Dark_Matter_Density': 'log DM Density [g / cm$^3$]',
+                    'temperature': 'log Temperature [K]',
+                    'cell_mass': 'log cell mass [M$_{\odot}$]',
+                    'x': '$x$ coordinate [pkpc]',
+                    'y': '$y$ coordinate [pkpc]',
+                    'z': '$z$ coordinate [pkpc]',
+                    'position_x': '$x$ coordinate [pkpc]',
+                    'position_y': '$y$ coordinate [pkpc]',
+                    'position_z': '$z$ coordinate [pkpc]',
+                    'radius': 'Radius [pkpc]',
+                    'x-velocity': 'X velocity [km s$^{-1}$]',
+                    'y-velocity': 'Y velocity [km s$^{-1}$]',
+                    'z-velocity': 'Z velocity [km s$^{-1}$]',
+                    'relative_velocity': 'Relative Velocity [km s$^{-1}$]',
+                    'metallicity': 'log Z/Z$_{\odot}$',
+                    'pressure': 'log P [g cm$^{-1}$ s$^{-2}$ ]',
+                    'O_p5_ion_fraction': 'log [O VI Ionization Fraction]',
+                    'O_p5_number_density': 'log [O VI Number Density]',
+                    'C_p3_ion_fraction': 'log [C IV Ionization Fraction]',
+                    'C_p3_number_density': 'log [C IV Number Density]',
+                    'Si_p3_ion_fraction': 'log [Si IV Ionization Fraction]',
+                    'Si_p3_number_density': 'log [Si IV Number Density]',
                    }
 
 # this is a dictionary of fields where we prefer to
@@ -39,16 +42,6 @@ logfields = ('Dark_Matter_Density', 'density', 'temperature', 'entropy', 'pressu
              'O_p5_ion_fraction', 'C_p3_ion_fraction', 'Si_p3_ion_fraction',
              'O_p5_number_density', 'C_p3_number_density',
              'Si_p3_number_density', 'metallicity')
-
-phase_color_key = {b'cold': 'salmon',
-                   b'hot': '#ffe34d',
-                   b'warm': '#4daf4a',
-                   b'cool': '#984ea3'}
-
-metal_color_key = {b'high': 'darkorange',
-                   b'solar': '#ffe34d',
-                   b'low': '#4575b4',
-                   b'poor': 'black'}
 
 species_dict = {'CIII': 'C_p2_number_density',
                 'CIV': 'C_p3_number_density',
