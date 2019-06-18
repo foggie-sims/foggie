@@ -17,7 +17,6 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
 
         These are checked against the "logfields" dictionary in 
         consistency to take their log before placing into the df. 
-
         """
     
     field_list = [field1, field2]
@@ -49,7 +48,6 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
             z = z - np.min(z)
             data_frame['position_z'] = z
 
-
     if ('cell_mass' in field_names):  
         data_frame['cell_mass'] = all_data['cell_volume'].in_units('kpc**3') * \
                                     all_data['density'].in_units('Msun / kpc**3') 
@@ -70,24 +68,27 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
                 data_frame[thisfield] = all_data[thisfield]
                 if ('vel' in thisfield): data_frame[thisfield] = all_data[thisfield].in_units('km/s')
 
-    if ('phase' in category): 
+
+    cat_name = 'phase'
+    if (cat_name in category): 
         if ('temperature' not in data_frame.columns): 
             data_frame['temperature'] = np.log10(all_data['temperature']) 
 
-        data_frame['phase'] = categorize_by_temp(data_frame['temperature'])
+        data_frame[cat_name] = categorize_by_temp(data_frame['temperature'])
         data_frame.phase = data_frame.phase.astype('category')
         print('Added phase category to the dataframe')
 
-    
-    if ('metal' in category): 
+    cat_name = 'metal'
+    if (cat_name in category): 
         if ('metallicity' not in data_frame.columns): 
             data_frame['metallicity'] = all_data['metallicity']
         
-        data_frame['metal'] = categorize_by_metals(all_data['metallicity'])
+        data_frame[cat_name] = categorize_by_metals(all_data['metallicity'])
         data_frame.metal = data_frame.metal.astype('category')
         print('Added metal category to the dataframe')
 
-    if ('frac' in category): 
+    cat_name = 'frac'
+    if (cat_name in category): 
         if ('O_p5_ion_fraction' not in data_frame.columns): 
             data_frame['O_p5_ion_fraction'] = all_data['O_p5_ion_fraction']
         

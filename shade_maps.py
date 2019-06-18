@@ -128,10 +128,11 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
 
     if 'frac' in count_cat:
         color_key = ion_frac_color_key
-    elif 'phase' in count_cat:
+    elif 'temperature' in count_cat:
         color_key = new_phase_color_key
-    elif 'metal' in count_cat:
+    elif 'metallicity' in count_cat:
         color_key = new_metals_color_key
+
 
     img = tf.shade(agg, color_key=color_key, how='linear',min_alpha=230)
     export(img, filename)

@@ -155,14 +155,13 @@ def categorize_by_fraction(f_ion, temperature):
     """ define the ionization category strings"""
     frac = np.chararray(np.size(f_ion), 4)
     frac[f_ion > -10.] = b'all'
-    frac[f_ion > 0.01] = b'low'  # yellow
-    frac[f_ion > 0.1] = b'med'  # orange
-    frac[f_ion > 0.2] = b'high'  # red
+    frac[f_ion > 0.01] = b'low'   # yellow
+    frac[f_ion > 0.1]  = b'med'   # orange
+    frac[f_ion > 0.2]  = b'high'  # red
     frac[(f_ion > 0.2) & (temperature < 1e5)] = b'phot'
     return frac
 
-
-# set up the new temperature colormap
+# set up the temperature colormap
 temp_colors = sns.blend_palette(
     ('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), n_colors=17)
 phase_color_labels = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2',
