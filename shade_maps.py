@@ -23,8 +23,8 @@ import os
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 import cmap_utils as cmaps
 
-from get_refine_box import get_refine_box as grb
-from get_halo_center import get_halo_center
+import foggie.utils.get_refine_box as grb
+from foggie.get_halo_center import get_halo_center
 from consistency import ion_frac_color_key, new_phase_color_key, new_metals_color_key, axes_label_dict
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
@@ -38,7 +38,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     track = Table.read(trackfile, format='ascii')
     track.sort('col1')
     refine_box, refine_box_center, refine_width = \
-            grb(data_set, data_set.current_redshift, track)
+            grb.get_refine_box(data_set, data_set.current_redshift, track)
     print('prep_dataset: Refine box corners: ', refine_box)
     print('prep_dataset:             center: ', refine_box_center)
 
@@ -62,17 +62,12 @@ def wrap_axes(filename, field1, field2, colorcode, ranges):
         axes using matplotlib and so offering full customization."""
 
     img = mpimg.imread(filename+'.png')
-    print('IMG', np.shape(img[:,:,0:3]))
     fig = plt.figure(figsize=(8,8),dpi=300)
 
     ax = fig.add_axes([0.13, 0.18, 0.85, 0.81])
     ax.imshow(np.flip(img[:,:,0:3],0), alpha=1.)
 
 
-    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
-                 ax.get_xticklabels() + ax.get_yticklabels()):
-        item.set_fontsize(12)
-    
     xstep = 1
     x_max = ranges[0][1]
     x_min = ranges[0][0]
@@ -81,7 +76,7 @@ def wrap_axes(filename, field1, field2, colorcode, ranges):
     xtext = ax.set_xlabel(axes_label_dict[field1], fontsize=24)
     ax.set_xticks(np.arange((x_max - x_min) + 1., step=xstep) * 1000. / (x_max - x_min))
     ax.set_xticklabels([ str(int(s)) for s in \
-        np.arange((x_max - x_min) + 1., step=xstep) +  x_min ], fontsize=22)
+        np.arange((x_max - x_min) + 1., step=xstep) +  x_min ], fontsize=16)
 
     ystep = 1
     y_max = ranges[1][1]
@@ -91,7 +86,11 @@ def wrap_axes(filename, field1, field2, colorcode, ranges):
     ytext = ax.set_ylabel(axes_label_dict[field2], fontsize=24)
     ax.set_yticks(np.arange((y_max - y_min) + 1., step=ystep) * 1000. / (y_max - y_min))
     ax.set_yticklabels([ str(int(s)) for s in \
-        np.arange((y_max - y_min) + 1., step=ystep) + y_min], fontsize=22)
+        np.arange((y_max - y_min) + 1., step=ystep) + y_min], fontsize=16)
+
+    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
+                ax.get_xticklabels() + ax.get_yticklabels()):
+                item.set_fontsize(12)
 
     #ax2 = fig.add_axes([0.7, 0.91, 0.25, 0.06])
     #phase_cmap, metal_cmap = cmaps.create_foggie_cmap()

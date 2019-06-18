@@ -6,8 +6,8 @@ correct units, log scales, etc. for shading by other code.
 """ 
 import pandas as pd
 import numpy as np 
-from foggie.consistency import axes_label_dict, logfields, new_categorize_by_temp, \
-        new_categorize_by_metals, categorize_by_fraction
+from foggie.consistency import axes_label_dict, logfields, categorize_by_temp, \
+        categorize_by_metals, categorize_by_fraction
 
 def prep_dataframe(all_data, field1, field2, category, **kwargs):
     """ add fields1 and 2 to the dataframe, and any intermediate 
@@ -70,21 +70,20 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
                 data_frame[thisfield] = all_data[thisfield]
                 if ('vel' in thisfield): data_frame[thisfield] = all_data[thisfield].in_units('km/s')
 
-
     if ('phase' in category): 
         if ('temperature' not in data_frame.columns): 
-            data_frame['temperature'] = all_data['temperature']
-        
-        data_frame['phase'] = new_categorize_by_temp(data_frame['temperature'])
+            data_frame['temperature'] = np.log10(all_data['temperature']) 
+
+        data_frame['phase'] = categorize_by_temp(data_frame['temperature'])
         data_frame.phase = data_frame.phase.astype('category')
         print('Added phase category to the dataframe')
-    
 
+    
     if ('metal' in category): 
         if ('metallicity' not in data_frame.columns): 
             data_frame['metallicity'] = all_data['metallicity']
         
-        data_frame['metal'] = new_categorize_by_metals(all_data['metallicity'])
+        data_frame['metal'] = categorize_by_metals(all_data['metallicity'])
         data_frame.metal = data_frame.metal.astype('category')
         print('Added metal category to the dataframe')
 
@@ -97,5 +96,3 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
         print('Added frac category to the dataframe')
 
     return data_frame
-
-

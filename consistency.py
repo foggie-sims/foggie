@@ -173,24 +173,25 @@ new_phase_color_key = collections.OrderedDict()
 for i in np.arange(np.size(phase_color_labels)):
     new_phase_color_key[phase_color_labels[i]] = to_hex(temp_colors[i])
 
-def new_categorize_by_temp(temp):
+def categorize_by_temp(temperature):
     """ define the temp category strings"""
-    phase = np.chararray(np.size(temp), 5)
-    phase[temp < 9.] = b'hot3'
-    phase[temp < 6.6] = b'hot2'
-    phase[temp < 6.4] = b'hot1'
-    phase[temp < 6.2] = b'hot'
-    phase[temp < 6.] = b'warm3'
-    phase[temp < 5.8] = b'warm2'
-    phase[temp < 5.6] = b'warm1'
-    phase[temp < 5.4] = b'warm'
-    phase[temp < 5.2] = b'cool3'
-    phase[temp < 5.] = b'cool2'
-    phase[temp < 4.8] = b'cool1'
-    phase[temp < 4.6] = b'cool'
-    phase[temp < 4.4] = b'cold3'
-    phase[temp < 4.2] = b'cold2'
-    phase[temp < 4.] = b'cold1'
+    phase = np.chararray(np.size(temperature), 5)
+    phase[temperature < 9.] = b'hot3'
+    phase[temperature < 6.6] = b'hot2'
+    phase[temperature < 6.4] = b'hot1'
+    phase[temperature < 6.2] = b'hot'
+    phase[temperature < 6.] = b'warm3'
+    phase[temperature < 5.8] = b'warm2'
+    phase[temperature < 5.6] = b'warm1'
+    phase[temperature < 5.4] = b'warm'
+    phase[temperature < 5.2] = b'cool3'
+    phase[temperature < 5.] = b'cool2'
+    phase[temperature < 4.8] = b'cool1'
+    phase[temperature < 4.6] = b'cool'
+    phase[temperature < 4.4] = b'cold3'
+    phase[temperature < 4.2] = b'cold2'
+    phase[temperature < 4.] = b'cold1'
+    print(phase)
     return phase
 
 metal_color_labels = [b'free', b'free1', b'free2', b'free3', b'poor',
@@ -206,7 +207,7 @@ for i in np.arange(np.size(metal_color_labels)):
 
 metal_labels = new_metals_color_key.keys()
 
-def new_categorize_by_metals(metal):
+def categorize_by_metals(metal):
     """ define the temp category strings"""
     metal_vals = np.power(10.0, np.linspace(start=np.log10(metal_min),
                                             stop=np.log10(metal_max), num=21))

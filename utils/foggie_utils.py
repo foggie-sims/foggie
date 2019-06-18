@@ -14,7 +14,7 @@ import numpy as np
 import glob, os
 import argparse
 from foggie.consistency import phase_color_labels, metal_labels, \
-    new_categorize_by_temp, new_categorize_by_metals
+    categorize_by_temp, categorize_by_metals
 
 CORE_WIDTH = 20.
 
@@ -191,8 +191,8 @@ def ds_to_df(ds, ray_start, ray_end):
     metallicity = all_data['metallicity'].ndarray_view()
 
     # creates the phase_label as a set of nonsense strings.
-    phase_label = new_categorize_by_temp(temp)
-    metal_label = new_categorize_by_metals(metallicity)
+    phase_label = categorize_by_temp(temp)
+    metal_label = categorize_by_metals(metallicity)
 
     df = pd.DataFrame({'x': all_data['x'].ndarray_view() * proper_box_size,
                        'y': all_data['y'].ndarray_view() * proper_box_size,
