@@ -128,9 +128,9 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
 
     if 'frac' in count_cat:
         color_key = ion_frac_color_key
-    elif 'temperature' in count_cat:
+    elif 'phase' in count_cat:
         color_key = new_phase_color_key
-    elif 'metallicity' in count_cat:
+    elif 'metal' in count_cat:
         color_key = new_metals_color_key
 
 

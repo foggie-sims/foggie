@@ -33,30 +33,30 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
         if ('position_x' in field_names): 
             x = (all_data['x'].in_units('kpc')).ndarray_view()
             x = x + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
-            x = x - np.min(x)
+            x = x - np.mean(x)
             data_frame['position_x'] = x
 
         if ('position_y' in field_names): 
             y = (all_data['y'].in_units('kpc')).ndarray_view()
             y = y + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
-            y = y - np.min(y)
+            y = y - np.mean(y)
             data_frame['position_y'] = y
    
         if ('position_x' in field_names): 
             z = (all_data['z'].in_units('kpc')).ndarray_view()
             z = z + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
-            z = z - np.min(z)
+            z = z - np.mean(z)
             data_frame['position_z'] = z
 
     if ('cell_mass' in field_names):  
         data_frame['cell_mass'] = all_data['cell_volume'].in_units('kpc**3') * \
                                     all_data['density'].in_units('Msun / kpc**3') 
 
-    if ('relative_velocity' in field_names): 
-        relative_velocity = ( (all_data['x-velocity'].in_units('km/s')-halo_vcenter[0])**2 \
-                            + (all_data['y-velocity'].in_units('km/s')-halo_vcenter[1])**2 \
-                            + (all_data['z-velocity'].in_units('km/s')-halo_vcenter[2])**2 )**0.5
-        data_frame['relative_velocity'] = relative_velocity
+    #if ('relative_velocity' in field_names): 
+    #    relative_velocity = ( (all_data['x-velocity'].in_units('km/s')-halo_vcenter[0])**2 \
+    #                        + (all_data['y-velocity'].in_units('km/s')-halo_vcenter[1])**2 \
+    #                        + (all_data['z-velocity'].in_units('km/s')-halo_vcenter[2])**2 )**0.5
+    #    data_frame['relative_velocity'] = relative_velocity
 
     for thisfield in field_list: 
         if thisfield not in data_frame.columns:    #  add those two fields
