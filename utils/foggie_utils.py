@@ -15,8 +15,20 @@ import glob, os
 import argparse
 from foggie.consistency import phase_color_labels, metal_labels, \
     categorize_by_temp, categorize_by_metals
+from astropy.table import Table 
 
 CORE_WIDTH = 20.
+
+def get_halo_track(track_file): 
+    """ takes in a track file name (absolute path required)
+    and returns an astropy table with the track""" 
+
+    print("opening track: " + track_file)
+    track = Table.read(track_file, format='ascii')
+    track.sort('col1')
+
+    return track 
+
 
 def get_list_of_spectra(halo, run, wildcard): 
     """ This helper function obtains a list of FOGGIE spectra 
