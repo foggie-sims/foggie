@@ -4,13 +4,10 @@ import datashader as dshader
 from datashader.utils import export_image
 import datashader.transfer_functions as tf
 import pandas as pd
-import matplotlib.cm as cm
-import datetime
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import foggie.utils.prep_dataframe as prep_dataframe 
 import matplotlib as mpl
-from matplotlib.gridspec import GridSpec
 mpl.rcParams['font.family'] = 'stixgeneral'
 mpl.rcParams.update({'font.size': 14})
 

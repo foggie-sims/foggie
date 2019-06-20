@@ -58,6 +58,8 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
     #                        + (all_data['z-velocity'].in_units('km/s')-halo_vcenter[2])**2 )**0.5
     #    data_frame['relative_velocity'] = relative_velocity
 
+    if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg')) 
+
     for thisfield in field_list: 
         if thisfield not in data_frame.columns:    #  add those two fields
             print("Did not find field = "+thisfield+" in the dataframe, will add it.")
