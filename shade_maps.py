@@ -89,28 +89,29 @@ def wrap_axes(filename, field1, field2, colorcode, ranges):
                 ax.get_xticklabels() + ax.get_yticklabels()):
                 item.set_fontsize(12)
 
-    #ax2 = fig.add_axes([0.7, 0.91, 0.25, 0.06])
-    #phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
+    ax2 = fig.add_axes([0.7, 0.91, 0.25, 0.06])
+    
+    phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
 
-    #if 'phase' in colorcode:
-    #    ax2.imshow(np.flip(phase_cmap.to_pil(), 1))
-    #    ax2.set_xticks([100,350,600])
-    #    ax2.set_xticklabels(['4','5','6',' '],fontsize=11)
-    #    ax2.text(230, 150, 'log T [K]',fontsize=13)
-    #elif 'metal' in colorcode:
-    #    ax2.imshow(np.flip(metal_cmap.to_pil(), 1))
-    #    ax2.set_xticks([0, 400, 800])
-    #    ax2.set_xticklabels(['-4', '-2', '0'])
-    #    ax2.set_xlabel('log Z',fontsize=13)
+    if 'phase' in colorcode:
+        ax2.imshow(np.flip(phase_cmap.to_pil(), 1))
+        ax2.set_xticks([50,300,550])
+        ax2.set_xticklabels(['4','5','6',' '],fontsize=11)
+        ax2.text(230, 150, 'log T [K]',fontsize=13)
+    elif 'metal' in colorcode:
+        ax2.imshow(np.flip(metal_cmap.to_pil(), 1))
+        ax2.set_xticks([36, 161, 287, 412, 537, 663])
+        ax2.set_xticklabels(['-4', '-3', '-2', '-1', '0', '1'])
+        ax2.set_xlabel('log Z',fontsize=13)
 
-    #ax2.spines["top"].set_color('white')
-    #ax2.spines["bottom"].set_color('white')
-    #ax2.spines["left"].set_color('white')
-    #ax2.spines["right"].set_color('white')
-    #ax2.set_ylim(60, 180)
-    #ax2.set_xlim(-10, 800)
-    #ax2.set_yticklabels([])
-    #ax2.set_yticks([])
+    ax2.spines["top"].set_color('white')
+    ax2.spines["bottom"].set_color('white')
+    ax2.spines["left"].set_color('white')
+    ax2.spines["right"].set_color('white')
+    ax2.set_ylim(60, 180)
+    ax2.set_xlim(-10, 750)
+    ax2.set_yticklabels([])
+    ax2.set_yticks([])
 
     plt.savefig(filename)
 
