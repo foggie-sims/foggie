@@ -32,7 +32,6 @@ def create_foggie_cmap_deprecated(**kwargs):
 
     return phase_img, metal_img
 
-
 def create_foggie_cmap(): 
 
         x = np.random.rand(100000) 

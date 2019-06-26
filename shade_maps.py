@@ -32,10 +32,18 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     for ion in ion_list:
         print("prep_dataset: Added ion "+ion+" into the dataset.")
 
-    track = Table.read(trackfile, format='ascii')
-    track.sort('col1')
-    refine_box, refine_box_center, refine_width = \
-            grb.get_refine_box(data_set, data_set.current_redshift, track)
+    if ('domain' in trackfile): 
+        print("prep_dataset will set the subregion to be the domain")
+        refine_box = data_set.r[0:1, 0:1, 0:1]
+        refine_box_center = [0.5, 0.5, 0.5]
+        refine_width = 1.0 
+    else: 
+        track = Table.read(trackfile, format='ascii')
+        track.sort('col1')
+        refine_box, refine_box_center, refine_width = \
+               grb.get_refine_box(data_set, data_set.current_redshift, track)
+    
+    
     print('prep_dataset: Refine box corners: ', refine_box)
     print('prep_dataset:             center: ', refine_box_center)
 
@@ -44,6 +52,8 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     elif region == 'sphere':
         sph = data_set.sphere(center=refine_box_center, radius=(500, 'kpc'))
         all_data = sph
+    elif region == 'domain': 
+        print("your region is the entire domain, prepare to wait")
     else:
         print("prep_dataset: your region is invalid!")
 
@@ -53,6 +63,9 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     halo_center, halo_vcenter = 0., 0. 
 
     return all_data, refine_box, refine_width, halo_center, halo_vcenter
+
+
+
 
 def wrap_axes(filename, field1, field2, colorcode, ranges):
     """intended to be run after render_image, take the image and wraps it in

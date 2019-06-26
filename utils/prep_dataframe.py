@@ -59,6 +59,7 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
     #    data_frame['relative_velocity'] = relative_velocity
 
     if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg')) 
+    if ("radius" in field_names): data_frame["radius"] = all_data["radius"].in_units('kpc')
 
     for thisfield in field_list: 
         if thisfield not in data_frame.columns:    #  add those two fields
