@@ -49,8 +49,9 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
             data_frame['position_z'] = z
 
     if ('cell_mass' in field_names):  
-        data_frame['cell_mass'] = all_data['cell_volume'].in_units('kpc**3') * \
-                                    all_data['density'].in_units('Msun / kpc**3') 
+        data_frame['cell_mass'] = np.log10(all_data['cell_volume'].in_units('kpc**3') * \
+                                    all_data['density'].in_units('Msun / kpc**3') ) 
+
 
     #if ('relative_velocity' in field_names): 
     #    relative_velocity = ( (all_data['x-velocity'].in_units('km/s')-halo_vcenter[0])**2 \
@@ -99,4 +100,6 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
         data_frame.frac = data_frame.frac.astype('category')
         print('Added frac category to the dataframe')
 
+
+    print(data_frame.head())
     return data_frame

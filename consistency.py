@@ -42,7 +42,7 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
 logfields = ('Dark_Matter_Density', 'density', 'temperature', 'entropy', 'pressure',
              'O_p5_ion_fraction', 'C_p3_ion_fraction', 'Si_p3_ion_fraction',
              'O_p5_number_density', 'C_p3_number_density',
-             'Si_p3_number_density', 'metallicity')
+             'Si_p3_number_density', 'metallicity', 'cell_mass')
 
 species_dict = {'CIII': 'C_p2_number_density',
                 'CIV': 'C_p3_number_density',
@@ -308,3 +308,7 @@ def categorize_by_hi(hi):
     phase[hi < hi_vals[0]] = b'free'
     #print(phase)
     return phase
+
+
+colormap_dict = {'frac':ion_frac_color_key, 'phase':new_phase_color_key, 'metal':new_metals_color_key, 
+    'h1':hi_color_key}
