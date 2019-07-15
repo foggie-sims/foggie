@@ -135,4 +135,4 @@ if __name__ == "__main__":
     ### DD0580 for halo 2392
     #first_center = [0.497841835022, 0.497172355652, 0.479462623596]
 
-    get_center_track(first_center, 984, 999, 0.002)
+    get_center_track(first_center, 999, 984, 0.002)
