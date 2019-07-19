@@ -397,7 +397,9 @@ def grab_ray_file(ds, filename):
     ray['dx'] = ray['dx'].convert_to_units('cm')
 
     ray_field_list = ["x", "y", "z", "density", "temperature",
-                               "metallicity", "HI_Density", "cell_mass", "dx",
+                               "metallicity", "pressure", "entropy",
+                               "cooling_time", "thermal_energy", "gravitational_potential",
+                               "HI_Density", "cell_mass", "dx",
                                "x-velocity", "y-velocity", "z-velocity",
                                "C_p2_number_density", "C_p3_number_density",
                                "H_p0_number_density", "Mg_p1_number_density",
