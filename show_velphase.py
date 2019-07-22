@@ -22,7 +22,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 from consistency import new_phase_color_key, new_metals_color_key, species_dict
 mpl.rcParams['font.family'] = 'stixgeneral'
-import foggie_utils as futils
+from utils import foggie_utils as futils
 import cmap_utils as cmaps
 import clouds.cloud_utils as clouds
 from get_run_loc_etc import get_run_loc_etc
@@ -398,7 +398,7 @@ def grab_ray_file(ds, filename):
 
     ray_field_list = ["x", "y", "z", "density", "temperature",
                                "metallicity", "pressure", "entropy",
-                               "cooling_time", "thermal_energy", "gravitational_potential",
+                               "cooling_time", "thermal_energy", # ('gas',"gravitational_potential"),
                                "HI_Density", "cell_mass", "dx",
                                "x-velocity", "y-velocity", "z-velocity",
                                "C_p2_number_density", "C_p3_number_density",
