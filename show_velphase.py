@@ -134,7 +134,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                              y_range=(np.mean(df[second_axis])-CORE_WIDTH/0.695,
                                       np.mean(df[second_axis])+CORE_WIDTH/0.695))
         print("I am going to use label: ",label, axis_to_use, second_axis)
-        print(df)
+        #print(df)
 
         agg = cvs.points(df, axis_to_use, second_axis, dshader.count_cat(label))
         img = tf.shade(
