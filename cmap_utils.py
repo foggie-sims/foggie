@@ -50,7 +50,7 @@ def create_foggie_cmap():
         df['metal'] = categorize_by_metals(df['metallicity'])
         df.metal = df.metal.astype('category')
 
-        print(df)
+        #print(df)
 
         phase_img = grab_cmap(df, 'x', 'y', 'phase', new_phase_color_key)
         metal_img = grab_cmap(df, 'x', 'y', 'metal', new_metals_color_key)
