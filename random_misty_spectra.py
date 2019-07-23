@@ -179,7 +179,9 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         out_tri_name = this_out_ray_basename + "_tri.h5"
         if args.linelist == 'jt':
-            fields = ['metallicity', 'H_p0_number_density',
+            fields = ['metallicity', "pressure", "entropy",
+                      'cooling_time', 'thermal_energy', #"gravitational_potential",
+                      'H_p0_number_density',
                       'C_p1_number_density', 'C_p2_number_density', 'C_p3_number_density',
                       'Mg_p1_number_density', 'Ne_p7_number_density',
                       'O_p5_number_density', 'Si_p1_number_density', 'Si_p2_number_density',
