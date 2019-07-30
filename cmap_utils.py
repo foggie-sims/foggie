@@ -7,7 +7,6 @@ os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 import yt
 import datashader as dshader
 import datashader.transfer_functions as tf
-os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 from utils import foggie_utils as futils
 import pandas as pd
 import manage_path_names as pathnames
