@@ -20,14 +20,13 @@ from astropy.io import fits
 from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-from consistency import new_phase_color_key, new_metals_color_key, species_dict
+from consistency import new_phase_color_key, new_metals_color_key, species_dict, core_width
 mpl.rcParams['font.family'] = 'stixgeneral'
 import foggie_utils as futils
 import cmap_utils as cmaps
 import clouds.cloud_utils as clouds
 from get_run_loc_etc import get_run_loc_etc
 
-CORE_WIDTH = 20.
 
 def parse_args():
     '''
@@ -65,9 +64,9 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
-    """ oh, the docstring is missing, is it??? """
+    """ this is the master control program for the 'velphase' plots 
+        from FOGGIE paper 1. """
     impact = hdulist[0].header['IMPACT']
 
     df = futils.ds_to_df(ds, ray_start, ray_end)
@@ -76,10 +75,9 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     # establish the grid of plots and obtain the axis objects
     fig = plt.figure(figsize=(9, 6))
-    fig.text(
-        0.55, 0.04, r'relative line-of-sight velocity [km s$^{-1}$]', ha='center', va='center', fontsize=12.)
-    fig.text(
-        0.16, 0.93, r'R = '+"{:.2F}".format(impact)+' kpc', ha='center', va='center')
+    fig.text(0.55, 0.04, r'relative line-of-sight velocity [km s$^{-1}$]', 
+                ha='center', va='center', fontsize=12.)
+    fig.text(0.16, 0.93, r'R = '+"{:.2F}".format(impact)+' kpc', ha='center', va='center')
     gs = GridSpec(2, 6, width_ratios=[
                   1, 1, 5, 5, 5, 5], height_ratios=[4, 1])
     ax0 = plt.subplot(gs[0])
@@ -131,8 +129,8 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                       'metal_label': new_metals_color_key}
         cvs = dshader.Canvas(plot_width=800, plot_height=200,
                              x_range=(np.min(df[axis_to_use]), np.max(df[axis_to_use])),
-                             y_range=(np.mean(df[second_axis])-CORE_WIDTH/0.695,
-                                      np.mean(df[second_axis])+CORE_WIDTH/0.695))
+                             y_range=(np.mean(df[second_axis])-core_width/0.695,
+                                      np.mean(df[second_axis])+core_width/0.695))
         print("I am going to use label: ",label, axis_to_use, second_axis)
         print(df)
 

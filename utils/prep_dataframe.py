@@ -6,8 +6,88 @@ correct units, log scales, etc. for shading by other code.
 """ 
 import pandas as pd
 import numpy as np 
+import yt 
+import glob
+import pickle 
+import foggie.utils.foggie_utils as futils
 from foggie.consistency import axes_label_dict, logfields, categorize_by_temp, \
         categorize_by_metals, categorize_by_fraction
+
+
+def rays_to_dataframe(halo, run, wildcard): 
+    """ This function obtains a list of ray files  (h5) and opens then and 
+    then concatenates the contents into a single dataframe. 
+    
+    Try: 
+    import foggie.utils.prep_dataframe as pdf
+    a = pdf.rays_to_dataframe('8508', 'nref11c_nref9f', '*_x_*')
+    
+    Then feed the result into render_image 
+    """
+    
+    list_of_trident_rays = futils.get_list_of_trident_rays(halo, run, wildcard)
+    list_of_frames = []
+
+    for trident_ray in list_of_trident_rays:   
+        ds = yt.load(trident_ray)
+        p = ds.all_data()
+    
+        #need to be able to construct the name of the cloud pkl file from the trident ray name 
+        bits_of_names = (trident_ray.split('/')[-1] ).split('_')
+        wildcard = '*'+bits_of_names[2]+'_'+bits_of_names[3]+'_'+bits_of_names[4]+'*'
+        file = glob.glob(wildcard.replace('.', '')+'pkl')
+    
+        #now open the pickle 
+        pkl = pickle.load(open(file[0], "rb" ))
+    
+        #sort the dataframe for the ray by the x coordinate 
+        #the dataframe coordinates are in code units 
+        df = pkl["ray_df"]
+        df.sort_values(by='x', axis=0, inplace=True, ascending=True)
+    
+        list_of_frames.append(df)
+
+    all_sightlines = pd.concat(list_of_frames)
+
+    return all_sightlines
+
+
+
+
+
+def check_dataframe(frame, field1, field2, count_cat): 
+    """ This function checks the input dataframe for properties that 
+    it will need to properly shade the fields in the frame. For instance, 
+    it checks that certain fields are log fields and have the proper units.
+    It only checks the two fields that are going to be shaded so it 
+    needs to be run prior to render_image each time.""" 
+
+    field_names = field1+'_'+field2
+
+    if ('pressure' in field_names and 'pressure' in frame.keys()): 
+        if (frame['pressure'].max() > 0.):   # if pressure is NOT in log units
+            frame['pressure'] = np.log10(frame['pressure'])
+
+    if ('temperature' in field_names and 'temperature' in frame.keys()): 
+        if (frame['temperature'].max() > 10.):   # if pressure is NOT in log units
+            frame['temperature'] = np.log10(frame['temperature'])
+
+    if ('cell_mass' in field_names and 'cell_mass' in frame.keys()): 
+        if (frame['cell_mass'].max() > 1e33):   # if cell_mass is NOT in log units
+            frame['cell_mass'] = np.log10(frame['cell_mass'] / 1.989e33)
+
+    if ('phase' in count_cat): 
+        frame['phase'] = categorize_by_temp(frame['temperature'])
+        frame.phase = frame.phase.astype('category')
+
+    if ('metal' in count_cat): 
+        frame['metal'] = categorize_by_temp(frame['metalliciity'])
+        frame.metal = frame.metal.astype('category')
+
+
+    return frame
+
+
 
 def prep_dataframe(all_data, field1, field2, category, **kwargs):
     """ add fields1 and 2 to the dataframe, and any intermediate 
@@ -51,13 +131,6 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
     if ('cell_mass' in field_names):  
         data_frame['cell_mass'] = np.log10(all_data['cell_volume'].in_units('kpc**3') * \
                                     all_data['density'].in_units('Msun / kpc**3') ) 
-
-
-    #if ('relative_velocity' in field_names): 
-    #    relative_velocity = ( (all_data['x-velocity'].in_units('km/s')-halo_vcenter[0])**2 \
-    #                        + (all_data['y-velocity'].in_units('km/s')-halo_vcenter[1])**2 \
-    #                        + (all_data['z-velocity'].in_units('km/s')-halo_vcenter[2])**2 )**0.5
-    #    data_frame['relative_velocity'] = relative_velocity
 
     if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg')) 
     if ("radius" in field_names): data_frame["radius"] = all_data["radius"].in_units('kpc')

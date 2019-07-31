@@ -1,5 +1,4 @@
 """ a module for datashader renders of phase diagrams"""
-from functools import partial
 import datashader as dshader
 from datashader.utils import export_image
 import datashader.transfer_functions as tf
@@ -23,8 +22,8 @@ import cmap_utils as cmaps
 
 import foggie.utils.get_refine_box as grb
 from foggie.get_halo_center import get_halo_center
-from consistency import colormap_dict, axes_label_dict
-
+from consistency import colormap_dict, axes_label_dict, categorize_by_temp, \
+        categorize_by_metals, categorize_by_fraction
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere"""
@@ -41,7 +40,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     else: 
         track = Table.read(trackfile, format='ascii')
         track.sort('col1')
-        refine_box, refine_box_center, refine_width= \
+        refine_box, refine_box_center, refine_width = \
                grb.get_refine_box(data_set, data_set.current_redshift, track)
 
     print('prep_dataset: Refine box corners: ', refine_box)
@@ -57,9 +56,6 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     else:
         print("prep_dataset: your region is invalid!")
 
-    #halo_center, halo_vcenter = get_halo_center(data_set, refine_box_center, \
-    #                                    units = 'physical')
-
     filter = "obj['temperature'] < 1e9"
     print("Will now apply filter ", filter)
     cut_region_all_data = all_data.cut_region([filter])
@@ -68,7 +64,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
 
     return cut_region_all_data, refine_box, halo_center, halo_vcenter
 
-def wrap_axes(filename, field1, field2, colorcode, ranges):
+def wrap_axes(img, filename, field1, field2, colorcode, ranges):
     """intended to be run after render_image, take the image and wraps it in
         axes using matplotlib and so offering full customization."""
 
@@ -76,7 +72,7 @@ def wrap_axes(filename, field1, field2, colorcode, ranges):
     fig = plt.figure(figsize=(8,8),dpi=300)
     
     ax1 = fig.add_axes([0.1, 0.1, 0.85, 0.85])
-    ax1.imshow(np.flip(img[:,:,0:3],0), alpha=1.)
+    ax1.imshow(np.flip(img[:,:,0:4],0), alpha=1.)
 
     xstep = 1
     x_max = ranges[0][1]
@@ -132,24 +128,25 @@ def wrap_axes(filename, field1, field2, colorcode, ranges):
 
     plt.savefig(filename)
 
+    return fig
+
+
 
 
 
 def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     """ renders density and temperature 'Phase' with linear aggregation"""
 
-    export = partial(export_image, background='white', export_path="./")
-    cvs = dshader.Canvas(plot_width=1000, plot_height=1000,
-                         x_range=x_range, y_range=y_range)
+    cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
 
     agg = cvs.points(frame, field1, field2, dshader.count_cat(count_cat))
 
-    img = tf.shade(agg, color_key=colormap_dict[count_cat], how='linear',min_alpha=250)
+    img = tf.shade(agg, color_key=colormap_dict[count_cat], how='eq_hist',min_alpha=50)
 
-    export(img, filename)
-    export(img, 'image.png')
+    export_image(img, filename)
 
     return img
+
 
 
 def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile):
@@ -165,9 +162,9 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile):
 
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
 
-    wrap_axes(outfile, field1, field2, colorcode, ranges)
+    wrap_axes(image, outfile, field1, field2, colorcode, ranges)
     
-    return data_frame
+    return data_frame, image
 
 
 

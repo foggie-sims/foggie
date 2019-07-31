@@ -10,6 +10,8 @@ c_kms = 299792.458
 
 default_width = 85.  # kpc in projection
 
+core_width = 20. # width of slice to use in show_velphase 
+
 axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'Dark_Matter_Density': 'log DM Density [g / cm$^3$]',
                     'temperature': 'log Temperature [K]',
@@ -191,7 +193,7 @@ def categorize_by_temp(temperature):
     phase[temperature < 4.4] = b'cold3'
     phase[temperature < 4.2] = b'cold2'
     phase[temperature < 4.] = b'cold1'
-    print(phase)
+    #print(phase)
     return phase
 
 metal_color_labels = [b'free', b'free1', b'free2', b'free3', b'poor',
