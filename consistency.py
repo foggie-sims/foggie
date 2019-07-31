@@ -29,7 +29,7 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'relative_velocity': 'Relative Velocity [km s$^{-1}$]',
                     'metallicity': 'log Z/Z$_{\odot}$',
                     'pressure': 'log P [g cm$^{-1}$ s$^{-2}$ ]',
-                    'entropy': 'log Entropy [cm$^2$ erg]', 
+                    'entropy': 'log Entropy [cm$^2$ erg]',
                     'O_p5_ion_fraction': 'log [O VI Ionization Fraction]',
                     'O_p5_number_density': 'log [O VI Number Density]',
                     'C_p3_ion_fraction': 'log [C IV Ionization Fraction]',
@@ -93,7 +93,7 @@ metal_color_map = sns.blend_palette(
 old_metal_color_map = sns.blend_palette(
     ("black", "#984ea3", "#4575b4", "#4daf4a",
      "#ffe34d", "darkorange"), as_cmap=True)
-metal_min = 1.e-4
+metal_min = 5.e-3
 metal_max = 3.
 metal_density_min = 1.e-5
 metal_density_max = 250.
@@ -312,5 +312,5 @@ def categorize_by_hi(hi):
     return phase
 
 
-colormap_dict = {'frac':ion_frac_color_key, 'phase':new_phase_color_key, 'metal':new_metals_color_key, 
+colormap_dict = {'frac':ion_frac_color_key, 'phase':new_phase_color_key, 'metal':new_metals_color_key,
     'h1':hi_color_key}

@@ -22,7 +22,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 from consistency import new_phase_color_key, new_metals_color_key, species_dict, core_width
 mpl.rcParams['font.family'] = 'stixgeneral'
-import foggie_utils as futils
+from utils import foggie_utils as futils
 import cmap_utils as cmaps
 import clouds.cloud_utils as clouds
 from get_run_loc_etc import get_run_loc_etc
@@ -132,7 +132,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
                              y_range=(np.mean(df[second_axis])-core_width/0.695,
                                       np.mean(df[second_axis])+core_width/0.695))
         print("I am going to use label: ",label, axis_to_use, second_axis)
-        print(df)
+        #print(df)
 
         agg = cvs.points(df, axis_to_use, second_axis, dshader.count_cat(label))
         img = tf.shade(
@@ -395,7 +395,9 @@ def grab_ray_file(ds, filename):
     ray['dx'] = ray['dx'].convert_to_units('cm')
 
     ray_field_list = ["x", "y", "z", "density", "temperature",
-                               "metallicity", "HI_Density", "cell_mass", "dx",
+                               "metallicity", "pressure", "entropy",
+                               "cooling_time", "thermal_energy", # ('gas',"gravitational_potential"),
+                               "HI_Density", "cell_mass", "dx",
                                "x-velocity", "y-velocity", "z-velocity",
                                "C_p2_number_density", "C_p3_number_density",
                                "H_p0_number_density", "Mg_p1_number_density",

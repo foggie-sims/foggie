@@ -3,8 +3,8 @@
 This file contains useful helper functions for FOGGIE
 use it as:
 
-from foggie.utils import foggie_utils as futils 
-you can then use, e.g. futils.ds_to_df() functions, etc. 
+from foggie.utils import foggie_utils as futils
+you can then use, e.g. futils.ds_to_df() functions, etc.
 
 JT 081318
 
@@ -13,53 +13,53 @@ import pandas as pd
 import numpy as np
 import glob, os
 import argparse
-from foggie.consistency import phase_color_labels, metal_labels, \
+from consistency import phase_color_labels, metal_labels, \
     categorize_by_temp, categorize_by_metals
-from astropy.table import Table 
+from astropy.table import Table
 
 CORE_WIDTH = 20.
 
-def get_halo_track(track_file): 
+def get_halo_track(track_file):
     """ takes in a track file name (absolute path required)
-    and returns an astropy table with the track""" 
+    and returns an astropy table with the track"""
 
     print("opening track: " + track_file)
     track = Table.read(track_file, format='ascii')
     track.sort('col1')
 
-    return track 
+    return track
 
 
-def get_list_of_spectra(halo, run, wildcard): 
-    """ This helper function obtains a list of FOGGIE spectra 
-	in 'pkl' files as usually stored in the collab 
-	Dropbox. You need to set your FOGGIE_COLLAB env variable 
-	for it to work properly. 
+def get_list_of_spectra(halo, run, wildcard):
+    """ This helper function obtains a list of FOGGIE spectra
+	in 'pkl' files as usually stored in the collab
+	Dropbox. You need to set your FOGGIE_COLLAB env variable
+	for it to work properly.
 
 	Accepts halo number (as string) and the run (e.g.
 	nref11c_nref9f and returns a list of files."""
 
-    filelist = [] 
-    path = os.environ['FOGGIE_COLLAB'] + '/plots_halo_00'+halo+'/'+run+'/spectra/random/' 
+    filelist = []
+    path = os.environ['FOGGIE_COLLAB'] + '/plots_halo_00'+halo+'/'+run+'/spectra/random/'
     filelist = glob.glob(os.path.join(path,  wildcard+'.pkl'))
-  
-    return filelist 
 
-def get_list_of_trident_rays(halo, run, wildcard): 
-    """ This helper function obtains a list of trident 
-    ray HDF5 files from the FOGGIE pipeline. These will 
-    be called something_something_tri.h5.  
-    You need to set your FOGGIE_COLLAB env variable 
-	for it to work properly. 
+    return filelist
 
-	Accepts halo number (as string) and the run (e.g. 
-	nref11c_nref9f and returns a list of files.""" 
+def get_list_of_trident_rays(halo, run, wildcard):
+    """ This helper function obtains a list of trident
+    ray HDF5 files from the FOGGIE pipeline. These will
+    be called something_something_tri.h5.
+    You need to set your FOGGIE_COLLAB env variable
+	for it to work properly.
 
-    filelist = [] 
-    path = os.environ['FOGGIE_COLLAB'] + '/plots_halo_00'+halo+'/'+run+'/spectra/random/' 
+	Accepts halo number (as string) and the run (e.g.
+	nref11c_nref9f and returns a list of files."""
+
+    filelist = []
+    path = os.environ['FOGGIE_COLLAB'] + '/plots_halo_00'+halo+'/'+run+'/spectra/random/'
     filelist = glob.glob(os.path.join(path,  wildcard+'_tri.h5'))
-  
-    return filelist 
+
+    return filelist
 
 
 def get_ray_axis(ray_start, ray_end):

@@ -7,18 +7,17 @@ os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 import yt
 import datashader as dshader
 import datashader.transfer_functions as tf
-os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-from foggie.utils import foggie_utils as futils
+from utils import foggie_utils as futils
 import pandas as pd
-import foggie.manage_path_names as pathnames
-import foggie.utils.prep_dataframe as prep_dataframe 
+import manage_path_names as pathnames
+import utils.prep_dataframe as prep_dataframe
 
-from foggie.consistency import new_phase_color_key, new_metals_color_key, categorize_by_temp, categorize_by_metals
+from consistency import new_phase_color_key, new_metals_color_key, categorize_by_temp, categorize_by_metals
 
 def create_foggie_cmap_deprecated(**kwargs):
     """ returns two colormaps"""
-    
-    foggie_dir, output_dir = pathnames.get_path_names() 
+
+    foggie_dir, output_dir = pathnames.get_path_names()
 
     ds = yt.load(foggie_dir + 'halo_008508/nref11n/natural/RD0020/RD0020')
 
@@ -32,28 +31,28 @@ def create_foggie_cmap_deprecated(**kwargs):
 
     return phase_img, metal_img
 
-def create_foggie_cmap(): 
+def create_foggie_cmap():
 
-        x = np.random.rand(100000) 
-        y = np.random.rand(100000)  
-        temp = np.random.rand(100000) * 8. + 1. # log values of temperature range from 1 to 9 
+        x = np.random.rand(100000)
+        y = np.random.rand(100000)
+        temp = np.random.rand(100000) * 8. + 1. # log values of temperature range from 1 to 9
 
         df = pd.DataFrame({})
-        df['x'] = x 
-        df['y'] = y 
-        df['temp'] = temp 
+        df['x'] = x
+        df['y'] = y
+        df['temp'] = temp
 
         df['phase'] = categorize_by_temp(df['temp'])
         df.phase = df.phase.astype('category')
 
-        df['metallicity'] = 10.**(np.random.rand(100000) * 8. - 7.) 
+        df['metallicity'] = 10.**(np.random.rand(100000) * 8. - 7.)
         df['metal'] = categorize_by_metals(df['metallicity'])
         df.metal = df.metal.astype('category')
 
-        print(df)
+        #print(df)
 
-        phase_img = grab_cmap(df, 'x', 'y', 'phase', new_phase_color_key) 
-        metal_img = grab_cmap(df, 'x', 'y', 'metal', new_metals_color_key) 
+        phase_img = grab_cmap(df, 'x', 'y', 'phase', new_phase_color_key)
+        metal_img = grab_cmap(df, 'x', 'y', 'metal', new_metals_color_key)
 
         return phase_img, metal_img
 
