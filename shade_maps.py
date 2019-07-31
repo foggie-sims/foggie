@@ -141,7 +141,7 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
 
     agg = cvs.points(frame, field1, field2, dshader.count_cat(count_cat))
 
-    img = tf.shade(agg, color_key=colormap_dict[count_cat], how='eq_hist',min_alpha=50)
+    img = tf.spread(tf.shade(agg, color_key=colormap_dict[count_cat], how='eq_hist',min_alpha=50), px=2)
 
     export_image(img, filename)
 

@@ -7,10 +7,10 @@ os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 import yt
 import datashader as dshader
 import datashader.transfer_functions as tf
-from utils import foggie_utils as futils
+from foggie.utils import foggie_utils as futils
 import pandas as pd
 import manage_path_names as pathnames
-import utils.prep_dataframe as prep_dataframe
+import foggie.utils.prep_dataframe as prep_dataframe
 
 from consistency import new_phase_color_key, new_metals_color_key, categorize_by_temp, categorize_by_metals
 

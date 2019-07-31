@@ -5,18 +5,13 @@ This is useful to put datasets in the proper dataframe format,
 correct units, log scales, etc. for shading by other code.
 """
 import pandas as pd
-<<<<<<< HEAD
 import numpy as np 
 import yt 
 import glob
 import pickle 
 import foggie.utils.foggie_utils as futils
 from foggie.consistency import axes_label_dict, logfields, categorize_by_temp, \
-=======
-import numpy as np
-from consistency import axes_label_dict, logfields, categorize_by_temp, \
->>>>>>> 59f91af94c940c491e4276071c56b57858243414
-        categorize_by_metals, categorize_by_fraction
+    categorize_by_metals, categorize_by_fraction
 
 
 def rays_to_dataframe(halo, run, wildcard): 
@@ -137,18 +132,9 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
         data_frame['cell_mass'] = np.log10(all_data['cell_volume'].in_units('kpc**3') * \
                                     all_data['density'].in_units('Msun / kpc**3') )
 
-<<<<<<< HEAD
     if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg')) 
-=======
-
-    #if ('relative_velocity' in field_names):
-    #    relative_velocity = ( (all_data['x-velocity'].in_units('km/s')-halo_vcenter[0])**2 \
-    #                        + (all_data['y-velocity'].in_units('km/s')-halo_vcenter[1])**2 \
-    #                        + (all_data['z-velocity'].in_units('km/s')-halo_vcenter[2])**2 )**0.5
-    #    data_frame['relative_velocity'] = relative_velocity
 
     if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg'))
->>>>>>> 59f91af94c940c491e4276071c56b57858243414
     if ("radius" in field_names): data_frame["radius"] = all_data["radius"].in_units('kpc')
 
     for thisfield in field_list:

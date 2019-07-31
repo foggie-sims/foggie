@@ -13,7 +13,7 @@ import pandas as pd
 import numpy as np
 import glob, os
 import argparse
-from consistency import phase_color_labels, metal_labels, \
+from foggie.consistency import phase_color_labels, metal_labels, \
     categorize_by_temp, categorize_by_metals
 from astropy.table import Table
 
