@@ -124,7 +124,7 @@ def prep_dataframe(all_data, field_list, category, **kwargs):
             y = y - np.mean(y)
             data_frame['position_y'] = y
 
-        if ('position_x' in field_names):
+        if ('position_z' in field_names):
             z = (all_data['z'].in_units('kpc')).ndarray_view()
             z = z + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
             z = z - np.mean(z)
