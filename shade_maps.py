@@ -62,7 +62,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
 
     halo_center, halo_vcenter = 0., 0. 
 
-    return cut_region_all_data, refine_box, halo_center, halo_vcenter
+    return data_set, cut_region_all_data, refine_box, halo_center, halo_vcenter
 
 def wrap_axes(img, filename, field1, field2, colorcode, ranges):
     """intended to be run after render_image, take the image and wraps it in
@@ -130,10 +130,6 @@ def wrap_axes(img, filename, field1, field2, colorcode, ranges):
 
     return fig
 
-
-
-
-
 def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     """ renders density and temperature 'Phase' with linear aggregation"""
 
@@ -141,26 +137,38 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
 
     agg = cvs.points(frame, field1, field2, dshader.count_cat(count_cat))
 
-    img = tf.spread(tf.shade(agg, color_key=colormap_dict[count_cat], how='eq_hist',min_alpha=50), px=2)
+    img = tf.shade(agg, color_key=colormap_dict[count_cat], how='linear',min_alpha=50)
 
     export_image(img, filename)
 
     return img
 
-
-
-def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile):
+def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, screenfield='none', screenrange=[-99,99]):
     """This function makes a simple plot with two dataset fields plotted against
         one another. The color coding is given by variable 'colorcode'
         which can be phase, metal, or an ionization fraction"""
 
-    all_data, refine_box, halo_center, halo_vcenter = \
+    dataset, all_data, refine_box, halo_center, halo_vcenter = \
         prep_dataset(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI'], region='trackbox')
 
-    data_frame = prep_dataframe.prep_dataframe(all_data, field1, field2, colorcode, \
+    if ('none' not in screenfield): 
+        field_list = [field1, field2, screenfield]
+    else: 
+        field_list = [field1, field2]    
+
+    data_frame = prep_dataframe.prep_dataframe(all_data, field_list, colorcode, \
                         halo_center = halo_center, halo_vcenter=halo_vcenter)
 
+    print(data_frame.head())
+
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
+
+    # if there is to be screening of the df, it should happen here. 
+    print('Within simple_plot, the screen is: ', screenfield)
+    if ('none' not in screenfield): 
+        mask = (data_frame[screenfield] > screenrange[0]) & (data_frame[screenfield] < screenrange[1])
+        print(mask)
+        image = render_image(data_frame[mask], field1, field2, colorcode, *ranges, outfile)
 
     wrap_axes(image, outfile, field1, field2, colorcode, ranges)
     
@@ -197,7 +205,7 @@ def rotate_box(fname, trackfile, x1, y1, x2, y2):
     """ not yet functional"""
 
     print("NEED TO DO VARIABLE NORMALIZATION HERE SINCE IT IS NOT DONE ANYWEHRE ELSE NOW")
-    all_data, refine_box, refine_width = \
+    dataset, all_data, refine_box, refine_width = \
         prep_dataset(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI'],
                      region='sphere')
 

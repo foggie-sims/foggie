@@ -51,10 +51,6 @@ def rays_to_dataframe(halo, run, wildcard):
 
     return all_sightlines
 
-
-
-
-
 def check_dataframe(frame, field1, field2, count_cat): 
     """ This function checks the input dataframe for properties that 
     it will need to properly shade the fields in the frame. For instance, 
@@ -89,20 +85,26 @@ def check_dataframe(frame, field1, field2, count_cat):
 
 
 
-def prep_dataframe(all_data, field1, field2, category, **kwargs):
-    """ add fields1 and 2 to the dataframe, and any intermediate
-        fields that are needed to derive those two.
 
-        Currently takes two fields only, field1 and field2.
+
+def prep_dataframe(all_data, field_list, category, **kwargs):
+    """ add the fields specified in the field_list to the dataframe, 
+        and any intermediate fields that are needed to derive them.
+
+        The input is a list of fields, and the time this takes 
+        will be proportional to the length of this list. 
 
         These are checked against the "logfields" dictionary in
         consistency to take their log before placing into the df.
+
+        Returns the dataframe with these fields, which can be 
+        fed into render_image and other things. 
         """
 
-    field_list = [field1, field2]
-    field_names = field1+'_'+field2
-
     print("you have requested fields ", field_list)
+
+    field_names = ''
+    for f in field_list: field_names = field_names + '_' + f 
 
     data_frame = pd.DataFrame({}) # create the empty dataframe to which we will add
                                   # the desired fields.
@@ -175,6 +177,4 @@ def prep_dataframe(all_data, field1, field2, category, **kwargs):
         data_frame.frac = data_frame.frac.astype('category')
         print('Added frac category to the dataframe')
 
-
-    print(data_frame.head())
     return data_frame
