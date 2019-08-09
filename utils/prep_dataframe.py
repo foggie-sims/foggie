@@ -77,7 +77,7 @@ def check_dataframe(frame, field1, field2, count_cat):
         frame.phase = frame.phase.astype('category')
 
     if ('metal' in count_cat): 
-        frame['metal'] = categorize_by_temp(frame['metalliciity'])
+        frame['metal'] = categorize_by_temp(frame['metallicity'])
         frame.metal = frame.metal.astype('category')
 
 

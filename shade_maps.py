@@ -33,10 +33,11 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
     for ion in ion_list:
         print("prep_dataset: Added ion "+ion+" into the dataset.")
 
-    if ('domain' in trackfile): 
+    if ('domain' in region): 
         print("prep_dataset will set the subregion to be the domain")
         refine_box = data_set.r[0:1, 0:1, 0.48:0.52]
         refine_box_center = [0.5, 0.5, 0.5]
+        refine_width = [0.5, 0.5, 0.02]
     else: 
         track = Table.read(trackfile, format='ascii')
         track.sort('col1')
@@ -53,6 +54,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
         all_data = sph
     elif region == 'domain': 
         print("your region is the entire domain, prepare to wait")
+        all_data = refine_box
     else:
         print("prep_dataset: your region is invalid!")
 
@@ -79,6 +81,7 @@ def wrap_axes(img, filename, field1, field2, colorcode, ranges):
     x_min = ranges[0][0]
     if (x_max > 10.): xstep = 10
     if (x_max > 100.): xstep = 100
+    if (x_max > 1000.): xstep = 1000
     xtext = ax1.set_xlabel(axes_label_dict[field1], fontsize=30)
     ax1.set_xticks(np.arange((x_max - x_min) + 1., step=xstep) * 1000. / (x_max - x_min))
     ax1.set_xticklabels([ str(int(s)) for s in \
@@ -89,6 +92,7 @@ def wrap_axes(img, filename, field1, field2, colorcode, ranges):
     y_min = ranges[1][0]
     if (y_max > 10.): ystep = 10
     if (y_max > 100.): ystep = 100
+    if (y_max > 1000.): ystep = 1000
     ytext = ax1.set_ylabel(axes_label_dict[field2], fontsize=30)
     ax1.set_yticks(np.arange((y_max - y_min) + 1., step=ystep) * 1000. / (y_max - y_min))
     ax1.set_yticklabels([ str(int(s)) for s in \
@@ -137,19 +141,25 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
 
     agg = cvs.points(frame, field1, field2, dshader.count_cat(count_cat))
 
-    img = tf.shade(agg, color_key=colormap_dict[count_cat], how='linear',min_alpha=50)
+    img = tf.shade(agg, color_key=colormap_dict[count_cat], how='linear',min_alpha=250)
 
     export_image(img, filename)
 
     return img
 
-def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, screenfield='none', screenrange=[-99,99]):
+def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, 
+    screenfield='none', screenrange=[-99,99], **kwargs):
     """This function makes a simple plot with two dataset fields plotted against
         one another. The color coding is given by variable 'colorcode'
         which can be phase, metal, or an ionization fraction"""
 
+    region_for_prep_dataset = 'trackbox'
+
+    if ('domain' in kwargs.keys()): region_for_prep_dataset = 'domain'
+
     dataset, all_data, refine_box, halo_center, halo_vcenter = \
-        prep_dataset(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI'], region='trackbox')
+        prep_dataset(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI'], 
+        region=region_for_prep_dataset) 
 
     if ('none' not in screenfield): 
         field_list = [field1, field2, screenfield]
@@ -159,12 +169,9 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, sc
     data_frame = prep_dataframe.prep_dataframe(all_data, field_list, colorcode, \
                         halo_center = halo_center, halo_vcenter=halo_vcenter)
 
-    print(data_frame.head())
-
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
 
     # if there is to be screening of the df, it should happen here. 
-    print('Within simple_plot, the screen is: ', screenfield)
     if ('none' not in screenfield): 
         mask = (data_frame[screenfield] > screenrange[0]) & (data_frame[screenfield] < screenrange[1])
         print(mask)
