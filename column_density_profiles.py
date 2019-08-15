@@ -65,8 +65,7 @@ def make_metal_pickle():
     metalr = np.concatenate((temp_metalr[0], temp_metalr[1], temp_metalr[2]), axis=None)
     metalr[metalr == -np.inf] = 1
 
-
-
+    
 def make_pickles():
     import yt
     forced_ds = yt.load("/Users/molly/foggie/halo_008508/nref11n/nref11n_nref10f_refine200kpc/RD0020/RD0020")
