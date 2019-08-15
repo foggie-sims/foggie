@@ -1,6 +1,6 @@
-#galactic_analysis.py
+#galactic_analysis_orig.py
 #Summary: Analyze FOGGIE halo_008508 to create temperature-density phase plots, galactic/ISM/CGM face-on/edge-on density/metal mass projection plots, 
-#and calculate star/ISM/CGM metal mass/total mass/metallicity. Used to gather information in halo_008508_arrays.py.
+#and calculate star/ISM/CGM metal mass/total mass/metallicity specificially for original orig_sims. Used to gather information in halo_008508_arrays_orig.py.
 #Author: Kathleen Hamilton-Campos, SASP intern at STScI, summer 2019 - kahamil@umd.edu
 
 
@@ -29,19 +29,19 @@ def weighted_avg_and_stdev(values, weights):
 plt.close("all")
 
 #DDs currently working with
-simulations = [250, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1300, 1400, 1700]
+orig_sims = [250, 455, 1550]
 
 #ISM/CGM density and temperature cuts
-density_cut = [7.5e-24, 10.e-25, 1.e-25, 7.5e-25, 7.5e-25, 7.5e-25, 7.5e-25, 1.e-25, 1.e-25, 1.e-25, 2.5e-26, 2.5e-26, 5.e-27]
+density_cut = [5.e-24, 2.5e-24, 5.e-25]
 temp = 1.5e4
 
 #Radii for looking at the center of the galaxy, the stars in the galaxy, and cutting out satellites
 sphere_rad = 100.
 star_rad = 20.
-central_radius_cut = [4., 4., 4., 4., 6., 4., 4., 8., 10., 10., 20., 20., 30.]
+central_radius_cut = [4., 6., 20.]
 
 #Creating uniform graphs
-proj_width = 75.
+proj_width = 45.
 temp_phase_min = 1.
 temp_phase_max = 10.**9
 dens_phase_min = 10.**-31
@@ -52,11 +52,11 @@ metal_proj_min = 10.**54
 metal_proj_max = 10.**61
 
 #Removing satellites that are too close to the central galaxy
-satellite_distance_limit = [2., 2., 1., 2., 2., 2., 2., 2., 2., 2., 2., 2., 12.]
+satellite_distance_limit = 2.
 sat_sph_rad = 3.
 
 #virial radii of the galaxy
-virial_radius = [35., 44., 60., 73., 88., 102., 114., 124., 135., 151., 159., 167., 186.]
+virial_radius = [59., 87., 183.]
 
 #CGM temperature cuts
 low_temp = 1.e4
@@ -78,59 +78,48 @@ density_color_map = sns.blend_palette(("black", "#4575b4", "#4daf4a", "#ffe34d",
 metal_color_map = sns.blend_palette(("black", "#4575b4", "#984ea3", "#984ea3", "#d73027", "darkorange", "#ffe34d"), as_cmap=True)
 
 #Setting arrays to zero for filling
-redshift = np.zeros(len(simulations))
-log_star_metallicity = np.zeros(len(simulations))
-log_star_metal_mass = np.zeros(len(simulations))
-log_star_total_mass = np.zeros(len(simulations))
-log_ism_metallicity = np.zeros(len(simulations))
-log_ism_metal_mass =  np.zeros(len(simulations))
-log_ism_total_mass =  np.zeros(len(simulations))
-log_cgm_metallicity = np.zeros(len(simulations))
-log_cgm_metal_mass =  np.zeros(len(simulations))
-log_cgm_total_mass =  np.zeros(len(simulations))
-log_pink_metallicity = np.zeros(len(simulations))
-log_pink_metal_mass =  np.zeros(len(simulations))
-log_pink_total_mass =  np.zeros(len(simulations))
-log_purple_metallicity = np.zeros(len(simulations))
-log_purple_metal_mass =  np.zeros(len(simulations))
-log_purple_total_mass =  np.zeros(len(simulations))
-log_green_metallicity = np.zeros(len(simulations))
-log_green_metal_mass =  np.zeros(len(simulations))
-log_green_total_mass =  np.zeros(len(simulations))
-log_yellow_metallicity = np.zeros(len(simulations))
-log_yellow_metal_mass =  np.zeros(len(simulations))
-log_yellow_total_mass =  np.zeros(len(simulations))
-star_above_avg = np.zeros(len(simulations))
-star_below_avg = np.zeros(len(simulations))
-ism_above_avg = np.zeros(len(simulations))
-ism_below_avg = np.zeros(len(simulations))
-cgm_above_avg = np.zeros(len(simulations))
-cgm_below_avg = np.zeros(len(simulations))
-pink_above_avg = np.zeros(len(simulations))
-pink_below_avg = np.zeros(len(simulations))
-purple_above_avg = np.zeros(len(simulations))
-purple_below_avg = np.zeros(len(simulations))
-green_above_avg = np.zeros(len(simulations))
-green_below_avg = np.zeros(len(simulations))
-yellow_above_avg = np.zeros(len(simulations))
-yellow_below_avg = np.zeros(len(simulations))
-log_metals_returned = np.zeros(len(simulations))
+redshift = np.zeros(len(orig_sims))
+log_star_metallicity = np.zeros(len(orig_sims))
+log_star_metal_mass = np.zeros(len(orig_sims))
+log_star_total_mass = np.zeros(len(orig_sims))
+log_ism_metallicity = np.zeros(len(orig_sims))
+log_ism_metal_mass =  np.zeros(len(orig_sims))
+log_ism_total_mass =  np.zeros(len(orig_sims))
+log_cgm_metallicity = np.zeros(len(orig_sims))
+log_cgm_metal_mass =  np.zeros(len(orig_sims))
+log_cgm_total_mass =  np.zeros(len(orig_sims))
+log_pink_metallicity = np.zeros(len(orig_sims))
+log_pink_metal_mass =  np.zeros(len(orig_sims))
+log_pink_total_mass =  np.zeros(len(orig_sims))
+log_purple_metallicity = np.zeros(len(orig_sims))
+log_purple_metal_mass =  np.zeros(len(orig_sims))
+log_purple_total_mass =  np.zeros(len(orig_sims))
+log_green_metallicity = np.zeros(len(orig_sims))
+log_green_metal_mass =  np.zeros(len(orig_sims))
+log_green_total_mass =  np.zeros(len(orig_sims))
+log_yellow_metallicity = np.zeros(len(orig_sims))
+log_yellow_metal_mass =  np.zeros(len(orig_sims))
+log_yellow_total_mass =  np.zeros(len(orig_sims))
+star_above_avg = np.zeros(len(orig_sims))
+star_below_avg = np.zeros(len(orig_sims))
+ism_above_avg = np.zeros(len(orig_sims))
+ism_below_avg = np.zeros(len(orig_sims))
+cgm_above_avg = np.zeros(len(orig_sims))
+cgm_below_avg = np.zeros(len(orig_sims))
+pink_above_avg = np.zeros(len(orig_sims))
+pink_below_avg = np.zeros(len(orig_sims))
+purple_above_avg = np.zeros(len(orig_sims))
+purple_below_avg = np.zeros(len(orig_sims))
+green_above_avg = np.zeros(len(orig_sims))
+green_below_avg = np.zeros(len(orig_sims))
+yellow_above_avg = np.zeros(len(orig_sims))
+yellow_below_avg = np.zeros(len(orig_sims))
+log_metals_returned = np.zeros(len(orig_sims))
 
 #Select timestamp for analysis
-for DD_ind, DD in enumerate(simulations):
+for DD_ind, DD in enumerate(orig_sims):
 
-	#Center galaxy
-	if True:
-		#Insert own path to centering file
-		cen_fits = np.load("/Users/khamilton/Desktop/Scripts/nref11n_nref10f_interpolations_DD0150_new.npy", allow_pickle = True)[()]
-
-		cen_x = cen_fits['CENTRAL']['fxe'](DD)
-		cen_y = cen_fits['CENTRAL']['fye'](DD)
-		cen_z = cen_fits['CENTRAL']['fze'](DD)
-
-		cen_cen = yt.YTArray([cen_x, cen_y, cen_z], 'kpc')
-
-	#Load dataset, define new filter and field, and define initial sphere with directions
+	#Load dataset and define new filter and field
 	if True:
 		#Insert own path to simulation data
 		if DD < 1000:
@@ -143,7 +132,22 @@ for DD_ind, DD in enumerate(simulations):
 
 		ds.add_field(("all", "metal_mass"), function=_metal_mass, units="Msun", particle_type = True, force_override = True)
 
-		ob_sphere = ds.sphere(cen_cen, (sphere_rad, "kpc"))
+	#Center galaxy, load data, create box and spheres, and set directions
+	if True:
+		zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+		redshift[DD_ind] = zsnap
+
+		#Insert own path to halo track
+		trackname = "/Users/khamilton/Desktop/Scripts/halo_track_full"
+		track = Table.read(trackname, format='ascii')
+
+		refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track, old = True)
+
+		cen_sphere = ds.sphere(refine_box_center, (central_radius_cut[DD_ind], "kpc"))
+		star_sphere = ds.sphere(refine_box_center, (star_rad, 'kpc'))
+		cgm_sphere = ds.sphere(refine_box_center, (virial_radius[DD_ind], 'kpc'))
+
+		ob_sphere = ds.sphere(refine_box_center, (sphere_rad, "kpc"))
 
 		#Setting face-on and edge-on projection directions
 		gas_ang_mom_x = ob_sphere.quantities.total_quantity([("gas", "angular_momentum_x")])
@@ -168,76 +172,40 @@ for DD_ind, DD in enumerate(simulations):
 
 	#Face-on and edge-on projection plots
 	if True:
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('FaceOn{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('EdgeOn{}.png'.format(DD))
 
-	#Create the box and spheres
-	if True:
-		zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-		redshift[DD_ind] = zsnap
-
-		#Insert own path to halo track
-		trackname = "/Users/khamilton/Desktop/Scripts/halo_track_full"
-		track = Table.read(trackname, format='ascii')
-
-		refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track)
-
-		cen_sphere = ds.sphere(cen_cen, (central_radius_cut[DD_ind], "kpc"))
-		star_sphere = ds.sphere(cen_cen, (star_rad, 'kpc'))
-		cgm_sphere = ds.sphere(cen_cen, (virial_radius[DD_ind], 'kpc'))
-
 	#Projection box color-coded by density
 	if True:
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = refine_box)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = refine_box)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('FaceOnBox{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = refine_box)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = refine_box)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('FaceOnBoxMetals{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = refine_box)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = refine_box)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('EdgeOnBox{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = refine_box)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = refine_box)
 		prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('EdgeOnBoxMetals{}.png'.format(DD))
 
-	#Remove satellites
-	if True:
-		#Find satellites and calculate their distance
-		for satn in np.arange(6):
-			sat_x = cen_fits['SAT_0{}'.format(satn)]['fxe'](DD)
-			sat_y = cen_fits['SAT_0{}'.format(satn)]['fye'](DD)
-			sat_z = cen_fits['SAT_0{}'.format(satn)]['fze'](DD)
-
-			sat_cen = yt.YTArray([sat_x, sat_y, sat_z], 'kpc')
-
-			sat_dist = np.sqrt((cen_x - sat_x)**2. + (cen_y - sat_y)**2. + (cen_z - sat_z)**2.)
-
-			#Remove satellites that are too far
-			if sat_dist > satellite_distance_limit[DD_ind]:
-				sub_sphere = ds.sphere(sat_cen, (sat_sph_rad, "kpc"))
-				refine_box -= sub_sphere
-				star_sphere -= sub_sphere
-				cgm_sphere -= sub_sphere
-				cen_sphere -= sub_sphere
-
-		#Remove ISM area from CGM sphere
-		cgm_sphere -= cen_sphere
-
 	#Create cuts
 	if True:
+		#Remove ISM area from CGM sphere
+		cgm_sphere -= cen_sphere
 		temp_cut = refine_box.cut_region(["(obj['temperature'] < {} )".format(temp)])
 		dens_cut = refine_box.cut_region(["(obj['density'] > {})".format(density_cut[DD_ind])])
 		ism_cut = cen_sphere.cut_region(["(obj['temperature'] < {} ) & (obj['density'] > {})".format(temp,density_cut[DD_ind])])
@@ -249,190 +217,190 @@ for DD_ind, DD in enumerate(simulations):
 
 	#Cut on Temperature
 	if False:	
-		prj = yt.ProjectionPlot(ds, 'z', "density", center = cen_cen, data_source = temp_cut, width = (proj_width, 'kpc'))
+		prj = yt.ProjectionPlot(ds, 'z', "density", center = refine_box_center, data_source = temp_cut, width = (proj_width, 'kpc'))
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.save('TempCut{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = temp_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = temp_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.save('FaceOnTemp{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = temp_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = temp_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.save('EdgeOnTemp{}.png'.format(DD))
 
 	#Cut on Density
 	if False:
-		prj = yt.ProjectionPlot(ds, 'z', "density", center = cen_cen, data_source = dens_cut, width = (proj_width, 'kpc'))
+		prj = yt.ProjectionPlot(ds, 'z', "density", center = refine_box_center, data_source = dens_cut, width = (proj_width, 'kpc'))
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.save('DensCut{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = dens_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = dens_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.save('FaceOnDens{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = dens_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = dens_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.save('EdgeOnDens{}.png'.format(DD))
 
 	#Cut on Temperature and Density for ISM
 	if True:
-		#prj = yt.ProjectionPlot(ds, 'z', "density", center = cen_cen, data_source = ism_cut, width = (proj_width, 'kpc'))
+		#prj = yt.ProjectionPlot(ds, 'z', "density", center = refine_box_center, data_source = ism_cut, width = (proj_width, 'kpc'))
 		#prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		#prj.set_cmap(field="density", cmap=density_color_map)
 		#prj.save('TDCut{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = ism_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = ism_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('FaceOnISM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = ism_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = ism_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('FaceOnMetalISM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = ism_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = ism_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('EdgeOnISM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = ism_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = ism_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('EdgeOnMetalISM{}.png'.format(DD))
 
 	#Cut on Temperature and Density for main CGM
 	if True:
-		#prj = yt.ProjectionPlot(ds, 'z', "density", center = cen_cen, data_source = cgm_cut, width = (proj_width, 'kpc'))
+		#prj = yt.ProjectionPlot(ds, 'z', "density", center = refine_box_center, data_source = cgm_cut, width = (proj_width, 'kpc'))
 		#prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		#prj.set_cmap(field="density", cmap=density_color_map)
 		#prj.save('TDNeg{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = cgm_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = cgm_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('FaceOnCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = cgm_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = cgm_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('FaceOnMetalCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = cgm_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = cgm_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('EdgeOnCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = cgm_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = cgm_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('EdgeOnMetalCGM{}.png'.format(DD))
 
 	#Cut on Temperature and Density for pink CGM
 	if True:
-		#prj = yt.ProjectionPlot(ds, 'z', "density", center = cen_cen, data_source = pink_cut, width = (proj_width, 'kpc'))
+		#prj = yt.ProjectionPlot(ds, 'z', "density", center = refine_box_center, data_source = pink_cut, width = (proj_width, 'kpc'))
 		#prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		#prj.set_cmap(field="density", cmap=density_color_map)
 		#prj.save('TDNegPink{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = pink_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = pink_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('FaceOnPinkCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = pink_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = pink_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('FaceOnMetalPinkCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = pink_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = pink_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('EdgeOnPinkCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = pink_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = pink_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('EdgeOnMetalPinkCGM{}.png'.format(DD))
 
 	#Cut on Temperature and Density for purple CGM
 	if True:
-		#prj = yt.ProjectionPlot(ds, 'z', "density", center = cen_cen, data_source = purple_cut, width = (proj_width, 'kpc'))
+		#prj = yt.ProjectionPlot(ds, 'z', "density", center = refine_box_center, data_source = purple_cut, width = (proj_width, 'kpc'))
 		#prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		#prj.set_cmap(field="density", cmap=density_color_map)
 		#prj.save('TDNegPurple{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = purple_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = purple_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('FaceOnPurpleCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = purple_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = purple_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('FaceOnMetalPurpleCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = purple_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = purple_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('EdgeOnPurpleCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = purple_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = purple_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('EdgeOnMetalPurpleCGM{}.png'.format(DD))
 
 	#Cut on Temperature and Density for green CGM
 	if True:
-		#prj = yt.ProjectionPlot(ds, 'z', "density", center = cen_cen, data_source = green_cut, width = (proj_width, 'kpc'))
+		#prj = yt.ProjectionPlot(ds, 'z', "density", center = refine_box_center, data_source = green_cut, width = (proj_width, 'kpc'))
 		#prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		#prj.set_cmap(field="density", cmap=density_color_map)
 		#prj.save('TDNegGreen{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = green_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = green_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('FaceOnGreenCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = green_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = green_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('FaceOnMetalGreenCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = green_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = green_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('EdgeOnGreenCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = green_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = green_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('EdgeOnMetalGreenCGM{}.png'.format(DD))
 
 	#Cut on Temperature and Density for yellow CGM
 	if True:
-		#prj = yt.ProjectionPlot(ds, 'z', "density", center = cen_cen, data_source = yellow_cut, width = (proj_width, 'kpc'))
+		#prj = yt.ProjectionPlot(ds, 'z', "density", center = refine_box_center, data_source = yellow_cut, width = (proj_width, 'kpc'))
 		#prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		#prj.set_cmap(field="density", cmap=density_color_map)
 		#prj.save('TDNegYellow{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = yellow_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = yellow_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('FaceOnYellowCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = yellow_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = gas_ang_mom_norm, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = yellow_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('FaceOnMetalYellowCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = yellow_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'density', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = yellow_cut)
 		prj.set_zlim(('gas','density'), zmin = dens_proj_min, zmax = dens_proj_max)
 		prj.set_cmap(field="density", cmap=density_color_map)
 		prj.save('EdgeOnYellowCGM{}.png'.format(DD))
 
-		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = cen_cen, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = yellow_cut)
+		prj = yt.OffAxisProjectionPlot(ds, normal = edge_on_dir, fields = 'metal_mass', center = refine_box_center, width=(proj_width, 'kpc'), north_vector=north_vector, data_source = yellow_cut)
 		#prj.set_zlim(('gas','metal_mass'), zmin = metal_proj_min, zmax = metal_proj_max)
 		prj.set_cmap(field="metal_mass", cmap=metal_color_map)
 		prj.save('EdgeOnMetalYellowCGM{}.png'.format(DD))
