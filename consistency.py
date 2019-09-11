@@ -30,8 +30,34 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'metallicity': 'log Z/Z$_{\odot}$',
                     'pressure': 'log P [g cm$^{-1}$ s$^{-2}$ ]',
                     'entropy': 'log Entropy [cm$^2$ erg]',
+                    'cooling_time': 'log Cooling Time [yr]', 
+                    'H_p0_ion_fraction': 'log [H I Ionization Fraction]',
+                    'H_p0_number_density': 'log [H I Number Density]',
+                    'H_p0_column_density': 'log [H I Cell Column Density]',
+                    'O_p0_ion_fraction': 'log [O I Ionization Fraction]',
+                    'O_p0_number_density': 'log [O I Number Density]',
+                    'O_p0_column_density': 'log [O I Cell Column Density]',
+                    'O_p1_ion_fraction': 'log [O II Ionization Fraction]',
+                    'O_p1_number_density': 'log [O II Number Density]',
+                    'O_p1_column_density': 'log [O II Cell Column Density]',
+                    'O_p2_ion_fraction': 'log [O III Ionization Fraction]',
+                    'O_p2_number_density': 'log [O III Number Density]',
+                    'O_p2_column_density': 'log [O III Cell Column Density]',
+                    'O_p3_ion_fraction': 'log [O IV Ionization Fraction]',
+                    'O_p3_number_density': 'log [O IV Number Density]',
+                    'O_p3_column_density': 'log [O IV Cell Column Density]',
+                    'O_p4_ion_fraction': 'log [O V Ionization Fraction]',
+                    'O_p4_number_density': 'log [O V Number Density]',
+                    'O_p4_column_density': 'log [O V Cell Column Density]',
                     'O_p5_ion_fraction': 'log [O VI Ionization Fraction]',
                     'O_p5_number_density': 'log [O VI Number Density]',
+                    'O_p5_column_density': 'log [O VI Cell Column Density]',
+                    'O_p6_ion_fraction': 'log [O VII Ionization Fraction]',
+                    'O_p6_number_density': 'log [O VII Number Density]',
+                    'O_p6_column_density': 'log [O VII Cell Column Density]',
+                    'O_p7_ion_fraction': 'log [O VIII Ionization Fraction]',
+                    'O_p7_number_density': 'log [O VIII Number Density]',
+                    'O_p7_column_density': 'log [O VIII Cell Column Density]',
                     'C_p3_ion_fraction': 'log [C IV Ionization Fraction]',
                     'C_p3_number_density': 'log [C IV Number Density]',
                     'Si_p3_ion_fraction': 'log [Si IV Ionization Fraction]',
@@ -42,8 +68,17 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
 # plot or visualize them in the log rather than the original yt / enzo
 # field. Try "if field_name in logfields: field_name = log10(field_name)"
 logfields = ('Dark_Matter_Density', 'density', 'temperature', 'entropy', 'pressure',
-             'O_p5_ion_fraction', 'C_p3_ion_fraction', 'Si_p3_ion_fraction',
-             'O_p5_number_density', 'C_p3_number_density',
+             'cooling_time', 
+             'H_p0_number_density', 'H_p0_ion_fraction', 'H_p0_column_density', 
+             'O_p0_ion_fraction', 'O_p0_number_density', 'O_p0_number_density'
+             'O_p1_ion_fraction', 'O_p1_number_density', 'O_p1_number_density'
+             'O_p2_ion_fraction', 'O_p2_number_density', 'O_p2_number_density'
+             'O_p3_ion_fraction', 'O_p3_number_density', 'O_p3_number_density'
+             'O_p4_ion_fraction', 'O_p4_number_density', 'O_p4_number_density'
+             'O_p5_ion_fraction', 'O_p5_number_density', 'O_p5_column_density', 
+             'O_p6_ion_fraction', 'O_p6_number_density', 'O_p6_column_density', 
+             'O_p7_ion_fraction', 'O_p7_number_density', 'O_p7_column_density', 
+             'C_p3_ion_fraction', 'Si_p3_ion_fraction', 'C_p3_number_density',
              'Si_p3_number_density', 'metallicity', 'cell_mass')
 
 species_dict = {'CIII': 'C_p2_number_density',
@@ -70,6 +105,15 @@ halo_dict = {   2392  :  'hurricane' ,
                 5036  :  'Maelstrom' ,
                 8508  :  'Tempest' }
 
+cgm_temperature_min = 1.5e4  #<---- in some FOGGIE codes this will be used to set a min 
+cgm_density_max = 2e-26  
+cgm_inner_radius = 10. 
+cgm_outer_radius = 200. 
+
+cgm_field_filter = ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max) 
+ism_field_filter = ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max) 
+
+
 discrete_cmap = mpl.colors.ListedColormap(
     ['#565656', '#4daf4a', '#d73027', "#984ea3",
      '#ffe34d', '#4575b4', 'darkorange'])
@@ -87,6 +131,11 @@ density_proj_max = 1e4
 density_slc_min = 5e-8  # msun / pc^3
 density_slc_max = 5
 
+dens_phase_min = 10.**-31
+dens_phase_max = 10.**-21
+metal_proj_min = 10.**54
+metal_proj_max = 10.**61
+
 metal_color_map = sns.blend_palette(
     ("black", "#4575b4", "#984ea3", "#984ea3", "#d73027",
      "darkorange", "#ffe34d"), as_cmap=True)
@@ -100,8 +149,8 @@ metal_density_max = 250.
 
 temperature_color_map = sns.blend_palette(
     ("black", "#d73027", "darkorange", "#ffe34d"), as_cmap=True)
-temperature_min = 5.e6
-temperature_max = 1.e4
+temperature_max = 1e8
+temperature_min = 1e2
 
 entropy_color_map = "Spectral_r"
 entropy_min = 1.e-4
