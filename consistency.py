@@ -15,7 +15,7 @@ core_width = 20. # width of slice to use in show_velphase
 axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'Dark_Matter_Density': 'log DM Density [g / cm$^3$]',
                     'temperature': 'log Temperature [K]',
-                    'cell_mass': 'log cell mass [M$_{\odot}$]',
+                    'cell_mass': r'log cell mass [M$_{\odot}$]',
                     'x': '$x$ coordinate [pkpc]',
                     'y': '$y$ coordinate [pkpc]',
                     'z': '$z$ coordinate [pkpc]',
@@ -27,40 +27,40 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'y-velocity': 'Y velocity [km s$^{-1}$]',
                     'z-velocity': 'Z velocity [km s$^{-1}$]',
                     'relative_velocity': 'Relative Velocity [km s$^{-1}$]',
-                    'metallicity': 'log Z/Z$_{\odot}$',
+                    'metallicity': r'log Z/Z$_{\odot}$',
                     'pressure': 'log P [g cm$^{-1}$ s$^{-2}$ ]',
                     'entropy': 'log Entropy [cm$^2$ erg]',
                     'cooling_time': 'log Cooling Time [yr]', 
                     'H_p0_ion_fraction': 'log [H I Ionization Fraction]',
                     'H_p0_number_density': 'log [H I Number Density]',
                     'H_p0_column_density': 'log [H I Cell Column Density]',
-                    'O_p0_ion_fraction': 'log [O I Ionization Fraction]',
+                    'O_p0_ion_fraction': 'O I Ionization Fraction',
                     'O_p0_number_density': 'log [O I Number Density]',
                     'O_p0_column_density': 'log [O I Cell Column Density]',
-                    'O_p1_ion_fraction': 'log [O II Ionization Fraction]',
+                    'O_p1_ion_fraction': 'O II Ionization Fraction',
                     'O_p1_number_density': 'log [O II Number Density]',
                     'O_p1_column_density': 'log [O II Cell Column Density]',
-                    'O_p2_ion_fraction': 'log [O III Ionization Fraction]',
+                    'O_p2_ion_fraction': 'O III Ionization Fraction',
                     'O_p2_number_density': 'log [O III Number Density]',
                     'O_p2_column_density': 'log [O III Cell Column Density]',
-                    'O_p3_ion_fraction': 'log [O IV Ionization Fraction]',
+                    'O_p3_ion_fraction': 'O IV Ionization Fraction',
                     'O_p3_number_density': 'log [O IV Number Density]',
                     'O_p3_column_density': 'log [O IV Cell Column Density]',
-                    'O_p4_ion_fraction': 'log [O V Ionization Fraction]',
+                    'O_p4_ion_fraction': 'O V Ionization Fraction',
                     'O_p4_number_density': 'log [O V Number Density]',
                     'O_p4_column_density': 'log [O V Cell Column Density]',
-                    'O_p5_ion_fraction': 'log [O VI Ionization Fraction]',
+                    'O_p5_ion_fraction': 'O VI Ionization Fraction',
                     'O_p5_number_density': 'log [O VI Number Density]',
                     'O_p5_column_density': 'log [O VI Cell Column Density]',
-                    'O_p6_ion_fraction': 'log [O VII Ionization Fraction]',
+                    'O_p6_ion_fraction': 'O VII Ionization Fraction',
                     'O_p6_number_density': 'log [O VII Number Density]',
                     'O_p6_column_density': 'log [O VII Cell Column Density]',
-                    'O_p7_ion_fraction': 'log [O VIII Ionization Fraction]',
+                    'O_p7_ion_fraction': 'O VIII Ionization Fraction',
                     'O_p7_number_density': 'log [O VIII Number Density]',
                     'O_p7_column_density': 'log [O VIII Cell Column Density]',
-                    'C_p3_ion_fraction': 'log [C IV Ionization Fraction]',
+                    'C_p3_ion_fraction': 'C IV Ionization Fraction',
                     'C_p3_number_density': 'log [C IV Number Density]',
-                    'Si_p3_ion_fraction': 'log [Si IV Ionization Fraction]',
+                    'Si_p3_ion_fraction': 'Si IV Ionization Fraction',
                     'Si_p3_number_density': 'log [Si IV Number Density]',
                    }
 
@@ -69,17 +69,17 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
 # field. Try "if field_name in logfields: field_name = log10(field_name)"
 logfields = ('Dark_Matter_Density', 'density', 'temperature', 'entropy', 'pressure',
              'cooling_time', 
-             'H_p0_number_density', 'H_p0_ion_fraction', 'H_p0_column_density', 
-             'O_p0_ion_fraction', 'O_p0_number_density', 'O_p0_number_density'
-             'O_p1_ion_fraction', 'O_p1_number_density', 'O_p1_number_density'
-             'O_p2_ion_fraction', 'O_p2_number_density', 'O_p2_number_density'
-             'O_p3_ion_fraction', 'O_p3_number_density', 'O_p3_number_density'
-             'O_p4_ion_fraction', 'O_p4_number_density', 'O_p4_number_density'
-             'O_p5_ion_fraction', 'O_p5_number_density', 'O_p5_column_density', 
-             'O_p6_ion_fraction', 'O_p6_number_density', 'O_p6_column_density', 
-             'O_p7_ion_fraction', 'O_p7_number_density', 'O_p7_column_density', 
-             'C_p3_ion_fraction', 'Si_p3_ion_fraction', 'C_p3_number_density',
-             'Si_p3_number_density', 'metallicity', 'cell_mass')
+             'H_p0_number_density', 'H_p0_column_density', 
+             'O_p0_number_density', 'O_p0_column_density',
+             'O_p1_number_density', 'O_p1_column_density',
+             'O_p2_number_density', 'O_p2_column_density',
+             'O_p3_number_density', 'O_p3_column_density',
+             'O_p4_number_density', 'O_p4_column_density',
+             'O_p5_number_density', 'O_p5_column_density', 
+             'O_p6_number_density', 'O_p6_column_density', 
+             'O_p7_number_density', 'O_p7_column_density', 
+             'C_p3_number_density', 'Si_p3_number_density', 
+             'metallicity', 'cell_mass')
 
 species_dict = {'CIII': 'C_p2_number_density',
                 'CIV': 'C_p3_number_density',
@@ -92,11 +92,6 @@ species_dict = {'CIII': 'C_p2_number_density',
                 'NeVIII': 'Ne_p7_number_density',
                 'FeXIV': 'Fe_p13_number_density'}
 
-ion_frac_color_key = {b'all': 'black',
-                      b'low': 'yellow',
-                      b'med': 'orange',
-                      b'high': 'red',
-                      b'phot': 'purple'}
 
 halo_dict = {   2392  :  'hurricane' ,
                 2878  :  'Cyclone' ,
@@ -110,6 +105,7 @@ cgm_density_max = 2e-26
 cgm_inner_radius = 10. 
 cgm_outer_radius = 200. 
 
+#These are strings that can be used to produce yt CutRegions with consistent cuts. 
 cgm_field_filter = ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max) 
 ism_field_filter = ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max) 
 
@@ -203,15 +199,23 @@ fe14_color_map = "inferno"
 fe14_min = 1.e10
 fe14_max = 1.e15
 
+#set up the ionization fraction colormap 
 def categorize_by_fraction(f_ion, temperature):
     """ define the ionization category strings"""
     frac = np.chararray(np.size(f_ion), 4)
     frac[f_ion > -10.] = b'all'
-    frac[f_ion > 0.01] = b'low'   # yellow
-    frac[f_ion > 0.1]  = b'med'   # orange
-    frac[f_ion > 0.2]  = b'high'  # red
-    frac[(f_ion > 0.2) & (temperature < 1e5)] = b'phot'
+    frac[f_ion > 0.0001] = b'low'   # yellow
+    frac[f_ion > 0.01]  = b'med'   # orange
+    frac[f_ion > 0.1]  = b'high'  # red
+    frac[(f_ion > 0.1) & (temperature < 1e5)] = b'phot'
     return frac
+
+ion_frac_color_key = {b'all': 'black',
+                      b'low': 'yellow',
+                      b'med': 'orange',
+                      b'high': 'red',
+                      b'phot': 'purple'}
+
 
 # set up the temperature colormap
 temp_colors = sns.blend_palette(
@@ -323,6 +327,7 @@ hi_color_key = {b'free': to_hex(hi_colors[0]),
                         b'moar3': to_hex(hi_colors[24]),
                         b'moar4': to_hex(hi_colors[25])
                         }
+
 hi_labels = hi_color_key.keys()
 def categorize_by_hi(hi):
     """ define the temp category strings"""
@@ -360,6 +365,6 @@ def categorize_by_hi(hi):
     #print(phase)
     return phase
 
-
 colormap_dict = {'frac':ion_frac_color_key, 'phase':new_phase_color_key, 'metal':new_metals_color_key,
     'h1':hi_color_key}
+

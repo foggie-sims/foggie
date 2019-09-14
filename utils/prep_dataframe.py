@@ -15,7 +15,7 @@ from foggie.consistency import axes_label_dict, logfields, categorize_by_temp, \
 
 
 def rays_to_dataframe(halo, run, wildcard): 
-    """ This function obtains a list of ray files  (h5) and opens then and 
+    """ This function obtains a list of ray files (h5) and opens then and 
     then concatenates the contents into a single dataframe. 
     
     Try: 
@@ -72,6 +72,16 @@ def check_dataframe(frame, field1, field2, count_cat):
         if (frame['cell_mass'].max() > 1e33):   # if cell_mass is NOT in log units
             frame['cell_mass'] = np.log10(frame['cell_mass'] / 1.989e33)
 
+    if ('number_density' in field1):
+        frame[field1] = np.log10(frame[field1])
+
+    if ('number_density' in field2):
+        frame[field2] = np.log10(frame[field2])
+
+    if ('cooling_time' in field_names and 'cooling_time' in frame.keys()): 
+        if (frame['cooling_time'].max() > 1e12):   # if cooling_time is NOT in log units
+            frame['cooling_time'] = np.log10(frame['cooling_time'] / 3.156e7)
+
     if ('phase' in count_cat): 
         frame['phase'] = categorize_by_temp(frame['temperature'])
         frame.phase = frame.phase.astype('category')
@@ -80,12 +90,7 @@ def check_dataframe(frame, field1, field2, count_cat):
         frame['metal'] = categorize_by_temp(frame['metallicity'])
         frame.metal = frame.metal.astype('category')
 
-
     return frame
-
-
-
-
 
 def prep_dataframe(all_data, field_list, category, **kwargs):
     """ add the fields specified in the field_list to the dataframe, 
@@ -99,6 +104,10 @@ def prep_dataframe(all_data, field_list, category, **kwargs):
 
         Returns the dataframe with these fields, which can be 
         fed into render_image and other things. 
+
+        The 'category' argument is the label for the method of colorcoding.
+        It is usually 'phase' for temperature coding, 'metal' for metallicity 
+        coding, etc. 
         """
 
     print("you have requested fields ", field_list)
@@ -106,8 +115,7 @@ def prep_dataframe(all_data, field_list, category, **kwargs):
     field_names = ''
     for f in field_list: field_names = field_names + '_' + f 
 
-    data_frame = pd.DataFrame({}) # create the empty dataframe to which we will add
-                                  # the desired fields.
+    data_frame = pd.DataFrame({}) # create the empty df for the desired fields.
 
     if ('position' in field_names):
         cell_size = np.array(all_data["cell_volume"].in_units('kpc**3'))**(1./3.)
@@ -135,10 +143,11 @@ def prep_dataframe(all_data, field_list, category, **kwargs):
                                     all_data['density'].in_units('Msun / kpc**3') )
 
     if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg')) 
+    if ("radius" in field_names): data_frame["radius"] = all_data["radius"].in_units('kpc')                 
 
-    if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg'))
-    if ("radius" in field_names): data_frame["radius"] = all_data["radius"].in_units('kpc')
+    if ("cooling_time" in field_names): data_frame["cooling_time"] = np.log10(all_data["cooling_time"].in_units('yr'))                 
 
+    #this for loop handles all the fields that come directly from the ds with the same names     
     for thisfield in field_list:
         if thisfield not in data_frame.columns:    #  add those two fields
             print("Did not find field = "+thisfield+" in the dataframe, will add it.")

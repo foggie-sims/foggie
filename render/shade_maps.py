@@ -19,18 +19,22 @@ from astropy.table import Table
 import os
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 import foggie.utils as futils
-import foggie.utils.cmap_utils as cmaps
-from foggie.halo_analysis.get_halo_center import get_halo_center
+import foggie.cmap_utils as cmaps
+from foggie.get_halo_center import get_halo_center
 import foggie.utils.get_refine_box as grb
-from foggie.utils.consistency import *
+from foggie.consistency import *
 
 def _no6(field,data):  
+    print("INSIDE THE HELPER FUNCTION THE FIELD NAME IS: ", field)
     return data["dx"] * data['O_p5_number_density']  
     
 def _nh1(field,data):  
+    print("INSIDE THE HELPER FUNCTION THE FIELD NAME IS: ", field)
     return data["dx"] * data['H_p0_number_density']  
 
-
+def _no5(field,data):  
+    print("INSIDE THE HELPER FUNCTION THE FIELD NAME IS: ", field)
+    return data["dx"] * data['O_p4_number_density']  
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere"""
@@ -41,6 +45,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
                    
     data_set.add_field(("gas", "O_p5_column_density"), function=_no6, units='cm**(-2)', dimensions=dimensions.length**(-2))
     data_set.add_field(("gas", "H_p0_column_density"), function=_nh1, units='cm**(-2)', dimensions=dimensions.length**(-2))
+
 
     track = Table.read(trackfile, format='ascii')
     track.sort('col1')
@@ -87,12 +92,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
 
     return data_set, cut_region_all_data, halo_center, halo_vcenter
 
-
-
-
-
-
-def wrap_axes(img, filename, field1, field2, colorcode, ranges, region, filter):
+def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region, filter):
     """intended to be run after render_image, take the image and wraps it in
         axes using matplotlib and so offering full customization."""
 
@@ -155,6 +155,7 @@ def wrap_axes(img, filename, field1, field2, colorcode, ranges, region, filter):
     ax2.set_yticks([])
 
     plt.text(0.033, 0.965, 'region = '+region, transform=ax1.transAxes)
+    plt.text(0.033, 0.93, 'z = '+str(np.round(dataset.current_redshift * 10.) / 10.), transform=ax1.transAxes) 
 
     plt.savefig(filename)
 
@@ -202,7 +203,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
         print(mask)
         image = render_image(data_frame[mask], field1, field2, colorcode, *ranges, outfile)
 
-    wrap_axes(image, outfile, field1, field2, colorcode, ranges, region, filter)
+    wrap_axes(dataset, image, outfile, field1, field2, colorcode, ranges, region, filter)
     
     return data_frame, image, dataset
 
