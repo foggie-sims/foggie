@@ -5,6 +5,7 @@ import datashader.transfer_functions as tf
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import foggie.utils.prep_dataframe as prep_dataframe 
+import foggie.utils.prep_dataframe as get_region 
 import matplotlib as mpl
 mpl.use('agg')
 mpl.rcParams['font.family'] = 'stixgeneral'
@@ -46,7 +47,6 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     data_set.add_field(("gas", "O_p5_column_density"), function=_no6, units='cm**(-2)', dimensions=dimensions.length**(-2))
     data_set.add_field(("gas", "H_p0_column_density"), function=_nh1, units='cm**(-2)', dimensions=dimensions.length**(-2))
 
-
     track = Table.read(trackfile, format='ascii')
     track.sort('col1')
     refine_box, refine_box_center, _ = \
@@ -58,32 +58,8 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     if region == 'trackbox':
         print("prep_dataset: your region is the refine box")
         all_data = refine_box
-    elif region == 'rvir':
-        print("prep_dataset: your region is Rvir = 300 kpc sphere centered on the box")
-        sph = data_set.sphere(center=refine_box_center, radius=(300, 'kpc'))
-        all_data = sph
-    elif region == 'domain': 
-        print("prep_dataset: your region is the entire domain, prepare to wait")
-        print("prep_dataset: on second thought maybe you don't want to do this")
-        all_data = ds.all_data() 
-    elif region == 'cgm': 
-        print("prep_dataset: your region is the CGM as determined by consistency")
-        cen_sphere = data_set.sphere(refine_box_center, (cgm_inner_radius, "kpc"))     #<---- STILL using the box center from the trackfile above 
-        rvir_sphere = data_set.sphere(refine_box_center, (cgm_outer_radius, 'kpc')) 
-        cgm = rvir_sphere - cen_sphere
-        cgm_cut = cgm.cut_region([cgm_field_filter])    #<---- cgm_field_filter is from consistency.py 
-        all_data = cgm_cut 
-        print(np.min(all_data['radius'])) 
-    elif region == 'ism': 
-        print("prep_dataset: your region is the ISM as determined by consistency")
-        cen_sphere = data_set.sphere(refine_box_center, (cgm_inner_radius, "kpc"))     #<---- STILL using the box center from the trackfile above 
-        rvir_sphere = data_set.sphere(refine_box_center, (cgm_outer_radius, 'kpc')) 
-        cold_inside_rvir =  rvir_sphere.cut_region([ism_field_filter])
-        ism = cen_sphere + cold_inside_rvir
-        all_data = ism   
-        print(np.min(all_data['radius'])) 
     else:
-        print("prep_dataset: your region is invalid!")
+        all_data = get_region(data_set, region)
 
     print("prep_dataset: will now apply filter ", filter)
     cut_region_all_data = all_data.cut_region([filter])
@@ -155,7 +131,7 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
     ax2.set_yticks([])
 
     plt.text(0.033, 0.965, 'region = '+region, transform=ax1.transAxes)
-    plt.text(0.033, 0.93, 'z = '+str(np.round(dataset.current_redshift * 10.) / 10.), transform=ax1.transAxes) 
+    plt.text(0.033, 0.93, 'z = '+str(np.round(dataset.current_redshift * 100.) / 100.), transform=ax1.transAxes) 
 
     plt.savefig(filename)
 
@@ -165,14 +141,23 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     """ renders density and temperature 'Phase' with linear aggregation"""
 
     cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
-
     agg = cvs.points(frame, field1, field2, dshader.count_cat(count_cat))
-
     img = tf.spread(tf.shade(agg, color_key=colormap_dict[count_cat], how='eq_hist',min_alpha=50), px=0) 
-
     export_image(img, filename)
-
     return img
+
+def summed_image(frame, field1, field2, count_cat, x_range, y_range, filename):
+    """ renders density and temperature 'Phase' with linear aggregation"""
+
+    cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
+    #this call to 'agg' needs to change if we want a summed map, like projected column density 
+    agg = cvs.points(frame, field1, field2, dshader.sum(count_cat))
+    img = tf.spread(tf.shade(agg, color_key="magma", how='log', min_alpha=50), px=0) 
+    export_image(img, filename)
+    return img
+
+
+
 
 def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, region='trackbox',
                 filter="obj['temperature'] < 1e9", screenfield='none', screenrange=[-99,99]):
@@ -188,7 +173,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
     if ('none' not in screenfield): 
         field_list = [field1, field2, screenfield]
     else: 
-        field_list = [field1, field2]    
+        field_list = [field1, field2, colorcode]    
 
     data_frame = prep_dataframe.prep_dataframe(all_data, field_list, colorcode, \
                         halo_center = halo_center, halo_vcenter=halo_vcenter)
