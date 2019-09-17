@@ -85,7 +85,7 @@ def get_halo_info(ds, track):
 
     sfr = StarFormationRate(ds, data_source=gal_sphere)
 
-    row = [zsnap, 'RD0020',
+    row = [zsnap, ds.parameter_filename[-6:],
             center[0], center[1], center[2],
             rvir, Mvir, Mstar, Mism, sfr.Msol_yr[-1]]
     print(row)
