@@ -10,12 +10,6 @@ import glob
 import os
 from enzoGalaxyProps import find_rvirial
 
-import seaborn as sns
-density_color_map = sns.blend_palette(
-    ("black", "#4575b4", "#4daf4a", "#ffe34d", "darkorange"), as_cmap=True)
-density_proj_min = 5e-2  # msun / pc^2
-density_proj_max = 1e4
-
 def _stars(pfilter, data):
     return data[(pfilter.filtered_type, "particle_type")] == 2
 
