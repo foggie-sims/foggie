@@ -148,4 +148,4 @@ if __name__ == "__main__":
     first_center = [0.4834909439086914, 0.5023832321166992, 0.5033254623413086 ]
 
 
-    get_center_track(first_center, 797, 689, 0.002)
+    get_center_track(first_center, 797, 691, 0.002)
