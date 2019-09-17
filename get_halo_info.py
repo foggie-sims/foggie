@@ -50,8 +50,7 @@ def loop_over_halos():
         ds.add_particle_filter('darkmatter')
         row = get_halo_info(ds, track)
         t.add_row(row)
-
-    ascii.write(t,'halo_info', format='fixed_width', overwrite=True)
+        ascii.write(t,'halo_info', format='fixed_width', overwrite=True)
 
 def get_halo_info(ds, track):
     '''
@@ -75,6 +74,7 @@ def get_halo_info(ds, track):
 
     ## define where the central galaxy is
     fgal = 0.07 ## fraction of the virial radius we are saying is the galaxy radius; totes made up
+    print('rvir  = ', rvir, ' and rgal = ',fgal*rvir)
     gal_sphere = ds.sphere(center, fgal*rvir)
     # Mstar is sum of stellar mass; Mism is sum of gas mass; SFR is sum of SFR
     gal_stars_mass = gal_sphere[('stars', 'particle_mass')].in_units('Msun')
@@ -88,6 +88,7 @@ def get_halo_info(ds, track):
     row = [zsnap, 'RD0020',
             center[0], center[1], center[2],
             rvir, Mvir, Mstar, Mism, sfr.Msol_yr[-1]]
+    print(row)
     return row
 
 
