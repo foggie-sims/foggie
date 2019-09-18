@@ -10,7 +10,7 @@ c_kms = 299792.458
 
 default_width = 85.  # kpc in projection
 
-core_width = 20. # width of slice to use in show_velphase 
+core_width = 20. # width of slice to use in show_velphase
 
 axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'Dark_Matter_Density': 'log DM Density [g / cm$^3$]',
@@ -30,7 +30,7 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'metallicity': r'log Z/Z$_{\odot}$',
                     'pressure': 'log P [g cm$^{-1}$ s$^{-2}$ ]',
                     'entropy': 'log Entropy [cm$^2$ erg]',
-                    'cooling_time': 'log Cooling Time [yr]', 
+                    'cooling_time': 'log Cooling Time [yr]',
                     'H_p0_ion_fraction': 'log [H I Ionization Fraction]',
                     'H_p0_number_density': 'log [H I Number Density]',
                     'H_p0_column_density': 'log [H I Cell Column Density]',
@@ -68,17 +68,17 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
 # plot or visualize them in the log rather than the original yt / enzo
 # field. Try "if field_name in logfields: field_name = log10(field_name)"
 logfields = ('Dark_Matter_Density', 'density', 'temperature', 'entropy', 'pressure',
-             'cooling_time', 
-             'H_p0_number_density', 'H_p0_column_density', 
+             'cooling_time',
+             'H_p0_number_density', 'H_p0_column_density',
              'O_p0_number_density', 'O_p0_column_density',
              'O_p1_number_density', 'O_p1_column_density',
              'O_p2_number_density', 'O_p2_column_density',
              'O_p3_number_density', 'O_p3_column_density',
              'O_p4_number_density', 'O_p4_column_density',
-             'O_p5_number_density', 'O_p5_column_density', 
-             'O_p6_number_density', 'O_p6_column_density', 
-             'O_p7_number_density', 'O_p7_column_density', 
-             'C_p3_number_density', 'Si_p3_number_density', 
+             'O_p5_number_density', 'O_p5_column_density',
+             'O_p6_number_density', 'O_p6_column_density',
+             'O_p7_number_density', 'O_p7_column_density',
+             'C_p3_number_density', 'Si_p3_number_density',
              'metallicity', 'cell_mass')
 
 species_dict = {'CIII': 'C_p2_number_density',
@@ -93,21 +93,21 @@ species_dict = {'CIII': 'C_p2_number_density',
                 'FeXIV': 'Fe_p13_number_density'}
 
 
-halo_dict = {   2392  :  'hurricane' ,
+halo_dict = {   2392  :  'Hurricane' ,
                 2878  :  'Cyclone' ,
                 4123  :  'Wigshifter' ,
                 5016  :  'Squall' ,
                 5036  :  'Maelstrom' ,
                 8508  :  'Tempest' }
 
-cgm_temperature_min = 1.5e4  #<---- in some FOGGIE codes this will be used to set a min 
-cgm_density_max = 2e-26  
-cgm_inner_radius = 10. 
-cgm_outer_radius = 200. 
+cgm_temperature_min = 1.5e4  #<---- in some FOGGIE codes this will be used to set a min
+cgm_density_max = 2e-26
+cgm_inner_radius = 10.
+cgm_outer_radius = 200.
 
-#These are strings that can be used to produce yt CutRegions with consistent cuts. 
-cgm_field_filter = ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max) 
-ism_field_filter = ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max) 
+#These are strings that can be used to produce yt CutRegions with consistent cuts.
+cgm_field_filter = ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max)
+ism_field_filter = ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max)
 
 
 discrete_cmap = mpl.colors.ListedColormap(
@@ -199,7 +199,7 @@ fe14_color_map = "inferno"
 fe14_min = 1.e10
 fe14_max = 1.e15
 
-#set up the ionization fraction colormap 
+#set up the ionization fraction colormap
 def categorize_by_fraction(f_ion, temperature):
     """ define the ionization category strings"""
     frac = np.chararray(np.size(f_ion), 4)
@@ -367,4 +367,3 @@ def categorize_by_hi(hi):
 
 colormap_dict = {'frac':ion_frac_color_key, 'phase':new_phase_color_key, 'metal':new_metals_color_key,
     'h1':hi_color_key}
-
