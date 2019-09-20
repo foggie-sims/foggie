@@ -1,7 +1,7 @@
 
 from foggie.consistency import cgm_inner_radius, cgm_outer_radius, \
                     cgm_field_filter, ism_field_filter
-
+import numpy as np 
 
 def get_region(data_set, region): 
     """ this function takes in a dataset and returns a CutRegion 
@@ -15,28 +15,33 @@ def get_region(data_set, region):
 
     if region == 'trackbox':
         print("prep_dataset: your region is the refine box as determined from dataset (NOT track)")
+        #print("prep_dataset: the filter will be: ", filter)
         all_data = refine_box
     elif region == 'rvir':
-        print("prep_dataset: your region is Rvir = 300 kpc sphere centered on the box")
-        sph = data_set.sphere(center=refine_box_center, radius=(300, 'kpc'))
+        print("prep_dataset: your region is Rvir = 200 kpc sphere centered on the box")
+        #print("prep_dataset: the filter will be: ", filter)
+        sph = data_set.sphere(center=refine_box_center, radius=(200, 'kpc'))
         all_data = sph
     elif region == 'domain': 
         print("prep_dataset: your region is the entire domain, prepare to wait")
         print("prep_dataset: on second thought maybe you don't want to do this")
+        #print("prep_dataset: the filter will be: ", filter)
         all_data = data_set.all_data() 
     elif region == 'cgm': 
         print("prep_dataset: your region is the CGM as determined by consistency")
+        #print("prep_dataset: the filter will be: ", filter)
         cen_sphere = data_set.sphere(refine_box_center, (cgm_inner_radius, "kpc"))     #<---- STILL using the box center from the trackfile above 
         rvir_sphere = data_set.sphere(refine_box_center, (cgm_outer_radius, 'kpc')) 
         cgm = rvir_sphere - cen_sphere
-        cgm_cut = cgm.cut_region([cgm_field_filter])    #<---- cgm_field_filter is from consistency.py 
+        cgm_cut = cgm.cut_region(cgm_field_filter)    #<---- cgm_field_filter is from consistency.py 
         all_data = cgm_cut 
         print(np.min(all_data['radius'])) 
     elif region == 'ism': 
         print("prep_dataset: your region is the ISM as determined by consistency")
+        #print("prep_dataset: the filter will be: ", filter)
         cen_sphere = data_set.sphere(refine_box_center, (cgm_inner_radius, "kpc"))     #<---- STILL using the box center from the trackfile above 
         rvir_sphere = data_set.sphere(refine_box_center, (cgm_outer_radius, 'kpc')) 
-        cold_inside_rvir =  rvir_sphere.cut_region([ism_field_filter])
+        cold_inside_rvir =  rvir_sphere.cut_region(ism_field_filter)
         ism = cen_sphere + cold_inside_rvir
         all_data = ism   
     else:

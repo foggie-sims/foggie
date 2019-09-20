@@ -5,7 +5,7 @@ import datashader.transfer_functions as tf
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import foggie.utils.prep_dataframe as prep_dataframe 
-import foggie.utils.prep_dataframe as get_region 
+import foggie.utils.get_region as gr 
 import matplotlib as mpl
 mpl.use('agg')
 mpl.rcParams['font.family'] = 'stixgeneral'
@@ -59,7 +59,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
         print("prep_dataset: your region is the refine box")
         all_data = refine_box
     else:
-        all_data = get_region(data_set, region)
+        all_data = gr.get_region(data_set, region)
 
     print("prep_dataset: will now apply filter ", filter)
     cut_region_all_data = all_data.cut_region([filter])
@@ -147,7 +147,8 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     return img
 
 def summed_image(frame, field1, field2, count_cat, x_range, y_range, filename):
-    """ renders density and temperature 'Phase' with linear aggregation"""
+    """ renders density and temperature 'Phase' with linear aggregation
+        CURRENTLY DOES NOT WORK. DON'T USE IT. """
 
     cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
     #this call to 'agg' needs to change if we want a summed map, like projected column density 
@@ -155,9 +156,6 @@ def summed_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     img = tf.spread(tf.shade(agg, color_key="magma", how='log', min_alpha=50), px=0) 
     export_image(img, filename)
     return img
-
-
-
 
 def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, region='trackbox',
                 filter="obj['temperature'] < 1e9", screenfield='none', screenrange=[-99,99]):
@@ -173,7 +171,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
     if ('none' not in screenfield): 
         field_list = [field1, field2, screenfield]
     else: 
-        field_list = [field1, field2, colorcode]    
+        field_list = [field1, field2]    
 
     data_frame = prep_dataframe.prep_dataframe(all_data, field_list, colorcode, \
                         halo_center = halo_center, halo_vcenter=halo_vcenter)

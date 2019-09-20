@@ -5,6 +5,7 @@ import datashader.transfer_functions as tf
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import foggie.utils.get_region as
 import foggie.utils.prep_dataframe as prep_dataframe 
 import matplotlib as mpl
 mpl.use('agg')
@@ -49,22 +50,14 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], region='trackbox'):
 
     if region == 'trackbox':
         all_data = refine_box
-    elif region == 'sphere':
-        sph = data_set.sphere(center=refine_box_center, radius=(500, 'kpc'))
-        all_data = sph
-    elif region == 'domain': 
-        print("your region is the entire domain, prepare to wait")
-        all_data = refine_box
     else:
-        print("prep_dataset: your region is invalid!")
+        all_data = gr.get_region(data_set, region)
 
     filter = "obj['temperature'] < 1e9"
     print("Will now apply filter ", filter)
     cut_region_all_data = all_data.cut_region([filter])
 
-    halo_center, halo_vcenter = 0., 0. 
-
-    return data_set, cut_region_all_data, refine_box, halo_center, halo_vcenter
+    return data_set, all_data, refine_box
 
 def wrap_axes(img, filename, field1, field2, colorcode, ranges):
     """intended to be run after render_image, take the image and wraps it in
@@ -148,18 +141,16 @@ def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
     return img
 
 def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, 
-    screenfield='none', screenrange=[-99,99], **kwargs):
+    screenfield='none', screenrange=[-99,99], region='trackbox', **kwargs):
     """This function makes a simple plot with two dataset fields plotted against
         one another. The color coding is given by variable 'colorcode'
         which can be phase, metal, or an ionization fraction"""
-
-    region_for_prep_dataset = 'trackbox'
 
     if ('domain' in kwargs.keys()): region_for_prep_dataset = 'domain'
 
     dataset, all_data, refine_box, halo_center, halo_vcenter = \
         prep_dataset(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI'], 
-        region=region_for_prep_dataset) 
+        region=region) 
 
     if ('none' not in screenfield): 
         field_list = [field1, field2, screenfield]
@@ -180,63 +171,3 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile,
     wrap_axes(image, outfile, field1, field2, colorcode, ranges)
     
     return data_frame, image
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# code below here is in storage for later use in building rorating movies.
-
-def cart2pol(x, y):
-    return np.sqrt(x**2 + y**2), np.arctan2(y, x)
-
-def pol2cart(rho, phi):
-    return rho * np.cos(phi), rho * np.sin(phi)
-
-def rotate_box(fname, trackfile, x1, y1, x2, y2):
-    """ not yet functional"""
-
-    print("NEED TO DO VARIABLE NORMALIZATION HERE SINCE IT IS NOT DONE ANYWEHRE ELSE NOW")
-    dataset, all_data, refine_box, refine_width = \
-        prep_dataset(fname, trackfile, ion_list=['H I', 'C IV', 'Si IV', 'O VI'],
-                     region='sphere')
-
-    data_frame = prep_dataframe(all_data, refine_box, refine_width)
-
-    phase = ((-1.1, 1.1), (-1.1, 1.1))
-    proj = ((-3.1, 3.1), (-3.1, 3.1))
-
-    # this function rotates from x/y plane to density / y
-    for ii in np.arange(100):
-        x_center, d_center = 0.5, 0.5
-        rr, phi = cart2pol(data_frame['x'] - x_center, data_frame['dens'] - d_center)
-        xxxx, yyyy = pol2cart(rr, phi - np.pi / 2. / 100.)
-        data_frame.x = xxxx+x_center
-        data_frame.dens = yyyy+d_center
-        render_image(data_frame, 'x', 'y', 'phase', *phase, 'RD0020_phase'+str(1000+ii))
-        print(ii)
-
-    # now start with dens / y and gradually turn y into temperature
-    for ii in np.arange(100):
-        y_center, t_center = 0.5, 0.5
-        rr, phi = cart2pol(data_frame['y'] - y_center, data_frame['temperature'] - t_center)
-        xxxx, yyyy = pol2cart(rr, phi - np.pi / 2. / 100.)
-        data_frame.y = xxxx+y_center
-        data_frame.temperature = yyyy+t_center
-        render_image(data_frame, 'x', 'y', 'phase', *phase, 'RD0020_phase'+str(2000+ii))
-        print(ii)
