@@ -23,6 +23,7 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'position_y': '$y$ coordinate [pkpc]',
                     'position_z': '$z$ coordinate [pkpc]',
                     'radius': 'Radius [pkpc]',
+                    'mach_number': 'Mach Number',
                     'x-velocity': 'X velocity [km s$^{-1}$]',
                     'y-velocity': 'Y velocity [km s$^{-1}$]',
                     'z-velocity': 'Z velocity [km s$^{-1}$]',
@@ -117,9 +118,6 @@ discrete_cmap_rainbow = mpl.colors.ListedColormap(
     ['#4daf4a', "#ffe34d", 'darkorange', "#d73027",
      '#984ea3', '#4575b4', '#565656'])
 
-old_density_color_map = sns.blend_palette(
-    ('black', '#984ea3', '#d73027', 'darkorange',
-     '#ffe34d', '#4daf4a', 'white'), as_cmap=True)
 density_color_map = sns.blend_palette(
     ("black", "#4575b4", "#4daf4a", "#ffe34d", "darkorange"), as_cmap=True)
 density_proj_min = 5e-2  # msun / pc^2
@@ -294,9 +292,6 @@ def categorize_by_metals(metal):
     print(phase)
     return phase
 
-
-
-
 hi_colors =  sns.blend_palette(("white", "#ababab", "#565656", "black",
                                   "#4575b4", "#984ea3", "#d73027",
                                   "darkorange", "#ffe34d"), n_colors=26)
@@ -365,5 +360,14 @@ def categorize_by_hi(hi):
     #print(phase)
     return phase
 
+
+
+
+
 colormap_dict = {'frac':ion_frac_color_key, 'phase':new_phase_color_key, 'metal':new_metals_color_key,
-    'h1':hi_color_key}
+    'h1':hi_color_key, 'density':density_color_map, 'O_p5_number_density':"magma", 'H_p0_number_density':h1_color_map}
+
+proj_max_dict = {'density':1e-1, 'O_p5_number_density':o6_max, 'H_p0_number_density':h1_proj_max}
+proj_min_dict = {'density':1e-6, 'O_p5_number_density':o6_min, 'H_p0_number_density':h1_proj_min}
+background_color_dict = {'density':'black', 'O_p5_number_density':'black', 'H_p0_number_density':'white'} 
+
