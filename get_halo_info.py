@@ -46,6 +46,9 @@ def loop_over_halos():
         t.add_row(row)
         ascii.write(t,'halo_info', format='fixed_width', overwrite=True)
 
+    t.sort('redshift')
+    ascii.write(t,'halo_info', format='fixed_width', overwrite=True)
+
 def get_halo_info(ds, track):
     '''
     Given a dataset and the trackfile, finds the halo center, R200, M200, and galaxy masses and SFRs
