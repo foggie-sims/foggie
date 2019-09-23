@@ -92,7 +92,8 @@ def check_dataframe(frame, field1, field2, count_cat):
 
     return frame
 
-def prep_dataframe(all_data, field_list, category, **kwargs):
+def prep_dataframe(dataset, all_data, field_list, category, \
+                halo_center=[0.5, 0.5, 0.5], halo_vcenter=[0.,0.,0.]):
     """ add the fields specified in the field_list to the dataframe, 
         and any intermediate fields that are needed to derive them.
 
@@ -117,7 +118,7 @@ def prep_dataframe(all_data, field_list, category, **kwargs):
 
     data_frame = pd.DataFrame({}) # create the empty df for the desired fields.
 
-    if ('position' in field_names):
+    if (('position' in field_names) or ('radius' in field_names)):
         cell_size = np.array(all_data["cell_volume"].in_units('kpc**3'))**(1./3.)
 
         if ('position_x' in field_names):
@@ -143,7 +144,15 @@ def prep_dataframe(all_data, field_list, category, **kwargs):
                                     all_data['density'].in_units('Msun / kpc**3') )
 
     if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg')) 
-    if ("radius" in field_names): data_frame["radius"] = all_data["radius"].in_units('kpc')                 
+    
+    #unfortunately we will have to recompute the radius since it is bogus for some of our input regions 
+    if ("radius" in field_names): 
+        print("will have to recompute the radius! halo_center = ", halo_center)
+        dx = ( all_data['x'].in_units('code_length') - dataset.arr(halo_center[0], 'code_length') ).in_units('kpc') 
+        dy = ( all_data['y'].in_units('code_length') - dataset.arr(halo_center[1], 'code_length') ).in_units('kpc') 
+        dz = ( all_data['z'].in_units('code_length') - dataset.arr(halo_center[2], 'code_length') ).in_units('kpc') 
+        r2 = dx**2 + dy**2 + dz**2 
+        data_frame["radius"] = r2**0.5                 
 
     if ("cooling_time" in field_names): data_frame["cooling_time"] = np.log10(all_data["cooling_time"].in_units('yr'))                 
 

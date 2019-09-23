@@ -37,6 +37,10 @@ def _no5(field,data):
     print("INSIDE THE HELPER FUNCTION THE FIELD NAME IS: ", field)
     return data["dx"] * data['O_p4_number_density']  
 
+def _c4(field,data):  
+    print("INSIDE THE HELPER FUNCTION THE FIELD NAME IS: ", field)
+    return data["dx"] * data['C_p3_number_density']  
+
 def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere"""
     data_set = yt.load(fname)
@@ -44,6 +48,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     trident.add_ion_fields(data_set, ions=ion_list)
     for ion in ion_list: print("prep_dataset: Added ion "+ion+" into the dataset.")
                    
+    data_set.add_field(("gas", "C_p3_column_density"), function=_c4, units='cm**(-2)', dimensions=dimensions.length**(-2))
     data_set.add_field(("gas", "O_p5_column_density"), function=_no6, units='cm**(-2)', dimensions=dimensions.length**(-2))
     data_set.add_field(("gas", "H_p0_column_density"), function=_nh1, units='cm**(-2)', dimensions=dimensions.length**(-2))
 
@@ -64,9 +69,9 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     print("prep_dataset: will now apply filter ", filter)
     cut_region_all_data = all_data.cut_region([filter])
 
-    halo_center, halo_vcenter = 0., 0. 
+    halo_vcenter = 0. 
 
-    return data_set, cut_region_all_data, halo_center, halo_vcenter
+    return data_set, cut_region_all_data, refine_box_center, halo_vcenter
 
 def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region, filter):
     """intended to be run after render_image, take the image and wraps it in
@@ -163,17 +168,18 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
         one another. The color coding is given by variable 'colorcode'
         which can be phase, metal, or an ionization fraction"""
 
-    dataset, all_data, halo_center, halo_vcenter = \
-        prep_dataset(fname, trackfile, 
+    dataset, all_data, halo_center, halo_vcenter = prep_dataset(fname, trackfile, \
                         ion_list=['H I','C IV','Si IV','O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], 
                         filter=filter, region=region)
+
+    print("simple_plot: ", halo_center)
 
     if ('none' not in screenfield): 
         field_list = [field1, field2, screenfield]
     else: 
         field_list = [field1, field2]    
 
-    data_frame = prep_dataframe.prep_dataframe(all_data, field_list, colorcode, \
+    data_frame = prep_dataframe.prep_dataframe(dataset, all_data, field_list, colorcode, \
                         halo_center = halo_center, halo_vcenter=halo_vcenter)
 
     print(data_frame.head()) 
