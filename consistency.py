@@ -65,11 +65,11 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'Si_p3_number_density': 'log [Si IV Number Density]',
                    }
 
-# this is a dictionary of fields where we prefer to
-# plot or visualize them in the log rather than the original yt / enzo
-# field. Try "if field_name in logfields: field_name = log10(field_name)"
-logfields = ('Dark_Matter_Density', 'density', 'temperature', 'entropy', 'pressure',
-             'cooling_time',
+# this is a dictionary of fields where we prefer to plot or 
+# visualize them in the log rather than the original yt / enzo field. 
+# Try "if field_name in logfields: field_name = log10(field_name)"
+logfields = ('Dark_Matter_Density', 'density', 'temperature', 
+             'entropy', 'pressure', 'cooling_time',
              'H_p0_number_density', 'H_p0_column_density',
              'O_p0_number_density', 'O_p0_column_density',
              'O_p1_number_density', 'O_p1_column_density',
@@ -93,7 +93,6 @@ species_dict = {'CIII': 'C_p2_number_density',
                 'NeVIII': 'Ne_p7_number_density',
                 'FeXIV': 'Fe_p13_number_density'}
 
-
 halo_dict = {   2392  :  'Hurricane' ,
                 2878  :  'Cyclone' ,
                 4123  :  'Wigshifter' ,
@@ -109,7 +108,6 @@ cgm_outer_radius = 200.
 #These are strings that can be used to produce yt CutRegions with consistent cuts.
 cgm_field_filter = ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max)
 ism_field_filter = ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max)
-
 
 discrete_cmap = mpl.colors.ListedColormap(
     ['#565656', '#4daf4a', '#d73027', "#984ea3",
@@ -198,22 +196,19 @@ fe14_min = 1.e10
 fe14_max = 1.e15
 
 #set up the ionization fraction colormap
-def categorize_by_fraction(f_ion, temperature):
+def categorize_by_fraction(f_ion):
     """ define the ionization category strings"""
     frac = np.chararray(np.size(f_ion), 4)
     frac[f_ion > -10.] = b'all'
     frac[f_ion > 0.0001] = b'low'   # yellow
     frac[f_ion > 0.01]  = b'med'   # orange
     frac[f_ion > 0.1]  = b'high'  # red
-    frac[(f_ion > 0.1) & (temperature < 1e5)] = b'phot'
     return frac
 
 ion_frac_color_key = {b'all': 'black',
                       b'low': 'yellow',
                       b'med': 'orange',
-                      b'high': 'red',
-                      b'phot': 'purple'}
-
+                      b'high': 'red'}
 
 # set up the temperature colormap
 temp_colors = sns.blend_palette(
@@ -360,14 +355,9 @@ def categorize_by_hi(hi):
     #print(phase)
     return phase
 
-
-
-
-
 colormap_dict = {'frac':ion_frac_color_key, 'phase':new_phase_color_key, 'metal':new_metals_color_key,
     'h1':hi_color_key, 'density':density_color_map, 'O_p5_number_density':"magma", 'H_p0_number_density':h1_color_map}
 
 proj_max_dict = {'density':1e-1, 'O_p5_number_density':o6_max, 'H_p0_number_density':h1_proj_max}
 proj_min_dict = {'density':1e-6, 'O_p5_number_density':o6_min, 'H_p0_number_density':h1_proj_min}
 background_color_dict = {'density':'black', 'O_p5_number_density':'black', 'H_p0_number_density':'white'} 
-
