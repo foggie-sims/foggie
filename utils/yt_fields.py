@@ -16,12 +16,23 @@ def _static_radial_rampressure(field, data):
 
 
 def _radial_rampressure(field, data):
+    
     vel = data['gas', 'circular_velocity'] + data['gas', 'radial_velocity']
     vel[vel<0] = 0.
     rp = data['density'] * vel**2.
     return np.log10(rp.to('dyne/cm**2').value)
 
 
+def _stars(pfilter, data):
+    """Filter star particles
+    To use: yt.add_particle_filter("stars",function=_stars, filtered_type='all',requires=["particle_type"])"""
+    
+    return data[(pfilter.filtered_type, "particle_type")] == 2
 
+
+def _darkmatter(pfilter, data):
+    """Filter dark matter particles
+    To use: yt.add_particle_filter("darkmatter",function=_darkmatter, filtered_type='all',requires=["particle_type"])"""
+    return data[(pfilter.filtered_type, "particle_type")] == 4
 
 
