@@ -46,7 +46,6 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     data_set = yt.load(fname)
 
     trident.add_ion_fields(data_set, ions=ion_list)
-    for ion in ion_list: print("prep_dataset: Added ion "+ion+" into the dataset.")
                    
     data_set.add_field(("gas", "C_p3_column_density"), function=_c4, units='cm**(-2)', dimensions=dimensions.length**(-2))
     data_set.add_field(("gas", "O_p5_column_density"), function=_no6, units='cm**(-2)', dimensions=dimensions.length**(-2))
@@ -169,7 +168,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
         which can be phase, metal, or an ionization fraction"""
 
     dataset, all_data, halo_center, halo_vcenter = prep_dataset(fname, trackfile, \
-                        ion_list=['H I','C IV','Si IV','O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], 
+                        ion_list=['H I','C II','C IV','Si IV','O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], 
                         filter=filter, region=region)
 
     print("simple_plot: ", halo_center)
@@ -183,6 +182,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
                         halo_center = halo_center, halo_vcenter=halo_vcenter)
 
     print(data_frame.head()) 
+    if ('ion_fraction' in colorcode): colorcode = 'frac'
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
 
     # if there is to be screening of the df, it should happen here. 

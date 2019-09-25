@@ -28,30 +28,23 @@ def get_region(data_set, region, filter='None'):
     elif region == 'cgm': 
         print("prep_dataset: your region is the CGM as determined by consistency")
         print("prep_dataset: the filter will be: ", filter)
-        cen_sphere = data_set.sphere(refine_box_center, (cgm_inner_radius, "kpc"))     #<---- STILL using the box center from the trackfile above 
+        cen_sphere = data_set.sphere(refine_box_center, (cgm_inner_radius, "kpc"))  #<--using box center from the trackfile above 
         rvir_sphere = data_set.sphere(refine_box_center, (cgm_outer_radius, 'kpc')) 
         cgm = rvir_sphere - cen_sphere
-        #print("prep_dataset diagnosis: cgm cen_sphere max radius: ", cen_sphere['radius'].max() / 3.086e21)
-        #print("prep_dataset diagnosis: cgm rvir_sphere max radius: ", rvir_sphere['radius'].max() / 3.086e21)
-        #print("prep_dataset diagnosis: cgm region cgm max radius: ", cgm['radius'].max() / 3.086e21)
         if (filter == 'None'): 
             all_data = cgm.cut_region(cgm_field_filter)   #<---- cgm_field_filter is from consistency.py 
         else: 
             all_data = cgm.cut_region(filter) 
-        #print("prep_dataset diagnosis: cgm region all_data max radius: ", all_data['radius'].max() / 3.086e21)
     elif region == 'ism': 
         print("prep_dataset: your region is the ISM as determined by consistency")
         print("prep_dataset: the filter will be: ", filter)
-        cen_sphere = data_set.sphere(refine_box_center, (cgm_inner_radius, "kpc"))     #<---- STILL using the box center from the trackfile above 
+        cen_sphere = data_set.sphere(refine_box_center, (cgm_inner_radius, "kpc"))     #<--using the box center from the trackfile above 
         rvir_sphere = data_set.sphere(refine_box_center, (cgm_outer_radius, 'kpc')) 
-        #print("prep_dataset diagnosis: ism cen_sphere max radius: ", cen_sphere['radius'].max() / 3.086e21)
-        #print("prep_dataset diagnosis: ism rvir_sphere max radius: ", rvir_sphere['radius'].max() / 3.086e21)
         if (filter == 'None'): 
             cold_inside_rvir = rvir_sphere.cut_region(ism_field_filter)   #<---- cgm_field_filter is from consistency.py 
         else: 
             cold_inside_rvir = rvir_sphere.cut_region(filter) 
         all_data = cen_sphere + cold_inside_rvir
-        #print("prep_dataset diagnosis: ism region all_data max radius: ", all_data['radius'].max() / 3.086e21)
     else:
         print("prep_dataset: your region is invalid!")
 

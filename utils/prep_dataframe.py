@@ -168,31 +168,28 @@ def prep_dataframe(dataset, all_data, field_list, category, \
                 if ('vel' in thisfield): data_frame[thisfield] = all_data[thisfield].in_units('km/s')
 
 
-    cat_name = 'phase'
-    if (cat_name in category):
+    if ('phase' in category):
         if ('temperature' not in data_frame.columns):
             data_frame['temperature'] = np.log10(all_data['temperature'])
 
-        data_frame[cat_name] = categorize_by_temp(data_frame['temperature'])
+        data_frame['phase'] = categorize_by_temp(data_frame['temperature'])
         data_frame.phase = data_frame.phase.astype('category')
         print('Added phase category to the dataframe')
 
-    cat_name = 'metal'
-    if (cat_name in category):
+    if ('metal' in category):
         if ('metallicity' not in data_frame.columns):
             data_frame['metallicity'] = all_data['metallicity']
 
-        data_frame[cat_name] = categorize_by_metals(all_data['metallicity'])
+        data_frame['metal'] = categorize_by_metals(all_data['metallicity'])
         data_frame.metal = data_frame.metal.astype('category')
         print('Added metal category to the dataframe')
 
-    cat_name = 'frac'
-    if (cat_name in category):
-        if ('O_p5_ion_fraction' not in data_frame.columns):
-            data_frame['O_p5_ion_fraction'] = all_data['O_p5_ion_fraction']
+    if ('ion_fraction' in category):
+        if (category not in data_frame.columns):
+            data_frame[category] = all_data[category]
 
-        data_frame['frac'] = categorize_by_fraction(all_data['O_p5_ion_fraction'], all_data['temperature'])
+        data_frame['frac'] = categorize_by_fraction(all_data[category])
         data_frame.frac = data_frame.frac.astype('category')
-        print('Added frac category to the dataframe')
+        print('Added frac = '+category+'category to the dataframe')
 
     return data_frame
