@@ -175,6 +175,10 @@ mg2_color_map = "plasma"
 mg2_min = 1.e10
 mg2_max = 1.e17
 
+c2_color_map = "plasma"
+c2_min = 1.e10
+c2_max = 1.e17
+
 si2_color_map = "plasma"
 si2_min = 1.e10
 si2_max = 1.e17
