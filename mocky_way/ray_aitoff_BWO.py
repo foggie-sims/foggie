@@ -12,7 +12,7 @@ from mpi4py import MPI
 import os
 import shutil
 
-from get_halo_center import get_halo_center
+from foggie.utils.get_halo_center import get_halo_center
 
 comm = MPI.COMM_WORLD
 

@@ -17,9 +17,9 @@ mpl.rcParams['font.size'] = 20.
 from astropy.table import Table
 from astropy.io import fits
 
-from utils.get_refine_box import get_refine_box
-from utils.get_proper_box_size import get_proper_box_size
-from utils.consistency import *
+from foggie.utils.get_refine_box import get_refine_box
+from foggie.utils.get_proper_box_size import get_proper_box_size
+from foggie.utils.consistency import *
 
 def calc_cddf(**kwargs):
     import trident

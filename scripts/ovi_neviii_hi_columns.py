@@ -3,7 +3,7 @@ November 2018
 Molly Peeples
 
 calculates OVI and NeVIII columns (medians, percentiles, ratios);
-largely for comparison to CASBAH  data 
+largely for comparison to CASBAH  data
 
 '''
 
