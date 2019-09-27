@@ -31,3 +31,4 @@ setup(name="foggie",
           'datashader',
           'seaborn'
       ],
+)
