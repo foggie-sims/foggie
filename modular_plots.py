@@ -1,3 +1,13 @@
+'''
+Written by Molly Peeples
+
+makes all the slices and projection plots you could possibly want and probably some others
+
+will put output physical plots in a hopefully correct "physical/" directory and the ion
+plots in a "ions/" directory in what should be a well-organzied plots directory for that halo
+'''
+
+
 from __future__ import print_function
 
 import numpy as np
