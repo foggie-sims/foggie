@@ -25,7 +25,7 @@ import os
 import argparse
 
 from astropy.table import Table
-import consistency
+from consistency import *
 from utils.get_refine_box import get_refine_box
 from utils.get_proper_box_size import get_proper_box_size
 from get_halo_center import get_halo_center
