@@ -1,5 +1,11 @@
-#import matplotlib
-#matplotlib.use('Agg')
+'''
+
+Written by  Lauren Corlies for the  "original" runs
+
+imports modified by  Molly Peeples
+
+'''
+
 
 import holoviews as hv
 import holoviews.util
@@ -27,6 +33,11 @@ from holoviews.operation import decimate
 from holoviews.operation import histogram
 
 from yt.units import kpc,km,s,cm
+
+from utils.get_halo_center import get_halo_center
+from utils.get_refine_box import get_refine_box
+from utils.get_proper_box_size import get_proper_box_size
+from utils.consistency import *
 
 ## Many of these functions were envisioned to enable the comparison
 ## of different simulation outputs. Using too many simulations at the same
@@ -187,49 +198,6 @@ plot_kwargs = {
 }
 
 ### utility functions ###
-def get_halo_center(ds, center_guess):
-    """
-    Returns halo center bby finding center of mass of densest dark matter points
-
-    Parameters
-    ----------
-    ds : enzo data source
-        Datasource of interest
-
-    center_guess : array
-        Initial center guess for the calculation in code units
-
-    Returns
-    -------
-    halo_center: array of final, calculated halo center
-    """
-    ad = ds.sphere(center_guess, (200., 'kpc'))
-    x,y,z = np.array(ad["x"]), np.array(ad["y"]), np.array(ad["z"])
-    dm_density =  ad['Dark_Matter_Density']
-    imax = (np.where(dm_density > 0.9999 * np.max(dm_density)))[0]
-    halo_center = [x[imax[0]], y[imax[0]], z[imax[0]]]
-    #print 'We have located the main halo at :', halo_center
-    return halo_center
-
-
-def get_refine_box(ds, track_name):
-    track = Table.read(builtins.track_name, format='ascii')
-    track.sort('col1')
-    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-
-    x_left = np.interp(zsnap, track['col1'], track['col2'])
-    y_left = np.interp(zsnap, track['col1'], track['col3'])
-    z_left = np.interp(zsnap, track['col1'], track['col4'])
-    x_right = np.interp(zsnap, track['col1'], track['col5'])
-    y_right = np.interp(zsnap, track['col1'], track['col6'])
-    z_right = np.interp(zsnap, track['col1'], track['col7'])
-
-    refine_box_center = [0.5*(x_left+x_right), 0.5*(y_left+y_right), 0.5*(z_left+z_right)]
-    refine_box = ds.r[x_left:x_right, y_left:y_right, z_left:z_right]
-
-    return refine_box, refine_box_center
-
-
 
 def initial_center_guess(ds,track_name):
     """
