@@ -11,11 +11,6 @@ import os
 import glob
 import sys
 
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
-
 from astropy.table import Table
 from astropy.io import ascii
 
@@ -194,12 +189,6 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
     ### set up the table of all the stuff we want
     data = Table(names=('redshift', 'radius', 'nref_mode', \
                         'net_mass_flux', 'net_metal_flux', \
-                        'mass_flux_in', 'mass_flux_out', \
-                        'metal_flux_in', 'metal_flux_out', \
-                        'net_cold_mass_flux', 'cold_mass_flux_in', 'cold_mass_flux_out', \
-                        'net_cool_mass_flux', 'cool_mass_flux_in', 'cool_mass_flux_out', \
-                        'net_warm_mass_flux', 'warm_mass_flux_in', 'warm_mass_flux_out', \
-                        'net_hot_mass_flux', 'hot_mass_flux_in', 'hot_mass_flux_out', \
                         'annular_ang_mom_gas_x', 'annular_ang_mom_gas_y','annular_ang_mom_gas_z', \
                         'annular_spec_ang_mom_gas_x', 'annular_spec_ang_mom_gas_y','annular_spec_ang_mom_gas_z',\
                         'annular_ang_mom_dm_x', 'annular_ang_mom_dm_y','annular_ang_mom_dm_z', \
@@ -210,10 +199,7 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                         'outside_spec_ang_mom_dm_x', 'outside_spec_ang_mom_dm_y', 'outside_spec_ang_mom_dm_z', \
                         'inside_ang_mom_stars_x', 'inside_ang_mom_stars_y', 'inside_ang_mom_stars_z', \
                         'inside_spec_ang_mom_stars_x', 'inside_spec_ang_mom_stars_y', 'inside_spec_ang_mom_stars_z'),
-                  dtype=('f8', 'f8', 'i8',
-                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
-                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
-                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                  dtype=('f8', 'f8', 'i8', 'f8', 'f8',
                          'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
                          'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
                          'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
@@ -259,23 +245,6 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
         # add all the things
         ds.add_particle_filter('stars')
         ds.add_particle_filter('dm')
-        ds.add_field(('gas_density_in'), function=_gas_density_in, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('gas_density_out'), function=_gas_density_out, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('metal_density_in'), function=_metal_density_in, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('metal_density_out'), function=_metal_density_out, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('hot_gas_density'), function=_hot_gas_density, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('hot_gas_density_in'), function=_hot_gas_density_in, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('hot_gas_density_out'), function=_hot_gas_density_out, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('warm_gas_density'), function=_warm_gas_density, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('warm_gas_density_in'), function=_warm_gas_density_in, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('warm_gas_density_out'), function=_warm_gas_density_out, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('cool_gas_density'), function=_cool_gas_density, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('cool_gas_density_in'), function=_cool_gas_density_in, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('cool_gas_density_out'), function=_cool_gas_density_out, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('cold_gas_density'), function=_cold_gas_density, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('cold_gas_density_in'), function=_cold_gas_density_in, units="Msun/kpc**3", force_override=True)
-        ds.add_field(('cold_gas_density_out'), function=_cold_gas_density_out, units="Msun/kpc**3", force_override=True)
-
 
         # create all the regions
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
@@ -301,26 +270,6 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
                 nref_mode = stats.mode(surface[('index', 'grid_level')])
                 gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "density")
                 metal_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "metal_density")
-                ## also want to filter based on radial velocity to get fluxes in and mass flux out
-                gas_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "gas_density_in")
-                metal_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "metal_density_in")
-                gas_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "gas_density_out")
-                metal_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "metal_density_out")
-
-
-                ## aaand want to filter based on temperature
-                hot_gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "hot_gas_density")
-                hot_gas_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "hot_gas_density_in")
-                hot_gas_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "hot_gas_density_out")
-                warm_gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "warm_gas_density")
-                warm_gas_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "warm_gas_density_in")
-                warm_gas_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "warm_gas_density_out")
-                cool_gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cool_gas_density")
-                cool_gas_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cool_gas_density_in")
-                cool_gas_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cool_gas_density_out")
-                cold_gas_flux = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cold_gas_density")
-                cold_gas_flux_in = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cold_gas_density_in")
-                cold_gas_flux_out = surface.calculate_flux("velocity_x", "velocity_y", "velocity_z", "cold_gas_density_out")
 
                 # annuli
                 big_annulus = big_sphere - this_sphere
@@ -364,11 +313,6 @@ def calc_ang_mom_and_fluxes(halo, foggie_dir, output_dir, run, **kwargs):
 
                 # let's add everything to the giant table!
                 data.add_row([zsnap, radius, int(nref_mode[0][0]), gas_flux, metal_flux, \
-                                gas_flux_in, gas_flux_out, metal_flux_in, metal_flux_out, \
-                                cold_gas_flux, cold_gas_flux_in, cold_gas_flux_out, \
-                                cool_gas_flux, cool_gas_flux_in, cool_gas_flux_out, \
-                                warm_gas_flux, warm_gas_flux_in, warm_gas_flux_out, \
-                                hot_gas_flux, hot_gas_flux_in, hot_gas_flux_out,
                                 annular_ang_mom_gas_x, annular_ang_mom_gas_y,annular_ang_mom_gas_z, \
                                 annular_spec_ang_mom_gas_x, annular_spec_ang_mom_gas_y,annular_spec_ang_mom_gas_z,\
                                 annular_ang_mom_dm_x, annular_ang_mom_dm_y,annular_ang_mom_dm_z, \

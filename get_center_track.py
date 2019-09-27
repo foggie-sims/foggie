@@ -2,14 +2,9 @@ import yt
 from astropy.table import Table
 from astropy.io import ascii
 
+from utils.consistency  import  *
 from utils.get_halo_center import get_halo_center
 import numpy as np
-
-import seaborn as sns
-density_color_map = sns.blend_palette(
-    ("black", "#4575b4", "#4daf4a", "#ffe34d", "darkorange"), as_cmap=True)
-density_proj_min = 5e-2  # msun / pc^2
-density_proj_max = 1e4
 
 
 def get_center_track(first_center, latesnap, earlysnap, interval):

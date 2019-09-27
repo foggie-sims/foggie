@@ -24,7 +24,7 @@ import pandas as pd
 
 from utils.get_refine_box import get_refine_box
 from utils.get_proper_box_size import get_proper_box_size
-from consistency import *
+from utils.consistency import *
 
 def make_pickles():
     import yt

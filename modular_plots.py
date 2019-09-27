@@ -27,7 +27,7 @@ except ImportError:
 
 from astropy.table import Table
 
-from consistency import *
+from utils.consistency import *
 from utils.get_refine_box import get_refine_box
 from get_halo_center import get_halo_center
 from utils.get_proper_box_size import get_proper_box_size

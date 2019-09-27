@@ -4,8 +4,8 @@ import numpy as np
 from astropy.table import Table
 import astropy.units as u
 
-from get_proper_box_size import get_proper_box_size
-from get_refine_box import get_refine_box
+from utils.get_proper_box_size import get_proper_box_size
+from utils.get_refine_box import get_refine_box
 
 print('tap tap is this thing on')
 
