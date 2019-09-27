@@ -18,7 +18,7 @@ def get_run_loc_etc(args):
     elif args.system == "nmearl":
         foggie_dir = "/Users/nearl/data/"
         output_path = "/Users/nearl/Desktop/"
-    elif args.system == "pleiades":
+    elif args.system == "pleiadesmolly":
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackup/mpeeples/"
         code_path = '/pleiades/u/mpeeples/foggie/'
@@ -26,15 +26,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/astro/simulations/FOGGIE/"
         output_path = "/Users/tumlinson/Dropbox/foggie/collab/"
         code_path = '/Users/tumlinson/Dropbox/FOGGIE/foggie/'
-    elif args.system == "cassiopeia":
-        foggie_dir = "/astro/simulations/FOGGIE/"
-        output_path = "/Users/clochhaas/Documents/Research/FOGGIE/Outputs/"
-        code_path = "/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/"
-    elif args.system == "pleiades_cassi":
-        foggie_dir = "/nobackup/mpeeples/"
-        output_path = "/home5/clochhaa/FOGGIE/Outputs/"
-        code_path = "/home5/clochhaa/FOGGIE/Code/"
-
+    elif args.system == "jase":
+        foggie_dir = "/User/rsimons/foggie/"
+        output_path = "/User/rsimons/foggie/outputs"
+        code_path = '/User/rsimons/Desktop/git/foggie/'
 
     if args.run == "natural":
         run_loc = "halo_00"+ args.halo + "/nref11n/"
