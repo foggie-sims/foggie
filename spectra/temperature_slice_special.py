@@ -4,7 +4,7 @@ this makes a version of the temperature slices with a coninuous version
 of the discretized  temperature bins  so it can be transitioned into the
 shademaps spectra thing nicely in a talk
 
-written  by Molly Peeples 
+written  by Molly Peeples
 
 '''
 
@@ -29,10 +29,10 @@ from astropy.table import Table
 from astropy.io import fits
 from astropy.convolution import Gaussian1DKernel, convolve
 
-from get_proper_box_size import get_proper_box_size
-from get_refine_box import get_refine_box
-from get_halo_center import get_halo_center
-from consistency import *
+from foggie.utils.get_proper_box_size import get_proper_box_size
+from foggie.utils.get_refine_box import get_refine_box
+from foggie.utils.get_halo_center import get_halo_center
+from foggie.utils.consistency import *
 
 def get_short_spectrum(ds, ray_start, ray_end, **kwargs):
     out_fits_name = kwargs.get('out_fits_name', "temp.fits")

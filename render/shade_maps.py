@@ -20,10 +20,10 @@ from astropy.table import Table
 import os
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 import foggie.utils as futils
-import foggie.utils.cmap_utils as cmaps
-from foggie.get_halo_center import get_halo_center
+import foggie.render.cmap_utils as cmaps
+from foggie.utils.get_halo_center import get_halo_center
 import foggie.utils.get_refine_box as grb
-from foggie.consistency import *
+from foggie.utils.consistency import *
 
 def _no6(field,data):  
     print("INSIDE THE HELPER FUNCTION THE FIELD NAME IS: ", field)

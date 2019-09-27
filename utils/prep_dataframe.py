@@ -10,7 +10,7 @@ import yt
 import glob
 import pickle 
 import foggie.utils.foggie_utils as futils
-from foggie.consistency import axes_label_dict, logfields, categorize_by_temp, \
+from foggie.utils.consistency import axes_label_dict, logfields, categorize_by_temp, \
     categorize_by_metals, categorize_by_fraction
 
 
