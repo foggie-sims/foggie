@@ -30,7 +30,14 @@ def get_run_loc_etc(args):
         foggie_dir = "/User/rsimons/foggie/"
         output_path = "/User/rsimons/foggie/outputs"
         code_path = '/User/rsimons/Desktop/git/foggie/'
-
+    elif args.system == "cassiopeia":
+        foggie_dir = "/astro/simulations/FOGGIE/"
+        output_path = "/Users/clochhaas/Documents/Research/FOGGIE/Outputs/"
+        code_path = "/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/"
+    elif args.system == "pleiades_cassi":
+        foggie_dir = "/nobackup/mpeeples/"
+        output_path = "/home5/clochhaa/FOGGIE/Outputs/"
+        code_path = "/home5/clochhaa/FOGGIE/Code/"
 
     if args.run == "natural":
         run_loc = "halo_00"+ args.halo + "/nref11n/"
