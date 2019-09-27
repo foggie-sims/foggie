@@ -1,3 +1,7 @@
+'''
+a set of consistent colormaps, label names, etc.
+'''
+
 import matplotlib as mpl
 import seaborn as sns
 import collections
@@ -65,10 +69,10 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'Si_p3_number_density': 'log [Si IV Number Density]',
                    }
 
-# this is a dictionary of fields where we prefer to plot or 
-# visualize them in the log rather than the original yt / enzo field. 
+# this is a dictionary of fields where we prefer to plot or
+# visualize them in the log rather than the original yt / enzo field.
 # Try "if field_name in logfields: field_name = log10(field_name)"
-logfields = ('Dark_Matter_Density', 'density', 'temperature', 
+logfields = ('Dark_Matter_Density', 'density', 'temperature',
              'entropy', 'pressure', 'cooling_time',
              'H_p0_number_density', 'H_p0_column_density',
              'O_p0_number_density', 'O_p0_column_density',
@@ -109,6 +113,7 @@ cgm_outer_radius = 200.
 cgm_field_filter = ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max)
 ism_field_filter = ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max)
 
+# these are useful for the refinement levels maps
 discrete_cmap = mpl.colors.ListedColormap(
     ['#565656', '#4daf4a', '#d73027', "#984ea3",
      '#ffe34d', '#4575b4', 'darkorange'])
@@ -364,4 +369,4 @@ colormap_dict = {'frac':ion_frac_color_key, 'phase':new_phase_color_key, 'metal'
 
 proj_max_dict = {'density':1e-1, 'O_p5_number_density':o6_max, 'H_p0_number_density':h1_proj_max}
 proj_min_dict = {'density':1e-6, 'O_p5_number_density':o6_min, 'H_p0_number_density':h1_proj_min}
-background_color_dict = {'density':'black', 'O_p5_number_density':'black', 'H_p0_number_density':'white'} 
+background_color_dict = {'density':'black', 'O_p5_number_density':'black', 'H_p0_number_density':'white'}
