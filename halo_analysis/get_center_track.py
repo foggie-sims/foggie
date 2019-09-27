@@ -1,3 +1,7 @@
+
+""" this is FOGGIE's main routine for generating a halo track from an 
+  initial guess and a set of snapshots - JT and MSP" 
+
 import yt
 from astropy.table import Table
 from astropy.io import ascii
