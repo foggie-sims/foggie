@@ -26,7 +26,7 @@ from holoviews.operation.datashader import aggregate, datashade, dynspread, shad
 from holoviews.operation import decimate
 from holoviews.operation import histogram
 
-from utils.get_halo_center import get_halo_center
+from foggie.utils.get_halo_center import get_halo_center
 
 track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/complete_track_symmetric_50kpc'
 #track_name = '/astro/simulations/FOGGIE/halo_008508/complete_track_symmetric_50kpc'
