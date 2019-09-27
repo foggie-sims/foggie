@@ -18,10 +18,9 @@ import datashader as dshader
 import datashader.transfer_functions as tf
 from foggie.utils import foggie_utils as futils
 import pandas as pd
-import manage_path_names as pathnames
 import foggie.utils.prep_dataframe as prep_dataframe
 
-from consistency import new_phase_color_key, new_metals_color_key, categorize_by_temp, categorize_by_metals
+from foggie.utils.consistency import new_phase_color_key, new_metals_color_key, categorize_by_temp, categorize_by_metals
 
 def create_foggie_cmap_deprecated(**kwargs):
     """ returns two colormaps"""
