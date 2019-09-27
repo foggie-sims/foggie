@@ -1,3 +1,7 @@
+'''
+a set of consistent colormaps, label names, etc.
+'''
+
 import matplotlib as mpl
 import seaborn as sns
 import collections
@@ -65,10 +69,10 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'Si_p3_number_density': 'log [Si IV Number Density]',
                    }
 
-# this is a dictionary of fields where we prefer to plot or 
-# visualize them in the log rather than the original yt / enzo field. 
+# this is a dictionary of fields where we prefer to plot or
+# visualize them in the log rather than the original yt / enzo field.
 # Try "if field_name in logfields: field_name = log10(field_name)"
-logfields = ('Dark_Matter_Density', 'density', 'temperature', 
+logfields = ('Dark_Matter_Density', 'density', 'temperature',
              'entropy', 'pressure', 'cooling_time',
              'H_p0_number_density', 'H_p0_column_density',
              'O_p0_number_density', 'O_p0_column_density',
@@ -364,4 +368,4 @@ colormap_dict = {'frac':ion_frac_color_key, 'phase':new_phase_color_key, 'metal'
 
 proj_max_dict = {'density':1e-1, 'O_p5_number_density':o6_max, 'H_p0_number_density':h1_proj_max}
 proj_min_dict = {'density':1e-6, 'O_p5_number_density':o6_min, 'H_p0_number_density':h1_proj_min}
-background_color_dict = {'density':'black', 'O_p5_number_density':'black', 'H_p0_number_density':'white'} 
+background_color_dict = {'density':'black', 'O_p5_number_density':'black', 'H_p0_number_density':'white'}
