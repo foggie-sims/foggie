@@ -1,7 +1,6 @@
 import astropy
 from astropy.io import fits
 from astropy.convolution import Gaussian2DKernel, convolve_fft
-from joblib import Parallel, delayed
 
 
 plt.ioff()
