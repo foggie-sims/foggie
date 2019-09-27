@@ -1,11 +1,7 @@
-'''
-Filename: enzoGalaxyProps.py
+'''Filename: enzoGalaxyProps.py
 Author: Raymond Simons (rsimons@stsci.edu)
 Determine the center and calculate galaxy properties from an Enzo simulation.
-Dependencies:
-'''
-
-
+Dependencies:'''
 import sys
 import os
 import glob
@@ -14,22 +10,34 @@ import numpy as np
 from numpy import *
 import astropy
 from astropy.cosmology import Planck13 as cosmo
-#import findGalaxyProps as fGP
 import os, sys, argparse
 
 
 
 
-def find_center(dd, ds, units = 'kpc', cen_pos = 10.e3, bin_width = 4.e3, del_pos = 20):
+def find_center(dd, ds, cen_pos = 10.e3, bin_width = 4.e3, del_pos = 20):
     '''
-    find the center using the number density
-    all lengths are in kpc
-    returns ndarray of max_ndens_arr = ([cenx, ceny, cenz])
+    Determine galaxy center, given the refined box
+    returns: max_ndens_arr
     '''
-    units = 'kpc'
-    stars_pos_x = dd['stars', 'particle_position_x'].in_units(units)
-    stars_pos_y = dd['stars', 'particle_position_y'].in_units(units)
-    stars_pos_z = dd['stars', 'particle_position_z'].in_units(units)
+    # Use the center of the refine box as a prior for the center of the galaxy
+
+    small_refine_box = refine_box
+
+    
+
+
+    return center
+
+def find_center_noprior(dd, ds, cen_pos = 10.e3, bin_width = 4.e3, del_pos = 20):
+    '''
+    crude determination of galaxy center
+    returns: max_ndens_arr
+    '''
+
+    stars_pos_x = dd['stars', 'particle_position_x']
+    stars_pos_y = dd['stars', 'particle_position_y']
+    stars_pos_z = dd['stars', 'particle_position_z']
 
     star_pos = [stars_pos_x.value, stars_pos_y.value, stars_pos_z.value]
 
@@ -486,7 +494,7 @@ if __name__=="__main__":
 
 
         print( 'Determining center...')
-        max_ndens_arr = find_center(dd, ds, cen_pos = ds.domain_center.in_units('kpc')[0].value[()], units = 'kpc')
+        max_ndens_arr = find_center(dd, ds, cen_pos = ds.domain_center.in_units('kpc')[0].value[()])
         print( '\tCenter = ', max_ndens_arr)
         sys.stdout.flush()
 

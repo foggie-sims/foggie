@@ -14,10 +14,10 @@ import sys
 from astropy.table import Table
 from astropy.io import ascii
 
-from utils.consistency import *
-from utils.get_refine_box import get_refine_box
-from utils.get_halo_center import get_halo_center
-from utils.get_proper_box_size import get_proper_box_size
+from foggie.utils.consistency import *
+from foggie.utils.get_refine_box import get_refine_box
+from foggie.utils.get_halo_center import get_halo_center
+from foggie.utils.get_proper_box_size import get_proper_box_size
 
 yt.enable_parallelism()
 

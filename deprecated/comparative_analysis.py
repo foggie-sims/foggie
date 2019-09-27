@@ -34,10 +34,10 @@ from holoviews.operation import histogram
 
 from yt.units import kpc,km,s,cm
 
-from utils.get_halo_center import get_halo_center
-from utils.get_refine_box import get_refine_box
-from utils.get_proper_box_size import get_proper_box_size
-from utils.consistency import *
+from foggie.utils.get_halo_center import get_halo_center
+from foggie.utils.get_refine_box import get_refine_box
+from foggie.utils.get_proper_box_size import get_proper_box_size
+from foggie.utils.consistency import *
 
 ## Many of these functions were envisioned to enable the comparison
 ## of different simulation outputs. Using too many simulations at the same
