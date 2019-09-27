@@ -1,5 +1,5 @@
 
-from foggie.consistency import cgm_inner_radius, cgm_outer_radius, cgm_field_filter, ism_field_filter
+from foggie.utils.consistency import cgm_inner_radius, cgm_outer_radius, cgm_field_filter, ism_field_filter
 import numpy as np 
 
 def get_region(data_set, region, filter='None'): 
