@@ -23,10 +23,13 @@ def _radial_rampressure(field, data):
     return np.log10(rp.to('dyne/cm**2').value)
 
 
+
+
+
+### Filter Particles ###
 def _stars(pfilter, data):
     """Filter star particles
     To use: yt.add_particle_filter("stars",function=_stars, filtered_type='all',requires=["particle_type"])"""
-    
     return data[(pfilter.filtered_type, "particle_type")] == 2
 
 
@@ -34,5 +37,26 @@ def _darkmatter(pfilter, data):
     """Filter dark matter particles
     To use: yt.add_particle_filter("darkmatter",function=_darkmatter, filtered_type='all',requires=["particle_type"])"""
     return data[(pfilter.filtered_type, "particle_type")] == 4
+
+
+def filter_particles():
+    """Run the particle filter"""
+    yt.add_particle_filter("stars",function=_stars, filtered_type='all',requires=["particle_type"])
+    yt.add_particle_filter("darkmatter",function=_darkmatter, filtered_type='all',requires=["particle_type"])
+    return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
