@@ -113,6 +113,7 @@ cgm_outer_radius = 200.
 cgm_field_filter = ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max)
 ism_field_filter = ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max)
 
+# these are useful for the refinement levels maps
 discrete_cmap = mpl.colors.ListedColormap(
     ['#565656', '#4daf4a', '#d73027', "#984ea3",
      '#ffe34d', '#4575b4', 'darkorange'])
