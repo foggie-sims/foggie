@@ -11,7 +11,7 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 #Import necessary libraries
 import yt
 import numpy as np
-from utils.get_refine_box import get_refine_box
+from foggie.utils.get_refine_box import get_refine_box
 from astropy.table import Table
 import matplotlib.pyplot as plt
 import math

@@ -7,7 +7,7 @@ from astropy.cosmology import Planck15 as cosmo
 import numpy as np
 import yt
 import math
-from utils.get_refine_box import get_refine_box
+from foggie.utils.get_refine_box import get_refine_box
 from astropy.table import Table
 import matplotlib.pyplot as plt
 

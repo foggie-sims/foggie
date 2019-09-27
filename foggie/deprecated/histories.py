@@ -6,9 +6,9 @@ import numpy as np
 from astropy.table import Table
 import astropy.units as u
 
-from consistency import *
+from foggie.utils.consistency import *
 from get_halo_center import get_halo_center
-from utils.get_proper_box_size import get_proper_box_size
+from foggie.utils.get_proper_box_size import get_proper_box_size
 from modular_plots import get_refine_box
 
 import seaborn as sns
