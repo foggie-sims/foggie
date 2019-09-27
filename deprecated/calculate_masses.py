@@ -1,3 +1,11 @@
+'''
+
+Written by Molly Peeples for FOGGIE I
+
+calculates brute force for old nref11f output the total species mass in the refine box 
+'''
+
+
 import yt
 import numpy as np
 

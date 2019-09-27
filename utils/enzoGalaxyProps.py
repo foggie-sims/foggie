@@ -14,7 +14,7 @@ import numpy as np
 from numpy import *
 import astropy
 from astropy.cosmology import Planck13 as cosmo
-import findGalaxyProps as fGP
+#import findGalaxyProps as fGP
 import os, sys, argparse
 
 
@@ -26,7 +26,7 @@ def find_center(dd, ds, units = 'kpc', cen_pos = 10.e3, bin_width = 4.e3, del_po
     all lengths are in kpc
     returns ndarray of max_ndens_arr = ([cenx, ceny, cenz])
     '''
-    units = 'kpc' 
+    units = 'kpc'
     stars_pos_x = dd['stars', 'particle_position_x'].in_units(units)
     stars_pos_y = dd['stars', 'particle_position_y'].in_units(units)
     stars_pos_z = dd['stars', 'particle_position_z'].in_units(units)
@@ -42,17 +42,17 @@ def find_center(dd, ds, units = 'kpc', cen_pos = 10.e3, bin_width = 4.e3, del_po
     H, edges = histogramdd(star_pos, bins = bins)
     max_ndens_index = unravel_index(H.argmax(), H.shape)
 
-    max_ndens_loc = array([(edges[0][max_ndens_index[0]] + edges[0][max_ndens_index[0]+1])/2., 
+    max_ndens_loc = array([(edges[0][max_ndens_index[0]] + edges[0][max_ndens_index[0]+1])/2.,
                            (edges[1][max_ndens_index[1]] + edges[1][max_ndens_index[1]+1])/2.,
                            (edges[2][max_ndens_index[2]] + edges[2][max_ndens_index[2]+1])/2.])
 
     max_ndens_arr = ds.arr([max_ndens_loc[0], max_ndens_loc[1], max_ndens_loc[2]], units)
-    
+
 
 
     #end of First pass
     print('\tDone with coarse pass searching for center, moving to fine pass')
-        
+
 
     bin_width = 40
     del_pos = 0.5
@@ -72,7 +72,7 @@ def find_center(dd, ds, units = 'kpc', cen_pos = 10.e3, bin_width = 4.e3, del_po
     H, edges = histogramdd(star_pos, bins = bins)
     max_ndens_index = unravel_index(H.argmax(), H.shape)
 
-    max_ndens_loc = array([(edges[0][max_ndens_index[0]] + edges[0][max_ndens_index[0]+1])/2., 
+    max_ndens_loc = array([(edges[0][max_ndens_index[0]] + edges[0][max_ndens_index[0]+1])/2.,
                            (edges[1][max_ndens_index[1]] + edges[1][max_ndens_index[1]+1])/2.,
                            (edges[2][max_ndens_index[2]] + edges[2][max_ndens_index[2]+1])/2.])
 
@@ -91,7 +91,7 @@ def find_rvirial(dd, ds, center, start_rad = 0, delta_rad_coarse = 20, delta_rad
         r0_prev = r0
         r0 = r0_prev + ds.arr(delta_rad_coarse, rad_units)
         v_sphere = ds.sphere(max_ndens_arr, r0)
-        dark_mass   = v_sphere[('darkmatter', 'particle_mass')].in_units('Msun').sum()  
+        dark_mass   = v_sphere[('darkmatter', 'particle_mass')].in_units('Msun').sum()
         rho_internal = dark_mass.in_units('g')/((r0.in_units('cm'))**3.*(pi*4/3.))
         if rho_internal < 200*ds.arr(critical_density,'g')/ds.arr(1.,'cm')**3.:
             #now run fine test
@@ -100,7 +100,7 @@ def find_rvirial(dd, ds, center, start_rad = 0, delta_rad_coarse = 20, delta_rad
             while True:
                 r0 += ds.arr(delta_rad_fine, rad_units)
                 v_sphere = ds.sphere(max_ndens_arr, r0)
-                dark_mass   = v_sphere[('darkmatter', 'particle_mass')].in_units('Msun').sum()  
+                dark_mass   = v_sphere[('darkmatter', 'particle_mass')].in_units('Msun').sum()
                 rho_internal = dark_mass.in_units('g')/((r0.in_units('cm'))**3.*(pi*4/3.))
                 if rho_internal < 200*ds.arr(critical_density,'g')/ds.arr(1.,'cm')**3.:
                     rvir = r0
@@ -108,12 +108,12 @@ def find_rvirial(dd, ds, center, start_rad = 0, delta_rad_coarse = 20, delta_rad
 
 def find_hist_center(positions, masses):
     '''
-    Find the center of a particle distribution by interactively refining 
+    Find the center of a particle distribution by interactively refining
     a mass weighted histogram
     '''
     pos = np.array(positions)
     masses = np.array(masses)
-    if len(pos) == 0: 
+    if len(pos) == 0:
         return None
     mass_current = masses
     old_center = np.array([0,0,0])
@@ -127,7 +127,7 @@ def find_hist_center(positions, masses):
     dist2 = lambda x,y:np.sqrt(np.sum((x-y)**2.0,axis=1))
 
     j=0
-    while len(refined_pos)>1e1 or j==0: 
+    while len(refined_pos)>1e1 or j==0:
         table,bins=np.histogramdd(refined_pos, bins=nbins, weights=refined_mas)
         bin_size = min((np.max(bins,axis=1)-np.min(bins,axis=1))/nbins)
         centeridx = np.where(table==table.max())
@@ -143,14 +143,14 @@ def find_hist_center(positions, masses):
         idx = dist2(refined_pos,center)<bin_size
         refined_pos = refined_pos[idx]
         refined_mas = refined_mas[idx]
-        j+=1    
+        j+=1
 
     return center
 
 def find_shapes(center, pos, ds, nrad=10, rmax=None):
     '''
-    Find the shape of the given particle distribution at nrad different 
-    radii, spanning from 0.1*rmax to rmax. 
+    Find the shape of the given particle distribution at nrad different
+    radii, spanning from 0.1*rmax to rmax.
     rmax = max(r(pos)) if not given.
     '''
 
@@ -167,18 +167,18 @@ def find_shapes(center, pos, ds, nrad=10, rmax=None):
         pos = pos.in_units(units).value
         r = np.sqrt(pos[:,0]**2 + pos[:,1]**2 + pos[:,2]**2)
     except IndexError: # no stars found
-        pos = np.array([])   
+        pos = np.array([])
 
-    if len(pos) > 1: 
+    if len(pos) > 1:
         if not rmax: rmax = r.max()
         radii = np.linspace(0.1*rmax, rmax, nrad)
     else:
         radii = np.array([])
-    
-    c_to_a = np.empty(radii.size)     
+
+    c_to_a = np.empty(radii.size)
     b_to_a = np.empty(radii.size)
     axes = []
-        
+
     for i,r in enumerate(radii):
         # get shapes
         try:
@@ -190,9 +190,9 @@ def find_shapes(center, pos, ds, nrad=10, rmax=None):
             print( 'Not enough particles to find shapes at r = %g in snapshot %s'%(r, ds.parameter_filename ))
             b_to_a[i] = c_to_a[i] = None
             axes.append([])
-    
-    return radii, c_to_a, b_to_a, axes        
-       
+
+    return radii, c_to_a, b_to_a, axes
+
 def L_crossing(x, y, z, vx, vy, vz, weight, center):
     x, y, z = x-center[0], y-center[1],z-center[2]
     cx, cy, cz = y*vz - z*vy, z*vx - x*vz, x*vy - y*vx
@@ -204,7 +204,7 @@ def L_crossing(x, y, z, vx, vy, vz, weight, center):
 def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
 
         print( 'Determining stellar and gas mass...')
-        # Get total stellar mass 
+        # Get total stellar mass
         stars_mass = hc_sphere[('stars', 'particle_mass')].in_units('Msun')
         stars_total_mass = stars_mass.sum().value[()]
         galaxy_props['stars_total_mass'] = np.append(galaxy_props['stars_total_mass'], stars_total_mass)
@@ -212,7 +212,7 @@ def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
         # Get total mass of gas
         gas_mass = hc_sphere[('gas', 'cell_mass')].in_units('Msun')
         gas_total_mass = gas_mass.sum().value[()]
-        galaxy_props['gas_total_mass'] = np.append(galaxy_props['gas_total_mass'], 
+        galaxy_props['gas_total_mass'] = np.append(galaxy_props['gas_total_mass'],
                                                    gas_total_mass)
         print( '\tlog Mgas/Msun = ', log10(gas_total_mass))
         print( '\tlog M*/Msun = ', log10(stars_total_mass))
@@ -225,8 +225,8 @@ def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
 
         print( stars_maxdens)
         #difference bt yt-3.2.3 and yt-3.3dev: stars_maxdens has different # elements; this works for both
-        stars_maxdens_loc = np.array([stars_maxdens[-3].in_units('kpc').value[()], 
-                                      stars_maxdens[-2].in_units('kpc').value[()], 
+        stars_maxdens_loc = np.array([stars_maxdens[-3].in_units('kpc').value[()],
+                                      stars_maxdens[-2].in_units('kpc').value[()],
                                       stars_maxdens[-1].in_units('kpc').value[()]])
         galaxy_props['stars_maxdens'].append((stars_maxdens_val, stars_maxdens_loc))
         print( '\t Max Stellar Density = ', stars_maxdens_loc)
@@ -237,10 +237,10 @@ def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
         # Get max density of gas
         gas_maxdens = hc_sphere.quantities.max_location(('gas', 'density'))
         gas_maxdens_val = gas_maxdens[0].in_units('Msun/kpc**3').value[()]
-        gas_maxdens_loc = np.array([gas_maxdens[-3].in_units('kpc').value[()], 
-                                    gas_maxdens[-2].in_units('kpc').value[()], 
+        gas_maxdens_loc = np.array([gas_maxdens[-3].in_units('kpc').value[()],
+                                    gas_maxdens[-2].in_units('kpc').value[()],
                                     gas_maxdens[-1].in_units('kpc').value[()]])
-        galaxy_props['gas_maxdens'].append((gas_maxdens_val, gas_maxdens_loc)) 
+        galaxy_props['gas_maxdens'].append((gas_maxdens_val, gas_maxdens_loc))
         print( '\t Max Gas Density = ', stars_maxdens_loc)
 
 
@@ -272,13 +272,13 @@ def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
                 p_plot.set_unit('stars_mass', 'Msun')
                 p = p_plot.profiles[0]
 
-                radii, smass = p.x.value, p['stars_mass'].value 
+                radii, smass = p.x.value, p['stars_mass'].value
                 rhalf = radii[smass >= 0.5*smass.max()][0]
         except (IndexError, ValueError): # not enough stars found
-                radii, smass = None, None 
+                radii, smass = None, None
                 rhalf = None
         galaxy_props['stars_rhalf'] = np.append(galaxy_props['stars_rhalf'], rhalf)
-        galaxy_props['stars_mass_profile'].append((radii, smass))       
+        galaxy_props['stars_mass_profile'].append((radii, smass))
 
         print( '\tStars half-light radius = ', rhalf)
 
@@ -293,8 +293,8 @@ def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
         gal_total_mass = gal_stars_mass.sum().value[()]
 
 
-        stars_com = np.array([np.dot(stars_pos_x, gal_stars_mass)/gal_total_mass, 
-                              np.dot(stars_pos_y, gal_stars_mass)/gal_total_mass, 
+        stars_com = np.array([np.dot(stars_pos_x, gal_stars_mass)/gal_total_mass,
+                              np.dot(stars_pos_y, gal_stars_mass)/gal_total_mass,
                               np.dot(stars_pos_z, gal_stars_mass)/gal_total_mass])
         galaxy_props['stars_com'].append(stars_com)
         print( '\tCenter of mass = ', stars_com)
@@ -309,7 +309,7 @@ def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
                 stars_center = stars_com
         elif center == 'maxndens':
                 stars_center = max_ndens_arr
-        else: 
+        else:
                 stars_center = stars_hist_center
 
         stars_center = ds.arr(stars_center, 'kpc')
@@ -321,15 +321,15 @@ def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
 
         # Get angular momentum of stars
         try:
-                x, y, z = [sc_sphere[('stars', 'particle_position_%s'%s)] for s in 'xyz'] 
-                vx, vy, vz = [sc_sphere[('stars', 'particle_velocity_%s'%s)] for s in 'xyz'] 
+                x, y, z = [sc_sphere[('stars', 'particle_position_%s'%s)] for s in 'xyz']
+                vx, vy, vz = [sc_sphere[('stars', 'particle_velocity_%s'%s)] for s in 'xyz']
                 mass = sc_sphere[('stars', 'particle_mass')]
                 try:
                         metals = sc_sphere[('stars', 'particle_metallicity1')]
                         stars_L = L_crossing(x, y, z, vx, vy, vz, mass*metals, sc_sphere.center)
                 except:
                         stars_L = L_crossing(x, y, z, vx, vy, vz, mass, sc_sphere.center)
-                
+
         except IndexError: # no stars found
                 stars_L = [None, None, None]
                 print("No stars exception")
@@ -341,7 +341,7 @@ def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
         # Get angular momentum of gas
         gas_center = ds.arr(gas_maxdens_loc, 'kpc')
         gc_sphere =  ds.sphere(gas_center, ssphere_r)
-        x, y, z = [gc_sphere[('gas', '%s'%s)] for s in 'xyz'] 
+        x, y, z = [gc_sphere[('gas', '%s'%s)] for s in 'xyz']
         cell_volume = gc_sphere[('gas', 'cell_volume')]
 
         try:
@@ -352,10 +352,10 @@ def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
         except:
                 #for enzo runs
                 density=gc_sphere[('gas', 'density')]
-                vx, vy, vz = [gc_sphere[('gas', 'velocity_%s'%s)] for s in 'xyz'] 
+                vx, vy, vz = [gc_sphere[('gas', 'velocity_%s'%s)] for s in 'xyz']
                 metals=gc_sphere[('gas', 'metal_density')]
                 gas_L = L_crossing(x, y, z, density*vx, density*vy, density*vz, metals*cell_volume**2, gc_sphere.center)
-                
+
         galaxy_props['gas_L'].append(gas_L)
         del(gc_sphere)
 
@@ -367,7 +367,7 @@ def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
 def parse():
     '''
     Parse command line arguments
-    ''' 
+    '''
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                      description='''\
                                 Generate the cameras to use in Sunrise and make projection plots
@@ -421,10 +421,10 @@ if __name__=="__main__":
         print( "Sunrise directory: ", snap_dir)
         if not os.path.lexists(snap_dir):
             print ("Creating Sunrise directory:", snap_dir)
-            os.mkdir(snap_dir)        
+            os.mkdir(snap_dir)
         if not os.path.lexists(yt_fig_dir):
             print ("Creating YT figure directory:", yt_fig_dir)
-            os.mkdir(yt_fig_dir)        
+            os.mkdir(yt_fig_dir)
 
 
         new_snapfiles.append(os.path.abspath(sn))
@@ -436,11 +436,11 @@ if __name__=="__main__":
 
     galaxy_props = {}
     fields = ['scale', 'stars_total_mass', 'stars_com', 'stars_maxdens', 'stars_maxndens', 'stars_hist_center',
-              'stars_rhalf', 'stars_mass_profile', 'stars_L','gas_total_mass', 'gas_maxdens', 'gas_L', 'rvir', 
+              'stars_rhalf', 'stars_mass_profile', 'stars_L','gas_total_mass', 'gas_maxdens', 'gas_L', 'rvir',
               'Mvir_dm', 'stars_center','snap_files']
-    for field in fields: 
+    for field in fields:
         if field in ['scale', 'stars_total_mass', 'stars_rhalf', 'gas_total_mass' ]:
-            galaxy_props[field] = np.array([])                
+            galaxy_props[field] = np.array([])
         else:
             galaxy_props[field] = []
 
@@ -470,9 +470,9 @@ if __name__=="__main__":
         ds.domain_left_edge  = ds.arr(ds.domain_left_edge,'code_length')
 
         try:
-            print 'Loading data...'
+            print('Loading data...')
             stars_pos_x = dd['stars', 'particle_position_x'].in_units('kpc')
-            print 'Loaded.'
+            print('Loaded.')
             assert stars_pos_x.shape[0] > 5
         except AttributeError:
             print("No star particles found, skipping: ", snap_dir)
@@ -481,7 +481,7 @@ if __name__=="__main__":
 
         scale = round(1.0/(ds.current_redshift+1.0),3)
         galaxy_props['scale'] = np.append(galaxy_props['scale'], scale)
-    
+
         galaxy_props['snap_files'] = np.append(galaxy_props['snap_files'],snap_dir)
 
 
@@ -498,12 +498,12 @@ if __name__=="__main__":
 
         hc_sphere = ds.sphere(max_ndens_arr, rvir)
 
- 
+
         galaxy_props['stars_maxndens'].append(max_ndens_arr.value)
         galaxy_props['rvir'] = np.append(galaxy_props['rvir'], rvir.value[()])
         galaxy_props['Mvir_dm'] = np.append(galaxy_props['Mvir_dm'], hc_sphere[('darkmatter', 'particle_mass')].in_units('Msun').sum().value[()])
 
-        
+
         #Find Galaxy Properties
         galaxy_props = find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr)
 
@@ -522,23 +522,4 @@ if __name__=="__main__":
     print( '\nSuccessfully computed galaxy properties')
     print( 'Saving galaxy properties to ', galaxy_props_file)
 
-    np.save(galaxy_props_file, galaxy_props)  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    np.save(galaxy_props_file, galaxy_props)
