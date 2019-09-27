@@ -6,8 +6,8 @@ import yt
 from astropy.table import Table
 from astropy.io import ascii
 
-from utils.consistency  import  *
-from utils.get_halo_center import get_halo_center
+from foggie.utils.consistency  import  *
+from foggie.utils.get_halo_center import get_halo_center
 import numpy as np
 
 
