@@ -1,3 +1,13 @@
+'''
+
+Written by Molly Peeples
+
+Last modified June 7, 2019
+
+I am not sure why random_misty_spectra is separate from this ? 
+
+'''
+
 from __future__ import print_function
 import os
 import sys
@@ -7,7 +17,7 @@ import numpy as np
 import yt
 
 os.sys.path.insert(0, '/Users/molly/Dropbox/misty/MISTY-pipeline/MISTY')
-os.sys.path.insert(0, os.environ['FOGGIE_REPO']) 
+os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 import MISTY
 import argparse
 
