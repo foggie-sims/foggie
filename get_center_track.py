@@ -2,7 +2,7 @@ import yt
 from astropy.table import Table
 from astropy.io import ascii
 
-from get_halo_center import get_halo_center
+from utils.get_halo_center import get_halo_center
 import numpy as np
 
 import seaborn as sns
