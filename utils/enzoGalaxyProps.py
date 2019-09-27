@@ -1,3 +1,9 @@
+'''
+Filename: enzoGalaxyProps.py
+Author: Raymond Simons (rsimons@stsci.edu)
+Determine the center and calculate galaxy properties from an Enzo simulation.
+Dependencies:
+'''
 
 
 import sys
@@ -292,12 +298,6 @@ def find_galaxyprops(galaxy_props, ds, hc_sphere, max_ndens_arr):
                               np.dot(stars_pos_z, gal_stars_mass)/gal_total_mass])
         galaxy_props['stars_com'].append(stars_com)
         print( '\tCenter of mass = ', stars_com)
-
-
-
-
-
-
 
 
         print( 'Setting stars center...')
