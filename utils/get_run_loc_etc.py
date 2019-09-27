@@ -34,6 +34,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/Volumes/pegasus/foggie/"
         output_path = "/User/rsimons/foggie/outputs"
         code_path = '/User/rsimons/Desktop/git/foggie/'
+    elif args.system == "pleiades_raymond":
+        foggie_dir = "/nobackup/mpeeples/"
+        output_path = "/nobackupp2/rcsimons/foggie"
+        code_path = '/home/rcsimons/scripts/foggie'
     elif args.system == "cassiopeia":
         #foggie_dir = "/astro/simulations/FOGGIE/"
         foggie_dir = "/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/"
