@@ -33,12 +33,12 @@ from multiprocessing import Pool
 import datetime
 
 # These imports are FOGGIE-specific files
-from utils.consistency import *
-from utils.get_refine_box import get_refine_box
-from utils.get_halo_center import get_halo_center
-from utils.get_proper_box_size import get_proper_box_size
-from utils.get_run_loc_etc import get_run_loc_etc
-from utils.yt_fields import *
+from foggie.utils.consistency import *
+from foggie.utils.get_refine_box import get_refine_box
+from foggie.utils.get_halo_center import get_halo_center
+from foggie.utils.get_proper_box_size import get_proper_box_size
+from foggie.utils.get_run_loc_etc import get_run_loc_etc
+from foggie.utils.yt_fields import *
 
 def parse_args():
     '''Parse command line arguments. Returns args object.
@@ -380,13 +380,13 @@ if __name__ == "__main__":
         halo_center_kpc = YTArray(np.array(halo_center)*proper_box_size, 'kpc')
         halo_velocity_kms = YTArray(halo_velocity, 'km/s')
         # Add the fields we want
-        ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False)
-        ds.add_field(('gas', 'vy_corrected'), function=vy_corrected, units='km/s', take_log=False)
-        ds.add_field(('gas', 'vz_corrected'), function=vz_corrected, units='km/s', take_log=False)
-        ds.add_field(('gas', 'radius'), function=my_radius, units='kpc', take_log=False, force_override=True)
-        ds.add_field(('gas', 'theta_pos'), function=theta_pos, units=None, take_log=False)
-        ds.add_field(('gas', 'phi_pos'), function=phi_pos, units=None, take_log=False)
-        ds.add_field(('gas', 'radial_velocity'), function=my_radial_velocity, units='km/s', take_log=False, \
+        ds.add_field(('gas','vx_corrected'), function=_vx_corrected, units='km/s', take_log=False)
+        ds.add_field(('gas', 'vy_corrected'), function=_vy_corrected, units='km/s', take_log=False)
+        ds.add_field(('gas', 'vz_corrected'), function=_vz_corrected, units='km/s', take_log=False)
+        ds.add_field(('gas', 'radius'), function=_radius, units='kpc', take_log=False, force_override=True)
+        ds.add_field(('gas', 'theta_pos'), function=_theta_pos, units=None, take_log=False)
+        ds.add_field(('gas', 'phi_pos'), function=_phi_pos, units=None, take_log=False)
+        ds.add_field(('gas', 'radial_velocity'), function=_radial_velocity, units='km/s', take_log=False, \
                      force_override=True)
 
         # Do the actual calculation
