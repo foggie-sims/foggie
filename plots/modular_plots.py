@@ -29,9 +29,9 @@ from astropy.table import Table
 
 from utils.consistency import *
 from utils.get_refine_box import get_refine_box
-from get_halo_center import get_halo_center
+from utils.get_halo_center import get_halo_center
 from utils.get_proper_box_size import get_proper_box_size
-from get_run_loc_etc import get_run_loc_etc
+from utils.get_run_loc_etc import get_run_loc_etc
 
 import seaborn as sns
 sns.set_style("whitegrid", {'axes.grid' : False})
