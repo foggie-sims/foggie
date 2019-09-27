@@ -1,9 +1,16 @@
+'''
+
+Makes standalone colorbars for density, temperature, metallicity,
+HI,  SiII, SiIII, SiIV, OVI, CIV. Useful for talks and stuff.
+
+'''
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set_style("whitegrid", {'axes.grid' : False})
 mpl.rcParams['font.family'] = 'serif'
-from paper_consistency import *
+from consistency import *
 
 
 fig = plt.figure(figsize=(2.1,12))
