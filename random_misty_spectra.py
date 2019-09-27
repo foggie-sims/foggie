@@ -8,6 +8,8 @@ python ~/Dropbox/foggie/foggie/random_misty_spectra.py --linelist jt --run nref1
 
 probably last really updated for the FOGGIE I paper?
 
+issues: requires MISTY import that depends on molly's path; assumes tempest halo
+
 '''
 
 from __future__ import print_function
