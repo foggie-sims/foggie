@@ -24,7 +24,7 @@ def _radial_rampressure(field, data):
 
 
 
-def filter_particles(field, data):
+def filter_particles(yt):
     """Run the particle filter"""
 
     ### Filter Particles ###
@@ -41,8 +41,8 @@ def filter_particles(field, data):
         return data[(pfilter.filtered_type, "particle_type")] == 4
 
 
-    ds.add_particle_filter("stars",function=_stars, filtered_type='all',requires=["particle_type"])
-    ds.add_particle_filter("darkmatter",function=_darkmatter, filtered_type='all',requires=["particle_type"])
+    yt.add_particle_filter("stars",function=_stars, filtered_type='all',requires=["particle_type"])
+    yt.add_particle_filter("darkmatter",function=_darkmatter, filtered_type='all',requires=["particle_type"])
     return
 
 def _cooling_criteria(field,data):
