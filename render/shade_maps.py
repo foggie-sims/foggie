@@ -20,7 +20,7 @@ from astropy.table import Table
 import os
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 import foggie.utils as futils
-import foggie.cmap_utils as cmaps
+import foggie.utils.cmap_utils as cmaps
 from foggie.get_halo_center import get_halo_center
 import foggie.utils.get_refine_box as grb
 from foggie.consistency import *
@@ -168,7 +168,8 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
         which can be phase, metal, or an ionization fraction"""
 
     dataset, all_data, halo_center, halo_vcenter = prep_dataset(fname, trackfile, \
-                        ion_list=['H I','C II','C IV','Si IV','O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], 
+                        ion_list=['H I','C II','C III','C IV','Si IV','O I','O II',\
+                                   'O III','O IV','O V','O VI','O VII','O VIII'], 
                         filter=filter, region=region)
 
     print("simple_plot: ", halo_center)
