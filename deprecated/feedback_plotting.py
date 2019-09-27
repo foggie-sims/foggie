@@ -1,3 +1,7 @@
+
+""" FOGGIE early development for visualization of simulations of varying feedback
+started by LC in 2016. last used ???? and moved to 'deprecated' by JT Sept 19""" 
+
 import matplotlib
 matplotlib.use('Agg')
 

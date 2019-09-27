@@ -1,3 +1,7 @@
+""" original code from LC to plot radial profiles of phuysical variables
+with holoviews. most of this functionality has been replaced by shade_maps, 
+which was ultimately based on this. deprecated Sept 2019 by JT" 
+
 import holoviews as hv
 import holoviews.util
 hv.extension('bokeh')

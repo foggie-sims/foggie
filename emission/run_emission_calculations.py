@@ -1,3 +1,5 @@
+""" driver for FOGGIE paper 2 emission calculations - JC""" 
+
 import yt
 import matplotlib.pyplot as plt
 import numpy as np

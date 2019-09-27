@@ -1,3 +1,8 @@
+""" LC's original routine for datashading the radial profiles of 
+phusical variables, with holoviews. Most of this functionality 
+has been integrated with shade_maps and so this is being deprecated 
+by JT Sept 19" 
+
 import holoviews as hv
 import holoviews.util
 hv.extension('bokeh')
