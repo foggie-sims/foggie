@@ -24,7 +24,7 @@ from consistency import new_phase_color_key, new_metals_color_key, species_dict,
 mpl.rcParams['font.family'] = 'stixgeneral'
 from utils import foggie_utils as futils
 import foggie.utils.cmap_utils as cmaps
-import clouds.cloud_utils as clouds
+import foggie.clouds.cloud_utils as clouds
 from get_run_loc_etc import get_run_loc_etc
 
 

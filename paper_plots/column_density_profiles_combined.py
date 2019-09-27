@@ -22,9 +22,9 @@ from datashader import reductions
 from datashader.utils import export_image
 import pandas as pd
 
-from utils.get_refine_box import get_refine_box
-from utils.get_proper_box_size import get_proper_box_size
-from utils.consistency import *
+from foggie.utils.get_refine_box import get_refine_box
+from foggie.utils.get_proper_box_size import get_proper_box_size
+from foggie.utils.consistency import *
 
 def make_pickles():
     import yt
