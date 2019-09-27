@@ -23,9 +23,6 @@ def _radial_rampressure(field, data):
     return np.log10(rp.to('dyne/cm**2').value)
 
 
-
-
-
 ### Filter Particles ###
 def _stars(pfilter, data):
     """Filter star particles
@@ -45,28 +42,11 @@ def filter_particles():
     yt.add_particle_filter("darkmatter",function=_darkmatter, filtered_type='all',requires=["particle_type"])
     return
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def _cooling_criteria(field,data):
     """adds cooling criteria field
     to use: yt.add_field(("gas","cooling_criteria"),function=_cooling_criteria,units=None)"""
     return -1*data['cooling_time'] / ((data['dx']/data['sound_speed']).in_units('s'))
 
-<<<<<<< HEAD
-=======
 def _vx_corrected(field, data):
     """Corrects the x-velocity for bulk motion of the halo. Requires 'halo_velocity_kms', which
     is the halo velocity with yt units of km/s, to be defined."""
@@ -121,4 +101,4 @@ def _phi_pos(field, data):
     z_hat = data['z'].in_units('kpc') - halo_center_kpc[2]
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     return np.arctan2(y_hat, x_hat)
->>>>>>> b6ea86d8357faf9b429e96a7e2638bbaecc9da46
+
