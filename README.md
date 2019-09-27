@@ -1,2 +1,2 @@
 # foggie
-this is the repository for CODE associated with the FOGGIE python analysis package. 
+this is the repository for code for analyzing the FOGGIE simulations
