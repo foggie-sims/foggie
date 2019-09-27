@@ -21,7 +21,7 @@ from holoviews.operation.datashader import aggregate, datashade, dynspread, shad
 from holoviews.operation import decimate
 from holoviews.operation import histogram
 
-from get_halo_center import get_halo_center
+from utils.get_halo_center import get_halo_center
 
 track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/complete_track_symmetric_50kpc'
 

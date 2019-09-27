@@ -21,7 +21,7 @@ from holoviews.operation.datashader import aggregate, datashade, dynspread, shad
 from holoviews.operation import decimate
 from holoviews.operation import histogram
 
-from get_halo_center import get_halo_center
+from utils.get_halo_center import get_halo_center
 
 track_name = '/Users/dalek/data/Jason/symmetric_box_tracking/complete_track_symmetric_50kpc'
 #track_name = '/astro/simulations/FOGGIE/halo_008508/complete_track_symmetric_50kpc'
@@ -143,4 +143,3 @@ filenames = ['/Users/dalek/data/Jason/symmetric_box_tracking/nref11f_sym50kpc/RD
 
 plot_radial_profiles(filenames,'nref11_fn_RD0042_basic')
 plot_phase_diagrams(filenames,'nref11_fn_RD0042_phase')
-
