@@ -26,6 +26,7 @@ setup(name="foggie",
       install_requires=[
           'numpy',
           'yt>=3.4',
+          'astropy',
           'trident',
           'datashader',
           'seaborn'
