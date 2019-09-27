@@ -26,6 +26,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/astro/simulations/FOGGIE/"
         output_path = "/Users/tumlinson/Dropbox/foggie/collab/"
         code_path = '/Users/tumlinson/Dropbox/FOGGIE/foggie/'
+    elif args.system == "jase":
+        foggie_dir = "/User/rsimons/foggie/"
+        output_path = "/User/rsimons/foggie/outputs"
+        code_path = '/User/rsimons/Desktop/git/foggie/'
 
 
     if args.run == "natural":
