@@ -23,7 +23,7 @@ os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 from consistency import new_phase_color_key, new_metals_color_key, species_dict, core_width
 mpl.rcParams['font.family'] = 'stixgeneral'
 from utils import foggie_utils as futils
-import cmap_utils as cmaps
+import foggie.utils.cmap_utils as cmaps
 import clouds.cloud_utils as clouds
 from get_run_loc_etc import get_run_loc_etc
 
