@@ -1,3 +1,13 @@
+'''
+Written by Molly Peeples
+
+makes all the slices and projection plots you could possibly want and probably some others
+
+will put output physical plots in a hopefully correct "physical/" directory and the ion
+plots in a "ions/" directory in what should be a well-organzied plots directory for that halo
+'''
+
+
 from __future__ import print_function
 
 import numpy as np
@@ -17,7 +27,7 @@ except ImportError:
 
 from astropy.table import Table
 
-from consistency import *
+from utils.consistency import *
 from utils.get_refine_box import get_refine_box
 from get_halo_center import get_halo_center
 from utils.get_proper_box_size import get_proper_box_size

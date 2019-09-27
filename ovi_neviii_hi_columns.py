@@ -1,3 +1,12 @@
+'''
+November 2018
+Molly Peeples
+
+calculates OVI and NeVIII columns (medians, percentiles, ratios);
+largely for comparison to CASBAH  data 
+
+'''
+
 from __future__ import print_function
 
 import numpy as np
@@ -9,7 +18,7 @@ import argparse
 import pickle
 
 
-from get_refine_box import get_refine_box
+from utils.get_refine_box import get_refine_box
 from utils.get_proper_box_size import get_proper_box_size
 
 
