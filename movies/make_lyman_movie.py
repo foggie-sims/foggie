@@ -18,10 +18,10 @@ from astropy.table import Table
 from astropy.io import fits
 from astropy.convolution import Gaussian1DKernel, convolve
 
-from get_proper_box_size import get_proper_box_size
-from get_refine_box import get_refine_box
-from get_halo_center import get_halo_center
-from consistency import *
+from foggie.utils.get_proper_box_size import get_proper_box_size
+from foggie.utils.get_refine_box import get_refine_box
+from foggie.utils.get_halo_center import get_halo_center
+from foggie.utils.consistency import *
 
 def extract_spectra(ds, impact, **kwargs):
     read_fits_file = kwargs.get('read_fits_file', False)
