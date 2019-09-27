@@ -1,3 +1,15 @@
+'''
+generates random spectra, through just the refine region, along just the cardinal axes
+
+usage:
+python random_misty_spectra.py --linelist linelist --run run --system system --axis axis --Nrays N --seed seed
+so, e.g.:
+python ~/Dropbox/foggie/foggie/random_misty_spectra.py --linelist jt --run nref11c --system palmetto --axis x --Nrays 10 --seed 101
+
+probably last really updated for the FOGGIE I paper?
+
+'''
+
 from __future__ import print_function
 import trident
 import numpy as np
@@ -11,7 +23,7 @@ import os
 import argparse
 
 from astropy.table import Table
-
+import consistency
 from utils.get_refine_box import get_refine_box
 from utils.get_proper_box_size import get_proper_box_size
 from get_halo_center import get_halo_center
@@ -241,21 +253,11 @@ if __name__ == "__main__":
     run_dir = foggie_dir + run_loc
 
     if args.linelist == 'long':
-        line_list = ['H I 1216', 'H I 1026', 'H I 973',
-                       'H I 950', 'H I 919', 'Al II 1671', 'Al III 1855', \
-                       'Si II 1260', 'Si III 1206', 'Si IV 1394', \
-                       'C II 1335', 'C III 977', 'C IV 1548', \
-                       'O VI 1032', 'Ne VIII 770']
+        line_list = linelist_long
     elif args.linelist == 'kodiaq':
-        line_list = ['H I 1216', 'H I 919', \
-                        'Si II 1260', 'Si III 1206', 'Si IV 1394',
-                        'C II 1335', 'C III 977', 'C IV 1548',
-                         'O VI 1032']
+        line_list = linelist_kodiaq
     elif args.linelist == 'jt':
-        line_list = ['H I 1216', 'H I 919', \
-                        'Mg II 2796', 'Si II 1260', 'Si III 1206', 'Si IV 1394', \
-                        'C II 1335', 'C III 977', 'C IV 1548',\
-                        'O VI 1032', 'Ne VIII 770']
+        line_list = linelist_jt
     else: ## short --- these are what show_velphase has
         line_list = ['H I 1216', 'Si II 1260', 'O VI 1032']
 
