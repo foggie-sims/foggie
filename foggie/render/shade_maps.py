@@ -141,24 +141,21 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
 
     return fig
 
-def render_image(frame, field1, field2, count_cat, x_range, y_range, filename):
+def render_image(frame, field1, field2, colorcode, x_range, y_range, filename):
     """ renders density and temperature 'Phase' with linear aggregation"""
 
     cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
-    agg = cvs.points(frame, field1, field2, dshader.count_cat(count_cat))
-    img = tf.spread(tf.shade(agg, color_key=colormap_dict[count_cat], how='eq_hist',min_alpha=50), px=0) 
-    export_image(img, filename)
-    return img
 
-def summed_image(frame, field1, field2, count_cat, x_range, y_range, filename):
-    """ renders density and temperature 'Phase' with linear aggregation
-        CURRENTLY DOES NOT WORK. DON'T USE IT. """
+    if ('ion_frac' in colorcode): 
+        print("calling mean aggregator on colorcode = ", colorcode)
+        agg = cvs.points(frame, field1, field2, dshader.max(colorcode))
+        img = tf.spread(tf.shade(agg, cmap=colormap_dict[colorcode], how='eq_hist',min_alpha=50), px=0) 
+    else: 
+        agg = cvs.points(frame, field1, field2, dshader.count_cat(colorcode))
+        img = tf.spread(tf.shade(agg, color_key=colormap_dict[colorcode], how='eq_hist',min_alpha=50), px=0) 
 
-    cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
-    #this call to 'agg' needs to change if we want a summed map, like projected column density 
-    agg = cvs.points(frame, field1, field2, dshader.sum(count_cat))
-    img = tf.spread(tf.shade(agg, color_key="magma", how='log', min_alpha=50), px=0) 
     export_image(img, filename)
+    
     return img
 
 def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, region='trackbox',
@@ -172,8 +169,6 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
                                    'O III','O IV','O V','O VI','O VII','O VIII'], 
                         filter=filter, region=region)
 
-    print("simple_plot: ", halo_center)
-
     if ('none' not in screenfield): 
         field_list = [field1, field2, screenfield]
     else: 
@@ -183,7 +178,6 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
                         halo_center = halo_center, halo_vcenter=halo_vcenter)
 
     print(data_frame.head()) 
-    if ('ion_fraction' in colorcode): colorcode = 'frac'
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
 
     # if there is to be screening of the df, it should happen here. 

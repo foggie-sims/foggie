@@ -228,10 +228,7 @@ def categorize_by_fraction(f_ion):
     frac[f_ion > 0.1]  = b'high'  # red
     return frac
 
-ion_frac_color_key = {b'all': 'black',
-                      b'low': 'yellow',
-                      b'med': 'orange',
-                      b'high': 'red'}
+ion_frac_color_key = sns.palplot(sns.blend_palette(("grey","#ff6600"), n_colors=10),size=1.5)
 
 # set up the temperature colormap
 temp_colors = sns.blend_palette(
@@ -307,7 +304,6 @@ def categorize_by_metals(metal):
     phase[metal < metal_vals[2]] = b'free2'
     phase[metal < metal_vals[1]] = b'free1'
     phase[metal < metal_vals[0]] = b'free'
-    print(phase)
     return phase
 
 hi_colors =  sns.blend_palette(("white", "#ababab", "#565656", "black",
@@ -375,11 +371,13 @@ def categorize_by_hi(hi):
     phase[hi < hi_vals[2]] = b'free2'
     phase[hi < hi_vals[1]] = b'free1'
     phase[hi < hi_vals[0]] = b'free'
-    #print(phase)
     return phase
 
-colormap_dict = {'frac':ion_frac_color_key, 'phase':new_phase_color_key, 'metal':new_metals_color_key,
-    'h1':hi_color_key, 'density':density_color_map, 'O_p5_number_density':"magma", 'H_p0_number_density':h1_color_map}
+colormap_dict = {'phase':new_phase_color_key, 'metal':new_metals_color_key,
+    'h1':hi_color_key, 'density':density_color_map, 
+    'H_p0_number_density':h1_color_map, 'H_p0_ion_fraction':mpl.cm.get_cmap(h1_color_map),
+    'O_p4_number_density':h1_color_map, 'O_p4_ion_fraction':mpl.cm.get_cmap(h1_color_map),
+    'O_p5_number_density':h1_color_map, 'O_p5_ion_fraction':mpl.cm.get_cmap(h1_color_map)}
 
 proj_max_dict = {'density':1e-1, 'O_p5_number_density':o6_max, 'H_p0_number_density':h1_proj_max}
 proj_min_dict = {'density':1e-6, 'O_p5_number_density':o6_min, 'H_p0_number_density':h1_proj_min}

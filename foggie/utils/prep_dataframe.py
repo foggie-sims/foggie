@@ -187,9 +187,6 @@ def prep_dataframe(dataset, all_data, field_list, category, \
     if ('ion_fraction' in category):
         if (category not in data_frame.columns):
             data_frame[category] = all_data[category]
-
-        data_frame['frac'] = categorize_by_fraction(all_data[category])
-        data_frame.frac = data_frame.frac.astype('category')
-        print('Added frac = '+category+'category to the dataframe')
+        print('Added frac = '+category+' category to the dataframe')
 
     return data_frame
