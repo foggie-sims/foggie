@@ -38,7 +38,13 @@ from foggie.utils.get_refine_box import get_refine_box
 from foggie.utils.get_halo_center import get_halo_center
 from foggie.utils.get_proper_box_size import get_proper_box_size
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
+#from foggie.utils.yt_fields import _vx_corrected as _vx_corrected
+#from foggie.utils.yt_fields import _vx_corrected as _vy_corrected
+#from foggie.utils.yt_fields import _vx_corrected as _vz_corrected
+#from foggie.utils.yt_fields import _radius as _radius
+#from foggie.utils.yt_fields import _theta_pos as _theta_pos
 from foggie.utils.yt_fields import *
+
 
 def parse_args():
     '''Parse command line arguments. Returns args object.
@@ -347,7 +353,7 @@ if __name__ == "__main__":
     else: outs = [args.output]
 
     # Set directory for output location, making it if necessary
-    prefix = output_dir + 'fluxes_halo_00' + str(halo) + '/' + run + '/'
+    prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
 
     for i in range(len(outs)):
@@ -364,7 +370,7 @@ if __name__ == "__main__":
 
         # Load snapshot
         print ('Opening snapshot ' + snap)
-        ds = yt.load(run_dir + snap + '/' + snap)
+        ds = yt.load(foggie_dir + run_dir + snap + '/' + snap)
 
         # Get the refined box in physical units
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
@@ -380,13 +386,13 @@ if __name__ == "__main__":
         halo_center_kpc = YTArray(np.array(halo_center)*proper_box_size, 'kpc')
         halo_velocity_kms = YTArray(halo_velocity, 'km/s')
         # Add the fields we want
-        ds.add_field(('gas','vx_corrected'), function=_vx_corrected, units='km/s', take_log=False)
-        ds.add_field(('gas', 'vy_corrected'), function=_vy_corrected, units='km/s', take_log=False)
-        ds.add_field(('gas', 'vz_corrected'), function=_vz_corrected, units='km/s', take_log=False)
-        ds.add_field(('gas', 'radius'), function=_radius, units='kpc', take_log=False, force_override=True)
-        ds.add_field(('gas', 'theta_pos'), function=_theta_pos, units=None, take_log=False)
-        ds.add_field(('gas', 'phi_pos'), function=_phi_pos, units=None, take_log=False)
-        ds.add_field(('gas', 'radial_velocity'), function=_radial_velocity, units='km/s', take_log=False, \
+        yt.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False)
+        yt.add_field(('gas', 'vy_corrected'), function=vy_corrected, units='km/s', take_log=False)
+        yt.add_field(('gas', 'vz_corrected'), function=vz_corrected, units='km/s', take_log=False)
+        yt.add_field(('gas', 'radius'), function=radius_corrected, units='kpc', take_log=False, force_override=True)
+        yt.add_field(('gas', 'theta_pos'), function=theta_pos, units=None, take_log=False)
+        yt.add_field(('gas', 'phi_pos'), function=phi_pos, units=None, take_log=False)
+        yt.add_field(('gas', 'radial_velocity'), function=radial_velocity_corrected, units='km/s', take_log=False, \
                      force_override=True)
 
         # Do the actual calculation

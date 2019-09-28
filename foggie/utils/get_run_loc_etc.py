@@ -42,7 +42,7 @@ def get_run_loc_etc(args):
         #foggie_dir = "/astro/simulations/FOGGIE/"
         foggie_dir = "/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/"
         output_path = "/Users/clochhaas/Documents/Research/FOGGIE/Outputs/"
-        code_path = "/Users/clochhaas/Documents/Research/FOGGIE/foggie/"
+        code_path = "/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/"
     elif args.system == "pleiades_cassi":
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/home5/clochhaa/FOGGIE/Outputs/"
