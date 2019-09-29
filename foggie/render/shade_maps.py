@@ -147,9 +147,24 @@ def render_image(frame, field1, field2, colorcode, x_range, y_range, filename):
     cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
 
     if ('ion_frac' in colorcode): 
+        if ('p0' in colorcode): 
+            cmap = "Greys"
+        elif ('p1' in colorcode):
+            cmap = "Purples" 
+        elif ('p2' in colorcode):
+            cmap = "Blues" 
+        elif ('p3' in colorcode):
+            cmap = "Greens" 
+        elif ('p4' in colorcode): 
+            cmap = "Oranges"
+        elif ('p5' in colorcode):
+            cmap = "Reds"
+        else: 
+            cmap = "plasma"
+
         print("calling mean aggregator on colorcode = ", colorcode)
-        agg = cvs.points(frame, field1, field2, dshader.max(colorcode))
-        img = tf.spread(tf.shade(agg, cmap=colormap_dict[colorcode], how='eq_hist',min_alpha=50), px=0) 
+        agg = cvs.points(frame, field1, field2, dshader.mean(colorcode))
+        img = tf.spread(tf.shade(agg, cmap=mpl.cm.get_cmap(cmap), how='eq_hist',min_alpha=0), px=0) 
     else: 
         agg = cvs.points(frame, field1, field2, dshader.count_cat(colorcode))
         img = tf.spread(tf.shade(agg, color_key=colormap_dict[colorcode], how='eq_hist',min_alpha=50), px=0) 
@@ -165,8 +180,8 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
         which can be phase, metal, or an ionization fraction"""
 
     dataset, all_data, halo_center, halo_vcenter = prep_dataset(fname, trackfile, \
-                        ion_list=['H I','C II','C III','C IV','Si IV','O I','O II',\
-                                   'O III','O IV','O V','O VI','O VII','O VIII'], 
+                        ion_list=['H I','C II','C III','C IV','Si II','Si III','Si IV',\
+                                    'O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], 
                         filter=filter, region=region)
 
     if ('none' not in screenfield): 

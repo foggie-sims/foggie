@@ -374,10 +374,8 @@ def categorize_by_hi(hi):
     return phase
 
 colormap_dict = {'phase':new_phase_color_key, 'metal':new_metals_color_key,
-    'h1':hi_color_key, 'density':density_color_map, 
-    'H_p0_number_density':h1_color_map, 'H_p0_ion_fraction':mpl.cm.get_cmap(h1_color_map),
-    'O_p4_number_density':h1_color_map, 'O_p4_ion_fraction':mpl.cm.get_cmap(h1_color_map),
-    'O_p5_number_density':h1_color_map, 'O_p5_ion_fraction':mpl.cm.get_cmap(h1_color_map)}
+    'h1':hi_color_key, 'density':density_color_map}
+
 
 proj_max_dict = {'density':1e-1, 'O_p5_number_density':o6_max, 'H_p0_number_density':h1_proj_max}
 proj_min_dict = {'density':1e-6, 'O_p5_number_density':o6_min, 'H_p0_number_density':h1_proj_min}
