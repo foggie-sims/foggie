@@ -877,11 +877,11 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
 
     # Save to file
     data = set_table_units(data)
-    data.write(tablename + '_more.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    data.write(tablename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     if (quadrants):
         data_q = set_table_units(data_q)
-        data_q.write(tablename + '_q_more.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        data_q.write(tablename + '_q.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     return "Fluxes have been calculated for snapshot" + snap + "!"
 
