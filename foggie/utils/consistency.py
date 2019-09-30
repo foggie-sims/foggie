@@ -198,6 +198,10 @@ c2_color_map = "plasma"
 c2_min = 1.e10
 c2_max = 1.e17
 
+c3_color_map = "magma"
+c3_min = 1.e11
+c3_max = 1.e16
+
 si2_color_map = "plasma"
 si2_min = 1.e10
 si2_max = 1.e17
@@ -374,9 +378,29 @@ def categorize_by_hi(hi):
     return phase
 
 colormap_dict = {'phase':new_phase_color_key, 'metal':new_metals_color_key,
-    'h1':hi_color_key, 'density':density_color_map}
+    'h1':hi_color_key, 'density':density_color_map, 'O_p5_number_density':o6_color_map, 
+    'H_p0_number_density':h1_color_map, 'C_p1_number_density': c2_color_map, 
+    'C_p3_number_density':c4_color_map}
 
 
-proj_max_dict = {'density':1e-1, 'O_p5_number_density':o6_max, 'H_p0_number_density':h1_proj_max}
-proj_min_dict = {'density':1e-6, 'O_p5_number_density':o6_min, 'H_p0_number_density':h1_proj_min}
-background_color_dict = {'density':'black', 'O_p5_number_density':'black', 'H_p0_number_density':'white'}
+proj_max_dict = {'density':1e-1, 'H_p0_number_density':h1_proj_max, 
+                  'C_p1_number_density':c2_max, 'C_p2_number_density':c3_max, 
+                  'C_p3_number_density':c4_max, 'Si_p1_number_density':si2_max, 
+                  'Si_p2_number_density':si3_max, 'Si_p3_number_density':si4_max, 
+                  'Mg_p1_number_density':mg2_max, 'O_p5_number_density':o6_max,
+                  'Ne_p7_number_density':ne8_max}
+
+
+proj_min_dict = {'density':1e-6, 'H_p0_number_density':h1_proj_min, 
+                  'C_p1_number_density':c2_min, 'C_p2_number_density':c3_min, 
+                  'C_p3_number_density':c4_min, 'Si_p1_number_density':si2_min, 
+                  'Si_p2_number_density':si3_min, 'Si_p3_number_density':si4_min, 
+                  'Mg_p1_number_density':mg2_min, 'O_p5_number_density':o6_min,
+                  'Ne_p7_number_density':ne8_min}
+
+background_color_dict = {'density':'black', 'H_p0_number_density':'white', 
+                  'C_p1_number_density':'black', 'C_p2_number_density':'black', 
+                  'C_p3_number_density':'black', 'Si_p1_number_density':'black', 
+                  'Si_p2_number_density':'black', 'Si_p3_number_density':'black', 
+                  'Mg_p1_number_density':'black', 'O_p5_number_density':'black',
+                  'Ne_p7_number_density':'black'}
