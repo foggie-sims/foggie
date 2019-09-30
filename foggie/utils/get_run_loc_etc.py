@@ -69,6 +69,8 @@ def get_run_loc_etc(args):
         path_part = run_loc
         output_dir = output_path + "plots_"+path_part
         spectra_dir = output_dir+"spectra/"
+        if args.system=='cassiopeia' or args.system=='pleiades_cassi':
+            output_dir = output_path
 
     if args.pwd:
         print('using pwd args')

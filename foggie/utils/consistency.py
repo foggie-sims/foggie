@@ -232,7 +232,11 @@ def categorize_by_fraction(f_ion):
     frac[f_ion > 0.1]  = b'high'  # red
     return frac
 
-ion_frac_color_key = sns.palplot(sns.blend_palette(("grey","#ff6600"), n_colors=10),size=1.5)
+# I'm commenting this out because it produces a figure for no reason and doesn't appear to be
+# used by any other files currently in the foggie repo. -Cassi
+#ion_frac_color_key = sns.palplot(sns.blend_palette(("grey","#ff6600"), n_colors=10),size=1.5)
+# Just in case this is needed, this might work instead without producing a figure:
+ion_frac_color_key = sns.blend_palette(("grey","#ff6600"), n_colors=10)
 
 # set up the temperature colormap
 temp_colors = sns.blend_palette(
