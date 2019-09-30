@@ -38,11 +38,6 @@ from foggie.utils.get_refine_box import get_refine_box
 from foggie.utils.get_halo_center import get_halo_center
 from foggie.utils.get_proper_box_size import get_proper_box_size
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
-#from foggie.utils.yt_fields import _vx_corrected as _vx_corrected
-#from foggie.utils.yt_fields import _vx_corrected as _vy_corrected
-#from foggie.utils.yt_fields import _vx_corrected as _vz_corrected
-#from foggie.utils.yt_fields import _radius as _radius
-#from foggie.utils.yt_fields import _theta_pos as _theta_pos
 from foggie.utils.yt_fields import *
 
 
@@ -62,7 +57,9 @@ def parse_args():
     parser.set_defaults(run='nref11c_nref9f')
 
     parser.add_argument('--output', metavar='output', type=str, action='store', \
-                        help='Which output? Default is RD0036')
+                        help='Which output(s)? Options: Specify a single output (this is default' \
+                        + ' and the default output is RD0036) or specify a range of outputs ' + \
+                        '(e.g. "RD0020,RD0025" or "DD1340,DD2029").')
     parser.set_defaults(output='RD0036')
 
     parser.add_argument('--system', metavar='system', type=str, action='store', \
@@ -78,10 +75,16 @@ def parse_args():
                         ' and nothing else is implemented right now')
     parser.set_defaults(surface='sphere')
 
-    parser.add_arguments('--quadrants', dest='quadrants', type=bool, action='store', \
+    parser.add_argument('--quadrants', dest='quadrants', type=bool, action='store', \
                          help='Do you want to compute in quadrants? Default is False,' + \
                          ' which computes for whole domain')
     parser.set_defaults(quadrants=False)
+
+    parser.add_argument('--nproc', metavar='nproc', type=int, action='store', \
+                        help='How many processes do you want? Default is 1 ' + \
+                        '(no parallelization), if multiple outputs and multiple processors are' + \
+                        ' specified, code will run one output per processor')
+    parser.set_defaults(nproc=1)
 
 
     args = parser.parse_args()
@@ -149,7 +152,8 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
         dr = r_high - r_low
         r = (r_low + r_high)/2.
 
-        if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)-1))
+        if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)-1) + \
+                            " for snapshot " + snap)
 
         # Make the spheres and shell for computing
         inner_sphere = ds.sphere(ds.halo_center_kpc, r_low)
@@ -363,6 +367,7 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
                       warm_mass_flux_out, net_hot_mass_flux, hot_mass_flux_in, \
                       hot_mass_flux_out])
 
+    # Save to file
     data = set_table_units(data)
     data.write(tablename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
@@ -372,77 +377,115 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
 
     return "Fluxes have been calculated for snapshot" + snap + "!"
 
+def load_and_calculate(args):
+    '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
+    'foggie_dir', the halo track 'track', the name of the table to output, and a boolean
+    'quadrants' that specifies whether or not to compute in quadrants vs. the whole domain, then
+    does the calculation on the loaded snapshot.'''
+
+    foggie_dir, run_dir, track, snap, tablename, quadrants = args
+
+    # Load snapshot
+    print ('Opening snapshot ' + snap)
+    ds = yt.load(foggie_dir + run_dir + snap + '/' + snap)
+
+    # Get the refined box in physical units
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    proper_box_size = get_proper_box_size(ds)
+    refine_box, refine_box_center, refine_width_code = get_refine_box(ds, zsnap, track)
+    refine_width = refine_width_code * proper_box_size
+    refine_width_kpc = YTArray([refine_width], 'kpc')
+
+    # Get halo center
+    halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
+
+    # Define the halo center in kpc and the halo velocity in km/s
+    halo_center_kpc = YTArray(np.array(halo_center)*proper_box_size, 'kpc')
+    halo_velocity_kms = YTArray(halo_velocity).in_units('km/s')
+    ds.halo_center_kpc = halo_center_kpc
+    ds.halo_velocity_kms = halo_velocity_kms
+
+    # Add the fields we want
+    ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
+                 sampling_type='cell')
+    ds.add_field(('gas', 'vy_corrected'), function=vy_corrected, units='km/s', take_log=False, \
+                 sampling_type='cell')
+    ds.add_field(('gas', 'vz_corrected'), function=vz_corrected, units='km/s', take_log=False, \
+                 sampling_type='cell')
+    ds.add_field(('gas', 'radius_corrected'), function=radius_corrected, units='kpc', \
+                 take_log=False, force_override=True, sampling_type='cell')
+    ds.add_field(('gas', 'theta_pos'), function=theta_pos, units=None, take_log=False, \
+                 sampling_type='cell')
+    ds.add_field(('gas', 'phi_pos'), function=phi_pos, units=None, take_log=False, \
+                 sampling_type='cell')
+    ds.add_field(('gas', 'radial_velocity_corrected'), function=radial_velocity_corrected, \
+                 units='km/s', take_log=False, force_override=True, sampling_type='cell')
+
+    # Do the actual calculation
+    message = calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, \
+                          quadrants=quadrants)
+    print(message)
+    print(str(datetime.datetime.now()))
+
+
 if __name__ == "__main__":
     args = parse_args()
     print(args.halo)
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    if ('/astro/simulations/' in foggie_dir):
+        run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'
 
-    # Make the list of snapshots to do this for
-    print("Starting...")
-    print(str(datetime.datetime.now()))
-    if (args.output == 'all'): outs = args.output
+    # Build output list
+    if (',' in args.output):
+        ind = args.output.find(',')
+        first = args.output[2:ind]
+        last = args.output[ind+3:]
+        output_type = args.output[:2]
+        outs = []
+        for i in range(int(first), int(last)+1):
+            if (i < 10):
+                pad = '000'
+            elif (i >= 10) and (i < 100):
+                pad = '00'
+            elif (i >= 100) and (i < 1000):
+                pad = '0'
+            elif (i >= 1000):
+                pad = ''
+            outs.append(output_type + pad + str(i))
     else: outs = [args.output]
 
     # Set directory for output location, making it if necessary
     prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
 
-    for i in range(len(outs)):
-        snap = outs[i]
+    # Load halo track
+    print('foggie_dir: ', foggie_dir)
+    print('Opening track: ' + trackname)
+    track = Table.read(trackname, format='ascii')
+    track.sort('col1')
 
-        # Load halo track
-        print('foggie_dir: ', foggie_dir)
-        print('Opening track: ' + trackname)
-        track = Table.read(trackname, format='ascii')
-        track.sort('col1')
-
-        # Define where the table will be saved to
-        tablename = prefix + snap + '_fluxes'
-
-        # Load snapshot
-        print ('Opening snapshot ' + snap)
-        ds = yt.load(foggie_dir + run_dir + snap + '/' + snap)
-
-        # Get the refined box in physical units
-        zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-        proper_box_size = get_proper_box_size(ds)
-        refine_box, refine_box_center, refine_width_code = get_refine_box(ds, zsnap, track)
-        refine_width = refine_width_code * proper_box_size
-        refine_width_kpc = YTArray([refine_width], 'kpc')
-
-        # Get halo center
-        halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
-
-        # Define the halo center in kpc and the halo velocity in km/s
-        halo_center_kpc = YTArray(np.array(halo_center)*proper_box_size, 'kpc')
-        halo_velocity_kms = YTArray(halo_velocity).in_units('km/s')
-        ds.halo_center_kpc = halo_center_kpc
-        ds.halo_velocity_kms = halo_velocity_kms
-
-        # Add the fields we want
-        ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
-                     sampling_type='cell')
-        ds.add_field(('gas', 'vy_corrected'), function=vy_corrected, units='km/s', take_log=False, \
-                     sampling_type='cell')
-        ds.add_field(('gas', 'vz_corrected'), function=vz_corrected, units='km/s', take_log=False, \
-                     sampling_type='cell')
-        ds.add_field(('gas', 'radius_corrected'), function=radius_corrected, units='kpc', \
-                     take_log=False, force_override=True, sampling_type='cell')
-        ds.add_field(('gas', 'theta_pos'), function=theta_pos, units=None, take_log=False, \
-                     sampling_type='cell')
-        ds.add_field(('gas', 'phi_pos'), function=phi_pos, units=None, take_log=False, \
-                     sampling_type='cell')
-        ds.add_field(('gas', 'radial_velocity_corrected'), function=radial_velocity_corrected, \
-                     units='km/s', take_log=False, force_override=True, sampling_type='cell')
-
+    # Loop over outputs, for either single-processor or parallel processor computing
+    if (args.nproc==1):
+        for i in range(len(outs)):
+            snap = outs[i]
+            # Make the output table name for this snapshot
+            tablename = prefix + snap + '_fluxes'
+            # Do the actual calculation
+            load_and_calculate((foggie_dir, run_dir, track, snap, tablename, args.quadrants))
+    else:
+        looper = []
+        for i in range(len(outs)):
+            snap = outs[i]
+            # Make the output table name for this snapshot
+            tablename = prefix + snap + '_fluxes'
+            # Add all the arguments to load_and_calculate to a list
+            looper.append((foggie_dir, run_dir, track, snap, tablename, args.quadrants))
+        # Initialize the processor pool
+        pool = Pool(args.nproc)
         # Do the actual calculation
-        message = calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, \
-                              quadrants=args.quadrants)
-        print(message)
-        print(str(datetime.datetime.now()))
-
+        pool.map(load_and_calculate, looper)
 
     print(str(datetime.datetime.now()))
     sys.exit("All snapshots finished!")
