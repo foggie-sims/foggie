@@ -115,3 +115,9 @@ def phi_pos(field, data):
     z_hat = data['z'].in_units('kpc') - halo_center_kpc[2]
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     return np.arctan2(y_hat, x_hat)
+
+def kinetic_energy_corrected(field, data):
+    """Calculates the kinetic energy of cells relative to the center of the halo and corrected
+    for the halo velocity. Requires 'halo_velociy_kms', which is the halo velocity with yt
+    units of km/s, to be defined."""
+    return 0.5 * data['cell_mass'] * data['radial_velocity_corrected']**2.

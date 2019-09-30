@@ -102,7 +102,36 @@ def set_table_units(table):
              'cool_mass_flux_in':'Msun/yr', 'cool_mass_flux_out':'Msun/yr', \
              'net_warm_mass_flux':'Msun/yr', 'warm_mass_flux_in':'Msun/yr', \
              'warm_mass_flux_out':'Msun/yr', 'net_hot_mass_flux' :'Msun/yr', \
-             'hot_mass_flux_in' :'Msun/yr', 'hot_mass_flux_out' :'Msun/yr'}
+             'hot_mass_flux_in' :'Msun/yr', 'hot_mass_flux_out' :'Msun/yr', \
+             'net_cold_metal_flux':'Msun/yr', 'cold_metal_flux_in':'Msun/yr', \
+             'cold_metal_flux_out':'Msun/yr', 'net_cool_metal_flux':'Msun/yr', \
+             'cool_metal_flux_in':'Msun/yr', 'cool_metal_flux_out':'Msun/yr', \
+             'net_warm_metal_flux':'Msun/yr', 'warm_metal_flux_in':'Msun/yr', \
+             'warm_metal_flux_out':'Msun/yr', 'net_hot_metal_flux' :'Msun/yr', \
+             'hot_metal_flux_in' :'Msun/yr', 'hot_metal_flux_out' :'Msun/yr', \
+             'net_kinetic_energy_flux':'erg/yr', 'net_thermal_energy_flux':'erg/yr', \
+             'net_entropy_flux':'cm**2*keV/yr', 'kinetic_energy_flux_in':'erg/yr', \
+             'kinetic_energy_flux_out':'erg/yr', 'thermal_energy_flux_in':'erg/yr', \
+             'thermal_energy_flux_out':'erg/yr', 'entropy_flux_in':'cm**2*keV/yr', \
+             'entropy_flux_out':'cm**2*keV/yr', 'net_cold_kinetic_energy_flux':'erg/yr', \
+             'cold_kinetic_energy_flux_in':'erg/yr', 'cold_kinetic_energy_flux_out':'erg/yr', \
+             'net_cool_kinetic_energy_flux':'erg/yr', 'cool_kinetic_energy_flux_in':'erg/yr', \
+             'cool_kinetic_energy_flux_out':'erg/yr', 'net_warm_kinetic_energy_flux':'erg/yr', \
+             'warm_kinetic_energy_flux_in':'erg/yr', 'warm_kinetic_energy_flux_out':'erg/yr', \
+             'net_hot_kinetic_energy_flux':'erg/yr', 'hot_kinetic_energy_flux_in':'erg/yr', \
+             'hot_kinetic_energy_flux_out':'erg/yr', 'net_cold_thermal_energy_flux':'erg/yr', \
+             'cold_thermal_energy_flux_in':'erg/yr', 'cold_thermal_energy_flux_out':'erg/yr', \
+             'net_cool_thermal_energy_flux':'erg/yr', 'cool_thermal_energy_flux_in':'erg/yr', \
+             'cool_thermal_energy_flux_out':'erg/yr', 'net_warm_thermal_energy_flux':'erg/yr', \
+             'warm_thermal_energy_flux_in':'erg/yr', 'warm_thermal_energy_flux_out':'erg/yr', \
+             'net_hot_thermal_energy_flux':'erg/yr', 'hot_thermal_energy_flux_in':'erg/yr', \
+             'hot_thermal_energy_flux_out':'erg/yr', 'net_cold_entropy_flux':'cm**2*keV/yr', \
+             'cold_entropy_flux_in':'cm**2*keV/yr', 'cold_entropy_flux_out':'cm**2*keV/yr', \
+             'net_cool_entropy_flux':'cm**2*keV/yr', 'cool_entropy_flux_in':'cm**2*keV/yr', \
+             'cool_entropy_flux_out':'cm**2*keV/yr', 'net_warm_entropy_flux':'cm**2*keV/yr', \
+             'warm_entropy_flux_in':'cm**2*keV/yr', 'warm_entropy_flux_out':'cm**2*keV/yr', \
+             'net_hot_entropy_flux':'cm**2*keV/yr', 'hot_entropy_flux_in':'cm**2*keV/yr', \
+             'hot_entropy_flux_out':'cm**2*keV/yr'}
     for key in table.keys():
         table[key].unit = table_units[key]
     return table
@@ -128,9 +157,40 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
                         'net_cold_mass_flux', 'cold_mass_flux_in', 'cold_mass_flux_out', \
                         'net_cool_mass_flux', 'cool_mass_flux_in', 'cool_mass_flux_out', \
                         'net_warm_mass_flux', 'warm_mass_flux_in', 'warm_mass_flux_out', \
-                        'net_hot_mass_flux', 'hot_mass_flux_in', 'hot_mass_flux_out'), \
+                        'net_hot_mass_flux', 'hot_mass_flux_in', 'hot_mass_flux_out', \
+                        'net_cold_metal_flux', 'cold_metal_flux_in', 'cold_metal_flux_out', \
+                        'net_cool_metal_flux', 'cool_metal_flux_in', 'cool_metal_flux_out', \
+                        'net_warm_metal_flux', 'warm_metal_flux_in', 'warm_metal_flux_out', \
+                        'net_hot_metal_flux', 'hot_metal_flux_in', 'hot_metal_flux_out', \
+                        'net_kinetic_energy_flux', 'net_thermal_energy_flux', 'net_entropy_flux', \
+                        'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
+                        'thermal_energy_flux_in', 'thermal_energy_flux_out', \
+                        'entropy_flux_in', 'entropy_flux_out', 'net_cold_kinetic_energy_flux', \
+                        'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
+                        'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', \
+                        'cool_kinetic_energy_flux_out', 'net_warm_kinetic_energy_flux', \
+                        'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
+                        'net_hot_kinetic_energy_flux', 'hot_kinetic_energy_flux_in', \
+                        'hot_kinetic_energy_flux_out', 'net_cold_thermal_energy_flux', \
+                        'cold_thermal_energy_flux_in', 'cold_thermal_energy_flux_out', \
+                        'net_cool_thermal_energy_flux', 'cool_thermal_energy_flux_in', \
+                        'cool_thermal_energy_flux_out', 'net_warm_thermal_energy_flux', \
+                        'warm_thermal_energy_flux_in', 'warm_thermal_energy_flux_out', \
+                        'net_hot_thermal_energy_flux', 'hot_thermal_energy_flux_in', \
+                        'hot_thermal_energy_flux_out', 'net_cold_entropy_flux', \
+                        'cold_entropy_flux_in', 'cold_entropy_flux_out', \
+                        'net_cool_entropy_flux', 'cool_entropy_flux_in', \
+                        'cool_entropy_flux_out', 'net_warm_entropy_flux', \
+                        'warm_entropy_flux_in', 'warm_entropy_flux_out', \
+                        'net_hot_entropy_flux', 'hot_entropy_flux_in', \
+                        'hot_entropy_flux_out'), \
                  dtype=('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
     if (quadrants):
         data_q = Table(names=('redshift', 'quadrant', 'radius', 'net_mass_flux', 'net_metal_flux', \
@@ -138,9 +198,40 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
                             'net_cold_mass_flux', 'cold_mass_flux_in', 'cold_mass_flux_out', \
                             'net_cool_mass_flux', 'cool_mass_flux_in', 'cool_mass_flux_out', \
                             'net_warm_mass_flux', 'warm_mass_flux_in', 'warm_mass_flux_out', \
-                            'net_hot_mass_flux', 'hot_mass_flux_in', 'hot_mass_flux_out'), \
-                     dtype=('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-                            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
+                            'net_hot_mass_flux', 'hot_mass_flux_in', 'hot_mass_flux_out', \
+                            'net_cold_metal_flux', 'cold_metal_flux_in', 'cold_metal_flux_out', \
+                            'net_cool_metal_flux', 'cool_metal_flux_in', 'cool_metal_flux_out', \
+                            'net_warm_metal_flux', 'warm_metal_flux_in', 'warm_metal_flux_out', \
+                            'net_hot_metal_flux', 'hot_metal_flux_in', 'hot_metal_flux_out', \
+                            'net_kinetic_energy_flux', 'net_thermal_energy_flux', 'net_entropy_flux', \
+                            'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
+                            'thermal_energy_flux_in', 'thermal_energy_flux_out', \
+                            'entropy_flux_in', 'entropy_flux_out', 'net_cold_kinetic_energy_flux', \
+                            'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
+                            'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', \
+                            'cool_kinetic_energy_flux_out', 'net_warm_kinetic_energy_flux', \
+                            'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
+                            'net_hot_kinetic_energy_flux', 'hot_kinetic_energy_flux_in', \
+                            'hot_kinetic_energy_flux_out', 'net_cold_thermal_energy_flux', \
+                            'cold_thermal_energy_flux_in', 'cold_thermal_energy_flux_out', \
+                            'net_cool_thermal_energy_flux', 'cool_thermal_energy_flux_in', \
+                            'cool_thermal_energy_flux_out', 'net_warm_thermal_energy_flux', \
+                            'warm_thermal_energy_flux_in', 'warm_thermal_energy_flux_out', \
+                            'net_hot_thermal_energy_flux', 'hot_thermal_energy_flux_in', \
+                            'hot_thermal_energy_flux_out', 'net_cold_entropy_flux', \
+                            'cold_entropy_flux_in', 'cold_entropy_flux_out', \
+                            'net_cool_entropy_flux', 'cool_entropy_flux_in', \
+                            'cool_entropy_flux_out', 'net_warm_entropy_flux', \
+                            'warm_entropy_flux_in', 'warm_entropy_flux_out', \
+                            'net_hot_entropy_flux', 'hot_entropy_flux_in', \
+                            'hot_entropy_flux_out'), \
+                     dtype=('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                            'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
     # Define the radii of the spherical shells where we want to calculate fluxes
     radii = 0.5*refine_width_kpc * np.arange(0.1, 0.9, 0.01)
@@ -237,6 +328,187 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
         hot_mass_flux_out = (np.sum(shell_out_hot['cell_mass'] * \
                              shell_out_hot['gas','radial_velocity_corrected']) \
                              /dr).in_units('Msun/yr')
+
+        net_cold_metal_flux = (np.sum(shell_cold['metal_mass'] * \
+                              shell_cold['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
+        cold_metal_flux_in = (np.sum(shell_in_cold['metal_mass'] * \
+                             shell_in_cold['gas','radial_velocity_corrected']) \
+                             /dr).in_units('Msun/yr')
+        cold_metal_flux_out = (np.sum(shell_out_cold['metal_mass'] * \
+                              shell_out_cold['gas','radial_velocity_corrected']) \
+                              /dr).in_units('Msun/yr')
+
+        net_cool_metal_flux = (np.sum(shell_cool['metal_mass'] * \
+                              shell_cool['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
+        cool_metal_flux_in = (np.sum(shell_in_cool['metal_mass'] * \
+                             shell_in_cool['gas','radial_velocity_corrected']) \
+                             /dr).in_units('Msun/yr')
+        cool_metal_flux_out = (np.sum(shell_out_cool['metal_mass'] * \
+                              shell_out_cool['gas','radial_velocity_corrected']) \
+                              /dr).in_units('Msun/yr')
+
+        net_warm_metal_flux = (np.sum(shell_warm['metal_mass'] * \
+                              shell_warm['gas','radial_velocity_corrected']) \
+                              /dr).in_units('Msun/yr')
+        warm_metal_flux_in = (np.sum(shell_in_warm['metal_mass'] * \
+                             shell_in_warm['gas','radial_velocity_corrected']) \
+                             /dr).in_units('Msun/yr')
+        warm_metal_flux_out = (np.sum(shell_out_warm['metal_mass'] * \
+                              shell_out_warm['gas','radial_velocity_corrected']) \
+                              /dr).in_units('Msun/yr')
+
+        net_hot_metal_flux = (np.sum(shell_hot['metal_mass'] * \
+                             shell_hot['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
+        hot_metal_flux_in = (np.sum(shell_in_hot['metal_mass'] * \
+                            shell_in_hot['gas','radial_velocity_corrected']) \
+                            /dr).in_units('Msun/yr')
+        hot_metal_flux_out = (np.sum(shell_out_hot['metal_mass'] * \
+                             shell_out_hot['gas','radial_velocity_corrected']) \
+                             /dr).in_units('Msun/yr')
+
+        net_kinetic_energy_flux = (np.sum(shell['kinetic_energy_corrected'] * \
+                         shell['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+        kinetic_energy_flux_in = (np.sum(shell_in['kinetic_energy_corrected'] * \
+                        shell_in['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+        kinetic_energy_flux_out = (np.sum(shell_out['kinetic_energy_corrected'] * \
+                         shell_out['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+
+        net_thermal_energy_flux = (np.sum(shell['thermal_energy'] * shell['cell_mass'] * \
+                          shell['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+        thermal_energy_flux_in = (np.sum(shell_in['thermal_energy'] * shell_in['cell_mass'] * \
+                         shell_in['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+        thermal_energy_flux_out = (np.sum(shell_out['thermal_energy'] * shell_out['cell_mass'] * \
+                          shell_out['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+
+        net_entropy_flux = (np.sum(shell['entropy'] * \
+                          shell['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+        entropy_flux_in = (np.sum(shell_in['entropy'] * \
+                         shell_in['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+        entropy_flux_out = (np.sum(shell_out['entropy'] * \
+                          shell_out['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+
+        net_cold_kinetic_energy_flux = (np.sum(shell_cold['kinetic_energy_corrected'] * \
+                              shell_cold['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+        cold_kinetic_energy_flux_in = (np.sum(shell_in_cold['kinetic_energy_corrected'] * \
+                             shell_in_cold['gas','radial_velocity_corrected']) \
+                             /dr).in_units('erg/yr')
+        cold_kinetic_energy_flux_out = (np.sum(shell_out_cold['kinetic_energy_corrected'] * \
+                              shell_out_cold['gas','radial_velocity_corrected']) \
+                              /dr).in_units('erg/yr')
+
+        net_cool_kinetic_energy_flux = (np.sum(shell_cool['kinetic_energy_corrected'] * \
+                              shell_cool['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+        cool_kinetic_energy_flux_in = (np.sum(shell_in_cool['kinetic_energy_corrected'] * \
+                             shell_in_cool['gas','radial_velocity_corrected']) \
+                             /dr).in_units('erg/yr')
+        cool_kinetic_energy_flux_out = (np.sum(shell_out_cool['kinetic_energy_corrected'] * \
+                              shell_out_cool['gas','radial_velocity_corrected']) \
+                              /dr).in_units('erg/yr')
+
+        net_warm_kinetic_energy_flux = (np.sum(shell_warm['kinetic_energy_corrected'] * \
+                              shell_warm['gas','radial_velocity_corrected']) \
+                              /dr).in_units('erg/yr')
+        warm_kinetic_energy_flux_in = (np.sum(shell_in_warm['kinetic_energy_corrected'] * \
+                             shell_in_warm['gas','radial_velocity_corrected']) \
+                             /dr).in_units('erg/yr')
+        warm_kinetic_energy_flux_out = (np.sum(shell_out_warm['kinetic_energy_corrected'] * \
+                              shell_out_warm['gas','radial_velocity_corrected']) \
+                              /dr).in_units('erg/yr')
+
+        net_hot_kinetic_energy_flux = (np.sum(shell_hot['kinetic_energy_corrected'] * \
+                             shell_hot['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+        hot_kinetic_energy_flux_in = (np.sum(shell_in_hot['kinetic_energy_corrected'] * \
+                            shell_in_hot['gas','radial_velocity_corrected']) \
+                            /dr).in_units('erg/yr')
+        hot_kinetic_energy_flux_out = (np.sum(shell_out_hot['kinetic_energy_corrected'] * \
+                             shell_out_hot['gas','radial_velocity_corrected']) \
+                             /dr).in_units('erg/yr')
+
+        net_cold_thermal_energy_flux = (np.sum(shell_cold['thermal_energy'] * \
+                              shell_cold['cell_mass'] * \
+                              shell_cold['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+        cold_thermal_energy_flux_in = (np.sum(shell_in_cold['thermal_energy'] * \
+                             shell_in_cold['cell_mass'] * \
+                             shell_in_cold['gas','radial_velocity_corrected']) \
+                             /dr).in_units('erg/yr')
+        cold_thermal_energy_flux_out = (np.sum(shell_out_cold['thermal_energy'] * \
+                              shell_out_cold['cell_mass'] * \
+                              shell_out_cold['gas','radial_velocity_corrected']) \
+                              /dr).in_units('erg/yr')
+
+        net_cool_thermal_energy_flux = (np.sum(shell_cool['thermal_energy'] * \
+                              shell_cool['cell_mass'] * \
+                              shell_cool['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+        cool_thermal_energy_flux_in = (np.sum(shell_in_cool['thermal_energy'] * \
+                             shell_in_cool['cell_mass'] * \
+                             shell_in_cool['gas','radial_velocity_corrected']) \
+                             /dr).in_units('erg/yr')
+        cool_thermal_energy_flux_out = (np.sum(shell_out_cool['thermal_energy'] * \
+                              shell_out_cool['cell_mass'] * \
+                              shell_out_cool['gas','radial_velocity_corrected']) \
+                              /dr).in_units('erg/yr')
+
+        net_warm_thermal_energy_flux = (np.sum(shell_warm['thermal_energy'] * \
+                              shell_warm['cell_mass'] * \
+                              shell_warm['gas','radial_velocity_corrected']) \
+                              /dr).in_units('erg/yr')
+        warm_thermal_energy_flux_in = (np.sum(shell_in_warm['thermal_energy'] * \
+                             shell_in_warm['cell_mass'] * \
+                             shell_in_warm['gas','radial_velocity_corrected']) \
+                             /dr).in_units('erg/yr')
+        warm_thermal_energy_flux_out = (np.sum(shell_out_warm['thermal_energy'] * \
+                              shell_out_warm['cell_mass'] * \
+                              shell_out_warm['gas','radial_velocity_corrected']) \
+                              /dr).in_units('erg/yr')
+
+        net_hot_thermal_energy_flux = (np.sum(shell_hot['thermal_energy'] * \
+                             shell_hot['cell_mass'] * \
+                             shell_hot['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+        hot_thermal_energy_flux_in = (np.sum(shell_in_hot['thermal_energy'] * \
+                            shell_in_hot['cell_mass'] * \
+                            shell_in_hot['gas','radial_velocity_corrected']) \
+                            /dr).in_units('erg/yr')
+        hot_thermal_energy_flux_out = (np.sum(shell_out_hot['thermal_energy'] * \
+                             shell_out_hot['cell_mass'] * \
+                             shell_out_hot['gas','radial_velocity_corrected']) \
+                             /dr).in_units('erg/yr')
+
+        net_cold_entropy_flux = (np.sum(shell_cold['entropy'] * \
+                              shell_cold['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+        cold_entropy_flux_in = (np.sum(shell_in_cold['entropy'] * \
+                             shell_in_cold['gas','radial_velocity_corrected']) \
+                             /dr).in_units('keV*cm**2/yr')
+        cold_entropy_flux_out = (np.sum(shell_out_cold['entropy'] * \
+                              shell_out_cold['gas','radial_velocity_corrected']) \
+                              /dr).in_units('keV*cm**2/yr')
+
+        net_cool_entropy_flux = (np.sum(shell_cool['entropy'] * \
+                              shell_cool['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+        cool_entropy_flux_in = (np.sum(shell_in_cool['entropy'] * \
+                             shell_in_cool['gas','radial_velocity_corrected']) \
+                             /dr).in_units('keV*cm**2/yr')
+        cool_entropy_flux_out = (np.sum(shell_out_cool['entropy'] * \
+                              shell_out_cool['gas','radial_velocity_corrected']) \
+                              /dr).in_units('keV*cm**2/yr')
+
+        net_warm_entropy_flux = (np.sum(shell_warm['entropy'] * \
+                              shell_warm['gas','radial_velocity_corrected']) \
+                              /dr).in_units('keV*cm**2/yr')
+        warm_entropy_flux_in = (np.sum(shell_in_warm['entropy'] * \
+                             shell_in_warm['gas','radial_velocity_corrected']) \
+                             /dr).in_units('keV*cm**2/yr')
+        warm_entropy_flux_out = (np.sum(shell_out_warm['entropy'] * \
+                              shell_out_warm['gas','radial_velocity_corrected']) \
+                              /dr).in_units('keV*cm**2/yr')
+
+        net_hot_entropy_flux = (np.sum(shell_hot['entropy'] * \
+                             shell_hot['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+        hot_entropy_flux_in = (np.sum(shell_in_hot['entropy'] * \
+                            shell_in_hot['gas','radial_velocity_corrected']) \
+                            /dr).in_units('keV*cm**2/yr')
+        hot_entropy_flux_out = (np.sum(shell_out_hot['entropy'] * \
+                             shell_out_hot['gas','radial_velocity_corrected']) \
+                             /dr).in_units('keV*cm**2/yr')
 
         if (quadrants):
             # Loop over quadrants
@@ -352,28 +624,264 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
                                        shell_out_hot_q['gas','radial_velocity_corrected']) \
                                        /dr).in_units('Msun/yr')
 
+                net_cold_metal_flux_q = (np.sum(shell_cold_q['metal_mass'] * \
+                                        shell_cold_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+                cold_metal_flux_in_q = (np.sum(shell_in_cold_q['metal_mass'] * \
+                                       shell_in_cold_q['gas','radial_velocity_corrected']) \
+                                       /dr).in_units('Msun/yr')
+                cold_metal_flux_out_q = (np.sum(shell_out_cold_q['metal_mass'] * \
+                                        shell_out_cold_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+
+                net_cool_metal_flux_q = (np.sum(shell_cool_q['metal_mass'] * \
+                                        shell_cool_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+                cool_metal_flux_in_q = (np.sum(shell_in_cool_q['metal_mass'] * \
+                                       shell_in_cool_q['gas','radial_velocity_corrected']) \
+                                       /dr).in_units('Msun/yr')
+                cool_metal_flux_out_q = (np.sum(shell_out_cool_q['metal_mass'] * \
+                                        shell_out_cool_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+
+                net_warm_metal_flux_q = (np.sum(shell_warm_q['metal_mass'] * \
+                                        shell_warm_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+                warm_metal_flux_in_q = (np.sum(shell_in_warm_q['metal_mass'] * \
+                                       shell_in_warm_q['gas','radial_velocity_corrected']) \
+                                       /dr).in_units('Msun/yr')
+                warm_metal_flux_out_q = (np.sum(shell_out_warm_q['metal_mass'] * \
+                                        shell_out_warm_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+
+                net_hot_metal_flux_q = (np.sum(shell_hot_q['metal_mass'] * \
+                                       shell_hot_q['gas','radial_velocity_corrected']) \
+                                       /dr).in_units('Msun/yr')
+                hot_metal_flux_in_q = (np.sum(shell_in_hot_q['metal_mass'] * \
+                                      shell_in_hot_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('Msun/yr')
+                hot_metal_flux_out_q = (np.sum(shell_out_hot_q['metal_mass'] * \
+                                       shell_out_hot_q['gas','radial_velocity_corrected']) \
+                                       /dr).in_units('Msun/yr')
+
+                net_kinetic_energy_flux_q = (np.sum(shell_q['kinetic_energy_corrected'] * \
+                                 shell_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+                kinetic_energy_flux_in_q = (np.sum(shell_in_q['kinetic_energy_corrected'] * \
+                                shell_in_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+                kinetic_energy_flux_out_q = (np.sum(shell_out_q['kinetic_energy_corrected'] * \
+                                 shell_out_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+
+                net_thermal_energy_flux_q = (np.sum(shell_q['thermal_energy'] * shell_q['cell_mass'] * \
+                                  shell_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+                thermal_energy_flux_in_q = (np.sum(shell_in_q['thermal_energy'] * shell_in_q['cell_mass'] * \
+                                 shell_in_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+                thermal_energy_flux_out_q = (np.sum(shell_out_q['thermal_energy'] * shell_out_q['cell_mass'] * \
+                                  shell_out_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+
+                net_entropy_flux_q = (np.sum(shell_q['entropy'] * \
+                                  shell_q['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+                entropy_flux_in_q = (np.sum(shell_in_q['entropy'] * \
+                                 shell_in_q['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+                entropy_flux_out_q = (np.sum(shell_out_q['entropy'] * \
+                                  shell_out_q['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+
+                net_cold_kinetic_energy_flux_q = (np.sum(shell_cold_q['kinetic_energy_corrected'] * \
+                                      shell_cold_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+                cold_kinetic_energy_flux_in_q = (np.sum(shell_in_cold_q['kinetic_energy_corrected'] * \
+                                     shell_in_cold_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('erg/yr')
+                cold_kinetic_energy_flux_out_q = (np.sum(shell_out_cold_q['kinetic_energy_corrected'] * \
+                                      shell_out_cold_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('erg/yr')
+
+                net_cool_kinetic_energy_flux_q = (np.sum(shell_cool_q['kinetic_energy_corrected'] * \
+                                      shell_cool_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+                cool_kinetic_energy_flux_in_q = (np.sum(shell_in_cool_q['kinetic_energy_corrected'] * \
+                                     shell_in_cool_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('erg/yr')
+                cool_kinetic_energy_flux_out_q = (np.sum(shell_out_cool_q['kinetic_energy_corrected'] * \
+                                      shell_out_cool_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('erg/yr')
+
+                net_warm_kinetic_energy_flux_q = (np.sum(shell_warm_q['kinetic_energy_corrected'] * \
+                                      shell_warm_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('erg/yr')
+                warm_kinetic_energy_flux_in_q = (np.sum(shell_in_warm_q['kinetic_energy_corrected'] * \
+                                     shell_in_warm_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('erg/yr')
+                warm_kinetic_energy_flux_out_q = (np.sum(shell_out_warm_q['kinetic_energy_corrected'] * \
+                                      shell_out_warm_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('erg/yr')
+
+                net_hot_kinetic_energy_flux_q = (np.sum(shell_hot_q['kinetic_energy_corrected'] * \
+                                     shell_hot_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+                hot_kinetic_energy_flux_in_q = (np.sum(shell_in_hot_q['kinetic_energy_corrected'] * \
+                                    shell_in_hot_q['gas','radial_velocity_corrected']) \
+                                    /dr).in_units('erg/yr')
+                hot_kinetic_energy_flux_out_q = (np.sum(shell_out_hot_q['kinetic_energy_corrected'] * \
+                                     shell_out_hot_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('erg/yr')
+
+                net_cold_thermal_energy_flux_q = (np.sum(shell_cold_q['thermal_energy'] * \
+                                      shell_cold_q['cell_mass'] * \
+                                      shell_cold_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+                cold_thermal_energy_flux_in_q = (np.sum(shell_in_cold_q['thermal_energy'] * \
+                                     shell_in_cold_q['cell_mass'] * \
+                                     shell_in_cold_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('erg/yr')
+                cold_thermal_energy_flux_out_q = (np.sum(shell_out_cold_q['thermal_energy'] * \
+                                      shell_out_cold_q['cell_mass'] * \
+                                      shell_out_cold_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('erg/yr')
+
+                net_cool_thermal_energy_flux_q = (np.sum(shell_cool_q['thermal_energy'] * \
+                                      shell_cool_q['cell_mass'] * \
+                                      shell_cool_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+                cool_thermal_energy_flux_in_q = (np.sum(shell_in_cool_q['thermal_energy'] * \
+                                     shell_in_cool_q['cell_mass'] * \
+                                     shell_in_cool_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('erg/yr')
+                cool_thermal_energy_flux_out_q = (np.sum(shell_out_cool_q['thermal_energy'] * \
+                                      shell_out_cool_q['cell_mass'] * \
+                                      shell_out_cool_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('erg/yr')
+
+                net_warm_thermal_energy_flux_q = (np.sum(shell_warm_q['thermal_energy'] * \
+                                      shell_warm_q['cell_mass'] * \
+                                      shell_warm_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('erg/yr')
+                warm_thermal_energy_flux_in_q = (np.sum(shell_in_warm_q['thermal_energy'] * \
+                                     shell_in_warm_q['cell_mass'] * \
+                                     shell_in_warm_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('erg/yr')
+                warm_thermal_energy_flux_out_q = (np.sum(shell_out_warm_q['thermal_energy'] * \
+                                      shell_out_warm_q['cell_mass'] * \
+                                      shell_out_warm_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('erg/yr')
+
+                net_hot_thermal_energy_flux_q = (np.sum(shell_hot_q['thermal_energy'] * \
+                                     shell_hot_q['cell_mass'] * \
+                                     shell_hot_q['gas','radial_velocity_corrected'])/dr).in_units('erg/yr')
+                hot_thermal_energy_flux_in_q = (np.sum(shell_in_hot_q['thermal_energy'] * \
+                                    shell_in_hot_q['cell_mass'] * \
+                                    shell_in_hot_q['gas','radial_velocity_corrected']) \
+                                    /dr).in_units('erg/yr')
+                hot_thermal_energy_flux_out_q = (np.sum(shell_out_hot_q['thermal_energy'] * \
+                                     shell_out_hot_q['cell_mass'] * \
+                                     shell_out_hot_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('erg/yr')
+
+                net_cold_entropy_flux_q = (np.sum(shell_cold_q['entropy'] * \
+                                      shell_cold_q['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+                cold_entropy_flux_in_q = (np.sum(shell_in_cold_q['entropy'] * \
+                                     shell_in_cold_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('keV*cm**2/yr')
+                cold_entropy_flux_out_q = (np.sum(shell_out_cold_q['entropy'] * \
+                                      shell_out_cold_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('keV*cm**2/yr')
+
+                net_cool_entropy_flux_q = (np.sum(shell_cool_q['entropy'] * \
+                                      shell_cool_q['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+                cool_entropy_flux_in_q = (np.sum(shell_in_cool_q['entropy'] * \
+                                     shell_in_cool_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('keV*cm**2/yr')
+                cool_entropy_flux_out_q = (np.sum(shell_out_cool_q['entropy'] * \
+                                      shell_out_cool_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('keV*cm**2/yr')
+
+                net_warm_entropy_flux_q = (np.sum(shell_warm_q['entropy'] * \
+                                      shell_warm_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('keV*cm**2/yr')
+                warm_entropy_flux_in_q = (np.sum(shell_in_warm_q['entropy'] * \
+                                     shell_in_warm_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('keV*cm**2/yr')
+                warm_entropy_flux_out_q = (np.sum(shell_out_warm_q['entropy'] * \
+                                      shell_out_warm_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('keV*cm**2/yr')
+
+                net_hot_entropy_flux_q = (np.sum(shell_hot_q['entropy'] * \
+                                     shell_hot_q['gas','radial_velocity_corrected'])/dr).in_units('keV*cm**2/yr')
+                hot_entropy_flux_in_q = (np.sum(shell_in_hot_q['entropy'] * \
+                                    shell_in_hot_q['gas','radial_velocity_corrected']) \
+                                    /dr).in_units('keV*cm**2/yr')
+                hot_entropy_flux_out_q = (np.sum(shell_out_hot_q['entropy'] * \
+                                     shell_out_hot_q['gas','radial_velocity_corrected']) \
+                                     /dr).in_units('keV*cm**2/yr')
+
                 # Add everything to the table
-                data_q.add_row([zsnap, q+1, r, net_mass_flux, net_metal_flux, mass_flux_in, \
-                              mass_flux_out, metal_flux_in, metal_flux_out, net_cold_mass_flux, \
-                              cold_mass_flux_in, cold_mass_flux_out, net_cool_mass_flux, \
-                              cool_mass_flux_in, cool_mass_flux_out, net_warm_mass_flux, \
-                              warm_mass_flux_in, warm_mass_flux_out, net_hot_mass_flux, \
-                              hot_mass_flux_in, hot_mass_flux_out])
+                data_q.add_row([zsnap, q+1, r, net_mass_flux_q, net_metal_flux_q, mass_flux_in_q, mass_flux_out_q, \
+                              metal_flux_in_q, metal_flux_out_q, net_cold_mass_flux_q, cold_mass_flux_in_q, \
+                              cold_mass_flux_out_q, net_cool_mass_flux_q, cool_mass_flux_in_q, \
+                              cool_mass_flux_out_q, net_warm_mass_flux_q, warm_mass_flux_in_q, \
+                              warm_mass_flux_out_q, net_hot_mass_flux_q, hot_mass_flux_in_q, \
+                              hot_mass_flux_out_q, net_cold_metal_flux_q, cold_metal_flux_in_q, \
+                              cold_metal_flux_out_q, net_cool_metal_flux_q, cool_metal_flux_in_q, \
+                              cool_metal_flux_out_q, net_warm_metal_flux_q, warm_metal_flux_in_q, \
+                              warm_metal_flux_out_q, net_hot_metal_flux_q, hot_metal_flux_in_q, \
+                              hot_metal_flux_out_q, net_kinetic_energy_flux_q, \
+                              net_thermal_energy_flux_q, net_entropy_flux_q, \
+                              kinetic_energy_flux_in_q, kinetic_energy_flux_out_q, \
+                              thermal_energy_flux_in_q, thermal_energy_flux_out_q, \
+                              entropy_flux_in_q, entropy_flux_out_q, net_cold_kinetic_energy_flux_q, \
+                              cold_kinetic_energy_flux_in_q, cold_kinetic_energy_flux_out_q, \
+                              net_cool_kinetic_energy_flux_q, cool_kinetic_energy_flux_in_q, \
+                              cool_kinetic_energy_flux_out_q, net_warm_kinetic_energy_flux_q, \
+                              warm_kinetic_energy_flux_in_q, warm_kinetic_energy_flux_out_q, \
+                              net_hot_kinetic_energy_flux_q, hot_kinetic_energy_flux_in_q, \
+                              hot_kinetic_energy_flux_out_q, net_cold_thermal_energy_flux_q, \
+                              cold_thermal_energy_flux_in_q, cold_thermal_energy_flux_out_q, \
+                              net_cool_thermal_energy_flux_q, cool_thermal_energy_flux_in_q, \
+                              cool_thermal_energy_flux_out_q, net_warm_thermal_energy_flux_q, \
+                              warm_thermal_energy_flux_in_q, warm_thermal_energy_flux_out_q, \
+                              net_hot_thermal_energy_flux_q, hot_thermal_energy_flux_in_q, \
+                              hot_thermal_energy_flux_out_q, net_cold_entropy_flux_q, \
+                              cold_entropy_flux_in_q, cold_entropy_flux_out_q, \
+                              net_cool_entropy_flux_q, cool_entropy_flux_in_q, \
+                              cool_entropy_flux_out_q, net_warm_entropy_flux_q, \
+                              warm_entropy_flux_in_q, warm_entropy_flux_out_q, \
+                              net_hot_entropy_flux_q, hot_entropy_flux_in_q, \
+                              hot_entropy_flux_out_q])
         # Add everything to the table
-        data.add_row([zsnap, 0, r, net_mass_flux, net_metal_flux, mass_flux_in, mass_flux_out, \
-                      metal_flux_in, metal_flux_out, net_cold_mass_flux, cold_mass_flux_in, \
-                      cold_mass_flux_out, net_cool_mass_flux, cool_mass_flux_in, \
-                      cool_mass_flux_out, net_warm_mass_flux, warm_mass_flux_in, \
-                      warm_mass_flux_out, net_hot_mass_flux, hot_mass_flux_in, \
-                      hot_mass_flux_out])
+        data.add_row([zsnap, 0, r, net_mass_flux, net_metal_flux, mass_flux_in, \
+                      mass_flux_out, metal_flux_in, metal_flux_out, net_cold_mass_flux, \
+                      cold_mass_flux_in, cold_mass_flux_out, net_cool_mass_flux, \
+                      cool_mass_flux_in, cool_mass_flux_out, net_warm_mass_flux, \
+                      warm_mass_flux_in, warm_mass_flux_out, net_hot_mass_flux, \
+                      hot_mass_flux_in, hot_mass_flux_out, net_cold_metal_flux, \
+                      cold_metal_flux_in, cold_metal_flux_out, net_cool_metal_flux, \
+                      cool_metal_flux_in, cool_metal_flux_out, net_warm_metal_flux, \
+                      warm_metal_flux_in, warm_metal_flux_out, net_hot_metal_flux, \
+                      hot_metal_flux_in, hot_metal_flux_out, net_kinetic_energy_flux, \
+                      net_thermal_energy_flux, net_entropy_flux, \
+                      kinetic_energy_flux_in, kinetic_energy_flux_out, \
+                      thermal_energy_flux_in, thermal_energy_flux_out, \
+                      entropy_flux_in, entropy_flux_out, net_cold_kinetic_energy_flux, \
+                      cold_kinetic_energy_flux_in, cold_kinetic_energy_flux_out, \
+                      net_cool_kinetic_energy_flux, cool_kinetic_energy_flux_in, \
+                      cool_kinetic_energy_flux_out, net_warm_kinetic_energy_flux, \
+                      warm_kinetic_energy_flux_in, warm_kinetic_energy_flux_out, \
+                      net_hot_kinetic_energy_flux, hot_kinetic_energy_flux_in, \
+                      hot_kinetic_energy_flux_out, net_cold_thermal_energy_flux, \
+                      cold_thermal_energy_flux_in, cold_thermal_energy_flux_out, \
+                      net_cool_thermal_energy_flux, cool_thermal_energy_flux_in, \
+                      cool_thermal_energy_flux_out, net_warm_thermal_energy_flux, \
+                      warm_thermal_energy_flux_in, warm_thermal_energy_flux_out, \
+                      net_hot_thermal_energy_flux, hot_thermal_energy_flux_in, \
+                      hot_thermal_energy_flux_out, net_cold_entropy_flux, \
+                      cold_entropy_flux_in, cold_entropy_flux_out, \
+                      net_cool_entropy_flux, cool_entropy_flux_in, \
+                      cool_entropy_flux_out, net_warm_entropy_flux, \
+                      warm_entropy_flux_in, warm_entropy_flux_out, \
+                      net_hot_entropy_flux, hot_entropy_flux_in, \
+                      hot_entropy_flux_out])
 
     # Save to file
     data = set_table_units(data)
-    data.write(tablename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    data.write(tablename + '_more.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     if (quadrants):
         data_q = set_table_units(data_q)
-        data_q.write(tablename + '_q.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        data_q.write(tablename + '_q_more.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     return "Fluxes have been calculated for snapshot" + snap + "!"
 
@@ -420,6 +928,8 @@ def load_and_calculate(args):
                  sampling_type='cell')
     ds.add_field(('gas', 'radial_velocity_corrected'), function=radial_velocity_corrected, \
                  units='km/s', take_log=False, force_override=True, sampling_type='cell')
+    ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
+                 units='erg', take_log=True, force_override=True, sampling_type='cell')
 
     # Do the actual calculation
     message = calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, \
