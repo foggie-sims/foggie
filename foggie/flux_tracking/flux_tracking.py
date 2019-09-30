@@ -78,6 +78,11 @@ def parse_args():
                         ' and nothing else is implemented right now')
     parser.set_defaults(surface='sphere')
 
+    parser.add_arguments('--quadrants', dest='quadrants', type=bool, action='store', \
+                         help='Do you want to compute in quadrants? Default is False,' + \
+                         ' which computes for whole domain')
+    parser.set_defaults(quadrants=False)
+
 
     args = parser.parse_args()
     return args
@@ -89,20 +94,21 @@ def set_table_units(table):
     table_units = {'redshift':None,'quadrant':None,'radius':'kpc','net_mass_flux':'Msun/yr', \
              'net_metal_flux':'Msun/yr', 'mass_flux_in'  :'Msun/yr','mass_flux_out':'Msun/yr', \
              'metal_flux_in' :'Msun/yr', 'metal_flux_out':'Msun/yr',\
-             'net_cold_mass_flux':'Msun/yr', 'cold_mass_flux_in':'Msun/yr', 'cold_mass_flux_out':'Msun/yr', \
-             'net_cool_mass_flux':'Msun/yr', 'cool_mass_flux_in':'Msun/yr', 'cool_mass_flux_out':'Msun/yr', \
-             'net_warm_mass_flux':'Msun/yr', 'warm_mass_flux_in':'Msun/yr', 'warm_mass_flux_out':'Msun/yr', \
-             'net_hot_mass_flux' :'Msun/yr', 'hot_mass_flux_in' :'Msun/yr', 'hot_mass_flux_out' :'Msun/yr'}
+             'net_cold_mass_flux':'Msun/yr', 'cold_mass_flux_in':'Msun/yr', \
+             'cold_mass_flux_out':'Msun/yr', 'net_cool_mass_flux':'Msun/yr', \
+             'cool_mass_flux_in':'Msun/yr', 'cool_mass_flux_out':'Msun/yr', \
+             'net_warm_mass_flux':'Msun/yr', 'warm_mass_flux_in':'Msun/yr', \
+             'warm_mass_flux_out':'Msun/yr', 'net_hot_mass_flux' :'Msun/yr', \
+             'hot_mass_flux_in' :'Msun/yr', 'hot_mass_flux_out' :'Msun/yr'}
     for key in table.keys():
         table[key].unit = table_units[key]
     return table
 
-def calc_fluxes(ds, snap, halo_center, refine_width_kpc, tablename, **kwargs):
+def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
     """Computes the flux through spherical shells centered on the halo center.
-    Takes the dataset for the snapshot 'ds', the name of the snapshot 'snap',
-    the halo center 'halo_center', and the width of the
-    refine box in kpc 'refine_width_kpc' and does the calculation,
-    then writes a hdf5 table out to 'tablename'.
+    Takes the dataset for the snapshot 'ds', the name of the snapshot 'snap', the redshfit of the
+    snapshot 'zsnap', and the width of the refine box in kpc 'refine_width_kpc'
+    and does the calculation, then writes a hdf5 table out to 'tablename'.
 
     Optional arguments:
     quadrants = True will calculate the flux shells within quadrants rather than the whole domain,
@@ -110,7 +116,7 @@ def calc_fluxes(ds, snap, halo_center, refine_width_kpc, tablename, **kwargs):
         to 'tablename'.
     """
 
-    outs = kwargs.get('quadrants', False)
+    quadrants = kwargs.get('quadrants', False)
 
     # Set up table of everything we want
     # NOTE: Make sure table units are updated when things are added to this table!
@@ -130,8 +136,8 @@ def calc_fluxes(ds, snap, halo_center, refine_width_kpc, tablename, **kwargs):
                             'net_cool_mass_flux', 'cool_mass_flux_in', 'cool_mass_flux_out', \
                             'net_warm_mass_flux', 'warm_mass_flux_in', 'warm_mass_flux_out', \
                             'net_hot_mass_flux', 'hot_mass_flux_in', 'hot_mass_flux_out'), \
-                     dtype=('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-                            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
+                     dtype=('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
     # Define the radii of the spherical shells where we want to calculate fluxes
     radii = 0.5*refine_width_kpc * np.arange(0.1, 0.9, 0.01)
@@ -146,13 +152,13 @@ def calc_fluxes(ds, snap, halo_center, refine_width_kpc, tablename, **kwargs):
         if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)-1))
 
         # Make the spheres and shell for computing
-        inner_sphere = ds.sphere(halo_center, r_low)
-        outer_sphere = ds.sphere(halo_center, r_high)
+        inner_sphere = ds.sphere(ds.halo_center_kpc, r_low)
+        outer_sphere = ds.sphere(ds.halo_center_kpc, r_high)
         shell = outer_sphere - inner_sphere
 
         # Cut the shell on radial velocity for in and out fluxes
-        shell_in = shell.cut_region("obj['radial_velocity'] < 0")
-        shell_out = shell.cut_region("obj['radial_velocity'] > 0")
+        shell_in = shell.cut_region("obj['gas','radial_velocity_corrected'] < 0")
+        shell_out = shell.cut_region("obj['gas','radial_velocity_corrected'] > 0")
 
         # Cut the shell on temperature for cold, cool, warm, and hot gas
         shell_cold = shell.cut_region("obj['temperature'] <= 10**4")
@@ -177,46 +183,55 @@ def calc_fluxes(ds, snap, halo_center, refine_width_kpc, tablename, **kwargs):
         shell_out_hot = shell_out.cut_region("obj['temperature'] > 10**6")
 
         # Compute fluxes
-        net_mass_flux = (np.sum(shell['cell_mass']*shell['radial_velocity']) \
-                         /dr).in_units('Msun/yr')
-        mass_flux_in = (np.sum(shell_in['cell_mass']*shell_in['radial_velocity']) \
-                        /dr).in_units('Msun/yr')
-        mass_flux_out = (np.sum(shell_out['cell_mass']*shell_out['radial_velocity']) \
-                         /dr).in_units('Msun/yr')
+        net_mass_flux = (np.sum(shell['cell_mass'] * \
+                         shell['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
+        mass_flux_in = (np.sum(shell_in['cell_mass'] * \
+                        shell_in['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
+        mass_flux_out = (np.sum(shell_out['cell_mass'] * \
+                         shell_out['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
 
-        net_metal_flux = (np.sum(shell['metal_mass']*shell['radial_velocity']) \
-                          /dr).in_units('Msun/yr')
-        metal_flux_in = (np.sum(shell_in['metal_mass']*shell_in['radial_velocity']) \
-                         /dr).in_units('Msun/yr')
-        metal_flux_out = (np.sum(shell_out['metal_mass']*shell_out['radial_velocity']) \
-                          /dr).in_units('Msun/yr')
+        net_metal_flux = (np.sum(shell['metal_mass'] * \
+                          shell['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
+        metal_flux_in = (np.sum(shell_in['metal_mass'] * \
+                         shell_in['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
+        metal_flux_out = (np.sum(shell_out['metal_mass'] * \
+                          shell_out['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
 
-        net_cold_mass_flux = (np.sum(shell_cold['cell_mass']*shell_cold['radial_velocity']) \
-                              /dr).in_units('Msun/yr')
-        cold_mass_flux_in = (np.sum(shell_in_cold['cell_mass']*shell_in_cold['radial_velocity']) \
+        net_cold_mass_flux = (np.sum(shell_cold['cell_mass'] * \
+                              shell_cold['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
+        cold_mass_flux_in = (np.sum(shell_in_cold['cell_mass'] * \
+                             shell_in_cold['gas','radial_velocity_corrected']) \
                              /dr).in_units('Msun/yr')
-        cold_mass_flux_out = (np.sum(shell_out_cold['cell_mass']*shell_out_cold['radial_velocity']) \
+        cold_mass_flux_out = (np.sum(shell_out_cold['cell_mass'] * \
+                              shell_out_cold['gas','radial_velocity_corrected']) \
                               /dr).in_units('Msun/yr')
 
-        net_cool_mass_flux = (np.sum(shell_cool['cell_mass']*shell_cool['radial_velocity']) \
-                              /dr).in_units('Msun/yr')
-        cool_mass_flux_in = (np.sum(shell_in_cool['cell_mass']*shell_in_cool['radial_velocity']) \
+        net_cool_mass_flux = (np.sum(shell_cool['cell_mass'] * \
+                              shell_cool['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
+        cool_mass_flux_in = (np.sum(shell_in_cool['cell_mass'] * \
+                             shell_in_cool['gas','radial_velocity_corrected']) \
                              /dr).in_units('Msun/yr')
-        cool_mass_flux_out = (np.sum(shell_out_cool['cell_mass']*shell_out_cool['radial_velocity']) \
+        cool_mass_flux_out = (np.sum(shell_out_cool['cell_mass'] * \
+                              shell_out_cool['gas','radial_velocity_corrected']) \
                               /dr).in_units('Msun/yr')
 
-        net_warm_mass_flux = (np.sum(shell_warm['cell_mass']*shell_warm['radial_velocity']) \
+        net_warm_mass_flux = (np.sum(shell_warm['cell_mass'] * \
+                              shell_warm['gas','radial_velocity_corrected']) \
                               /dr).in_units('Msun/yr')
-        warm_mass_flux_in = (np.sum(shell_in_warm['cell_mass']*shell_in_warm['radial_velocity']) \
+        warm_mass_flux_in = (np.sum(shell_in_warm['cell_mass'] * \
+                             shell_in_warm['gas','radial_velocity_corrected']) \
                              /dr).in_units('Msun/yr')
-        warm_mass_flux_out = (np.sum(shell_out_warm['cell_mass']*shell_out_warm['radial_velocity']) \
+        warm_mass_flux_out = (np.sum(shell_out_warm['cell_mass'] * \
+                              shell_out_warm['gas','radial_velocity_corrected']) \
                               /dr).in_units('Msun/yr')
 
-        net_hot_mass_flux = (np.sum(shell_hot['cell_mass']*shell_hot['radial_velocity']) \
-                             /dr).in_units('Msun/yr')
-        hot_mass_flux_in = (np.sum(shell_in_hot['cell_mass']*shell_in_hot['radial_velocity']) \
+        net_hot_mass_flux = (np.sum(shell_hot['cell_mass'] * \
+                             shell_hot['gas','radial_velocity_corrected'])/dr).in_units('Msun/yr')
+        hot_mass_flux_in = (np.sum(shell_in_hot['cell_mass'] * \
+                            shell_in_hot['gas','radial_velocity_corrected']) \
                             /dr).in_units('Msun/yr')
-        hot_mass_flux_out = (np.sum(shell_out_hot['cell_mass']*shell_out_hot['radial_velocity']) \
+        hot_mass_flux_out = (np.sum(shell_out_hot['cell_mass'] * \
+                             shell_out_hot['gas','radial_velocity_corrected']) \
                              /dr).in_units('Msun/yr')
 
         if (quadrants):
@@ -247,8 +262,8 @@ def calc_fluxes(ds, snap, halo_center, refine_width_kpc, tablename, **kwargs):
                                        "(obj['phi_pos'] < " + str(phi_up) + ")")
 
                 # Cut the shell on radial velocity for in and out fluxes
-                shell_in_q = shell_q.cut_region("obj['radial_velocity'] < 0")
-                shell_out_q = shell_q.cut_region("obj['radial_velocity'] > 0")
+                shell_in_q = shell_q.cut_region("obj['gas','radial_velocity_corrected'] < 0")
+                shell_out_q = shell_q.cut_region("obj['gas','radial_velocity_corrected'] > 0")
 
                 # Cut the shell on temperature for cold, cool, warm, and hot gas
                 shell_cold_q = shell_q.cut_region("obj['temperature'] <= 10**4")
@@ -273,55 +288,73 @@ def calc_fluxes(ds, snap, halo_center, refine_width_kpc, tablename, **kwargs):
                 shell_out_hot_q = shell_out_q.cut_region("obj['temperature'] > 10**6")
 
                 # Compute fluxes
-                net_mass_flux_q = (np.sum(shell_q['cell_mass']*shell_q['radial_velocity']) \
-                                 /dr).in_units('Msun/yr')
-                mass_flux_in_q = (np.sum(shell_in_q['cell_mass']*shell_in_q['radial_velocity']) \
-                                /dr).in_units('Msun/yr')
-                mass_flux_out_q = (np.sum(shell_out_q['cell_mass']*shell_out_q['radial_velocity']) \
-                                 /dr).in_units('Msun/yr')
-
-                net_metal_flux_q = (np.sum(shell_q['metal_mass']*shell_q['radial_velocity']) \
+                net_mass_flux_q = (np.sum(shell_q['cell_mass'] * \
+                                   shell_q['gas','radial_velocity_corrected']) \
+                                   /dr).in_units('Msun/yr')
+                mass_flux_in_q = (np.sum(shell_in_q['cell_mass'] * \
+                                  shell_in_q['gas','radial_velocity_corrected']) \
                                   /dr).in_units('Msun/yr')
-                metal_flux_in_q = (np.sum(shell_in_q['metal_mass']*shell_in_q['radial_velocity']) \
-                                 /dr).in_units('Msun/yr')
-                metal_flux_out_q = (np.sum(shell_out_q['metal_mass']*shell_out_q['radial_velocity']) \
-                                  /dr).in_units('Msun/yr')
+                mass_flux_out_q = (np.sum(shell_out_q['cell_mass'] * \
+                                   shell_out_q['gas','radial_velocity_corrected']) \
+                                   /dr).in_units('Msun/yr')
 
-                net_cold_mass_flux_q = (np.sum(shell_cold_q['cell_mass']*shell_cold_q['radial_velocity']) \
-                                      /dr).in_units('Msun/yr')
-                cold_mass_flux_in_q = (np.sum(shell_in_cold_q['cell_mass']*shell_in_cold_q['radial_velocity']) \
-                                     /dr).in_units('Msun/yr')
-                cold_mass_flux_out_q = (np.sum(shell_out_cold_q['cell_mass']*shell_out_cold_q['radial_velocity']) \
-                                      /dr).in_units('Msun/yr')
-
-                net_cool_mass_flux_q = (np.sum(shell_cool_q['cell_mass']*shell_cool_q['radial_velocity']) \
-                                      /dr).in_units('Msun/yr')
-                cool_mass_flux_in_q = (np.sum(shell_in_cool_q['cell_mass']*shell_in_cool_q['radial_velocity']) \
-                                     /dr).in_units('Msun/yr')
-                cool_mass_flux_out_q = (np.sum(shell_out_cool_q['cell_mass']*shell_out_cool_q['radial_velocity']) \
-                                      /dr).in_units('Msun/yr')
-
-                net_warm_mass_flux_q = (np.sum(shell_warm_q['cell_mass']*shell_warm_q['radial_velocity']) \
-                                      /dr).in_units('Msun/yr')
-                warm_mass_flux_in_q = (np.sum(shell_in_warm_q['cell_mass']*shell_in_warm_q['radial_velocity']) \
-                                     /dr).in_units('Msun/yr')
-                warm_mass_flux_out_q = (np.sum(shell_out_warm_q['cell_mass']*shell_out_warm_q['radial_velocity']) \
-                                      /dr).in_units('Msun/yr')
-
-                net_hot_mass_flux_q = (np.sum(shell_hot_q['cell_mass']*shell_hot_q['radial_velocity']) \
-                                     /dr).in_units('Msun/yr')
-                hot_mass_flux_in_q = (np.sum(shell_in_hot_q['cell_mass']*shell_in_hot_q['radial_velocity']) \
+                net_metal_flux_q = (np.sum(shell_q['metal_mass'] * \
+                                    shell_q['gas','radial_velocity_corrected']) \
                                     /dr).in_units('Msun/yr')
-                hot_mass_flux_out_q = (np.sum(shell_out_hot_q['cell_mass']*shell_out_hot_q['radial_velocity']) \
-                                     /dr).in_units('Msun/yr')
+                metal_flux_in_q = (np.sum(shell_in_q['metal_mass'] * \
+                                   shell_in_q['gas','radial_velocity_corrected']) \
+                                   /dr).in_units('Msun/yr')
+                metal_flux_out_q = (np.sum(shell_out_q['metal_mass'] * \
+                                    shell_out_q['gas','radial_velocity_corrected']) \
+                                    /dr).in_units('Msun/yr')
+
+                net_cold_mass_flux_q = (np.sum(shell_cold_q['cell_mass'] * \
+                                        shell_cold_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+                cold_mass_flux_in_q = (np.sum(shell_in_cold_q['cell_mass'] * \
+                                       shell_in_cold_q['gas','radial_velocity_corrected']) \
+                                       /dr).in_units('Msun/yr')
+                cold_mass_flux_out_q = (np.sum(shell_out_cold_q['cell_mass'] * \
+                                        shell_out_cold_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+
+                net_cool_mass_flux_q = (np.sum(shell_cool_q['cell_mass'] * \
+                                        shell_cool_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+                cool_mass_flux_in_q = (np.sum(shell_in_cool_q['cell_mass'] * \
+                                       shell_in_cool_q['gas','radial_velocity_corrected']) \
+                                       /dr).in_units('Msun/yr')
+                cool_mass_flux_out_q = (np.sum(shell_out_cool_q['cell_mass'] * \
+                                        shell_out_cool_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+
+                net_warm_mass_flux_q = (np.sum(shell_warm_q['cell_mass'] * \
+                                        shell_warm_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+                warm_mass_flux_in_q = (np.sum(shell_in_warm_q['cell_mass'] * \
+                                       shell_in_warm_q['gas','radial_velocity_corrected']) \
+                                       /dr).in_units('Msun/yr')
+                warm_mass_flux_out_q = (np.sum(shell_out_warm_q['cell_mass'] * \
+                                        shell_out_warm_q['gas','radial_velocity_corrected']) \
+                                        /dr).in_units('Msun/yr')
+
+                net_hot_mass_flux_q = (np.sum(shell_hot_q['cell_mass'] * \
+                                       shell_hot_q['gas','radial_velocity_corrected']) \
+                                       /dr).in_units('Msun/yr')
+                hot_mass_flux_in_q = (np.sum(shell_in_hot_q['cell_mass'] * \
+                                      shell_in_hot_q['gas','radial_velocity_corrected']) \
+                                      /dr).in_units('Msun/yr')
+                hot_mass_flux_out_q = (np.sum(shell_out_hot_q['cell_mass'] * \
+                                       shell_out_hot_q['gas','radial_velocity_corrected']) \
+                                       /dr).in_units('Msun/yr')
 
                 # Add everything to the table
-                data_q.add_row([zsnap, q+1, r, net_mass_flux, net_metal_flux, mass_flux_in, mass_flux_out, \
-                              metal_flux_in, metal_flux_out, net_cold_mass_flux, cold_mass_flux_in, \
-                              cold_mass_flux_out, net_cool_mass_flux, cool_mass_flux_in, \
-                              cool_mass_flux_out, net_warm_mass_flux, warm_mass_flux_in, \
-                              warm_mass_flux_out, net_hot_mass_flux, hot_mass_flux_in, \
-                              hot_mass_flux_out])
+                data_q.add_row([zsnap, q+1, r, net_mass_flux, net_metal_flux, mass_flux_in, \
+                              mass_flux_out, metal_flux_in, metal_flux_out, net_cold_mass_flux, \
+                              cold_mass_flux_in, cold_mass_flux_out, net_cool_mass_flux, \
+                              cool_mass_flux_in, cool_mass_flux_out, net_warm_mass_flux, \
+                              warm_mass_flux_in, warm_mass_flux_out, net_hot_mass_flux, \
+                              hot_mass_flux_in, hot_mass_flux_out])
         # Add everything to the table
         data.add_row([zsnap, 0, r, net_mass_flux, net_metal_flux, mass_flux_in, mass_flux_out, \
                       metal_flux_in, metal_flux_out, net_cold_mass_flux, cold_mass_flux_in, \
@@ -331,11 +364,11 @@ def calc_fluxes(ds, snap, halo_center, refine_width_kpc, tablename, **kwargs):
                       hot_mass_flux_out])
 
     data = set_table_units(data)
-    data.write(tablename, path='all_data', serialize_meta=True, overwrite=True)
+    data.write(tablename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     if (quadrants):
         data_q = set_table_units(data_q)
-        data_q.write(tablename + '_q', path='all_data', serialize_meta=True, overwrite=True)
+        data_q.write(tablename + '_q.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     return "Fluxes have been calculated for snapshot" + snap + "!"
 
@@ -384,19 +417,29 @@ if __name__ == "__main__":
 
         # Define the halo center in kpc and the halo velocity in km/s
         halo_center_kpc = YTArray(np.array(halo_center)*proper_box_size, 'kpc')
-        halo_velocity_kms = YTArray(halo_velocity, 'km/s')
+        halo_velocity_kms = YTArray(halo_velocity).in_units('km/s')
+        ds.halo_center_kpc = halo_center_kpc
+        ds.halo_velocity_kms = halo_velocity_kms
+
         # Add the fields we want
-        yt.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False)
-        yt.add_field(('gas', 'vy_corrected'), function=vy_corrected, units='km/s', take_log=False)
-        yt.add_field(('gas', 'vz_corrected'), function=vz_corrected, units='km/s', take_log=False)
-        yt.add_field(('gas', 'radius'), function=radius_corrected, units='kpc', take_log=False, force_override=True)
-        yt.add_field(('gas', 'theta_pos'), function=theta_pos, units=None, take_log=False)
-        yt.add_field(('gas', 'phi_pos'), function=phi_pos, units=None, take_log=False)
-        yt.add_field(('gas', 'radial_velocity'), function=radial_velocity_corrected, units='km/s', take_log=False, \
-                     force_override=True)
+        ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'vy_corrected'), function=vy_corrected, units='km/s', take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'vz_corrected'), function=vz_corrected, units='km/s', take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'radius_corrected'), function=radius_corrected, units='kpc', \
+                     take_log=False, force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'theta_pos'), function=theta_pos, units=None, take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'phi_pos'), function=phi_pos, units=None, take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'radial_velocity_corrected'), function=radial_velocity_corrected, \
+                     units='km/s', take_log=False, force_override=True, sampling_type='cell')
 
         # Do the actual calculation
-        message = calc_fluxes(ds, snap, halo_center, refine_width_kpc, tablename)
+        message = calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, \
+                              quadrants=args.quadrants)
         print(message)
         print(str(datetime.datetime.now()))
 

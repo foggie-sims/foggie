@@ -1,4 +1,9 @@
 
+# Note: any field definition functions that start with _ cannot be loaded
+# into other modules because python makes them private functions.
+
+import numpy as np
+
 def _static_average_rampressure(field, data):
     bulk_velocity = data.get_field_parameter("bulk_velocity").in_units('km/s')
     velx = data['enzo', 'x-velocity'].to('km/s') - bulk_velocity[0]
@@ -52,26 +57,26 @@ def _cooling_criteria(field,data):
 def vx_corrected(field, data):
     """Corrects the x-velocity for bulk motion of the halo. Requires 'halo_velocity_kms', which
     is the halo velocity with yt units of km/s, to be defined."""
-    halo_velocity_kms = data.get_field_parameter('halo_velocity')
+    halo_velocity_kms = data.ds.halo_velocity_kms
     return data['gas','velocity_x'].in_units('km/s') - halo_velocity_kms[0]
 
 def vy_corrected(field, data):
     """Corrects the y-velocity for bulk motion of the halo. Requires 'halo_velocity_kms', which
     is the halo velocity with yt units of km/s, to be defined."""
-    halo_velocity_kms = data.get_field_parameter('halo_velocity')
+    halo_velocity_kms = data.ds.halo_velocity_kms
     return data['gas','velocity_y'].in_units('km/s') - halo_velocity_kms[1]
 
 def vz_corrected(field, data):
     """Corrects the z-velocity for bulk motion of the halo. Requires 'halo_velocity_kms', which
     is the halo velocity with yt units of km/s, to be defined."""
-    halo_velocity_kms = data.get_field_parameter('halo_velocity')
+    halo_velocity_kms = data.ds.halo_velocity_kms
     return data['gas','velocity_z'].in_units('km/s') - halo_velocity_kms[2]
 
 def radial_velocity_corrected(field, data):
     """Corrects the radial velocity for bulk motion of the halo and the halo center.
     Requires 'halo_center_kpc', which is the halo center with yt units of kpc, to be defined.
     Requires the other fields of _vx_corrected, _vy_corrected, and _vz_corrected."""
-    halo_center_kpc = data.get_field_parameter('halo_center')
+    halo_center_kpc = data.ds.halo_center_kpc
     x_hat = data['x'].in_units('kpc') - halo_center_kpc[0]
     y_hat = data['y'].in_units('kpc') - halo_center_kpc[1]
     z_hat = data['z'].in_units('kpc') - halo_center_kpc[2]
@@ -84,7 +89,7 @@ def radial_velocity_corrected(field, data):
 def radius_corrected(field, data):
     """Corrects the radius for the center of the halo. Requires 'halo_center_kpc', which is the halo
     center with yt units of kpc, to be defined."""
-    halo_center_kpc = data.get_field_parameter('halo_center')
+    halo_center_kpc = data.ds.halo_center_kpc
     x_hat = data['x'].in_units('kpc') - halo_center_kpc[0]
     y_hat = data['y'].in_units('kpc') - halo_center_kpc[1]
     z_hat = data['z'].in_units('kpc') - halo_center_kpc[2]
@@ -94,7 +99,7 @@ def radius_corrected(field, data):
 def theta_pos(field, data):
     """Calculates the azimuthal position of cells for conversions to spherical coordinates.
     Requires 'halo_center_kpc', which is the halo center with yt units of kpc, to be defined."""
-    halo_center_kpc = data.get_field_parameter('halo_center')
+    halo_center_kpc = data.ds.halo_center_kpc
     x_hat = data['x'].in_units('kpc') - halo_center_kpc[0]
     y_hat = data['y'].in_units('kpc') - halo_center_kpc[1]
     z_hat = data['z'].in_units('kpc') - halo_center_kpc[2]
@@ -104,7 +109,7 @@ def theta_pos(field, data):
 def phi_pos(field, data):
     """Calculates the angular position of cells for conversions to spherical coordinates.
     Requires 'halo_center_kpc', which is the halo center with yt units of kpc, to be defined."""
-    halo_center_kpc = data.get_field_parameter('halo_center')
+    halo_center_kpc = data.ds.halo_center_kpc
     x_hat = data['x'].in_units('kpc') - halo_center_kpc[0]
     y_hat = data['y'].in_units('kpc') - halo_center_kpc[1]
     z_hat = data['z'].in_units('kpc') - halo_center_kpc[2]
