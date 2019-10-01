@@ -992,10 +992,10 @@ if __name__ == "__main__":
                 tablename = prefix + snap + '_fluxes'
                 threads.append(mp.Process(target=load_and_calculate, \
 			       args=(foggie_dir, run_dir, track, snap, tablename, args.quadrants)))
-                for t in threads:
-                    t.start()
-                for t in threads:
-                    t.join()
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
         # For any leftover snapshots, run one per processor
         threads = []
         for j in range(len(outs)%args.nproc):
@@ -1003,10 +1003,10 @@ if __name__ == "__main__":
             tablename = prefix + snap + '_fluxes'
             threads.append(mp.Process(target=load_and_calculate, \
 			   args=(foggie_dir, run_dir, track, snap, tablename, args.quadrants)))
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
     print(str(datetime.datetime.now()))
     sys.exit("All snapshots finished!")
