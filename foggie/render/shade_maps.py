@@ -80,7 +80,8 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
     fig = plt.figure(figsize=(8,8),dpi=300)
     
     ax1 = fig.add_axes([0.1, 0.1, 0.85, 0.85])
-    ax1.imshow(np.flip(img[:,:,0:4],0), alpha=1.)
+    #ax1.imshow(np.flip(img[:,:,0:4],0), alpha=1.)
+    ax1.imshow(np.flip(img,0)) 
 
     xstep = 1
     x_max = ranges[0][1]
@@ -137,7 +138,7 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
     plt.text(0.033, 0.965, 'region = '+region, transform=ax1.transAxes)
     plt.text(0.033, 0.93, 'z = '+str(np.round(dataset.current_redshift * 100.) / 100.), transform=ax1.transAxes) 
 
-    plt.savefig(filename)
+    plt.savefig(filename, transparent=True)
 
     return fig
 
