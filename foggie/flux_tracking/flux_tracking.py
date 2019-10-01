@@ -990,8 +990,8 @@ if __name__ == "__main__":
             for j in range(args.nproc):
                 snap = outs[args.nproc*i+j]
                 tablename = prefix + snap + '_fluxes'
-                args = [foggie_dir, run_dir, track, snap, tablename, args.quadrants]
-                threads.append(mp.Process(target=load_and_calculate, args=args))
+                threads.append(mp.Process(target=load_and_calculate, \
+			       args=(foggie_dir, run_dir, track, snap, tablename, args.quadrants)))
                 for t in threads:
                     t.start()
                 for t in threads:
@@ -1001,8 +1001,8 @@ if __name__ == "__main__":
         for j in range(len(outs)%args.nproc):
             snap = outs[-(j+1)]
             tablename = prefix + snap + '_fluxes'
-            args = [foggie_dir, run_dir, track, snap, tablename, args.quadrants]
-            threads.append(mp.Process(target=load_and_calculate, args=args))
+            threads.append(mp.Process(target=load_and_calculate, \
+			   args=(foggie_dir, run_dir, track, snap, tablename, args.quadrants)))
             for t in threads:
                 t.start()
             for t in threads:
