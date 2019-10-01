@@ -29,7 +29,7 @@ import glob
 import sys
 from astropy.table import Table
 from astropy.io import ascii
-from multiprocessing import Pool
+import multiprocessing as mp
 import datetime
 
 # These imports are FOGGIE-specific files
@@ -885,13 +885,11 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
 
     return "Fluxes have been calculated for snapshot" + snap + "!"
 
-def load_and_calculate(args):
+def load_and_calculate(foggie_dir, run_dir, track, snap, tablename, quadrants):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the table to output, and a boolean
     'quadrants' that specifies whether or not to compute in quadrants vs. the whole domain, then
     does the calculation on the loaded snapshot.'''
-
-    foggie_dir, run_dir, track, snap, tablename, quadrants = args
 
     # Load snapshot
     print ('Opening snapshot ' + snap)
@@ -983,19 +981,32 @@ if __name__ == "__main__":
             # Make the output table name for this snapshot
             tablename = prefix + snap + '_fluxes'
             # Do the actual calculation
-            load_and_calculate((foggie_dir, run_dir, track, snap, tablename, args.quadrants))
+            load_and_calculate(foggie_dir, run_dir, track, snap, tablename, args.quadrants)
     else:
-        looper = []
-        for i in range(len(outs)):
-            snap = outs[i]
-            # Make the output table name for this snapshot
+        # Split into a number of groupings equal to the number of processors
+        # and run one process per processor
+        for i in range(len(outs)//args.nproc):
+            threads = []
+            for j in range(args.nproc):
+                snap = outs[args.nproc*i+j]
+                tablename = prefix + snap + '_fluxes'
+                args = [foggie_dir, run_dir, track, snap, tablename, args.quadrants]
+                threads.append(mp.Process(target=load_and_calculate, args=args))
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+        # For any leftover snapshots, run one per processor
+        threads = []
+        for j in range(len(outs)%args.nproc):
+            snap = outs[-(j+1)]
             tablename = prefix + snap + '_fluxes'
-            # Add all the arguments to load_and_calculate to a list
-            looper.append((foggie_dir, run_dir, track, snap, tablename, args.quadrants))
-        # Initialize the processor pool
-        pool = Pool(args.nproc)
-        # Do the actual calculation
-        pool.map(load_and_calculate, looper)
+            args = [foggie_dir, run_dir, track, snap, tablename, args.quadrants]
+            threads.append(mp.Process(target=load_and_calculate, args=args))
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
 
     print(str(datetime.datetime.now()))
     sys.exit("All snapshots finished!")
