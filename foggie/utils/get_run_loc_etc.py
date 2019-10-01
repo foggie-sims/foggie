@@ -46,7 +46,7 @@ def get_run_loc_etc(args):
     elif args.system == "pleiades_cassi":
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/home5/clochhaa/FOGGIE/Outputs/"
-        code_path = "/home5/clochhaa/FOGGIE/Code/"
+        code_path = "/home5/clochhaa/FOGGIE/foggie/foggie/"
 
     if args.run == "natural":
         run_loc = "halo_00"+ args.halo + "/nref11n/"
