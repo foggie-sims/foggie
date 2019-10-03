@@ -507,7 +507,11 @@ colormap_dict = {'phase':new_phase_color_key, \
                  'O_p5_number_density':o6_color_map, \
                  'H_p0_number_density':h1_color_map, \
                  'C_p1_number_density': c2_color_map, \
-                 'C_p3_number_density':c4_color_map}
+                 'C_p3_number_density':c4_color_map, \
+                 'r_wrt_observer': radius_color_key, \
+                 'velocity_wrt_observer': velocity_color_key, \
+                 'vel_pos_wrt_observer': vel_pos_color_key, \
+                 'vel_neg_wrt_observer': vel_neg_color_key}
 
 proj_max_dict = {'density':1e-1, 'H_p0_number_density':h1_proj_max, 
                   'C_p1_number_density':c2_max, 'C_p2_number_density':c3_max, 
