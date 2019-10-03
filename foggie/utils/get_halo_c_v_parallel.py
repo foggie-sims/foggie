@@ -145,6 +145,8 @@ def get_halo_info(snap, track, t):
     print(snap[-6:] + ' done')
     t.put(row)
 
+    ds.index.clear_all_data()
+
 
 if __name__ == "__main__":
 
