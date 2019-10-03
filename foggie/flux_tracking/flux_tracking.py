@@ -921,8 +921,10 @@ def load_and_calculate(foggie_dir, run_dir, track, halo_c_v, snap, tablename, qu
     halo_velocity_kms = YTArray([float(halo_c_v['col7'][halo_ind]), \
                                 float(halo_c_v['col8'][halo_ind]), \
                                 float(halo_c_v['col9'][halo_ind])], 'km/s')
+    sp = ds.sphere(halo_center_kpc, 0.05*refine_width_kpc[0])
+    bulk_velocity = sp.quantities['BulkVelocity']().in_units('km/s')
     ds.halo_center_kpc = halo_center_kpc
-    ds.halo_velocity_kms = halo_velocity_kms
+    ds.halo_velocity_kms = bulk_velocity
 
     # Add the fields we want
     ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
@@ -955,7 +957,7 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
-    track_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/halo_infos/'
+    track_dir = '/home5/clochhaa/FOGGIE/'
     if ('/astro/simulations/' in foggie_dir):
         run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'
 
@@ -990,7 +992,8 @@ if __name__ == "__main__":
 
     # Here's the new way of finding the halo
     # Load halo center and velocity
-    halo_c_v = Table.read(track_dir + '00' args.halo + '/' + args.run + '/halo_c_v', format='ascii')
+    #halo_c_v = Table.read(track_dir + '00' args.halo + '/' + args.run + '/halo_c_v', format='ascii')
+    halo_c_v = Table.read(track_dir + 'halo_c_v', format='ascii')
 
     # Loop over outputs, for either single-processor or parallel processor computing
     if (args.nproc==1):

@@ -637,9 +637,9 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
         data_q = set_table_units(data_q)
         data_q.write(tablename + '_q.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
-    return "Fluxes have been calculated for snapshot" + snap + "!"
+    return "Totals have been calculated for snapshot" + snap + "!"
 
-def load_and_calculate(foggie_dir, run_dir, track, snap, tablename, quadrants):
+def load_and_calculate(foggie_dir, run_dir, track, halo_c_v, snap, tablename, quadrants):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the table to output, and a boolean
     'quadrants' that specifies whether or not to compute in quadrants vs. the whole domain, then
@@ -675,8 +675,10 @@ def load_and_calculate(foggie_dir, run_dir, track, snap, tablename, quadrants):
     halo_velocity_kms = YTArray([float(halo_c_v['col7'][halo_ind]), \
                                 float(halo_c_v['col8'][halo_ind]), \
                                 float(halo_c_v['col9'][halo_ind])], 'km/s')
+    sp = ds.sphere(halo_center_kpc, 0.05*refine_width_kpc[0])
+    bulk_velocity = sp.quantities['BulkVelocity']().in_units('km/s')
     ds.halo_center_kpc = halo_center_kpc
-    ds.halo_velocity_kms = halo_velocity_kms
+    ds.halo_velocity_kms = bulk_velocity
 
     # Add the fields we want
     ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
@@ -697,7 +699,7 @@ def load_and_calculate(foggie_dir, run_dir, track, snap, tablename, quadrants):
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
 
     # Do the actual calculation
-    message = calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, \
+    message = calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, \
                           quadrants=quadrants)
     print(message)
     print(str(datetime.datetime.now()))
@@ -709,6 +711,7 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    track_dir = '/home5/clochhaa/FOGGIE/'
     if ('/astro/simulations/' in foggie_dir):
         run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'
 
@@ -732,7 +735,7 @@ if __name__ == "__main__":
     else: outs = [args.output]
 
     # Set directory for output location, making it if necessary
-    prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
+    prefix = output_dir + 'totals_halo_00' + args.halo + '/' + args.run + '/'
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
 
     # Load halo track
@@ -743,14 +746,14 @@ if __name__ == "__main__":
 
     # Here's the new way of finding the halo
     # Load halo center and velocity
-    halo_c_v = Table.read(track_dir + '00' args.halo + '/' + args.run + '/halo_c_v', format='ascii')
+    halo_c_v = Table.read(track_dir + 'halo_c_v', format='ascii')
 
     # Loop over outputs, for either single-processor or parallel processor computing
     if (args.nproc==1):
         for i in range(len(outs)):
             snap = outs[i]
             # Make the output table name for this snapshot
-            tablename = prefix + snap + '_fluxes'
+            tablename = prefix + snap + '_totals'
             # Do the actual calculation
             load_and_calculate(foggie_dir, run_dir, track, halo_c_v, snap, tablename, args.quadrants)
     else:
@@ -760,7 +763,7 @@ if __name__ == "__main__":
             threads = []
             for j in range(args.nproc):
                 snap = outs[args.nproc*i+j]
-                tablename = prefix + snap + '_fluxes'
+                tablename = prefix + snap + '_totals'
                 threads.append(mp.Process(target=load_and_calculate, \
 			       args=(foggie_dir, run_dir, track, halo_c_v, snap, tablename, args.quadrants)))
             for t in threads:
@@ -771,7 +774,7 @@ if __name__ == "__main__":
         threads = []
         for j in range(len(outs)%args.nproc):
             snap = outs[-(j+1)]
-            tablename = prefix + snap + '_fluxes'
+            tablename = prefix + snap + '_totals'
             threads.append(mp.Process(target=load_and_calculate, \
 			   args=(foggie_dir, run_dir, track, halo_c_v, snap, tablename, args.quadrants)))
         for t in threads:
