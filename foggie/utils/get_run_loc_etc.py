@@ -1,9 +1,6 @@
 from __future__ import print_function
 
 def get_run_loc_etc(args):
-    print("for now I am assuming you are using the Tempest halo even if you passed in something different")
-
-
     if args.system == "oak":
         foggie_dir = "/astro/simulations/FOGGIE/"
         output_path = "/Users/molly/Dropbox/foggie/collab/"
@@ -27,9 +24,9 @@ def get_run_loc_etc(args):
         output_path = "/Users/tumlinson/Dropbox/foggie/collab/"
         code_path = '/Users/tumlinson/Dropbox/FOGGIE/foggie/'
     elif args.system == "jase":
-        foggie_dir = "/User/rsimons/foggie/"
-        output_path = "/User/rsimons/foggie/outputs"
-        code_path = '/User/rsimons/Desktop/git/foggie/'
+        foggie_dir = "/Users/rsimons/Desktop/foggie/sims/"
+        output_path = "/Users/rsimons/Desktop/foggie/"
+        code_path = '/Users/rsimons/Dropbox/git/foggie/foggie/'
     elif args.system == "pegasus":
         foggie_dir = "/Volumes/pegasus/foggie/"
         output_path = "/User/rsimons/foggie/outputs"

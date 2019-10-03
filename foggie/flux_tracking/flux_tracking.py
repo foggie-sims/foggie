@@ -885,7 +885,7 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
 
     return "Fluxes have been calculated for snapshot" + snap + "!"
 
-def load_and_calculate(foggie_dir, run_dir, track, snap, tablename, quadrants):
+def load_and_calculate(foggie_dir, run_dir, track, halo_c_v, snap, tablename, quadrants):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the table to output, and a boolean
     'quadrants' that specifies whether or not to compute in quadrants vs. the whole domain, then
@@ -902,12 +902,25 @@ def load_and_calculate(foggie_dir, run_dir, track, snap, tablename, quadrants):
     refine_width = refine_width_code * proper_box_size
     refine_width_kpc = YTArray([refine_width], 'kpc')
 
+    # This code is for the previous way of computing the halo center and velocity, before
+    # the files of this info were made
+    '''
     # Get halo center
     halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
 
     # Define the halo center in kpc and the halo velocity in km/s
     halo_center_kpc = YTArray(np.array(halo_center)*proper_box_size, 'kpc')
     halo_velocity_kms = YTArray(halo_velocity).in_units('km/s')
+    '''
+
+    # Here's the new way to get halo center and velocity now that the data files are made
+    halo_ind = np.where(halo_c_v['col3']==snap)[0][0]
+    halo_center_kpc = YTArray([float(halo_c_v['col4'][halo_ind]), \
+                              float(halo_c_v['col5'][halo_ind]), \
+                              float(halo_c_v['col6'][halo_ind])], 'kpc')
+    halo_velocity_kms = YTArray([float(halo_c_v['col7'][halo_ind]), \
+                                float(halo_c_v['col8'][halo_ind]), \
+                                float(halo_c_v['col9'][halo_ind])], 'km/s')
     ds.halo_center_kpc = halo_center_kpc
     ds.halo_velocity_kms = halo_velocity_kms
 
@@ -942,6 +955,7 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    track_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/halo_infos/'
     if ('/astro/simulations/' in foggie_dir):
         run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'
 
@@ -974,6 +988,10 @@ if __name__ == "__main__":
     track = Table.read(trackname, format='ascii')
     track.sort('col1')
 
+    # Here's the new way of finding the halo
+    # Load halo center and velocity
+    halo_c_v = Table.read(track_dir + '00' args.halo + '/' + args.run + '/halo_c_v', format='ascii')
+
     # Loop over outputs, for either single-processor or parallel processor computing
     if (args.nproc==1):
         for i in range(len(outs)):
@@ -981,7 +999,7 @@ if __name__ == "__main__":
             # Make the output table name for this snapshot
             tablename = prefix + snap + '_fluxes'
             # Do the actual calculation
-            load_and_calculate(foggie_dir, run_dir, track, snap, tablename, args.quadrants)
+            load_and_calculate(foggie_dir, run_dir, track, halo_c_v, snap, tablename, args.quadrants)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
@@ -991,7 +1009,7 @@ if __name__ == "__main__":
                 snap = outs[args.nproc*i+j]
                 tablename = prefix + snap + '_fluxes'
                 threads.append(mp.Process(target=load_and_calculate, \
-			       args=(foggie_dir, run_dir, track, snap, tablename, args.quadrants)))
+			       args=(foggie_dir, run_dir, track, halo_c_v, snap, tablename, args.quadrants)))
             for t in threads:
                 t.start()
             for t in threads:
@@ -1002,7 +1020,7 @@ if __name__ == "__main__":
             snap = outs[-(j+1)]
             tablename = prefix + snap + '_fluxes'
             threads.append(mp.Process(target=load_and_calculate, \
-			   args=(foggie_dir, run_dir, track, snap, tablename, args.quadrants)))
+			   args=(foggie_dir, run_dir, track, halo_c_v, snap, tablename, args.quadrants)))
         for t in threads:
             t.start()
         for t in threads:
