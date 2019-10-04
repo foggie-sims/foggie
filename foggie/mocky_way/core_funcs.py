@@ -10,6 +10,22 @@ Nov 2018, YZ @ UCB
 
 """
 
+##################################################################
+import yt
+import numpy as np
+# import foggie
+from foggie.foggie.utils import consistency # for plotting
+# from foggie.foggie.mocky_way import derived_fields_mw # some particular fields needed
+                                        # for mocky_way, like l, b
+#import pandas
+#import warnings
+# import matplotlib.pyplot as plt
+# import matplotlib as mpl
+# mpl.rcParams['font.family'] = 'stixgeneral'
+
+#import datetime
+#now = datetime.datetime.now().strftime("%Y-%m-%d")
+
 # this is important to run before setting up other packages
 # Tell the code where to look for data and packages if on different sys
 import os
@@ -29,22 +45,6 @@ def data_dir_sys_dir():
 
 # data_dir, sys_dir = data_dir_sys_dir()
 # os.sys.path.insert(0, sys_dir)
-
-##################################################################
-import yt
-import numpy as np
-# import foggie
-from foggie.utils import consistency # for plotting
-from mocky_way import derived_fields_mw # some particular fields needed
-                                        # for mocky_way, like l, b
-#import pandas
-#import warnings
-# import matplotlib.pyplot as plt
-# import matplotlib as mpl
-# mpl.rcParams['font.family'] = 'stixgeneral'
-
-#import datetime
-#now = datetime.datetime.now().strftime("%Y-%m-%d")
 
 def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     """
@@ -72,11 +72,17 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
                 + Merging mocky_way to foggie/mocky_way. YZ.
     """
 
+    # my rule: vector should have no unit, just numpy array
+    # the point location have unit of code_length
+    ds_paras = {} # this is the full parameter we will derive
+
     #### first, need to know where the data sit
-    from foggie.mocky_way.core_funcs import data_dir_sys_dir
+    from foggie.foggie.mocky_way.core_funcs import data_dir_sys_dir
     data_dir, sys_dir = data_dir_sys_dir()
-    halo_track = '%s/%s/halo_track'%(data_dir, sim_name)
     ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
+    ds_paras['dd_name'] = dd_name
+    ds_paras['sim_name'] = sim_name
+    ds_paras['data_path'] = ds_file
     print("Working on %s/%s"%(sim_name, dd_name))
 
     #### loading simulation and get redshift
@@ -84,6 +90,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     from astropy.cosmology import Planck15 as cosmo
     age = cosmo.age(zsnap).value
+    ds_paras['zsnap'] = zsnap
     print('CosmologyCurrentRedshift: %s, %.3f, %.2f Gyrs'%(dd_name, zsnap, age))
 
     #### post-processing, add ion fields in addition to (H, He) to ds
@@ -95,99 +102,48 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     trident.add_ion_fields(ds, ftype="gas", ions=ion_list, force_override=True)
 
     #### find halo center and bulk velocity
-    from foggie.utils.get_halo_center import get_halo_center
-    from foggie.utils.get_refine_box import get_refine_box
-    from astropy.table import Table
-    track = Table.read(halo_track, format='ascii')
-    track.sort('col1')
-    box_paras = get_refine_box(ds, zsnap, track)
-    refine_box = box_paras[0]
-    refine_box_center = box_paras[1]
-    refine_width_code = box_paras[2]
-    halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
-    halo_center = ds.arr(halo_center, 'code_length')
+    from foggie.foggie.mocky_way.core_funcs import find_halo_center_yz
+    halo_center = find_halo_center_yz(ds, zsnap, sim_name, data_dir)
+    ds_paras['halo_center'] = halo_center
 
     #### find r200.
     #### --> For new halos not been processed before, this function
     ####     will call foggie.mocky_way.core_funcs.calc_r200_proper
     #### --> For halos have been processed, this func will read from
     ####     a pre-defined dict.
-    from foggie.mocky_way.core_funcs import dict_rvir_proper
-    rvir_proper = dict_rvir_proper(ds, dd_name, sim_name=sim_name,
-                                   halo_center=halo_center)
+    from foggie.foggie.mocky_way.core_funcs import dict_rvir_proper
+    rvir_proper = dict_rvir_proper(dd_name, sim_name=sim_name)
+    ds_paras['rvir'] = ds.quan(rvir_proper, 'kpc')
 
     #### decide the angular momentum of the disk, and the three vectors
-    #### L_vec: angular momentum vector
-    #### sun_vec: vector from galaxy center to observer at sun
-    #### phi_vec: vec perpendicular to L and sun_vec following right handed rule
-    L_vec, sun_vec, phi_vec = find_galaxy_L_sun_phi_vecs()
+    ## L_vec: angular momentum vector
+    ## sun_vec: vector from galaxy center to observer at sun
+    ## phi_vec: vec perpendicular to L and sun_vec following right handed rule
+    from foggie.foggie.mocky_way.core_funcs import find_galaxy_L_sun_phi_bulkvel
+    L_vec, sun_vec, phi_vec, disk_bulkvel = find_galaxy_L_sun_phi_bulkvel()
+    ds_paras['L_vec'] = L_vec
+    ds_paras['sun_vec'] = sun_vec
+    ds_paras['phi_vec'] = phi_vec
+    ds_paras['disk_bulkvel'] = disk_bulkvel
 
-    # observer location: fit the gas disk with exp profile, find rscale,
-    # check disk_radial_scale.ipynb
-    # observer to be at twice scale length, similar to MW
-    # check disk_scale_length for the value
-    disk_scale_length_kpc = disk_scale_length(dd_name) # kpc
-    obs_dist = ds.quan(robs2rs*disk_scale_length_kpc, "kpc").in_units("code_length")
+    #### observer location: fit the gas disk with exp profile, find rscale,
+    ## check disk_radial_scale.ipynb
+    ## observer to be at twice scale length, similar to MW
+    ## check disk_scale_length for the value
+    from foggie.foggie.mocky_way.core_funcs import locate_offcenter_observer
+    ## 'disk_scale_length_kpc': disk_scale_length_kpc
+    offcenter_vars = locate_offcenter_observer()
+    ## offceter observer default at 2Rs from Galactic center in the disk
+    ds_paras['offcenter_location'] = offcenter_vars[0]
+    ## peculair motion of the observer, taken to be gas within 1 Kpc
+    ds_paras['offcenter_bulkvel'] = offcenter_vars[1]
 
-    ### decice at which point of the circle we want to put the observer on
-    # obs_loc_vectors = [sun_vec, sun_vec+phi_vec, phi_vec, -sun_vec+phi_vec,
-    #                    -sun_vec, -sun_vec-phi_vec, -phi_vec, -phi_vec+sun_vec]
-    # obs_vec = obs_loc_vectors[n_vec]
-    obs_vec = sun_vec+phi_vec # othis is tested by putting observor at eight different locations
-    obs_vec = obs_vec/np.sqrt(np.sum(obs_vec**2))
-
-    observer_location = halo_center + obs_vec*obs_dist # observer location
-
-    # we also need to change the sun vector with the location of the observer now
-    new_sun_vec = obs_vec
-    new_phi_vec = -sun_vec+phi_vec
-    new_phi_vec = new_phi_vec/np.sqrt(np.sum(new_phi_vec**2))
-
-    # set the bulk velocity of the observer, taken to be gas within 1 kpc
-    obs_sp = ds.sphere(observer_location, (1, "kpc"))
-    obs_bv = obs_sp.quantities.bulk_velocity(use_gas=True, use_particles=True)
-    obs_bv = obs_bv.in_units("km/s")
-
-    # my rule: vector should have no unit, just numpy array
-    # the point location have unit of code_length
-    ds_paras = {'halo_center': halo_center, \
-                'halo_velocity': halo_velocity, \
-                # paras for the Zoom refine region
-                'refine_box': refine_box, \
-                'refine_box_center': refine_box_center, \
-                'refine_width_code': refine_width_code, \
-                # observer at 2Rs from Galactic center in the disk
-                'observer_location': observer_location, \
-                # peculair motion of the observer, taken to be gas within 1 Kpc
-                'observer_bulkvel': obs_bv,
-                # angular momentum vector
-                'L_vec': L_vec, \
-                # from GC to observer direction
-                'sun_vec': new_sun_vec, \
-                # perpendicular to sun_vec
-                'phi_vec': new_phi_vec, \
-                # in unit of kpc
-                'rvir': rvir_proper,
-                # disk scale length,
-                'disk_scale_length_kpc': disk_scale_length_kpc, \
-                # bulkvel of the disk, taken to be gas bulk vel within 10 kpc.
-                'disk_bulkvel': disk_bulkvel.in_units('km/s'), \
-                # simulation info
-                'dd_name': dd_name,
-                'sim_name': sim_name,
-                'data_path': ds_file,
-                'trackfile': halo_track,
-                'zsnap': zsnap,
-                'ang_sphere_rr': ang_sphere_rr
-                }
     return ds, ds_paras
 
-
-def dict_rvir_proper(ds, dd_name, sim_name='nref11n_nref10f', halo_center=[0., 0., 0.]):
+def dict_rvir_proper(dd_name, sim_name='nref11n_nref10f'):
     """
     Since it takes a while to run to get r200, let's make pre-designed library
-    for those sim output that has r200 calculated, and only call calc_r200_proper
-    when the rvir value is missing.
+    for those sim output that has r200 calculated.
 
     History:
     08/06/2019, YZ.
@@ -196,34 +152,21 @@ def dict_rvir_proper(ds, dd_name, sim_name='nref11n_nref10f', halo_center=[0., 0
                 dict_rvir_proper. YZ.
     """
 
-    rvir_unit = 'kpc'
-    all_rvir_proper = {'nref11c_nref9f_selfshield_z6/RD0035': ds.quan(144.0, rvir_unit),
-                        'nref11c_nref9f_selfshield_z6/RD0036': ds.quan(147.0, rvir_unit),
-                        'nref11c_nref9f_selfshield_z6/RD0037': ds.quan(150.5, rvir_unit),
-                        'nref11c_nref9f_selfshield_z6/DD0946': ds.quan(98.0, rvir_unit)
+    all_rvir_proper = {'nref11c_nref9f_selfshield_z6/RD0035': 144.0, # kpc
+                        'nref11c_nref9f_selfshield_z6/RD0036': 147.0, # kpc
+                        'nref11c_nref9f_selfshield_z6/RD0037': 150.5,
+                        'nref11c_nref9f_selfshield_z6/DD0946': 98.0,
+                        'nref11n_nref10f/RD0039': 157.5
                         }
 
     output_string = '%s/%s'%(sim_name, dd_name)
-    if output_string in all_rvir_proper:
+    try:
         rvir_proper = all_rvir_proper[output_string]
-        print('rvir_proper exists already for %s'%(output_string))
-    else:
-        print("Do not have rvir info, now calculating...")
-        from foggie.mocky_way.core_funcs import calc_r200_proper
-        rvir_proper = calc_r200_proper(ds, halo_center,
-                                       start_rad=50,  # in unit of 50 kpc
-                                       delta_rad_coarse=30,
-                                       delta_rad_fine=5,
-                                       delta_rad_tiny=0.5)
-        import sys
-        print('NEW!! rvir_proper=%.1f kpc for %s'%(output_string))
-        print('******** Exciting! First time running this output, right? ')
-        print('You need to add info to all_rivir_proper to ')
-        print('foggie.mocky_way.core_funcs.dict_rvir_proper before you can proceed :)')
+    except:
+        print("I do not find %s/%s"%(sim_name, dd_name))
+        print("Go Run > python find_r200.py sim_name dd_name")
         sys.exit(0)
-
     return rvir_proper
-
 
 def calc_r200_proper(ds, halo_center,
                      start_rad = 5,
@@ -246,24 +189,25 @@ def calc_r200_proper(ds, halo_center,
 
     start_ratio = 10000
     r_progressing = r_start
+    from foggie.foggie.mocky_way.core_funcs import mean_rho
     for delta_r_step in [delta_rad_coarse, delta_rad_fine, delta_rad_tiny]:
         rho_ratio = start_ratio
-        print("Now in step of %s kpc..."%(delta_r_step))
+        print("- Now in step of %s kpc..."%(delta_r_step))
         while rho_ratio > 200:
             r_previous = r_progressing
             r_progressing = r_progressing + ds.quan(delta_r_step, rad_units)
             rho_internal = mean_rho(ds, halo_center, r_progressing)
             rho_ratio = rho_internal/rho_crit
-            print('Refine mean rho at r=%d kpc, rho/rho_200=%.1f'%(r_progressing, rho_ratio))
+            print('- Refine mean rho at r=%d kpc, rho/rho_200=%.1f'%(r_progressing, rho_ratio))
         r_progressing = r_previous
 
     r200 = r_progressing
     rho_ratio = mean_rho(ds, halo_center, r200)/rho_crit
-    print('Find r200 (proper) =%.1f kpc, ratio=%.1f'%(r200, rho_ratio))
+    print('- Phew! Find r200 (proper) =%.1f kpc, ratio=%.1f'%(r200, rho_ratio))
 
     return r200.in_units('kpc')
 
-def find_galaxy_L_sun_phi_vecs(ds, halo_center):
+def find_galaxy_L_sun_phi_bulkvel(ds, halo_center):
 
     """
     Decide the angular momentum of the galaxy, and find the three unit vectors
@@ -272,14 +216,14 @@ def find_galaxy_L_sun_phi_vecs(ds, halo_center):
     phi_vec: vec perpendicular to L and sun_vec following right handed rule
 
     History:
-    10/04/2019: this chunk of code was originally inside prepdat, now separte it
+    10/04/2019: this chunk of code was originally inside prepdata, now separte it
                 out to make code cleaner. YZ.
 
     """
     # tested with all-sky projection, pick the sphere radius that makes a flat projected plane
     # note that this need to be checked by eye to finally decide the value
     # go to the corresponding function to see the relevant values.
-    from foggie.mocky_way.core_funcs import dict_sphere_for_gal_ang_mom(dd_name)
+    from foggie.foggie.mocky_way.core_funcs import dict_sphere_for_gal_ang_mom
     ang_sphere_rr = sphere_for_galaxy_ang_mom(dd_name)
     # sp will be used to calculate the angular momentum of the disk
     sp = ds.sphere(halo_center, (ang_sphere_rr, 'kpc'))
@@ -306,7 +250,7 @@ def find_galaxy_L_sun_phi_vecs(ds, halo_center):
     print("sun_vec: ", sun_vec)
     print("phi_vec: ", phi_vec)
 
-    return L_vec, sun_vec, phi_vec
+    return L_vec, sun_vec, phi_vec, disk_bulkvel
 
 def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
     """
@@ -327,15 +271,92 @@ def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
 
     # kpc, looks good from the allsky projection from GC.
                  # see RD0037_L08kpc_n32_x800_R100.0_final.pdf
-    sphere_L_rr = {'nref11c_nref9f_selfshield_z6/RD0035': 8, # unit of kpc
-                   'nref11c_nref9f_selfshield_z6/RD0036': 7,
-                   'nref11c_nref9f_selfshield_z6/RD0037': 8,
-                   'nref11c_nref9f_selfshield_z6/DD0946': 10}
+    dict_sphere_L_rr = {'nref11c_nref9f_selfshield_z6/RD0035': 8, # unit of kpc
+                        'nref11c_nref9f_selfshield_z6/RD0036': 7,
+                        'nref11c_nref9f_selfshield_z6/RD0037': 8,
+                        'nref11c_nref9f_selfshield_z6/DD0946': 10}
 
     output_string = '%s/%s'%(sim_name, dd_name)
-    if output_string in sphere_L_rr:
-        this_sphere_L_rr = sphere_L_rr[output_string]
+    if output_string in dict_sphere_L_rr:
+        this_sphere_L_rr = dict_sphere_L_rr[output_string]
     else:
-        print("The sphere r for %s ang mom has not been finallized yet, set it to 10 kpc for now."%(dd_name))
-        this_sphere_L_rr = 10
+        import sys
+        print('******** Exciting! First time running this output, right? ')
+        print("The sphere for which angular momentum vecotr has not been decided yet. ")
+        print('You need to run xx code first, then add info to foggie.mocky_way.core_funcs.dict_sphere_for_gal_ang_mom')
+        print('before you can proceed :)')
+        sys.exit(0)
     return this_sphere_L_rr
+
+
+def locate_offcenter_observer(ds):
+    disk_scale_length_kpc = disk_scale_length(dd_name) # kpc
+    obs_dist = ds.quan(robs2rs*disk_scale_length_kpc, "kpc").in_units("code_length")
+
+    ### decice at which point of the circle we want to put the observer on
+    # obs_loc_vectors = [sun_vec, sun_vec+phi_vec, phi_vec, -sun_vec+phi_vec,
+    #                    -sun_vec, -sun_vec-phi_vec, -phi_vec, -phi_vec+sun_vec]
+    # obs_vec = obs_loc_vectors[n_vec]
+    obs_vec = sun_vec+phi_vec # othis is tested by putting observor at eight different locations
+    obs_vec = obs_vec/np.sqrt(np.sum(obs_vec**2))
+
+    offcenter_location = halo_center + obs_vec*obs_dist # observer location
+
+    # we also need to change the sun vector with the location of the observer now
+    new_sun_vec = obs_vec
+    new_phi_vec = -sun_vec+phi_vec
+    new_phi_vec = new_phi_vec/np.sqrt(np.sum(new_phi_vec**2))
+
+    # set the bulk velocity of the observer, taken to be gas within 1 kpc
+    obs_sp = ds.sphere(offcenter_location, (1, "kpc"))
+    obs_bv = obs_sp.quantities.bulk_velocity(use_gas=True, use_particles=True)
+    obs_bv = obs_bv.in_units("km/s")
+    offcenter_bulkvel = obs_bv
+    return offcenter_location, offcenter_bulkvel
+
+def find_halo_center_yz(ds, zsnap, sim_name, data_dir):
+    """
+    Kinda just quick to use the foggie funcs to find halo center by reading
+    in halo track information
+
+    History: 10/04/2019, YZ.
+    """
+
+    from foggie.foggie.utils.get_halo_center import get_halo_center
+    from foggie.foggie.utils.get_refine_box import get_refine_box
+    from astropy.table import Table
+
+    halo_track = '%s/%s/halo_track'%(data_dir, sim_name)
+    track = Table.read(halo_track, format='ascii')
+    track.sort('col1')
+    box_paras = get_refine_box(ds, zsnap, track)
+    refine_box = box_paras[0]
+    refine_box_center = box_paras[1]
+    refine_width_code = box_paras[2]
+    halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
+    halo_center = ds.arr(halo_center, 'code_length')
+
+    return halo_center
+
+def mean_rho(ds, center, r):
+    """
+    Mean density within a sphere of radius r
+
+    History:
+    10/04/2019, YZ wrote at some time, now merge into foggie/mocky_way
+
+    """
+
+    sp = ds.sphere(center, r)
+    # dark matter and gas mass within r, g
+    dm_mass = sp['particle_mass'].sum()
+    gas_mass = sp[('gas', 'cell_mass')].sum()
+    mr = (dm_mass + gas_mass).in_units('g')
+
+    # volume, proper units, cm3
+    vr = 4*np.pi/3 * (r.in_units('cm'))**3
+
+    # mean density within r, g/cm3
+    rho_internal = mr/vr
+
+    return rho_internal
