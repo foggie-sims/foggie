@@ -1,3 +1,10 @@
+"""
+Find rvir (proper) for a given halo. 
+Example: 
+> python find_r200.py nref11n_nref10f RD0039 
+
+10/04/2019, YZ, UCB
+"""
 import yt
 import sys 
 from foggie.foggie.mocky_way.core_funcs import data_dir_sys_dir
