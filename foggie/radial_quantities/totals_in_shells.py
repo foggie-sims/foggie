@@ -711,7 +711,8 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
-    track_dir = '/home5/clochhaa/FOGGIE/'
+    code_path = '/home5/clochhaa/FOGGIE/foggie/foggie/'
+    track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
     if ('/astro/simulations/' in foggie_dir):
         run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'
 
