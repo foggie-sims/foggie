@@ -27,27 +27,21 @@ def _radial_rampressure(field, data):
     rp = data['density'] * vel**2.
     return np.log10(rp.to('dyne/cm**2').value)
 
-#Eventually move this to a FOGGIE.load
-def filter_particles(yt):
-    """Run the particle filter"""
 
-    ### Filter Particles ###
-    def _stars(pfilter, data):
-        """Filter star particles
-        To use: yt.add_particle_filter("stars",function=_stars, filtered_type='all',requires=["particle_type"])"""
+### Filter Particles ###
+def _stars(pfilter, data):
+    """Filter star particles
+    To use: yt.add_particle_filter("stars",function=_stars, filtered_type='all',requires=["particle_type"])"""
 
-        return data[(pfilter.filtered_type, "particle_type")] == 2
+    return data[(pfilter.filtered_type, "particle_type")] == 2
 
 
-    def _darkmatter(pfilter, data):
-        """Filter dark matter particles
-        To use: yt.add_particle_filter("darkmatter",function=_darkmatter, filtered_type='all',requires=["particle_type"])"""
-        return data[(pfilter.filtered_type, "particle_type")] == 4
+def _dm(pfilter, data):
+    """Filter dark matter particles
+    To use: yt.add_particle_filter("darkmatter",function=_darkmatter, filtered_type='all',requires=["particle_type"])"""
+    return data[(pfilter.filtered_type, "particle_type")] == 4
 
 
-    yt.add_particle_filter("stars",function=_stars, filtered_type='all',requires=["particle_type"])
-    yt.add_particle_filter("dm",function=_darkmatter, filtered_type='all',requires=["particle_type"])
-    return yt
 
 def _cooling_criteria(field,data):
     """adds cooling criteria field
