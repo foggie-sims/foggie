@@ -29,7 +29,7 @@ sp_to_proj = ds.sphere(halo_center, (rvir, 'kpc'))
 sp_to_proj.set_field_parameter("observer_location", halo_center)
 
 # set up the directory to save images and other plotting stuff
-fig_dir = '%s/foggie/mocky_way/figs/offaxproj/%s_%s'%(sys_dir, sim_name, dd_name)
+fig_dir = '%s/foggie/mocky_way/figs/%s/%s_%s'%(sys_dir, sim_name, dd_name)
 if os.path.isdir(fig_dir) == False:
     print('Not finding %s, mkdir'%(fig_dir))
     os.mkdir(fig_dir)
