@@ -14,7 +14,7 @@ Nov 2018, YZ @ UCB
 import yt
 import numpy as np
 # import foggie
-from foggie.foggie.utils import consistency # for plotting
+from foggie.utils import consistency # for plotting
 # from foggie.foggie.mocky_way import derived_fields_mw # some particular fields needed
                                         # for mocky_way, like l, b
 #import pandas
@@ -36,7 +36,8 @@ def data_dir_sys_dir():
         sys_dir = '/home5/yzheng7'
         data_dir = '/nobackup/yzheng7/halo_008508'
     elif test_dir.split('/')[1] == 'Users':
-        sys_dir = '/Users/Yong/Dropbox/GitRepo'
+        # sys_dir = '/Users/Yong/Dropbox/GitRepo'
+        sys_dir = '/Users/Yong/ForkedRepo/foggie'
         data_dir = '/Users/Yong/YongData/foggie/halo_008508'
     else:
         print('Do not recognize the system path, not in Yong or Pleiades.')
@@ -102,7 +103,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     trident.add_ion_fields(ds, ftype="gas", ions=ion_list, force_override=True)
 
     #### find halo center and bulk velocity
-    from foggie.foggie.mocky_way.core_funcs import find_halo_center_yz
+    from foggie.mocky_way.core_funcs import find_halo_center_yz
     halo_center = find_halo_center_yz(ds, zsnap, sim_name, data_dir)
     ds_paras['halo_center'] = halo_center
 
@@ -111,7 +112,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ####     will call foggie.mocky_way.core_funcs.calc_r200_proper
     #### --> For halos have been processed, this func will read from
     ####     a pre-defined dict.
-    from foggie.foggie.mocky_way.core_funcs import dict_rvir_proper
+    from foggie.mocky_way.core_funcs import dict_rvir_proper
     rvir_proper = dict_rvir_proper(dd_name, sim_name=sim_name)
     ds_paras['rvir'] = ds.quan(rvir_proper, 'kpc')
 
@@ -119,7 +120,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ## L_vec: angular momentum vector
     ## sun_vec: vector from galaxy center to observer at sun
     ## phi_vec: vec perpendicular to L and sun_vec following right handed rule
-    from foggie.foggie.mocky_way.core_funcs import find_galaxy_L_sun_phi_bulkvel
+    from foggie.mocky_way.core_funcs import find_galaxy_L_sun_phi_bulkvel
     L_vec, sun_vec, phi_vec, disk_bulkvel = find_galaxy_L_sun_phi_bulkvel()
     ds_paras['L_vec'] = L_vec
     ds_paras['sun_vec'] = sun_vec
@@ -130,7 +131,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ## check disk_radial_scale.ipynb
     ## observer to be at twice scale length, similar to MW
     ## check disk_scale_length for the value
-    from foggie.foggie.mocky_way.core_funcs import locate_offcenter_observer
+    from foggie.mocky_way.core_funcs import locate_offcenter_observer
     ## 'disk_scale_length_kpc': disk_scale_length_kpc
     offcenter_vars = locate_offcenter_observer()
     ## offceter observer default at 2Rs from Galactic center in the disk
@@ -189,7 +190,7 @@ def calc_r200_proper(ds, halo_center,
 
     start_ratio = 10000
     r_progressing = r_start
-    from foggie.foggie.mocky_way.core_funcs import mean_rho
+    from foggie.mocky_way.core_funcs import mean_rho
     for delta_r_step in [delta_rad_coarse, delta_rad_fine, delta_rad_tiny]:
         rho_ratio = start_ratio
         print("- Now in step of %s kpc..."%(delta_r_step))
@@ -223,7 +224,7 @@ def find_galaxy_L_sun_phi_bulkvel(ds, halo_center):
     # tested with all-sky projection, pick the sphere radius that makes a flat projected plane
     # note that this need to be checked by eye to finally decide the value
     # go to the corresponding function to see the relevant values.
-    from foggie.foggie.mocky_way.core_funcs import dict_sphere_for_gal_ang_mom
+    from foggie.mocky_way.core_funcs import dict_sphere_for_gal_ang_mom
     ang_sphere_rr = sphere_for_galaxy_ang_mom(dd_name)
     # sp will be used to calculate the angular momentum of the disk
     sp = ds.sphere(halo_center, (ang_sphere_rr, 'kpc'))
@@ -322,8 +323,8 @@ def find_halo_center_yz(ds, zsnap, sim_name, data_dir):
     History: 10/04/2019, YZ.
     """
 
-    from foggie.foggie.utils.get_halo_center import get_halo_center
-    from foggie.foggie.utils.get_refine_box import get_refine_box
+    from foggie.utils.get_halo_center import get_halo_center
+    from foggie.utils.get_refine_box import get_refine_box
     from astropy.table import Table
 
     halo_track = '%s/%s/halo_track'%(data_dir, sim_name)
@@ -360,3 +361,38 @@ def mean_rho(ds, center, r):
     rho_internal = mr/vr
 
     return rho_internal
+
+def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=10,
+                            use_gas=True, use_particles=False,
+                            random_seed=99):
+    """
+    Calculate the angular momentum vector for gas within a sphere of radius r.
+    IMPORTANT: do not change use_gas, use_particles, random_seed, unless you
+               you testing something new.
+
+    Return:
+    Dict of 3 vectors, L_vec, sun_vec, phi_vec
+
+    History:
+
+    10/04/2019, YZ., UCB
+    """
+
+    sp = ds.h.sphere(sp_center, (r_for_L, 'kpc'))
+    # let's set up the bulk velocity before setting up the angular momentum
+    sp_bulkvel = sp.quantities.bulk_velocity(use_gas=use_gas,
+                                             use_particles=use_particles)
+    sp.set_field_parameter('bulk_velocity', sp_bulkvel)
+
+    # angular momentum
+    spec_L = sp.quantities.angular_momentum_vector(use_gas=use_gas,
+                                                   use_particles=use_particles)
+    norm_L = spec_L / np.sqrt((spec_L**2).sum())
+
+    from yt.utilities.math_utils import ortho_find
+    np.random.seed(random_seed) ## to make sure we get the same thing everytime
+    n1_L, n2_sun, n3_phi = ortho_find(norm_L)  # UVW vector
+    dict_vecs = {'L_vec': n1_L,
+                 'sun_vec': n2_sun,
+                 'phi_vec': n3_phi}
+    return dict_vecs
