@@ -26,13 +26,15 @@ import matplotlib.pyplot as plt
 from foggie.mocky_way.core_funcs import data_dir_sys_dir
 from foggie.mocky_way.core_funcs import find_halo_center_yz
 from foggie.utils import consistency
+from foggie.mocky_way.core_funcs import dict_rvir_proper
 
 import yt
-from yt.utilities.math_utils import ortho_find
 from yt.visualization.volume_rendering.healpix_projection import healpix_projection
 
-dd_name = 'RD0037'
-sim_name = 'nref11n_nref10f'
+sim_name = sys.argv[1]    # nref11n_nref10f
+dd_name = sys.argv[2]     # RD0039
+ion_to_proj = sys.argv[3] # mainly for HI
+
 data_dir, sys_dir = data_dir_sys_dir()
 fig_dir = sys_dir+'%s/foggie/foggie/mocky_way/figs/find_flat_disk'
 os.sys.path.insert(0, sys_dir)
@@ -41,9 +43,7 @@ ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
 ds = yt.load(ds_file)
 zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 halo_center = find_halo_center_yz(ds, zsnap, sim_name, data_dir)
-
-ion_to_proj = 'HI'
-rvir = 160 # kpc, roughly the rvir
+rvir = dict_rvir_proper(dd_name, sim_name=sim_name)
 
 # get the angular momentum
 nside = 2**5 # 2**10 is probably too big....pix number = 12*nside^2

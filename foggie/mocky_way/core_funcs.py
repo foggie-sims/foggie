@@ -380,6 +380,7 @@ def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=10,
 
     sp = ds.h.sphere(sp_center, (r_for_L, 'kpc'))
     # let's set up the bulk velocity before setting up the angular momentum
+    # this setup is very important 
     sp_bulkvel = sp.quantities.bulk_velocity(use_gas=use_gas,
                                              use_particles=use_particles)
     sp.set_field_parameter('bulk_velocity', sp_bulkvel)
