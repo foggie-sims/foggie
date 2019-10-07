@@ -29,7 +29,7 @@ sp_to_proj = ds.sphere(halo_center, (rvir, 'kpc'))
 sp_to_proj.set_field_parameter("observer_location", halo_center)
 
 # set up the directory to save images and other plotting stuff
-fig_dir = '%s/foggie/mocky_way/figs/%s/%s_%s'%(sys_dir, sim_name, dd_name)
+fig_dir = sys_dir+'/foggie/mocky_way/figs/find_flat_disk'
 if os.path.isdir(fig_dir) == False:
     print('Not finding %s, mkdir'%(fig_dir))
     os.mkdir(fig_dir)
@@ -64,6 +64,8 @@ for r_for_L in [5, 10, 15, 20]:
         fig_name = '%s_%s_AngMon%skpc_%s.pdf'%(sim_name, dd_name, r_for_L, tag)
         pj.save('%s/%s'%(fig_dir, fig_name))
         print('Saving... %s/%s'%(fig_dir, fig_name))
+        break
+    break
 
     # break
         # pj.close()
