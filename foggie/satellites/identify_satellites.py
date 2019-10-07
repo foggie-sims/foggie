@@ -61,7 +61,7 @@ def parse_args():
 
 
 
-def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, fig_end = 'projection',  do = ['stars', 'gas', 'dm'], axes = ['x', 'y', 'z'], annotate_sphere = False, annotate_sphere_centers = [], ann_sphere_rad = (1, 'kpc')):
+def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, fig_end = 'projection',  do = ['stars', 'gas', 'dm'], axes = ['x', 'y', 'z'], annotate_center = False, annotate_others = [], ann_sphere_rad = (1, 'kpc')):
     for axs in axes:
         if 'gas' in do:
             prj = yt.ProjectionPlot(ds, axs, 'density', center = halo_center, data_source = refine_box, width=x_width)
@@ -69,38 +69,77 @@ def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, fig_end 
             prj.set_zlim(('gas', 'density'), zmin = density_proj_min, zmax =  density_proj_max)
             prj.set_cmap(('gas', 'density'), density_color_map)
             prj.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
-            if annotate_sphere:
-                if len(annotate_sphere_centers) > 0:
-                    for cen in annotate_sphere_centers:
-                        # Annotate at center of image
-                        prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'red'})                        
-                else:
-                    # Annotate at center of image
-                    prj.annotate_sphere((0.5, 0.5), radius = ann_sphere_rad, coord_system='axis', circle_args={'color':'red'})
+            for cen in annotate_others:
+                prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'darkred'})                        
+            if annotate_center:
+                prj.annotate_sphere((0.5, 0.5), radius = ann_sphere_rad, coord_system='axis', circle_args={'color':'red'})
+
 
 
             prj.save(fig_dir + '/%s_%s_gas_%s.png'%(haloname, axs, fig_end))
     
+
+
         if 'stars' in do:
-            prj = yt.ParticleProjectionPlot(ds, axs, ('stars', 'particle_mass'), center = halo_center, data_source=refine_box, width = x_width)   
+            prj = yt.ProjectionPlot(ds, axs, ('deposit', 'stars_density'), center = halo_center, data_source = refine_box, width=x_width)
+
             cmp = plt.cm.Greys_r
             cmp.set_bad('k')
-            prj.set_cmap(field = ('stars','particle_mass'), cmap = cmp)
-            prj.set_zlim(field = ('stars','particle_mass'), zmin = 1.e37, zmax = 1.e42)
+            prj.set_unit(('deposit', 'stars_density'), 'Msun/pc**2')
+            prj.set_cmap(field = ('deposit', 'stars_density'), cmap = cmp)
+            prj.set_zlim(field = ('deposit', 'stars_density'), zmin = density_proj_min, zmax =  density_proj_max)
             prj.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
-            if annotate_sphere:
-                if len(annotate_sphere_centers) > 0:
-                    for cen in annotate_sphere_centers:
-                        # Annotate at center of image
-                        prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'red'})                        
-                else:
-                    # Annotate at center of image
-                    prj.annotate_sphere((0.5, 0.5), radius = ann_sphere_rad, coord_system='axis', circle_args={'color':'red'})
+
+            for cen in annotate_others:
+                prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'darkred'})                        
+
+            if annotate_center:
+                prj.annotate_sphere((0.5, 0.5), radius = ann_sphere_rad, coord_system='axis', circle_args={'color':'red'})
 
 
             prj.save(fig_dir + '/%s_%s_star_%s.png'%(haloname, axs, fig_end))
 
+
+
         if 'dm' in do:
+            prj = yt.ProjectionPlot(ds, axs, ('deposit', 'dm_density'), center = halo_center, data_source = refine_box, width=x_width)
+
+            cmp = plt.cm.gist_heat
+            cmp.set_bad('k')
+            prj.set_unit(('deposit', 'dm_density'), 'Msun/pc**2')
+            prj.set_cmap(field = ('deposit', 'dm_density'), cmap = cmp)
+            prj.set_zlim(field = ('deposit', 'dm_density'), zmin = density_proj_min, zmax =  density_proj_max)
+            prj.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
+            for cen in annotate_others:
+                prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'darkred'})                        
+
+            if annotate_center:
+                prj.annotate_sphere((0.5, 0.5), radius = ann_sphere_rad, coord_system='axis', circle_args={'color':'red'})
+
+            prj.save(fig_dir + '/%s_%s_dm_%s.png'%(haloname, axs, fig_end))
+
+
+
+
+
+
+        if 'stars_particle' in do:
+            prj = yt.ParticleProjectionPlot(ds, axs, ('stars', 'particle_mass'), center = halo_center, data_source=refine_box, width = x_width)   
+            cmp = plt.cm.Greys_r
+            cmp.set_bad('k')
+
+            prj.set_cmap(field = ('stars','particle_mass'), cmap = cmp)
+            prj.set_zlim(field = ('stars','particle_mass'), zmin = 1.e37, zmax = 1.e42)
+            prj.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
+            if annotate_center:
+                prj.annotate_sphere((0.5, 0.5), radius = ann_sphere_rad, coord_system='axis', circle_args={'color':'red'})
+
+            for cen in annotate_others:
+                prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'blue'})                        
+
+            prj.save(fig_dir + '/star_particle_projection/%s_%s_star_particleproj_%s.png'%(haloname, axs, fig_end))
+
+        if 'dm_particle' in do:
             prj = yt.ParticleProjectionPlot(ds, axs, ('dm', 'particle_mass'), center = halo_center, data_source=refine_box, width = x_width)   
             cmp = plt.cm.gist_heat
             cmp.set_bad('k')
@@ -109,9 +148,10 @@ def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, fig_end 
             prj.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
             if annotate_sphere:
                 prj.annotate_sphere((0.5, 0.5), radius = (2, 'kpc'), coord_system='axis', circle_args={'color':'red'})
-            prj.save(fig_dir + '/%s_%s_dm_%s.png'%(haloname, axs, fig_end))
+            prj.save(fig_dir + '/star_particle_projection/%s_%s_dm_particleproj_%s.png'%(haloname, axs, fig_end))
 
     return
+
 
 
 def load_particle_data(refine_box):
@@ -152,7 +192,7 @@ def make_segmentation_figure(sm_im, seg_im, figname):
         ax.set_xticks([])
         ax.set_yticks([])
 
-    fig.savefig(fig_dir + '/%s_%s_satellite_selection.png'%(haloname, orient))
+    fig.savefig(figname)
     plt.close('all')
     return
 
@@ -209,20 +249,8 @@ if __name__ == '__main__':
         if args.do_proj_plots:
             make_projection_plots(ds, halo_center, refine_box, x_width, fig_dir, do = ['gas', 'dm', 'stars'], axes = ['x','y','z'])
 
-        sat_file = save_dir + '/satellites_%s.npy'%(haloname)
+        sat_file = save_dir + '/satellite_selection_%s.npy'%(haloname)
 
-        if (os.path.isfile(sat_file)) & (args.do_sat_proj_plots): 
-            sat_file = np.load(sat_file, allow_pickle = True)[()]
-            
-            annotate_sphere_centers = []
-            for sat in sat_file:
-                annotate_sphere_centers.append(ds.arr([sat['x'], sat['y'], sat['z']], 'kpc'))
-            make_projection_plots(ds, halo_center, refine_box, x_width, fig_dir, \
-                                  fig_end = 'with_sat_annotate',\
-                                  do = ['stars'], axes = ['x'],\
-                                  annotate_sphere = True, annotate_sphere_centers = annotate_sphere_centers)
-
-            continue
         # Set the defined center coordinate of the box at the halo center
 
         refine_box.set_field_parameter('center', ds.arr(halo_center, 'code_length'))
@@ -237,6 +265,18 @@ if __name__ == '__main__':
         selection_props = [(0.5, 5.e5), (1.0, 1.e6)]
 
         satellites = []
+        sat_count = 0
+
+        i_orients = array([(0, 'x'), (1, 'y'), (2, 'z')])
+        all_stars = [x_stars, y_stars, z_stars]
+        ortho_orients = [[1,2], [0,2], [0,1]]
+
+        if False:
+            #trying to manually search for a satellite I see in halo 2878
+            selection_props = [(1., 1.e5)]
+            satellites = np.load(sat_file, allow_pickle = True)[()]
+            sat_count = int(satellites[-1]['selectid'])
+            i_orients = array([(1, 'y'),])
 
         for (bin_size, mass_limit) in selection_props:
 
@@ -252,20 +292,19 @@ if __name__ == '__main__':
             pp = p[0]
             pp[p[0] < mass_limit] = np.nan
 
-            all_stars = [x_stars, y_stars, z_stars]
-            ortho_orients = [[1,2], [0,2], [0,1]]
 
-            for (i, orient) in array([(0, 'x'), (1, 'y'), (2, 'z')]):
+            for (i, orient) in i_orients:
+            
                 i = int(i)
                 sm_im = np.log10(np.nansum(pp, axis = i))
                 seg_im = detect_sources(sm_im, threshold = 0, npixels = 1, connectivity = 8)
-                make_segmentation_figure(sm_im, seg_im, figname = fig_dir + '/%s_%s_satellite_selection.png'%(haloname, orient))
+                make_segmentation_figure(sm_im, seg_im, figname = fig_dir + '/%s_%s_satellite_selection_%.1f_%.1f.png'%(haloname, orient, bin_size, mass_limit * 1.e-6))
 
                 for label in seg_im.labels:
                     edges1 = p[1][ortho_orients[i][0]]
                     edges2 = p[1][ortho_orients[i][1]]
 
-                    gd = where(seg_im.data == label)
+                    gd = where(seg_im.data == label)[0:10]
                     all_ids = array([])
                     for gd1, gd2 in zip(gd[0], gd[1]):
                         coord1_min, coord1_max = edges1[gd1], edges1[gd1+1]
@@ -281,47 +320,28 @@ if __name__ == '__main__':
                     mn_z = np.median(z_stars[all_ids.astype('int')])
                     ids = particle_ids[all_ids.astype('int')]
 
-                    already_in_catalog = False
                     print (label, mn_x, mn_y, mn_z)
+                    already_in_catalog = False
                     for sat in satellites:
                         diff = np.sqrt((mn_x - sat['x'])**2. + (mn_y - sat['y'])**2. + (mn_z - sat['z'])**2.)
                         if diff.value < 1.: 
-                            print ('\t', 'match', diff.value, sat['name'])
+                            #print ('\t', 'match', diff.value, sat['selectid'])
                             already_in_catalog = True
                             break
                     if not already_in_catalog:
                         new_satellite_dic = {}
-                        new_satellite_dic['name'] = '%s_%i'%(orient, label)
+                        new_satellite_dic['selectid'] = '%i'%(sat_count)
                         new_satellite_dic['x'] = mn_x
                         new_satellite_dic['y'] = mn_y
                         new_satellite_dic['z'] = mn_z                    
                         new_satellite_dic['ids'] = ids
+                        sat_count+=1
 
                         satellites.append(new_satellite_dic)
                 print ('\n\n')
 
         save_dir = foggie_dir.replace('sims', 'outputs/identify_satellites')
         np.save(sat_file, satellites)
-
-
-
-
-        '''
-        if args.do_sat_proj_plots:
-            for sat in satellites:
-                satx = float(sat['x'].value)
-                saty = float(sat['y'].value)
-                satz = float(sat['z'].value)
-                sat_center = ds.arr([satx, saty, satz], 'kpc')
-                from yt.units import kpc
-                fig_width = 20 * kpc
-                make_projection_plots(ds, sat_center, refine_box, fig_width, fig_dir, \
-                                    fig_end = 'satellite_{}'.format(sat['name']), \
-                                    do = ['stars', 'dm', 'gas'], axes = ['x'],  annotate_sphere = True)
-
-
-        '''
-
 
 
 
