@@ -4,10 +4,10 @@ import sys
 import numpy as np
 import yt
 from foggie.utils import consistency # for plotting
-from foggie.mocky_way.core_funcs import find_halo_center_yz
-from foggie.mocky_way.core_funcs import dict_rvir_proper
-from foggie.mocky_way.core_funcs import data_dir_sys_dir
-from foggie.mocky_way.core_funcs import get_sphere_ang_mom_vecs
+from core_funcs import find_halo_center_yz
+from core_funcs import dict_rvir_proper
+from core_funcs import data_dir_sys_dir
+from core_funcs import get_sphere_ang_mom_vecs
 
 data_dir, sys_dir = data_dir_sys_dir()
 
@@ -41,9 +41,11 @@ zmax = consistency.h1_proj_max_mw
 width = ds.quan(2*rvir, 'kpc')
 data_source = sp_to_proj
 
+from core_funcs import default_random_seed
+random_seed = default_random_seed()
 for r_for_L in [5, 10, 15, 20]:
     dict_vecs = get_sphere_ang_mom_vecs(ds, halo_center, r_for_L,
-                                        random_seed=99)
+                                        random_seed=random_seed)
     L_vec = dict_vecs['L_vec']
     phi_vec = dict_vecs['phi_vec']
     sun_vec = dict_vecs['sun_vec']

@@ -1,19 +1,19 @@
-"""
-Find rvir (proper) for a given halo.
-Example1:
-> Command line: python find_r200.py nref11n_nref10f RD0039
-Example2:
-> In python
-> from foggie.mocky_way.find_r200 import find_r200
-> rvir = find_r200(dd_name, sim_name)
-
-History:
-10/04/2019, YZ, UCB
-10/06/2019, YZ added __name__ part so it can be used both as a module and from
-            command line.
-"""
-
 def find_r200(dd_name, sim_name):
+    """
+    Find rvir (proper) for a given halo.
+    Example1:
+    > Command line: python find_r200.py nref11n_nref10f RD0039
+    Example2:
+    > In python
+    > from foggie.mocky_way.find_r200 import find_r200
+    > rvir = find_r200(dd_name, sim_name)
+
+    History:
+    10/04/2019, YZ, UCB
+    10/06/2019, YZ added __name__ part so it can be used both as a module and from
+                command line.
+    """
+    
     import yt
     from foggie.mocky_way.core_funcs import data_dir_sys_dir
     from foggie.mocky_way.core_funcs import find_halo_center_yz

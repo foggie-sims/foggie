@@ -46,6 +46,9 @@ def data_dir_sys_dir():
 # sys_dir = data_dir_sys_dir()[1]
 # os.sys.path.insert(0, sys_dir)
 
+def default_random_seed():
+    return 99
+
 def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     """
     This is a generalized function setup to process a simulation output.
@@ -77,7 +80,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ds_paras = {} # this is the full parameter we will derive
 
     #### first, need to know where the data sit
-    from foggie.foggie.mocky_way.core_funcs import data_dir_sys_dir
+    from core_funcs import data_dir_sys_dir
     data_dir, sys_dir = data_dir_sys_dir()
     ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
     ds_paras['dd_name'] = dd_name
@@ -111,7 +114,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ####     will call foggie.mocky_way.core_funcs.calc_r200_proper
     #### --> For halos have been processed, this func will read from
     ####     a pre-defined dict.
-    from foggie.mocky_way.core_funcs import dict_rvir_proper
+    from core_funcs import dict_rvir_proper
     rvir_proper = dict_rvir_proper(dd_name, sim_name=sim_name)
     ds_paras['rvir'] = ds.quan(rvir_proper, 'kpc')
 
@@ -119,18 +122,24 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ## L_vec: angular momentum vector
     ## sun_vec: vector from galaxy center to observer at sun
     ## phi_vec: vec perpendicular to L and sun_vec following right handed rule
-    from foggie.mocky_way.core_funcs import find_galaxy_L_sun_phi_bulkvel
-    L_vec, sun_vec, phi_vec, disk_bulkvel = find_galaxy_L_sun_phi_bulkvel()
-    ds_paras['L_vec'] = L_vec
-    ds_paras['sun_vec'] = sun_vec
-    ds_paras['phi_vec'] = phi_vec
-    ds_paras['disk_bulkvel'] = disk_bulkvel
+    from core_funcs import dict_sphere_for_gal_ang_mom
+    from core_funcs import get_sphere_ang_mom_vecs
+    r_for_L = dict_sphere_for_gal_ang_mom(dd_name, sim_name=sim_name)
+
+    from core_funcs import default_random_seed
+    random_seed = default_random_seed()
+    dict_vecs = get_sphere_ang_mom_vecs(ds, halo_center, r_for_L,
+                                        random_seed=random_seed)
+    ds_paras['L_vec'] = dict_vecs['L_vec']
+    ds_paras['sun_vec'] = dict_vecs['sun_vec']
+    ds_paras['phi_vec'] = dict_vecs['phi_vec']
+    ds_paras['disk_bulkvel'] = dict_vecs['disk_bulkvel']
 
     #### observer location: fit the gas disk with exp profile, find rscale,
     ## check disk_radial_scale.ipynb
     ## observer to be at twice scale length, similar to MW
     ## check disk_scale_length for the value
-    from foggie.mocky_way.core_funcs import locate_offcenter_observer
+    from core_funcs import locate_offcenter_observer
     ## 'disk_scale_length_kpc': disk_scale_length_kpc
     offcenter_vars = locate_offcenter_observer()
     ## offceter observer default at 2Rs from Galactic center in the disk
@@ -207,51 +216,6 @@ def calc_r200_proper(ds, halo_center,
 
     return r200.in_units('kpc')
 
-def find_galaxy_L_sun_phi_bulkvel(ds, halo_center):
-
-    """
-    Decide the angular momentum of the galaxy, and find the three unit vectors
-    L_vec: angular momentum vector
-    sun_vec: vector from galaxy center to observer at sun
-    phi_vec: vec perpendicular to L and sun_vec following right handed rule
-
-    History:
-    10/04/2019: this chunk of code was originally inside prepdata, now separte it
-                out to make code cleaner. YZ.
-
-    """
-    # tested with all-sky projection, pick the sphere radius that makes a flat projected plane
-    # note that this need to be checked by eye to finally decide the value
-    # go to the corresponding function to see the relevant values.
-    from foggie.mocky_way.core_funcs import dict_sphere_for_gal_ang_mom
-    ang_sphere_rr = sphere_for_galaxy_ang_mom(dd_name)
-    # sp will be used to calculate the angular momentum of the disk
-    sp = ds.sphere(halo_center, (ang_sphere_rr, 'kpc'))
-
-    # Find the velocity of the galactic center, here defined it within a sphere
-    # of ang_sphere_rr from halo_center.
-    # Note that it's important to set the bulk velocity before calculating
-    # angular momentum of the galaxy, not sure why, but only this way makes
-    # the edge-on and face-on projection looks right.
-    disk_bulkvel = sp.quantities.bulk_velocity(use_gas=True, use_particles=False)
-    sp.set_field_parameter('bulk_velocity', disk_bulkvel)
-
-    # angular momention of the disk
-    spec_ang_mom = sp.quantities.angular_momentum_vector(use_gas=True, \
-                                                         use_particles=False)
-    ang_mom_vector = spec_ang_mom/np.sqrt(np.sum(spec_ang_mom**2))
-
-    from yt.utilities.math_utils import ortho_find
-    np.random.seed(99) ## to make sure we get the same thing everytime
-    L_vec, sun_vec, phi_vec = ortho_find(ang_mom_vector) # no unit
-
-    print("Find...")
-    print("L_vec: ", L_vec)
-    print("sun_vec: ", sun_vec)
-    print("phi_vec: ", phi_vec)
-
-    return L_vec, sun_vec, phi_vec, disk_bulkvel
-
 def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
     """
     This is a hand-coded function, the radius of the sphere is pre-decided by
@@ -274,7 +238,8 @@ def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
     dict_sphere_L_rr = {'nref11c_nref9f_selfshield_z6/RD0035': 8, # unit of kpc
                         'nref11c_nref9f_selfshield_z6/RD0036': 7,
                         'nref11c_nref9f_selfshield_z6/RD0037': 8,
-                        'nref11c_nref9f_selfshield_z6/DD0946': 10}
+                        'nref11c_nref9f_selfshield_z6/DD0946': 10,
+                        'nref11n_nref10f/RD0039': 20}
 
     output_string = '%s/%s'%(sim_name, dd_name)
     if output_string in dict_sphere_L_rr:
@@ -283,7 +248,8 @@ def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
         import sys
         print('******** Exciting! First time running this output, right? ')
         print("The sphere for which angular momentum vecotr has not been decided yet. ")
-        print('You need to run xx code first, then add info to foggie.mocky_way.core_funcs.dict_sphere_for_gal_ang_mom')
+        print('You need to run find_flat_disk_offaxproj and xxx_allskyproj first, ')
+        print('then add info to foggie.mocky_way.core_funcs.dict_sphere_for_gal_ang_mom')
         print('before you can proceed :)')
         sys.exit(0)
     return this_sphere_L_rr
@@ -394,5 +360,7 @@ def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=10,
     n1_L, n2_sun, n3_phi = ortho_find(norm_L)  # UVW vector
     dict_vecs = {'L_vec': n1_L,
                  'sun_vec': n2_sun,
-                 'phi_vec': n3_phi}
+                 'phi_vec': n3_phi,
+                 'disk_bulkvel': sp_bulkvel}
+
     return dict_vecs
