@@ -149,34 +149,6 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
 
     return ds, ds_paras
 
-def dict_rvir_proper(dd_name, sim_name='nref11n_nref10f'):
-    """
-    Since it takes a while to run to get r200, let's make pre-designed library
-    for those sim output that has r200 calculated.
-
-    History:
-    08/06/2019, YZ.
-    10/04/2019, added sim_name since now I've worked on two different sims,
-                to avoid confusion. Was originally dict_rvir_proper, now
-                dict_rvir_proper. YZ.
-    """
-
-    all_rvir_proper = {'nref11c_nref9f_selfshield_z6/RD0035': 144.0, # kpc
-                        'nref11c_nref9f_selfshield_z6/RD0036': 147.0, # kpc
-                        'nref11c_nref9f_selfshield_z6/RD0037': 150.5,
-                        'nref11c_nref9f_selfshield_z6/DD0946': 98.0,
-                        'nref11n_nref10f/RD0039': 157.5
-                        }
-
-    output_string = '%s/%s'%(sim_name, dd_name)
-    try:
-        rvir_proper = all_rvir_proper[output_string]
-    except:
-        print("I do not find %s/%s"%(sim_name, dd_name))
-        print("Go Run > python find_r200.py sim_name dd_name")
-        sys.exit(0)
-    return rvir_proper
-
 def calc_r200_proper(ds, halo_center,
                      start_rad = 5,
                      rad_units = 'kpc',
@@ -215,45 +187,6 @@ def calc_r200_proper(ds, halo_center,
     print('- Phew! Find r200 (proper) =%.1f kpc, ratio=%.1f'%(r200, rho_ratio))
 
     return r200.in_units('kpc')
-
-def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
-    """
-    This is a hand-coded function, the radius of the sphere is pre-decided by
-    running the allsky_proj_GCview.py function to check the allsky projection
-    of the galaxy from the point of galactic center, and pick a sphere radius
-    which results in a flat disk. Check allsky_proj_GCview.py for more info
-
-    If allsky_proj_GCview.py has been run, then record the max sphere radius
-    in a dict; if not, then assume the sphere to be 10 kpc. But note that,
-    in this case, the all sky projection may not result in a flat disk.
-
-    History:
-    09/06/2019, YZ, UCB,
-    10/04/2019, was originally named as sphere_for_galaxy_ang_mom,
-                now dict_sphere_for_gal_ang_mom. YZ.
-    """
-
-    # kpc, looks good from the allsky projection from GC.
-                 # see RD0037_L08kpc_n32_x800_R100.0_final.pdf
-    dict_sphere_L_rr = {'nref11c_nref9f_selfshield_z6/RD0035': 8, # unit of kpc
-                        'nref11c_nref9f_selfshield_z6/RD0036': 7,
-                        'nref11c_nref9f_selfshield_z6/RD0037': 8,
-                        'nref11c_nref9f_selfshield_z6/DD0946': 10,
-                        'nref11n_nref10f/RD0039': 20}
-
-    output_string = '%s/%s'%(sim_name, dd_name)
-    if output_string in dict_sphere_L_rr:
-        this_sphere_L_rr = dict_sphere_L_rr[output_string]
-    else:
-        import sys
-        print('******** Exciting! First time running this output, right? ')
-        print("The sphere for which angular momentum vecotr has not been decided yet. ")
-        print('You need to run find_flat_disk_offaxproj and xxx_allskyproj first, ')
-        print('then add info to foggie.mocky_way.core_funcs.dict_sphere_for_gal_ang_mom')
-        print('before you can proceed :)')
-        sys.exit(0)
-    return this_sphere_L_rr
-
 
 def locate_offcenter_observer(ds):
     disk_scale_length_kpc = disk_scale_length(dd_name) # kpc
@@ -364,3 +297,98 @@ def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=10,
                  'disk_bulkvel': sp_bulkvel}
 
     return dict_vecs
+
+def dict_rvir_proper(dd_name, sim_name='nref11n_nref10f'):
+    """
+    Since it takes a while to run to get r200, let's make pre-designed library
+    for those sim output that has r200 calculated.
+
+    History:
+    08/06/2019, YZ.
+    10/04/2019, added sim_name since now I've worked on two different sims,
+                to avoid confusion. Was originally dict_rvir_proper, now
+                dict_rvir_proper. YZ.
+    """
+
+    all_rvir_proper = {'nref11c_nref9f_selfshield_z6/RD0035': 144.0, # kpc
+                        'nref11c_nref9f_selfshield_z6/RD0036': 147.0, # kpc
+                        'nref11c_nref9f_selfshield_z6/RD0037': 150.5,
+                        'nref11c_nref9f_selfshield_z6/DD0946': 98.0,
+                        'nref11n_nref10f/RD0039': 157.5
+                        }
+
+    output_string = '%s/%s'%(sim_name, dd_name)
+    try:
+        rvir_proper = all_rvir_proper[output_string]
+    except:
+        print("I do not find %s/%s"%(sim_name, dd_name))
+        print("Go Run > python find_r200.py sim_name dd_name")
+        sys.exit(0)
+    return rvir_proper
+
+def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
+    """
+    This is a hand-coded function, the radius of the sphere is pre-decided by
+    running the allsky_proj_GCview.py function to check the allsky projection
+    of the galaxy from the point of galactic center, and pick a sphere radius
+    which results in a flat disk. Check allsky_proj_GCview.py for more info
+
+    If allsky_proj_GCview.py has been run, then record the max sphere radius
+    in a dict; if not, then assume the sphere to be 10 kpc. But note that,
+    in this case, the all sky projection may not result in a flat disk.
+
+    History:
+    09/06/2019, YZ, UCB,
+    10/04/2019, was originally named as sphere_for_galaxy_ang_mom,
+                now dict_sphere_for_gal_ang_mom. YZ.
+    """
+
+    # kpc, looks good from the allsky projection from GC.
+                 # see RD0037_L08kpc_n32_x800_R100.0_final.pdf
+    dict_sphere_L_rr = {'nref11c_nref9f_selfshield_z6/RD0035': 8, # unit of kpc
+                        'nref11c_nref9f_selfshield_z6/RD0036': 7,
+                        'nref11c_nref9f_selfshield_z6/RD0037': 8,
+                        'nref11c_nref9f_selfshield_z6/DD0946': 10,
+                        'nref11n_nref10f/RD0039': 20}
+
+    output_string = '%s/%s'%(sim_name, dd_name)
+    if output_string in dict_sphere_L_rr:
+        this_sphere_L_rr = dict_sphere_L_rr[output_string]
+    else:
+        import sys
+        print('******** Exciting! First time running this output, right? ')
+        print("The sphere for which angular momentum vecotr has not been decided yet. ")
+        print('You need to run find_flat_disk_offaxproj and xxx_allskyproj first, ')
+        print('then add info to foggie.mocky_way.core_funcs.dict_sphere_for_gal_ang_mom')
+        print('before you can proceed :)')
+        sys.exit(0)
+    return this_sphere_L_rr
+
+def dict_disk_rs_zs(dd_name, sim_name='nref11n_nref10f'):
+    """
+    This is a hand-coded function to record the disk scale length and height
+    of input runs. Need to run disk_scale_length_rs.py and disk_scale_height_zs.py
+                then record numbers here.
+
+    History:
+    10/07/2019, YZ, UCB.
+    """
+
+    # kpc, looks good from the allsky projection from GC.
+                 # see RD0037_L08kpc_n32_x800_R100.0_final.pdf
+    dict_rs = {'nref11n_nref10f/RD0039': 3.3}
+    dict_zs = {'nref11n_nref10f/RD0039': 0.4}
+
+    output_string = '%s/%s'%(sim_name, dd_name)
+    if output_string in dict_rs:
+        this_rs = dict_rs[output_string]
+        this_zs = dict_zs[output_string]
+    else:
+        import sys
+        print('******** Exciting! First time running this output, right? ')
+        print("Do not have rs or zs recorded, go run disk_scale_length_rs.py, ")
+        print('and disk_scale_height_zs.py first')
+        print('then add info to foggie.mocky_way.core_funcs.dict_disk_rs_zs')
+        print('before you can proceed :)')
+        sys.exit(0)
+    return this_rs, this_zs
