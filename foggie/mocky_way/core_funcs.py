@@ -33,7 +33,7 @@ import sys
 def data_dir_sys_dir():
     test_dir = os.environ['PWD']
     if test_dir.split('/')[1] == 'home5':
-        sys_dir = '/home5/yzheng7'
+        sys_dir = '/home5/yzheng7/foggie'
         data_dir = '/nobackup/yzheng7/halo_008508'
     elif test_dir.split('/')[1] == 'Users':
         # sys_dir = '/Users/Yong/Dropbox/GitRepo'
@@ -43,8 +43,7 @@ def data_dir_sys_dir():
         print('Do not recognize the system path, not in Yong or Pleiades.')
         sys.exit(1)
     return data_dir, sys_dir
-
-# data_dir, sys_dir = data_dir_sys_dir()
+# sys_dir = data_dir_sys_dir()[1]
 # os.sys.path.insert(0, sys_dir)
 
 def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
@@ -380,7 +379,7 @@ def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=10,
 
     sp = ds.h.sphere(sp_center, (r_for_L, 'kpc'))
     # let's set up the bulk velocity before setting up the angular momentum
-    # this setup is very important 
+    # this setup is very important
     sp_bulkvel = sp.quantities.bulk_velocity(use_gas=use_gas,
                                              use_particles=use_particles)
     sp.set_field_parameter('bulk_velocity', sp_bulkvel)
