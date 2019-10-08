@@ -108,7 +108,7 @@ def set_table_units(table):
              'cool_metals_in':'Msun', 'cool_metals_out':'Msun', \
              'net_warm_metals':'Msun', 'warm_metals_in':'Msun', \
              'warm_metals_out':'Msun', 'net_hot_metals' :'Msun', \
-             'hot_metals_in' :'Msun', 'hot_metals=_out' :'Msun', \
+             'hot_metals_in' :'Msun', 'hot_metals_out' :'Msun', \
              'net_kinetic_energy':'erg', 'net_thermal_energy':'erg', \
              'net_entropy':'cm**2*keV', 'kinetic_energy_in':'erg', \
              'kinetic_energy_out':'erg', 'thermal_energy_in':'erg', \
