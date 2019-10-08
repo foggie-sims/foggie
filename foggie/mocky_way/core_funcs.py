@@ -143,11 +143,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
 
     #### decide off-center observer location ###
     from core_funcs import locate_offcenter_observer
-    offcenter_vars = locate_offcenter_observer(ds, ds_paras)
-    ## offceter observer default at 2Rs from Galactic center in the disk
-    ds_paras['offcenter_location'] = offcenter_vars[0]
-    ## peculair motion of the observer, taken to be gas within 1 Kpc
-    ds_paras['offcenter_bulkvel'] = offcenter_vars[1]
+    ds_paras = locate_offcenter_observer(ds, ds_paras, robs2rs=robs2rs)
 
     return ds, ds_paras
 
@@ -164,7 +160,7 @@ def locate_offcenter_observer(ds, ds_paras, robs2rs=2):
               to ds_paras
 
     History:
-    10/08/2019, YZ. UCB. 
+    10/08/2019, YZ. UCB.
     """
 
     #### Now locate the observer to 2Rs, similar to MW disk
@@ -304,7 +300,7 @@ def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=20,
     dict_vecs = {'L_vec': n1_L,
                  'sun_vec': n2_sun,
                  'phi_vec': n3_phi,
-                 'disk_bulkvel': sp_bulkvel}
+                 'disk_bulkvel': sp_bulkvel.in_units('km/s')}
 
     return dict_vecs
 
