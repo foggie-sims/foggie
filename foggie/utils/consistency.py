@@ -180,7 +180,7 @@ h1_slc_min = 1.e-14
 h1_slc_max = 1.e2
 
 h1_color_map_mw = 'viridis' # same as figure 2 in HI4PI+2016 paper.
-h1_proj_min_mw = 1e12 # for mocky way allsky map, YZ
+h1_proj_min_mw = 1e13 # for mocky way allsky map, YZ
 h1_proj_max_mw = 1e23 # for mocky way allsky map, YZ, tuned for HI4PI
 
 old_o6_color_map = sns.blend_palette(
