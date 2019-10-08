@@ -1,3 +1,7 @@
+# 10/08/2019, YZ. UCB.
+# Now adapted the code to check the all sky project from different off center
+# location of the disk. The randdom_seed = 99 is good to generate UVW vectors
+#
 # 10/07/2019, YZ, UCB.
 # We recently found problems with nref11c_nref9f, so now
 # switch to nref11n_nref10f/RD0039. Re-run everything from the beginnign
