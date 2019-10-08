@@ -135,19 +135,54 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ds_paras['phi_vec'] = dict_vecs['phi_vec']
     ds_paras['disk_bulkvel'] = dict_vecs['disk_bulkvel']
 
-    #### observer location: fit the gas disk with exp profile, find rscale,
-    ## check disk_radial_scale.ipynb
-    ## observer to be at twice scale length, similar to MW
-    ## check disk_scale_length for the value
+    #### add disk scale height and scale length to the dict
+    from core_funcs import dict_disk_rs_zs
+    disk_rs, disk_zs = dict_disk_rs_zs(dd_name, sim_name=sim_name)
+    ds_paras['disk_rs'] = disk_rs
+    ds_paras['disk_zs'] = disk_zs
+
+    #### decide off-center observer location ###
     from core_funcs import locate_offcenter_observer
-    ## 'disk_scale_length_kpc': disk_scale_length_kpc
-    offcenter_vars = locate_offcenter_observer()
+    offcenter_vars = locate_offcenter_observer(ds, ds_paras)
     ## offceter observer default at 2Rs from Galactic center in the disk
     ds_paras['offcenter_location'] = offcenter_vars[0]
     ## peculair motion of the observer, taken to be gas within 1 Kpc
     ds_paras['offcenter_bulkvel'] = offcenter_vars[1]
 
     return ds, ds_paras
+
+def locate_offcenter_observer(ds, ds_paras, robs2rs=2):
+    """
+    Shift the observer from galactic center to an off-center location
+
+    Input:
+    robs2rs: the offcenter location is default to twice the scale length of
+             the galaxy disk.
+
+    Return:
+    ds_paras: add two other keys "offcenter_location" and "offcenter_bulkvel"
+              to ds_paras
+
+    History:
+    10/08/2019, YZ. UCB. 
+    """
+
+    #### Now locate the observer to 2Rs, similar to MW disk
+    disk_rs = ds_paras['disk_rs']
+    halo_center = ds_paras['halo_center']
+    obs_vec = ds_paras['sun_vec']
+    obs_dist = ds.quan(robs2rs*disk_rs, "kpc").in_units("code_length")
+    offcenter_location = halo_center + obs_vec*obs_dist # observer location
+
+    # set the bulk velocity of the observer, taken to be gas within 1 kpc
+    obs_sp = ds.sphere(offcenter_location, (1, "kpc"))
+    obs_bv = obs_sp.quantities.bulk_velocity(use_gas=True, use_particles=True)
+    offcenter_bulkvel = obs_bv.in_units("km/s")
+
+    ds_paras['offcenter_location'] = offcenter_location
+    ds_paras['offcenter_bulkvel'] = offcenter_bulkvel
+
+    return ds_paras
 
 def calc_r200_proper(ds, halo_center,
                      start_rad = 5,
@@ -187,31 +222,6 @@ def calc_r200_proper(ds, halo_center,
     print('- Phew! Find r200 (proper) =%.1f kpc, ratio=%.1f'%(r200, rho_ratio))
 
     return r200.in_units('kpc')
-
-def locate_offcenter_observer(ds):
-    disk_scale_length_kpc = disk_scale_length(dd_name) # kpc
-    obs_dist = ds.quan(robs2rs*disk_scale_length_kpc, "kpc").in_units("code_length")
-
-    ### decice at which point of the circle we want to put the observer on
-    # obs_loc_vectors = [sun_vec, sun_vec+phi_vec, phi_vec, -sun_vec+phi_vec,
-    #                    -sun_vec, -sun_vec-phi_vec, -phi_vec, -phi_vec+sun_vec]
-    # obs_vec = obs_loc_vectors[n_vec]
-    obs_vec = sun_vec+phi_vec # othis is tested by putting observor at eight different locations
-    obs_vec = obs_vec/np.sqrt(np.sum(obs_vec**2))
-
-    offcenter_location = halo_center + obs_vec*obs_dist # observer location
-
-    # we also need to change the sun vector with the location of the observer now
-    new_sun_vec = obs_vec
-    new_phi_vec = -sun_vec+phi_vec
-    new_phi_vec = new_phi_vec/np.sqrt(np.sum(new_phi_vec**2))
-
-    # set the bulk velocity of the observer, taken to be gas within 1 kpc
-    obs_sp = ds.sphere(offcenter_location, (1, "kpc"))
-    obs_bv = obs_sp.quantities.bulk_velocity(use_gas=True, use_particles=True)
-    obs_bv = obs_bv.in_units("km/s")
-    offcenter_bulkvel = obs_bv
-    return offcenter_location, offcenter_bulkvel
 
 def find_halo_center_yz(ds, zsnap, sim_name, data_dir):
     """
@@ -260,7 +270,7 @@ def mean_rho(ds, center, r):
 
     return rho_internal
 
-def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=10,
+def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=20,
                             use_gas=True, use_particles=False,
                             random_seed=99):
     """
