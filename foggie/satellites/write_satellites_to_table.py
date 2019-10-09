@@ -157,14 +157,14 @@ if __name__ == '__main__':
       all_dist_center+=dist_center
 
 
-  t = Table([all_halos,all_runs, all_outputs, all_id, all_x, all_y, all_z, all_names, all_dist_center], names = ['halo', 'run', 'output', 'id', 'x', 'y', 'z', 'selectid', 'distance_halo'])
+  t = Table([all_halos,all_runs, all_outputs, all_id, all_x, all_y, all_z, all_names, all_dist_center], names = ['halo', 'run', 'output', 'id', 'x_select', 'y_select', 'z_select', 'selectid', 'distance_halo'])
 
   t.meta['comments'] = ['halo: halo ID']
   t.meta['comments'].append('run: foggie run type')
   t.meta['comments'].append('output: DD output name')
-  t.meta['comments'].append('x: satellite x position (kpc)')
-  t.meta['comments'].append('y: satellite y position (kpc)')
-  t.meta['comments'].append('z: satellite z position (kpc)')
+  t.meta['comments'].append('x_select: satellite x position, from initial selection (kpc)')
+  t.meta['comments'].append('y_select: satellite y position, from initial selection (kpc)')
+  t.meta['comments'].append('z_select: satellite z position, from initial selection (kpc)')
   t.meta['comments'].append('selectid: identifier in raw seg catalogs')
   t.meta['comments'].append('distance_halo: distance from center of halo')
 
