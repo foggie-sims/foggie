@@ -104,6 +104,14 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     print("Adding ion fields: ", ion_list)
     trident.add_ion_fields(ds, ftype="gas", ions=ion_list, force_override=True)
 
+    #### add line of sight velocity field to the dataset
+    from yt.fields.api import ValidateParameter
+    from mocky_way_fields import _line_of_sight_velocity
+    ds.add_field(("gas", "line_of_sight_velocity"),
+                 function=_line_of_sight_velocity, units="km/s",
+                 validators=[ValidateParameter("observer_location"),
+                             ValidateParameter("observer_bulkvel")])
+
     #### find halo center and bulk velocity
     from foggie.mocky_way.core_funcs import find_halo_center_yz
     halo_center = find_halo_center_yz(ds, zsnap, sim_name, data_dir)
