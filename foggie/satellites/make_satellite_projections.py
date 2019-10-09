@@ -72,9 +72,10 @@ def do_plot(field, axs, annotate_others, annotate_center, \
 
     prj.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
     for cen in annotate_others:
-        prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'darkred'})                        
+        prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'red'})                        
     if annotate_center:
-        prj.annotate_sphere((0.5, 0.5), radius = ann_sphere_rad, coord_system='axis', circle_args={'color':'red'})
+        prj.annotate_sphere((0.5, 0.5), radius = ann_sphere_rad, coord_system='axis', circle_args={'color':'white'})
+        prj.annotate_marker((0.5, 0.5), coord_system='axis')
 
     return prj
 
@@ -115,7 +116,7 @@ def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, \
             if d == 'gas':
                 field = ('gas', 'density')
                 cmap = density_color_map
-
+                cmap.set_bad('k')
             if d == 'stars':
                 field = ('deposit', 'stars_density')
                 cmap =  plt.cm.Greys_r
@@ -130,7 +131,7 @@ def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, \
                           small_box, halo_center, x_width,\
                           cmap)
             prj.save(fig_dir + '/bare/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end))
-            if not is_central:
+            if (not is_central) & (False):
                 prj.annotate_arrow(pos = end_arrow, starting_pos = start_arrow, coord_system = 'data')
                 prj.save(fig_dir + '/with_single_arrow/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end))
                 prj.annotate_velocity(factor=20)
@@ -198,7 +199,7 @@ if __name__ == '__main__':
         inputs = [(args.halo, args.output),]
 
 
-    for args.halo, args.output in inputs:
+    for args.halo, args.output in inputs[:1]:
 
         foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
 
@@ -233,7 +234,7 @@ if __name__ == '__main__':
 
         fig_dir = foggie_dir.replace('sims/', 'figures/identify_satellites') 
 
-        sat_cat = ascii.read(save_dir + '/satellite_locations.cat')
+        sat_cat = ascii.read(save_dir + '/satellite_locations_wcom.cat')
 
         sats_halo = sat_cat[(sat_cat['halo'] == int(args.halo)) & (sat_cat['run'] == args.run) &  (sat_cat['output'] == args.output)]
 
@@ -254,9 +255,9 @@ if __name__ == '__main__':
 
                 make_projection_plots(ds, sat_center, refine_box, fig_width, fig_dir, \
                                     fig_end = 'satellite_{}'.format(sat['id']), \
-                                    do = ['gas', 'stars', 'dm'], axes = ['y'],  annotate_center = False, annotate_others = annotate_others,\
+                                    do = ['gas', 'stars'], axes = ['x', 'y', 'z'],  annotate_center = True, annotate_others = annotate_others,\
                                     add_velocity = False)        
-
+                #, 'stars', 'dm'
         # Show satellites on a figure of the central
         if True:
             make_projection_plots(ds, ds.arr(halo_center, 'code_length').to('kpc'), refine_box, x_width, fig_dir, \
