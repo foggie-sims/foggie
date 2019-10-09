@@ -1,4 +1,8 @@
-# from astropy.table import Table
+# Off axis projection for edge on and face on view of the galaxy, and
+# find the right angular_momentum_vector for the flat disk.
+# Example:
+# python find_flat_disk_offaxproj.py nref11n_nref10f RD0039 HI
+# YZ. 10/09/2019.
 import os
 import sys
 import numpy as np
@@ -43,7 +47,9 @@ data_source = sp_to_proj
 
 from core_funcs import default_random_seed
 random_seed = default_random_seed()
-for r_for_L in [5, 10, 15, 20]:
+# for r_for_L in [5, 10, 15, 20]:
+highlight_disk = True
+for r_for_L in [20]:
     dict_vecs = get_sphere_ang_mom_vecs(ds, halo_center, r_for_L,
                                         random_seed=random_seed)
     L_vec = dict_vecs['L_vec']
@@ -60,14 +66,40 @@ for r_for_L in [5, 10, 15, 20]:
                                       north_vector=north_vector)
         pj.set_cmap(field_to_proj, cmap=cmap)
         pj.set_zlim(field_to_proj, zmin=zmin, zmax=zmax)
-        #pj.annotate_text([0.05, 0.9],
-        #                       'Edge-on, %s, z=%.2f'%(dd_name, ds_paras['zsnap']),
-        #                       coord_system='axis', text_args={'color':'black'})
         fig_name = '%s_%s_AngMon%skpc_%s.pdf'%(sim_name, dd_name, r_for_L, tag)
         pj.save('%s/%s'%(fig_dir, fig_name))
         print('Saving... %s/%s'%(fig_dir, fig_name))
-        break
-    break
+
+        if highlight_disk == True:
+            print("High light the disk box boundaries.")
+            # add this to show where the disk is after deciding rs and zs
+            disk_rs = 3.3 # kpc
+            disk_zs = 0.4 # kpc
+            disk_size_r = disk_rs*4
+            disk_size_z = disk_zs*4
+
+            image_width = ds.quan(80, 'kpc')
+            rr = disk_size_r/image_width.value
+            hh = disk_size_z/image_width.value
+
+            if tag in ['edgeon1', 'edgeon2']:
+                pj.annotate_line((0.5-rr, 0.5+hh), (0.5+rr, 0.5+hh),
+                                 coord_system='axis')
+                pj.annotate_line((0.5-rr, 0.5-hh), (0.5+rr, 0.5-hh),
+                                 coord_system='axis')
+                pj.annotate_line((0.5-rr, 0.5-hh), (0.5-rr, 0.5+hh),
+                                 coord_system='axis')
+                pj.annotate_line((0.5+rr, 0.5-hh), (0.5+rr, 0.5+hh),
+                                 coord_system='axis')
+            else: # for faceon scenario
+                pj.annotate_sphere(halo_center,
+                                   radius=(disk_size_r, 'kpc'),
+                                   circle_args={'color':'w'})
+
+            pj.set_width(image_width)
+            fig_name = '%s_%s_AngMon%skpc_%s_zoom.pdf'%(sim_name, dd_name, r_for_L, tag)
+            pj.save('%s/%s'%(fig_dir, fig_name))
+            print('Saving... %s/%s'%(fig_dir, fig_name))
 
     # break
         # pj.close()
