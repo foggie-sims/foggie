@@ -406,3 +406,28 @@ def dict_disk_rs_zs(dd_name, sim_name='nref11n_nref10f'):
         print('before you can proceed :)')
         sys.exit(0)
     return this_rs, this_zs
+
+def obj_source_all_disk_cgm(ds, ds_paras):
+    """
+    This is to cut the simulation into halo-only, disk, and both halo and disk
+    objects for further data analyses. And I'll use this for other functions
+    as well.
+
+    09/26/19, YZ, UCB.
+    10/09/2019, YZ, was obj_source_halo_disk, now merging into foggie.mocky_way
+    """
+
+    sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+    disk_size_r = 4*ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
+    disk_size_z = 4*ds_paras['disk_zs'] # one side,
+    disk = ds.disk(ds_paras['halo_center'],
+                   ds_paras['L_vec'],
+                   (disk_size_r, 'kpc'),
+                   (disk_size_z, 'kpc'))
+    cgm = sp-disk
+
+    dict_obj = {'all': sp,
+                'cgm': cgm,
+                'disk': disk}
+
+    return dict_obj
