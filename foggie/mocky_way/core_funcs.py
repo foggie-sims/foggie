@@ -392,8 +392,11 @@ def dict_disk_rs_zs(dd_name, sim_name='nref11n_nref10f'):
 
     # kpc, looks good from the allsky projection from GC.
                  # see RD0037_L08kpc_n32_x800_R100.0_final.pdf
-    dict_rs = {'nref11n_nref10f/RD0039': 3.3}
-    dict_zs = {'nref11n_nref10f/RD0039': 0.4}
+    dict_rs = {'nref11n_nref10f/RD0039': 3.3,
+               'nref11n_nref10f/DD2175': 3.94}
+
+    dict_zs = {'nref11n_nref10f/RD0039': 0.4,
+               'nref11n_nref10f/DD2175': 0.4}
 
     output_string = '%s/%s'%(sim_name, dd_name)
     if output_string in dict_rs:

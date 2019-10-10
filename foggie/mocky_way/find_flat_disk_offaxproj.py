@@ -73,7 +73,7 @@ for r_for_L in [20]:
         if highlight_disk == True:
             print("High light the disk box boundaries.")
             # add this to show where the disk is after deciding rs and zs
-            disk_rs = 3.3 # kpc
+            disk_rs = 3.9 # kpc for DD2175
             disk_zs = 0.4 # kpc
             disk_size_r = disk_rs*4
             disk_size_z = disk_zs*4
