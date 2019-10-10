@@ -329,19 +329,18 @@ def yt_phase_diagram_sanity_check(ds, ds_paras):
     plot.save('figs/phase_diagram/%s_%s_yt_phase_diagram.png'%(ds_paras['sim_name'],
                                                                ds_paras['dd_name']))
 
-
 #################################################################
 if __name__=='__main__':
     dd_name = 'RD0039'
     sim_name = 'nref11n_nref10f'
     obj_tag = 'cgm' # all, disk, cgm
     obs_point = 'halo_center' # halo_center, or offcenter_location
-    tag = 'vel_neg' # radius, vel_pos, vel_neg
+    dshader_tag = 'vel_neg' # radius, vel_pos, vel_neg
 
     print("hey!")
     from core_funcs import prepdata
     ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
-    observer_location = ds_paras['halo_center']
+    observer_location = ds_paras[obs_point]
 
     # yt_phase_diagram_sanity_check(ds, ds_paras)
 
@@ -367,7 +366,7 @@ if __name__=='__main__':
                        'image_y_width': 1000}
 
     ### ok, all prep work done, now actually making phase diagram, with radius
-    if tag == 'radius':
+    if dshader_tag == 'radius':
         print("Making data shader frame... color-coded in radius...")
         df_radius = prep_dataframe_radius(obj_source, observer_location)
         categories = consistency.radius_color_labels
@@ -381,7 +380,7 @@ if __name__=='__main__':
         df = df_radius
         dict_extra_args = dict_r_args
 
-    elif tag == 'vel_pos':
+    elif dshader_tag == 'vel_pos':
         print("Making data shader frame... color-coded in vel_pos ...")
         df_vel_pos = prep_dataframe_vel_pos(obj_source, observer_location)
         categories = consistency.vel_pos_color_labels
@@ -396,7 +395,7 @@ if __name__=='__main__':
         df = df_vel_pos
         dict_extra_args = dict_v_args
 
-    elif tag == 'vel_neg':
+    elif dshader_tag == 'vel_neg':
         print("Making data shader frame... color-coded in vel_neg ...")
         df_vel_neg = prep_dataframe_vel_neg(obj_source, observer_location)
         categories = consistency.vel_neg_color_labels
