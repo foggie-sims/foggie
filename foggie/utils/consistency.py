@@ -242,14 +242,15 @@ def categorize_by_fraction(f_ion):
 # Just in case this is needed, this might work instead without producing a figure:
 ion_frac_color_key = sns.blend_palette(("grey","#ff6600"), n_colors=10)
 
-# set up the temperature colormap
+############################# set up the temperature colormap
 temp_colors = sns.blend_palette(
     ('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), n_colors=17)
+temperature_discrete_cmap = mpl.colors.ListedColormap(temp_colors)
+new_phase_color_key = collections.OrderedDict()
+
 phase_color_labels = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2',
                       b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot',
                       b'hot1', b'hot2', b'hot3']
-temperature_discrete_cmap = mpl.colors.ListedColormap(temp_colors)
-new_phase_color_key = collections.OrderedDict()
 for i in np.arange(np.size(phase_color_labels)):
     new_phase_color_key[phase_color_labels[i]] = to_hex(temp_colors[i])
 
@@ -274,6 +275,26 @@ def categorize_by_temp(temperature):
     #print(phase)
     return phase
 
+### I'm adding this logT color keys for mocky way. Yong Zheng, 10/10/2019. ##
+### Still using the same temperature color plate ###
+logT_colors_mw = sns.blend_palette(
+    ('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), n_colors=4)
+logT_discrete_cmap_mw = mpl.colors.ListedColormap(logT_colors_mw)
+logT_color_key_mw = collections.OrderedDict()
+logT_color_labels_mw = [b'cold', b'cool', b'warm', b'hot']
+for i in np.arange(np.size(logT_color_labels_mw)):
+    logT_color_key_mw[logT_color_labels_mw[i]] = to_hex(logT_colors_mw[i])
+
+def categorize_by_logT_mw(logT):
+    """ define the temp category strings"""
+    phase = np.chararray(np.size(logT), 5)
+    phase[logT >= 6] = b'hot'
+    phase[np.all([logT>=5, logT<6], axis=0)] = b'warm'
+    phase[np.all([logT>=4, logT<5], axis=0)] = b'cool'
+    phase[logT < 4] = b'cold'
+    return phase
+
+###################################################################
 metal_color_labels = [b'free', b'free1', b'free2', b'free3', b'poor',
                       b'poor1', b'poor2', b'poor3', b'low', b'low1',
                       b'low2', b'low3', b'solar', b'solar1', b'solar2',
@@ -318,6 +339,35 @@ def categorize_by_metals(metal):
     phase[metal < metal_vals[0]] = b'free'
     return phase
 
+##############################################################
+# I made a simplier categoy for mokcy way, 10/10/2019, Yong Zheng.
+metal_color_labels_mw = [b'<0.01', b'[0.01, 0.1)',
+                         b'[0.1, 0.5)', b'[0.5, 1.0)',
+                         b'[1.0, 2.0)', b'>=2.0']
+metal_colors_mw = sns.blend_palette(("black", "#4575b4", "#984ea3",
+                                     "#984ea3", "#d73027", "darkorange",
+                                     "#ffe34d"), n_colors=6)
+metal_discrete_cmap_mw = mpl.colors.ListedColormap(metal_colors_mw)
+metal_color_key_mw = collections.OrderedDict()
+for i in np.arange(np.size(metal_color_labels_mw)):
+    metal_color_key_mw[metal_color_labels_mw[i]] = to_hex(metal_colors_mw[i])
+
+def categorize_by_metallicity_mw(metal):
+    """
+    define the metallicity category strings for mocky way. Yong Zheng. 10/10/2019.
+    """
+    phase = np.chararray(np.size(metal), 11)
+    # need to do this by iterating over keys insteard of hard coding indices
+    phase[metal<0.01] = b'<0.01'
+    phase[np.all([metal>=0.01, metal<0.1], axis=0)] = b'[0.01, 0.1)'
+    phase[np.all([metal>=0.1, metal<0.5], axis=0)] = b'[0.1, 0.5)'
+    phase[np.all([metal>=0.5, metal<1.0], axis=0)] = b'[0.5, 1.0)'
+    phase[np.all([metal>=1.0, metal<2.0], axis=0)] = b'[1.0, 2.0)'
+    phase[metal>=2.0] = b'>=2.0'
+
+    return phase
+
+#######################################################################
 hi_colors =  sns.blend_palette(("white", "#ababab", "#565656", "black",
                                   "#4575b4", "#984ea3", "#d73027",
                                   "darkorange", "#ffe34d"), n_colors=26)
@@ -385,7 +435,7 @@ def categorize_by_hi(hi):
     phase[hi < hi_vals[0]] = b'free'
     return phase
 
-############### Yong add these categories for mocky way #####
+############### Yong Zheng add cat_radius for mocky way ########
 ### categorize halo gas by radius.
 radius_df_colname = 'cat_radius' # name of radius in dataframe
 radius_color_labels = [b'r0-20', b'r20-40', b'r40-60', b'r60-80',
@@ -415,6 +465,7 @@ def categorize_by_radius(radius):
     cat_radius[np.all([radius>=140, radius<160], axis=0)] = b'r140-160'
     return cat_radius
 
+############### Yong Zheng add cat_velocity for mocky way ########
 ### categorize halo gas by velocity.
 velocity_df_colname = 'cat_velocity' # this is the name of velocity in dataframe
 velocity_color_labels = [b'<-100', b'[-100, -50]', b'[-50, 0]',
@@ -439,7 +490,7 @@ def categorize_by_velocity(velocity):
     cat_velocity[vv>100] = b'>100'
     return cat_velocity
 
-##################### let's split velocity into +v and -v ##############
+############### Yong Zheng add cat_vel_pos for mocky way ########
 ### categorize halo gas by velocity.
 vel_pos_df_colname = 'cat_vel_pos' # this is the name of velocity in dataframe
 vel_pos_color_labels = [b'[0, 50]', b'[50, 100]', b'[100, 150]',
@@ -464,7 +515,7 @@ def categorize_by_vel_pos(velocity):
     cat_vel_pos[vv>200] = b'>200'
     return cat_vel_pos
 
-##################### let's split velocity into +v and -v ##############
+############### Yong Zheng add cat_vel_neg for mocky way ########
 ### categorize halo gas by velocity.
 vel_neg_df_colname = 'cat_vel_neg' # this is the name of velocity in dataframe
 vel_neg_color_labels = [b'<-200', b'[-200, -150]', b'[-150, -100]',
