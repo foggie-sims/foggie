@@ -16,11 +16,11 @@ def disk_gas_profile_n_r(ds, halo_center, normal_vector,
     disk_z_kpc: the extension of the disk +/-z, the thickness is 2z
 
     History:
-    - 04/20/2019, UCB, YZ.
+    - 04/20/2019, UCB, Yong Zheng.
     - 08/19/2019, add the field parameter, because in the real MW case,
       it is the HI instead of the total H that is used to calculate the radial
-      profile (see Kalberla+2008), YZ, UCB.
-     - 10/07/2019, merging into foggie.mocky_way funcs, and add __name__ part. YZ.
+      profile (see Kalberla+2008), Yong Zheng, UCB.
+     - 10/07/2019, merging into foggie.mocky_way funcs, and add __name__ part. Yong Zheng.
     """
 
     # first, cut out a disk
@@ -45,7 +45,7 @@ def profile_mean_med_std_3sig(gas_r, gas_n, minr=0, maxr=50, dr=0.5):
     in either z or r direction.
 
     History:
-    08/16/2019, YZ. UCB
+    08/16/2019, Yong Zheng. UCB
     10/07/2019, merging into foggie.mocky_way, now nr_3sig/2sig/1sig have shapes
                 of (2, gas_r.size), which = (upper lims, lower lims)
     """
@@ -111,8 +111,8 @@ def fit_nr_exp_profile(gas_r, gas_n, fit_minr=0.2, fit_maxr=10):
     fit_minr and fit_maxr are used to set the range of gas for fitting.
 
     History:
-    08/15/2019, YZ, UCB.
-    10/07/2019, merging into foggie.mocky_way, YZ.
+    08/15/2019, Yong Zheng, UCB.
+    10/07/2019, merging into foggie.mocky_way, Yong Zheng.
     """
 
     ### only fit a small chunck of the whole profile
@@ -126,7 +126,7 @@ def fit_nr_exp_profile(gas_r, gas_n, fit_minr=0.2, fit_maxr=10):
                            np.log(n_to_fit))
     psig = np.sqrt(np.diag(pcov))
     print('Fitted Scale rs: %.2f +/-%.2f kpc'%(popt[1], psig[1]))
-    print('Fitted Density n0: %.2f +/-%.2f cm-3'%(popt[0], psig[0]))
+    print('Fitted Density ln(n0): %.2f +/-%.2f cm-3'%(popt[0], psig[0]))
 
     return popt, psig
 
@@ -136,14 +136,14 @@ def ln_exp_profile(x, ln_n0, x0):
     could be radial or vertical
 
     History:
-    Created on 08/15/2019, YZ, UCB.
+    Created on 08/15/2019, Yong Zheng, UCB.
     10/07/2019, merging into foggie.mocky_way
     """
     y = ln_n0-x/x0
     return y
 
-def plot_gas_profiles(stat_profiles, fit_popt):
-    """plotting stuff, always changing, not uniformly adjusted. YZ. """
+def plot_gas_profiles(stat_profiles, fit_popt, figname):
+    """plotting stuff, always changing, not uniformly adjusted. Yong Zheng. """
 
     import matplotlib.pyplot as plt
     import matplotlib as mpl
@@ -191,7 +191,6 @@ def plot_gas_profiles(stat_profiles, fit_popt):
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(fontsize-2)
 
-    figname = 'figs/disk_rs_zs/disk_scale_length_rs.pdf'
     fig.savefig(figname)
     print("Saving the figure to ", figname)
 
@@ -199,10 +198,12 @@ def plot_gas_profiles(stat_profiles, fit_popt):
 if __name__ == "__main__":
     ### Read in the simulation data and find halo center  ###
 
+    import sys
+    sim_name = sys.argv[1] # 'nref11n_nref10f'
+    dd_name = sys.argv[2]  # 'DD2175'
+
     from core_funcs import data_dir_sys_dir
     data_dir, sys_dir = data_dir_sys_dir()
-    sim_name = 'nref11n_nref10f'
-    dd_name = 'RD0039'
     ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
     ds = yt.load(ds_file)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
@@ -231,7 +232,11 @@ if __name__ == "__main__":
     ### an exponential fit of the profile
     fit_r = stat_profiles['rbins']
     fit_n = stat_profiles['nr_mean']
-    popt, psig = fit_nr_exp_profile(fit_r, fit_n, fit_minr=10, fit_maxr=40)
+    # For DD2175
+    popt, psig = fit_nr_exp_profile(fit_r, fit_n, fit_minr=3, fit_maxr=25)
+    # For RD0039
+    # popt, psig = fit_nr_exp_profile(fit_r, fit_n, fit_minr=10, fit_maxr=40)
 
     ### plotting stuff ####
-    plot_gas_profiles(stat_profiles, popt)
+    figname = 'figs/disk_rs_zs/%s_%s_disk_rs.pdf'%(sim_name, dd_name)
+    plot_gas_profiles(stat_profiles, popt, figname)

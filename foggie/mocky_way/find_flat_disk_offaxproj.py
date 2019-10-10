@@ -2,7 +2,7 @@
 # find the right angular_momentum_vector for the flat disk.
 # Example:
 # python find_flat_disk_offaxproj.py nref11n_nref10f RD0039 HI
-# YZ. 10/09/2019.
+# Yong Zheng. 10/09/2019.
 import os
 import sys
 import numpy as np

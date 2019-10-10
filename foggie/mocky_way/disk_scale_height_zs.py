@@ -15,11 +15,11 @@ def disk_gas_profile_n_z(ds, halo_center, normal_vector,
     disk_z_kpc: the extension of the disk +/-z, the thickness is 2z
 
     History:
-    - 04/20/2019, UCB, YZ.
+    - 04/20/2019, UCB, Yong Zheng.
     - 08/19/2019, add the field parameter, because in the real MW case,
       it is the HI instead of the total H that is used to calculate the radial
-      profile (see Kalberla+2008), YZ, UCB.
-     - 10/07/2019, merging into foggie.mocky_way funcs, and add __name__ part. YZ.
+      profile (see Kalberla+2008), Yong Zheng, UCB.
+     - 10/07/2019, merging into foggie.mocky_way funcs, and add __name__ part. Yong Zheng.
     """
 
     # first, cut out a disk
@@ -46,8 +46,8 @@ def disk_gas_profile_n_z(ds, halo_center, normal_vector,
 
     return gas_proj_z, gas_n
 
-def plot_gas_profiles(stat_profiles, fit_popt):
-    """plotting stuff, always changing, not uniformly adjusted. YZ. """
+def plot_gas_profiles(stat_profiles, fit_popt, figname):
+    """plotting stuff, always changing, not uniformly adjusted. Yong Zheng. """
 
     import matplotlib.pyplot as plt
     import matplotlib as mpl
@@ -96,18 +96,19 @@ def plot_gas_profiles(stat_profiles, fit_popt):
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(fontsize-2)
 
-    figname = 'figs/disk_rs_zs/disk_scale_height_zs.pdf'
     fig.savefig(figname)
     print("Saving the figure to ", figname)
 
 ############################################################################
 if __name__ == "__main__":
     ### Read in the simulation data and find halo center  ###
+    import sys
+    sim_name = sys.argv[1] # 'nref11n_nref10f'
+    dd_name = sys.argv[2]  # 'DD2175'
 
     from core_funcs import data_dir_sys_dir
     data_dir, sys_dir = data_dir_sys_dir()
-    sim_name = 'nref11n_nref10f'
-    dd_name = 'RD0039'
+
     ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
     ds = yt.load(ds_file)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
@@ -142,4 +143,5 @@ if __name__ == "__main__":
     popt, psig = fit_nr_exp_profile(fit_r, fit_n, fit_minr=0.01, fit_maxr=3)
 
     ### plotting stuff ####
-    plot_gas_profiles(stat_profiles, popt)
+    figname = 'figs/disk_rs_zs/%s_%s_disk_zs.pdf'%(sim_name, dd_name)
+    plot_gas_profiles(stat_profiles, popt, figname)
