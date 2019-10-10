@@ -166,6 +166,67 @@ def get_path_info(args):
     return ds_loc, output_path, output_dir, haloname
 
 
+
+
+def filter_particles(data_source, filter_particle_types = ['stars', 'dm'], load_particles = False, load_particle_types = ['stars'],\
+                        load_particle_fields = ['particle_index',\
+                                               'particle_mass',\
+                                               'particle_position_x',\
+                                               'particle_position_y',\
+                                               'particle_position_z',\
+                                               'particle_velocity_x',\
+                                               'particle_velocity_y',\
+                                               'particle_velocity_z']):
+    """
+    filters dark matter and star particles. optionally, loads particle data.
+    if load_particles = True: 
+            pre-load a given list of load_particle_fields for a given list of load_particle_types.
+
+    Example:
+    from foggie.utils.foggie_utils import load_particle_data
+    # this will filter particles into "stars" and "dm", new derived fields available to refine_box
+    load_particle_data(refine_box)
+
+    # this will filter particles into "stars" and "dm", new derived fields available to refine_box
+    # and pre-load particle_index and particle_mass for 'stars'.
+    load_particle_data(refine_box, load_particles = True, load_particle_type = ['stars'], 
+                                                           load_particle_fields = [('particle_index', ''),\
+                                                                                   ('particle_mass', 'Msun')])
+
+    """
+
+
+    if type(load_particle_types) == str: load_particle_types = [load_particle_types]
+    if type(filter_particle_types) == str: filter_particle_types = [filter_particle_types]
+
+
+    for ptype in filter_particle_types:
+        if (ptype, 'particle_index') not in data_source.ds.derived_field_list:
+            # add particle
+            print ('filtering %s particles...'%ptype)
+            import yt
+            from foggie.utils import yt_fields
+            if ptype == 'stars': func = yt_fields._stars
+            elif ptype =='dm': func = yt_fields._dm
+            else: 
+                print ('particle type %s not known'%ptype)
+                return
+            yt.add_particle_filter(ptype,function=func, filtered_type='all',requires=["particle_type"])
+            data_source.ds.add_particle_filter(ptype)
+
+    if load_particles:
+        for ptype in load_particle_types:
+            print ('loading %s particle data...'%ptype)
+            for field_name in load_particle_fields:
+              print ('\t loading ("%s", "%s")'%(ptype, field_name))
+              data_source[ptype, field_name]
+    return
+
+
+
+
+
+
 def ds_to_df(ds, ray_start, ray_end):
     """
     this is a utility function that accepts a yt dataset and the start and end
