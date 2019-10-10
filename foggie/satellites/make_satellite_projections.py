@@ -58,7 +58,7 @@ def parse_args():
     return args
 
 
-def do_plot(field, axs, annotate_others, annotate_center, \
+def do_plot(ds, field, axs, annotate_others, annotate_center, \
                 small_box, halo_center, x_width, \
                 cmap, unit = 'Msun/pc**2', zmin = density_proj_min, zmax = density_proj_max,\
                  ann_sphere_rad = (1, 'kpc')):
@@ -82,7 +82,7 @@ def do_plot(field, axs, annotate_others, annotate_center, \
 
 
 
-def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, \
+def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, haloname, \
                          fig_end = 'projection',  do = ['stars', 'gas', 'dm'],\
                          axes = ['x', 'y', 'z'], annotate_center = False, annotate_others = [],\
                           add_velocity = False, is_central = False):
@@ -127,10 +127,10 @@ def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, \
                 cmap =  plt.cm.gist_heat
                 cmap.set_bad('k')
 
-            prj = do_plot(field, axs, annotate_others, annotate_center, \
+            prj = do_plot(ds, field, axs, annotate_others, annotate_center, \
                           small_box, halo_center, x_width,\
                           cmap)
-            prj.save(fig_dir + '/bare/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end))
+            prj.save(fig_dir + '/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end))
             if (not is_central) & (False):
                 prj.annotate_arrow(pos = end_arrow, starting_pos = start_arrow, coord_system = 'data')
                 prj.save(fig_dir + '/with_single_arrow/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end))
@@ -253,14 +253,14 @@ if __name__ == '__main__':
                 sat_center = ds.arr([sat['x'], sat['y'], sat['z']], 'kpc')     
 
 
-                make_projection_plots(ds, sat_center, refine_box, fig_width, fig_dir, \
+                make_projection_plots(ds, sat_center, refine_box, fig_width, fig_dir, haloname, \
                                     fig_end = 'satellite_{}'.format(sat['id']), \
                                     do = ['gas', 'stars'], axes = ['x', 'y', 'z'],  annotate_center = True, annotate_others = annotate_others,\
                                     add_velocity = False)        
                 #, 'stars', 'dm'
         # Show satellites on a figure of the central
         if True:
-            make_projection_plots(ds, ds.arr(halo_center, 'code_length').to('kpc'), refine_box, x_width, fig_dir, \
+            make_projection_plots(ds, ds.arr(halo_center, 'code_length').to('kpc'), refine_box, x_width, fig_dir, haloname,\
                                   fig_end = 'central',\
                                   do = ['stars'], axes = ['y'],\
                                   annotate_center = True, annotate_others = annotate_others, is_central = True)
