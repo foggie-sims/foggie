@@ -9,8 +9,8 @@ def find_r200(dd_name, sim_name):
     > rvir = find_r200(dd_name, sim_name)
 
     History:
-    10/04/2019, YZ, UCB
-    10/06/2019, YZ added __name__ part so it can be used both as a module and from
+    10/04/2019, Yong Zheng, UCB
+    10/06/2019, Yong Zheng added __name__ part so it can be used both as a module and from
                 command line.
     """
     

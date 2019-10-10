@@ -1,17 +1,17 @@
-# 10/08/2019, YZ. UCB.
+# 10/08/2019, Yong Zheng. UCB.
 # Now adapted the code to check the all sky project from different off center
 # location of the disk. The randdom_seed = 99 is good to generate UVW vectors
 #
-# 10/07/2019, YZ, UCB.
+# 10/07/2019, Yong Zheng, UCB.
 # We recently found problems with nref11c_nref9f, so now
 # switch to nref11n_nref10f/RD0039. Re-run everything from the beginnign
 # meanwhile change mocky_way code structures to better fit the new foggie
 # strucutres.
 # !!!! This code still use the code foggie repo that I previously downloaded
-# to pleiades/yzheng7. It also calls a special version of yt to do the allskyproj,
+# to pleiades/Yong Zhengheng7. It also calls a special version of yt to do the allskyproj,
 # so it is not suitable for anything else that can be run by other mathcinary.
 #
-# 08/27/2018, YZ, UCB.
+# 08/27/2018, Yong Zheng, UCB.
 # This function is used to make allsky prjection with an observer
 # at 1.0, 1.5, and 2.0 Rs from the galactic center, to test whether
 # that makes a difference in the result we are looking at.

@@ -19,9 +19,9 @@ def calc_vrot_slit(ds, dd_name, sim_name, halo_center, normal_vector,
     astropy.table func, and keywords are r, v_rotation, v_dispersion.
 
     History:
-    03/27/2019, YZ, UCB, first write up the function to calculate roation/dispersion
-    08/20/2019, YZ, UCB, move this func to mocky_way_modules
-    10/08/2019, YZ, UCb, merging into foggie.mocky_way
+    03/27/2019, Yong Zheng, UCB, first write up the function to calculate roation/dispersion
+    08/20/2019, Yong Zheng, UCB, move this func to mocky_way_modules
+    10/08/2019, Yong Zheng, UCb, merging into foggie.mocky_way
 
     """
 
@@ -109,9 +109,9 @@ def calc_vrot_phi(ds, dd_name, sim_name, halo_center, L_vec, sun_vec, phi_vec,
 
 
     History:
-    03/27/2019, YZ, UCB, first write up the function to calculate roation/dispersion
-    08/20/2019, YZ, UCB, move this func to mocky_way_modules
-    10/08/2019, YZ, UCB, merging into foggie.mocky_way
+    03/27/2019, Yong Zheng, UCB, first write up the function to calculate roation/dispersion
+    08/20/2019, Yong Zheng, UCB, move this func to mocky_way_modules
+    10/08/2019, Yong Zheng, UCB, merging into foggie.mocky_way
 
     """
 
@@ -194,9 +194,9 @@ def calc_vcirc(ds, dd_name, sim_name, halo_center, maxr=150, dr=0.5):
     dr is the radius interval
 
     History:
-    03/27/2019, YZ, UCB, first write up the function to calculate circular velocity
-    08/20/2019, YZ, UCB, move this func to mocky_way_modules
-    10/08/2019, YZ, UCB, merging into foggie.mocky_way
+    03/27/2019, Yong Zheng, UCB, first write up the function to calculate circular velocity
+    08/20/2019, Yong Zheng, UCB, move this func to mocky_way_modules
+    10/08/2019, Yong Zheng, UCB, merging into foggie.mocky_way
 
     """
     import numpy as np
@@ -268,7 +268,7 @@ def calc_sound_speed(ds, dd_name, sim_name, halo_center, maxr=150, dr=0.5):
     Note that in El-Baldry+2018, cs is calculated using HI instead of all gas
 
     History:
-    08/20/2019, YZ, UCB, first write up of the sound speed function based on
+    08/20/2019, Yong Zheng, UCB, first write up of the sound speed function based on
           work by El-Baldry+2018.
     """
     import numpy as np
@@ -318,7 +318,7 @@ def calc_sound_speed(ds, dd_name, sim_name, halo_center, maxr=150, dr=0.5):
     return fitsfile
 
 def plt_vrot(sim_name, dd_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fits):
-    """Plot the rotation curves, will be always changing. No need to be fancy. YZ"""
+    """Plot the rotation curves, will be always changing. No need to be fancy. Yong Zheng"""
 
     import numpy as np
     from astropy.table import Table

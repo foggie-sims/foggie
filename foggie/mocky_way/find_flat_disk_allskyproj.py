@@ -1,4 +1,4 @@
-# 10/07/2019, YZ, UCB.
+# 10/07/2019, Yong Zheng, UCB.
 # We recently found problems with nref11c_nref9f, so now
 # switch to nref11n_nref10f/RD0039. Re-run everything from the beginnign
 # meanwhile change mocky_way code structures to better fit the new foggie
@@ -7,7 +7,7 @@
 # to pleiades/yzheng7. It also calls a special version of yt to do the allskyproj,
 # so it is not suitable for anything else that can be run by other mathcinary.
 #
-# 08/27/2018, YZ, UCB.
+# 08/27/2018, Yong Zheng, UCB.
 # This function is used to make allsky prjection with an observer
 # at 1.0, 1.5, and 2.0 Rs from the galactic center, to test whether
 # that makes a difference in the result we are looking at.
@@ -37,6 +37,7 @@ from mocky_way_modules import save_allsky_healpix_img, plt_allsky_healpix_img
 sim_name = 'nref11n_nref10f'
 dd_name = 'RD0039'
 ion_to_proj = 'HI'
+rvir = 161  # in unit of kpc, pre-run already by foggie.mocky_way.find_r200
 
 #### !!! DO NOT CHANGE THE FOLLOWING THREE LINES ###
 # To be consistent with the new code in
@@ -65,7 +66,6 @@ refine_box_center = box_paras[1]
 refine_width_code = box_paras[2]
 halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
 halo_center = ds.arr(halo_center, 'code_length')
-rvir = 157.5  # in unit of kpc, pre-run already by foggie.mocky_way.find_r200
 
 #### Setup plotting basics ####
 nside = 2**5 # 2**10 is probably too big....pix number = 12*nside^2

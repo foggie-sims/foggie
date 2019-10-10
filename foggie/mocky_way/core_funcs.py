@@ -5,8 +5,8 @@ in yzhenggit/mocky_way repo, now slowly merge everything into foggie.
 Here are the list the functions that have been added to this module:
 
 History:
-Nov 2018, YZ @ UCB
-10/04/2019, YZ, merge mocky_way into foggie/mocky_way
+Nov 2018, Yong Zheng @ UCB
+10/04/2019, Yong Zheng, merge mocky_way into foggie/mocky_way
 
 """
 
@@ -69,10 +69,10 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
              couldchange accordingly.
 
     Hitory:
-    05/04/2019, Created, YZ, UCB
-    08/06/2019, Merging prepdata_dd0946 and prepdata_rd0037 to a universal one. YZ.
+    05/04/2019, Created, Yong Zheng, UCB
+    08/06/2019, Merging prepdata_dd0946 and prepdata_rd0037 to a universal one. Yong Zheng.
     10/04/2019, update for nref11n_nref10f/RD0039 (used to be nref11c_nref9f),
-                + Merging mocky_way to foggie/mocky_way. YZ.
+                + Merging mocky_way to foggie/mocky_way. Yong Zheng.
     """
 
     # my rule: vector should have no unit, just numpy array
@@ -168,7 +168,7 @@ def locate_offcenter_observer(ds, ds_paras, robs2rs=2):
               to ds_paras
 
     History:
-    10/08/2019, YZ. UCB.
+    10/08/2019, Yong Zheng. UCB.
     """
 
     #### Now locate the observer to 2Rs, similar to MW disk
@@ -232,7 +232,7 @@ def find_halo_center_yz(ds, zsnap, sim_name, data_dir):
     Kinda just quick to use the foggie funcs to find halo center by reading
     in halo track information
 
-    History: 10/04/2019, YZ.
+    History: 10/04/2019, Yong Zheng.
     """
 
     from foggie.utils.get_halo_center import get_halo_center
@@ -256,7 +256,7 @@ def mean_rho(ds, center, r):
     Mean density within a sphere of radius r
 
     History:
-    10/04/2019, YZ wrote at some time, now merge into foggie/mocky_way
+    10/04/2019, Yong Zheng wrote at some time, now merge into foggie/mocky_way
 
     """
 
@@ -287,7 +287,7 @@ def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=20,
 
     History:
 
-    10/04/2019, YZ., UCB
+    10/04/2019, Yong Zheng., UCB
     """
 
     sp = ds.h.sphere(sp_center, (r_for_L, 'kpc'))
@@ -318,17 +318,18 @@ def dict_rvir_proper(dd_name, sim_name='nref11n_nref10f'):
     for those sim output that has r200 calculated.
 
     History:
-    08/06/2019, YZ.
+    08/06/2019, Yong Zheng.
     10/04/2019, added sim_name since now I've worked on two different sims,
                 to avoid confusion. Was originally dict_rvir_proper, now
-                dict_rvir_proper. YZ.
+                dict_rvir_proper. Yong Zheng.
     """
 
     all_rvir_proper = {'nref11c_nref9f_selfshield_z6/RD0035': 144.0, # kpc
                         'nref11c_nref9f_selfshield_z6/RD0036': 147.0, # kpc
                         'nref11c_nref9f_selfshield_z6/RD0037': 150.5,
                         'nref11c_nref9f_selfshield_z6/DD0946': 98.0,
-                        'nref11n_nref10f/RD0039': 157.5
+                        'nref11n_nref10f/RD0039': 157.5,
+                        'nref11n_nref10f/DD2175': 161.0
                         }
 
     output_string = '%s/%s'%(sim_name, dd_name)
@@ -352,9 +353,9 @@ def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
     in this case, the all sky projection may not result in a flat disk.
 
     History:
-    09/06/2019, YZ, UCB,
+    09/06/2019, Yong Zheng, UCB,
     10/04/2019, was originally named as sphere_for_galaxy_ang_mom,
-                now dict_sphere_for_gal_ang_mom. YZ.
+                now dict_sphere_for_gal_ang_mom. Yong Zheng.
     """
 
     # kpc, looks good from the allsky projection from GC.
@@ -363,7 +364,8 @@ def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
                         'nref11c_nref9f_selfshield_z6/RD0036': 7,
                         'nref11c_nref9f_selfshield_z6/RD0037': 8,
                         'nref11c_nref9f_selfshield_z6/DD0946': 10,
-                        'nref11n_nref10f/RD0039': 20}
+                        'nref11n_nref10f/RD0039': 20,
+                        'nref11n_nref10f/DD2175': 20}
 
     output_string = '%s/%s'%(sim_name, dd_name)
     if output_string in dict_sphere_L_rr:
@@ -385,7 +387,7 @@ def dict_disk_rs_zs(dd_name, sim_name='nref11n_nref10f'):
                 then record numbers here.
 
     History:
-    10/07/2019, YZ, UCB.
+    10/07/2019, Yong Zheng, UCB.
     """
 
     # kpc, looks good from the allsky projection from GC.
@@ -415,9 +417,9 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
 
     obj_tag: 'all', 'disk', 'cgm'
 
-    09/26/19, YZ, UCB.
-    10/09/2019, YZ, was obj_source_halo_disk, now merging into foggie.mocky_way
-    10/09/2019, YZ, now need to specify which part of the galaxy you want to process 
+    09/26/19, Yong Zheng, UCB.
+    10/09/2019, Yong Zheng, was obj_source_halo_disk, now merging into foggie.mocky_way
+    10/09/2019, Yong Zheng, now need to specify which part of the galaxy you want to process
     """
 
     if obj_tag == 'all':
