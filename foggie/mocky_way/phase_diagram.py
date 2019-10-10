@@ -316,6 +316,20 @@ def locate_xyticks(ax_range, ax_step=1, img_ax_width=1000):
                 ticklabels[j] = ''
     return ticks, ticklabels
 
+def yt_phase_diagram_sanity_check(ds, ds_paras):
+    """
+    To double check if dshader and the axes ticks are right.
+
+    History:
+    10/10/2019, YZ. UCB.
+    """
+    my_sphere = ds.sphere(ds_paras["halo_center"], ds_paras['rvir'])
+    plot = yt.PhasePlot(my_sphere, "H_nuclei_density", "temperature", ["cell_mass"],
+                        weight_field=None)
+    plot.save('figs/phase_diagram/%s_%s_yt_phase_diagram.png'%(ds_paras['sim_name'],
+                                                               ds_paras['dd_name']))
+
+
 #################################################################
 if __name__=='__main__':
     dd_name = 'RD0039'
@@ -328,6 +342,8 @@ if __name__=='__main__':
     from core_funcs import prepdata
     ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
     observer_location = ds_paras['halo_center']
+
+    # yt_phase_diagram_sanity_check(ds, ds_paras)
 
     ### deciding whether to do cgm, disk, or both
     print("Taking %s out of the simulatioin..."%(obj_tag))
