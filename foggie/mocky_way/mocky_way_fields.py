@@ -20,8 +20,8 @@ def _line_of_sight_velocity(field, data):
                              ValidateParameter("observer_bulkvel")])
 
     History:
-    09/30/2019, YZ added a how to use part.
-    10/09/2019, adapted from _los_velocity_bk in mocky_way.derived_fields_mw, YZ.
+    09/30/2019, Yong Zheng added a how to use part.
+    10/09/2019, adapted from _los_velocity_bk in mocky_way.derived_fields_mw, Yong Zheng.
 
     """
     # first some dumb tests to tell yt these are vectors.

@@ -1,7 +1,7 @@
 # HistoryL
 # adapted from phase diagram codes from mocky_way, now merging into
 # foggie.mocky_way
-# 10/09/2019, YZ, UCB.
+# 10/09/2019, Yong Zheng, UCB.
 
 import numpy as np
 import pandas
@@ -17,10 +17,10 @@ def prep_dataframe_radius(all_data, observer_location):
           ususally ds_paras['halo_center'] or ds_paras['offcenter_location']
 
     History:
-    YZ created sometime in the summer of 2019
-    10/01/2019, YZ deleted the refine_box and halo_vcenter lines, @UCB.
+    Yong Zheng created sometime in the summer of 2019
+    10/01/2019, Yong Zheng deleted the refine_box and halo_vcenter lines, @UCB.
                 also added obs_point for off_center observers
-    10/09/2019, YZ merging all vel, pos vel, and neg vel into the same func.
+    10/09/2019, Yong Zheng merging all vel, pos vel, and neg vel into the same func.
 
     """
 
@@ -57,10 +57,10 @@ def prep_dataframe_vel_all(all_data, observer_location):
           ususally ds_paras['halo_center'] or ds_paras['offcenter_location']
 
     History:
-    YZ created sometime in the summer of 2019
-    10/01/2019, YZ deleted the refine_box and halo_vcenter lines, @UCB.
+    Yong Zheng created sometime in the summer of 2019
+    10/01/2019, Yong Zheng deleted the refine_box and halo_vcenter lines, @UCB.
                 also added obs_point for off_center observers
-    10/09/2019, YZ merging all vel, pos vel, and neg vel into the same func.
+    10/09/2019, Yong Zheng merging all vel, pos vel, and neg vel into the same func.
 
     """
 
@@ -91,10 +91,10 @@ def prep_dataframe_vel_pos(all_data, observer_location):
           ususally ds_paras['halo_center'] or ds_paras['offcenter_location']
 
     History:
-    YZ created sometime in the summer of 2019
-    10/01/2019, YZ deleted the refine_box and halo_vcenter lines, @UCB.
+    Yong Zheng created sometime in the summer of 2019
+    10/01/2019, Yong Zheng deleted the refine_box and halo_vcenter lines, @UCB.
                 also added obs_point for off_center observers
-    10/09/2019, YZ merging all vel, pos vel, and neg vel into the same func.
+    10/09/2019, Yong Zheng merging all vel, pos vel, and neg vel into the same func.
 
     """
 
@@ -126,10 +126,10 @@ def prep_dataframe_vel_neg(all_data, observer_location):
           ususally ds_paras['halo_center'] or ds_paras['offcenter_location']
 
     History:
-    YZ created sometime in the summer of 2019
-    10/01/2019, YZ deleted the refine_box and halo_vcenter lines, @UCB.
+    Yong Zheng created sometime in the summer of 2019
+    10/01/2019, Yong Zheng deleted the refine_box and halo_vcenter lines, @UCB.
                 also added obs_point for off_center observers
-    10/09/2019, YZ merging all vel, pos vel, and neg vel into the same func.
+    10/09/2019, Yong Zheng merging all vel, pos vel, and neg vel into the same func.
 
     """
 
@@ -151,7 +151,7 @@ def prep_dataframe_vel_neg(all_data, observer_location):
 
     return df
 
-def phase_diagram_noaxes(dataframe, dict_basic_args, dict_extra_args):
+def dshader_noaxes(dataframe, dict_basic_args, dict_extra_args):
     """
     Renders density and temperature phase diagram with linear aggregation
 
@@ -164,8 +164,8 @@ def phase_diagram_noaxes(dataframe, dict_basic_args, dict_extra_args):
                  be used in plot_width parameter of datashader.Canvas
 
     History:
-    sometime YZ adopted from foggie/shader_maps.py/render_image func
-    10/09/2019, YZ merging this into foggie.mocky_way
+    sometime Yong Zheng adopted from foggie/shader_maps.py/render_image func
+    10/09/2019, Yong Zheng merging this into foggie.mocky_way
     """
     import sys
     from functools import partial
@@ -192,7 +192,7 @@ def phase_diagram_noaxes(dataframe, dict_basic_args, dict_extra_args):
     print("Saving to %s/%s.png (on axes)"%(dict_extra_args['export_path'],
                                            dict_extra_args['figname']))
 
-def wrap_axes(dict_basic_args, dict_extra_args):
+def wrap_axes(dict_basic_args, dict_extra_args, draw_pressure_line=False):
     """
     Intended to be run after phase_diagram_noaxes(i.e., render_image),
     take the image and wraps it in axes using matplotlib.
@@ -262,30 +262,31 @@ def wrap_axes(dict_basic_args, dict_extra_args):
 
 
     # draw a constant pressure line and arrow
-    p_args={'T1': 1e6, 'T2': 10**7.5, 'fontsize': 14, 'rotation': -59}
-    x_range = dict_basic_args['x_range']
-    y_range = dict_basic_args['y_range']
-    img_x_width = dict_basic_args['image_x_width']
-    img_y_width = dict_basic_args['image_y_width']
+    if draw_pressure_line == True:
+        p_args={'T1': 1e6, 'T2': 10**7.5, 'fontsize': 14, 'rotation': -59}
+        x_range = dict_basic_args['x_range']
+        y_range = dict_basic_args['y_range']
+        img_x_width = dict_basic_args['image_x_width']
+        img_y_width = dict_basic_args['image_y_width']
 
-    # find two pairs of points with the same pressure
-    import astropy.units as u
-    import astropy.constants as const
-    T1 = p_args['T1']*u.K
-    nH1 = 1e1/u.cm**3
-    p = nH1*const.k_B*T1
+        # find two pairs of points with the same pressure
+        import astropy.units as u
+        import astropy.constants as const
+        T1 = p_args['T1']*u.K
+        nH1 = 1e1/u.cm**3
+        p = nH1*const.k_B*T1
 
-    T2 = p_args['T2']*u.K
-    nH2 = p/T2/const.k_B
+        T2 = p_args['T2']*u.K
+        nH2 = p/T2/const.k_B
 
-    # convert the two points from phy units to pixel units
-    x1 = x_step/(x_range[1]-x_range[0])*(np.log10(nH1.value)-x_range[0])*img_x_width
-    y1 = y_step/(y_range[1]-y_range[0])*(np.log10(T1.value)-y_range[0])*img_y_width
-    x2 = x_step/(x_range[1]-x_range[0])*(np.log10(nH2.value)-x_range[0])*img_x_width
-    y2 = y_step/(y_range[1]-y_range[0])*(np.log10(T2.value)-y_range[0])*img_y_width
-    ax.text(x2, y2, r'${\rm P = n_H k_B T = const.}$',
-            rotation=p_args['rotation'], fontsize=p_args['fontsize'])
-    ax.plot([x1, x2], [y1, y2], lw=2, color='k')
+        # convert the two points from phy units to pixel units
+        x1 = x_step/(x_range[1]-x_range[0])*(np.log10(nH1.value)-x_range[0])*img_x_width
+        y1 = y_step/(y_range[1]-y_range[0])*(np.log10(T1.value)-y_range[0])*img_y_width
+        x2 = x_step/(x_range[1]-x_range[0])*(np.log10(nH2.value)-x_range[0])*img_x_width
+        y2 = y_step/(y_range[1]-y_range[0])*(np.log10(T2.value)-y_range[0])*img_y_width
+        ax.text(x2, y2, r'${\rm P = n_H k_B T = const.}$',
+                rotation=p_args['rotation'], fontsize=p_args['fontsize'])
+        ax.plot([x1, x2], [y1, y2], lw=2, color='k')
 
     figname = '%s/%s.pdf'%(dict_extra_args['export_path'],
                            dict_extra_args['figname'])
@@ -321,7 +322,7 @@ def yt_phase_diagram_sanity_check(ds, ds_paras):
     To double check if dshader and the axes ticks are right.
 
     History:
-    10/10/2019, YZ. UCB.
+    10/10/2019, Yong Zheng. UCB.
     """
     my_sphere = ds.sphere(ds_paras["halo_center"], ds_paras['rvir'])
     plot = yt.PhasePlot(my_sphere, "H_nuclei_density", "temperature", ["cell_mass"],
@@ -415,7 +416,7 @@ if __name__=='__main__':
         sys.exit(0)
 
     print("Phew, finally making phase diagrames...")
-    phase_diagram_noaxes(df, dict_basic_args, dict_extra_args)
+    dshader_noaxes(df, dict_basic_args, dict_extra_args)
 
     print("Putting axes on the data shader plot...")
-    wrap_axes(dict_basic_args, dict_extra_args)
+    wrap_axes(dict_basic_args, dict_extra_args, draw_pressure_line=True)
