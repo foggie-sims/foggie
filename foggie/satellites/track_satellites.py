@@ -149,7 +149,7 @@ if __name__ == '__main__':
     output = np.load('%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.output), allow_pickle = True)[()]
 
     for sat in anchors.keys():
-      '''
+
       temp = np.load(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy')
       output[sat] = {}
 
@@ -159,7 +159,6 @@ if __name__ == '__main__':
       output[sat]['x'] = round(float(com[0].value), 3)
       output[sat]['y'] = round(float(com[1].value), 3)
       output[sat]['z'] = round(float(com[2].value), 3)
-      '''
 
       # Make individual satellite projection plots
 
