@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
       make_projection_plots(refine_box.ds, sat_center, refine_box, fig_width, fig_dir, haloname, \
                           fig_end = 'satellite_{}_{}_{}'.format(args.halo, args.output, sat), \
-                          do = ['gas'], axes = ['x'],  annotate_center = True, annotate_others = [],\
+                          do = ['gas', 'stars'], axes = ['x'],  annotate_center = True, annotate_others = [],\
                           add_velocity = False)        
 
 
@@ -180,7 +180,7 @@ if __name__ == '__main__':
 
     make_projection_plots(refine_box.ds, halo_center, refine_box, x_width, fig_dir, haloname,\
                           fig_end = 'central',\
-                          do = ['gas'], axes = ['x'],\
+                          do = ['gas', 'stars'], axes = ['x'],\
                           annotate_center = True, annotate_others = annotate_others, is_central = True)
 
 
