@@ -145,8 +145,11 @@ if __name__ == '__main__':
 
     #Collect outputs      
     output = {}
+    annotate_others = []
+    output = np.load('%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.output), allow_pickle = True)[()]
 
     for sat in anchors.keys():
+      '''
       temp = np.load(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy')
       output[sat] = {}
 
@@ -156,12 +159,14 @@ if __name__ == '__main__':
       output[sat]['x'] = round(float(com[0].value), 3)
       output[sat]['y'] = round(float(com[1].value), 3)
       output[sat]['z'] = round(float(com[2].value), 3)
-
+      '''
 
       # Make individual satellite projection plots
 
       from foggie.satellites.make_satellite_projections import make_projection_plots
       sat_center = ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc')
+
+      if sat == '0': halo_center = sat_center.copy()
 
       fig_width = 10 * kpc
 
@@ -169,6 +174,14 @@ if __name__ == '__main__':
                           fig_end = 'satellite_{}_{}_{}'.format(args.halo, args.output, sat), \
                           do = ['gas'], axes = ['x'],  annotate_center = True, annotate_others = [],\
                           add_velocity = False)        
+
+
+    for sat in anchors.keys(): annotate_others.append(ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc'))
+
+    make_projection_plots(refine_box.ds, halo_center, refine_box, x_width, fig_dir, haloname,\
+                          fig_end = 'central',\
+                          do = ['gas'], axes = ['x'],\
+                          annotate_center = True, annotate_others = annotate_others, is_central = True)
 
 
     np.save('%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.output), output)
