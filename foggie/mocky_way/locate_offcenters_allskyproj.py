@@ -39,8 +39,10 @@ from mocky_way_modules import save_allsky_healpix_img, plt_allsky_healpix_img
 # dd_name = 'RD0037'
 
 sim_name = 'nref11n_nref10f'
-dd_name = 'RD0039'
+# d_name = 'RD0039'
+dd_name = 'DD2175'
 ion_to_proj = 'HI'
+
 
 #### !!! DO NOT CHANGE THE FOLLOWING THREE LINES ###
 # To be consistent with the new code in
@@ -48,6 +50,10 @@ ion_to_proj = 'HI'
 random_seed = 99      # DO NOT CHANGE.
 use_gas = True        # DO NOT CHANGE
 use_particles = False # DO NOT CHANGE
+disk_rs = 3.4 # DO NOT CHANGE. See core_funcs.dict_disk_rs_zs
+r_for_L = 5 # DO NOT CHANGE. See core_funcs.dict_sphere_for_gal_ang_mom
+rvir = 161  # DO NOT CHANGE. in unit of kpc, pre-run already by foggie.mocky_way.find_r200
+
 
 #### Reading in the dataset ###
 fig_dir = sys_dir+'/mocky_way/figs/locate_offcenters'
@@ -69,10 +75,8 @@ refine_box_center = box_paras[1]
 refine_width_code = box_paras[2]
 halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
 halo_center = ds.arr(halo_center, 'code_length')
-rvir = 157.5  # DO NOT CHANGE. in unit of kpc, pre-run already by foggie.mocky_way.find_r200
 
 #### Find the angular momentum
-r_for_L = 20 # DO NOT CHANGE. See core_funcs.dict_sphere_for_gal_ang_mom
 sp = ds.h.sphere(halo_center, (r_for_L, 'kpc'))
 # IMPROTANT!! need to set up the bulk velocity before geting L
 sp_bulkvel = sp.quantities.bulk_velocity(use_gas=use_gas,
@@ -102,7 +106,6 @@ obs_loc_vectors = [sun_vec, sun_vec+phi_vec,
                    phi_vec, -sun_vec+phi_vec,
                    -sun_vec, -sun_vec-phi_vec,
                    -phi_vec, -phi_vec+sun_vec]
-disk_rs = 3.3 # DO NOT CHANGE. See core_funcs.dict_disk_rs_zs
 for ii, obs_phi in enumerate([0, 45, 90, 135, 180, 225, 270, 315]):
     #### Decide the UVW vector
     obs_vec = obs_loc_vectors[ii]
