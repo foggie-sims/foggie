@@ -146,7 +146,6 @@ if __name__ == '__main__':
     #Collect outputs      
     output = {}
     annotate_others = []
-    output = np.load('%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.output), allow_pickle = True)[()]
 
     for sat in anchors.keys():
 
