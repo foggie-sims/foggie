@@ -176,18 +176,20 @@ def prep_dataframe_metallicity(all_data, ds_paras, obs_point='halo_center'):
 
 #########################################
 if __name__ == '__main__':
-    dd_name = 'RD0039'
-    sim_name = 'nref11n_nref10f'
-    obj_tag = 'cgm' # all, disk, cgm
+
+    import sys
+    sim_name = sys.argv[1] #'nref11n_nref10f', 'nref11c_nref9f_selfshield_z6'
+    dd_name = sys.argv[2]  # 'RD0039', 'RD0037'
+    obj_tag = 'all' # all, disk, cgm
     obs_point = 'halo_center' # halo_center, or offcenter_location
-    dshader_tag = 'vel_pos' # vel_pos, vel_neg, logT, metallicity
+    dshader_tag = 'logT' # vel_pos, vel_neg, logT, metallicity
 
     from core_funcs import prepdata
     ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
     observer_location = ds_paras[obs_point]
 
     ### deciding whether to do cgm, disk, or both
-    print("Taking %s out of the simulatioin..."%(obj_tag))
+    print("Taking %s out of the simulation..."%(obj_tag))
     from core_funcs import obj_source_all_disk_cgm
     obj_source = obj_source_all_disk_cgm(ds, ds_paras, obj_tag)
     obj_source.set_field_parameter("observer_location", observer_location)
@@ -200,8 +202,8 @@ if __name__ == '__main__':
     ### Set up the phase diagram parameter
     dict_basic_args = {'x_field': 'gas_imgx',
                        'y_field': 'gas_imgy',
-                       'x_range': [-150, 150],
-                       'y_range': [-150, 150],
+                       'x_range': [-120, 120],
+                       'y_range': [-120, 120],
                        'x_label': r'x (kpc)',
                        'y_label': r'y (kpc)',
                        'image_x_width': 1000, # in pixels I think?
@@ -217,8 +219,8 @@ if __name__ == '__main__':
                        'clabel': r'log [T (K)]',
                        'cticklabels': [s.decode('UTF-8').upper() for s in categories],
                        'export_path': 'figs/offaxproj_dshader',
-                       'figname': '%s_%s_%s_%s_offaxproj_logT'%(sim_name, dd_name,
-                                                                obj_tag, obs_point)}
+                       'figname': '%s_%s_%s_offaxproj_logT'%(sim_name, dd_name,
+                                                             obj_tag)}
         dict_extra_args = dict_T_args
 
     elif dshader_tag == 'metallicity':
@@ -231,8 +233,8 @@ if __name__ == '__main__':
                        'clabel': r'Z (Zsun)',
                        'cticklabels': [s.decode('UTF-8').upper() for s in categories],
                        'export_path': 'figs/offaxproj_dshader',
-                       'figname': '%s_%s_%s_%s_offaxproj_metallicity'%(sim_name, dd_name,
-                                                                       obj_tag, obs_point)}
+                       'figname': '%s_%s_%s_offaxproj_metallicity'%(sim_name, dd_name,
+                                                                    obj_tag)}
         dict_extra_args = dict_Z_args
 
     elif dshader_tag == 'vel_pos':

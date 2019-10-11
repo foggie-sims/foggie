@@ -277,21 +277,38 @@ def categorize_by_temp(temperature):
 
 ### I'm adding this logT color keys for mocky way. Yong Zheng, 10/10/2019. ##
 ### Still using the same temperature color plate ###
-logT_colors_mw = sns.blend_palette(
-    ('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), n_colors=4)
+logT_colors_mw = sns.blend_palette(('salmon', "#984ea3", "#4daf4a",
+                             "#ffe34d", 'darkorange'), n_colors=17)
 logT_discrete_cmap_mw = mpl.colors.ListedColormap(logT_colors_mw)
 logT_color_key_mw = collections.OrderedDict()
-logT_color_labels_mw = [b'cold', b'cool', b'warm', b'hot']
+logT_color_labels_mw = [b'<4.0', b'4.0-4.2', b'4.2-4.4', b'4.4-4.6',
+                        b'4.6-4.8', b'4.8-5.0', b'5.0-5.2', b'5.2-5.4',
+                        b'5.4-5.6', b'5.6-5.8', b'5.8-6.0', b'6.0-6.2',
+                        b'6.2-6.4', b'6.4-6.6', b'6.6-6.8', b'6.8-7.0',
+                        b'>7.0']
 for i in np.arange(np.size(logT_color_labels_mw)):
     logT_color_key_mw[logT_color_labels_mw[i]] = to_hex(logT_colors_mw[i])
 
 def categorize_by_logT_mw(logT):
     """ define the temp category strings"""
-    phase = np.chararray(np.size(logT), 5)
-    phase[logT >= 6] = b'hot'
-    phase[np.all([logT>=5, logT<6], axis=0)] = b'warm'
-    phase[np.all([logT>=4, logT<5], axis=0)] = b'cool'
-    phase[logT < 4] = b'cold'
+    phase = np.chararray(np.size(logT), 8)
+    phase[logT>7] = b'>7.0'
+    phase[np.all([logT>=6.8, logT<7.0], axis=0)] = b'6.8-7.0'
+    phase[np.all([logT>=6.6, logT<6.8], axis=0)] = b'6.6-6.8'
+    phase[np.all([logT>=6.4, logT<6.6], axis=0)] = b'6.4-6.6'
+    phase[np.all([logT>=6.2, logT<6.4], axis=0)] = b'6.2-6.4'
+    phase[np.all([logT>=6.0, logT<6.2], axis=0)] = b'6.0-6.2'
+    phase[np.all([logT>=5.8, logT<6.0], axis=0)] = b'5.8-6.0'
+    phase[np.all([logT>=5.6, logT<5.8], axis=0)] = b'5.6-5.8'
+    phase[np.all([logT>=5.4, logT<5.6], axis=0)] = b'5.4-5.6'
+    phase[np.all([logT>=5.2, logT<5.4], axis=0)] = b'5.2-5.4'
+    phase[np.all([logT>=5.0, logT<5.2], axis=0)] = b'5.0-5.2'
+    phase[np.all([logT>=4.8, logT<5.0], axis=0)] = b'4.8-5.0'
+    phase[np.all([logT>=4.6, logT<4.8], axis=0)] = b'4.6-4.8'
+    phase[np.all([logT>=4.4, logT<4.6], axis=0)] = b'4.4-4.6'
+    phase[np.all([logT>=4.2, logT<4.4], axis=0)] = b'4.2-4.4'
+    phase[np.all([logT>=4.0, logT<4.2], axis=0)] = b'4.0-4.2'
+    phase[logT<4] = b'<4.0'
     return phase
 
 ###################################################################
@@ -438,8 +455,8 @@ def categorize_by_hi(hi):
 ############### Yong Zheng add cat_radius for mocky way ########
 ### categorize halo gas by radius.
 radius_df_colname = 'cat_radius' # name of radius in dataframe
-radius_color_labels = [b'r0-20', b'r20-40', b'r40-60', b'r60-80',
-                       b'r80-100', b'r100-120', b'r120-140', b'r140-160']
+radius_color_labels = [b'0-20', b'20-40', b'40-60', b'60-80',
+                       b'80-100', b'100-120', b'120-140', b'>140']
 # this color has been reserved for FOGGIE I and II paper, so now using a different one.
 # radius_colors = sns.blend_palette(('salmon', '#984ea3', '#4daf4a',
 #                                    '#ffe34d', 'darkorange'), n_colors=8)
@@ -455,14 +472,14 @@ for i, ilabel in enumerate(radius_color_labels):
 def categorize_by_radius(radius):
     """ define the radius category strings"""
     cat_radius = np.chararray(np.size(radius), 8)
-    cat_radius[np.all([radius>=0, radius<20], axis=0)] = b'r0-20'
-    cat_radius[np.all([radius>=20, radius<40], axis=0)] = b'r20-40'
-    cat_radius[np.all([radius>=40, radius<60], axis=0)] = b'r40-60'
-    cat_radius[np.all([radius>=60, radius<80], axis=0)] = b'r60-80'
-    cat_radius[np.all([radius>=80, radius<100], axis=0)] = b'r80-100'
-    cat_radius[np.all([radius>=100, radius<120], axis=0)] = b'r100-120'
-    cat_radius[np.all([radius>=120, radius<140], axis=0)] = b'r120-140'
-    cat_radius[np.all([radius>=140, radius<160], axis=0)] = b'r140-160'
+    cat_radius[np.all([radius>=0, radius<20], axis=0)] = b'0-20'
+    cat_radius[np.all([radius>=20, radius<40], axis=0)] = b'20-40'
+    cat_radius[np.all([radius>=40, radius<60], axis=0)] = b'40-60'
+    cat_radius[np.all([radius>=60, radius<80], axis=0)] = b'60-80'
+    cat_radius[np.all([radius>=80, radius<100], axis=0)] = b'80-100'
+    cat_radius[np.all([radius>=100, radius<120], axis=0)] = b'100-120'
+    cat_radius[np.all([radius>=120, radius<140], axis=0)] = b'120-140'
+    cat_radius[radius>=140] = b'>140'
     return cat_radius
 
 ############### Yong Zheng add cat_velocity for mocky way ########
