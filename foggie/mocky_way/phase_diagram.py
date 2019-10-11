@@ -324,6 +324,7 @@ def yt_phase_diagram_sanity_check(ds, ds_paras):
     History:
     10/10/2019, Yong Zheng. UCB.
     """
+    import yt
     my_sphere = ds.sphere(ds_paras["halo_center"], ds_paras['rvir'])
     plot = yt.PhasePlot(my_sphere, "H_nuclei_density", "temperature", ["cell_mass"],
                         weight_field=None)
@@ -332,11 +333,15 @@ def yt_phase_diagram_sanity_check(ds, ds_paras):
 
 #################################################################
 if __name__=='__main__':
-    dd_name = 'RD0039'
-    sim_name = 'nref11n_nref10f'
+
+    import sys
+    sim_name = sys.argv[1]
+    dd_name = sys.argv[2]
+    #dd_name = 'RD0039'
+    #sim_name = 'nref11n_nref10f'
     obj_tag = 'cgm' # all, disk, cgm
-    obs_point = 'halo_center' # halo_center, or offcenter_location
-    dshader_tag = 'vel_neg' # radius, vel_pos, vel_neg
+    obs_point = 'offcenter_location' # halo_center, or offcenter_location
+    dshader_tag = 'vel_pos' # radius, vel_pos, vel_neg
 
     print("hey!")
     from core_funcs import prepdata
@@ -344,6 +349,7 @@ if __name__=='__main__':
     observer_location = ds_paras[obs_point]
 
     # yt_phase_diagram_sanity_check(ds, ds_paras)
+    # sys.exit(0)
 
     ### deciding whether to do cgm, disk, or both
     print("Taking %s out of the simulatioin..."%(obj_tag))
@@ -353,7 +359,7 @@ if __name__=='__main__':
     if obs_point == 'halo_center':
         bv = ds_paras['disk_bulkvel']
     else:
-        bv = ds_paras['observer_bulkvel']
+        bv = ds_paras['offcenter_bulkvel']
     obj_source.set_field_parameter("observer_bulkvel", bv)
 
     ### Set up the phase diagram parameter
