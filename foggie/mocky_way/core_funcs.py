@@ -365,7 +365,7 @@ def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
                         'nref11c_nref9f_selfshield_z6/RD0037': 8,
                         'nref11c_nref9f_selfshield_z6/DD0946': 10,
                         'nref11n_nref10f/RD0039': 20,
-                        'nref11n_nref10f/DD2175': 20}
+                        'nref11n_nref10f/DD2175': 5}
 
     output_string = '%s/%s'%(sim_name, dd_name)
     if output_string in dict_sphere_L_rr:
@@ -392,11 +392,13 @@ def dict_disk_rs_zs(dd_name, sim_name='nref11n_nref10f'):
 
     # kpc, looks good from the allsky projection from GC.
                  # see RD0037_L08kpc_n32_x800_R100.0_final.pdf
-    dict_rs = {'nref11n_nref10f/RD0039': 3.3,
-               'nref11n_nref10f/DD2175': 3.94}
+    dict_rs = {'nref11c_nref9f_selfshield_z6/RD0037': 3.9,
+               'nref11n_nref10f/RD0039': 3.3,
+               'nref11n_nref10f/DD2175': 3.4}
 
-    dict_zs = {'nref11n_nref10f/RD0039': 0.4,
-               'nref11n_nref10f/DD2175': 0.4}
+    dict_zs = {'nref11c_nref9f_selfshield_z6/RD0037': 1.4,
+               'nref11n_nref10f/RD0039': 0.4,
+               'nref11n_nref10f/DD2175': 0.5}
 
     output_string = '%s/%s'%(sim_name, dd_name)
     if output_string in dict_rs:
@@ -423,10 +425,14 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
     09/26/19, Yong Zheng, UCB.
     10/09/2019, Yong Zheng, was obj_source_halo_disk, now merging into foggie.mocky_way
     10/09/2019, Yong Zheng, now need to specify which part of the galaxy you want to process
+    10/11/2019, realizing the rvir of DD2175 is 160, which is beyond the refine
+                box (+/-130 kpc), so I'm doing the sphere of 120 kpc from now on.
+                Yong Zheng. UCB.
     """
 
     if obj_tag == 'all':
-        sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+        # sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+        sp = ds.sphere(ds_paras['halo_center'], (130, 'kpc'))
         obj = sp
     elif obj_tag == 'disk':
         disk_size_r = 4*ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
@@ -436,8 +442,9 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
                        (disk_size_r, 'kpc'),
                        (disk_size_z, 'kpc'))
         obj = disk
-    else:
-        sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+    elif obj_tag == 'cgm':
+        # sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+        sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
         disk_size_r = 4*ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
         disk_size_z = 4*ds_paras['disk_zs'] # one side,
         disk = ds.disk(ds_paras['halo_center'],
@@ -446,5 +453,10 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
                        (disk_size_z, 'kpc'))
         cgm = sp-disk
         obj = cgm
+
+    else:
+        print("I have no idea what you want, please put in all, disk, or cgm.")
+        import sys
+        sys.exit()
 
     return obj
