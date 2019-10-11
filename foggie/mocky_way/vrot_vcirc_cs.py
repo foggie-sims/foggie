@@ -317,7 +317,7 @@ def calc_sound_speed(ds, dd_name, sim_name, halo_center, maxr=150, dr=0.5):
 
     return fitsfile
 
-def plt_vrot(sim_name, dd_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fits):
+def plt_vrot(dd_name, sim_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fits):
     """Plot the rotation curves, will be always changing. No need to be fancy. Yong Zheng"""
 
     import numpy as np
@@ -420,10 +420,10 @@ def plt_vrot(sim_name, dd_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fi
 
 if __name__ == "__main__":
     ### Read in the simulation data and find halo center  ###
-
-    dd_name = 'RD0039'
-    sim_name = 'nref11n_nref10f'
-    run_funcs = False
+    import sys
+    sim_name = sys.argv[1] # 'nref11n_nref10f'
+    dd_name = sys.argv[2]  # 'DD2175'
+    run_funcs = True
 
     if run_funcs == True:
         from core_funcs import data_dir_sys_dir
@@ -464,10 +464,10 @@ if __name__ == "__main__":
                                    maxr=maxr, dr=dr)
 
     else:
-        vrot_slit_fits = 'figs/vrot_vcirc_cs/nref11n_nref10f_RD0039_vrotslit.fits'
-        vrot_phi_fits = 'figs/vrot_vcirc_cs/nref11n_nref10f_RD0039_vrotphi.fits'
-        vcirc_fits = 'figs/vrot_vcirc_cs/nref11n_nref10f_RD0039_vcirc.fits'
-        cs_fits = 'figs/vrot_vcirc_cs/nref11n_nref10f_RD0039_sound_speed.fits'
+        vrot_slit_fits = 'figs/vrot_vcirc_cs/%s_%s_vrotslit.fits'%(sim_name, dd_name)
+        vrot_phi_fits = 'figs/vrot_vcirc_cs/%s_%s_vrotphi.fits'%(sim_name, dd_name)
+        vcirc_fits = 'figs/vrot_vcirc_cs/%s_%s_vcirc.fits'%(sim_name, dd_name)
+        cs_fits = 'figs/vrot_vcirc_cs/%s_%s_sound_speed.fits'%(sim_name, dd_name)
 
     print("Phew, finally plotting everything...")
     plt_vrot(dd_name, sim_name, vrot_slit_fits,
