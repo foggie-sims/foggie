@@ -68,10 +68,10 @@ pathlength = ds.quan(120, 'kpc') # DO NOT CHANGE. within refinement box size.
 
 ## post processing the data
 import trident
-ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V']
-print("Adding ion fields: ", ion_list)
-trident.add_ion_fields(ds, ftype="gas", ions=ion_list, force_override=True)
-
+td_ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V']
+print("Adding ion fields: ", td_ion_list)
+trident.add_ion_fields(ds, ftype="gas", ions=td_ion_list, force_override=True)
+ion_list = [ss.replace(' ', '') for ss in td_ion_list]
 
 ### now let's find halo center ###
 from foggie.get_halo_center import get_halo_center
@@ -96,8 +96,17 @@ sp.set_field_parameter('bulk_velocity', sp_bulkvel)
 spec_L = sp.quantities.angular_momentum_vector(use_gas=use_gas,
                                                use_particles=use_particles)
 norm_L = spec_L / np.sqrt((spec_L**2).sum())
-np.random.seed(random_seed) ## to make sure we get the same thing everytime
-L_vec, sun_vec, phi_vec = ortho_find(norm_L)  # UVW vector
+
+### find the sun_vec and phi_vec
+np.random.seed(random_seed)
+z = norm_L
+x = np.random.randn(3)  # take a random vector
+x -= x.dot(z) * z       # make it orthogonal to k
+x /= np.linalg.norm(x)  # normalize it
+y = np.cross(z, x)      # cross product with k
+sun_vec = x
+phi_vec = y
+L_vec = z
 
 #### locate the observer to 2Rs
 obs_vec = sun_vec
@@ -112,7 +121,7 @@ gc = plt.cm.Greys(0.8) # gc = gridcolor
 #### decide if only project cgm, or proj the whole cgm+disk ###
 obj_tag = 'all' # means cgm+disk, or can do 'cgm' only
 if obj_tag == 'all':
-    sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
+    sp = ds.sphere(halo_center, (120, 'kpc'))
     obj = sp
 else:
     # sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
