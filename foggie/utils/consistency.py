@@ -67,6 +67,7 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'C_p3_number_density': 'log [C IV Number Density]',
                     'Si_p3_ion_fraction': 'Si IV Ionization Fraction',
                     'Si_p3_number_density': 'log [Si IV Number Density]',
+                    'N_p4_number_denstiy': 'log [N V Number Density]'
                    }
 
 # this is a dictionary of fields where we prefer to plot or
@@ -95,7 +96,9 @@ species_dict = {'CIII': 'C_p2_number_density',
                 'SiIII': "Si_p2_number_density",
                 'SiIV': "Si_p3_number_density",
                 'NeVIII': 'Ne_p7_number_density',
-                'FeXIV': 'Fe_p13_number_density'}
+                'FeXIV': 'Fe_p13_number_density',
+                'NV': 'N_p4_number_density',
+                'CII': 'C_p1_number_density'}
 
 halo_dict = {   2392  :  'Hurricane' ,
                 2878  :  'Cyclone' ,
@@ -217,6 +220,10 @@ si3_max = 1.e16
 si4_color_map = "inferno"
 si4_min = 1.e11
 si4_max = 1.e15
+
+n5_color_map = "inferno"
+n5_min = 1.e11
+n5_max = 1.e15
 
 ne8_color_map = "magma"
 ne8_min = 1.e11
@@ -570,6 +577,7 @@ colormap_dict = {'phase':new_phase_color_key, \
                  'Si_p1_number_density': si2_color_map, \
                  'Si_p2_number_density': si3_color_map, \
                  'Si_p3_number_density': si4_color_map,\
+                 'N_p4_number_density': n5_color_map, \
                  'r_wrt_observer': radius_color_key, \
                  'velocity_wrt_observer': velocity_color_key, \
                  'vel_pos_wrt_observer': vel_pos_color_key, \
@@ -585,6 +593,7 @@ proj_max_dict = {'density':1e-1, \
                   'Si_p3_number_density':si4_max, \
                   'Mg_p1_number_density':mg2_max, \
                   'O_p5_number_density':o6_max,\
+                  'N_p4_number_density':n5_max, \
                   'Ne_p7_number_density':ne8_max}
 
 
@@ -598,6 +607,7 @@ proj_min_dict = {'density':1e-6, \
                  'Si_p3_number_density':si4_min, \
                  'Mg_p1_number_density':mg2_min, \
                  'O_p5_number_density':o6_min, \
+                 'N_p4_number_density': n5_min, \
                  'Ne_p7_number_density':ne8_min}
 
 background_color_dict = {'density':'black', \
