@@ -1,280 +1,93 @@
-# code adopted from foggie/shader_map.py
+import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
-import pandas
 import numpy as np
+import sys
+import seaborn as sns
+import collections
+import astropy.units as u
+from matplotlib.colors import to_hex
+from offaxproj_dshader_modules import *
+# from mocky_way_modules import data_dir_sys_dir, prepdata
 from foggie.utils import consistency
-import yt
 
-def gas_imgx_imgy(all_data, ds_paras, obs_point='halo_center'):
-    """
-    Given observing point and line of sight vector (L_vec),
-    calculate the projected x and y on the image plane (phi_vec, L_vec),
-    and also the 3D radius from the observing point
+### first, read in dataset
+sim_name = 'nref11n_nref10f' # 'nref11c_nref9f_selfshield_z6'
+dd_name = 'DD2175' # 'RD0037' 
+obs_point =  'halo_center' ## halo_center, observer_location
+dshader_field = 'vel_pos' ## radius, velocity, vel_pos, vel_neg
 
-    Return:
-    image_x: project x coord on the phi vec
-    image_y: project y coord on the L vec
-    rr_kpc: 3D distance of cells to observing location
+from foggie.mocky_way.core_funcs import prepdata
+ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
 
-    History:
-    10/01/2019, Yong Zheng, UCB
-    10/10/2019, was originally calc_image_xy in mocky_way. rename. Yong Zheng.
-    """
-    x = all_data['x'].in_units('code_length').flatten()
-    y = all_data['y'].in_units('code_length').flatten()
-    z = all_data['z'].in_units('code_length').flatten()
+## decide where the observer is. halo_center == gc, observer_location == off_center
+if obs_point == 'halo_center':
+    obs_bulkvel = 'disk_bulkvel'
+else:
+    obs_bulkvel = 'offcenter_bulkvel'
+print("I am doing the calculation from the %s......"%(obs_point))
 
-    observer_location = ds_paras[obs_point]
-    rx_vec = x-observer_location[0]
-    ry_vec = y-observer_location[1]
-    rz_vec = z-observer_location[2]
-    r_vec = yt.YTArray([rx_vec, ry_vec, rz_vec])
+## 2nd, get the source object, and set the field parameters
+# obj_dict = obj_source_halo_disk(ds, ds_paras)
+# obj_source = obj_dict[obj_tag]
+obj_source = ds.sphere(ds_paras[obs_point], (15, 'kpc'))
+obj_source.set_field_parameter("observer_location", ds_paras[obs_point])
+obj_source.set_field_parameter("observer_bulkvel", ds_paras[obs_bulkvel])
+# obj_source.set_field_parameter("L_vec", ds_paras["L_vec"])
 
-    #rr_kpc = np.sqrt((rx_vec.in_units('kpc'))**2 + \
-    #                 (ry_vec.in_units('kpc'))**2 +\
-    #                 (rz_vec.in_units('kpc'))**2) # kpc
-    rr_code = np.sqrt(rx_vec**2 + ry_vec**2 + rz_vec**2) # code_length
-    rr_kpc = rr_code.in_units('kpc')
+### 3rd, now decide which velocity field to run
+if dshader_field == 'vel_pos':
+    from offaxproj_dshader_modules import prep_dataframe_vel_pos
+    dataframe = prep_dataframe_vel_pos(obj_source,
+                                       ds_paras,
+                                       obs_point=obs_point,
+                                       fields=['H_nuclei_density',
+                                               'los_velocity_mw'])
+elif dshader_field == 'vel_neg':
+    from offaxproj_dshader_modules import prep_dataframe_vel_neg
+    dataframe = prep_dataframe_vel_neg(obj_source, ds_paras,
+                                       obs_point=obs_point,
+                                       fields=['H_nuclei_density',
+                                               'los_velocity_mw'])
+else:
+    from offaxproj_dshader_modules import prep_dataframe
+    dataframe = prep_dataframe(obj_source,
+                               ds_paras,
+                               obs_point=obs_point,
+                               fields=['H_nuclei_density',
+                                       'los_velocity_mw'])
 
-    # we want the projection toward sun_vec (what we use in Figure 1)
-    # so we are projecting the r vector on to (phi, L) plane
-    # image_x is along phi direction
-    phi_vec = ds_paras['phi_vec'] # unit vector
-    cos_theta_r_phi = np.dot(phi_vec, r_vec)/rr_code
-    rphi_proj_kpc = rr_kpc * cos_theta_r_phi  # need to figure out the sign
-    image_x = rphi_proj_kpc
+from offaxproj_dshader_modules import get_df_dicts
+cat_field, c_label, discrete_cmap, categories = get_df_dicts(dshader_field,
+                                                             dd_name,
+                                                             obs_point)
+pngfile = '%s_%s_offaxproj_%s_%s'%(sim_name, dd_name, obs_point, dshader_field)
 
-    # image_y is along L direction
-    L_vec = ds_paras['L_vec']     # unit vector
-    cos_theta_r_L = np.dot(L_vec, r_vec)/rr_code
-    rL_proj_kpc = rr_kpc * cos_theta_r_L  # need to figure out the sign
-    image_y = rL_proj_kpc
+#x_range = [-150, 150]
+x_range = [-20, 20]
+x_field = 'image_x'
+x_label = r'x (kpc)' # axes_label_dict[x_field] # r'log n$_H$ (cm$^{-3}$)'
 
-    return image_x, image_y, rr_kpc
+#y_range = [-150, 150]
+y_range = [-20, 20]
+y_field = 'image_y'
+y_label = r'y (kpc)'
 
-def prep_dataframe_vel_pos(all_data, ds_paras, obs_point='halo_center'):
-    """
-    Add fields to the dataset, create dataframe for rendering
-    And select data only with positive velocity for off axis projection.
+export_path = 'figs/offaxproj_dshader/'
 
-    all_data: could be all the data, or a sphere, or a box or something
-
-    History:
-    Yong Zheng created sometime in the summer of 2019
-    09/23/2019, Yong Zheng change prep_dataframe to adjust to the postive velocity requirement.
-    10/01/2019, Yong Zheng deleted the refine_box and halo_vcenter lines, @UCB.
-                also added obs_point for off_center observers
-    10/10/2019, Yong Zheng simplified the module, and merge into foggie.mocky_way.
-    """
-
-    from offaxproj_dshader import gas_imgx_imgy
-    gas_imgx, gas_imgy, gas_imgr = gas_imgx_imgy(all_data, ds_paras,
-                                                 obs_point=obs_point)
-
-    # put some into categories
-    los_vel = all_data['line_of_sight_velocity']
-    cat_vel_pos = consistency.categorize_by_vel_pos(los_vel)
-    vel_filter = los_vel >= 0
-
-    # build dataframe with mandatory fields
-    dataframe = pandas.DataFrame({'gas_imgx': gas_imgx[vel_filter],
-                                  'gas_imgy': gas_imgy[vel_filter],
-                                  # category entries
-                                  'cat_vel_pos': cat_vel_pos[vel_filter]})
-    dataframe.cat_vel_pos = dataframe.cat_vel_pos.astype('category')
-    return dataframe
-
-def prep_dataframe_vel_neg(all_data, ds_paras, obs_point='halo_center'):
-    """
-    Add fields to the dataset, create dataframe for rendering
-    And select data only with negative velocity for off axis projection.
-
-    all_data: could be all the data, or a sphere, or a box or something
-
-    History:
-    Yong Zheng created sometime in the summer of 2019
-    09/23/2019, Yong Zheng change prep_dataframe to adjust to the postive velocity requirement.
-    10/01/2019, Yong Zheng deleted the refine_box and halo_vcenter lines, @UCB.
-                also added obs_point for off_center observers
-    10/10/2019, Yong Zheng simplified the module, and merge into foggie.mocky_way.
-    """
-
-    from offaxproj_dshader import gas_imgx_imgy
-    gas_imgx, gas_imgy, gas_imgr = gas_imgx_imgy(all_data, ds_paras,
-                                                 obs_point=obs_point)
-
-    # put some into categories
-    los_vel = all_data['line_of_sight_velocity']
-    cat_vel_neg = consistency.categorize_by_vel_pos(los_vel)
-    vel_filter = los_vel < 0
-
-    # build dataframe with mandatory fields
-    dataframe = pandas.DataFrame({'gas_imgx': gas_imgx[vel_filter],
-                                  'gas_imgy': gas_imgy[vel_filter],
-                                  # category entries
-                                  'cat_vel_neg': cat_vel_neg[vel_filter]})
-    dataframe.cat_vel_neg = dataframe.cat_vel_neg.astype('category')
-    return dataframe
-
-def prep_dataframe_logT(all_data, ds_paras, obs_point='halo_center'):
-    """
-    Add fields to the dataset, create dataframe for rendering for temperature
-
-    all_data: could be all the data, or a sphere, or a box or something
-
-    History:
-    Yong Zheng created sometime in the summer of 2019
-    09/23/2019, Yong Zheng change prep_dataframe to adjust to the postive velocity requirement.
-    10/01/2019, Yong Zheng deleted the refine_box and halo_vcenter lines, @UCB.
-                also added obs_point for off_center observers
-    10/10/2019, Yong Zheng simplified the module, and merge into foggie.mocky_way.
-    """
-
-    from offaxproj_dshader import gas_imgx_imgy
-    gas_imgx, gas_imgy, gas_imgr = gas_imgx_imgy(all_data, ds_paras,
-                                                 obs_point=obs_point)
-    logT = np.log10(all_data['temperature'])
-    cat_logT = consistency.categorize_by_logT_mw(logT)
-
-    # build dataframe with mandatory fields
-    dataframe = pandas.DataFrame({'gas_imgx': gas_imgx,
-                                  'gas_imgy': gas_imgy,
-                                  # category entries
-                                  'cat_logT': cat_logT})
-    dataframe.cat_logT = dataframe.cat_logT.astype('category')
-    return dataframe
-
-def prep_dataframe_metallicity(all_data, ds_paras, obs_point='halo_center'):
-    """
-    Add fields to the dataset, create dataframe for rendering for temperature
-
-    all_data: could be all the data, or a sphere, or a box or something
-
-    History:
-    Yong Zheng created sometime in the summer of 2019
-    09/23/2019, Yong Zheng change prep_dataframe to adjust to the postive velocity requirement.
-    10/01/2019, Yong Zheng deleted the refine_box and halo_vcenter lines, @UCB.
-                also added obs_point for off_center observers
-    10/10/2019, Yong Zheng simplified the module, and merge into foggie.mocky_way.
-    """
-
-    from offaxproj_dshader import gas_imgx_imgy
-    gas_imgx, gas_imgy, gas_imgr = gas_imgx_imgy(all_data, ds_paras,
-                                                 obs_point=obs_point)
-    metal_Zsun = all_data['metallicity']
-    cat_metallicity = consistency.categorize_by_metallicity_mw(metal_Zsun)
-
-    # build dataframe with mandatory fields
-    dataframe = pandas.DataFrame({'gas_imgx': gas_imgx,
-                                  'gas_imgy': gas_imgy,
-                                  # category entries
-                                  'cat_metallicity': cat_metallicity})
-    dataframe.cat_metallicity = dataframe.cat_metallicity.astype('category')
-    return dataframe
-
-
-#########################################
-if __name__ == '__main__':
-
-    import sys
-    sim_name = sys.argv[1] #'nref11n_nref10f', 'nref11c_nref9f_selfshield_z6'
-    dd_name = sys.argv[2]  # 'RD0039', 'RD0037'
-    obj_tag = 'all' # all, disk, cgm
-    obs_point = 'halo_center' # halo_center, or offcenter_location
-    dshader_tag = 'logT' # vel_pos, vel_neg, logT, metallicity
-
-    from core_funcs import prepdata
-    ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
-    observer_location = ds_paras[obs_point]
-
-    ### deciding whether to do cgm, disk, or both
-    print("Taking %s out of the simulation..."%(obj_tag))
-    from core_funcs import obj_source_all_disk_cgm
-    obj_source = obj_source_all_disk_cgm(ds, ds_paras, obj_tag)
-    obj_source.set_field_parameter("observer_location", observer_location)
-    if obs_point == 'halo_center':
-        bv = ds_paras['disk_bulkvel']
-    else:
-        bv = ds_paras['observer_bulkvel']
-    obj_source.set_field_parameter("observer_bulkvel", bv)
-
-    ### Set up the phase diagram parameter
-    dict_basic_args = {'x_field': 'gas_imgx',
-                       'y_field': 'gas_imgy',
-                       'x_range': [-120, 120],
-                       'y_range': [-120, 120],
-                       'x_label': r'x (kpc)',
-                       'y_label': r'y (kpc)',
-                       'image_x_width': 1000, # in pixels I think?
-                       'image_y_width': 1000}
-
-    if dshader_tag == 'logT':
-        print("Making data shader frame... color-coded in logT ...")
-        df = prep_dataframe_logT(obj_source, ds_paras, obs_point=obs_point)
-        categories = consistency.logT_color_labels_mw
-        dict_T_args = {'c_field': 'cat_logT',
-                       'cmap': consistency.logT_discrete_cmap_mw,
-                       'ckey': consistency.logT_color_key_mw,
-                       'clabel': r'log [T (K)]',
-                       'cticklabels': [s.decode('UTF-8').upper() for s in categories],
-                       'export_path': 'figs/offaxproj_dshader',
-                       'figname': '%s_%s_%s_offaxproj_logT'%(sim_name, dd_name,
-                                                             obj_tag)}
-        dict_extra_args = dict_T_args
-
-    elif dshader_tag == 'metallicity':
-        print("Making data shader frame... color-coded in metallicity ...")
-        df = prep_dataframe_metallicity(obj_source, ds_paras, obs_point=obs_point)
-        categories = consistency.metal_color_labels_mw
-        dict_Z_args = {'c_field': 'cat_metallicity',
-                       'cmap': consistency.metal_discrete_cmap_mw,
-                       'ckey': consistency.metal_color_key_mw,
-                       'clabel': r'Z (Zsun)',
-                       'cticklabels': [s.decode('UTF-8').upper() for s in categories],
-                       'export_path': 'figs/offaxproj_dshader',
-                       'figname': '%s_%s_%s_offaxproj_metallicity'%(sim_name, dd_name,
-                                                                    obj_tag)}
-        dict_extra_args = dict_Z_args
-
-    elif dshader_tag == 'vel_pos':
-        print("Making data shader frame... color-coded in vel_pos ...")
-        df = prep_dataframe_vel_pos(obj_source, ds_paras, obs_point=obs_point)
-        categories = consistency.vel_pos_color_labels
-        dict_v_args = {'c_field': 'cat_vel_pos',
-                       'cmap': consistency.vel_pos_discrete_cmap,
-                       'ckey': consistency.vel_pos_color_key,
-                       'clabel': r'V$_{los}$ (km/s)',
-                       'cticklabels': [s.decode('UTF-8').upper() for s in categories],
-                       'export_path': 'figs/offaxproj_dshader',
-                       'figname': '%s_%s_%s_%s_offaxproj_vel_pos'%(sim_name, dd_name,
-                                                                   obj_tag, obs_point)}
-        dict_extra_args = dict_v_args
-
-    elif dshader_tag == 'vel_neg':
-        print("Making data shader frame... color-coded in vel_pos ...")
-        df = prep_dataframe_vel_neg(obj_source, ds_paras, obs_point=obs_point)
-        categories = consistency.vel_neg_color_labels
-        dict_v_args = {'c_field': 'cat_vel_neg',
-                       'cmap': consistency.vel_neg_discrete_cmap,
-                       'ckey': consistency.vel_neg_color_key,
-                       'clabel': r'V$_{los}$ (km/s)',
-                       'cticklabels': [s.decode('UTF-8').upper() for s in categories],
-                       'export_path': 'figs/offaxproj_dshader',
-                       'figname': '%s_%s_%s_%s_offaxproj_vel_neg'%(sim_name, dd_name,
-                                                                   obj_tag, obs_point)}
-        dict_extra_args = dict_v_args
-
-    else:
-        print("Do not recognize this dshader_tag, please check...")
-        import sys
-        sys.exit(0)
-
-    ######
-    print("Phew, finally making offax projection plots with dshader...")
-    from phase_diagram import dshader_noaxes
-    dshader_noaxes(df, dict_basic_args, dict_extra_args)
-
-    print("Putting axes on the data shader plot...")
-    from phase_diagram import wrap_axes
-    wrap_axes(dict_basic_args, dict_extra_args)
+# now just make the data shader
+print("Making data shader frame...")
+img = offaxproj_noaxes(dataframe, x_field=x_field, x_range=x_range,
+                           y_field=y_field, y_range=y_range,
+                           cat_field=cat_field, export_path=export_path,
+                           save_to_file=pngfile)
+### now put the axes on with ticks and labels
+img_x_width = 1000
+img_y_width = 1000
+c_ticklabels = [ss.decode('UTF-8').upper() for ss in categories]
+filename = '%s/%s.png'%(export_path, pngfile)
+print("Putting axes, ticks and labels on the datashader frame...")
+wa = wrap_axes(filename, discrete_cmap, x_range=x_range, y_range=y_range,
+               x_label=x_label, y_label=y_label,
+               img_x_width=img_x_width, img_y_width=img_y_width,
+               c_label=c_label, c_ticklabels=c_ticklabels)

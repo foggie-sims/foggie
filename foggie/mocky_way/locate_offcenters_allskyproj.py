@@ -43,6 +43,12 @@ sim_name = 'nref11n_nref10f'
 dd_name = 'DD2175'
 ion_to_proj = 'HI'
 
+#### Reading in the dataset ###
+fig_dir = sys_dir+'/mocky_way/figs/locate_offcenters'
+os.sys.path.insert(0, sys_dir)
+ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
+ds = yt.load(ds_file)
+zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
 #### !!! DO NOT CHANGE THE FOLLOWING THREE LINES ###
 # To be consistent with the new code in
@@ -53,14 +59,7 @@ use_particles = False # DO NOT CHANGE
 disk_rs = 3.4 # DO NOT CHANGE. See core_funcs.dict_disk_rs_zs
 r_for_L = 5 # DO NOT CHANGE. See core_funcs.dict_sphere_for_gal_ang_mom
 rvir = 161  # DO NOT CHANGE. in unit of kpc, pre-run already by foggie.mocky_way.find_r200
-
-
-#### Reading in the dataset ###
-fig_dir = sys_dir+'/mocky_way/figs/locate_offcenters'
-os.sys.path.insert(0, sys_dir)
-ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
-ds = yt.load(ds_file)
-zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+pathlength = ds.quan(120, 'kpc') # DO NOT CHANGE. within refinement box size.
 
 ### now let's find halo center ###
 from foggie.get_halo_center import get_halo_center
@@ -89,7 +88,7 @@ np.random.seed(random_seed) ## to make sure we get the same thing everytime
 L_vec, sun_vec, phi_vec = ortho_find(norm_L)  # UVW vector
 
 #### Setup plotting basics ####
-nside = 2**5 # 2**10 is probably too big....pix number = 12*nside^2
+nside = 2**8 # tested, 2**8 is the best, 2**10 is too much, not necessary
 xsize = 800
 gc = plt.cm.Greys(0.8) # gc = gridcolor
 
@@ -125,7 +124,7 @@ for ii, obs_phi in enumerate([0, 45, 90, 135, 180, 225, 270, 315]):
 
     #### make the all sky projection
     obs_xyz = offcenter_location
-    pathlength = ds.quan(rvir, 'kpc')
+    # pathlength = ds.quan(rvir, 'kpc')
     img = healpix_projection(ds, obs_xyz,
                              pathlength, nside, item,
                              normal_vector=-obs_vec,
