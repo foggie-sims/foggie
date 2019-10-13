@@ -84,8 +84,17 @@ sp.set_field_parameter('bulk_velocity', sp_bulkvel)
 spec_L = sp.quantities.angular_momentum_vector(use_gas=use_gas,
                                                use_particles=use_particles)
 norm_L = spec_L / np.sqrt((spec_L**2).sum())
-np.random.seed(random_seed) ## to make sure we get the same thing everytime
-L_vec, sun_vec, phi_vec = ortho_find(norm_L)  # UVW vector
+
+### find the sun_vec and phi_vec
+np.random.seed(random_seed)
+z = norm_L
+x = np.random.randn(3)  # take a random vector
+x -= x.dot(z) * z       # make it orthogonal to k
+x /= np.linalg.norm(x)  # normalize it
+y = np.cross(z, x)      # cross product with k
+sun_vec = x
+phi_vec = y
+L_vec = z
 
 #### Setup plotting basics ####
 nside = 2**8 # tested, 2**8 is the best, 2**10 is too much, not necessary
@@ -95,10 +104,6 @@ gc = plt.cm.Greys(0.8) # gc = gridcolor
 import foggie.consistency as consistency # for plotting
 field_to_proj = consistency.species_dict[ion_to_proj]
 item = ('gas', field_to_proj)  # NHI across the sky
-img_cmap = consistency.colormap_dict[field_to_proj]
-img_min = np.log10(consistency.proj_min_dict[field_to_proj])
-img_max = np.log10(consistency.proj_max_dict[field_to_proj])
-img_label = consistency.axes_label_dict[field_to_proj]
 
 ##### loops over different location to find the best angular momentum ####
 obs_loc_vectors = [sun_vec, sun_vec+phi_vec,
