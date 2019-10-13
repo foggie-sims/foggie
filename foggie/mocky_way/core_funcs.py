@@ -273,6 +273,29 @@ def mean_rho(ds, center, r):
 
     return rho_internal
 
+def ortho_find_yz(z, random_seed=99):
+    """
+    Realize the yt version of ortho_find do not have the flexiblity to change
+    the different x, y vectors, so decide to write one myself. It's basically
+    identical to yt.utilities.math_utils.ortho_find, with an additional para
+    of random_seed so that we can change the x, y vectors if needed.  
+
+    10/13/2019, YZ
+    """
+    import numpy as np
+    np.random.seed(random_seed)
+
+    x = np.random.randn(3)  # take a random vector
+    x -= x.dot(z) * z       # make it orthogonal to k
+    x /= np.linalg.norm(x)  # normalize it
+    y = np.cross(z, x)      # cross product with k
+
+    sun_vec = x
+    phi_vec = y
+    L_vec = z
+
+    return L_vec, sun_vec, phi_vec
+
 def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=20,
                             use_gas=True, use_particles=False,
                             random_seed=99):
@@ -301,9 +324,8 @@ def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=20,
                                                    use_particles=use_particles)
     norm_L = spec_L / np.sqrt((spec_L**2).sum())
 
-    from yt.utilities.math_utils import ortho_find
-    np.random.seed(random_seed) ## to make sure we get the same thing everytime
-    n1_L, n2_sun, n3_phi = ortho_find(norm_L)  # UVW vector
+    from foggie.mocky_way.core_funcs import ortho_find_yz
+    n1_L, n2_sun, n3_phi = ortho_find_yz(norm_L, random_seed=random_seed)  # UVW vector
     dict_vecs = {'L_vec': n1_L,
                  'sun_vec': n2_sun,
                  'phi_vec': n3_phi,
