@@ -34,7 +34,6 @@ data_dir, sys_dir = data_dir_sys_dir()
 os.sys.path.insert(0, sys_dir)
 
 import yt
-from yt.utilities.math_utils import ortho_find
 # import foggie
 from yt.visualization.volume_rendering.healpix_projection import healpix_projection
 from mocky_way_modules import save_allsky_healpix_img, plt_allsky_healpix_img
