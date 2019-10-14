@@ -49,7 +49,7 @@ from core_funcs import default_random_seed
 random_seed = default_random_seed()
 # for r_for_L in [5, 10, 15, 20]:
 highlight_disk = True
-for r_for_L in [20]:
+for r_for_L in [5]:
     dict_vecs = get_sphere_ang_mom_vecs(ds, halo_center, r_for_L,
                                         random_seed=random_seed)
     L_vec = dict_vecs['L_vec']
@@ -73,8 +73,8 @@ for r_for_L in [20]:
         if highlight_disk == True:
             print("High light the disk box boundaries.")
             # add this to show where the disk is after deciding rs and zs
-            disk_rs = 3.3 # kpc
-            disk_zs = 0.4 # kpc
+            disk_rs = 3.4 # kpc for DD2175
+            disk_zs = 0.5 # kpc
             disk_size_r = disk_rs*4
             disk_size_z = disk_zs*4
 

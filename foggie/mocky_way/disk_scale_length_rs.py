@@ -233,7 +233,7 @@ if __name__ == "__main__":
     fit_r = stat_profiles['rbins']
     fit_n = stat_profiles['nr_mean']
     # For DD2175
-    popt, psig = fit_nr_exp_profile(fit_r, fit_n, fit_minr=3, fit_maxr=25)
+    popt, psig = fit_nr_exp_profile(fit_r, fit_n, fit_minr=5, fit_maxr=30)
     # For RD0039
     # popt, psig = fit_nr_exp_profile(fit_r, fit_n, fit_minr=10, fit_maxr=40)
 

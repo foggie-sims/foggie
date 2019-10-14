@@ -47,7 +47,8 @@ def data_dir_sys_dir():
 # os.sys.path.insert(0, sys_dir)
 
 def default_random_seed():
-    return 99
+    random_seed = 99
+    return random_seed
 
 def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     """
@@ -70,7 +71,8 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
 
     Hitory:
     05/04/2019, Created, Yong Zheng, UCB
-    08/06/2019, Merging prepdata_dd0946 and prepdata_rd0037 to a universal one. Yong Zheng.
+    08/06/2019, Merging prepdata_dd0946 and prepdata_rd0037 to
+                a universal one. Yong Zheng.
     10/04/2019, update for nref11n_nref10f/RD0039 (used to be nref11c_nref9f),
                 + Merging mocky_way to foggie/mocky_way. Yong Zheng.
     """
@@ -80,7 +82,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ds_paras = {} # this is the full parameter we will derive
 
     #### first, need to know where the data sit
-    from core_funcs import data_dir_sys_dir
+    from foggie.mocky_way.core_funcs import data_dir_sys_dir
     data_dir, sys_dir = data_dir_sys_dir()
     ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
     ds_paras['dd_name'] = dd_name
@@ -100,29 +102,26 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     # ionbg = 'sfcr'
     # iontb = '/Users/Yong/.trident/hm2012_hr_sh_cr.h5'
     import trident
-    ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C III', 'C IV', 'O VI']
+    ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V']
     print("Adding ion fields: ", ion_list)
-    trident.add_ion_fields(ds, ftype="gas", ions=ion_list, force_override=True)
+    trident.add_ion_fields(ds, ftype="gas",
+                           ions=ion_list,
+                           force_override=True)
 
     #### add line of sight velocity field to the dataset
     from yt.fields.api import ValidateParameter
-    from mocky_way_fields import _line_of_sight_velocity
-    ds.add_field(("gas", "line_of_sight_velocity"),
-                 function=_line_of_sight_velocity, units="km/s",
+    from foggie.mocky_way.mocky_way_fields import _los_velocity_mw
+    ds.add_field(("gas", "los_velocity_mw"),
+                 function=_los_velocity_mw, units="km/s",
                  validators=[ValidateParameter("observer_location"),
                              ValidateParameter("observer_bulkvel")])
-
     #### find halo center and bulk velocity
     from foggie.mocky_way.core_funcs import find_halo_center_yz
     halo_center = find_halo_center_yz(ds, zsnap, sim_name, data_dir)
     ds_paras['halo_center'] = halo_center
 
-    #### find r200.
-    #### --> For new halos not been processed before, this function
-    ####     will call foggie.mocky_way.core_funcs.calc_r200_proper
-    #### --> For halos have been processed, this func will read from
-    ####     a pre-defined dict.
-    from core_funcs import dict_rvir_proper
+    #### Get r200
+    from foggie.mocky_way.core_funcs import dict_rvir_proper
     rvir_proper = dict_rvir_proper(dd_name, sim_name=sim_name)
     ds_paras['rvir'] = ds.quan(rvir_proper, 'kpc')
 
@@ -130,11 +129,11 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ## L_vec: angular momentum vector
     ## sun_vec: vector from galaxy center to observer at sun
     ## phi_vec: vec perpendicular to L and sun_vec following right handed rule
-    from core_funcs import dict_sphere_for_gal_ang_mom
-    from core_funcs import get_sphere_ang_mom_vecs
+    from foggie.mocky_way.core_funcs import dict_sphere_for_gal_ang_mom
+    from foggie.mocky_way.core_funcs import get_sphere_ang_mom_vecs
     r_for_L = dict_sphere_for_gal_ang_mom(dd_name, sim_name=sim_name)
 
-    from core_funcs import default_random_seed
+    from foggie.mocky_way.core_funcs import default_random_seed
     random_seed = default_random_seed()
     dict_vecs = get_sphere_ang_mom_vecs(ds, halo_center, r_for_L,
                                         random_seed=random_seed)
@@ -144,13 +143,13 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ds_paras['disk_bulkvel'] = dict_vecs['disk_bulkvel']
 
     #### add disk scale height and scale length to the dict
-    from core_funcs import dict_disk_rs_zs
+    from foggie.mocky_way.core_funcs import dict_disk_rs_zs
     disk_rs, disk_zs = dict_disk_rs_zs(dd_name, sim_name=sim_name)
     ds_paras['disk_rs'] = disk_rs
     ds_paras['disk_zs'] = disk_zs
 
     #### decide off-center observer location ###
-    from core_funcs import locate_offcenter_observer
+    from foggie.mocky_way.core_funcs import locate_offcenter_observer
     ds_paras = locate_offcenter_observer(ds, ds_paras, robs2rs=robs2rs)
 
     return ds, ds_paras
@@ -274,6 +273,29 @@ def mean_rho(ds, center, r):
 
     return rho_internal
 
+def ortho_find_yz(z, random_seed=99):
+    """
+    Realize the yt version of ortho_find do not have the flexiblity to change
+    the different x, y vectors, so decide to write one myself. It's basically
+    identical to yt.utilities.math_utils.ortho_find, with an additional para
+    of random_seed so that we can change the x, y vectors if needed.
+
+    10/13/2019, YZ
+    """
+    import numpy as np
+    np.random.seed(random_seed)
+
+    x = np.random.randn(3)  # take a random vector
+    x -= x.dot(z) * z       # make it orthogonal to k
+    x /= np.linalg.norm(x)  # normalize it
+    y = np.cross(z, x)      # cross product with k
+
+    sun_vec = yt.YTArray(x)
+    phi_vec = yt.YTArray(y)
+    L_vec = yt.YTArray(z)
+
+    return L_vec, sun_vec, phi_vec
+
 def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=20,
                             use_gas=True, use_particles=False,
                             random_seed=99):
@@ -302,9 +324,8 @@ def get_sphere_ang_mom_vecs(ds, sp_center, r_for_L=20,
                                                    use_particles=use_particles)
     norm_L = spec_L / np.sqrt((spec_L**2).sum())
 
-    from yt.utilities.math_utils import ortho_find
-    np.random.seed(random_seed) ## to make sure we get the same thing everytime
-    n1_L, n2_sun, n3_phi = ortho_find(norm_L)  # UVW vector
+    from foggie.mocky_way.core_funcs import ortho_find_yz
+    n1_L, n2_sun, n3_phi = ortho_find_yz(norm_L, random_seed=random_seed)  # UVW vector
     dict_vecs = {'L_vec': n1_L,
                  'sun_vec': n2_sun,
                  'phi_vec': n3_phi,
@@ -365,7 +386,7 @@ def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
                         'nref11c_nref9f_selfshield_z6/RD0037': 8,
                         'nref11c_nref9f_selfshield_z6/DD0946': 10,
                         'nref11n_nref10f/RD0039': 20,
-                        'nref11n_nref10f/DD2175': 20}
+                        'nref11n_nref10f/DD2175': 5}
 
     output_string = '%s/%s'%(sim_name, dd_name)
     if output_string in dict_sphere_L_rr:
@@ -392,8 +413,13 @@ def dict_disk_rs_zs(dd_name, sim_name='nref11n_nref10f'):
 
     # kpc, looks good from the allsky projection from GC.
                  # see RD0037_L08kpc_n32_x800_R100.0_final.pdf
-    dict_rs = {'nref11n_nref10f/RD0039': 3.3}
-    dict_zs = {'nref11n_nref10f/RD0039': 0.4}
+    dict_rs = {'nref11c_nref9f_selfshield_z6/RD0037': 3.9,
+               'nref11n_nref10f/RD0039': 3.3,
+               'nref11n_nref10f/DD2175': 3.4}
+
+    dict_zs = {'nref11c_nref9f_selfshield_z6/RD0037': 1.4,
+               'nref11n_nref10f/RD0039': 0.4,
+               'nref11n_nref10f/DD2175': 0.5}
 
     output_string = '%s/%s'%(sim_name, dd_name)
     if output_string in dict_rs:
@@ -420,10 +446,14 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
     09/26/19, Yong Zheng, UCB.
     10/09/2019, Yong Zheng, was obj_source_halo_disk, now merging into foggie.mocky_way
     10/09/2019, Yong Zheng, now need to specify which part of the galaxy you want to process
+    10/11/2019, realizing the rvir of DD2175 is 160, which is beyond the refine
+                box (+/-130 kpc), so I'm doing the sphere of 120 kpc from now on.
+                Yong Zheng. UCB.
     """
 
     if obj_tag == 'all':
-        sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+        # sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+        sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
         obj = sp
     elif obj_tag == 'disk':
         disk_size_r = 4*ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
@@ -433,8 +463,9 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
                        (disk_size_r, 'kpc'),
                        (disk_size_z, 'kpc'))
         obj = disk
-    else:
-        sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+    elif obj_tag == 'cgm':
+        # sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+        sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
         disk_size_r = 4*ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
         disk_size_z = 4*ds_paras['disk_zs'] # one side,
         disk = ds.disk(ds_paras['halo_center'],
@@ -443,5 +474,10 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
                        (disk_size_z, 'kpc'))
         cgm = sp-disk
         obj = cgm
+
+    else:
+        print("I have no idea what you want, please put in all, disk, or cgm.")
+        import sys
+        sys.exit()
 
     return obj
