@@ -42,7 +42,11 @@ def _c4(field,data):
     return data["dx"] * data['C_p3_number_density']  
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
-    """prepares the dataset for rendering by extracting box or sphere"""
+    """prepares the dataset for rendering by extracting box or sphere
+        this function adds some bespoke FOGGIE fields, extracts 
+        the desired FOGGIE region, and applies an input Boolean 
+        filter to the dataset."""
+    
     data_set = yt.load(fname)
 
     trident.add_ion_fields(data_set, ions=ion_list)
@@ -142,10 +146,12 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
 
     return fig
 
-def render_image(frame, field1, field2, colorcode, x_range, y_range, filename):
+def render_image(frame, field1, field2, colorcode, x_range, y_range, filename, pixspread=0):
     """ renders density and temperature 'Phase' with linear aggregation"""
 
     cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
+
+    print("render_image: will spread shaded image by ", pixspread, " pixels.")
 
     if ('ion_frac' in colorcode): 
         if ('p0' in colorcode): 
@@ -165,20 +171,65 @@ def render_image(frame, field1, field2, colorcode, x_range, y_range, filename):
 
         print("calling mean aggregator on colorcode = ", colorcode)
         agg = cvs.points(frame, field1, field2, dshader.mean(colorcode))
-        img = tf.spread(tf.shade(agg, cmap=mpl.cm.get_cmap(cmap), how='eq_hist',min_alpha=0), px=0) 
+        img = tf.spread(tf.shade(agg, cmap=mpl.cm.get_cmap(cmap), how='eq_hist',min_alpha=250), shape='square', px=pixspread) 
     else: 
         agg = cvs.points(frame, field1, field2, dshader.count_cat(colorcode))
-        img = tf.spread(tf.shade(agg, color_key=colormap_dict[colorcode], how='eq_hist',min_alpha=50), px=0) 
+        img = tf.spread(tf.shade(agg, color_key=colormap_dict[colorcode], how='eq_hist',min_alpha=250), shape='square', px=pixspread) 
 
     export_image(img, filename)
     
     return img
 
+def stack_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, region='trackbox',
+                filter="obj['temperature'] < 1e9", screenfield='none', screenrange=[-99,99], **kwargs):
+
+    print('stack_plot')
+    pixspread = 0 
+    if ('pixspread' in kwargs.keys()): 
+        pixspread = kwargs['pixspread']
+
+    dataset, all_data, halo_center, halo_vcenter = prep_dataset(fname, trackfile, \
+                        ion_list=['H I','C II','C III','C IV','Si II','Si III','Si IV',\
+                                    'O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], 
+                        filter=filter, region=region)
+
+    if ('none' not in screenfield): 
+        field_list = [field1, field2, screenfield]
+    else: 
+        field_list = [field1, field2]    
+
+    data_frame = prep_dataframe.prep_dataframe(dataset, all_data, field_list, colorcode, \
+                        halo_center = halo_center, halo_vcenter=halo_vcenter)
+
+    cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
+    agg = cvs.points(frame, field1, field2, dshader.count_cat(colorcode))
+    img = tf.spread(tf.shade(agg, cmap = mpl.cm.get_cmap('Blues'), how='eq_hist',min_alpha=250), shape='square', px=pixspread) 
+
+    # if there is to be screening of the df, it should happen here. 
+    print('Within stack_plot, the screen is: ', screenfield)
+    if ('none' not in screenfield): 
+        mask = (data_frame[screenfield] > screenrange[0]) & (data_frame[screenfield] < screenrange[1])
+        print(mask)
+        cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
+        agg = cvs.points(frame, field1, field2, dshader.count_cat(colorcode))
+        img = tf.spread(tf.shade(agg, cmap = mpl.cm.get_cmap('Blues'), how='eq_hist',min_alpha=250), shape='square', px=pixspread) 
+
+    wrap_axes(dataset, image, outfile, field1, field2, colorcode, ranges, region, filter)
+    
+    return data_frame, image, dataset
+
 def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, region='trackbox',
-                filter="obj['temperature'] < 1e9", screenfield='none', screenrange=[-99,99]):
+                filter="obj['temperature'] < 1e9", screenfield='none', screenrange=[-99,99], **kwargs):
     """This function makes a simple plot with two dataset fields plotted against
         one another. The color coding is given by variable 'colorcode'
         which can be phase, metal, or an ionization fraction"""
+
+    for key in kwargs.keys():
+        print("Simple_plot kwargs", key, ' = ', kwargs[key])  
+
+    pixspread = 0 
+    if ('pixspread' in kwargs.keys()): 
+        pixspread = kwargs['pixspread']
 
     dataset, all_data, halo_center, halo_vcenter = prep_dataset(fname, trackfile, \
                         ion_list=['H I','C II','C III','C IV','Si II','Si III','Si IV',\
@@ -194,14 +245,14 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
                         halo_center = halo_center, halo_vcenter=halo_vcenter)
 
     print(data_frame.head()) 
-    image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile)
+    image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile, pixspread=pixspread)
 
     # if there is to be screening of the df, it should happen here. 
     print('Within simple_plot, the screen is: ', screenfield)
     if ('none' not in screenfield): 
         mask = (data_frame[screenfield] > screenrange[0]) & (data_frame[screenfield] < screenrange[1])
         print(mask)
-        image = render_image(data_frame[mask], field1, field2, colorcode, *ranges, outfile)
+        image = render_image(data_frame[mask], field1, field2, colorcode, *ranges, outfile, pixspread=pixspread)
 
     wrap_axes(dataset, image, outfile, field1, field2, colorcode, ranges, region, filter)
     
