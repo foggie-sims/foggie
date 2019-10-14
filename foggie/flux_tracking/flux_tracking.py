@@ -40,6 +40,11 @@ from foggie.utils.get_proper_box_size import get_proper_box_size
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.yt_fields import *
 
+def vel_time(field, data):
+    return np.abs(data['radial_velocity_corrected'] * data.ds.dt)
+
+def dist(field, data):
+    return np.abs(data['radius_corrected'] - data.ds.surface)
 
 def parse_args():
     '''Parse command line arguments. Returns args object.
@@ -885,6 +890,160 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
 
     return "Fluxes have been calculated for snapshot" + snap + "!"
 
+def calc_fluxes_new(ds, snap, zsnap, refine_width_kpc, tablename, dt=YTArray([5.38e6], 'yr')[0]):
+    '''This function calculates the fluxes through spherical surfaces at a variety of radii
+    using the dataset stored in 'ds', which is from time snapshot 'snap', has redshift
+    'zsnap', and has width of the refine box in kpc 'refine_width_kpc', and stores the fluxes
+    in 'tablename'. 'dt' is the time between snapshots and defaults to that for the DD outputs.
+
+    This function differs from the other one because it calculates the flux as the sum
+    of all cells whose velocity and distance from the surface of interest indicate that the gas
+    contained in that cell will be displaced across the surface of interest by the next timestep.
+    That is, the properties of a cell contribute to the flux if it is no further from the surface of
+    interest than v*dt where v is the cell's velocity normal to the surface and dt is the time
+    between snapshots, which is dt = 5.38e6 yrs for the DD outputs.'''
+
+    # Set up table of everything we want
+    # NOTE: Make sure table units are updated when things are added to this table!
+    data_short = Table(names=('redshift', 'quadrant', 'radius', 'net_mass_flux', 'net_metal_flux', \
+                        'mass_flux_in', 'mass_flux_out', 'metal_flux_in', 'metal_flux_out', \
+                        'net_cold_mass_flux', 'cold_mass_flux_in', 'cold_mass_flux_out', \
+                        'net_cool_mass_flux', 'cool_mass_flux_in', 'cool_mass_flux_out', \
+                        'net_warm_mass_flux', 'warm_mass_flux_in', 'warm_mass_flux_out', \
+                        'net_hot_mass_flux', 'hot_mass_flux_in', 'hot_mass_flux_out', \
+                        'net_cold_metal_flux', 'cold_metal_flux_in', 'cold_metal_flux_out', \
+                        'net_cool_metal_flux', 'cool_metal_flux_in', 'cool_metal_flux_out', \
+                        'net_warm_metal_flux', 'warm_metal_flux_in', 'warm_metal_flux_out', \
+                        'net_hot_metal_flux', 'hot_metal_flux_in', 'hot_metal_flux_out'), \
+                 dtype=('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
+
+    # Define the radii of the spherical shells where we want to calculate fluxes
+    radii = 0.5*refine_width_kpc * np.arange(0.1, 0.9, 0.01)
+
+    # Initialize fields we need
+    ds.dt = dt
+    ds.surface = radii[0]
+    buffer = YTArray([10.], 'kpc')[0]
+    ds.add_field(('gas', 'vel_time'), function=vel_time, units='kpc', \
+                 take_log=False, force_override=True, sampling_type='cell')
+    ds.add_field(('gas', 'dist'), function=dist, units='kpc', \
+                 take_log=False, force_override=True, sampling_type='cell')
+
+    # Loop over radii
+    for i in range(len(radii)-1):
+        r = radii[i]
+        ds.surface = r
+
+        if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)-1) + \
+                            " for snapshot " + snap)
+
+        # Make the shells for computing
+        if (r >= buffer):
+            inner_shell = ds.sphere(ds.halo_center_kpc, r) - ds.sphere(ds.halo_center_kpc, r-buffer)
+        else:
+            inner_shell = ds.sphere(ds.halo_center_kpc, r)
+        outer_shell = ds.sphere(ds.halo_center_kpc, r+buffer) - ds.sphere(ds.halo_center_kpc, r)
+
+        # Filter the shells on radial velocity, distance, and time to find cells that actually
+        # contribute to fluxes
+        inner_cont = inner_shell.cut_region("(obj['radial_velocity_corrected'] > 0)" + \
+                                            " & (obj['vel_time'] >= obj['dist'])")
+        outer_cont = outer_shell.cut_region("(obj['radial_velocity_corrected'] < 0)" + \
+                                            " & (obj['vel_time'] >= obj['dist'])")
+
+        # Filter on temperature
+        inner_cont_cold = inner_cont.cut_region("obj['temperature'] <= 10**4")
+        outer_cont_cold = outer_cont.cut_region("obj['temperature'] <= 10**4")
+        inner_cont_cool = inner_cont.cut_region("(obj['temperature'] > 10**4) &" + \
+                                                " (obj['temperature'] <= 10**5)")
+        outer_cont_cool = outer_cont.cut_region("(obj['temperature'] > 10**4) &" + \
+                                                " (obj['temperature'] <= 10**5)")
+        inner_cont_warm = inner_cont.cut_region("(obj['temperature'] > 10**5) &" + \
+                                                " (obj['temperature'] <= 10**6)")
+        outer_cont_warm = outer_cont.cut_region("(obj['temperature'] > 10**5) &" + \
+                                                " (obj['temperature'] <= 10**6)")
+        inner_cont_hot = inner_cont.cut_region("obj['temperature'] > 10**6")
+        outer_cont_hot = outer_cont.cut_region("obj['temperature'] > 10**6")
+
+        # Sum over the contributing cells and divide by dt to get flux
+        mass_flux_in = (np.sum(outer_cont['cell_mass'])/ds.dt).in_units('Msun/yr')
+        mass_flux_out = (np.sum(inner_cont['cell_mass'])/ds.dt).in_units('Msun/yr')
+        net_mass_flux = mass_flux_out - mass_flux_in
+
+        metal_flux_in = (np.sum(outer_cont['metal_mass'])/ds.dt).in_units('Msun/yr')
+        metal_flux_out = (np.sum(inner_cont['metal_mass'])/ds.dt).in_units('Msun/yr')
+        net_metal_flux = metal_flux_out - metal_flux_in
+
+        cold_mass_flux_in = (np.sum(outer_cont_cold['cell_mass'])/ds.dt).in_units('Msun/yr')
+        cold_mass_flux_out = (np.sum(inner_cont_cold['cell_mass'])/ds.dt).in_units('Msun/yr')
+        net_cold_mass_flux = cold_mass_flux_out - cold_mass_flux_in
+
+        cool_mass_flux_in = (np.sum(outer_cont_cool['cell_mass'])/ds.dt).in_units('Msun/yr')
+        cool_mass_flux_out = (np.sum(inner_cont_cool['cell_mass'])/ds.dt).in_units('Msun/yr')
+        net_cool_mass_flux = cool_mass_flux_out - cool_mass_flux_in
+
+        warm_mass_flux_in = (np.sum(outer_cont_warm['cell_mass'])/ds.dt).in_units('Msun/yr')
+        warm_mass_flux_out = (np.sum(inner_cont_warm['cell_mass'])/ds.dt).in_units('Msun/yr')
+        net_warm_mass_flux = warm_mass_flux_out - warm_mass_flux_in
+
+        hot_mass_flux_in = (np.sum(outer_cont_hot['cell_mass'])/ds.dt).in_units('Msun/yr')
+        hot_mass_flux_out = (np.sum(inner_cont_hot['cell_mass'])/ds.dt).in_units('Msun/yr')
+        net_hot_mass_flux = hot_mass_flux_out - hot_mass_flux_in
+
+        cold_metal_flux_in = (np.sum(outer_cont_cold['metal_mass'])/ds.dt).in_units('Msun/yr')
+        cold_metal_flux_out = (np.sum(inner_cont_cold['metal_mass'])/ds.dt).in_units('Msun/yr')
+        net_cold_metal_flux = cold_metal_flux_out - cold_metal_flux_in
+
+        cool_metal_flux_in = (np.sum(outer_cont_cool['metal_mass'])/ds.dt).in_units('Msun/yr')
+        cool_metal_flux_out = (np.sum(inner_cont_cool['metal_mass'])/ds.dt).in_units('Msun/yr')
+        net_cool_metal_flux = cool_metal_flux_out - cool_metal_flux_in
+
+        warm_metal_flux_in = (np.sum(outer_cont_warm['metal_mass'])/ds.dt).in_units('Msun/yr')
+        warm_metal_flux_out = (np.sum(inner_cont_warm['metal_mass'])/ds.dt).in_units('Msun/yr')
+        net_warm_metal_flux = warm_metal_flux_out - warm_metal_flux_in
+
+        hot_metal_flux_in = (np.sum(outer_cont_hot['metal_mass'])/ds.dt).in_units('Msun/yr')
+        hot_metal_flux_out = (np.sum(inner_cont_hot['metal_mass'])/ds.dt).in_units('Msun/yr')
+        net_hot_metal_flux = hot_metal_flux_out - hot_metal_flux_in
+
+        # Add everything to the table
+        data_short.add_row([zsnap, 0, r, net_mass_flux, net_metal_flux, mass_flux_in, \
+                      mass_flux_out, metal_flux_in, metal_flux_out, net_cold_mass_flux, \
+                      cold_mass_flux_in, cold_mass_flux_out, net_cool_mass_flux, \
+                      cool_mass_flux_in, cool_mass_flux_out, net_warm_mass_flux, \
+                      warm_mass_flux_in, warm_mass_flux_out, net_hot_mass_flux, \
+                      hot_mass_flux_in, hot_mass_flux_out, net_cold_metal_flux, \
+                      cold_metal_flux_in, cold_metal_flux_out, net_cool_metal_flux, \
+                      cool_metal_flux_in, cool_metal_flux_out, net_warm_metal_flux, \
+                      warm_metal_flux_in, warm_metal_flux_out, net_hot_metal_flux, \
+                      hot_metal_flux_in, hot_metal_flux_out])
+
+    table_units_short = {'redshift':None,'quadrant':None,'radius':'kpc','net_mass_flux':'Msun/yr', \
+             'net_metal_flux':'Msun/yr', 'mass_flux_in'  :'Msun/yr','mass_flux_out':'Msun/yr', \
+             'metal_flux_in' :'Msun/yr', 'metal_flux_out':'Msun/yr',\
+             'net_cold_mass_flux':'Msun/yr', 'cold_mass_flux_in':'Msun/yr', \
+             'cold_mass_flux_out':'Msun/yr', 'net_cool_mass_flux':'Msun/yr', \
+             'cool_mass_flux_in':'Msun/yr', 'cool_mass_flux_out':'Msun/yr', \
+             'net_warm_mass_flux':'Msun/yr', 'warm_mass_flux_in':'Msun/yr', \
+             'warm_mass_flux_out':'Msun/yr', 'net_hot_mass_flux' :'Msun/yr', \
+             'hot_mass_flux_in' :'Msun/yr', 'hot_mass_flux_out' :'Msun/yr', \
+             'net_cold_metal_flux':'Msun/yr', 'cold_metal_flux_in':'Msun/yr', \
+             'cold_metal_flux_out':'Msun/yr', 'net_cool_metal_flux':'Msun/yr', \
+             'cool_metal_flux_in':'Msun/yr', 'cool_metal_flux_out':'Msun/yr', \
+             'net_warm_metal_flux':'Msun/yr', 'warm_metal_flux_in':'Msun/yr', \
+             'warm_metal_flux_out':'Msun/yr', 'net_hot_metal_flux' :'Msun/yr', \
+             'hot_metal_flux_in' :'Msun/yr', 'hot_metal_flux_out' :'Msun/yr'}
+    for key in data_short.keys():
+        data_short[key].unit = table_units_short[key]
+
+    # Save to file
+    data_short.write(tablename + '_new_short.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
+    return "Fluxes have been calculated for snapshot " + snap + "!"
+
+
 def load_and_calculate(foggie_dir, run_dir, track, halo_c_v, snap, tablename, quadrants):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the table to output, and a boolean
@@ -945,8 +1104,7 @@ def load_and_calculate(foggie_dir, run_dir, track, halo_c_v, snap, tablename, qu
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
 
     # Do the actual calculation
-    message = calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, \
-                          quadrants=quadrants)
+    message = calc_fluxes_new(ds, snap, zsnap, refine_width_kpc, tablename)
     print(message)
     print(str(datetime.datetime.now()))
 
@@ -957,7 +1115,9 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
-    code_path = '/home5/clochhaa/FOGGIE/foggie/foggie/'
+    if (args.system=='pleiades_cassi'): code_path = '/home5/clochhaa/FOGGIE/foggie/foggie/'
+    elif (args.system=='cassiopeia'):
+        code_path = '/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/'
     track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
     if ('/astro/simulations/' in foggie_dir):
         run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'

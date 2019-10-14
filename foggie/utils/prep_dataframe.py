@@ -123,25 +123,28 @@ def prep_dataframe(dataset, all_data, field_list, category, \
 
         if ('position_x' in field_names):
             x = (all_data['x'].in_units('kpc')).ndarray_view()
-            x = x + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
+            #x = x + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
             x = x - np.mean(x)
             data_frame['position_x'] = x
 
         if ('position_y' in field_names):
             y = (all_data['y'].in_units('kpc')).ndarray_view()
-            y = y + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
+            #y = y + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
             y = y - np.mean(y)
             data_frame['position_y'] = y
 
         if ('position_z' in field_names):
             z = (all_data['z'].in_units('kpc')).ndarray_view()
-            z = z + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
+            #z = z + cell_size * (np.random.rand(np.size(cell_size)) * 2. - 1.)
             z = z - np.mean(z)
             data_frame['position_z'] = z
 
     if ('cell_mass' in field_names):
         data_frame['cell_mass'] = np.log10(all_data['cell_volume'].in_units('kpc**3') * \
                                     all_data['density'].in_units('Msun / kpc**3') )
+
+    if ('cell_size' in field_names):
+        data_frame['cell_size'] = (all_data['cell_volume'].in_units('pc**3') )**(1./3.)
 
     if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg')) 
     

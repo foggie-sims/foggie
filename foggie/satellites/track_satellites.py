@@ -83,9 +83,24 @@ def run_tracker(args, anchor_ids, sat, temp_outdir, id_all, x_all, y_all, z_all)
     z_anchors =  z_all[gd_indices]
 
 
-    x_sat = nanmedian(x_anchors)
-    y_sat = nanmedian(y_anchors)
-    z_sat = nanmedian(z_anchors)
+
+
+    med_x = nanmedian(x_anchors).value
+    med_y = nanmedian(y_anchors).value
+    med_z = nanmedian(z_anchors).value
+
+    hist_x, xedges = histogram(x_anchors.value, bins = np.arange(med_x - 30, med_x+30, 0.05))
+    hist_y, yedges = histogram(y_anchors.value, bins = np.arange(med_y - 30, med_y+30, 0.05))
+    hist_z, zedges = histogram(z_anchors.value, bins = np.arange(med_z - 30, med_z+30, 0.05))
+
+
+    x_sat = np.mean([xedges[argmax(hist_x)],xedges[argmax(hist_x)+1]]) 
+    y_sat = np.mean([yedges[argmax(hist_y)],yedges[argmax(hist_y)+1]]) 
+    z_sat = np.mean([zedges[argmax(hist_z)],zedges[argmax(hist_z)+1]]) 
+
+
+
+
     print ('\t found location for %s %s: (%.3f, %.3f, %.3f)'%(args.halo, sat, x_sat, y_sat, z_sat))
 
     np.save(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy', np.array([x_sat, y_sat, z_sat]))
@@ -169,7 +184,7 @@ if __name__ == '__main__':
       fig_width = 10 * kpc
 
       make_projection_plots(refine_box.ds, sat_center, refine_box, fig_width, fig_dir, haloname, \
-                          fig_end = 'satellite_{}_{}_{}'.format(args.halo, args.output, sat), \
+                          fig_end = 'satellite_{}_{}'.format(args.output, sat), \
                           do = ['gas', 'stars'], axes = ['x'],  annotate_center = True, annotate_others = [],\
                           add_velocity = False)        
 
@@ -177,9 +192,16 @@ if __name__ == '__main__':
     for sat in anchors.keys(): annotate_others.append(ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc'))
 
     make_projection_plots(refine_box.ds, halo_center, refine_box, x_width, fig_dir, haloname,\
-                          fig_end = 'central',\
+                          fig_end = 'central_{}'.format(args.output),\
                           do = ['gas', 'stars'], axes = ['x'],\
                           annotate_center = True, annotate_others = annotate_others, is_central = True)
+
+    make_projection_plots(refine_box.ds, refine_box_center, refine_box, x_width, fig_dir, haloname,\
+                          fig_end = 'box_center_{}'.format(args.output),\
+                          do = ['gas', 'stars'], axes = ['x'],\
+                          annotate_center = True, annotate_others = annotate_others, is_central = True)
+
+
 
 
     np.save('%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.output), output)
