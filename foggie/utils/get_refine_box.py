@@ -2,9 +2,7 @@ import numpy as np
 import yt
 
 def get_refine_box(ds, zsnap, track, **kwargs):
-    ## find closest output
     old = kwargs.get("old",False) # modulo not updating before printout -- old runs
-    print("inside get_refine_box", zsnap)
     diff = np.abs(track['col1'] - zsnap)
 
     if old:
