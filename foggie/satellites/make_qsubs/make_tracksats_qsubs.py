@@ -42,6 +42,7 @@ for halo in halos:
         qf.write('#PBS -V\n')
         qf.write('#PBS -W group_list=s1938\n\n\n\n')  
 
+        qf.write('source /u/rcsimons/.bashrc\n')
         qf.write('python /u/rcsimons/git/foggie/foggie/satellites/track_satellites.py \
                  --halo %s --output DD%.4i --system pleiades > ./outfiles/%s_track_satellites.err > \
                  ./outfiles/%s_track_satellites.out\n'%(halo, DD, snapname, snapname))

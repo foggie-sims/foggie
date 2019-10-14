@@ -27,6 +27,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/Users/rsimons/Desktop/foggie/sims/"
         output_path = "/Users/rsimons/Desktop/foggie/"
         code_path = '/Users/rsimons/Dropbox/git/foggie/foggie/'
+    elif args.system == "laptop_raymond":
+        foggie_dir = "/Users/rsimons/Dropbox/foggie/sims/"
+        output_path = "/Users/rsimons/Dropbox/foggie/"
+        code_path = '/Users/rsimons/Dropbox/git/foggie/foggie/'  
     elif args.system == "pegasus":
         foggie_dir = "/Volumes/pegasus/foggie/"
         output_path = "/User/rsimons/foggie/outputs"
@@ -34,7 +38,7 @@ def get_run_loc_etc(args):
     elif args.system == "pleiades_raymond":
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackupp2/rcsimons/foggie/"
-        code_path = '/home/rcsimons/git/foggie/'
+        code_path = '/u/rcsimons/git/foggie/foggie/'
     elif args.system == "cassiopeia":
         foggie_dir = "/astro/simulations/FOGGIE/"
         #foggie_dir = "/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/"
