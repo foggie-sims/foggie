@@ -25,22 +25,6 @@ from foggie.utils.get_halo_center import get_halo_center
 import foggie.utils.get_refine_box as grb
 from foggie.utils.consistency import *
 
-def _no6(field,data):  
-    print("INSIDE THE HELPER FUNCTION THE FIELD NAME IS: ", field)
-    return data["dx"] * data['O_p5_number_density']  
-    
-def _nh1(field,data):  
-    print("INSIDE THE HELPER FUNCTION THE FIELD NAME IS: ", field)
-    return data["dx"] * data['H_p0_number_density']  
-
-def _no5(field,data):  
-    print("INSIDE THE HELPER FUNCTION THE FIELD NAME IS: ", field)
-    return data["dx"] * data['O_p4_number_density']  
-
-def _c4(field,data):  
-    print("INSIDE THE HELPER FUNCTION THE FIELD NAME IS: ", field)
-    return data["dx"] * data['C_p3_number_density']  
-
 def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere
         this function adds some bespoke FOGGIE fields, extracts 
@@ -171,52 +155,14 @@ def render_image(frame, field1, field2, colorcode, x_range, y_range, filename, p
 
         print("calling mean aggregator on colorcode = ", colorcode)
         agg = cvs.points(frame, field1, field2, dshader.mean(colorcode))
-        img = tf.spread(tf.shade(agg, cmap=mpl.cm.get_cmap(cmap), how='eq_hist',min_alpha=250), shape='square', px=pixspread) 
+        img = tf.spread(tf.shade(agg, cmap=mpl.cm.get_cmap(cmap), how='eq_hist',min_alpha=40), shape='square', px=pixspread) 
     else: 
         agg = cvs.points(frame, field1, field2, dshader.count_cat(colorcode))
-        img = tf.spread(tf.shade(agg, color_key=colormap_dict[colorcode], how='eq_hist',min_alpha=250), shape='square', px=pixspread) 
+        img = tf.spread(tf.shade(agg, color_key=colormap_dict[colorcode], how='eq_hist',min_alpha=40), shape='square', px=pixspread) 
 
     export_image(img, filename)
     
     return img
-
-def stack_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, region='trackbox',
-                filter="obj['temperature'] < 1e9", screenfield='none', screenrange=[-99,99], **kwargs):
-
-    print('stack_plot')
-    pixspread = 0 
-    if ('pixspread' in kwargs.keys()): 
-        pixspread = kwargs['pixspread']
-
-    dataset, all_data, halo_center, halo_vcenter = prep_dataset(fname, trackfile, \
-                        ion_list=['H I','C II','C III','C IV','Si II','Si III','Si IV',\
-                                    'O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], 
-                        filter=filter, region=region)
-
-    if ('none' not in screenfield): 
-        field_list = [field1, field2, screenfield]
-    else: 
-        field_list = [field1, field2]    
-
-    data_frame = prep_dataframe.prep_dataframe(dataset, all_data, field_list, colorcode, \
-                        halo_center = halo_center, halo_vcenter=halo_vcenter)
-
-    cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
-    agg = cvs.points(frame, field1, field2, dshader.count_cat(colorcode))
-    img = tf.spread(tf.shade(agg, cmap = mpl.cm.get_cmap('Blues'), how='eq_hist',min_alpha=250), shape='square', px=pixspread) 
-
-    # if there is to be screening of the df, it should happen here. 
-    print('Within stack_plot, the screen is: ', screenfield)
-    if ('none' not in screenfield): 
-        mask = (data_frame[screenfield] > screenrange[0]) & (data_frame[screenfield] < screenrange[1])
-        print(mask)
-        cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
-        agg = cvs.points(frame, field1, field2, dshader.count_cat(colorcode))
-        img = tf.spread(tf.shade(agg, cmap = mpl.cm.get_cmap('Blues'), how='eq_hist',min_alpha=250), shape='square', px=pixspread) 
-
-    wrap_axes(dataset, image, outfile, field1, field2, colorcode, ranges, region, filter)
-    
-    return data_frame, image, dataset
 
 def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, region='trackbox',
                 filter="obj['temperature'] < 1e9", screenfield='none', screenrange=[-99,99], **kwargs):
