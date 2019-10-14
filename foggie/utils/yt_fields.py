@@ -115,3 +115,15 @@ def kinetic_energy_corrected(field, data):
     for the halo velocity. Requires 'halo_velociy_kms', which is the halo velocity with yt
     units of km/s, to be defined."""
     return 0.5 * data['cell_mass'] * data['radial_velocity_corrected']**2.
+
+def _no6(field,data):  
+    return data["dx"] * data['O_p5_number_density']  
+    
+def _nh1(field,data):  
+    return data["dx"] * data['H_p0_number_density']  
+
+def _no5(field,data):  
+    return data["dx"] * data['O_p4_number_density']  
+
+def _c4(field,data):  
+    return data["dx"] * data['C_p3_number_density']  
