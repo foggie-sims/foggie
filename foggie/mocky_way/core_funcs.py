@@ -278,7 +278,7 @@ def ortho_find_yz(z, random_seed=99):
     Realize the yt version of ortho_find do not have the flexiblity to change
     the different x, y vectors, so decide to write one myself. It's basically
     identical to yt.utilities.math_utils.ortho_find, with an additional para
-    of random_seed so that we can change the x, y vectors if needed.  
+    of random_seed so that we can change the x, y vectors if needed.
 
     10/13/2019, YZ
     """
@@ -290,9 +290,9 @@ def ortho_find_yz(z, random_seed=99):
     x /= np.linalg.norm(x)  # normalize it
     y = np.cross(z, x)      # cross product with k
 
-    sun_vec = x
-    phi_vec = y
-    L_vec = z
+    sun_vec = yt.YTArray(x)
+    phi_vec = yt.YTArray(y)
+    L_vec = yt.YTArray(z)
 
     return L_vec, sun_vec, phi_vec
 

@@ -35,7 +35,7 @@ from mocky_way_modules import save_allsky_healpix_img, plt_allsky_healpix_img
 # dd_name = 'RD0037'
 
 sim_name = 'nref11n_nref10f'
-dd_name = 'RD0039'
+dd_name = 'DD2175'
 ion_to_proj = 'HI'
 rvir = 161  # in unit of kpc, pre-run already by foggie.mocky_way.find_r200
 
@@ -68,17 +68,14 @@ halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
 halo_center = ds.arr(halo_center, 'code_length')
 
 #### Setup plotting basics ####
-nside = 2**5 # 2**10 is probably too big....pix number = 12*nside^2
+nside = 2**8 # 2**10 is probably too big....pix number = 12*nside^2
 xsize = 800
 gc = plt.cm.Greys(0.8) # gc = gridcolor
+pathlength = ds.quan(120, 'kpc') # DO NOT CHANGE. within refinement box size.
 
 import foggie.consistency as consistency # for plotting
 field_to_proj = consistency.species_dict[ion_to_proj]
 item = ('gas', field_to_proj)  # NHI across the sky
-img_cmap = consistency.colormap_dict[field_to_proj]
-img_min = np.log10(consistency.proj_min_dict[field_to_proj])
-img_max = np.log10(consistency.proj_max_dict[field_to_proj])
-img_label = consistency.axes_label_dict[field_to_proj]
 
 ##### loops over different size to find the best angular momentum ####
 for r_for_L in [5, 10, 15, 20]:
@@ -92,27 +89,31 @@ for r_for_L in [5, 10, 15, 20]:
     spec_L = sp.quantities.angular_momentum_vector(use_gas=use_gas,
                                                    use_particles=use_particles)
     norm_L = spec_L / np.sqrt((spec_L**2).sum())
-    np.random.seed(random_seed) ## to make sure we get the same thing everytime
-    L_vec, sun_vec, phi_vec = ortho_find(norm_L)  # UVW vector
+
+    ### find the sun_vec and phi_vec
+    np.random.seed(random_seed)
+    z = norm_L
+    x = np.random.randn(3)  # take a random vector
+    x -= x.dot(z) * z       # make it orthogonal to k
+    x /= np.linalg.norm(x)  # normalize it
+    y = np.cross(z, x)      # cross product with k
+    sun_vec = yt.YTArray(x)
+    phi_vec = yt.YTArray(y)
+    L_vec = yt.YTArray(z)
 
     #### make the all sky projection
     im = healpix_projection(ds, halo_center,
-                            ds.quan(rvir, 'kpc'),
-                            nside, item,
+                            pathlength, nside, item,
                             normal_vector=sun_vec,
                             north_vector=L_vec)
-    fig = plt.figure(figsize=(8, 4))
-    hp.mollview(np.log10(im), cbar=None, cmap=img_cmap,
-                xsize=xsize, min=img_min, max=img_max,
-                title='%s (z=%.2f)'%(dd_name, zsnap))
-    hp.graticule(color=gc)
-    fig = plt.gcf()
-    ax = plt.gca()
-    image = ax.get_images()[0]
-    cbar=fig.colorbar(image, ax=ax, pad=0.02, orientation='horizontal',
-                      shrink=0.6, label=img_label)
 
-    fig_name = '%s_%s_AngMon%skpc_allsky.pdf'%(sim_name, dd_name, r_for_L)
-    plt.savefig('%s/%s'%(fig_dir, fig_name))
-    plt.close()
-    # break
+    # save the healpix projection result
+    filename = '%s_%s_AngMon%skpc_allsky.pdf'%(sim_name, dd_name, r_for_L)
+    save_to_fits = '%s/%s.fits'%(fig_dir, filename)
+    save_allsky_healpix_img(im, nside, save_to_fits)
+
+    save_to_pdf = '%s/%s.pdf'%(fig_dir, filename)
+    plt_allsky_healpix_img(im, ion_to_proj, xsize, dd_name,
+                           zsnap, save_to_pdf)
+
+    break

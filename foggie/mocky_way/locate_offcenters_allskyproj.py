@@ -30,7 +30,6 @@ data_dir, sys_dir = data_dir_sys_dir()
 os.sys.path.insert(0, sys_dir)
 
 import yt
-from yt.utilities.math_utils import ortho_find
 # import foggie
 from yt.visualization.volume_rendering.healpix_projection import healpix_projection
 from mocky_way_modules import save_allsky_healpix_img, plt_allsky_healpix_img
@@ -92,9 +91,9 @@ x = np.random.randn(3)  # take a random vector
 x -= x.dot(z) * z       # make it orthogonal to k
 x /= np.linalg.norm(x)  # normalize it
 y = np.cross(z, x)      # cross product with k
-sun_vec = x
-phi_vec = y
-L_vec = z
+sun_vec = yt.YTArray(x)
+phi_vec = yt.YTArray(y)
+L_vec = yt.YTArray(z)
 
 #### Setup plotting basics ####
 nside = 2**8 # tested, 2**8 is the best, 2**10 is too much, not necessary
@@ -137,7 +136,7 @@ for ii, obs_phi in enumerate([0, 45, 90, 135, 180, 225, 270, 315]):
                              # normal vector points to the center of the image
 
     # save the healpix projection result
-    filename = '%s_%s_rand%d_phi%d_allsky'%(sim_name, dd_name, random_seed, obs_phi)
+    filename = '%s_%s_phi%d_allsky'%(sim_name, dd_name, obs_phi)
     save_to_fits = '%s/%s.fits'%(fig_dir, filename)
     save_allsky_healpix_img(img, nside, save_to_fits)
 
