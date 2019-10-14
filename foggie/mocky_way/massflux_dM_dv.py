@@ -21,12 +21,12 @@ sim_name = 'nref11n_nref10f'
 dd_name = 'DD2175'
 
 ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
-obj_tag = 'all' # halo_only, halo_and_disk, disk
+obj_tag = 'cgm' # halo_only, halo_and_disk, disk
 obs_point = 'offcenter_location'  # halo_center, offcenter_location
 obs_bulkvel = 'offcenter_bulkvel' # disk_bulkvel, offcenter_bulkvel
 
+#### No need to change starting this line ####
 print("I am doing the calculation from the %s......"%(obs_point))
-
 obj_source = obj_source_all_disk_cgm(ds, ds_paras, obj_tag)
 obj_source.set_field_parameter("observer_location", ds_paras[obs_point])
 obj_source.set_field_parameter("observer_bulkvel", ds_paras[obs_bulkvel])
@@ -46,7 +46,7 @@ for iv in range(dv_bins.size):
     va = dv_bins[iv]-dv/2.
     vb = dv_bins[iv]+dv/2.
     indv = np.all([obj_vlsr>=va, obj_vlsr<vb], axis=0)
-    if len(obj_cell_mass[halo_indv])!=0:
+    if len(obj_cell_mass[indv])!=0:
         dM_all[iv] = obj_cell_mass[indv].sum().in_units("Msun")/dv
 
 ### then let's break up the mass into different temperature categories
