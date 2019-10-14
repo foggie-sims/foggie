@@ -28,7 +28,7 @@ pj = yt.OffAxisProjectionPlot(ds, ds_paras['L_vec'], field,
                               )
 pj.set_cmap(field=field, cmap=cmap)
 pj.set_zlim(field, zmin=zmin, zmax=zmax)
-pj.save('figs/offaxproj_dshader/%s_%s_yt_faceon_Z.pdf'%(sim_name, dd_name))
+pj.save('figs/offaxproj/%s_%s_yt_faceon_Z.pdf'%(sim_name, dd_name))
 
 ################
 pj = yt.OffAxisProjectionPlot(ds, ds_paras['phi_vec'], field,
@@ -40,7 +40,7 @@ pj = yt.OffAxisProjectionPlot(ds, ds_paras['phi_vec'], field,
                               )
 pj.set_cmap(field=field, cmap=cmap)
 pj.set_zlim(field, zmin=zmin, zmax=zmax)
-pj.save('figs/offaxproj_dshader/%s_%s_yt_edgeon1_Z.pdf'%(sim_name, dd_name))
+pj.save('figs/offaxproj/%s_%s_yt_edgeon1_Z.pdf'%(sim_name, dd_name))
 
 ################
 pj = yt.OffAxisProjectionPlot(ds, ds_paras['sun_vec'], field,
@@ -52,4 +52,4 @@ pj = yt.OffAxisProjectionPlot(ds, ds_paras['sun_vec'], field,
                               )
 pj.set_cmap(field=field, cmap=cmap)
 pj.set_zlim(field, zmin=zmin, zmax=zmax)
-pj.save('figs/offaxproj_dshader/%s_%s_yt_edgeon2_Z.pdf'%(sim_name, dd_name))
+pj.save('figs/offaxproj/%s_%s_yt_edgeon2_Z.pdf'%(sim_name, dd_name))

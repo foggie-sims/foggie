@@ -452,8 +452,8 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
     """
 
     # halo_radius = ds_paras['rvir']
-    halo_radius = ds.quan(120, 'kpc') # for refinement reasons, let's use a small r.
-    # halo_radius = ds.quan(20, 'kpc') # for testing purpose
+    # halo_radius = ds.quan(120, 'kpc') # for refinement reasons, let's use a small r.
+    halo_radius = ds.quan(30, 'kpc') # for testing purpose
     if obj_tag == 'all':
         sp = ds.sphere(ds_paras['halo_center'], halo_radius)
         obj = sp
