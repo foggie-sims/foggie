@@ -524,10 +524,13 @@ def categorize_by_velocity(velocity):
 vel_pos_df_colname = 'cat_vel_pos' # this is the name of velocity in dataframe
 vel_pos_color_labels = [b'[0, 50]', b'[50, 100]', b'[100, 150]',
                         b'[150, 200]', b'>200']
-cmap = mpl.pyplot.cm.PuRd
-vel_pos_colors = sns.blend_palette((cmap(0.25), cmap(0.4), cmap(0.55),
-                                    cmap(0.7), cmap(0.9)),
-                                   n_colors=len(vel_pos_color_labels))
+vel_pos_cmap = mpl.pyplot.cm.PuRd
+vel_pos_colors = sns.blend_palette((vel_pos_cmap(0.25),
+                                    vel_pos_cmap(0.4),
+                                    vel_pos_cmap(0.55),
+                                    vel_pos_cmap(0.7),
+                                    vel_pos_cmap(0.9)),
+                                    n_colors=len(vel_pos_color_labels))
 vel_pos_discrete_cmap = mpl.colors.ListedColormap(vel_pos_colors)
 vel_pos_color_key = collections.OrderedDict()
 for i, ilabel in enumerate(vel_pos_color_labels):
@@ -549,10 +552,13 @@ def categorize_by_vel_pos(velocity):
 vel_neg_df_colname = 'cat_vel_neg' # this is the name of velocity in dataframe
 vel_neg_color_labels = [b'<-200', b'[-200, -150]', b'[-150, -100]',
                         b'[-100, -50]', b'[-50, 0]']
-cmap = mpl.pyplot.cm.YlGnBu_r
-vel_neg_colors = sns.blend_palette((cmap(0.25), cmap(0.4), cmap(0.55),
-                                    cmap(0.7), cmap(0.9)),
-                                   n_colors=len(vel_neg_color_labels))
+vel_neg_cmap = mpl.pyplot.cm.YlGnBu_r
+vel_neg_colors = sns.blend_palette((vel_neg_cmap(0.25),
+                                    vel_neg_cmap(0.4),
+                                    vel_neg_cmap(0.55),
+                                    vel_neg_cmap(0.7),
+                                    vel_neg_cmap(0.9)),
+                                    n_colors=len(vel_neg_color_labels))
 vel_neg_discrete_cmap = mpl.colors.ListedColormap(vel_neg_colors)
 vel_neg_color_key = collections.OrderedDict()
 for i, ilabel in enumerate(vel_neg_color_labels):
@@ -568,6 +574,7 @@ def categorize_by_vel_neg(velocity):
     cat_vel_neg[np.all([vv>=-100, vv<-50], axis=0)] = b'[-100, -50]'
     cat_vel_neg[np.all([vv>=-50, vv<0], axis=0)] = b'[-50, 0]'
     return cat_vel_neg
+
 
 ############################################################
 

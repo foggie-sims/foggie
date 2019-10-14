@@ -73,10 +73,13 @@ def _los_velocity_mw(field, data):
         cos_theta[i] = np.dot(los_xyz[:, i], los_vxyz[:, i])/los_r[i]/los_vr[i]
     los_vr_proj = los_vr*cos_theta
 
+    vx_ori = data['gas', 'velocity_x']
+    los_vr_proj = np.reshape(los_vr_proj, vx_ori.shape)
+
     return yt.YTArray(los_vr_proj, 'km/s')
 
-#yt.add_field(("gas", "los_velocity_mw"),
-#             function=_los_velocity_mw,
-#             units="km/s",
-#             validators=[ValidateParameter("observer_location"),
-#                         ValidateParameter("observer_bulkvel")])
+yt.add_field(("gas", "los_velocity_mw"),
+             function=_los_velocity_mw,
+             units="km/s",
+             validators=[ValidateParameter("observer_location"),
+                         ValidateParameter("observer_bulkvel")])

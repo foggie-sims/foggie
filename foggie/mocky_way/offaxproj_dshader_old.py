@@ -70,12 +70,12 @@ def prep_dataframe_vel_pos(all_data, ds_paras, obs_point='halo_center'):
     10/10/2019, Yong Zheng simplified the module, and merge into foggie.mocky_way.
     """
 
-    from offaxproj_dshader import gas_imgx_imgy
+    # from offaxproj_dshader import gas_imgx_imgy
     gas_imgx, gas_imgy, gas_imgr = gas_imgx_imgy(all_data, ds_paras,
                                                  obs_point=obs_point)
 
     # put some into categories
-    los_vel = all_data['line_of_sight_velocity']
+    los_vel = all_data['los_velocity_mw']
     cat_vel_pos = consistency.categorize_by_vel_pos(los_vel)
     vel_filter = los_vel >= 0
 
@@ -102,12 +102,12 @@ def prep_dataframe_vel_neg(all_data, ds_paras, obs_point='halo_center'):
     10/10/2019, Yong Zheng simplified the module, and merge into foggie.mocky_way.
     """
 
-    from offaxproj_dshader import gas_imgx_imgy
+    # from offaxproj_dshader import gas_imgx_imgy
     gas_imgx, gas_imgy, gas_imgr = gas_imgx_imgy(all_data, ds_paras,
                                                  obs_point=obs_point)
 
     # put some into categories
-    los_vel = all_data['line_of_sight_velocity']
+    los_vel = all_data['los_velocity_mw']
     cat_vel_neg = consistency.categorize_by_vel_pos(los_vel)
     vel_filter = los_vel < 0
 
@@ -133,7 +133,7 @@ def prep_dataframe_logT(all_data, ds_paras, obs_point='halo_center'):
     10/10/2019, Yong Zheng simplified the module, and merge into foggie.mocky_way.
     """
 
-    from offaxproj_dshader import gas_imgx_imgy
+    # from offaxproj_dshader import gas_imgx_imgy
     gas_imgx, gas_imgy, gas_imgr = gas_imgx_imgy(all_data, ds_paras,
                                                  obs_point=obs_point)
     logT = np.log10(all_data['temperature'])
@@ -161,7 +161,7 @@ def prep_dataframe_metallicity(all_data, ds_paras, obs_point='halo_center'):
     10/10/2019, Yong Zheng simplified the module, and merge into foggie.mocky_way.
     """
 
-    from offaxproj_dshader import gas_imgx_imgy
+    # from offaxproj_dshader import gas_imgx_imgy
     gas_imgx, gas_imgy, gas_imgr = gas_imgx_imgy(all_data, ds_paras,
                                                  obs_point=obs_point)
     metal_Zsun = all_data['metallicity']
@@ -179,9 +179,8 @@ def prep_dataframe_metallicity(all_data, ds_paras, obs_point='halo_center'):
 #########################################
 if __name__ == '__main__':
 
-    import sys
-    sim_name = sys.argv[1] #'nref11n_nref10f', 'nref11c_nref9f_selfshield_z6'
-    dd_name = sys.argv[2]  # 'RD0039', 'RD0037'
+    sim_name = 'nref11n_nref10f' # 'nref11c_nref9f_selfshield_z6'
+    dd_name = 'DD2175'           # 'RD0039', 'RD0037'
     obj_tag = 'all' # all, disk, cgm
     obs_point = 'halo_center' # halo_center, or offcenter_location
     dshader_tag = 'vel_pos' # vel_pos, vel_neg, logT, metallicity

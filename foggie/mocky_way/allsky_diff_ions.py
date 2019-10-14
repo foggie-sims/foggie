@@ -42,6 +42,9 @@ import foggie.consistency as consistency # for plotting
 # sim_name = 'nref11c_nref9f_selfshield_z6'
 # dd_name = 'RD0037'
 
+obj_tag = sys.argv[1]
+# obj_tag = 'all' # means cgm+disk, or can do 'cgm' only
+
 sim_name = 'nref11n_nref10f'
 # d_name = 'RD0039'
 dd_name = 'DD2175'
@@ -71,6 +74,7 @@ td_ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V']
 print("Adding ion fields: ", td_ion_list)
 trident.add_ion_fields(ds, ftype="gas", ions=td_ion_list, force_override=True)
 ion_list = [ss.replace(' ', '') for ss in td_ion_list]
+ion_list.append('HI')
 
 ### now let's find halo center ###
 from foggie.get_halo_center import get_halo_center
@@ -103,9 +107,9 @@ x = np.random.randn(3)  # take a random vector
 x -= x.dot(z) * z       # make it orthogonal to k
 x /= np.linalg.norm(x)  # normalize it
 y = np.cross(z, x)      # cross product with k
-sun_vec = x
-phi_vec = y
-L_vec = z
+sun_vec = yt.YTArray(x)
+phi_vec = yt.YTArray(y)
+L_vec = yt.YTArray(z)
 
 #### locate the observer to 2Rs
 obs_vec = sun_vec
@@ -118,7 +122,7 @@ xsize = 800
 gc = plt.cm.Greys(0.8) # gc = gridcolor
 
 #### decide if only project cgm, or proj the whole cgm+disk ###
-obj_tag = 'all' # means cgm+disk, or can do 'cgm' only
+# obj_tag = 'all' # means cgm+disk, or can do 'cgm' only
 if obj_tag == 'all':
     sp = ds.sphere(halo_center, (120, 'kpc'))
     obj = sp
