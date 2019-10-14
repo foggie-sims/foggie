@@ -27,6 +27,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/Users/rsimons/Desktop/foggie/sims/"
         output_path = "/Users/rsimons/Desktop/foggie/"
         code_path = '/Users/rsimons/Dropbox/git/foggie/foggie/'
+    elif args.system == "laptop_raymond":
+        foggie_dir = "/Users/rsimons/Dropbox/foggie/sims/"
+        output_path = "/Users/rsimons/Dropbox/foggie/"
+        code_path = '/Users/rsimons/Dropbox/git/foggie/foggie/'  
     elif args.system == "pegasus":
         foggie_dir = "/Volumes/pegasus/foggie/"
         output_path = "/User/rsimons/foggie/outputs"

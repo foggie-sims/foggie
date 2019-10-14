@@ -6,7 +6,7 @@ import yt
 yt.add_particle_filter("stars",function=yt_fields._stars, filtered_type='all',requires=["particle_type"])
 yt.add_particle_filter("dm",function=yt_fields._dm, filtered_type='all',requires=["particle_type"])
 
-dd_name = 'RD0039'
+dd_name = 'DD2175'
 sim_name = 'nref11n_nref10f'
 ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
 

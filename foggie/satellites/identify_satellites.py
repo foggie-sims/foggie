@@ -361,7 +361,7 @@ if __name__ == '__main__':
                 satz = sat['z']
 
                 sat_center = ds.arr([satx, saty, satz], 'kpc')
-                sp = ds.sphere(center = sat_center, radius = 2*kpc)
+                sp = ds.sphere(center = sat_center, radius = 0.5*kpc)
 
                 mass_stars, x_stars, y_stars, z_stars, particle_ids, particle_ages = load_particle_data(sp)
 

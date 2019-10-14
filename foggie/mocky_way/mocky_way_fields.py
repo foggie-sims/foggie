@@ -4,18 +4,18 @@ from yt.fields.api import ValidateParameter
 from yt.fields.field_detector import FieldDetector
 
 ###########################################################################
-def _line_of_sight_velocity(field, data):
+def _los_velocity_mw(field, data):
     """
     Calculate line-of-sight velcity of gas wrt to an observer, taking
     into account the observer's bulk motion (i.e., peculiar velocity), so
-    that the line_of_sight_velocity is w.r.t. the frame of the observer
+    that the los_velocity_mw is w.r.t. the frame of the observer
 
     How to use:
 
     from yt.fields.api import ValidateParameter
-    from mocky_way_fields import _line_of_sight_velocity
-    ds.add_field(("gas", "line_of_sight_velocity"),
-                 function=_line_of_sight_velocity, units="km/s",
+    from mocky_way_fields import _los_velocity_mw
+    ds.add_field(("gas", "los_velocity_mw"),
+                 function=_los_velocity_mw, units="km/s",
                  validators=[ValidateParameter("observer_location"),
                              ValidateParameter("observer_bulkvel")])
 
@@ -75,8 +75,8 @@ def _line_of_sight_velocity(field, data):
 
     return yt.YTArray(los_vr_proj, 'km/s')
 
-#yt.add_field(("gas", "line_of_sight_velocity"),
-#             function=_line_of_sight_velocity,
+#yt.add_field(("gas", "los_velocity_mw"),
+#             function=_los_velocity_mw,
 #             units="km/s",
 #             validators=[ValidateParameter("observer_location"),
 #                         ValidateParameter("observer_bulkvel")])
