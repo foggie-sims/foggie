@@ -4,7 +4,7 @@ from core_funcs import prepdata
 dd_name = 'DD2175'
 sim_name = 'nref11n_nref10f'
 
-ds, ds_paras = prepdata(dd_name)
+ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
 
 from core_funcs import obj_source_all_disk_cgm
 obs_point = 'halo_center'
@@ -15,7 +15,7 @@ obj_source = obj_source_all_disk_cgm(ds, ds_paras, obj_tag)
 from foggie.utils import consistency
 cmap = consistency.metal_discrete_cmap
 field = 'metallicity'
-width = 2*ds.quan(130, 'kpc')
+width = 2*ds.quan(120, 'kpc')
 zmin = 0.01
 zmax = 2.0
 ##################
