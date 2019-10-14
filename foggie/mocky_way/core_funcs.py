@@ -451,9 +451,11 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
                 Yong Zheng. UCB.
     """
 
+    # halo_radius = ds_paras['rvir']
+    halo_radius = ds.quan(120, 'kpc') # for refinement reasons, let's use a small r.
+    # halo_radius = ds.quan(20, 'kpc') # for testing purpose
     if obj_tag == 'all':
-        # sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
-        sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
+        sp = ds.sphere(ds_paras['halo_center'], halo_radius)
         obj = sp
     elif obj_tag == 'disk':
         disk_size_r = 4*ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
@@ -464,8 +466,7 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
                        (disk_size_z, 'kpc'))
         obj = disk
     elif obj_tag == 'cgm':
-        # sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
-        sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
+        sp = ds.sphere(ds_paras['halo_center'], halo_radius)
         disk_size_r = 4*ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
         disk_size_z = 4*ds_paras['disk_zs'] # one side,
         disk = ds.disk(ds_paras['halo_center'],
@@ -481,3 +482,18 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
         sys.exit()
 
     return obj
+
+def temperature_category():
+    """
+    This func setup the temperature ranges that will be consisitently used
+    through this work.
+
+    History:
+    Created on 08/14/2019, YZ, UCB.
+    """
+
+    temp_dict = {'cold': [-np.inf, 1e4],
+                 'cool': [1e4, 1e5],
+                 'warm': [1e5, 1e6],
+                 'hot': [1e6, +np.inf]}
+    return temp_dict
