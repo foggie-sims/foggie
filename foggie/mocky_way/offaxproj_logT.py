@@ -5,10 +5,12 @@ dd_name = 'DD2175'
 sim_name = 'nref11n_nref10f'
 obs_point = 'halo_center'
 vel_tag = 'vel_pos'
+field = 'metallicity' # z, vel
+figdir = 'figs/offaxproj'
 
 ### get the data source, cut the region with velocity constrains
 ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
-sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
+sp = ds.sphere(ds_paras['halo_center'], (20, 'kpc'))
 width = 2*ds.quan(120, 'kpc')
 
 #### set field parasmeters for the los_velocity_mw
@@ -32,11 +34,17 @@ else:
     sys.exit()
 
 from foggie.utils import consistency
-cmap = consistency.logT_discrete_cmap_mw
-field = 'temperature'
-zmin = 10**3.5
-zmax = 10**6.5
-figdir = 'figs/offaxproj'
+if field == 'temperature':
+    cmap = consistency.logT_discrete_cmap_mw_fine
+    zmin = 10**4.0
+    zmax = 10**7.0
+elif field == 'metallicity':
+    cmap = consistency.metal_discrete_cmap
+    zmin = 0.01
+    zmax = 2.0
+else:
+    print("Sorry I only do field = temperature, or metallicity for now.")
+    sys.exit()
 
 ##################
 pj = yt.OffAxisProjectionPlot(ds, ds_paras['L_vec'], field,
@@ -48,7 +56,7 @@ pj = yt.OffAxisProjectionPlot(ds, ds_paras['L_vec'], field,
                               )
 pj.set_cmap(field=field, cmap=cmap)
 pj.set_zlim(field, zmin=zmin, zmax=zmax)
-figname = '%s_%s_%s_faceon_%s_logT.pdf'%(sim_name, dd_name, obs_point, vel_tag)
+figname = '%s_%s_%s_%s_%s_faceon.pdf'%(sim_name, dd_name, obs_point, vel_tag, field)
 pj.save('%s/%s'%(figdir, figname))
 
 ################
@@ -61,7 +69,7 @@ pj = yt.OffAxisProjectionPlot(ds, ds_paras['phi_vec'], field,
                               )
 pj.set_cmap(field=field, cmap=cmap)
 pj.set_zlim(field, zmin=zmin, zmax=zmax)
-figname = '%s_%s_%s_edgeon1_%s_logT.pdf'%(sim_name, dd_name, obs_point, vel_tag)
+figname = '%s_%s_%s_%s_%s_edgeon1.pdf'%(sim_name, dd_name, obs_point, vel_tag, field)
 pj.save('%s/%s'%(figdir, figname))
 
 ################
@@ -74,5 +82,5 @@ pj = yt.OffAxisProjectionPlot(ds, ds_paras['sun_vec'], field,
                               )
 pj.set_cmap(field=field, cmap=cmap)
 pj.set_zlim(field, zmin=zmin, zmax=zmax)
-figname = '%s_%s_%s_edgeon2_%s_logT.pdf'%(sim_name, dd_name, obs_point, vel_tag)
+figname = '%s_%s_%s_%s_%s_edgeon2.pdf'%(sim_name, dd_name, obs_point, vel_tag, field)
 pj.save('%s/%s'%(figdir, figname))
