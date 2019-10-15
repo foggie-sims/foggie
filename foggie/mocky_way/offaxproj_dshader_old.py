@@ -20,6 +20,8 @@ def gas_imgx_imgy(all_data, ds_paras, obs_point='halo_center'):
     History:
     10/01/2019, Yong Zheng, UCB
     10/10/2019, was originally calc_image_xy in mocky_way. rename. Yong Zheng.
+    10/14/2019, add a random funcs to shake up the distribution just a bit to
+                get rid of the grid influence. Yong. UCB.
     """
     x = all_data['x'].in_units('code_length').flatten()
     y = all_data['y'].in_units('code_length').flatten()
@@ -44,16 +46,23 @@ def gas_imgx_imgy(all_data, ds_paras, obs_point='halo_center'):
     L_vec = ds_paras['L_vec']     # unit vector
 
     # image_x is along phi direction
-    cos_theta_r_phi = np.dot(phi_vec, r_vec)/rr_code
+    cos_theta_r_phi = np.dot(phi_vec, r_vec)/rr_code.value
     rphi_proj_kpc = rr_kpc * cos_theta_r_phi  # need to figure out the sign
     image_x = rphi_proj_kpc
 
     # image_y is along L direction
-    cos_theta_r_L = np.dot(L_vec, r_vec)/rr_code
+    cos_theta_r_L = np.dot(L_vec, r_vec)/rr_code.value
     rL_proj_kpc = rr_kpc * cos_theta_r_L  # need to figure out the sign
     image_y = rL_proj_kpc
 
-    return image_x, image_y, rr_kpc
+    ### because the simulation grids are somewhat align with x, y, z,
+    # let's mix them a bit. choose 0.5 kpc because that's about the common
+    # resolution cell size. (some are smaller) -- 10/14/2019, Yong, UCB.
+    rand_y = image_y.value+np.random.random(image_y.size)*0.5
+    rand_x = image_x.value # +np.random.random(image_x.size)*0.2
+
+    # return image_x, image_y, rr_kpc
+    return rand_x, rand_y, rr_kpc.value
 
 def prep_dataframe_vel_pos(all_data, ds_paras, obs_point='halo_center'):
     """
@@ -64,7 +73,8 @@ def prep_dataframe_vel_pos(all_data, ds_paras, obs_point='halo_center'):
 
     History:
     Yong Zheng created sometime in the summer of 2019
-    09/23/2019, Yong Zheng change prep_dataframe to adjust to the postive velocity requirement.
+    09/23/2019, Yong Zheng change prep_dataframe to adjust
+                to the postive velocity requirement.
     10/01/2019, Yong Zheng deleted the refine_box and halo_vcenter lines, @UCB.
                 also added obs_point for off_center observers
     10/10/2019, Yong Zheng simplified the module, and merge into foggie.mocky_way.
@@ -183,7 +193,7 @@ if __name__ == '__main__':
     dd_name = 'DD2175'           # 'RD0039', 'RD0037'
     obj_tag = 'all' # all, disk, cgm
     obs_point = 'halo_center' # halo_center, or offcenter_location
-    dshader_tag = 'vel_pos' # vel_pos, vel_neg, logT, metallicity
+    dshader_tag = 'vel_neg' # vel_pos, vel_neg, logT, metallicity
 
     from core_funcs import prepdata
     ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
@@ -203,8 +213,8 @@ if __name__ == '__main__':
     ### Set up the phase diagram parameter
     dict_basic_args = {'x_field': 'gas_imgx',
                        'y_field': 'gas_imgy',
-                       'x_range': [-20, 20],
-                       'y_range': [-20, 20],
+                       'x_range': [-120, 120],
+                       'y_range': [-120, 120],
                        'x_label': r'x (kpc)',
                        'y_label': r'y (kpc)',
                        'image_x_width': 1000, # in pixels I think?
