@@ -435,7 +435,7 @@ def dict_disk_rs_zs(dd_name, sim_name='nref11n_nref10f'):
         sys.exit(0)
     return this_rs, this_zs
 
-def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
+def obj_source_all_disk_cgm(ds, ds_paras, obj_tag, test=False):
     """
     This is to cut the simulation into halo-only, disk, and both halo and disk
     objects for further data analyses. And I'll use this for other functions
@@ -443,17 +443,22 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag):
 
     obj_tag: 'all', 'disk', 'cgm'
 
+    test: if True, then do a small sphere of 20 kpc to test code.
+
     09/26/19, Yong Zheng, UCB.
     10/09/2019, Yong Zheng, was obj_source_halo_disk, now merging into foggie.mocky_way
     10/09/2019, Yong Zheng, now need to specify which part of the galaxy you want to process
     10/11/2019, realizing the rvir of DD2175 is 160, which is beyond the refine
                 box (+/-130 kpc), so I'm doing the sphere of 120 kpc from now on.
                 Yong Zheng. UCB.
+    10/15/2019, add test para to speed up code testing. 
     """
 
     # halo_radius = ds_paras['rvir']
-    # halo_radius = ds.quan(120, 'kpc') # for refinement reasons, let's use a small r.
-    halo_radius = ds.quan(30, 'kpc') # for testing purpose
+    if test == True:
+        halo_radius = ds.quan(20, 'kpc') # for testing purpose
+    else:
+        halo_radius = ds.quan(120, 'kpc') # beyond 130, refinement box gets coarse.
     if obj_tag == 'all':
         sp = ds.sphere(ds_paras['halo_center'], halo_radius)
         obj = sp
