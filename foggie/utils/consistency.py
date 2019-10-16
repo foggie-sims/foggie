@@ -187,9 +187,9 @@ h1_color_map_mw = 'viridis' # same as figure 2 in HI4PI+2016 paper.
 h1_proj_min_mw = 1e13 # for mocky way allsky map, YZ
 h1_proj_max_mw = 1e23 # for mocky way allsky map, YZ, tuned for HI4PI
 
-old_o6_color_map = sns.blend_palette(
-    ("white", "black", "#4daf4a", "#4575b4", "#984ea3", "#d73027",
-     "darkorange"), as_cmap=True)
+old_o6_color_map = sns.blend_palette(("white", "black", "#4daf4a",
+                                      "#4575b4", "#984ea3", "#d73027",
+                                      "darkorange"), as_cmap=True)
 o6_color_map = "magma"
 o6_min = 1.e11
 o6_max = 1.e15
@@ -475,16 +475,12 @@ def categorize_by_hi(hi):
 
 ############### Yong Zheng add cat_radius for mocky way ########
 ### categorize halo gas by radius.
-radius_df_colname = 'cat_radius' # name of radius in dataframe
-radius_color_labels = [b'0-20', b'20-40', b'40-60', b'60-80',
-                       b'80-100', b'100-120']
-# this color has been reserved for FOGGIE I and II paper, so now using a different one.
-# radius_colors = sns.blend_palette(('salmon', '#984ea3', '#4daf4a',
-#                                    '#ffe34d', 'darkorange'), n_colors=8)
-# radius_colors = sns.cubehelix_palette(8)
-# radius_colors = sns.blend_palette(('#691F5E', '#4FCEED', '#F76C1D', '#F71D45'), n_colors=8)
+# radius_df_colname = 'cat_radius' # name of radius in dataframe
+radius_color_labels = [b'0-10', b'10-20', b'20-30', b'30-40',
+                       b'40-50', b'50-60', b'60-70', b'70-80',
+                       b'80-90', b'90-100', b'100-110', b'110-120']
 radius_colors = sns.blend_palette(('#691F5E', '#4FCEED', '#F76C1D', '#DAD10C'),
-                                   n_colors=8)
+                                   n_colors=len(radius_color_labels))
 radius_discrete_cmap = mpl.colors.ListedColormap(radius_colors)
 radius_color_key = collections.OrderedDict()
 for i, ilabel in enumerate(radius_color_labels):
@@ -493,12 +489,18 @@ for i, ilabel in enumerate(radius_color_labels):
 def categorize_by_radius(radius):
     """ define the radius category strings"""
     cat_radius = np.chararray(np.size(radius), 8)
-    cat_radius[np.all([radius>=0, radius<20], axis=0)] = b'0-20'
-    cat_radius[np.all([radius>=20, radius<40], axis=0)] = b'20-40'
-    cat_radius[np.all([radius>=40, radius<60], axis=0)] = b'40-60'
-    cat_radius[np.all([radius>=60, radius<80], axis=0)] = b'60-80'
-    cat_radius[np.all([radius>=80, radius<100], axis=0)] = b'80-100'
-    cat_radius[np.all([radius>=100, radius<120], axis=0)] = b'100-120'
+    cat_radius[np.all([radius>=0, radius<10], axis=0)] = b'0-10'
+    cat_radius[np.all([radius>=10, radius<20], axis=0)] = b'10-20'
+    cat_radius[np.all([radius>=20, radius<30], axis=0)] = b'20-30'
+    cat_radius[np.all([radius>=30, radius<40], axis=0)] = b'30-40'
+    cat_radius[np.all([radius>=40, radius<50], axis=0)] = b'40-50'
+    cat_radius[np.all([radius>=50, radius<60], axis=0)] = b'50-60'
+    cat_radius[np.all([radius>=60, radius<70], axis=0)] = b'60-70'
+    cat_radius[np.all([radius>=70, radius<80], axis=0)] = b'70-80'
+    cat_radius[np.all([radius>=80, radius<90], axis=0)] = b'80-90'
+    cat_radius[np.all([radius>=90, radius<100], axis=0)] = b'90-100'
+    cat_radius[np.all([radius>=100, radius<110], axis=0)] = b'100-110'
+    cat_radius[np.all([radius>=110, radius<120], axis=0)] = b'110-120'
     return cat_radius
 
 ############### Yong Zheng add cat_velocity for mocky way ########
@@ -575,10 +577,11 @@ def categorize_by_outflow(velocity):
 ############### Yong Zheng add cat_inflow for mocky way ########
 ### categorize halo gas by velocity.
 # inflow_df_colname = 'cat_inflow' # this is the name of velocity in dataframe
-inflow_color_labels = [b'[-400, -300)', b'[-300, -200)', b'[-200, -180)'
-                        b'[-180, -160)', b'[-160, -140)', b'[-140, -120)',
-                        b'[-120, -100)', b'[-100, -80)', b'[-80, -60)',
-                        b'[-60, -40)', b'[-40, -20)', b'[-20, 0)']
+inflow_color_labels = [b'<-400',
+                       b'[-400, -300)', b'[-300, -200)', b'[-200, -180)',
+                       b'[-180, -160)', b'[-160, -140)', b'[-140, -120)',
+                       b'[-120, -100)', b'[-100, -80)',  b'[-80, -60)',
+                       b'[-60, -40)',   b'[-40, -20)',   b'[-20, 0)']
 inflow_cmap = mpl.pyplot.cm.YlGnBu_r
 inflow_colors = sns.color_palette("YlGnBu_r", len(inflow_color_labels))
 #inflow_colors = sns.blend_palette((inflow_cmap(0.25),
@@ -608,7 +611,7 @@ def categorize_by_inflow(velocity):
     cat_vel[np.all([vv>=-80, vv<-60], axis=0)] = b'[-80, -60)'
     cat_vel[np.all([vv>=-60, vv<-40], axis=0)] = b'[-60, -40)'
     cat_vel[np.all([vv>=-40, vv<-20], axis=0)] = b'[-40, -20)'
-    cat_vel[np.all([vv>=-20, vv<0], axis=0)] = b'[-20, 0)'
+    cat_vel[np.all([vv>=-20, vv<=0], axis=0)] = b'[-20, 0)'
     return cat_vel
 
 ############################################################

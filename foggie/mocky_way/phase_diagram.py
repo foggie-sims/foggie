@@ -47,14 +47,12 @@ def prep_dataframe_radius(all_data, observer_location):
 
     return df
 
-def prep_dataframe_vel_all(all_data, observer_location):
+def prep_dataframe_velocity(all_data, vel_tag='outflow'):
     """
     Add fields to the dataset, create dataframe for rendering
     code adopted from foggie/shader_map.py
 
     all_data: could be all the data, or a sphere, or a box or something
-    observer_location: coordinates of where the observer is in code_length,
-          ususally ds_paras['halo_center'] or ds_paras['offcenter_location']
 
     History:
     Yong Zheng created sometime in the summer of 2019
@@ -66,88 +64,23 @@ def prep_dataframe_vel_all(all_data, observer_location):
 
     log_nH = np.log10(all_data['H_nuclei_density'])
     log_T = np.log10(all_data['temperature'])
-    los_vel = all_data['line_of_sight_velocity']
 
-    # make radius categories
-    cat_vel = consistency.categorize_by_velocity(los_vel)
+    # put some into categories
+    los_vel = all_data['los_velocity_mw']
+    if vel_tag == 'outflow':
+        cat_vel = consistency.categorize_by_outflow(los_vel)
+    elif vel_tag == 'inflow':
+        cat_vel = consistency.categorize_by_inflow(los_vel)
+    else:
+        print("I do not know this vel_tag, please check.")
+        import sys
+        sys.exit()
 
-    # make velocity categories, build dataframe with all velocity
     df = pandas.DataFrame({'log_T': log_T, \
                            'log_nH': log_nH, \
-                           'los_vel': los_vel, \
                            # category entries
-                           'cat_vel_all': cat_vel})
-    df.cat_vel_all = df.cat_vel_all.astype('category')
-
-    return df
-
-def prep_dataframe_vel_pos(all_data, observer_location):
-    """
-    Add fields to the dataset, create dataframe for rendering
-    code adopted from foggie/shader_map.py
-
-    all_data: could be all the data, or a sphere, or a box or something
-    observer_location: coordinates of where the observer is in code_length,
-          ususally ds_paras['halo_center'] or ds_paras['offcenter_location']
-
-    History:
-    Yong Zheng created sometime in the summer of 2019
-    10/01/2019, Yong Zheng deleted the refine_box and halo_vcenter lines, @UCB.
-                also added obs_point for off_center observers
-    10/09/2019, Yong Zheng merging all vel, pos vel, and neg vel into the same func.
-
-    """
-
-    log_nH = np.log10(all_data['H_nuclei_density'])
-    log_T = np.log10(all_data['temperature'])
-    los_vel = all_data['line_of_sight_velocity']
-
-    # make radius categories
-    cat_vel = consistency.categorize_by_vel_pos(los_vel)
-
-    # make velocity categories, build dataframe with only positive velocity gases
-    filter = los_vel>=0
-    df = pandas.DataFrame({'log_T': log_T[filter], \
-                           'log_nH': log_nH[filter], \
-                           'los_vel': los_vel[filter], \
-                           # category entries
-                           'cat_vel_pos': cat_vel[filter]})
-    df.cat_vel_pos = df.cat_vel_pos.astype('category')
-
-    return df
-
-def prep_dataframe_vel_neg(all_data, observer_location):
-    """
-    Add fields to the dataset, create dataframe for rendering
-    code adopted from foggie/shader_map.py
-
-    all_data: could be all the data, or a sphere, or a box or something
-    observer_location: coordinates of where the observer is in code_length,
-          ususally ds_paras['halo_center'] or ds_paras['offcenter_location']
-
-    History:
-    Yong Zheng created sometime in the summer of 2019
-    10/01/2019, Yong Zheng deleted the refine_box and halo_vcenter lines, @UCB.
-                also added obs_point for off_center observers
-    10/09/2019, Yong Zheng merging all vel, pos vel, and neg vel into the same func.
-
-    """
-
-    log_nH = np.log10(all_data['H_nuclei_density'])
-    log_T = np.log10(all_data['temperature'])
-    los_vel = all_data['line_of_sight_velocity']
-
-    # make radius categories
-    cat_vel = consistency.categorize_by_vel_neg(los_vel)
-
-    # make velocity categories, build dataframe with only positive velocity gases
-    filter = los_vel<0
-    df = pandas.DataFrame({'log_T': log_T[filter], \
-                           'log_nH': log_nH[filter], \
-                           'los_vel': los_vel[filter], \
-                           # category entries
-                           'cat_vel_neg': cat_vel[filter]})
-    df.cat_vel_neg = df.cat_vel_neg.astype('category')
+                           'cat_vel': cat_vel})
+    df.cat_vel = df.cat_vel.astype('category')
 
     return df
 
@@ -188,10 +121,10 @@ def dshader_noaxes(dataframe, dict_basic_args, dict_extra_args):
 
     export = partial(export_image,
                      background='white',
-                     export_path=dict_extra_args['export_path'])
-    export(img, dict_extra_args['figname'])
-    print("Saving to %s/%s.png (on axes)"%(dict_extra_args['export_path'],
-                                           dict_extra_args['figname']))
+                     export_path=dict_basic_args['export_path'])
+    export(img, dict_basic_args['figname'])
+    print("Saving to %s/%s.png (on axes)"%(dict_basic_args['export_path'],
+                                           dict_basic_args['figname']))
 
 def wrap_axes(dict_basic_args, dict_extra_args, draw_pressure_line=False):
     """
@@ -218,53 +151,55 @@ def wrap_axes(dict_basic_args, dict_extra_args, draw_pressure_line=False):
     import matplotlib as mpl
     mpl.rcParams['font.family'] = 'stixgeneral'
 
-    figname = '%s/%s.png'%(dict_extra_args['export_path'],
-                           dict_extra_args['figname'])
+    figname = '%s/%s.png'%(dict_basic_args['export_path'],
+                           dict_basic_args['figname'])
     img = mpimg.imread(figname)
     # print('IMG', np.shape(img[:,:,0:3]))
     fig = plt.figure(figsize=(8,8), dpi=300)
 
     # main ax for image
-    ax = fig.add_axes([0.1, 0.13, 0.7, 0.7])
+    ax = fig.add_axes([0.13, 0.15, 0.65, 0.65])
     ax.imshow(np.flip(img[:,:,0:3],0), alpha=1., origin='lower')
 
     # x axis
     x_step = 1
+    img_ax_width=dict_basic_args['image_x_width']
     xticks, xticklabels = locate_xyticks(dict_basic_args['x_range'],
-                                         img_ax_width=dict_basic_args['image_x_width'],
+                                         img_ax_width=img_ax_width,
                                          ax_step=x_step)
     ax.set_xticks(xticks)
     ax.set_xticklabels(xticklabels, fontsize=20)
-    ax.set_xlabel(dict_basic_args['x_label'], fontsize=22)
+    ax.set_xlabel(dict_basic_args['x_label'], fontsize=20)
 
     # y axis
     y_step = 1
+    img_ax_width=dict_basic_args['image_y_width']
     yticks, yticklabels = locate_xyticks(dict_basic_args['y_range'],
-                                         img_ax_width=dict_basic_args['image_y_width'],
+                                         img_ax_width=img_ax_width,
                                          ax_step=y_step)
     ax.set_yticks(yticks)
     ax.set_yticklabels(yticklabels, fontsize=20)
-    ax.set_ylabel(dict_basic_args['y_label'], fontsize=22)
+    ax.set_ylabel(dict_basic_args['y_label'], fontsize=20)
 
     # ax for colorbar
     # first make a ghost image hidden behind actual color bar, this is an ugly trick..
-    fxax = fig.add_axes([0.82, 0.14, 0.01, 0.01])
+    fxax = fig.add_axes([0.81, 0.16, 0.01, 0.01])
     n_colors = dict_extra_args['cmap'].N
     fx1, fx2 = np.meshgrid(np.arange(n_colors+1), np.arange(n_colors+1))
     fximg = fxax.imshow(fx1, cmap=dict_extra_args['cmap'])
     fxax.set_axis_off()
 
     # real color bar
-    cax = fig.add_axes([0.82, 0.13, 0.03, 0.7])
+    cax = fig.add_axes([0.8, 0.15, 0.03, 0.65])
     cb = fig.colorbar(fximg, cax=cax, orientation='vertical',
                       format='%d', ticks=np.mgrid[0:n_colors+1:1]+0.5)
     clbs = cb.ax.set_yticklabels(dict_extra_args['cticklabels'], fontsize=15)  # vertically oriented colorbar
-    cax.text(0, n_colors*1.01, dict_extra_args['clabel'], fontsize=15)
+    cax.text(0, n_colors*1.02, dict_extra_args['clabel'], fontsize=15)
 
 
     # draw a constant pressure line and arrow
     if draw_pressure_line == True:
-        p_args={'T1': 1e6, 'T2': 10**7.5, 'fontsize': 14, 'rotation': -59}
+        p_args={'T1': 1e6, 'T2': 10**7.5, 'fontsize': 14, 'rotation': -55}
         x_range = dict_basic_args['x_range']
         y_range = dict_basic_args['y_range']
         img_x_width = dict_basic_args['image_x_width']
@@ -289,8 +224,11 @@ def wrap_axes(dict_basic_args, dict_extra_args, draw_pressure_line=False):
                 rotation=p_args['rotation'], fontsize=p_args['fontsize'])
         ax.plot([x1, x2], [y1, y2], lw=2, color='k')
 
-    figname = '%s/%s.pdf'%(dict_extra_args['export_path'],
-                           dict_extra_args['figname'])
+    figname = '%s/%s.pdf'%(dict_basic_args['export_path'],
+                           dict_basic_args['figname'])
+    plt.savefig(figname)
+    figname = '%s/%s.png'%(dict_basic_args['export_path'],
+                           dict_basic_args['figname'])
     plt.savefig(figname)
 
     import warnings
@@ -308,7 +246,7 @@ def locate_xyticks(ax_range, ax_step=1, img_ax_width=1000):
     """
     ax_min, ax_max = ax_range[0], ax_range[1]
     if (ax_max > 10.): ax_step = 10
-    if (ax_max > 100.): ax_step = 100
+    if (ax_max-ax_min > 100.): ax_step = 20
     ax_frac = np.arange((ax_max-ax_min) + 1., step=ax_step)/(ax_max-ax_min)
     ticks = ax_frac*img_ax_width
     ticklabels = [str(int(ii)) for ii in ax_frac*(ax_max-ax_min)+ax_min]
@@ -335,14 +273,13 @@ def yt_phase_diagram_sanity_check(ds, ds_paras):
 #################################################################
 if __name__=='__main__':
 
-    import sys
-    sim_name = sys.argv[1]
-    dd_name = sys.argv[2]
-    #dd_name = 'RD0039'
-    #sim_name = 'nref11n_nref10f'
-    obj_tag = 'cgm' # all, disk, cgm
-    obs_point = 'offcenter_location' # halo_center, or offcenter_location
-    dshader_tag = 'vel_pos' # radius, vel_pos, vel_neg
+    sim_name = 'nref11n_nref10f'
+    dd_name = 'DD2175'
+    obj_tag = 'all' # all, disk, cgm
+    obs_point = 'halo_center' # halo_center, or offcenter_location
+    vel_tag = 'inflow' # outflow or inflow
+    dshader_tag = 'velocity' # radius, velocity
+    test = False
 
     print("hey!")
     from core_funcs import prepdata
@@ -350,20 +287,44 @@ if __name__=='__main__':
     observer_location = ds_paras[obs_point]
 
     # yt_phase_diagram_sanity_check(ds, ds_paras)
-    # sys.exit(0)
+    # sys.exit()
 
     ### deciding whether to do cgm, disk, or both
-    print("Taking %s out of the simulatioin..."%(obj_tag))
+    print("Taking %s out of the simulation..."%(obj_tag))
     from core_funcs import obj_source_all_disk_cgm
-    obj_source = obj_source_all_disk_cgm(ds, ds_paras, obj_tag)
-    obj_source.set_field_parameter("observer_location", observer_location)
+    sp = obj_source_all_disk_cgm(ds, ds_paras, obj_tag, test=test)
+
+    do_shell = False
+    #from core_funcs import obj_source_shell
+    #shell_rin = 110
+    #shell_rout = shell_rin+10
+    #sp = obj_source_shell(ds, ds_paras, shell_rin, shell_rout)
+
     if obs_point == 'halo_center':
         bv = ds_paras['disk_bulkvel']
     else:
         bv = ds_paras['offcenter_bulkvel']
-    obj_source.set_field_parameter("observer_bulkvel", bv)
+    sp.set_field_parameter("observer_bulkvel", bv)
+    sp.set_field_parameter("observer_location", observer_location)
+    if vel_tag == 'outflow':
+        obj_source = sp.cut_region(["obj['los_velocity_mw'] >= 0"])
+    elif vel_tag == 'inflow':
+        obj_source = sp.cut_region(["obj['los_velocity_mw'] < 0"])
+    else:
+        print("I have no idea what you want to proj with vel_tag, please check.")
+        sys.exit()
 
     ### Set up the phase diagram parameter
+    if do_shell == True:
+        figname = '%s_%s_%s_%s_%s_r%03d-%03d'%(sim_name, dd_name, obs_point,
+                                               vel_tag, dshader_tag,
+                                               shell_rin, shell_rout)
+    elif do_shell == False and dshader_tag == 'radius':
+        figname = '%s_%s_%s_%s_%s_rall'%(sim_name, dd_name, obs_point,
+                                    vel_tag, dshader_tag)
+    else:
+        figname = '%s_%s_%s_%s_%s'%(sim_name, dd_name, obs_point,
+                                    vel_tag, dshader_tag)
     dict_basic_args = {'x_field': 'log_nH',
                        'y_field': 'log_T',
                        'x_range': [-8, 2],
@@ -371,52 +332,40 @@ if __name__=='__main__':
                        'x_label': r'log n$_H$ (cm$^{-3}$)',
                        'y_label': 'log Temperature [K]',
                        'image_x_width': 1000, # in pixels I think?
-                       'image_y_width': 1000}
+                       'image_y_width': 1000,
+                       'export_path': 'figs/phase_diagram',
+                       'figname': figname}
 
     ### ok, all prep work done, now actually making phase diagram, with radius
     if dshader_tag == 'radius':
         print("Making data shader frame... color-coded in radius...")
-        df_radius = prep_dataframe_radius(obj_source, observer_location)
+        df = prep_dataframe_radius(obj_source, observer_location)
         categories = consistency.radius_color_labels
+        cticklabels =  [s.decode('UTF-8').upper() for s in categories]
         dict_r_args = {'c_field': 'cat_radius',
                        'cmap': consistency.radius_discrete_cmap,
                        'ckey': consistency.radius_color_key,
                        'clabel': 'R (kpc)',
-                       'cticklabels': [s.decode('UTF-8').upper() for s in categories],
-                       'export_path': 'figs/phase_diagram',
-                       'figname': '%s_%s_%s_%s_lognH_logT_r'%(sim_name, dd_name, obj_tag, obs_point)}
-        df = df_radius
+                       'cticklabels': cticklabels}
         dict_extra_args = dict_r_args
 
-    elif dshader_tag == 'vel_pos':
-        print("Making data shader frame... color-coded in vel_pos ...")
-        df_vel_pos = prep_dataframe_vel_pos(obj_source, observer_location)
-        categories = consistency.vel_pos_color_labels
-        dict_v_args = {'c_field': 'cat_vel_pos',
-                       'cmap': consistency.vel_pos_discrete_cmap,
-                       'ckey': consistency.vel_pos_color_key,
-                       'clabel': r'V$_{los}$ (km/s)',
-                       'cticklabels': [s.decode('UTF-8').upper() for s in categories],
-                       'export_path': 'figs/phase_diagram',
-                       'figname': '%s_%s_%s_%s_lognH_logT_vpos'%(sim_name, dd_name, obj_tag, obs_point)}
-
-        df = df_vel_pos
+    elif dshader_tag == 'velocity':
+        print("Making data shader frame... color-coded in velocity ...")
+        df = prep_dataframe_velocity(obj_source, vel_tag=vel_tag)
+        if vel_tag == 'outflow':
+            categories = consistency.outflow_color_labels
+            cmap = consistency.outflow_discrete_cmap
+            ckey = consistency.outflow_color_key
+        else:
+            categories = consistency.inflow_color_labels
+            cmap = consistency.inflow_discrete_cmap
+            ckey = consistency.inflow_color_key
+        cticklabels = [s.decode('UTF-8').upper() for s in categories]
+        dict_v_args = {'c_field': 'cat_vel', 'cmap': cmap, 'ckey': ckey,
+                       'clabel': r'Velo w.r.t Obs (km/s)',
+                       'cticklabels': cticklabels}
         dict_extra_args = dict_v_args
 
-    elif dshader_tag == 'vel_neg':
-        print("Making data shader frame... color-coded in vel_neg ...")
-        df_vel_neg = prep_dataframe_vel_neg(obj_source, observer_location)
-        categories = consistency.vel_neg_color_labels
-        dict_v_args = {'c_field': 'cat_vel_neg',
-                       'cmap': consistency.vel_neg_discrete_cmap,
-                       'ckey': consistency.vel_neg_color_key,
-                       'clabel': r'V$_{los}$ (km/s)',
-                       'cticklabels': [s.decode('UTF-8').upper() for s in categories],
-                       'export_path': 'figs/phase_diagram',
-                       'figname': '%s_%s_%s_%s_lognH_logT_vneg'%(sim_name, dd_name, obj_tag, obs_point)}
-
-        df = df_vel_neg
-        dict_extra_args = dict_v_args
     else:
         print("Do not know what you need... check first please...")
         import sys

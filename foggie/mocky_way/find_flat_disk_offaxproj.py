@@ -15,9 +15,12 @@ from core_funcs import get_sphere_ang_mom_vecs
 
 data_dir, sys_dir = data_dir_sys_dir()
 
-sim_name = sys.argv[1]    # nref11n_nref10f
-dd_name = sys.argv[2]     # RD0039
-ion_to_proj = sys.argv[3] # mainly for HI
+#sim_name = sys.argv[1]    # nref11n_nref10f
+#dd_name = sys.argv[2]     # RD0039
+#ion_to_proj = sys.argv[3] # mainly for HI
+sim_name = 'nref11n_nref10f'
+dd_name = 'DD2175'
+ion_to_proj = 'HI'
 
 ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
 ds = yt.load(ds_file)
