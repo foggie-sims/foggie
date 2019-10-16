@@ -435,6 +435,24 @@ def dict_disk_rs_zs(dd_name, sim_name='nref11n_nref10f'):
         sys.exit(0)
     return this_rs, this_zs
 
+def obj_source_shell(ds, ds_paras, shell_rin, shell_rout):
+    """
+    Take a shell out of a halo.
+
+    shell_rin: inner radius of a shell
+    shell_rout: outer radius of a shell.
+
+    History:
+    10/15/2019, Created, Yong Zheng. UCB. 
+    """
+
+    sp_in = ds.sphere(ds_paras['halo_center'], (shell_rin, 'kpc'))
+    sp_out = ds.sphere(ds_paras['halo_center'], (shell_rout, 'kpc'))
+    shell = sp_out - sp_in
+
+    return shell
+
+
 def obj_source_all_disk_cgm(ds, ds_paras, obj_tag, test=False):
     """
     This is to cut the simulation into halo-only, disk, and both halo and disk
@@ -451,7 +469,7 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag, test=False):
     10/11/2019, realizing the rvir of DD2175 is 160, which is beyond the refine
                 box (+/-130 kpc), so I'm doing the sphere of 120 kpc from now on.
                 Yong Zheng. UCB.
-    10/15/2019, add test para to speed up code testing. 
+    10/15/2019, add test para to speed up code testing.
     """
 
     # halo_radius = ds_paras['rvir']
