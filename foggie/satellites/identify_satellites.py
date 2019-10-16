@@ -304,6 +304,8 @@ if __name__ == '__main__':
 
         save_dir = foggie_dir.replace('sims', 'outputs/identify_satellites')
 
+        if not os.path.isdir(save_dir): os.system('mkdir %s'%save_dir)
+
         print (foggie_dir + run_loc)
 
         run_dir = foggie_dir + run_loc

@@ -149,13 +149,22 @@ def prep_dataframe(dataset, all_data, field_list, category, \
     if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg')) 
     
     #unfortunately we will have to recompute the radius since it is bogus for some of our input regions 
-    if ("radius" in field_names): 
-        print("will have to recompute the radius! halo_center = ", halo_center)
+    if ("radi" in field_names): 
+        print("will have to recompute the radius, halo_center = ", halo_center)
         dx = ( all_data['x'].in_units('code_length') - dataset.arr(halo_center[0], 'code_length') ).in_units('kpc') 
         dy = ( all_data['y'].in_units('code_length') - dataset.arr(halo_center[1], 'code_length') ).in_units('kpc') 
         dz = ( all_data['z'].in_units('code_length') - dataset.arr(halo_center[2], 'code_length') ).in_units('kpc') 
         r2 = dx**2 + dy**2 + dz**2 
         data_frame["radius"] = r2**0.5                 
+
+    if (('velocity' in field_names)):
+        data_frame['x_velocity'] = all_data['x-velocity'].in_units('km/s') - halo_vcenter[0]
+        data_frame['y_velocity'] = all_data['y-velocity'].in_units('km/s') - halo_vcenter[1]
+        data_frame['z_velocity'] = all_data['z-velocity'].in_units('km/s') - halo_vcenter[2]
+        data_frame['radial_velocity'] = (dx * data_frame['x_velocity'] + \
+                                         dy * data_frame['y_velocity'] + \
+                                         dz * data_frame['z_velocity']) / data_frame["radius"] 
+
 
     if ("cooling_time" in field_names): data_frame["cooling_time"] = np.log10(all_data["cooling_time"].in_units('yr'))                 
 
