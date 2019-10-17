@@ -8,7 +8,7 @@ from foggie.utils.consistency import *
 from foggie.utils.get_halo_center import get_halo_center
 from foggie.utils.get_proper_box_size import get_proper_box_size
 from foggie.utils.yt_fields import *
-
+from foggie.utils.foggie_utils import filter_particles
 import foggie.utils as futils
 import foggie.utils.get_refine_box as grb
 
@@ -57,5 +57,9 @@ def load(snap, trackfile):
                  units='km/s', take_log=False, force_override=True, sampling_type='cell')
     ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
+
+    # filter particles into star and dm
+    filter_particles(refine_box)
+
 
     return ds, refine_box, refine_width
