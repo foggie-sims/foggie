@@ -12,10 +12,12 @@ from foggie.utils.foggie_utils import filter_particles
 import foggie.utils as futils
 import foggie.utils.get_refine_box as grb
 
-def load(snap, trackfile):
-    """This function loads a specified snapshot named by 'snap', the halo track "trackfile' 
-    Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT.""" 
-   
+def load(snap, trackfile, **kwargs):
+    """This function loads a specified snapshot named by 'snap', the halo track "trackfile'
+    Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT."""
+    use_halo_c_v = kwargs.get('use_halo_c_v', False)
+    halo_c_v_name = kwargs.get('halo_c_v_name', 'halo_c_v')
+
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
 
@@ -30,11 +32,20 @@ def load(snap, trackfile):
     refine_width_kpc = YTArray([refine_width], 'kpc')
 
     # Get halo center
-    halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
-
-    # Define the halo center in kpc and the halo velocity in km/s
-    halo_center_kpc = YTArray(np.array(halo_center)*proper_box_size, 'kpc')
-    halo_velocity_kms = YTArray(halo_velocity).in_units('km/s')
+    if (use_halo_c_v):
+        halo_c_v = Table.read(halo_c_v_name, format='ascii')
+        halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
+        halo_center_kpc = YTArray([float(halo_c_v['col4'][halo_ind]), \
+                                  float(halo_c_v['col5'][halo_ind]), \
+                                  float(halo_c_v['col6'][halo_ind])], 'kpc')
+        halo_velocity_kms = YTArray([float(halo_c_v['col7'][halo_ind]), \
+                                    float(halo_c_v['col8'][halo_ind]), \
+                                    float(halo_c_v['col9'][halo_ind])], 'km/s')
+    else:
+        halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
+        # Define the halo center in kpc and the halo velocity in km/s
+        halo_center_kpc = YTArray(np.array(halo_center)*proper_box_size, 'kpc')
+        halo_velocity_kms = YTArray(halo_velocity).in_units('km/s')
 
     sphere_region = ds.sphere(halo_center_kpc, (10., 'kpc') )
     bulk_velocity = sphere_region.quantities['BulkVelocity']().in_units('km/s')
