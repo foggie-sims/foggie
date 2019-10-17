@@ -11,7 +11,6 @@ field = 'los_velocity_mw'
 ### get the data source, cut the region with velocity constrains
 ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
 sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
-width = 2*ds.quan(120, 'kpc')
 
 #### set field parasmeters for the los_velocity_mw
 observer_location = ds_paras[obs_point]
@@ -40,6 +39,7 @@ else:
     sys.exit()
 
 figdir = 'figs/offaxproj'
+width = 2*ds.quan(120, 'kpc')
 ##################
 pj = yt.OffAxisProjectionPlot(ds, ds_paras['L_vec'], field,
                               center=ds_paras['halo_center'],

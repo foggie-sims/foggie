@@ -124,18 +124,31 @@ gc = plt.cm.Greys(0.8) # gc = gridcolor
 #### decide if only project cgm, or proj the whole cgm+disk ###
 # obj_tag = 'all' # means cgm+disk, or can do 'cgm' only
 if obj_tag == 'all':
+    # sp = ds.sphere(halo_center, (120, 'kpc'))
     sp = ds.sphere(halo_center, (120, 'kpc'))
     obj = sp
-else:
+elif obj_tag == 'cgm':
     # sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
     sp = ds.sphere(halo_center, (120, 'kpc'))
     disk_size_r = 4*disk_rs # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
     disk_size_z = 4*disk_zs # one side,
     disk = ds.disk(halo_center, L_vec,
-                   (disk_rs, 'kpc'),
-                   (disk_zs, 'kpc'))
+                   (disk_size_r, 'kpc'),
+                   (disk_size_z, 'kpc'))
     cgm = sp-disk
     obj = cgm
+elif obj_tag == 'r0-10':
+    sp = ds.sphere(halo_center, (10, 'kpc'))
+    obj = sp
+elif obj_tag == 'r10-120':
+    sp_in = ds.sphere(halo_center, (10, 'kpc'))
+    sp_out = ds.sphere(halo_center, (120, 'kpc'))
+    shell = sp_out - sp_in
+    obj = shell
+else:
+    print("For obj_tag, only allow for all, cgm, r0-10, r10-120. ")
+    import sys
+    sys.exit()
 
 #### then, plot allsky projection from offcenter
 for obs_xyz, obs_tag in zip([halo_center, offcenter_location],
