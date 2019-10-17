@@ -48,6 +48,11 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     sp = data_set.sphere(refine_box_center, (15, 'kpc'))
     halo_vcenter = sp.quantities['BulkVelocity']().in_units('km/s')
 
+    # Compute the bulk velocity from the cells in this sphere
+    bulk_vel = sp0.quantities.bulk_velocity()
+    print("prep_dataset: setting extracted region bulk velocity to: ", bulk_vel)
+    sp.set_field_parameter("bulk_velocity", bulk_vel)
+
     if region == 'trackbox':
         print("prep_dataset: your region is the refine box")
         all_data = refine_box
@@ -58,6 +63,10 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     cut_region_all_data = all_data.cut_region([filter])
 
     return data_set, cut_region_all_data, refine_box_center, halo_vcenter
+
+
+
+
 
 def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region, filter):
     """intended to be run after render_image, take the image and wraps it in
