@@ -51,7 +51,7 @@ def load(snap, trackfile, **kwargs):
     bulk_velocity = sphere_region.quantities['BulkVelocity']().in_units('km/s')
     ds.halo_center_kpc = halo_center_kpc
     ds.halo_velocity_kms = bulk_velocity
-    ds.track = track 
+    ds.track = track
 
     ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
                  sampling_type='cell')
@@ -70,12 +70,7 @@ def load(snap, trackfile, **kwargs):
     ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
 
-<<<<<<< HEAD
-    return ds, refine_box, refine_box_center, refine_width
-=======
     # filter particles into star and dm
     filter_particles(refine_box)
 
-
-    return ds, refine_box, refine_width
->>>>>>> f6c38ff4612f42a21a54b37f241ec1d5d863d6c0
+    return ds, refine_box, refine_box_center, refine_width
