@@ -12,20 +12,12 @@ from foggie.utils.foggie_utils import filter_particles
 import foggie.utils as futils
 import foggie.utils.get_refine_box as grb
 
-<<<<<<< HEAD
-
-def load(snap, trackfile):
-    """This function loads a specified snapshot named by 'snap', the halo track "trackfile' 
-    Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT.""" 
-   
-=======
 def load(snap, trackfile, **kwargs):
     """This function loads a specified snapshot named by 'snap', the halo track "trackfile'
     Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT."""
     use_halo_c_v = kwargs.get('use_halo_c_v', False)
     halo_c_v_name = kwargs.get('halo_c_v_name', 'halo_c_v')
 
->>>>>>> f6c38ff4612f42a21a54b37f241ec1d5d863d6c0
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
 
