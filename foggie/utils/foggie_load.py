@@ -12,6 +12,7 @@ from foggie.utils.yt_fields import *
 import foggie.utils as futils
 import foggie.utils.get_refine_box as grb
 
+
 def load(snap, trackfile):
     """This function loads a specified snapshot named by 'snap', the halo track "trackfile' 
     Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT.""" 
@@ -40,6 +41,7 @@ def load(snap, trackfile):
     bulk_velocity = sphere_region.quantities['BulkVelocity']().in_units('km/s')
     ds.halo_center_kpc = halo_center_kpc
     ds.halo_velocity_kms = bulk_velocity
+    ds.track = track 
 
     ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
                  sampling_type='cell')
@@ -58,4 +60,4 @@ def load(snap, trackfile):
     ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
 
-    return ds, refine_box, refine_width
+    return ds, refine_box, refine_box_center, refine_width
