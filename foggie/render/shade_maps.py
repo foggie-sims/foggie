@@ -56,8 +56,6 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     """prepares the dataset for rendering by extracting box or sphere this 
         function adds some bespoke FOGGIE fields, extracts the desired FOGGIE 
         region, and applies an input Boolean filter to the dataset."""
-    
-
 
     data_set = yt.load(fname)
 
@@ -73,14 +71,6 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     print('prep_dataset: Refine box corners: ', refine_box)
     print('prep_dataset:             center: ', refine_box_center)
 
-    sp = data_set.sphere(refine_box_center, (15, 'kpc'))
-    halo_vcenter = sp.quantities['BulkVelocity']().in_units('km/s')
-
-    # Compute the bulk velocity from the cells in this sphere
-    bulk_vel = sp0.quantities.bulk_velocity()
-    print("prep_dataset: setting extracted region bulk velocity to: ", bulk_vel)
-    sp.set_field_parameter("bulk_velocity", bulk_vel)
-
     if region == 'trackbox':
         print("prep_dataset: your region is the refine box")
         all_data = refine_box
@@ -89,6 +79,8 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
 
     print("prep_dataset: will now apply filter ", filter)
     cut_region_all_data = all_data.cut_region([filter])
+
+    halo_vcenter = [0., 0., 0.]
 
     return data_set, cut_region_all_data, refine_box_center, halo_vcenter
 
@@ -213,7 +205,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
     if ('pixspread' in kwargs.keys()): 
         pixspread = kwargs['pixspread']
 
-    dataset, all_data, halo_center, halo_vcenter = prep_dataset_alt(fname, trackfile, \
+    dataset, all_data, halo_center, halo_vcenter = prep_dataset(fname, trackfile, \
                         ion_list=['H I','C II','C III','C IV','Si II','Si III','Si IV',\
                                     'O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], 
                         filter=filter, region=region)
