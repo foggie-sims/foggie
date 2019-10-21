@@ -2,7 +2,7 @@
 Filename: flux_tracking.py
 Author: Cassi
 Date created: 9-27-19
-Date last modified: 9-27-19
+Date last modified: 10-21-19
 This file takes command line arguments and computes fluxes of things through
 spherical shells.
 
@@ -29,7 +29,7 @@ import glob
 import sys
 from astropy.table import Table
 from astropy.io import ascii
-import multiprocessing as mp
+import multiprocessing as multi
 import datetime
 
 # These imports are FOGGIE-specific files
@@ -1052,7 +1052,7 @@ def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablenam
     does the calculation on the loaded snapshot.'''
 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box, refine_width = load(snap_name, track, use_halo_c_v=True, halo_c_v_name=halo_c_v_name)
+    ds, refine_box, refine_box_center, refine_width = load(snap_name, track, use_halo_c_v=True, halo_c_v_name=halo_c_v_name)
     refine_width_kpc = YTArray([refine_width], 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
@@ -1122,7 +1122,7 @@ if __name__ == "__main__":
             for j in range(args.nproc):
                 snap = outs[args.nproc*i+j]
                 tablename = prefix + snap + '_fluxes'
-                threads.append(mp.Process(target=load_and_calculate, \
+                threads.append(multi.Process(target=load_and_calculate, \
 			       args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, args.quadrants)))
             for t in threads:
                 t.start()
@@ -1133,7 +1133,7 @@ if __name__ == "__main__":
         for j in range(len(outs)%args.nproc):
             snap = outs[-(j+1)]
             tablename = prefix + snap + '_fluxes'
-            threads.append(mp.Process(target=load_and_calculate, \
+            threads.append(multi.Process(target=load_and_calculate, \
 			   args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, args.quadrants)))
         for t in threads:
             t.start()
@@ -1141,4 +1141,4 @@ if __name__ == "__main__":
             t.join()
 
     print(str(datetime.datetime.now()))
-    sys.exit("All snapshots finished!")
+    print("All snapshots finished!")
