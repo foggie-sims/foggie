@@ -67,6 +67,10 @@ def load(snap, trackfile, **kwargs):
                  sampling_type='cell')
     ds.add_field(('gas', 'radial_velocity_corrected'), function=radial_velocity_corrected, \
                  units='km/s', take_log=False, force_override=True, sampling_type='cell')
+    ds.add_field(('gas', 'theta_velocity_corrected'), function=theta_velocity_corrected, \
+                 units='km/s', take_log=False, force_override=True, sampling_type='cell')
+    ds.add_field(('gas', 'phi_velocity_corrected'), function=phi_velocity_corrected, \
+                 units='km/s', take_log=False, force_override=True, sampling_type='cell')
     ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
 
