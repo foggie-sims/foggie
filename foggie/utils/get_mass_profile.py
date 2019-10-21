@@ -193,7 +193,7 @@ if __name__ == "__main__":
         for i in range(len(outs)):
             snap = outs[i]
             # Make the output table name for this snapshot
-            tablename = prefix + snap + '_totals'
+            tablename = prefix + snap + '_masses'
             # Do the actual calculation
             load_and_calculate(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)
     else:
@@ -203,7 +203,7 @@ if __name__ == "__main__":
             threads = []
             for j in range(args.nproc):
                 snap = outs[args.nproc*i+j]
-                tablename = prefix + snap + '_totals'
+                tablename = prefix + snap + '_masses'
                 threads.append(multi.Process(target=load_and_calculate, \
 			       args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
             for t in threads:
@@ -214,7 +214,7 @@ if __name__ == "__main__":
         threads = []
         for j in range(len(outs)%args.nproc):
             snap = outs[-(j+1)]
-            tablename = prefix + snap + '_totals'
+            tablename = prefix + snap + '_masses'
             threads.append(multi.Process(target=load_and_calculate, \
 			   args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
         for t in threads:
