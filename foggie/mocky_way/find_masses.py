@@ -17,8 +17,8 @@ ds.add_particle_filter('dm')
 # get halo, disk, and cgm
 sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
 disk_rs = 3.3 # kpc
-disk_zs = 0.4 # kpc, chec disk_scale_length_rs and scale_height_zs
-disk_size_r = 4*disk_rs # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
+disk_zs = 0.5 # kpc, chec disk_scale_length_rs and scale_height_zs
+disk_size_r = 6*disk_rs # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
 disk_size_z = 4*disk_zs # one side,
 disk = ds.disk(ds_paras['halo_center'],
                ds_paras['L_vec'],

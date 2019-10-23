@@ -8,9 +8,16 @@ import yt
 
 def gas_imgx_imgy(all_data, ds_paras, obs_point='halo_center'):
     """
-    Given observing point and line of sight vector (L_vec),
+    Given observing point (obs_point) and line of sight vector (usually sun_vec),
     calculate the projected x and y on the image plane (phi_vec, L_vec),
     and also the 3D radius from the observing point
+
+    Input:
+    all_data: could be a sphere, disk, or whatever
+    ds_paras: a pre-defined dictionary, most important items in it are the
+              three vectors: L_vec is the angular momentum, sun_vec and phi_vec
+              are two orthogonal vectors on the galactic plane. sun_vec, phi_vec,
+              and L_vec follows right-hand rule.
 
     Return:
     image_x: project x coord on the phi vec
