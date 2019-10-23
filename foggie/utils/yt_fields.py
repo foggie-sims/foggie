@@ -80,6 +80,38 @@ def radial_velocity_corrected(field, data):
     z_hat /= r
     return data['vx_corrected']*x_hat + data['vy_corrected']*y_hat + data['vz_corrected']*z_hat
 
+def theta_velocity_corrected(field, data):
+    """Corrects the theta direction of the spherical coordinate velocity for the bulk motion of the
+    halo and the halo center. Requires 'halo_center_kpc', which is the halo center with yt units
+    of kpc, to be defined. Requires the other fields of vx_corrected, vy_corrected, and vz_corrected."""
+    xv = data['vx_corrected']
+    yv = data['vy_corrected']
+    zv = data['vz_corrected']
+    center = data.ds.halo_center_kpc
+    x_hat = data['x'].in_units('kpc') - center[0]
+    y_hat = data['y'].in_units('kpc') - center[1]
+    z_hat = data['z'].in_units('kpc') - center[2]
+    r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
+    rxy = np.sqrt(x_hat*x_hat + y_hat*y_hat)
+    theta_v = (xv*y_hat - x_hat*yv)/(x_hat*x_hat + y_hat*y_hat)*rxy
+    return theta_v
+
+def phi_velocity_corrected(field, data):
+    """Corrects the phi direction of the spherical coordinate velocity for the bulk motion of the
+    halo and the halo center. Requires 'halo_center_kpc', which is the halo center with yt units
+    of kpc, to be defined. Requires the other fields of vx_corrected, vy_corrected, and vz_corrected."""
+    xv = data['vx_corrected']
+    yv = data['vy_corrected']
+    zv = data['vz_corrected']
+    center = data.ds.halo_center_kpc
+    x_hat = data['x'].in_units('kpc') - center[0]
+    y_hat = data['y'].in_units('kpc') - center[1]
+    z_hat = data['z'].in_units('kpc') - center[2]
+    r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
+    rxy = np.sqrt(x_hat*x_hat + y_hat*y_hat)
+    phi_v = (z_hat*(x_hat*xv + y_hat*yv)-zv*(x_hat*x_hat + y_hat*y_hat))/(r*r*rxy)*r
+    return phi_v
+
 def radius_corrected(field, data):
     """Corrects the radius for the center of the halo. Requires 'halo_center_kpc', which is the halo
     center with yt units of kpc, to be defined."""
@@ -116,14 +148,14 @@ def kinetic_energy_corrected(field, data):
     units of km/s, to be defined."""
     return 0.5 * data['cell_mass'] * data['radial_velocity_corrected']**2.
 
-def _no6(field,data):  
-    return data["dx"] * data['O_p5_number_density']  
-    
-def _nh1(field,data):  
-    return data["dx"] * data['H_p0_number_density']  
+def _no6(field,data):
+    return data["dx"] * data['O_p5_number_density']
 
-def _no5(field,data):  
-    return data["dx"] * data['O_p4_number_density']  
+def _nh1(field,data):
+    return data["dx"] * data['H_p0_number_density']
 
-def _c4(field,data):  
-    return data["dx"] * data['C_p3_number_density']  
+def _no5(field,data):
+    return data["dx"] * data['O_p4_number_density']
+
+def _c4(field,data):
+    return data["dx"] * data['C_p3_number_density']

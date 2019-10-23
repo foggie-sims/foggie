@@ -25,12 +25,38 @@ import foggie.render.cmap_utils as cmaps
 from foggie.utils.get_halo_center import get_halo_center
 import foggie.utils.get_refine_box as grb
 from foggie.utils.consistency import *
+import foggie.utils.foggie_load as fload
+
+
+def prep_dataset_alt(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
+    """prepares the dataset for rendering by extracting box or sphere this 
+        function adds some bespoke FOGGIE fields, extracts the desired FOGGIE 
+        region, and applies an input Boolean filter to the dataset."""
+    
+    data_set, refine_box, refine_box_center, refine_width = fload.load(fname, trackfile)
+
+    trident.add_ion_fields(data_set, ions=ion_list)
+    for ion, func in zip(['H_p0','C_p3','O_p5'], [yt_fields._nh1, yt_fields._c4, yt_fields._no6]):  
+        data_set.add_field(("gas", ion+"_column_density"), function=func, units='cm**(-2)', dimensions=dimensions.length**(-2))
+
+    if region == 'trackbox':
+        print("prep_dataset: your region is the refine box")
+        all_data = refine_box
+    else:
+        all_data = gr.get_region(data_set, region)
+
+    print("prep_dataset: will now apply filter ", filter)
+    cut_region_all_data = all_data.cut_region([filter])
+
+    return data_set, cut_region_all_data, refine_box_center
+
+
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere this 
         function adds some bespoke FOGGIE fields, extracts the desired FOGGIE 
         region, and applies an input Boolean filter to the dataset."""
-    
+
     data_set = yt.load(fname)
 
     trident.add_ion_fields(data_set, ions=ion_list)
@@ -45,9 +71,6 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     print('prep_dataset: Refine box corners: ', refine_box)
     print('prep_dataset:             center: ', refine_box_center)
 
-    sp = data_set.sphere(refine_box_center, (15, 'kpc'))
-    halo_vcenter = sp.quantities['BulkVelocity']().in_units('km/s')
-
     if region == 'trackbox':
         print("prep_dataset: your region is the refine box")
         all_data = refine_box
@@ -57,7 +80,13 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     print("prep_dataset: will now apply filter ", filter)
     cut_region_all_data = all_data.cut_region([filter])
 
+    halo_vcenter = [0., 0., 0.]
+
     return data_set, cut_region_all_data, refine_box_center, halo_vcenter
+
+
+
+
 
 def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region, filter):
     """intended to be run after render_image, take the image and wraps it in

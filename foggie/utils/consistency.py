@@ -37,6 +37,7 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'z-velocity': 'Z velocity [km s$^{-1}$]',
                     'radial_velocity': 'Radial Velocity [km s$^{-1}$]',
                     'relative_velocity': 'Relative Velocity [km s$^{-1}$]',
+                    'velocity_spherical_radius': 'Radial Velocity [km s$^{-1}$]', 
                     'metallicity': r'log Z/Z$_{\odot}$',
                     'pressure': 'log P [g cm$^{-1}$ s$^{-2}$ ]',
                     'entropy': 'log Entropy [cm$^2$ erg]',
@@ -628,6 +629,7 @@ colormap_dict = {'phase':new_phase_color_key, \
                  'H_p0_number_density':h1_color_map, \
                  'C_p1_number_density': c2_color_map, \
                  'C_p3_number_density':c4_color_map, \
+                 'Mg_p1_number_density':mg2_color_map, \
                  'Si_p1_number_density': si2_color_map, \
                  'Si_p2_number_density': si3_color_map, \
                  'Si_p3_number_density': si4_color_map,\
