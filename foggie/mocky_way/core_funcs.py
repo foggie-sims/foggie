@@ -286,9 +286,9 @@ def ortho_find_yz(z, random_seed=99):
     np.random.seed(random_seed)
 
     x = np.random.randn(3)  # take a random vector
-    x -= x.dot(z) * z       # make it orthogonal to k
+    x -= x.dot(z) * z       # make it orthogonal to z
     x /= np.linalg.norm(x)  # normalize it
-    y = np.cross(z, x)      # cross product with k
+    y = np.cross(z, x)      # cross product with z
 
     sun_vec = yt.YTArray(x)
     phi_vec = yt.YTArray(y)
