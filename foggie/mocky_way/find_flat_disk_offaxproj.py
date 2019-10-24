@@ -78,7 +78,7 @@ for r_for_L in [5]:
             # add this to show where the disk is after deciding rs and zs
             disk_rs = 3.4 # kpc for DD2175
             disk_zs = 0.5 # kpc
-            disk_size_r = disk_rs*4
+            disk_size_r = disk_rs*6
             disk_size_z = disk_zs*4
 
             image_width = ds.quan(80, 'kpc')

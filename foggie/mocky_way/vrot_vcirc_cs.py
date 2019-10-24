@@ -115,11 +115,11 @@ def calc_vrot_phi(ds, dd_name, sim_name, halo_center, L_vec, sun_vec, phi_vec,
 
     """
 
-    from core_funcs import data_dir_sys_dir
+
     from tqdm import tqdm
     import numpy as np
     import yt
-
+    from core_funcs import data_dir_sys_dir
     data_dir, sys_dir = data_dir_sys_dir()
     vecZ = L_vec
     vecY = sun_vec
@@ -204,6 +204,9 @@ def calc_vcirc(ds, dd_name, sim_name, halo_center, maxr=150, dr=0.5):
     import yt
     from yt.units import gravitational_constant_cgs as grav_const
 
+    from core_funcs import data_dir_sys_dir
+    data_dir, sys_dir = data_dir_sys_dir()
+
     calc_radii = yt.YTArray(np.mgrid[0:maxr+dr:dr], 'kpc')
 
     # Part I: calculate the circular velocity of gas in this galaxy
@@ -275,6 +278,9 @@ def calc_sound_speed(ds, dd_name, sim_name, halo_center, maxr=150, dr=0.5):
     from tqdm import tqdm
     import yt
 
+    from core_funcs import data_dir_sys_dir
+    data_dir, sys_dir = data_dir_sys_dir()
+
     big_sphere = ds.sphere(halo_center, (maxr, 'kpc'))
     calc_radii = yt.YTArray(np.mgrid[0:maxr+dr:dr], 'kpc')
 
@@ -284,29 +290,44 @@ def calc_sound_speed(ds, dd_name, sim_name, halo_center, maxr=150, dr=0.5):
     gas_z = (big_sphere[('gas', 'z')] - halo_center[2]).to('kpc')
     gas_r = np.sqrt(gas_x**2 + gas_y**2 + gas_z**2) # in unit of  kpc
     gas_T = big_sphere[('gas', 'temperature')].to('K')
+    gas_rho = big_sphere['density'] # to weight temperature
+    gas_n = big_sphere['number_density']
+    gas_mu_mp = gas_rho/gas_n
 
     calc_radii = yt.YTArray(np.mgrid[0:maxr+dr:dr], 'kpc')
     cs = yt.YTArray(np.zeros(calc_radii.size), 'cm/s') # rotation velocity
+    cs_wt = yt.YTArray(np.zeros(calc_radii.size), 'cm/s') # rotation velocity
 
     from yt.units import kboltz as kb_erg_per_K
-    from yt.units import mass_hydrogen as m_H_g
-    mu_H = 1.3
+    # from yt.units import mass_hydrogen as m_H_g
+    # mu_H = 1.3
     for ir in tqdm(range(calc_radii.size)[1:]):
         ind = np.all([gas_r>=calc_radii[ir-1], gas_r<calc_radii[ir]], axis=0)
-        mean_T = np.mean(gas_T[ind])
-        cs[ir] = np.sqrt(kb_erg_per_K * mean_T / mu_H / m_H_g)
+        # mean_T = np.mean(gas_T[ind])
+        # cs[ir] = np.sqrt(kb_erg_per_K * mean_T / mu_H / m_H_g)
+        ## calculate soundspeed per local cell
+        cell_cs = np.sqrt(kb_erg_per_K * gas_T[ind]/gas_mu_mp[ind]).to('km/s')
+        mean_cs = np.mean(cell_cs)
+        cs[ir] = mean_cs
 
-    cs = cs.to('km/s')
+        mean_cs_wt = (cell_cs * gas_rho[ind]).sum()/(gas_rho[ind]).sum()
+        cs_wt[ir] = mean_cs_wt
+
+    # cs = cs.to('km/s')
 
     # save the result to a table for future comparison
     from astropy.table import Table
-    master = Table([calc_radii, cs],
-                    names=('r', 'cs'),
-                    meta={'name': 'FOGGIE/%s/%s'%(sim_name, dd_name)})
+    master = Table([calc_radii, cs, cs_wt],
+                    names=('r', 'cs', 'cs_rho_weighted'),
+                    meta={'name': 'FOGGIE/%s/%s'%(sim_name, dd_name),
+                          'date': '10/20/2019',
+                          'creator': 'Yong Zheng, UCB.'})
     master['r'].format = '8.2f'
     master['cs'].format = '8.2f'
+    master['cs_rho_weighted'].format = '8.2f'
     master['r'].unit = 'kpc'
     master['cs'].unit = 'km/s'
+    master['cs_rho_weighted'].unit = 'km/s'
 
     save_dir = sys_dir+'/foggie/mocky_way/figs/vrot_vcirc_cs'
     filename = '%s_%s_sound_speed'%(sim_name, dd_name)
@@ -337,6 +358,38 @@ def plt_vrot(dd_name, sim_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fi
     lw = 1.5
     fs = 18
 
+    ############################################################
+    # plot the result. Rotation
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    ax.plot(vcirc['r'], vcirc['v_circ'], label=r'$v_{\rm c}=\sqrt{GM(r<R)/R}$',
+            color='k', lw=lw*2, linestyle='-')
+    ax.plot(vphi['r'], vphi['v_rotation'], label=r'$v_{\rm rot}$',
+            color=blue, lw=lw*3, linestyle='--')
+    ax.plot(vphi['r'], vphi['v_dispersion'], label=r'$\sigma_{\rm v}$',
+            color=blue, lw=lw, linestyle=':')
+    ax.plot(cs['r'], cs['cs_rho_weighted'],
+            label=r'$c_{\rm s}\equiv\sqrt{kT/\mu m_{\rm p}}$',
+            color='m', lw=lw, linestyle='-.')
+
+    for tick in ax.xaxis.get_major_ticks():
+        tick.label.set_fontsize(fs-2)
+    for tick in ax.yaxis.get_major_ticks():
+        tick.label.set_fontsize(fs-2)
+
+    ax.set_xlim(0, 30)
+    ax.set_ylim(0, 430)
+    ax.set_xlabel('R (kpc)', fontsize=fs)
+    ax.set_ylabel(r'Velocity (km s$^{-1}$)', fontsize=fs)
+    # ax.set_title(dd_name, fontsize=fs)
+    ax.legend(fontsize=fs-4)
+    ax.minorticks_on()
+    fig.tight_layout()
+    fig.savefig('figs/vrot_vcirc_cs/%s_%s_vcirc_vrotcylinder_cs.pdf'%(sim_name, dd_name))
+    plt.close()
+
+    ##########################################
     # plot the result. Rotation
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -368,6 +421,7 @@ def plt_vrot(dd_name, sim_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fi
     fig.savefig('figs/vrot_vcirc_cs/%s_%s_vcirc_vrot_vsigma.pdf'%(sim_name, dd_name))
     plt.close()
 
+    ###########################################
     # plot the result. Rotation
     linea = '-'
     lineb = ':'
@@ -395,12 +449,16 @@ def plt_vrot(dd_name, sim_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fi
     fig.savefig('figs/vrot_vcirc_cs/%s_%s_vcirc_vrot_cs.pdf'%(sim_name, dd_name))
     plt.close()
 
+    #########################################################################
     # plot the result, dispersion
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(vcirc['r'], vcirc['v_circ'], label=r'$v_{\rm c}=\sqrt{GM(r<R)/R}$',
             color='k', lw=lw, linestyle=linea)
-    ax.plot(cs['r'], cs['cs'], label=r'$c_{\rm s}\equiv\sqrt{kT/\mu m_{\rm p}}$',
+    ax.plot(cs['r'], cs['cs_rho_weighted'],
+            label=r'$c_{\rm s}$ density-weighted',
+            color='m', lw=lw, linestyle='-.')
+    ax.plot(cs['r'], cs['cs'], label=r'$c_{\rm s}$ mean of all',
             color=grey, lw=lw, linestyle=lined)
     ax.plot(vphi['r'], vphi['v_dispersion'], label=r'$\sigma_{\rm cylindrical}$',
             color=blue, lw=lw, linestyle=lineb)
@@ -420,20 +478,25 @@ def plt_vrot(dd_name, sim_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fi
 
 if __name__ == "__main__":
     ### Read in the simulation data and find halo center  ###
-    import sys
-    sim_name = sys.argv[1] # 'nref11n_nref10f'
-    dd_name = sys.argv[2]  # 'DD2175'
-    run_funcs = True
+    #import sys
+    #sim_name = sys.argv[1] # 'nref11n_nref10f'
+    #dd_name = sys.argv[2]  # 'DD2175'
+    sim_name = 'nref11n_nref10f'
+    dd_name = 'DD2175'
+    run_slit = False
+    run_cylind = False
+    run_cs = False
+    run_circ = False
 
-    if run_funcs == True:
-        from core_funcs import data_dir_sys_dir
-        data_dir, sys_dir = data_dir_sys_dir()
+    maxr = 100
+    dr = 0.5
 
+    if run_slit == True:
         from core_funcs import prepdata
         ds, ds_paras = prepdata(dd_name, sim_name)
+        ds.add_particle_filter('stars')
+        ds.add_particle_filter('dm')
 
-        maxr = 100
-        dr = 0.5
         ### calculate rotation curves
         print("Calculating vrot through slit...")
         vrot_slit_fits = calc_vrot_slit(ds, dd_name, sim_name,
@@ -442,6 +505,12 @@ if __name__ == "__main__":
                                         ds_paras['sun_vec'],
                                         ds_paras['disk_bulkvel'],
                                         maxr=maxr, dr=dr)
+
+    if run_cylind == True:
+        from core_funcs import prepdata
+        ds, ds_paras = prepdata(dd_name, sim_name)
+        ds.add_particle_filter('stars')
+        ds.add_particle_filter('dm')
 
         print("Calculating vrot in cylindrical way... ")
         vrot_phi_fits = calc_vrot_phi(ds, dd_name, sim_name,
@@ -453,21 +522,32 @@ if __name__ == "__main__":
                                       ds_paras['disk_bulkvel'],
                                       maxr=maxr, dr=dr)
 
+    if run_circ == True:
+        from core_funcs import prepdata
+        ds, ds_paras = prepdata(dd_name, sim_name)
+        ds.add_particle_filter('stars')
+        ds.add_particle_filter('dm')
+
         print("Calculating circular velocity...")
         vcirc_fits = calc_vcirc(ds, dd_name, sim_name,
                                 ds_paras['halo_center'],
                                 maxr=maxr, dr=dr)
+
+    if run_cs == True:
+        from core_funcs import prepdata
+        ds, ds_paras = prepdata(dd_name, sim_name)
 
         print("Calculating the sound speed...")
         cs_fits = calc_sound_speed(ds, dd_name, sim_name,
                                    ds_paras['halo_center'],
                                    maxr=maxr, dr=dr)
 
-    else:
-        vrot_slit_fits = 'figs/vrot_vcirc_cs/%s_%s_vrotslit.fits'%(sim_name, dd_name)
-        vrot_phi_fits = 'figs/vrot_vcirc_cs/%s_%s_vrotphi.fits'%(sim_name, dd_name)
-        vcirc_fits = 'figs/vrot_vcirc_cs/%s_%s_vcirc.fits'%(sim_name, dd_name)
-        cs_fits = 'figs/vrot_vcirc_cs/%s_%s_sound_speed.fits'%(sim_name, dd_name)
+    ###########################################################################
+    #### Now plot stuff
+    vrot_slit_fits = 'figs/vrot_vcirc_cs/%s_%s_vrotslit.fits'%(sim_name, dd_name)
+    vrot_phi_fits = 'figs/vrot_vcirc_cs/%s_%s_vrotphi.fits'%(sim_name, dd_name)
+    vcirc_fits = 'figs/vrot_vcirc_cs/%s_%s_vcirc.fits'%(sim_name, dd_name)
+    cs_fits = 'figs/vrot_vcirc_cs/%s_%s_sound_speed.fits'%(sim_name, dd_name)
 
     print("Phew, finally plotting everything...")
     plt_vrot(dd_name, sim_name, vrot_slit_fits,
