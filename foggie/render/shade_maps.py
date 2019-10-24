@@ -28,7 +28,7 @@ from foggie.utils.consistency import *
 import foggie.utils.foggie_load as fload
 
 
-def prep_dataset_alt(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
+def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere this 
         function adds some bespoke FOGGIE fields, extracts the desired FOGGIE 
         region, and applies an input Boolean filter to the dataset."""
@@ -52,7 +52,7 @@ def prep_dataset_alt(fname, trackfile, ion_list=['H I'], filter="obj['temperatur
 
 
 
-def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
+def prep_dataset_old(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere this 
         function adds some bespoke FOGGIE fields, extracts the desired FOGGIE 
         region, and applies an input Boolean filter to the dataset."""
@@ -65,11 +65,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
 
     track = Table.read(trackfile, format='ascii')
     track.sort('col1')
-    refine_box, refine_box_center, _ = \
-            grb.get_refine_box(data_set, data_set.current_redshift, track)
-
-    print('prep_dataset: Refine box corners: ', refine_box)
-    print('prep_dataset:             center: ', refine_box_center)
+    refine_box, refine_box_center, _ = grb.get_refine_box(data_set, data_set.current_redshift, track)
 
     if region == 'trackbox':
         print("prep_dataset: your region is the refine box")
