@@ -17,6 +17,7 @@ def load(snap, trackfile, **kwargs):
     Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT."""
     use_halo_c_v = kwargs.get('use_halo_c_v', False)
     halo_c_v_name = kwargs.get('halo_c_v_name', 'halo_c_v')
+    disk_relative = kwargs.get('disk_relative', False)
 
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
@@ -73,6 +74,58 @@ def load(snap, trackfile, **kwargs):
                  units='km/s', take_log=False, force_override=True, sampling_type='cell')
     ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
+
+    # Option to define velocities and coordinates relative to the angular momentum vector of the disk
+    if (disk_relative):
+        # Calculate angular momentum vector using sphere centered on halo center
+        sphere = ds.sphere(ds.halo_center_kpc, (15., 'kpc'))
+        L = sphere.quantities.angular_momentum_vector(use_gas=False, use_particles=True)
+        print('found angular momentum vector')
+        norm_L = L / np.sqrt((L**2).sum())
+        # Define other unit vectors orthagonal to the angular momentum vector
+        np.random.seed(99)
+        x = np.random.randn(3)            # take a random vector
+        x -= x.dot(norm_L) * norm_L       # make it orthogonal to L
+        x /= np.linalg.norm(x)            # normalize it
+        y = np.cross(norm_L, x)           # cross product with L
+        x_vec = ds.arr(x)
+        y_vec = ds.arr(y)
+        L_vec = ds.arr(norm_L)
+        ds.x_unit_disk = x_vec
+        ds.y_unit_disk = y_vec
+        ds.z_unit_disk = L_vec
+        # Calculate the rotation matrix for converting from original coordinate system
+        # into this new basis
+        xhat = np.array([1,0,0])
+        yhat = np.array([0,1,0])
+        zhat = np.array([0,0,1])
+        transArr0 = np.array([[xhat.dot(ds.x_unit_disk), xhat.dot(ds.y_unit_disk), xhat.dot(ds.z_unit_disk)],
+                             [yhat.dot(ds.x_unit_disk), yhat.dot(ds.y_unit_disk), yhat.dot(ds.z_unit_disk)],
+                             [zhat.dot(ds.x_unit_disk), zhat.dot(ds.y_unit_disk), zhat.dot(ds.z_unit_disk)]])
+        rotationArr = np.linalg.inv(transArr0)
+        ds.disk_rot_arr = rotationArr
+
+        # Add the new fields
+        ds.add_field(('gas', 'x_disk'), function=x_diskrel, units='kpc', take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'y_disk'), function=y_diskrel, units='kpc', take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'z_disk'), function=z_diskrel, units='kpc', take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'vx_disk'), function=vx_diskrel, units='km/s', take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'vy_disk'), function=vy_diskrel, units='km/s', take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'vz_disk'), function=vz_diskrel, units='km/s', take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'phi_pos_disk'), function=phi_pos_diskrel, units=None, take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'theta_pos_disk'), function=theta_pos_diskrel, units=None, take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'vphi_disk'), function=phi_velocity_diskrel, units='km/s', take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'vtheta_disk'), function=theta_velocity_diskrel, units='km/s', take_log=False, \
+                     sampling_type='cell')
 
     # filter particles into star and dm
     filter_particles(refine_box)
