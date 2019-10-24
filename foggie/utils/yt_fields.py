@@ -114,6 +114,11 @@ def phi_velocity_corrected(field, data):
     phi_v = (z_hat*(x_hat*xv + y_hat*yv)-zv*(x_hat*x_hat + y_hat*y_hat))/(r*r*rxy)*r
     return phi_v
 
+def tangential_velocity_corrected(field, data):
+    """Returns sqrt(v_theta**2+v_phi**2), corrected for bulk flows. -Cassi"""
+
+    return np.sqrt(data['theta_velocity_corrected']**2. + data['phi_velocity_corrected']**2.)
+
 def radius_corrected(field, data):
     """Corrects the radius for the center of the halo. Requires 'halo_center_kpc', which is the halo
     center with yt units of kpc, to be defined. -Cassi"""
@@ -287,3 +292,8 @@ def phi_velocity_diskrel(field, data):
     rxy = np.sqrt(x_hat*x_hat + y_hat*y_hat)
     phi_v = (z_hat*(x_hat*xv + y_hat*yv)-zv*(x_hat*x_hat + y_hat*y_hat))/(r*r*rxy)*r
     return phi_v
+
+def tangential_velocity_diskrel(field, data):
+    """Returns sqrt(v_theta^2 + v_phi^2), where v_theta and v_phi are oriented with the disk. -Cassi"""
+
+    return np.sqrt(data['vtheta_disk']**2. + data['vphi_disk']**2.)

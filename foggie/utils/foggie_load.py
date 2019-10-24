@@ -72,6 +72,8 @@ def load(snap, trackfile, **kwargs):
                  units='km/s', take_log=False, force_override=True, sampling_type='cell')
     ds.add_field(('gas', 'phi_velocity_corrected'), function=phi_velocity_corrected, \
                  units='km/s', take_log=False, force_override=True, sampling_type='cell')
+    ds.add_field(('gas', 'tangential_velocity_corrected'), function=tangential_velocity_corrected, \
+                 units='km/s', take_log=False, force_override=True, sampling_type='cell')
     ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
 
@@ -107,25 +109,27 @@ def load(snap, trackfile, **kwargs):
 
         # Add the new fields
         ds.add_field(('gas', 'x_disk'), function=x_diskrel, units='kpc', take_log=False, \
-                     sampling_type='cell')
+                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'y_disk'), function=y_diskrel, units='kpc', take_log=False, \
-                     sampling_type='cell')
+                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'z_disk'), function=z_diskrel, units='kpc', take_log=False, \
-                     sampling_type='cell')
+                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'vx_disk'), function=vx_diskrel, units='km/s', take_log=False, \
-                     sampling_type='cell')
+                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'vy_disk'), function=vy_diskrel, units='km/s', take_log=False, \
-                     sampling_type='cell')
+                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'vz_disk'), function=vz_diskrel, units='km/s', take_log=False, \
-                     sampling_type='cell')
+                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'phi_pos_disk'), function=phi_pos_diskrel, units=None, take_log=False, \
-                     sampling_type='cell')
+                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'theta_pos_disk'), function=theta_pos_diskrel, units=None, take_log=False, \
-                     sampling_type='cell')
+                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'vphi_disk'), function=phi_velocity_diskrel, units='km/s', take_log=False, \
-                     sampling_type='cell')
+                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'vtheta_disk'), function=theta_velocity_diskrel, units='km/s', take_log=False, \
-                     sampling_type='cell')
+                     force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'vtan_disk'), function=tangential_velocity_diskrel, units='km/s', take_log=False, \
+                     force_override=True, sampling_type='cell')
 
     # filter particles into star and dm
     filter_particles(refine_box)
