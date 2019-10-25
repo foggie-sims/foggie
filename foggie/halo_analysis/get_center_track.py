@@ -1,6 +1,6 @@
 
 """ this is FOGGIE's main routine for generating a halo track from an
-  initial guess and a set of snapshots - JT and MSP"
+  initial guess and a set of snapshots - JT and MSP"""
 
 import yt
 from astropy.table import Table
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     #first_center = [0.515818595886, 0.475518226624, 0.497570991516]
 
     ### DD0984 for halo 5016
-    #first_center = [ 0.5232095718383789, 0.46910381317138666,  0.5017900466918945 ]
+    first_center = [ 0.5232095718383789, 0.46910381317138666,  0.5017900466918945 ]
 
     ### DD0580 for halo 5036
     #first_center = [0.485018730164, 0.502505302429, 0.503439903259]
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     # first_center = [0.485667228699, 0.478737831116, 0.485198020935]
 
     ### DD0689 for halo 5036
-    first_center = [0.4834909439086914, 0.5023832321166992, 0.5033254623413086 ]
+    # first_center = [0.4834909439086914, 0.5023832321166992, 0.5033254623413086 ]
 
 
-    get_center_track(first_center, 797, 691, 0.002)
+    get_center_track(first_center, 1050, 984, 0.002)
