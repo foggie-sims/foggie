@@ -102,7 +102,9 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     # ionbg = 'sfcr'
     # iontb = '/Users/Yong/.trident/hm2012_hr_sh_cr.h5'
     import trident
-    ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V']
+    ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V',
+                'OVII', 'OVIII', 'NeVII', 'NeVIII']
+
     print("Adding ion fields: ", ion_list)
     trident.add_ion_fields(ds, ftype="gas",
                            ions=ion_list,
