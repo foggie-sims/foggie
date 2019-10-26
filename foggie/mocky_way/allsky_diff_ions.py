@@ -72,11 +72,16 @@ pathlength = ds.quan(120, 'kpc') # DO NOT CHANGE. within refinement box size.
 
 ## post processing the data
 import trident
-td_ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V']
+# td_ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V']
+td_ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V',
+               'O VII', 'O VIII', 'Ne VII', 'Ne VIII']
 print("Adding ion fields: ", td_ion_list)
 trident.add_ion_fields(ds, ftype="gas", ions=td_ion_list, force_override=True)
 ion_list = [ss.replace(' ', '') for ss in td_ion_list]
 ion_list.append('HI')
+
+### for other new ions
+ion_list = ['O VII', 'O VIII', 'Ne VII', 'Ne VIII']
 
 ### now let's find halo center ###
 from foggie.get_halo_center import get_halo_center
