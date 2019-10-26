@@ -109,5 +109,5 @@ t = fits.BinTableHDU.from_columns(all_cols)
 fig_dir = 'figs/dM_dv/'
 tb_name = '%s_%s_dMdv_%s_%s.fits'%(sim_name, dd_name, obj_tag, obs_point)
 save_to_file = '%s/%s'%(fig_dir, tb_name)
-print("I am saving it to ", save_to_file)
+print("I am saving it to ", save_to_file) 
 t.writeto(save_to_file, overwrite=True)
