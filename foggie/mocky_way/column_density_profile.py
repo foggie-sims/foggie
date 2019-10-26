@@ -7,8 +7,10 @@ from foggie.mocky_way.core_funcs import calc_mean_median_3sig_2sig_1sig
 
 ion_list = ['HI', 'SiII', 'SiIII', 'SiIV', 'NV', 'CII', 'CIV',
             'OVI', 'OVII', 'OVIII', 'NeVII', 'NeVIII']
-r_list = ['r0-10', 'r0-20', 'r0-30', 'r0-40', 'r0-50', 'r0-60',
-          'r0-70', 'r0-80', 'r0-90', 'r0-100', 'r0-110', 'r0-120']
+r_list = [r'0-4', 'r0-6', 'r0-8', 'r0-10', 'r0-20', 'r0-30',
+          'r0-40', 'r0-50', 'r0-60','r0-70', 'r0-80', 'r0-90',
+          'r0-100', 'r0-110', 'r0-120']
+rbins = [4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, ]
 rbins = np.mgrid[10:121:10]
 
 ion_tag = ion_list[11]
@@ -23,9 +25,9 @@ N_1sig_up = []
 N_1sig_low = []
 
 for r_tag in r_list:
-    ddir = 'figs/allsky_diff_ions/%s/fits'%(r_tag)
-    fitsfile = '%s/nref11n_nref10f_DD2175_%s_halo_center_%s.fits'%(ddir, r_tag, ion_tag)
-    N_ion = hp.read_map(fitsfile)
+    ddir = 'figs/allsky_diff_ions/%s/fits/'%(r_tag)
+    fitsfile = 'nref11n_nref10f_DD2175_%s_offcenter_location_%s.fits'%(r_tag, ion_tag)
+    N_ion = hp.read_map(ddir+fitsfile)
     nside = hp.get_nside(N_ion)
     lon, lat = hp.pix2ang(nside, np.arange(len(N_ion)), lonlat=True)
     ind_hb = np.any([lat<=-20, lat>=20], axis=0)
