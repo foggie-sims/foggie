@@ -80,9 +80,6 @@ trident.add_ion_fields(ds, ftype="gas", ions=td_ion_list, force_override=True)
 ion_list = [ss.replace(' ', '') for ss in td_ion_list]
 ion_list.append('HI')
 
-### for other new ions
-ion_list = ['O VII', 'O VIII', 'Ne VII', 'Ne VIII']
-
 ### now let's find halo center ###
 from foggie.get_halo_center import get_halo_center
 from foggie.get_refine_box import get_refine_box
@@ -144,6 +141,15 @@ elif obj_tag == 'cgm':
                    (disk_size_z, 'kpc'))
     cgm = sp-disk
     obj = cgm
+elif obj_tag == 'r0-4':
+    sp = ds.sphere(halo_center, (4, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-6':
+    sp = ds.sphere(halo_center, (6, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-8':
+    sp = ds.sphere(halo_center, (8, 'kpc'))
+    obj = sp
 elif obj_tag == 'r0-10':
     sp = ds.sphere(halo_center, (10, 'kpc'))
     obj = sp
