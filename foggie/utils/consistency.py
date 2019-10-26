@@ -637,55 +637,55 @@ def categorize_by_inflow(velocity):
 
 ############################################################
 
-colormap_dict = {'phase': new_phase_color_key, \
-                 'metal': new_metals_color_key, \
-                 'h1': hi_color_key, \
-                 'density': density_color_map, \
-                 'O_p5_number_density': o6_color_map, \
-                 'H_p0_number_density': h1_color_map, \
-                 'C_p1_number_density': c2_color_map, \
-                 'C_p3_number_density': c4_color_map, \
-                 'Mg_p1_number_density': mg2_color_map, \
-                 'Si_p1_number_density': si2_color_map, \
-                 'Si_p2_number_density': si3_color_map, \
-                 'Si_p3_number_density': si4_color_map,\
-                 'N_p4_number_density': n5_color_map,\ 
-                 'O_p6_number_density': o7_color_map,\
-                 'O_p7_number_density': o8_color_map,\ 
+colormap_dict = {'phase': new_phase_color_key,
+                 'metal': new_metals_color_key,
+                 'h1': hi_color_key,
+                 'density': density_color_map,
+                 'O_p5_number_density': o6_color_map,
+                 'H_p0_number_density': h1_color_map,
+                 'C_p1_number_density': c2_color_map,
+                 'C_p3_number_density': c4_color_map,
+                 'Mg_p1_number_density': mg2_color_map,
+                 'Si_p1_number_density': si2_color_map,
+                 'Si_p2_number_density': si3_color_map,
+                 'Si_p3_number_density': si4_color_map,
+                 'N_p4_number_density': n5_color_map, 
+                 'O_p6_number_density': o7_color_map,
+                 'O_p7_number_density': o8_color_map, 
                  'Ne_p6_number_density': ne7_color_map, 
                  'Ne_p7_number_density': ne8_color_map}
 
 
-proj_max_dict = {'density': 1e-1, \
-                 'H_p0_number_density': h1_proj_max, \
-                 'C_p1_number_density': c2_max, \
-                 'C_p2_number_density': c3_max, \
-                 'C_p3_number_density': c4_max, \
-                 'Si_p1_number_density': si2_max, \
-                 'Si_p2_number_density': si3_max, \
-                 'Si_p3_number_density': si4_max, \
-                 'Mg_p1_number_density': mg2_max, \
-                 'O_p5_number_density': o6_max,\
-                 'N_p4_number_density': n5_max,\
-                 'O_p6_number_density': o7_max,\ 
-                 'O_p7_number_density': o8_max,\ 
+proj_max_dict = {'density': 1e-1, 
+                 'H_p0_number_density': h1_proj_max, 
+                 'C_p1_number_density': c2_max, 
+                 'C_p2_number_density': c3_max,
+                 'C_p3_number_density': c4_max,
+                 'Si_p1_number_density': si2_max,
+                 'Si_p2_number_density': si3_max,
+                 'Si_p3_number_density': si4_max,
+                 'Mg_p1_number_density': mg2_max,
+                 'O_p5_number_density': o6_max,
+                 'N_p4_number_density': n5_max,
+                 'O_p6_number_density': o7_max, 
+                 'O_p7_number_density': o8_max, 
                  'Ne_p6_number_density': ne7_max, 
                  'Ne_p7_number_density': ne8_max}
 
 
-proj_min_dict = {'density':1e-6, \
-                 'H_p0_number_density':h1_proj_min, \
-                 'C_p1_number_density':c2_min, \
-                 'C_p2_number_density':c3_min, \
-                 'C_p3_number_density':c4_min, \
-                 'Si_p1_number_density':si2_min, \
-                 'Si_p2_number_density':si3_min, \
-                 'Si_p3_number_density':si4_min, \
-                 'Mg_p1_number_density':mg2_min, \
-                 'O_p5_number_density':o6_min, \
-                 'N_p4_number_density': n5_min, \
-                 'O_p6_number_density': o7_min,\
-                 'O_p7_number_density': o8_min,\  
+proj_min_dict = {'density':1e-6, 
+                 'H_p0_number_density':h1_proj_min,
+                 'C_p1_number_density':c2_min,
+                 'C_p2_number_density':c3_min,
+                 'C_p3_number_density':c4_min,
+                 'Si_p1_number_density':si2_min,
+                 'Si_p2_number_density':si3_min,
+                 'Si_p3_number_density':si4_min,
+                 'Mg_p1_number_density':mg2_min,
+                 'O_p5_number_density':o6_min,
+                 'N_p4_number_density': n5_min,
+                 'O_p6_number_density': o7_min,
+                 'O_p7_number_density': o8_min,  
                  'Ne_p6_number_density': ne7_min,
                  'Ne_p7_number_density':ne8_min}
 
