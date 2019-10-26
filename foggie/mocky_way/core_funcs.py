@@ -103,7 +103,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     # iontb = '/Users/Yong/.trident/hm2012_hr_sh_cr.h5'
     import trident
     ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V',
-                'OVII', 'OVIII', 'NeVII', 'NeVIII']
+                'O VII', 'O VIII', 'Ne VII', 'Ne VIII']
 
     print("Adding ion fields: ", ion_list)
     trident.add_ion_fields(ds, ftype="gas",
@@ -524,3 +524,51 @@ def temperature_category():
                  'warm': [1e5, 1e6],
                  'hot': [1e6, +np.inf]}
     return temp_dict
+
+def calc_mean_median_3sig_2sig_1sig(data):
+    """
+    Sort the data from small to large, then find the mean,
+    median (50%), 3sig, 2sig, and 1 sig boundaries of the data,
+    where 3/2/1sig means the range which enclose 99.7%, 95%,
+    and 68% of the data.
+
+    History:
+    10/26/2019, Yong Zheng, UCB.
+
+    """
+    import numpy as np
+    data_stat = {}
+
+    data = data[np.argsort(data)]
+    all_index = np.arange(data.size)+1
+    cum_frac = all_index/data.size
+
+    # mean value
+    data_stat['mean'] = np.mean(data)
+
+    # median value
+    indmed = np.argmin(np.abs(cum_frac-0.5))
+    data_stat['median'] = data[indmed]
+
+    # the boundaries which enclose 99.7% of the data
+    threesig = 0.9973
+    indup = np.argmin(np.abs(cum_frac-(0.5+threesig/2.)))
+    indlow = np.argmin(np.abs(cum_frac-(0.5-threesig/2.)))
+    data_stat['3sig_up'] = data[indup]   # upper 3 sigma limit
+    data_stat['3sig_low'] = data[indlow] # lower 3 sigmma limit
+
+    # the boundaries which enclose 95% of the data
+    twosig = 0.95
+    indup = np.argmin(np.abs(cum_frac-(0.5+twosig/2.)))
+    indlow = np.argmin(np.abs(cum_frac-(0.5-twosig/2.)))
+    data_stat['2sig_up'] = data[indup]  # upper 2 sigma limit
+    data_stat['2sig_low'] = data[indlow] # lower 2 sigmma limit
+
+    # the boundaries which enclose 68% of the data
+    onesig = 0.68
+    indup = np.argmin(np.abs(cum_frac-(0.5+onesig/2.)))
+    indlow = np.argmin(np.abs(cum_frac-(0.5-onesig/2.)))
+    data_stat['1sig_up'] = data[indup]    # upper 1 sigma limit
+    data_stat['1sig_low'] = data[indlow]  # lower 1 sigmma limit
+
+    return data_stat
