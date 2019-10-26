@@ -572,3 +572,153 @@ def calc_mean_median_3sig_2sig_1sig(data):
     data_stat['1sig_low'] = data[indlow]  # lower 1 sigmma limit
 
     return data_stat
+
+##### this is to get the ion information along a designated line of sight
+def ray_info_at_l_b(ds, ds_paras, los_l_deg, los_b_deg,
+                    los_ray_start, ray_length_kpc,
+                    ion_fields=['H_p0_number_density',
+                                'temperature',
+                                'metallicity']):
+    """
+    Based on old code logN_per_los.py, use to find the ion information
+    along a particular line of sight.
+
+    Input:
+    los_l_deg: Galactic longitude, see derived_fields_mw.py
+    los_b_deg: Galactic latitude, see derived_fields_mw.py
+    los_ray_start: ray starting point, code unit   # ray end is called los_ray_end
+    ray_length_kpc: total ray length, starting at los_ray_start,
+                pointing toward direction of (los_l_deg, los_b_deg)
+    ion_fields: the ion field that we will get number density for
+                currrently the prepdata function has setup the trident
+                for a list of ions: SiII, SiIII, SiIV, CII, CIII, CIV, OVI
+    other_field_to_add: in case in the future we want to explore other properties
+                for each cell, let's save some more information
+
+    Output:
+    output_ray_info:
+        "dr_cm": the ray length (cm) in each cell intercepted by the line of sight
+        "vr_los_kms": the line of sight velocity of each cell seen by observer
+                   obsever information is from prepdata(dd_name)
+        "ion_num_den": a dictionary with number density per cell along ray los
+                    for each entry in the ion_fields
+        other fields could be temperature, metallicity, etc.
+
+    History:
+    04/30/2019, created, Yong Zheng, UCB
+    08/09/2019, merged into mocky_way_modules, Yong Zheng, UCB
+    10/26/2019, copy/paste to foggie.mocky_way.core_func. Served as a record
+                for potential future fuse, have not been tested since copied.
+                Yong Zheng. UCB.
+    """
+
+    from mocky_way_modules import calc_ray_end
+    ray_length = ds.quan(ray_length_kpc, "kpc").in_units("code_length")
+    los_ray_end, los_unit_vec = calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
+                                             los_ray_start, ray_length_kpc)
+
+    # let's build a library that contains information for ray along los
+    output_ray_info = {}
+
+    # use trident to get SiIV , CIV, and OVI density fields
+    import trident
+    save_temp_ray = sys_dir+"/mocky_way/data/trident/ray.h5"
+    td_ray = trident.make_simple_ray(ds,
+                                     start_position=los_ray_start.copy(),
+                                     end_position=los_ray_end.copy(),
+                                     data_filename=save_temp_ray,
+                                     # lines=line_list,
+                                     # fields=[ion_field],
+                                     fields=ion_fields.copy(),
+                                     ftype="gas")
+    # sort tri_ray according to the distance of each from ray start
+    td_x = td_ray.r["gas", "x"].in_units("code_length") - los_ray_start[0]
+    td_y = td_ray.r["gas", "y"].in_units("code_length") - los_ray_start[1]
+    td_z = td_ray.r["gas", "z"].in_units("code_length") - los_ray_start[2]
+    td_r = np.sqrt(td_x**2 + td_y**2 + td_z**2).in_units("kpc")
+    td_sort = np.argsort(td_r)
+
+    #### parameter 1: ray path r, and interval dr in unit of cm
+    td_r_cm = td_r[td_sort].in_units("cm")
+    td_dr_cm = td_r_cm[1:]-td_r_cm[:-1]
+    output_ray_info['dr_cm'] = td_dr_cm
+
+    #### parameter 2: los velocity with respect to observer
+    # trident vel wrt observer, this is the same as my own yt code,
+    # check test_triray_coords_vlsr.ipynb
+    # sphere_radius = 1 # kpc
+    # obs_sp = ds.sphere(ds_paras["observer_location"], (sphere_radius, "kpc"))
+    # obs_bv = obs_sp.quantities.bulk_velocity(use_gas=True, use_particles=False)
+    # obs_bv = obs_bv.in_units("km/s")
+    obs_bv = ds_paras['observer_bulkvel']
+    costheta_bv_los = np.dot(los_unit_vec, (obs_bv/np.linalg.norm(obs_bv)).value)
+    obs_bv_rproj = np.linalg.norm(obs_bv)*costheta_bv_los
+    td_vr = td_ray.r["gas", "velocity_los"].in_units("km/s")
+    td_vr_los_kms = -td_vr - ds.quan(obs_bv_rproj, 'km/s')
+    td_vr_los_kms = td_vr_los_kms[td_sort][:-1]
+    output_ray_info['vr_los_kms'] = td_vr_los_kms
+
+    # parameter 3:**: ion number densities and other parameters along the ray
+    # td_nion = td_ray.r["gas", ion_field][td_sort][:-1]
+    for ion_field in ion_fields:
+        aa = td_ray.r["gas", ion_field][td_sort][:-1]
+        output_ray_info[ion_field] = td_ray.r["gas", ion_field][td_sort][:-1]
+
+    # let's do a print to show what information is recorded
+    print("Hello, I'm returning these information along the ray: ")
+    print(output_ray_info.keys())
+
+    # column density, full velocity range
+    # logN = np.log10((td_nion * td_dr_cm).sum())
+
+    # column density, integrate over [vmin, vmax]
+    # indv = np.all([td_vr_los>=vmin, td_vr_los<=vmax], axis=0)
+    # logN_low = np.log10((td_nion[indv]*td_dr_cm[indv]).sum())
+
+    # return logN, logN_low
+
+    return output_ray_info
+
+def calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
+                 los_ray_start, ray_length_kpc):
+    """
+    Calculate the ray ending pointing in the UVW Galactic coordinates using
+    (los_l_deg, los_b_deg, ray_length). Old code can be found in
+    old_codes/old_calc_ray_end.py los_ray_start is also in unit of code_length
+
+    History:
+    04/30/2019, created, Yong Zheng, UCB
+    08/09/2019, merged into mocky_way_modules, Yong Zheng, UCB
+    10/26/2019, copy/paste to foggie.mocky_way.core_func. Served as a record
+                for potential future fuse, have not been tested since copied.
+                Yong Zheng. UCB.
+    """
+
+    print("calc_ray_end has not been tested since Yong moved it to foggie.mocky_way.core_funcs, should double check.")
+    ray_length = ds.quan(ray_length_kpc, "kpc").in_units("code_length")
+    los_l_rad = los_l_deg/180.*np.pi
+    los_b_rad = los_b_deg/180.*np.pi
+
+    vec_uv_plane = -np.cos(los_l_rad)*ds_paras['sun_vec'] - \
+                    -np.sin(los_l_rad)*ds_paras['phi_vec']
+    #vec_uv_plane = -np.cos(np.radians(los_l))*ds_paras['sun_vec'] - \
+    #                -np.sin(np.radians(los_l))*ds_paras['phi_vec']
+    vec_uv_plane_unit = vec_uv_plane/np.linalg.norm(vec_uv_plane)
+
+    # note: here uvw, I mean in the galactic plane,
+    # W is the L direction, u is run, and v is phi
+
+    los_vector_uv = vec_uv_plane_unit*(ray_length*np.cos(los_b_rad)).value
+    los_vector_w = ds_paras["L_vec"]*(ray_length*np.sin(los_b_rad)).value
+
+    #los_vector_uv = vec_uv_plane_unit*(ray_length*np.cos(np.radians(los_b))).value
+    #los_vector_w = ds_paras["L_vec"]*(ray_length*np.sin(np.radians(los_b))).value
+    los_vector =  los_vector_uv + los_vector_w
+    los_length = ds.quan(np.linalg.norm(los_vector), 'code_length')
+    # the length should be the same as los_r
+    if (los_length-ray_length).in_units('kpc').value > 0.01:
+        print('vector length not equal to los length, wrong!')
+
+    ray_end = ds.arr(los_vector, "code_length") + los_ray_start
+
+    return ray_end, los_vector/np.linalg.norm(los_vector)
