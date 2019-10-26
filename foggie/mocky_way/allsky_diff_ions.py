@@ -191,6 +191,9 @@ elif obj_tag == 'r0-110':
 elif obj_tag == 'r0-120':
     sp = ds.sphere(halo_center, (120, 'kpc'))
     obj = sp
+elif obj_tag == 'r0-160':
+    sp = ds.sphere(halo_center, (160, 'kpc'))
+    obj = sp
 else:
     print("Cannot recognize the obj_tag you put in, please check.")
     import sys
