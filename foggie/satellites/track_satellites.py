@@ -126,134 +126,134 @@ if __name__ == '__main__':
     temp_outdir = cat_dir + '/sat_track_locations/temp'
 
 
-
-    if not os.path.isdir(cat_dir): os.system('mkdir ' + cat_dir) 
-    if not os.path.isdir(fig_dir): os.system('mkdir ' + fig_dir) 
-    if not os.path.isdir(cat_dir + '/sat_track_locations'): os.system('mkdir ' + cat_dir + '/sat_track_locations')
-    if not os.path.isdir(cat_dir + '/sat_track_locations/temp'): os.system('mkdir ' + cat_dir + '/sat_track_locations/temp')
-
-
-    sat_cat = ascii.read(cat_dir + '/satellite_properties.cat')
-    anchors = np.load(cat_dir + '/anchors.npy', allow_pickle = True)[()]
-    anchors = anchors[args.halo]
-
-    run_dir = foggie_dir + run_loc
-
-    ds_loc = run_dir + args.output + "/" + args.output
-    ds = yt.load(ds_loc)
-
-    track = Table.read(trackname, format='ascii')
-    track.sort('col1')
-    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-
-    refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
-
-    load_particle_fields = ['particle_index',\
-                            'particle_position_x', 'particle_position_y', 'particle_position_z']
-    filter_particles(refine_box, load_particles = True, load_particle_types = ['stars'], load_particle_fields = load_particle_fields)
-    #filter_particles(refine_box)
-    print ('particles loaded')
+    if not os.path.isfile('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output)):
+      if not os.path.isdir(cat_dir): os.system('mkdir ' + cat_dir) 
+      if not os.path.isdir(fig_dir): os.system('mkdir ' + fig_dir) 
+      if not os.path.isdir(cat_dir + '/sat_track_locations'): os.system('mkdir ' + cat_dir + '/sat_track_locations')
+      if not os.path.isdir(cat_dir + '/sat_track_locations/temp'): os.system('mkdir ' + cat_dir + '/sat_track_locations/temp')
 
 
-    # Need to pass in these arrays, can't pass in refine box
-    id_all = refine_box['stars', 'particle_index']
-    x_all = refine_box['stars', 'particle_position_x'].to('kpc')
-    y_all = refine_box['stars', 'particle_position_y'].to('kpc')
-    z_all = refine_box['stars', 'particle_position_z'].to('kpc')
+      sat_cat = ascii.read(cat_dir + '/satellite_properties.cat')
+      anchors = np.load(cat_dir + '/anchors.npy', allow_pickle = True)[()]
+      anchors = anchors[args.halo]
 
-    Parallel(n_jobs = -1)(delayed(run_tracker)(args, anchors[sat]['ids'], sat, temp_outdir, id_all, x_all, y_all, z_all) for sat in anchors.keys())
-    #for sat in anchors.keys():
-    #     run_tracker(args, anchors[sat]['ids'], sat, temp_outdir, id_all, x_all, y_all, z_all)
+      run_dir = foggie_dir + run_loc
 
-    #Collect outputs      
-    output = {}
-    annotate_others = []
+      ds_loc = run_dir + args.output + "/" + args.output
+      ds = yt.load(ds_loc)
 
-    for sat in anchors.keys():
+      track = Table.read(trackname, format='ascii')
+      track.sort('col1')
+      zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
-      temp = np.load(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy')
-      output[sat] = {}
+      refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
 
-             
-
-      if np.isnan(temp[0]):
-
-          output[sat]['x'] = np.nan
-          output[sat]['y'] = np.nan
-          output[sat]['z'] = np.nan
-          output[sat]['vx'] = np.nan
-          output[sat]['vy'] = np.nan
-          output[sat]['vz'] = np.nan
-
-          output[sat]['RP_vel'] = np.nan
-          output[sat]['RP_dens'] = np.nan
-
-      else:
-          from yt.units import kpc
-          sp = ds.sphere(center = ds.arr(temp, 'kpc'), radius = 1*kpc)
-    
-          com = sp.quantities.center_of_mass(use_gas=False, use_particles=True, particle_type = 'stars').to('kpc')
-
-          com_x = float(com[0].value)
-          com_y = float(com[1].value)
-          com_z = float(com[2].value)
-
-          output[sat]['x'] = round(com_x, 3)
-          output[sat]['y'] = round(com_y, 3)
-          output[sat]['z'] = round(com_z, 3)
-
-          stars_vx = sp.quantities.weighted_average_quantity(('stars', 'particle_velocity_x'), ('stars', 'particle_mass')).to('km/s')
-          stars_vy = sp.quantities.weighted_average_quantity(('stars', 'particle_velocity_y'), ('stars', 'particle_mass')).to('km/s')
-          stars_vz = sp.quantities.weighted_average_quantity(('stars', 'particle_velocity_z'), ('stars', 'particle_mass')).to('km/s')
-
-          output[sat]['vx'] = round(float(stars_vx.value), 3)
-          output[sat]['vy'] = round(float(stars_vy.value), 3)
-          output[sat]['vz'] = round(float(stars_vz.value), 3)
-
-          start = ds.arr([com_x, com_y, com_z],  'kpc')
-
-          forward_arr = ds.arr([stars_vx, stars_vy, stars_vz], 'km/s')
-          forward_arr/=np.sqrt(sum(forward_arr**2.))
-          forward_arr*=ds.arr(5, 'kpc')
-          end = start + forward_arr
-
-          ray = ds.r[start:end]
-          ray.set_field_parameter('center', start)
-          ray.set_field_parameter('bulk_velocity', ds.arr([output[sat]['vx'], output[sat]['vy'],output[sat]['vz']], 'km/s'))
-          output[sat]['ray_den'] = ray['gas', 'density'].to('g/cm**3')
-          output[sat]['ray_vel'] = ray['gas', 'radial_velocity'].to('km/s')
-          output[sat]['ray_dist'] = ray['index', 'radius'].to('kpc')
-
-          # Make individual satellite projection plots
-
-          from foggie.satellites.make_satellite_projections import make_projection_plots
-          sat_center = ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc')
-
-          if sat == '0': halo_center = sat_center.copy()
-
-          fig_width = 10 * kpc
-
-          make_projection_plots(refine_box.ds, sat_center, refine_box, fig_width, fig_dir, haloname, \
-                              fig_end = 'satellite_{}_{}'.format(args.output, sat), \
-                              do = ['gas', 'stars'], axes = ['x'],  annotate_center = True, annotate_others = [],\
-                              add_velocity = False)
-
-          #if np.isnan(output[sat]['x']): continue
-          #annotate_others.append(ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc'))
-
-    #make_projection_plots(refine_box.ds, halo_center, refine_box, x_width, fig_dir, haloname,\
-    #                      fig_end = 'central_{}'.format(args.output),\
-    #                      do = ['gas', 'stars'], axes = ['x'],\
-    #                      annotate_center = True, annotate_others = annotate_others, is_central = True)
-
-    #make_projection_plots(refine_box.ds, refine_box_center, refine_box, x_width, fig_dir, haloname,\
-    #                      fig_end = 'box_center_{}'.format(args.output),\
-    #                      do = ['gas', 'stars'], axes = ['x'],\
-    #                      annotate_center = True, annotate_others = annotate_others, is_central = True)
+      load_particle_fields = ['particle_index',\
+                              'particle_position_x', 'particle_position_y', 'particle_position_z']
+      filter_particles(refine_box, load_particles = True, load_particle_types = ['stars'], load_particle_fields = load_particle_fields)
+      #filter_particles(refine_box)
+      print ('particles loaded')
 
 
-    np.save('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output), output)
+      # Need to pass in these arrays, can't pass in refine box
+      id_all = refine_box['stars', 'particle_index']
+      x_all = refine_box['stars', 'particle_position_x'].to('kpc')
+      y_all = refine_box['stars', 'particle_position_y'].to('kpc')
+      z_all = refine_box['stars', 'particle_position_z'].to('kpc')
 
-    os.system('rm %s/%s_%s_*.npy'%(temp_outdir, args.halo, args.output))
+      Parallel(n_jobs = -1)(delayed(run_tracker)(args, anchors[sat]['ids'], sat, temp_outdir, id_all, x_all, y_all, z_all) for sat in anchors.keys())
+      #for sat in anchors.keys():
+      #     run_tracker(args, anchors[sat]['ids'], sat, temp_outdir, id_all, x_all, y_all, z_all)
+
+      #Collect outputs      
+      output = {}
+      annotate_others = []
+
+      for sat in anchors.keys():
+
+        temp = np.load(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy')
+        output[sat] = {}
+
+               
+
+        if np.isnan(temp[0]):
+
+            output[sat]['x'] = np.nan
+            output[sat]['y'] = np.nan
+            output[sat]['z'] = np.nan
+            output[sat]['vx'] = np.nan
+            output[sat]['vy'] = np.nan
+            output[sat]['vz'] = np.nan
+
+            output[sat]['RP_vel'] = np.nan
+            output[sat]['RP_dens'] = np.nan
+
+        else:
+            from yt.units import kpc
+            sp = ds.sphere(center = ds.arr(temp, 'kpc'), radius = 1*kpc)
+      
+            com = sp.quantities.center_of_mass(use_gas=False, use_particles=True, particle_type = 'stars').to('kpc')
+
+            com_x = float(com[0].value)
+            com_y = float(com[1].value)
+            com_z = float(com[2].value)
+
+            output[sat]['x'] = round(com_x, 3)
+            output[sat]['y'] = round(com_y, 3)
+            output[sat]['z'] = round(com_z, 3)
+
+            stars_vx = sp.quantities.weighted_average_quantity(('stars', 'particle_velocity_x'), ('stars', 'particle_mass')).to('km/s')
+            stars_vy = sp.quantities.weighted_average_quantity(('stars', 'particle_velocity_y'), ('stars', 'particle_mass')).to('km/s')
+            stars_vz = sp.quantities.weighted_average_quantity(('stars', 'particle_velocity_z'), ('stars', 'particle_mass')).to('km/s')
+
+            output[sat]['vx'] = round(float(stars_vx.value), 3)
+            output[sat]['vy'] = round(float(stars_vy.value), 3)
+            output[sat]['vz'] = round(float(stars_vz.value), 3)
+
+            start = ds.arr([com_x, com_y, com_z],  'kpc')
+
+            forward_arr = ds.arr([stars_vx, stars_vy, stars_vz], 'km/s')
+            forward_arr/=np.sqrt(sum(forward_arr**2.))
+            forward_arr*=ds.arr(5, 'kpc')
+            end = start + forward_arr
+
+            ray = ds.r[start:end]
+            ray.set_field_parameter('center', start)
+            ray.set_field_parameter('bulk_velocity', ds.arr([output[sat]['vx'], output[sat]['vy'],output[sat]['vz']], 'km/s'))
+            output[sat]['ray_den'] = ray['gas', 'density'].to('g/cm**3')
+            output[sat]['ray_vel'] = ray['gas', 'radial_velocity'].to('km/s')
+            output[sat]['ray_dist'] = ray['index', 'radius'].to('kpc')
+
+            # Make individual satellite projection plots
+
+            from foggie.satellites.make_satellite_projections import make_projection_plots
+            sat_center = ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc')
+
+            if sat == '0': halo_center = sat_center.copy()
+
+            fig_width = 10 * kpc
+
+            make_projection_plots(refine_box.ds, sat_center, refine_box, fig_width, fig_dir, haloname, \
+                                fig_end = 'satellite_{}_{}'.format(args.output, sat), \
+                                do = ['gas', 'stars'], axes = ['x'],  annotate_center = True, annotate_others = [],\
+                                add_velocity = False)
+
+            #if np.isnan(output[sat]['x']): continue
+            #annotate_others.append(ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc'))
+
+      #make_projection_plots(refine_box.ds, halo_center, refine_box, x_width, fig_dir, haloname,\
+      #                      fig_end = 'central_{}'.format(args.output),\
+      #                      do = ['gas', 'stars'], axes = ['x'],\
+      #                      annotate_center = True, annotate_others = annotate_others, is_central = True)
+
+      #make_projection_plots(refine_box.ds, refine_box_center, refine_box, x_width, fig_dir, haloname,\
+      #                      fig_end = 'box_center_{}'.format(args.output),\
+      #                      do = ['gas', 'stars'], axes = ['x'],\
+      #                      annotate_center = True, annotate_others = annotate_others, is_central = True)
+
+
+      np.save('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output), output)
+
+      os.system('rm %s/%s_%s_*.npy'%(temp_outdir, args.halo, args.output))
 
 
