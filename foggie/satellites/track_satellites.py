@@ -84,23 +84,30 @@ def run_tracker(args, anchor_ids, sat, temp_outdir, id_all, x_all, y_all, z_all)
 
 
 
+    print (len(x_anchors))
 
+   
     med_x = nanmedian(x_anchors).value
     med_y = nanmedian(y_anchors).value
     med_z = nanmedian(z_anchors).value
 
-    hist_x, xedges = histogram(x_anchors.value, bins = np.arange(med_x - 30, med_x+30, 0.05))
-    hist_y, yedges = histogram(y_anchors.value, bins = np.arange(med_y - 30, med_y+30, 0.05))
-    hist_z, zedges = histogram(z_anchors.value, bins = np.arange(med_z - 30, med_z+30, 0.05))
+
+    if not np.isnan(med_x): 
+         
+          print (med_x, med_y, med_z)
+          hist_x, xedges = histogram(x_anchors.value, bins = np.arange(med_x - 30, med_x+30, 0.05))
+          hist_y, yedges = histogram(y_anchors.value, bins = np.arange(med_y - 30, med_y+30, 0.05))
+          hist_z, zedges = histogram(z_anchors.value, bins = np.arange(med_z - 30, med_z+30, 0.05))
 
 
-    x_sat = np.mean([xedges[argmax(hist_x)],xedges[argmax(hist_x)+1]]) 
-    y_sat = np.mean([yedges[argmax(hist_y)],yedges[argmax(hist_y)+1]]) 
-    z_sat = np.mean([zedges[argmax(hist_z)],zedges[argmax(hist_z)+1]]) 
+          x_sat = np.mean([xedges[argmax(hist_x)],xedges[argmax(hist_x)+1]]) 
+          y_sat = np.mean([yedges[argmax(hist_y)],yedges[argmax(hist_y)+1]]) 
+          z_sat = np.mean([zedges[argmax(hist_z)],zedges[argmax(hist_z)+1]]) 
 
-
-
-
+    else:
+          x_sat = np.nan
+          y_sat = np.nan
+          z_sat = np.nan
     print ('\t found location for %s %s: (%.3f, %.3f, %.3f)'%(args.halo, sat, x_sat, y_sat, z_sat))
 
     np.save(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy', np.array([x_sat, y_sat, z_sat]))
@@ -117,6 +124,7 @@ if __name__ == '__main__':
     cat_dir = output_path + '/catalogs'
     fig_dir = output_path +  '/figures/track_satellites'
     temp_outdir = cat_dir + '/sat_track_locations/temp'
+
 
 
     if not os.path.isdir(cat_dir): os.system('mkdir ' + cat_dir) 
@@ -143,9 +151,8 @@ if __name__ == '__main__':
     load_particle_fields = ['particle_index',\
                             'particle_position_x', 'particle_position_y', 'particle_position_z']
     filter_particles(refine_box, load_particles = True, load_particle_types = ['stars'], load_particle_fields = load_particle_fields)
+    #filter_particles(refine_box)
     print ('particles loaded')
-
-
 
 
     # Need to pass in these arrays, can't pass in refine box
@@ -155,8 +162,8 @@ if __name__ == '__main__':
     z_all = refine_box['stars', 'particle_position_z'].to('kpc')
 
     Parallel(n_jobs = -1)(delayed(run_tracker)(args, anchors[sat]['ids'], sat, temp_outdir, id_all, x_all, y_all, z_all) for sat in anchors.keys())
-
-
+    #for sat in anchors.keys():
+    #     run_tracker(args, anchors[sat]['ids'], sat, temp_outdir, id_all, x_all, y_all, z_all)
 
     #Collect outputs      
     output = {}
@@ -167,69 +174,86 @@ if __name__ == '__main__':
       temp = np.load(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy')
       output[sat] = {}
 
-      from yt.units import kpc
-      sp = ds.sphere(center = ds.arr(temp, 'kpc'), radius = 1*kpc)
-      com = sp.quantities.center_of_mass(use_gas=False, use_particles=True, particle_type = 'stars').to('kpc')
-      output[sat]['x'] = round(float(com[0].value), 3)
-      output[sat]['y'] = round(float(com[1].value), 3)
-      output[sat]['z'] = round(float(com[2].value), 3)
+             
 
-      # Make individual satellite projection plots
+      if np.isnan(temp[0]):
 
-      from foggie.satellites.make_satellite_projections import make_projection_plots
-      sat_center = ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc')
+          output[sat]['x'] = np.nan
+          output[sat]['y'] = np.nan
+          output[sat]['z'] = np.nan
+          output[sat]['vx'] = np.nan
+          output[sat]['vy'] = np.nan
+          output[sat]['vz'] = np.nan
 
-      if sat == '0': halo_center = sat_center.copy()
+          output[sat]['RP_vel'] = np.nan
+          output[sat]['RP_dens'] = np.nan
 
-      fig_width = 10 * kpc
+      else:
+          from yt.units import kpc
+          sp = ds.sphere(center = ds.arr(temp, 'kpc'), radius = 1*kpc)
+    
+          com = sp.quantities.center_of_mass(use_gas=False, use_particles=True, particle_type = 'stars').to('kpc')
 
-      make_projection_plots(refine_box.ds, sat_center, refine_box, fig_width, fig_dir, haloname, \
-                          fig_end = 'satellite_{}_{}'.format(args.output, sat), \
-                          do = ['gas', 'stars'], axes = ['x'],  annotate_center = True, annotate_others = [],\
-                          add_velocity = False)        
+          com_x = float(com[0].value)
+          com_y = float(com[1].value)
+          com_z = float(com[2].value)
+
+          output[sat]['x'] = round(com_x, 3)
+          output[sat]['y'] = round(com_y, 3)
+          output[sat]['z'] = round(com_z, 3)
+
+          stars_vx = sp.quantities.weighted_average_quantity(('stars', 'particle_velocity_x'), ('stars', 'particle_mass')).to('km/s')
+          stars_vy = sp.quantities.weighted_average_quantity(('stars', 'particle_velocity_y'), ('stars', 'particle_mass')).to('km/s')
+          stars_vz = sp.quantities.weighted_average_quantity(('stars', 'particle_velocity_z'), ('stars', 'particle_mass')).to('km/s')
+
+          output[sat]['vx'] = round(float(stars_vx.value), 3)
+          output[sat]['vy'] = round(float(stars_vy.value), 3)
+          output[sat]['vz'] = round(float(stars_vz.value), 3)
+
+          start = ds.arr([com_x, com_y, com_z],  'kpc')
+
+          forward_arr = ds.arr([stars_vx, stars_vy, stars_vz], 'km/s')
+          forward_arr/=np.sqrt(sum(forward_arr**2.))
+          forward_arr*=ds.arr(5, 'kpc')
+          end = start + forward_arr
+
+          ray = ds.r[start:end]
+          ray.set_field_parameter('center', start)
+          ray.set_field_parameter('bulk_velocity', ds.arr([output[sat]['vx'], output[sat]['vy'],output[sat]['vz']], 'km/s'))
+          output[sat]['ray_den'] = ray['gas', 'density'].to('g/cm**3')
+          output[sat]['ray_vel'] = ray['gas', 'radial_velocity'].to('km/s')
+          output[sat]['ray_dist'] = ray['index', 'radius'].to('kpc')
+
+          # Make individual satellite projection plots
+
+          from foggie.satellites.make_satellite_projections import make_projection_plots
+          sat_center = ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc')
+
+          if sat == '0': halo_center = sat_center.copy()
+
+          fig_width = 10 * kpc
+
+          make_projection_plots(refine_box.ds, sat_center, refine_box, fig_width, fig_dir, haloname, \
+                              fig_end = 'satellite_{}_{}'.format(args.output, sat), \
+                              do = ['gas', 'stars'], axes = ['x'],  annotate_center = True, annotate_others = [],\
+                              add_velocity = False)
+
+          #if np.isnan(output[sat]['x']): continue
+          #annotate_others.append(ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc'))
+
+    #make_projection_plots(refine_box.ds, halo_center, refine_box, x_width, fig_dir, haloname,\
+    #                      fig_end = 'central_{}'.format(args.output),\
+    #                      do = ['gas', 'stars'], axes = ['x'],\
+    #                      annotate_center = True, annotate_others = annotate_others, is_central = True)
+
+    #make_projection_plots(refine_box.ds, refine_box_center, refine_box, x_width, fig_dir, haloname,\
+    #                      fig_end = 'box_center_{}'.format(args.output),\
+    #                      do = ['gas', 'stars'], axes = ['x'],\
+    #                      annotate_center = True, annotate_others = annotate_others, is_central = True)
 
 
-    for sat in anchors.keys(): annotate_others.append(ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc'))
-
-    make_projection_plots(refine_box.ds, halo_center, refine_box, x_width, fig_dir, haloname,\
-                          fig_end = 'central_{}'.format(args.output),\
-                          do = ['gas', 'stars'], axes = ['x'],\
-                          annotate_center = True, annotate_others = annotate_others, is_central = True)
-
-    make_projection_plots(refine_box.ds, refine_box_center, refine_box, x_width, fig_dir, haloname,\
-                          fig_end = 'box_center_{}'.format(args.output),\
-                          do = ['gas', 'stars'], axes = ['x'],\
-                          annotate_center = True, annotate_others = annotate_others, is_central = True)
-
-
-
-
-    np.save('%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.output), output)
+    np.save('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output), output)
 
     os.system('rm %s/%s_%s_*.npy'%(temp_outdir, args.halo, args.output))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
