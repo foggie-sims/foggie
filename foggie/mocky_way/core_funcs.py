@@ -284,15 +284,20 @@ def ortho_find_yz(z, random_seed=99):
     identical to yt.utilities.math_utils.ortho_find, with an additional para
     of random_seed so that we can change the x, y vectors if needed.
 
+    Return: unit vector, L_vec, sun_vec, phi_vec, follow right hand rule.
+
     10/13/2019, YZ
     """
     import numpy as np
     np.random.seed(random_seed)
+    z /= np.linalg.norm(z)  # normalize it
 
     x = np.random.randn(3)  # take a random vector
     x -= x.dot(z) * z       # make it orthogonal to z
     x /= np.linalg.norm(x)  # normalize it
+
     y = np.cross(z, x)      # cross product with z
+    y /= np.linalg.norm(y)  # normalize it
 
     sun_vec = yt.YTArray(x)
     phi_vec = yt.YTArray(y)
@@ -722,3 +727,89 @@ def calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
     ray_end = ds.arr(los_vector, "code_length") + los_ray_start
 
     return ray_end, los_vector/np.linalg.norm(los_vector)
+
+def calc_ray_ion_column_density(ds, ion, los_ray_start, los_ray_end):
+    """
+    Calculate the column density of ion along the line of sight
+
+    Return: ion column density, and other information along the ray
+
+    History:
+    10/26/2019, created, Yong Zheng, UCB.
+    """
+    import numpy as np
+    import trident
+    from foggie.utils import consistency
+    ion_fields = [consistency.species_dict[ion]]
+    save_temp_ray = "./ray.h5"
+    td_ray = trident.make_simple_ray(ds,
+                                     start_position=los_ray_start.copy(),
+                                     end_position=los_ray_end.copy(),
+                                     data_filename=save_temp_ray,
+                                     # lines=line_list,
+                                     # fields=[ion_field],
+                                     fields=ion_fields.copy(),
+                                     ftype="gas")
+    # sort tri_ray according to the distance of each from ray start
+    td_x = td_ray.r["gas", "x"].in_units("code_length") - los_ray_start[0]
+    td_y = td_ray.r["gas", "y"].in_units("code_length") - los_ray_start[1]
+    td_z = td_ray.r["gas", "z"].in_units("code_length") - los_ray_start[2]
+    td_r = np.sqrt(td_x**2 + td_y**2 + td_z**2).in_units("kpc")
+    td_sort = np.argsort(td_r)
+
+    output_ray_info = {}
+    output_ray_info['r_kpc'] = td_r[td_sort].in_units("kpc")[:-1]
+    #### parameter 1: ray path r, and interval dr in unit of cm and kpc
+    td_r_cm = td_r[td_sort].in_units("cm")
+    td_dr_cm = td_r_cm[1:]-td_r_cm[:-1]
+    output_ray_info['dr_cm'] = td_dr_cm
+
+    td_r_kpc = td_r[td_sort].in_units("kpc")
+    td_dr_kpc = td_r_kpc[1:]-td_r_kpc[:-1]
+    output_ray_info['dr_kpc'] = td_dr_kpc
+
+    # parameter 2:**: ion number densities and other parameters along the ray
+    # td_nion = td_ray.r["gas", ion_field][td_sort][:-1]
+    ion_field = consistency.species_dict[ion]
+    aa = td_ray.r["gas", ion_field][td_sort][:-1]
+    nion = td_ray.r["gas", ion_field][td_sort][:-1]
+    output_ray_info['n_%s'%(ion)] = nion
+
+    # get the column density
+    column_density = (nion*td_dr_cm).sum()
+    ray_Nion = column_density.value
+
+    return ray_Nion, output_ray_info
+
+def los_r(ds, data, observer_location):
+    """
+    Calculate the distance between each cell in data and the observer
+    at either galaxy center or at an offcenter location
+
+    observer_location: halo_center, or offcenter_location
+    data: a sphere, disk ,or anything
+
+    Return:
+    los_r_kpc: distance between gas and obsever in unit of kpc
+
+    History:
+    10/29/2019, created to calculate mass flux rate, Yong Zheng, UCB.
+
+    """
+    # calculate the distance from observer to each gas cell
+    # position and position vector of each cell
+
+    import numpy as np
+
+    x = data["gas", "x"].in_units("code_length").flatten()
+    y = data["gas", "y"].in_units("code_length").flatten()
+    z = data["gas", "z"].in_units("code_length").flatten()
+    los_x = x - observer_location[0] # shape of (N, )
+    los_y = y - observer_location[1]
+    los_z = z - observer_location[2]
+
+    los_xyz = np.array([los_x, los_y, los_z]) # shape of (3, N)
+    los_r_codelength = np.sqrt(los_x**2 + los_y**2 + los_z**2) # shape of (N, )
+    los_r_kpc = los_r_codelength.in_units('kpc')
+
+    return los_r_kpc
