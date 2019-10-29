@@ -1,7 +1,6 @@
 import yt
 import numpy as np
 from yt.fields.api import ValidateParameter
-from yt.fields.field_detector import FieldDetector
 
 ###########################################################################
 def _los_velocity_mw(field, data):
@@ -26,6 +25,7 @@ def _los_velocity_mw(field, data):
     """
     # first some dumb tests to tell yt these are vectors.
     # the location of the observer in the disk
+    from yt.fields.field_detector import FieldDetector
     if isinstance(data, FieldDetector):
         observer_location = np.array([0.5, 0.5, 0.5])  # supposed to be code length
     elif data.has_field_parameter("observer_location"):
@@ -59,7 +59,7 @@ def _los_velocity_mw(field, data):
     # rest frame. Ideally we need to shift all velocity to the galaxy
     # rest frame (wrt to disk_bulkvel), but since we want los_vx, the equation
     # cancel out each other the rule of galaxy frame. So this is still correct
-    # to calculate velocity with respect to obserer's rest frame. 
+    # to calculate velocity with respect to obserer's rest frame.
     vx = data["gas", "velocity_x"].in_units('km/s').flatten() # shape of (N, )
     vy = data["gas", "velocity_y"].in_units('km/s').flatten()
     vz = data["gas", "velocity_z"].in_units('km/s').flatten()
