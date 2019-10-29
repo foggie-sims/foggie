@@ -7,12 +7,15 @@ from foggie.mocky_way.core_funcs import calc_mean_median_3sig_2sig_1sig
 
 ion_list = ['HI', 'SiII', 'SiIII', 'SiIV', 'NV', 'CII', 'CIV',
             'OVI', 'OVII', 'OVIII', 'NeVII', 'NeVIII']
+
+import sys
+i = int(sys.argv[1])
+ion_tag = ion_list[i]
+
 r_list = ['r0-4', 'r0-6', 'r0-8', 'r0-10', 'r0-20', 'r0-30',
           'r0-40', 'r0-50', 'r0-60','r0-70', 'r0-80', 'r0-90',
-          'r0-100', 'r0-110', 'r0-120']
-rbins = [4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
-
-ion_tag = ion_list[11]
+          'r0-100', 'r0-110', 'r0-120', 'r0-160']
+rbins = [4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 160]
 
 N_median = []
 N_mean = []
@@ -59,6 +62,7 @@ fontsize = 16
 # ax.set_xlim(0, 10) # in unit of kpc
 # ax.set_ylim(1e-10, 1e-4) # in unit of cm-3
 ax.set_yscale('log')
+ax.set_xscale('log')
 ax.legend(fontsize=fontsize-2)
 ax.set_xlabel('r (kpc)', fontsize=fontsize)
 ax.set_ylabel(r'N$_{\rm %s}$(r) (cm$^{-3}$)'%(ion_tag), fontsize=fontsize)
@@ -69,11 +73,11 @@ for tick in ax.xaxis.get_major_ticks():
 for tick in ax.yaxis.get_major_ticks():
     tick.label.set_fontsize(fontsize-2)
 ax.set_title(r'%s (|b|>20$\degree$)'%(ion_tag), fontsize=fontsize)
-ax.set_xlim(0, 120)
+ax.set_xlim(4, 160)
 # ax.set_ylim(1e-20, 1e-3)
 fig.tight_layout()
 ax.grid(linestyle='--', color=plt.cm.Greys(0.5), alpha=0.5)
-figname = 'figs/Nr_inview/nref11n_nref10f_DD2175_all_offcenter_location_N%s_b20.pdf'%(ion_tag)
+figname = 'figs/Nr_inview/nref11n_nref10f_DD2175_all_offcenter_location_N_%s_b20.pdf'%(ion_tag)
 fig.savefig(figname)
 print(figname)
 plt.close()
