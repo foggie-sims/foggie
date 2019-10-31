@@ -12,7 +12,7 @@
 # meanwhile change mocky_way code structures to better fit the new foggie
 # strucutres.
 # !!!! This code still use the code foggie repo that I previously downloaded
-# to pleiades/Yong Zhengheng7. It also calls a special version of yt to do the allskyproj,
+# to pleiades/yzheng7. It also calls a special version of yt to do the allskyproj,
 # so it is not suitable for anything else that can be run by other mathcinary.
 #
 # 08/27/2018, Yong Zheng, UCB.
@@ -43,7 +43,9 @@ import foggie.consistency as consistency # for plotting
 # dd_name = 'RD0037'
 
 obj_tag = sys.argv[1]
-# obj_tag = 'all' # means cgm+disk, or can do 'cgm' only
+# obj_tag = 'all' # means cgm+disk, or can do 'cgm' only, or r0-10, r10-120,
+                  # r0-20, r0-30, r0-40, r0-50, r0-60, r0-70, r0-80, r0-90
+                  # r0-100, r0-110, r0-120,
 
 sim_name = 'nref11n_nref10f'
 # d_name = 'RD0039'
@@ -145,8 +147,41 @@ elif obj_tag == 'r10-120':
     sp_out = ds.sphere(halo_center, (120, 'kpc'))
     shell = sp_out - sp_in
     obj = shell
+elif obj_tag == 'r0-20':
+     sp = ds.sphere(halo_center, (20, 'kpc'))
+     obj = sp
+elif obj_tag == 'r0-30':
+    sp = ds.sphere(halo_center, (30, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-40':
+    sp = ds.sphere(halo_center, (40, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-50':
+    sp = ds.sphere(halo_center, (50, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-60':
+    sp = ds.sphere(halo_center, (60, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-70':
+    sp = ds.sphere(halo_center, (70, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-80':
+    sp = ds.sphere(halo_center, (80, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-90':
+    sp = ds.sphere(halo_center, (90, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-100':
+    sp = ds.sphere(halo_center, (100, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-110':
+    sp = ds.sphere(halo_center, (110, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-120':
+    sp = ds.sphere(halo_center, (120, 'kpc'))
+    obj = sp
 else:
-    print("For obj_tag, only allow for all, cgm, r0-10, r10-120. ")
+    print("Cannot recognize the obj_tag you put in, please check.")
     import sys
     sys.exit()
 

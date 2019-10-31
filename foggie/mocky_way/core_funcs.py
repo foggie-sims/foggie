@@ -102,7 +102,9 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     # ionbg = 'sfcr'
     # iontb = '/Users/Yong/.trident/hm2012_hr_sh_cr.h5'
     import trident
-    ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V']
+    ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V',
+                'OVII', 'OVIII', 'NeVII', 'NeVIII']
+
     print("Adding ion fields: ", ion_list)
     trident.add_ion_fields(ds, ftype="gas",
                            ions=ion_list,
@@ -174,10 +176,12 @@ def locate_offcenter_observer(ds, ds_paras, robs2rs=2):
     disk_rs = ds_paras['disk_rs']
     halo_center = ds_paras['halo_center']
     obs_vec = ds_paras['sun_vec']
+
     obs_dist = ds.quan(robs2rs*disk_rs, "kpc").in_units("code_length")
     offcenter_location = halo_center + obs_vec*obs_dist # observer location
 
     # set the bulk velocity of the observer, taken to be gas within 1 kpc
+    # note that this obs_bv is in the simulation's rest frame.
     obs_sp = ds.sphere(offcenter_location, (1, "kpc"))
     obs_bv = obs_sp.quantities.bulk_velocity(use_gas=True, use_particles=True)
     offcenter_bulkvel = obs_bv.in_units("km/s")
@@ -286,9 +290,9 @@ def ortho_find_yz(z, random_seed=99):
     np.random.seed(random_seed)
 
     x = np.random.randn(3)  # take a random vector
-    x -= x.dot(z) * z       # make it orthogonal to k
+    x -= x.dot(z) * z       # make it orthogonal to z
     x /= np.linalg.norm(x)  # normalize it
-    y = np.cross(z, x)      # cross product with k
+    y = np.cross(z, x)      # cross product with z
 
     sun_vec = yt.YTArray(x)
     phi_vec = yt.YTArray(y)
@@ -443,7 +447,7 @@ def obj_source_shell(ds, ds_paras, shell_rin, shell_rout):
     shell_rout: outer radius of a shell.
 
     History:
-    10/15/2019, Created, Yong Zheng. UCB. 
+    10/15/2019, Created, Yong Zheng. UCB.
     """
 
     sp_in = ds.sphere(ds_paras['halo_center'], (shell_rin, 'kpc'))

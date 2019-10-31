@@ -51,7 +51,6 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     return data_set, cut_region_all_data, refine_box_center
 
 
-
 def prep_dataset_old(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere this 
         function adds some bespoke FOGGIE fields, extracts the desired FOGGIE 
@@ -201,7 +200,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
     if ('pixspread' in kwargs.keys()): 
         pixspread = kwargs['pixspread']
 
-    dataset, all_data, halo_center, halo_vcenter = prep_dataset(fname, trackfile, \
+    dataset, all_data, halo_center  = prep_dataset(fname, trackfile, \
                         ion_list=['H I','C II','C III','C IV','Si II','Si III','Si IV',\
                                     'O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], 
                         filter=filter, region=region)
@@ -212,7 +211,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
         field_list = [field1, field2]    
 
     data_frame = prep_dataframe.prep_dataframe(dataset, all_data, field_list, colorcode, \
-                        halo_center = halo_center, halo_vcenter=halo_vcenter)
+                        halo_center = halo_center, halo_vcenter=dataset.halo_velocity_kms)
 
     print(data_frame.head()) 
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile, pixspread=pixspread)
@@ -247,5 +246,3 @@ def sightline_plot(wildcards, field1, field2, colorcode, ranges, outfile):
 
     img = render_image(o6_clouds_only, field1, field2, colorcode, *ranges, outfile+'_OVI_clouds_only') 
     wrap_axes(img, outfile+'_OVI_clouds_only', field1, field2, colorcode, ranges )  
-
-

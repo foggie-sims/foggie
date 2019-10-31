@@ -55,6 +55,11 @@ def _los_velocity_mw(field, data):
     los_r = np.sqrt(los_x**2 + los_y**2 + los_z**2) # shape of (N, )
 
     # velocity and velocity vector of each cell
+    # Note that here observer_bulkvel and all vx, vy, vz are in simulation
+    # rest frame. Ideally we need to shift all velocity to the galaxy
+    # rest frame (wrt to disk_bulkvel), but since we want los_vx, the equation
+    # cancel out each other the rule of galaxy frame. So this is still correct
+    # to calculate velocity with respect to obserer's rest frame. 
     vx = data["gas", "velocity_x"].in_units('km/s').flatten() # shape of (N, )
     vy = data["gas", "velocity_y"].in_units('km/s').flatten()
     vz = data["gas", "velocity_z"].in_units('km/s').flatten()
