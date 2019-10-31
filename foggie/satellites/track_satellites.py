@@ -155,7 +155,7 @@ if __name__ == '__main__':
       refine_box_bulk_vel = small_sp.quantities.bulk_velocity()
       all_data = ds.all_data()
 
-      if False:
+      if True:
         load_particle_fields = ['particle_index',\
                                 'particle_position_x', 'particle_position_y', 'particle_position_z']      
 
@@ -256,8 +256,8 @@ if __name__ == '__main__':
 
 
 
-
-
+      np.save('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output), output)
+      os.system('rm %s/%s_%s_*.npy'%(temp_outdir, args.halo, args.output))
 
 
 
