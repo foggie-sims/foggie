@@ -124,7 +124,7 @@ if __name__ == '__main__':
 
     output_path = output_dir[0:output_dir.find('foggie')] + 'foggie'
     cat_dir = output_path + '/catalogs'
-    fig_dir = output_path +  '/figures/track_satellites'
+    fig_dir = output_path +  '/figures/track_satellites/%s'%args.halo
     temp_outdir = cat_dir + '/sat_track_locations/temp'
 
 
