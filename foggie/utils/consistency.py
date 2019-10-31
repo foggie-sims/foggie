@@ -37,7 +37,7 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'z-velocity': 'Z velocity [km s$^{-1}$]',
                     'radial_velocity': 'Radial Velocity [km s$^{-1}$]',
                     'relative_velocity': 'Relative Velocity [km s$^{-1}$]',
-                    'velocity_spherical_radius': 'Radial Velocity [km s$^{-1}$]', 
+                    'velocity_spherical_radius': 'Radial Velocity [km s$^{-1}$]',
                     'metallicity': r'log Z/Z$_{\odot}$',
                     'pressure': 'log P [g cm$^{-1}$ s$^{-2}$ ]',
                     'entropy': 'log Entropy [cm$^2$ erg]',
@@ -169,8 +169,10 @@ metal_density_max = 250.
 
 temperature_color_map = sns.blend_palette(
     ("black", "#d73027", "darkorange", "#ffe34d"), as_cmap=True)
-temperature_max = 1e8
-temperature_min = 1e2
+temperature_max = 5e6
+temperature_min = 1e4
+temperature_max_datashader = 1.e8
+temperature_min_datashader = 1.e2
 
 entropy_color_map = "Spectral_r"
 entropy_min = 1.e-4
