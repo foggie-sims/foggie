@@ -11,10 +11,10 @@ mpl.rcParams['font.family'] = 'stixgeneral'
 sim_name = 'nref11n_nref10f'
 dd_name = 'DD2175'
 obs_point = 'halo_center'  # halo_center, offcenter_location
-obj_tag = 'all' # halo_only, halo_and_disk, disk
+obj_tag = 'cgm' # halo_only, halo_and_disk, disk
 
-fig_dir = 'figs/dM_dv/'
-tb_name = '%s_%s_dMdv_%s_%s.fits'%(sim_name, dd_name, obj_tag, obs_point)
+fig_dir = 'figs/dM_dv'
+tb_name = 'fits/%s_%s_dMdv_%s_%s.fits'%(sim_name, dd_name, obj_tag, obs_point)
 filename = '%s/%s'%(fig_dir, tb_name)
 
 # get dM/dv
@@ -97,6 +97,6 @@ ax2.step(dv_bins, cdf_all, color=c_all, label='All', lw=lwa)
 ax2.set_xlabel("Velocity (km/s)", fontsize=fs)
 ax2.set_ylabel('M(<v)/M', fontsize=fs)
 
-save_to_fig = '%s.pdf'%(filename[:-5])
+save_to_fig = '%s/%s_%s_dMdv_%s_%s.pdf'%(fig_dir, sim_name, dd_name, obj_tag, obs_point)
 fig.savefig(save_to_fig)
 print("Hey, I saved the figure to ", save_to_fig)

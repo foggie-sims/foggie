@@ -21,12 +21,14 @@ sim_name = 'nref11n_nref10f'
 dd_name = 'DD2175'
 
 ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
-obj_tag = 'cgm' # halo_only, halo_and_disk, disk
-obs_point = 'offcenter_location'  # halo_center, offcenter_location
-obs_bulkvel = 'offcenter_bulkvel' # disk_bulkvel, offcenter_bulkvel
+obj_tag = 'cgm-20kpc' # cgm-15kpc, cgm-20kpc, cgm-rvir
+#obs_point = 'offcenter_location'  # halo_center, offcenter_location
+#obs_bulkvel = 'offcenter_bulkvel' # disk_bulkvel, offcenter_bulkvel
+obs_point = 'halo_center'  # halo_center, offcenter_location
+obs_bulkvel = 'disk_bulkvel' # disk_bulkvel, offcenter_bulkvel
 
 #### No need to change starting this line ####
-print("I am doing the calculation from the %s......"%(obs_point))
+print("I am doing the calculation from %s for %s..."%(obs_point, obj_tag))
 obj_source = obj_source_all_disk_cgm(ds, ds_paras, obj_tag)
 obj_source.set_field_parameter("observer_location", ds_paras[obs_point])
 obj_source.set_field_parameter("observer_bulkvel", ds_paras[obs_bulkvel])
@@ -106,8 +108,8 @@ c6 = fits.Column(name='dM_hot (Msun/km/s)', array=dM_hot, format='D')
 
 all_cols = [c1, c2, c3, c4, c5, c6]
 t = fits.BinTableHDU.from_columns(all_cols)
-fig_dir = 'figs/dM_dv/'
+fig_dir = 'figs/dM_dv/fits'
 tb_name = '%s_%s_dMdv_%s_%s.fits'%(sim_name, dd_name, obj_tag, obs_point)
 save_to_file = '%s/%s'%(fig_dir, tb_name)
-print("I am saving it to ", save_to_file) 
+print("I am saving it to ", save_to_file)
 t.writeto(save_to_file, overwrite=True)

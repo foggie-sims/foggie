@@ -482,31 +482,74 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag, test=False):
     """
 
     # halo_radius = ds_paras['rvir']
+    nrs = 6 # size of the disk in r direction
+    nzs = 4 # size of the disk in z direction, +/-nzs * zs
+
     if test == True:
-        halo_radius = ds.quan(20, 'kpc') # for testing purpose
-    else:
-        halo_radius = ds.quan(120, 'kpc') # beyond 130, refinement box gets coarse.
-    if obj_tag == 'all':
-        sp = ds.sphere(ds_paras['halo_center'], halo_radius)
+        halo_radius = ds.quan(20, 'kpc')
+        sp = ds.sphere(ds_paras['halo_center'], (20, 'kpc'))
         obj = sp
+
     elif obj_tag == 'disk':
-        disk_size_r = 4*ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
-        disk_size_z = 4*ds_paras['disk_zs'] # one side,
+        disk_size_r = nrs * ds_paras['disk_rs']
+        disk_size_z = nzs * ds_paras['disk_zs']
         disk = ds.disk(ds_paras['halo_center'],
                        ds_paras['L_vec'],
                        (disk_size_r, 'kpc'),
                        (disk_size_z, 'kpc'))
         obj = disk
-    elif obj_tag == 'cgm':
-        sp = ds.sphere(ds_paras['halo_center'], halo_radius)
-        disk_size_r = 4*ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
-        disk_size_z = 4*ds_paras['disk_zs'] # one side,
+
+    elif obj_tag == 'all-rvir':
+        sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+        obj = sp
+
+    elif obj_tag == 'all-refined':
+        sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
+        obj = sp
+
+    elif obj_tag == 'cgm-rvir':
+        sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+        disk_size_r = nrs * ds_paras['disk_rs']
+        disk_size_z = nzs * ds_paras['disk_zs']
         disk = ds.disk(ds_paras['halo_center'],
                        ds_paras['L_vec'],
                        (disk_size_r, 'kpc'),
                        (disk_size_z, 'kpc'))
         cgm = sp-disk
         obj = cgm
+
+    elif obj_tag == 'cgm-refined':
+        sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
+        disk_size_r = nrs * ds_paras['disk_rs']
+        disk_size_z = nzs * ds_paras['disk_zs']
+        disk = ds.disk(ds_paras['halo_center'],
+                       ds_paras['L_vec'],
+                       (disk_size_r, 'kpc'),
+                       (disk_size_z, 'kpc'))
+        cgm = sp-disk
+        obj = cgm
+
+    elif obj_tag == 'cgm-15kpc':
+        sp = ds.sphere(ds_paras['halo_center'], (15, 'kpc'))
+        disk_size_r = nrs * ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
+        disk_size_z = nzs * ds_paras['disk_zs'] # one side,
+        disk = ds.disk(ds_paras['halo_center'],
+                       ds_paras['L_vec'],
+                       (disk_size_r, 'kpc'),
+                       (disk_size_z, 'kpc'))
+        cgm_15kpc = sp-disk
+        obj = cgm_15kpc
+
+    elif obj_tag == 'cgm-20kpc':
+        sp = ds.sphere(ds_paras['halo_center'], (20, 'kpc'))
+        disk_size_r = nrs * ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
+        disk_size_z = nzs * ds_paras['disk_zs'] # one side,
+        disk = ds.disk(ds_paras['halo_center'],
+                       ds_paras['L_vec'],
+                       (disk_size_r, 'kpc'),
+                       (disk_size_z, 'kpc'))
+        cgm_20kpc = sp-disk
+        obj = cgm_20kpc
 
     else:
         print("I have no idea what you want, please put in all, disk, or cgm.")
