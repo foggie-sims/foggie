@@ -97,7 +97,7 @@ def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename):
                  dtype=('f8', 'S6', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
     # Define the radii of the spheres where we want to calculate mass enclosed
-    radii = 0.5*refine_width_kpc * np.arange(0.01, 0.1, 0.01)
+    radii = refine_width_kpc * np.logspace(-2,.3,50)
 
     # Initialize first sphere
     print('Beginning calculation for snapshot', snap)
@@ -156,6 +156,10 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    #foggie_dir = '/nobackup/mpeeples/'
+    #output_dir = '/home5/clochhaa/FOGGIE/Outputs/'
+    #run_dir = 'halo_008508/nref11n_nref10f/'
+    #trackname = code_path + 'halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10'
     if (args.system=='pleiades_cassi'): code_path = '/home5/clochhaa/FOGGIE/foggie/foggie/'
     elif (args.system=='cassiopeia'):
         code_path = '/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/'
@@ -187,6 +191,7 @@ if __name__ == "__main__":
 
     print('foggie_dir: ', foggie_dir)
     halo_c_v_name = track_dir + 'halo_c_v'
+    #halo_c_v_name = 'halo_c_v'
 
     # Loop over outputs, for either single-processor or parallel processor computing
     if (args.nproc==1):

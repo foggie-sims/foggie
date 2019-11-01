@@ -36,8 +36,13 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'y-velocity': 'Y velocity [km s$^{-1}$]',
                     'z-velocity': 'Z velocity [km s$^{-1}$]',
                     'radial_velocity': 'Radial Velocity [km s$^{-1}$]',
+                    'radial_velocity_corrected': 'Radial Velocity [km s$^{-1}$]', 
+                    'tangential_velocity_corrected': 'Tangential Velocity [km s$^{-1}$]', 
+                    'theta_velocity_corrected': 'Theta Velocity [km s$^{-1}$]', 
+                    'phi_velocity_corrected': 'Phi Velocity [km s$^{-1}$]', 
+                    'radius_corrected': 'Radius [physical kpc]', 
                     'relative_velocity': 'Relative Velocity [km s$^{-1}$]',
-                    'velocity_spherical_radius': 'Radial Velocity [km s$^{-1}$]', 
+                    'velocity_spherical_radius': 'Radial Velocity [km s$^{-1}$]',
                     'metallicity': r'log Z/Z$_{\odot}$',
                     'pressure': 'log P [g cm$^{-1}$ s$^{-2}$ ]',
                     'entropy': 'log Entropy [cm$^2$ erg]',
@@ -173,8 +178,10 @@ metal_density_max = 250.
 
 temperature_color_map = sns.blend_palette(
     ("black", "#d73027", "darkorange", "#ffe34d"), as_cmap=True)
-temperature_max = 1e8
-temperature_min = 1e2
+temperature_max = 5e6
+temperature_min = 1e4
+temperature_max_datashader = 1.e8
+temperature_min_datashader = 1.e2
 
 entropy_color_map = "Spectral_r"
 entropy_min = 1.e-4

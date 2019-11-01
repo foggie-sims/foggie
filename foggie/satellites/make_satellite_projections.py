@@ -58,12 +58,12 @@ def parse_args():
     return args
 
 
-def do_plot(ds, field, axs, annotate_others, annotate_center, \
-                small_box, halo_center, x_width, \
+def do_plot(ds, field, axs, annotate_positions, \
+                small_box, center, x_width, \
                 cmap, unit = 'Msun/pc**2', zmin = density_proj_min, zmax = density_proj_max,\
                  ann_sphere_rad = (1, 'kpc')):
 
-    prj = yt.ProjectionPlot(ds, axs, field, center = halo_center, data_source = small_box, width=x_width)
+    prj = yt.ProjectionPlot(ds, axs, field, center = center, data_source = small_box, width=x_width)
 
     prj.set_unit(field, unit)
     prj.set_zlim(field, zmin = zmin, zmax =  zmax)
@@ -71,43 +71,28 @@ def do_plot(ds, field, axs, annotate_others, annotate_center, \
 
 
     prj.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
-    for cen in annotate_others:
-        prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'red'})                        
-    if annotate_center:
-        prj.annotate_sphere((0.5, 0.5), radius = ann_sphere_rad, coord_system='axis', circle_args={'color':'white'})
-        prj.annotate_marker((0.5, 0.5), coord_system='axis')
+    for cen in annotate_positions:
+        prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'white'})                        
+        prj.annotate_marker(cen, coord_system='data')
+    
+    prj.annotate_marker((0.5, 0.5), coord_system='axis')
 
     return prj
 
 
 
 
-def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, haloname, \
+
+def make_projection_plots(ds, center, refine_box, x_width,fig_dir, haloname, \
                          fig_end = 'projection',  do = ['stars', 'gas', 'dm'],\
-                         axes = ['x', 'y', 'z'], annotate_center = False, annotate_others = [],\
-                          add_velocity = False, is_central = False):
+                         axes = ['x', 'y', 'z'], annotate_positions = [],\
+                          add_velocity = False, is_central = False, add_arrow = False, start_arrow = [], end_arrow = []):
 
     if not is_central:
-        small_box = ds.r[halo_center[0] - x_width/2.: halo_center[0] + x_width/2.,
-                     halo_center[1] - x_width/2.: halo_center[1] + x_width/2.,
-                     halo_center[2] - x_width/2.: halo_center[2] + x_width/2.,
+        small_box = ds.r[center[0] - x_width/2.: center[0] + x_width/2.,
+                     center[1] - x_width/2.: center[1] + x_width/2.,
+                     center[2] - x_width/2.: center[2] + x_width/2.,
                     ]
-
-        stars_vx = small_box.quantities.weighted_average_quantity(('stars', 'particle_velocity_x'), ('stars', 'particle_mass')).to('cm/s')
-        stars_vy = small_box.quantities.weighted_average_quantity(('stars', 'particle_velocity_y'), ('stars', 'particle_mass')).to('cm/s')
-        stars_vz = small_box.quantities.weighted_average_quantity(('stars', 'particle_velocity_z'), ('stars', 'particle_mass')).to('cm/s')
-
-        vel_dir = ds.arr([stars_vx, stars_vy, stars_vz]).to('km/s')
-        vel_mag = np.sqrt(vel_dir**2.)
-        vel_dir/=vel_mag
-        from yt.units import kpc
-        ray = ds.ray((halo_center), (halo_center + vel_dir * vel_mag/(ds.arr(100, 'km/s'))*kpc))
-        start_arrow = halo_center
-        end_arrow = halo_center + vel_dir * vel_mag/(ds.arr(100, 'km/s'))*kpc
-
-        bulk_vel = ds.arr([stars_vx, stars_vy, stars_vz])
-        small_box.set_field_parameter("bulk_velocity", bulk_vel * x_width.to('cm'))
-        print (small_box.get_field_parameter("bulk_velocity"))
     else:
         small_box = refine_box
 
@@ -127,16 +112,19 @@ def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, haloname
                 cmap =  plt.cm.gist_heat
                 cmap.set_bad('k')
 
-            prj = do_plot(ds, field, axs, annotate_others, annotate_center, \
-                          small_box, halo_center, x_width,\
+            prj = do_plot(ds, field, axs, annotate_positions, \
+                          small_box, center, x_width,\
                           cmap)
-            prj.save(fig_dir + '/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end))
-            if (not is_central) & (False):
-                prj.annotate_arrow(pos = end_arrow, starting_pos = start_arrow, coord_system = 'data')
-                prj.save(fig_dir + '/with_single_arrow/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end))
-                prj.annotate_velocity(factor=20)
-                prj.save(fig_dir + '/with_all_arrows/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end))
 
+            if add_velocity: prj.annotate_velocity(factor=20)
+            if add_arrow: 
+                if (start_arrow == []) | (end_arrow == []):
+                    print ('Called add_arrow, but missing start_arrow or end_arrow')
+                else:
+                    for s_arrow, e_arrow in zip(start_arrow, end_arrow):
+                        prj.annotate_arrow(pos = e_arrow, starting_pos = s_arrow, coord_system = 'data')
+
+            prj.save(fig_dir + '/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end))
     return
 
 
