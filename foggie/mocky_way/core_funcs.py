@@ -658,9 +658,14 @@ def ray_info_at_l_b(ds, ds_paras, los_l_deg, los_b_deg,
     10/26/2019, copy/paste to foggie.mocky_way.core_func. Served as a record
                 for potential future fuse, have not been tested since copied.
                 Yong Zheng. UCB.
+    11/01/2019, split this function into calc_ray_ion_column_density and
+                calc_ray_end. funcs can still be run. But better to use a
+                combination of calc_ray_end and calc_ray_ion_column_density
+                for code clarity. Yong Zheng. UCB.
     """
 
-    from mocky_way_modules import calc_ray_end
+    # from mocky_way_modules import calc_ray_end
+    from foggie.mocky_way.core_func import calc_ray_end
     ray_length = ds.quan(ray_length_kpc, "kpc").in_units("code_length")
     los_ray_end, los_unit_vec = calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
                                              los_ray_start, ray_length_kpc)
@@ -670,7 +675,7 @@ def ray_info_at_l_b(ds, ds_paras, los_l_deg, los_b_deg,
 
     # use trident to get SiIV , CIV, and OVI density fields
     import trident
-    save_temp_ray = sys_dir+"/mocky_way/data/trident/ray.h5"
+    save_temp_ray = "temp/ray.h5"
     td_ray = trident.make_simple_ray(ds,
                                      start_position=los_ray_start.copy(),
                                      end_position=los_ray_end.copy(),
@@ -698,13 +703,15 @@ def ray_info_at_l_b(ds, ds_paras, los_l_deg, los_b_deg,
     # obs_sp = ds.sphere(ds_paras["observer_location"], (sphere_radius, "kpc"))
     # obs_bv = obs_sp.quantities.bulk_velocity(use_gas=True, use_particles=False)
     # obs_bv = obs_bv.in_units("km/s")
-    obs_bv = ds_paras['observer_bulkvel']
-    costheta_bv_los = np.dot(los_unit_vec, (obs_bv/np.linalg.norm(obs_bv)).value)
-    obs_bv_rproj = np.linalg.norm(obs_bv)*costheta_bv_los
-    td_vr = td_ray.r["gas", "velocity_los"].in_units("km/s")
-    td_vr_los_kms = -td_vr - ds.quan(obs_bv_rproj, 'km/s')
-    td_vr_los_kms = td_vr_los_kms[td_sort][:-1]
-    output_ray_info['vr_los_kms'] = td_vr_los_kms
+
+    ## YZ comment this out on 11/1/2019, not necessary now, should add later.
+    ## obs_bv = ds_paras['observer_bulkvel']
+    ## costheta_bv_los = np.dot(los_unit_vec, (obs_bv/np.linalg.norm(obs_bv)).value)
+    ## obs_bv_rproj = np.linalg.norm(obs_bv)*costheta_bv_los
+    ## td_vr = td_ray.r["gas", "velocity_los"].in_units("km/s")
+    ## td_vr_los_kms = -td_vr - ds.quan(obs_bv_rproj, 'km/s')
+    ## td_vr_los_kms = td_vr_los_kms[td_sort][:-1]
+    ## output_ray_info['vr_los_kms'] = td_vr_los_kms
 
     # parameter 3:**: ion number densities and other parameters along the ray
     # td_nion = td_ray.r["gas", ion_field][td_sort][:-1]
@@ -734,15 +741,19 @@ def calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
     (los_l_deg, los_b_deg, ray_length). Old code can be found in
     old_codes/old_calc_ray_end.py los_ray_start is also in unit of code_length
 
+    Input: ds, ds_paras, los_l_deg, los_b_deg, los_ray_start, ray_length_kpc
+
+    Return: ray_end, los_unit_vector
+
     History:
     04/30/2019, created, Yong Zheng, UCB
     08/09/2019, merged into mocky_way_modules, Yong Zheng, UCB
     10/26/2019, copy/paste to foggie.mocky_way.core_func. Served as a record
                 for potential future fuse, have not been tested since copied.
                 Yong Zheng. UCB.
+    11/1/2019, tested for compatiblity with foggie. all set. Yong Zheng. 
     """
 
-    print("calc_ray_end has not been tested since Yong moved it to foggie.mocky_way.core_funcs, should double check.")
     ray_length = ds.quan(ray_length_kpc, "kpc").in_units("code_length")
     los_l_rad = los_l_deg/180.*np.pi
     los_b_rad = los_b_deg/180.*np.pi
@@ -769,7 +780,9 @@ def calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
 
     ray_end = ds.arr(los_vector, "code_length") + los_ray_start
 
-    return ray_end, los_vector/np.linalg.norm(los_vector)
+    los_unit_vector = los_vector/np.linalg.norm(los_vector)
+
+    return ray_end, los_unit_vector
 
 def calc_ray_ion_column_density(ds, ion, los_ray_start, los_ray_end):
     """
