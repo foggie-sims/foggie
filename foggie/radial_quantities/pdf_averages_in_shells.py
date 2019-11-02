@@ -77,6 +77,10 @@ def parse_args():
                         ' specified, code will run one output per processor')
     parser.set_defaults(nproc=1)
 
+    parser.add_argument('--local', dest='local', action='store_true', \
+                        help='Use local simulation files? Default is no')
+    parser.set_defaults(local=False)
+
 
     args = parser.parse_args()
     return args
@@ -308,15 +312,15 @@ def calc_shells(ds, snap, zsnap, refine_width_kpc, tablename):
         profile = plot.profiles[0]
         density_dist = profile.x
         density_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         rv_dist = profile.x
         rv_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         vtheta_dist = profile.x
         vtheta_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         vphi_dist = profile.x
         vphi_hist = profile['cell_mass']/shell.sum('cell_mass')
@@ -333,15 +337,15 @@ def calc_shells(ds, snap, zsnap, refine_width_kpc, tablename):
         profile = plot.profiles[0]
         cold_density_dist = profile.x
         cold_density_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_cold, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_cold, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         cold_rv_dist = profile.x
         cold_rv_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_cold, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_cold, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         cold_vtheta_dist = profile.x
         cold_vtheta_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_cold, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_cold, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         cold_vphi_dist = profile.x
         cold_vphi_hist = profile['cell_mass']/shell.sum('cell_mass')
@@ -358,15 +362,15 @@ def calc_shells(ds, snap, zsnap, refine_width_kpc, tablename):
         profile = plot.profiles[0]
         cool_density_dist = profile.x
         cool_density_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_cool, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_cool, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         cool_rv_dist = profile.x
         cool_rv_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_cool, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_cool, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         cool_vtheta_dist = profile.x
         cool_vtheta_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_cool, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_cool, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         cool_vphi_dist = profile.x
         cool_vphi_hist = profile['cell_mass']/shell.sum('cell_mass')
@@ -383,15 +387,15 @@ def calc_shells(ds, snap, zsnap, refine_width_kpc, tablename):
         profile = plot.profiles[0]
         warm_density_dist = profile.x
         warm_density_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_warm, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_warm, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         warm_rv_dist = profile.x
         warm_rv_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_warm, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_warm, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         warm_vtheta_dist = profile.x
         warm_vtheta_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_warm, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_warm, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         warm_vphi_dist = profile.x
         warm_vphi_hist = profile['cell_mass']/shell.sum('cell_mass')
@@ -408,15 +412,15 @@ def calc_shells(ds, snap, zsnap, refine_width_kpc, tablename):
         profile = plot.profiles[0]
         hot_density_dist = profile.x
         hot_density_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_hot, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_hot, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         hot_rv_dist = profile.x
         hot_rv_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_hot, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_hot, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         hot_vtheta_dist = profile.x
         hot_vtheta_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_hot, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128)
+        plot = yt.ProfilePlot(shell_hot, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
         profile = plot.profiles[0]
         hot_vphi_dist = profile.x
         hot_vphi_hist = profile['cell_mass']/shell.sum('cell_mass')
@@ -462,9 +466,14 @@ def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablenam
     'quadrants' that specifies whether or not to compute in quadrants vs. the whole domain, then
     does the calculation on the loaded snapshot.'''
 
+    if (halo_c_v_name=='halo_c_v'):
+        use_halo_c_v=False
+    else:
+        use_halo_c_v=True
+
     snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box, refine_box_center, refine_width = load(snap_name, track, use_halo_c_v=True, \
-                                                      halo_c_v_name=halo_c_v_name, disk_relative=True)
+    ds, refine_box, refine_box_center, refine_width = load(snap_name, track, disk_relative=True, \
+                                                           use_halo_c_v=use_halo_c_v, halo_c_v_name=halo_c_v_name)
     refine_width_kpc = YTArray([refine_width], 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
@@ -476,15 +485,21 @@ def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablenam
 
 if __name__ == "__main__":
     args = parse_args()
-    print(args.halo)
-    print(args.run)
-    print(args.system)
+    print('Halo:', args.halo)
+    print('Run:', args.run)
+    print('System:', args.system)
+    print('Local?', args.local)
     foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
-    if (args.system=='pleiades_cassi'): code_path = '/home5/clochhaa/FOGGIE/foggie/foggie/'
+    if (args.system=='pleiades_cassi'):
+        code_path = '/home5/clochhaa/FOGGIE/foggie/foggie/'
     elif (args.system=='cassiopeia'):
         code_path = '/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/'
-        foggie_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/'
-    track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+        if (args.local):
+            foggie_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/'
+    if (args.run=='nref11c_nref9f'):
+        track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+    else:
+        track_dir = ''
     if ('/astro/simulations/' in foggie_dir):
         run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'
     # Build output list

@@ -30,7 +30,7 @@ def get_run_loc_etc(args):
     elif args.system == "laptop_raymond":
         foggie_dir = "/Users/rsimons/Dropbox/foggie/sims/"
         output_path = "/Users/rsimons/Dropbox/foggie/"
-        code_path = '/Users/rsimons/Dropbox/git/foggie/foggie/'  
+        code_path = '/Users/rsimons/Dropbox/git/foggie/foggie/'
     elif args.system == "pegasus":
         foggie_dir = "/Volumes/pegasus/foggie/"
         output_path = "/User/rsimons/foggie/outputs"
@@ -41,7 +41,6 @@ def get_run_loc_etc(args):
         code_path = '/u/rcsimons/git/foggie/foggie/'
     elif args.system == "cassiopeia":
         foggie_dir = "/astro/simulations/FOGGIE/"
-        #foggie_dir = "/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/"
         output_path = "/Users/clochhaas/Documents/Research/FOGGIE/Outputs/"
         code_path = "/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/"
     elif args.system == "pleiades_cassi":
@@ -56,7 +55,7 @@ def get_run_loc_etc(args):
         path_part = run_loc
         output_dir = output_path + "plots_"+path_part
         spectra_dir = output_dir+"spectra/"
-    elif args.run == "nref10f":
+    elif args.run == "nref10f" or args.run == "nref11n_nref10f":
         run_loc = "halo_00"+ args.halo + "/nref11n_nref10f/"
         trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref10"
         haloname = "halo_00"+ args.halo + "_nref11n_nref10f"
@@ -70,8 +69,8 @@ def get_run_loc_etc(args):
         path_part = run_loc
         output_dir = output_path + "plots_"+path_part
         spectra_dir = output_dir+"spectra/"
-        if args.system=='cassiopeia' or args.system=='pleiades_cassi':
-            output_dir = output_path
+    if args.system=='cassiopeia' or args.system=='pleiades_cassi':
+        output_dir = output_path
 
     if args.pwd:
         print('using pwd args')
