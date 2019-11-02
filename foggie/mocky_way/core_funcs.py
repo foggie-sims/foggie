@@ -580,9 +580,12 @@ def calc_mean_median_3sig_2sig_1sig(data):
     where 3/2/1sig means the range which enclose 99.7%, 95%,
     and 68% of the data.
 
+    Return: a dict called data_stat, with keys of mean, median,
+    3sig_up, 3sig_low,  2sig_up, 2sig_low, 1sig_up, 1sig_low.
+
     History:
     10/26/2019, Yong Zheng, UCB.
-
+    11/02/2019, update comments. UCB.
     """
     import numpy as np
     data_stat = {}
@@ -751,8 +754,9 @@ def calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
     10/26/2019, copy/paste to foggie.mocky_way.core_func. Served as a record
                 for potential future fuse, have not been tested since copied.
                 Yong Zheng. UCB.
-    11/1/2019, tested for compatiblity with foggie. all set. Yong Zheng. 
+    11/1/2019, tested for compatibility with foggie. all set. Yong Zheng.
     """
+    import numpy as np
 
     ray_length = ds.quan(ray_length_kpc, "kpc").in_units("code_length")
     los_l_rad = los_l_deg/180.*np.pi
