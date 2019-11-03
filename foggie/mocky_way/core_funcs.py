@@ -788,7 +788,8 @@ def calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
 
     return ray_end, los_unit_vector
 
-def calc_ray_ion_column_density(ds, ion, los_ray_start, los_ray_end):
+def calc_ray_ion_column_density(ds, ion, los_ray_start, los_ray_end,
+                                rayfilename = "ray.h5"):
     """
     Calculate the column density of ion along the line of sight
 
@@ -801,7 +802,7 @@ def calc_ray_ion_column_density(ds, ion, los_ray_start, los_ray_end):
     import trident
     from foggie.utils import consistency
     ion_fields = [consistency.species_dict[ion]]
-    save_temp_ray = "./ray.h5"
+    save_temp_ray = './%s'%(rayfilename)
     td_ray = trident.make_simple_ray(ds,
                                      start_position=los_ray_start.copy(),
                                      end_position=los_ray_end.copy(),
