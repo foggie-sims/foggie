@@ -229,14 +229,15 @@ if __name__ == '__main__':
         fig_width = 10 * kpc
         start_arrow = start
         vel_fixed = vel - refine_box_bulk_vel
-        vel_fixed_norm = vel_fixed / ds.arr(200, 'km/s')#np.sqrt(sum(vel_fixed**2.))
+        vel_fixed_norm = vel_fixed / ds.arr(200, 'km/s')
 
         end_arrow = start + vel_fixed_norm * ds.arr(1, 'kpc')
 
-        make_projection_plots(all_data.ds, start, all_data, fig_width, fig_dir, haloname, \
-                            fig_end = 'satellite_{}_{}'.format(args.output, sat), \
-                            do = ['stars'], axes = ['x'],  annotate_positions = [start],\
-                            add_arrow = True, start_arrow = [start_arrow], end_arrow = [end_arrow])
+        if not np.isnan(com_x):
+          make_projection_plots(all_data.ds, start, all_data, fig_width, fig_dir, haloname, \
+                              fig_end = 'satellite_{}_{}'.format(args.output, sat), \
+                              do = ['stars'], axes = ['x'],  annotate_positions = [start],\
+                              add_arrow = True, start_arrow = [start_arrow], end_arrow = [end_arrow])
 
         if output[sat]['in_refine_box']:
           annotate_others.append(ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc'))
