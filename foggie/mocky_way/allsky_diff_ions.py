@@ -72,7 +72,9 @@ pathlength = ds.quan(120, 'kpc') # DO NOT CHANGE. within refinement box size.
 
 ## post processing the data
 import trident
-td_ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V']
+# td_ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V']
+td_ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V',
+               'O VII', 'O VIII', 'Ne VII', 'Ne VIII']
 print("Adding ion fields: ", td_ion_list)
 trident.add_ion_fields(ds, ftype="gas", ions=td_ion_list, force_override=True)
 ion_list = [ss.replace(' ', '') for ss in td_ion_list]
@@ -139,6 +141,15 @@ elif obj_tag == 'cgm':
                    (disk_size_z, 'kpc'))
     cgm = sp-disk
     obj = cgm
+elif obj_tag == 'r0-4':
+    sp = ds.sphere(halo_center, (4, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-6':
+    sp = ds.sphere(halo_center, (6, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-8':
+    sp = ds.sphere(halo_center, (8, 'kpc'))
+    obj = sp
 elif obj_tag == 'r0-10':
     sp = ds.sphere(halo_center, (10, 'kpc'))
     obj = sp
@@ -179,6 +190,9 @@ elif obj_tag == 'r0-110':
     obj = sp
 elif obj_tag == 'r0-120':
     sp = ds.sphere(halo_center, (120, 'kpc'))
+    obj = sp
+elif obj_tag == 'r0-160':
+    sp = ds.sphere(halo_center, (160, 'kpc'))
     obj = sp
 else:
     print("Cannot recognize the obj_tag you put in, please check.")

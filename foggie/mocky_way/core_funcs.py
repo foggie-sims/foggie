@@ -103,7 +103,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     # iontb = '/Users/Yong/.trident/hm2012_hr_sh_cr.h5'
     import trident
     ion_list = ['Si II', 'Si III', 'Si IV', 'C II', 'C IV', 'O VI', 'N V',
-                'OVII', 'OVIII', 'NeVII', 'NeVIII']
+                'O VII', 'O VIII', 'Ne VII', 'Ne VIII']
 
     print("Adding ion fields: ", ion_list)
     trident.add_ion_fields(ds, ftype="gas",
@@ -284,15 +284,20 @@ def ortho_find_yz(z, random_seed=99):
     identical to yt.utilities.math_utils.ortho_find, with an additional para
     of random_seed so that we can change the x, y vectors if needed.
 
+    Return: unit vector, L_vec, sun_vec, phi_vec, follow right hand rule.
+
     10/13/2019, YZ
     """
     import numpy as np
     np.random.seed(random_seed)
+    z /= np.linalg.norm(z)  # normalize it
 
     x = np.random.randn(3)  # take a random vector
     x -= x.dot(z) * z       # make it orthogonal to z
     x /= np.linalg.norm(x)  # normalize it
+
     y = np.cross(z, x)      # cross product with z
+    y /= np.linalg.norm(y)  # normalize it
 
     sun_vec = yt.YTArray(x)
     phi_vec = yt.YTArray(y)
@@ -477,31 +482,74 @@ def obj_source_all_disk_cgm(ds, ds_paras, obj_tag, test=False):
     """
 
     # halo_radius = ds_paras['rvir']
+    nrs = 6 # size of the disk in r direction
+    nzs = 4 # size of the disk in z direction, +/-nzs * zs
+
     if test == True:
-        halo_radius = ds.quan(20, 'kpc') # for testing purpose
-    else:
-        halo_radius = ds.quan(120, 'kpc') # beyond 130, refinement box gets coarse.
-    if obj_tag == 'all':
-        sp = ds.sphere(ds_paras['halo_center'], halo_radius)
+        halo_radius = ds.quan(20, 'kpc')
+        sp = ds.sphere(ds_paras['halo_center'], (20, 'kpc'))
         obj = sp
+
     elif obj_tag == 'disk':
-        disk_size_r = 4*ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
-        disk_size_z = 4*ds_paras['disk_zs'] # one side,
+        disk_size_r = nrs * ds_paras['disk_rs']
+        disk_size_z = nzs * ds_paras['disk_zs']
         disk = ds.disk(ds_paras['halo_center'],
                        ds_paras['L_vec'],
                        (disk_size_r, 'kpc'),
                        (disk_size_z, 'kpc'))
         obj = disk
-    elif obj_tag == 'cgm':
-        sp = ds.sphere(ds_paras['halo_center'], halo_radius)
-        disk_size_r = 4*ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
-        disk_size_z = 4*ds_paras['disk_zs'] # one side,
+
+    elif obj_tag == 'all-rvir':
+        sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+        obj = sp
+
+    elif obj_tag == 'all-refined':
+        sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
+        obj = sp
+
+    elif obj_tag == 'cgm-rvir':
+        sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
+        disk_size_r = nrs * ds_paras['disk_rs']
+        disk_size_z = nzs * ds_paras['disk_zs']
         disk = ds.disk(ds_paras['halo_center'],
                        ds_paras['L_vec'],
                        (disk_size_r, 'kpc'),
                        (disk_size_z, 'kpc'))
         cgm = sp-disk
         obj = cgm
+
+    elif obj_tag == 'cgm-refined':
+        sp = ds.sphere(ds_paras['halo_center'], (120, 'kpc'))
+        disk_size_r = nrs * ds_paras['disk_rs']
+        disk_size_z = nzs * ds_paras['disk_zs']
+        disk = ds.disk(ds_paras['halo_center'],
+                       ds_paras['L_vec'],
+                       (disk_size_r, 'kpc'),
+                       (disk_size_z, 'kpc'))
+        cgm = sp-disk
+        obj = cgm
+
+    elif obj_tag == 'cgm-15kpc':
+        sp = ds.sphere(ds_paras['halo_center'], (15, 'kpc'))
+        disk_size_r = nrs * ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
+        disk_size_z = nzs * ds_paras['disk_zs'] # one side,
+        disk = ds.disk(ds_paras['halo_center'],
+                       ds_paras['L_vec'],
+                       (disk_size_r, 'kpc'),
+                       (disk_size_z, 'kpc'))
+        cgm_15kpc = sp-disk
+        obj = cgm_15kpc
+
+    elif obj_tag == 'cgm-20kpc':
+        sp = ds.sphere(ds_paras['halo_center'], (20, 'kpc'))
+        disk_size_r = nrs * ds_paras['disk_rs'] # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
+        disk_size_z = nzs * ds_paras['disk_zs'] # one side,
+        disk = ds.disk(ds_paras['halo_center'],
+                       ds_paras['L_vec'],
+                       (disk_size_r, 'kpc'),
+                       (disk_size_z, 'kpc'))
+        cgm_20kpc = sp-disk
+        obj = cgm_20kpc
 
     else:
         print("I have no idea what you want, please put in all, disk, or cgm.")
@@ -524,3 +572,287 @@ def temperature_category():
                  'warm': [1e5, 1e6],
                  'hot': [1e6, +np.inf]}
     return temp_dict
+
+def calc_mean_median_3sig_2sig_1sig(data):
+    """
+    Sort the data from small to large, then find the mean,
+    median (50%), 3sig, 2sig, and 1 sig boundaries of the data,
+    where 3/2/1sig means the range which enclose 99.7%, 95%,
+    and 68% of the data.
+
+    History:
+    10/26/2019, Yong Zheng, UCB.
+
+    """
+    import numpy as np
+    data_stat = {}
+
+    data = data[np.argsort(data)]
+    all_index = np.arange(data.size)+1
+    cum_frac = all_index/data.size
+
+    # mean value
+    data_stat['mean'] = np.mean(data)
+
+    # median value
+    indmed = np.argmin(np.abs(cum_frac-0.5))
+    data_stat['median'] = data[indmed]
+
+    # the boundaries which enclose 99.7% of the data
+    threesig = 0.9973
+    indup = np.argmin(np.abs(cum_frac-(0.5+threesig/2.)))
+    indlow = np.argmin(np.abs(cum_frac-(0.5-threesig/2.)))
+    data_stat['3sig_up'] = data[indup]   # upper 3 sigma limit
+    data_stat['3sig_low'] = data[indlow] # lower 3 sigmma limit
+
+    # the boundaries which enclose 95% of the data
+    twosig = 0.95
+    indup = np.argmin(np.abs(cum_frac-(0.5+twosig/2.)))
+    indlow = np.argmin(np.abs(cum_frac-(0.5-twosig/2.)))
+    data_stat['2sig_up'] = data[indup]  # upper 2 sigma limit
+    data_stat['2sig_low'] = data[indlow] # lower 2 sigmma limit
+
+    # the boundaries which enclose 68% of the data
+    onesig = 0.68
+    indup = np.argmin(np.abs(cum_frac-(0.5+onesig/2.)))
+    indlow = np.argmin(np.abs(cum_frac-(0.5-onesig/2.)))
+    data_stat['1sig_up'] = data[indup]    # upper 1 sigma limit
+    data_stat['1sig_low'] = data[indlow]  # lower 1 sigmma limit
+
+    return data_stat
+
+##### this is to get the ion information along a designated line of sight
+def ray_info_at_l_b(ds, ds_paras, los_l_deg, los_b_deg,
+                    los_ray_start, ray_length_kpc,
+                    ion_fields=['H_p0_number_density',
+                                'temperature',
+                                'metallicity']):
+    """
+    Based on old code logN_per_los.py, use to find the ion information
+    along a particular line of sight.
+
+    Input:
+    los_l_deg: Galactic longitude, see derived_fields_mw.py
+    los_b_deg: Galactic latitude, see derived_fields_mw.py
+    los_ray_start: ray starting point, code unit   # ray end is called los_ray_end
+    ray_length_kpc: total ray length, starting at los_ray_start,
+                pointing toward direction of (los_l_deg, los_b_deg)
+    ion_fields: the ion field that we will get number density for
+                currrently the prepdata function has setup the trident
+                for a list of ions: SiII, SiIII, SiIV, CII, CIII, CIV, OVI
+    other_field_to_add: in case in the future we want to explore other properties
+                for each cell, let's save some more information
+
+    Output:
+    output_ray_info:
+        "dr_cm": the ray length (cm) in each cell intercepted by the line of sight
+        "vr_los_kms": the line of sight velocity of each cell seen by observer
+                   obsever information is from prepdata(dd_name)
+        "ion_num_den": a dictionary with number density per cell along ray los
+                    for each entry in the ion_fields
+        other fields could be temperature, metallicity, etc.
+
+    History:
+    04/30/2019, created, Yong Zheng, UCB
+    08/09/2019, merged into mocky_way_modules, Yong Zheng, UCB
+    10/26/2019, copy/paste to foggie.mocky_way.core_func. Served as a record
+                for potential future fuse, have not been tested since copied.
+                Yong Zheng. UCB.
+    """
+
+    from mocky_way_modules import calc_ray_end
+    ray_length = ds.quan(ray_length_kpc, "kpc").in_units("code_length")
+    los_ray_end, los_unit_vec = calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
+                                             los_ray_start, ray_length_kpc)
+
+    # let's build a library that contains information for ray along los
+    output_ray_info = {}
+
+    # use trident to get SiIV , CIV, and OVI density fields
+    import trident
+    save_temp_ray = sys_dir+"/mocky_way/data/trident/ray.h5"
+    td_ray = trident.make_simple_ray(ds,
+                                     start_position=los_ray_start.copy(),
+                                     end_position=los_ray_end.copy(),
+                                     data_filename=save_temp_ray,
+                                     # lines=line_list,
+                                     # fields=[ion_field],
+                                     fields=ion_fields.copy(),
+                                     ftype="gas")
+    # sort tri_ray according to the distance of each from ray start
+    td_x = td_ray.r["gas", "x"].in_units("code_length") - los_ray_start[0]
+    td_y = td_ray.r["gas", "y"].in_units("code_length") - los_ray_start[1]
+    td_z = td_ray.r["gas", "z"].in_units("code_length") - los_ray_start[2]
+    td_r = np.sqrt(td_x**2 + td_y**2 + td_z**2).in_units("kpc")
+    td_sort = np.argsort(td_r)
+
+    #### parameter 1: ray path r, and interval dr in unit of cm
+    td_r_cm = td_r[td_sort].in_units("cm")
+    td_dr_cm = td_r_cm[1:]-td_r_cm[:-1]
+    output_ray_info['dr_cm'] = td_dr_cm
+
+    #### parameter 2: los velocity with respect to observer
+    # trident vel wrt observer, this is the same as my own yt code,
+    # check test_triray_coords_vlsr.ipynb
+    # sphere_radius = 1 # kpc
+    # obs_sp = ds.sphere(ds_paras["observer_location"], (sphere_radius, "kpc"))
+    # obs_bv = obs_sp.quantities.bulk_velocity(use_gas=True, use_particles=False)
+    # obs_bv = obs_bv.in_units("km/s")
+    obs_bv = ds_paras['observer_bulkvel']
+    costheta_bv_los = np.dot(los_unit_vec, (obs_bv/np.linalg.norm(obs_bv)).value)
+    obs_bv_rproj = np.linalg.norm(obs_bv)*costheta_bv_los
+    td_vr = td_ray.r["gas", "velocity_los"].in_units("km/s")
+    td_vr_los_kms = -td_vr - ds.quan(obs_bv_rproj, 'km/s')
+    td_vr_los_kms = td_vr_los_kms[td_sort][:-1]
+    output_ray_info['vr_los_kms'] = td_vr_los_kms
+
+    # parameter 3:**: ion number densities and other parameters along the ray
+    # td_nion = td_ray.r["gas", ion_field][td_sort][:-1]
+    for ion_field in ion_fields:
+        aa = td_ray.r["gas", ion_field][td_sort][:-1]
+        output_ray_info[ion_field] = td_ray.r["gas", ion_field][td_sort][:-1]
+
+    # let's do a print to show what information is recorded
+    print("Hello, I'm returning these information along the ray: ")
+    print(output_ray_info.keys())
+
+    # column density, full velocity range
+    # logN = np.log10((td_nion * td_dr_cm).sum())
+
+    # column density, integrate over [vmin, vmax]
+    # indv = np.all([td_vr_los>=vmin, td_vr_los<=vmax], axis=0)
+    # logN_low = np.log10((td_nion[indv]*td_dr_cm[indv]).sum())
+
+    # return logN, logN_low
+
+    return output_ray_info
+
+def calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
+                 los_ray_start, ray_length_kpc):
+    """
+    Calculate the ray ending pointing in the UVW Galactic coordinates using
+    (los_l_deg, los_b_deg, ray_length). Old code can be found in
+    old_codes/old_calc_ray_end.py los_ray_start is also in unit of code_length
+
+    History:
+    04/30/2019, created, Yong Zheng, UCB
+    08/09/2019, merged into mocky_way_modules, Yong Zheng, UCB
+    10/26/2019, copy/paste to foggie.mocky_way.core_func. Served as a record
+                for potential future fuse, have not been tested since copied.
+                Yong Zheng. UCB.
+    """
+
+    print("calc_ray_end has not been tested since Yong moved it to foggie.mocky_way.core_funcs, should double check.")
+    ray_length = ds.quan(ray_length_kpc, "kpc").in_units("code_length")
+    los_l_rad = los_l_deg/180.*np.pi
+    los_b_rad = los_b_deg/180.*np.pi
+
+    vec_uv_plane = -np.cos(los_l_rad)*ds_paras['sun_vec'] - \
+                    -np.sin(los_l_rad)*ds_paras['phi_vec']
+    #vec_uv_plane = -np.cos(np.radians(los_l))*ds_paras['sun_vec'] - \
+    #                -np.sin(np.radians(los_l))*ds_paras['phi_vec']
+    vec_uv_plane_unit = vec_uv_plane/np.linalg.norm(vec_uv_plane)
+
+    # note: here uvw, I mean in the galactic plane,
+    # W is the L direction, u is run, and v is phi
+
+    los_vector_uv = vec_uv_plane_unit*(ray_length*np.cos(los_b_rad)).value
+    los_vector_w = ds_paras["L_vec"]*(ray_length*np.sin(los_b_rad)).value
+
+    #los_vector_uv = vec_uv_plane_unit*(ray_length*np.cos(np.radians(los_b))).value
+    #los_vector_w = ds_paras["L_vec"]*(ray_length*np.sin(np.radians(los_b))).value
+    los_vector =  los_vector_uv + los_vector_w
+    los_length = ds.quan(np.linalg.norm(los_vector), 'code_length')
+    # the length should be the same as los_r
+    if (los_length-ray_length).in_units('kpc').value > 0.01:
+        print('vector length not equal to los length, wrong!')
+
+    ray_end = ds.arr(los_vector, "code_length") + los_ray_start
+
+    return ray_end, los_vector/np.linalg.norm(los_vector)
+
+def calc_ray_ion_column_density(ds, ion, los_ray_start, los_ray_end):
+    """
+    Calculate the column density of ion along the line of sight
+
+    Return: ion column density, and other information along the ray
+
+    History:
+    10/26/2019, created, Yong Zheng, UCB.
+    """
+    import numpy as np
+    import trident
+    from foggie.utils import consistency
+    ion_fields = [consistency.species_dict[ion]]
+    save_temp_ray = "./ray.h5"
+    td_ray = trident.make_simple_ray(ds,
+                                     start_position=los_ray_start.copy(),
+                                     end_position=los_ray_end.copy(),
+                                     data_filename=save_temp_ray,
+                                     # lines=line_list,
+                                     # fields=[ion_field],
+                                     fields=ion_fields.copy(),
+                                     ftype="gas")
+    # sort tri_ray according to the distance of each from ray start
+    td_x = td_ray.r["gas", "x"].in_units("code_length") - los_ray_start[0]
+    td_y = td_ray.r["gas", "y"].in_units("code_length") - los_ray_start[1]
+    td_z = td_ray.r["gas", "z"].in_units("code_length") - los_ray_start[2]
+    td_r = np.sqrt(td_x**2 + td_y**2 + td_z**2).in_units("kpc")
+    td_sort = np.argsort(td_r)
+
+    output_ray_info = {}
+    output_ray_info['r_kpc'] = td_r[td_sort].in_units("kpc")[:-1]
+    #### parameter 1: ray path r, and interval dr in unit of cm and kpc
+    td_r_cm = td_r[td_sort].in_units("cm")
+    td_dr_cm = td_r_cm[1:]-td_r_cm[:-1]
+    output_ray_info['dr_cm'] = td_dr_cm
+
+    td_r_kpc = td_r[td_sort].in_units("kpc")
+    td_dr_kpc = td_r_kpc[1:]-td_r_kpc[:-1]
+    output_ray_info['dr_kpc'] = td_dr_kpc
+
+    # parameter 2:**: ion number densities and other parameters along the ray
+    # td_nion = td_ray.r["gas", ion_field][td_sort][:-1]
+    ion_field = consistency.species_dict[ion]
+    aa = td_ray.r["gas", ion_field][td_sort][:-1]
+    nion = td_ray.r["gas", ion_field][td_sort][:-1]
+    output_ray_info['n_%s'%(ion)] = nion
+
+    # get the column density
+    column_density = (nion*td_dr_cm).sum()
+    ray_Nion = column_density.value
+
+    return ray_Nion, output_ray_info
+
+def los_r(ds, data, observer_location):
+    """
+    Calculate the distance between each cell in data and the observer
+    at either galaxy center or at an offcenter location
+
+    observer_location: halo_center, or offcenter_location
+    data: a sphere, disk ,or anything
+
+    Return:
+    los_r_kpc: distance between gas and obsever in unit of kpc
+
+    History:
+    10/29/2019, created to calculate mass flux rate, Yong Zheng, UCB.
+
+    """
+    # calculate the distance from observer to each gas cell
+    # position and position vector of each cell
+
+    import numpy as np
+
+    x = data["gas", "x"].in_units("code_length").flatten()
+    y = data["gas", "y"].in_units("code_length").flatten()
+    z = data["gas", "z"].in_units("code_length").flatten()
+    los_x = x - observer_location[0] # shape of (N, )
+    los_y = y - observer_location[1]
+    los_z = z - observer_location[2]
+
+    los_xyz = np.array([los_x, los_y, los_z]) # shape of (3, N)
+    los_r_codelength = np.sqrt(los_x**2 + los_y**2 + los_z**2) # shape of (N, )
+    los_r_kpc = los_r_codelength.in_units('kpc')
+
+    return los_r_kpc
