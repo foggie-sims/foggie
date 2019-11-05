@@ -211,8 +211,8 @@ if __name__ == '__main__':
         disk = ds.disk(center = start + 2.5 * vel_norm * kpc, normal = vel_norm, radius = 0.5*kpc, height = 2.5*kpc)
 
         
-        disk.set_field_parameter('center', start)
-        disk.set_field_parameter('bulk_velocity', ds.arr([output[sat]['vx'], output[sat]['vy'],output[sat]['vz']], 'km/s'))
+        disk.set_field_parameter('center', start.to('code_length'))
+        disk.set_field_parameter('bulk_velocity', vel.to('code_velocity'))
 
         profiles = yt.create_profile(disk, ("index", "cylindrical_z"), [("gas", "density"), ('gas', 'velocity_cylindrical_z')], weight_field = ('index', 'cell_volume')) 
         output[sat]['ray_den'] = profiles.field_data[("gas", "density")].to('g/cm**3.')
