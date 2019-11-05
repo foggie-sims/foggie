@@ -128,8 +128,7 @@ if __name__ == '__main__':
     temp_outdir = cat_dir + '/sat_track_locations/temp'
 
 
-    #if not os.path.isfile('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output)):
-    if True:
+    if True:#not os.path.isfile('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output)):
       if not os.path.isdir(cat_dir): os.system('mkdir ' + cat_dir) 
       if not os.path.isdir(fig_dir): os.system('mkdir ' + fig_dir) 
       if not os.path.isdir(cat_dir + '/sat_track_locations'): os.system('mkdir ' + cat_dir + '/sat_track_locations')
@@ -180,10 +179,9 @@ if __name__ == '__main__':
       all_end_arrows = []
 
       for sat in anchors.keys():
-        if sat == 'c': break
         temp = np.load(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy')
         output[sat] = {}
-
+        if np.isnan(temp[0]): continue
         sp = ds.sphere(center = ds.arr(temp, 'kpc'), radius = 1*kpc)
   
         com = sp.quantities.center_of_mass(use_gas=False, use_particles=True, particle_type = 'stars').to('kpc')
@@ -245,13 +243,12 @@ if __name__ == '__main__':
           all_start_arrows.append(start_arrow)
           all_end_arrows.append(end_arrow)
 
-      #x_width = 10*kpc
 
       make_projection_plots(refine_box.ds, ds.arr(refine_box_center, 'code_length').to('kpc'),\
                             refine_box, x_width, fig_dir, haloname,\
                             fig_end = 'box_center_{}'.format(args.output),\
                             do = ['gas', 'stars'], axes = ['x'],\
-                            annotate_positions = annotate_others, is_central = False, add_arrow = True,\
+                            annotate_positions = annotate_others, is_central = True, add_arrow = True,\
                             start_arrow = all_start_arrows, end_arrow = all_end_arrows)
 
 

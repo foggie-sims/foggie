@@ -6,7 +6,7 @@ import os
 
 
 halos  = ['2392', '2878', '4123', '5016', '5036', '8508']
-
+#halos = ['2878']
 
 for halo in halos:
     print (halo)
@@ -15,7 +15,8 @@ for halo in halos:
     DDs = sort(array([int(DD_direct.split('/')[-1].strip('DD')) for DD_direct in DD_directories]))
     DDmin, DDmax = min(DDs), max(DDs)
 
-    if halo == '8508': max_dd = 1548
+    if halo == '8508': DDmax = 487
+    else: DDmax = 581
 
 
     submit_dir = '/nobackupp2/rcsimons/foggie/submit_scripts/tracks'
@@ -25,7 +26,7 @@ for halo in halos:
     
 
     sf = open('/nobackupp2/rcsimons/foggie/submit_scripts/tracks/submit_%s_%.4i_%.4i_tracksats.sh'%(halo, DDmin, DDmax), 'w+')
-    splitn = 10
+    splitn = 5
     for dmn in arange(DDmin, DDmax+splitn, splitn):
         snapname = '%s_%.4i'%(halo, dmn)
         qsub_fname = 'track_%s_%.4i.qsub'%(halo, dmn)        
@@ -45,7 +46,7 @@ for halo in halos:
 
         qf.write('source /u/rcsimons/.bashrc\n')
         for DD in arange(dmn, dmn+splitn):
-                qf.write('python /u/rcsimons/git/foggie/foggie/satellites/track_satellites.py \
+                qf.write('python /nobackupp2/rcsimons/git/foggie/foggie/satellites/track_satellites.py \
                          --halo %s --output DD%.4i --system pleiades_raymond > ./outfiles/%s_track_satellites.err > \
                          ./outfiles/%s_track_satellites.out\n'%(halo, DD, snapname, snapname))
 
