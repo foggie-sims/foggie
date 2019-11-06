@@ -7,12 +7,12 @@ import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 from foggie.mocky_way.core_funcs import calc_mean_median_3sig_2sig_1sig
 
-run_data = True
+run_data = False
 plot_data = True
 #ion_list = ['HI', 'SiII', 'SiIII', 'SiIV', 'NV', 'CII', 'CIV',
 #            'OVI', 'OVII', 'OVIII', 'NeVII', 'NeVIII']
 
-ion_list = ['HI', 'OVI']
+ion_list = ['SiIII', 'OVI']
 
 if run_data == True:
     from foggie.mocky_way.core_funcs import prepdata
@@ -104,18 +104,18 @@ if plot_data == True:
         from astropy.table import Table
         ion_data = Table.read(ion_file, format='fits')
         rbins = ion_data['rbins (kpc)']
-        n_mean = ion_data['n_mean']
-        n_median = ion_data['n_median']
-        n_1sig_up = ion_data['n_1sig_up']
-        n_1sig_low = ion_data['n_1sig_low']
-        n_2sig_up = ion_data['n_2sig_up']
-        n_2sig_low = ion_data['n_2sig_low']
-        n_3sig_up = ion_data['n_3sig_up']
-        n_3sig_low = ion_data['n_3sig_low']
+        n_mean = np.log10(ion_data['n_mean'])
+        n_median = np.log10(ion_data['n_median'])
+        n_1sig_up = np.log10(ion_data['n_1sig_up'])
+        n_1sig_low = np.log10(ion_data['n_1sig_low'])
+        n_2sig_up = np.log10(ion_data['n_2sig_up'])
+        n_2sig_low = np.log10(ion_data['n_2sig_low'])
+        n_3sig_up = np.log10(ion_data['n_3sig_up'])
+        n_3sig_low = np.log10(ion_data['n_3sig_low'])
 
         ## plot ##
         ### plot the mean, std, and confidence levels ###
-        fig = plt.figure(figsize=(5, 5))
+        fig = plt.figure(figsize=(5, 3.5))
         ax = fig.add_subplot(111)
         ax.fill_between(rbins, n_3sig_up, n_3sig_low, edgecolor=None,
                     facecolor='k', alpha=0.1, label=None)
@@ -126,13 +126,13 @@ if plot_data == True:
         ax.plot(rbins, n_mean, color=plt.cm.Reds(0.6), lw=3, ls='--', label='Mean')
         ax.plot(rbins, n_median, color='k', lw=0.8, ls='-', label='Median')
 
-        fontsize = 16
+        fontsize = 18
         # ax.set_xlim(0, 10) # in unit of kpc
         # ax.set_ylim(1e-10, 1e-4) # in unit of cm-3
-        ax.set_yscale('log')
+        # ax.set_yscale('log')
         ax.legend(fontsize=fontsize-2, loc='upper right')
         ax.set_xlabel('r (kpc)', fontsize=fontsize)
-        ax.set_ylabel(r'n$_{\rm %s}$(r) (cm$^{-3}$)'%(ion_tag), fontsize=fontsize)
+        ax.set_ylabel(r'log [n(r) (cm$^{-3}$)]', fontsize=fontsize)
         ax.minorticks_on()
 
         for tick in ax.xaxis.get_major_ticks():
@@ -141,8 +141,9 @@ if plot_data == True:
             tick.label.set_fontsize(fontsize-2)
         ax.set_title(ion_tag, fontsize=fontsize)
         ax.set_xlim(0, 100)
-        # ax.set_ylim(1e-20, 1e-3)
+        ax.set_ylim(-19, -5)
         ax.grid(linestyle='--', color=plt.cm.Greys(0.5), alpha=0.5)
+        fig.tight_layout()
         figname = 'figs/nr_Nr/nref11n_nref10f_DD2175_all_nr_%s.pdf'%(ion_tag)
         fig.savefig(figname)
         print(figname)
