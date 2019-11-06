@@ -1,6 +1,7 @@
 import yt
 import numpy as np
 from yt.fields.api import ValidateParameter
+from yt.fields.field_detector import FieldDetector
 
 ###########################################################################
 def _los_velocity_mw(field, data):

@@ -70,8 +70,6 @@ def parse_args():
     return args
 
 
-
-
 def run_tracker(args, anchor_ids, sat, temp_outdir, id_all, x_all, y_all, z_all):
     print ('tracking %s %s'%(args.halo, sat))
     gd_indices = []
@@ -94,8 +92,40 @@ def run_tracker(args, anchor_ids, sat, temp_outdir, id_all, x_all, y_all, z_all)
     med_z = nanmedian(z_anchors).value
 
 
+
+
+
+
+
     if not np.isnan(med_x): 
-         
+
+
+          xbins = np.arange(med_x - 30, med_x+30, 0.05)
+          ybins = np.arange(med_y - 30, med_y+30, 0.05)
+          zbins = np.arange(med_z - 30, med_z+30, 0.05)
+
+          gd = where((abs(x_anchors.value - med_x) < 30) & \
+                     (abs(y_anchors.value - med_y) < 30) & \
+                     (abs(z_anchors.value - med_z) < 30))
+
+
+          x_anchors_use = x_anchors[gd].value
+          y_anchors_use = y_anchors[gd].value
+          z_anchors_use = z_anchors[gd].value
+
+          stack_bins = (200, 200, 200)
+          stack_positions = (x_anchors_use, y_anchors_use, z_anchors_use)
+
+          H, edges = histogramdd(stack_positions, bins = stack_bins)
+          argmax_H  = np.unravel_index(np.argmax(H, axis = None), H.shape)
+          xedges = edges[0]
+          yedges = edges[1]
+          zedges = edges[2]
+          x_sat = np.mean([xedges[argmax_H[0]],xedges[argmax_H[0]+1]]) 
+          y_sat = np.mean([yedges[argmax_H[1]],yedges[argmax_H[1]+1]]) 
+          z_sat = np.mean([zedges[argmax_H[2]],zedges[argmax_H[2]+1]]) 
+
+          '''         
           print (med_x, med_y, med_z)
           hist_x, xedges = histogram(x_anchors.value, bins = np.arange(med_x - 30, med_x+30, 0.05))
           hist_y, yedges = histogram(y_anchors.value, bins = np.arange(med_y - 30, med_y+30, 0.05))
@@ -105,7 +135,7 @@ def run_tracker(args, anchor_ids, sat, temp_outdir, id_all, x_all, y_all, z_all)
           x_sat = np.mean([xedges[argmax(hist_x)],xedges[argmax(hist_x)+1]]) 
           y_sat = np.mean([yedges[argmax(hist_y)],yedges[argmax(hist_y)+1]]) 
           z_sat = np.mean([zedges[argmax(hist_z)],zedges[argmax(hist_z)+1]]) 
-
+          '''
     else:
           x_sat = np.nan
           y_sat = np.nan
@@ -127,8 +157,7 @@ if __name__ == '__main__':
     fig_dir = output_path +  '/figures/track_satellites/%s'%args.halo
     temp_outdir = cat_dir + '/sat_track_locations/temp'
 
-
-    if True:#not os.path.isfile('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output)):
+    if True:
       if not os.path.isdir(cat_dir): os.system('mkdir ' + cat_dir) 
       if not os.path.isdir(fig_dir): os.system('mkdir ' + fig_dir) 
       if not os.path.isdir(cat_dir + '/sat_track_locations'): os.system('mkdir ' + cat_dir + '/sat_track_locations')
@@ -154,7 +183,9 @@ if __name__ == '__main__':
       refine_box_bulk_vel = small_sp.quantities.bulk_velocity()
       all_data = ds.all_data()
 
-      if True:
+      #cond = not os.path.isfile('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output))
+      cond = not os.path.isfile(temp_outdir + '/' + args.halo + '_' + args.output + '_0.npy')
+      if cond:
         load_particle_fields = ['particle_index',\
                                 'particle_position_x', 'particle_position_y', 'particle_position_z']      
 
@@ -181,7 +212,27 @@ if __name__ == '__main__':
       for sat in anchors.keys():
         temp = np.load(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy')
         output[sat] = {}
-        if np.isnan(temp[0]): continue
+        output[sat]['x_init'] = round(temp[0], 3)
+        output[sat]['y_init'] = round(temp[1], 3)
+        output[sat]['z_init'] = round(temp[2], 3)
+
+        if np.isnan(temp[0]): 
+
+          output[sat]['x'] = np.nan
+          output[sat]['y'] = np.nan
+          output[sat]['z'] = np.nan
+
+          output[sat]['vx'] = np.nan
+          output[sat]['vy'] = np.nan
+          output[sat]['vz'] = np.nan
+
+          output[sat]['ray_den'] = [np.nan]
+          output[sat]['ray_vel'] = [np.nan]
+          output[sat]['ray_dist'] = [np.nan]
+
+          continue
+
+
         sp = ds.sphere(center = ds.arr(temp, 'kpc'), radius = 1*kpc)
   
         com = sp.quantities.center_of_mass(use_gas=False, use_particles=True, particle_type = 'stars').to('kpc')
@@ -213,11 +264,15 @@ if __name__ == '__main__':
         
         disk.set_field_parameter('center', start.to('code_length'))
         disk.set_field_parameter('bulk_velocity', vel.to('code_velocity'))
-
-        profiles = yt.create_profile(disk, ("index", "cylindrical_z"), [("gas", "density"), ('gas', 'velocity_cylindrical_z')], weight_field = ('index', 'cell_volume')) 
-        output[sat]['ray_den'] = profiles.field_data[("gas", "density")].to('g/cm**3.')
-        output[sat]['ray_vel'] = profiles.field_data[('gas', 'velocity_cylindrical_z')].to('km/s')
-        output[sat]['ray_dist'] = profiles.x.to('kpc')
+        if len(disk["index", "cylindrical_z"]) > 2:
+             profiles = yt.create_profile(disk, ("index", "cylindrical_z"), [("gas", "density"), ('gas', 'velocity_cylindrical_z')], weight_field = ('index', 'cell_volume')) 
+             output[sat]['ray_den'] = profiles.field_data[("gas", "density")].to('g/cm**3.')
+             output[sat]['ray_vel'] = profiles.field_data[('gas', 'velocity_cylindrical_z')].to('km/s')
+             output[sat]['ray_dist'] = profiles.x.to('kpc')
+        else:
+             output[sat]['ray_den'] = [np.nan]
+             output[sat]['ray_vel'] = [np.nan]
+             output[sat]['ray_dist'] = [np.nan]
 
 
         point_sat = ds.point(start)
@@ -229,18 +284,22 @@ if __name__ == '__main__':
         fig_width = 10 * kpc
         start_arrow = start
         vel_fixed = vel - refine_box_bulk_vel
-        vel_fixed_norm = vel_fixed / ds.arr(200, 'km/s')#np.sqrt(sum(vel_fixed**2.))
+        vel_fixed_norm = vel_fixed / ds.arr(200, 'km/s')
 
         end_arrow = start + vel_fixed_norm * ds.arr(1, 'kpc')
 
-        make_projection_plots(all_data.ds, start, all_data, fig_width, fig_dir, haloname, \
+        if np.isnan(com_x): start_use = ds.arr(temp, 'kpc')
+        else: start_use = start
+
+        make_projection_plots(all_data.ds, start_use, all_data, fig_width, fig_dir, haloname, \
                             fig_end = 'satellite_{}_{}'.format(args.output, sat), \
-                            do = ['stars'], axes = ['x'],  annotate_positions = [start],\
+                            do = ['gas', 'stars'], axes = ['x'],  annotate_positions = [start],\
                             add_arrow = True, start_arrow = [start_arrow], end_arrow = [end_arrow])
 
         if output[sat]['in_refine_box']:
           annotate_others.append(ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc'))
           all_start_arrows.append(start_arrow)
+          end_arrow = start + vel_fixed_norm * ds.arr(5, 'kpc')
           all_end_arrows.append(end_arrow)
 
 
@@ -255,15 +314,4 @@ if __name__ == '__main__':
 
       np.save('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output), output)
       os.system('rm %s/%s_%s_*.npy'%(temp_outdir, args.halo, args.output))
-
-
-
-
-
-
-
-
-
-
-
 
