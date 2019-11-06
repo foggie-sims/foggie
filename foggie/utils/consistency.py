@@ -36,11 +36,11 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'y-velocity': 'Y velocity [km s$^{-1}$]',
                     'z-velocity': 'Z velocity [km s$^{-1}$]',
                     'radial_velocity': 'Radial Velocity [km s$^{-1}$]',
-                    'radial_velocity_corrected': 'Radial Velocity [km s$^{-1}$]', 
-                    'tangential_velocity_corrected': 'Tangential Velocity [km s$^{-1}$]', 
-                    'theta_velocity_corrected': 'Theta Velocity [km s$^{-1}$]', 
-                    'phi_velocity_corrected': 'Phi Velocity [km s$^{-1}$]', 
-                    'radius_corrected': 'Radius [physical kpc]', 
+                    'radial_velocity_corrected': 'Radial Velocity [km s$^{-1}$]',
+                    'tangential_velocity_corrected': 'Tangential Velocity [km s$^{-1}$]',
+                    'theta_velocity_corrected': 'Theta Velocity [km s$^{-1}$]',
+                    'phi_velocity_corrected': 'Phi Velocity [km s$^{-1}$]',
+                    'radius_corrected': 'Radius [physical kpc]',
                     'relative_velocity': 'Relative Velocity [km s$^{-1}$]',
                     'velocity_spherical_radius': 'Radial Velocity [km s$^{-1}$]',
                     'metallicity': r'log Z/Z$_{\odot}$',
@@ -109,10 +109,11 @@ species_dict = {'CIII': 'C_p2_number_density',
                 'NeVIII': 'Ne_p7_number_density',
                 'FeXIV': 'Fe_p13_number_density',
                 'NV': 'N_p4_number_density',
-                'CII': 'C_p1_number_density', 
-                'OVII': 'O_p6_number_density', 
-                'OVIII': 'O_p7_number_density', 
-                'NeVII': 'Ne_p6_number_density', 
+                'AlII': 'Al_p1_number_density',
+                'CII': 'C_p1_number_density',
+                'OVII': 'O_p6_number_density',
+                'OVIII': 'O_p7_number_density',
+                'NeVII': 'Ne_p6_number_density',
                 'NeVIII': 'Ne_p7_number_density'}
 
 halo_dict = {   2392  :  'Hurricane' ,
@@ -261,6 +262,10 @@ ne8_max = 1.e15
 fe14_color_map = "inferno"
 fe14_min = 1.e10
 fe14_max = 1.e15
+
+al2_color_map = "plasma"
+al2_min = 1.e10
+al2_max = 1.e17
 
 #set up the ionization fraction colormap
 def categorize_by_fraction(f_ion):
@@ -656,16 +661,16 @@ colormap_dict = {'phase': new_phase_color_key,
                  'Si_p1_number_density': si2_color_map,
                  'Si_p2_number_density': si3_color_map,
                  'Si_p3_number_density': si4_color_map,
-                 'N_p4_number_density': n5_color_map, 
+                 'N_p4_number_density': n5_color_map,
                  'O_p6_number_density': o7_color_map,
-                 'O_p7_number_density': o8_color_map, 
-                 'Ne_p6_number_density': ne7_color_map, 
+                 'O_p7_number_density': o8_color_map,
+                 'Ne_p6_number_density': ne7_color_map,
                  'Ne_p7_number_density': ne8_color_map}
 
 
-proj_max_dict = {'density': 1e-1, 
-                 'H_p0_number_density': h1_proj_max, 
-                 'C_p1_number_density': c2_max, 
+proj_max_dict = {'density': 1e-1,
+                 'H_p0_number_density': h1_proj_max,
+                 'C_p1_number_density': c2_max,
                  'C_p2_number_density': c3_max,
                  'C_p3_number_density': c4_max,
                  'Si_p1_number_density': si2_max,
@@ -674,13 +679,13 @@ proj_max_dict = {'density': 1e-1,
                  'Mg_p1_number_density': mg2_max,
                  'O_p5_number_density': o6_max,
                  'N_p4_number_density': n5_max,
-                 'O_p6_number_density': o7_max, 
-                 'O_p7_number_density': o8_max, 
-                 'Ne_p6_number_density': ne7_max, 
+                 'O_p6_number_density': o7_max,
+                 'O_p7_number_density': o8_max,
+                 'Ne_p6_number_density': ne7_max,
                  'Ne_p7_number_density': ne8_max}
 
 
-proj_min_dict = {'density':1e-6, 
+proj_min_dict = {'density':1e-6,
                  'H_p0_number_density':h1_proj_min,
                  'C_p1_number_density':c2_min,
                  'C_p2_number_density':c3_min,
@@ -692,7 +697,7 @@ proj_min_dict = {'density':1e-6,
                  'O_p5_number_density':o6_min,
                  'N_p4_number_density': n5_min,
                  'O_p6_number_density': o7_min,
-                 'O_p7_number_density': o8_min,  
+                 'O_p7_number_density': o8_min,
                  'Ne_p6_number_density': ne7_min,
                  'Ne_p7_number_density':ne8_min}
 
