@@ -73,7 +73,7 @@ def do_plot(ds, field, axs, annotate_positions, \
     prj.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
     for cen in annotate_positions:
         prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'white'})                        
-        prj.annotate_marker(cen, coord_system='data')
+        #prj.annotate_marker(cen, coord_system='data')
     
     prj.annotate_marker((0.5, 0.5), coord_system='axis')
 
