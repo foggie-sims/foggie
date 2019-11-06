@@ -128,8 +128,7 @@ if __name__ == '__main__':
     temp_outdir = cat_dir + '/sat_track_locations/temp'
 
 
-    #if not os.path.isfile('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output)):
-    if True:
+    if True:#not os.path.isfile('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output)):
       if not os.path.isdir(cat_dir): os.system('mkdir ' + cat_dir) 
       if not os.path.isdir(fig_dir): os.system('mkdir ' + fig_dir) 
       if not os.path.isdir(cat_dir + '/sat_track_locations'): os.system('mkdir ' + cat_dir + '/sat_track_locations')
@@ -180,10 +179,9 @@ if __name__ == '__main__':
       all_end_arrows = []
 
       for sat in anchors.keys():
-        if sat == 'c': break
         temp = np.load(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy')
         output[sat] = {}
-
+        if np.isnan(temp[0]): continue
         sp = ds.sphere(center = ds.arr(temp, 'kpc'), radius = 1*kpc)
   
         com = sp.quantities.center_of_mass(use_gas=False, use_particles=True, particle_type = 'stars').to('kpc')
@@ -213,8 +211,8 @@ if __name__ == '__main__':
         disk = ds.disk(center = start + 2.5 * vel_norm * kpc, normal = vel_norm, radius = 0.5*kpc, height = 2.5*kpc)
 
         
-        disk.set_field_parameter('center', start)
-        disk.set_field_parameter('bulk_velocity', ds.arr([output[sat]['vx'], output[sat]['vy'],output[sat]['vz']], 'km/s'))
+        disk.set_field_parameter('center', start.to('code_length'))
+        disk.set_field_parameter('bulk_velocity', vel.to('code_velocity'))
 
         profiles = yt.create_profile(disk, ("index", "cylindrical_z"), [("gas", "density"), ('gas', 'velocity_cylindrical_z')], weight_field = ('index', 'cell_volume')) 
         output[sat]['ray_den'] = profiles.field_data[("gas", "density")].to('g/cm**3.')
@@ -231,27 +229,27 @@ if __name__ == '__main__':
         fig_width = 10 * kpc
         start_arrow = start
         vel_fixed = vel - refine_box_bulk_vel
-        vel_fixed_norm = vel_fixed / ds.arr(200, 'km/s')#np.sqrt(sum(vel_fixed**2.))
+        vel_fixed_norm = vel_fixed / ds.arr(200, 'km/s')
 
         end_arrow = start + vel_fixed_norm * ds.arr(1, 'kpc')
 
-        make_projection_plots(all_data.ds, start, all_data, fig_width, fig_dir, haloname, \
-                            fig_end = 'satellite_{}_{}'.format(args.output, sat), \
-                            do = ['stars'], axes = ['x'],  annotate_positions = [start],\
-                            add_arrow = True, start_arrow = [start_arrow], end_arrow = [end_arrow])
+        if not np.isnan(com_x):
+          make_projection_plots(all_data.ds, start, all_data, fig_width, fig_dir, haloname, \
+                              fig_end = 'satellite_{}_{}'.format(args.output, sat), \
+                              do = ['stars'], axes = ['x'],  annotate_positions = [start],\
+                              add_arrow = True, start_arrow = [start_arrow], end_arrow = [end_arrow])
 
         if output[sat]['in_refine_box']:
           annotate_others.append(ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']], 'kpc'))
           all_start_arrows.append(start_arrow)
           all_end_arrows.append(end_arrow)
 
-      #x_width = 10*kpc
 
       make_projection_plots(refine_box.ds, ds.arr(refine_box_center, 'code_length').to('kpc'),\
                             refine_box, x_width, fig_dir, haloname,\
                             fig_end = 'box_center_{}'.format(args.output),\
                             do = ['gas', 'stars'], axes = ['x'],\
-                            annotate_positions = annotate_others, is_central = False, add_arrow = True,\
+                            annotate_positions = annotate_others, is_central = True, add_arrow = True,\
                             start_arrow = all_start_arrows, end_arrow = all_end_arrows)
 
 
