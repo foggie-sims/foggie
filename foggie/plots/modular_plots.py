@@ -116,7 +116,11 @@ def parse_args():
 
     parser.add_argument('--fexiv', dest='fexiv', action='store_true',
                         help='make FeXIV?, default if not')
-    parser.set_defaults(ovi=False)
+    parser.set_defaults(fexiv=False)
+
+    parser.add_argument('--alii', dest='alii', action='store_true',
+                        help='make AlII?, default if not')
+    parser.set_defaults(alii=False)
 
     parser.add_argument('--silicon', dest='silicon', action='store_true',
                         help='make Silicon plots?, default if not')
@@ -377,6 +381,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
             trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV'])
         if args.fexiv:
             trident.add_ion_fields(ds, ions=['Fe XIV'])
+        if args.alii:
+            trident.add_ion_fields(ds, ions=['Al II'])
 
         ## add metal density
         # ds.add_field(("gas", "metal_density"), function=_metal_density, units="g/cm**2")
@@ -579,6 +585,17 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
             if args.box:
                 make_projection_plot(ds, prefix, "FeXIV",  \
                             fe14_min, fe14_max, fe14_color_map, \
+                            ision=True, center=center, axis=axis, box=box, \
+                            width=width, appendix="_box")
+
+        if args.alii:
+            make_projection_plot_no_labels(ds, prefix, "AlII",  \
+                            al2_min, al2_max, al2_color_map, \
+                            ision=True, center=center, axis=axis, box=refine_box, \
+                            width=refine_width, appendix="_refine_no_labels")
+            if args.box:
+                make_projection_plot(ds, prefix, "AlII",  \
+                            al2_min, al2_max, al2_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
