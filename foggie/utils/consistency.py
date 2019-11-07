@@ -121,7 +121,13 @@ halo_dict = {   2392  :  'Hurricane' ,
                 4123  :  'Wigshifter' ,
                 5016  :  'Squall' ,
                 5036  :  'Maelstrom' ,
-                8508  :  'Tempest' }
+                8508  :  'Tempest'
+                002392  :  'Hurricane' ,
+                002878  :  'Cyclone' ,
+                004123  :  'Wigshifter' ,
+                005016  :  'Squall' ,
+                005036  :  'Maelstrom' ,
+                008508  :  'Tempest' }
 
 linelist_jt = ['H I 1216', 'H I 919', \
                 'Mg II 2796', 'Si II 1260', 'Si III 1206', 'Si IV 1394', \
