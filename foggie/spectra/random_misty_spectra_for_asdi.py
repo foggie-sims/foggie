@@ -172,11 +172,11 @@ def generate_random_rays(ds, halo_center, **kwargs):
     thisid = t['redshift'] ==  zsnap
     print('grabbing physical information from \n', t[thisid])
     assert len(t[thisid]) == 1
-    Mvir = (t['Mvir'][thisid][0], 'Msun')
-    Rvir = (t['Rvir'][thisid][0], 'kpc')
-    Mstar = (t['Mstar'][thisid][0], 'Msun')
-    Mism = (t['Mism'][thisid][0], 'Msun')
-    SFR = (t['SFR'][thisid][0], 'Msun/yr')
+    Mvir = t['Mvir'][thisid][0] # 'Msun'
+    Rvir = t['Rvir'][thisid][0] # 'kpc'
+    Mstar = t['Mstar'][thisid][0] # 'Msun'
+    Mism = t['Mism'][thisid][0] #  'Msun'
+    SFR = t['SFR'][thisid][0] # 'Msun/yr'
 
     ## for now, assume all are z-axis
     np.random.seed(seed)
