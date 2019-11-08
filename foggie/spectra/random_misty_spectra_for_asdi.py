@@ -26,6 +26,7 @@ import os
 import argparse
 
 from astropy.table import Table
+from astropy.io import ascii
 from foggie.utils.consistency import *
 from foggie.utils.get_refine_box import get_refine_box
 from foggie.utils.get_proper_box_size import get_proper_box_size
@@ -66,8 +67,8 @@ def parse_args():
     parser.set_defaults(output="RD0020")
 
     parser.add_argument('--system', metavar='system', type=str, action='store',
-                        help='which system are you on? default is oak')
-    parser.set_defaults(system="oak")
+                        help='which system are you on? default is palmetto')
+    parser.set_defaults(system="palmetto")
 
     parser.add_argument('--Nrays', metavar='Nrays', type=int, action='store',
                         help='how many sightlines do you want? default is 1')
@@ -79,7 +80,7 @@ def parse_args():
 
     parser.add_argument('--axis', metavar='axis', type=str, action='store',
                         help='which axis? default is x')
-    parser.set_defaults(seed="x")
+    parser.set_defaults(axis="x")
 
     parser.add_argument('--linelist', metavar='linelist', type=str, action='store',
                         help='which linelist: long, kodiaq, or short? default is short')
@@ -153,6 +154,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
     generate some random rays
     '''
     track = kwargs.get("track","halo_track")
+    infoname = kwargs.get("infoname","halo_info")
     Nrays = kwargs.get("Nrays",2)
     seed = kwargs.get("seed",17)
     axis = kwargs.get("axis",'x')
@@ -163,6 +165,18 @@ def generate_random_rays(ds, halo_center, **kwargs):
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     proper_x_width = x_width*proper_box_size
+
+    ## get halo info
+    print("opening halo_info file", infoname)
+    t = ascii.read(infoname, format='fixed_width')
+    thisid = t['redshift'] ==  zsnap
+    print('grabbing physical information from \n', t[thisid])
+    assert len(t[thisid]) == 1
+    Mvir = (t['Mvir'][thisid][0], 'Msun')
+    Rvir = (t['Rvir'][thisid][0], 'kpc')
+    Mstar = (t['Mstar'][thisid][0], 'Msun')
+    Mism = (t['Mism'][thisid][0], 'Msun')
+    SFR = (t['SFR'][thisid][0], 'Msun/yr')
 
     ## for now, assume all are z-axis
     np.random.seed(seed)
@@ -201,7 +215,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         hdulist = MISTY.write_header(triray,start_pos=ray_start,end_pos=ray_end,
                       lines=line_list, impact=impact, redshift=ds.current_redshift,
-                      haloname=haloname)
+                      haloname=haloname, Mvir=Mvir, Rvir=Rvir, Mstar=Mstar, Mism=Mism, SFR=SFR)
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
 
         # quick_spectrum(ds, triray, filespecout_base)
@@ -230,7 +244,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 if __name__ == "__main__":
 
     args = parse_args()
-    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infoname = get_run_loc_etc(args)
     run_dir = foggie_dir + run_loc
 
     if args.linelist == 'long':
@@ -256,9 +270,14 @@ if __name__ == "__main__":
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
     halo_center = get_halo_center(ds, refine_box_center)[0]
-    asdi_dir = output_dir + "for_asdi/"
+    asdi_dir = spectra_dir + "for_asdi/"
 
-    generate_random_rays(ds, halo_center, haloname=halo_dict[haloname], track=track, axis=args.axis, line_list=line_list,\
+    ## get the halo string
+    halostring = "halo_" + halo_dict[args.halo] + "_"  + args.run
+    print("halostring is ", halostring)
+
+    generate_random_rays(ds, halo_center, haloname=halostring, track=track, infoname=infoname, \
+                          axis=args.axis, line_list=line_list,\
                          output_dir=asdi_dir, seed=args.seed, Nrays=args.Nrays)
 
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
