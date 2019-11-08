@@ -97,7 +97,7 @@ def run_tracker(args, anchor_ids, sat, temp_outdir, id_all, x_all, y_all, z_all)
 
 
 
-    if not np.isnan(med_x): 
+    if (not np.isnan(med_x)) & (len(gd_indices) > 500): 
 
 
           xbins = np.arange(med_x - 30, med_x+30, 0.05)
@@ -125,24 +125,13 @@ def run_tracker(args, anchor_ids, sat, temp_outdir, id_all, x_all, y_all, z_all)
           y_sat = np.mean([yedges[argmax_H[1]],yedges[argmax_H[1]+1]]) 
           z_sat = np.mean([zedges[argmax_H[2]],zedges[argmax_H[2]+1]]) 
 
-          '''         
-          print (med_x, med_y, med_z)
-          hist_x, xedges = histogram(x_anchors.value, bins = np.arange(med_x - 30, med_x+30, 0.05))
-          hist_y, yedges = histogram(y_anchors.value, bins = np.arange(med_y - 30, med_y+30, 0.05))
-          hist_z, zedges = histogram(z_anchors.value, bins = np.arange(med_z - 30, med_z+30, 0.05))
-
-
-          x_sat = np.mean([xedges[argmax(hist_x)],xedges[argmax(hist_x)+1]]) 
-          y_sat = np.mean([yedges[argmax(hist_y)],yedges[argmax(hist_y)+1]]) 
-          z_sat = np.mean([zedges[argmax(hist_z)],zedges[argmax(hist_z)+1]]) 
-          '''
     else:
           x_sat = np.nan
           y_sat = np.nan
           z_sat = np.nan
     print ('\t found location for %s %s: (%.3f, %.3f, %.3f)'%(args.halo, sat, x_sat, y_sat, z_sat))
 
-    np.save(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy', np.array([x_sat, y_sat, z_sat]))
+    np.save(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy', np.array([x_sat, y_sat, z_sat, len(gd_indices)]))
 
     return 
 
@@ -183,9 +172,9 @@ if __name__ == '__main__':
       refine_box_bulk_vel = small_sp.quantities.bulk_velocity()
       all_data = ds.all_data()
 
-      #cond = not os.path.isfile('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output))
-      cond = not os.path.isfile(temp_outdir + '/' + args.halo + '_' + args.output + '_0.npy')
-      if cond:
+      cond = not os.path.isfile('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output))
+      #cond = not os.path.isfile(temp_outdir + '/' + args.halo + '_' + args.output + '_0.npy')
+      if True:#cond:
         load_particle_fields = ['particle_index',\
                                 'particle_position_x', 'particle_position_y', 'particle_position_z']      
 
@@ -212,6 +201,7 @@ if __name__ == '__main__':
       for sat in anchors.keys():
         temp = np.load(temp_outdir + '/' + args.halo + '_' + args.output + '_' + sat + '.npy')
         output[sat] = {}
+        output[sat]['number_stars'] = int(temp[3])
         output[sat]['x_init'] = round(temp[0], 3)
         output[sat]['y_init'] = round(temp[1], 3)
         output[sat]['z_init'] = round(temp[2], 3)
@@ -229,11 +219,18 @@ if __name__ == '__main__':
           output[sat]['ray_den'] = [np.nan]
           output[sat]['ray_vel'] = [np.nan]
           output[sat]['ray_dist'] = [np.nan]
+          output[sat]['mass_dist'] = [np.nan]
+          output[sat]['gas_mass'] = [np.nan]
+          output[sat]['dm_mass'] = [np.nan]
+          output[sat]['stars_mass'] = [np.nan]
+          output[sat]['cold_mass_dist'] = [np.nan]
+          output[sat]['cold_gas_mass'] = [np.nan]
+
 
           continue
 
 
-        sp = ds.sphere(center = ds.arr(temp, 'kpc'), radius = 1*kpc)
+        sp = ds.sphere(center = ds.arr(temp[0:3], 'kpc'), radius = 1*kpc)
   
         com = sp.quantities.center_of_mass(use_gas=False, use_particles=True, particle_type = 'stars').to('kpc')
 
@@ -264,15 +261,41 @@ if __name__ == '__main__':
         
         disk.set_field_parameter('center', start.to('code_length'))
         disk.set_field_parameter('bulk_velocity', vel.to('code_velocity'))
+
+        grid_prof_fields = [('gas', 'cell_mass'), \
+                            ('deposit', 'stars_mass'), \
+                            ('deposit', 'dm_mass')]
+
+        sp_mass = ds.sphere(center = start, radius = 4*kpc)
+        sp_mass_cold = sp_mass.cut_region(["(obj['temperature'] < {} )".format(1.5e4)])
         if len(disk["index", "cylindrical_z"]) > 2:
              profiles = yt.create_profile(disk, ("index", "cylindrical_z"), [("gas", "density"), ('gas', 'velocity_cylindrical_z')], weight_field = ('index', 'cell_volume')) 
+             mass_prof = yt.create_profile(sp_mass, ['radius'], fields = grid_prof_fields, n_bins = 100, weight_field = None, accumulation = True)
+             cold_mass_prof = yt.create_profile(sp_mass_cold, ['radius'], fields = [('gas', 'cell_mass')], n_bins = 100, weight_field = None, accumulation = True)
+
+
              output[sat]['ray_den'] = profiles.field_data[("gas", "density")].to('g/cm**3.')
              output[sat]['ray_vel'] = profiles.field_data[('gas', 'velocity_cylindrical_z')].to('km/s')
              output[sat]['ray_dist'] = profiles.x.to('kpc')
+             output[sat]['mass_dist'] = mass_prof.x.to('kpc')
+             output[sat]['gas_mass'] = mass_prof.field_data[('gas', 'cell_mass')].to('Msun')
+             output[sat]['dm_mass'] = mass_prof.field_data[('deposit', 'dm_mass')].to('Msun')
+             output[sat]['stars_mass'] = mass_prof.field_data[('deposit', 'stars_mass')].to('Msun')
+             output[sat]['cold_mass_dist'] = cold_mass_prof.x.to('kpc')
+             output[sat]['cold_gas_mass'] = cold_mass_prof.field_data[('gas', 'cell_mass')].to('Msun')
+
+
         else:
              output[sat]['ray_den'] = [np.nan]
              output[sat]['ray_vel'] = [np.nan]
              output[sat]['ray_dist'] = [np.nan]
+             output[sat]['mass_dist'] = [np.nan]
+             output[sat]['gas_mass'] = [np.nan]
+             output[sat]['dm_mass'] = [np.nan]
+             output[sat]['stars_mass'] = [np.nan]
+             output[sat]['cold_mass_dist'] = [np.nan]
+             output[sat]['cold_gas_mass'] = [np.nan]
+
 
 
         point_sat = ds.point(start)
