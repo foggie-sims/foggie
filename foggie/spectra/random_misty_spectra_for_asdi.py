@@ -83,8 +83,13 @@ def parse_args():
     parser.set_defaults(axis="x")
 
     parser.add_argument('--linelist', metavar='linelist', type=str, action='store',
-                        help='which linelist: long, kodiaq, or short? default is short')
+                        help='which linelist: long, kodiaq, jt, or short? default is short')
     parser.set_defaults(linelist="short")
+
+    parser.add_argument('--pixdv', metavar='pixdv', type=float, action='store',
+                        help='what km/s size of pixels? default is 0.1')
+    parser.set_defaults(axis=0.1)
+
 
     args = parser.parse_args()
     return args
@@ -158,6 +163,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
     Nrays = kwargs.get("Nrays",2)
     seed = kwargs.get("seed",17)
     axis = kwargs.get("axis",'x')
+    pixdv = kwargs.get("pixdv",0.1)
     output_dir = kwargs.get("output_dir", ".")
     haloname = kwargs.get("haloname","somehalo")
     line_list = kwargs.get("line_list", ['H I 1216', 'Si II 1260',  'O VI 1032'])
@@ -215,7 +221,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
         hdulist = MISTY.write_header(triray,start_pos=ray_start,end_pos=ray_end,
                       lines=line_list, impact=impact, redshift=ds.current_redshift,
-                      haloname=haloname, Mvir=Mvir, Rvir=Rvir, Mstar=Mstar, Mism=Mism, SFR=SFR)
+                      haloname=halo_dict[args.halo], Mvir=Mvir, Rvir=Rvir, Mstar=Mstar, Mism=Mism, SFR=SFR)
         tmp = MISTY.write_parameter_file(ds,hdulist=hdulist)
 
         # quick_spectrum(ds, triray, filespecout_base)
@@ -225,6 +231,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
                                      zsnap=ds.current_redshift,
                                      write=True,
                                      hdulist=hdulist,
+                                     pixdv=pixdv,
                                      use_spectacle=False)
             # the trident plots are not needed ; just take up lots of space
             ## filespecout = filespecout_base+'_'+line.replace(" ", "_")+'.png'
@@ -270,7 +277,7 @@ if __name__ == "__main__":
     refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
     halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
     halo_center = get_halo_center(ds, refine_box_center)[0]
-    asdi_dir = spectra_dir + "for_asdi/"
+    asdi_dir = '/Users/molly/Dropbox/foggie/collab/spectra_for_asdi/'
 
     ## get the halo string
     halostring = "halo_" + halo_dict[args.halo] + "_"  + args.run
@@ -278,7 +285,7 @@ if __name__ == "__main__":
 
     generate_random_rays(ds, halo_center, haloname=halostring, track=track, infoname=infoname, \
                           axis=args.axis, line_list=line_list,\
-                         output_dir=asdi_dir, seed=args.seed, Nrays=args.Nrays)
+                         output_dir=asdi_dir, seed=args.seed, Nrays=args.Nrays, pixdv=args.pixdv)
 
     # generate_random_rays(ds, halo_center, line_list=["H I 1216"], haloname="halo008508", Nrays=100)
     sys.exit("~~~*~*~*~*~*~all done!!!! spectra are fun!")
