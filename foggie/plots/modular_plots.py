@@ -110,6 +110,10 @@ def parse_args():
                         help='make MgII?, default if not')
     parser.set_defaults(ovi=False)
 
+    parser.add_argument('--mgx', dest='mgx', action='store_true',
+                        help='make MgX?, default if not')
+    parser.set_defaults(ovi=False)
+
     parser.add_argument('--neviii', dest='neviii', action='store_true',
                         help='make NeVIII?, default if not')
     parser.set_defaults(ovi=False)
@@ -383,6 +387,8 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
             trident.add_ion_fields(ds, ions=['Fe XIV'])
         if args.alii:
             trident.add_ion_fields(ds, ions=['Al II'])
+        if args.mgx:
+            trident.add_ion_fields(ds, ions=['Mg X'])
 
         ## add metal density
         # ds.add_field(("gas", "metal_density"), function=_metal_density, units="g/cm**2")
@@ -596,6 +602,17 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
             if args.box:
                 make_projection_plot(ds, prefix, "AlII",  \
                             al2_min, al2_max, al2_color_map, \
+                            ision=True, center=center, axis=axis, box=box, \
+                            width=width, appendix="_box")
+
+        if args.mgx:
+            make_projection_plot_no_labels(ds, prefix, "MgX",  \
+                            mg10_min, mg10_max, mg10_color_map, \
+                            ision=True, center=center, axis=axis, box=refine_box, \
+                            width=refine_width, appendix="_refine_no_labels")
+            if args.box:
+                make_projection_plot(ds, prefix, "MgX",  \
+                            mg10_min, mg10_max, mg10_color_map, \
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 

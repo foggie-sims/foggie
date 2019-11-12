@@ -114,7 +114,8 @@ species_dict = {'CIII': 'C_p2_number_density',
                 'OVII': 'O_p6_number_density',
                 'OVIII': 'O_p7_number_density',
                 'NeVII': 'Ne_p6_number_density',
-                'NeVIII': 'Ne_p7_number_density'}
+                'NeVIII': 'Ne_p7_number_density',
+                'MgX': 'Mg_p9_number_density'}
 
 halo_dict = {   '2392'  :  'Hurricane' ,
                 '2878'  :  'Cyclone' ,
@@ -273,6 +274,11 @@ fe14_max = 1.e15
 al2_color_map = "plasma"
 al2_min = 1.e10
 al2_max = 1.e17
+
+mg10_color_map = "plasma"
+mg10_min = 1.e11
+mg10_max = 1.e15
+
 
 #set up the ionization fraction colormap
 def categorize_by_fraction(f_ion):
