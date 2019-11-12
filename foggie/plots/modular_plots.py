@@ -610,7 +610,7 @@ if __name__ == "__main__":
     if not args.clobber:
         print("NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber")
 
-    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     if args.system == 'pleiades':
         trackname = 'halo_track_full'
 
