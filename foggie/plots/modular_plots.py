@@ -72,6 +72,10 @@ def parse_args():
                         help='which system are you on? default is oak')
     parser.set_defaults(system="oak")
 
+    parser.add_argument('--axis', metavar='axis', type=str, action='store',
+                        help='which axis? default is all')
+    parser.set_defaults(system="all")
+
     ## plot groups
     parser.add_argument('--all', dest='all', action='store_true',
                         help='make all plots?, default if not')
@@ -636,8 +640,8 @@ if __name__ == "__main__":
     else:
         run_dir = foggie_dir + run_loc
     if args.output == "all" or args.output == "RD":
-        message = plot_script(args.halo, run_dir, output_dir, run_loc,  "all", trackname=trackname, outs=args.output)
+        message = plot_script(args.halo, run_dir, output_dir, run_loc,  args.axis, trackname=trackname, outs=args.output)
     else:
-        message = plot_script(args.halo, run_dir, output_dir, run_loc,  "all", trackname=trackname, outs=[args.output + "/" + args.output])
+        message = plot_script(args.halo, run_dir, output_dir, run_loc, args.axis, trackname=trackname, outs=[args.output + "/" + args.output])
 
     sys.exit(message)
