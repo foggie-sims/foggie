@@ -186,19 +186,17 @@ def filter_particles(data_source, filter_particle_types = ['stars', 'dm'], load_
                                                                load_particle_fields = ['particle_index', 'particle_mass'])
 
     """
-
-
     if type(load_particle_types) == str: load_particle_types = [load_particle_types]
     if type(filter_particle_types) == str: filter_particle_types = [filter_particle_types]
 
-
     for ptype in filter_particle_types:
         if (ptype, 'particle_index') not in data_source.ds.derived_field_list:
-            # add particle
             print ('filtering %s particles...'%ptype)
             import yt
             from foggie.utils import yt_fields
             if ptype == 'stars': func = yt_fields._stars
+            elif ptype == 'young_stars': func = yt_fields._young_stars
+            elif ptype == 'old_stars': func = yt_fields._old_stars
             elif ptype =='dm': func = yt_fields._dm
             else: 
                 print ('particle type %s not known'%ptype)
