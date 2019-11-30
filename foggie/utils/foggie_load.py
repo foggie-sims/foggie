@@ -18,6 +18,7 @@ def load(snap, trackfile, **kwargs):
     use_halo_c_v = kwargs.get('use_halo_c_v', False)
     halo_c_v_name = kwargs.get('halo_c_v_name', 'halo_c_v')
     disk_relative = kwargs.get('disk_relative', False)
+    particle_type_for_angmom = kwargs.get('particle_type_for_angmom', 'young_stars')
 
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
@@ -77,11 +78,16 @@ def load(snap, trackfile, **kwargs):
     ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
 
+    # filter particles into star and dm
+    # JT moved this to before "disk_relative" so that the if statement can use the filtered particle fields
+    filter_particles(refine_box, filter_particle_types = ['young_stars', 'old_stars', 'stars', 'dm'])
+
     # Option to define velocities and coordinates relative to the angular momentum vector of the disk
     if (disk_relative):
         # Calculate angular momentum vector using sphere centered on halo center
         sphere = ds.sphere(ds.halo_center_kpc, (15., 'kpc'))
-        L = sphere.quantities.angular_momentum_vector(use_gas=False, use_particles=True)
+        print('using particle type ', particle_type_for_angmom, ' to derive angular momentum')
+        L = sphere.quantities.angular_momentum_vector(use_gas=False, use_particles=True, particle_type=particle_type_for_angmom)
         print('found angular momentum vector')
         norm_L = L / np.sqrt((L**2).sum())
         # Define other unit vectors orthagonal to the angular momentum vector
@@ -130,8 +136,5 @@ def load(snap, trackfile, **kwargs):
                      force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'vtan_disk'), function=tangential_velocity_diskrel, units='km/s', take_log=False, \
                      force_override=True, sampling_type='cell')
-
-    # filter particles into star and dm
-    filter_particles(refine_box)
 
     return ds, refine_box, refine_box_center, refine_width
