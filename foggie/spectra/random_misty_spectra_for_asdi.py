@@ -186,7 +186,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
     ## for now, assume all are z-axis
     np.random.seed(seed)
-    out_ray_basename = ds.basename + "_ray_" + axis
+    out_ray_basename = haloname + "_" + ds.basename + "_ray_" + axis
 
     i = 0
     while i < Nrays:
@@ -262,6 +262,8 @@ if __name__ == "__main__":
         line_list = linelist_jt
     elif args.linelist == 'short':
         line_list = linelist_short
+    elif args.linelist == 'high':
+        line_list = linelist_high
     else: ## short --- these are what show_velphase has
         line_list = ['H I 1216', 'Si II 1260', 'O VI 1032']
 
