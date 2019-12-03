@@ -139,7 +139,7 @@ if __name__ == '__main__':
     args = parse_args()
 
 
-    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
 
     output_path = output_dir[0:output_dir.find('foggie')] + 'foggie'
     cat_dir = output_path + '/catalogs'
@@ -162,6 +162,12 @@ if __name__ == '__main__':
       ds_loc = run_dir + args.output + "/" + args.output
       ds = yt.load(ds_loc)
 
+      def _youngstars(pfilter, data):
+            return data[(pfilter.filtered_type, "age")] < 2.e7 
+
+      yt.add_particle_filter("youngstars",function=_youngstars, filtered_type='all',requires=["age"]) 
+      ds.add_particle_filter('youngstars')
+
       track = Table.read(trackname, format='ascii')
       track.sort('col1')
       zsnap = ds.get_parameter('CosmologyCurrentRedshift')
@@ -174,7 +180,7 @@ if __name__ == '__main__':
 
       cond = not os.path.isfile('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output))
       #cond = not os.path.isfile(temp_outdir + '/' + args.halo + '_' + args.output + '_0.npy')
-      if True:#cond:
+      if False:
         load_particle_fields = ['particle_index',\
                                 'particle_position_x', 'particle_position_y', 'particle_position_z']      
 
@@ -192,7 +198,30 @@ if __name__ == '__main__':
       else: 
         filter_particles(refine_box)
 
-      #Collect outputs      
+
+
+      output_fn = '%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output)
+      if os.path.exists(output_fn):
+        output = np.load('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output), allow_pickle = True)[()]
+        grid_prof_fields = [('deposit', 'youngstars_mass')]
+
+        for sat in anchors.keys():
+          if len(output[sat]['ray_den']) > 1:
+            start = ds.arr([output[sat]['x'], output[sat]['y'], output[sat]['z']],  'kpc')
+            sp_mass = ds.sphere(center = start, radius = 4*kpc)
+            mass_prof = yt.create_profile(sp_mass, ['radius'], fields = grid_prof_fields, n_bins = 100, weight_field = None, accumulation = True)
+            output[sat]['ystars_mass'] = mass_prof.field_data[('deposit', 'youngstars_mass')].to('Msun')
+          else:
+            output[sat]['ystars_mass'] = [np.nan]
+
+        np.save('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output), output)
+
+
+
+      #Collect outputs   
+
+
+      '''   
       output = {}
       annotate_others = []
       all_start_arrows = []
@@ -264,6 +293,7 @@ if __name__ == '__main__':
 
         grid_prof_fields = [('gas', 'cell_mass'), \
                             ('deposit', 'stars_mass'), \
+                            ('deposit', 'youngstars_mass'), \
                             ('deposit', 'dm_mass')]
 
         sp_mass = ds.sphere(center = start, radius = 4*kpc)
@@ -281,6 +311,7 @@ if __name__ == '__main__':
              output[sat]['gas_mass'] = mass_prof.field_data[('gas', 'cell_mass')].to('Msun')
              output[sat]['dm_mass'] = mass_prof.field_data[('deposit', 'dm_mass')].to('Msun')
              output[sat]['stars_mass'] = mass_prof.field_data[('deposit', 'stars_mass')].to('Msun')
+             output[sat]['ystars_mass'] = mass_prof.field_data[('deposit', 'youngstars_mass')].to('Msun')
              output[sat]['cold_mass_dist'] = cold_mass_prof.x.to('kpc')
              output[sat]['cold_gas_mass'] = cold_mass_prof.field_data[('gas', 'cell_mass')].to('Msun')
 
@@ -293,6 +324,7 @@ if __name__ == '__main__':
              output[sat]['gas_mass'] = [np.nan]
              output[sat]['dm_mass'] = [np.nan]
              output[sat]['stars_mass'] = [np.nan]
+             output[sat]['ystars_mass'] = [np.nan]
              output[sat]['cold_mass_dist'] = [np.nan]
              output[sat]['cold_gas_mass'] = [np.nan]
 
@@ -337,4 +369,4 @@ if __name__ == '__main__':
 
       np.save('%s/%s/%s_%s.npy'%(temp_outdir.replace('/temp', ''), args.halo, args.halo, args.output), output)
       os.system('rm %s/%s_%s_*.npy'%(temp_outdir, args.halo, args.output))
-
+      '''
