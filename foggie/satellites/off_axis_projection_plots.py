@@ -338,7 +338,7 @@ if __name__ == '__main__':
                     imgs_comb.save(fig_dir + '/combined/%s_%s_%.3i.png'%(haloname, sat['id'], nrot))
 
 
-                os.system('ffmpeg -y -r 24 -f image2 -start_number 0 -i ' + fig_dir + '/combined/%s_%s_'%(haloname, sat['id']) + r'%03d.png ' +'-vframes 1000 -vcodec libx264 -crf 25  -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p ' + fig_dir + '/movies/%s_%s.mp4'%(haloname, sat['id']))
+                #os.system('ffmpeg -y -r 24 -f image2 -start_number 0 -i ' + fig_dir + '/combined/%s_%s_'%(haloname, sat['id']) + r'%03d.png ' +'-vframes 1000 -vcodec libx264 -crf 25  -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p ' + fig_dir + '/movies/%s_%s.mp4'%(haloname, sat['id']))
 
 
 
