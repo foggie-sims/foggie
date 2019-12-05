@@ -260,36 +260,36 @@ if __name__ == '__main__':
 
 
 
-            fname = fig_dir + '/combined/%s_%s.png'%(haloname, sat['id'])
+                fname = fig_dir + '/combined/%s_%s.png'%(haloname, sat['id'])
 
-            x = np.random.randn(3)
-            x -= x.dot(sat_velocity_norm.value) * sat_velocity_norm.value
-            normal_vector_1 = x/np.linalg.norm(x) 
-
-
-            norm_vector = normal_vector_1
-            prj = make_off_axis_projection_plots(ds, sat_center, box_proj, fig_dir + '/' + args.halo, haloname,norm_vector, north_vector = sat_velocity_norm.value, \
-                                fig_end = '%s'%(sat['id']), \
-                                do = ['gas', 'stars', 'dm', 'temp', 'metal'], axes = ['off_axis'],  annotate_center = True,
-                                add_velocity = False, add_arrow = True, start_arrow = [start_arrow], end_arrow = [end_arrow], proj_width = box_width)  
-
-            fl_dm = fig_dir + '/%s/%s_%s_dm_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
-            fl_stars = fig_dir + '/%s/%s_%s_stars_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
-            fl_gas = fig_dir + '/%s/%s_%s_gas_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
-            fl_temp = fig_dir + '/%s/%s_%s_temp_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
-            fl_metal = fig_dir + '/%s/%s_%s_metal_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
+                x = np.random.randn(3)
+                x -= x.dot(sat_velocity_norm.value) * sat_velocity_norm.value
+                normal_vector_1 = x/np.linalg.norm(x) 
 
 
-            fls = [fl_dm,  fl_stars, fl_gas, fl_temp, fl_metal]
-            imgs = [PIL.Image.open(fl) for fl in fls]
+                norm_vector = normal_vector_1
+                prj = make_off_axis_projection_plots(ds, sat_center, box_proj, fig_dir + '/' + args.halo, haloname,norm_vector, north_vector = sat_velocity_norm.value, \
+                                    fig_end = '%s'%(sat['id']), \
+                                    do = ['gas', 'stars', 'dm', 'temp', 'metal'], axes = ['off_axis'],  annotate_center = True,
+                                    add_velocity = False, add_arrow = True, start_arrow = [start_arrow], end_arrow = [end_arrow], proj_width = box_width)  
+
+                fl_dm = fig_dir + '/%s/%s_%s_dm_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
+                fl_stars = fig_dir + '/%s/%s_%s_stars_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
+                fl_gas = fig_dir + '/%s/%s_%s_gas_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
+                fl_temp = fig_dir + '/%s/%s_%s_temp_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
+                fl_metal = fig_dir + '/%s/%s_%s_metal_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
 
 
-            min_shape = sorted( [(np.sum(i.size), i.size ) for i in imgs])[0][1]
-            imgs_comb = np.hstack( (np.asarray( i.resize(min_shape) ) for i in imgs ) )
+                fls = [fl_dm,  fl_stars, fl_gas, fl_temp, fl_metal]
+                imgs = [PIL.Image.open(fl) for fl in fls]
 
 
-            imgs_comb = PIL.Image.fromarray( imgs_comb)
-            imgs_comb.save(fname)
+                min_shape = sorted( [(np.sum(i.size), i.size ) for i in imgs])[0][1]
+                imgs_comb = np.hstack( (np.asarray( i.resize(min_shape) ) for i in imgs ) )
+
+
+                imgs_comb = PIL.Image.fromarray( imgs_comb)
+                imgs_comb.save(fname)
 
             if True:
                 if np.isnan(args.rot_n):
