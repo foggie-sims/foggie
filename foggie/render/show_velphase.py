@@ -20,12 +20,12 @@ from astropy.io import fits
 from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-from consistency import new_phase_color_key, new_metals_color_key, species_dict, core_width
+from foggie.utils.consistency import *
 mpl.rcParams['font.family'] = 'stixgeneral'
-from utils import foggie_utils as futils
-import foggie.utils.cmap_utils as cmaps
+#import foggie.utils.cmap_utils as cmaps
 import foggie.clouds.cloud_utils as clouds
-from get_run_loc_etc import get_run_loc_etc
+import foggie.utils.foggie_utils as futils
+from foggie.utils.get_run_loc_etc import get_run_loc_etc
 
 
 def parse_args():
@@ -65,7 +65,7 @@ def parse_args():
     return args
 
 def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
-    """ this is the master control program for the 'velphase' plots 
+    """ this is the master control program for the 'velphase' plots
         from FOGGIE paper 1. """
     impact = hdulist[0].header['IMPACT']
 
@@ -75,7 +75,7 @@ def show_velphase(ds, ray_df, ray_start, ray_end, hdulist, fileroot):
 
     # establish the grid of plots and obtain the axis objects
     fig = plt.figure(figsize=(9, 6))
-    fig.text(0.55, 0.04, r'relative line-of-sight velocity [km s$^{-1}$]', 
+    fig.text(0.55, 0.04, r'relative line-of-sight velocity [km s$^{-1}$]',
                 ha='center', va='center', fontsize=12.)
     fig.text(0.16, 0.93, r'R = '+"{:.2F}".format(impact)+' kpc', ha='center', va='center')
     gs = GridSpec(2, 6, width_ratios=[
@@ -394,6 +394,8 @@ def grab_ray_file(ds, filename):
     ray['z-velocity'] = ray['z-velocity'].convert_to_units('km/s')
     ray['dx'] = ray['dx'].convert_to_units('cm')
 
+
+    ### this needs to be updated
     ray_field_list = ["x", "y", "z", "density", "temperature",
                                "metallicity", "pressure", "entropy",
                                "cooling_time", "thermal_energy", # ('gas',"gravitational_potential"),
@@ -440,7 +442,7 @@ if __name__ == "__main__":
     """
 
     args = parse_args()
-    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infoname = get_run_loc_etc(args)
     if args.pwd:
         run_dir = '.'
     else:
@@ -448,13 +450,12 @@ if __name__ == "__main__":
     ds_loc = run_dir + args.output + "/" + args.output
 
 
-    dataset_list = glob.glob(os.path.join('.', '*vjt_los*fits.gz'))
+    dataset_list = glob.glob(os.path.join('.', '*squall*rd0022*los*fits.gz'))
     print('there are ', len(dataset_list), 'files')
 
     ds = yt.load(ds_loc)
-    trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II',
-                                     'C III', 'C IV', 'O VI', 'Mg II',
-                                     'Ne VIII'])
+
+    trident.add_ion_fields(ds, ions=linelist_all) # just add everything
 
     print('going to loop over rays now')
     loop_over_rays(ds, dataset_list)
