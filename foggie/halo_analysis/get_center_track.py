@@ -155,6 +155,7 @@ if __name__ == "__main__":
     ### DD0797 for halo 5036
     first_center = [ 0.4820261001586914, 0.5022745132446289, 0.5032148361206055 ]
 
+    ### DD0767 for halo  002392
+    first_center = [ 0.49776554107666016,  0.4940633773803711, 0.47627162933349615]
 
-
-    get_center_track(first_center, 850, 797, 0.002)
+    get_center_track(first_center, 815, 767, 0.002)
