@@ -19,7 +19,6 @@ import yt
 from astropy.io import fits
 from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 from foggie.utils.consistency import *
 mpl.rcParams['font.family'] = 'stixgeneral'
 #import foggie.utils.cmap_utils as cmaps
