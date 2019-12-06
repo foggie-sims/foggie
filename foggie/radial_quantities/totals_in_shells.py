@@ -2,7 +2,7 @@
 Filename: flux_tracking.py
 Author: Cassi
 Date created: 9-27-19
-Date last modified: 10-21-19
+Date last modified: 12-6-19
 This file takes command line arguments and computes fluxes of things through
 spherical shells.
 
@@ -31,6 +31,7 @@ from astropy.table import Table
 from astropy.io import ascii
 import multiprocessing as multi
 import datetime
+from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -95,44 +96,40 @@ def set_table_units(table):
     '''Sets the units for the table. Note this needs to be updated whenever something is added to
     the table. Returns the table.'''
 
-    table_units = {'redshift':None,'quadrant':None,'radius':'kpc','net_mass':'Msun', \
-             'net_metals':'Msun', 'mass_in':'Msun','mass_out':'Msun', \
-             'metals_in' :'Msun', 'metals_out':'Msun',\
-             'net_cold_mass':'Msun', 'cold_mass_in':'Msun', \
-             'cold_mass_out':'Msun', 'net_cool_mass':'Msun', \
-             'cool_mass_in':'Msun', 'cool_mass_out':'Msun', \
-             'net_warm_mass':'Msun', 'warm_mass_in':'Msun', \
-             'warm_mass_out':'Msun', 'net_hot_mass' :'Msun', \
-             'hot_mass_in' :'Msun', 'hot_mass_out' :'Msun', \
-             'net_cold_metals':'Msun', 'cold_metals_in':'Msun', \
-             'cold_metals_out':'Msun', 'net_cool_metals':'Msun', \
-             'cool_metals_in':'Msun', 'cool_metals_out':'Msun', \
-             'net_warm_metals':'Msun', 'warm_metals_in':'Msun', \
-             'warm_metals_out':'Msun', 'net_hot_metals' :'Msun', \
-             'hot_metals_in' :'Msun', 'hot_metals_out' :'Msun', \
-             'net_kinetic_energy':'erg', 'net_thermal_energy':'erg', \
-             'net_entropy':'cm**2*keV', 'kinetic_energy_in':'erg', \
-             'kinetic_energy_out':'erg', 'thermal_energy_in':'erg', \
-             'thermal_energy_out':'erg', 'entropy_in':'cm**2*keV', \
-             'entropy_out':'cm**2*keV', 'net_cold_kinetic_energy':'erg', \
-             'cold_kinetic_energy_in':'erg', 'cold_kinetic_energy_out':'erg', \
-             'net_cool_kinetic_energy':'erg', 'cool_kinetic_energy_in':'erg', \
-             'cool_kinetic_energy_out':'erg', 'net_warm_kinetic_energy':'erg', \
-             'warm_kinetic_energy_in':'erg', 'warm_kinetic_energy_out':'erg', \
-             'net_hot_kinetic_energy':'erg', 'hot_kinetic_energy_in':'erg', \
-             'hot_kinetic_energy_out':'erg', 'net_cold_thermal_energy':'erg', \
-             'cold_thermal_energy_in':'erg', 'cold_thermal_energy_out':'erg', \
-             'net_cool_thermal_energy':'erg', 'cool_thermal_energy_in':'erg', \
-             'cool_thermal_energy_out':'erg', 'net_warm_thermal_energy':'erg', \
-             'warm_thermal_energy_in':'erg', 'warm_thermal_energy_out':'erg', \
-             'net_hot_thermal_energy':'erg', 'hot_thermal_energy_in':'erg', \
-             'hot_thermal_energy_out':'erg', 'net_cold_entropy':'cm**2*keV', \
-             'cold_entropy_in':'cm**2*keV', 'cold_entropy_out':'cm**2*keV', \
-             'net_cool_entropy':'cm**2*keV', 'cool_entropy_in':'cm**2*keV', \
-             'cool_entropy_out':'cm**2*keV', 'net_warm_entropy':'cm**2*keV', \
-             'warm_entropy_in':'cm**2*keV', 'warm_entropy_out':'cm**2*keV', \
-             'net_hot_entropy':'cm**2*keV', 'hot_entropy_in':'cm**2*keV', \
-             'hot_entropy_out':'cm**2*keV'}
+    table_units = {'redshift':None,'quadrant':None,'radius':'kpc', \
+             'net_mass':'Msun', 'net_metals':'Msun', \
+             'mass_in':'Msun', 'mass_out':'Msun', \
+             'metals_in':'Msun', 'metals_out':'Msun',\
+             'net_cold_mass':'Msun', 'cold_mass_in':'Msun', 'cold_mass_out':'Msun', \
+             'net_cool_mass':'Msun', 'cool_mass_in':'Msun', 'cool_mass_out':'Msun', \
+             'net_warm_mass':'Msun', 'warm_mass_in':'Msun', 'warm_mass_out':'Msun', \
+             'net_hot_mass':'Msun', 'hot_mass_in':'Msun', 'hot_mass_out':'Msun', \
+             'net_cold_metals':'Msun', 'cold_metals_in':'Msun', 'cold_metals_out':'Msun', \
+             'net_cool_metals':'Msun', 'cool_metals_in':'Msun', 'cool_metals_out':'Msun', \
+             'net_warm_metals':'Msun', 'warm_metals_in':'Msun', 'warm_metals_out':'Msun', \
+             'net_hot_metals':'Msun', 'hot_metals_in':'Msun', 'hot_metals_out':'Msun', \
+             'net_kinetic_energy':'erg', 'net_thermal_energy':'erg', 'net_potential_energy':'erg', \
+             'net_entropy':'cm**2*keV', \
+             'kinetic_energy_in':'erg', 'kinetic_energy_out':'erg', \
+             'thermal_energy_in':'erg', 'thermal_energy_out':'erg', \
+             'potential_energy_in':'erg', 'potential_energy_out':'erg', \
+             'entropy_in':'cm**2*keV', 'entropy_out':'cm**2*keV', \
+             'net_cold_kinetic_energy':'erg', 'cold_kinetic_energy_in':'erg', 'cold_kinetic_energy_out':'erg', \
+             'net_cool_kinetic_energy':'erg', 'cool_kinetic_energy_in':'erg', 'cool_kinetic_energy_out':'erg', \
+             'net_warm_kinetic_energy':'erg', 'warm_kinetic_energy_in':'erg', 'warm_kinetic_energy_out':'erg', \
+             'net_hot_kinetic_energy':'erg', 'hot_kinetic_energy_in':'erg', 'hot_kinetic_energy_out':'erg', \
+             'net_cold_thermal_energy':'erg', 'cold_thermal_energy_in':'erg', 'cold_thermal_energy_out':'erg', \
+             'net_cool_thermal_energy':'erg', 'cool_thermal_energy_in':'erg', 'cool_thermal_energy_out':'erg', \
+             'net_warm_thermal_energy':'erg', 'warm_thermal_energy_in':'erg', 'warm_thermal_energy_out':'erg', \
+             'net_hot_thermal_energy':'erg', 'hot_thermal_energy_in':'erg', 'hot_thermal_energy_out':'erg', \
+             'net_cold_potential_energy':'erg', 'cold_potential_energy_in':'erg', 'cold_potential_energy_out':'erg', \
+             'net_cool_potential_energy':'erg', 'cool_potential_energy_in':'erg', 'cool_potential_energy_out':'erg', \
+             'net_warm_potential_energy':'erg', 'warm_potential_energy_in':'erg', 'warm_potential_energy_out':'erg', \
+             'net_hot_potential_energy':'erg', 'hot_potential_energy_in':'erg', 'hot_potential_energy_out':'erg', \
+             'net_cold_entropy':'cm**2*keV', 'cold_entropy_in':'cm**2*keV', 'cold_entropy_out':'cm**2*keV', \
+             'net_cool_entropy':'cm**2*keV', 'cool_entropy_in':'cm**2*keV', 'cool_entropy_out':'cm**2*keV', \
+             'net_warm_entropy':'cm**2*keV', 'warm_entropy_in':'cm**2*keV', 'warm_entropy_out':'cm**2*keV', \
+             'net_hot_entropy':'cm**2*keV', 'hot_entropy_in':'cm**2*keV', 'hot_entropy_out':'cm**2*keV'}
     for key in table.keys():
         table[key].unit = table_units[key]
     return table
@@ -146,14 +143,18 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
     Optional arguments:
     quadrants = True will calculate the totals in shells within quadrants rather than the whole domain,
         default is False. If this is selected, a second table will be written with '_q' appended
-        to 'tablename'.
+        to 'tablename'. This functionality hasn't been updated in a while, may not work.
     """
 
     quadrants = kwargs.get('quadrants', False)
+    Menc_func = kwargs.get('Menc_func', False)
+
+    G = ds.quan(6.673e-8, 'cm**3/s**2/g')
 
     # Set up table of everything we want
     # NOTE: Make sure table units are updated when things are added to this table!
-    data = Table(names=('redshift', 'quadrant', 'radius', 'net_mass', 'net_metals', \
+    data = Table(names=('redshift', 'quadrant', 'radius', \
+                        'net_mass', 'net_metals', \
                         'mass_in', 'mass_out', 'metals_in', 'metals_out', \
                         'net_cold_mass', 'cold_mass_in', 'cold_mass_out', \
                         'net_cool_mass', 'cool_mass_in', 'cool_mass_out', \
@@ -163,35 +164,36 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
                         'net_cool_metals', 'cool_metals_in', 'cool_metals_out', \
                         'net_warm_metals', 'warm_metals_in', 'warm_metals_out', \
                         'net_hot_metals', 'hot_metals_in', 'hot_metals_out', \
-                        'net_kinetic_energy', 'net_thermal_energy', 'net_entropy', \
+                        'net_kinetic_energy', 'net_thermal_energy', 'net_potential_energy', \
+                        'net_entropy', \
                         'kinetic_energy_in', 'kinetic_energy_out', \
                         'thermal_energy_in', 'thermal_energy_out', \
-                        'entropy_in', 'entropy_out', 'net_cold_kinetic_energy', \
-                        'cold_kinetic_energy_in', 'cold_kinetic_energy_out', \
-                        'net_cool_kinetic_energy', 'cool_kinetic_energy_in', \
-                        'cool_kinetic_energy_out', 'net_warm_kinetic_energy', \
-                        'warm_kinetic_energy_in', 'warm_kinetic_energy_out', \
-                        'net_hot_kinetic_energy', 'hot_kinetic_energy_in', \
-                        'hot_kinetic_energy_out', 'net_cold_thermal_energy', \
-                        'cold_thermal_energy_in', 'cold_thermal_energy_out', \
-                        'net_cool_thermal_energy', 'cool_thermal_energy_in', \
-                        'cool_thermal_energy_out', 'net_warm_thermal_energy', \
-                        'warm_thermal_energy_in', 'warm_thermal_energy_out', \
-                        'net_hot_thermal_energy', 'hot_thermal_energy_in', \
-                        'hot_thermal_energy_out', 'net_cold_entropy', \
-                        'cold_entropy_in', 'cold_entropy_out', \
-                        'net_cool_entropy', 'cool_entropy_in', \
-                        'cool_entropy_out', 'net_warm_entropy', \
-                        'warm_entropy_in', 'warm_entropy_out', \
-                        'net_hot_entropy', 'hot_entropy_in', \
-                        'hot_entropy_out'), \
+                        'potential_energy_in', 'potential_energy_out', \
+                        'entropy_in', 'entropy_out', \
+                        'net_cold_kinetic_energy', 'cold_kinetic_energy_in', 'cold_kinetic_energy_out', \
+                        'net_cool_kinetic_energy', 'cool_kinetic_energy_in', 'cool_kinetic_energy_out', \
+                        'net_warm_kinetic_energy', 'warm_kinetic_energy_in', 'warm_kinetic_energy_out', \
+                        'net_hot_kinetic_energy', 'hot_kinetic_energy_in', 'hot_kinetic_energy_out', \
+                        'net_cold_thermal_energy', 'cold_thermal_energy_in', 'cold_thermal_energy_out', \
+                        'net_cool_thermal_energy', 'cool_thermal_energy_in', 'cool_thermal_energy_out', \
+                        'net_warm_thermal_energy','warm_thermal_energy_in', 'warm_thermal_energy_out', \
+                        'net_hot_thermal_energy', 'hot_thermal_energy_in', 'hot_thermal_energy_out', \
+                        'net_cold_potential_energy', 'cold_potential_energy_in', 'cold_potential_energy_out', \
+                        'net_cool_potential_energy', 'cool_potential_energy_in', 'cool_potential_energy_out', \
+                        'net_warm_potential_energy','warm_potential_energy_in', 'warm_potential_energy_out', \
+                        'net_hot_potential_energy', 'hot_potential_energy_in', 'hot_potential_energy_out', \
+                        'net_cold_entropy', 'cold_entropy_in', 'cold_entropy_out', \
+                        'net_cool_entropy', 'cool_entropy_in', 'cool_entropy_out', \
+                        'net_warm_entropy', 'warm_entropy_in', 'warm_entropy_out', \
+                        'net_hot_entropy', 'hot_entropy_in', 'hot_entropy_out'), \
                  dtype=('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
     if (quadrants):
         data_q = Table(names=('redshift', 'quadrant', 'radius', 'net_mass', 'net_metals', \
@@ -330,6 +332,13 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
         thermal_energy_out = (np.sum(shell_out['thermal_energy'] * \
                               shell_out['cell_mass'])).in_units('erg')
 
+        net_potential_energy = (np.sum(G * shell['cell_mass'] * Menc_func(shell['radius_corrected']) \
+                                      / shell['radius_corrected'])).in_units('erg')
+        potential_energy_in = (np.sum(G * shell_in['cell_mass'] * Menc_func(shell_in['radius_corrected']) \
+                                      / shell_in['radius_corrected'])).in_units('erg')
+        potential_energy_out = (np.sum(G * shell_out['cell_mass'] * Menc_func(shell_out['radius_corrected']) \
+                                      / shell_out['radius_corrected'])).in_units('erg')
+
         net_entropy = (np.sum(shell['entropy'])).in_units('keV*cm**2')
         entropy_in = (np.sum(shell_in['entropy'])).in_units('keV*cm**2')
         entropy_out = (np.sum(shell_out['entropy'])).in_units('keV*cm**2')
@@ -377,6 +386,34 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
                             shell_in_hot['cell_mass'])).in_units('erg')
         hot_thermal_energy_out = (np.sum(shell_out_hot['thermal_energy'] * \
                              shell_out_hot['cell_mass'])).in_units('erg')
+
+        net_cold_potential_energy = (np.sum(G * shell_cold['cell_mass'] * Menc_func(shell_cold['radius_corrected']) \
+                                      / shell_cold['radius_corrected'])).in_units('erg')
+        cold_potential_energy_in = (np.sum(G * shell_in_cold['cell_mass'] * Menc_func(shell_in_cold['radius_corrected']) \
+                                      / shell_in_cold['radius_corrected'])).in_units('erg')
+        cold_potential_energy_out = (np.sum(G * shell_out_cold['cell_mass'] * Menc_func(shell_out_cold['radius_corrected']) \
+                                      / shell_out_cold['radius_corrected'])).in_units('erg')
+
+        net_cool_potential_energy = (np.sum(G * shell_cool['cell_mass'] * Menc_func(shell_cool['radius_corrected']) \
+                                      / shell_cool['radius_corrected'])).in_units('erg')
+        cool_potential_energy_in = (np.sum(G * shell_in_cool['cell_mass'] * Menc_func(shell_in_cool['radius_corrected']) \
+                                      / shell_in_cool['radius_corrected'])).in_units('erg')
+        cool_potential_energy_out = (np.sum(G * shell_out_cool['cell_mass'] * Menc_func(shell_out_cool['radius_corrected']) \
+                                      / shell_out_cool['radius_corrected'])).in_units('erg')
+
+        net_warm_potential_energy = (np.sum(G * shell_warm['cell_mass'] * Menc_func(shell_warm['radius_corrected']) \
+                                      / shell_warm['radius_corrected'])).in_units('erg')
+        warm_potential_energy_in = (np.sum(G * shell_in_warm['cell_mass'] * Menc_func(shell_in_warm['radius_corrected']) \
+                                      / shell_in_warm['radius_corrected'])).in_units('erg')
+        warm_potential_energy_out = (np.sum(G * shell_out_warm['cell_mass'] * Menc_func(shell_out_warm['radius_corrected']) \
+                                      / shell_out_warm['radius_corrected'])).in_units('erg')
+
+        net_hot_potential_energy = (np.sum(G * shell_hot['cell_mass'] * Menc_func(shell_hot['radius_corrected']) \
+                                      / shell_hot['radius_corrected'])).in_units('erg')
+        hot_potential_energy_in = (np.sum(G * shell_in_hot['cell_mass'] * Menc_func(shell_in_hot['radius_corrected']) \
+                                      / shell_in_hot['radius_corrected'])).in_units('erg')
+        hot_potential_energy_out = (np.sum(G * shell_out_hot['cell_mass'] * Menc_func(shell_out_hot['radius_corrected']) \
+                                      / shell_out_hot['radius_corrected'])).in_units('erg')
 
         net_cold_entropy = (np.sum(shell_cold['entropy'])).in_units('keV*cm**2')
         cold_entropy_in = (np.sum(shell_in_cold['entropy'])).in_units('keV*cm**2')
@@ -597,38 +634,38 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
                               net_hot_entropy_q, hot_entropy_in_q, \
                               hot_entropy_out_q])
         # Add everything to the table
-        data.add_row([zsnap, 0, r, net_mass, net_metals, mass_in, \
-                      mass_out, metals_in, metals_out, net_cold_mass, \
-                      cold_mass_in, cold_mass_out, net_cool_mass, \
-                      cool_mass_in, cool_mass_out, net_warm_mass, \
-                      warm_mass_in, warm_mass_out, net_hot_mass, \
-                      hot_mass_in, hot_mass_out, net_cold_metals, \
-                      cold_metals_in, cold_metals_out, net_cool_metals, \
-                      cool_metals_in, cool_metals_out, net_warm_metals, \
-                      warm_metals_in, warm_metals_out, net_hot_metals, \
-                      hot_metals_in, hot_metals_out, net_kinetic_energy, \
-                      net_thermal_energy, net_entropy, \
+        data.add_row([zsnap, 0, r, \
+                      net_mass, net_metals, mass_in, mass_out, metals_in, metals_out, \
+                      net_cold_mass, cold_mass_in, cold_mass_out, \
+                      net_cool_mass, cool_mass_in, cool_mass_out, \
+                      net_warm_mass, warm_mass_in, warm_mass_out, \
+                      net_hot_mass, hot_mass_in, hot_mass_out, \
+                      net_cold_metals, cold_metals_in, cold_metals_out, \
+                      net_cool_metals, cool_metals_in, cool_metals_out, \
+                      net_warm_metals, warm_metals_in, warm_metals_out, \
+                      net_hot_metals, hot_metals_in, hot_metals_out, \
+                      net_kinetic_energy, net_thermal_energy, net_potential_energy, \
+                      net_entropy, \
                       kinetic_energy_in, kinetic_energy_out, \
                       thermal_energy_in, thermal_energy_out, \
-                      entropy_in, entropy_out, net_cold_kinetic_energy, \
-                      cold_kinetic_energy_in, cold_kinetic_energy_out, \
-                      net_cool_kinetic_energy, cool_kinetic_energy_in, \
-                      cool_kinetic_energy_out, net_warm_kinetic_energy, \
-                      warm_kinetic_energy_in, warm_kinetic_energy_out, \
-                      net_hot_kinetic_energy, hot_kinetic_energy_in, \
-                      hot_kinetic_energy_out, net_cold_thermal_energy, \
-                      cold_thermal_energy_in, cold_thermal_energy_out, \
-                      net_cool_thermal_energy, cool_thermal_energy_in, \
-                      cool_thermal_energy_out, net_warm_thermal_energy, \
-                      warm_thermal_energy_in, warm_thermal_energy_out, \
-                      net_hot_thermal_energy, hot_thermal_energy_in, \
-                      hot_thermal_energy_out, net_cold_entropy, \
-                      cold_entropy_in, cold_entropy_out, \
-                      net_cool_entropy, cool_entropy_in, \
-                      cool_entropy_out, net_warm_entropy, \
-                      warm_entropy_in, warm_entropy_out, \
-                      net_hot_entropy, hot_entropy_in, \
-                      hot_entropy_out])
+                      potential_energy_in, potential_energy_out, \
+                      entropy_in, entropy_out, \
+                      net_cold_kinetic_energy, cold_kinetic_energy_in, cold_kinetic_energy_out, \
+                      net_cool_kinetic_energy, cool_kinetic_energy_in, cool_kinetic_energy_out, \
+                      net_warm_kinetic_energy, warm_kinetic_energy_in, warm_kinetic_energy_out, \
+                      net_hot_kinetic_energy, hot_kinetic_energy_in, hot_kinetic_energy_out, \
+                      net_cold_thermal_energy, cold_thermal_energy_in, cold_thermal_energy_out, \
+                      net_cool_thermal_energy, cool_thermal_energy_in, cool_thermal_energy_out, \
+                      net_warm_thermal_energy, warm_thermal_energy_in, warm_thermal_energy_out, \
+                      net_hot_thermal_energy, hot_thermal_energy_in, hot_thermal_energy_out, \
+                      net_cold_potential_energy, cold_potential_energy_in, cold_potential_energy_out, \
+                      net_cool_potential_energy, cool_potential_energy_in, cool_potential_energy_out, \
+                      net_warm_potential_energy, warm_potential_energy_in, warm_potential_energy_out, \
+                      net_hot_potential_energy, hot_potential_energy_in, hot_potential_energy_out, \
+                      net_cold_entropy, cold_entropy_in, cold_entropy_out, \
+                      net_cool_entropy, cool_entropy_in, cool_entropy_out, \
+                      net_warm_entropy, warm_entropy_in, warm_entropy_out, \
+                      net_hot_entropy, hot_entropy_in, hot_entropy_out])
 
     # Save to file
     data = set_table_units(data)
@@ -640,7 +677,7 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
 
     return "Totals have been calculated for snapshot" + snap + "!"
 
-def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, quadrants):
+def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, Menc_table, quadrants):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the table to output, and a boolean
     'quadrants' that specifies whether or not to compute in quadrants vs. the whole domain, then
@@ -651,9 +688,12 @@ def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablenam
     refine_width_kpc = YTArray([refine_width], 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
+    # Make interpolated Menc_func using the table at this snapshot
+    Menc_func = IUS(Menc_table['radius'][Menc_table['snapshot']==snap], \
+      Menc_table['total_mass'][Menc_table['snapshot']==snap])
+
     # Do the actual calculation
-    message = calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, \
-                          quadrants=quadrants)
+    message = calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, Menc_func=Menc_func)
     print(message)
     print(str(datetime.datetime.now()))
 
@@ -696,6 +736,10 @@ if __name__ == "__main__":
     print('foggie_dir: ', foggie_dir)
     halo_c_v_name = track_dir + 'halo_c_v'
 
+    # Load the mass enclosed profile
+    Menc_table = Table.read(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/DD1202_DD1547.hdf5', \
+      path='all_data')
+
     # Loop over outputs, for either single-processor or parallel processor computing
     if (args.nproc==1):
         for i in range(len(outs)):
@@ -703,7 +747,7 @@ if __name__ == "__main__":
             # Make the output table name for this snapshot
             tablename = prefix + snap + '_totals'
             # Do the actual calculation
-            load_and_calculate(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, args.quadrants)
+            load_and_calculate(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
@@ -713,7 +757,7 @@ if __name__ == "__main__":
                 snap = outs[args.nproc*i+j]
                 tablename = prefix + snap + '_totals'
                 threads.append(multi.Process(target=load_and_calculate, \
-			       args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, args.quadrants)))
+			       args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
             for t in threads:
                 t.start()
             for t in threads:
@@ -724,7 +768,7 @@ if __name__ == "__main__":
             snap = outs[-(j+1)]
             tablename = prefix + snap + '_totals'
             threads.append(multi.Process(target=load_and_calculate, \
-			   args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, args.quadrants)))
+			   args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
         for t in threads:
             t.start()
         for t in threads:
