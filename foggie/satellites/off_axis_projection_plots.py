@@ -1,6 +1,5 @@
 # Written by Raymond Simons, last updated 10/3/2019
 import yt
-yt.enable_parallelism()
 import foggie
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.get_refine_box import get_refine_box
@@ -67,11 +66,11 @@ def parse_args():
     return args
 
 
-def do_plot(ds, field, normal, north_vector, annotate_positions, \
-                box_proj, center, x_width, \
+def do_plot(ds, field, normal_vector, north_vector, annotate_positions, \
+                box_proj, center, \
                 cmap, unit = None, \
-                 ann_sphere_rad = (1, 'kpc'), weight_field = None, zmin = None, zmax = None):
-    prj = yt.OffAxisProjectionPlot(ds, normal, field, north_vector = north_vector, center = center, data_source = box_proj, width=x_width, weight_field = weight_field)
+                 ann_sphere_rad = (1, 'kpc'), weight_field = None, zmin = None, zmax = None, proj_width = 0):
+    prj = yt.OffAxisProjectionPlot(ds, normal_vector, field, north_vector = north_vector, center = center, width = proj_width, data_source = box_proj, weight_field = weight_field)
 
 
     prj.set_unit(field, unit)
@@ -88,8 +87,8 @@ def do_plot(ds, field, normal, north_vector, annotate_positions, \
 def make_off_axis_projection_plots(ds, center, box_proj, fig_dir, haloname, normal_vector,north_vector,\
                          fig_end = 'projection',  do = ['stars', 'gas', 'dm'],\
                          axes = ['x', 'y', 'z'], annotate_positions = [],annotate_center = False, \
-                          add_velocity = False,  add_arrow = False, start_arrow = [], end_arrow = []):
-
+                          add_velocity = False,  add_arrow = False, start_arrow = [], end_arrow = [], proj_width = 0):
+    print (center,print (proj_width))
     for axs in axes:
         for d in do:
             if d == 'gas':
@@ -141,9 +140,10 @@ def make_off_axis_projection_plots(ds, center, box_proj, fig_dir, haloname, norm
                 zmin = metal_min
                 zmax = metal_max
                 unit = 'Zsun'
-            prj = do_plot(ds, field, normal_vector,  north_vector, annotate_positions, \
-                          box_proj, center, x_width,\
-                          cmap, unit = unit, weight_field = weight_field, zmin = zmin, zmax = zmax)
+            prj = do_plot(ds = ds, field = field, normal_vector = normal_vector,  \
+                          north_vector = north_vector, annotate_positions = annotate_positions, \
+                          box_proj = box_proj, center = center, \
+                          cmap = cmap, unit = unit, weight_field = weight_field, zmin = zmin, zmax = zmax, proj_width = proj_width)
 
             if add_velocity: prj.annotate_velocity(factor=20)
             if add_arrow: 
@@ -180,6 +180,7 @@ if __name__ == '__main__':
                   ('2392', 'DD0581'),
                   ('4123', 'DD0581'),
                   ('8508', 'DD0487')]
+        inputs = inputs
     else:
         inputs = [(args.halo, args.output),]
 
@@ -212,6 +213,8 @@ if __name__ == '__main__':
 
         #def run_sat(ds, sat, refine_box, refine_box_center, args): 
         for sat in sat_cat_halo:
+            movie_fname = fig_dir + '/movies/%s_%s.mp4'%(haloname, sat['id'])
+            if os.path.exists(movie_fname): continue
             if args.do_central:
                 if sat['id'] != '0': continue
                 sat_center = ds.arr(refine_box_center, 'code_length').to('kpc') 
@@ -256,7 +259,9 @@ if __name__ == '__main__':
                 end_arrow_2 = sat_center  + to_center_vec.value/np.linalg.norm(to_center_vec.value) * 1. * kpc
 
 
-            if False:
+
+                fname = fig_dir + '/combined/%s_%s.png'%(haloname, sat['id'])
+
                 x = np.random.randn(3)
                 x -= x.dot(sat_velocity_norm.value) * sat_velocity_norm.value
                 normal_vector_1 = x/np.linalg.norm(x) 
@@ -266,7 +271,7 @@ if __name__ == '__main__':
                 prj = make_off_axis_projection_plots(ds, sat_center, box_proj, fig_dir + '/' + args.halo, haloname,norm_vector, north_vector = sat_velocity_norm.value, \
                                     fig_end = '%s'%(sat['id']), \
                                     do = ['gas', 'stars', 'dm', 'temp', 'metal'], axes = ['off_axis'],  annotate_center = True,
-                                    add_velocity = False, add_arrow = True, start_arrow = [start_arrow], end_arrow = [end_arrow])  
+                                    add_velocity = False, add_arrow = True, start_arrow = [start_arrow], end_arrow = [end_arrow], proj_width = box_width)  
 
                 fl_dm = fig_dir + '/%s/%s_%s_dm_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
                 fl_stars = fig_dir + '/%s/%s_%s_stars_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
@@ -284,7 +289,7 @@ if __name__ == '__main__':
 
 
                 imgs_comb = PIL.Image.fromarray( imgs_comb)
-                imgs_comb.save(fig_dir + '/combined/%s_%s.png'%(haloname, sat['id']))
+                imgs_comb.save(fname)
 
             if True:
                 if np.isnan(args.rot_n):
@@ -312,11 +317,15 @@ if __name__ == '__main__':
                     end_arrows   = [end_arrow, end_arrow_2]
 
                 for nrot in np.arange(min_nrot, max_nrot):
-                    norm_vector = [0, np.cos(2*pi * (1.*nrot)/max_nrot), np.sin(2*pi * (1.*nrot)/max_nrot)]
-                    prj = make_off_axis_projection_plots(ds, sat_center, box_proj, fig_dir + '/' + args.halo, haloname,norm_vector, north_vector = [1,0,0], \
-                                        fig_end = '%s_%.3i'%(sat['id'], nrot), \
-                                        do = ['gas', 'stars', 'dm', 'temp', 'metal'], axes = ['off_axis'], annotate_center = not args.do_central,
-                                        add_velocity = False, add_arrow = not args.do_central, start_arrow = start_arrows, end_arrow = end_arrows)  
+                    fname = fig_dir + '/combined/%s_%s_%.3i.png'%(haloname, sat['id'], nrot)
+
+                    normal_vector = [0, np.cos(2*pi * (1.*nrot)/max_nrot), np.sin(2*pi * (1.*nrot)/max_nrot)]
+
+                    prj = make_off_axis_projection_plots(ds = ds, center = sat_center, box_proj = box_proj, fig_dir = fig_dir + '/' + args.halo,
+                                                        haloname = haloname, normal_vector = normal_vector, north_vector = [1,0,0], \
+                                                        fig_end = '%s_%.3i'%(sat['id'], nrot), \
+                                                        do = ['gas', 'stars', 'dm', 'temp', 'metal'], axes = ['off_axis'], annotate_center = not args.do_central,
+                                                        add_velocity = False, add_arrow = not args.do_central, start_arrow = start_arrows, end_arrow = end_arrows, proj_width = box_width)  
 
                     fl_dm = fig_dir + '/%s/%s_%s_dm_%s_%.3i.png'%(args.halo, haloname, 'off_axis', sat['id'], nrot)
                     fl_stars = fig_dir + '/%s/%s_%s_stars_%s_%.3i.png'%(args.halo, haloname, 'off_axis', sat['id'], nrot)
@@ -335,10 +344,11 @@ if __name__ == '__main__':
 
 
                     imgs_comb = PIL.Image.fromarray( imgs_comb)
-                    imgs_comb.save(fig_dir + '/combined/%s_%s_%.3i.png'%(haloname, sat['id'], nrot))
+                    imgs_comb.save(fname)
 
 
-                #os.system('ffmpeg -y -r 24 -f image2 -start_number 0 -i ' + fig_dir + '/combined/%s_%s_'%(haloname, sat['id']) + r'%03d.png ' +'-vframes 1000 -vcodec libx264 -crf 25  -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p ' + fig_dir + '/movies/%s_%s.mp4'%(haloname, sat['id']))
+                if ('jase' in args.system):
+                    os.system('ffmpeg -y -r 24 -f image2 -start_number 0 -i ' + fig_dir + '/combined/%s_%s_'%(haloname, sat['id']) + r'%03d.png ' +'-vframes 1000 -vcodec libx264 -crf 25  -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p ' + fig_dir + '/movies/%s_%s.mp4'%(haloname, sat['id']))
 
 
 
