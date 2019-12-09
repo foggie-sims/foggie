@@ -72,6 +72,10 @@ def parse_args():
                         help='Just use the working directory?, Default is no')
     parser.set_defaults(pwd=False)
 
+    parser.add_argument('--local', dest='local', action='store_true',
+                        help='Are the simulation files stored locally? Default is no')
+    parser.set_defaults(local=False)
+
     parser.add_argument('--surface', metavar='surface', type=str, action='store', \
                         help='What surface type for computing the flux? Default is sphere' + \
                         ' and nothing else is implemented right now')
@@ -332,11 +336,11 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
         thermal_energy_out = (np.sum(shell_out['thermal_energy'] * \
                               shell_out['cell_mass'])).in_units('erg')
 
-        net_potential_energy = (np.sum(G * shell['cell_mass'] * Menc_func(shell['radius_corrected']) \
+        net_potential_energy = (np.sum(G * shell['cell_mass'] * ds.arr(Menc_func(shell['radius_corrected']), 'Msun') \
                                       / shell['radius_corrected'])).in_units('erg')
-        potential_energy_in = (np.sum(G * shell_in['cell_mass'] * Menc_func(shell_in['radius_corrected']) \
+        potential_energy_in = (np.sum(G * shell_in['cell_mass'] * ds.arr(Menc_func(shell_in['radius_corrected']), 'Msun') \
                                       / shell_in['radius_corrected'])).in_units('erg')
-        potential_energy_out = (np.sum(G * shell_out['cell_mass'] * Menc_func(shell_out['radius_corrected']) \
+        potential_energy_out = (np.sum(G * shell_out['cell_mass'] * ds.arr(Menc_func(shell_out['radius_corrected']), 'Msun') \
                                       / shell_out['radius_corrected'])).in_units('erg')
 
         net_entropy = (np.sum(shell['entropy'])).in_units('keV*cm**2')
@@ -387,32 +391,32 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
         hot_thermal_energy_out = (np.sum(shell_out_hot['thermal_energy'] * \
                              shell_out_hot['cell_mass'])).in_units('erg')
 
-        net_cold_potential_energy = (np.sum(G * shell_cold['cell_mass'] * Menc_func(shell_cold['radius_corrected']) \
+        net_cold_potential_energy = (np.sum(G * shell_cold['cell_mass'] * ds.arr(Menc_func(shell_cold['radius_corrected']), 'Msun') \
                                       / shell_cold['radius_corrected'])).in_units('erg')
-        cold_potential_energy_in = (np.sum(G * shell_in_cold['cell_mass'] * Menc_func(shell_in_cold['radius_corrected']) \
+        cold_potential_energy_in = (np.sum(G * shell_in_cold['cell_mass'] * ds.arr(Menc_func(shell_in_cold['radius_corrected']), 'Msun') \
                                       / shell_in_cold['radius_corrected'])).in_units('erg')
-        cold_potential_energy_out = (np.sum(G * shell_out_cold['cell_mass'] * Menc_func(shell_out_cold['radius_corrected']) \
+        cold_potential_energy_out = (np.sum(G * shell_out_cold['cell_mass'] * ds.arr(Menc_func(shell_out_cold['radius_corrected']), 'Msun') \
                                       / shell_out_cold['radius_corrected'])).in_units('erg')
 
-        net_cool_potential_energy = (np.sum(G * shell_cool['cell_mass'] * Menc_func(shell_cool['radius_corrected']) \
+        net_cool_potential_energy = (np.sum(G * shell_cool['cell_mass'] * ds.arr(Menc_func(shell_cool['radius_corrected']), 'Msun') \
                                       / shell_cool['radius_corrected'])).in_units('erg')
-        cool_potential_energy_in = (np.sum(G * shell_in_cool['cell_mass'] * Menc_func(shell_in_cool['radius_corrected']) \
+        cool_potential_energy_in = (np.sum(G * shell_in_cool['cell_mass'] * ds.arr(Menc_func(shell_in_cool['radius_corrected']), 'Msun') \
                                       / shell_in_cool['radius_corrected'])).in_units('erg')
-        cool_potential_energy_out = (np.sum(G * shell_out_cool['cell_mass'] * Menc_func(shell_out_cool['radius_corrected']) \
+        cool_potential_energy_out = (np.sum(G * shell_out_cool['cell_mass'] * ds.arr(Menc_func(shell_out_cool['radius_corrected']), 'Msun') \
                                       / shell_out_cool['radius_corrected'])).in_units('erg')
 
-        net_warm_potential_energy = (np.sum(G * shell_warm['cell_mass'] * Menc_func(shell_warm['radius_corrected']) \
+        net_warm_potential_energy = (np.sum(G * shell_warm['cell_mass'] * ds.arr(Menc_func(shell_warm['radius_corrected']), 'Msun') \
                                       / shell_warm['radius_corrected'])).in_units('erg')
-        warm_potential_energy_in = (np.sum(G * shell_in_warm['cell_mass'] * Menc_func(shell_in_warm['radius_corrected']) \
+        warm_potential_energy_in = (np.sum(G * shell_in_warm['cell_mass'] * ds.arr(Menc_func(shell_in_warm['radius_corrected']), 'Msun') \
                                       / shell_in_warm['radius_corrected'])).in_units('erg')
-        warm_potential_energy_out = (np.sum(G * shell_out_warm['cell_mass'] * Menc_func(shell_out_warm['radius_corrected']) \
+        warm_potential_energy_out = (np.sum(G * shell_out_warm['cell_mass'] * ds.arr(Menc_func(shell_out_warm['radius_corrected']), 'Msun') \
                                       / shell_out_warm['radius_corrected'])).in_units('erg')
 
-        net_hot_potential_energy = (np.sum(G * shell_hot['cell_mass'] * Menc_func(shell_hot['radius_corrected']) \
+        net_hot_potential_energy = (np.sum(G * shell_hot['cell_mass'] * ds.arr(Menc_func(shell_hot['radius_corrected']), 'Msun') \
                                       / shell_hot['radius_corrected'])).in_units('erg')
-        hot_potential_energy_in = (np.sum(G * shell_in_hot['cell_mass'] * Menc_func(shell_in_hot['radius_corrected']) \
+        hot_potential_energy_in = (np.sum(G * shell_in_hot['cell_mass'] * ds.arr(Menc_func(shell_in_hot['radius_corrected']), 'Msun') \
                                       / shell_in_hot['radius_corrected'])).in_units('erg')
-        hot_potential_energy_out = (np.sum(G * shell_out_hot['cell_mass'] * Menc_func(shell_out_hot['radius_corrected']) \
+        hot_potential_energy_out = (np.sum(G * shell_out_hot['cell_mass'] * ds.arr(Menc_func(shell_out_hot['radius_corrected']), 'Msun') \
                                       / shell_out_hot['radius_corrected'])).in_units('erg')
 
         net_cold_entropy = (np.sum(shell_cold['entropy'])).in_units('keV*cm**2')
@@ -707,9 +711,10 @@ if __name__ == "__main__":
     if (args.system=='pleiades_cassi'): code_path = '/home5/clochhaa/FOGGIE/foggie/foggie/'
     elif (args.system=='cassiopeia'):
         code_path = '/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/'
+        if (args.local):
+            foggie_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/'
     track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-    if ('/astro/simulations/' in foggie_dir):
-        run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'
+
     # Build output list
     if (',' in args.output):
         ind = args.output.find(',')
@@ -737,7 +742,7 @@ if __name__ == "__main__":
     halo_c_v_name = track_dir + 'halo_c_v'
 
     # Load the mass enclosed profile
-    Menc_table = Table.read(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/DD1202_DD1547.hdf5', \
+    Menc_table = Table.read(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/DD1202_DD1547_masses.hdf5', \
       path='all_data')
 
     # Loop over outputs, for either single-processor or parallel processor computing
