@@ -78,6 +78,12 @@ def vz_corrected(field, data):
     halo_velocity_kms = data.ds.halo_velocity_kms
     return data['gas','velocity_z'].in_units('km/s') - halo_velocity_kms[2]
 
+def vel_mag_corrected(field, data):
+    """Corrects the velocity magnitude for bulk motion of the halo. Requires 'halo_velocity_kms',
+    which is the halo velocity with yt units of km/s, to be defined. -Cassi"""
+
+    return np.sqrt(data['vx_corrected']**2. + data['vy_corrected']**2. + data['vz_corrected']**2.)
+
 def radial_velocity_corrected(field, data):
     """Corrects the radial velocity for bulk motion of the halo and the halo center.
     Requires 'halo_center_kpc', which is the halo center with yt units of kpc, to be defined.
@@ -162,10 +168,10 @@ def phi_pos(field, data):
     return np.arctan2(y_hat, x_hat)
 
 def kinetic_energy_corrected(field, data):
-    """Calculates the kinetic energy of cells relative to the center of the halo and corrected
+    """Calculates the kinetic energy of cells corrected
     for the halo velocity. Requires 'halo_velociy_kms', which is the halo velocity with yt
     units of km/s, to be defined. -Cassi"""
-    return 0.5 * data['cell_mass'] * data['radial_velocity_corrected']**2.
+    return 0.5 * data['cell_mass'] * data['vel_mag_corrected']**2.
 
 def _no6(field,data):
     return data["dx"] * data['O_p5_number_density']
