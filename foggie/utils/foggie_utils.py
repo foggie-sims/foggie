@@ -215,37 +215,6 @@ def filter_particles(data_source, filter_particle_types = ['stars', 'dm'], load_
 
 
 
-def id_to_name(halo_id):
-    """
-    Return halo name of a given halo id.
-    """
-    if (('2392' in halo_id) | (halo_id == 2392)): halo_name = 'Hurricane'
-    if (('2878' in halo_id) | (halo_id == 2878)): halo_name = 'Cyclone'
-    if (('4123' in halo_id) | (halo_id == 4123)): halo_name = 'Blizzard'
-    if (('5016' in halo_id) | (halo_id == 5016)): halo_name = 'Squall'
-    if (('5036' in halo_id) | (halo_id == 5036)): halo_name = 'Maelstrom'
-    if (('8508' in halo_id) | (halo_id == 8508)): halo_name = 'Tempest'
-
-
-    return halo_name
-
-
-
-def name_to_id(halo_name):
-    """
-    Return halo_id for a given halo name
-    """
-    if halo_name == 'Hurricane': halo_id = '2392'
-    if halo_name == 'Cyclone':   halo_id = '2878'
-    if halo_name == 'Blizzard':  halo_id = '4123'
-    if halo_name == 'Squall':    halo_id = '5016'
-    if halo_name == 'Maelstrom': halo_id = '5036'
-    if halo_name == 'Tempest':   halo_id = '8508'
-
-
-    return halo_id
-
-
 
 
 
