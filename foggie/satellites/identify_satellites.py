@@ -300,7 +300,7 @@ if __name__ == '__main__':
     anchors = {}
     for args.halo, args.output in inputs:
         anchors[args.halo] = {}
-        foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+        foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
 
         save_dir = foggie_dir.replace('sims', 'outputs/identify_satellites')
 
