@@ -87,7 +87,7 @@ if __name__ == '__main__':
       dist_center = []
 
 
-      foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+      foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
       save_dir = foggie_dir.replace('sims', 'outputs/identify_satellites')
 
       sat_catalog = glob(save_dir + '/satellite_selection_%s.npy'%haloname)[0]

@@ -24,7 +24,7 @@ def get_region(data_set, region, filter='None'):
         print("get_region: the filter will be: ", filter)
         rvir  = data_set.sphere(center=refine_box_center, radius=(200, 'kpc'))   #<---- cgm_field_filter is from consistency.py 
         if (filter == 'None'): 
-            all_data = rvir.all_data()
+            all_data = rvir
         else: 
             all_data = rvir.cut_region(filter) 
     elif region == 'domain': 

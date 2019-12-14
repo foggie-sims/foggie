@@ -70,6 +70,7 @@ def do_plot(ds, field, normal_vector, north_vector, annotate_positions, \
                 box_proj, center, \
                 cmap, unit = None, \
                  ann_sphere_rad = (1, 'kpc'), weight_field = None, zmin = None, zmax = None, proj_width = 0):
+    print (proj_width)
     prj = yt.OffAxisProjectionPlot(ds, normal_vector, field, north_vector = north_vector, center = center, width = proj_width, data_source = box_proj, weight_field = weight_field)
 
 
@@ -88,7 +89,7 @@ def make_off_axis_projection_plots(ds, center, box_proj, fig_dir, haloname, norm
                          fig_end = 'projection',  do = ['stars', 'gas', 'dm'],\
                          axes = ['x', 'y', 'z'], annotate_positions = [],annotate_center = False, \
                           add_velocity = False,  add_arrow = False, start_arrow = [], end_arrow = [], proj_width = 0):
-    print (center,print (proj_width))
+    print (center,proj_width)
     for axs in axes:
         for d in do:
             if d == 'gas':
@@ -195,7 +196,7 @@ if __name__ == '__main__':
         sat_cat_halo = sat_cat[sat_cat['halo'] == int(args.halo)]
 
 
-        foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, blek = get_run_loc_etc(args)
+        foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
         run_dir = foggie_dir + run_loc
 
         ds_loc = run_dir + args.output + "/" + args.output
@@ -219,6 +220,7 @@ if __name__ == '__main__':
                 if sat['id'] != '0': continue
                 sat_center = ds.arr(refine_box_center, 'code_length').to('kpc') 
                 box_proj = refine_box
+                box_width =float( ds.arr(x_width, 'code_length').to('kpc').value)*kpc  
 
             else:
                 if sat['id'] == '0': continue
