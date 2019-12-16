@@ -19,6 +19,7 @@ def load(snap, trackfile, **kwargs):
     halo_c_v_name = kwargs.get('halo_c_v_name', 'halo_c_v')
     disk_relative = kwargs.get('disk_relative', False)
     particle_type_for_angmom = kwargs.get('particle_type_for_angmom', 'young_stars')
+    filter_particles = kwargs.get('filter_particles', True)
 
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
@@ -82,7 +83,7 @@ def load(snap, trackfile, **kwargs):
 
     # filter particles into star and dm
     # JT moved this to before "disk_relative" so that the if statement can use the filtered particle fields
-    filter_particles(refine_box, filter_particle_types = ['young_stars', 'old_stars', 'stars', 'dm'])
+    if (filter_particles): filter_particles(refine_box, filter_particle_types = ['young_stars', 'old_stars', 'stars', 'dm'])
 
     # Option to define velocities and coordinates relative to the angular momentum vector of the disk
     if (disk_relative):

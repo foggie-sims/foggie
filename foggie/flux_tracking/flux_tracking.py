@@ -32,6 +32,7 @@ from astropy.io import ascii
 import multiprocessing as multi
 import datetime
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS
+import shutil
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -934,14 +935,19 @@ def calc_fluxes_new(ds, snap, zsnap, refine_width_kpc, tablename, dt=YTArray([5.
     return "Fluxes have been calculated for snapshot " + snap + "!"
 
 
-def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, Menc_table, quadrants):
+def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, Menc_table, quadrants):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the table to output, and a boolean
     'quadrants' that specifies whether or not to compute in quadrants vs. the whole domain, then
     does the calculation on the loaded snapshot.'''
 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box, refine_box_center, refine_width = load(snap_name, track, use_halo_c_v=True, halo_c_v_name=halo_c_v_name)
+    if (system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap
+        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+        snap_name = snap_dir + '/' + snap
+    ds, refine_box, refine_box_center, refine_width = load(snap_name, track, use_halo_c_v=True, halo_c_v_name=halo_c_v_name, filter_particles=False)
     refine_width_kpc = YTArray([refine_width], 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
@@ -951,6 +957,9 @@ def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablenam
 
     # Do the actual calculation
     message = calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, Menc_func=Menc_func)
+    if (system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
     print(message)
     print(str(datetime.datetime.now()))
 
@@ -1008,9 +1017,9 @@ if __name__ == "__main__":
         for i in range(len(outs)):
             snap = outs[i]
             # Make the output table name for this snapshot
-            tablename = prefix + snap + '_fluxes_efficient'
+            tablename = prefix + snap + '_fluxes'
             # Do the actual calculation
-            load_and_calculate(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)
+            load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
@@ -1020,7 +1029,7 @@ if __name__ == "__main__":
                 snap = outs[args.nproc*i+j]
                 tablename = prefix + snap + '_fluxes'
                 threads.append(multi.Process(target=load_and_calculate, \
-			       args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
+			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
             for t in threads:
                 t.start()
             for t in threads:
@@ -1031,7 +1040,7 @@ if __name__ == "__main__":
             snap = outs[-(j+1)]
             tablename = prefix + snap + '_fluxes'
             threads.append(multi.Process(target=load_and_calculate, \
-			   args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
+			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
         for t in threads:
             t.start()
         for t in threads:
