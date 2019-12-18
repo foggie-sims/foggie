@@ -649,7 +649,7 @@ outflow_inflow_color_labels = [b'<-200',  b'[-200, -150)',
                                b'[-150, -100)', b'[-100, -50)',
                                b'[-50, 0)', b'[0, 50)', b'[50, 100)',
                                b'[100, 150)', b'[150, 200)', b'>=200']
-outflow_cmap = mpl.pyplot.cm.PuRd
+outflow_cmap = mpl.pyplot.cm.Reds
 inflow_cmap = mpl.pyplot.cm.Blues_r
 outflow_inflow_colors = sns.blend_palette((inflow_cmap(0.1), inflow_cmap(0.3),
                                            inflow_cmap(0.5), inflow_cmap(0.9),
