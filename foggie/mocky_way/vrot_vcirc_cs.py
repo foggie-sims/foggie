@@ -5,7 +5,8 @@ def calc_vrot_slit(ds, dd_name, sim_name, halo_center, normal_vector,
     El-Baldry+2018. This is to calculate the circular velocity in an observational
     way. We want to compare it with the result from calc_vrot_phi, which focuses
     on an approach that's theoretical.
-
+    --> added mass weighted version of vrot and vsig
+    
     Inputs:
     normal_vector: the angular momentum vector, L_vec
     los_vector: line of sight vector we are gonna project the vrot onto
@@ -21,8 +22,8 @@ def calc_vrot_slit(ds, dd_name, sim_name, halo_center, normal_vector,
     History:
     03/27/2019, Yong Zheng, UCB, first write up the function to calculate roation/dispersion
     08/20/2019, Yong Zheng, UCB, move this func to mocky_way_modules
-    10/08/2019, Yong Zheng, UCb, merging into foggie.mocky_way
-
+    10/08/2019, Yong Zheng, UCB, merging into foggie.mocky_way
+    12/18/2019, Yong Zheng, UCB, added mass weighted version of vrot and vsig
     """
 
     from core_funcs import data_dir_sys_dir
@@ -49,6 +50,7 @@ def calc_vrot_slit(ds, dd_name, sim_name, halo_center, normal_vector,
     gas_x = (disk['gas', 'x'] - halo_center[0]).to('kpc')
     gas_y = (disk['gas', 'y'] - halo_center[1]).to('kpc')
     gas_z = (disk['gas', 'z'] - halo_center[2]).to('kpc')
+    gas_mass = disk['gas', 'cell_mass']
 
     gas_vec_r = np.array([gas_x, gas_y, gas_z]).T
     gas_r = np.sqrt(gas_x**2 + gas_y**2 + gas_z**2) # kpc
@@ -59,16 +61,24 @@ def calc_vrot_slit(ds, dd_name, sim_name, halo_center, normal_vector,
     radii_slit = np.mgrid[0:maxr+dr:dr]  # kpc
     v_rot_slit = np.zeros(radii_slit.size) # rotation velocity along the list
     v_sig_slit = np.zeros(radii_slit.size) # dispersion
+    v_rot_slit_masswt = np.zeros(radii_slit.size)
+    v_sig_slit_masswt = np.zeros(radii_slit.size)
+
+    from foggie.mocky_way.core_funcs import weighted_avg_and_std
     for ir in tqdm(range(radii_slit.size)[1:]):
         rr = radii_slit[ir]
         ind_rr = np.all([imp_para>=rr, imp_para<=rr+dr], axis=0)
         v_rot_slit[ir] = np.nanmean(np.abs(los_vel[ind_rr]))
         v_sig_slit[ir] = np.nanstd(np.abs(los_vel[ind_rr]))
 
+        wt_mean, wt_std = weighted_avg_and_std(np.abs(los_vel[ind_rr]), gas_mass[ind_rr])
+        v_rot_slit_masswt[ir] = wt_mean
+        v_sig_slit_masswt[ir] = wt_std
+
     # save the result to a table for future comparison
     from astropy.table import Table
-    master = Table([radii_slit, v_rot_slit, v_sig_slit],
-                    names=('r', 'v_rotation', 'v_dispersion'),
+    master = Table([radii_slit, v_rot_slit, v_sig_slit, v_rot_slit_masswt, v_sig_slit_masswt],
+                    names=('r', 'v_rotation', 'v_dispersion, v_rotation_masswt', 'v_dispersion_masswt'),
                     meta={'name': 'FOGGIE/%s/%s'%(sim_name, dd_name)})
     master['r'].format = '8.2f'
     master['r'].unit = 'kpc'
@@ -76,6 +86,10 @@ def calc_vrot_slit(ds, dd_name, sim_name, halo_center, normal_vector,
     master['v_rotation'].unit = 'km/s'
     master['v_dispersion'].format = '8.2f'
     master['v_dispersion'].unit = 'km/s'
+    master['v_rotation_masswt'].format = '8.2f'
+    master['v_rotation_masswt'].unit = 'km/s'
+    master['v_dispersion_masswt'].format = '8.2f'
+    master['v_dispersion_masswt'].unit = 'km/s'
 
     save_dir = sys_dir+'/foggie/mocky_way/figs/vrot_vcirc_cs'
     filename = '%s_%s_vrotslit'%(sim_name, dd_name)
@@ -93,6 +107,7 @@ def calc_vrot_phi(ds, dd_name, sim_name, halo_center, L_vec, sun_vec, phi_vec,
     El-Baldry+2018. This is to calculate the circular velocity in a theoretical
     way. We want to compare it with the result from calc_vrot_slit, which focuses
     on an approach that's more observational.
+    --> Update, added mass weighted version of vrot and vsig
 
     Inputs:
     L_vec, sun_vec, phi_vec: the angular momentum vector, and the other two are
@@ -105,13 +120,15 @@ def calc_vrot_phi(ds, dd_name, sim_name, halo_center, L_vec, sun_vec, phi_vec,
 
     Output:
     We save the data to a fits file for future uses. fitsfiles can be read with
-    astropy.table func, and keywords are r, v_rotation, v_dispersion.
+    astropy.table func, and keywords are r, v_rotation, v_dispersion,
+    v_rotation_masswt, v_dispersion_masswt
 
 
     History:
     03/27/2019, Yong Zheng, UCB, first write up the function to calculate roation/dispersion
     08/20/2019, Yong Zheng, UCB, move this func to mocky_way_modules
     10/08/2019, Yong Zheng, UCB, merging into foggie.mocky_way
+    12/18/2019, Yong Zheng, UCB, add mass weighted vrot and vsigma calculation.
 
     """
 
@@ -156,16 +173,26 @@ def calc_vrot_phi(ds, dd_name, sim_name, halo_center, L_vec, sun_vec, phi_vec,
     calc_radii = yt.YTArray(np.mgrid[0:maxr+dr:dr], 'kpc')
     v_rot_phi = yt.YTArray(np.zeros(calc_radii.size), 'km/s') # rotation velocity
     v_sig_phi = yt.YTArray(np.zeros(calc_radii.size), 'km/s') # velocity dispersion
+    v_rot_phi_masswt = yt.YTArray(np.zeros(calc_radii.size), 'km/s') # mass weighted rotation velocity
+    v_sig_phi_masswt = yt.YTArray(np.zeros(calc_radii.size), 'km/s') # velocity dispersion, mass weighted
+
+    from foggie.mocky_way.core_funcs import weighted_avg_and_std
     for ir in tqdm(range(calc_radii.size)[1:]):
         ind = np.all([new_r >= calc_radii[ir-1], new_r < calc_radii[ir]], axis=0)
-        # gas mass weighted mean of the phi
+
+        # this follows the definition in El-Badry+2018, but volume weighted
         v_rot_phi[ir] = np.mean(np.abs(v_phi[ind]))
         v_sig_phi[ir] = np.sqrt(np.nanmean(v_phi[ind]**2) - v_rot_phi[ir]**2)
 
+        # let's do a mass weighted version
+        wt_mean, wt_std = weighted_avg_and_std(np.abs(v_phi[ind]), gas_mass[ind])
+        v_rot_phi_masswt[ir] = wt_mean
+        v_sig_phi_masswt[ir] = wt_std
+
     # save the result to a table for future comparison
     from astropy.table import Table
-    master = Table([calc_radii, v_rot_phi, v_sig_phi],
-                    names=('r', 'v_rotation', 'v_dispersion'),
+    master = Table([calc_radii, v_rot_phi, v_sig_phi, v_rot_phi_masswt, v_sig_phi_masswt],
+                    names=('r', 'v_rotation', 'v_dispersion', 'v_rotation_masswt', 'v_dispersion_masswt'),
                     meta={'name': 'FOGGIE/%s/%s'%(sim_name, dd_name)})
     master['r'].format = '8.2f'
     master['r'].unit = 'kpc'
@@ -173,6 +200,10 @@ def calc_vrot_phi(ds, dd_name, sim_name, halo_center, L_vec, sun_vec, phi_vec,
     master['v_rotation'].unit = 'km/s'
     master['v_dispersion'].format = '8.2f'
     master['v_dispersion'].unit = 'km/s'
+    master['v_rotation_masswt'].format = '8.2f'
+    master['v_rotation_masswt'].unit = 'km/s'
+    master['v_dispersion_masswt'].format = '8.2f'
+    master['v_dispersion_masswt'].unit = 'km/s'
 
     save_dir = sys_dir+'/foggie/mocky_way/figs/vrot_vcirc_cs'
     filename = '%s_%s_vrotphi'%(sim_name, dd_name)
