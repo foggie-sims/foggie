@@ -199,12 +199,17 @@ if __name__ == "__main__":
     ### Read in the simulation data and find halo center  ###
 
     import sys
+    import os 
     sim_name = sys.argv[1] # 'nref11n_nref10f'
     dd_name = sys.argv[2]  # 'DD2175'
 
     from core_funcs import data_dir_sys_dir
     data_dir, sys_dir = data_dir_sys_dir()
     ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
+    if os.path.isfile(ds_file) == False:
+        drive_dir = '/Volumes/Yong4TB/foggie/halo_008508'
+        ds_file = '%s/%s/%s/%s'%(drive_dir, sim_name, dd_name, dd_name)
+
     ds = yt.load(ds_file)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
