@@ -1,12 +1,10 @@
 ### This function calculates the mass flux per velocity bins, and also
 # it split the gas into different temperature bins.
-#
-# rewrite the structure of the code for DD2175, and merge into foggie.mocky_way
-# 10/14/2019, Yong Zheng, UCB.
-#
-# # 08/14/2019, Yong add in the option to shift the observer on the solar circle.
-#
-# Started, Aug 11, 2019, Yong Zheng, UCB
+# 12/18/2019, add arg to measure kinematics from another seven location
+# 10/14/2019, rewrite the structure of the code for DD2175,
+#             and merge into foggie.mocky_way, Yong Zheng, UCB.
+# 08/14/2019, Yong add in the option to shift the observer on the solar circle.
+# 08/11/2019, created, Yong Zheng, UCB
 
 import numpy as np
 from astropy.io import fits
@@ -17,11 +15,18 @@ from foggie.mocky_way.core_funcs import prepdata
 from foggie.mocky_way.core_funcs import obj_source_all_disk_cgm
 
 
-sim_name = 'nref11n_nref10f'
-dd_name = 'DD2175'
+import sys
+sim_name = sys.argv[1] # 'nref11n_nref10f'
+dd_name =  sys.argv[2] # 'DD2175'
 
-ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
-obj_tag = 'cgm-20kpc' # cgm-15kpc, cgm-20kpc, cgm-rvir
+#only use this argument if changing observer location inside the galaxy
+shift_obs_location = True
+shift_n45 = 7
+
+ds, ds_paras = prepdata(dd_name, sim_name=sim_name,
+                        shift_obs_location=shift_obs_location,
+                        shift_n45=shift_n45)
+obj_tag = 'cgm-rvir' # cgm-15kpc, cgm-20kpc, cgm-rvir
 #obs_point = 'offcenter_location'  # halo_center, offcenter_location
 #obs_bulkvel = 'offcenter_bulkvel' # disk_bulkvel, offcenter_bulkvel
 obs_point = 'halo_center'  # halo_center, offcenter_location
@@ -109,7 +114,13 @@ c6 = fits.Column(name='dM_hot (Msun/km/s)', array=dM_hot, format='D')
 all_cols = [c1, c2, c3, c4, c5, c6]
 t = fits.BinTableHDU.from_columns(all_cols)
 fig_dir = 'figs/dM_dv/fits'
-tb_name = '%s_%s_dMdv_%s_%s.fits'%(sim_name, dd_name, obj_tag, obs_point)
+
+if shift_obs_location == False:
+    tb_name = '%s_%s_dMdv_%s_%s.fits'%(sim_name, dd_name, obj_tag, obs_point)
+else:
+    tb_name = '%s_%s_dMdv_%s_%s_%d.fits'%(sim_name, dd_name, obj_tag, obs_point,
+                                          shift_n45*45)
+
 save_to_file = '%s/%s'%(fig_dir, tb_name)
 print("I am saving it to ", save_to_file)
 t.writeto(save_to_file, overwrite=True)
