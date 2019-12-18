@@ -109,18 +109,26 @@ species_dict = {'CIII': 'C_p2_number_density',
                 'NeVIII': 'Ne_p7_number_density',
                 'FeXIV': 'Fe_p13_number_density',
                 'NV': 'N_p4_number_density',
+                'AlII': 'Al_p1_number_density',
                 'CII': 'C_p1_number_density',
                 'OVII': 'O_p6_number_density',
                 'OVIII': 'O_p7_number_density',
                 'NeVII': 'Ne_p6_number_density',
-                'NeVIII': 'Ne_p7_number_density'}
+                'NeVIII': 'Ne_p7_number_density',
+                'MgX': 'Mg_p9_number_density'}
 
-halo_dict = {   2392  :  'Hurricane' ,
-                2878  :  'Cyclone' ,
-                4123  :  'Wigshifter' ,
-                5016  :  'Squall' ,
-                5036  :  'Maelstrom' ,
-                8508  :  'Tempest' }
+halo_dict = {   '2392'  :  'Hurricane' ,
+                '2878'  :  'Cyclone' ,
+                '4123'  :  'Blizzard' ,
+                '5016'  :  'Squall' ,
+                '5036'  :  'Maelstrom' ,
+                '8508'  :  'Tempest',
+                '002392'  :  'Hurricane' ,
+                '002878'  :  'Cyclone' ,
+                '004123'  :  'Blizzard' ,
+                '005016'  :  'Squall' ,
+                '005036'  :  'Maelstrom' ,
+                '008508'  :  'Tempest' }
 
 linelist_jt = ['H I 1216', 'H I 919', \
                 'Mg II 2796', 'Si II 1260', 'Si III 1206', 'Si IV 1394', \
@@ -135,6 +143,14 @@ linelist_long = ['H I 1216', 'H I 1026', 'H I 973',
                'Si II 1260', 'Si III 1206', 'Si IV 1394', \
                'C II 1335', 'C III 977', 'C IV 1548', \
                'O VI 1032', 'Ne VIII 770']
+linelist_all = ['H I 1216', 'H I 1026', 'H I 973',
+               'H I 950', 'H I 919', 'Mg II 2796', 'Al II 1671', 'Al III 1855', \
+               'Si II 1260', 'Si III 1206', 'Si IV 1394', \
+               'C II 1335', 'C III 977', 'C IV 1548', \
+               'O VI 1032', 'Ne VIII 770']
+linelist_high = ['H I 1216',  'Si IV 1394', 'C IV 1548', \
+               'O VI 1032', 'Ne VIII 770']
+linelist_short = ['H I 1216', 'Si II 1260', 'O VI 1032']
 
 cgm_temperature_min = 1.5e4  #<---- in some FOGGIE codes this will be used to set a min
 cgm_density_max = 2e-26
@@ -261,6 +277,15 @@ ne8_max = 1.e15
 fe14_color_map = "inferno"
 fe14_min = 1.e10
 fe14_max = 1.e15
+
+al2_color_map = "plasma"
+al2_min = 1.e10
+al2_max = 1.e17
+
+mg10_color_map = "plasma"
+mg10_min = 1.e11
+mg10_max = 1.e15
+
 
 #set up the ionization fraction colormap
 def categorize_by_fraction(f_ion):

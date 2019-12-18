@@ -51,6 +51,7 @@ def get_run_loc_etc(args):
     if args.run == "natural":
         run_loc = "halo_00"+ args.halo + "/nref11n/"
         trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref9"
+        infofile = code_path  + "halo_infos/00" + args.halo +"/nref11n/halo_info"
         haloname = "halo_00"+ args.halo + "_nref11n"
         path_part = run_loc
         output_dir = output_path + "plots_"+path_part
@@ -58,6 +59,7 @@ def get_run_loc_etc(args):
     elif args.run == "nref10f" or args.run == "nref11n_nref10f":
         run_loc = "halo_00"+ args.halo + "/nref11n_nref10f/"
         trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref10"
+        infofile = code_path  + "halo_infos/00" + args.halo +"/nref11n_nref10f/halo_info"
         haloname = "halo_00"+ args.halo + "_nref11n_nref10f"
         path_part = run_loc
         output_dir = output_path + "plots_"+path_part
@@ -65,6 +67,7 @@ def get_run_loc_etc(args):
     elif args.run == "nref11c_nref9f" or args.run == "nref11c":
         run_loc = "halo_00"+ args.halo + "/nref11c_nref9f/"
         trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref9"
+        infofile = code_path  + "halo_infos/00" + args.halo +"/nref11c_nref9f/halo_info"
         haloname = "halo_00"+ args.halo + "_nref11c_nref9f"
         path_part = run_loc
         output_dir = output_path + "plots_"+path_part
@@ -82,4 +85,4 @@ def get_run_loc_etc(args):
         haloname = 'halo'
         spectra_dir = '.'
 
-    return foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir
+    return foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile

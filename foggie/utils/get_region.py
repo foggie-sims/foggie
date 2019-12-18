@@ -15,11 +15,18 @@ def get_region(data_set, region, filter='None'):
     if region == 'trackbox':
         print("get_region: your region is the refine box as determined from dataset (NOT track)")
         print("get_region: the filter will be: ", filter)
-        all_data = refine_box
+        if (filter == 'None'): 
+            all_data = refine_box   #<---- cgm_field_filter is from consistency.py 
+        else: 
+            all_data = refine_box.cut_region(filter) 
     elif region == 'rvir':
         print("get_region: your region is Rvir = 200 kpc sphere centered on the box")
         print("get_region: the filter will be: ", filter)
-        all_data = data_set.sphere(center=refine_box_center, radius=(200, 'kpc'))
+        rvir  = data_set.sphere(center=refine_box_center, radius=(200, 'kpc'))   #<---- cgm_field_filter is from consistency.py 
+        if (filter == 'None'): 
+            all_data = rvir
+        else: 
+            all_data = rvir.cut_region(filter) 
     elif region == 'domain': 
         print("get_region: your region is the entire domain, prepare to wait")
         print("get_region: on second thought maybe you don't want to do this")

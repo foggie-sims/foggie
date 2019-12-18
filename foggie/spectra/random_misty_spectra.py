@@ -8,7 +8,7 @@ python ~/Dropbox/foggie/foggie/random_misty_spectra.py --linelist jt --run nref1
 
 probably last really updated for the FOGGIE I paper?
 
-issues: requires MISTY import that depends on molly's path; assumes tempest halo
+issues: requires MISTY import that depends on molly's path
 
 '''
 
@@ -78,11 +78,11 @@ def parse_args():
 
     parser.add_argument('--axis', metavar='axis', type=str, action='store',
                         help='which axis? default is x')
-    parser.set_defaults(seed="x")
+    parser.set_defaults(axis="x")
 
     parser.add_argument('--linelist', metavar='linelist', type=str, action='store',
                         help='which linelist: long, kodiaq, or short? default is short')
-    parser.set_defaults(axis="short")
+    parser.set_defaults(linelist="short")
 
     args = parser.parse_args()
     return args
@@ -164,8 +164,6 @@ def generate_random_rays(ds, halo_center, **kwargs):
     proper_x_width = x_width*proper_box_size
     if args.velocities:
         trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II', 'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
-    if args.linelist == 'jt':
-        trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV', 'C II', 'C III', 'C IV', 'O VI', 'Mg II', 'Ne VIII'])
 
     ## for now, assume all are z-axis
     np.random.seed(seed)
@@ -173,7 +171,7 @@ def generate_random_rays(ds, halo_center, **kwargs):
 
     i = 0
     while i < Nrays:
-        os.chdir(spectra_dir + 'random/')
+        os.chdir(output_dir)
         rs, re, deltas, impact = get_random_ray_endpoints(ds, halo_center, track, axis)
         this_out_ray_basename = out_ray_basename + deltas
         out_ray_name =  this_out_ray_basename + ".h5"
@@ -265,6 +263,7 @@ if __name__ == "__main__":
     ds_loc = run_dir + args.output + "/" + args.output
     print(ds_loc)
     ds = yt.load(ds_loc)
+    trident.add_ion_fields(ds, line_list)
 
     print("opening track: " + trackname)
     track = Table.read(trackname, format='ascii')

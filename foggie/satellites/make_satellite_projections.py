@@ -73,7 +73,7 @@ def do_plot(ds, field, axs, annotate_positions, \
     prj.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
     for cen in annotate_positions:
         prj.annotate_sphere(cen, radius = ann_sphere_rad, coord_system='data', circle_args={'color':'white'})                        
-        prj.annotate_marker(cen, coord_system='data')
+        #prj.annotate_marker(cen, coord_system='data')
     
     prj.annotate_marker((0.5, 0.5), coord_system='axis')
 
@@ -189,7 +189,7 @@ if __name__ == '__main__':
 
     for args.halo, args.output in inputs[:1]:
 
-        foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+        foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
 
         save_dir = foggie_dir.replace('sims', 'outputs/identify_satellites')
 

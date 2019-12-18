@@ -72,6 +72,10 @@ def parse_args():
                         help='which system are you on? default is oak')
     parser.set_defaults(system="oak")
 
+    parser.add_argument('--axis', metavar='axis', type=str, action='store',
+                        help='which axis? default is all')
+    parser.set_defaults(system="all")
+
     ## plot groups
     parser.add_argument('--all', dest='all', action='store_true',
                         help='make all plots?, default if not')
@@ -110,13 +114,21 @@ def parse_args():
                         help='make MgII?, default if not')
     parser.set_defaults(ovi=False)
 
+    parser.add_argument('--mgx', dest='mgx', action='store_true',
+                        help='make MgX?, default if not')
+    parser.set_defaults(ovi=False)
+
     parser.add_argument('--neviii', dest='neviii', action='store_true',
                         help='make NeVIII?, default if not')
     parser.set_defaults(ovi=False)
 
     parser.add_argument('--fexiv', dest='fexiv', action='store_true',
                         help='make FeXIV?, default if not')
-    parser.set_defaults(ovi=False)
+    parser.set_defaults(fexiv=False)
+
+    parser.add_argument('--alii', dest='alii', action='store_true',
+                        help='make AlII?, default if not')
+    parser.set_defaults(alii=False)
 
     parser.add_argument('--silicon', dest='silicon', action='store_true',
                         help='make Silicon plots?, default if not')
@@ -377,6 +389,10 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
             trident.add_ion_fields(ds, ions=['Si II', 'Si III', 'Si IV'])
         if args.fexiv:
             trident.add_ion_fields(ds, ions=['Fe XIV'])
+        if args.alii:
+            trident.add_ion_fields(ds, ions=['Al II'])
+        if args.mgx:
+            trident.add_ion_fields(ds, ions=['Mg X'])
 
         ## add metal density
         # ds.add_field(("gas", "metal_density"), function=_metal_density, units="g/cm**2")
@@ -582,6 +598,28 @@ def plot_script(halo, foggie_dir, output_dir, run, axis, **kwargs):
                             ision=True, center=center, axis=axis, box=box, \
                             width=width, appendix="_box")
 
+        if args.alii:
+            make_projection_plot_no_labels(ds, prefix, "AlII",  \
+                            al2_min, al2_max, al2_color_map, \
+                            ision=True, center=center, axis=axis, box=refine_box, \
+                            width=refine_width, appendix="_refine_no_labels")
+            if args.box:
+                make_projection_plot(ds, prefix, "AlII",  \
+                            al2_min, al2_max, al2_color_map, \
+                            ision=True, center=center, axis=axis, box=box, \
+                            width=width, appendix="_box")
+
+        if args.mgx:
+            make_projection_plot_no_labels(ds, prefix, "MgX",  \
+                            mg10_min, mg10_max, mg10_color_map, \
+                            ision=True, center=center, axis=axis, box=refine_box, \
+                            width=refine_width, appendix="_refine_no_labels")
+            if args.box:
+                make_projection_plot(ds, prefix, "MgX",  \
+                            mg10_min, mg10_max, mg10_color_map, \
+                            ision=True, center=center, axis=axis, box=box, \
+                            width=width, appendix="_box")
+
     return "yay plots! all done!"
 
 
@@ -593,7 +631,7 @@ if __name__ == "__main__":
     if not args.clobber:
         print("NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber")
 
-    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     if args.system == 'pleiades':
         trackname = 'halo_track_full'
 
@@ -602,8 +640,8 @@ if __name__ == "__main__":
     else:
         run_dir = foggie_dir + run_loc
     if args.output == "all" or args.output == "RD":
-        message = plot_script(args.halo, run_dir, output_dir, run_loc,  "all", trackname=trackname, outs=args.output)
+        message = plot_script(args.halo, run_dir, output_dir, run_loc,  args.axis, trackname=trackname, outs=args.output)
     else:
-        message = plot_script(args.halo, run_dir, output_dir, run_loc,  "all", trackname=trackname, outs=[args.output + "/" + args.output])
+        message = plot_script(args.halo, run_dir, output_dir, run_loc, args.axis, trackname=trackname, outs=[args.output + "/" + args.output])
 
     sys.exit(message)

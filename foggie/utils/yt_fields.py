@@ -35,13 +35,25 @@ def _stars(pfilter, data):
 
     return data[(pfilter.filtered_type, "particle_type")] == 2
 
+def _young_stars(pfilter, data):
+    """Filter star particles with creation time < 10 Myr ago
+    To use: yt.add_particle_filter("young_stars", function=_young_stars, filtered_type='all', requires=["creation_time"])"""
+
+    age = data.ds.current_time - data[pfilter.filtered_type, "creation_time"]
+    filter = np.logical_and(age.in_units('Myr') <= 10, age >= 0)
+    return filter
+
+def _old_stars(pfilter, data):
+    """Filter star particles with creation time > 10 Myr ago
+    To use: yt.add_particle_filter("young_stars", function=_old_stars, filtered_type='all', requires=["creation_time"])"""
+    age = data.ds.current_time - data[pfilter.filtered_type, "creation_time"]
+    filter = np.logical_or(age.in_units('Myr') >= 10, age < 0)
+    return filter
 
 def _dm(pfilter, data):
     """Filter dark matter particles
     To use: yt.add_particle_filter("darkmatter",function=_darkmatter, filtered_type='all',requires=["particle_type"])"""
     return data[(pfilter.filtered_type, "particle_type")] == 4
-
-
 
 def _cooling_criteria(field,data):
     """adds cooling criteria field
@@ -65,6 +77,12 @@ def vz_corrected(field, data):
     is the halo velocity with yt units of km/s, to be defined. -Cassi"""
     halo_velocity_kms = data.ds.halo_velocity_kms
     return data['gas','velocity_z'].in_units('km/s') - halo_velocity_kms[2]
+
+def vel_mag_corrected(field, data):
+    """Corrects the velocity magnitude for bulk motion of the halo. Requires 'halo_velocity_kms',
+    which is the halo velocity with yt units of km/s, to be defined. -Cassi"""
+
+    return np.sqrt(data['vx_corrected']**2. + data['vy_corrected']**2. + data['vz_corrected']**2.)
 
 def radial_velocity_corrected(field, data):
     """Corrects the radial velocity for bulk motion of the halo and the halo center.
@@ -150,10 +168,10 @@ def phi_pos(field, data):
     return np.arctan2(y_hat, x_hat)
 
 def kinetic_energy_corrected(field, data):
-    """Calculates the kinetic energy of cells relative to the center of the halo and corrected
+    """Calculates the kinetic energy of cells corrected
     for the halo velocity. Requires 'halo_velociy_kms', which is the halo velocity with yt
     units of km/s, to be defined. -Cassi"""
-    return 0.5 * data['cell_mass'] * data['radial_velocity_corrected']**2.
+    return 0.5 * data['cell_mass'] * data['vel_mag_corrected']**2.
 
 def _no6(field,data):
     return data["dx"] * data['O_p5_number_density']

@@ -73,16 +73,19 @@ def get_ray_axis(ray_start, ray_end):
         ray_index = 0
         first_axis = axes_labels[ray_index]
         second_axis = second_axes[first_axis]
+        print('I think this is an x-axis!')
         return ray_index, first_axis, second_axis
     elif (ray_length[1] > 0.):
         ray_index = 1
         first_axis = axes_labels[ray_index]
         second_axis = second_axes[first_axis]
+        print('I think this is a y-axis!')
         return ray_index, first_axis, second_axis
     elif (ray_length[2] > 0.):
         ray_index = 2
         first_axis = axes_labels[ray_index]
         second_axis = second_axes[first_axis]
+        print('I think this is a z-axis!')
         return ray_index, first_axis, second_axis
     else:
         print('Your ray is bogus, try again!')
@@ -172,7 +175,7 @@ def filter_particles(data_source, filter_particle_types = ['stars', 'dm'], load_
                         load_particle_fields = []):
     """
     filters dark matter and star particles. optionally, loads particle data.
-    if load_particles = True: 
+    if load_particles = True:
             pre-load a given list of load_particle_fields for a given list of load_particle_types.
 
     Example:
@@ -182,25 +185,23 @@ def filter_particles(data_source, filter_particle_types = ['stars', 'dm'], load_
 
         # this will filter particles into "stars" and "dm", new derived fields available to refine_box
         # and pre-load particle_index and particle_mass for 'stars'.
-        load_particle_data(refine_box, load_particles = True, load_particle_type = ['stars'], 
+        load_particle_data(refine_box, load_particles = True, load_particle_type = ['stars'],
                                                                load_particle_fields = ['particle_index', 'particle_mass'])
 
     """
-
-
     if type(load_particle_types) == str: load_particle_types = [load_particle_types]
     if type(filter_particle_types) == str: filter_particle_types = [filter_particle_types]
 
-
     for ptype in filter_particle_types:
         if (ptype, 'particle_index') not in data_source.ds.derived_field_list:
-            # add particle
             print ('filtering %s particles...'%ptype)
             import yt
             from foggie.utils import yt_fields
             if ptype == 'stars': func = yt_fields._stars
+            elif ptype == 'young_stars': func = yt_fields._young_stars
+            elif ptype == 'old_stars': func = yt_fields._old_stars
             elif ptype =='dm': func = yt_fields._dm
-            else: 
+            else:
                 print ('particle type %s not known'%ptype)
                 return
             yt.add_particle_filter(ptype,function=func, filtered_type='all',requires=["particle_type"])
@@ -214,6 +215,7 @@ def filter_particles(data_source, filter_particle_types = ['stars', 'dm'], load_
               print ('\t loading ("%s", "%s")'%(ptype, field_name))
               data_source[ptype, field_name]
     return
+
 
 
 
