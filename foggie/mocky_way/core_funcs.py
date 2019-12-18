@@ -85,6 +85,12 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     from foggie.mocky_way.core_funcs import data_dir_sys_dir
     data_dir, sys_dir = data_dir_sys_dir()
     ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
+
+    import os
+    if os.path.isfile(ds_file) == False:
+        drive_dir = '/Volumes/Yong4TB/foggie/halo_008508'
+        ds_file = '%s/%s/%s/%s'%(drive_dir, sim_name, dd_name, dd_name)
+
     ds_paras['dd_name'] = dd_name
     ds_paras['sim_name'] = sim_name
     ds_paras['data_path'] = ds_file
@@ -126,6 +132,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     from foggie.mocky_way.core_funcs import dict_rvir_proper
     rvir_proper = dict_rvir_proper(dd_name, sim_name=sim_name)
     ds_paras['rvir'] = ds.quan(rvir_proper, 'kpc')
+    print(ds_paras['rvir'])
 
     #### decide the angular momentum of the disk, and the three vectors
     ## L_vec: angular momentum vector
@@ -221,7 +228,7 @@ def calc_r200_proper(ds, halo_center,
             r_progressing = r_progressing + ds.quan(delta_r_step, rad_units)
             rho_internal = mean_rho(ds, halo_center, r_progressing)
             rho_ratio = rho_internal/rho_crit
-            print('- Refine mean rho at r=%d kpc, rho/rho_200=%.1f'%(r_progressing, rho_ratio))
+            print('- Refine mean rho at r=%d kpc, rho_mean/rho_crit=%.1f'%(r_progressing, rho_ratio))
         r_progressing = r_previous
 
     r200 = r_progressing
@@ -359,7 +366,9 @@ def dict_rvir_proper(dd_name, sim_name='nref11n_nref10f'):
                         'nref11c_nref9f_selfshield_z6/RD0037': 150.5,
                         'nref11c_nref9f_selfshield_z6/DD0946': 98.0,
                         'nref11n_nref10f/RD0039': 157.5,
-                        'nref11n_nref10f/DD2175': 161.0
+                        'nref11n_nref10f/DD2175': 161.0,
+                        'nref11n_nref10f/RD0041': 165.5,
+                        'nref11n_nref10f/RD0042': 170.0
                         }
 
     output_string = '%s/%s'%(sim_name, dd_name)
@@ -395,7 +404,9 @@ def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
                         'nref11c_nref9f_selfshield_z6/RD0037': 8,
                         'nref11c_nref9f_selfshield_z6/DD0946': 10,
                         'nref11n_nref10f/RD0039': 20,
-                        'nref11n_nref10f/DD2175': 5}
+                        'nref11n_nref10f/DD2175': 5,
+                        'nref11n_nref10f/RD0041': 15,
+                        'nref11n_nref10f/RD0042': 10}
 
     output_string = '%s/%s'%(sim_name, dd_name)
     if output_string in dict_sphere_L_rr:
@@ -424,11 +435,16 @@ def dict_disk_rs_zs(dd_name, sim_name='nref11n_nref10f'):
                  # see RD0037_L08kpc_n32_x800_R100.0_final.pdf
     dict_rs = {'nref11c_nref9f_selfshield_z6/RD0037': 3.9,
                'nref11n_nref10f/RD0039': 3.3,
-               'nref11n_nref10f/DD2175': 3.4}
+               'nref11n_nref10f/DD2175': 3.4,
+               'nref11n_nref10f/RD0041': 3.9,
+               'nref11n_nref10f/RD0042': 4.4,
+               }
 
     dict_zs = {'nref11c_nref9f_selfshield_z6/RD0037': 1.4,
                'nref11n_nref10f/RD0039': 0.4,
-               'nref11n_nref10f/DD2175': 0.5}
+               'nref11n_nref10f/DD2175': 0.5,
+               'nref11n_nref10f/RD0041': 0.3,
+               'nref11n_nref10f/RD0042': 0.6}
 
     output_string = '%s/%s'%(sim_name, dd_name)
     if output_string in dict_rs:
