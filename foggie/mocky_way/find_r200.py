@@ -13,7 +13,7 @@ def find_r200(dd_name, sim_name):
     10/06/2019, Yong Zheng added __name__ part so it can be used both as a module and from
                 command line.
     """
-    
+
     import yt
     from foggie.mocky_way.core_funcs import data_dir_sys_dir
     from foggie.mocky_way.core_funcs import find_halo_center_yz
@@ -21,6 +21,10 @@ def find_r200(dd_name, sim_name):
     data_dir, sys_dir = data_dir_sys_dir()
 
     ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
+    if os.path.isfile(ds_file) == False:
+        drive_dir = '/Volumes/Yong4TB/foggie/halo_008508'
+        ds_file = '%s/%s/%s/%s'%(drive_dir, sim_name, dd_name, dd_name)
+        
     ds = yt.load(ds_file)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
@@ -31,8 +35,8 @@ def find_r200(dd_name, sim_name):
     print('\n'*3)
     print('OK, let us find the rvir for %s/%s!!!!'%(sim_name, dd_name))
     rvir_proper = calc_r200_proper(ds, halo_center,
-                                   start_rad=50,  # in unit of 50 kpc
-                                   delta_rad_coarse=30,
+                                   start_rad=120,  # in unit of 50 kpc
+                                   delta_rad_coarse=20,
                                    delta_rad_fine=5,
                                    delta_rad_tiny=0.5)
 
