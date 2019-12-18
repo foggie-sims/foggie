@@ -50,17 +50,17 @@ def default_random_seed():
     random_seed = 99
     return random_seed
 
-def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
+def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2,
+             shift_obs_location=False, shift_n45=1):
     """
     This is a generalized function setup to process a simulation output.
-    It returns information of [] which will be used routinely and consistently
+    It returns information of {} which will be used routinely and consistently
     by other functions.
 
     If you are running this for the first time for any new simulation output,
     you need to look at funcs disk_scale_length() and sphere_for_galaxy_ang_mom()
     first to decide the corresponding disk scale length and the size of the sphere
-    used to calculate the disk's angular momentum. The scale length is defaulted
-    to 2 kpc, and ang_sphere_rr defaulted to 10 kpc if first time running it.
+    used to calculate the disk's angular momentum.
 
     Input:
     dd_name: the output name, could be RD**** or DD****
@@ -68,6 +68,10 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
               now default to nref11n_nref10f
     robs2rs: default to put mock observer at twice the disk scale length rs,
              couldchange accordingly.
+    shift_obs_location: boolean value, design to shift the observer to another
+             7 offcenter location of the disk (shfit_n45 from 1 to 7)
+    shift_n45: values of 1 to 7, when equal to 1, it means the observer is
+               45 (nx45) degree from the original/fiducial location,
 
     Hitory:
     05/04/2019, Created, Yong Zheng, UCB
@@ -75,6 +79,8 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
                 a universal one. Yong Zheng.
     10/04/2019, update for nref11n_nref10f/RD0039 (used to be nref11c_nref9f),
                 + Merging mocky_way to foggie/mocky_way. Yong Zheng.
+    12/18/2019, now the code can find dataset from my hard drive, to check other
+                simulation output. Yong Zheng.
     """
 
     # my rule: vector should have no unit, just numpy array
@@ -151,6 +157,14 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ds_paras['phi_vec'] = dict_vecs['phi_vec']
     ds_paras['disk_bulkvel'] = dict_vecs['disk_bulkvel']
 
+    # only do this if we want to shift the observer to other location in the
+    # in the galactic disk
+    if shift_obs_location == True:
+        from foggie.mocky_way.core_funcs import shift_obs_location_func
+        # n45 varies from 1 to 7 (0 equal to current position)
+        ds_paras = shift_obs_location_func(ds_paras, shift_n45=shift_n45)
+
+    ############### best to normal here #####################
     #### add disk scale height and scale length to the dict
     from foggie.mocky_way.core_funcs import dict_disk_rs_zs
     disk_rs, disk_zs = dict_disk_rs_zs(dd_name, sim_name=sim_name)
@@ -162,6 +176,48 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ds_paras = locate_offcenter_observer(ds, ds_paras, robs2rs=robs2rs)
 
     return ds, ds_paras
+
+def shift_obs_location_func(ds_paras, shift_n45=1):
+    """
+    for the exisiting [L_vec, sun_vec, phi_vec] coordinate system, shift the
+    sun_vec and phi_vec by nx45 degrees, which will change the location of
+    the mock observer. The code updates the sun_vec and phi_vec vectors in
+    ds_paras.
+
+    input:
+    ds_paras: the overall parameter
+    shift_n45: 1, 2, 3, ..., 7, corresponding the other 7 locations
+          on the disk plane to put mock observer on.
+
+    Hisotry:
+    12/18/2019, first created, Yong Zheng. UCB.
+    """
+
+    ori_L_vec = ds_paras['L_vec']
+    ori_sun_vec = ds_paras['sun_vec']
+    ori_phi_vec = ds_paras['phi_vec']
+
+    # first, find the new observer location vector
+    other_7_obs_locations = {'n45=1': ori_sun_vec+ori_phi_vec,
+                             'n45=2': ori_phi_vec,
+                             'n45=3': -ori_sun_vec+ori_phi_vec,
+                             'n45=4': -ori_sun_vec,
+                             'n45=5': -ori_sun_vec-ori_phi_vec,
+                             'n45=6': -ori_phi_vec,
+                             'n45=7': -ori_phi_vec+ori_sun_vec}
+    ntag = 'n45=%d'%(shift_n45)
+    obs_vec = other_7_obs_locations[ntag]
+
+    # now get the unique vector
+    obs_vec = obs_vec/np.sqrt(np.sum(obs_vec**2))
+    new_sun_vec = obs_vec
+    new_phi_vec = np.cross(obs_vec, ori_L_vec)
+    new_phi_vec = new_phi_vec/np.sqrt(np.sum(new_phi_vec**2))
+
+    ds_paras['sun_vec'] = new_sun_vec
+    ds_paras['phi_vec'] = new_phi_vec
+
+    return ds_paras
 
 def locate_offcenter_observer(ds, ds_paras, robs2rs=2):
     """
@@ -890,3 +946,18 @@ def los_r(ds, data, observer_location):
     los_r_kpc = los_r_codelength.in_units('kpc')
 
     return los_r_kpc
+
+def weighted_avg_and_std(values, weights):
+    """
+    Return the weighted average and standard deviation.
+    This return the biased weighted std, see:
+    https://en.wikipedia.org/wiki/Weighted_arithmetic_mean#Weighted_sample_variance
+
+    values, weights -- Numpy ndarrays with the same shape.
+    """
+    import numpy as np
+    import math
+    average = np.average(values, weights=weights)
+    # Fast and numerically precise:
+    variance = np.average((values-average)**2, weights=weights)
+    return (average, math.sqrt(variance))
