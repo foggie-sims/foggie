@@ -60,6 +60,10 @@ def parse_args():
                         help='Just use the working directory?, Default is no')
     parser.set_defaults(pwd=False)
 
+    parser.add_argument('--local', dest='local', action='store_true',
+                        help='Are the simulation files stored locally? Default is no')
+    parser.set_defaults(local=False)
+
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', \
                         help='How many processes do you want? Default is 4, ' + \
                         'code will run one output per processor')
@@ -136,8 +140,9 @@ def get_halo_info(snap, track, t):
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track)
     center, velocity = get_halo_center(ds, refine_box_center)
-    halo_center_kpc = YTArray(np.array(center)*proper_box_size, 'kpc')
-    halo_velocity_kms = YTArray(velocity).in_units('km/s')
+    halo_center_kpc = ds.arr(np.array(center)*proper_box_size, 'kpc')
+    sphere_region = ds.sphere(halo_center_kpc, (10., 'kpc') )
+    halo_velocity_kms = sphere_region.quantities['BulkVelocity']().in_units('km/s')
 
     row = [zsnap, ds.parameter_filename[-6:],
             halo_center_kpc[0], halo_center_kpc[1], halo_center_kpc[2],
@@ -155,16 +160,16 @@ if __name__ == "__main__":
     warnings.filterwarnings('ignore', category=FutureWarning)
     warnings.filterwarnings('ignore', category=DeprecationWarning)
 
-    foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     output_dir = output_dir + 'halo_centers/' + 'halo_00' + args.halo + '/' + args.run + '/'
     if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
-    if ('/astro/simulations/' in foggie_dir):
-        run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'
+    if (args.system=='cassiopeia') and (args.local):
+        foggie_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/'
     run_dir = foggie_dir + run_dir
 
     # Build output list
     if (args.output=='all'):
-        outs = glob.glob(os.path.join('?D????'))
+        outs = glob.glob(os.path.join(run_dir, '?D????'))
         outs_new = []
         for i in range(len(outs)):
             outs_new.append(outs[i][-6:])

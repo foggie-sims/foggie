@@ -141,9 +141,29 @@ def radius_corrected(field, data):
     """Corrects the radius for the center of the halo. Requires 'halo_center_kpc', which is the halo
     center with yt units of kpc, to be defined. -Cassi"""
     halo_center_kpc = data.ds.halo_center_kpc
-    x_hat = data['x'].in_units('kpc') - halo_center_kpc[0]
-    y_hat = data['y'].in_units('kpc') - halo_center_kpc[1]
-    z_hat = data['z'].in_units('kpc') - halo_center_kpc[2]
+    x_hat = data['gas','x'].in_units('kpc') - halo_center_kpc[0]
+    y_hat = data['gas','y'].in_units('kpc') - halo_center_kpc[1]
+    z_hat = data['gas','z'].in_units('kpc') - halo_center_kpc[2]
+    r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
+    return r
+
+def radius_corrected_stars(field, data):
+    """Corrects the radius for star particles for the center of the halo. Requires 'halo_center_kpc', which is the halo
+    center with yt units of kpc, to be defined. -Cassi"""
+    halo_center_kpc = data.ds.halo_center_kpc
+    x_hat = data['stars','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    y_hat = data['stars','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    z_hat = data['stars','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
+    return r
+
+def radius_corrected_dm(field, data):
+    """Corrects the radius for DM particles for the center of the halo. Requires 'halo_center_kpc', which is the halo
+    center with yt units of kpc, to be defined. -Cassi"""
+    halo_center_kpc = data.ds.halo_center_kpc
+    x_hat = data['dm','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    y_hat = data['dm','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    z_hat = data['dm','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     return r
 

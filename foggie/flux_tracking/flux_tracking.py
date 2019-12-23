@@ -2,7 +2,7 @@
 Filename: flux_tracking.py
 Author: Cassi
 Date created: 9-27-19
-Date last modified: 12-6-19
+Date last modified: 12-16-19
 This file takes command line arguments and computes fluxes of things through
 spherical shells.
 
@@ -1000,12 +1000,7 @@ if __name__ == "__main__":
     prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
 
-    # Load halo track
     print('foggie_dir: ', foggie_dir)
-
-    # Here's the new way of finding the halo
-    # Load halo center and velocity
-    #halo_c_v = Table.read(track_dir + '00' args.halo + '/' + args.run + '/halo_c_v', format='ascii')
     halo_c_v_name = track_dir + 'halo_c_v'
 
     # Load the mass enclosed profile
