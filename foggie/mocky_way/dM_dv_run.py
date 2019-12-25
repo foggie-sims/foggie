@@ -26,11 +26,11 @@ shift_n45 = 7
 ds, ds_paras = prepdata(dd_name, sim_name=sim_name,
                         shift_obs_location=shift_obs_location,
                         shift_n45=shift_n45)
-obj_tag = 'cgm-rvir' # cgm-15kpc, cgm-20kpc, cgm-rvir
-#obs_point = 'offcenter_location'  # halo_center, offcenter_location
-#obs_bulkvel = 'offcenter_bulkvel' # disk_bulkvel, offcenter_bulkvel
-obs_point = 'halo_center'  # halo_center, offcenter_location
-obs_bulkvel = 'disk_bulkvel' # disk_bulkvel, offcenter_bulkvel
+obj_tag = 'cgm-15kpc' # cgm-15kpc, cgm-20kpc, cgm-rvir
+obs_point = 'offcenter_location'  # halo_center, offcenter_location
+obs_bulkvel = 'offcenter_bulkvel' # disk_bulkvel, offcenter_bulkvel
+#obs_point = 'halo_center'  # halo_center, offcenter_location
+#obs_bulkvel = 'disk_bulkvel' # disk_bulkvel, offcenter_bulkvel
 
 #### No need to change starting this line ####
 print("I am doing the calculation from %s for %s..."%(obs_point, obj_tag))
