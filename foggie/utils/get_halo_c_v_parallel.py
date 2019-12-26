@@ -73,7 +73,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def loop_over_halos(nproc, run_dir, trackname, output_dir, outs):
+def loop_over_halos(system, nproc, run_dir, trackname, output_dir, outs):
     '''
     This sets up the parallel processing for finding the halo centers of all datasets in 'outs'.
     It also takes the number of processors to use, 'nproc', the directory where the snapshots
@@ -98,7 +98,7 @@ def loop_over_halos(nproc, run_dir, trackname, output_dir, outs):
         for j in range(nproc):
             snap = run_dir + outs[nproc*i+j] + '/' + outs[nproc*i+j]
             thr = mp.Process(target=get_halo_info, \
-               args=(snap, track, queue))
+               args=(system, snap, track, queue))
             threads.append(thr)
             thr.start()
         for thr in threads:
@@ -112,7 +112,7 @@ def loop_over_halos(nproc, run_dir, trackname, output_dir, outs):
     for j in range(len(outs)%nproc):
         snap = run_dir + outs[-(j+1)] + '/' + outs[-(j+1)]
         thr = mp.Process(target=get_halo_info, \
-           args=(snap, track, queue))
+           args=(system, snap, track, queue))
         threads.append(thr)
         thr.start()
     for thr in threads:
@@ -128,13 +128,21 @@ def loop_over_halos(nproc, run_dir, trackname, output_dir, outs):
     t.reverse()
     ascii.write(t, output_dir + 'halo_c_v_' + outs[0] + '_' + outs[-1], format='fixed_width', overwrite=True)
 
-def get_halo_info(snap, track, t):
+def get_halo_info(system, snap, track, t):
     '''
     This finds the halo center and halo velocity for a snapshot 'snap', using the halo track 'track',
     and saves it to the multiprocessing queue 't'.
     '''
+
+    if (system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap[-6:]
+        shutil.copytree(snap[:-7], snap_dir)
+        snap_name = snap_dir + '/' + snap[-6:]
+    else: snap_name = snap
+
     print('Loading ' + snap[-6:])
-    ds = yt.load(snap)
+    ds = yt.load(snap_name)
 
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     proper_box_size = get_proper_box_size(ds)
@@ -149,6 +157,9 @@ def get_halo_info(snap, track, t):
             halo_velocity_kms[0], halo_velocity_kms[1], halo_velocity_kms[2]]
     print(snap[-6:] + ' done')
     t.put(row)
+    if (system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
 
     ds.index.clear_all_data()
 
@@ -192,7 +203,7 @@ if __name__ == "__main__":
             outs.append(output_type + pad + str(i))
     else: outs = [args.output]
 
-    loop_over_halos(args.nproc, run_dir, trackname, output_dir, outs)
+    loop_over_halos(args.system, args.nproc, run_dir, trackname, output_dir, outs)
 
     warnings.filterwarnings('default', category=FutureWarning)
     warnings.filterwarnings('default', category=DeprecationWarning)
