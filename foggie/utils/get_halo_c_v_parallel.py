@@ -19,6 +19,7 @@ from astropy.io import ascii
 from yt.analysis_modules.star_analysis.api import StarFormationRate
 import multiprocessing as mp
 import argparse
+import shutil
 
 from foggie.utils.get_refine_box import get_refine_box
 from foggie.utils.get_halo_center import get_halo_center
