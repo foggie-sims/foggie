@@ -19,6 +19,7 @@ from astropy.io import ascii
 from yt.analysis_modules.star_analysis.api import StarFormationRate
 import multiprocessing as mp
 import argparse
+import shutil
 
 from foggie.utils.get_refine_box import get_refine_box
 from foggie.utils.get_halo_center import get_halo_center
@@ -60,6 +61,10 @@ def parse_args():
                         help='Just use the working directory?, Default is no')
     parser.set_defaults(pwd=False)
 
+    parser.add_argument('--local', dest='local', action='store_true',
+                        help='Are the simulation files stored locally? Default is no')
+    parser.set_defaults(local=False)
+
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', \
                         help='How many processes do you want? Default is 4, ' + \
                         'code will run one output per processor')
@@ -69,7 +74,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def loop_over_halos(nproc, run_dir, trackname, output_dir, outs):
+def loop_over_halos(system, nproc, run_dir, trackname, output_dir, outs):
     '''
     This sets up the parallel processing for finding the halo centers of all datasets in 'outs'.
     It also takes the number of processors to use, 'nproc', the directory where the snapshots
@@ -94,7 +99,7 @@ def loop_over_halos(nproc, run_dir, trackname, output_dir, outs):
         for j in range(nproc):
             snap = run_dir + outs[nproc*i+j] + '/' + outs[nproc*i+j]
             thr = mp.Process(target=get_halo_info, \
-               args=(snap, track, queue))
+               args=(system, snap, track, queue))
             threads.append(thr)
             thr.start()
         for thr in threads:
@@ -108,7 +113,7 @@ def loop_over_halos(nproc, run_dir, trackname, output_dir, outs):
     for j in range(len(outs)%nproc):
         snap = run_dir + outs[-(j+1)] + '/' + outs[-(j+1)]
         thr = mp.Process(target=get_halo_info, \
-           args=(snap, track, queue))
+           args=(system, snap, track, queue))
         threads.append(thr)
         thr.start()
     for thr in threads:
@@ -124,26 +129,38 @@ def loop_over_halos(nproc, run_dir, trackname, output_dir, outs):
     t.reverse()
     ascii.write(t, output_dir + 'halo_c_v_' + outs[0] + '_' + outs[-1], format='fixed_width', overwrite=True)
 
-def get_halo_info(snap, track, t):
+def get_halo_info(system, snap, track, t):
     '''
     This finds the halo center and halo velocity for a snapshot 'snap', using the halo track 'track',
     and saves it to the multiprocessing queue 't'.
     '''
+
+    if (system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap[-6:]
+        shutil.copytree(snap[:-7], snap_dir)
+        snap_name = snap_dir + '/' + snap[-6:]
+    else: snap_name = snap
+
     print('Loading ' + snap[-6:])
-    ds = yt.load(snap)
+    ds = yt.load(snap_name)
 
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track)
     center, velocity = get_halo_center(ds, refine_box_center)
-    halo_center_kpc = YTArray(np.array(center)*proper_box_size, 'kpc')
-    halo_velocity_kms = YTArray(velocity).in_units('km/s')
+    halo_center_kpc = ds.arr(np.array(center)*proper_box_size, 'kpc')
+    sphere_region = ds.sphere(halo_center_kpc, (10., 'kpc') )
+    halo_velocity_kms = sphere_region.quantities['BulkVelocity']().in_units('km/s')
 
     row = [zsnap, ds.parameter_filename[-6:],
             halo_center_kpc[0], halo_center_kpc[1], halo_center_kpc[2],
             halo_velocity_kms[0], halo_velocity_kms[1], halo_velocity_kms[2]]
     print(snap[-6:] + ' done')
     t.put(row)
+    if (system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
 
     ds.index.clear_all_data()
 
@@ -155,16 +172,16 @@ if __name__ == "__main__":
     warnings.filterwarnings('ignore', category=FutureWarning)
     warnings.filterwarnings('ignore', category=DeprecationWarning)
 
-    foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     output_dir = output_dir + 'halo_centers/' + 'halo_00' + args.halo + '/' + args.run + '/'
     if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
-    if ('/astro/simulations/' in foggie_dir):
-        run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'
+    if (args.system=='cassiopeia') and (args.local):
+        foggie_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/'
     run_dir = foggie_dir + run_dir
 
     # Build output list
     if (args.output=='all'):
-        outs = glob.glob(os.path.join('?D????'))
+        outs = glob.glob(os.path.join(run_dir, '?D????'))
         outs_new = []
         for i in range(len(outs)):
             outs_new.append(outs[i][-6:])
@@ -187,7 +204,7 @@ if __name__ == "__main__":
             outs.append(output_type + pad + str(i))
     else: outs = [args.output]
 
-    loop_over_halos(args.nproc, run_dir, trackname, output_dir, outs)
+    loop_over_halos(args.system, args.nproc, run_dir, trackname, output_dir, outs)
 
     warnings.filterwarnings('default', category=FutureWarning)
     warnings.filterwarnings('default', category=DeprecationWarning)

@@ -667,6 +667,43 @@ def categorize_by_inflow(velocity):
     cat_vel[np.all([vv>=-20, vv<=0], axis=0)] = b'[-20, 0)'
     return cat_vel
 
+############### Yong Zheng add cat_outflow_inflow for mocky way ########
+### here! yong!
+### categorize halo gas by velocity.
+outflow_inflow_color_labels = [b'<-200',  b'[-200, -150)',
+                               b'[-150, -100)', b'[-100, -50)',
+                               b'[-50, 0)', b'[0, 50)', b'[50, 100)',
+                               b'[100, 150)', b'[150, 200)', b'>=200']
+outflow_cmap = mpl.pyplot.cm.Reds
+inflow_cmap = mpl.pyplot.cm.Blues_r
+outflow_inflow_colors = sns.blend_palette((inflow_cmap(0.1), inflow_cmap(0.3),
+                                           inflow_cmap(0.5), inflow_cmap(0.9),
+                                           outflow_cmap(0.1), outflow_cmap(0.3),
+                                           outflow_cmap(0.5), outflow_cmap(0.7),
+                                           outflow_cmap(0.9)),
+                                           n_colors=len(outflow_inflow_color_labels))
+
+outflow_inflow_discrete_cmap = mpl.colors.ListedColormap(outflow_inflow_colors)
+outflow_inflow_color_key = collections.OrderedDict()
+for i, ilabel in enumerate(outflow_inflow_color_labels):
+    outflow_inflow_color_key[ilabel] = to_hex(outflow_inflow_colors[i])
+
+def categorize_by_outflow_inflow(velocity):
+    """ define the line of sight velocity category strings"""
+    vv = velocity
+    cat_vel = np.chararray(np.size(vv), 13)
+    cat_vel[vv<-200] = b'<-200'
+    cat_vel[np.all([vv>=-200, vv<-150], axis=0)] = b'[-200, -150)'
+    cat_vel[np.all([vv>=-150, vv<-100], axis=0)] = b'[-150, -100)'
+    cat_vel[np.all([vv>=-100, vv<-50], axis=0)] = b'[-100, -50)'
+    cat_vel[np.all([vv>=-50, vv<0], axis=0)] = b'[-50, 0)'
+    cat_vel[np.all([vv>=0, vv<50], axis=0)] = b'[0, 50)'
+    cat_vel[np.all([vv>=50, vv<100], axis=0)] = b'[50, 100)'
+    cat_vel[np.all([vv>=100, vv<150], axis=0)] = b'[100, 150)'
+    cat_vel[np.all([vv>=150, vv<200], axis=0)] = b'[150, 200)'
+    cat_vel[vv>=200] = b'>=200'
+    return cat_vel
+
 ############################################################
 
 colormap_dict = {'phase': new_phase_color_key,

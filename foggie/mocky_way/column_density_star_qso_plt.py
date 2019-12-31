@@ -9,7 +9,7 @@ sim_name = 'nref11n_nref10f'
 dd_name = 'DD2175'
 ion_list = ['HI', 'SiII', 'SiIII', 'SiIV', 'CII', 'CIV', 'OVI', 'NV',
             'OVII', 'OVIII', 'NeVII', 'NeVIII']
-low_ions = ['HI', 'SiII', 'SiIII', 'SiIV', 'CII']
+# low_ions = ['HI', 'SiII', 'SiIII', 'SiIV', 'CII']
 
 ion_median = np.zeros(len(ion_list))
 ion_mean = np.zeros(len(ion_list))
@@ -27,14 +27,22 @@ for ii, ion_tag in enumerate(ion_list):
     # for [5, 15] kpc range
     rin = 5
     rout = 15
-    indr = np.all([tb['r']>=rin, tb['r']<rout], axis=0)
-    star_N = tb['N'][indr]
+    star_fits = 'figs/Nr_inview/fits/%s_%s_N%s_inview_%d-%d.fits'%(sim_name,
+                                                dd_name, ion_tag, rin, rout)
+    star_tb = Table.read(star_fits, format='fits')
+    print(star_fits, len(star_tb))
+    star_tb = star_tb[np.abs(star_tb['b'])>=20]
+    star_N = star_tb['N']
 
     # for [150, 160] range
     rin = 150
     rout = 160
-    indr = np.all([tb['r']>=rin, tb['r']<rout], axis=0)
-    qso_N = tb['N'][indr]
+    qso_fits = 'figs/Nr_inview/fits/%s_%s_N%s_inview_%d-%d.fits'%(sim_name,
+                                                dd_name, ion_tag, rin, rout)
+    qso_tb = Table.read(qso_fits, format='fits')
+    print(qso_fits, len(qso_tb))
+    qso_tb = qso_tb[np.abs(qso_tb['b'])>=20]
+    qso_N = qso_tb['N']
 
     ### let's use Monte Carlo to propagate the error
     offset_logN = np.zeros(nlos)
@@ -79,12 +87,7 @@ for ii in range(x.size):
         labelb = None
 
     this_ion = ion_list[ii]
-    if this_ion in low_ions:
-        ec='k'
-    else:
-        ec='none'
-    ax.fill_between([xa, xb], ya, yb, color=plt.cm.Reds(0.3),
-                    label=labela, edgecolor=ec)
+    ax.fill_between([xa, xb], ya, yb, color=plt.cm.Reds(0.3), label=labela)
     ax.hlines(ion_median[ii], xa, xb, color=plt.cm.Blues(0.9), lw=3, label=labelb)
 ax.set_xticks(x)
 ax.set_xticklabels(ion_list)
@@ -96,7 +99,7 @@ for tick in ax.yaxis.get_major_ticks():
 ax.set_ylabel(r'$\delta$ logN (dex)', fontsize=fs+3)
 ax.set_title('Differce of logN between QSO and halo star measurements', fontsize=fs+4)
 fig.tight_layout()
-figname = 'figs/Nr_star_qso/fig_logN_star_qso.pdf'
+figname = 'figs/Nr_star_qso/fig_logN_star_qso_100k.pdf'
 fig.savefig(figname)
 
 print(figname)

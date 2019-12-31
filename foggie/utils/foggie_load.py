@@ -19,6 +19,7 @@ def load(snap, trackfile, **kwargs):
     halo_c_v_name = kwargs.get('halo_c_v_name', 'halo_c_v')
     disk_relative = kwargs.get('disk_relative', False)
     particle_type_for_angmom = kwargs.get('particle_type_for_angmom', 'young_stars')
+    do_filter_particles = kwargs.get('do_filter_particles', True)
 
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
@@ -37,22 +38,23 @@ def load(snap, trackfile, **kwargs):
     if (use_halo_c_v):
         halo_c_v = Table.read(halo_c_v_name, format='ascii')
         halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
-        halo_center_kpc = YTArray([float(halo_c_v['col4'][halo_ind]), \
+        halo_center_kpc = ds.arr([float(halo_c_v['col4'][halo_ind]), \
                                   float(halo_c_v['col5'][halo_ind]), \
                                   float(halo_c_v['col6'][halo_ind])], 'kpc')
-        halo_velocity_kms = YTArray([float(halo_c_v['col7'][halo_ind]), \
+        halo_velocity_kms = ds.arr([float(halo_c_v['col7'][halo_ind]), \
                                     float(halo_c_v['col8'][halo_ind]), \
                                     float(halo_c_v['col9'][halo_ind])], 'km/s')
+        ds.halo_center_kpc = halo_center_kpc
+        ds.halo_velocity_kms = halo_velocity_kms
     else:
         halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
         # Define the halo center in kpc and the halo velocity in km/s
-        halo_center_kpc = YTArray(np.array(halo_center)*proper_box_size, 'kpc')
-        halo_velocity_kms = YTArray(halo_velocity).in_units('km/s')
+        halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
+        sphere_region = ds.sphere(halo_center_kpc, (10., 'kpc') )
+        bulk_velocity = sphere_region.quantities['BulkVelocity']().in_units('km/s')
+        ds.halo_center_kpc = halo_center_kpc
+        ds.halo_velocity_kms = bulk_velocity
 
-    sphere_region = ds.sphere(halo_center_kpc, (10., 'kpc') )
-    bulk_velocity = sphere_region.quantities['BulkVelocity']().in_units('km/s')
-    ds.halo_center_kpc = halo_center_kpc
-    ds.halo_velocity_kms = bulk_velocity
     ds.track = track
 
     ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
@@ -82,7 +84,12 @@ def load(snap, trackfile, **kwargs):
 
     # filter particles into star and dm
     # JT moved this to before "disk_relative" so that the if statement can use the filtered particle fields
-    filter_particles(refine_box, filter_particle_types = ['young_stars', 'old_stars', 'stars', 'dm'])
+    if (do_filter_particles): filter_particles(refine_box, filter_particle_types = ['young_stars', 'old_stars', 'stars', 'dm'])
+
+    ds.add_field(('stars', 'radius_corrected'), function=radius_corrected_stars, units='kpc', \
+                 take_log=False, force_override=True, sampling_type='particle')
+    ds.add_field(('dm', 'radius_corrected'), function=radius_corrected_dm, units='kpc', \
+                 take_log=False, force_override=True, sampling_type='particle')
 
     # Option to define velocities and coordinates relative to the angular momentum vector of the disk
     if (disk_relative):

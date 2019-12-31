@@ -87,6 +87,8 @@ def prep_dataframe_velocity(all_data, ds_paras, obs_point='halo_center',
                 also added obs_point for off_center observers
     10/10/2019, Yong Zheng simplified the module, and merge into foggie.mocky_way.
     10/15/2019, merging outflow and inflow. Yong. UCB.
+    11/14/2019, add outflow_inflow as another vel_tag to plot outflow and inflow
+                together. Yong. UCB.
     """
 
     # from offaxproj_dshader import gas_imgx_imgy
@@ -99,6 +101,8 @@ def prep_dataframe_velocity(all_data, ds_paras, obs_point='halo_center',
         cat_vel = consistency.categorize_by_outflow(los_vel)
     elif vel_tag == 'inflow':
         cat_vel = consistency.categorize_by_inflow(los_vel)
+    elif vel_tag == 'outflow_inflow':
+        cat_vel = consistency.categorize_by_outflow_inflow(los_vel)
     else:
         print("I do not know this vel_tag, please check.")
         sys.exit()
@@ -173,9 +177,10 @@ if __name__ == '__main__':
 
     sim_name = 'nref11n_nref10f' # 'nref11c_nref9f_selfshield_z6'
     dd_name = 'DD2175'           # 'RD0039', 'RD0037'
-    obj_tag = 'all' # all, disk, cgm
+    obj_tag = 'all-refined' # all-refined, disk, cgm-refined
     obs_point = 'halo_center' # halo_center, or offcenter_location
-    vel_tag = 'outflow' # outflow or inflow, to decide which part to plot
+    vel_tag = 'outflow_inflow' # outflow or inflow, to decide which part to plot,
+                        # outflow_inflow
     dshader_tag = 'velocity' # velocity, logT, metallicity
     test = False
 
@@ -198,6 +203,8 @@ if __name__ == '__main__':
         obj_source = sp.cut_region(["obj['los_velocity_mw'] >= 0"])
     elif vel_tag == 'inflow':
         obj_source = sp.cut_region(["obj['los_velocity_mw'] < 0"])
+    elif vel_tag == 'outflow_inflow':
+        obj_source = sp.cut_region(["(obj['los_velocity_mw'] >-400) & (obj['los_velocity_mw'] < 400)"])
     else:
         print("I have no idea what you want to proj with vel_tag, please check.")
         sys.exit()
@@ -254,15 +261,23 @@ if __name__ == '__main__':
             categories = consistency.outflow_color_labels
             cmap = consistency.outflow_discrete_cmap
             ckey = consistency.outflow_color_key
-        else:
+        elif vel_tag == 'inflow':
             categories = consistency.inflow_color_labels
             cmap = consistency.inflow_discrete_cmap
             ckey = consistency.inflow_color_key
+        elif vel_tag == 'outflow_inflow':
+            categories = consistency.outflow_inflow_color_labels
+            cmap = consistency.outflow_inflow_discrete_cmap
+            ckey = consistency.outflow_inflow_color_key
+        else:
+            print("I have no idea what you want with vel_tag")
+            sys.exit()
 
         cticklabels = [s.decode('UTF-8').upper() for s in categories]
         dict_v_args = {'c_field': 'cat_vel', 'cmap': cmap, 'ckey': ckey,
                        'clabel': r'Velo w.r.t Obs (km/s)',
                        'cticklabels': cticklabels}
+        print(len(cticklabels), len(dict_v_args['ckey']))
         dict_extra_args = dict_v_args
 
     else:

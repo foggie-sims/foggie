@@ -31,6 +31,7 @@ from astropy.table import Table
 from astropy.io import ascii
 import multiprocessing as multi
 import datetime
+import shutil
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -89,104 +90,192 @@ def set_table_units(table_avg, table_pdf):
     '''Sets the units for the table_avg and the table_pdf. Note this needs to be updated whenever something is added to
     the tables. Returns the table.'''
 
-    table_avg_units = {'redshift':None,'quadrant':None,'radius':'kpc',
-                        'temperature':'K', 'density':'g/cm**3',
-                        'radial_velocity':'km/s', 'radial_velocity_in':'km/s', 'radial_velocity_out':'km/s',
-                        'tangential_velocity':'km/s', 'theta_velocity':'km/s', 'phi_velocity':'km/s', 'pressure':'erg/cm**3',
-                        'entropy':'keV*cm**2', 'cold_temperature':'K', 'cold_density':'g/cm**3',
-                        'cold_radial_velocity':'km/s', 'cold_radial_velocity_in':'km/s', 'cold_radial_velocity_out':'km/s',
-                        'cold_tangential_velocity':'km/s', 'cold_theta_velocity':'km/s', 'cold_phi_velocity':'km/s',
-                        'cold_pressure':'erg/cm**3', 'cold_entropy':'keV*cm**2', 'cool_temperature':'K', 'cool_density':'g/cm**3',
-                        'cool_radial_velocity':'km/s', 'cool_radial_velocity_in':'km/s', 'cool_radial_velocity_out':'km/s',
-                        'cool_tangential_velocity':'km/s', 'cool_theta_velocity':'km/s', 'cool_phi_velocity':'km/s',
-                        'cool_pressure':'erg/cm**3', 'cool_entropy':'keV*cm**2', 'warm_temperature':'K', 'warm_density':'g/cm**3',
-                        'warm_radial_velocity':'km/s', 'warm_radial_velocity_in':'km/s', 'warm_radial_velocity_out':'km/s',
-                        'warm_tangential_velocity':'km/s', 'warm_theta_velocity':'km/s', 'warm_phi_velocity':'km/s',
-                        'warm_pressure':'erg/cm**3', 'warm_entropy':'keV*cm**2', 'hot_temperature':'K', 'hot_density':'g/cm**3',
-                        'hot_radial_velocity':'km/s', 'hot_radial_velocity_in':'km/s', 'hot_radial_velocity_out':'km/s',
-                        'hot_tangential_velocity':'km/s', 'hot_theta_velocity':'km/s', 'hot_phi_velocity':'km/s',
-                        'hot_pressure':'erg/cm**3', 'hot_entropy':'keV*cm**2'}
+    table_avg_units = {'redshift':None, 'radius':'kpc', \
+                        'temperature':'K', 'density':'g/cm**3', 'pressure':'erg/cm**3', 'entropy':'keV*cm**2', \
+                        'radial_velocity':'km/s', 'theta_velocity':'km/s', 'phi_velocity':'km/s', 'tangential_velocity':'km/s', \
+                        'temperature_in':'K', 'temperature_out':'K', 'density_in':'g/cm**3', 'density_out':'g/cm**3', \
+                        'pressure_in':'erg/cm**3', 'pressure_out':'erg/cm**3', 'entropy_in':'keV*cm**2', 'entropy_out':'keV*cm**2', \
+                        'radial_velocity_in':'km/s', 'radial_velocity_out':'km/s', 'theta_velocity_in':'km/s', 'theta_velocity_out':'km/s', \
+                        'phi_velocity_in':'km/s', 'phi_velocity_out':'km/s', 'tangential_velocity_in':'km/s', 'tangential_velocity_out':'km/s', \
+                        'cold_temperature':'K', 'cold_temperature_in':'K', 'cold_temperature_out':'K', \
+                        'cool_temperature':'K', 'cool_temperature_in':'K', 'cool_temperature_out':'K', \
+                        'warm_temperature':'K', 'warm_temperature_in':'K', 'warm_temperature_out':'K', \
+                        'hot_temperature':'K', 'hot_temperature_in':'K', 'hot_temperature_out':'K', \
+                        'cold_density':'g/cm**3', 'cold_density_in':'g/cm**3', 'cold_density_out':'g/cm**3', \
+                        'cool_density':'g/cm**3', 'cool_density_in':'g/cm**3', 'cool_density_out':'g/cm**3', \
+                        'warm_density':'g/cm**3', 'warm_density_in':'g/cm**3', 'warm_density_out':'g/cm**3', \
+                        'hot_density':'g/cm**3', 'hot_density_in':'g/cm**3', 'hot_density_out':'g/cm**3', \
+                        'cold_pressure':'erg/cm**3', 'cold_pressure_in':'erg/cm**3', 'cold_pressure_out':'erg/cm**3', \
+                        'cool_pressure':'erg/cm**3', 'cool_pressure_in':'erg/cm**3', 'cool_pressure_out':'erg/cm**3', \
+                        'warm_pressure':'erg/cm**3', 'warm_pressure_in':'erg/cm**3', 'warm_pressure_out':'erg/cm**3', \
+                        'hot_pressure':'erg/cm**3', 'hot_pressure_in':'erg/cm**3', 'hot_pressure_out':'erg/cm**3', \
+                        'cold_entropy':'keV*cm**2', 'cold_entropy_in':'keV*cm**2', 'cold_entropy_out':'keV*cm**2', \
+                        'cool_entropy':'keV*cm**2', 'cool_entropy_in':'keV*cm**2', 'cool_entropy_out':'keV*cm**2', \
+                        'warm_entropy':'keV*cm**2', 'warm_entropy_in':'keV*cm**2', 'warm_entropy_out':'keV*cm**2', \
+                        'hot_entropy':'keV*cm**2', 'hot_entropy_in':'keV*cm**2', 'hot_entropy_out':'keV*cm**2', \
+                        'cold_radial_velocity':'km/s', 'cold_radial_velocity_in':'km/s', 'cold_radial_velocity_out':'km/s', \
+                        'cool_radial_velocity':'km/s', 'cool_radial_velocity_in':'km/s', 'cool_radial_velocity_out':'km/s', \
+                        'warm_radial_velocity':'km/s', 'warm_radial_velocity_in':'km/s', 'warm_radial_velocity_out':'km/s', \
+                        'hot_radial_velocity':'km/s', 'hot_radial_velocity_in':'km/s', 'hot_radial_velocity_out':'km/s', \
+                        'cold_theta_velocity':'km/s', 'cold_theta_velocity_in':'km/s', 'cold_theta_velocity_out':'km/s', \
+                        'cool_theta_velocity':'km/s', 'cool_theta_velocity_in':'km/s', 'cool_theta_velocity_out':'km/s', \
+                        'warm_theta_velocity':'km/s', 'warm_theta_velocity_in':'km/s', 'warm_theta_velocity_out':'km/s', \
+                        'hot_theta_velocity':'km/s', 'hot_theta_velocity_in':'km/s', 'hot_theta_velocity_out':'km/s', \
+                        'cold_phi_velocity':'km/s', 'cold_phi_velocity_in':'km/s', 'cold_phi_velocity_out':'km/s', \
+                        'cool_phi_velocity':'km/s', 'cool_phi_velocity_in':'km/s', 'cool_phi_velocity_out':'km/s', \
+                        'warm_phi_velocity':'km/s', 'warm_phi_velocity_in':'km/s', 'warm_phi_velocity_out':'km/s', \
+                        'hot_phi_velocity':'km/s', 'hot_phi_velocity_in':'km/s', 'hot_phi_velocity_out':'km/s', \
+                        'cold_tangential_velocity':'km/s', 'cold_tangential_velocity_in':'km/s', 'cold_tangential_velocity_out':'km/s', \
+                        'cool_tangential_velocity':'km/s', 'cool_tangential_velocity_in':'km/s', 'cool_tangential_velocity_out':'km/s', \
+                        'warm_tangential_velocity':'km/s', 'warm_tangential_velocity_in':'km/s', 'warm_tangential_velocity_out':'km/s', \
+                        'hot_tangential_velocity':'km/s', 'hot_tangential_velocity_in':'km/s', 'hot_tangential_velocity_out':'km/s'}
     for key in table_avg.keys():
         table_avg[key].unit = table_avg_units[key]
 
-    table_pdf_units = {'redshift':None, 'quadrant':None, 'radius':'kpc',
-                        'temperature':'K', 'temperature_pdf':None,
-                        'density':'g/cm**3', 'density_pdf':None, 'radial_velocity':'km/s', 'radial_velocity_pdf':None,
-                        'theta_velocity':'km/s', 'theta_velocity_pdf':None, 'phi_velocity':'km/s', 'phi_velocity_pdf':None,
-                        'pressure':'erg/cm**3', 'pressure_pdf':None, 'cold_temperature':'K', 'cold_temperature_pdf':None,
-                        'cold_density':'g/cm**3', 'cold_density_pdf':None, 'cold_radial_velocity':'km/s', 'cold_radial_velocity_pdf':None,
-                        'cold_theta_velocity':'km/s', 'cold_theta_velocity_pdf':None, 'cold_phi_velocity':'km/s', 'cold_phi_velocity_pdf':None,
-                        'cold_pressure':'erg/cm**3', 'cold_pressure_pdf':None,'cool_temperature':'K', 'cool_temperature_pdf':None,
-                        'cool_density':'g/cm**3', 'cool_density_pdf':None, 'cool_radial_velocity':'km/s', 'cool_radial_velocity_pdf':None,
-                        'cool_theta_velocity':'km/s', 'cool_theta_velocity_pdf':None, 'cool_phi_velocity':'km/s', 'cool_phi_velocity_pdf':None,
-                        'cool_pressure':'erg/cm**3', 'cool_pressure_pdf':None, 'warm_temperature':'K', 'warm_temperature_pdf':None,
-                        'warm_density':'g/cm**3', 'warm_density_pdf':None, 'warm_radial_velocity':'km/s', 'warm_radial_velocity_pdf':None,
-                        'warm_theta_velocity':'km/s', 'warm_theta_velocity_pdf':None, 'warm_phi_velocity':'km/s', 'warm_phi_velocity_pdf':None,
-                        'warm_pressure':'erg/cm**3', 'warm_pressure_pdf':None,'hot_temperature':'K', 'hot_temperature_pdf':None,
-                        'hot_density':'g/cm**3', 'hot_density_pdf':None, 'hot_radial_velocity':'km/s', 'hot_radial_velocity_pdf':None,
-                        'hot_theta_velocity':'km/s', 'hot_theta_velocity_pdf':None, 'hot_phi_velocity':'km/s', 'hot_phi_velocity_pdf':None,
-                        'hot_pressure':'erg/cm**3', 'hot_pressure_pdf':None}
+    table_pdf_units = {'redshift':None, 'radius':'kpc', \
+                        'temperature':'K', 'temperature_pdf':None, 'density':'g/cm**3', 'density_pdf':None, \
+                        'pressure':'erg/cm**3', 'pressure_pdf':None, 'entropy':'keV*cm**2', 'entropy_pdf':None, \
+                        'radial_velocity':'km/s', 'radial_velocity_pdf':None, 'theta_velocity':'km/s', 'theta_velocity_pdf':None, \
+                        'phi_velocity':'km/s', 'phi_velocity_pdf':None, 'tangential_velocity':'km/s', 'tangential_velocity_pdf':None, \
+                        'cold_temperature':'K', 'cold_temperature_pdf':None, 'cool_temperature':'K', 'cool_temperature_pdf':None, \
+                        'warm_temperature':'K', 'warm_temperature_pdf':None, 'hot_temperature':'K', 'hot_temperature_pdf':None, \
+                        'cold_density':'g/cm**3', 'cold_density_pdf':None, 'cool_density':'g/cm**3', 'cool_density_pdf':None, \
+                        'warm_density':'g/cm**3', 'warm_density_pdf':None, 'hot_density':'g/cm**3', 'hot_density_pdf':None, \
+                        'cold_pressure':'erg/cm**3', 'cold_pressure_pdf':None, 'cool_pressure':'erg/cm**3', 'cool_pressure_pdf':None, \
+                        'warm_pressure':'erg/cm**3', 'warm_pressure_pdf':None, 'hot_pressure':'erg/cm**3', 'hot_pressure_pdf':None, \
+                        'cold_entropy':'keV*cm**2', 'cold_entropy_pdf':None, 'cool_entropy':'keV*cm**2', 'cool_entropy_pdf':None, \
+                        'warm_entropy':'keV*cm**2', 'warm_entropy_pdf':None, 'hot_entropy':'keV*cm**2', 'hot_entropy_pdf':None, \
+                        'cold_radial_velocity':'km/s', 'cold_radial_velocity_pdf':None, 'cool_radial_velocity':'km/s', 'cool_radial_velocity_pdf':None, \
+                        'warm_radial_velocity':'km/s', 'warm_radial_velocity_pdf':None, 'hot_radial_velocity':'km/s', 'hot_radial_velocity_pdf':None, \
+                        'cold_theta_velocity':'km/s', 'cold_theta_velocity_pdf':None, 'cool_theta_velocity':'km/s', 'cool_theta_velocity_pdf':None, \
+                        'warm_theta_velocity':'km/s', 'warm_theta_velocity_pdf':None, 'hot_theta_velocity':'km/s', 'hot_theta_velocity_pdf':None, \
+                        'cold_phi_velocity':'km/s', 'cold_phi_velocity_pdf':None, 'cool_phi_velocity':'km/s', 'cool_phi_velocity_pdf':None, \
+                        'warm_phi_velocity':'km/s', 'warm_phi_velocity_pdf':None, 'hot_phi_velocity':'km/s', 'hot_phi_velocity_pdf':None, \
+                        'cold_tangential_velocity':'km/s', 'cold_tangential_velocity_pdf':None, 'cool_tangential_velocity':'km/s', 'cool_tangential_velocity_pdf':None, \
+                        'warm_tangential_velocity':'km/s', 'warm_tangential_velocity_pdf':None, 'hot_tangential_velocity':'km/s', 'hot_tangential_velocity_pdf':None}
     for key in table_pdf.keys():
         table_pdf[key].unit = table_pdf_units[key]
 
     return table_avg, table_pdf
 
-def calc_shells(ds, snap, zsnap, refine_width_kpc, tablename):
+def calc_shells(ds, snap, zsnap, refine_width_kpc, tablename, disk_rel=True):
     """Computes various average quantities and pdfs in spherical shells centered on the halo center.
     Takes the dataset for the snapshot 'ds', the name of the snapshot 'snap', the redshift of the
     snapshot 'zsnap', and the width of the refine box in kpc 'refine_width_kpc'
     and does the calculation, then writes a hdf5 table out to 'tablename'.
     """
 
+    halo_center_kpc = ds.halo_center_kpc
+
+    cmtopc = 3.086e18
+    stoyr = 3.154e7
+    gtoMsun = 1.989e33
+
     # Set up table of everything we want
     # NOTE: Make sure table units are updated when things are added to this table!
-    data_avg = Table(names=('redshift', 'quadrant', 'radius', 'temperature', 'density',
-                        'radial_velocity', 'radial_velocity_in', 'radial_velocity_out',
-                        'tangential_velocity', 'theta_velocity', 'phi_velocity', 'pressure',
-                        'entropy', 'cold_temperature', 'cold_density',
-                        'cold_radial_velocity', 'cold_radial_velocity_in', 'cold_radial_velocity_out',
-                        'cold_tangential_velocity', 'cold_theta_velocity', 'cold_phi_velocity',
-                        'cold_pressure', 'cold_entropy', 'cool_temperature', 'cool_density',
-                        'cool_radial_velocity', 'cool_radial_velocity_in', 'cool_radial_velocity_out',
-                        'cool_tangential_velocity', 'cool_theta_velocity', 'cool_phi_velocity',
-                        'cool_pressure', 'cool_entropy', 'warm_temperature', 'warm_density',
-                        'warm_radial_velocity', 'warm_radial_velocity_in', 'warm_radial_velocity_out',
-                        'warm_tangential_velocity', 'warm_theta_velocity', 'warm_phi_velocity',
-                        'warm_pressure', 'warm_entropy', 'hot_temperature', 'hot_density',
-                        'hot_radial_velocity', 'hot_radial_velocity_in', 'hot_radial_velocity_out',
-                        'hot_tangential_velocity', 'hot_theta_velocity', 'hot_phi_velocity',
-                        'hot_pressure', 'hot_entropy'),
+    data_avg = Table(names=('redshift', 'radius', \
+                        'temperature', 'density', 'pressure', 'entropy', \
+                        'radial_velocity', 'theta_velocity', 'phi_velocity', 'tangential_velocity', \
+                        'temperature_in', 'temperature_out', 'density_in', 'density_out', \
+                        'pressure_in', 'pressure_out', 'entropy_in', 'entropy_out', \
+                        'radial_velocity_in', 'radial_velocity_out', 'theta_velocity_in', 'theta_velocity_out', \
+                        'phi_velocity_in', 'phi_velocity_out', 'tangential_velocity_in', 'tangential_velocity_out', \
+                        'cold_temperature', 'cold_temperature_in', 'cold_temperature_out', \
+                        'cool_temperature', 'cool_temperature_in', 'cool_temperature_out', \
+                        'warm_temperature', 'warm_temperature_in', 'warm_temperature_out', \
+                        'hot_temperature', 'hot_temperature_in', 'hot_temperature_out', \
+                        'cold_density', 'cold_density_in', 'cold_density_out', \
+                        'cool_density', 'cool_density_in', 'cool_density_out', \
+                        'warm_density', 'warm_density_in', 'warm_density_out', \
+                        'hot_density', 'hot_density_in', 'hot_density_out', \
+                        'cold_pressure', 'cold_pressure_in', 'cold_pressure_out', \
+                        'cool_pressure', 'cool_pressure_in', 'cool_pressure_out', \
+                        'warm_pressure', 'warm_pressure_in', 'warm_pressure_out', \
+                        'hot_pressure', 'hot_pressure_in', 'hot_pressure_out', \
+                        'cold_entropy', 'cold_entropy_in', 'cold_entropy_out', \
+                        'cool_entropy', 'cool_entropy_in', 'cool_entropy_out', \
+                        'warm_entropy', 'warm_entropy_in', 'warm_entropy_out', \
+                        'hot_entropy', 'hot_entropy_in', 'hot_entropy_out', \
+                        'cold_radial_velocity', 'cold_radial_velocity_in', 'cold_radial_velocity_out', \
+                        'cool_radial_velocity', 'cool_radial_velocity_in', 'cool_radial_velocity_out', \
+                        'warm_radial_velocity', 'warm_radial_velocity_in', 'warm_radial_velocity_out', \
+                        'hot_radial_velocity', 'hot_radial_velocity_in', 'hot_radial_velocity_out', \
+                        'cold_theta_velocity', 'cold_theta_velocity_in', 'cold_theta_velocity_out', \
+                        'cool_theta_velocity', 'cool_theta_velocity_in', 'cool_theta_velocity_out', \
+                        'warm_theta_velocity', 'warm_theta_velocity_in', 'warm_theta_velocity_out', \
+                        'hot_theta_velocity', 'hot_theta_velocity_in', 'hot_theta_velocity_out', \
+                        'cold_phi_velocity', 'cold_phi_velocity_in', 'cold_phi_velocity_out', \
+                        'cool_phi_velocity', 'cool_phi_velocity_in', 'cool_phi_velocity_out', \
+                        'warm_phi_velocity', 'warm_phi_velocity_in', 'warm_phi_velocity_out', \
+                        'hot_phi_velocity', 'hot_phi_velocity_in', 'hot_phi_velocity_out', \
+                        'cold_tangential_velocity', 'cold_tangential_velocity_in', 'cold_tangential_velocity_out', \
+                        'cool_tangential_velocity', 'cool_tangential_velocity_in', 'cool_tangential_velocity_out', \
+                        'warm_tangential_velocity', 'warm_tangential_velocity_in', 'warm_tangential_velocity_out', \
+                        'hot_tangential_velocity', 'hot_tangential_velocity_in', 'hot_tangential_velocity_out'),
                  dtype=('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-                        'f8', 'f8', 'f8', 'f8', 'f8'))
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8'))
 
-    data_pdf = Table(names=('redshift', 'quadrant', 'radius', 'temperature', 'temperature_pdf',
-                        'density', 'density_pdf', 'radial_velocity', 'radial_velocity_pdf',
-                        'theta_velocity', 'theta_velocity_pdf', 'phi_velocity', 'phi_velocity_pdf',
-                        'pressure', 'pressure_pdf', 'cold_temperature', 'cold_temperature_pdf',
-                        'cold_density', 'cold_density_pdf', 'cold_radial_velocity', 'cold_radial_velocity_pdf',
-                        'cold_theta_velocity', 'cold_theta_velocity_pdf', 'cold_phi_velocity', 'cold_phi_velocity_pdf',
-                        'cold_pressure', 'cold_pressure_pdf','cool_temperature', 'cool_temperature_pdf',
-                        'cool_density', 'cool_density_pdf', 'cool_radial_velocity', 'cool_radial_velocity_pdf',
-                        'cool_theta_velocity', 'cool_theta_velocity_pdf', 'cool_phi_velocity', 'cool_phi_velocity_pdf',
-                        'cool_pressure', 'cool_pressure_pdf','warm_temperature', 'warm_temperature_pdf',
-                        'warm_density', 'warm_density_pdf', 'warm_radial_velocity', 'warm_radial_velocity_pdf',
-                        'warm_theta_velocity', 'warm_theta_velocity_pdf', 'warm_phi_velocity', 'warm_phi_velocity_pdf',
-                        'warm_pressure', 'warm_pressure_pdf','hot_temperature', 'hot_temperature_pdf',
-                        'hot_density', 'hot_density_pdf', 'hot_radial_velocity', 'hot_radial_velocity_pdf',
-                        'hot_theta_velocity', 'hot_theta_velocity_pdf', 'hot_phi_velocity', 'hot_phi_velocity_pdf',
-                        'hot_pressure', 'hot_pressure_pdf'),
+    data_pdf = Table(names=('redshift', 'radius', \
+                        'temperature', 'temperature_pdf', 'density', 'density_pdf', \
+                        'pressure', 'pressure_pdf', 'entropy', 'entropy_pdf', \
+                        'radial_velocity', 'radial_velocity_pdf', 'theta_velocity', 'theta_velocity_pdf', \
+                        'phi_velocity', 'phi_velocity_pdf', 'tangential_velocity', 'tangential_velocity_pdf', \
+                        'cold_temperature', 'cold_temperature_pdf', 'cool_temperature', 'cool_temperature_pdf', \
+                        'warm_temperature', 'warm_temperature_pdf', 'hot_temperature', 'hot_temperature_pdf', \
+                        'cold_density', 'cold_density_pdf', 'cool_density', 'cool_density_pdf', \
+                        'warm_density', 'warm_density_pdf', 'hot_density', 'hot_density_pdf', \
+                        'cold_pressure', 'cold_pressure_pdf', 'cool_pressure', 'cool_pressure_pdf', \
+                        'warm_pressure', 'warm_pressure_pdf', 'hot_pressure', 'hot_pressure_pdf', \
+                        'cold_entropy', 'cold_entropy_pdf', 'cool_entropy', 'cool_entropy_pdf', \
+                        'warm_entropy', 'warm_entropy_pdf', 'hot_entropy', 'hot_entropy_pdf', \
+                        'cold_radial_velocity', 'cold_radial_velocity_pdf', 'cool_radial_velocity', 'cool_radial_velocity_pdf', \
+                        'warm_radial_velocity', 'warm_radial_velocity_pdf', 'hot_radial_velocity', 'hot_radial_velocity_pdf', \
+                        'cold_theta_velocity', 'cold_theta_velocity_pdf', 'cool_theta_velocity', 'cool_theta_velocity_pdf', \
+                        'warm_theta_velocity', 'warm_theta_velocity_pdf', 'hot_theta_velocity', 'hot_theta_velocity_pdf', \
+                        'cold_phi_velocity', 'cold_phi_velocity_pdf', 'cool_phi_velocity', 'cool_phi_velocity_pdf', \
+                        'warm_phi_velocity', 'warm_phi_velocity_pdf', 'hot_phi_velocity', 'hot_phi_velocity_pdf', \
+                        'cold_tangential_velocity', 'cold_tangential_velocity_pdf', 'cool_tangential_velocity', 'cool_tangential_velocity_pdf', \
+                        'warm_tangential_velocity', 'warm_tangential_velocity_pdf', 'hot_tangential_velocity', 'hot_tangential_velocity_pdf'),
                  dtype=('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-                        'f8', 'f8', 'f8'))
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
     # Define the radii of the spherical shells where we want to calculate fluxes
-    radii = 0.5*refine_width_kpc * np.arange(0.1, 1.0, 0.05)
+    radii = 0.5*refine_width_kpc * np.arange(0.1, 0.9, 0.01)
+
+    # Load arrays of all fields we need
+    print('Loading field arrays')
+    sphere = ds.sphere(halo_center_kpc, radii[-1])
+
+    rad_vel = sphere['gas','radial_velocity_corrected'].in_units('km/s').v
+    radius = sphere['gas','radius_corrected'].in_units('kpc').v
+    temperature = sphere['gas','temperature'].in_units('K').v
+    density = sphere['gas','density'].in_units('g/cm**3').v
+    pressure = sphere['gas','pressure'].in_units('erg/cm**3').v
+    if (disk_rel):
+        theta_vel = sphere['gas','vtheta_disk'].in_units('km/s').v
+        phi_vel = sphere['gas','vphi_disk'].in_units('km/s').v
+        tan_vel = sphere['gas','vtan_disk'].in_units('km/s').v
+    else:
+        theta_vel = sphere['gas','theta_velocity_corrected'].in_units('km/s').v
+        phi_vel = sphere['gas','phi_velocity_corrected'].in_units('km/s').v
+        tan_vel = sphere['gas','tangential_velocity_corrected'].in_units('km/s').v
+    entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
+    cell_mass = sphere['gas','cell_mass'].in_units('Msun').v
+    cell_volume = sphere['gas','cell_volume'].in_units('kpc**3').v
 
     # Loop over radii
     for i in range(len(radii)-1):
@@ -198,259 +287,282 @@ def calc_shells(ds, snap, zsnap, refine_width_kpc, tablename):
         if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)-1) + \
                             " for snapshot " + snap)
 
-        # Make the spheres and shell for computing
-        inner_sphere = ds.sphere(ds.halo_center_kpc, r_low)
-        outer_sphere = ds.sphere(ds.halo_center_kpc, r_high)
-        shell = outer_sphere - inner_sphere
+        # Cut the data for this shell
+        rad_vel_shell = rad_vel[(radius >= r_low.v) & (radius < r_high.v)]
+        radius_shell = radius[(radius >= r_low.v) & (radius < r_high.v)]
+        temperature_shell = temperature[(radius >= r_low.v) & (radius < r_high.v)]
+        density_shell = density[(radius >= r_low.v) & (radius < r_high.v)]
+        pressure_shell = pressure[(radius >= r_low.v) & (radius < r_high.v)]
+        theta_vel_shell = theta_vel[(radius >= r_low.v) & (radius < r_high.v)]
+        phi_vel_shell = phi_vel[(radius >= r_low.v) & (radius < r_high.v)]
+        tan_vel_shell = tan_vel[(radius >= r_low.v) & (radius < r_high.v)]
+        entropy_shell = entropy[(radius >= r_low.v) & (radius < r_high.v)]
+        cell_mass_shell = cell_mass[(radius >= r_low.v) & (radius < r_high.v)]
+        cell_volume_shell = cell_volume[(radius >= r_low.v) & (radius < r_high.v)]
 
-        # Cut the shell on radial velocity for in and out fluxes
-        shell_in = shell.cut_region("obj['gas','radial_velocity_corrected'] < 0")
-        shell_out = shell.cut_region("obj['gas','radial_velocity_corrected'] > 0")
+        # Cut the data on temperature and radial velocity for in and out averages
+        # For each field, it is a nested list where the top index is 0 through 4 for temperature phases
+        # (all, cold, cool, warm, hot) and the second index is 0 through 2 for radial velocity (all, in, out)
+        rad_vel_cut = []
+        radius_cut = []
+        temperature_cut = []
+        density_cut = []
+        pressure_cut = []
+        theta_vel_cut = []
+        phi_vel_cut = []
+        tan_vel_cut = []
+        entropy_cut = []
+        cell_mass_cut = []
+        cell_volume_cut = []
+        for j in range(5):
+            rad_vel_cut.append([])
+            radius_cut.append([])
+            temperature_cut.append([])
+            density_cut.append([])
+            pressure_cut.append([])
+            theta_vel_cut.append([])
+            phi_vel_cut.append([])
+            tan_vel_cut.append([])
+            entropy_cut.append([])
+            cell_mass_cut.append([])
+            cell_volume_cut.append([])
+            if (j==0):
+                t_low = 0.
+                t_high = 10**12.
+            if (j==1):
+                t_low = 0.
+                t_high = 10**4.
+            if (j==2):
+                t_low = 10**4.
+                t_high = 10**5.
+            if (j==3):
+                t_low = 10**5.
+                t_high = 10**6.
+            if (j==4):
+                t_low = 10**6.
+                t_high = 10**12.
+            rad_vel_cut[j].append(rad_vel_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            radius_cut[j].append(radius_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            temperature_cut[j].append(temperature_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            density_cut[j].append(density_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            pressure_cut[j].append(pressure_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            theta_vel_cut[j].append(theta_vel_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            phi_vel_cut[j].append(phi_vel_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            tan_vel_cut[j].append(tan_vel_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            entropy_cut[j].append(entropy_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            cell_mass_cut[j].append(cell_mass_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            cell_volume_cut[j].append(cell_volume_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            for k in range(2):
+                if (k==0): fac = -1.
+                if (k==1): fac = 1.
+                rad_vel_cut[j].append(rad_vel_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                radius_cut[j].append(radius_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                temperature_cut[j].append(temperature_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                density_cut[j].append(density_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                pressure_cut[j].append(pressure_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                theta_vel_cut[j].append(theta_vel_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                phi_vel_cut[j].append(phi_vel_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                tan_vel_cut[j].append(tan_vel_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                entropy_cut[j].append(entropy_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                cell_mass_cut[j].append(cell_mass_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                cell_volume_cut[j].append(cell_volume_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
 
-        # Cut the shell on temperature for cold, cool, warm, and hot gas
-        shell_cold = shell.cut_region("obj['temperature'] <= 10**4")
-        shell_cool = shell.cut_region("(obj['temperature'] > 10**4) &" + \
-                                      " (obj['temperature'] <= 10**5)")
-        shell_warm = shell.cut_region("(obj['temperature'] > 10**5) &" + \
-                                      " (obj['temperature'] <= 10**6)")
-        shell_hot = shell.cut_region("obj['temperature'] > 10**6")
+        # Compute averages and histograms
+        # For each type parameter, the averages are a nested list where the top index goes from 0 to 4 and is
+        # the phase of gas (all, cold, cool, warm, hot) and the second index goes from 0 to 2 and is
+        # the radial velocity (all, in, out).
+        # Ex. the average of a parameter is avg[0][0], the average of a parameter with negative radial velocities is avg[0][1], the warm phase average of a parameter with positive radial velocity is avg[3][2]
+        # For the distribution and histograms, they do not have the second index
+        rad_vel_avg = []
+        density_avg = []
+        temperature_avg = []
+        pressure_avg = []
+        theta_vel_avg = []
+        phi_vel_avg = []
+        tan_vel_avg = []
+        entropy_avg = []
 
-        # Cut the shell on both temperature and radial velocity
-        shell_in_cold = shell_in.cut_region("obj['temperature'] <= 10**4")
-        shell_in_cool = shell_in.cut_region("(obj['temperature'] > 10**4) &" + \
-                                            " (obj['temperature'] <= 10**5)")
-        shell_in_warm = shell_in.cut_region("(obj['temperature'] > 10**5) &" + \
-                                            " (obj['temperature'] <= 10**6)")
-        shell_in_hot = shell_in.cut_region("obj['temperature'] > 10**6")
-        shell_out_cold = shell_out.cut_region("obj['temperature'] <= 10**4")
-        shell_out_cool = shell_out.cut_region("(obj['temperature'] > 10**4) &" + \
-                                              " (obj['temperature'] <= 10**5)")
-        shell_out_warm = shell_out.cut_region("(obj['temperature'] > 10**5) &" + \
-                                              " (obj['temperature'] <= 10**6)")
-        shell_out_hot = shell_out.cut_region("obj['temperature'] > 10**6")
+        rad_vel_dist = []
+        rad_vel_hist = []
+        density_dist = []
+        density_hist = []
+        temperature_dist = []
+        temperature_hist = []
+        pressure_dist = []
+        pressure_hist = []
+        entropy_dist = []
+        entropy_hist = []
+        theta_vel_dist = []
+        theta_vel_hist = []
+        phi_vel_dist = []
+        phi_vel_hist = []
+        tan_vel_dist = []
+        tan_vel_hist = []
 
-        # Compute averages
-        temperature = shell.quantities.weighted_average_quantity(('gas','temperature'), 'cell_volume')
-        density = shell.quantities.weighted_average_quantity(('gas','density'), 'cell_volume')
-        radial_velocity = shell.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        radial_velocity_in = shell_in.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        radial_velocity_out = shell_out.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        tangential_velocity = shell.quantities.weighted_average_quantity(('gas','vtan_disk'), 'cell_mass')
-        theta_velocity = shell.quantities.weighted_average_quantity(('gas','vtheta_disk'), 'cell_mass')
-        phi_velocity = shell.quantities.weighted_average_quantity(('gas','vphi_disk'), 'cell_mass')
-        pressure = shell.quantities.weighted_average_quantity(('gas','pressure'), 'cell_volume')
-        entropy = shell.quantities.weighted_average_quantity(('gas','entropy'), 'cell_volume')
+        for j in range(5):
+            rad_vel_avg.append([])
+            density_avg.append([])
+            temperature_avg.append([])
+            pressure_avg.append([])
+            theta_vel_avg.append([])
+            phi_vel_avg.append([])
+            tan_vel_avg.append([])
+            entropy_avg.append([])
+            for k in range(3):
+                if (np.sum(cell_mass_cut[j][k])!=0):
+                    rad_vel_avg[j].append(np.average(rad_vel_cut[j][k], weights=cell_mass_cut[j][k]))
+                    theta_vel_avg[j].append(np.average(theta_vel_cut[j][k], weights=cell_mass_cut[j][k]))
+                    phi_vel_avg[j].append(np.average(phi_vel_cut[j][k], weights=cell_mass_cut[j][k]))
+                    tan_vel_avg[j].append(np.average(tan_vel_cut[j][k], weights=cell_mass_cut[j][k]))
+                else:
+                    rad_vel_avg[j].append(0.)
+                    theta_vel_avg[j].append(0.)
+                    phi_vel_avg[j].append(0.)
+                    tan_vel_avg[j].append(0.)
+                if (np.sum(cell_volume_cut[j][k])!=0):
+                    density_avg[j].append(np.average(density_cut[j][k], weights=cell_volume_cut[j][k]))
+                    temperature_avg[j].append(np.average(temperature_cut[j][k], weights=cell_volume_cut[j][k]))
+                    pressure_avg[j].append(np.average(pressure_cut[j][k], weights=cell_volume_cut[j][k]))
+                    entropy_avg[j].append(np.average(entropy_cut[j][k], weights=cell_volume_cut[j][k]))
+                else:
+                    density_avg[j].append(0.)
+                    temperature_avg[j].append(0.)
+                    pressure_avg[j].append(0.)
+                    entropy_avg[j].append(0.)
 
-        cold_temperature = shell_cold.quantities.weighted_average_quantity(('gas','temperature'), 'cell_volume')
-        cold_density = shell_cold.quantities.weighted_average_quantity(('gas','density'), 'cell_volume')
-        cold_radial_velocity = shell_cold.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        cold_radial_velocity_in = shell_in_cold.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        cold_radial_velocity_out = shell_out_cold.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        cold_tangential_velocity = shell_cold.quantities.weighted_average_quantity(('gas','vtan_disk'), 'cell_mass')
-        cold_theta_velocity = shell_cold.quantities.weighted_average_quantity(('gas','vtheta_disk'), 'cell_mass')
-        cold_phi_velocity = shell_cold.quantities.weighted_average_quantity(('gas','vphi_disk'), 'cell_mass')
-        cold_pressure = shell_cold.quantities.weighted_average_quantity(('gas','pressure'), 'cell_volume')
-        cold_entropy = shell_cold.quantities.weighted_average_quantity(('gas','entropy'), 'cell_volume')
+            if (np.sum(cell_mass_cut[j][0])!=0):
+                hist, dist = np.histogram(rad_vel_cut[j][0], bins=128, weights=cell_mass_cut[j][0], density=True)
+                dist_cen = []
+                for b in range(len(dist)-1):
+                    dist_cen.append(0.5*(dist[b]+dist[b+1]))
+                rad_vel_dist.append(dist_cen)
+                rad_vel_hist.append(hist)
+                hist, dist = np.histogram(theta_vel_cut[j][0], bins=128, weights=cell_mass_cut[j][0], density=True)
+                dist_cen = []
+                for b in range(len(dist)-1):
+                    dist_cen.append(0.5*(dist[b]+dist[b+1]))
+                theta_vel_dist.append(dist_cen)
+                theta_vel_hist.append(hist)
+                hist, dist = np.histogram(phi_vel_cut[j][0], bins=128, weights=cell_mass_cut[j][0], density=True)
+                dist_cen = []
+                for b in range(len(dist)-1):
+                    dist_cen.append(0.5*(dist[b]+dist[b+1]))
+                phi_vel_dist.append(dist_cen)
+                phi_vel_hist.append(hist)
+                hist, dist = np.histogram(tan_vel_cut[j][0], bins=128, weights=cell_mass_cut[j][0], density=True)
+                dist_cen = []
+                for b in range(len(dist)-1):
+                    dist_cen.append(0.5*(dist[b]+dist[b+1]))
+                tan_vel_dist.append(dist_cen)
+                tan_vel_hist.append(hist)
+            else:
+                rad_vel_dist.append(np.zeros(128))
+                rad_vel_hist.append(np.zeros(128))
+                theta_vel_dist.append(np.zeros(128))
+                theta_vel_hist.append(np.zeros(128))
+                phi_vel_dist.append(np.zeros(128))
+                phi_vel_hist.append(np.zeros(128))
+                tan_vel_dist.append(np.zeros(128))
+                tan_vel_hist.append(np.zeros(128))
+            if (np.sum(cell_volume_cut[j][0])!=0):
+                hist, dist = np.histogram(np.log10(density_cut[j][0]), bins=128, weights=cell_volume_cut[j][0], density=True)
+                dist_cen = []
+                for b in range(len(dist)-1):
+                    dist_cen.append(0.5*(dist[b]+dist[b+1]))
+                density_dist.append(10**np.array(dist_cen))
+                density_hist.append(hist)
+                hist, dist = np.histogram(np.log10(temperature_cut[j][0]), bins=128, weights=cell_volume_cut[j][0], density=True)
+                dist_cen = []
+                for b in range(len(dist)-1):
+                    dist_cen.append(0.5*(dist[b]+dist[b+1]))
+                temperature_dist.append(10**np.array(dist_cen))
+                temperature_hist.append(hist)
+                hist, dist = np.histogram(np.log10(pressure_cut[j][0]), bins=128, weights=cell_volume_cut[j][0], density=True)
+                dist_cen = []
+                for b in range(len(dist)-1):
+                    dist_cen.append(0.5*(dist[b]+dist[b+1]))
+                pressure_dist.append(10**np.array(dist_cen))
+                pressure_hist.append(hist)
+                hist, dist = np.histogram(np.log10(entropy_cut[j][0]), bins=128, weights=cell_volume_cut[j][0], density=True)
+                dist_cen = []
+                for b in range(len(dist)-1):
+                    dist_cen.append(0.5*(dist[b]+dist[b+1]))
+                entropy_dist.append(np.array(dist_cen))
+                entropy_hist.append(hist)
+            else:
+                density_dist.append(np.zeros(128))
+                density_hist.append(np.zeros(128))
+                temperature_dist.append(np.zeros(128))
+                temperature_hist.append(np.zeros(128))
+                pressure_dist.append(np.zeros(128))
+                pressure_hist.append(np.zeros(128))
+                entropy_dist.append(np.zeros(128))
+                entropy_hist.append(np.zeros(128))
 
-        cool_temperature = shell_cool.quantities.weighted_average_quantity(('gas','temperature'), 'cell_volume')
-        cool_density = shell_cool.quantities.weighted_average_quantity(('gas','density'), 'cell_volume')
-        cool_radial_velocity = shell_cool.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        cool_radial_velocity_in = shell_in_cool.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        cool_radial_velocity_out = shell_out_cool.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        cool_tangential_velocity = shell_cool.quantities.weighted_average_quantity(('gas','vtan_disk'), 'cell_mass')
-        cool_theta_velocity = shell_cool.quantities.weighted_average_quantity(('gas','vtheta_disk'), 'cell_mass')
-        cool_phi_velocity = shell_cool.quantities.weighted_average_quantity(('gas','vphi_disk'), 'cell_mass')
-        cool_pressure = shell_cool.quantities.weighted_average_quantity(('gas','pressure'), 'cell_volume')
-        cool_entropy = shell_cool.quantities.weighted_average_quantity(('gas','entropy'), 'cell_volume')
-
-        warm_temperature = shell_warm.quantities.weighted_average_quantity(('gas','temperature'), 'cell_volume')
-        warm_density = shell_warm.quantities.weighted_average_quantity(('gas','density'), 'cell_volume')
-        warm_radial_velocity = shell_warm.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        warm_radial_velocity_in = shell_in_warm.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        warm_radial_velocity_out = shell_out_warm.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        warm_tangential_velocity = shell_warm.quantities.weighted_average_quantity(('gas','vtan_disk'), 'cell_mass')
-        warm_theta_velocity = shell_warm.quantities.weighted_average_quantity(('gas','vtheta_disk'), 'cell_mass')
-        warm_phi_velocity = shell_warm.quantities.weighted_average_quantity(('gas','vphi_disk'), 'cell_mass')
-        warm_pressure = shell_warm.quantities.weighted_average_quantity(('gas','pressure'), 'cell_volume')
-        warm_entropy = shell_warm.quantities.weighted_average_quantity(('gas','entropy'), 'cell_volume')
-
-        hot_temperature = shell_hot.quantities.weighted_average_quantity(('gas','temperature'), 'cell_volume')
-        hot_density = shell_hot.quantities.weighted_average_quantity(('gas','density'), 'cell_volume')
-        hot_radial_velocity = shell_hot.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        hot_radial_velocity_in = shell_in_hot.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        hot_radial_velocity_out = shell_out_hot.quantities.weighted_average_quantity(('gas','radial_velocity_corrected'), 'cell_mass')
-        hot_tangential_velocity = shell_hot.quantities.weighted_average_quantity(('gas','vtan_disk'), 'cell_mass')
-        hot_theta_velocity = shell_hot.quantities.weighted_average_quantity(('gas','vtheta_disk'), 'cell_mass')
-        hot_phi_velocity = shell_hot.quantities.weighted_average_quantity(('gas','vphi_disk'), 'cell_mass')
-        hot_pressure = shell_hot.quantities.weighted_average_quantity(('gas','pressure'), 'cell_volume')
-        hot_entropy = shell_hot.quantities.weighted_average_quantity(('gas','entropy'), 'cell_volume')
-
-        # Add everything to the table
-        data_avg.add_row([zsnap, 0, r, temperature, density,
-                            radial_velocity, radial_velocity_in, radial_velocity_out,
-                            tangential_velocity, theta_velocity, phi_velocity, pressure,
-                            entropy, cold_temperature, cold_density,
-                            cold_radial_velocity, cold_radial_velocity_in, cold_radial_velocity_out,
-                            cold_tangential_velocity, cold_theta_velocity, cold_phi_velocity,
-                            cold_pressure, cold_entropy, cool_temperature, cool_density,
-                            cool_radial_velocity, cool_radial_velocity_in, cool_radial_velocity_out,
-                            cool_tangential_velocity, cool_theta_velocity, cool_phi_velocity,
-                            cool_pressure, cool_entropy, warm_temperature, warm_density,
-                            warm_radial_velocity, warm_radial_velocity_in, warm_radial_velocity_out,
-                            warm_tangential_velocity, warm_theta_velocity, warm_phi_velocity,
-                            warm_pressure, warm_entropy, hot_temperature, hot_density,
-                            hot_radial_velocity, hot_radial_velocity_in, hot_radial_velocity_out,
-                            hot_tangential_velocity, hot_theta_velocity, hot_phi_velocity,
-                            hot_pressure, hot_entropy])
-
-        # Compute PDFs
-        plot = yt.ProfilePlot(shell, ('gas','temperature'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        temperature_dist = profile.x
-        temperature_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell, ('gas','density'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        density_dist = profile.x
-        density_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        rv_dist = profile.x
-        rv_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        vtheta_dist = profile.x
-        vtheta_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        vphi_dist = profile.x
-        vphi_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell, ('gas','pressure'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        pressure_dist = profile.x
-        pressure_hist = profile['cell_volume']/shell.sum('cell_volume')
-
-        plot = yt.ProfilePlot(shell_cold, ('gas','temperature'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        cold_temperature_dist = profile.x
-        cold_temperature_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_cold, ('gas','density'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        cold_density_dist = profile.x
-        cold_density_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_cold, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        cold_rv_dist = profile.x
-        cold_rv_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_cold, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        cold_vtheta_dist = profile.x
-        cold_vtheta_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_cold, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        cold_vphi_dist = profile.x
-        cold_vphi_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_cold, ('gas','pressure'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        cold_pressure_dist = profile.x
-        cold_pressure_hist = profile['cell_volume']/shell.sum('cell_volume')
-
-        plot = yt.ProfilePlot(shell_cool, ('gas','temperature'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        cool_temperature_dist = profile.x
-        cool_temperature_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_cool, ('gas','density'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        cool_density_dist = profile.x
-        cool_density_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_cool, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        cool_rv_dist = profile.x
-        cool_rv_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_cool, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        cool_vtheta_dist = profile.x
-        cool_vtheta_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_cool, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        cool_vphi_dist = profile.x
-        cool_vphi_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_cool, ('gas','pressure'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        cool_pressure_dist = profile.x
-        cool_pressure_hist = profile['cell_volume']/shell.sum('cell_volume')
-
-        plot = yt.ProfilePlot(shell_warm, ('gas','temperature'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        warm_temperature_dist = profile.x
-        warm_temperature_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_warm, ('gas','density'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        warm_density_dist = profile.x
-        warm_density_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_warm, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        warm_rv_dist = profile.x
-        warm_rv_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_warm, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        warm_vtheta_dist = profile.x
-        warm_vtheta_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_warm, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        warm_vphi_dist = profile.x
-        warm_vphi_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_warm, ('gas','pressure'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        warm_pressure_dist = profile.x
-        warm_pressure_hist = profile['cell_volume']/shell.sum('cell_volume')
-
-        plot = yt.ProfilePlot(shell_hot, ('gas','temperature'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        hot_temperature_dist = profile.x
-        hot_temperature_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_hot, ('gas','density'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        hot_density_dist = profile.x
-        hot_density_hist = profile['cell_volume']/shell.sum('cell_volume')
-        plot = yt.ProfilePlot(shell_hot, ('gas','radial_velocity_corrected'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        hot_rv_dist = profile.x
-        hot_rv_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_hot, ('gas','vtheta_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        hot_vtheta_dist = profile.x
-        hot_vtheta_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_hot, ('gas','vphi_disk'), ['cell_mass'], weight_field=None, n_bins=128, x_log=False)
-        profile = plot.profiles[0]
-        hot_vphi_dist = profile.x
-        hot_vphi_hist = profile['cell_mass']/shell.sum('cell_mass')
-        plot = yt.ProfilePlot(shell_hot, ('gas','pressure'), ['cell_volume'], weight_field=None, n_bins=128)
-        profile = plot.profiles[0]
-        hot_pressure_dist = profile.x
-        hot_pressure_hist = profile['cell_volume']/shell.sum('cell_volume')
+        # Add averages to the table
+        data_avg.add_row([zsnap, r, \
+                        temperature_avg[0][0], density_avg[0][0], pressure_avg[0][0], entropy_avg[0][0], \
+                        rad_vel_avg[0][0], theta_vel_avg[0][0], phi_vel_avg[0][0], tan_vel_avg[0][0], \
+                        temperature_avg[0][1], temperature_avg[0][2], density_avg[0][1], density_avg[0][2], \
+                        pressure_avg[0][1], pressure_avg[0][2], entropy_avg[0][1], entropy_avg[0][2], \
+                        rad_vel_avg[0][1], rad_vel_avg[0][2], theta_vel_avg[0][1], theta_vel_avg[0][2], \
+                        phi_vel_avg[0][1], phi_vel_avg[0][2], tan_vel_avg[0][1], tan_vel_avg[0][2], \
+                        temperature_avg[1][0], temperature_avg[1][1], temperature_avg[1][2], \
+                        temperature_avg[2][0], temperature_avg[2][1], temperature_avg[2][2], \
+                        temperature_avg[3][0], temperature_avg[3][1], temperature_avg[3][2], \
+                        temperature_avg[4][0], temperature_avg[4][1], temperature_avg[4][2], \
+                        density_avg[1][0], density_avg[1][1], density_avg[1][2], \
+                        density_avg[2][0], density_avg[2][1], density_avg[2][2], \
+                        density_avg[3][0], density_avg[3][1], density_avg[3][2], \
+                        density_avg[4][0], density_avg[4][1], density_avg[4][2], \
+                        pressure_avg[1][0], pressure_avg[1][1], pressure_avg[1][2], \
+                        pressure_avg[2][0], pressure_avg[2][1], pressure_avg[2][2], \
+                        pressure_avg[3][0], pressure_avg[3][1], pressure_avg[3][2], \
+                        pressure_avg[4][0], pressure_avg[4][1], pressure_avg[4][2], \
+                        entropy_avg[1][0], entropy_avg[1][1], entropy_avg[1][2], \
+                        entropy_avg[2][0], entropy_avg[2][1], entropy_avg[2][2], \
+                        entropy_avg[3][0], entropy_avg[3][1], entropy_avg[3][2], \
+                        entropy_avg[4][0], entropy_avg[4][1], entropy_avg[4][2], \
+                        rad_vel_avg[1][0], rad_vel_avg[1][1], rad_vel_avg[1][2], \
+                        rad_vel_avg[2][0], rad_vel_avg[2][1], rad_vel_avg[2][2], \
+                        rad_vel_avg[3][0], rad_vel_avg[3][1], rad_vel_avg[3][2], \
+                        rad_vel_avg[4][0], rad_vel_avg[4][1], rad_vel_avg[4][2], \
+                        theta_vel_avg[1][0], theta_vel_avg[1][1], theta_vel_avg[1][2], \
+                        theta_vel_avg[2][0], theta_vel_avg[2][1], theta_vel_avg[2][2], \
+                        theta_vel_avg[3][0], theta_vel_avg[3][1], theta_vel_avg[3][2], \
+                        theta_vel_avg[4][0], theta_vel_avg[4][1], theta_vel_avg[4][2], \
+                        phi_vel_avg[1][0], phi_vel_avg[1][1], phi_vel_avg[1][2], \
+                        phi_vel_avg[2][0], phi_vel_avg[2][1], phi_vel_avg[2][2], \
+                        phi_vel_avg[3][0], phi_vel_avg[3][1], phi_vel_avg[3][2], \
+                        phi_vel_avg[4][0], phi_vel_avg[4][1], phi_vel_avg[4][2], \
+                        tan_vel_avg[1][0], tan_vel_avg[1][1], tan_vel_avg[1][2], \
+                        tan_vel_avg[2][0], tan_vel_avg[2][1], tan_vel_avg[2][2], \
+                        tan_vel_avg[3][0], tan_vel_avg[3][1], tan_vel_avg[3][2], \
+                        tan_vel_avg[4][0], tan_vel_avg[4][1], tan_vel_avg[4][2]])
 
         # Add PDFs to table
         for b in range(128):
-            data_pdf.add_row([zsnap, 0, r, temperature_dist[b], temperature_hist[b],
-                            density_dist[b], density_hist[b], rv_dist[b], rv_hist[b],
-                            vtheta_dist[b], vtheta_hist[b], vphi_dist[b], vphi_hist[b],
-                            pressure_dist[b], pressure_hist[b],
-                            cold_temperature_dist[b], cold_temperature_hist[b],
-                            cold_density_dist[b], cold_density_hist[b], cold_rv_dist[b], cold_rv_hist[b],
-                            cold_vtheta_dist[b], cold_vtheta_hist[b], cold_vphi_dist[b], cold_vphi_hist[b],
-                            cold_pressure_dist[b], cold_pressure_hist[b],
-                            cool_temperature_dist[b], cool_temperature_hist[b],
-                            cool_density_dist[b], cool_density_hist[b], cool_rv_dist[b], cool_rv_hist[b],
-                            cool_vtheta_dist[b], cool_vtheta_hist[b], cool_vphi_dist[b], cool_vphi_hist[b],
-                            cool_pressure_dist[b], cool_pressure_hist[b],
-                            warm_temperature_dist[b], warm_temperature_hist[b],
-                            warm_density_dist[b], warm_density_hist[b], warm_rv_dist[b], warm_rv_hist[b],
-                            warm_vtheta_dist[b], warm_vtheta_hist[b], warm_vphi_dist[b], warm_vphi_hist[b],
-                            warm_pressure_dist[b], warm_pressure_hist[b],
-                            hot_temperature_dist[b], hot_temperature_hist[b],
-                            hot_density_dist[b], hot_density_hist[b], hot_rv_dist[b], hot_rv_hist[b],
-                            hot_vtheta_dist[b], hot_vtheta_hist[b], hot_vphi_dist[b], hot_vphi_hist[b],
-                            hot_pressure_dist[b], hot_pressure_hist[b]])
+            data_pdf.add_row([zsnap, r, \
+                            temperature_dist[0][b], temperature_hist[0][b], density_dist[0][b], density_hist[0][b], \
+                            pressure_dist[0][b], pressure_hist[0][b], entropy_dist[0][b], entropy_hist[0][b], \
+                            rad_vel_dist[0][b], rad_vel_hist[0][b], theta_vel_dist[0][b], theta_vel_hist[0][b], \
+                            phi_vel_dist[0][b], phi_vel_hist[0][b], tan_vel_dist[0][b], tan_vel_hist[0][b], \
+                            temperature_dist[1][b], temperature_hist[1][b], temperature_dist[2][b], temperature_hist[2][b], \
+                            temperature_dist[3][b], temperature_hist[3][b], temperature_dist[4][b], temperature_hist[4][b], \
+                            density_dist[1][b], density_hist[1][b], density_dist[2][b], density_hist[2][b], \
+                            density_dist[3][b], density_hist[3][b], density_dist[4][b], density_hist[4][b], \
+                            pressure_dist[1][b], pressure_hist[1][b], pressure_dist[2][b], pressure_hist[2][b], \
+                            pressure_dist[3][b], pressure_hist[3][b], pressure_dist[4][b], pressure_hist[4][b], \
+                            entropy_dist[1][b], entropy_hist[1][b], entropy_dist[2][b], entropy_hist[2][b], \
+                            entropy_dist[3][b], entropy_hist[3][b], entropy_dist[4][b], entropy_hist[4][b], \
+                            rad_vel_dist[1][b], rad_vel_hist[1][b], rad_vel_dist[2][b], rad_vel_hist[2][b], \
+                            rad_vel_dist[3][b], rad_vel_hist[3][b], rad_vel_dist[4][b], rad_vel_hist[4][b], \
+                            theta_vel_dist[1][b], theta_vel_hist[1][b], theta_vel_dist[2][b], theta_vel_hist[2][b], \
+                            theta_vel_dist[3][b], theta_vel_hist[3][b], theta_vel_dist[4][b], theta_vel_hist[4][b], \
+                            phi_vel_dist[1][b], phi_vel_hist[1][b], phi_vel_dist[2][b], phi_vel_hist[2][b], \
+                            phi_vel_dist[3][b], phi_vel_hist[3][b], phi_vel_dist[4][b], phi_vel_hist[4][b], \
+                            tan_vel_dist[1][b], tan_vel_hist[1][b], tan_vel_dist[2][b], tan_vel_hist[2][b], \
+                            tan_vel_dist[3][b], tan_vel_hist[3][b], tan_vel_dist[4][b], tan_vel_hist[4][b]])
 
 
     # Save to file
@@ -460,7 +572,7 @@ def calc_shells(ds, snap, zsnap, refine_width_kpc, tablename):
 
     return "Averages and PDFs have been calculated for snapshot" + snap + "!"
 
-def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablename):
+def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the table to output, and a boolean
     'quadrants' that specifies whether or not to compute in quadrants vs. the whole domain, then
@@ -472,13 +584,21 @@ def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablenam
         use_halo_c_v=True
 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
+    if (system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap
+        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+        snap_name = snap_dir + '/' + snap
     ds, refine_box, refine_box_center, refine_width = load(snap_name, track, disk_relative=True, \
                                                            use_halo_c_v=use_halo_c_v, halo_c_v_name=halo_c_v_name)
     refine_width_kpc = YTArray([refine_width], 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     # Do the actual calculation
-    message = calc_shells(ds, snap, zsnap, refine_width_kpc, tablename)
+    message = calc_shells(ds, snap, zsnap, refine_width_kpc, tablename, disk_rel=True)
+    if (system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
     print(message)
     print(str(datetime.datetime.now()))
 
@@ -489,7 +609,7 @@ if __name__ == "__main__":
     print('Run:', args.run)
     print('System:', args.system)
     print('Local?', args.local)
-    foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     if (args.system=='pleiades_cassi'):
         code_path = '/home5/clochhaa/FOGGIE/foggie/foggie/'
     elif (args.system=='cassiopeia'):
@@ -500,8 +620,7 @@ if __name__ == "__main__":
         track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
     else:
         track_dir = ''
-    if ('/astro/simulations/' in foggie_dir):
-        run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'
+
     # Build output list
     if (',' in args.output):
         ind = args.output.find(',')
@@ -535,7 +654,7 @@ if __name__ == "__main__":
             # Make the output table name for this snapshot
             tablename = prefix + snap + '_shells'
             # Do the actual calculation
-            load_and_calculate(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)
+            load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
@@ -545,7 +664,7 @@ if __name__ == "__main__":
                 snap = outs[args.nproc*i+j]
                 tablename = prefix + snap + '_shells'
                 threads.append(multi.Process(target=load_and_calculate, \
-			       args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
+			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
             for t in threads:
                 t.start()
             for t in threads:
@@ -556,7 +675,7 @@ if __name__ == "__main__":
             snap = outs[-(j+1)]
             tablename = prefix + snap + '_shells'
             threads.append(multi.Process(target=load_and_calculate, \
-			   args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
+			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
         for t in threads:
             t.start()
         for t in threads:

@@ -6,8 +6,9 @@ import yt
 yt.add_particle_filter("stars",function=yt_fields._stars, filtered_type='all',requires=["particle_type"])
 yt.add_particle_filter("dm",function=yt_fields._dm, filtered_type='all',requires=["particle_type"])
 
-dd_name = 'DD2175'
-sim_name = 'nref11n_nref10f'
+import sys
+sim_name = sys.argv[1] # 'nref11n_nref10f'
+dd_name = sys.argv[2] # 'RD0039'
 ds, ds_paras = prepdata(dd_name, sim_name=sim_name)
 
 # create new derived particle fields with “stars_mass” and "dm_mass". from Raymond
@@ -16,8 +17,9 @@ ds.add_particle_filter('dm')
 
 # get halo, disk, and cgm
 sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
-disk_rs = 3.3 # kpc
-disk_zs = 0.5 # kpc, chec disk_scale_length_rs and scale_height_zs
+
+from core_funcs import dict_disk_rs_zs
+disk_rs, disk_zs = dict_disk_rs_zs(dd_name, sim_name=sim_name) # kpc
 disk_size_r = 6*disk_rs # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
 disk_size_z = 4*disk_zs # one side,
 disk = ds.disk(ds_paras['halo_center'],

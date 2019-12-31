@@ -116,6 +116,8 @@ def dshader_noaxes(dataframe, dict_basic_args, dict_extra_args):
                      dict_basic_args['y_field'],
                      dshader.count_cat(dict_extra_args['c_field']))
     color_key = dict_extra_args['ckey']
+
+    print(color_key)
     # img = tranfunc.shade(agg, color_key=color_key, how='log', min_alpha=230)
     img = tranfunc.shade(agg, color_key=color_key, how='log', min_alpha=230)
 

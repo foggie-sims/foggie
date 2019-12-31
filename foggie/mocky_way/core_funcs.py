@@ -50,17 +50,17 @@ def default_random_seed():
     random_seed = 99
     return random_seed
 
-def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
+def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2,
+             shift_obs_location=False, shift_n45=1):
     """
     This is a generalized function setup to process a simulation output.
-    It returns information of [] which will be used routinely and consistently
+    It returns information of {} which will be used routinely and consistently
     by other functions.
 
     If you are running this for the first time for any new simulation output,
     you need to look at funcs disk_scale_length() and sphere_for_galaxy_ang_mom()
     first to decide the corresponding disk scale length and the size of the sphere
-    used to calculate the disk's angular momentum. The scale length is defaulted
-    to 2 kpc, and ang_sphere_rr defaulted to 10 kpc if first time running it.
+    used to calculate the disk's angular momentum.
 
     Input:
     dd_name: the output name, could be RD**** or DD****
@@ -68,6 +68,10 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
               now default to nref11n_nref10f
     robs2rs: default to put mock observer at twice the disk scale length rs,
              couldchange accordingly.
+    shift_obs_location: boolean value, design to shift the observer to another
+             7 offcenter location of the disk (shfit_n45 from 1 to 7)
+    shift_n45: values of 1 to 7, when equal to 1, it means the observer is
+               45 (nx45) degree from the original/fiducial location,
 
     Hitory:
     05/04/2019, Created, Yong Zheng, UCB
@@ -75,6 +79,8 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
                 a universal one. Yong Zheng.
     10/04/2019, update for nref11n_nref10f/RD0039 (used to be nref11c_nref9f),
                 + Merging mocky_way to foggie/mocky_way. Yong Zheng.
+    12/18/2019, now the code can find dataset from my hard drive, to check other
+                simulation output. Yong Zheng.
     """
 
     # my rule: vector should have no unit, just numpy array
@@ -85,6 +91,12 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     from foggie.mocky_way.core_funcs import data_dir_sys_dir
     data_dir, sys_dir = data_dir_sys_dir()
     ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
+
+    import os
+    if os.path.isfile(ds_file) == False:
+        drive_dir = '/Volumes/Yong4TB/foggie/halo_008508'
+        ds_file = '%s/%s/%s/%s'%(drive_dir, sim_name, dd_name, dd_name)
+
     ds_paras['dd_name'] = dd_name
     ds_paras['sim_name'] = sim_name
     ds_paras['data_path'] = ds_file
@@ -126,6 +138,7 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     from foggie.mocky_way.core_funcs import dict_rvir_proper
     rvir_proper = dict_rvir_proper(dd_name, sim_name=sim_name)
     ds_paras['rvir'] = ds.quan(rvir_proper, 'kpc')
+    print(ds_paras['rvir'])
 
     #### decide the angular momentum of the disk, and the three vectors
     ## L_vec: angular momentum vector
@@ -144,6 +157,14 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ds_paras['phi_vec'] = dict_vecs['phi_vec']
     ds_paras['disk_bulkvel'] = dict_vecs['disk_bulkvel']
 
+    # only do this if we want to shift the observer to other location in the
+    # in the galactic disk
+    if shift_obs_location == True:
+        from foggie.mocky_way.core_funcs import shift_obs_location_func
+        # n45 varies from 1 to 7 (0 equal to current position)
+        ds_paras = shift_obs_location_func(ds_paras, shift_n45=shift_n45)
+
+    ############### best to normal here #####################
     #### add disk scale height and scale length to the dict
     from foggie.mocky_way.core_funcs import dict_disk_rs_zs
     disk_rs, disk_zs = dict_disk_rs_zs(dd_name, sim_name=sim_name)
@@ -155,6 +176,48 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2):
     ds_paras = locate_offcenter_observer(ds, ds_paras, robs2rs=robs2rs)
 
     return ds, ds_paras
+
+def shift_obs_location_func(ds_paras, shift_n45=1):
+    """
+    for the exisiting [L_vec, sun_vec, phi_vec] coordinate system, shift the
+    sun_vec and phi_vec by nx45 degrees, which will change the location of
+    the mock observer. The code updates the sun_vec and phi_vec vectors in
+    ds_paras.
+
+    input:
+    ds_paras: the overall parameter
+    shift_n45: 1, 2, 3, ..., 7, corresponding the other 7 locations
+          on the disk plane to put mock observer on.
+
+    Hisotry:
+    12/18/2019, first created, Yong Zheng. UCB.
+    """
+
+    ori_L_vec = ds_paras['L_vec']
+    ori_sun_vec = ds_paras['sun_vec']
+    ori_phi_vec = ds_paras['phi_vec']
+
+    # first, find the new observer location vector
+    other_7_obs_locations = {'n45=1': ori_sun_vec+ori_phi_vec,
+                             'n45=2': ori_phi_vec,
+                             'n45=3': -ori_sun_vec+ori_phi_vec,
+                             'n45=4': -ori_sun_vec,
+                             'n45=5': -ori_sun_vec-ori_phi_vec,
+                             'n45=6': -ori_phi_vec,
+                             'n45=7': -ori_phi_vec+ori_sun_vec}
+    ntag = 'n45=%d'%(shift_n45)
+    obs_vec = other_7_obs_locations[ntag]
+
+    # now get the unique vector
+    obs_vec = obs_vec/np.sqrt(np.sum(obs_vec**2))
+    new_sun_vec = obs_vec
+    new_phi_vec = np.cross(obs_vec, ori_L_vec)
+    new_phi_vec = new_phi_vec/np.sqrt(np.sum(new_phi_vec**2))
+
+    ds_paras['sun_vec'] = new_sun_vec
+    ds_paras['phi_vec'] = new_phi_vec
+
+    return ds_paras
 
 def locate_offcenter_observer(ds, ds_paras, robs2rs=2):
     """
@@ -221,7 +284,7 @@ def calc_r200_proper(ds, halo_center,
             r_progressing = r_progressing + ds.quan(delta_r_step, rad_units)
             rho_internal = mean_rho(ds, halo_center, r_progressing)
             rho_ratio = rho_internal/rho_crit
-            print('- Refine mean rho at r=%d kpc, rho/rho_200=%.1f'%(r_progressing, rho_ratio))
+            print('- Refine mean rho at r=%d kpc, rho_mean/rho_crit=%.1f'%(r_progressing, rho_ratio))
         r_progressing = r_previous
 
     r200 = r_progressing
@@ -359,7 +422,9 @@ def dict_rvir_proper(dd_name, sim_name='nref11n_nref10f'):
                         'nref11c_nref9f_selfshield_z6/RD0037': 150.5,
                         'nref11c_nref9f_selfshield_z6/DD0946': 98.0,
                         'nref11n_nref10f/RD0039': 157.5,
-                        'nref11n_nref10f/DD2175': 161.0
+                        'nref11n_nref10f/DD2175': 161.0,
+                        'nref11n_nref10f/RD0041': 165.5,
+                        'nref11n_nref10f/RD0042': 170.0
                         }
 
     output_string = '%s/%s'%(sim_name, dd_name)
@@ -395,7 +460,9 @@ def dict_sphere_for_gal_ang_mom(dd_name, sim_name='nref11n_nref10f'):
                         'nref11c_nref9f_selfshield_z6/RD0037': 8,
                         'nref11c_nref9f_selfshield_z6/DD0946': 10,
                         'nref11n_nref10f/RD0039': 20,
-                        'nref11n_nref10f/DD2175': 5}
+                        'nref11n_nref10f/DD2175': 5,
+                        'nref11n_nref10f/RD0041': 15,
+                        'nref11n_nref10f/RD0042': 10}
 
     output_string = '%s/%s'%(sim_name, dd_name)
     if output_string in dict_sphere_L_rr:
@@ -424,11 +491,16 @@ def dict_disk_rs_zs(dd_name, sim_name='nref11n_nref10f'):
                  # see RD0037_L08kpc_n32_x800_R100.0_final.pdf
     dict_rs = {'nref11c_nref9f_selfshield_z6/RD0037': 3.9,
                'nref11n_nref10f/RD0039': 3.3,
-               'nref11n_nref10f/DD2175': 3.4}
+               'nref11n_nref10f/DD2175': 3.4,
+               'nref11n_nref10f/RD0041': 3.9,
+               'nref11n_nref10f/RD0042': 4.4,
+               }
 
     dict_zs = {'nref11c_nref9f_selfshield_z6/RD0037': 1.4,
                'nref11n_nref10f/RD0039': 0.4,
-               'nref11n_nref10f/DD2175': 0.5}
+               'nref11n_nref10f/DD2175': 0.5,
+               'nref11n_nref10f/RD0041': 0.3,
+               'nref11n_nref10f/RD0042': 0.6}
 
     output_string = '%s/%s'%(sim_name, dd_name)
     if output_string in dict_rs:
@@ -874,3 +946,18 @@ def los_r(ds, data, observer_location):
     los_r_kpc = los_r_codelength.in_units('kpc')
 
     return los_r_kpc
+
+def weighted_avg_and_std(values, weights):
+    """
+    Return the weighted average and standard deviation.
+    This return the biased weighted std, see:
+    https://en.wikipedia.org/wiki/Weighted_arithmetic_mean#Weighted_sample_variance
+
+    values, weights -- Numpy ndarrays with the same shape.
+    """
+    import numpy as np
+    import math
+    average = np.average(values, weights=weights)
+    # Fast and numerically precise:
+    variance = np.average((values-average)**2, weights=weights)
+    return (average, math.sqrt(variance))

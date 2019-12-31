@@ -23,6 +23,7 @@ from astropy.table import Table
 from astropy.io import ascii
 import multiprocessing as multi
 import datetime
+import shutil
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -63,6 +64,10 @@ def parse_args():
                         help='Just use the working directory?, Default is no')
     parser.set_defaults(pwd=False)
 
+    parser.add_argument('--local', dest='local', action='store_true',
+                        help='Are the simulation files stored locally? Default is no')
+    parser.set_defaults(local=False)
+
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', \
                         help='How many processes do you want? Default is 1 ' + \
                         '(no parallelization), if multiple outputs and multiple processors are' + \
@@ -90,6 +95,8 @@ def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename):
     and does the calculation, then writes a hdf5 table out to 'tablename'.
     """
 
+    halo_center_kpc = ds.halo_center_kpc
+
     # Set up table of everything we want
     # NOTE: Make sure table units are updated when things are added to this table!
     data = Table(names=('redshift', 'snapshot', 'radius', 'total_mass', 'dm_mass', \
@@ -97,37 +104,34 @@ def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename):
                  dtype=('f8', 'S6', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
     # Define the radii of the spheres where we want to calculate mass enclosed
-    radii = refine_width_kpc * np.logspace(-2,.3,50)
+    radii = refine_width_kpc * np.logspace(-2,.3,100)
 
     # Initialize first sphere
     print('Beginning calculation for snapshot', snap)
-    previous_sphere = ds.sphere(ds.halo_center_kpc, radii[0])
-    gas_mass = np.sum(previous_sphere['gas','cell_mass']).in_units('Msun')
-    dm_mass = np.sum(previous_sphere['dm','particle_mass']).in_units('Msun')
-    stars_mass = np.sum(previous_sphere['stars','particle_mass']).in_units('Msun')
-    total_mass = gas_mass + dm_mass + stars_mass
-    data.add_row([zsnap, snap, radii[0], total_mass, dm_mass, stars_mass, gas_mass])
+    print('Loading field arrays')
+    sphere = ds.sphere(halo_center_kpc, radii[-1])
+
+    gas_mass = sphere['gas','cell_mass'].in_units('Msun').v
+    dm_mass = sphere['dm','particle_mass'].in_units('Msun').v
+    stars_mass = sphere['stars','particle_mass'].in_units('Msun').v
+    gas_radius = sphere['gas','radius_corrected'].in_units('kpc').v
+    dm_radius = sphere['dm','radius_corrected'].in_units('kpc').v
+    stars_radius = sphere['stars','radius_corrected'].in_units('kpc').v
 
     # Loop over radii
-    for i in range(1,len(radii)):
+    for i in range(len(radii)):
 
         if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)-1) + \
                             " for snapshot " + snap)
 
-        # Make the new shell
-        new_sphere = ds.sphere(ds.halo_center_kpc, radii[i])
-        shell = new_sphere - previous_sphere
-
-        # Calculate masses in shell and add to previous interior shells
-        gas_mass += np.sum(shell['gas','cell_mass']).in_units('Msun')
-        dm_mass += np.sum(shell['dm','particle_mass']).in_units('Msun')
-        stars_mass += np.sum(shell['stars','particle_mass']).in_units('Msun')
-        total_mass = gas_mass + dm_mass + stars_mass
+        # Cut the data interior to this radius
+        gas_mass_enc = np.sum(gas_mass[gas_radius <= radii[i]])
+        dm_mass_enc = np.sum(dm_mass[dm_radius <= radii[i]])
+        stars_mass_enc = np.sum(stars_mass[stars_radius <= radii[i]])
+        total_mass_enc = gas_mass_enc + dm_mass_enc + stars_mass_enc
 
         # Add everything to the table
-        data.add_row([zsnap, snap, radii[i], total_mass, dm_mass, stars_mass, gas_mass])
-
-        previous_sphere = new_sphere
+        data.add_row([zsnap, snap, radii[i], total_mass_enc, dm_mass_enc, stars_mass_enc, gas_mass_enc])
 
     # Save to file
     data = set_table_units(data)
@@ -135,18 +139,26 @@ def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename):
 
     return "Masses have been calculated for snapshot" + snap + "!"
 
-def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablename):
+def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the halo center file 'halo_c_v_name', and the name
     of the table to output 'tablename', then does the calculation on the loaded snapshot.'''
 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
+    if (system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap
+        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+        snap_name = snap_dir + '/' + snap
     ds, refine_box, refine_box_center, refine_width = load(snap_name, track, use_halo_c_v=True, halo_c_v_name=halo_c_v_name)
     refine_width_kpc = YTArray([refine_width], 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     # Do the actual calculation
     message = calc_masses(ds, snap, zsnap, refine_width_kpc, tablename)
+    if (system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
     print(message)
     print(str(datetime.datetime.now()))
 
@@ -155,7 +167,7 @@ if __name__ == "__main__":
     print(args.halo)
     print(args.run)
     print(args.system)
-    foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     #foggie_dir = '/nobackup/mpeeples/'
     #output_dir = '/home5/clochhaa/FOGGIE/Outputs/'
     #run_dir = 'halo_008508/nref11n_nref10f/'
@@ -163,9 +175,10 @@ if __name__ == "__main__":
     if (args.system=='pleiades_cassi'): code_path = '/home5/clochhaa/FOGGIE/foggie/foggie/'
     elif (args.system=='cassiopeia'):
         code_path = '/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/'
+        if (args.local):
+            foggie_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/'
     track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-    if ('/astro/simulations/' in foggie_dir):
-        run_dir = 'halo_00' + args.halo + '/nref11n/' + args.run + '/'
+
     # Build output list
     if (',' in args.output):
         ind = args.output.find(',')
@@ -200,7 +213,7 @@ if __name__ == "__main__":
             # Make the output table name for this snapshot
             tablename = prefix + snap + '_masses'
             # Do the actual calculation
-            load_and_calculate(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)
+            load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
@@ -210,7 +223,7 @@ if __name__ == "__main__":
                 snap = outs[args.nproc*i+j]
                 tablename = prefix + snap + '_masses'
                 threads.append(multi.Process(target=load_and_calculate, \
-			       args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
+			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
             for t in threads:
                 t.start()
             for t in threads:
@@ -221,7 +234,7 @@ if __name__ == "__main__":
             snap = outs[-(j+1)]
             tablename = prefix + snap + '_masses'
             threads.append(multi.Process(target=load_and_calculate, \
-			   args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
+			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
         for t in threads:
             t.start()
         for t in threads:

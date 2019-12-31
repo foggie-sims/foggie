@@ -19,10 +19,14 @@ data_dir, sys_dir = data_dir_sys_dir()
 #dd_name = sys.argv[2]     # RD0039
 #ion_to_proj = sys.argv[3] # mainly for HI
 sim_name = 'nref11n_nref10f'
-dd_name = 'DD2175'
+dd_name = 'RD0039' # 'DD2175'
 ion_to_proj = 'HI'
 
 ds_file = '%s/%s/%s/%s'%(data_dir, sim_name, dd_name, dd_name)
+if os.path.isfile(ds_file) == False:
+    drive_dir = '/Volumes/Yong4TB/foggie/halo_008508'
+    ds_file = '%s/%s/%s/%s'%(drive_dir, sim_name, dd_name, dd_name)
+
 ds = yt.load(ds_file)
 zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
@@ -52,7 +56,7 @@ from core_funcs import default_random_seed
 random_seed = default_random_seed()
 # for r_for_L in [5, 10, 15, 20]:
 highlight_disk = True
-for r_for_L in [5]:
+for r_for_L in [5, 10, 15]:
     dict_vecs = get_sphere_ang_mom_vecs(ds, halo_center, r_for_L,
                                         random_seed=random_seed)
     L_vec = dict_vecs['L_vec']
@@ -100,7 +104,7 @@ for r_for_L in [5]:
                                    circle_args={'color':'w'})
 
             pj.set_width(image_width)
-            fig_name = '%s_%s_AngMon%skpc_%s_zoom.pdf'%(sim_name, dd_name, r_for_L, tag)
+            fig_name = '%s_%s_AngMon%skpc_%s_zoom_rszsnofixed.pdf'%(sim_name, dd_name, r_for_L, tag)
             pj.save('%s/%s'%(fig_dir, fig_name))
             print('Saving... %s/%s'%(fig_dir, fig_name))
 

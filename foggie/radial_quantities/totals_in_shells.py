@@ -2,7 +2,7 @@
 Filename: flux_tracking.py
 Author: Cassi
 Date created: 9-27-19
-Date last modified: 12-6-19
+Date last modified: 12-22-19
 This file takes command line arguments and computes fluxes of things through
 spherical shells.
 
@@ -154,6 +154,11 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
     Menc_func = kwargs.get('Menc_func', False)
 
     G = ds.quan(6.673e-8, 'cm**3/s**2/g')
+    halo_center_kpc = ds.halo_center_kpc
+
+    cmtopc = 3.086e18
+    stoyr = 3.154e7
+    gtoMsun = 1.989e33
 
     # Set up table of everything we want
     # NOTE: Make sure table units are updated when things are added to this table!
@@ -240,8 +245,22 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
                             'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                             'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
-    # Define the radii of the spherical shells where we want to calculate fluxes
+    # Define the radii of the spherical shells where we want to calculate totals
     radii = 0.5*refine_width_kpc * np.arange(0.1, 0.9, 0.01)
+
+    # Load arrays of all fields we need
+    print('Loading field arrays')
+    sphere = ds.sphere(halo_center_kpc, radii[-1])
+
+    mass = sphere['gas','cell_mass'].in_units('Msun').v
+    rad_vel = sphere['gas','radial_velocity_corrected'].in_units('km/s').v
+    radius = sphere['gas','radius_corrected'].in_units('kpc').v
+    metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
+    temperature = sphere['gas','temperature'].in_units('K').v
+    kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
+    thermal_energy = sphere['gas','thermal_energy'].in_units('erg/g').v
+    cooling_time = sphere['gas','cooling_time'].in_units('yr').v
+    entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
 
     # Loop over radii
     for i in range(len(radii)-1):
@@ -253,187 +272,103 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
         if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)-1) + \
                             " for snapshot " + snap)
 
-        # Make the spheres and shell for computing
-        inner_sphere = ds.sphere(ds.halo_center_kpc, r_low)
-        outer_sphere = ds.sphere(ds.halo_center_kpc, r_high)
-        shell = outer_sphere - inner_sphere
+        # Cut the data for this shell
+        mass_shell = mass[(radius >= r_low.v) & (radius < r_high.v)]
+        rad_vel_shell = rad_vel[(radius >= r_low.v) & (radius < r_high.v)]
+        radius_shell = radius[(radius >= r_low.v) & (radius < r_high.v)]
+        metal_mass_shell = metal_mass[(radius >= r_low.v) & (radius < r_high.v)]
+        temperature_shell = temperature[(radius >= r_low.v) & (radius < r_high.v)]
+        kinetic_energy_shell = kinetic_energy[(radius >= r_low.v) & (radius < r_high.v)]
+        thermal_energy_shell = thermal_energy[(radius >= r_low.v) & (radius < r_high.v)]
+        cooling_time_shell = cooling_time[(radius >= r_low.v) & (radius < r_high.v)]
+        entropy_shell = entropy[(radius >= r_low.v) & (radius < r_high.v)]
 
-        # Cut the shell on radial velocity for in and out fluxes
-        shell_in = shell.cut_region("obj['gas','radial_velocity_corrected'] < 0")
-        shell_out = shell.cut_region("obj['gas','radial_velocity_corrected'] > 0")
+        # Cut the data on temperature and radial velocity for in and out totals
+        # For each field, it is a nested list where the top index is 0 through 4 for temperature phases
+        # (all, cold, cool, warm, hot) and the second index is 0 through 2 for radial velocity (all, in, out)
+        mass_cut = []
+        rad_vel_cut = []
+        radius_cut = []
+        metal_mass_cut = []
+        temperature_cut = []
+        kinetic_energy_cut = []
+        thermal_energy_cut = []
+        cooling_time_cut = []
+        entropy_cut = []
+        for j in range(5):
+            mass_cut.append([])
+            rad_vel_cut.append([])
+            radius_cut.append([])
+            metal_mass_cut.append([])
+            temperature_cut.append([])
+            kinetic_energy_cut.append([])
+            thermal_energy_cut.append([])
+            cooling_time_cut.append([])
+            entropy_cut.append([])
+            if (j==0):
+                t_low = 0.
+                t_high = 10**12.
+            if (j==1):
+                t_low = 0.
+                t_high = 10**4.
+            if (j==2):
+                t_low = 10**4.
+                t_high = 10**5.
+            if (j==3):
+                t_low = 10**5.
+                t_high = 10**6.
+            if (j==4):
+                t_low = 10**6.
+                t_high = 10**12.
+            mass_cut[j].append(mass_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            rad_vel_cut[j].append(rad_vel_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            radius_cut[j].append(radius_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            metal_mass_cut[j].append(metal_mass_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            temperature_cut[j].append(temperature_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            kinetic_energy_cut[j].append(kinetic_energy_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            thermal_energy_cut[j].append(thermal_energy_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            cooling_time_cut[j].append(cooling_time_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            entropy_cut[j].append(entropy_shell[(temperature_shell > t_low) & (temperature_shell < t_high)])
+            for k in range(2):
+                if (k==0): fac = -1.
+                if (k==1): fac = 1.
+                mass_cut[j].append(mass_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                rad_vel_cut[j].append(rad_vel_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                radius_cut[j].append(radius_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                metal_mass_cut[j].append(metal_mass_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                temperature_cut[j].append(temperature_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                kinetic_energy_cut[j].append(kinetic_energy_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                thermal_energy_cut[j].append(thermal_energy_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                cooling_time_cut[j].append(cooling_time_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
+                entropy_cut[j].append(entropy_cut[j][0][(fac*rad_vel_cut[j][0] > 0.)])
 
-        # Cut the shell on temperature for cold, cool, warm, and hot gas
-        shell_cold = shell.cut_region("obj['temperature'] <= 10**4")
-        shell_cool = shell.cut_region("(obj['temperature'] > 10**4) &" + \
-                                      " (obj['temperature'] <= 10**5)")
-        shell_warm = shell.cut_region("(obj['temperature'] > 10**5) &" + \
-                                      " (obj['temperature'] <= 10**6)")
-        shell_hot = shell.cut_region("obj['temperature'] > 10**6")
+        # Compute totals
+        # For each parameter total, it is a nested list where the top index goes from 0 to 4 and is
+        # the phase of gas (all, cold, cool, warm, hot) and the second index goes from 0 to 2 and is
+        # the radial velocity (all, in, out).
+        # Ex. the total of a parameter is total[0][0], the total of a parameter with negative radial velocity is total[0][1], the total warm gas of a parameter with positive radial velocity is total[3][2]
+        mass_total = []
+        metal_total = []
+        kinetic_energy_total = []
+        thermal_energy_total = []
+        potential_energy_total = []
+        entropy_total = []
 
-        # Cut the shell on both temperature and radial velocity
-        shell_in_cold = shell_in.cut_region("obj['temperature'] <= 10**4")
-        shell_in_cool = shell_in.cut_region("(obj['temperature'] > 10**4) &" + \
-                                            " (obj['temperature'] <= 10**5)")
-        shell_in_warm = shell_in.cut_region("(obj['temperature'] > 10**5) &" + \
-                                            " (obj['temperature'] <= 10**6)")
-        shell_in_hot = shell_in.cut_region("obj['temperature'] > 10**6")
-        shell_out_cold = shell_out.cut_region("obj['temperature'] <= 10**4")
-        shell_out_cool = shell_out.cut_region("(obj['temperature'] > 10**4) &" + \
-                                              " (obj['temperature'] <= 10**5)")
-        shell_out_warm = shell_out.cut_region("(obj['temperature'] > 10**5) &" + \
-                                              " (obj['temperature'] <= 10**6)")
-        shell_out_hot = shell_out.cut_region("obj['temperature'] > 10**6")
-
-        # Compute fluxes
-        net_mass = (np.sum(shell['cell_mass'])).in_units('Msun')
-        mass_in = (np.sum(shell_in['cell_mass'])).in_units('Msun')
-        mass_out = (np.sum(shell_out['cell_mass'])).in_units('Msun')
-
-        net_metals = (np.sum(shell['metal_mass'])).in_units('Msun')
-        metals_in = (np.sum(shell_in['metal_mass'])).in_units('Msun')
-        metals_out = (np.sum(shell_out['metal_mass'])).in_units('Msun')
-
-        net_cold_mass = (np.sum(shell_cold['cell_mass'])).in_units('Msun')
-        cold_mass_in = (np.sum(shell_in_cold['cell_mass'])).in_units('Msun')
-        cold_mass_out = (np.sum(shell_out_cold['cell_mass'])).in_units('Msun')
-
-        net_cool_mass = (np.sum(shell_cool['cell_mass'])).in_units('Msun')
-        cool_mass_in = (np.sum(shell_in_cool['cell_mass'])).in_units('Msun')
-        cool_mass_out = (np.sum(shell_out_cool['cell_mass'])).in_units('Msun')
-
-        net_warm_mass = (np.sum(shell_warm['cell_mass'])).in_units('Msun')
-        warm_mass_in = (np.sum(shell_in_warm['cell_mass'])).in_units('Msun')
-        warm_mass_out = (np.sum(shell_out_warm['cell_mass'])).in_units('Msun')
-
-        net_hot_mass = (np.sum(shell_hot['cell_mass'])).in_units('Msun')
-        hot_mass_in = (np.sum(shell_in_hot['cell_mass'])).in_units('Msun')
-        hot_mass_out = (np.sum(shell_out_hot['cell_mass'])).in_units('Msun')
-
-        net_cold_metals = (np.sum(shell_cold['metal_mass'])).in_units('Msun')
-        cold_metals_in = (np.sum(shell_in_cold['metal_mass'])).in_units('Msun')
-        cold_metals_out = (np.sum(shell_out_cold['metal_mass'])).in_units('Msun')
-
-        net_cool_metals = (np.sum(shell_cool['metal_mass'])).in_units('Msun')
-        cool_metals_in = (np.sum(shell_in_cool['metal_mass'])).in_units('Msun')
-        cool_metals_out = (np.sum(shell_out_cool['metal_mass'])).in_units('Msun')
-
-        net_warm_metals = (np.sum(shell_warm['metal_mass'])).in_units('Msun')
-        warm_metals_in = (np.sum(shell_in_warm['metal_mass'])).in_units('Msun')
-        warm_metals_out = (np.sum(shell_out_warm['metal_mass'])).in_units('Msun')
-
-        net_hot_metals = (np.sum(shell_hot['metal_mass'])).in_units('Msun')
-        hot_metals_in = (np.sum(shell_in_hot['metal_mass'])).in_units('Msun')
-        hot_metals_out = (np.sum(shell_out_hot['metal_mass'])).in_units('Msun')
-
-        net_kinetic_energy = (np.sum(shell['kinetic_energy_corrected'])).in_units('erg')
-        kinetic_energy_in = (np.sum(shell_in['kinetic_energy_corrected'])).in_units('erg')
-        kinetic_energy_out = (np.sum(shell_out['kinetic_energy_corrected'])).in_units('erg')
-
-        net_thermal_energy = (np.sum(shell['thermal_energy'] * \
-                              shell['cell_mass'])).in_units('erg')
-        thermal_energy_in = (np.sum(shell_in['thermal_energy'] * \
-                             shell_in['cell_mass'])).in_units('erg')
-        thermal_energy_out = (np.sum(shell_out['thermal_energy'] * \
-                              shell_out['cell_mass'])).in_units('erg')
-
-        net_potential_energy = (np.sum(G * shell['cell_mass'] * ds.arr(Menc_func(shell['radius_corrected']), 'Msun') \
-                                      / shell['radius_corrected'])).in_units('erg')
-        potential_energy_in = (np.sum(G * shell_in['cell_mass'] * ds.arr(Menc_func(shell_in['radius_corrected']), 'Msun') \
-                                      / shell_in['radius_corrected'])).in_units('erg')
-        potential_energy_out = (np.sum(G * shell_out['cell_mass'] * ds.arr(Menc_func(shell_out['radius_corrected']), 'Msun') \
-                                      / shell_out['radius_corrected'])).in_units('erg')
-
-        net_entropy = (np.sum(shell['entropy'])).in_units('keV*cm**2')
-        entropy_in = (np.sum(shell_in['entropy'])).in_units('keV*cm**2')
-        entropy_out = (np.sum(shell_out['entropy'])).in_units('keV*cm**2')
-
-        net_cold_kinetic_energy = (np.sum(shell_cold['kinetic_energy_corrected'])).in_units('erg')
-        cold_kinetic_energy_in = (np.sum(shell_in_cold['kinetic_energy_corrected'])).in_units('erg')
-        cold_kinetic_energy_out = (np.sum(shell_out_cold['kinetic_energy_corrected'])).in_units('erg')
-
-        net_cool_kinetic_energy = (np.sum(shell_cool['kinetic_energy_corrected'])).in_units('erg')
-        cool_kinetic_energy_in = (np.sum(shell_in_cool['kinetic_energy_corrected'])).in_units('erg')
-        cool_kinetic_energy_out = (np.sum(shell_out_cool['kinetic_energy_corrected'])).in_units('erg')
-
-        net_warm_kinetic_energy = (np.sum(shell_warm['kinetic_energy_corrected'])).in_units('erg')
-        warm_kinetic_energy_in = (np.sum(shell_in_warm['kinetic_energy_corrected'])).in_units('erg')
-        warm_kinetic_energy_out = (np.sum(shell_out_warm['kinetic_energy_corrected'])).in_units('erg')
-
-        net_hot_kinetic_energy = (np.sum(shell_hot['kinetic_energy_corrected'])).in_units('erg')
-        hot_kinetic_energy_in = (np.sum(shell_in_hot['kinetic_energy_corrected'])).in_units('erg')
-        hot_kinetic_energy_out = (np.sum(shell_out_hot['kinetic_energy_corrected'])).in_units('erg')
-
-        net_cold_thermal_energy = (np.sum(shell_cold['thermal_energy'] * \
-                              shell_cold['cell_mass'])).in_units('erg')
-        cold_thermal_energy_in = (np.sum(shell_in_cold['thermal_energy'] * \
-                             shell_in_cold['cell_mass'])).in_units('erg')
-        cold_thermal_energy_out = (np.sum(shell_out_cold['thermal_energy'] * \
-                              shell_out_cold['cell_mass'])).in_units('erg')
-
-        net_cool_thermal_energy = (np.sum(shell_cool['thermal_energy'] * \
-                              shell_cool['cell_mass'])).in_units('erg')
-        cool_thermal_energy_in = (np.sum(shell_in_cool['thermal_energy'] * \
-                             shell_in_cool['cell_mass'])).in_units('erg')
-        cool_thermal_energy_out = (np.sum(shell_out_cool['thermal_energy'] * \
-                              shell_out_cool['cell_mass'])).in_units('erg')
-
-        net_warm_thermal_energy = (np.sum(shell_warm['thermal_energy'] * \
-                              shell_warm['cell_mass'])).in_units('erg')
-        warm_thermal_energy_in = (np.sum(shell_in_warm['thermal_energy'] * \
-                             shell_in_warm['cell_mass'])).in_units('erg')
-        warm_thermal_energy_out = (np.sum(shell_out_warm['thermal_energy'] * \
-                              shell_out_warm['cell_mass'])).in_units('erg')
-
-        net_hot_thermal_energy = (np.sum(shell_hot['thermal_energy'] * \
-                             shell_hot['cell_mass'])).in_units('erg')
-        hot_thermal_energy_in = (np.sum(shell_in_hot['thermal_energy'] * \
-                            shell_in_hot['cell_mass'])).in_units('erg')
-        hot_thermal_energy_out = (np.sum(shell_out_hot['thermal_energy'] * \
-                             shell_out_hot['cell_mass'])).in_units('erg')
-
-        net_cold_potential_energy = (np.sum(G * shell_cold['cell_mass'] * ds.arr(Menc_func(shell_cold['radius_corrected']), 'Msun') \
-                                      / shell_cold['radius_corrected'])).in_units('erg')
-        cold_potential_energy_in = (np.sum(G * shell_in_cold['cell_mass'] * ds.arr(Menc_func(shell_in_cold['radius_corrected']), 'Msun') \
-                                      / shell_in_cold['radius_corrected'])).in_units('erg')
-        cold_potential_energy_out = (np.sum(G * shell_out_cold['cell_mass'] * ds.arr(Menc_func(shell_out_cold['radius_corrected']), 'Msun') \
-                                      / shell_out_cold['radius_corrected'])).in_units('erg')
-
-        net_cool_potential_energy = (np.sum(G * shell_cool['cell_mass'] * ds.arr(Menc_func(shell_cool['radius_corrected']), 'Msun') \
-                                      / shell_cool['radius_corrected'])).in_units('erg')
-        cool_potential_energy_in = (np.sum(G * shell_in_cool['cell_mass'] * ds.arr(Menc_func(shell_in_cool['radius_corrected']), 'Msun') \
-                                      / shell_in_cool['radius_corrected'])).in_units('erg')
-        cool_potential_energy_out = (np.sum(G * shell_out_cool['cell_mass'] * ds.arr(Menc_func(shell_out_cool['radius_corrected']), 'Msun') \
-                                      / shell_out_cool['radius_corrected'])).in_units('erg')
-
-        net_warm_potential_energy = (np.sum(G * shell_warm['cell_mass'] * ds.arr(Menc_func(shell_warm['radius_corrected']), 'Msun') \
-                                      / shell_warm['radius_corrected'])).in_units('erg')
-        warm_potential_energy_in = (np.sum(G * shell_in_warm['cell_mass'] * ds.arr(Menc_func(shell_in_warm['radius_corrected']), 'Msun') \
-                                      / shell_in_warm['radius_corrected'])).in_units('erg')
-        warm_potential_energy_out = (np.sum(G * shell_out_warm['cell_mass'] * ds.arr(Menc_func(shell_out_warm['radius_corrected']), 'Msun') \
-                                      / shell_out_warm['radius_corrected'])).in_units('erg')
-
-        net_hot_potential_energy = (np.sum(G * shell_hot['cell_mass'] * ds.arr(Menc_func(shell_hot['radius_corrected']), 'Msun') \
-                                      / shell_hot['radius_corrected'])).in_units('erg')
-        hot_potential_energy_in = (np.sum(G * shell_in_hot['cell_mass'] * ds.arr(Menc_func(shell_in_hot['radius_corrected']), 'Msun') \
-                                      / shell_in_hot['radius_corrected'])).in_units('erg')
-        hot_potential_energy_out = (np.sum(G * shell_out_hot['cell_mass'] * ds.arr(Menc_func(shell_out_hot['radius_corrected']), 'Msun') \
-                                      / shell_out_hot['radius_corrected'])).in_units('erg')
-
-        net_cold_entropy = (np.sum(shell_cold['entropy'])).in_units('keV*cm**2')
-        cold_entropy_in = (np.sum(shell_in_cold['entropy'])).in_units('keV*cm**2')
-        cold_entropy_out = (np.sum(shell_out_cold['entropy'])).in_units('keV*cm**2')
-
-        net_cool_entropy = (np.sum(shell_cool['entropy'])).in_units('keV*cm**2')
-        cool_entropy_in = (np.sum(shell_in_cool['entropy'])).in_units('keV*cm**2')
-        cool_entropy_out = (np.sum(shell_out_cool['entropy'])).in_units('keV*cm**2')
-
-        net_warm_entropy = (np.sum(shell_warm['entropy'])).in_units('keV*cm**2')
-        warm_entropy_in = (np.sum(shell_in_warm['entropy'])).in_units('keV*cm**2')
-        warm_entropy_out = (np.sum(shell_out_warm['entropy'])).in_units('keV*cm**2')
-
-        net_hot_entropy = (np.sum(shell_hot['entropy'])).in_units('keV*cm**2')
-        hot_entropy_in = (np.sum(shell_in_hot['entropy'])).in_units('keV*cm**2')
-        hot_entropy_out = (np.sum(shell_out_hot['entropy'])).in_units('keV*cm**2')
+        for j in range(5):
+            mass_total.append([])
+            metal_total.append([])
+            kinetic_energy_total.append([])
+            thermal_energy_total.append([])
+            potential_energy_total.append([])
+            entropy_total.append([])
+            for k in range(3):
+                mass_total[j].append(np.sum(mass_cut[j][k]))
+                metal_total[j].append(np.sum(metal_mass_cut[j][k]))
+                kinetic_energy_total[j].append(np.sum(kinetic_energy_cut[j][k]))
+                thermal_energy_total[j].append(np.sum(thermal_energy_cut[j][k] * mass_cut[j][k]*gtoMsun))
+                potential_energy_total[j].append(np.sum(G * mass_cut[j][k]*gtoMsun * Menc_func(radius_cut[j][k])*gtoMsun / \
+                                               (radius_cut[j][k]*1000.*cmtopc)))
+                entropy_total[j].append(np.sum(entropy_cut[j][k]))
 
         if (quadrants):
             # Loop over quadrants
@@ -638,38 +573,39 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
                               net_hot_entropy_q, hot_entropy_in_q, \
                               hot_entropy_out_q])
         # Add everything to the table
-        data.add_row([zsnap, 0, r, \
-                      net_mass, net_metals, mass_in, mass_out, metals_in, metals_out, \
-                      net_cold_mass, cold_mass_in, cold_mass_out, \
-                      net_cool_mass, cool_mass_in, cool_mass_out, \
-                      net_warm_mass, warm_mass_in, warm_mass_out, \
-                      net_hot_mass, hot_mass_in, hot_mass_out, \
-                      net_cold_metals, cold_metals_in, cold_metals_out, \
-                      net_cool_metals, cool_metals_in, cool_metals_out, \
-                      net_warm_metals, warm_metals_in, warm_metals_out, \
-                      net_hot_metals, hot_metals_in, hot_metals_out, \
-                      net_kinetic_energy, net_thermal_energy, net_potential_energy, \
-                      net_entropy, \
-                      kinetic_energy_in, kinetic_energy_out, \
-                      thermal_energy_in, thermal_energy_out, \
-                      potential_energy_in, potential_energy_out, \
-                      entropy_in, entropy_out, \
-                      net_cold_kinetic_energy, cold_kinetic_energy_in, cold_kinetic_energy_out, \
-                      net_cool_kinetic_energy, cool_kinetic_energy_in, cool_kinetic_energy_out, \
-                      net_warm_kinetic_energy, warm_kinetic_energy_in, warm_kinetic_energy_out, \
-                      net_hot_kinetic_energy, hot_kinetic_energy_in, hot_kinetic_energy_out, \
-                      net_cold_thermal_energy, cold_thermal_energy_in, cold_thermal_energy_out, \
-                      net_cool_thermal_energy, cool_thermal_energy_in, cool_thermal_energy_out, \
-                      net_warm_thermal_energy, warm_thermal_energy_in, warm_thermal_energy_out, \
-                      net_hot_thermal_energy, hot_thermal_energy_in, hot_thermal_energy_out, \
-                      net_cold_potential_energy, cold_potential_energy_in, cold_potential_energy_out, \
-                      net_cool_potential_energy, cool_potential_energy_in, cool_potential_energy_out, \
-                      net_warm_potential_energy, warm_potential_energy_in, warm_potential_energy_out, \
-                      net_hot_potential_energy, hot_potential_energy_in, hot_potential_energy_out, \
-                      net_cold_entropy, cold_entropy_in, cold_entropy_out, \
-                      net_cool_entropy, cool_entropy_in, cool_entropy_out, \
-                      net_warm_entropy, warm_entropy_in, warm_entropy_out, \
-                      net_hot_entropy, hot_entropy_in, hot_entropy_out])
+        data.add_row([zsnap, 0, r, mass_total[0][0], metal_total[0][0], \
+                      mass_total[0][1], mass_total[0][2], metal_total[0][1], metal_total[0][2], \
+                      mass_total[1][0], mass_total[1][1], mass_total[1][2], \
+                      mass_total[2][0], mass_total[2][1], mass_total[2][2], \
+                      mass_total[3][0], mass_total[3][1], mass_total[3][2], \
+                      mass_total[4][0], mass_total[4][1], mass_total[4][2], \
+                      metal_total[1][0], metal_total[1][1], metal_total[1][2], \
+                      metal_total[2][0], metal_total[2][1], metal_total[2][2], \
+                      metal_total[3][0], metal_total[3][1], metal_total[3][2], \
+                      metal_total[4][0], metal_total[4][1], metal_total[4][2], \
+                      kinetic_energy_total[0][0], thermal_energy_total[0][0], \
+                      potential_energy_total[0][0], \
+                      entropy_total[0][0], \
+                      kinetic_energy_total[0][1], kinetic_energy_total[0][2], \
+                      thermal_energy_total[0][1], thermal_energy_total[0][2], \
+                      potential_energy_total[0][1], potential_energy_total[0][2], \
+                      entropy_total[0][1], entropy_total[0][2], \
+                      kinetic_energy_total[1][0], kinetic_energy_total[1][1], kinetic_energy_total[1][2], \
+                      kinetic_energy_total[2][0], kinetic_energy_total[2][1], kinetic_energy_total[2][2], \
+                      kinetic_energy_total[3][0], kinetic_energy_total[3][1], kinetic_energy_total[3][2], \
+                      kinetic_energy_total[4][0], kinetic_energy_total[4][1], kinetic_energy_total[4][2], \
+                      thermal_energy_total[1][0], thermal_energy_total[1][1], thermal_energy_total[1][2], \
+                      thermal_energy_total[2][0], thermal_energy_total[2][1], thermal_energy_total[2][2], \
+                      thermal_energy_total[3][0], thermal_energy_total[3][1], thermal_energy_total[3][2], \
+                      thermal_energy_total[4][0], thermal_energy_total[4][1], thermal_energy_total[4][2], \
+                      potential_energy_total[1][0], potential_energy_total[1][1], potential_energy_total[1][2], \
+                      potential_energy_total[2][0], potential_energy_total[2][1], potential_energy_total[2][2], \
+                      potential_energy_total[3][0], potential_energy_total[3][1], potential_energy_total[3][2], \
+                      potential_energy_total[4][0], potential_energy_total[4][1], potential_energy_total[4][2], \
+                      entropy_total[1][0], entropy_total[1][1], entropy_total[1][2], \
+                      entropy_total[2][0], entropy_total[2][1], entropy_total[2][2], \
+                      entropy_total[3][0], entropy_total[3][1], entropy_total[3][2], \
+                      entropy_total[4][0], entropy_total[4][1], entropy_total[4][2]])
 
     # Save to file
     data = set_table_units(data)
@@ -681,14 +617,19 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
 
     return "Totals have been calculated for snapshot" + snap + "!"
 
-def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, Menc_table, quadrants):
+def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, Menc_table, quadrants):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the table to output, and a boolean
     'quadrants' that specifies whether or not to compute in quadrants vs. the whole domain, then
     does the calculation on the loaded snapshot.'''
 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box, refine_box_center, refine_width = load(snap_name, track, use_halo_c_v=True, halo_c_v_name=halo_c_v_name)
+    if (system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap
+        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+        snap_name = snap_dir + '/' + snap
+    ds, refine_box, refine_box_center, refine_width = load(snap_name, track, use_halo_c_v=True, halo_c_v_name=halo_c_v_name, filter_particles=False)
     refine_width_kpc = YTArray([refine_width], 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
@@ -698,6 +639,9 @@ def load_and_calculate(foggie_dir, run_dir, track, halo_c_v_name, snap, tablenam
 
     # Do the actual calculation
     message = calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, Menc_func=Menc_func)
+    if (system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
     print(message)
     print(str(datetime.datetime.now()))
 
@@ -752,7 +696,7 @@ if __name__ == "__main__":
             # Make the output table name for this snapshot
             tablename = prefix + snap + '_totals'
             # Do the actual calculation
-            load_and_calculate(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)
+            load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
@@ -762,7 +706,7 @@ if __name__ == "__main__":
                 snap = outs[args.nproc*i+j]
                 tablename = prefix + snap + '_totals'
                 threads.append(multi.Process(target=load_and_calculate, \
-			       args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
+			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
             for t in threads:
                 t.start()
             for t in threads:
@@ -773,7 +717,7 @@ if __name__ == "__main__":
             snap = outs[-(j+1)]
             tablename = prefix + snap + '_totals'
             threads.append(multi.Process(target=load_and_calculate, \
-			   args=(foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
+			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
         for t in threads:
             t.start()
         for t in threads:
