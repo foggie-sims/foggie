@@ -104,7 +104,7 @@ def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename):
                  dtype=('f8', 'S6', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
     # Define the radii of the spheres where we want to calculate mass enclosed
-    radii = refine_width_kpc * np.logspace(-2,.3,100)
+    radii = refine_width_kpc * np.logspace(-2,.7,250)
 
     # Initialize first sphere
     print('Beginning calculation for snapshot', snap)
