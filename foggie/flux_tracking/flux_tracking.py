@@ -2,7 +2,7 @@
 Filename: flux_tracking.py
 Author: Cassi
 Date created: 9-27-19
-Date last modified: 12-16-19
+Date last modified: 12-27-19
 This file takes command line arguments and computes fluxes of things through
 spherical shells.
 
@@ -106,8 +106,9 @@ def set_table_units(table):
     '''Sets the units for the table. Note this needs to be updated whenever something is added to
     the table. Returns the table.'''
 
-    table_units = {'redshift':None,'quadrant':None,'radius':'kpc','net_mass_flux':'Msun/yr', \
-             'net_metal_flux':'Msun/yr', 'mass_flux_in'  :'Msun/yr','mass_flux_out':'Msun/yr', \
+    table_units = {'redshift':None,'quadrant':None,'radius':'kpc','inner_radius':'kpc','outer_radius':'kpc', \
+             'net_mass_flux':'Msun/yr', 'net_metal_flux':'Msun/yr', \
+             'mass_flux_in':'Msun/yr', 'mass_flux_out':'Msun/yr', \
              'metal_flux_in' :'Msun/yr', 'metal_flux_out':'Msun/yr',\
              'net_cold_mass_flux':'Msun/yr', 'cold_mass_flux_in':'Msun/yr', \
              'cold_mass_flux_out':'Msun/yr', 'net_cool_mass_flux':'Msun/yr', \
@@ -155,7 +156,7 @@ def set_table_units(table):
 
 def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
     """Computes the flux through spherical shells centered on the halo center.
-    Takes the dataset for the snapshot 'ds', the name of the snapshot 'snap', the redshfit of the
+    Takes the dataset for the snapshot 'ds', the name of the snapshot 'snap', the redshift of the
     snapshot 'zsnap', and the width of the refine box in kpc 'refine_width_kpc'
     and does the calculation, then writes a hdf5 table out to 'tablename'.
 
@@ -781,22 +782,39 @@ def calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, **kwargs):
 
     return "Fluxes have been calculated for snapshot" + snap + "!"
 
-def calc_fluxes_new(ds, snap, zsnap, refine_width_kpc, tablename, dt=YTArray([5.38e6], 'yr')[0]):
-    '''This function calculates the fluxes through spherical surfaces at a variety of radii
-    using the dataset stored in 'ds', which is from time snapshot 'snap', has redshift
-    'zsnap', and has width of the refine box in kpc 'refine_width_kpc', and stores the fluxes
-    in 'tablename'. 'dt' is the time between snapshots and defaults to that for the DD outputs.
+def calc_fluxes_region(ds, snap, zsnap, dt, refine_width_kpc, tablename, **kwargs):
+    '''This function calculates the fluxes into and out of spherical shells, with satellites removed,
+    at a variety of radii and in quadrant wedges (if quadrants=True) aligned with the disk. It
+    uses the dataset stored in 'ds', which is from time snapshot 'snap', has redshift
+    'zsnap', and has width of the refine box in kpc 'refine_width_kpc', the time step between outputs
+    'dt', and stores the fluxes in 'tablename'.
 
     This function differs from the other one because it calculates the flux as the sum
     of all cells whose velocity and distance from the surface of interest indicate that the gas
     contained in that cell will be displaced across the surface of interest by the next timestep.
     That is, the properties of a cell contribute to the flux if it is no further from the surface of
     interest than v*dt where v is the cell's velocity normal to the surface and dt is the time
-    between snapshots, which is dt = 5.38e6 yrs for the DD outputs.'''
+    between snapshots, which is dt = 5.38e6 yrs for the DD outputs. It is necessary to compute the
+    flux this way if satellites are to be removed because they become 'holes' in the dataset
+    and fluxes into/out of those holes need to be accounted for. Additionally, this allows for tracking
+    of fluxes across the 'sides' of the quadrant wedges, not just radially outward/inward.'''
+
+    quadrants = kwargs.get('quadrants', False)
+    Menc_func = kwargs.get('Menc_func', False)
+    sat_file = kwargs.get('sat_file', 'sat_file')
+    sat_file2 = kwargs.get('sat_file2', 'sat_file2')
+
+    G = ds.quan(6.673e-8, 'cm**3/s**2/g').v
+    halo_center_kpc = ds.halo_center_kpc
+
+    cmtopc = 3.086e18
+    stoyr = 3.154e7
+    gtoMsun = 1.989e33
 
     # Set up table of everything we want
     # NOTE: Make sure table units are updated when things are added to this table!
-    data_short = Table(names=('redshift', 'quadrant', 'radius', 'net_mass_flux', 'net_metal_flux', \
+    fluxes = Table(names=('redshift', 'radius', \
+                        'net_mass_flux', 'net_metal_flux', \
                         'mass_flux_in', 'mass_flux_out', 'metal_flux_in', 'metal_flux_out', \
                         'net_cold_mass_flux', 'cold_mass_flux_in', 'cold_mass_flux_out', \
                         'net_cool_mass_flux', 'cool_mass_flux_in', 'cool_mass_flux_out', \
@@ -805,137 +823,590 @@ def calc_fluxes_new(ds, snap, zsnap, refine_width_kpc, tablename, dt=YTArray([5.
                         'net_cold_metal_flux', 'cold_metal_flux_in', 'cold_metal_flux_out', \
                         'net_cool_metal_flux', 'cool_metal_flux_in', 'cool_metal_flux_out', \
                         'net_warm_metal_flux', 'warm_metal_flux_in', 'warm_metal_flux_out', \
-                        'net_hot_metal_flux', 'hot_metal_flux_in', 'hot_metal_flux_out'), \
+                        'net_hot_metal_flux', 'hot_metal_flux_in', 'hot_metal_flux_out', \
+                        'net_kinetic_energy_flux', 'net_thermal_energy_flux', \
+                        'net_potential_energy_flux', 'net_radiative_energy_flux', \
+                        'net_entropy_flux', \
+                        'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
+                        'thermal_energy_flux_in', 'thermal_energy_flux_out', \
+                        'potential_energy_flux_in', 'potential_energy_flux_out', \
+                        'radiative_energy_flux_in', 'radiative_energy_flux_out', \
+                        'entropy_flux_in', 'entropy_flux_out', \
+                        'net_cold_kinetic_energy_flux', 'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
+                        'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
+                        'net_warm_kinetic_energy_flux', 'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
+                        'net_hot_kinetic_energy_flux', 'hot_kinetic_energy_flux_in', 'hot_kinetic_energy_flux_out', \
+                        'net_cold_thermal_energy_flux', 'cold_thermal_energy_flux_in', 'cold_thermal_energy_flux_out', \
+                        'net_cool_thermal_energy_flux', 'cool_thermal_energy_flux_in', 'cool_thermal_energy_flux_out', \
+                        'net_warm_thermal_energy_flux', 'warm_thermal_energy_flux_in', 'warm_thermal_energy_flux_out', \
+                        'net_hot_thermal_energy_flux', 'hot_thermal_energy_flux_in', 'hot_thermal_energy_flux_out', \
+                        'net_cold_potential_energy_flux', 'cold_potential_energy_flux_in', 'cold_potential_energy_flux_out', \
+                        'net_cool_potential_energy_flux', 'cool_potential_energy_flux_in', 'cool_potential_energy_flux_out', \
+                        'net_warm_potential_energy_flux', 'warm_potential_energy_flux_in', 'warm_potential_energy_flux_out', \
+                        'net_hot_potential_energy_flux', 'hot_potential_energy_flux_in', 'hot_potential_energy_flux_out', \
+                        'net_cold_radiative_energy_flux', 'cold_radiative_energy_flux_in', 'cold_radiative_energy_flux_out', \
+                        'net_cool_radiative_energy_flux', 'cool_radiative_energy_flux_in', 'cool_radiative_energy_flux_out', \
+                        'net_warm_radiative_energy_flux', 'warm_radiative_energy_flux_in', 'warm_radiative_energy_flux_out', \
+                        'net_hot_radiative_energy_flux', 'hot_radiative_energy_flux_in', 'hot_radiative_energy_flux_out', \
+                        'net_cold_entropy_flux', 'cold_entropy_flux_in', 'cold_entropy_flux_out', \
+                        'net_cool_entropy_flux', 'cool_entropy_flux_in', 'cool_entropy_flux_out', \
+                        'net_warm_entropy_flux', 'warm_entropy_flux_in', 'warm_entropy_flux_out', \
+                        'net_hot_entropy_flux', 'hot_entropy_flux_in', 'hot_entropy_flux_out'), \
                  dtype=('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
+
+    fluxes_sat = Table(names=('redshift', 'inner_radius', 'outer_radius', \
+                        'net_mass_flux', 'net_metal_flux', \
+                        'mass_flux_in', 'mass_flux_out', 'metal_flux_in', 'metal_flux_out', \
+                        'net_cold_mass_flux', 'cold_mass_flux_in', 'cold_mass_flux_out', \
+                        'net_cool_mass_flux', 'cool_mass_flux_in', 'cool_mass_flux_out', \
+                        'net_warm_mass_flux', 'warm_mass_flux_in', 'warm_mass_flux_out', \
+                        'net_hot_mass_flux', 'hot_mass_flux_in', 'hot_mass_flux_out', \
+                        'net_cold_metal_flux', 'cold_metal_flux_in', 'cold_metal_flux_out', \
+                        'net_cool_metal_flux', 'cool_metal_flux_in', 'cool_metal_flux_out', \
+                        'net_warm_metal_flux', 'warm_metal_flux_in', 'warm_metal_flux_out', \
+                        'net_hot_metal_flux', 'hot_metal_flux_in', 'hot_metal_flux_out', \
+                        'net_kinetic_energy_flux', 'net_thermal_energy_flux', \
+                        'net_potential_energy_flux', 'net_entropy_flux', \
+                        'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
+                        'thermal_energy_flux_in', 'thermal_energy_flux_out', \
+                        'potential_energy_flux_in', 'potential_energy_flux_out', \
+                        'entropy_flux_in', 'entropy_flux_out', \
+                        'net_cold_kinetic_energy_flux', \
+                        'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
+                        'net_cool_kinetic_energy_flux', \
+                        'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
+                        'net_warm_kinetic_energy_flux', \
+                        'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
+                        'net_hot_kinetic_energy_flux', \
+                        'hot_kinetic_energy_flux_in', 'hot_kinetic_energy_flux_out', \
+                        'net_cold_thermal_energy_flux', \
+                        'cold_thermal_energy_flux_in', 'cold_thermal_energy_flux_out', \
+                        'net_cool_thermal_energy_flux', \
+                        'cool_thermal_energy_flux_in', 'cool_thermal_energy_flux_out', \
+                        'net_warm_thermal_energy_flux', \
+                        'warm_thermal_energy_flux_in', 'warm_thermal_energy_flux_out', \
+                        'net_hot_thermal_energy_flux', \
+                        'hot_thermal_energy_flux_in', 'hot_thermal_energy_flux_out', \
+                        'net_cold_potential_energy_flux', \
+                        'cold_potential_energy_flux_in', 'cold_potential_energy_flux_out', \
+                        'net_cool_potential_energy_flux', \
+                        'cool_potential_energy_flux_in', 'cool_potential_energy_flux_out', \
+                        'net_warm_potential_energy_flux', \
+                        'warm_potential_energy_flux_in', 'warm_potential_energy_flux_out', \
+                        'net_hot_potential_energy_flux', \
+                        'hot_potential_energy_flux_in', 'hot_potential_energy_flux_out', \
+                        'net_cold_entropy_flux', 'cold_entropy_flux_in', 'cold_entropy_flux_out', \
+                        'net_cool_entropy_flux', 'cool_entropy_flux_in', 'cool_entropy_flux_out', \
+                        'net_warm_entropy_flux', 'warm_entropy_flux_in', 'warm_entropy_flux_out', \
+                        'net_hot_entropy_flux', 'hot_entropy_flux_in', 'hot_entropy_flux_out'), \
+                 dtype=('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
     # Define the radii of the spherical shells where we want to calculate fluxes
     radii = 0.5*refine_width_kpc * np.arange(0.1, 0.9, 0.01)
 
-    # Initialize fields we need
-    ds.dt = dt
-    ds.surface = radii[0]
-    buffer = YTArray([10.], 'kpc')[0]
-    ds.add_field(('gas', 'vel_time'), function=vel_time, units='kpc', \
-                 take_log=False, force_override=True, sampling_type='cell')
-    ds.add_field(('gas', 'dist'), function=dist, units='kpc', \
-                 take_log=False, force_override=True, sampling_type='cell')
+    # Load arrays of all fields we need
+    print('Loading field arrays')
+    sphere = ds.sphere(halo_center_kpc, radii[-1])
+
+    radius = sphere['gas','radius_corrected'].in_units('kpc').v
+    x = sphere['gas','x'].in_units('kpc').v
+    y = sphere['gas','y'].in_units('kpc').v
+    z = sphere['gas','z'].in_units('kpc').v
+    vx = sphere['gas','vx_corrected'].in_units('km/s').v
+    vy = sphere['gas','vy_corrected'].in_units('km/s').v
+    vz = sphere['gas','vz_corrected'].in_units('km/s').v
+    rad_vel = sphere['gas','radial_velocity_corrected'].in_units('km/s').v
+    new_x = x + vx*dt*(100./cmtopc*stoyr)
+    new_y = y + vy*dt*(100./cmtopc*stoyr)
+    new_z = z + vz*dt*(100./cmtopc*stoyr)
+    new_radius = np.sqrt((new_x-halo_center_kpc[0].v)**2. + (new_y-halo_center_kpc[1].v)**2. + (new_z-halo_center_kpc[2].v)**2.)
+    mass = sphere['gas','cell_mass'].in_units('Msun').v
+    metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
+    temperature = sphere['gas','temperature'].in_units('K').v
+    kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
+    thermal_energy = sphere['gas','thermal_energy'].in_units('erg/g').v
+    potential_energy = G * mass * gtoMsun * Menc_func(radius) * gtoMsun / (radius*1000.*cmtopc)
+    cooling_time = sphere['gas','cooling_time'].in_units('yr').v
+    entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
+
+    # Load list of satellite positions
+    print('Loading satellite positions')
+    sat_x, sat_y, sat_z = np.loadtxt(sat_file, unpack=True, usecols=[1,2,3])
+    sat_list = []
+    for i in range(len(sat_x)):
+        if not ((np.abs(sat_x[i] - halo_center_kpc[0].v) <= 1.) & \
+                (np.abs(sat_y[i] - halo_center_kpc[1].v) <= 1.) & \
+                (np.abs(sat_z[i] - halo_center_kpc[2].v) <= 1.)):
+            sat_list.append([sat_x[i], sat_y[i], sat_z[i]])
+    sat_list = np.array(sat_list)
+    sat_x2, sat_y2, sat_z2 = np.loadtxt(sat_file2, unpack=True, usecols=[1,2,3])
+    sat_list2 = []
+    for i in range(len(sat_x2)):
+        if not ((np.abs(sat_x2[i] - halo_center_kpc[0].v) <= 1.) & \
+                (np.abs(sat_y2[i] - halo_center_kpc[1].v) <= 1.) & \
+                (np.abs(sat_z2[i] - halo_center_kpc[2].v) <= 1.)):
+            sat_list2.append([sat_x2[i], sat_y2[i], sat_z2[i]])
+    sat_list2 = np.array(sat_list2)
+
+    # Cut data to remove anything within satellites and to things that cross into and out of satellites
+    print('Cutting data to remove satellites')
+    sat_radius = 5.         # kpc
+    bool_nosat = []
+    bool_tosat = []
+    bool_fromsat = []
+    for i in range(len(x)):
+        pos_in_sat = []
+        inside_sat1 = []
+        inside_sat2 = []
+        outside_sat1 = []
+        outside_sat2 = []
+        for s in range(len(sat_list)):
+            sat_x = sat_list[s][0]
+            sat_y = sat_list[s][1]
+            sat_z = sat_list[s][2]
+            dist_fromsat = np.sqrt((x[i]-sat_x)**2. + (y[i]-sat_y)**2. + (z[i]-sat_z)**2.)
+            for s2 in range(len(sat_list2)):
+                sat_x2 = sat_list2[s2][0]
+                sat_y2 = sat_list2[s2][1]
+                sat_z2 = sat_list2[s2][2]
+                new_dist_fromsat = np.sqrt((new_x[i]-sat_x2)**2. + (new_y[i]-sat_y2)**2. + (new_z[i]-sat_z2)**2.)
+                if (dist_fromsat > sat_radius) and (new_dist_fromsat > sat_radius):
+                    pos_in_sat.append(False)
+                else: pos_in_sat.append(True)
+                if (dist_fromsat < sat_radius): inside_sat1.append(True)
+                else: inside_sat1.append(False)
+                if (new_dist_fromsat < sat_radius): inside_sat2.append(True)
+                else: inside_sat2.append(False)
+        if (True in inside_sat1) and not (True in inside_sat2):
+            bool_fromsat.append(True)
+        else: bool_fromsat.append(False)
+        if (True in inside_sat2) and not (True in inside_sat1):
+            bool_tosat.append(True)
+        else: bool_tosat.append(False)
+        if not (True in pos_in_sat):
+            bool_nosat.append(True)
+        else: bool_nosat.append(False)
+    bool_nosat = np.array(bool_nosat)
+    bool_fromsat = np.array(bool_fromsat)
+    bool_tosat = np.array(bool_tosat)
+
+    radius_nosat = radius[bool_nosat]
+    newradius_nosat = new_radius[bool_nosat]
+    x_nosat = x[bool_nosat]
+    y_nosat = y[bool_nosat]
+    z_nosat = z[bool_nosat]
+    newx_nosat = new_x[bool_nosat]
+    newy_nosat = new_y[bool_nosat]
+    newz_nosat = new_z[bool_nosat]
+    vx_nosat = vx[bool_nosat]
+    vy_nosat = vy[bool_nosat]
+    vz_nosat = vz[bool_nosat]
+    rad_vel_nosat = rad_vel[bool_nosat]
+    temperature_nosat = temperature[bool_nosat]
+    mass_nosat = mass[bool_nosat]
+    metal_mass_nosat = metal_mass[bool_nosat]
+    kinetic_energy_nosat = kinetic_energy[bool_nosat]
+    thermal_energy_nosat = thermal_energy[bool_nosat]
+    potential_energy_nosat = potential_energy[bool_nosat]
+    cooling_time_nosat = cooling_time[bool_nosat]
+    entropy_nosat = entropy[bool_nosat]
+
+    # Cut satellite-removed data on temperature
+    # These are lists of lists where the index goes from 0 to 4 for [all gas, cold, cool, warm, hot]
+    print('Cutting satellite-removed data on temperature')
+    radius_nosat_Tcut = []
+    x_nosat_Tcut = []
+    y_nosat_Tcut = []
+    z_nosat_Tcut = []
+    vx_nosat_Tcut = []
+    vy_nosat_Tcut = []
+    vz_nosat_Tcut = []
+    rad_vel_nosat_Tcut = []
+    newx_nosat_Tcut = []
+    newy_nosat_Tcut = []
+    newz_nosat_Tcut = []
+    newradius_nosat_Tcut = []
+    mass_nosat_Tcut = []
+    metal_mass_nosat_Tcut = []
+    kinetic_energy_nosat_Tcut = []
+    thermal_energy_nosat_Tcut = []
+    potential_energy_nosat_Tcut = []
+    cooling_time_nosat_Tcut = []
+    entropy_nosat_Tcut = []
+    for j in range(5):
+        if (j==0):
+            t_low = 0.
+            t_high = 10**12.
+        if (j==1):
+            t_low = 0.
+            t_high = 10**4.
+        if (j==2):
+            t_low = 10**4.
+            t_high = 10**5.
+        if (j==3):
+            t_low = 10**5.
+            t_high = 10**6.
+        if (j==4):
+            t_low = 10**6.
+            t_high = 10**12.
+        radius_nosat_Tcut.append(radius_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        x_nosat_Tcut.append(x_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        y_nosat_Tcut.append(y_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        z_nosat_Tcut.append(z_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        vx_nosat_Tcut.append(vx_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        vy_nosat_Tcut.append(vy_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        vz_nosat_Tcut.append(vz_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        rad_vel_nosat_Tcut.append(rad_vel_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        newx_nosat_Tcut.append(newx_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        newy_nosat_Tcut.append(newy_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        newz_nosat_Tcut.append(newz_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        newradius_nosat_Tcut.append(newradius_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        mass_nosat_Tcut.append(mass_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        metal_mass_nosat_Tcut.append(metal_mass_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        kinetic_energy_nosat_Tcut.append(kinetic_energy_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        thermal_energy_nosat_Tcut.append(thermal_energy_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        potential_energy_nosat_Tcut.append(potential_energy_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        cooling_time_nosat_Tcut.append(cooling_time_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+        entropy_nosat_Tcut.append(entropy_nosat[(temperature_nosat < t_high) & (temperature_nosat > t_low)])
+
+    # Cut data to things that cross into or out of satellites
+    # These are lists of lists where the index goes from 0 to 1 for [from satellites, to satellites]
+    print('Cutting data to satellite fluxes')
+    radius_sat = []
+    newradius_sat = []
+    temperature_sat = []
+    mass_sat = []
+    metal_mass_sat = []
+    kinetic_energy_sat = []
+    thermal_energy_sat = []
+    potential_energy_sat = []
+    entropy_sat = []
+    for j in range(2):
+        if (j==0):
+            radius_sat.append(radius[bool_fromsat])
+            newradius_sat.append(new_radius[bool_fromsat])
+            mass_sat.append(mass[bool_fromsat])
+            temperature_sat.append(temperature[bool_fromsat])
+            metal_mass_sat.append(metal_mass[bool_fromsat])
+            kinetic_energy_sat.append(kinetic_energy[bool_fromsat])
+            thermal_energy_sat.append(thermal_energy[bool_fromsat])
+            potential_energy_sat.append(potential_energy[bool_fromsat])
+            entropy_sat.append(entropy[bool_fromsat])
+        if (j==1):
+            radius_sat.append(radius[bool_tosat])
+            newradius_sat.append(new_radius[bool_tosat])
+            mass_sat.append(mass[bool_tosat])
+            temperature_sat.append(temperature[bool_tosat])
+            metal_mass_sat.append(metal_mass[bool_tosat])
+            kinetic_energy_sat.append(kinetic_energy[bool_tosat])
+            thermal_energy_sat.append(thermal_energy[bool_tosat])
+            potential_energy_sat.append(potential_energy[bool_tosat])
+            entropy_sat.append(entropy[bool_tosat])
+
+    # Cut stuff going into/out of satellites on temperature
+    # These are nested lists where the first index goes from 0 to 1 for [from satellites, to satellites]
+    # and the second index goes from 0 to 4 for [all gas, cold, cool, warm, hot]
+    print('Cutting satellite fluxes on temperature')
+    radius_sat_Tcut = []
+    newradius_sat_Tcut = []
+    temperature_sat_Tcut = []
+    mass_sat_Tcut = []
+    metal_mass_sat_Tcut = []
+    kinetic_energy_sat_Tcut = []
+    thermal_energy_sat_Tcut = []
+    potential_energy_sat_Tcut = []
+    entropy_sat_Tcut = []
+    for i in range(2):
+        radius_sat_Tcut.append([])
+        newradius_sat_Tcut.append([])
+        temperature_sat_Tcut.append([])
+        mass_sat_Tcut.append([])
+        metal_mass_sat_Tcut.append([])
+        kinetic_energy_sat_Tcut.append([])
+        thermal_energy_sat_Tcut.append([])
+        potential_energy_sat_Tcut.append([])
+        entropy_sat_Tcut.append([])
+        for j in range(5):
+            if (j==0):
+                t_low = 0.
+                t_high = 10**12.
+            if (j==1):
+                t_low = 0.
+                t_high = 10**4.
+            if (j==2):
+                t_low = 10**4.
+                t_high = 10**5.
+            if (j==3):
+                t_low = 10**5.
+                t_high = 10**6.
+            if (j==4):
+                t_low = 10**6.
+                t_high = 10**12.
+            radius_sat_Tcut[i].append(radius_sat[i][(temperature_sat[i] > t_low) & (temperature_sat[i] < t_high)])
+            newradius_sat_Tcut[i].append(newradius_sat[i][(temperature_sat[i] > t_low) & (temperature_sat[i] < t_high)])
+            mass_sat_Tcut[i].append(mass_sat[i][(temperature_sat[i] > t_low) & (temperature_sat[i] < t_high)])
+            metal_mass_sat_Tcut[i].append(metal_mass_sat[i][(temperature_sat[i] > t_low) & (temperature_sat[i] < t_high)])
+            kinetic_energy_sat_Tcut[i].append(kinetic_energy_sat[i][(temperature_sat[i] > t_low) & (temperature_sat[i] < t_high)])
+            thermal_energy_sat_Tcut[i].append(thermal_energy_sat[i][(temperature_sat[i] > t_low) & (temperature_sat[i] < t_high)])
+            potential_energy_sat_Tcut[i].append(potential_energy_sat[i][(temperature_sat[i] > t_low) & (temperature_sat[i] < t_high)])
+            entropy_sat_Tcut[i].append(entropy_sat[i][(temperature_sat[i] > t_low) & (temperature_sat[i] < t_high)])
 
     # Loop over radii
-    for i in range(len(radii)-1):
-        r = radii[i]
-        ds.surface = r
+    for i in range(len(radii)):
+        inner_r = radii[i].v
+        if (i < len(radii) - 1): outer_r = radii[i+1].v
 
-        if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)-1) + \
+        if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)) + \
                             " for snapshot " + snap)
 
-        # Make the shells for computing
-        if (r >= buffer):
-            inner_shell = ds.sphere(ds.halo_center_kpc, r) - ds.sphere(ds.halo_center_kpc, r-buffer)
-        else:
-            inner_shell = ds.sphere(ds.halo_center_kpc, r)
-        outer_shell = ds.sphere(ds.halo_center_kpc, r+buffer) - ds.sphere(ds.halo_center_kpc, r)
+        # Compute net, in, and out fluxes with satellites removed
+        # These are nested lists where the first index goes from 0 to 2 for [net, in, out]
+        # and the second index goes from 0 to 4 for [all, cold, cool, warm, hot]
+        mass_flux_nosat = []
+        metal_flux_nosat = []
+        kinetic_energy_flux_nosat = []
+        thermal_energy_flux_nosat = []
+        potential_energy_flux_nosat = []
+        entropy_flux_nosat = []
+        for j in range(3):
+            mass_flux_nosat.append([])
+            metal_flux_nosat.append([])
+            kinetic_energy_flux_nosat.append([])
+            thermal_energy_flux_nosat.append([])
+            potential_energy_flux_nosat.append([])
+            entropy_flux_nosat.append([])
+            for k in range(5):
+                if (j==0):
+                    mass_flux_nosat[j].append((np.sum( \
+                    mass_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)]) - \
+                    np.sum(mass_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)]))/dt)
+                    metal_flux_nosat[j].append((np.sum( \
+                    metal_mass_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)]) - \
+                    np.sum(metal_mass_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)]))/dt)
+                    kinetic_energy_flux_nosat[j].append((np.sum( \
+                    kinetic_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)]) - \
+                    np.sum(kinetic_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)]))/dt)
+                    thermal_energy_flux_nosat[j].append((np.sum( \
+                    thermal_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)]) - \
+                    np.sum(thermal_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)]))/dt)
+                    potential_energy_flux_nosat[j].append((np.sum( \
+                    potential_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)]) - \
+                    np.sum(potential_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)]))/dt)
+                    entropy_flux_nosat[j].append((np.sum( \
+                    entropy_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)]) - \
+                    np.sum(entropy_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)]))/dt)
+                if (j==1):
+                    mass_flux_nosat[j].append(-np.sum( \
+                    mass_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)])/dt)
+                    metal_flux_nosat[j].append(-np.sum( \
+                    metal_mass_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)])/dt)
+                    kinetic_energy_flux_nosat[j].append(-np.sum( \
+                    kinetic_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)])/dt)
+                    thermal_energy_flux_nosat[j].append(-np.sum( \
+                    thermal_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)])/dt)
+                    potential_energy_flux_nosat[j].append(-np.sum( \
+                    potential_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)])/dt)
+                    entropy_flux_nosat[j].append(-np.sum( \
+                    entropy_nosat_Tcut[k][(radius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < inner_r)])/dt)
+                if (j==2):
+                    mass_flux_nosat[j].append(np.sum( \
+                    mass_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)])/dt)
+                    metal_flux_nosat[j].append(np.sum( \
+                    metal_mass_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)])/dt)
+                    kinetic_energy_flux_nosat[j].append(np.sum( \
+                    kinetic_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)])/dt)
+                    thermal_energy_flux_nosat[j].append(np.sum( \
+                    thermal_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)])/dt)
+                    potential_energy_flux_nosat[j].append(np.sum( \
+                    potential_energy_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)])/dt)
+                    entropy_flux_nosat[j].append(np.sum( \
+                    entropy_nosat_Tcut[k][(radius_nosat_Tcut[k] < inner_r) & (newradius_nosat_Tcut[k] > inner_r)])/dt)
 
-        # Filter the shells on radial velocity, distance, and time to find cells that actually
-        # contribute to fluxes
-        inner_cont = inner_shell.cut_region("(obj['radial_velocity_corrected'] > 0)" + \
-                                            " & (obj['vel_time'] >= obj['dist'])")
-        outer_cont = outer_shell.cut_region("(obj['radial_velocity_corrected'] < 0)" + \
-                                            " & (obj['vel_time'] >= obj['dist'])")
-
-        # Filter on temperature
-        inner_cont_cold = inner_cont.cut_region("obj['temperature'] <= 10**4")
-        outer_cont_cold = outer_cont.cut_region("obj['temperature'] <= 10**4")
-        inner_cont_cool = inner_cont.cut_region("(obj['temperature'] > 10**4) &" + \
-                                                " (obj['temperature'] <= 10**5)")
-        outer_cont_cool = outer_cont.cut_region("(obj['temperature'] > 10**4) &" + \
-                                                " (obj['temperature'] <= 10**5)")
-        inner_cont_warm = inner_cont.cut_region("(obj['temperature'] > 10**5) &" + \
-                                                " (obj['temperature'] <= 10**6)")
-        outer_cont_warm = outer_cont.cut_region("(obj['temperature'] > 10**5) &" + \
-                                                " (obj['temperature'] <= 10**6)")
-        inner_cont_hot = inner_cont.cut_region("obj['temperature'] > 10**6")
-        outer_cont_hot = outer_cont.cut_region("obj['temperature'] > 10**6")
-
-        # Sum over the contributing cells and divide by dt to get flux
-        mass_flux_in = (np.sum(outer_cont['cell_mass'])/ds.dt).in_units('Msun/yr')
-        mass_flux_out = (np.sum(inner_cont['cell_mass'])/ds.dt).in_units('Msun/yr')
-        net_mass_flux = mass_flux_out - mass_flux_in
-
-        metal_flux_in = (np.sum(outer_cont['metal_mass'])/ds.dt).in_units('Msun/yr')
-        metal_flux_out = (np.sum(inner_cont['metal_mass'])/ds.dt).in_units('Msun/yr')
-        net_metal_flux = metal_flux_out - metal_flux_in
-
-        cold_mass_flux_in = (np.sum(outer_cont_cold['cell_mass'])/ds.dt).in_units('Msun/yr')
-        cold_mass_flux_out = (np.sum(inner_cont_cold['cell_mass'])/ds.dt).in_units('Msun/yr')
-        net_cold_mass_flux = cold_mass_flux_out - cold_mass_flux_in
-
-        cool_mass_flux_in = (np.sum(outer_cont_cool['cell_mass'])/ds.dt).in_units('Msun/yr')
-        cool_mass_flux_out = (np.sum(inner_cont_cool['cell_mass'])/ds.dt).in_units('Msun/yr')
-        net_cool_mass_flux = cool_mass_flux_out - cool_mass_flux_in
-
-        warm_mass_flux_in = (np.sum(outer_cont_warm['cell_mass'])/ds.dt).in_units('Msun/yr')
-        warm_mass_flux_out = (np.sum(inner_cont_warm['cell_mass'])/ds.dt).in_units('Msun/yr')
-        net_warm_mass_flux = warm_mass_flux_out - warm_mass_flux_in
-
-        hot_mass_flux_in = (np.sum(outer_cont_hot['cell_mass'])/ds.dt).in_units('Msun/yr')
-        hot_mass_flux_out = (np.sum(inner_cont_hot['cell_mass'])/ds.dt).in_units('Msun/yr')
-        net_hot_mass_flux = hot_mass_flux_out - hot_mass_flux_in
-
-        cold_metal_flux_in = (np.sum(outer_cont_cold['metal_mass'])/ds.dt).in_units('Msun/yr')
-        cold_metal_flux_out = (np.sum(inner_cont_cold['metal_mass'])/ds.dt).in_units('Msun/yr')
-        net_cold_metal_flux = cold_metal_flux_out - cold_metal_flux_in
-
-        cool_metal_flux_in = (np.sum(outer_cont_cool['metal_mass'])/ds.dt).in_units('Msun/yr')
-        cool_metal_flux_out = (np.sum(inner_cont_cool['metal_mass'])/ds.dt).in_units('Msun/yr')
-        net_cool_metal_flux = cool_metal_flux_out - cool_metal_flux_in
-
-        warm_metal_flux_in = (np.sum(outer_cont_warm['metal_mass'])/ds.dt).in_units('Msun/yr')
-        warm_metal_flux_out = (np.sum(inner_cont_warm['metal_mass'])/ds.dt).in_units('Msun/yr')
-        net_warm_metal_flux = warm_metal_flux_out - warm_metal_flux_in
-
-        hot_metal_flux_in = (np.sum(outer_cont_hot['metal_mass'])/ds.dt).in_units('Msun/yr')
-        hot_metal_flux_out = (np.sum(inner_cont_hot['metal_mass'])/ds.dt).in_units('Msun/yr')
-        net_hot_metal_flux = hot_metal_flux_out - hot_metal_flux_in
+        # Compute fluxes from and to satellites (and net) between inner_r and outer_r
+        # These are nested lists where the first index goes from 0 to 2 for [net, from, to]
+        # and the second index goes from 0 to 4 for [all, cold, cool, warm, hot]
+        if (i < len(radii)-1):
+            mass_flux_sat = []
+            metal_flux_sat = []
+            kinetic_energy_flux_sat = []
+            thermal_energy_flux_sat = []
+            potential_energy_flux_sat = []
+            entropy_flux_sat = []
+            radiative_energy_flux_nosat = []
+            for j in range(3):
+                mass_flux_sat.append([])
+                metal_flux_sat.append([])
+                kinetic_energy_flux_sat.append([])
+                thermal_energy_flux_sat.append([])
+                potential_energy_flux_sat.append([])
+                entropy_flux_sat.append([])
+                radiative_energy_flux_nosat.append([])
+                for k in range(5):
+                    if (j==0):
+                        mass_flux_sat[j].append((np.sum(mass_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                            (newradius_sat_Tcut[0][k]<outer_r)]) - \
+                                                np.sum(mass_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                           (radius_sat_Tcut[1][k]<outer_r)]))/dt)
+                        metal_flux_sat[j].append((np.sum(metal_mass_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                              (newradius_sat_Tcut[0][k]<outer_r)]) - \
+                                                np.sum(metal_mass_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                            (radius_sat_Tcut[1][k]<outer_r)]))/dt)
+                        kinetic_energy_flux_sat[j].append((np.sum(kinetic_energy_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                                                (newradius_sat_Tcut[0][k]<outer_r)]) - \
+                                                          np.sum(kinetic_energy_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                                               (radius_sat_Tcut[1][k]<outer_r)]))/dt)
+                        thermal_energy_flux_sat[j].append((np.sum(thermal_energy_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                                                (newradius_sat_Tcut[0][k]<outer_r)]) - \
+                                                          np.sum(thermal_energy_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                                               (radius_sat_Tcut[1][k]<outer_r)]))/dt)
+                        potential_energy_flux_sat[j].append((np.sum(potential_energy_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                                                    (newradius_sat_Tcut[0][k]<outer_r)]) - \
+                                                            np.sum(potential_energy_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                                                   (radius_sat_Tcut[1][k]<outer_r)]))/dt)
+                        entropy_flux_sat[j].append((np.sum(entropy_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                                 (newradius_sat_Tcut[0][k]<outer_r)]) - \
+                                                    np.sum(entropy_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                                  (radius_sat_Tcut[1][k]<outer_r)]))/dt)
+                        radiative_energy_flux_nosat[j].append(np.sum( \
+                          thermal_energy_nosat_Tcut[k][(radius_nosat_Tcut[k]>inner_r) & (radius_nosat_Tcut[k]<outer_r)] * \
+                          mass_nosat_Tcut[k][(radius_nosat_Tcut[k]>inner_r) & (radius_nosat_Tcut[k]<outer_r)]*gtoMsun / \
+                          cooling_time_nosat_Tcut[k][(radius_nosat_Tcut[k]>inner_r) & (radius_nosat_Tcut[k]<outer_r)]))
+                    if (j==1):
+                        mass_flux_sat[j].append(np.sum(mass_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                           (newradius_sat_Tcut[0][k]<outer_r)])/dt)
+                        metal_flux_sat[j].append(np.sum(metal_mass_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                             (newradius_sat_Tcut[0][k]<outer_r)])/dt)
+                        kinetic_energy_flux_sat[j].append(np.sum(kinetic_energy_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                                               (newradius_sat_Tcut[0][k]<outer_r)])/dt)
+                        thermal_energy_flux_sat[j].append(np.sum(thermal_energy_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                                               (newradius_sat_Tcut[0][k]<outer_r)])/dt)
+                        potential_energy_flux_sat[j].append(np.sum(potential_energy_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                                                   (newradius_sat_Tcut[0][k]<outer_r)])/dt)
+                        entropy_flux_sat[j].append(np.sum(entropy_sat_Tcut[0][k][(newradius_sat_Tcut[0][k]>inner_r) & \
+                                                                                 (newradius_sat_Tcut[0][k]<outer_r)])/dt)
+                        radiative_energy_flux_nosat[j].append(np.sum( \
+                          thermal_energy_nosat_Tcut[k][(radius_nosat_Tcut[k]>inner_r) & (radius_nosat_Tcut[k]<outer_r) & (rad_vel_nosat_Tcut[k]<0.)] * \
+                          mass_nosat_Tcut[k][(radius_nosat_Tcut[k]>inner_r) & (radius_nosat_Tcut[k]<outer_r) & (rad_vel_nosat_Tcut[k]<0.)]*gtoMsun / \
+                          cooling_time_nosat_Tcut[k][(radius_nosat_Tcut[k]>inner_r) & (radius_nosat_Tcut[k]<outer_r) & (rad_vel_nosat_Tcut[k]<0.)]))
+                    if (j==2):
+                        mass_flux_sat[j].append(-np.sum(mass_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                           (radius_sat_Tcut[1][k]<outer_r)])/dt)
+                        metal_flux_sat[j].append(-np.sum(metal_mass_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                            (radius_sat_Tcut[1][k]<outer_r)])/dt)
+                        kinetic_energy_flux_sat[j].append(-np.sum(kinetic_energy_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                                               (radius_sat_Tcut[1][k]<outer_r)])/dt)
+                        thermal_energy_flux_sat[j].append(-np.sum(thermal_energy_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                                               (radius_sat_Tcut[1][k]<outer_r)])/dt)
+                        potential_energy_flux_sat[j].append(-np.sum(potential_energy_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                                                   (radius_sat_Tcut[1][k]<outer_r)])/dt)
+                        entropy_flux_sat[j].append(-np.sum(entropy_sat_Tcut[1][k][(radius_sat_Tcut[1][k]>inner_r) & \
+                                                                                  (radius_sat_Tcut[1][k]<outer_r)])/dt)
+                        radiative_energy_flux_nosat[j].append(np.sum( \
+                          thermal_energy_nosat_Tcut[k][(radius_nosat_Tcut[k]>inner_r) & (radius_nosat_Tcut[k]<outer_r) & (rad_vel_nosat_Tcut[k]>0.)] * \
+                          mass_nosat_Tcut[k][(radius_nosat_Tcut[k]>inner_r) & (radius_nosat_Tcut[k]<outer_r) & (rad_vel_nosat_Tcut[k]>0.)]*gtoMsun / \
+                          cooling_time_nosat_Tcut[k][(radius_nosat_Tcut[k]>inner_r) & (radius_nosat_Tcut[k]<outer_r) & (rad_vel_nosat_Tcut[k]>0.)]))
 
         # Add everything to the table
-        data_short.add_row([zsnap, 0, r, net_mass_flux, net_metal_flux, mass_flux_in, \
-                      mass_flux_out, metal_flux_in, metal_flux_out, net_cold_mass_flux, \
-                      cold_mass_flux_in, cold_mass_flux_out, net_cool_mass_flux, \
-                      cool_mass_flux_in, cool_mass_flux_out, net_warm_mass_flux, \
-                      warm_mass_flux_in, warm_mass_flux_out, net_hot_mass_flux, \
-                      hot_mass_flux_in, hot_mass_flux_out, net_cold_metal_flux, \
-                      cold_metal_flux_in, cold_metal_flux_out, net_cool_metal_flux, \
-                      cool_metal_flux_in, cool_metal_flux_out, net_warm_metal_flux, \
-                      warm_metal_flux_in, warm_metal_flux_out, net_hot_metal_flux, \
-                      hot_metal_flux_in, hot_metal_flux_out])
+        fluxes.add_row([zsnap, inner_r, \
+                        mass_flux_nosat[0][0], metal_flux_nosat[0][0], \
+                        mass_flux_nosat[1][0], mass_flux_nosat[2][0], metal_flux_nosat[1][0], metal_flux_nosat[2][0], \
+                        mass_flux_nosat[0][1], mass_flux_nosat[1][1], mass_flux_nosat[2][1], \
+                        mass_flux_nosat[0][2], mass_flux_nosat[1][2], mass_flux_nosat[2][2], \
+                        mass_flux_nosat[0][3], mass_flux_nosat[1][3], mass_flux_nosat[2][3], \
+                        mass_flux_nosat[0][4], mass_flux_nosat[1][4], mass_flux_nosat[2][4], \
+                        metal_flux_nosat[0][1], metal_flux_nosat[1][1], metal_flux_nosat[2][1], \
+                        metal_flux_nosat[0][2], metal_flux_nosat[1][2], metal_flux_nosat[2][2], \
+                        metal_flux_nosat[0][3], metal_flux_nosat[1][3], metal_flux_nosat[2][3], \
+                        metal_flux_nosat[0][4], metal_flux_nosat[1][4], metal_flux_nosat[2][4], \
+                        kinetic_energy_flux_nosat[0][0], thermal_energy_flux_nosat[0][0], \
+                        potential_energy_flux_nosat[0][0], radiative_energy_flux_nosat[0][0], \
+                        entropy_flux_nosat[0][0], \
+                        kinetic_energy_flux_nosat[1][0], kinetic_energy_flux_nosat[2][0], \
+                        thermal_energy_flux_nosat[1][0], thermal_energy_flux_nosat[2][0], \
+                        potential_energy_flux_nosat[1][0], potential_energy_flux_nosat[2][0], \
+                        radiative_energy_flux_nosat[1][0], radiative_energy_flux_nosat[2][0], \
+                        entropy_flux_nosat[1][0], entropy_flux_nosat[2][0], \
+                        kinetic_energy_flux_nosat[0][1], kinetic_energy_flux_nosat[1][1], kinetic_energy_flux_nosat[2][1], \
+                        kinetic_energy_flux_nosat[0][2], kinetic_energy_flux_nosat[1][2], kinetic_energy_flux_nosat[2][2], \
+                        kinetic_energy_flux_nosat[0][3], kinetic_energy_flux_nosat[1][3], kinetic_energy_flux_nosat[2][3], \
+                        kinetic_energy_flux_nosat[0][4], kinetic_energy_flux_nosat[1][4], kinetic_energy_flux_nosat[2][4], \
+                        thermal_energy_flux_nosat[0][1], thermal_energy_flux_nosat[1][1], thermal_energy_flux_nosat[2][1], \
+                        thermal_energy_flux_nosat[0][2], thermal_energy_flux_nosat[1][2], thermal_energy_flux_nosat[2][2], \
+                        thermal_energy_flux_nosat[0][3], thermal_energy_flux_nosat[1][3], thermal_energy_flux_nosat[2][3], \
+                        thermal_energy_flux_nosat[0][4], thermal_energy_flux_nosat[1][4], thermal_energy_flux_nosat[2][4], \
+                        potential_energy_flux_nosat[0][1], potential_energy_flux_nosat[1][1], potential_energy_flux_nosat[2][1], \
+                        potential_energy_flux_nosat[0][2], potential_energy_flux_nosat[1][2], potential_energy_flux_nosat[2][2], \
+                        potential_energy_flux_nosat[0][3], potential_energy_flux_nosat[1][3], potential_energy_flux_nosat[2][3], \
+                        potential_energy_flux_nosat[0][4], potential_energy_flux_nosat[1][4], potential_energy_flux_nosat[2][4], \
+                        radiative_energy_flux_nosat[0][1], radiative_energy_flux_nosat[1][1], radiative_energy_flux_nosat[2][1], \
+                        radiative_energy_flux_nosat[0][2], radiative_energy_flux_nosat[1][2], radiative_energy_flux_nosat[2][2], \
+                        radiative_energy_flux_nosat[0][3], radiative_energy_flux_nosat[1][3], radiative_energy_flux_nosat[2][3], \
+                        radiative_energy_flux_nosat[0][4], radiative_energy_flux_nosat[1][4], radiative_energy_flux_nosat[2][4], \
+                        entropy_flux_nosat[0][1], entropy_flux_nosat[1][1], entropy_flux_nosat[2][1], \
+                        entropy_flux_nosat[0][2], entropy_flux_nosat[1][2], entropy_flux_nosat[2][2], \
+                        entropy_flux_nosat[0][3], entropy_flux_nosat[1][3], entropy_flux_nosat[2][3], \
+                        entropy_flux_nosat[0][4], entropy_flux_nosat[1][4], entropy_flux_nosat[2][4]])
 
-    table_units_short = {'redshift':None,'quadrant':None,'radius':'kpc','net_mass_flux':'Msun/yr', \
-             'net_metal_flux':'Msun/yr', 'mass_flux_in'  :'Msun/yr','mass_flux_out':'Msun/yr', \
-             'metal_flux_in' :'Msun/yr', 'metal_flux_out':'Msun/yr',\
-             'net_cold_mass_flux':'Msun/yr', 'cold_mass_flux_in':'Msun/yr', \
-             'cold_mass_flux_out':'Msun/yr', 'net_cool_mass_flux':'Msun/yr', \
-             'cool_mass_flux_in':'Msun/yr', 'cool_mass_flux_out':'Msun/yr', \
-             'net_warm_mass_flux':'Msun/yr', 'warm_mass_flux_in':'Msun/yr', \
-             'warm_mass_flux_out':'Msun/yr', 'net_hot_mass_flux' :'Msun/yr', \
-             'hot_mass_flux_in' :'Msun/yr', 'hot_mass_flux_out' :'Msun/yr', \
-             'net_cold_metal_flux':'Msun/yr', 'cold_metal_flux_in':'Msun/yr', \
-             'cold_metal_flux_out':'Msun/yr', 'net_cool_metal_flux':'Msun/yr', \
-             'cool_metal_flux_in':'Msun/yr', 'cool_metal_flux_out':'Msun/yr', \
-             'net_warm_metal_flux':'Msun/yr', 'warm_metal_flux_in':'Msun/yr', \
-             'warm_metal_flux_out':'Msun/yr', 'net_hot_metal_flux' :'Msun/yr', \
-             'hot_metal_flux_in' :'Msun/yr', 'hot_metal_flux_out' :'Msun/yr'}
-    for key in data_short.keys():
-        data_short[key].unit = table_units_short[key]
+        fluxes_sat.add_row([zsnap, inner_r, outer_r, \
+                            mass_flux_sat[0][0], metal_flux_sat[0][0], \
+                            mass_flux_sat[1][0], mass_flux_sat[2][0], metal_flux_sat[1][0], metal_flux_sat[2][0], \
+                            mass_flux_sat[0][1], mass_flux_sat[1][1], mass_flux_sat[2][1], \
+                            mass_flux_sat[0][2], mass_flux_sat[1][2], mass_flux_sat[2][2], \
+                            mass_flux_sat[0][3], mass_flux_sat[1][3], mass_flux_sat[2][3], \
+                            mass_flux_sat[0][4], mass_flux_sat[1][4], mass_flux_sat[2][4], \
+                            metal_flux_sat[0][1], metal_flux_sat[1][1], metal_flux_sat[2][1], \
+                            metal_flux_sat[0][2], metal_flux_sat[1][2], metal_flux_sat[2][2], \
+                            metal_flux_sat[0][3], metal_flux_sat[1][3], metal_flux_sat[2][3], \
+                            metal_flux_sat[0][4], metal_flux_sat[1][4], metal_flux_sat[2][4], \
+                            kinetic_energy_flux_sat[0][0], thermal_energy_flux_sat[0][0], \
+                            potential_energy_flux_sat[0][0], entropy_flux_sat[0][0], \
+                            kinetic_energy_flux_sat[1][0], kinetic_energy_flux_sat[2][0], \
+                            thermal_energy_flux_sat[1][0], thermal_energy_flux_sat[2][0], \
+                            potential_energy_flux_sat[1][0], potential_energy_flux_sat[2][0], \
+                            entropy_flux_sat[1][0], entropy_flux_sat[2][0], \
+                            kinetic_energy_flux_sat[0][1], kinetic_energy_flux_sat[1][1], kinetic_energy_flux_sat[2][1], \
+                            kinetic_energy_flux_sat[0][2], kinetic_energy_flux_sat[1][2], kinetic_energy_flux_sat[2][2], \
+                            kinetic_energy_flux_sat[0][3], kinetic_energy_flux_sat[1][3], kinetic_energy_flux_sat[2][3], \
+                            kinetic_energy_flux_sat[0][4], kinetic_energy_flux_sat[1][4], kinetic_energy_flux_sat[2][4], \
+                            thermal_energy_flux_sat[0][1], thermal_energy_flux_sat[1][1], thermal_energy_flux_sat[2][1], \
+                            thermal_energy_flux_sat[0][2], thermal_energy_flux_sat[1][2], thermal_energy_flux_sat[2][2], \
+                            thermal_energy_flux_sat[0][3], thermal_energy_flux_sat[1][3], thermal_energy_flux_sat[2][3], \
+                            thermal_energy_flux_sat[0][4], thermal_energy_flux_sat[1][4], thermal_energy_flux_sat[2][4], \
+                            potential_energy_flux_sat[0][1], potential_energy_flux_sat[1][1], potential_energy_flux_sat[2][1], \
+                            potential_energy_flux_sat[0][2], potential_energy_flux_sat[1][2], potential_energy_flux_sat[2][2], \
+                            potential_energy_flux_sat[0][3], potential_energy_flux_sat[1][3], potential_energy_flux_sat[2][3], \
+                            potential_energy_flux_sat[0][4], potential_energy_flux_sat[1][4], potential_energy_flux_sat[2][4], \
+                            entropy_flux_sat[0][1], entropy_flux_sat[1][1], entropy_flux_sat[2][1], \
+                            entropy_flux_sat[0][2], entropy_flux_sat[1][2], entropy_flux_sat[2][2], \
+                            entropy_flux_sat[0][3], entropy_flux_sat[1][3], entropy_flux_sat[2][3], \
+                            entropy_flux_sat[0][4], entropy_flux_sat[1][4], entropy_flux_sat[2][4]])
+
+    fluxes = set_table_units(fluxes)
+    fluxes_sat = set_table_units(fluxes_sat)
 
     # Save to file
-    data_short.write(tablename + '_new_short.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    fluxes.write(tablename + '_nosat.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    fluxes_sat.write(tablename + '_sat.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     return "Fluxes have been calculated for snapshot " + snap + "!"
 
 
-def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, Menc_table, quadrants):
+def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, Menc_table, quadrants, sat_dir):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the table to output, and a boolean
     'quadrants' that specifies whether or not to compute in quadrants vs. the whole domain, then
@@ -950,13 +1421,24 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
     ds, refine_box, refine_box_center, refine_width = load(snap_name, track, use_halo_c_v=True, halo_c_v_name=halo_c_v_name, filter_particles=False)
     refine_width_kpc = YTArray([refine_width], 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    dt = 5.38e6
 
     # Make interpolated Menc_func using the table at this snapshot
     Menc_func = IUS(Menc_table['radius'][Menc_table['snapshot']==snap], \
       Menc_table['total_mass'][Menc_table['snapshot']==snap])
 
+    # Specify the file where the list of satellites at this snapshot is saved
+    sat_file = sat_dir + snap + '_satellites.dat'
+    snap2 = int(snap[-4:])+1
+    if (snap2 < 10): snap2 = '000' + str(snap2)
+    elif (snap2 < 100): snap2 = '00' + str(snap2)
+    elif (snap2 < 1000): snap2 = '0' + str(snap2)
+    else: snap2 = str(snap2)
+    sat_file2 = sat_dir + snap2 + '_satellites.dat'
+
     # Do the actual calculation
-    message = calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, Menc_func=Menc_func)
+    #message = calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, Menc_func=Menc_func)
+    message = calc_fluxes_region(ds, snap, zsnap, dt, refine_width_kpc, tablename, Menc_func=Menc_func, sat_file=sat_file, sat_file2=sat_file2)
     if (system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
@@ -1004,8 +1486,11 @@ if __name__ == "__main__":
     halo_c_v_name = track_dir + 'halo_c_v'
 
     # Load the mass enclosed profile
-    Menc_table = Table.read(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/DD1202_DD1547_masses.hdf5', \
+    Menc_table = Table.read(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/masses.hdf5', \
       path='all_data')
+
+    # Specify where satellite files are saved
+    sat_dir = output_dir + 'satellites_halo_00' + args.halo + '/' + args.run + '/'
 
     # Loop over outputs, for either single-processor or parallel processor computing
     if (args.nproc==1):
@@ -1014,7 +1499,7 @@ if __name__ == "__main__":
             # Make the output table name for this snapshot
             tablename = prefix + snap + '_fluxes'
             # Do the actual calculation
-            load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)
+            load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants, sat_dir)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
@@ -1024,7 +1509,7 @@ if __name__ == "__main__":
                 snap = outs[args.nproc*i+j]
                 tablename = prefix + snap + '_fluxes'
                 threads.append(multi.Process(target=load_and_calculate, \
-			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
+			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants, sat_dir)))
             for t in threads:
                 t.start()
             for t in threads:
@@ -1035,7 +1520,7 @@ if __name__ == "__main__":
             snap = outs[-(j+1)]
             tablename = prefix + snap + '_fluxes'
             threads.append(multi.Process(target=load_and_calculate, \
-			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants)))
+			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, Menc_table, args.quadrants, sat_dir)))
         for t in threads:
             t.start()
         for t in threads:
