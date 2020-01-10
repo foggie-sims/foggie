@@ -52,6 +52,27 @@ def get_region(data_set, region, filter='None'):
         else: 
             cold_inside_rvir = rvir_sphere.cut_region(filter) 
         all_data = cen_sphere + cold_inside_rvir
+    elif region == 'xyslice': 
+        print("get_region: your region is a slice along x-y axes, short along z")
+        refine_box = data_set.r[0:1, 0:1, data_set['MustRefineRegionLeftEdge'][2]:data_set['MustRefineRegionRightEdge'][2] ]
+        if (filter == 'None'): 
+            all_data = refine_box
+        else: 
+            all_data = refine_box.cut_region(filter) 
+    elif region == 'yzslice': 
+        print("get_region: your region is a slice along y-z axes, short along x")
+        refine_box = data_set.r[data_set['MustRefineRegionLeftEdge'][0]:data_set['MustRefineRegionRightEdge'][0], 0:1, 0:1 ]
+        if (filter == 'None'): 
+            all_data = refine_box
+        else: 
+            all_data = refine_box.cut_region(filter) 
+    elif region == 'xzslice': 
+        print("get_region: your region is a slice along z-z axes, short along y")
+        refine_box = data_set.r[0:1, data_set['MustRefineRegionLeftEdge'][1]:data_set['MustRefineRegionRightEdge'][1], 0:1]
+        if (filter == 'None'): 
+            all_data = refine_box
+        else: 
+            all_data = refine_box.cut_region(filter) 
     else:
         print("get_region: your region is invalid!")
 
