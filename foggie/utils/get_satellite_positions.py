@@ -251,7 +251,7 @@ if __name__ == "__main__":
     halo_c_v_name = track_dir + 'halo_c_v'
 
     # Loop over outputs, for either single-processor or parallel processor computing
-    '''if (args.nproc==1):
+    if (args.nproc==1):
         for i in range(len(outs)):
             snap = outs[i]
             # Make the output table name for this snapshot
@@ -283,6 +283,6 @@ if __name__ == "__main__":
             t.start()
         for t in threads:
             t.join()
-'''
+
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")
