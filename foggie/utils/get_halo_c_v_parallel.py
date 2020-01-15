@@ -50,7 +50,8 @@ def parse_args():
     parser.add_argument('--output', metavar='output', type=str, action='store', \
                         help='Which output(s)? Options: Specify a single output (this is default' \
                         + ' and the default output is RD0036), specify a range of outputs ' + \
-                        '(e.g. "RD0020,RD0025" or "DD1340,DD2029"), or "all".')
+                        'using commas to list individual outputs and dashes for ranges of outputs ' + \
+                        '(e.g. "RD0020-RD0025" or "DD1341,DD1353,DD1600-DD1700", no spaces!)')
     parser.set_defaults(output='RD0036')
 
     parser.add_argument('--system', metavar='system', type=str, action='store', \
@@ -180,14 +181,36 @@ if __name__ == "__main__":
     run_dir = foggie_dir + run_dir
 
     # Build output list
-    if (args.output=='all'):
-        outs = glob.glob(os.path.join(run_dir, '?D????'))
-        outs_new = []
+    if (',' in args.output):
+        outs = args.output.split(',')
         for i in range(len(outs)):
-            outs_new.append(outs[i][-6:])
-        outs = outs_new
-    elif (',' in args.output):
-        ind = args.output.find(',')
+            if ('-' in outs[i]):
+                ind = outs[i].find('-')
+                first = outs[i][2:ind]
+                last = outs[i][ind+3:]
+                output_type = outs[i][:2]
+                outs_sub = []
+                for j in range(int(first), int(last)+1):
+                    if (j < 10):
+                        pad = '000'
+                    elif (j >= 10) and (j < 100):
+                        pad = '00'
+                    elif (j >= 100) and (j < 1000):
+                        pad = '0'
+                    elif (j >= 1000):
+                        pad = ''
+                    outs_sub.append(output_type + pad + str(j))
+                outs[i] = outs_sub
+        flat_outs = []
+        for i in outs:
+            if (type(i)==list):
+                for j in i:
+                    flat_outs.append(j)
+            else:
+                flat_outs.append(i)
+        outs = flat_outs
+    elif ('-' in args.output):
+        ind = args.output.find('-')
         first = args.output[2:ind]
         last = args.output[ind+3:]
         output_type = args.output[:2]
