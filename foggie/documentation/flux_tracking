@@ -27,6 +27,13 @@ or if the above files do not exist for the halo and run you are running flux_tra
 must first add them. See the documentation for get_satellite_positions.py, get_mass_profile.py, and
 get_halo_c_v_parallel.py to do so.
 
+If running from pleiades, the code will run in less than a tenth the length of time if you write
+your script to first copy the output files for whatever snapshot you're running it on to the /tmp
+folder of the node it's running on. This is automatically built into the code for running with
+system = pleiades_cassi, so it is very easy to add this functionality if you'd like it for your
+system too. Ask Cassi to add it, or search for 'if (system=='pleiades_cassi')' in the code and add
+it yourself.
+
 
 User inputs:
 ------------
@@ -147,6 +154,6 @@ and an outer_radius to specify a shell of some volume. However, the radiative_en
 be found in the _nosat file, where only "radius" is specified. What this means is that the
 radiative_energy_flux listed for a given "radius" is *actually* the radiative energy lost *between*
 that radius and the next one. This means that the radiative_energy_flux column should be shorter
-than the others by 1, but to keep the columns the same length, I just put a value of zero for the final
-entry in this column. Because _sat and _edges_frustum (if frustum is chosen) are both also
+than the others by 1, but to keep the columns the same length, it just repeats the second-to-last
+entry as the last entry. Because _sat and _edges_frustum (if frustum is chosen) are both also
 volumetric, columns in these two tables are shorter by 1 than the _nosat file.
