@@ -54,7 +54,7 @@ halos = ['8508',
 cnt = 0
 t_90 = []
 examples = [('8508', 'b'), ('5036', 'b'), ('4123', 'd')]
-examples = []
+#examples = []
 #examples = [('5036', 'b')]
 #examples = [('8508', 'b'), ('5016', 'e'), ('4123', 'b')]
 
@@ -84,6 +84,7 @@ for h, halo in enumerate(halos):
 
 
         if (halo, sat) in examples:
+
 
             ###Example#####
             axes[cnt].plot(time_interp, rp_interp, color = 'black')
@@ -118,7 +119,7 @@ axes[-1].set_xlabel('time (Myr)')
 
 
 
-rect = [0.5,0.18,0.65,0.45]
+rect = [0.46,0.18,0.65,0.45]
 axes22 = add_subplot_axes(axes2, rect)
 
 
@@ -158,14 +159,21 @@ ax2.set_xticklabels([])
 #ax3.set_ylim(0, 0.7e-12)
 
 for e, (halo, sat)in enumerate(examples):
-    axes[e].annotate('%s-%s'%(halo, sat), (0.05, 0.9), ha = 'left', va = 'top', xycoords = 'axes fraction', color = 'black', fontsize = 14)
+    if halo == '8508': haloname = 'Tempest'
+    elif halo == '5036': haloname = 'Maelstrom'
+    elif halo == '4123': haloname = 'Blizzard'
+
+
+
+
+    axes[e].annotate('%s-%s'%(haloname, sat), (0.05, 0.9), ha = 'left', va = 'top', xycoords = 'axes fraction', color = 'black', fontsize = 14)
 
 #ax3.annotate('90 percent of total\nmomentum imparted', \
 #            (0.5, 0.9), ha = 'left', va = 'top', \
 #            xycoords = 'axes fraction', color = 'blue', fontweight = 'bold', fontsize = 20)
 fig.tight_layout()
-fig.subplots_adjust(hspace = 0.12)
-fig.savefig('/Users/rsimons/Dropbox/foggie/figures/for_paper/ram_pressure_cumulative.png', dpi = 350)
+fig.subplots_adjust(hspace = 0.12, right = 0.98)
+fig.savefig('/Users/rsimons/Dropbox/foggie/figures/for_paper/ram_pressure_cumulative_whaloname.png', dpi = 350)
 
 
 

@@ -21,7 +21,9 @@ import PIL
 from PIL import Image
 from glob import glob
 from joblib import Parallel, delayed
+import matplotlib.colors as colors
 from yt.units import kpc
+import matplotlib
 import multiprocessing as mp
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -88,7 +90,7 @@ def do_plot(ds, field, normal_vector, north_vector, annotate_positions, \
 def make_off_axis_projection_plots(ds, center, box_proj, fig_dir, haloname, normal_vector,north_vector,\
                          fig_end = 'projection',  do = ['stars', 'gas', 'dm'],\
                          axes = ['x', 'y', 'z'], annotate_positions = [],annotate_center = False, \
-                          add_velocity = False,  add_arrow = False, start_arrow = [], end_arrow = [], proj_width = 0):
+                          add_velocity = False,  add_arrow = False, start_arrow = [], end_arrow = [], proj_width = 0, hide_colorbar = True, add_timesamp = False):
     print (center,proj_width)
     for axs in axes:
         for d in do:
@@ -156,12 +158,31 @@ def make_off_axis_projection_plots(ds, center, box_proj, fig_dir, haloname, norm
                             prj.annotate_arrow(pos = e_arrow, starting_pos = s_arrow, coord_system = 'data')
                         else:
                             prj.annotate_arrow(pos = e_arrow, starting_pos = s_arrow, coord_system = 'data', plot_args={'color':'blue'})                            
-            prj.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)            
+            if add_timesamp: prj.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)            
             if annotate_center: prj.annotate_marker((0.5, 0.5), coord_system='axis')
-            prj.hide_axes()
-            prj.annotate_scale()
 
-            prj.save(fig_dir + '/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end))
+            if hide_colorbar: prj.hide_colorbar()
+
+            prj.hide_axes()
+            #prj.annotate_scale()
+
+            if (d == 'stars') | (d == 'dm'):
+                plt.close('all')
+                from astropy.convolution import convolve_fft, Gaussian2DKernel
+                fig, ax = plt.subplots(1,1, figsize = (8,8))
+                frb = prj.frb
+                frb.apply_gauss_beam(nbeam=200, sigma=50)
+                im = frb[('deposit', '%s_density'%d)].d
+                kern = Gaussian2DKernel(3)
+                im = convolve_fft(im, kern)
+                ax.imshow(im, cmap = cmap, norm = matplotlib.colors.LogNorm(vmin = zmin, vmax = zmax), origin = 'lower')
+                ax.axis('off')
+                fig.subplots_adjust(left = 0.0, right = 1.0, bottom = 0.0, top = 1.0)
+                fig.savefig(fig_dir + '/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end), dpi = 400)
+
+            else:
+
+                prj.save(fig_dir + '/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end))
 
 
 
@@ -214,8 +235,8 @@ if __name__ == '__main__':
 
         #def run_sat(ds, sat, refine_box, refine_box_center, args): 
         for sat in sat_cat_halo:
-            movie_fname = fig_dir + '/movies/%s_%s.mp4'%(haloname, sat['id'])
-            if os.path.exists(movie_fname): continue
+            #movie_fname = fig_dir + '/movies/%s_%s.mp4'%(haloname, sat['id'])
+            #if os.path.exists(movie_fname): continue
             if args.do_central:
                 if sat['id'] != '0': continue
                 sat_center = ds.arr(refine_box_center, 'code_length').to('kpc') 
@@ -262,7 +283,7 @@ if __name__ == '__main__':
 
 
 
-                fname = fig_dir + '/combined/%s_%s.png'%(haloname, sat['id'])
+                fname = fig_dir + '/combined/%s_%s_noarrow.png'%(haloname, sat['id'])
 
                 x = np.random.randn(3)
                 x -= x.dot(sat_velocity_norm.value) * sat_velocity_norm.value
@@ -271,18 +292,20 @@ if __name__ == '__main__':
 
                 norm_vector = normal_vector_1
                 prj = make_off_axis_projection_plots(ds, sat_center, box_proj, fig_dir + '/' + args.halo, haloname,norm_vector, north_vector = sat_velocity_norm.value, \
-                                    fig_end = '%s'%(sat['id']), \
-                                    do = ['gas', 'stars', 'dm', 'temp', 'metal'], axes = ['off_axis'],  annotate_center = True,
-                                    add_velocity = False, add_arrow = True, start_arrow = [start_arrow], end_arrow = [end_arrow], proj_width = box_width)  
+                                    fig_end = '%s_noarrow'%(sat['id']), \
+                                    do = ['stars', 'gas', 'dm', 'temp', 'metal'], axes = ['off_axis'],  annotate_center = False,
+                                    add_velocity = False, add_arrow = False, start_arrow = [start_arrow], end_arrow = [end_arrow], proj_width = box_width)  
 
-                fl_dm = fig_dir + '/%s/%s_%s_dm_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
-                fl_stars = fig_dir + '/%s/%s_%s_stars_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
-                fl_gas = fig_dir + '/%s/%s_%s_gas_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
-                fl_temp = fig_dir + '/%s/%s_%s_temp_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
-                fl_metal = fig_dir + '/%s/%s_%s_metal_%s.png'%(args.halo, haloname, 'off_axis', sat['id'])
+                fl_dm = fig_dir + '/%s/%s_%s_dm_%s_noarrow.png'%(args.halo, haloname, 'off_axis', sat['id'])
+                fl_stars = fig_dir + '/%s/%s_%s_stars_%s_noarrow.png'%(args.halo, haloname, 'off_axis', sat['id'])
+                fl_gas = fig_dir + '/%s/%s_%s_gas_%s_noarrow.png'%(args.halo, haloname, 'off_axis', sat['id'])
+                fl_temp = fig_dir + '/%s/%s_%s_temp_%s_noarrow.png'%(args.halo, haloname, 'off_axis', sat['id'])
+                fl_metal = fig_dir + '/%s/%s_%s_metal_%s_noarrow.png'%(args.halo, haloname, 'off_axis', sat['id'])
 
 
                 fls = [fl_dm,  fl_stars, fl_gas, fl_temp, fl_metal]
+                fls = [fl_stars, fl_gas, fl_temp, fl_metal]
+
                 imgs = [PIL.Image.open(fl) for fl in fls]
 
 
@@ -293,7 +316,7 @@ if __name__ == '__main__':
                 imgs_comb = PIL.Image.fromarray( imgs_comb)
                 imgs_comb.save(fname)
 
-            if True:
+            if False:
                 if np.isnan(args.rot_n):
                     min_nrot = 0
                     max_nrot = 200
@@ -326,7 +349,7 @@ if __name__ == '__main__':
                     prj = make_off_axis_projection_plots(ds = ds, center = sat_center, box_proj = box_proj, fig_dir = fig_dir + '/' + args.halo,
                                                         haloname = haloname, normal_vector = normal_vector, north_vector = [1,0,0], \
                                                         fig_end = '%s_%.3i'%(sat['id'], nrot), \
-                                                        do = ['gas', 'stars', 'dm', 'temp', 'metal'], axes = ['off_axis'], annotate_center = not args.do_central,
+                                                        do = ['stars', 'gas',  'dm', 'temp', 'metal'], axes = ['off_axis'], annotate_center = not args.do_central,
                                                         add_velocity = False, add_arrow = not args.do_central, start_arrow = start_arrows, end_arrow = end_arrows, proj_width = box_width)  
 
                     fl_dm = fig_dir + '/%s/%s_%s_dm_%s_%.3i.png'%(args.halo, haloname, 'off_axis', sat['id'], nrot)
