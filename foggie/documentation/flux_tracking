@@ -1,0 +1,152 @@
+This document describes how to use the flux tracking code, located in /flux_tracking/flux_tracking.py.
+Author: Cassi
+
+Description:
+------------
+flux_tracking.py calculates a variety of fluxes across a user-defined surface, then saves these
+fluxes to a file in hdf5 format.
+
+
+Requires:
+---------
+There must exist an entry in /halo_infos/haloid/runid/satellites.hdf5 for the snapshot you are
+running flux_tracking.py on, and there must exist an entry in the same file for the snapshot
+immediately following the snapshot you are running flux_tracking.py on. For example, if you would
+like to run flux_tracking.py on DD1920, there must be an entry in the satellites.hdf5 file for
+both DD1920 and DD1921.
+
+There must exist an entry in /halo_infos/haloid/runid/masses.hdf5 for the snapshot you are running
+flux_tracking.py on.
+
+There must exist an entry in /halo_infos/haloid/runid/halo_c_v for the snapshot you are running
+flux_tracking.py on, and for the snapshot immediately following the snapshot you are running
+flux_tracking.py on.
+
+If there are not entries in the above files for the snapshot you are running flux_tracking.py on,
+or if the above files do not exist for the halo and run you are running flux_tracking.py on, you
+must first add them. See the documentation for get_satellite_positions.py, get_mass_profile.py, and
+get_halo_c_v_parallel.py to do so.
+
+
+User inputs:
+------------
+flux_tracking.py is designed to be run from the command line with command line options. You can do:
+> python flux_tracking.py --help
+to see the different command line options and what you can enter for each. If you do not enter
+any command line options, flux_tracking.py will run with all the default options selected.
+Here are the command line options:
+
+--halo XXXX
+Which halo? Default is Tempest (8508).
+
+--run nrefXX_nrefXX
+Which run? Default is nref11c_nref9f.
+
+--output XXXXXX
+Which output(s)? Options: Specify a single output (this is default and the default output is RD0036)
+or specify a range of outputs using commas to list individual outputs and dashes for ranges of
+outputs (e.g. "RD0020-RD0025" or "DD1341,DD1353,DD1600-DD1700", no spaces!).
+
+--system XXXXXXXX
+Which system are you on? Default is cassiopeia.
+
+--local
+If using system cassiopeia: Are the simulation files stored locally? Default is no. This option
+has no meaning if the system specified is not cassiopeia.
+
+--nproc X
+How many processes do you want? Default is 1 (no parallelization), if multiple outputs and multiple
+processors are specified, code will run one output per processor. If you are running on a single
+output only, do not use more than 1 processor.
+
+--surface ["XXXX", X, X, X, X]
+What surface type for computing the flux? Default is sphere in 200 steps between 0.05*refine_width
+and 2*refine_width. Other options are "plane" and "frustum". Note that all surfaces will be centered
+on halo center. To specify the shape, size, and orientation of the surface you want, input a list as
+follows:
+If you want a sphere, give:
+["sphere", inner_radius, outer_radius, num_radii]
+where inner_radius is the inner boundary as a fraction of refine_width, outer_radius is the outer
+boundary as a fraction (or multiple) of refine_width, and num_radii is the number of radii where you
+want the flux to be calculated between inner_radius and outer_radius (inner_radius and outer_radius
+are automatically included).
+If you want a frustum, give:
+["frustum", axis, inner_radius, outer_radius, num_radii, opening_angle]
+where axis is a number 1 through 4 that specifies what axis to align the frustum with:
+'1) x axis 2) y axis 3) z axis 4) minor axis of galaxy disk.
+If axis is given as a negative number, it will compute a frustum pointing the other way.
+inner_radius, outer_radius, and num_radii are the same as for the sphere and opening_angle gives the
+angle in degrees of the opening angle of the cone, measured from axis (note that the total opening
+angle of the cone will be 2*opening_angle).
+If you want a plane, give:
+["plane", axis, cen_dist, width]
+where axis is a number 1 through 4 as for the frustum and specifies the orientation of the normal
+vector of the plane, cen_dist is the distance in kpc the plane is from the center of the halo,
+and width is the size in kpc of one side of the plane (it will be square). If cen_dist is a negative
+number, the plane will be located on the opposite side of the halo than if it were a positive number.
+
+
+Outputs:
+--------
+The code saves to file a hdf5 table located within your output_path as specified by get_run_loc_etc.py.
+It will output files per snapshot, and will be saved within subfolders specifying the halo id
+and run. For example, if you run flux_tracking.py on a sphere for halo 8508, nref11c_nref9f, output
+DD1236, it will output two files:
+output_path/fluxes_halo_008508/nref11c_nref9f/DD1236_fluxes_sphere_nosat.hdf5
+output_path/fluxes_halo_008508/nref11c_nref9f/DD1236_fluxes_sphere_sat.hdf5
+The file with _nosat appended contains the fluxes with satellites excised from the domain. The file
+with _sat appended gives the fluxes into/out of those excised satellites.
+
+Each file has a ridiculous number of columns. The first few columns are information about the snapshot
+and where the flux was calculated, for the _nosat file, they are "redshift" and "radius", which tells
+you the redshift of the snapshot and the radius of the sphere where the fluxes are calculated.
+For the _sat file, the first few columns are "redshift", "inner_radius", "outer_radius", which tells
+you again the redshift, and the radii *between* which the fluxes into and out of satellites are
+calculated. For example, if inner_radius is 30 kpc and outer_radius is 40 kpc, that indicates the
+fluxes are calculated to and from all satellites located between 30 and 40 kpc (which may be none,
+in which case the flux will be zero).
+
+The rest of the columns list the values of the fluxes. The fluxes calculated are:
+mass_flux
+metal_mass_flux
+kinetic_energy_flux
+thermal_energy_flux
+potential_energy_flux
+radiative_energy_flux (only in _nosat file, see note below about this one)
+entropy_flux
+(if you'd like another kind of flux added, ask Cassi)
+
+In addition, the fluxes are broken down into net flux, inward flux, and outward flux. They are then
+further broken down into cold, cool, warm, and hot gas, with the sum of these 4 being equal to
+just the net flux. To obtain the net (meaning both inward and outward) flux, append "net_" to the
+front of the flux type, e.g. "net_mass_flux". To obtain the radially inward or outward flux, append
+"_in" or "_out" to the *end* of the flux type (and remove "net_" from the beginning), e.g. "mass_flux_in".
+To obtain the flux for a specific temperature gas, append "cold_", "cool_", "warm_", or "hot_" to the
+beginning of the flux type (but after "net_" if present), e.g. "cold_mass_flux_in" or "net_hot_mass_flux".
+
+For the _sat file, the columns are the same (but no radiative_energy_flux, see below), but "_in"
+in this case indicates flux that is *entering* the domain coming *from* satellites between
+inner_radius and outer_radius (see above). Likewise, "_out" indicates flux that is *leaving* the
+domain and going *to* satellites.
+
+If the surface requested is a frustum, the above two files will be created, but there will also
+be one additional file, e.g. DD1236_fluxes_edges_frustum. This file also has inner_radius and
+outer_radius like the _sat file, and gives the fluxes passing through the outer edges of the cone
+between inner_radius and outer_radius. In this case, "_in" indicates fluxes *entering* the cone
+through the edges (i.e. not radially), and "_out" indicates fluxes *leaving* the cone through the
+edges.
+
+If the surface requested is a plane, only the _nosat file will be created, and it will not contain
+radiative energy fluxes.
+
+Note about radiative energy fluxes:
+By definition, the radiative energy flux is volumetric, not the physical motion of a gas quantity
+across a surface. Therefore, the radiative energy flux is calculated as the amount of energy lost
+to radiation within a volume, and thus for both the sphere and the frustum, requires an inner_radius
+and an outer_radius to specify a shell of some volume. However, the radiative_energy_flux can only
+be found in the _nosat file, where only "radius" is specified. What this means is that the
+radiative_energy_flux listed for a given "radius" is *actually* the radiative energy lost *between*
+that radius and the next one. This means that the radiative_energy_flux column should be shorter
+than the others by 1, but to keep the columns the same length, I just put a value of zero for the final
+entry in this column. Because _sat and _edges_frustum (if frustum is chosen) are both also
+volumetric, columns in these two tables are shorter by 1 than the _nosat file.
