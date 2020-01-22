@@ -2,7 +2,7 @@
 Filename: flux_tracking.py
 Author: Cassi
 Date created: 9-27-19
-Date last modified: 12-27-19
+Date last modified: 1-22-20
 This file takes command line arguments and computes fluxes of things through
 spherical shells.
 
@@ -1596,7 +1596,8 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
     temperature = sphere['gas','temperature'].in_units('K').v
     kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
     thermal_energy = sphere['gas','thermal_energy'].in_units('erg/g').v
-    potential_energy = G * mass * gtoMsun * Menc_func(radius) * gtoMsun / (radius*1000.*cmtopc)
+    potential_energy = (sphere['gas','cell_mass'] * \
+      ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
     cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
 
