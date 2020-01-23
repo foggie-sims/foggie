@@ -3,8 +3,7 @@ Filename: flux_tracking.py
 Author: Cassi
 Date created: 9-27-19
 Date last modified: 1-22-20
-This file takes command line arguments and computes fluxes of things through
-spherical shells.
+This file takes command line arguments and computes fluxes of things through surfaces.
 
 Dependencies:
 utils/consistency.py
@@ -44,12 +43,6 @@ from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
 
-def vel_time(field, data):
-    return np.abs(data['radial_velocity_corrected'] * data.ds.dt)
-
-def dist(field, data):
-    return np.abs(data['radius_corrected'] - data.ds.surface)
-
 def parse_args():
     '''Parse command line arguments. Returns args object.
     NOTE: Need to move command-line argument parsing to separate file.'''
@@ -86,8 +79,7 @@ def parse_args():
 
     parser.add_argument('--surface', metavar='surface', type=str, action='store', \
                         help='What surface type for computing the flux? Default is sphere' + \
-                        ' and nothing else is implemented right now.\nOther options are "plane"' + \
-                        ' and "frustum". Note that all surfaces will be centered on halo center.\n' + \
+                        ' and the other option is "frustum".\nNote that all surfaces will be centered on halo center.\n' + \
                         'To specify the shape, size, and orientation of the surface you want, ' + \
                         'input a list as follows (don\'t forget the outer quotes):\nIf you want a sphere, give:\n' + \
                         '"[\'sphere\', inner_radius, outer_radius, num_radii]"\n' + \
@@ -101,14 +93,7 @@ def parse_args():
                         '1) x axis 2) y axis 3) z axis 4) minor axis of galaxy disk.\n' + \
                         'If axis is given as a negative number, it will compute a frustum pointing the other way.\n' + \
                         'inner_radius, outer_radius, and num_radii are the same as for the sphere\n' + \
-                        'and opening_angle gives the angle in degrees of the opening angle of the cone, measured from axis.\n' + \
-                        'If you want a plane, give:\n' + \
-                        '"[\'plane\', axis, cen_dist, width]"\n' + \
-                        'where axis is a number 1 through 4 as for the frustum and specifies the orientation ' + \
-                        'of the normal vector of the plane,\ncen_dist is the distance in kpc the plane ' + \
-                        'is from the center of the halo,\nand width is the size in kpc of one side of the plane ' + \
-                        '(it will be square).\nIf cen_dist is a negative number, the plane will be located ' + \
-                        'on the opposite side of the halo.')
+                        'and opening_angle gives the angle in degrees of the opening angle of the cone, measured from axis.')
     parser.set_defaults(surface="['sphere', 0.05, 2., 200]")
 
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', \
@@ -125,7 +110,7 @@ def set_table_units(table):
     '''Sets the units for the table. Note this needs to be updated whenever something is added to
     the table. Returns the table.'''
 
-    table_units = {'redshift':None,'quadrant':None,'radius':'kpc','inner_radius':'kpc','outer_radius':'kpc', \
+    table_units = {'redshift':None,'radius':'kpc','inner_radius':'kpc','outer_radius':'kpc', \
              'net_mass_flux':'Msun/yr', 'net_metal_flux':'Msun/yr', \
              'mass_flux_in':'Msun/yr', 'mass_flux_out':'Msun/yr', \
              'metal_flux_in' :'Msun/yr', 'metal_flux_out':'Msun/yr',\
@@ -961,7 +946,8 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
     temperature = sphere['gas','temperature'].in_units('K').v
     kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
     thermal_energy = sphere['gas','thermal_energy'].in_units('erg/g').v
-    potential_energy = G * mass * gtoMsun * Menc_func(radius) * gtoMsun / (radius*1000.*cmtopc)
+    potential_energy = (sphere['gas','cell_mass'] * \
+      ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
     cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
 
@@ -2194,8 +2180,9 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
 
 def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, Menc_table, surface_args, sat_dir):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
-    'foggie_dir', the halo track 'track', the name of the table to output, and a boolean
-    'quadrants' that specifies whether or not to compute in quadrants vs. the whole domain, then
+    'foggie_dir', the halo track 'track', the name of the halo_c_v file, the name of the snapshot,
+    the name of the table to output, the mass enclosed table, the list of surface arguments, and
+    the directory where the satellites file is saved, then
     does the calculation on the loaded snapshot.'''
 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
@@ -2204,7 +2191,7 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
         snap_name = snap_dir + '/' + snap
-    if ((surface_args[0]=='frustum') or (surface_args[0]=='plane')) and (surface_args[1]=='disk minor axis'):
+    if (surface_args[0]=='frustum') and (surface_args[1]=='disk minor axis'):
         ds, refine_box, refine_box_center, refine_width = load(snap_name, track, use_halo_c_v=True, \
           halo_c_v_name=halo_c_v_name, disk_relative=True)
     else:
@@ -2299,37 +2286,6 @@ if __name__ == "__main__":
         else:
             print('Frustum arguments: axis - %s inner_radius - %.3f outer_radius - %.3f num_radius - %d opening_angle - %d' % \
               (axis, surface_args[3], surface_args[4], surface_args[5], surface_args[6]))
-    elif (surface_args[0]=='plane'):
-        if (surface_args[1]==1):
-            axis = 'x'
-            flip = False
-        elif (surface_args[1]==2):
-            axis = 'y'
-            flip = False
-        elif (surface_args[1]==3):
-            axis = 'z'
-            flip = False
-        elif (surface_args[1]==4):
-            axis = 'disk minor axis'
-            flip = False
-        elif (surface_args[1]==-1):
-            axis = 'x'
-            flip = True
-        elif (surface_args[1]==-2):
-            axis = 'y'
-            flip = True
-        elif (surface_args[1]==-3):
-            axis = 'z'
-            flip = True
-        elif (surface_args[1]==-4):
-            axis = 'disk minor axis'
-            flip = True
-        else: sys.exit("I don't understand what axis you want.")
-        surface_args = [surface_args[0], axis, flip, surface_args[2], surface_args[3]]
-        if (flip):
-            print('Plane arguments: axis - flipped %s cen_dist - %.3f width - %.3f' % (axis, surface_args[2], surface_args[3]))
-        else:
-            print('Plane arguments: axis - %s cen_dist - %.3f width - %.3f' % (axis, surface_args[2], surface_args[3]))
     else:
         sys.exit("That surface has not been implemented. Ask Cassi to add it.")
 
