@@ -201,10 +201,10 @@ if __name__ == '__main__':
 
         ds_loc = run_dir + args.output + "/" + args.output
         ds = yt.load(ds_loc)
-        yt.add_particle_filter("stars",function=yt_fields._stars, filtered_type='all',requires=["particle_type"])
-        yt.add_particle_filter("dm",function=yt_fields._dm, filtered_type='all',requires=["particle_type"])
-        ds.add_particle_filter('stars')
-        ds.add_particle_filter('dm')
+        #yt.add_particle_filter("stars",function=yt_fields._stars, filtered_type='all',requires=["particle_type"])
+        #yt.add_particle_filter("dm",function=yt_fields._dm, filtered_type='all',requires=["particle_type"])
+        #ds.add_particle_filter('stars')
+        #ds.add_particle_filter('dm')
 
         track = Table.read(trackname, format='ascii')
         track.sort('col1')
