@@ -2,7 +2,8 @@ This document describes the different file types that can be found in the halo_i
 and how to use them.
 
 
-The halo_infos folder is first broken into subfolders by halo ID, then by run type.
+The halo_infos folder is first broken into subfolders by halo ID, then by run type. For example, the
+halo ID for Tempest is 008508, and the run type could be nref11c_nref9f.
 
 
 halo_c_v

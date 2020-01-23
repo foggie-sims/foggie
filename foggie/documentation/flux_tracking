@@ -9,16 +9,17 @@ fluxes to a file in hdf5 format.
 
 Requires:
 ---------
-There must exist an entry in /halo_infos/haloid/runid/satellites.hdf5 for the snapshot you are
+There must exist an entry in /halo_infos/haloID/runID/satellites.hdf5 for the snapshot you are
 running flux_tracking.py on, and there must exist an entry in the same file for the snapshot
-immediately following the snapshot you are running flux_tracking.py on. For example, if you would
-like to run flux_tracking.py on DD1920, there must be an entry in the satellites.hdf5 file for
-both DD1920 and DD1921.
+immediately following the snapshot you are running flux_tracking.py on. ('haloID' is '008508' for Tempest,
+for example, and 'runID' is 'nref11c_nref9f', for example.) For example, if you would
+like to run flux_tracking.py on DD1920 of Tempest run nref11c_nref9f, there must be an entry in
+/halo_infos/8508/nref11c_nref9f/satellites.hdf5 file for both DD1920 and DD1921.
 
-There must exist an entry in /halo_infos/haloid/runid/masses.hdf5 for the snapshot you are running
+There must exist an entry in /halo_infos/haloID/runID/masses.hdf5 for the snapshot you are running
 flux_tracking.py on.
 
-There must exist an entry in /halo_infos/haloid/runid/halo_c_v for the snapshot you are running
+There must exist an entry in /halo_infos/haloID/runID/halo_c_v for the snapshot you are running
 flux_tracking.py on, and for the snapshot immediately following the snapshot you are running
 flux_tracking.py on.
 
@@ -26,6 +27,13 @@ If there are not entries in the above files for the snapshot you are running flu
 or if the above files do not exist for the halo and run you are running flux_tracking.py on, you
 must first add them. See the documentation for get_satellite_positions.py, get_mass_profile.py, and
 get_halo_c_v_parallel.py to do so.
+
+If running from pleiades, the code will run in less than a tenth the length of time if you write
+your script to first copy the output files for whatever snapshot you're running it on to the /tmp
+folder of the node it's running on. This is automatically built into the code for running with
+system = pleiades_cassi, so it is very easy to add this functionality if you'd like it for your
+system too. Ask Cassi to add it, or search for 'if (system=='pleiades_cassi')' in the code and add
+it yourself.
 
 
 User inputs:
@@ -97,6 +105,20 @@ output_path/fluxes_halo_008508/nref11c_nref9f/DD1236_fluxes_sphere_sat.hdf5
 The file with _nosat appended contains the fluxes with satellites excised from the domain. The file
 with _sat appended gives the fluxes into/out of those excised satellites.
 
+To read in the table in python, do:
+    from astropy.table import Table
+    fluxes_table = Table.read('DD1236_fluxes_nosat.hdf5', path='all_data')
+Then to get each column of the table, index it with the name of the column, e.g.
+    fluxes_table['radius']
+    fluxes_table['net_mass_flux']
+So now you can easily plot things vs. radius, e.g.
+    import matplotlib.pyplot as plt
+    plt.plot(fluxes_table['radius'], fluxes_table['net_mass_flux'])
+You can get a full list of all column names in the file by doing:
+    print(fluxes_table.columns)
+And you can find the units for a column (example here is radius) by doing:
+    print(fluxes_table['radius'].unit)
+
 Each file has a ridiculous number of columns. The first few columns are information about the snapshot
 and where the flux was calculated, for the _nosat file, they are "redshift" and "radius", which tells
 you the redshift of the snapshot and the radius of the sphere where the fluxes are calculated.
@@ -147,6 +169,6 @@ and an outer_radius to specify a shell of some volume. However, the radiative_en
 be found in the _nosat file, where only "radius" is specified. What this means is that the
 radiative_energy_flux listed for a given "radius" is *actually* the radiative energy lost *between*
 that radius and the next one. This means that the radiative_energy_flux column should be shorter
-than the others by 1, but to keep the columns the same length, I just put a value of zero for the final
-entry in this column. Because _sat and _edges_frustum (if frustum is chosen) are both also
+than the others by 1, but to keep the columns the same length, it just repeats the second-to-last
+entry as the last entry. Because _sat and _edges_frustum (if frustum is chosen) are both also
 volumetric, columns in these two tables are shorter by 1 than the _nosat file.
