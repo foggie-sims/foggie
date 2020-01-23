@@ -1370,7 +1370,7 @@ if __name__ == "__main__":
       path='all_data')
 
     # Specify where satellite files are saved
-    sat_dir = output_dir + 'satellites_halo_00' + args.halo + '/' + args.run + '/'
+    sat_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
 
     # Loop over outputs, for either single-processor or parallel processor computing
     if (args.nproc==1):
