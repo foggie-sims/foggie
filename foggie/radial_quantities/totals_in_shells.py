@@ -731,7 +731,7 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
 
     # Cut data to remove anything within satellites and to things that cross into and out of satellites
     print('Cutting data to remove satellites')
-    sat_radius = 5.         # kpc
+    sat_radius = 10.         # kpc
     sat_radius_sq = sat_radius**2.
     # An attempt to remove satellites faster:
     # Holy cow this is so much faster, do it this way
@@ -1029,7 +1029,7 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
     # Cut data to remove anything within satellites and to things that cross into and out of satellites
     # Restrict to only things that start or end within the frustum
     print('Cutting data to remove satellites')
-    sat_radius = 5.         # kpc
+    sat_radius = 10.         # kpc
     sat_radius_sq = sat_radius**2.
     # An attempt to remove satellites faster:
     # Holy cow this is so much faster, do it this way
