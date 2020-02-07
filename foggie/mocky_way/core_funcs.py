@@ -740,7 +740,7 @@ def ray_info_at_l_b(ds, ds_paras, los_l_deg, los_b_deg,
     """
 
     # from mocky_way_modules import calc_ray_end
-    from foggie.mocky_way.core_func import calc_ray_end
+    from foggie.mocky_way.core_funcs import calc_ray_end
     ray_length = ds.quan(ray_length_kpc, "kpc").in_units("code_length")
     los_ray_end, los_unit_vec = calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
                                              los_ray_start, ray_length_kpc)
@@ -961,3 +961,41 @@ def weighted_avg_and_std(values, weights):
     # Fast and numerically precise:
     variance = np.average((values-average)**2, weights=weights)
     return (average, math.sqrt(variance))
+
+def get_line_info(line):
+    if line == 'SiIV1394':
+        lines = ['Si IV 1394']
+        lab_lambda = 1393.7550
+        ion_field = 'Si_p3_number_density'
+
+    elif line == 'SiIV1403':
+        lines = ['Si IV 1403']
+        lab_lambda = 1402.7700
+        ion_field = 'Si_p3_number_density'
+
+    elif line == 'CIV1548':
+        lines = ['C IV 1548']
+        lab_lambda = 1548.2049  # 1550.7785
+        ion_field = "C_p3_number_density"
+
+    elif line == 'CIV1550':
+        lines = ['C IV 1550']
+        lab_lambda = 1550.7785
+        ion_field = "C_p3_number_density"
+
+    elif line == 'OVI1302':
+        lines = ['O VI 1032']
+        lab_lambda = 1031.9261
+        ion_field = "O_p5_number_density"
+
+    elif line == 'SiII1527':
+        lines = ['Si II 1527']
+        lab_lambda = 1526.7066
+        ion_field = "Si_p1_number_density"
+
+    else:
+        print("Do not recognize this line, please check name or update get_line_info.py")
+        sys.exit(1)
+
+    print("Reading line: ", lines[0])
+    return lines, lab_lambda, ion_field
