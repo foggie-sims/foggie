@@ -171,6 +171,11 @@ def set_table_units(table):
              'net_cool_entropy_flux':'cm**2*keV/yr', 'cool_entropy_flux_in':'cm**2*keV/yr', 'cool_entropy_flux_out':'cm**2*keV/yr', \
              'net_warm_entropy_flux':'cm**2*keV/yr', 'warm_entropy_flux_in':'cm**2*keV/yr', 'warm_entropy_flux_out':'cm**2*keV/yr', \
              'net_hot_entropy_flux':'cm**2*keV/yr', 'hot_entropy_flux_in':'cm**2*keV/yr', 'hot_entropy_flux_out':'cm**2*keV/yr', \
+             'net_O_flux':'Msun/yr', 'O_flux_in':'Msun/yr', 'O_flux_out':'Msun/yr', \
+             'net_cold_O_flux':'Msun/yr', 'cold_O_flux_in':'Msun/yr', 'cold_O_flux_out':'Msun/yr', \
+             'net_cool_O_flux':'Msun/yr', 'cool_O_flux_in':'Msun/yr', 'cool_O_flux_out':'Msun/yr', \
+             'net_warm_O_flux':'Msun/yr', 'warm_O_flux_in':'Msun/yr', 'warm_O_flux_out':'Msun/yr', \
+             'net_hot_O_flux':'Msun/yr', 'hot_O_flux_in':'Msun/yr', 'hot_O_flux_out':'Msun/yr', \
              'net_OI_flux':'Msun/yr', 'OI_flux_in':'Msun/yr', 'OI_flux_out':'Msun/yr', \
              'net_cold_OI_flux':'Msun/yr', 'cold_OI_flux_in':'Msun/yr', 'cold_OI_flux_out':'Msun/yr', \
              'net_cool_OI_flux':'Msun/yr', 'cool_OI_flux_in':'Msun/yr', 'cool_OI_flux_out':'Msun/yr', \
@@ -324,7 +329,12 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             names_list_sat += new_names
             types_list_sat += new_types
     if ('O_ion_mass' in flux_types):
-        new_names = ('net_OI_flux', 'OI_flux_in', 'OI_flux_out', \
+        new_names = ('net_O_flux', 'O_flux_in', 'O_flux_out', \
+        'net_cold_O_flux', 'cold_O_flux_in', 'cold_O_flux_out', \
+        'net_cool_O_flux', 'cool_O_flux_in', 'cool_O_flux_out', \
+        'net_warm_O_flux', 'warm_O_flux_in', 'warm_O_flux_out', \
+        'net_hot_O_flux', 'hot_O_flux_in', 'hot_O_flux_out', \
+        'net_OI_flux', 'OI_flux_in', 'OI_flux_out', \
         'net_cold_OI_flux', 'cold_OI_flux_in', 'cold_OI_flux_out', \
         'net_cool_OI_flux', 'cool_OI_flux_in', 'cool_OI_flux_out', \
         'net_warm_OI_flux', 'warm_OI_flux_in', 'warm_OI_flux_out', \
@@ -415,14 +425,13 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
-        thermal_energy = sphere['gas','thermal_energy'].in_units('erg/g').v
+        thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
         potential_energy = (sphere['gas','cell_mass'] * \
           ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
         cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
     if ('O_ion_mass' in flux_types):
-        abundances = trident.ion_balance.solar_abundance
         trident.add_ion_fields(ds, ions='all', ftype='gas')
         OI_frac = sphere['O_p0_ion_fraction'].v
         OII_frac = sphere['O_p1_ion_fraction'].v
@@ -444,6 +453,53 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         OVII_mass = sphere['O_p6_mass'].in_units('Msun').v/renorm
         OVIII_mass = sphere['O_p7_mass'].in_units('Msun').v/renorm
         OIX_mass = sphere['O_p8_mass'].in_units('Msun').v/renorm
+        O_mass = OI_mass + OII_mass + OIII_mass + OIV_mass + OV_mass + OVI_mass + OVII_mass + OVIII_mass + OIX_mass
+
+    '''sphere = Table.read('/Users/clochhaas/Documents/Research/FOGGIE/Outputs/fields_halo_008508/nref11c_nref9f/DD1201_fields.hdf5', path='all_data')
+    radius = sphere['radius_corrected']
+    x = sphere['x']
+    y = sphere['y']
+    z = sphere['z']
+    vx = sphere['vx_corrected']
+    vy = sphere['vy_corrected']
+    vz = sphere['vz_corrected']
+    rad_vel = sphere['radial_velocity_corrected']
+    new_x = x + vx*dt*(100./cmtopc*stoyr)
+    new_y = y + vy*dt*(100./cmtopc*stoyr)
+    new_z = z + vz*dt*(100./cmtopc*stoyr)
+    new_radius = np.sqrt(new_x**2. + new_y**2. + new_z**2.)
+    temperature = sphere['temperature']
+    if ('mass' in flux_types):
+        mass = sphere['cell_mass']
+        metal_mass = sphere['metal_mass']
+    if ('energy' in flux_types):
+        kinetic_energy = sphere['kinetic_energy_corrected']
+        thermal_energy = sphere['thermal_energy']
+        potential_energy = sphere['Grav_Potential']
+        cooling_time = sphere['cooling_time']
+    if ('entropy' in flux_types):
+        entropy = sphere['entropy']
+    if ('O_ion_mass' in flux_types):
+        OI_frac = sphere['O_p0_ion_fraction']
+        OII_frac = sphere['O_p1_ion_fraction']
+        OIII_frac = sphere['O_p2_ion_fraction']
+        OIV_frac = sphere['O_p3_ion_fraction']
+        OV_frac = sphere['O_p4_ion_fraction']
+        OVI_frac = sphere['O_p5_ion_fraction']
+        OVII_frac = sphere['O_p6_ion_fraction']
+        OVIII_frac = sphere['O_p7_ion_fraction']
+        OIX_frac = sphere['O_p8_ion_fraction']
+        renorm = OI_frac + OII_frac + OIII_frac + OIV_frac + OV_frac + \
+          OVI_frac + OVII_frac + OVIII_frac + OIX_frac
+        OI_mass = sphere['O_p0_mass']/renorm
+        OII_mass = sphere['O_p1_mass']/renorm
+        OIII_mass = sphere['O_p2_mass']/renorm
+        OIV_mass = sphere['O_p3_mass']/renorm
+        OV_mass = sphere['O_p4_mass']/renorm
+        OVI_mass = sphere['O_p5_mass']/renorm
+        OVII_mass = sphere['O_p6_mass']/renorm
+        OVIII_mass = sphere['O_p7_mass']/renorm
+        OIX_mass = sphere['O_p8_mass']/renorm'''
 
     # Load list of satellite positions
     if (sat_radius!=0):
@@ -529,6 +585,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         if ('entropy' in flux_types):
             entropy_nosat = entropy[bool_nosat]
         if ('O_ion_mass' in flux_types):
+            O_mass_nosat = O_mass[bool_nosat]
             OI_mass_nosat = OI_mass[bool_nosat]
             OII_mass_nosat = OII_mass[bool_nosat]
             OIII_mass_nosat = OIII_mass[bool_nosat]
@@ -564,6 +621,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         if ('entropy' in flux_types):
             entropy_nosat = entropy
         if ('O_ion_mass' in flux_types):
+            O_mass_nosat = O_mass
             OI_mass_nosat = OI_mass
             OII_mass_nosat = OII_mass
             OIII_mass_nosat = OIII_mass
@@ -594,6 +652,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
     if ('entropy' in flux_types):
         entropy_nosat_Tcut = []
     if ('O_ion_mass' in flux_types):
+        O_mass_nosat_Tcut = []
         OI_mass_nosat_Tcut = []
         OII_mass_nosat_Tcut = []
         OIII_mass_nosat_Tcut = []
@@ -634,6 +693,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         if ('entropy' in flux_types):
             entropy_nosat_Tcut.append(entropy_nosat[bool_temp])
         if ('O_ion_mass' in flux_types):
+            O_mass_nosat_Tcut.append(O_mass_nosat[bool_temp])
             OI_mass_nosat_Tcut.append(OI_mass_nosat[bool_temp])
             OII_mass_nosat_Tcut.append(OII_mass_nosat[bool_temp])
             OIII_mass_nosat_Tcut.append(OIII_mass_nosat[bool_temp])
@@ -661,6 +721,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         if ('entropy' in flux_types):
             entropy_sat = []
         if ('O_ion_mass' in flux_types):
+            O_mass_sat = []
             OI_mass_sat = []
             OII_mass_sat = []
             OIII_mass_sat = []
@@ -685,6 +746,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                 if ('entropy' in flux_types):
                     entropy_sat.append(entropy[bool_fromsat])
                 if ('O_ion_mass' in flux_types):
+                    O_mass_sat.append(O_mass[bool_fromsat])
                     OI_mass_sat.append(OI_mass[bool_fromsat])
                     OII_mass_sat.append(OII_mass[bool_fromsat])
                     OIII_mass_sat.append(OIII_mass[bool_fromsat])
@@ -708,6 +770,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                 if ('entropy' in flux_types):
                     entropy_sat.append(entropy[bool_tosat])
                 if ('O_ion_mass' in flux_types):
+                    O_mass_sat.append(O_mass[bool_tosat])
                     OI_mass_sat.append(OI_mass[bool_tosat])
                     OII_mass_sat.append(OII_mass[bool_tosat])
                     OIII_mass_sat.append(OIII_mass[bool_tosat])
@@ -734,6 +797,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         if ('entropy' in flux_types):
             entropy_sat_Tcut = []
         if ('O_ion_mass' in flux_types):
+            O_mass_sat_Tcut = []
             OI_mass_sat_Tcut = []
             OII_mass_sat_Tcut = []
             OIII_mass_sat_Tcut = []
@@ -756,6 +820,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             if ('entropy' in flux_types):
                 entropy_sat_Tcut.append([])
             if ('O_ion_mass' in flux_types):
+                O_mass_sat_Tcut.append([])
                 OI_mass_sat_Tcut.append([])
                 OII_mass_sat_Tcut.append([])
                 OIII_mass_sat_Tcut.append([])
@@ -794,6 +859,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                 if ('entropy' in flux_types):
                     entropy_sat_Tcut[i].append(entropy_sat[i][bool_temp])
                 if ('O_ion_mass' in flux_types):
+                    O_mass_sat_Tcut[i].append(O_mass_sat[i][bool_temp])
                     OI_mass_sat_Tcut[i].append(OI_mass_sat[i][bool_temp])
                     OII_mass_sat_Tcut[i].append(OII_mass_sat[i][bool_temp])
                     OIII_mass_sat_Tcut[i].append(OIII_mass_sat[i][bool_temp])
@@ -825,6 +891,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         if ('entropy' in flux_types):
             entropy_flux_nosat = []
         if ('O_ion_mass' in flux_types):
+            O_flux_nosat = []
             OI_flux_nosat = []
             OII_flux_nosat = []
             OIII_flux_nosat = []
@@ -845,6 +912,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             if ('entropy' in flux_types):
                 entropy_flux_nosat.append([])
             if ('O_ion_mass' in flux_types):
+                O_flux_nosat.append([])
                 OI_flux_nosat.append([])
                 OII_flux_nosat.append([])
                 OIII_flux_nosat.append([])
@@ -874,6 +942,8 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                         entropy_flux_nosat[j].append((np.sum(entropy_nosat_Tcut[k][bool_out]) - \
                           np.sum(entropy_nosat_Tcut[k][bool_in]))/dt)
                     if ('O_ion_mass' in flux_types):
+                        O_flux_nosat[j].append((np.sum(O_mass_nosat_Tcut[k][bool_out]) - \
+                          np.sum(O_mass_nosat_Tcut[k][bool_in]))/dt)
                         OI_flux_nosat[j].append((np.sum(OI_mass_nosat_Tcut[k][bool_out]) - \
                           np.sum(OI_mass_nosat_Tcut[k][bool_in]))/dt)
                         OII_flux_nosat[j].append((np.sum(OII_mass_nosat_Tcut[k][bool_out]) - \
@@ -903,6 +973,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append(-np.sum(entropy_nosat_Tcut[k][bool_in])/dt)
                     if ('O_ion_mass' in flux_types):
+                        O_flux_nosat[j].append(-np.sum(O_mass_nosat_Tcut[k][bool_in])/dt)
                         OI_flux_nosat[j].append(-np.sum(OI_mass_nosat_Tcut[k][bool_in])/dt)
                         OII_flux_nosat[j].append(-np.sum(OII_mass_nosat_Tcut[k][bool_in])/dt)
                         OIII_flux_nosat[j].append(-np.sum(OIII_mass_nosat_Tcut[k][bool_in])/dt)
@@ -923,6 +994,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append(np.sum(entropy_nosat_Tcut[k][bool_out])/dt)
                     if ('O_ion_mass' in flux_types):
+                        O_flux_nosat[j].append(np.sum(O_mass_nosat_Tcut[k][bool_out])/dt)
                         OI_flux_nosat[j].append(np.sum(OI_mass_nosat_Tcut[k][bool_out])/dt)
                         OII_flux_nosat[j].append(np.sum(OII_mass_nosat_Tcut[k][bool_out])/dt)
                         OIII_flux_nosat[j].append(np.sum(OIII_mass_nosat_Tcut[k][bool_out])/dt)
@@ -949,6 +1021,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             if ('energy' in flux_types):
                 radiative_energy_flux_nosat = []
             if (sat_radius!=0) and ('O_ion_mass' in flux_types):
+                O_flux_sat = []
                 OI_flux_sat = []
                 OII_flux_sat = []
                 OIII_flux_sat = []
@@ -971,6 +1044,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                 if ('energy' in flux_types):
                     radiative_energy_flux_nosat.append([])
                 if (sat_radius!=0) and ('O_ion_mass' in flux_types):
+                    O_flux_sat.append([])
                     OI_flux_sat.append([])
                     OII_flux_sat.append([])
                     OIII_flux_sat.append([])
@@ -1006,6 +1080,8 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                             radiative_energy_flux_nosat[j].append(np.sum(thermal_energy_nosat_Tcut[k][bool_shell] * \
                               mass_nosat_Tcut[k][bool_shell]*gtoMsun / cooling_time_nosat_Tcut[k][bool_shell]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
+                            O_flux_sat[j].append((np.sum(O_mass_sat_Tcut[0][k][bool_in]) - \
+                              np.sum(O_mass_sat_Tcut[1][k][bool_out]))/dt)
                             OI_flux_sat[j].append((np.sum(OI_mass_sat_Tcut[0][k][bool_in]) - \
                               np.sum(OI_mass_sat_Tcut[1][k][bool_out]))/dt)
                             OII_flux_sat[j].append((np.sum(OII_mass_sat_Tcut[0][k][bool_in]) - \
@@ -1040,6 +1116,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                               mass_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]<0.)]*gtoMsun / \
                               cooling_time_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]<0.)]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
+                            O_flux_sat[j].append(np.sum(O_mass_sat_Tcut[0][k][bool_in])/dt)
                             OI_flux_sat[j].append(np.sum(OI_mass_sat_Tcut[0][k][bool_in])/dt)
                             OII_flux_sat[j].append(np.sum(OII_mass_sat_Tcut[0][k][bool_in])/dt)
                             OIII_flux_sat[j].append(np.sum(OIII_mass_sat_Tcut[0][k][bool_in])/dt)
@@ -1065,6 +1142,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                               mass_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]>0.)]*gtoMsun / \
                               cooling_time_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]>0.)]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
+                            O_flux_sat[j].append(-np.sum(O_mass_sat_Tcut[1][k][bool_out])/dt)
                             OI_flux_sat[j].append(-np.sum(OI_mass_sat_Tcut[1][k][bool_out])/dt)
                             OII_flux_sat[j].append(-np.sum(OII_mass_sat_Tcut[1][k][bool_out])/dt)
                             OIII_flux_sat[j].append(-np.sum(OIII_mass_sat_Tcut[1][k][bool_out])/dt)
@@ -1118,7 +1196,12 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                         entropy_flux_nosat[0][3], entropy_flux_nosat[1][3], entropy_flux_nosat[2][3], \
                         entropy_flux_nosat[0][4], entropy_flux_nosat[1][4], entropy_flux_nosat[2][4]]
         if ('O_ion_mass' in flux_types):
-            new_row += [OI_flux_nosat[0][0], OI_flux_nosat[1][0], OI_flux_nosat[2][0], \
+            new_row += [O_flux_nosat[0][0], O_flux_nosat[1][0], O_flux_nosat[2][0], \
+            O_flux_nosat[0][1], O_flux_nosat[1][1], O_flux_nosat[2][1], \
+            O_flux_nosat[0][2], O_flux_nosat[1][2], O_flux_nosat[2][2], \
+            O_flux_nosat[0][3], O_flux_nosat[1][3], O_flux_nosat[2][3], \
+            O_flux_nosat[0][4], O_flux_nosat[1][4], O_flux_nosat[2][4], \
+            OI_flux_nosat[0][0], OI_flux_nosat[1][0], OI_flux_nosat[2][0], \
             OI_flux_nosat[0][1], OI_flux_nosat[1][1], OI_flux_nosat[2][1], \
             OI_flux_nosat[0][2], OI_flux_nosat[1][2], OI_flux_nosat[2][2], \
             OI_flux_nosat[0][3], OI_flux_nosat[1][3], OI_flux_nosat[2][3], \
@@ -1202,7 +1285,12 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                 entropy_flux_sat[0][3], entropy_flux_sat[1][3], entropy_flux_sat[2][3], \
                 entropy_flux_sat[0][4], entropy_flux_sat[1][4], entropy_flux_sat[2][4]]
             if ('O_ion_mass' in flux_types):
-                new_row += [OI_flux_sat[0][0], OI_flux_sat[1][0], OI_flux_sat[2][0], \
+                new_row += [O_flux_sat[0][0], O_flux_sat[1][0], O_flux_sat[2][0], \
+                O_flux_sat[0][1], O_flux_sat[1][1], O_flux_sat[2][1], \
+                O_flux_sat[0][2], O_flux_sat[1][2], O_flux_sat[2][2], \
+                O_flux_sat[0][3], O_flux_sat[1][3], O_flux_sat[2][3], \
+                O_flux_sat[0][4], O_flux_sat[1][4], O_flux_sat[2][4], \
+                OI_flux_sat[0][0], OI_flux_sat[1][0], OI_flux_sat[2][0], \
                 OI_flux_sat[0][1], OI_flux_sat[1][1], OI_flux_sat[2][1], \
                 OI_flux_sat[0][2], OI_flux_sat[1][2], OI_flux_sat[2][2], \
                 OI_flux_sat[0][3], OI_flux_sat[1][3], OI_flux_sat[2][3], \
@@ -1253,12 +1341,22 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
     if (sat_radius!=0):
         fluxes_sat = set_table_units(fluxes_sat)
 
+    fluxtype_filename = ''
+    if ('mass' in flux_types):
+        fluxtype_filename += '_mass'
+    if ('energy' in flux_types):
+        fluxtype_filename += '_energy'
+    if ('entropy' in flux_types):
+        fluxtype_filename += '_entropy'
+    if ('O_ion_mass' in flux_types):
+        fluxtype_filename += '_Oions'
+
     # Save to file
     if (sat_radius!=0):
-        fluxes.write(tablename + '_nosat_sphere.hdf5', path='all_data', serialize_meta=True, overwrite=True)
-        fluxes_sat.write(tablename + '_sat_sphere.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        fluxes.write(tablename + '_nosat_sphere' + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        fluxes_sat.write(tablename + '_sat_sphere' + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
     else:
-        fluxes.write(tablename + '_sphere.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        fluxes.write(tablename + '_sphere' + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     return "Fluxes have been calculated for snapshot " + snap + "!"
 
@@ -1364,7 +1462,12 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         type_list_rad += new_types
         type_list_edge += new_types
     if ('O_ion_mass' in flux_types):
-        new_names = ('net_OI_flux', 'OI_flux_in', 'OI_flux_out', \
+        new_names = ('net_O_flux', 'O_flux_in', 'O_flux_out', \
+        'net_cold_O_flux', 'cold_O_flux_in', 'cold_O_flux_out', \
+        'net_cool_O_flux', 'cool_O_flux_in', 'cool_O_flux_out', \
+        'net_warm_O_flux', 'warm_O_flux_in', 'warm_O_flux_out', \
+        'net_hot_O_flux', 'hot_O_flux_in', 'hot_O_flux_out', \
+        'net_OI_flux', 'OI_flux_in', 'OI_flux_out', \
         'net_cold_OI_flux', 'cold_OI_flux_in', 'cold_OI_flux_out', \
         'net_cool_OI_flux', 'cool_OI_flux_in', 'cool_OI_flux_out', \
         'net_warm_OI_flux', 'warm_OI_flux_in', 'warm_OI_flux_out', \
@@ -1455,14 +1558,13 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
-        thermal_energy = sphere['gas','thermal_energy'].in_units('erg/g').v
+        thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
         potential_energy = (sphere['gas','cell_mass'] * \
           ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
         cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
     if ('O_ion_mass' in flux_types):
-        abundances = trident.ion_balance.solar_abundance
         trident.add_ion_fields(ds, ions='all', ftype='gas')
         OI_frac = sphere['O_p0_ion_fraction'].v
         OII_frac = sphere['O_p1_ion_fraction'].v
@@ -1484,6 +1586,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         OVII_mass = sphere['O_p6_mass'].in_units('Msun').v/renorm
         OVIII_mass = sphere['O_p7_mass'].in_units('Msun').v/renorm
         OIX_mass = sphere['O_p8_mass'].in_units('Msun').v/renorm
+        O_mass = OI_mass + OII_mass + OIII_mass + OIV_mass + OV_mass + OVI_mass + OVII_mass + OVIII_mass + OIX_mass
 
     # Cut data to only the frustum considered here, stuff that leaves through edges of frustum,
     # and stuff that comes in through edges of frustum
@@ -1603,6 +1706,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         if ('entropy' in flux_types):
             entropy_nosat = entropy[bool_nosat]
         if ('O_ion_mass' in flux_types):
+            O_mass_nosat = O_mass[bool_nosat]
             OI_mass_nosat = OI_mass[bool_nosat]
             OII_mass_nosat = OII_mass[bool_nosat]
             OIII_mass_nosat = OIII_mass[bool_nosat]
@@ -1631,6 +1735,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         if ('entropy' in flux_types):
             entropy_nosat = entropy
         if ('O_ion_mass' in flux_types):
+            O_mass_nosat = O_mass
             OI_mass_nosat = OI_mass
             OII_mass_nosat = OII_mass
             OIII_mass_nosat = OIII_mass
@@ -1662,6 +1767,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
     if ('entropy' in flux_types):
         entropy_nosat_frus = []
     if ('O_ion_mass' in flux_types):
+        O_mass_nosat_frus = []
         OI_mass_nosat_frus = []
         OII_mass_nosat_frus = []
         OIII_mass_nosat_frus = []
@@ -1688,6 +1794,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             if ('entropy' in flux_types):
                 entropy_nosat_frus.append(entropy_nosat[bool_frus])
             if ('O_ion_mass' in flux_types):
+                O_mass_nosat_frus.append(O_mass_nosat[bool_frus])
                 OI_mass_nosat_frus.append(OI_mass_nosat[bool_frus])
                 OII_mass_nosat_frus.append(OII_mass_nosat[bool_frus])
                 OIII_mass_nosat_frus.append(OIII_mass_nosat[bool_frus])
@@ -1713,6 +1820,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             if ('entropy' in flux_types):
                 entropy_nosat_frus.append(entropy_nosat[bool_infrus])
             if ('O_ion_mass' in flux_types):
+                O_mass_nosat_frus.append(O_mass_nosat[bool_infrus])
                 OI_mass_nosat_frus.append(OI_mass_nosat[bool_infrus])
                 OII_mass_nosat_frus.append(OII_mass_nosat[bool_infrus])
                 OIII_mass_nosat_frus.append(OIII_mass_nosat[bool_infrus])
@@ -1738,6 +1846,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             if ('entropy' in flux_types):
                 entropy_nosat_frus.append(entropy_nosat[bool_outfrus])
             if ('O_ion_mass' in flux_types):
+                O_mass_nosat_frus.append(O_mass_nosat[bool_outfrus])
                 OI_mass_nosat_frus.append(OI_mass_nosat[bool_outfrus])
                 OII_mass_nosat_frus.append(OII_mass_nosat[bool_outfrus])
                 OIII_mass_nosat_frus.append(OIII_mass_nosat[bool_outfrus])
@@ -1770,6 +1879,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
     if ('entropy' in flux_types):
         entropy_nosat_frus_Tcut = []
     if ('O_ion_mass' in flux_types):
+        O_mass_nosat_frus_Tcut = []
         OI_mass_nosat_frus_Tcut = []
         OII_mass_nosat_frus_Tcut = []
         OIII_mass_nosat_frus_Tcut = []
@@ -1794,6 +1904,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         if ('entropy' in flux_types):
             entropy_nosat_frus_Tcut.append([])
         if ('O_ion_mass' in flux_types):
+            O_mass_nosat_frus_Tcut.append([])
             OI_mass_nosat_frus_Tcut.append([])
             OII_mass_nosat_frus_Tcut.append([])
             OIII_mass_nosat_frus_Tcut.append([])
@@ -1834,6 +1945,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             if ('entropy' in flux_types):
                 entropy_nosat_frus_Tcut[i].append(entropy_nosat_frus[i][bool_temp_nosat_frus])
             if ('O_ion_mass' in flux_types):
+                O_mass_nosat_frus_Tcut[i].append(O_mass_nosat_frus[i][bool_temp_nosat_frus])
                 OI_mass_nosat_frus_Tcut[i].append(OI_mass_nosat_frus[i][bool_temp_nosat_frus])
                 OII_mass_nosat_frus_Tcut[i].append(OII_mass_nosat_frus[i][bool_temp_nosat_frus])
                 OIII_mass_nosat_frus_Tcut[i].append(OIII_mass_nosat_frus[i][bool_temp_nosat_frus])
@@ -1861,6 +1973,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         if ('entropy' in flux_types):
             entropy_sat = []
         if ('O_ion_mass' in flux_types):
+            O_mass_sat = []
             OI_mass_sat = []
             OII_mass_sat = []
             OIII_mass_sat = []
@@ -1885,6 +1998,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 if ('entropy' in flux_types):
                     entropy_sat.append(entropy[bool_fromsat])
                 if ('O_ion_mass' in flux_types):
+                    O_mass_sat.append(O_mass[bool_fromsat])
                     OI_mass_sat.append(OI_mass[bool_fromsat])
                     OII_mass_sat.append(OII_mass[bool_fromsat])
                     OIII_mass_sat.append(OIII_mass[bool_fromsat])
@@ -1908,6 +2022,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 if ('entropy' in flux_types):
                     entropy_sat.append(entropy[bool_tosat])
                 if ('O_ion_mass' in flux_types):
+                    O_mass_sat.append(O_mass[bool_tosat])
                     OI_mass_sat.append(OI_mass[bool_tosat])
                     OII_mass_sat.append(OII_mass[bool_tosat])
                     OIII_mass_sat.append(OIII_mass[bool_tosat])
@@ -1934,6 +2049,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         if ('entropy' in flux_types):
             entropy_sat_Tcut = []
         if ('O_ion_mass' in flux_types):
+            O_mass_sat_Tcut = []
             OI_mass_sat_Tcut = []
             OII_mass_sat_Tcut = []
             OIII_mass_sat_Tcut = []
@@ -1956,6 +2072,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             if ('entropy' in flux_types):
                 entropy_sat_Tcut.append([])
             if ('O_ion_mass' in flux_types):
+                O_mass_sat_Tcut.append([])
                 OI_mass_sat_Tcut.append([])
                 OII_mass_sat_Tcut.append([])
                 OIII_mass_sat_Tcut.append([])
@@ -1994,6 +2111,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 if ('entropy' in flux_types):
                     entropy_sat_Tcut[i].append(entropy_sat[i][bool_temp_sat])
                 if ('O_ion_mass' in flux_types):
+                    O_mass_sat_Tcut[i].append(O_mass_sat[i][bool_temp_sat])
                     OI_mass_sat_Tcut[i].append(OI_mass_sat[i][bool_temp_sat])
                     OII_mass_sat_Tcut[i].append(OII_mass_sat[i][bool_temp_sat])
                     OIII_mass_sat_Tcut[i].append(OIII_mass_sat[i][bool_temp_sat])
@@ -2025,6 +2143,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         if ('entropy' in flux_types):
             entropy_flux_nosat = []
         if ('O_ion_mass' in flux_types):
+            O_flux_nosat = []
             OI_flux_nosat = []
             OII_flux_nosat = []
             OIII_flux_nosat = []
@@ -2045,6 +2164,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             if ('entropy' in flux_types):
                 entropy_flux_nosat.append([])
             if ('O_ion_mass' in flux_types):
+                O_flux_nosat.append([])
                 OI_flux_nosat.append([])
                 OII_flux_nosat.append([])
                 OIII_flux_nosat.append([])
@@ -2074,6 +2194,8 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                         entropy_flux_nosat[j].append((np.sum(entropy_nosat_frus_Tcut[0][k][bool_out_r]) - \
                           np.sum(entropy_nosat_frus_Tcut[0][k][bool_in_r]))/dt)
                     if ('O_ion_mass' in flux_types):
+                        O_flux_nosat[j].append((np.sum(O_mass_nosat_frus_Tcut[0][k][bool_out_r]) - \
+                          np.sum(O_mass_nosat_frus_Tcut[0][k][bool_in_r]))/dt)
                         OI_flux_nosat[j].append((np.sum(OI_mass_nosat_frus_Tcut[0][k][bool_out_r]) - \
                           np.sum(OI_mass_nosat_frus_Tcut[0][k][bool_in_r]))/dt)
                         OII_flux_nosat[j].append((np.sum(OII_mass_nosat_frus_Tcut[0][k][bool_out_r]) - \
@@ -2103,6 +2225,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append(-np.sum(entropy_nosat_frus_Tcut[0][k][bool_in_r])/dt)
                     if ('O_ion_mass' in flux_types):
+                        O_flux_nosat[j].append(-np.sum(O_mass_nosat_frus_Tcut[0][k][bool_in_r])/dt)
                         OI_flux_nosat[j].append(-np.sum(OI_mass_nosat_frus_Tcut[0][k][bool_in_r])/dt)
                         OII_flux_nosat[j].append(-np.sum(OII_mass_nosat_frus_Tcut[0][k][bool_in_r])/dt)
                         OIII_flux_nosat[j].append(-np.sum(OIII_mass_nosat_frus_Tcut[0][k][bool_in_r])/dt)
@@ -2123,6 +2246,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append(np.sum(entropy_nosat_frus_Tcut[0][k][bool_out_r])/dt)
                     if ('O_ion_mass' in flux_types):
+                        O_flux_nosat[j].append(np.sum(O_mass_nosat_frus_Tcut[0][k][bool_out_r])/dt)
                         OI_flux_nosat[j].append(np.sum(OI_mass_nosat_frus_Tcut[0][k][bool_out_r])/dt)
                         OII_flux_nosat[j].append(np.sum(OII_mass_nosat_frus_Tcut[0][k][bool_out_r])/dt)
                         OIII_flux_nosat[j].append(np.sum(OIII_mass_nosat_frus_Tcut[0][k][bool_out_r])/dt)
@@ -2149,6 +2273,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             if ('energy' in flux_types):
                 radiative_energy_flux_nosat = []
             if (sat_radius!=0) and ('O_ion_mass' in flux_types):
+                O_flux_sat = []
                 OI_flux_sat = []
                 OII_flux_sat = []
                 OIII_flux_sat = []
@@ -2171,6 +2296,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 if ('energy' in flux_types):
                     radiative_energy_flux_nosat.append([])
                 if (sat_radius!=0) and ('O_ion_mass' in flux_types):
+                    O_flux_sat.append([])
                     OI_flux_sat.append([])
                     OII_flux_sat.append([])
                     OIII_flux_sat.append([])
@@ -2206,6 +2332,8 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                             radiative_energy_flux_nosat[j].append(np.sum(thermal_energy_nosat_frus_Tcut[0][k][bool_r] * \
                               mass_nosat_frus_Tcut[0][k][bool_r]*gtoMsun /cooling_time_nosat_frus_Tcut[0][k][bool_r]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
+                            O_flux_sat[j].append((np.sum(O_mass_sat_Tcut[0][k][bool_from]) - \
+                              np.sum(O_mass_sat_Tcut[1][k][bool_to]))/dt)
                             OI_flux_sat[j].append((np.sum(OI_mass_sat_Tcut[0][k][bool_from]) - \
                               np.sum(OI_mass_sat_Tcut[1][k][bool_to]))/dt)
                             OII_flux_sat[j].append((np.sum(OII_mass_sat_Tcut[0][k][bool_from]) - \
@@ -2240,6 +2368,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                               mass_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]<0.)]*gtoMsun / \
                               cooling_time_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]<0.)]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
+                            O_flux_sat[j].append(np.sum(O_mass_sat_Tcut[0][k][bool_from])/dt)
                             OI_flux_sat[j].append(np.sum(OI_mass_sat_Tcut[0][k][bool_from])/dt)
                             OII_flux_sat[j].append(np.sum(OII_mass_sat_Tcut[0][k][bool_from])/dt)
                             OIII_flux_sat[j].append(np.sum(OIII_mass_sat_Tcut[0][k][bool_from])/dt)
@@ -2265,6 +2394,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                               mass_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]>0.)]*gtoMsun / \
                               cooling_time_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]>0.)]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
+                            O_flux_sat[j].append(-np.sum(O_mass_sat_Tcut[1][k][bool_to])/dt)
                             OI_flux_sat[j].append(-np.sum(OI_mass_sat_Tcut[1][k][bool_to])/dt)
                             OII_flux_sat[j].append(-np.sum(OII_mass_sat_Tcut[1][k][bool_to])/dt)
                             OIII_flux_sat[j].append(-np.sum(OIII_mass_sat_Tcut[1][k][bool_to])/dt)
@@ -2289,6 +2419,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             if ('entropy' in flux_types):
                 entropy_flux_edge = []
             if ('O_ion_mass' in flux_types):
+                O_flux_edge = []
                 OI_flux_edge = []
                 OII_flux_edge = []
                 OIII_flux_edge = []
@@ -2309,6 +2440,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 if ('entropy' in flux_types):
                     entropy_flux_edge.append([])
                 if ('O_ion_mass' in flux_types):
+                    O_flux_edge.append([])
                     OI_flux_edge.append([])
                     OII_flux_edge.append([])
                     OIII_flux_edge.append([])
@@ -2338,6 +2470,8 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                             entropy_flux_edge[j].append((np.sum(entropy_nosat_frus_Tcut[1][k][bool_in]) - \
                                                         np.sum(entropy_nosat_frus_Tcut[2][k][bool_out]))/dt)
                         if ('O_ion_mass' in flux_types):
+                            O_flux_edge[j].append((np.sum(O_mass_nosat_frus_Tcut[1][k][bool_in]) - \
+                              np.sum(O_mass_nosat_frus_Tcut[2][k][bool_out]))/dt)
                             OI_flux_edge[j].append((np.sum(OI_mass_nosat_frus_Tcut[1][k][bool_in]) - \
                               np.sum(OI_mass_nosat_frus_Tcut[2][k][bool_out]))/dt)
                             OII_flux_edge[j].append((np.sum(OII_mass_nosat_frus_Tcut[1][k][bool_in]) - \
@@ -2367,6 +2501,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                         if ('entropy' in flux_types):
                             entropy_flux_edge[j].append(np.sum(entropy_nosat_frus_Tcut[1][k][bool_in])/dt)
                         if ('O_ion_mass' in flux_types):
+                            O_flux_edge[j].append(np.sum(O_mass_nosat_frus_Tcut[1][k][bool_in])/dt)
                             OI_flux_edge[j].append(np.sum(OI_mass_nosat_frus_Tcut[1][k][bool_in])/dt)
                             OII_flux_edge[j].append(np.sum(OII_mass_nosat_frus_Tcut[1][k][bool_in])/dt)
                             OIII_flux_edge[j].append(np.sum(OIII_mass_nosat_frus_Tcut[1][k][bool_in])/dt)
@@ -2387,6 +2522,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                         if ('entropy' in flux_types):
                             entropy_flux_edge[j].append(-np.sum(entropy_nosat_frus_Tcut[2][k][bool_out])/dt)
                         if ('O_ion_mass' in flux_types):
+                            O_flux_edge[j].append(-np.sum(O_mass_nosat_frus_Tcut[2][k][bool_out])/dt)
                             OI_flux_edge[j].append(-np.sum(OI_mass_nosat_frus_Tcut[2][k][bool_out])/dt)
                             OII_flux_edge[j].append(-np.sum(OII_mass_nosat_frus_Tcut[2][k][bool_out])/dt)
                             OIII_flux_edge[j].append(-np.sum(OIII_mass_nosat_frus_Tcut[2][k][bool_out])/dt)
@@ -2473,7 +2609,12 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             entropy_flux_edge[0][3], entropy_flux_edge[1][3], entropy_flux_edge[2][3], \
             entropy_flux_edge[0][4], entropy_flux_edge[1][4], entropy_flux_edge[2][4]]
         if ('O_ion_mass' in flux_types):
-            new_row_rad += [OI_flux_nosat[0][0], OI_flux_nosat[1][0], OI_flux_nosat[2][0], \
+            new_row_rad += [O_flux_nosat[0][0], O_flux_nosat[1][0], O_flux_nosat[2][0], \
+            O_flux_nosat[0][1], O_flux_nosat[1][1], O_flux_nosat[2][1], \
+            O_flux_nosat[0][2], O_flux_nosat[1][2], O_flux_nosat[2][2], \
+            O_flux_nosat[0][3], O_flux_nosat[1][3], O_flux_nosat[2][3], \
+            O_flux_nosat[0][4], O_flux_nosat[1][4], O_flux_nosat[2][4], \
+            OI_flux_nosat[0][0], OI_flux_nosat[1][0], OI_flux_nosat[2][0], \
             OI_flux_nosat[0][1], OI_flux_nosat[1][1], OI_flux_nosat[2][1], \
             OI_flux_nosat[0][2], OI_flux_nosat[1][2], OI_flux_nosat[2][2], \
             OI_flux_nosat[0][3], OI_flux_nosat[1][3], OI_flux_nosat[2][3], \
@@ -2602,7 +2743,12 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 entropy_flux_sat[0][3], entropy_flux_sat[1][3], entropy_flux_sat[2][3], \
                 entropy_flux_sat[0][4], entropy_flux_sat[1][4], entropy_flux_sat[2][4]]
             if ('O_ion_mass' in flux_types):
-                new_row_sat += [OI_flux_sat[0][0], OI_flux_sat[1][0], OI_flux_sat[2][0], \
+                new_row_sat += [O_flux_sat[0][0], O_flux_sat[1][0], O_flux_sat[2][0], \
+                O_flux_sat[0][1], O_flux_sat[1][1], O_flux_sat[2][1], \
+                O_flux_sat[0][2], O_flux_sat[1][2], O_flux_sat[2][2], \
+                O_flux_sat[0][3], O_flux_sat[1][3], O_flux_sat[2][3], \
+                O_flux_sat[0][4], O_flux_sat[1][4], O_flux_sat[2][4], \
+                OI_flux_sat[0][0], OI_flux_sat[1][0], OI_flux_sat[2][0], \
                 OI_flux_sat[0][1], OI_flux_sat[1][1], OI_flux_sat[2][1], \
                 OI_flux_sat[0][2], OI_flux_sat[1][2], OI_flux_sat[2][2], \
                 OI_flux_sat[0][3], OI_flux_sat[1][3], OI_flux_sat[2][3], \
@@ -2654,12 +2800,22 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
     fluxes_radial = set_table_units(fluxes_radial)
     fluxes_edges = set_table_units(fluxes_edges)
 
+    fluxtype_filename = ''
+    if ('mass' in flux_types):
+        fluxtype_filename += '_mass'
+    if ('energy' in flux_types):
+        fluxtype_filename += '_energy'
+    if ('entropy' in flux_types):
+        fluxtype_filename += '_entropy'
+    if ('O_ion_mass' in flux_types):
+        fluxtype_filename += '_Oions'
+
     # Save to file
     if (sat_radius!=0):
-        fluxes_radial.write(tablename + '_nosat_frustum_' + frus_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        fluxes_radial.write(tablename + '_nosat_frustum_' + frus_filename + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
     else:
-        fluxes_radial.write(tablename + '_frustum_' + frus_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
-    fluxes_edges.write(tablename + '_edges_frustum_' + frus_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        fluxes_radial.write(tablename + '_frustum_' + frus_filename + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    fluxes_edges.write(tablename + '_edges_frustum_' + frus_filename + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     return "Fluxes have been calculated for snapshot " + snap + "!"
 
