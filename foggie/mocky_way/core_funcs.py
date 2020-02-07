@@ -119,8 +119,8 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2,
 
     print("Adding ion fields: ", ion_list)
     trident.add_ion_fields(ds, ftype="gas",
-                           ions=ion_list,
-                           force_override=True)
+                           ions=ion_list) # ,
+                           # force_override=True)
 
     #### add line of sight velocity field to the dataset
     from yt.fields.api import ValidateParameter
@@ -812,7 +812,7 @@ def ray_info_at_l_b(ds, ds_paras, los_l_deg, los_b_deg,
 def calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
                  los_ray_start, ray_length_kpc):
     """
-    Calculate the ray ending pointing in the UVW Galactic coordinates using
+    Calculate the ray ending pointing in the Galactic coordinates using
     (los_l_deg, los_b_deg, ray_length). Old code can be found in
     old_codes/old_calc_ray_end.py los_ray_start is also in unit of code_length
 
