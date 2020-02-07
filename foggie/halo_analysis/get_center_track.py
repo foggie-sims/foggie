@@ -50,16 +50,19 @@ def get_center_track(first_center, latesnap, earlysnap, interval):
         center_guess = new_center
 
         p = yt.ProjectionPlot(ds, 'x', 'density', center=new_center, width=(200., 'kpc'))
+        p.set_unit(('gas','density'),'Msun/pc**2')
         p.set_zlim('density', density_proj_min, density_proj_max)
         p.set_cmap(field='density', cmap=density_color_map)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.save()
         p = yt.ProjectionPlot(ds, 'y', 'density', center=new_center, width=(200., 'kpc'))
+        p.set_unit(('gas','density'),'Msun/pc**2')
         p.set_zlim('density', density_proj_min, density_proj_max)
         p.set_cmap(field='density', cmap=density_color_map)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
         p.save()
         p = yt.ProjectionPlot(ds, 'z', 'density', center=new_center, width=(200., 'kpc'))
+        p.set_unit(('gas','density'),'Msun/pc**2')
         p.set_zlim('density', density_proj_min, density_proj_max)
         p.set_cmap(field='density', cmap=density_color_map)
         p.annotate_timestamp(corner='upper_left', redshift=True, draw_inset_box=True)
@@ -159,9 +162,24 @@ if __name__ == "__main__":
     # first_center = [ 0.49776554107666016,  0.4940633773803711, 0.47627162933349615]
 
     ### DD0699 for halo 004123
-    first_center = [0.4843683242797852,  0.4765806198120117,  0.4836854934692382 ]
+    #first_center = [0.4843683242797852,  0.4765806198120117,  0.4836854934692382 ]
 
     ##  DD1175 for halo 005016
-    first_center = [0.5258378982543945 , 0.4669160842895508 ,  0.50400447845459 ]
+    #first_center = [0.5258378982543945 , 0.4669160842895508 ,  0.50400447845459 ]
 
-    get_center_track(first_center, 1360, 1175, 0.002)
+    ##  DD1359 for halo 005016
+    # first_center = [ 0.5284872055053711, 0.46451282501220703, 0.5057573318481445 ]
+
+    ##  DD0850 for halo 005036
+    # first_center = [ 0.4813394546508789, 0.5021867752075195, 0.5031805038452148]
+
+    ## DD0779 for halo 4123
+    # first_center = [0.48355197906494135,  0.4751977920532226,  0.4827165603637695]
+
+    ## DD0902  for  5036
+    # first_center =  [ 0.4807195663452148, 0.5021162033081055, 0.5032072067260742]
+
+    ## DD0806 for  2392
+    first_center = [0.49770450592041016,  0.4933691024780274, 0.47570896148681646]
+
+    get_center_track(first_center, 898, 806, 0.002)

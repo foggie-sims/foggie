@@ -1,0 +1,90 @@
+This document describes the different file types that can be found in the halo_infos folder
+and how to use them.
+
+
+The halo_infos folder is first broken into subfolders by halo ID, then by run type. For example, the
+halo ID for Tempest is 008508, and the run type could be nref11c_nref9f.
+
+
+halo_c_v
+--------
+Description:
+These files are ASCII data files where the columns are:
+redshift        snapshot name       xc      yc      zc      xv      yv      zv
+where "redshift" gives the redshift of the snapshot, "snapshot name" is the file name of the
+snapshot (e.g. RD0036, DD1534), "xc, yc, zc" gives the x, y, z coordinates of the center of the halo
+as the peak of the DM density distribution, as returned by get_halo_center.py, and "vx, vy, vz" are
+the x, y, z velocities of the center of the halo, as determined by taking a mass-weighted average
+of the gas velocity in a sphere of radius 10 kpc centered on the halo center.
+
+Units:
+xc, yc, zc are given in physical kpc. xv, yv, zv are given in km/s.
+
+Exists for:
+8508/nref11c_nref9f snapshots DD0044-DD1630, DD1800-DD1926, RD0012-RD0034, all located within the
+same halo_c_v file in the halo_infos/8508/nref11c_nref9f folder.
+
+Created by:
+utils/get_halo_c_v_parallel.py
+
+Author:
+Cassi
+
+
+masses.hdf5
+-----------
+Description:
+These files are data files (that can be read with astropy.table) that give profiles of mass enclosed
+versus radius for a number of different snapshots for a given run, all saved in the same file.
+The columns are:
+redshift    snapshot    radius      total_mass      dm_mass     stars_mass      gas_mass
+where "redshift" gives the redshift of the snapshot, "snapshot" gives the name of the snapshot
+(e.g. RD0036, DD1534), "radius" gives the radius at which the mass enclosed within that radius is
+calculated, "total_mass" gives the mass of dark matter, stars, and gas enclosed within the
+corresponding radius, "dm_mass" gives the mass of just dark matter enclosed within the corresponding
+radius, "stars_mass" gives the mass of just stars enclosed within the corresponding radius, and
+"gas_mass" gives the mass of just gas enclosed within the corresponding radius. There are 250 radii
+at which the enclosed mass is calculated for each snapshot, from 0.01*refine_width out to
+5*refine_width, log-spaced.
+
+Units:
+"radius" is given in physical kpc. "total_mass, dm_mass, stars_mass, gas_mass" are given in Msun.
+
+Exists for:
+8508/nref11c_nref9f snapshots DD0044-DD1630, DD1800-DD1926, RD0012-RD0034, all located within the
+same masses.hdf5 file in the halo_infos/8508/nref11c_nref9f folder.
+
+Created by:
+utils/get_mass_profile.py, which will output one "snapshot_masses.hdf5" per snapshot that can
+later be combined. The masses.hdf5 file is the combined version.
+
+Author:
+Cassi
+
+
+satellites.hdf5
+---------------
+Description:
+These files are data files (that can be read with astropy.table) that give the locations of each
+satellite within 5*refine_width from the center of the halo at each snapshot, all saved in the same
+file. The columns are:
+snap        sat_id      sat_x       sat_y       sat_z
+where "snap" gives the name of the snapshot (e.g. RD0036, DD1534), "sat_id" gives the number
+(1 through however many satellites there are) to identify the satellite (NOTE: ID NUMBERS MAY
+NOT BE CONSISTENT ACROSS SNAPSHOTS), "sat_x, sat_y, sat_z" are the coordinates of the center of the
+satellite. Note that coordinates are *not* relative to the halo center, they are just the box
+coordinates.
+
+Units:
+"sat_x, sat_y, sat_z" are all given in physical kpc.
+
+Exists for:
+8508/nref11c_nref9f snapshots DD0044-DD1630, DD1800-DD1926, all located within the same
+satellites.hdf5 file in the halo_infos/8508/nref11c_nref9f folder.
+
+Created by:
+utils/get_satellite_positions.py, which will output one "snapshot_satellites.dat" ASCII file per
+snapshot that can later be combined. The satellites.hdf5 file is the combined version.
+
+Author:
+Cassi, but using Raymond's satellite finder code.

@@ -1,7 +1,7 @@
 echo "DO YOU HAVE ALL THE DATA OR IS THIS ONLY PART OF IT !?!!?!"
-tail -n 1049 track.dat  | awk '{print $1, $2-0.001, $3-0.001, $4-0.001, $2+0.001, $3+0.001, $4+0.001, "10"}' > halo_track_200kpc_nref10
-tail -n 1049 track.dat  | awk '{print $1, $2-0.001, $3-0.001, $4-0.001, $2+0.001, $3+0.001, $4+0.001, "9"}' > halo_track_200kpc_nref9
-tail -n 1049 track.dat  | awk '{print $1, $2-0.002, $3-0.002, $4-0.002, $2+0.002, $3+0.002, $4+0.002, "5"}' > halo_track_400kpc_nref5
-tail -n 1049 track.dat  | awk '{print $1, $2-0.001, $3-0.001, $4-0.001, $2+0.001, $3+0.001, $4+0.001, "5"}' > halo_track_200kpc_nref5
-tail -n 1049 track.dat  | awk '{print $1, $2-0.003, $3-0.003, $4-0.003, $2+0.003, $3+0.003, $4+0.003, "8"}' > halo_track_600kpc_nref8
+cat track.dat  | awk '{print $1, $2-0.001, $3-0.001, $4-0.001, $2+0.001, $3+0.001, $4+0.001, "10"}' > halo_track_200kpc_nref10
+cat track.dat  | awk '{print $1, $2-0.001, $3-0.001, $4-0.001, $2+0.001, $3+0.001, $4+0.001, "9"}' > halo_track_200kpc_nref9
+cat track.dat  | awk '{print $1, $2-0.002, $3-0.002, $4-0.002, $2+0.002, $3+0.002, $4+0.002, "5"}' > halo_track_400kpc_nref5
+cat track.dat  | awk '{print $1, $2-0.001, $3-0.001, $4-0.001, $2+0.001, $3+0.001, $4+0.001, "5"}' > halo_track_200kpc_nref5
+cat track.dat  | awk '{print $1, $2-0.003, $3-0.003, $4-0.003, $2+0.003, $3+0.003, $4+0.003, "8"}' > halo_track_600kpc_nref8
  

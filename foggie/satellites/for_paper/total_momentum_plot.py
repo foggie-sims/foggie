@@ -8,8 +8,10 @@ from astropy.modeling.models import Sersic2D
 import matplotlib.pyplot as plt
 from astropy.constants import G
 import astropy.units as u
+from foggie.utils.consistency import halo_dict
 from numpy import pi
 from numpy import *
+
 np.random.seed(1)
 
 plt.rcParams['text.usetex'] = True
@@ -38,6 +40,17 @@ fig_dir = '/Users/rsimons/Dropbox/foggie/figures/for_paper'
 fig, ax = plt.subplots(1,1, figsize = (8,5))
 
 ax.errorbar(np.log10(cat['hmass'] * 1.e12), cat['median'], yerr = [cat['median'] - cat['lower'], cat['upper'] - cat['median']],  fmt = 'o', color = 'black')
+
+
+for c in cat:
+    xcoord = np.log10(c['hmass'] * 1.e12) - 0.025
+
+    ycoord = c['upper']
+    print (xcoord, ycoord)
+    haloname = halo_dict[c['name'].strip('halo_00')]
+    if haloname == 'Blizzard': xcoord+=0.035
+    ax.annotate(haloname, (xcoord, ycoord), ha = 'left', va = 'top', color = 'black', rotation = 90, xycoords = 'data', fontweight = 'bold')
+
 
 
 
@@ -106,7 +119,7 @@ ax.set_xlim(10.8, 12)
 ax.set_xticks(np.arange(11, 12.2, 0.2))
 ax.set_ylim(6.8, 9.7)
 fig.tight_layout()
-fig.savefig(fig_dir + '/momentum_versus_mass.png', dpi = 400)
+fig.savefig(fig_dir + '/momentum_versus_mass_halonames.png', dpi = 400)
 
 
 
