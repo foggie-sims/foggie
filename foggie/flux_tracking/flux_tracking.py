@@ -390,7 +390,8 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-        'f8', 'f8', 'f8')
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_list += new_names
         types_list += new_types
         if (sat_radius!=0):
@@ -1523,7 +1524,8 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-        'f8', 'f8', 'f8')
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8','f8', 'f8', 'f8')
         names_rad += new_names
         names_edge += new_names
         type_list_rad += new_types

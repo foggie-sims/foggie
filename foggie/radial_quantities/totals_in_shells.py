@@ -356,7 +356,8 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-        'f8', 'f8', 'f8')
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8','f8', 'f8', 'f8')
         names_list += new_names
         types_list += new_types
     totals = Table(names=names_list, dtype=types_list)
@@ -944,7 +945,8 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-        'f8', 'f8', 'f8')
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8','f8', 'f8', 'f8')
         names_list += new_names
         types_list += new_types
     totals = Table(names=names_list, dtype=types_list)
