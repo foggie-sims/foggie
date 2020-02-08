@@ -173,6 +173,13 @@ def absline_l_b_r(line, ds, ds_paras, los_l_deg, los_b_deg, los_r_kpc=200):
 
 if __name__ == "__main__":
 
+    ## example:
+    ## python generate_absline CIV1548 30 5 200
+    ## where 30 is l, 5 is b, and 200 is ray length
+    #
+    # or could do
+    # from generate_absline import generate_absline, absline_l_b_r
+
     import sys
     import numpy as np
     line = sys.argv[1]
