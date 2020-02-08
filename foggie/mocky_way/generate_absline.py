@@ -2,9 +2,10 @@ def generate_absline(ds, ds_paras, los_rs, los_re,
                      lab_lambda=1393.7550,
                      lines=['Si IV 1394'],
                      line_snr=20, fontsize=16,
-                     save_file='./spec.pdf'):
+                     save_file='./spec'):
     """
-    Generate absorption line at wavelength of lab_lambda
+    Generate absorption line at wavelength of lab_lambda, plot the spectra, and
+    save it to a fits file.
 
     Input:
     ds: data file from yt.load()
@@ -27,6 +28,7 @@ def generate_absline(ds, ds_paras, los_rs, los_re,
     Feb 7, 2020, YZ merged to foggie.mocky_way
     """
 
+    import sys
     import trident
     import numpy as np
     from core_funcs import data_dir_sys_dir
@@ -89,6 +91,12 @@ def generate_absline(ds, ds_paras, los_rs, los_re,
     sg.add_gaussian_noise(line_snr)
     cos_flux = sg.flux_field
 
+    # save data for future uses
+    from astropy.table import Table
+    t = Table([raw_vel_obs, raw_flux, cos_flux],
+               names=('Velocity[km/s]', 'raw_flux', 'cos_flux'))
+    t.write(save_file+'.fits', format='fits', overwrite=True)
+
     # plot
     import matplotlib.pyplot as plt
     import matplotlib as mpl
@@ -120,6 +128,61 @@ def generate_absline(ds, ds_paras, los_rs, los_re,
         ax.set_ylabel('Norm. Flux', fontsize=fontsize)
         ax.tick_params(labelsize=fontsize)
     plt.tight_layout()
-    fig.savefig(save_file)
+    fig.savefig(save_file+'.pdf')
 
     return raw_wave, raw_vel_obs, cos_flux
+
+def absline_l_b_r(line, ds, ds_paras, los_l_deg, los_b_deg, los_r_kpc=200):
+    """
+    This functions calculate the ray end based on input data and generate
+    absprtion line:
+
+    Input example:
+    line: CIV1548
+    ds: from yt.load
+    ds_paras: from core_funcs.prepdata
+    los_l_deg: galactic longitude, in degree
+    los_b_deg: galactic latitude, in degree
+    los_r_kpc: the pathlength of wavelength
+
+    History:
+    created on Feb 7, 2020, YZ.
+    """
+
+    import os
+    from foggie.mocky_way.core_funcs import calc_ray_end
+
+    los_rs = ds_paras['offcenter_location'].copy()
+    los_re, unit_vec = calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
+                                    los_rs, los_r_kpc)
+
+    # thisline = 'SiIV1394'
+    from foggie.mocky_way.core_funcs import get_line_info
+    lines, lab_lambda, ion_field = get_line_info(line)
+
+    figdir = './figs/absline'
+    if os.path.isdir(figdir) is False:
+        os.mkdir(figdir)
+    figname = '%s/%s_l%.1f_b%.1f'%(figdir, lines[0].replace(' ', ''), los_l_deg, los_b_deg)
+    print(los_rs, los_re, unit_vec)
+    # fig = '/Users/Yong/Desktop/%s_l%.1f_b%.1f.pdf'%(lines[0].replace(' ', ''), los_l, los_b)
+    spec = generate_absline(ds, ds_paras, los_rs, los_re,
+                            lab_lambda=lab_lambda, lines=lines,
+                            line_snr=20, save_file=figname)
+    print('==> Saved to: %s.pdf and .fits'%(figname))
+
+if __name__ == "__main__":
+
+    import sys
+    import numpy as np
+    line = sys.argv[1]
+    los_l_deg = np.float(sys.argv[2])
+    los_b_deg = np.float(sys.argv[3])
+    los_r_kpc = np.float(sys.argv[4])
+
+    from foggie.mocky_way.core_funcs import prepdata
+    sim_name = 'nref11n_nref10f'
+    dd_name = 'DD2175'
+    ds, ds_paras = prepdata(dd_name)
+
+    absline_l_b_r(line, ds, ds_paras, los_l_deg, los_b_deg, los_r_kpc=los_r_kpc)
