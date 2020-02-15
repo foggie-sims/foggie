@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 from foggie.mocky_way.core_funcs import calc_mean_median_3sig_2sig_1sig
+from foggie.mocky_way.core_funcs import weighted_avg_and_std
 
 run_data = False
 plot_data = True

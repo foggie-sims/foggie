@@ -7,8 +7,10 @@ from foggie.mocky_way.core_funcs import calc_mean_median_3sig_2sig_1sig
 
 sim_name = 'nref11n_nref10f'
 dd_name = 'DD2175'
-ion_list = ['HI', 'SiII', 'SiIII', 'SiIV', 'CII', 'CIV', 'OVI', 'NV',
-            'OVII', 'OVIII', 'NeVII', 'NeVIII']
+ion_list = ['HI', 'SiII', 'CII', 'SiIII', 'SiIV', 'CIV', 'NV',
+            'OVI', 'NeVII', 'NeVIII', 'OVII', 'OVIII']
+#ion_list = ['HI', 'SiII', 'SiIII', 'SiIV', 'CII', 'CIV', 'OVI', 'NV',
+#            'OVII', 'OVIII', 'NeVII', 'NeVIII']
 # low_ions = ['HI', 'SiII', 'SiIII', 'SiIV', 'CII']
 
 ion_median = np.zeros(len(ion_list))
@@ -99,7 +101,7 @@ for tick in ax.yaxis.get_major_ticks():
 ax.set_ylabel(r'$\delta$ logN (dex)', fontsize=fs+3)
 ax.set_title('Differce of logN between QSO and halo star measurements', fontsize=fs+4)
 fig.tight_layout()
-figname = 'figs/Nr_star_qso/fig_logN_star_qso_100k.pdf'
+figname = 'figs/Nr_star_qso/fig_logN_star_qso_ion-eV.pdf'
 fig.savefig(figname)
 
 print(figname)

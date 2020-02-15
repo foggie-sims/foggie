@@ -37,7 +37,7 @@ def parse_args():
     '''Parse command line arguments. Returns args object.
     NOTE: Need to move command-line argument parsing to separate file.'''
 
-    parser = argparse.ArgumentParser(description='Calculates and saves to file a bunch of fluxes.')
+    parser = argparse.ArgumentParser(description='Calculates and saves to file the locations of satellites.')
 
     # Optional arguments:
     parser.add_argument('--halo', metavar='halo', type=str, action='store', \
@@ -66,16 +66,6 @@ def parse_args():
     parser.add_argument('--local', dest='local', action='store_true',
                         help='Are the simulation files stored locally? Default is no')
     parser.set_defaults(local=False)
-
-    parser.add_argument('--surface', metavar='surface', type=str, action='store', \
-                        help='What surface type for computing the flux? Default is sphere' + \
-                        ' and nothing else is implemented right now')
-    parser.set_defaults(surface='sphere')
-
-    parser.add_argument('--quadrants', dest='quadrants', type=bool, action='store', \
-                         help='Do you want to compute in quadrants? Default is False,' + \
-                         ' which computes for whole domain')
-    parser.set_defaults(quadrants=False)
 
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', \
                         help='How many processes do you want? Default is 1 ' + \
