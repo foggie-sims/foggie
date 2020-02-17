@@ -387,6 +387,7 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
     if ('O_ion_mass' in flux_types):
         trident.add_ion_fields(ds, ions='all', ftype='gas')
+        abundances = trident.ion_balance.solar_abundance
         OI_frac = sphere['O_p0_ion_fraction'].v
         OII_frac = sphere['O_p1_ion_fraction'].v
         OIII_frac = sphere['O_p2_ion_fraction'].v
@@ -398,16 +399,17 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
         OIX_frac = sphere['O_p8_ion_fraction'].v
         renorm = OI_frac + OII_frac + OIII_frac + OIV_frac + OV_frac + \
           OVI_frac + OVII_frac + OVIII_frac + OIX_frac
-        OI_mass = sphere['O_p0_mass'].in_units('Msun').v/renorm
-        OII_mass = sphere['O_p1_mass'].in_units('Msun').v/renorm
-        OIII_mass = sphere['O_p2_mass'].in_units('Msun').v/renorm
-        OIV_mass = sphere['O_p3_mass'].in_units('Msun').v/renorm
-        OV_mass = sphere['O_p4_mass'].in_units('Msun').v/renorm
-        OVI_mass = sphere['O_p5_mass'].in_units('Msun').v/renorm
-        OVII_mass = sphere['O_p6_mass'].in_units('Msun').v/renorm
-        OVIII_mass = sphere['O_p7_mass'].in_units('Msun').v/renorm
-        OIX_mass = sphere['O_p8_mass'].in_units('Msun').v/renorm
-        O_mass = OI_mass + OII_mass + OIII_mass + OIV_mass + OV_mass + OVI_mass + OVII_mass + OVIII_mass + OIX_mass
+        O_frac = abundances['O']/(sum(abundances.values()) - abundances['H'] - abundances['He'])
+        O_mass = sphere['metal_mass'].in_units('Msun').v*O_frac
+        OI_mass = OI_frac/renorm*O_mass
+        OII_mass = OII_frac/renorm*O_mass
+        OIII_mass = OIII_frac/renorm*O_mass
+        OIV_mass = OIV_frac/renorm*O_mass
+        OV_mass = OV_frac/renorm*O_mass
+        OVI_mass = OVI_frac/renorm*O_mass
+        OVII_mass = OVII_frac/renorm*O_mass
+        OVIII_mass = OVIII_frac/renorm*O_mass
+        OIX_mass = OIX_frac/renorm*O_mass
 
     # Load list of satellite positions
     if (sat_radius!=0):
@@ -976,6 +978,7 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
     if ('O_ion_mass' in flux_types):
         trident.add_ion_fields(ds, ions='all', ftype='gas')
+        abundances = trident.ion_balance.solar_abundance
         OI_frac = sphere['O_p0_ion_fraction'].v
         OII_frac = sphere['O_p1_ion_fraction'].v
         OIII_frac = sphere['O_p2_ion_fraction'].v
@@ -987,16 +990,17 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
         OIX_frac = sphere['O_p8_ion_fraction'].v
         renorm = OI_frac + OII_frac + OIII_frac + OIV_frac + OV_frac + \
           OVI_frac + OVII_frac + OVIII_frac + OIX_frac
-        OI_mass = sphere['O_p0_mass'].in_units('Msun').v/renorm
-        OII_mass = sphere['O_p1_mass'].in_units('Msun').v/renorm
-        OIII_mass = sphere['O_p2_mass'].in_units('Msun').v/renorm
-        OIV_mass = sphere['O_p3_mass'].in_units('Msun').v/renorm
-        OV_mass = sphere['O_p4_mass'].in_units('Msun').v/renorm
-        OVI_mass = sphere['O_p5_mass'].in_units('Msun').v/renorm
-        OVII_mass = sphere['O_p6_mass'].in_units('Msun').v/renorm
-        OVIII_mass = sphere['O_p7_mass'].in_units('Msun').v/renorm
-        OIX_mass = sphere['O_p8_mass'].in_units('Msun').v/renorm
-        O_mass + OI_mass + OII_mass + OIII_mass + OIV_mass + OV_mass + OVI_mass + OVII_mass + OVIII_mass + OIX_mass
+        O_frac = abundances['O']/(sum(abundances.values()) - abundances['H'] - abundances['He'])
+        O_mass = sphere['metal_mass'].in_units('Msun').v*O_frac
+        OI_mass = OI_frac/renorm*O_mass
+        OII_mass = OII_frac/renorm*O_mass
+        OIII_mass = OIII_frac/renorm*O_mass
+        OIV_mass = OIV_frac/renorm*O_mass
+        OV_mass = OV_frac/renorm*O_mass
+        OVI_mass = OVI_frac/renorm*O_mass
+        OVII_mass = OVII_frac/renorm*O_mass
+        OVIII_mass = OVIII_frac/renorm*O_mass
+        OIX_mass = OIX_frac/renorm*O_mass
 
     # Cut data to only the frustum considered here
     if (flip):
