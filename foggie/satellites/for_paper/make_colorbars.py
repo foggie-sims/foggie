@@ -3,8 +3,8 @@ from foggie.utils.consistency import *
 import numpy as np
 from numpy import *
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = ['serif'] 
 plt.ioff()
-
 
 
 
@@ -60,13 +60,13 @@ cb = mpl.colorbar.ColorbarBase(ax, cmap=density_color_map,
 cb.ax.tick_params(labelsize=20.)
 cb.ax.set_xticklabels([''])
 #cb.set_label(r'$\log$ surface density [M$_{\odot}$ pc$^{-2}$]',fontsize=32.)
-plt.savefig('gas_density_proj_colorbar.png', dpi = 500)
+plt.savefig('gas_density_proj_colorbar_largelabels.png', dpi = 500)
 
 
 
 
 fig = plt.figure(figsize=(figsizex, figsizey))
-ax = fig.add_axes([0.01, 0.50, 0.98, 0.36])
+ax = fig.add_axes([0.01, 0.54, 0.98, 0.30])
 norm = mpl.colors.Normalize(vmin=np.log10(density_proj_min), vmax=np.log10(density_proj_max))
 cb = mpl.colorbar.ColorbarBase(ax, cmap=plt.cm.Greys_r,
                                 norm=norm,
@@ -74,8 +74,9 @@ cb = mpl.colorbar.ColorbarBase(ax, cmap=plt.cm.Greys_r,
                                 extend='both')
 #ax.annotate('stars', (xtext, ytext), ha = 'left', va = 'center', xycoords = 'axes fraction', color = 'white', fontsize = fs, fontweight = 'bold')
 cb.ax.tick_params(labelsize=20.)
-cb.set_label(r'$\log$ surface density [M$_{\odot}$ pc$^{-2}$]',fontsize=32.)
-plt.savefig('star_density_proj_colorbar.png', dpi = 500)
+cb.set_label(r'$\log$ surface density [M$_{\odot}$ pc$^{-2}$]',fontsize=50.)
+fig.subplots_adjust(bottom = 0.40)
+plt.savefig('star_density_proj_colorbar_largelabels.png.png', dpi = 500)
 
 
 
