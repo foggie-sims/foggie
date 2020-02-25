@@ -67,7 +67,7 @@ def do_plot(ds, field, axs, annotate_positions, \
     prj.set_zlim(field, zmin = zmin, zmax =  zmax)
     prj.set_cmap(field, cmap)
 
-    prj.annotate_scale(size_bar_args={'color':'white'})
+    #prj.annotate_scale(size_bar_args={'color':'white'})
 
     #prj.annotate_timestamp(corner='upper_right', redshift=True, draw_inset_box=True)
     '''
@@ -138,13 +138,13 @@ def make_projection_plots(ds, center, refine_box, x_width,fig_dir, haloname, nam
                     for s_arrow, e_arrow in zip(start_arrow, end_arrow):
                         prj.annotate_arrow(pos = e_arrow, starting_pos = s_arrow, coord_system = 'data')
 
-            prj.save(fig_dir + '/%s_%s_%s_%s.png'%(haloname, axs, d, fig_end), mpl_kwargs = {'dpi': 500})
+            prj.save(fig_dir + '/%s_%s_%s_%s_nolabels.png'%(haloname, axs, d, fig_end), mpl_kwargs = {'dpi': 500})
     return prj
 
 
 
 
-halonames = halonames#[:1]
+halonames = halonames[4:]
 for (haloname, name, DDname) in halonames:
 
     args = parse_args(haloname, DDname)
