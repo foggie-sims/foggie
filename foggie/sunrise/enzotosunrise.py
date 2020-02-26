@@ -138,7 +138,7 @@ def write_cameras(prefix, cameras):
     fh.close()
 
 
-def generate_cameras(normal_vector, seed = 0, distance=100.0, fov=50.0, segments_random=7, segments_fixed=4, full_camera_suite = False):
+def generate_cameras(normal_vector, prefix, seed = 0, distance=100.0, fov=50.0, segments_random=7, segments_fixed=4, full_camera_suite = False):
     '''
     Set camera positions and orientations
     '''
@@ -281,7 +281,7 @@ def check_paths(args):
         raise ValueError('The specified sunrise directory does not exist: %s. Pass an existing directory into --sunrise_directory'%args.sunrise_directory)
     output_directory = args.sunrise_directory + '/' + args.halo + '/' + args.run + '/' + args.output
     #checking for subdirectories, if they do not exist, create them
-    Path(output_directory + '/export').mkdir(parents = True, exist_ok = True)
+    Path(output_directory + '/inputs').mkdir(parents = True, exist_ok = True)
     return output_directory
 
 
@@ -323,11 +323,14 @@ def setup_runs(ds, args, prefix, output_directory, list_of_types = ['images', 'g
             sfrhist_fn   = 'sfrhist.config'
             sfrhist_stub = os.path.join(args.stub_dir,'sfrhist_base.stub')
 
-            ssR.generate_sfrhist_config(run_dir = run_dir, filename = sfrhist_fn, 
-                                    stub_name = sfrhist_stub,  fits_file = fits_file, 
-                                    center_kpc = ds.halo_center_kpc, 
-                                    run_type = run_type, sunrise_data_dir = args.sunrise_data_dir, 
-                                    nthreads=args.nthreads)
+            ssR.generate_sfrhist_config(run_dir = run_dir, 
+                                        filename = sfrhist_fn, 
+                                        stub_name = sfrhist_stub, 
+                                        fits_file = fits_file, 
+                                        center_kpc = ds.halo_center_kpc, 
+                                        run_type = run_type, 
+                                        sunrise_data_dir = args.sunrise_data_dir, 
+                                        nthreads=args.nthreads)
 
 
             print ('\tGenerating mcrx.config file for %s...'%run_type)
@@ -390,10 +393,11 @@ if __name__ == "__main__":
     snap_name = foggie_dir + run_loc + args.output + '/' + args.output
     ds, refine_box, refine_box_center, refine_width = load(snap_name, trackname, use_halo_c_v=args.use_halo_c_v, halo_c_v_name=track_dir + 'halo_c_v')
 
-    prefix = output_directory + '/export/' + args.run + '_' + args.halo + '_' + args.output
+    prefix = output_directory + '/inputs/' + args.run + '_' + args.halo + '_' + args.output
 
     if args.do_cameras: 
         cameras = generate_cameras(normal_vector = np.array([1,0,0]), 
+                                   prefix = prefix,
                                    seed = args.seed, 
                                    distance = args.cam_dist, 
                                    fov = args.cam_fov)

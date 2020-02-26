@@ -25,7 +25,7 @@ for halo in halos:
     if not os.path.isdir(submit_dir+'/outfiles'): os.system('mkdir %s/outfiles'%submit_dir)
     
 
-    sf = open('/nobackupp2/rcsimons/foggie/submit_scripts/sunrise/submit_%s_%.4i_%.4i_tracksats.sh'%(halo, DDmin, DDmax), 'w+')
+    sf = open('/nobackupp2/rcsimons/foggie/submit_scripts/sunrise/submit_%s_%.4i_%.4i_sunrise.sh'%(halo, DDmin, DDmax), 'w+')
     splitn = 1
     for dmn in arange(DDmin, DDmax+splitn, splitn):
         snapname = '%s_%.4i_%.4i'%(halo, dmn, dmn+splitn)
@@ -37,7 +37,7 @@ for halo in halos:
         qf.write('#PBS -l walltime=0:30:00\n')
         qf.write('#PBS -q normal\n')
         qf.write('#PBS -N %s\n'%snapname)
-        qf.write('#PBS -M rsimons@jhu.edu\n')
+        qf.write('#PBS -M rsimons@stsci.edu\n')
         qf.write('#PBS -m abe\n')
         qf.write('#PBS -o ./outfiles/%s_pbs.out\n'%snapname)
         qf.write('#PBS -e ./outfiles/%s_pbs.err\n'%snapname)
