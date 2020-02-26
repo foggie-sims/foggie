@@ -19,18 +19,18 @@ for halo in halos:
     else: DDmax = 581
 
 
-    submit_dir = '/nobackupp2/rcsimons/foggie/submit_scripts/tracks'
+    submit_dir = '/nobackupp2/rcsimons/foggie/submit_scripts/sunrise'
 
     if not os.path.isdir(submit_dir): os.system('mkdir %s'%submit_dir)
     if not os.path.isdir(submit_dir+'/outfiles'): os.system('mkdir %s/outfiles'%submit_dir)
     
 
-    sf = open('/nobackupp2/rcsimons/foggie/submit_scripts/tracks/submit_%s_%.4i_%.4i_tracksats.sh'%(halo, DDmin, DDmax), 'w+')
+    sf = open('/nobackupp2/rcsimons/foggie/submit_scripts/sunrise/submit_%s_%.4i_%.4i_tracksats.sh'%(halo, DDmin, DDmax), 'w+')
     splitn = 1
     for dmn in arange(DDmin, DDmax+splitn, splitn):
         snapname = '%s_%.4i_%.4i'%(halo, dmn, dmn+splitn)
         qsub_fname = 'sunrise_%s_%.4i_%.4i.qsub'%(halo, dmn, dmn+splitn)        
-        qf = open('/nobackupp2/rcsimons/foggie/submit_scripts/tracks/%s'%qsub_fname, 'w+')
+        qf = open('/nobackupp2/rcsimons/foggie/submit_scripts/sunrise/%s'%qsub_fname, 'w+')
         
         qf.write('#PBS -S /bin/bash\n')
         qf.write('#PBS -l select=1:ncpus=20:model=ivy\n')
