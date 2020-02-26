@@ -3,6 +3,8 @@ import yt
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.foggie_load import *
 from collections import OrderedDict
+from pathlib import Path
+import time
 
 def parse_args():
     '''
@@ -33,10 +35,18 @@ def parse_args():
                         help='just use the pwd?, default is no')
     parser.set_defaults(do_export=False)
 
+    parser.add_argument('--do_setup', dest='do_setup', action='store_true',
+                        help='just use the pwd?, default is no')
+    parser.set_defaults(do_setup=False)
 
     parser.add_argument('--do_cameras', dest='do_cameras', action='store_true',
                         help='just use the pwd?, default is no')
     parser.set_defaults(do_cameras=False)
+
+
+    parser.add_argument('--sunrise_directory', dest='sunrise_directory', type = str, action='store',
+                        help='just use the pwd?, default is no')
+    parser.set_defaults(sunrise_directory='/nobackupp2/rcsimons/sunrise/foggie')
 
 
 
@@ -71,6 +81,43 @@ def parse_args():
                         help='which output? default is RD0020')
     parser.set_defaults(seed=0.)
 
+
+
+
+
+    parser.add_argument('--nthreads', metavar='nthreads', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(nthreads="24")
+
+    parser.add_argument('--queue', metavar='queue', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(queue="RD0020")
+
+
+    parser.add_argument('--notify', metavar='notify', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(notify="rsimons@stsci.edu")
+
+
+    parser.add_argument('--walltime_limit', metavar='walltime_limit', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(walltime_limit="02:00:00")
+
+
+    parser.add_argument('--stub_dir', metavar='stub_dir', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(stub_dir="/u/gfsnyder/sunrise_data/stub_files")
+
+
+
+    parser.add_argument('--model', metavar='model', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(model="ivy")
+
+
+    parser.add_argument('--sunrise_data_dir', metavar='sunrise_data_dir', type=str, action='store',
+                        help='which output? default is RD0020')
+    parser.set_defaults(sunrise_data_dir="/u/gfsnyder/sunrise_data")
 
 
 
@@ -205,8 +252,7 @@ def export_fits(ds, center, export_radius, prefix, star_particles, max_level=Non
     info['export_ire']=ire
     info['export_fle']=fle
     info['export_fre']=fre
-    
-    
+        
     info['export_center']=center.value
     info['export_radius']=width.value
     info['export_max_level']=max_level
@@ -221,51 +267,136 @@ def export_fits(ds, center, export_radius, prefix, star_particles, max_level=Non
     return info  #output arrays not actually used later
 
 
+def check_paths(args):
+    if not os.path.exists(args.sunrise_directory): 
+        raise ValueError('The specified sunrise directory does not exist: %s. Pass an existing directory into --sunrise_directory'%args.sunrise_directory)
+    output_directory = args.sunrise_directory + '/' + args.halo + '/' + args.run + '/' + args.output
+    #checking for subdirectories, if they do not exist, create them
+    Path(output_directory + '/export').mkdir(parents = True, exist_ok = True)
+    return output_directory
 
 if __name__ == "__main__":
     args = parse_args()
+    output_directory = check_paths(args)
 
     foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     code_path = trackname.split('halo_tracks')[0]  
     track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-    halo_c_v_name = track_dir + 'halo_c_v'
     snap_name = foggie_dir + run_loc + args.output + '/' + args.output
-    ds, refine_box, refine_box_center, refine_width = load(snap_name, trackname, use_halo_c_v=args.use_halo_c_v, halo_c_v_name=halo_c_v_name)
+    ds, refine_box, refine_box_center, refine_width = load(snap_name, trackname, use_halo_c_v=args.use_halo_c_v, halo_c_v_name=track_dir + 'halo_c_v')
 
     export_radius = ds.arr(1.2*args.cam_fov, 'kpc')
     gal_center = ds.halo_center_kpc
 
-    prefix = args.run + '_' + args.halo + '_' + args.output
+    prefix = output_directory + '/export/' + args.run + '_' + args.halo + '_' + args.output
     L = np.array([1,0,0])
+
     if args.do_cameras:
         cameras = generate_cameras(normal_vector = L, seed = args.seed, distance = args.cam_dist, fov = args.cam_fov)
         write_cameras(prefix, cameras)
 
     if args.do_export:
-
-        export_info = export_fits(ds, gal_center, export_radius, 
-                                  prefix, star_particles = 'stars', form='ENZO')
+        a = time.time()
+        export_info = export_fits(ds, gal_center, export_radius, prefix, star_particles = 'stars', form='ENZO')
         export_info['halo'] = args.halo
         export_info['run'] = args.run
         export_info['output'] = args.output
         export_info_file = prefix + '_export_info.npy'
         np.save(export_info_file, export_info)
+        b = time.time()
+        print (b - a)
+
+
+    if args.do_setup:
+        import setupSunriseRun as ssR
+
+        list_of_types = ['images', 'grism', 'ifu']
+
+
+
+        smf_images = open('%s/submit_sunrise_images.sh'%output_directory,'w')
+        smf_ifu = open('%s/submit_sunrise_ifu.sh'%output_directory,'w')
+        smf_grism = open('%s/submit_sunrise_grism.sh'%output_directory,'w')
+
+
+        fits_file        = prefix + '.fits'
+        export_info_file = prefix + '_export_info.npy'
+        cam_file         = prefix + '.cameras'
+
+        assert os.path.lexists(fits_file), 'Fits file %s not found'%fits_file
+        assert os.path.lexists(export_info_file), 'Info file %s not found'%export_info_file
+        assert os.path.lexists(cam_file),  'Cam file %s not found'%cam_file
+
+
+
+        print ('\tFits file name: %s'%fits_file)
+        print ('\tInfo file name: %s\n'%export_info_file)
+
+        for run_type in list_of_types:
+                run_dir = output_directory+'/%s'%run_type
+                if not os.path.lexists(run_dir):
+                        os.mkdir(run_dir)
+                        
+
+                print ('\tGenerating sfrhist.config file for %s...'%run_type)
+                sfrhist_fn   = 'sfrhist.config'
+                sfrhist_stub = os.path.join(args.stub_dir,'sfrhist_base.stub')
+
+                ssR.generate_sfrhist_config(run_dir = run_dir, filename = sfrhist_fn, 
+                                        stub_name = sfrhist_stub,  fits_file = fits_file, 
+                                        center_kpc = ds.halo_center_kpc, 
+                                        run_type = run_type, sunrise_data_dir = args.sunrise_data_dir, 
+                                        nthreads=args.nthreads)
+
+
+                print ('\tGenerating mcrx.config file for %s...'%run_type)
+                mcrx_fn   = 'mcrx.config'
+                mcrx_stub = os.path.join(args.stub_dir,'mcrx_base.stub')
+
+                ssR.generate_mcrx_config(run_dir = run_dir, filename = mcrx_fn, 
+                                         stub_name = mcrx_stub, redshift = ds.current_redshift, 
+                                         run_type = run_type, nthreads=args.nthreads, cam_file=cam_file)
 
 
 
 
+                if run_type == 'images': 
+                        print ('\tGenerating broadband.config file for %s...'%run_type)
+                        broadband_fn   = 'broadband.config'
+                        broadband_stub = os.path.join(args.stub_dir,'broadband_base.stub')
+
+                        ssR.generate_broadband_config_images(run_dir = run_dir, 
+                                                             filename = broadband_fn, 
+                                                             stub_name = broadband_stub, 
+                                                             redshift = ds.current_redshift,
+                                                             sunrise_data_dir = args.sunrise_data_dir)
+                if run_type == 'grism': 
+                        print ('\tGenerating broadband.config file for %s...'%run_type)
+                        broadband_fn   = 'broadband.config'
+                        broadband_stub = os.path.join(args.stub_dir, 'broadband_base.stub')
+
+                        ssR.generate_broadband_config_grism(run_dir = run_dir, 
+                                                            filename = broadband_fn, 
+                                                            stub_name = broadband_stub, 
+                                                            redshift = ds.current_redshift,
+                                                            sunrise_data_dir = args.sunrise_data_dir)
 
 
+                print ('\tGenerating sunrise.qsub file for %s...'%run_type)
+                qsub_fn   = 'sunrise.qsub'      
+                final_fn = ssR.generate_qsub(run_dir = run_dir, filename = qsub_fn, run_type = run_type,
+                                             ncpus=args.nthreads,model=args.model,queue=args.queue,
+                                             email=args.notify,walltime=args.walltime_limit)
+                
+                submitline = 'qsub '+final_fn                
+                if run_type=='images': smf_images.write(submitline+'\n')
+                if run_type=='ifu'   : smf_ifu.write(submitline+'\n')
+                if run_type=='grism' : smf_grism.write(submitline+'\n')
 
 
-
-
-
-
-
-
-
-
+    smf_images.close()
+    smf_ifu.close()
+    smf_grism.close()
 
 
 
