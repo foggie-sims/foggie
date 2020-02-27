@@ -11,6 +11,8 @@ import numpy as np
 from astropy.table import Table, Column
 import matplotlib.pyplot as plt
 from foggie.utils.consistency import *
+#from foggie.utils.foggie_load import *
+from foggie.utils import foggie_load
 from foggie.utils import yt_fields
 from scipy.signal import find_peaks  
 import yt
@@ -63,6 +65,16 @@ def parse_args():
     parser.add_argument('--output', metavar='output', type=str, action='store',
                         help='which output? default is RD0020')
     parser.set_defaults(output="RD0020")
+
+    parser.add_argument('--save_dir', metavar='save_dir', type=str, action='store',
+                        help='directory to save products')
+    parser.set_defaults(save_dir="~/Desktop")
+
+    parser.add_argument('--use_halo_c_v', dest='use_halo_c_v', action='store_true',
+                        help='just use the pwd?, default is no')
+    parser.set_defaults(use_halo_c_v=False)
+
+
 
 
     args = parser.parse_args()
@@ -144,6 +156,30 @@ def save_profs(ds, args, sat_cat, profile_name, n_bins = 100):
     return profs
 
 
+
+
+
+
+def load_sim(args):
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    track_dir =  trackname.split('halo_tracks')[0]   + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+    snap_name = foggie_dir + run_loc + args.output + '/' + args.output
+    ds, refine_box, refine_box_center, refine_width = foggie_load.load(snap = snap_name, 
+                                                           trackfile = trackname, 
+                                                           use_halo_c_v=args.use_halo_c_v, 
+                                                           halo_c_v_name=track_dir + 'halo_c_v')
+
+    refine_box.set_field_parameter('center', ds.arr(ds.halo_center_kpc, 'kpc'))
+    bulk_vel = refine_box.quantities.bulk_velocity()
+    refine_box.set_field_parameter("bulk_velocity", bulk_vel)
+
+    return ds, refine_box, refine_box_center, refine_width
+
+
+
+
+
+
 if __name__ == '__main__':
 
     args = parse_args()
@@ -162,10 +198,10 @@ if __name__ == '__main__':
 
     # we want to load in the catalogs directory before reading in any specific halo
     # need to manually inset the directory in here for the time-being
-    save_dir = '/Users/rsimons/Desktop/foggie/outputs/identify_satellites'
+    
 
 
-    sat_cat = ascii.read(save_dir + '/satellite_locations_wcom.cat')
+    sat_cat = ascii.read(args.save_dir + '/%s_%s_%s_satellite_locations.cat'%(args.run, args.halo, args.output))
     if args.do_measure_props:
         sat_prop_cat = sat_cat.copy()
 
@@ -192,34 +228,19 @@ if __name__ == '__main__':
 
     for args.halo, args.output in inputs:
 
-        foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-
-
-        print (foggie_dir + run_loc)
-
-        run_dir = foggie_dir + run_loc
-
-        ds_loc = run_dir + args.output + "/" + args.output
-        ds = yt.load(ds_loc)
-        #yt.add_particle_filter("stars",function=yt_fields._stars, filtered_type='all',requires=["particle_type"])
-        #yt.add_particle_filter("dm",function=yt_fields._dm, filtered_type='all',requires=["particle_type"])
-        #ds.add_particle_filter('stars')
-        #ds.add_particle_filter('dm')
-
-        track = Table.read(trackname, format='ascii')
-        track.sort('col1')
-        zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-
-        refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
+        ds, refine_box, refine_box_center, refine_width = load_sim(args)
 
 
 
-        profile_name = '{}/{}_sat_mass_profiles.npy'.format(save_dir, haloname)
+
+
+
+        profile_name = '{}/{}_{}_{}_sat_mass_profiles.npy'.format(args.save_dir, args.run, args.halo, args.output)
 
         if args.do_sat_profiles: profs = save_profs(ds, args, sat_cat, profile_name)
 
 
-        fig_dir = foggie_dir.replace('sims', 'figures/identify_satellites') 
+        fig_dir = args.save_dir
 
         if args.do_measure_props:
             if not os.path.isfile(profile_name):
@@ -338,7 +359,7 @@ if __name__ == '__main__':
         sat_prop_cat.meta['comments'].append('etc. for rest of velocity components')
 
 
-        ascii.write(sat_prop_cat, save_dir + '/satellite_properties.cat', format = 'commented_header', overwrite = True)
+        ascii.write(sat_prop_cat, args.save_dir + '/%s_%s_%s_satellite_properties.cat'%(args.run, args.halo, args.output), format = 'commented_header', overwrite = True)
 
 
 
