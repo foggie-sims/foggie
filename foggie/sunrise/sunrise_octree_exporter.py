@@ -331,7 +331,7 @@ def export_to_sunrise(ds, fn, star_particle_type, fc, fwidth, nocts_wide=None, \
         return fle, fre, ile, ire, nrefined, nleafs, nstars, output, output_array
 
 
-def create_simple_fits(ds, fn, particle_data, fle, fre, no_gas_p = False,form='VELA'):
+def create_simple_fits(ds, fn, particle_data, fle, fre, no_gas_p = False,form='VELA', downsample_factor = 50):
         refined=np.asarray([1,0,0,0,0,0,0,0,0])
         
         #first create the grid structure
@@ -413,7 +413,19 @@ def create_simple_fits(ds, fn, particle_data, fle, fre, no_gas_p = False,form='V
         hls = [phdu, st_table, mg_table,md_table]
         hls.append(particle_data)
         hdus = pyfits.HDUList(hls)
-        hdus.writeto(fn, clobber=True)
+        hdus.writeto(fn, overwrite=True)
+        #Write a compressed version for the grism
+
+        b = hdus.copy()
+
+        b[4].data = b[4].data.compress(condition = b[4].data['ID']%downsample_factor == 0) 
+        b[4].data['mass']*=downsample_factor
+        b[4].data['creation_mass']*=downsample_factor
+
+        b.writeto(fn.replace('.fits', '_downsampled.fits', overwrite = True))
+
+
+
 
 
 def prepare_octree(ds, ile, fle=[0.,0.,0.], fre=[1.,1.,1.], ad=None, start_level=0, debug=True):
@@ -685,6 +697,10 @@ def create_fits_file(ds, fn, output, refined, particle_data, fle, fre, no_gas_p 
     hls.append(particle_data)
     hdus = pyfits.HDUList(hls)
     hdus.writeto(fn, clobber=True)
+
+
+
+
 
 def round_nocts_wide(dds,fle,fre,nwide=None):
     fc = (fle+fre)/2.0
