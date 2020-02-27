@@ -48,9 +48,6 @@ def parse_args():
                         help='just use the pwd?, default is no')
     parser.set_defaults(sunrise_directory='/nobackupp2/rcsimons/sunrise/foggie')
 
-
-
-
     parser.add_argument('--run', metavar='run', type=str, action='store',
                         help='which run? default is natural')
     parser.set_defaults(run="nref11c_nref9f")
@@ -91,7 +88,7 @@ def parse_args():
 
     parser.add_argument('--queue', metavar='queue', type=str, action='store',
                         help='which output? default is RD0020')
-    parser.set_defaults(queue="RD0020")
+    parser.set_defaults(queue="normal")
 
 
     parser.add_argument('--notify', metavar='notify', type=str, action='store',
@@ -112,7 +109,7 @@ def parse_args():
 
     parser.add_argument('--model', metavar='model', type=str, action='store',
                         help='which output? default is RD0020')
-    parser.set_defaults(model="ivy")
+    parser.set_defaults(model="has")
 
 
     parser.add_argument('--sunrise_data_dir', metavar='sunrise_data_dir', type=str, action='store',
@@ -282,7 +279,9 @@ def check_paths(args):
     output_directory = args.sunrise_directory + '/' + args.halo + '/' + args.run + '/' + args.output
     #checking for subdirectories, if they do not exist, create them
     Path(output_directory + '/inputs').mkdir(parents = True, exist_ok = True)
-    return output_directory
+    prefix = output_directory + '/inputs/' + args.run + '_' + args.halo + '_' + args.output
+
+    return output_directory, prefix
 
 
 
@@ -383,17 +382,21 @@ def setup_runs(ds, args, prefix, output_directory, list_of_types = ['images', 'g
     smf_grism.close()
 
 
+
+def load_sim(args):
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    track_dir =  trackname.split('halo_tracks')[0]   + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+    snap_name = foggie_dir + run_loc + args.output + '/' + args.output
+    ds, refine_box, refine_box_center, refine_width = load(snap = snap_name, 
+                                                           trackfile = trackname, 
+                                                           use_halo_c_v=args.use_halo_c_v, 
+                                                           halo_c_v_name=track_dir + 'halo_c_v')
+    return ds
+
 if __name__ == "__main__":
     args = parse_args()
-    output_directory = check_paths(args)
-
-    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    code_path = trackname.split('halo_tracks')[0]  
-    track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-    snap_name = foggie_dir + run_loc + args.output + '/' + args.output
-    ds, refine_box, refine_box_center, refine_width = load(snap_name, trackname, use_halo_c_v=args.use_halo_c_v, halo_c_v_name=track_dir + 'halo_c_v')
-
-    prefix = output_directory + '/inputs/' + args.run + '_' + args.halo + '_' + args.output
+    output_directory, prefix = check_paths(args)
+    ds = load_sim(args)
 
     if args.do_cameras: 
         cameras = generate_cameras(normal_vector = np.array([1,0,0]), 
