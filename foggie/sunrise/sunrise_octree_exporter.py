@@ -422,7 +422,7 @@ def create_simple_fits(ds, fn, particle_data, fle, fre, no_gas_p = False,form='V
         b[4].data['mass']*=downsample_factor
         b[4].data['creation_mass']*=downsample_factor
 
-        b.writeto(fn.replace('.fits', '_downsampled.fits', overwrite = True))
+        b.writeto(fn.replace('.fits', '_downsampled.fits'), overwrite = True)
 
 
 

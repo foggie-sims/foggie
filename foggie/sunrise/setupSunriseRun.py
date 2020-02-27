@@ -17,13 +17,13 @@ def generate_sfrhist_config(run_dir, filename, stub_name, fits_file, center_kpc,
     sf = open(run_dir+'/'+filename,'w+')
     sf.write('#Parameter File for Sunrise, sfrhist\n\n')
     sf.write('include_file              %s\n\n'%stub_name)
-    sf.write('snapshot_file             %s\n'%fits_file)
     sf.write('output_file               %s\n\n'%(run_dir+'/sfrhist.fits'))
     sf.write('n_threads                 '+nthreads+'\n')
 
     sf.write('translate_origin          %.2f\t%.2f\t%.2f         / [kpc]\n'%(center_kpc[0], center_kpc[1], center_kpc[2]))
 
     if run_type == 'images':
+        sf.write('snapshot_file             %s\n'%fits_file)
         sf.write('min_wavelength            %s\n'%("0.1e-6"))
         sf.write('max_wavelength            %s\n\n'%("5.0e-6"))
 
@@ -32,6 +32,7 @@ def generate_sfrhist_config(run_dir, filename, stub_name, fits_file, center_kpc,
 
 
     elif run_type == 'ifu':
+        sf.write('snapshot_file             %s\n'%fits_file)
         sf.write('min_wavelength            %s\n'%("0.6450e-6"))
         sf.write('max_wavelength            %s\n\n'%("0.6650e-6"))
 
@@ -39,6 +40,7 @@ def generate_sfrhist_config(run_dir, filename, stub_name, fits_file, center_kpc,
         sf.write('stellarmodelfile          %s\n'%("%s/logspace-Patrik-imfKroupa-geneva-Zmulti-hires.fits"%sunrise_data_dir))
 
     elif run_type == 'grism':
+        sf.write('snapshot_file             %s\n'%fits_file.replace('.fits', '_downsampled.fits'))
         sf.write('min_wavelength            %s\n'%("0.1e-6"))
         sf.write('max_wavelength            %s\n\n'%("1.5e-6"))
 
