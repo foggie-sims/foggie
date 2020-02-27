@@ -7,7 +7,7 @@ import os
 
 halos  = ['2392', '2878', '4123', '5016', '5036', '8508']
 #halos = ['2878']
-
+halos = ['2878']
 for halo in halos:
     print (halo)
     dir_name = '/nobackup/mpeeples/halo_00%s/nref11c_nref9f'%halo
@@ -34,7 +34,7 @@ for halo in halos:
         
         qf.write('#PBS -S /bin/bash\n')
         qf.write('#PBS -l select=1:ncpus=20:model=ivy\n')
-        qf.write('#PBS -l walltime=0:30:00\n')
+        qf.write('#PBS -l walltime=2:00:00\n')
         qf.write('#PBS -q normal\n')
         qf.write('#PBS -N %s\n'%snapname)
         qf.write('#PBS -M rsimons@stsci.edu\n')
@@ -47,7 +47,7 @@ for halo in halos:
         qf.write('source /u/rcsimons/.bashrc\n')
         for DD in arange(dmn, dmn+splitn):
                 snapname_temp = '%s_%.4i'%(halo, DD)
-                qf.write('python /nobackupp2/rcsimons/git/foggie/foggie/sunrise/enzotosunrise.py --halo 8508 --output DD0487  \
+                qf.write('python /nobackupp2/rcsimons/git/foggie/foggie/sunrise/enzotosunrise.py \
                          --halo %s --output DD%.4i --system pleiades_raymond --do_setup --do_cameras --do_export > ./outfiles/%s_sunrise.err > \
                          ./outfiles/%s_sunrise.out\n'%(halo, DD, snapname_temp, snapname_temp))
 
@@ -56,3 +56,10 @@ for halo in halos:
         sf.write('qsub %s\n'%qsub_fname)
 
     sf.close()  
+
+
+
+
+
+
+    
