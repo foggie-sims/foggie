@@ -185,8 +185,10 @@ def generate_cameras(normal_vector, prefix, seed = 0, distance=100.0, fov=50.0, 
 
     else:
         camera_set = OrderedDict([
-                                ['face',([0.,0.,1.],[0.,-1.,0],True)], #up is north=+y
-                                ['edge',([0.,1.,0.],[0.,0.,-1.],True)]
+                                ['Z-axis',([0.,0.,-1.],[0.,-1.,0],False)], #up is north=+y
+                                ['Y-axis',([0.,1.,0.],[0.,0.,-1.],False)],#up is along z
+                                ['X-axis',([1.,0.,0.],[0.,0.,-1.],False)],#up is along z
+
                                 ])  
 
     i=0  
