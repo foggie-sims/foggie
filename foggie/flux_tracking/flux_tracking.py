@@ -64,7 +64,7 @@ def parse_args():
                         + ' and the default output is RD0036) or specify a range of outputs ' + \
                         'using commas to list individual outputs and dashes for ranges of outputs ' + \
                         '(e.g. "RD0020-RD0025" or "DD1341,DD1353,DD1600-DD1700", no spaces!)')
-    parser.set_defaults(output='RD0036')
+    parser.set_defaults(output='RD0034')
 
     parser.add_argument('--system', metavar='system', type=str, action='store', \
                         help='Which system are you on? Default is cassiopeia')
@@ -98,7 +98,8 @@ def parse_args():
                         help='What surface type for computing the flux? Default is sphere' + \
                         ' and the other option is "frustum".\nNote that all surfaces will be centered on halo center.\n' + \
                         'To specify the shape, size, and orientation of the surface you want, ' + \
-                        'input a list as follows (don\'t forget the outer quotes):\nIf you want a sphere, give:\n' + \
+                        'input a list as follows (don\'t forget the outer quotes, and put the shape in a different quote type!):\n' + \
+                        'If you want a sphere, give:\n' + \
                         '"[\'sphere\', inner_radius, outer_radius, num_radii]"\n' + \
                         'where inner_radius is the inner boundary as a fraction of refine_width, outer_radius is the outer ' + \
                         'boundary as a fraction (or multiple) of refine_width,\nand num_radii is the number of radii where you want the flux to be ' + \
@@ -112,6 +113,13 @@ def parse_args():
                         'inner_radius, outer_radius, and num_radii are the same as for the sphere\n' + \
                         'and opening_angle gives the angle in degrees of the opening angle of the cone, measured from axis.')
     parser.set_defaults(surface="['sphere', 0.05, 2., 200]")
+
+    parser.add_argument('--kpc', dest='kpc', action='store_true',
+                        help='Do you want to give inner_radius and outer_radius in the surface arguments ' + \
+                        'in kpc rather than the default of fraction of refine_width? Default is no.\n' + \
+                        'Note that if you want to track fluxes over time, using kpc instead of fractions ' + \
+                        'of refine_width will lead to larger errors.')
+    parser.set_defaults(kpc=False)
 
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', \
                         help='How many processes do you want? Default is 1 ' + \
@@ -254,6 +262,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
     inner_radius = surface_args[1]
     outer_radius = surface_args[2]
     dr = (outer_radius - inner_radius)/surface_args[3]
+    units_kpc = surface_args[4]
 
     # Set up table of everything we want
     # NOTE: Make sure table units are updated when things are added to this table!
@@ -402,7 +411,10 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         fluxes_sat = Table(names=names_list_sat, dtype=types_list_sat)
 
     # Define the radii of the spherical shells where we want to calculate fluxes
-    radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
+    if (units_kpc):
+        radii = ds.arr(np.arange(inner_radius, outer_radius+dr, dr), 'kpc')
+    else:
+        radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
 
     # Load arrays of all fields we need
     print('Loading field arrays')
@@ -1395,6 +1407,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
     op_angle = surface_args[6]
     axis = surface_args[1]
     flip = surface_args[2]
+    units_kpc = surface_args[7]
 
     # Set up table of everything we want
     # NOTE: Make sure table units are updated when things are added to this table!
@@ -1538,7 +1551,11 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         fluxes_sat = Table(names=names_edge, dtype=type_list_edge)
 
     # Define the radii of the surfaces where we want to calculate fluxes
-    radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
+    if (units_kpc):
+        radii = ds.arr(np.arange(inner_radius, outer_radius+dr, dr), 'kpc')
+    else:
+        radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
+    print(radii)
 
     # Load arrays of all fields we need
     print('Loading field arrays')
@@ -2901,7 +2918,13 @@ if __name__ == "__main__":
             foggie_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/'
     track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
 
-    surface_args = ast.literal_eval(args.surface)
+    try:
+        surface_args = ast.literal_eval(args.surface)
+    except ValueError:
+        print("Something's wrong with your surface arguments. Make sure to include both the outer " + \
+        "quotes and the inner quotes around the surface type, like so:\n" + \
+        '"[\'sphere\', 0.05, 2., 200.]"')
+        sys.exit()
     if (surface_args[0]=='sphere'):
         print('Sphere arguments: inner_radius - %.3f outer_radius - %.3f num_radius - %d' % \
           (surface_args[1], surface_args[2], surface_args[3]))
@@ -2940,6 +2963,13 @@ if __name__ == "__main__":
               (axis, surface_args[3], surface_args[4], surface_args[5], surface_args[6]))
     else:
         sys.exit("That surface has not been implemented. Ask Cassi to add it.")
+
+    if (args.kpc):
+        print('Surface arguments are in units of kpc.')
+        surface_args.append(True)
+    else:
+        print('Surface arguments are fractions of refine_width.')
+        surface_args.append(False)
 
     # Build output list
     if (',' in args.output):
@@ -3007,6 +3037,9 @@ if __name__ == "__main__":
 
     # Specify where satellite files are saved
     if (args.remove_sats):
+        if ('RD' in args.output):
+            print('Sorry, cannot remove satellites with RD outputs. Either include satellites or try a DD output.')
+            sys.exit()
         sat_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
         sat_radius = args.sat_radius
     else:
