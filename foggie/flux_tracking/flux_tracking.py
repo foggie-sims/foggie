@@ -1555,7 +1555,6 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         radii = ds.arr(np.arange(inner_radius, outer_radius+dr, dr), 'kpc')
     else:
         radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
-    print(radii)
 
     # Load arrays of all fields we need
     print('Loading field arrays')
@@ -2921,10 +2920,9 @@ if __name__ == "__main__":
     try:
         surface_args = ast.literal_eval(args.surface)
     except ValueError:
-        print("Something's wrong with your surface arguments. Make sure to include both the outer " + \
+        sys.exit("Something's wrong with your surface arguments. Make sure to include both the outer " + \
         "quotes and the inner quotes around the surface type, like so:\n" + \
         '"[\'sphere\', 0.05, 2., 200.]"')
-        sys.exit()
     if (surface_args[0]=='sphere'):
         print('Sphere arguments: inner_radius - %.3f outer_radius - %.3f num_radius - %d' % \
           (surface_args[1], surface_args[2], surface_args[3]))
@@ -3038,8 +3036,7 @@ if __name__ == "__main__":
     # Specify where satellite files are saved
     if (args.remove_sats):
         if ('RD' in args.output):
-            print('Sorry, cannot remove satellites with RD outputs. Either include satellites or try a DD output.')
-            sys.exit()
+            sys.exit('Sorry, cannot remove satellites with RD outputs. Either include satellites or try a DD output.')
         sat_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
         sat_radius = args.sat_radius
     else:
