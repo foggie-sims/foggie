@@ -69,7 +69,7 @@ output only, do not use more than 1 processor.
 
 --surface ["XXXX", X, X, X, X]
 What surface type for computing the flux? Default is sphere in 200 steps between 0.05*refine_width
-and 2*refine_width. Other options are "plane" and "frustum". Note that all surfaces will be centered
+and 2*refine_width. Other option is "frustum". Note that all surfaces will be centered
 on halo center. To specify the shape, size, and orientation of the surface you want, input a list as
 follows:
 If you want a sphere, give:
@@ -86,13 +86,19 @@ If axis is given as a negative number, it will compute a frustum pointing the ot
 inner_radius, outer_radius, and num_radii are the same as for the sphere and opening_angle gives the
 angle in degrees of the opening angle of the cone, measured from axis (note that the total opening
 angle of the cone will be 2*opening_angle).
-If you want a plane, give:
-["plane", axis, cen_dist, width]
-where axis is a number 1 through 4 as for the frustum and specifies the orientation of the normal
-vector of the plane, cen_dist is the distance in kpc the plane is from the center of the halo,
-and width is the size in kpc of one side of the plane (it will be square). If cen_dist is a negative
-number, the plane will be located on the opposite side of the halo than if it were a positive number.
 
+--remove_sats
+If this option is specified, it will excise satellites before calculating the flux.
+
+--sat_radius X
+If --remove_sats is specified, then this option decides the radius (in kpc) around satellites that
+will be excised from the domain. The default is 10.
+
+--flux_type XXXX
+What fluxes do you want to compute? Currently, the options are "mass" (includes metal masses)
+"energy" "entropy" and "O_ion_mass". You can compute all of them by inputting "mass,energy,entropy,O_ion_mass" (no spaces!)
+and the default is to do all. Note that increasing the number of fluxes computed drastically increases runtime.
+If there is a type of flux that you'd like that is not on this list, ask Cassi to add it.
 
 Outputs:
 --------
@@ -128,15 +134,7 @@ calculated. For example, if inner_radius is 30 kpc and outer_radius is 40 kpc, t
 fluxes are calculated to and from all satellites located between 30 and 40 kpc (which may be none,
 in which case the flux will be zero).
 
-The rest of the columns list the values of the fluxes. The fluxes calculated are:
-mass_flux
-metal_mass_flux
-kinetic_energy_flux
-thermal_energy_flux
-potential_energy_flux
-radiative_energy_flux (only in _nosat file, see note below about this one)
-entropy_flux
-(if you'd like another kind of flux added, ask Cassi)
+The rest of the columns list the values of the fluxes.
 
 In addition, the fluxes are broken down into net flux, inward flux, and outward flux. They are then
 further broken down into cold, cool, warm, and hot gas, with the sum of these 4 being equal to
