@@ -17,6 +17,7 @@ import yt
 from numpy import *
 from photutils.segmentation import detect_sources
 from yt.units import kpc
+from foggie.utils.foggie_load import *
 from astropy.io import ascii
 plt.ioff()
 def parse_args():
@@ -64,6 +65,13 @@ def parse_args():
     parser.set_defaults(output="RD0020")
 
 
+    parser.add_argument('--save_dir', metavar='save_dir', type=str, action='store',
+                        help='directory to save products')
+    parser.set_defaults(save_dir="~")
+
+    parser.add_argument('--use_halo_c_v', dest='use_halo_c_v', action='store_true',
+                        help='just use the pwd?, default is no')
+    parser.set_defaults(use_halo_c_v=False)
 
     args = parser.parse_args()
     return args
@@ -165,21 +173,21 @@ def make_projection_plots(ds, halo_center, refine_box, x_width,fig_dir, fig_end 
     return
 
 
-def identify_satellites(sat_file, halo_center_kpc, haloname, foggie_dir, i_orients = array([(0, 'x'), (1, 'y'), (2, 'z')]), selection_props = [(0.5, 5.e5), (1.0, 1.e6)]):
+def identify_satellites(args, sat_file, halo_center_kpc, haloname, width, i_orients = array([(0, 'x'), (1, 'y'), (2, 'z')]), selection_props = [(0.5, 5.e5), (1.0, 1.e6)]):
 
     satellites = []
     sat_count = 0
 
-    mass_stars, x_stars, y_stars, z_stars, particle_ids = load_particle_data(refine_box)
+    mass_stars, x_stars, y_stars, z_stars, particle_ids, particle_ages = load_particle_data(refine_box)
     all_stars = [x_stars, y_stars, z_stars]
     ortho_orients = [[1,2], [0,2], [0,1]]
 
     for (bin_size, mass_limit) in selection_props:
 
 
-        xbin = np.arange(halo_center_kpc[0] - width/2., halo_center_kpc[0] + width/2. + bin_size, bin_size)
-        ybin = np.arange(halo_center_kpc[1] - width/2., halo_center_kpc[1] + width/2. + bin_size, bin_size)
-        zbin = np.arange(halo_center_kpc[2] - width/2., halo_center_kpc[2] + width/2. + bin_size, bin_size)
+        xbin = np.arange(halo_center_kpc[0].value - width/2., halo_center_kpc[0].value + width/2. + bin_size, bin_size)
+        ybin = np.arange(halo_center_kpc[1].value - width/2., halo_center_kpc[1].value + width/2. + bin_size, bin_size)
+        zbin = np.arange(halo_center_kpc[2].value - width/2., halo_center_kpc[2].value + width/2. + bin_size, bin_size)
 
         p = np.histogramdd((x_stars, y_stars, z_stars), \
                             weights = mass_stars, \
@@ -193,7 +201,7 @@ def identify_satellites(sat_file, halo_center_kpc, haloname, foggie_dir, i_orien
             i = int(i)
             sm_im = np.log10(np.nansum(pp, axis = i))
             seg_im = detect_sources(sm_im, threshold = 0, npixels = 1, connectivity = 8)
-            make_segmentation_figure(sm_im, seg_im, figname = fig_dir + '/%s_%s_satellite_selection_%.1f_%.1f.png'%(haloname, orient, bin_size, mass_limit * 1.e-6))
+            make_segmentation_figure(sm_im, seg_im, orient, figname = args.save_dir + '/%s_%s_%s_%s_satellite_selection_%.1f_%.1f.png'%(args.run, args.halo, args.output, orient, bin_size, mass_limit * 1.e-6))
 
             for label in seg_im.labels:
                 edges1 = p[1][ortho_orients[i][0]]
@@ -235,7 +243,7 @@ def identify_satellites(sat_file, halo_center_kpc, haloname, foggie_dir, i_orien
                     satellites.append(new_satellite_dic)
             print ('\n\n')
 
-    save_dir = foggie_dir.replace('sims', 'outputs/identify_satellites')
+    save_dir = args.save_dir
     np.save(sat_file, satellites)
 
 
@@ -253,7 +261,7 @@ def load_particle_data(refine_box, only_ids_ages = False):
 
     return mass_stars, x_stars, y_stars, z_stars, particle_ids, particle_ages
 
-def make_segmentation_figure(sm_im, seg_im, figname):
+def make_segmentation_figure(sm_im, seg_im, orient, figname):
     # Aligning the image with YT.ProjectionPlot
     plt.close('all')
 
@@ -282,6 +290,29 @@ def make_segmentation_figure(sm_im, seg_im, figname):
     plt.close('all')
     return
 
+
+
+
+def load_sim(args):
+    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    track_dir =  trackname.split('halo_tracks')[0]   + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+    snap_name = foggie_dir + run_loc + args.output + '/' + args.output
+    ds, refine_box, refine_box_center, refine_width = load(snap = snap_name, 
+                                                           trackfile = trackname, 
+                                                           use_halo_c_v=args.use_halo_c_v, 
+                                                           halo_c_v_name=track_dir + 'halo_c_v')
+
+    refine_box.set_field_parameter('center', ds.arr(ds.halo_center_kpc, 'kpc'))
+    bulk_vel = refine_box.quantities.bulk_velocity()
+    refine_box.set_field_parameter("bulk_velocity", bulk_vel)
+
+    return ds, refine_box, refine_box_center, refine_width
+
+
+
+
+
+
 if __name__ == '__main__':
 
     args = parse_args()
@@ -300,56 +331,18 @@ if __name__ == '__main__':
     anchors = {}
     for args.halo, args.output in inputs:
         anchors[args.halo] = {}
-        foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+        sat_file = args.save_dir + '/%s_%s_%s_satellite_selection.npy'%(args.run, args.halo, args.output)
 
-        save_dir = foggie_dir.replace('sims', 'outputs/identify_satellites')
-
-        if not os.path.isdir(save_dir): os.system('mkdir %s'%save_dir)
-
-        print (foggie_dir + run_loc)
-
-        run_dir = foggie_dir + run_loc
-
-        ds_loc = run_dir + args.output + "/" + args.output
-        ds = yt.load(ds_loc)
-        yt.add_particle_filter("stars",function=yt_fields._stars, filtered_type='all',requires=["particle_type"])
-        yt.add_particle_filter("dm",function=yt_fields._dm, filtered_type='all',requires=["particle_type"])
-        ds.add_particle_filter('stars')
-        ds.add_particle_filter('dm')
-
-        track = Table.read(trackname, format='ascii')
-        track.sort('col1')
-        zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-
-        refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
+        ds, refine_box, refine_box_center, refine_width = load_sim(args)
 
 
-        center_file = foggie_dir.replace('/sims/', '/outputs/centers/{}_{}.npy'.format(haloname, args.output))
-        if os.path.isfile(center_file): 
-            # Load the halo center
-            halo_center = np.load(center_file)
-        else:
-            # Calculate the center of the halo and save for future
-            halo_center = get_halo_center(ds, refine_box_center)[0]
-            np.save(center_file, halo_center)
-
-        halo_center_kpc = ds.arr(halo_center, 'code_length').to('kpc').value
-        width = ds.arr(x_width, 'code_length').to('kpc').value      
-
-        fig_dir = foggie_dir.replace('sims', 'figures/identify_satellites') 
         if args.do_proj_plots:
-            make_projection_plots(ds, halo_center, refine_box, x_width, fig_dir, do = ['gas', 'dm', 'stars'], axes = ['x','y','z'])
+            make_projection_plots(ds, ds.halo_center_kpc, \
+                                  refine_box, x_width, args.save_dir, \
+                                  do = ['gas', 'dm', 'stars'], axes = ['x','y','z'])
 
-        sat_file = save_dir + '/satellite_selection_%s.npy'%(haloname)
-
-        # Set the defined center coordinate of the box at the halo center
-        refine_box.set_field_parameter('center', ds.arr(halo_center, 'code_length'))
-        bulk_vel = refine_box.quantities.bulk_velocity()
-        refine_box.set_field_parameter("bulk_velocity", bulk_vel)
-
-
-
-        if args.do_identify_satellites: identify_satellites(sat_file, halo_center_kpc, haloname, foggie_dir)
+        if args.do_identify_satellites:
+            identify_satellites(args, sat_file, ds.halo_center_kpc, args.halo, width = refine_width)
 
 
 
@@ -378,7 +371,7 @@ if __name__ == '__main__':
 
     if args.do_record_anchor_particles: 
 
-        anchor_save = foggie_dir.replace('/sims/', '/outputs/identify_satellites/anchors.npy')
+        anchor_save = args.save_dir + '/anchors.npy'
         np.save(anchor_save, anchors)
 
 

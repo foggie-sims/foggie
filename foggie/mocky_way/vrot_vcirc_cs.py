@@ -6,7 +6,7 @@ def calc_vrot_slit(ds, dd_name, sim_name, halo_center, normal_vector,
     way. We want to compare it with the result from calc_vrot_phi, which focuses
     on an approach that's theoretical.
     --> added mass weighted version of vrot and vsig
-    
+
     Inputs:
     normal_vector: the angular momentum vector, L_vec
     los_vector: line of sight vector we are gonna project the vrot onto
@@ -78,7 +78,7 @@ def calc_vrot_slit(ds, dd_name, sim_name, halo_center, normal_vector,
     # save the result to a table for future comparison
     from astropy.table import Table
     master = Table([radii_slit, v_rot_slit, v_sig_slit, v_rot_slit_masswt, v_sig_slit_masswt],
-                    names=('r', 'v_rotation', 'v_dispersion, v_rotation_masswt', 'v_dispersion_masswt'),
+                    names=('r', 'v_rotation', 'v_dispersion', 'v_rotation_masswt', 'v_dispersion_masswt'),
                     meta={'name': 'FOGGIE/%s/%s'%(sim_name, dd_name)})
     master['r'].format = '8.2f'
     master['r'].unit = 'kpc'
@@ -91,7 +91,7 @@ def calc_vrot_slit(ds, dd_name, sim_name, halo_center, normal_vector,
     master['v_dispersion_masswt'].format = '8.2f'
     master['v_dispersion_masswt'].unit = 'km/s'
 
-    save_dir = sys_dir+'/foggie/mocky_way/figs/vrot_vcirc_cs'
+    save_dir = sys_dir+'/foggie/mocky_way/figs/vrot_vcirc_cs/fits'
     filename = '%s_%s_vrotslit'%(sim_name, dd_name)
     fitsfile = '%s/%s.fits'%(save_dir, filename)
     master.write(fitsfile, overwrite=True)
@@ -205,7 +205,7 @@ def calc_vrot_phi(ds, dd_name, sim_name, halo_center, L_vec, sun_vec, phi_vec,
     master['v_dispersion_masswt'].format = '8.2f'
     master['v_dispersion_masswt'].unit = 'km/s'
 
-    save_dir = sys_dir+'/foggie/mocky_way/figs/vrot_vcirc_cs'
+    save_dir = sys_dir+'/foggie/mocky_way/figs/vrot_vcirc_cs/fits'
     filename = '%s_%s_vrotphi'%(sim_name, dd_name)
     fitsfile = '%s/%s.fits'%(save_dir, filename)
 
@@ -282,7 +282,7 @@ def calc_vcirc(ds, dd_name, sim_name, halo_center, maxr=150, dr=0.5):
     master['r'].unit = 'kpc'
     master['v_circ'].unit = 'km/s'
 
-    save_dir = sys_dir+'/foggie/mocky_way/figs/vrot_vcirc_cs'
+    save_dir = sys_dir+'/foggie/mocky_way/figs/vrot_vcirc_cs/fits'
     filename = '%s_%s_vcirc'%(sim_name, dd_name)
     fitsfile = '%s/%s.fits'%(save_dir, filename)
 
@@ -360,7 +360,7 @@ def calc_sound_speed(ds, dd_name, sim_name, halo_center, maxr=150, dr=0.5):
     master['cs'].unit = 'km/s'
     master['cs_rho_weighted'].unit = 'km/s'
 
-    save_dir = sys_dir+'/foggie/mocky_way/figs/vrot_vcirc_cs'
+    save_dir = sys_dir+'/foggie/mocky_way/figs/vrot_vcirc_cs/fits'
     filename = '%s_%s_sound_speed'%(sim_name, dd_name)
     fitsfile = '%s/%s.fits'%(save_dir, filename)
 
@@ -385,7 +385,9 @@ def plt_vrot(dd_name, sim_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fi
 
     grey = plt.cm.Greys(0.7)
     red = plt.cm.Reds(0.7)
+    magenta = 'm'
     blue = plt.cm.Blues(0.6)
+    green = plt.cm.Greens(0.6)
     lw = 1.5
     fs = 18
 
@@ -398,8 +400,12 @@ def plt_vrot(dd_name, sim_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fi
             color='k', lw=lw*2, linestyle='-')
     ax.plot(vphi['r'], vphi['v_rotation'], label=r'$v_{\rm rot}$',
             color=blue, lw=lw*3, linestyle='--')
+    ax.plot(vphi['r'], vphi['v_rotation_masswt'], label=r'$v_{\rm rot, wt}$',
+            color=green, lw=lw*3, linestyle='--')
     ax.plot(vphi['r'], vphi['v_dispersion'], label=r'$\sigma_{\rm v}$',
             color=blue, lw=lw, linestyle=':')
+    ax.plot(vphi['r'], vphi['v_dispersion_masswt'], label=r'$\sigma_{\rm v, wt}$',
+            color=green, lw=lw, linestyle=':')
     ax.plot(cs['r'], cs['cs_rho_weighted'],
             label=r'$c_{\rm s}\equiv\sqrt{kT/\mu m_{\rm p}}$',
             color='m', lw=lw, linestyle='-.')
@@ -427,14 +433,14 @@ def plt_vrot(dd_name, sim_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fi
 
     ax.plot(vcirc['r'], vcirc['v_circ'], label=r'$v_{\rm c}=\sqrt{GM(r<R)/R}$',
             color='k', lw=lw*3, linestyle=':')
-    ax.plot(vphi['r'], vphi['v_rotation'], label=r'$v_{\rm rot, cylindrical}$',
-            color=blue, lw=lw*3, linestyle='-')
-    ax.plot(vphi['r'], vphi['v_dispersion'], label=r'$\sigma_{\rm cylindrical}$',
-            color=blue, lw=lw, linestyle='-')
     ax.plot(vslit['r'], vslit['v_rotation'], label=r'$v_{\rm rot, slit}$',
             color=red, lw=lw*3, linestyle='--')
+    ax.plot(vslit['r'], vslit['v_rotation_masswt'], label=r'$v_{\rm rot, slit, wt}$',
+            color=magenta, lw=lw*3, linestyle='--')
     ax.plot(vslit['r'], vslit['v_dispersion'], label=r'$\sigma_{\rm slit}$',
-            color=red, lw=lw, linestyle='--')
+            color=red, lw=lw, linestyle='-.')
+    ax.plot(vslit['r'], vslit['v_dispersion_masswt'], label=r'$\sigma_{\rm slit, wt}$',
+            color=magenta, lw=lw, linestyle='-.')
 
     for tick in ax.xaxis.get_major_ticks():
         tick.label.set_fontsize(fs-2)
@@ -449,7 +455,7 @@ def plt_vrot(dd_name, sim_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fi
     ax.legend(fontsize=fs-4)
     ax.minorticks_on()
     fig.tight_layout()
-    fig.savefig('figs/vrot_vcirc_cs/%s_%s_vcirc_vrot_vsigma.pdf'%(sim_name, dd_name))
+    fig.savefig('figs/vrot_vcirc_cs/%s_%s_vcirc_vslit_vsigma.pdf'%(sim_name, dd_name))
     plt.close()
 
     ###########################################
@@ -509,15 +515,15 @@ def plt_vrot(dd_name, sim_name, vrot_slit_fits, vrot_phi_fits, vcirc_fits, cs_fi
 
 if __name__ == "__main__":
     ### Read in the simulation data and find halo center  ###
-    #import sys
-    #sim_name = sys.argv[1] # 'nref11n_nref10f'
-    #dd_name = sys.argv[2]  # 'DD2175'
-    sim_name = 'nref11n_nref10f'
-    dd_name = 'DD2175'
-    run_slit = False
-    run_cylind = False
-    run_cs = False
-    run_circ = False
+    import sys
+    sim_name = sys.argv[1] # 'nref11n_nref10f'
+    dd_name = sys.argv[2]  # 'DD2175'
+    #sim_name = 'nref11n_nref10f'
+    #dd_name = 'DD2175'
+    run_slit = True  # update for mass weighted version
+    run_cylind = True  # update for mass weighted version
+    run_cs = True
+    run_circ = True
 
     maxr = 100
     dr = 0.5
@@ -575,10 +581,10 @@ if __name__ == "__main__":
 
     ###########################################################################
     #### Now plot stuff
-    vrot_slit_fits = 'figs/vrot_vcirc_cs/%s_%s_vrotslit.fits'%(sim_name, dd_name)
-    vrot_phi_fits = 'figs/vrot_vcirc_cs/%s_%s_vrotphi.fits'%(sim_name, dd_name)
-    vcirc_fits = 'figs/vrot_vcirc_cs/%s_%s_vcirc.fits'%(sim_name, dd_name)
-    cs_fits = 'figs/vrot_vcirc_cs/%s_%s_sound_speed.fits'%(sim_name, dd_name)
+    vrot_slit_fits = 'figs/vrot_vcirc_cs/fits/%s_%s_vrotslit.fits'%(sim_name, dd_name)
+    vrot_phi_fits = 'figs/vrot_vcirc_cs/fits/%s_%s_vrotphi.fits'%(sim_name, dd_name)
+    vcirc_fits = 'figs/vrot_vcirc_cs/fits/%s_%s_vcirc.fits'%(sim_name, dd_name)
+    cs_fits = 'figs/vrot_vcirc_cs/fits/%s_%s_sound_speed.fits'%(sim_name, dd_name)
 
     print("Phew, finally plotting everything...")
     plt_vrot(dd_name, sim_name, vrot_slit_fits,
