@@ -79,9 +79,14 @@ want the flux to be calculated between inner_radius and outer_radius (inner_radi
 are automatically included).
 If you want a frustum, give:
 "['frustum', axis, inner_radius, outer_radius, num_radii, opening_angle]"
-where axis is a number 1 through 4 that specifies what axis to align the frustum with:
-1) x axis 2) y axis 3) z axis 4) minor axis of galaxy disk.
-If axis is given as a negative number, it will compute a frustum pointing the other way.
+where axis specifies what axis to align the frustum with and can be one of the following:
+'x'
+'y'
+'z'
+'minor' (specifies alignment with galaxy minor axis)
+(x,y,z) (a tuple specifying a 3D vector to align the frustum with)
+If axis is anything but the 3D vector, you can also start the string with '-', like so: '-x' or '-minor',
+then it will compute a frustum pointing the opposite direction.
 inner_radius, outer_radius, and num_radii are the same as for the sphere and opening_angle gives the
 angle in degrees of the opening angle of the cone, measured from axis (note that the total opening
 angle of the cone will be 2*opening_angle).

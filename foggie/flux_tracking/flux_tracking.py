@@ -107,9 +107,9 @@ def parse_args():
                         '(inner_radius and outer_radius are automatically included).\n' + \
                         'If you want a frustum, give:\n' + \
                         '"[\'frustum\', axis, inner_radius, outer_radius, num_radii, opening_angle]"\n' + \
-                        'where axis is a number 1 through 4 that specifies what axis to align the frustum with:\n' + \
-                        '1) x axis 2) y axis 3) z axis 4) minor axis of galaxy disk.\n' + \
-                        'If axis is given as a negative number, it will compute a frustum pointing the other way.\n' + \
+                        'where axis specifies what axis to align the frustum with and can be one of the following:\n' + \
+                        "'x'\n'y'\n'z'\n'minor' (aligns with disk minor axis)\n(x,y,z) (a tuple giving a 3D vector for an arbitrary axis).\n" + \
+                        'For all axis definitions other than the arbitrary vector, if the axis string starts with a \'-\', it will compute a frustum pointing in the opposite direction.\n' + \
                         'inner_radius, outer_radius, and num_radii are the same as for the sphere\n' + \
                         'and opening_angle gives the angle in degrees of the opening angle of the cone, measured from axis.')
     parser.set_defaults(surface="['sphere', 0.05, 2., 200]")
@@ -1649,6 +1649,36 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         new_theta = np.arccos(new_z_disk/new_radius)
         phi = np.arctan2(y_disk, x_disk)
         frus_filename += 'disk_' + str(op_angle)
+    if (type(axis)==tuple) or (type(axis)==list):
+        axis = np.array(axis)
+        norm_axis = axis / np.sqrt((axis**2.).sum())
+        # Define other unit vectors orthagonal to the angular momentum vector
+        np.random.seed(99)
+        x_axis = np.random.randn(3)            # take a random vector
+        x_axis -= x_axis.dot(norm_axis) * norm_axis       # make it orthogonal to L
+        x_axis /= np.linalg.norm(x_axis)            # normalize it
+        y_axis = np.cross(norm_axis, x_axis)           # cross product with L
+        x_vec = ds.arr(x_axis)
+        y_vec = ds.arr(y_axis)
+        z_vec = ds.arr(norm_axis)
+        # Calculate the rotation matrix for converting from original coordinate system
+        # into this new basis
+        xhat = np.array([1,0,0])
+        yhat = np.array([0,1,0])
+        zhat = np.array([0,0,1])
+        transArr0 = np.array([[xhat.dot(x_vec), xhat.dot(y_vec), xhat.dot(z_vec)],
+                             [yhat.dot(x_vec), yhat.dot(y_vec), yhat.dot(z_vec)],
+                             [zhat.dot(x_vec), zhat.dot(y_vec), zhat.dot(z_vec)]])
+        rotationArr = np.linalg.inv(transArr0)
+        x_rot = rotationArr[0][0]*x + rotationArr[0][1]*y + rotationArr[0][2]*z
+        y_rot = rotationArr[1][0]*x + rotationArr[1][1]*y + rotationArr[1][2]*z
+        z_rot = rotationArr[2][0]*x + rotationArr[2][1]*y + rotationArr[2][2]*z
+        new_x_rot = rotationArr[0][0]*new_x + rotationArr[0][1]*new_y + rotationArr[0][2]*new_z
+        new_y_rot = rotationArr[1][0]*new_x + rotationArr[1][1]*new_y + rotationArr[1][2]*new_z
+        new_z_rot = rotationArr[2][0]*new_x + rotationArr[2][1]*new_y + rotationArr[2][2]*new_z
+        theta = np.arccos(z_rot/radius)
+        new_theta = np.arccos(new_z_rot/new_radius)
+        frus_filename += 'axis_' + str(axis[0]) + '_' + str(axis[1]) + '_' + str(axis[2]) + '_' + str(op_angle)
 
     # Load list of satellite positions
     if (sat_radius!=0):
@@ -2927,30 +2957,33 @@ if __name__ == "__main__":
         print('Sphere arguments: inner_radius - %.3f outer_radius - %.3f num_radius - %d' % \
           (surface_args[1], surface_args[2], surface_args[3]))
     elif (surface_args[0]=='frustum'):
-        if (surface_args[1]==1):
+        if (surface_args[1]=='x'):
             axis = 'x'
             flip = False
-        elif (surface_args[1]==2):
+        elif (surface_args[1]=='y'):
             axis = 'y'
             flip = False
-        elif (surface_args[1]==3):
+        elif (surface_args[1]=='z'):
             axis = 'z'
             flip = False
-        elif (surface_args[1]==4):
+        elif (surface_args[1]=='minor'):
             axis = 'disk minor axis'
             flip = False
-        elif (surface_args[1]==-1):
+        elif (surface_args[1]=='-x'):
             axis = 'x'
             flip = True
-        elif (surface_args[1]==-2):
+        elif (surface_args[1]=='-y'):
             axis = 'y'
             flip = True
-        elif (surface_args[1]==-3):
+        elif (surface_args[1]=='-z'):
             axis = 'z'
             flip = True
-        elif (surface_args[1]==-4):
+        elif (surface_args[1]=='-minor'):
             axis = 'disk minor axis'
             flip = True
+        elif (type(surface_args[1])==tuple) or (type(surface_args[1])==list):
+            axis = surface_args[1]
+            flip = False
         else: sys.exit("I don't understand what axis you want.")
         surface_args = [surface_args[0], axis, flip, surface_args[2], surface_args[3], surface_args[4], surface_args[5]]
         if (flip):
@@ -2958,7 +2991,7 @@ if __name__ == "__main__":
               (axis, surface_args[3], surface_args[4], surface_args[5], surface_args[6]))
         else:
             print('Frustum arguments: axis - %s inner_radius - %.3f outer_radius - %.3f num_radius - %d opening_angle - %d' % \
-              (axis, surface_args[3], surface_args[4], surface_args[5], surface_args[6]))
+              (str(axis), surface_args[3], surface_args[4], surface_args[5], surface_args[6]))
     else:
         sys.exit("That surface has not been implemented. Ask Cassi to add it.")
 
