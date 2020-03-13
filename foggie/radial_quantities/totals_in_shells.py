@@ -391,7 +391,7 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
         metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
-        thermal_energy = (sphere['cell_mass']*sphere['gas','thermal_energy']).in_units('erg/g').v
+        thermal_energy = (sphere['cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
         potential_energy = (sphere['gas','cell_mass'] * \
           ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
     if ('entropy' in flux_types):
@@ -883,7 +883,6 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
         new_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_list += new_names
         types_list += new_types
@@ -986,7 +985,7 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
         metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
-        thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg/g').v
+        thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
         potential_energy = (sphere['gas','cell_mass'] * \
           ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
     if ('entropy' in flux_types):
@@ -1173,16 +1172,16 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
     if ('entropy' in flux_types):
         entropy_nosat_frus = entropy_nosat[bool_frus]
     if ('O_ion_mass' in flux_types):
-        O_mass_nosat_frus = O_mass[bool_frus]
-        OI_mass_nosat_frus = OI_mass[bool_frus]
-        OII_mass_nosat_frus = OII_mass[bool_frus]
-        OIII_mass_nosat_frus = OIII_mass[bool_frus]
-        OIV_mass_nosat_frus = OIV_mass[bool_frus]
-        OV_mass_nosat_frus = OV_mass[bool_frus]
-        OVI_mass_nosat_frus = OVI_mass[bool_frus]
-        OVII_mass_nosat_frus = OVII_mass[bool_frus]
-        OVIII_mass_nosat_frus = OVIII_mass[bool_frus]
-        OIX_mass_nosat_frus = OIX_mass[bool_frus]
+        O_mass_nosat_frus = O_mass_nosat[bool_frus]
+        OI_mass_nosat_frus = OI_mass_nosat[bool_frus]
+        OII_mass_nosat_frus = OII_mass_nosat[bool_frus]
+        OIII_mass_nosat_frus = OIII_mass_nosat[bool_frus]
+        OIV_mass_nosat_frus = OIV_mass_nosat[bool_frus]
+        OV_mass_nosat_frus = OV_mass_nosat[bool_frus]
+        OVI_mass_nosat_frus = OVI_mass_nosat[bool_frus]
+        OVII_mass_nosat_frus = OVII_mass_nosat[bool_frus]
+        OVIII_mass_nosat_frus = OVIII_mass_nosat[bool_frus]
+        OIX_mass_nosat_frus = OIX_mass_nosat[bool_frus]
 
     # Cut satellite-removed frustum data on temperature
     # These are lists of lists where the first index goes from 0 to 4 for

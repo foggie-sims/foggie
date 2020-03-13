@@ -1461,10 +1461,31 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
+        new_names_edge = ('net_kinetic_energy_flux', 'net_thermal_energy_flux', \
+        'net_potential_energy_flux', \
+        'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
+        'thermal_energy_flux_in', 'thermal_energy_flux_out', \
+        'potential_energy_flux_in', 'potential_energy_flux_out', \
+        'net_cold_kinetic_energy_flux', 'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
+        'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
+        'net_warm_kinetic_energy_flux', 'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
+        'net_hot_kinetic_energy_flux', 'hot_kinetic_energy_flux_in', 'hot_kinetic_energy_flux_out', \
+        'net_cold_thermal_energy_flux', 'cold_thermal_energy_flux_in', 'cold_thermal_energy_flux_out', \
+        'net_cool_thermal_energy_flux', 'cool_thermal_energy_flux_in', 'cool_thermal_energy_flux_out', \
+        'net_warm_thermal_energy_flux', 'warm_thermal_energy_flux_in', 'warm_thermal_energy_flux_out', \
+        'net_hot_thermal_energy_flux', 'hot_thermal_energy_flux_in', 'hot_thermal_energy_flux_out', \
+        'net_cold_potential_energy_flux', 'cold_potential_energy_flux_in', 'cold_potential_energy_flux_out', \
+        'net_cool_potential_energy_flux', 'cool_potential_energy_flux_in', 'cool_potential_energy_flux_out', \
+        'net_warm_potential_energy_flux', 'warm_potential_energy_flux_in', 'warm_potential_energy_flux_out', \
+        'net_hot_potential_energy_flux', 'hot_potential_energy_flux_in', 'hot_potential_energy_flux_out')
+        new_types_edge = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_rad += new_names
-        names_edge += new_names
+        names_edge += new_names_edge
         type_list_rad += new_types
-        type_list_edge += new_types
+        type_list_edge += new_types_edge
     if ('entropy' in flux_types):
         new_names = ('net_entropy_flux', 'entropy_flux_in', 'entropy_flux_out', \
         'net_cold_entropy_flux', 'cold_entropy_flux_in', 'cold_entropy_flux_out', \
@@ -2711,7 +2732,12 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             OIX_flux_nosat[0][2], OIX_flux_nosat[1][2], OIX_flux_nosat[2][2], \
             OIX_flux_nosat[0][3], OIX_flux_nosat[1][3], OIX_flux_nosat[2][3], \
             OIX_flux_nosat[0][4], OIX_flux_nosat[1][4], OIX_flux_nosat[2][4]]
-            new_row_edge += [OI_flux_edge[0][0], OI_flux_edge[1][0], OI_flux_edge[2][0], \
+            new_row_edge += [O_flux_edge[0][0], O_flux_edge[1][0], O_flux_edge[2][0], \
+            O_flux_edge[0][1], O_flux_edge[1][1], O_flux_edge[2][1], \
+            O_flux_edge[0][2], O_flux_edge[1][2], O_flux_edge[2][2], \
+            O_flux_edge[0][3], O_flux_edge[1][3], O_flux_edge[2][3], \
+            O_flux_edge[0][4], O_flux_edge[1][4], O_flux_edge[2][4], \
+            OI_flux_edge[0][0], OI_flux_edge[1][0], OI_flux_edge[2][0], \
             OI_flux_edge[0][1], OI_flux_edge[1][1], OI_flux_edge[2][1], \
             OI_flux_edge[0][2], OI_flux_edge[1][2], OI_flux_edge[2][2], \
             OI_flux_edge[0][3], OI_flux_edge[1][3], OI_flux_edge[2][3], \
