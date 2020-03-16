@@ -1,0 +1,75 @@
+This document describes how to use the get_mass_profile code, located in /utils/get_mass_profile.py.
+Author: Cassi
+
+Description:
+------------
+get_mass_profile.py calculates and saves to file the mass enclosed within certain radii. It saves the
+stellar mass, gas mass, dark matter mass, and total mass.
+
+See documentation 'halo_info_files' for a list of which halos, runs, and outputs this code has
+already been run on.
+
+
+Requires:
+---------
+You must have the correct paths set up for your machine in get_run_loc_etc.py.
+
+There must exist an entry in /halo_infos/haloID/runID/halo_c_v for the snapshot you are running
+get_mass_profile.py on. If it does not exist, see the documentation for get_halo_c_v_parallel.py to
+obtain it.
+
+
+User inputs:
+------------
+get_mass_profile.py is designed to be run from the command line with command line options. You can do:
+> python get_mass_profile.py --help
+to see the different command line options and what you can enter for each. If you do not enter
+any command line options, get_mass_profile.py will run with all the default options selected.
+Here are the command line options:
+
+--halo XXXX
+Which halo? Default is Tempest (8508).
+
+--run nrefXX_nrefXX
+Which run? Default is nref11c_nref9f.
+
+--output XXXXXX
+Which output(s)? Options: Specify a single output (this is default and the default output is RD0036)
+or specify a range of outputs using commas to list individual outputs and dashes for ranges of
+outputs (e.g. "RD0020-RD0025" or "DD1341,DD1353,DD1600-DD1700", no spaces!).
+
+--system XXXXXXXX
+Which system are you on? Default is cassiopeia.
+
+--local
+If using system cassiopeia: Are the simulation files stored locally? Default is no. This option
+has no meaning if the system specified is not cassiopeia.
+
+--nproc X
+How many processes do you want? Default is 1 (no parallelization), if multiple outputs and multiple
+processors are specified, code will run one output per processor. If you are running on a single
+output only, do not use more than 1 processor.
+
+Outputs:
+--------
+The code creates one file per output called 'XXXXXX_masses.hdf5', where XXXXXX gives the output
+(e.g. DD1567 or RD0024). The columns of this file are:
+redshift
+snapshot (i.e. DD1356, RD0025)
+radius (in kpc)
+total_mass (in Msun)
+dm_mass (in Msun)
+stars_mass (in Msun)
+gas_mass (in Msun)
+
+Note that get_mass_profile.py will output one file per output it is run on. These files can later be
+combined into one big file, which is what is located in 'masses.hdf5' in the halo_infos folder.
+
+You can read the files output by get_mass_profile.py in python by doing:
+> from astropy.table import Table
+> masses = Table.read('/path/to/table/masses.hdf5', path='all_data')
+Then you can pull out the mass profile for only a single snapshot by doing:
+> masses_DD1800 = masses[masses['snapshot']=='DD1800']
+Then you can, e.g., plot the total mass enclosed vs. radius by doing:
+> import matplotlib.pyplot as plt
+> plt.plot(masses_DD1800['radius'], masses_DD1800['total_mass'])
