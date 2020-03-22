@@ -43,6 +43,22 @@ def _young_stars(pfilter, data):
     filter = np.logical_and(age.in_units('Myr') <= 10, age >= 0)
     return filter
 
+def _young_stars7(pfilter, data):
+    """Filter star particles with creation time < 10 Myr ago
+    To use: yt.add_particle_filter("young_stars7", function=_young_stars7, filtered_type='all', requires=["creation_time"])"""
+
+    age = data.ds.current_time - data[pfilter.filtered_type, "creation_time"]
+    filter = np.logical_and(age.in_units('Myr') <= 10, age >= 0)
+    return filter
+
+def _young_stars8(pfilter, data):
+    """Filter star particles with creation time < 10 Myr ago
+    To use: yt.add_particle_filter("young_stars8", function=_young_stars8, filtered_type='all', requires=["creation_time"])"""
+
+    age = data.ds.current_time - data[pfilter.filtered_type, "creation_time"]
+    filter = np.logical_and(age.in_units('Myr') <= 100, age >= 0)
+    return filter
+
 def _old_stars(pfilter, data):
     """Filter star particles with creation time > 10 Myr ago
     To use: yt.add_particle_filter("young_stars", function=_old_stars, filtered_type='all', requires=["creation_time"])"""
