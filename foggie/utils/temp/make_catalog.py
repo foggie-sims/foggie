@@ -5,6 +5,10 @@ import glob
 from glob import glob
 import numpy as np
 
+# time interval used to define young stars, 10 Myr is currently the standard for the foggie_load ('young_stars') field
+# make sure this corresponds to what is actually used when we created the properties fits file
+young_stars_dt = 1.e7 #Myr
+
 
 all_outputs = {}
 
@@ -70,7 +74,7 @@ for fl in fls:
     fts_tbl = fts[1].data
     for field_new_name, field in zip(field_new_names[2:], fields[2:]):
         if field_new_name == 'sfr':
-            all_outputs[field_new_name].append('%.4f'%(fts_tbl[field][-1]/(2.e7)))
+            all_outputs[field_new_name].append('%.4f'%(fts_tbl[field][-1]/(young_stars_dt)))
         else:
             all_outputs[field_new_name].append('%.4f'%(fts_tbl[field][-1]/(1.e6)))
 
