@@ -95,7 +95,7 @@ def weighted_quantile(values, quantiles, sample_weight=None, values_sorted=False
 
 
 
-def write_mass_fits(ds, args, r_arr = np.array([1, 2])):
+def write_mass_fits(ds, args, r_arr = np.array([1, 20])):
     species_dict = {'dark_matter'    : ("dm", "particle_mass"),
                     'gas_tot'        : ("gas", "cell_mass"),
                     'gas_metals'     : ("gas", "metal_mass"),
