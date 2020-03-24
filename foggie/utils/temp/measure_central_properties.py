@@ -29,9 +29,9 @@ def parse_args():
                         help='Which system are you on? Default is Jase')
     parser.set_defaults(system="pleiades_raymond")
 
-    parser.add_argument('-output_dir', '--output_dir', metavar='output_dir', type=str, action='store', \
-                        help='where is the output located')
-    parser.set_defaults(output_dir="~/need_location")
+    parser.add_argument('-out_dir', '--out_dir', metavar='out_dir', type=str, action='store', \
+                        help='where should we save the output')
+    parser.set_defaults(out_dir="~/need_location")
 
     parser.add_argument('--use_halo_c_v', dest='use_halo_c_v', action='store_true',
                         help='just use the pwd?, default is no')
@@ -95,12 +95,12 @@ def weighted_quantile(values, quantiles, sample_weight=None, values_sorted=False
 
 
 
-def write_mass_fits(ds, args, r_arr = np.array([1, 10, 100])):
-    species_dict = {'dark_matter'    : ("darkmatter", "particle_mass"),
+def write_mass_fits(ds, args, r_arr = np.array([1, 2])):
+    species_dict = {'dark_matter'    : ("dm", "particle_mass"),
                     'gas_tot'        : ("gas", "cell_mass"),
                     'gas_metals'     : ("gas", "metal_mass"),
                     'stars_mass'     : ("stars", "particle_mass"),                    
-                    'stars_youngmass': ("youngstars", "particle_mass"),
+                    'stars_youngmass': ("young_stars", "particle_mass"),
                     'gas_H'      : ("gas", 'H_mass'),
                     'gas_H0'     : ("gas", 'H_p0_mass'),
                     'gas_H1'     : ("gas", 'H_p1_mass'),
@@ -134,7 +134,7 @@ def write_mass_fits(ds, args, r_arr = np.array([1, 10, 100])):
                     'gas_SIV',    
                     'gas_NeVIII']
 
-    fits_name = args.output_dir + '/%s_%s_%s_mass.fits'%(args.run, args.halo, args.output)
+    fits_name = args.out_dir + '/%s_%s_%s_mass.fits'%(args.run, args.halo, args.output)
     #if os.path.exists(fits_name): return
     if not os.path.isfile(fits_name):
         master_hdulist = []
@@ -160,11 +160,12 @@ def write_mass_fits(ds, args, r_arr = np.array([1, 10, 100])):
         cols.append(fits.Column(name = 'radius', array =  np.array(r_arr), format = 'D'))
         for key in species_keys: cols.append(fits.Column(name = key, array =  np.array(masses[key]), format = 'D'))
         cols = fits.ColDefs(cols)            
-        master_hdulist.append(fits.BinTableHDU.from_columns(cols, name = hd_name))
+        master_hdulist.append(fits.BinTableHDU.from_columns(cols, name = 'CENTRAL'))
         thdulist = fits.HDUList(master_hdulist)
         print ('\tSaving to ' + fits_name)
 
         thdulist.writeto(fits_name, overwrite = True)
+
 
 
 def load_sim(args):
@@ -181,7 +182,6 @@ def load_sim(args):
 if __name__ == '__main__':
 
     args = parse_args()
-    output_directory, prefix = check_paths(args)
     ds = load_sim(args)
 
     print ('adding trident fields...')
