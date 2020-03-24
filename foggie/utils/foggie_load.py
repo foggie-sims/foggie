@@ -52,6 +52,7 @@ def load(snap, trackfile, **kwargs):
         halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
         sphere_region = ds.sphere(halo_center_kpc, (10., 'kpc') )
         bulk_velocity = sphere_region.quantities['BulkVelocity']().in_units('km/s')
+        ds.halo_center_code = halo_center
         ds.halo_center_kpc = halo_center_kpc
         ds.halo_velocity_kms = bulk_velocity
 
