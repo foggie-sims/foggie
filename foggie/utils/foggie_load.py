@@ -90,6 +90,10 @@ def load(snap, trackfile, **kwargs):
 
         ds.add_field(('stars', 'radius_corrected'), function=radius_corrected_stars, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars', 'radius_corrected'), function=radius_corrected_young_stars, units='kpc', \
+                     take_log=False, force_override=True, sampling_type='particle')
+        ds.add_field(('old_stars', 'radius_corrected'), function=radius_corrected_old_stars, units='kpc', \
+                     take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('dm', 'radius_corrected'), function=radius_corrected_dm, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
 
