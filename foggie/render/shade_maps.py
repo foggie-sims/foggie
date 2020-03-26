@@ -33,54 +33,22 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
         function adds some bespoke FOGGIE fields, extracts the desired FOGGIE
         region, and applies an input Boolean filter to the dataset."""
 
-    data_set, refine_box, refine_box_center, refine_width = fload.load(fname, trackfile)
+    dataset, refine_box, refine_box_center, refine_width = fload.load(fname, trackfile)
 
-    trident.add_ion_fields(data_set, ions=ion_list)
+    trident.add_ion_fields(dataset, ions=ion_list)
     for ion, func in zip(['H_p0','C_p3','O_p5'], [yt_fields._nh1, yt_fields._c4, yt_fields._no6]):
-        data_set.add_field(("gas", ion+"_column_density"), function=func, units='cm**(-2)', dimensions=dimensions.length**(-2))
+        dataset.add_field(("gas", ion+"_column_density"), function=func, units='cm**(-2)', dimensions=dimensions.length**(-2))
 
     if region == 'trackbox':
         print("prep_dataset: your region is the refine box")
         all_data = refine_box
     else:
-        all_data = gr.get_region(data_set, region)
+        all_data = gr.get_region(dataset, region)
 
     print("prep_dataset: will now apply filter ", filter)
     cut_region_all_data = all_data.cut_region([filter])
 
-    return data_set, cut_region_all_data, refine_box_center
-
-
-def prep_dataset_old(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
-    """prepares the dataset for rendering by extracting box or sphere this
-        function adds some bespoke FOGGIE fields, extracts the desired FOGGIE
-        region, and applies an input Boolean filter to the dataset."""
-
-    data_set = yt.load(fname)
-
-    trident.add_ion_fields(data_set, ions=ion_list)
-    for ion, func in zip(['H_p0','C_p3','O_p5'], [yt_fields._nh1, yt_fields._c4, yt_fields._no6]):
-        data_set.add_field(("gas", ion+"_column_density"), function=func, units='cm**(-2)', dimensions=dimensions.length**(-2))
-
-    track = Table.read(trackfile, format='ascii')
-    track.sort('col1')
-    refine_box, refine_box_center, _ = grb.get_refine_box(data_set, data_set.current_redshift, track)
-
-    if region == 'trackbox':
-        print("prep_dataset: your region is the refine box")
-        all_data = refine_box
-    else:
-        all_data = gr.get_region(data_set, region)
-
-    print("prep_dataset: will now apply filter ", filter)
-    cut_region_all_data = all_data.cut_region([filter])
-
-    halo_vcenter = [0., 0., 0.]
-
-    return data_set, cut_region_all_data, refine_box_center, halo_vcenter
-
-
-
+    return dataset, cut_region_all_data, refine_box_center
 
 
 def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region, filter):
@@ -211,7 +179,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
         field_list = [field1, field2]
 
     data_frame = prep_dataframe.prep_dataframe(dataset, all_data, field_list, colorcode, \
-                        halo_center = halo_center, halo_vcenter=dataset.halo_velocity_kms)
+                        halo_center = dataset.halo_center_code, halo_vcenter=dataset.halo_velocity_kms)
 
     print(data_frame.head())
     image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile, pixspread=pixspread)

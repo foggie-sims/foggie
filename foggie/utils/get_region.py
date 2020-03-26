@@ -22,7 +22,7 @@ def get_region(data_set, region, filter='None'):
     elif region == 'rvir':
         print("get_region: your region is Rvir = 200 kpc sphere centered on the box")
         print("get_region: the filter will be: ", filter)
-        rvir  = data_set.sphere(center=refine_box_center, radius=(200, 'kpc'))   #<---- cgm_field_filter is from consistency.py 
+        rvir  = data_set.sphere(center=data_set.halo_center_code, radius=(200, 'kpc'))   #<---- cgm_field_filter is from consistency.py 
         if (filter == 'None'): 
             all_data = rvir
         else: 
@@ -33,20 +33,20 @@ def get_region(data_set, region, filter='None'):
         print("get_region: the filter will be: ", filter)
         all_data = data_set.all_data() 
     elif region == 'cgm': 
-        print("get_region: your region is the CGM as determined by consistency")
+        print("get_region: your region is the CGM as determined by consistency, center = ", data_set.halo_center_code)
         print("get_region: the filter will be: ", filter)
-        cen_sphere = data_set.sphere(refine_box_center, (cgm_inner_radius, "kpc"))  #<--using box center from the trackfile above 
-        rvir_sphere = data_set.sphere(refine_box_center, (cgm_outer_radius, 'kpc')) 
+        cen_sphere = data_set.sphere(data_set.halo_center_code, (cgm_inner_radius, "kpc"))  #<--using box center from the trackfile above 
+        rvir_sphere = data_set.sphere(data_set.halo_center_code, (cgm_outer_radius, 'kpc')) 
         cgm = rvir_sphere - cen_sphere
         if (filter == 'None'): 
             all_data = cgm.cut_region(cgm_field_filter)   #<---- cgm_field_filter is from consistency.py 
         else: 
             all_data = cgm.cut_region(filter) 
     elif region == 'ism': 
-        print("get_region: your region is the ISM as determined by consistency")
+        print("get_region: your region is the ISM as determined by consistency, center = ", data_set.halo_center_code)
         print("get_region: the filter will be: ", filter)
-        cen_sphere = data_set.sphere(refine_box_center, (cgm_inner_radius, "kpc"))     #<--using the box center from the trackfile above 
-        rvir_sphere = data_set.sphere(refine_box_center, (cgm_outer_radius, 'kpc')) 
+        cen_sphere = data_set.sphere(data_set.halo_center_code, (cgm_inner_radius, "kpc"))     #<--using the box center from the trackfile above 
+        rvir_sphere = data_set.sphere(data_set.halo_center_code, (cgm_outer_radius, 'kpc')) 
         if (filter == 'None'): 
             cold_inside_rvir = rvir_sphere.cut_region(ism_field_filter)   #<---- cgm_field_filter is from consistency.py 
         else: 

@@ -37,21 +37,33 @@ def load(snap, trackfile, **kwargs):
     # Get halo center
     if (use_halo_c_v):
         halo_c_v = Table.read(halo_c_v_name, format='ascii')
-        halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
-        halo_center_kpc = ds.arr([float(halo_c_v['col4'][halo_ind]), \
-                                  float(halo_c_v['col5'][halo_ind]), \
-                                  float(halo_c_v['col6'][halo_ind])], 'kpc')
-        halo_velocity_kms = ds.arr([float(halo_c_v['col7'][halo_ind]), \
-                                    float(halo_c_v['col8'][halo_ind]), \
-                                    float(halo_c_v['col9'][halo_ind])], 'km/s')
-        ds.halo_center_kpc = halo_center_kpc
-        ds.halo_velocity_kms = halo_velocity_kms
+        if (snap[-6:] in halo_c_v['col3']):
+            halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
+            halo_center_kpc = ds.arr([float(halo_c_v['col4'][halo_ind]), \
+                                      float(halo_c_v['col5'][halo_ind]), \
+                                      float(halo_c_v['col6'][halo_ind])], 'kpc')
+            halo_velocity_kms = ds.arr([float(halo_c_v['col7'][halo_ind]), \
+                                        float(halo_c_v['col8'][halo_ind]), \
+                                        float(halo_c_v['col9'][halo_ind])], 'km/s')
+            ds.halo_center_kpc = halo_center_kpc
+            ds.halo_velocity_kms = halo_velocity_kms
+        else:
+            print('This snapshot is not in the halo_c_v file, calculating halo center...')
+            halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
+            # Define the halo center in kpc and the halo velocity in km/s
+            halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
+            sphere_region = ds.sphere(halo_center_kpc, (10., 'kpc') )
+            bulk_velocity = sphere_region.quantities['BulkVelocity']().in_units('km/s')
+            ds.halo_center_code = halo_center
+            ds.halo_center_kpc = halo_center_kpc
+            ds.halo_velocity_kms = bulk_velocity
     else:
         halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
         # Define the halo center in kpc and the halo velocity in km/s
         halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
         sphere_region = ds.sphere(halo_center_kpc, (10., 'kpc') )
         bulk_velocity = sphere_region.quantities['BulkVelocity']().in_units('km/s')
+        ds.halo_center_code = halo_center
         ds.halo_center_kpc = halo_center_kpc
         ds.halo_velocity_kms = bulk_velocity
 
@@ -88,6 +100,10 @@ def load(snap, trackfile, **kwargs):
         filter_particles(refine_box, filter_particle_types = ['young_stars', 'old_stars', 'stars', 'dm'])
 
         ds.add_field(('stars', 'radius_corrected'), function=radius_corrected_stars, units='kpc', \
+                     take_log=False, force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars', 'radius_corrected'), function=radius_corrected_young_stars, units='kpc', \
+                     take_log=False, force_override=True, sampling_type='particle')
+        ds.add_field(('old_stars', 'radius_corrected'), function=radius_corrected_old_stars, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('dm', 'radius_corrected'), function=radius_corrected_dm, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
