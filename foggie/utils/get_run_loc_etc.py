@@ -48,33 +48,33 @@ def get_run_loc_etc(args):
         output_path = "/home5/clochhaa/FOGGIE/Outputs/"
         code_path = "/home5/clochhaa/FOGGIE/foggie/foggie/"
 
-    if args.run == "natural":
-        run_loc = "halo_00"+ args.halo + "/nref11n/"
-        trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref9"
-        infofile = code_path  + "halo_infos/00" + args.halo +"/nref11n/halo_info"
-        haloname = "halo_00"+ args.halo + "_nref11n"
-        path_part = run_loc
-        output_dir = output_path + "plots_"+path_part
-        spectra_dir = output_dir+"spectra/"
-    elif args.run == "nref10f" or args.run == "nref11n_nref10f":
-        run_loc = "halo_00"+ args.halo + "/nref11n_nref10f/"
-        trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref10"
-        infofile = code_path  + "halo_infos/00" + args.halo +"/nref11n_nref10f/halo_info"
-        haloname = "halo_00"+ args.halo + "_nref11n_nref10f"
-        path_part = run_loc
-        output_dir = output_path + "plots_"+path_part
-        spectra_dir = output_dir+"spectra/"
-    elif args.run == "nref11c_nref9f" or args.run == "nref11c":
-        run_loc = "halo_00"+ args.halo + "/nref11c_nref9f/"
-        if not args.pwd:
+    if not args.pwd:
+        if args.run == "natural":
+            run_loc = "halo_00"+ args.halo + "/nref11n/"
             trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref9"
-        infofile = code_path  + "halo_infos/00" + args.halo +"/nref11c_nref9f/halo_info"
-        haloname = "halo_00"+ args.halo + "_nref11c_nref9f"
-        path_part = run_loc
-        output_dir = output_path + "plots_"+path_part
-        spectra_dir = output_dir+"spectra/"
-    if args.system=='cassiopeia' or args.system=='pleiades_cassi':
-        output_dir = output_path
+            infofile = code_path  + "halo_infos/00" + args.halo +"/nref11n/halo_info"
+            haloname = "halo_00"+ args.halo + "_nref11n"
+            path_part = run_loc
+            output_dir = output_path + "plots_"+path_part
+            spectra_dir = output_dir+"spectra/"
+        elif args.run == "nref10f" or args.run == "nref11n_nref10f":
+            run_loc = "halo_00"+ args.halo + "/nref11n_nref10f/"
+            trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref10"
+            infofile = code_path  + "halo_infos/00" + args.halo +"/nref11n_nref10f/halo_info"
+            haloname = "halo_00"+ args.halo + "_nref11n_nref10f"
+            path_part = run_loc
+            output_dir = output_path + "plots_"+path_part
+            spectra_dir = output_dir+"spectra/"
+        elif args.run == "nref11c_nref9f" or args.run == "nref11c":
+            run_loc = "halo_00"+ args.halo + "/nref11c_nref9f/"
+            trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref9"
+            infofile = code_path  + "halo_infos/00" + args.halo +"/nref11c_nref9f/halo_info"
+            haloname = "halo_00"+ args.halo + "_nref11c_nref9f"
+            path_part = run_loc
+            output_dir = output_path + "plots_"+path_part
+            spectra_dir = output_dir+"spectra/"
+        if args.system=='cassiopeia' or args.system=='pleiades_cassi':
+            output_dir = output_path
 
     if args.pwd:
         print('using pwd args')
