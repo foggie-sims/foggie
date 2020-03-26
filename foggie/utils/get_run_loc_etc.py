@@ -84,6 +84,7 @@ def get_run_loc_etc(args):
         run_loc = '.'
         trackname = 'halo_track'
         haloname = 'halo'
+        infofile = 'halo_info'
         spectra_dir = '.'
 
     return foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile
