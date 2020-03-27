@@ -1,7 +1,7 @@
 ### This function calculates the mass flux per velocity bins, and also
 # it split the gas into different temperature bins.
 # 03/27/2020, add high and low galactic latitude selection, in response to
-#             referee's request #1, and change figure 9 
+#             referee's request #1, and change figure 9
 # 12/18/2019, add arg to measure kinematics from another seven location
 # 10/14/2019, rewrite the structure of the code for DD2175,
 #             and merge into foggie.mocky_way, Yong Zheng, UCB.
@@ -90,7 +90,7 @@ print("Now let us break up the gas mass into different temperature ranges...")
 from foggie.mocky_way.core_funcs import temperature_category
 temp_dict = temperature_category()
 
-dM_dv_dict = {}
+dMdv_dict = {}
 
 for temp_tag in ['cold', 'cool', 'warm', 'hot']:
     dM_thisT = np.zeros(dv_bins.size)
@@ -125,11 +125,11 @@ for temp_tag in ['cold', 'cool', 'warm', 'hot']:
             if len(iv_mass[ind_T_highb])!= 0:
                 dM_thisT_highb[iv] = iv_mass[ind_T_highb].sum().in_units("Msun")/dv
 
-        dM_dv_dict['dM_%s'%(temp_tag)] = dM_thisT
-        dM_dv_dict['dM_%s_lowb'%(temp_tag)] = dM_thisT_lowb
-        dM_dv_dict['dM_%s_highb'%(temp_tag)] = dM_thisT_highb
+        dMdv_dict['dM_%s'%(temp_tag)] = dM_thisT
+        dMdv_dict['dM_%s_lowb'%(temp_tag)] = dM_thisT_lowb
+        dMdv_dict['dM_%s_highb'%(temp_tag)] = dM_thisT_highb
 
-print(dM_dv_dict.keys())
+print(dMdv_dict.keys())
 
 ##### now saving the data ####
 c1 = fits.Column(name='v (km/s)', array=dv_bins, format='D')
@@ -138,21 +138,21 @@ c2 = fits.Column(name='dM (Msun/km/s)', array=dM_all, format='D')
 c2b = fits.Column(name='dM_lowb (Msun/km/s)', array=dM_all_lowb, format='D')
 c2c = fits.Column(name='dM_highb (Msun/km/s)', array=dM_all_highb, format='D')
 
-c3 = fits.Column(name='dM_cold (Msun/km/s)', array=dM_dv_dict['dM_cold'], format='D')
-c3b = fits.Column(name='dM_cold_lowb (Msun/km/s)', array=dM_dv_dict['dM_cold_lowb'], format='D')
-c3c = fits.Column(name='dM_cold_highb (Msun/km/s)', array=dM_dv_dict['dM_cold_highb'], format='D')
+c3 = fits.Column(name='dM_cold (Msun/km/s)', array=dMdv_dict['dM_cold'], format='D')
+c3b = fits.Column(name='dM_cold_lowb (Msun/km/s)', array=dMdv_dict['dM_cold_lowb'], format='D')
+c3c = fits.Column(name='dM_cold_highb (Msun/km/s)', array=dMdv_dict['dM_cold_highb'], format='D')
 
-c4 = fits.Column(name='dM_cool (Msun/km/s)', array=dM_dv_dict['dM_cool'], format='D')
-c4b = fits.Column(name='dM_cool_lowb (Msun/km/s)', array=dM_dv_dict['dM_cool_lowb'], format='D')
-c4c = fits.Column(name='dM_cool_highb (Msun/km/s)', array=dM_dv_dict['dM_cool_highb'], format='D')
+c4 = fits.Column(name='dM_cool (Msun/km/s)', array=dMdv_dict['dM_cool'], format='D')
+c4b = fits.Column(name='dM_cool_lowb (Msun/km/s)', array=dMdv_dict['dM_cool_lowb'], format='D')
+c4c = fits.Column(name='dM_cool_highb (Msun/km/s)', array=dMdv_dict['dM_cool_highb'], format='D')
 
-c5 = fits.Column(name='dM_warm (Msun/km/s)', array=dM_dv_dict['dM_warm'], format='D')
-c5b = fits.Column(name='dM_warm_lowb (Msun/km/s)', array=dM_dv_dict['dM_warm_lowb'], format='D')
-c5c = fits.Column(name='dM_warm_highb (Msun/km/s)', array=dM_dv_dict['dM_warm_highb'], format='D')
+c5 = fits.Column(name='dM_warm (Msun/km/s)', array=dMdv_dict['dM_warm'], format='D')
+c5b = fits.Column(name='dM_warm_lowb (Msun/km/s)', array=dMdv_dict['dM_warm_lowb'], format='D')
+c5c = fits.Column(name='dM_warm_highb (Msun/km/s)', array=dMdv_dict['dM_warm_highb'], format='D')
 
-c6 = fits.Column(name='dM_hot (Msun/km/s)', array=dM_dv_dict['dM_hot'], format='D')
-c6b = fits.Column(name='dM_hot_lowb (Msun/km/s)', array=dM_dv_dict['dM_hot_lowb'], format='D')
-c6c = fits.Column(name='dM_hot_highb (Msun/km/s)', array=dM_dv_dict['dM_hot_highb'], format='D')
+c6 = fits.Column(name='dM_hot (Msun/km/s)', array=dMdv_dict['dM_hot'], format='D')
+c6b = fits.Column(name='dM_hot_lowb (Msun/km/s)', array=dMdv_dict['dM_hot_lowb'], format='D')
+c6c = fits.Column(name='dM_hot_highb (Msun/km/s)', array=dMdv_dict['dM_hot_highb'], format='D')
 
 all_cols = [c1,
             c2, c2b, c2c,
