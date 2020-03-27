@@ -17,14 +17,14 @@ data_dir, sys_dir = data_dir_sys_dir()
 
 sim_name = 'nref11n_nref10f'
 dd_name = 'DD2175'
-ion_to_proj = 'OVI' # 'SiII', 'SiIII', 'SiIV', 'CII', 'CIV', 'OVI', 'NV',
+ion_to_proj = 'CIV' # 'SiII', 'SiIII', 'SiIV', 'CII', 'CIV', 'OVI', 'NV',
                    # 'OVII', 'OVIII', 'NeVII', 'NeVIII'
 
 from foggie.mocky_way.core_funcs import prepdata
 ds, ds_paras = prepdata(dd_name)
 halo_center = ds_paras['halo_center']
 rvir = ds_paras['rvir']
-proj_length = 160 # kpc
+proj_length = 50 # kpc
 width = 2*ds.quan(proj_length, 'kpc')
 
 # let's select a region to project based on phase diagram
@@ -39,7 +39,7 @@ zmin = consistency.proj_min_dict[field_to_proj]
 zmax = consistency.proj_max_dict[field_to_proj]
 fig_dir = sys_dir+'/foggie/mocky_way/figs/offaxproj/column_density/'
 
-highlight_disk = True
+highlight_disk = False
 L_vec = ds_paras['L_vec']
 phi_vec = ds_paras['phi_vec']
 sun_vec = ds_paras['sun_vec']

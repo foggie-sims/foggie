@@ -40,7 +40,10 @@ def get_run_loc_etc(args):
         output_path = "/nobackupp2/rcsimons/foggie/"
         code_path = '/nobackupp2/rcsimons/git/foggie/foggie/'
     elif args.system == "cassiopeia":
-        foggie_dir = "/astro/simulations/FOGGIE/"
+        if (args.local):
+            foggie_dir = foggie_dir = "/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/"
+        else:
+            foggie_dir = "/astro/simulations/FOGGIE/"
         output_path = "/Users/clochhaas/Documents/Research/FOGGIE/Outputs/"
         code_path = "/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/"
     elif args.system == "pleiades_cassi":
@@ -82,9 +85,10 @@ def get_run_loc_etc(args):
         output_path = '.'
         output_dir = './'
         run_loc = '.'
+        code_path = '.'
         trackname = 'halo_track'
         haloname = 'halo'
         infofile = 'halo_info'
         spectra_dir = '.'
 
-    return foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile
+    return foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile

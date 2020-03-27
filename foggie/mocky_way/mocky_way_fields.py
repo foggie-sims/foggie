@@ -101,7 +101,7 @@ def _l_Galactic_Longitude(field, data):
     How to use:
 
     from yt.fields.api import ValidateParameter
-    from mocky_way.derived_fields_mw import _l_Galactic_Longitude
+    from foggie.mocky_way.mocky_way_fields import _l_Galactic_Longitude
     ds.add_field(("gas", "l"), function=_l_Galactic_Longitude,
                  units="degree", take_log=False,
                  validators=[ValidateParameter("observer_location"),
@@ -117,6 +117,7 @@ def _l_Galactic_Longitude(field, data):
         observer_location = np.array([0.5, 0.5, 0.5])
     elif data.has_field_parameter("observer_location"):
         observer_location = data.get_field_parameter("observer_location")
+        observer_location = observer_location.value
     else:
         observer_location = np.array([0.5, 0.5, 0.5])
 
@@ -142,7 +143,9 @@ def _l_Galactic_Longitude(field, data):
     gas_z = (data[("gas", "z")].in_units("code_length").value).flatten()
     gas_xyz = yt.YTArray([gas_x, gas_y, gas_z])
 
-    gas_pos_vector = gas_xyz - np.reshape(observer_location, (3, 1)) # dimensionless
+    obs_loc_3d = yt.YTArray(np.reshape(observer_location, (3, 1)))
+    gas_pos_vector = gas_xyz - obs_loc_3d # code_length
+    # gas_pos_vector = gas_xyz - np.reshape(observer_location, (3, 1)) # dimensionless
     vector_length = np.sqrt(np.sum(gas_pos_vector**2, axis=0)).value
     vector_length[np.where(vector_length==0.)[0]] = 1. # observer location
     los_vector = gas_pos_vector/vector_length  # dimensionless
@@ -168,9 +171,12 @@ def _l_Galactic_Longitude(field, data):
 
     # [0, 180] and [180, 360]
     ind = np.dot(L_vec, temp) == 1. # the dot product is code length
-    l[ind] = np.around(180.-np.arccos(cos_phi[ind])/np.pi*180.) % 360.
+    # l[ind] = np.around(180.-np.arccos(cos_phi[ind])/np.pi*180.) % 360.
+    # let there be some decimal numbers
+    l[ind] = (180.-np.arccos(cos_phi[ind])/np.pi*180.) % 360.
     noind = np.logical_not(ind)
     l[noind] = np.around(180.+np.arccos(cos_phi[noind])/np.pi*180.) % 360.
+    l[noind] = (180.+np.arccos(cos_phi[noind])/np.pi*180.) % 360.
     l = yt.YTArray(np.reshape(l, data[("gas", "x")].shape), "degree")
 
     return l
@@ -194,7 +200,7 @@ def _b_Galactic_Latitude(field, data):
     How to use:
 
     from yt.fields.api import ValidateParameter
-    from mocky_way.derived_fields_mw import _b_Galactic_Latitude
+    from foggie.mocky_way.mocky_way_fields import _b_Galactic_Latitude
     ds.add_field(("gas", "b"), function=_b_Galactic_Latitude,
                  units="degree", take_log=False,
                  validators=[ValidateParameter("observer_location"), # loc of observer
@@ -219,6 +225,7 @@ def _b_Galactic_Latitude(field, data):
         observer_location = np.array([0.5, 0.5, 0.5])
     elif data.has_field_parameter("observer_location"):
         observer_location = data.get_field_parameter("observer_location")
+        observer_location = observer_location.value
     else:
         observer_location = np.array([0.5, 0.5, 0.5])
 
@@ -229,7 +236,8 @@ def _b_Galactic_Latitude(field, data):
     gas_z = (data[("gas", "z")].in_units("code_length").value).flatten()
     gas_xyz = yt.YTArray([gas_x, gas_y, gas_z])
 
-    gas_pos_vector = gas_xyz - np.reshape(observer_location, (3, 1)) # code_length
+    obs_loc_3d = yt.YTArray(np.reshape(observer_location, (3, 1)))
+    gas_pos_vector = gas_xyz - obs_loc_3d # code_length
     vector_length = np.sqrt(np.sum(gas_pos_vector**2, axis=0)).value
 
     # the point at the observer location
@@ -238,7 +246,9 @@ def _b_Galactic_Latitude(field, data):
 
     # theta: angle between disk ang mom vector and the LOS vector
     cos_theta = np.dot(L_vec, los_vector).value   # no unit
-    b = yt.YTArray(np.around(90. - np.arccos(cos_theta)/np.pi*180.), "degree")
+    # b = yt.YTArray(np.around(90. - np.arccos(cos_theta)/np.pi*180.), "degree")
+    # let there be some decimal numbers
+    b = yt.YTArray(90. - np.arccos(cos_theta)/np.pi*180., "degree")
     b = np.reshape(b, data[("gas", "x")].shape)
     return b
 

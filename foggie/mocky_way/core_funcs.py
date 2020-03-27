@@ -129,6 +129,19 @@ def prepdata(dd_name, sim_name='nref11n_nref10f', robs2rs=2,
                  function=_los_velocity_mw, units="km/s",
                  validators=[ValidateParameter("observer_location"),
                              ValidateParameter("observer_bulkvel")])
+
+    #### add line of sight longitude and latitude for each cell
+    from foggie.mocky_way.mocky_way_fields import _l_Galactic_Longitude, _b_Galactic_Latitude
+    ds.add_field(("gas", "l"), function=_l_Galactic_Longitude,
+                 units="degree", take_log=False,
+                 validators=[ValidateParameter("observer_location"),
+                             ValidateParameter("L_vec"),    # disk ang mom vector
+                             ValidateParameter("sun_vec")]) # GC/sun direction
+    ds.add_field(("gas", "b"), function=_b_Galactic_Latitude,
+                 units="degree", take_log=False,
+                 validators=[ValidateParameter("observer_location"), # loc of observer
+                             ValidateParameter("L_vec")]) # disk ang mom vector
+
     #### find halo center and bulk velocity
     from foggie.mocky_way.core_funcs import find_halo_center_yz
     halo_center = find_halo_center_yz(ds, zsnap, sim_name, data_dir)

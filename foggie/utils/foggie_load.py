@@ -3,23 +3,57 @@ import yt
 from yt.units import *
 from yt import YTArray
 from astropy.table import Table
+import os
 
 from foggie.utils.consistency import *
 from foggie.utils.get_halo_center import get_halo_center
 from foggie.utils.get_proper_box_size import get_proper_box_size
+from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_utils import filter_particles
 import foggie.utils as futils
 import foggie.utils.get_refine_box as grb
 
-def load(snap, trackfile, **kwargs):
+def load_sim(args, **kwargs):
+    '''Loads the specified simulation dataset, where the required arguments are:
+    system -- what system are you running on?
+    halo -- which halo do you want?
+    run -- which run of that halo do you want?
+    output -- which output?
+    Available optional arguments are:
+    use_halo_c_v -- do you want to use the halo_c_v catalog file? Default is yes
+    find_halo_center -- do you want to calculate the halo center at all? Default is yes
+    disk_relative -- do you want to calculate the angular momentum of the disk and define disk-relative positions? Default is no
+    particle_type_for_angmom -- what particles to use for angular momentum? Default is young_stars, only need this if disk_relative=True
+    filter_partiles -- do you want to filter particles? Default is yes
+    region -- what region do you want to return?
+    '''
+    use_halo_c_v = kwargs.get('use_halo_c_v', True)
+    disk_relative = kwargs.get('disk_relative', False)
+    particle_type_for_angmom = kwargs.get('particle_type_for_angmom', 'young_stars')
+    do_filter_particles = kwargs.get('do_filter_particles', True)
+    find_halo_center = kwargs.get('find_halo_center', True)
+    region = kwargs.get('region', 'refine_box')
+
+    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    snap_name = foggie_dir + run_loc + args.output + '/' + args.output
+    catalog_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+    halo_c_v_name = catalog_dir + 'halo_c_v'
+    ds, region = foggie_load(snap_name, trackname, find_halo_center=find_halo_center, halo_c_v_name=halo_c_v_name, disk_relative=disk_relative, \
+                            particle_type_for_angmom=particle_type_for_angmom, do_filter_particles=do_filter_particles, \
+                            region=region)
+
+    return ds, region
+
+def foggie_load(snap, trackfile, **kwargs):
     """This function loads a specified snapshot named by 'snap', the halo track "trackfile'
     Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT."""
-    use_halo_c_v = kwargs.get('use_halo_c_v', False)
+    find_halo_center = kwargs.get('find_halo_center', True)
     halo_c_v_name = kwargs.get('halo_c_v_name', 'halo_c_v')
     disk_relative = kwargs.get('disk_relative', False)
     particle_type_for_angmom = kwargs.get('particle_type_for_angmom', 'young_stars')
     do_filter_particles = kwargs.get('do_filter_particles', True)
+    region = kwargs.get('region', 'refine_box')
 
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
@@ -35,20 +69,29 @@ def load(snap, trackfile, **kwargs):
     refine_width_kpc = YTArray([refine_width], 'kpc')
 
     # Get halo center
-    if (use_halo_c_v):
-        halo_c_v = Table.read(halo_c_v_name, format='ascii')
-        if (snap[-6:] in halo_c_v['col3']):
-            halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
-            halo_center_kpc = ds.arr([float(halo_c_v['col4'][halo_ind]), \
-                                      float(halo_c_v['col5'][halo_ind]), \
-                                      float(halo_c_v['col6'][halo_ind])], 'kpc')
-            halo_velocity_kms = ds.arr([float(halo_c_v['col7'][halo_ind]), \
-                                        float(halo_c_v['col8'][halo_ind]), \
-                                        float(halo_c_v['col9'][halo_ind])], 'km/s')
-            ds.halo_center_kpc = halo_center_kpc
-            ds.halo_velocity_kms = halo_velocity_kms
+    if (find_halo_center):
+        if (os.path.exists(halo_c_v_name)):
+            halo_c_v = Table.read(halo_c_v_name, format='ascii')
+            if (snap[-6:] in halo_c_v['col3']):
+                print("Pulling halo center from catalog file")
+                halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
+                halo_center_kpc = ds.arr([float(halo_c_v['col4'][halo_ind]), \
+                                          float(halo_c_v['col5'][halo_ind]), \
+                                          float(halo_c_v['col6'][halo_ind])], 'kpc')
+                halo_velocity_kms = ds.arr([float(halo_c_v['col7'][halo_ind]), \
+                                            float(halo_c_v['col8'][halo_ind]), \
+                                            float(halo_c_v['col9'][halo_ind])], 'km/s')
+                ds.halo_center_kpc = halo_center_kpc
+                ds.halo_center_code = halo_center_kpc.in_units('code_length')
+                ds.halo_velocity_kms = halo_velocity_kms
+                calc_hc = False
+            else:
+                print('This snapshot is not in the halo_c_v file, calculating halo center...')
+                calc_hc = True
         else:
-            print('This snapshot is not in the halo_c_v file, calculating halo center...')
+            print("This halo_c_v file doesn't exist, calculating halo center...")
+            calc_hc = True
+        if (calc_hc):
             halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
             # Define the halo center in kpc and the halo velocity in km/s
             halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
@@ -58,16 +101,14 @@ def load(snap, trackfile, **kwargs):
             ds.halo_center_kpc = halo_center_kpc
             ds.halo_velocity_kms = bulk_velocity
     else:
-        halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
-        # Define the halo center in kpc and the halo velocity in km/s
-        halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
-        sphere_region = ds.sphere(halo_center_kpc, (10., 'kpc') )
-        bulk_velocity = sphere_region.quantities['BulkVelocity']().in_units('km/s')
-        ds.halo_center_code = halo_center
-        ds.halo_center_kpc = halo_center_kpc
-        ds.halo_velocity_kms = bulk_velocity
+        print("Not finding halo center")
+        ds.halo_center_kpc = np.nan
+        ds.halo_center_code = np.nan
+        ds.halo_velocity_kms = np.nan
 
     ds.track = track
+    ds.refine_box_center = refine_box_center
+    ds.refine_width = refine_width
 
     ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
                  sampling_type='cell')
@@ -163,4 +204,7 @@ def load(snap, trackfile, **kwargs):
         ds.add_field(('gas', 'vtan_disk'), function=tangential_velocity_diskrel, units='km/s', take_log=False, \
                      force_override=True, sampling_type='cell')
 
-    return ds, refine_box, refine_box_center, refine_width
+    if (region=='refine_box'):
+        region = refine_box
+
+    return ds, region
