@@ -6,9 +6,27 @@ import yt
 from astropy.table import Table
 from astropy.io import ascii
 
+import argparse
+import sys
+
 from foggie.utils.consistency  import  *
 from foggie.utils.get_halo_center import get_halo_center
 import numpy as np
+
+
+def parse_args():
+    '''
+    Parse command line arguments.  Returns args object.
+    '''
+    parser = argparse.ArgumentParser(description="finds the center track")
+
+    ## optional arguments
+    parser.add_argument('--halo', metavar='halo', type=str, action='store',
+                        help='which halo? default is 5016 (Squall)')
+    parser.set_defaults(halo="5016")
+
+    args = parser.parse_args()
+    return args
 
 
 def get_center_track(first_center, latesnap, earlysnap, interval):
@@ -106,6 +124,7 @@ def get_center_track(first_center, latesnap, earlysnap, interval):
 if __name__ == "__main__":
     ## first_center is the center at the last output; working backwards
 
+
     ### DD0493 for nref11n_selfshield_z15
     ### first_center = [0.49400806427001953, 0.48881053924560547, 0.50222492218017578]
     ### first_center = [ 0.49400806427, 0.488810539246,  0.50222492218 ]
@@ -198,6 +217,27 @@ if __name__ == "__main__":
     # first_center = [0.5341157913208008,  0.4584360122680664,  0.509373664855957]
 
     ## DD1020 for 5036
-    first_center = [0.47943973541259766, 0.5020551681518555, 0.5029783248901367]
+    # first_center = [0.47943973541259766, 0.5020551681518555, 0.5029783248901367]
 
-    get_center_track(first_center, 1214, 1020, 0.002)
+    args = parse_args()
+    if args.halo == "5016":
+        first_center = [0.5360746383666992,  0.4564027786254883, 0.5105409622192384]
+        start_snap = 1996
+        end_snap = 2025
+    elif args.halo == "4123":
+        first_center = [0.4820127487182618,  0.4726438522338867, 0.48097705841064453]
+        start_snap = 934
+        end_snap = 1040
+    elif args.halo == "5036":
+        first_center = [0.47722530364990234, 0.5019979476928711, 0.5026788711547852]
+        start_snap = 1213
+        end_snap = 1300
+    elif args.halo == "2392":
+        first_center = [0.49743175506591797, 0.49085521697998047,  0.4734659194946289]
+        start_snap = 965
+        end_snap = 1045
+    else:
+        sys.exit("halo not found!")
+
+
+    get_center_track(first_center, end_snap, start_snap, 0.002)
