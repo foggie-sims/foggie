@@ -23,8 +23,8 @@ sim_name = sys.argv[1] # 'nref11n_nref10f'
 dd_name =  sys.argv[2] # 'DD2175'
 
 #only use this argument if changing observer location inside the galaxy
-shift_obs_location = True
-shift_n45 = 7
+shift_obs_location = False # True
+shift_n45 = 0 # 7
 
 # decide at the galactic latitude we are going to break up the halo
 b_lim = 20 # degrees
@@ -34,7 +34,7 @@ ds, ds_paras = prepdata(dd_name, sim_name=sim_name,
                         shift_obs_location=shift_obs_location,
                         shift_n45=shift_n45)
 
-obj_tag = 'cgm-rvir' # cgm-15kpc, cgm-20kpc, cgm-rvir
+obj_tag = 'cgm-15kpc' # cgm-15kpc, cgm-20kpc, cgm-rvir
 #obs_point = 'halo_center'  # halo_center, offcenter_location
 #obs_bulkvel = 'disk_bulkvel' # disk_bulkvel, offcenter_bulkvel
 obs_point = 'offcenter_location'  # halo_center, offcenter_location
@@ -83,11 +83,11 @@ for iv in range(dv_bins.size):
     if len(cell_constant_flux[indv])!=0:
         dMdt_all[iv] = cell_constant_flux[indv].sum()
 
-    indv_lowb = indv & (np.abs(obj_b) < obs_lim)
+    indv_lowb = indv & (np.abs(obj_b) < b_lim)
     if len(cell_constant_flux[indv_lowb])!=0:
         dMdt_all_lowb[iv] = cell_constant_flux[indv_lowb].sum()
 
-    indv_highb = indv & (np.abs(obj_b) >= obs_lim)
+    indv_highb = indv & (np.abs(obj_b) >= b_lim)
     if len(cell_constant_flux[indv_highb])!=0:
         dMdt_all_highb[iv] = cell_constant_flux[indv_highb].sum()
 
@@ -139,23 +139,23 @@ print(dMdt_dict.keys())
 
 ##### now saving the data ####
 c1 = fits.Column(name='v (km/s)', array=dv_bins, format='D')
-c2 = fits.Column(name='dMdt (Msun/yr)', array=dMdt_all, format='D')
+c2 = fits.Column(name='dMdt_allb (Msun/yr)', array=dMdt_all, format='D')
 c2b = fits.Column(name='dMdt_lowb (Msun/yr)', array=dMdt_all_lowb, format='D')
 c2c = fits.Column(name='dMdt_highb (Msun/yr)', array=dMdt_all_highb, format='D')
 
-c3 = fits.Column(name='dMdt_cold (Msun/yr)', array=dMdt_dict['dMdt_cold'], format='D')
+c3 = fits.Column(name='dMdt_cold_allb (Msun/yr)', array=dMdt_dict['dMdt_cold'], format='D')
 c3b = fits.Column(name='dMdt_cold_lowb (Msun/yr)', array=dMdt_dict['dMdt_cold_lowb'], format='D')
 c3c = fits.Column(name='dMdt_cold_highb (Msun/yr)', array=dMdt_dict['dMdt_cold_highb'], format='D')
 
-c4 = fits.Column(name='dMdt_cool (Msun/yr)', array=dMdt_dict['dMdt_cool'], format='D')
+c4 = fits.Column(name='dMdt_cool_allb (Msun/yr)', array=dMdt_dict['dMdt_cool'], format='D')
 c4b = fits.Column(name='dMdt_cool_lowb (Msun/yr)', array=dMdt_dict['dMdt_cool_lowb'], format='D')
 c4c = fits.Column(name='dMdt_cool_highb (Msun/yr)', array=dMdt_dict['dMdt_cool_highb'], format='D')
 
-c5 = fits.Column(name='dMdt_warm (Msun/yr)', array=dMdt_dict['dMdt_warm'], format='D')
+c5 = fits.Column(name='dMdt_warm_allb (Msun/yr)', array=dMdt_dict['dMdt_warm'], format='D')
 c5b = fits.Column(name='dMdt_warm_lowb (Msun/yr)', array=dMdt_dict['dMdt_warm_lowb'], format='D')
 c5c = fits.Column(name='dMdt_warm_highb (Msun/yr)', array=dMdt_dict['dMdt_warm_highb'], format='D')
 
-c6 = fits.Column(name='dMdt_hot (Msun/yr)', array=dMdt_dict['dMdt_hot'], format='D')
+c6 = fits.Column(name='dMdt_hot_allb (Msun/yr)', array=dMdt_dict['dMdt_hot'], format='D')
 c6b = fits.Column(name='dMdt_hot_lowb (Msun/yr)', array=dMdt_dict['dMdt_hot_lowb'], format='D')
 c6c = fits.Column(name='dMdt_hot_highb (Msun/yr)', array=dMdt_dict['dMdt_hot_highb'], format='D')
 
@@ -172,7 +172,7 @@ fig_dir = 'figs/dM_dt/fits'
 if shift_obs_location == False:
     tb_name = '%s_%s_dMdt_%s_%s_b%d.fits'%(sim_name, dd_name, obj_tag, obs_point, b_lim)
 else:
-    tb_name = '%s_%s_dMdt_%s_%s_b%d_%d.fits'%(sim_name, dd_name, obj_tag, obs_point, b_lim, 
+    tb_name = '%s_%s_dMdt_%s_%s_b%d_%d.fits'%(sim_name, dd_name, obj_tag, obs_point, b_lim,
                                           shift_n45*45)
 
 save_to_file = '%s/%s'%(fig_dir, tb_name)

@@ -22,8 +22,8 @@ sim_name = sys.argv[1] # 'nref11n_nref10f'
 dd_name =  sys.argv[2] # 'DD2175'
 
 #only use this argument if changing observer location inside the galaxy
-shift_obs_location = False
-shift_n45 = 0
+shift_obs_location = True
+shift_n45 = 5
 
 # decide at the galactic latitude we are going to break up the halo
 b_lim = 20 # degrees
@@ -134,23 +134,23 @@ print(dMdv_dict.keys())
 ##### now saving the data ####
 c1 = fits.Column(name='v (km/s)', array=dv_bins, format='D')
 
-c2 = fits.Column(name='dM (Msun/km/s)', array=dM_all, format='D')
+c2 = fits.Column(name='dM_allb (Msun/km/s)', array=dM_all, format='D')
 c2b = fits.Column(name='dM_lowb (Msun/km/s)', array=dM_all_lowb, format='D')
 c2c = fits.Column(name='dM_highb (Msun/km/s)', array=dM_all_highb, format='D')
 
-c3 = fits.Column(name='dM_cold (Msun/km/s)', array=dMdv_dict['dM_cold'], format='D')
+c3 = fits.Column(name='dM_cold_allb (Msun/km/s)', array=dMdv_dict['dM_cold'], format='D')
 c3b = fits.Column(name='dM_cold_lowb (Msun/km/s)', array=dMdv_dict['dM_cold_lowb'], format='D')
 c3c = fits.Column(name='dM_cold_highb (Msun/km/s)', array=dMdv_dict['dM_cold_highb'], format='D')
 
-c4 = fits.Column(name='dM_cool (Msun/km/s)', array=dMdv_dict['dM_cool'], format='D')
+c4 = fits.Column(name='dM_cool_allb (Msun/km/s)', array=dMdv_dict['dM_cool'], format='D')
 c4b = fits.Column(name='dM_cool_lowb (Msun/km/s)', array=dMdv_dict['dM_cool_lowb'], format='D')
 c4c = fits.Column(name='dM_cool_highb (Msun/km/s)', array=dMdv_dict['dM_cool_highb'], format='D')
 
-c5 = fits.Column(name='dM_warm (Msun/km/s)', array=dMdv_dict['dM_warm'], format='D')
+c5 = fits.Column(name='dM_warm_allb (Msun/km/s)', array=dMdv_dict['dM_warm'], format='D')
 c5b = fits.Column(name='dM_warm_lowb (Msun/km/s)', array=dMdv_dict['dM_warm_lowb'], format='D')
 c5c = fits.Column(name='dM_warm_highb (Msun/km/s)', array=dMdv_dict['dM_warm_highb'], format='D')
 
-c6 = fits.Column(name='dM_hot (Msun/km/s)', array=dMdv_dict['dM_hot'], format='D')
+c6 = fits.Column(name='dM_hot_allb (Msun/km/s)', array=dMdv_dict['dM_hot'], format='D')
 c6b = fits.Column(name='dM_hot_lowb (Msun/km/s)', array=dMdv_dict['dM_hot_lowb'], format='D')
 c6c = fits.Column(name='dM_hot_highb (Msun/km/s)', array=dMdv_dict['dM_hot_highb'], format='D')
 
