@@ -192,14 +192,7 @@ if __name__ == '__main__':
 
   args = parse_args()
 
-  foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-  code_path = trackname.split('halo_tracks')[0]  
-  track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-  halo_c_v_name = track_dir + 'halo_c_v'
-
-  snap_name = foggie_dir + run_loc + args.output + '/' + args.output
-  ds, refine_box, refine_box_center, refine_width = load(snap_name, trackname, use_halo_c_v=args.use_halo_c_v, halo_c_v_name=halo_c_v_name)
-
+  ds, refine_box = sim_load(args)
   res = find_rvir(ds, halo_center = ds.halo_center_kpc, do_fig = args.do_fig, figdir = args.figdir)
 
   print ('\t %s %s %s'%(args.halo, args.run, args.output))
