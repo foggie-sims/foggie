@@ -1,5 +1,7 @@
 ### This function calculates the mass flux per velocity bins, and also
 # it split the gas into different temperature bins.
+# 03/27/2020, add high and low galactic latitude selection, in response to
+#             referee's request #1, and change figure 9 
 # 12/18/2019, add arg to measure kinematics from another seven location
 # 10/14/2019, rewrite the structure of the code for DD2175,
 #             and merge into foggie.mocky_way, Yong Zheng, UCB.
@@ -24,7 +26,7 @@ shift_obs_location = False
 shift_n45 = 0
 
 # decide at the galactic latitude we are going to break up the halo
-b_lim = 30 # degrees
+b_lim = 20 # degrees
 
 ds, ds_paras = prepdata(dd_name, sim_name=sim_name,
                         shift_obs_location=shift_obs_location,
