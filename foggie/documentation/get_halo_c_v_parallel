@@ -1,0 +1,65 @@
+This document describes how to use the get_halo_c_v_parallel code, located in /utils/get_halo_c_v_parallel.py.
+Author: Cassi
+
+Description:
+------------
+get_halo_c_v_parallel.py calculates and saves to file the halo center (as returned by get_halo_center.py)
+and bulk velocity of the halo. This is so that the halo centers and velocities need only be read in
+from file in the future, rather than re-finding the halo center every time.
+
+See documentation 'halo_info_files' for a list of which halos, runs, and outputs this code has
+already been run on.
+
+
+Requires:
+---------
+You must have the correct paths set up for your machine in get_run_loc_etc.py.
+
+
+User inputs:
+------------
+get_halo_c_v_parallel.py is designed to be run from the command line with command line options. You can do:
+> python get_halo_c_v_parallel.py --help
+to see the different command line options and what you can enter for each. If you do not enter
+any command line options, get_halo_c_v_parallel.py will run with all the default options selected.
+Here are the command line options:
+
+--halo XXXX
+Which halo? Default is Tempest (8508).
+
+--run nrefXX_nrefXX
+Which run? Default is nref11c_nref9f.
+
+--output XXXXXX
+Which output(s)? Options: Specify a single output (this is default and the default output is RD0036)
+or specify a range of outputs using commas to list individual outputs and dashes for ranges of
+outputs (e.g. "RD0020-RD0025" or "DD1341,DD1353,DD1600-DD1700", no spaces!).
+
+--system XXXXXXXX
+Which system are you on? Default is cassiopeia.
+
+--local
+If using system cassiopeia: Are the simulation files stored locally? Default is no. This option
+has no meaning if the system specified is not cassiopeia.
+
+--nproc X
+How many processes do you want? Default is 1 (no parallelization), if multiple outputs and multiple
+processors are specified, code will run one output per processor. If you are running on a single
+output only, do not use more than 1 processor.
+
+Outputs:
+--------
+The code creates a single file called 'halo_c_v', which is an ascii file. The columns of this file
+are:
+redshift
+name (i.e. DD1356, RD0025)
+xc (halo center x position in kpc)
+yc (halo center y position in kpc)
+zc (halo center z position in kpc)
+xv (halo x-velocity in km/s)
+yv (halo y-velocity in km/s)
+zv (halo z-velocity in km/s)
+
+Note that each time you run get_halo_c_v_parallel.py, it will make a new halo_c_v file containing
+only those outputs you've run the code on. If you want to combine all outputs into one file, you will
+have to do that separately.

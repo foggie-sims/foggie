@@ -47,7 +47,7 @@ for h, halo in enumerate(halos):
 
         ram_all = []
         time_all = []
-
+        dist_from_center_all = []
         for DD in np.arange(enter_DD, max_DD):
             try: track = tracks[DD]
             except: continue
@@ -59,12 +59,33 @@ for h, halo in enumerate(halos):
             start_ray = 2.
             gd = where((track['ray_dist'] > start_ray) & (track['ray_dist'] < start_ray + dx.to('kpc').value))[0]  
 
+
+
+
             vel_ram = track['ray_vel'][gd]
             den_ram = track['ray_den'][gd]
             vel_ram[vel_ram > 0] = 0.
             ram_all.append(mean(vel_ram)**2. * mean(den_ram))            
             time_all.append(track['time'].value - tracks['enter_time'].value)
+
+
+            halo_cen_x = combine_all[halo]['0'][DD]['x']
+            halo_cen_y = combine_all[halo]['0'][DD]['y']
+            halo_cen_z = combine_all[halo]['0'][DD]['z']
+
+            dx = halo_cen_x - track['x']
+            dy = halo_cen_y - track['y']
+            dz = halo_cen_z - track['z']
+
+            dist_r = np.sqrt(dx**2. + dy**2. + dz**2.)
+
+            dist_from_center_all.append(dist_r)
+
+
+
+
         rp_tracks[halo][sat]['time'] = np.array(time_all)
+        rp_tracks[halo][sat]['dist_r'] = np.array(dist_from_center_all)
         rp_tracks[halo][sat]['ram'] = np.array(yt.YTArray(ram_all).to('dyne*cm**-2'))
 
         mom_gained = []
@@ -75,24 +96,30 @@ for h, halo in enumerate(halos):
             dt = 1.e-4
             time_interp = np.arange(min(time_all), max(time_all), dt)
             ram_interp = interp(time_interp)
+
+            interpdistr = interpolate.interp1d(time_all, dist_from_center_all)
+
+            dist_interp = interpdistr(time_interp)         
+
             dmom = (yt.YTArray(ram_interp, 'dyne*cm**-2') * yt.YTArray(dt, 'Gyr')).to('Msun*km/s/kpc**2')
             tot_mom = sum(dmom)
             mom_gained.append(dmom)
             rp_tracks[halo][sat]['ram_interp'] = yt.YTArray(ram_interp, 'dyne*cm**-2') 
             rp_tracks[halo][sat]['mom_interp'] = mom_gained[0]
             rp_tracks[halo][sat]['time_interp'] = time_interp
+            rp_tracks[halo][sat]['dist_interp'] = dist_interp
+
         else:            
             rp_tracks[halo][sat]['mom_interp'] = [np.nan]
             rp_tracks[halo][sat]['time_interp'] = [np.nan]
+            rp_tracks[halo][sat]['dist_interp'] = [np.nan]
 
     
         rp_tracks[halo][sat]['dt'] =  yt.YTArray(dt, 'Gyr')
 
 
 
-
-
-np.save('/Users/rsimons/Dropbox/foggie/catalogs/sat_track_locations/rp_refinebox.npy', rp_tracks)
+np.save('/Users/rsimons/Dropbox/foggie/catalogs/sat_track_locations/rp_refinebox_new.npy', rp_tracks)
 
 
 

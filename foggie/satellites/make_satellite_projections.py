@@ -248,9 +248,10 @@ if __name__ == '__main__':
                 #, 'stars', 'dm'
         # Show satellites on a figure of the central
         if True:
+            annotate_others = []
             make_projection_plots(ds, ds.arr(halo_center, 'code_length').to('kpc'), refine_box, x_width, fig_dir, haloname,\
                                   fig_end = 'central',\
-                                  do = ['stars'], axes = ['y'],\
+                                  do = ['gas', 'stars'], axes = ['y'],\
                                   annotate_center = True, annotate_others = annotate_others, is_central = True)
 
 

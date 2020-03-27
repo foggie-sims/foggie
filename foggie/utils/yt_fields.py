@@ -43,6 +43,22 @@ def _young_stars(pfilter, data):
     filter = np.logical_and(age.in_units('Myr') <= 10, age >= 0)
     return filter
 
+def _young_stars7(pfilter, data):
+    """Filter star particles with creation time < 10 Myr ago
+    To use: yt.add_particle_filter("young_stars7", function=_young_stars7, filtered_type='all', requires=["creation_time"])"""
+
+    age = data.ds.current_time - data[pfilter.filtered_type, "creation_time"]
+    filter = np.logical_and(age.in_units('Myr') <= 10, age >= 0)
+    return filter
+
+def _young_stars8(pfilter, data):
+    """Filter star particles with creation time < 10 Myr ago
+    To use: yt.add_particle_filter("young_stars8", function=_young_stars8, filtered_type='all', requires=["creation_time"])"""
+
+    age = data.ds.current_time - data[pfilter.filtered_type, "creation_time"]
+    filter = np.logical_and(age.in_units('Myr') <= 100, age >= 0)
+    return filter
+
 def _old_stars(pfilter, data):
     """Filter star particles with creation time > 10 Myr ago
     To use: yt.add_particle_filter("young_stars", function=_old_stars, filtered_type='all', requires=["creation_time"])"""
@@ -154,6 +170,26 @@ def radius_corrected_stars(field, data):
     x_hat = data['stars','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
     y_hat = data['stars','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
     z_hat = data['stars','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
+    return r
+
+def radius_corrected_young_stars(field, data):
+    """Corrects the radius for star particles for the center of the halo. Requires 'halo_center_kpc', which is the halo
+    center with yt units of kpc, to be defined. -Cassi"""
+    halo_center_kpc = data.ds.halo_center_kpc
+    x_hat = data['young_stars','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    y_hat = data['young_stars','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    z_hat = data['young_stars','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
+    return r
+
+def radius_corrected_old_stars(field, data):
+    """Corrects the radius for star particles for the center of the halo. Requires 'halo_center_kpc', which is the halo
+    center with yt units of kpc, to be defined. -Cassi"""
+    halo_center_kpc = data.ds.halo_center_kpc
+    x_hat = data['old_stars','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    y_hat = data['old_stars','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    z_hat = data['old_stars','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     return r
 

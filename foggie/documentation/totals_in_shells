@@ -1,0 +1,156 @@
+This document describes how to use the totals_in_shells code, located in /radial_quantities/totals_in_shells.py.
+Author: Cassi
+
+Description:
+------------
+totals_in_shells.py calculates a variety of totals of various parameters in user-defined volumes, then saves these
+totals to a file in hdf5 format.
+
+Note that this code is designed to be run in tandem with flux_tracking.py, so all the arguments and
+the files outputting have a very similar format to flux_tracking.
+
+
+Requires:
+---------
+There must exist an entry in /halo_infos/haloID/runID/halo_c_v for the snapshot you are running
+totals_in_shells.py on.
+
+If you would like to remove satellites, then you need a little bit more:
+There must exist an entry in /halo_infos/haloID/runID/satellites.hdf5 for the snapshot you are
+running totals_in_shells.py on.
+
+If there are not entries in the above files for the snapshot you are running totals_in_shells.py on,
+or if the above files do not exist for the halo and run you are running totals_in_shells.py on, you
+must first add them. See the documentation for get_satellite_positions.py and
+get_halo_c_v_parallel.py to do so.
+
+If running from pleiades, the code will run in less than a tenth the length of time if you write
+your script to first copy the output files for whatever snapshot you're running it on to the /tmp
+folder of the node it's running on. This is automatically built into the code for running with
+system = pleiades_cassi, so it is very easy to add this functionality if you'd like it for your
+system too. Ask Cassi to add it, or search for 'if (system=='pleiades_cassi')' in the code and add
+it yourself.
+
+
+User inputs:
+------------
+totals_in_shells.py is designed to be run from the command line with command line options. You can do:
+> python totals_in_shells.py --help
+to see the different command line options and what you can enter for each. If you do not enter
+any command line options, totals_in_shells.py will run with all the default options selected.
+Here are the command line options:
+
+--halo XXXX
+Which halo? Default is Tempest (8508).
+
+--run nrefXX_nrefXX
+Which run? Default is nref11c_nref9f.
+
+--output XXXXXX
+Which output(s)? Options: Specify a single output (this is default and the default output is RD0034)
+or specify a range of outputs using commas to list individual outputs and dashes for ranges of
+outputs (e.g. "RD0020-RD0025" or "DD1341,DD1353,DD1600-DD1700", no spaces!).
+
+--system XXXXXXXX
+Which system are you on? Default is cassiopeia.
+
+--local
+If using system cassiopeia: Are the simulation files stored locally? Default is no. This option
+has no meaning if the system specified is not cassiopeia.
+
+--nproc X
+How many processes do you want? Default is 1 (no parallelization), if multiple outputs and multiple
+processors are specified, code will run one output per processor. If you are running on a single
+output only, do not use more than 1 processor.
+
+--surface "['XXXX', X, X, X, X]"
+What surface type for computing the volumes? Default is sphere in 200 steps between 0.05*refine_width
+and 2*refine_width. Other option is "frustum". Note that all surfaces will be centered
+on halo center. To specify the shape, size, and orientation of the surface you want, input a list as
+follows:
+Don't forget to put the whole list in quotes! The whole thing must be passed as a single string,
+which also means you'll need to use a different type of quotes for the string specifying the shape
+at the beginning of the list.
+If you want a sphere, give:
+"['sphere', inner_radius, outer_radius, num_radii]"
+where inner_radius is the inner boundary as a fraction of refine_width, outer_radius is the outer
+boundary as a fraction (or multiple) of refine_width, and num_radii is the number of radii where you
+want the flux to be calculated between inner_radius and outer_radius (inner_radius and outer_radius
+are automatically included).
+If you want a frustum, give:
+"['frustum', axis, inner_radius, outer_radius, num_radii, opening_angle]"
+where axis specifies what axis to align the frustum with and can be one of the following:
+'x'
+'y'
+'z'
+'minor' (specifies alignment with galaxy minor axis)
+(x,y,z) (a tuple specifying a 3D vector to align the frustum with)
+If axis is anything but the 3D vector, you can also start the string with '-', like so: '-x' or '-minor',
+then it will compute a frustum pointing the opposite direction.
+inner_radius, outer_radius, and num_radii are the same as for the sphere and opening_angle gives the
+angle in degrees of the opening angle of the cone, measured from axis (note that the total opening
+angle of the cone will be 2*opening_angle).
+
+--kpc
+If this option is specified, inner_radius and outer_radius given in the surface argument will be
+in units of kpc rather than their default, which is fractions of refine_width. The default for this
+option is False. If you want to track fluxes over time, such as for calculating gas changing phases,
+using kpc instead of fractions of refine_width will NOT work because the errors are too large.
+
+--remove_sats
+If this option is specified, it will excise satellites before calculating the flux. Note that this
+only works if computing the flux of a DD output! This cannot work with the RD outputs because
+they are spaced too far apart in time.
+
+--sat_radius X
+If --remove_sats is specified, then this option decides the radius (in kpc) around satellites that
+will be excised from the domain. The default is 10.
+
+--flux_type XXXX
+What totals do you want to compute? Currently, the options are "mass" (includes metal masses)
+"energy" "entropy" and "O_ion_mass". You can compute all of them by inputting "mass,energy,entropy,O_ion_mass" (no spaces!)
+and the default is to do all. Note that increasing the number of fluxes computed drastically increases runtime.
+If there is a type of flux that you'd like that is not on this list, ask Cassi to add it.
+
+Outputs:
+--------
+The code saves to file a hdf5 table located within your output_path as specified by get_run_loc_etc.py.
+It will output files per snapshot, and will be saved within subfolders specifying the halo id
+and run. For example, if you run totals_in_shells.py on a sphere for halo 8508, nref11c_nref9f, output
+DD1236, using flux_type 'mass' and removing satellites it will output the file:
+output_path/totals_halo_008508/nref11c_nref9f/DD1236_totals_sphere_nosat_mass.hdf5
+
+To read in the table in python, do:
+    from astropy.table import Table
+    totals_table = Table.read('DD1236_totals_sphere_nosat_mass.hdf5', path='all_data')
+Then to get each column of the table, index it with the name of the column, e.g.
+    totals_table['radius']
+    totals_table['net_mass']
+So now you can easily plot things vs. radius, e.g.
+    import matplotlib.pyplot as plt
+    plt.plot(totals_table['radius'], totals_table['net_mass_flux'])
+You can get a full list of all column names in the file by doing:
+    print(totals_table.columns)
+And you can find the units for a column (example here is radius) by doing:
+    print(totals_table['radius'].unit)
+
+Each file has a ridiculous number of columns. The first few columns are information about the snapshot
+and where the total was calculated, they are "redshift", "inner_radius", "outer_radius", which tells
+you the redshift, and the radii *between* which the total is calculated.
+
+The rest of the columns list the values of the totals, depending on what you specified for flux_type.
+The "mass" type gives columns of "mass" and "metals". These are given in Msun.
+The "energy" type gives columns of "kinetic_energy", "thermal_energy", and "potential_energy".
+These are given in ergs.
+The "entropy" type gives columns of "entropy". This is given in cm^2*keV.
+The "O_ion_mass" type gives columns for masses of total oxygen and each of the oxygen ions,
+"O_mass", "OI_mass", "OII_mass", etc. up to "OIX_mass". These are given in Msun.
+
+The totals are broken down into net, inward, and outward, specifying the total amount of stuff with
+cuts on radial velocity below or above zero. They are then
+further broken down into cold, cool, warm, and hot gas, with the sum of these 4 being equal to
+just the net total. To obtain the net total (meaning without any radial velocity cut), append "net_" to the
+front of the total type, e.g. "net_mass". To obtain the totals first cut on radial velocity, append
+"_in" or "_out" to the *end* of the total type (and remove "net_" from the beginning), e.g. "mass_in".
+To obtain the total for a specific temperature gas, append "cold_", "cool_", "warm_", or "hot_" to the
+beginning of the total type (but after "net_" if present), e.g. "cold_mass_in" or "net_hot_mass".

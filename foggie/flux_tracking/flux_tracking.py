@@ -64,7 +64,7 @@ def parse_args():
                         + ' and the default output is RD0036) or specify a range of outputs ' + \
                         'using commas to list individual outputs and dashes for ranges of outputs ' + \
                         '(e.g. "RD0020-RD0025" or "DD1341,DD1353,DD1600-DD1700", no spaces!)')
-    parser.set_defaults(output='RD0036')
+    parser.set_defaults(output='RD0034')
 
     parser.add_argument('--system', metavar='system', type=str, action='store', \
                         help='Which system are you on? Default is cassiopeia')
@@ -98,7 +98,8 @@ def parse_args():
                         help='What surface type for computing the flux? Default is sphere' + \
                         ' and the other option is "frustum".\nNote that all surfaces will be centered on halo center.\n' + \
                         'To specify the shape, size, and orientation of the surface you want, ' + \
-                        'input a list as follows (don\'t forget the outer quotes):\nIf you want a sphere, give:\n' + \
+                        'input a list as follows (don\'t forget the outer quotes, and put the shape in a different quote type!):\n' + \
+                        'If you want a sphere, give:\n' + \
                         '"[\'sphere\', inner_radius, outer_radius, num_radii]"\n' + \
                         'where inner_radius is the inner boundary as a fraction of refine_width, outer_radius is the outer ' + \
                         'boundary as a fraction (or multiple) of refine_width,\nand num_radii is the number of radii where you want the flux to be ' + \
@@ -106,12 +107,19 @@ def parse_args():
                         '(inner_radius and outer_radius are automatically included).\n' + \
                         'If you want a frustum, give:\n' + \
                         '"[\'frustum\', axis, inner_radius, outer_radius, num_radii, opening_angle]"\n' + \
-                        'where axis is a number 1 through 4 that specifies what axis to align the frustum with:\n' + \
-                        '1) x axis 2) y axis 3) z axis 4) minor axis of galaxy disk.\n' + \
-                        'If axis is given as a negative number, it will compute a frustum pointing the other way.\n' + \
+                        'where axis specifies what axis to align the frustum with and can be one of the following:\n' + \
+                        "'x'\n'y'\n'z'\n'minor' (aligns with disk minor axis)\n(x,y,z) (a tuple giving a 3D vector for an arbitrary axis).\n" + \
+                        'For all axis definitions other than the arbitrary vector, if the axis string starts with a \'-\', it will compute a frustum pointing in the opposite direction.\n' + \
                         'inner_radius, outer_radius, and num_radii are the same as for the sphere\n' + \
                         'and opening_angle gives the angle in degrees of the opening angle of the cone, measured from axis.')
     parser.set_defaults(surface="['sphere', 0.05, 2., 200]")
+
+    parser.add_argument('--kpc', dest='kpc', action='store_true',
+                        help='Do you want to give inner_radius and outer_radius in the surface arguments ' + \
+                        'in kpc rather than the default of fraction of refine_width? Default is no.\n' + \
+                        'Note that if you want to track fluxes over time, using kpc instead of fractions ' + \
+                        'of refine_width will lead to larger errors.')
+    parser.set_defaults(kpc=False)
 
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', \
                         help='How many processes do you want? Default is 1 ' + \
@@ -254,6 +262,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
     inner_radius = surface_args[1]
     outer_radius = surface_args[2]
     dr = (outer_radius - inner_radius)/surface_args[3]
+    units_kpc = surface_args[4]
 
     # Set up table of everything we want
     # NOTE: Make sure table units are updated when things are added to this table!
@@ -402,7 +411,10 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         fluxes_sat = Table(names=names_list_sat, dtype=types_list_sat)
 
     # Define the radii of the spherical shells where we want to calculate fluxes
-    radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
+    if (units_kpc):
+        radii = ds.arr(np.arange(inner_radius, outer_radius+dr, dr), 'kpc')
+    else:
+        radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
 
     # Load arrays of all fields we need
     print('Loading field arrays')
@@ -434,6 +446,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
     if ('O_ion_mass' in flux_types):
         trident.add_ion_fields(ds, ions='all', ftype='gas')
+        abundances = trident.ion_balance.solar_abundance
         OI_frac = sphere['O_p0_ion_fraction'].v
         OII_frac = sphere['O_p1_ion_fraction'].v
         OIII_frac = sphere['O_p2_ion_fraction'].v
@@ -445,16 +458,17 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         OIX_frac = sphere['O_p8_ion_fraction'].v
         renorm = OI_frac + OII_frac + OIII_frac + OIV_frac + OV_frac + \
           OVI_frac + OVII_frac + OVIII_frac + OIX_frac
-        OI_mass = sphere['O_p0_mass'].in_units('Msun').v/renorm
-        OII_mass = sphere['O_p1_mass'].in_units('Msun').v/renorm
-        OIII_mass = sphere['O_p2_mass'].in_units('Msun').v/renorm
-        OIV_mass = sphere['O_p3_mass'].in_units('Msun').v/renorm
-        OV_mass = sphere['O_p4_mass'].in_units('Msun').v/renorm
-        OVI_mass = sphere['O_p5_mass'].in_units('Msun').v/renorm
-        OVII_mass = sphere['O_p6_mass'].in_units('Msun').v/renorm
-        OVIII_mass = sphere['O_p7_mass'].in_units('Msun').v/renorm
-        OIX_mass = sphere['O_p8_mass'].in_units('Msun').v/renorm
-        O_mass = OI_mass + OII_mass + OIII_mass + OIV_mass + OV_mass + OVI_mass + OVII_mass + OVIII_mass + OIX_mass
+        O_frac = abundances['O']/(sum(abundances.values()) - abundances['H'] - abundances['He'])
+        O_mass = sphere['metal_mass'].in_units('Msun').v*O_frac
+        OI_mass = OI_frac/renorm*O_mass
+        OII_mass = OII_frac/renorm*O_mass
+        OIII_mass = OIII_frac/renorm*O_mass
+        OIV_mass = OIV_frac/renorm*O_mass
+        OV_mass = OV_frac/renorm*O_mass
+        OVI_mass = OVI_frac/renorm*O_mass
+        OVII_mass = OVII_frac/renorm*O_mass
+        OVIII_mass = OVIII_frac/renorm*O_mass
+        OIX_mass = OIX_frac/renorm*O_mass
 
     '''sphere = Table.read('/Users/clochhaas/Documents/Research/FOGGIE/Outputs/fields_halo_008508/nref11c_nref9f/DD1201_fields.hdf5', path='all_data')
     radius = sphere['radius_corrected']
@@ -1393,6 +1407,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
     op_angle = surface_args[6]
     axis = surface_args[1]
     flip = surface_args[2]
+    units_kpc = surface_args[7]
 
     # Set up table of everything we want
     # NOTE: Make sure table units are updated when things are added to this table!
@@ -1446,10 +1461,31 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
+        new_names_edge = ('net_kinetic_energy_flux', 'net_thermal_energy_flux', \
+        'net_potential_energy_flux', \
+        'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
+        'thermal_energy_flux_in', 'thermal_energy_flux_out', \
+        'potential_energy_flux_in', 'potential_energy_flux_out', \
+        'net_cold_kinetic_energy_flux', 'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
+        'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
+        'net_warm_kinetic_energy_flux', 'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
+        'net_hot_kinetic_energy_flux', 'hot_kinetic_energy_flux_in', 'hot_kinetic_energy_flux_out', \
+        'net_cold_thermal_energy_flux', 'cold_thermal_energy_flux_in', 'cold_thermal_energy_flux_out', \
+        'net_cool_thermal_energy_flux', 'cool_thermal_energy_flux_in', 'cool_thermal_energy_flux_out', \
+        'net_warm_thermal_energy_flux', 'warm_thermal_energy_flux_in', 'warm_thermal_energy_flux_out', \
+        'net_hot_thermal_energy_flux', 'hot_thermal_energy_flux_in', 'hot_thermal_energy_flux_out', \
+        'net_cold_potential_energy_flux', 'cold_potential_energy_flux_in', 'cold_potential_energy_flux_out', \
+        'net_cool_potential_energy_flux', 'cool_potential_energy_flux_in', 'cool_potential_energy_flux_out', \
+        'net_warm_potential_energy_flux', 'warm_potential_energy_flux_in', 'warm_potential_energy_flux_out', \
+        'net_hot_potential_energy_flux', 'hot_potential_energy_flux_in', 'hot_potential_energy_flux_out')
+        new_types_edge = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_rad += new_names
-        names_edge += new_names
+        names_edge += new_names_edge
         type_list_rad += new_types
-        type_list_edge += new_types
+        type_list_edge += new_types_edge
     if ('entropy' in flux_types):
         new_names = ('net_entropy_flux', 'entropy_flux_in', 'entropy_flux_out', \
         'net_cold_entropy_flux', 'cold_entropy_flux_in', 'cold_entropy_flux_out', \
@@ -1536,7 +1572,10 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         fluxes_sat = Table(names=names_edge, dtype=type_list_edge)
 
     # Define the radii of the surfaces where we want to calculate fluxes
-    radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
+    if (units_kpc):
+        radii = ds.arr(np.arange(inner_radius, outer_radius+dr, dr), 'kpc')
+    else:
+        radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
 
     # Load arrays of all fields we need
     print('Loading field arrays')
@@ -1568,6 +1607,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
     if ('O_ion_mass' in flux_types):
         trident.add_ion_fields(ds, ions='all', ftype='gas')
+        abundances = trident.ion_balance.solar_abundance
         OI_frac = sphere['O_p0_ion_fraction'].v
         OII_frac = sphere['O_p1_ion_fraction'].v
         OIII_frac = sphere['O_p2_ion_fraction'].v
@@ -1579,16 +1619,17 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         OIX_frac = sphere['O_p8_ion_fraction'].v
         renorm = OI_frac + OII_frac + OIII_frac + OIV_frac + OV_frac + \
           OVI_frac + OVII_frac + OVIII_frac + OIX_frac
-        OI_mass = sphere['O_p0_mass'].in_units('Msun').v/renorm
-        OII_mass = sphere['O_p1_mass'].in_units('Msun').v/renorm
-        OIII_mass = sphere['O_p2_mass'].in_units('Msun').v/renorm
-        OIV_mass = sphere['O_p3_mass'].in_units('Msun').v/renorm
-        OV_mass = sphere['O_p4_mass'].in_units('Msun').v/renorm
-        OVI_mass = sphere['O_p5_mass'].in_units('Msun').v/renorm
-        OVII_mass = sphere['O_p6_mass'].in_units('Msun').v/renorm
-        OVIII_mass = sphere['O_p7_mass'].in_units('Msun').v/renorm
-        OIX_mass = sphere['O_p8_mass'].in_units('Msun').v/renorm
-        O_mass = OI_mass + OII_mass + OIII_mass + OIV_mass + OV_mass + OVI_mass + OVII_mass + OVIII_mass + OIX_mass
+        O_frac = abundances['O']/(sum(abundances.values()) - abundances['H'] - abundances['He'])
+        O_mass = sphere['metal_mass'].in_units('Msun').v*O_frac
+        OI_mass = OI_frac/renorm*O_mass
+        OII_mass = OII_frac/renorm*O_mass
+        OIII_mass = OIII_frac/renorm*O_mass
+        OIV_mass = OIV_frac/renorm*O_mass
+        OV_mass = OV_frac/renorm*O_mass
+        OVI_mass = OVI_frac/renorm*O_mass
+        OVII_mass = OVII_frac/renorm*O_mass
+        OVIII_mass = OVIII_frac/renorm*O_mass
+        OIX_mass = OIX_frac/renorm*O_mass
 
     # Cut data to only the frustum considered here, stuff that leaves through edges of frustum,
     # and stuff that comes in through edges of frustum
@@ -1629,6 +1670,36 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         new_theta = np.arccos(new_z_disk/new_radius)
         phi = np.arctan2(y_disk, x_disk)
         frus_filename += 'disk_' + str(op_angle)
+    if (type(axis)==tuple) or (type(axis)==list):
+        axis = np.array(axis)
+        norm_axis = axis / np.sqrt((axis**2.).sum())
+        # Define other unit vectors orthagonal to the angular momentum vector
+        np.random.seed(99)
+        x_axis = np.random.randn(3)            # take a random vector
+        x_axis -= x_axis.dot(norm_axis) * norm_axis       # make it orthogonal to L
+        x_axis /= np.linalg.norm(x_axis)            # normalize it
+        y_axis = np.cross(norm_axis, x_axis)           # cross product with L
+        x_vec = ds.arr(x_axis)
+        y_vec = ds.arr(y_axis)
+        z_vec = ds.arr(norm_axis)
+        # Calculate the rotation matrix for converting from original coordinate system
+        # into this new basis
+        xhat = np.array([1,0,0])
+        yhat = np.array([0,1,0])
+        zhat = np.array([0,0,1])
+        transArr0 = np.array([[xhat.dot(x_vec), xhat.dot(y_vec), xhat.dot(z_vec)],
+                             [yhat.dot(x_vec), yhat.dot(y_vec), yhat.dot(z_vec)],
+                             [zhat.dot(x_vec), zhat.dot(y_vec), zhat.dot(z_vec)]])
+        rotationArr = np.linalg.inv(transArr0)
+        x_rot = rotationArr[0][0]*x + rotationArr[0][1]*y + rotationArr[0][2]*z
+        y_rot = rotationArr[1][0]*x + rotationArr[1][1]*y + rotationArr[1][2]*z
+        z_rot = rotationArr[2][0]*x + rotationArr[2][1]*y + rotationArr[2][2]*z
+        new_x_rot = rotationArr[0][0]*new_x + rotationArr[0][1]*new_y + rotationArr[0][2]*new_z
+        new_y_rot = rotationArr[1][0]*new_x + rotationArr[1][1]*new_y + rotationArr[1][2]*new_z
+        new_z_rot = rotationArr[2][0]*new_x + rotationArr[2][1]*new_y + rotationArr[2][2]*new_z
+        theta = np.arccos(z_rot/radius)
+        new_theta = np.arccos(new_z_rot/new_radius)
+        frus_filename += 'axis_' + str(axis[0]) + '_' + str(axis[1]) + '_' + str(axis[2]) + '_' + str(op_angle)
 
     # Load list of satellite positions
     if (sat_radius!=0):
@@ -2661,7 +2732,12 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             OIX_flux_nosat[0][2], OIX_flux_nosat[1][2], OIX_flux_nosat[2][2], \
             OIX_flux_nosat[0][3], OIX_flux_nosat[1][3], OIX_flux_nosat[2][3], \
             OIX_flux_nosat[0][4], OIX_flux_nosat[1][4], OIX_flux_nosat[2][4]]
-            new_row_edge += [OI_flux_edge[0][0], OI_flux_edge[1][0], OI_flux_edge[2][0], \
+            new_row_edge += [O_flux_edge[0][0], O_flux_edge[1][0], O_flux_edge[2][0], \
+            O_flux_edge[0][1], O_flux_edge[1][1], O_flux_edge[2][1], \
+            O_flux_edge[0][2], O_flux_edge[1][2], O_flux_edge[2][2], \
+            O_flux_edge[0][3], O_flux_edge[1][3], O_flux_edge[2][3], \
+            O_flux_edge[0][4], O_flux_edge[1][4], O_flux_edge[2][4], \
+            OI_flux_edge[0][0], OI_flux_edge[1][0], OI_flux_edge[2][0], \
             OI_flux_edge[0][1], OI_flux_edge[1][1], OI_flux_edge[2][1], \
             OI_flux_edge[0][2], OI_flux_edge[1][2], OI_flux_edge[2][2], \
             OI_flux_edge[0][3], OI_flux_edge[1][3], OI_flux_edge[2][3], \
@@ -2897,35 +2973,43 @@ if __name__ == "__main__":
             foggie_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/'
     track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
 
-    surface_args = ast.literal_eval(args.surface)
+    try:
+        surface_args = ast.literal_eval(args.surface)
+    except ValueError:
+        sys.exit("Something's wrong with your surface arguments. Make sure to include both the outer " + \
+        "quotes and the inner quotes around the surface type, like so:\n" + \
+        '"[\'sphere\', 0.05, 2., 200.]"')
     if (surface_args[0]=='sphere'):
         print('Sphere arguments: inner_radius - %.3f outer_radius - %.3f num_radius - %d' % \
           (surface_args[1], surface_args[2], surface_args[3]))
     elif (surface_args[0]=='frustum'):
-        if (surface_args[1]==1):
+        if (surface_args[1]=='x'):
             axis = 'x'
             flip = False
-        elif (surface_args[1]==2):
+        elif (surface_args[1]=='y'):
             axis = 'y'
             flip = False
-        elif (surface_args[1]==3):
+        elif (surface_args[1]=='z'):
             axis = 'z'
             flip = False
-        elif (surface_args[1]==4):
+        elif (surface_args[1]=='minor'):
             axis = 'disk minor axis'
             flip = False
-        elif (surface_args[1]==-1):
+        elif (surface_args[1]=='-x'):
             axis = 'x'
             flip = True
-        elif (surface_args[1]==-2):
+        elif (surface_args[1]=='-y'):
             axis = 'y'
             flip = True
-        elif (surface_args[1]==-3):
+        elif (surface_args[1]=='-z'):
             axis = 'z'
             flip = True
-        elif (surface_args[1]==-4):
+        elif (surface_args[1]=='-minor'):
             axis = 'disk minor axis'
             flip = True
+        elif (type(surface_args[1])==tuple) or (type(surface_args[1])==list):
+            axis = surface_args[1]
+            flip = False
         else: sys.exit("I don't understand what axis you want.")
         surface_args = [surface_args[0], axis, flip, surface_args[2], surface_args[3], surface_args[4], surface_args[5]]
         if (flip):
@@ -2933,9 +3017,16 @@ if __name__ == "__main__":
               (axis, surface_args[3], surface_args[4], surface_args[5], surface_args[6]))
         else:
             print('Frustum arguments: axis - %s inner_radius - %.3f outer_radius - %.3f num_radius - %d opening_angle - %d' % \
-              (axis, surface_args[3], surface_args[4], surface_args[5], surface_args[6]))
+              (str(axis), surface_args[3], surface_args[4], surface_args[5], surface_args[6]))
     else:
         sys.exit("That surface has not been implemented. Ask Cassi to add it.")
+
+    if (args.kpc):
+        print('Surface arguments are in units of kpc.')
+        surface_args.append(True)
+    else:
+        print('Surface arguments are fractions of refine_width.')
+        surface_args.append(False)
 
     # Build output list
     if (',' in args.output):
@@ -3003,6 +3094,8 @@ if __name__ == "__main__":
 
     # Specify where satellite files are saved
     if (args.remove_sats):
+        if ('RD' in args.output):
+            sys.exit('Sorry, cannot remove satellites with RD outputs. Either include satellites or try a DD output.')
         sat_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
         sat_radius = args.sat_radius
     else:
