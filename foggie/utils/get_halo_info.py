@@ -8,7 +8,7 @@ from foggie.utils.get_halo_center import get_halo_center
 import numpy as np
 import glob
 import os
-from enzoGalaxyProps import find_rvirial
+from foggie.utils.enzoGalaxyProps import find_rvirial
 
 def _stars(pfilter, data):
     return data[(pfilter.filtered_type, "particle_type")] == 2
