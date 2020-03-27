@@ -1,0 +1,126 @@
+How to load in a FOGGIE dataset
+Author: Cassi
+
+Description:
+------------
+foggie_load.py provides a one-line loader for FOGGIE datasets. It does all the beginning analysis
+that you need, such as finding the halo center, extracting just the refine box, and adding all our
+derived fields.
+
+This is meant to be used within your own analysis code, to load the dataset before you do whatever
+analysis you want.
+
+How to use:
+-----------
+First, make sure to import the module:
+from foggie.utils.foggie_load import *
+
+Then, you have the option of using either load_sim or foggie_load.
+Use load_sim if:
+    - Every file path that you need is in get_run_loc_etc
+    - You have a parse_args() function definition in your code that returns command line arguments using argparse
+Use foggie_load if:
+    - get_run_loc_etc doesn't have the file paths you want for your system
+    - You're not using command-line arguments with argparse
+
+
+
+Using load_sim:
+---------------
+First, make sure that the list of arguments returned by your parse_args() function includes:
+system
+halo
+run
+output
+
+"system" is your system name, as defined in get_run_loc_etc.py, e.g. "cassiopeia" for Cassi's machine
+"halo" is the halo that you want to run on, e.g. "8508" or "5016"
+"run" is the run type for that halo, e.g. "nref11c_nref9f"
+"output" is the name of the snapshot you want to use, e.g. "DD1478" or "RD0038"
+
+See the bottom of this page for an example parse_args() function that includes these arguments. You
+will likely need to include more command-line arguments than just what's there, and ideally you should
+change the "description" to what your code actually does. But at minimum, your parse_args() function
+should include these arguments.
+
+Then, use load_sim as:
+args = parse_args()
+ds, region = load_sim(args, optional_arguments)
+
+The optional arguments are:
+use_halo_c_v - True or False, defaults to True. Decides if you want to use the halo_c_v catalog. If
+                this catalog doesn't exist for the halo/run/output you want, don't worry about it,
+                it will check for that and calculate appropriately.
+disk_relative - True or False, defaults to False. Decides if you want to calculate the disk angular
+                momentum and add a bunch of derived fields for disk-coordinate positions and velocities.
+particle_type_for_angmom - 'young_stars', 'old_stars', 'stars', 'dm', defaults to 'young_stars'.
+                            If disk_relative = True, this decides which particles to use to calculate
+                            the angular momentum.
+do_filter_particles - True or False, defaults to True. Decides if you want to load particles at all.
+find_halo_center - True or False, defaults to True. Decides if you want to find the halo center at all.
+region - 'refine_box' or 'cgm', defaults to 'refine_box'. Decides what part of the simulation data to
+         return, along with returning ds.
+
+load_sim returns:
+ds - The yt dataset
+region - The yt chunk of data that you asked for
+
+
+
+Using foggie_load:
+------------------
+This is pretty much the same as load_sim, but you will have to specify your file paths
+separately first, and you don't need parse_args() if you don't want it.
+
+Use foggie_load as:
+ds, region = foggie_load(snap, trackfile, optional_arguments)
+
+"snap" is the full file path to the location of the output you want.
+"trackfile" is the full file path to the location of the halo track file.
+
+The optional arguments are:
+halo_c_v_name - The full path to the halo_c_v file, defaults to 'halo_c_v'.
+disk_relative - True or False, defaults to False. Decides if you want to calculate the disk angular
+                momentum and add a bunch of derived fields for disk-coordinate positions and velocities.
+particle_type_for_angmom - 'young_stars', 'old_stars', 'stars', 'dm', defaults to 'young_stars'.
+                            If disk_relative = True, this decides which particles to use to calculate
+                            the angular momentum.
+do_filter_particles - True or False, defaults to True. Decides if you want to load particles at all.
+find_halo_center - True or False, defaults to True. Decides if you want to find the halo center at all.
+region - 'refine_box' or 'cgm', defaults to 'refine_box'. Decides what part of the simulation data to
+         return, along with returning ds.
+
+foggie_load returns:
+ds - The yt dataset
+region - The yt chunk of data that you asked for
+
+
+
+
+
+Example parse_args (change the default system to yours):
+
+import argparse
+def parse_args():
+    '''Parse command line arguments. Returns args object.'''
+
+    parser = argparse.ArgumentParser(description='PUT THE DESCRIPTION OF YOUR CODE HERE')
+
+    parser.add_argument('--halo', metavar='halo', type=str, action='store', \
+                        help='Which halo? Default is 8508 (Tempest)')
+    parser.set_defaults(halo='8508')
+
+    parser.add_argument('--run', metavar='run', type=str, action='store', \
+                        help='Which run? Default is nref11c_nref9f')
+    parser.set_defaults(run='nref11c_nref9f')
+
+    parser.add_argument('--output', metavar='output', type=str, action='store', \
+                        help='Which output? Default is RD0036')
+    parser.set_defaults(output='RD0036')
+
+    parser.add_argument('--system', metavar='system', type=str, action='store', \
+                        help='Which system are you on? Default is cassiopeia')
+    parser.set_defaults(system='cassiopeia')
+
+    args = parser.parse_args()
+    return args
