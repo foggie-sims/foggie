@@ -130,6 +130,9 @@ halo_dict = {   '2392'  :  'Hurricane' ,
                 '005036'  :  'Maelstrom' ,
                 '008508'  :  'Tempest' }
 
+
+#################### linelists for spectra ########################
+
 linelist_jt = ['H I 1216', 'H I 919', \
                 'Mg II 2796', 'Si II 1260', 'Si III 1206', 'Si IV 1394', \
                 'C II 1335', 'C III 977', 'C IV 1548',\
@@ -151,6 +154,9 @@ linelist_all = ['H I 1216', 'H I 1026', 'H I 973',
 linelist_high = ['H I 1216',  'Si IV 1394', 'C IV 1548', \
                'O VI 1032', 'Ne VIII 770']
 linelist_short = ['H I 1216', 'Si II 1260', 'O VI 1032']
+
+################################################################
+
 
 cgm_temperature_min = 1.5e4  #<---- in some FOGGIE codes this will be used to set a min
 cgm_density_max = 2e-26
@@ -180,6 +186,9 @@ dens_phase_min = 10.**-31
 dens_phase_max = 10.**-21
 metal_proj_min = 10.**54
 metal_proj_max = 10.**61
+
+
+#################### colormaps ########################
 
 metal_color_map = sns.blend_palette(
     ("black", "#4575b4", "#984ea3", "#984ea3", "#d73027",
@@ -286,6 +295,8 @@ mg10_color_map = "plasma"
 mg10_min = 1.e11
 mg10_max = 1.e15
 
+
+################################################################################
 
 #set up the ionization fraction colormap
 def categorize_by_fraction(f_ion):
