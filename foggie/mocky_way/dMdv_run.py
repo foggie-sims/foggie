@@ -22,8 +22,8 @@ sim_name = sys.argv[1] # 'nref11n_nref10f'
 dd_name =  sys.argv[2] # 'DD2175'
 
 #only use this argument if changing observer location inside the galaxy
-shift_obs_location = True
-shift_n45 = 5
+shift_obs_location = False
+shift_n45 = 1
 
 # decide at the galactic latitude we are going to break up the halo
 b_lim = 20 # degrees
@@ -32,8 +32,8 @@ ds, ds_paras = prepdata(dd_name, sim_name=sim_name,
                         shift_obs_location=shift_obs_location,
                         shift_n45=shift_n45)
 obj_tag = 'cgm-rvir' # cgm-15kpc, cgm-20kpc, cgm-rvir
-obs_point = 'offcenter_location'  # halo_center, offcenter_location
-obs_bulkvel = 'offcenter_bulkvel' # disk_bulkvel, offcenter_bulkvel
+obs_point = 'halo_center'  # halo_center, offcenter_location
+obs_bulkvel = 'disk_bulkvel' # disk_bulkvel, offcenter_bulkvel
 #obs_point = 'halo_center'  # halo_center, offcenter_location
 #obs_bulkvel = 'disk_bulkvel' # disk_bulkvel, offcenter_bulkvel
 
