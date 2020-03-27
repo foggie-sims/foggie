@@ -4,6 +4,8 @@ from astropy.table import Table
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'stixgeneral'
 from foggie.mocky_way.core_funcs import calc_mean_median_3sig_2sig_1sig
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 
 sim_name = 'nref11n_nref10f'
 dd_name = 'DD2175'
@@ -13,18 +15,21 @@ ion_list = ['HI', 'SiII', 'CII', 'SiIII', 'SiIV', 'CIV', 'NV',
 #            'OVII', 'OVIII', 'NeVII', 'NeVIII']
 # low_ions = ['HI', 'SiII', 'SiIII', 'SiIV', 'CII']
 
+max_pair_deg = 10 # define as the largest separation allowed for a close pair of qso-star sightlines
+
 ion_median = np.zeros(len(ion_list))
 ion_mean = np.zeros(len(ion_list))
 ion_1sig_up = np.zeros(len(ion_list))
 ion_1sig_low = np.zeros(len(ion_list))
 
 np.random.seed(1024)
-nlos = 1000
+nlos = 10 # 1000
 for ii, ion_tag in enumerate(ion_list):
-    fitsname = 'figs/Nr_inview/fits/%s_%s_N%s_inview.fits'%(sim_name, dd_name, ion_tag)
-    tb = Table.read(fitsname, format='fits')
+    # fitsname = 'figs/Nr_inview/fits/%s_%s_N%s_inview.fits'%(sim_name, dd_name, ion_tag)
+    # table includes  N, l, b, r
+    # tb = Table.read(fitsname, format='fits')
     # restrict to |b|>20 sightlines
-    tb = tb[np.abs(tb['b'])>=20]
+    # tb = tb[np.abs(tb['b'])>=20]
 
     # for [5, 15] kpc range
     rin = 5
@@ -34,7 +39,10 @@ for ii, ion_tag in enumerate(ion_list):
     star_tb = Table.read(star_fits, format='fits')
     print(star_fits, len(star_tb))
     star_tb = star_tb[np.abs(star_tb['b'])>=20]
-    star_N = star_tb['N']
+    star_coord = SkyCoord(l=star_tb['l'], b=star_tb['b'],
+                          unit=(u.deg, u.deg), frame='galactic')
+    # star_N = star_tb['N']
+    # star_l = star_tb
 
     # for [150, 160] range
     rin = 150
@@ -44,18 +52,28 @@ for ii, ion_tag in enumerate(ion_list):
     qso_tb = Table.read(qso_fits, format='fits')
     print(qso_fits, len(qso_tb))
     qso_tb = qso_tb[np.abs(qso_tb['b'])>=20]
-    qso_N = qso_tb['N']
+    qso_coord = SkyCoord(l=qso_tb['l'], b=qso_tb['b'],
+                          unit=(u.deg, u.deg), frame='galactic')
+    # qso_N = qso_tb['N']
 
     ### let's use Monte Carlo to propagate the error
     offset_logN = np.zeros(nlos)
-    for i in range(nlos):
-        istar = np.random.randint(low=0, high=star_N.size)
-        iqso = np.random.randint(low=0, high=qso_N.size)
+    offset_deg = np.zeros(nlos)
 
-        istar_logN = np.log10(star_N[istar])
-        iqso_logN = np.log10(qso_N[iqso])
+    for i in range(nlos):
+        sep_star_qso = max_pair_deg +1
+        while (sep_star_qso>max_pair_deg) is True:
+            istar = np.random.randint(low=0, high=len(star_tb))
+            iqso = np.random.randint(low=0, high=len(qso_tb))
+            istar_coord = star_coord[istar]
+            iqso_coord = qso_coord[iqso]
+            sep_star_qso = istar_coord.separation(iqso_coord).deg
+
+        istar_logN = np.log10(star_tb['N'][istar])
+        iqso_logN = np.log10(qso_tb['N'][iqso])
 
         offset_logN[i] = iqso_logN - istar_logN
+        offset_deg[i] = sep_star_qso
 
     # now get the mean and median and other stat
     data_stat = calc_mean_median_3sig_2sig_1sig(offset_logN)
@@ -101,7 +119,7 @@ for tick in ax.yaxis.get_major_ticks():
 ax.set_ylabel(r'$\delta$ logN (dex)', fontsize=fs+3)
 ax.set_title('Differce of logN between QSO and halo star measurements', fontsize=fs+4)
 fig.tight_layout()
-figname = 'figs/Nr_star_qso/fig_logN_star_qso_ion-eV.pdf'
+figname = 'figs/Nr_star_qso/fig_logN_star_qso_ion-eV_maxpairdeg%d.pdf'%(max_pair_deg)
 fig.savefig(figname)
 
 print(figname)
