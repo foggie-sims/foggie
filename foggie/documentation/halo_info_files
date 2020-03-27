@@ -21,7 +21,7 @@ Units:
 xc, yc, zc are given in physical kpc. xv, yv, zv are given in km/s.
 
 Exists for:
-8508/nref11c_nref9f snapshots DD0044-DD1926, RD0012-RD0034
+8508/nref11c_nref9f snapshots DD0044-DD2253, RD0012-RD0040
 8508/nref11n_nref10f snapshots DD0044-DD1630
 5016/nref11c_nref9f snapshots DD0250-DD1763, RD0020-RD0030
 
@@ -52,8 +52,8 @@ Units:
 "radius" is given in physical kpc. "total_mass, dm_mass, stars_mass, gas_mass" are given in Msun.
 
 Exists for:
-8508/nref11c_nref9f snapshots DD0044-DD1630, DD1800-DD1926, RD0012-RD0034, all located within the
-same masses.hdf5 file in the halo_infos/8508/nref11c_nref9f folder.
+8508/nref11c_nref9f snapshots DD0044-DD1926, RD0012-RD0034
+5016/nref11c_nref9f snapshots DD0250-DD1763, RD0020-RD0030
 
 Created by:
 utils/get_mass_profile.py, which will output one "snapshot_masses.hdf5" per snapshot that can
