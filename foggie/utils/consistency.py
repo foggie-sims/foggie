@@ -117,7 +117,8 @@ species_dict = {'CIII': 'C_p2_number_density',
                 'OVIII': 'O_p7_number_density',
                 'NeVII': 'Ne_p6_number_density',
                 'NeVIII': 'Ne_p7_number_density',
-                'MgX': 'Mg_p9_number_density'}
+                'MgX': 'Mg_p9_number_density', 
+                'Electron': 'El_number_density'}
 
 halo_dict = {   '2392'  :  'Hurricane' ,
                 '2878'  :  'Cyclone' ,
