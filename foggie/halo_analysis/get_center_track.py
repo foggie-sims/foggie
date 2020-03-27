@@ -224,15 +224,15 @@ if __name__ == "__main__":
         first_center = [0.5360746383666992,  0.4564027786254883, 0.5105409622192384]
         start_snap = 1996
         end_snap = 2025
-    else if args.halo == "4123":
+    elif args.halo == "4123":
         first_center = [0.4820127487182618,  0.4726438522338867, 0.48097705841064453]
         start_snap = 934
-        end_snap = 1040 
-    else if args.halo == "5036":
+        end_snap = 1040
+    elif args.halo == "5036":
         first_center = [0.47722530364990234, 0.5019979476928711, 0.5026788711547852]
         start_snap = 1213
         end_snap = 1300
-    else if args.halo == "2392":
+    elif args.halo == "2392":
         first_center = [0.49743175506591797, 0.49085521697998047,  0.4734659194946289]
         start_snap = 965
         end_snap = 1045
