@@ -5,6 +5,10 @@ trackfile = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_tracks/008508/nr
 
 # nref11c_nref9f z = 0.1 RD0040 
 dsname = '/Users/tumlinson/Dropbox/FOGGIE/snapshots/halo_008508/nref11c_nref9f/RD0040/RD0040'
+
+sm.simple_plot(dsname, trackfile, 'position_y', 'position_z', 'phase', ( (-200,200), (-200,200) ), \
+                'cgm_y_z', region='cgm')
+
 sm.simple_plot(dsname, trackfile, 'position_x', 'position_y', 'phase', ( (-200,200), (-200,200) ), \
                 'cgm_x_y', region='cgm')
 
