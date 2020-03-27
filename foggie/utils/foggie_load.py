@@ -102,9 +102,9 @@ def foggie_load(snap, trackfile, **kwargs):
             ds.halo_velocity_kms = bulk_velocity
     else:
         print("Not finding halo center")
-        ds.halo_center_kpc = np.nan
-        ds.halo_center_code = np.nan
-        ds.halo_velocity_kms = np.nan
+        ds.halo_center_kpc = ds.arr([np.nan, np.nan, np.nan], 'kpc')
+        ds.halo_center_code = ds.arr([np.nan, np.nan, np.nan], 'code_length')
+        ds.halo_velocity_kms = ds.arr([np.nan, np.nan, np.nan], 'km/s')
 
     ds.track = track
     ds.refine_box_center = refine_box_center
