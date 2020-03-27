@@ -25,11 +25,9 @@ def parse_args():
                         help='use the full suite of cameras?')
     parser.set_defaults(full_camera_suite=False)
 
-
     parser.add_argument('--use_halo_c_v', dest='use_halo_c_v', action='store_true',
                         help='just use the pwd?, default is no')
     parser.set_defaults(use_halo_c_v=False)
-
 
     parser.add_argument('--do_export', dest='do_export', action='store_true',
                         help='just use the pwd?, default is no')
@@ -42,7 +40,6 @@ def parse_args():
     parser.add_argument('--do_cameras', dest='do_cameras', action='store_true',
                         help='just use the pwd?, default is no')
     parser.set_defaults(do_cameras=False)
-
 
     parser.add_argument('--sunrise_directory', dest='sunrise_directory', type = str, action='store',
                         help='just use the pwd?, default is no')
@@ -60,7 +57,6 @@ def parse_args():
                         help='just use the pwd?, default is no')
     parser.set_defaults(pwd=False)
 
-
     parser.add_argument('--output', metavar='output', type=str, action='store',
                         help='which output? default is RD0020')
     parser.set_defaults(output="RD0020")
@@ -73,14 +69,9 @@ def parse_args():
                         help='which output? default is RD0020')
     parser.set_defaults(cam_dist=100000.)
 
-
     parser.add_argument('--seed', dest='seed', type=float, action='store',
                         help='which output? default is RD0020')
     parser.set_defaults(seed=0.)
-
-
-
-
 
     parser.add_argument('--nthreads', metavar='nthreads', type=str, action='store',
                         help='which output? default is RD0020')
@@ -90,33 +81,25 @@ def parse_args():
                         help='which output? default is RD0020')
     parser.set_defaults(queue="normal")
 
-
     parser.add_argument('--notify', metavar='notify', type=str, action='store',
                         help='which output? default is RD0020')
     parser.set_defaults(notify="rsimons@stsci.edu")
-
 
     parser.add_argument('--walltime_limit', metavar='walltime_limit', type=str, action='store',
                         help='which output? default is RD0020')
     parser.set_defaults(walltime_limit="02:00:00")
 
-
     parser.add_argument('--stub_dir', metavar='stub_dir', type=str, action='store',
                         help='which output? default is RD0020')
     parser.set_defaults(stub_dir="/u/gfsnyder/sunrise_data/stub_files")
-
-
 
     parser.add_argument('--model', metavar='model', type=str, action='store',
                         help='which output? default is RD0020')
     parser.set_defaults(model="has")
 
-
     parser.add_argument('--sunrise_data_dir', metavar='sunrise_data_dir', type=str, action='store',
                         help='which output? default is RD0020')
     parser.set_defaults(sunrise_data_dir="/u/gfsnyder/sunrise_data")
-
-
 
     args = parser.parse_args()
     return args
@@ -384,21 +367,10 @@ def setup_runs(ds, args, prefix, output_directory, list_of_types = ['images', 'g
     smf_grism.close()
 
 
-
-def load_sim(args):
-    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    track_dir =  trackname.split('halo_tracks')[0]   + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-    snap_name = foggie_dir + run_loc + args.output + '/' + args.output
-    ds, refine_box, refine_box_center, refine_width = load(snap = snap_name, 
-                                                           trackfile = trackname, 
-                                                           use_halo_c_v=args.use_halo_c_v, 
-                                                           halo_c_v_name=track_dir + 'halo_c_v')
-    return ds
-
 if __name__ == "__main__":
     args = parse_args()
-    output_directory, prefix = check_paths(args)
-    ds = load_sim(args)
+    ds, refine_box = load_sim(args)
+
 
     if args.do_cameras: 
         cameras = generate_cameras(normal_vector = np.array([1,0,0]), 
@@ -415,7 +387,6 @@ if __name__ == "__main__":
                                   args = args, 
                                   star_particles = 'stars', 
                                   form='ENZO')
-
     if args.do_setup:
         setup_runs(ds = ds, 
                    args = args, 

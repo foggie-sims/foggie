@@ -11,6 +11,7 @@ from foggie.utils import yt_fields
 import os, sys, argparse
 from foggie.utils.consistency import *
 import matplotlib.pyplot as plt
+from foggie.utils.foggie_load import *
 
 
 
@@ -146,36 +147,18 @@ def make_projection_plots(ds, center, refine_box, x_width,fig_dir, haloname, nam
 
 halonames = halonames[4:]
 for (haloname, name, DDname) in halonames:
-
-    args = parse_args(haloname, DDname)
-
-
-
     #ds = yt.load(flname)
     #center_dic =  np.load('/Users/rsimons/Desktop/foggie/outputs/centers/%s_nref11c_nref9f_%s.npy'%(haloname,DDname), allow_pickle = True)[()]
     #center = ds.arr(center_dic, 'code_length').to('kpc')
 
-
-    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-
-
-    run_dir = foggie_dir + run_loc
-
-    ds_loc = run_dir + args.output + "/" + args.output
-    ds = yt.load(ds_loc)
-
-    track = Table.read(trackname, format='ascii')
-    track.sort('col1')
-    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-
-    refine_box, refine_box_center, x_width = get_refine_box(ds, zsnap, track)
-    filter_particles(refine_box)
+    args = parse_args(haloname, DDname)
+    ds, refine_box = load_sim(args)
 
     fig_dir = '/Users/rsimons/Dropbox/foggie/figures/for_paper/central_projections'
-    prj = make_projection_plots(refine_box.ds, ds.arr(refine_box_center, 'code_length').to('kpc'),\
-                        refine_box, x_width, fig_dir, haloname, name, \
-                        fig_end = 'projection',\
-                        do = ['stars'], axes = ['x'], is_central = True, add_arrow = False)
+    prj = make_projection_plots(refine_box.ds, ds.arr(ds.refine_box_center, 'code_length').to('kpc'),\
+                                refine_box, ds.refine_width, fig_dir, haloname, name, \
+                                fig_end = 'projection',\
+                                do = ['stars'], axes = ['x'], is_central = True, add_arrow = False)
 
 
 

@@ -206,5 +206,11 @@ def foggie_load(snap, trackfile, **kwargs):
 
     if (region=='refine_box'):
         region = refine_box
+    elif (region=='cgm'):
+        cen_sphere = ds.sphere(ds.halo_center_kpc, (cgm_inner_radius, "kpc"))
+        rvir_sphere = ds.sphere(ds.halo_center_kpc, (cgm_outer_radius, 'kpc'))
+        cgm = rvir_sphere - cen_sphere
+        cgm_filtered = cgm.cut_region(cgm_field_filter)
+        region = cgm_filtered
 
     return ds, region

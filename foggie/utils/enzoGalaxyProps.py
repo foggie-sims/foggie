@@ -11,6 +11,10 @@ from numpy import *
 import astropy
 from astropy.cosmology import Planck13 as cosmo
 import os, sys, argparse
+from yt.units import kpc
+from foggie.utils.foggie_load import *
+from foggie.utils.foggie_utils import filter_particles
+
 
 
 
@@ -90,29 +94,9 @@ def find_center_noprior(dd, ds, cen_pos = 10.e3, bin_width = 4.e3, del_pos = 20)
     return max_ndens_arr
 
 def find_rvirial(dd, ds, center, start_rad = 0, delta_rad_coarse = 20, delta_rad_fine = 1, rad_units = 'kpc'):
-    vir_check = 0
-    r0 = ds.arr(start_rad, rad_units)
-    critical_density = cosmo.critical_density(ds.current_redshift).value   #is in g/cm^3
-    max_ndens_arr=center
-
-    while True:
-        r0_prev = r0
-        r0 = r0_prev + ds.arr(delta_rad_coarse, rad_units)
-        v_sphere = ds.sphere(max_ndens_arr, r0)
-        dark_mass   = v_sphere[('darkmatter', 'particle_mass')].in_units('Msun').sum()
-        rho_internal = dark_mass.in_units('g')/((r0.in_units('cm'))**3.*(pi*4/3.))
-        if rho_internal < 200*ds.arr(critical_density,'g')/ds.arr(1.,'cm')**3.:
-            #now run fine test
-            print('\tNow running fine search on the virial radius')
-            r0 = r0_prev
-            while True:
-                r0 += ds.arr(delta_rad_fine, rad_units)
-                v_sphere = ds.sphere(max_ndens_arr, r0)
-                dark_mass   = v_sphere[('darkmatter', 'particle_mass')].in_units('Msun').sum()
-                rho_internal = dark_mass.in_units('g')/((r0.in_units('cm'))**3.*(pi*4/3.))
-                if rho_internal < 200*ds.arr(critical_density,'g')/ds.arr(1.,'cm')**3.:
-                    rvir = r0
-                    return rvir
+    from foggie.utils.get_rvir import find_rvir
+    res = find_rvir(ds, halo_center = ds.halo_center_kpc, do_fig = False, figdir = '')
+    return res['rvir'].to('kpc')
 
 def find_hist_center(positions, masses):
     '''
