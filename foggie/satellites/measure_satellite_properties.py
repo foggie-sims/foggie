@@ -12,7 +12,7 @@ from astropy.table import Table, Column
 import matplotlib.pyplot as plt
 from foggie.utils.consistency import *
 #from foggie.utils.foggie_load import *
-from foggie.utils import foggie_load
+from foggie.utils.foggie_load import *
 from foggie.utils import yt_fields
 from scipy.signal import find_peaks  
 import yt
@@ -160,25 +160,6 @@ def save_profs(ds, args, sat_cat, profile_name, n_bins = 100):
 
 
 
-def load_sim(args):
-    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    track_dir =  trackname.split('halo_tracks')[0]   + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-    snap_name = foggie_dir + run_loc + args.output + '/' + args.output
-    ds, refine_box, refine_box_center, refine_width = foggie_load.load(snap = snap_name, 
-                                                           trackfile = trackname, 
-                                                           use_halo_c_v=args.use_halo_c_v, 
-                                                           halo_c_v_name=track_dir + 'halo_c_v')
-
-    refine_box.set_field_parameter('center', ds.arr(ds.halo_center_kpc, 'kpc'))
-    bulk_vel = refine_box.quantities.bulk_velocity()
-    refine_box.set_field_parameter("bulk_velocity", bulk_vel)
-
-    return ds, refine_box, refine_box_center, refine_width
-
-
-
-
-
 
 if __name__ == '__main__':
 
@@ -227,11 +208,7 @@ if __name__ == '__main__':
 
 
     for args.halo, args.output in inputs:
-
-        ds, refine_box, refine_box_center, refine_width = load_sim(args)
-
-
-
+        ds, refine_box = load_sim(args)
 
 
 
