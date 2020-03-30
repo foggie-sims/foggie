@@ -1,29 +1,34 @@
-import matplotlib.pyplot as plt
+# 03/30/2020, now move this code to run on pleiades, otherwise it takes forever
+#             to filter through pair sightlines within certain angular separation
+#
+
+import os
+import sys
+import astropy.units as u
 import numpy as np
 from astropy.table import Table
-import matplotlib as mpl
-mpl.rcParams['font.family'] = 'stixgeneral'
-from foggie.mocky_way.core_funcs import calc_mean_median_3sig_2sig_1sig
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
+###### if used on pleiades, run this #####
+#import mocky_way_modules  # read this in before reading in foggie and yt
+#from mocky_way_modules import data_dir_sys_dir
+#data_dir, sys_dir = data_dir_sys_dir()
+#os.sys.path.insert(0, sys_dir)
+#from mocky_way_modules import calc_mean_median_3sig_2sig_1sig
+
+###### if used locally in foggie.mocky_way, then use this
+sys_dir = '/Users/Yong/ForkedRepo/foggie/foggie/'
+from foggie.mocky_way.core_funcs import calc_mean_median_3sig_2sig_1sig
+
+max_pair_deg = 10 # define as the largest separation allowed for a close pair of qso-star sightlines
+nlos = 50 # 1000
+
+np.random.seed(1024)
 sim_name = 'nref11n_nref10f'
 dd_name = 'DD2175'
 ion_list = ['HI', 'SiII', 'CII', 'SiIII', 'SiIV', 'CIV', 'NV',
             'OVI', 'NeVII', 'NeVIII', 'OVII', 'OVIII']
-#ion_list = ['HI', 'SiII', 'SiIII', 'SiIV', 'CII', 'CIV', 'OVI', 'NV',
-#            'OVII', 'OVIII', 'NeVII', 'NeVIII']
-# low_ions = ['HI', 'SiII', 'SiIII', 'SiIV', 'CII']
-
-max_pair_deg = 10 # define as the largest separation allowed for a close pair of qso-star sightlines
-
-ion_median = np.zeros(len(ion_list))
-ion_mean = np.zeros(len(ion_list))
-ion_1sig_up = np.zeros(len(ion_list))
-ion_1sig_low = np.zeros(len(ion_list))
-
-np.random.seed(1024)
-nlos = 10 # 1000
 for ii, ion_tag in enumerate(ion_list):
     # fitsname = 'figs/Nr_inview/fits/%s_%s_N%s_inview.fits'%(sim_name, dd_name, ion_tag)
     # table includes  N, l, b, r
@@ -75,6 +80,27 @@ for ii, ion_tag in enumerate(ion_list):
         offset_logN[i] = iqso_logN - istar_logN
         offset_deg[i] = sep_star_qso
 
+    # now save the data for this ion:
+    import astropy.io.fits as fits
+    c1 = fits.Column(name='offset_logN', array=offset_logN, format='D')
+    c2 = fits.Column(name='offset_deg', array=offset_deg, format='D')
+    all_cols = [c1, c2]
+    t = fits.BinTableHDU.from_columns(all_cols)
+    fig_dir = '%s/mocky_way/figs/Nr_inview/fits'%(sys_dir)
+    tb_name = '%s_%s_quastar_logNoffset_maxpairdeg%d_%s.fits'%(sim_name, dd_name, max_pair_deg, ion_tag)
+    save_to_file = '%s/%s'%(fig_dir, tb_name)
+    # print("%s: I am saving it to %s"%(i, save_to_file))
+    t.writeto(save_to_file, overwrite=True)
+    print(tb_name)
+    break
+
+'''
+
+ion_median = np.zeros(len(ion_list))
+ion_mean = np.zeros(len(ion_list))
+ion_1sig_up = np.zeros(len(ion_list))
+ion_1sig_low = np.zeros(len(ion_list))
+
     # now get the mean and median and other stat
     data_stat = calc_mean_median_3sig_2sig_1sig(offset_logN)
     ion_mean[ii] = data_stat['mean']
@@ -84,6 +110,10 @@ for ii, ion_tag in enumerate(ion_list):
 
 
 #### plot ! ###
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+mpl.rcParams['font.family'] = 'stixgeneral'
+
 fig = plt.figure(figsize=(10, 4))
 ax = fig.add_subplot(111)
 x = np.arange(len(ion_list))
@@ -123,3 +153,4 @@ figname = 'figs/Nr_star_qso/fig_logN_star_qso_ion-eV_maxpairdeg%d.pdf'%(max_pair
 fig.savefig(figname)
 
 print(figname)
+'''
