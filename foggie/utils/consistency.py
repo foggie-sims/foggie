@@ -331,7 +331,8 @@ mg10_color_map = "plasma"
 mg10_min = 1.e11
 mg10_max = 1.e15
 
-e_color_map = 'viridis' # electron column density maps
+# electron column density maps
+e_color_map = sns.blend_palette(("white", "#FFA07A", "#FF6347", "#9370DB", "#663399"), as_cmap=True)
 e_min = 3.1e18 # in unit of cm-2, equal to 1 pc/cm3 for dispersion measure unit
 e_max = 3.1e20 # in unit of cm-2, equal to 100 pc/cm3
 
