@@ -81,6 +81,8 @@ trident.add_ion_fields(ds, ftype="gas", ions=td_ion_list, force_override=True)
 ion_list = [ss.replace(' ', '') for ss in td_ion_list]
 ion_list.append('HI')
 ion_list.append('Electron')
+ 
+# ion_list = ['HI', 'Electron']
 
 ### now let's find halo center ###
 from foggie.get_halo_center import get_halo_center
@@ -130,7 +132,7 @@ gc = plt.cm.Greys(0.8) # gc = gridcolor
 #### decide if only project cgm, or proj the whole cgm+disk ###
 # obj_tag = 'all' # means cgm+disk, or can do 'cgm' only
 if obj_tag == 'all':
-    # sp = ds.sphere(halo_center, (120, 'kpc'))
+    # sp = ds.sphere(halo_center, (160, 'kpc'))
     sp = ds.sphere(halo_center, (160, 'kpc'))
     obj = sp
 elif obj_tag == 'cgm':
