@@ -29,6 +29,7 @@ sim_name = 'nref11n_nref10f'
 dd_name = 'DD2175'
 ion_list = ['HI', 'SiII', 'CII', 'SiIII', 'SiIV', 'CIV', 'NV',
             'OVI', 'NeVII', 'NeVIII', 'OVII', 'OVIII']
+data_dir = '%s/mocky_way'%(sys_dir)
 for ii, ion_tag in enumerate(ion_list):
     # fitsname = 'figs/Nr_inview/fits/%s_%s_N%s_inview.fits'%(sim_name, dd_name, ion_tag)
     # table includes  N, l, b, r
@@ -39,8 +40,9 @@ for ii, ion_tag in enumerate(ion_list):
     # for [5, 15] kpc range
     rin = 5
     rout = 15
-    star_fits = 'figs/Nr_inview/fits/%s_%s_N%s_inview_%d-%d.fits'%(sim_name,
-                                                dd_name, ion_tag, rin, rout)
+
+    star_fits = '%s/figs/Nr_inview/fits/%s_%s_N%s_inview_%d-%d.fits'%(data_dir, sim_name,
+                                                            dd_name, ion_tag, rin, rout)
     star_tb = Table.read(star_fits, format='fits')
     print(star_fits, len(star_tb))
     star_tb = star_tb[np.abs(star_tb['b'])>=20]
@@ -52,7 +54,7 @@ for ii, ion_tag in enumerate(ion_list):
     # for [150, 160] range
     rin = 150
     rout = 160
-    qso_fits = 'figs/Nr_inview/fits/%s_%s_N%s_inview_%d-%d.fits'%(sim_name,
+    qso_fits = '%s/figs/Nr_inview/fits/%s_%s_N%s_inview_%d-%d.fits'%(data_dir, sim_name,
                                                 dd_name, ion_tag, rin, rout)
     qso_tb = Table.read(qso_fits, format='fits')
     print(qso_fits, len(qso_tb))
