@@ -117,7 +117,7 @@ species_dict = {'CIII': 'C_p2_number_density',
                 'OVIII': 'O_p7_number_density',
                 'NeVII': 'Ne_p6_number_density',
                 'NeVIII': 'Ne_p7_number_density',
-                'MgX': 'Mg_p9_number_density', 
+                'MgX': 'Mg_p9_number_density',
                 'Electron': 'El_number_density'}
 
 halo_dict = {   '2392'  :  'Hurricane' ,
@@ -330,6 +330,10 @@ al2_max = 1.e17
 mg10_color_map = "plasma"
 mg10_min = 1.e11
 mg10_max = 1.e15
+
+e_color_map = 'viridis' # electron column density maps
+e_min = 3.1e18 # in unit of cm-2, equal to 1 pc/cm3 for dispersion measure unit
+e_max = 3.1e20 # in unit of cm-2, equal to 100 pc/cm3
 
 #####################################################################
 
@@ -939,7 +943,8 @@ colormap_dict = {'phase': new_phase_color_key,
                  'O_p6_number_density': o7_color_map,
                  'O_p7_number_density': o8_color_map,
                  'Ne_p6_number_density': ne7_color_map,
-                 'Ne_p7_number_density': ne8_color_map}
+                 'Ne_p7_number_density': ne8_color_map,
+                 'El_number_density': e_color_map}
 
 proj_max_dict = {'density': 1e-1,
                  'H_p0_number_density': h1_proj_max,
@@ -955,7 +960,8 @@ proj_max_dict = {'density': 1e-1,
                  'O_p6_number_density': o7_max,
                  'O_p7_number_density': o8_max,
                  'Ne_p6_number_density': ne7_max,
-                 'Ne_p7_number_density': ne8_max}
+                 'Ne_p7_number_density': ne8_max,
+                 'El_number_density': e_max}
 
 proj_min_dict = {'density':1e-6,
                  'H_p0_number_density':h1_proj_min,
@@ -971,4 +977,5 @@ proj_min_dict = {'density':1e-6,
                  'O_p6_number_density': o7_min,
                  'O_p7_number_density': o8_min,
                  'Ne_p6_number_density': ne7_min,
-                 'Ne_p7_number_density':ne8_min}
+                 'Ne_p7_number_density':ne8_min,
+                 'El_number_density': e_min}
