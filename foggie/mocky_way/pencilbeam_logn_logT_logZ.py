@@ -7,16 +7,18 @@ mpl.rcParams['font.family'] = 'stixgeneral'
 
 def pencilbeam_logn_logT_logZ(ds, los_rs, los_re, field, f_min, f_max,
                     f_cmap = plt.cm.Reds_r, clabel = r'log n(cm-3)',
-                    tick_fontsize=16, save_file = './temp/pencilbeam_.pdf'):
+                    tick_fontsize=16, save_file = './temp/pencilbeam.pdf'):
+
     """
-    Plot the baryon number density distribution along a pencil from observer
+    Plot ion number density distribution along a pencil from observer
     through the halo.
 
     Input:
     ds: from yt.load()
     los_rs: ray start, code_length
     los_re: ray_end, code_length
-    field: the number density field of the ion of interest
+    field: the field of the ion of interest, can be 'Temperature', 'metallicity',
+           'Si_p3_number_density', etc.
     No outputs.
     """
 
@@ -95,3 +97,48 @@ def image_add_axes(slice_file, ray_length, f_cmap, bounds, norm, clabel,
     cb.set_label(clabel, fontsize=tick_fontsize-2)
     cb.ax.tick_params(labelsize=tick_fontsize-4)
     fig.savefig(save_file)
+    print(">>> Saved to ", save_file)
+
+if __name__ == '__main__':
+    import sys
+    import numpy as np
+    from foggie.utils import consistency
+
+    los_l_deg = np.float(sys.argv[1])
+    los_b_deg = np.float(sys.argv[2])
+    los_r_kpc = np.float(sys.argv[3])
+    field = sys.argv[4] # i.e., Temperature, metallicity, Si_p3_number_density
+    data_dir = 'figs/pencilbeam_logn_logT_logZ'
+    file_name = 'l%.1f_b%.1f_r%.1f_%s_Sun.pdf'%(los_l_deg, los_b_deg, los_r_kpc, field)
+    save_file = '%s/%s'%(data_dir, file_name)
+
+    from foggie.mocky_way.core_funcs import prepdata
+    sim_name = 'nref11n_nref10f'
+    dd_name = 'DD2175'
+    ds, ds_paras = prepdata(dd_name)
+
+    from foggie.mocky_way.core_funcs import calc_ray_end
+    los_rs = ds_paras['offcenter_location'].copy()
+    los_re, unit_vec = calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
+                                    los_rs, los_r_kpc)
+
+    ### some plotting setup ###
+    if field == 'Temperature':
+        clabel = 'log T (K)'
+        f_min = 1e4
+        f_max = 1e7
+        f_cmap = consistency.logT_colors_mw_smooth
+    elif field == 'metallicity':
+        clabel = 'log Z (Zsun)'
+        f_min = 0.001
+        f_max = 10
+        f_cmap = consistency.metal_smooth_cmap
+    else:  # mostly number density field
+        clabel = r'log n(cm-3)'
+        f_min = 1e-20
+        f_max = 1e-3
+        f_cmap = consistency.e_color_map
+
+    pencilbeam_logn_logT_logZ(ds, los_rs, los_re, field, f_min, f_max,
+                        f_cmap=f_cmap, clabel=clabel,
+                        tick_fontsize=16, save_file=save_file)
