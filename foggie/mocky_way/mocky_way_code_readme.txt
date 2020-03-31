@@ -12,16 +12,16 @@ prepare the data set to load in necessary function
             * halo_center: center of halo, see core_funcs.find_halo_center_yz
             * rvir: pre calculated viral radius of the galaxy
             * L_vec, sun_vec, phi_vec: the xyz vector in the disk coordinate system
-            * disk_bulkvel: disk bulk velocity within the sphere that used to calculate the gas angular momentum, 
+            * disk_bulkvel: disk bulk velocity within the sphere that used to calculate the gas angular momentum,
               see core_funcs.get_sphere_ang_mom_vecs
-            * disk_rs, disk_zs: pre calculated disk scale length and scale height, see core_funcs.dict_disk_rs_zs, 
+            * disk_rs, disk_zs: pre calculated disk scale length and scale height, see core_funcs.dict_disk_rs_zs,
               and disk_scale_length_rs.py and disk_scale_height_zs.py
-            * offcenter_location, offcenter_bulkvel: call core_funcs.offcenter_observer to decide where the off 
+            * offcenter_location, offcenter_bulkvel: call core_funcs.offcenter_observer to decide where the off
               center observer location and velocity are.
         * call trident.add_ion_fields, and ion fields, including SiII, SiIII, SiIV, CII, CIV, OVI, NV, OVII, OVIII, NeVIII, NeVIII
         * call foggie.mocky_way.mocky_way_fields to add 3 self defined fields: (‘gas’, ‘los_velocity_mw’), (‘gas’, ‘l’), (‘gas’, ‘b')
         * calculate the angular momentum and the xyz vectors for the disk, called L_vec, sun_vec, and phi_vec
-        * if shift_obs_location is set True when calling prepdata, then the xyz coordinate vectors are  
+        * if shift_obs_location is set True when calling prepdata, then the xyz coordinate vectors are
           shifted by shift_n45*45 degrees in the disk plane, where shift_n45 = 1, 2, …. 7
         * call locate_offcenter_observer  to shift the observer from disk center to some redefined off center location
 
@@ -71,6 +71,7 @@ Figure 9 - dMdv plot, Figure 10 - dMdt plots
 
 Figure 11 - QuaStar ish pair sightline comparison
     * use fig11_column_density_star_qso_plt.py to make the plot, figure saved in figs/Nr_star_qso/...
+    * better to run fig11_** on pleiades
     * run column_density_inview_ray_pleiades.py on pleiades to make a whole bunch of random rays through
       the halo to record N, l, b, r within certain r range.
     *
@@ -79,3 +80,18 @@ Figure 12 - SiIII and OVI ion profiles
 
 Figure 13 - Column density inside vs outside views
     * column_density_in_vs_ex_plt.py
+
+####################### Other codes #####################
+If you want to generate an absorption line, say CIV1548, toward some direction l=30, b=50, pathlength=100 kpc
+    * $ python generate_absline.py CIV1548 30 50 100
+    * you can also use the code as a funcs in other codes
+
+If you want to know what is the line of sight distribution of Temperature, metallicity, and ion number density
+toward, say l=30, b=100, r=1000
+    * $ python pencilbeam_logn_logT_logZ.py 30 60 100 Si_p3_number_density
+
+If you want to calculate the end of some ray and the direction vector,
+    * from foggie.mocky_way.core_funcs import calc_ray_end
+    * los_rs = [0.5, 0.5, 0.5]
+    * los_re, unit_vec = calc_ray_end(ds, ds_paras, los_l_deg, los_b_deg,
+                                      los_rs, los_r_kpc)
