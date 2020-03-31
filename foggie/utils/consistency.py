@@ -400,6 +400,9 @@ logT_color_labels_mw = [b'<4.0', b'4.0-4.5', b'4.5-5.0', b'5.0-5.5',
 logT_colors_mw = sns.blend_palette(('salmon', "#984ea3", "#4daf4a",
                                     '#ffe34d', 'darkorange'),
                                     n_colors=len(logT_color_labels_mw))
+logT_colors_mw_smooth = sns.blend_palette(('salmon', "#984ea3", "#4daf4a",
+                                    '#ffe34d', 'darkorange'),
+                                    as_cmap=True)
 logT_discrete_cmap_mw = mpl.colors.ListedColormap(logT_colors_mw)
 logT_color_key_mw = collections.OrderedDict()
 for i in np.arange(np.size(logT_color_labels_mw)):
@@ -451,6 +454,8 @@ metal_color_labels = [b'free', b'free1', b'free2', b'free3', b'poor',
                       b'solar3', b'high', b'high1', b'high2', b'high3', b'high4']
 metallicity_colors = sns.blend_palette(("black", "#4575b4", "#984ea3", "#984ea3", "#d73027",
      "darkorange", "#ffe34d"), n_colors=21)
+metal_smooth_cmap = sns.blend_palette(("black", "#4575b4", "#984ea3", "#984ea3", "#d73027",
+     "darkorange", "#ffe34d"), as_cmap=True)
 metal_discrete_cmap = mpl.colors.ListedColormap(metallicity_colors)
 new_metals_color_key = collections.OrderedDict()
 for i in np.arange(np.size(metal_color_labels)):
