@@ -106,8 +106,11 @@ if __name__ == '__main__':
 
     los_l_deg = np.float(sys.argv[1])
     los_b_deg = np.float(sys.argv[2])
-    los_r_kpc = np.float(sys.argv[3])
-    field = sys.argv[4] # i.e., Temperature, metallicity, Si_p3_number_density
+    field = sys.argv[3] # i.e., Temperature, metallicity, Si_p3_number_density
+
+    los_r_kpc = 100 # the image axes are default to 100 kpc, so if you wanna
+                    # change the path length, you may need to change the image_add_axes
+                    # function accordingly.
     data_dir = 'figs/pencilbeam_logn_logT_logZ'
     file_name = 'l%.1f_b%.1f_r%.1f_%s_Sun.pdf'%(los_l_deg, los_b_deg, los_r_kpc, field)
     save_file = '%s/%s'%(data_dir, file_name)
