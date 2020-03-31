@@ -975,19 +975,22 @@ def weighted_avg_and_std(values, weights):
     variance = np.average((values-average)**2, weights=weights)
     return (average, math.sqrt(variance))
 
-def get_line_info(lines):
+def get_line_info(line):
     ## e.g., lines = ['SiIV1394', 'CIV1548']
     from yztools.line_wave_fval import line_wave_fval
     from foggie.utils import consistency
     import re
 
-    line_wave = []
-    ion_field = []
-    for iline in lines:
-        line_info = line_wave_fval(iline)
-        line_wave.append(line_info['wave'])
+    line_info = line_wave_fval(line)
+    line_wave = line_info['wave']
 
-        ion = re.split('(\d+)', iline)[0]
-        ion_field.append(consistency.species_dict[ion])
+    ion = re.split('(\d+)', line)[0]
+    ion_field  = consistency.species_dict[ion]
 
-    return line_wave, ion_field
+    ele = ion_field.split('_')[0]
+    stat = ion[len(ele):]
+    input_wave = re.split('(\d+)', line)[1]
+
+    tr_line_format = '%s %s %s'%(ele, stat, input_wave)
+
+    return line_wave, ion_field, tr_line_format
