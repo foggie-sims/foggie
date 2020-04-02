@@ -106,8 +106,8 @@ def parse_args():
     parser.set_defaults(convolve_with_instrument_psf=True)
 
     parser.add_argument('--make_plots', dest='make_plots', action='store_true',
-                        help="Do you want to create projection plots with arrows? Default is True")
-    parser.set_defaults(make_plots=True)
+                        help="Do you want to create projection plots with arrows and plots of all spectra? Default is False")
+    parser.set_defaults(make_plots=False)
 
     parser.add_argument('--physical_properties_in_header', dest='physical_properties_in_header', action='store_true',
                         help="Do you want to put the physical properties of the halo into the fits header? Default is True")
@@ -225,30 +225,47 @@ def make_IFU(args, speedoflight=speedoflight):
                     px.annotate_ray(ray, arrow=True)
                     py.annotate_ray(ray, arrow=True)
                     pz.annotate_ray(ray, arrow=True)
-                if instrument == 'COS-G130M':
-                    sg = trident.SpectrumGenerator(lsf_kernel="avg_COS_G130M", lambda_min=startwl, lambda_max=endwl, dlambda=wlres)
-                    sg.make_spectrum(ray, lines=line_list)
-                    sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
-                    sgi = sg
-                    sgi.apply_lsf()
-                    sgi.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_finali.txt')
-                    sg.add_milky_way_foreground()
-                    sg.apply_lsf()
-                    sg.add_gaussian_noise(30)
-                    sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_final.txt')
-                    trident.plot_spectrum([sg.lambda_field, sgi.lambda_field],[sg.flux_field, sgi.flux_field],lambda_limits=[startwl,endwl], stagger=0, step=[False, True],label=['Observed','Ideal'], filename=str(i)+'_'+str(j)+'_'+'ideal_and_obs'+str(zsnap)+'.png')
-                if instrument == 'KCWI':
-                    sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=wlres)
-                    sg.make_spectrum(ray, lines=line_list)
-                    sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
-                    sgi = sg
-                    sgi.apply_lsf(function='boxcar',width=3) # THIS NEEDS TO BE UPDATED WITH A PROPER LSF KERNEL FILE
-                    sgi.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_finali.txt')
-                    sg.add_milky_way_foreground()
-                    sg.apply_lsf(function='boxcar',width=3) # THIS NEEDS TO BE UPDATED WITH A PROPER LSF KERNEL FILE
-                    sg.add_gaussian_noise(30)
-                    sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_final.txt')
-                    trident.plot_spectrum([sg.lambda_field, sgi.lambda_field],[sg.flux_field, sgi.flux_field],lambda_limits=[startwl,endwl], stagger=0, step=[False, True],label=['Observed','Ideal'], filename=str(i)+'_'+str(j)+'_'+'ideal_and_obs'+str(zsnap)+'.png')
+                    if instrument == 'COS-G130M':
+                        sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=0.01)
+                        sg.make_spectrum(ray, lines=line_list)
+                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
+                        sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'raw_'+str(snap)+'.png')
+                        sg.add_milky_way_foreground()
+                        sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'MW_'+str(snap)+'.png')
+                        sg.apply_lsf(filename="avg_COS_G130M.txt")
+                        sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'MW+LSF_'+str(snap)+'.png')
+                        sg.add_gaussian_noise(30)
+                        sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'MW+LSF+noise_'+str(snap)+'.png')
+                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_final.txt')
+                    if instrument == 'KCWI':
+                        sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=wlres)
+                        sg.make_spectrum(ray, lines=line_list)
+                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
+                        sgi = sg
+                        sgi.apply_lsf(function='boxcar',width=3) # THIS NEEDS TO BE UPDATED WITH A PROPER LSF KERNEL FILE
+                        sgi.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_finali.txt')
+                        sg.add_milky_way_foreground() # WE ALSO NEED AN ATMOSPHERE MODEL!
+                        sg.apply_lsf(function='boxcar',width=3) # THIS NEEDS TO BE UPDATED WITH A PROPER LSF KERNEL FILE
+                        sg.add_gaussian_noise(30)
+                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_final.txt')
+                        trident.plot_spectrum([sg.lambda_field, sgi.lambda_field],[sg.flux_field, sgi.flux_field],lambda_limits=[startwl,endwl], stagger=0, step=[False, True],label=['Observed','Ideal'], filename=str(i)+'_'+str(j)+'_'+'ideal_and_obs'+str(zsnap)+'.png')
+                else:
+                    if instrument == 'COS-G130M':
+                        sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=0.01)
+                        sg.make_spectrum(ray, lines=line_list)
+                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
+                        sg.add_milky_way_foreground()
+                        sg.apply_lsf(filename="avg_COS_G130M.txt")
+                        sg.add_gaussian_noise(30)
+                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_final.txt')
+                    if instrument == 'KCWI':
+                        sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=wlres)
+                        sg.make_spectrum(ray, lines=line_list)
+                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
+                        sg.add_milky_way_foreground()
+                        sg.apply_lsf(function='boxcar',width=3) # THIS NEEDS TO BE UPDATED WITH A PROPER LSF KERNEL FILE
+                        sg.add_gaussian_noise(30)
+                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_final.txt')
                 j+=1
             i += 1
     if make_plots == True:
