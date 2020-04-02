@@ -73,23 +73,23 @@ def parse_args():
                         help='Which system are you on? Default is ramona')
     parser.set_defaults(system='ramona')
 
-    parser.add_argument('--pwd', dest='pwd', action='store_true',
+    parser.add_argument('--pwd', dest='pwd', action='store_true', \
                         help='Just use the working directory? Default is no')
     parser.set_defaults(pwd=False)
 
-    parser.add_argument('--instrument', dest='instrument', action='store_true',
-                        help='Which instrument? Default is KCWI - Choose KCWI or COS-G130M')
-    parser.set_defaults(instrument='KCWI')
+    parser.add_argument('--instrument', metavar='instrument', type=str, action='store', \
+                        help='Which instrument? Default is COS-G130M. Choose KCWI or COS-G130M')
+    parser.set_defaults(instrument='COS-G130M')
 
-    parser.add_argument('--line_list', dest='line_list', action='store_true',
+    parser.add_argument('--line_list', metavar='line_list', type=str, action='store',
                         help="Which lines? Default is ['H', 'C', 'Si','N', 'O', 'Mg']")
     parser.set_defaults(line_list=['H', 'C', 'Si','N', 'O', 'Mg'])
 
-    parser.add_argument('--steps', dest='steps', action='store_true',
+    parser.add_argument('--steps', metavar='steps', type=int, action='store',
                         help="How many steps? Default is 0")
     parser.set_defaults(steps=0)
 
-    parser.add_argument('--stepsize', dest='stepsize', action='store_true',
+    parser.add_argument('--stepsize', metavar='stepsize', type=int, action='store',
                         help="What stepsize? Default is 0")
     parser.set_defaults(stepsize=0)
 
@@ -112,6 +112,18 @@ def parse_args():
     parser.add_argument('--physical_properties_in_header', dest='physical_properties_in_header', action='store_true',
                         help="Do you want to put the physical properties of the halo into the fits header? Default is True")
     parser.set_defaults(physical_properties_in_header=True)
+
+    parser.add_argument('--custom_wl', dest='custom_wl', action='store_true', \
+                        help="Do you want to define your own start and end wavelength? Default is False")
+    parser.set_defaults(custom_wl=False)
+
+    parser.add_argument('--custom_startwl', metavar='custom_startwl', type=float, action='store',
+                        help="If custom_wl=True, define your start wavelength here. Default is 0.")
+    parser.set_defaults(custom_startwl=0.)
+
+    parser.add_argument('--custom_endwl', metavar='custom_endwl', type=float, action='store',
+                        help="If custom_wl=True, define your end wavelength here. Default is 0.")
+    parser.set_defaults(custom_endwl=0.)
 
     args = parser.parse_args()
     return args
@@ -140,10 +152,9 @@ def make_IFU(args, speedoflight=speedoflight):
     instrument = args.instrument
     line_list = args.line_list
     if instrument == 'KCWI':
-        if line_list == ['Mg']:
-            MgII=2800  # Angstrom
-            startwl = 2750
-            endwl = 2850
+        if args.custom_wl==True:
+            startwl = args.custom_startwl
+            endwl = args.custom_endwl
         else:
             startwl = 3500
             endwl = 5600
@@ -158,8 +169,12 @@ def make_IFU(args, speedoflight=speedoflight):
         instrument_pixelsize = 0.4 #arcsec
 
     elif instrument == 'COS-G130M':
-        startwl = 1132
-        endwl = 1433
+        if args.custom_wl==True:
+            startwl = args.custom_startwl
+            endwl = args.custom_endwl
+        else:
+            startwl = 1132
+            endwl = 1433
 
     fullds, region = foggie_load(fn,track_name)
     zsnap = fullds.get_parameter('CosmologyCurrentRedshift')
