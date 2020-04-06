@@ -176,7 +176,13 @@ def make_IFU(args, speedoflight=speedoflight):
             startwl = 1132
             endwl = 1433
 
-    fullds, region = foggie_load(fn,track_name)
+    if (os.path.exists(code_path+"halo_infos/00"+args.halo+"/"+args.run+"/halo_c_v")):
+        print('found halo_c_v file - using standard foggie_load')
+        fullds, region = foggie_load(fn,track_name)
+    else:
+        print('found no halo_c_v file - using foggie_load but will later use boxcenter instead of halocenter')
+        fullds, region = foggie_load(fn,track_name,find_halo_center=False)
+
     zsnap = fullds.get_parameter('CosmologyCurrentRedshift')
     properwidth = fullds.refine_width # in kpc
     smallestcell = fullds.index.get_smallest_dx().in_units('code_length') # in code_length
@@ -184,7 +190,9 @@ def make_IFU(args, speedoflight=speedoflight):
     leftedge = region.left_edge
     rightedge = region.right_edge
     boxcenter = region.center
-    center, halo_velocity = get_halo_center(fullds, boxcenter)
+    if (os.path.exists(code_path+"halo_infos/00"+args.halo+"/"+args.run+"/halo_c_v")):
+        center, halo_velocity = get_halo_center(fullds, boxcenter)
+    else: center = boxcenter
 
     if stepsize == 0:
         stepsize = smallestcell
