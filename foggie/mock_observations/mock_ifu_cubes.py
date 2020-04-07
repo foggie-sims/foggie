@@ -125,6 +125,10 @@ def parse_args():
                         help="If custom_wl=True, define your end wavelength here. Default is 0.")
     parser.set_defaults(custom_endwl=0.)
 
+    parser.add_argument('--need_halo_center', dest='need_halo_center', action='store_true',
+                        help="Do you need the halo center? Default is no.")
+    parser.set_defaults(custom_endwl=False)
+
     args = parser.parse_args()
     return args
 
@@ -176,7 +180,11 @@ def make_IFU(args, speedoflight=speedoflight):
             startwl = 1132
             endwl = 1433
 
-    fullds, region = foggie_load(fn,track_name)
+    if args.need_halo_center==True:
+        fullds, region = foggie_load(fn,track_name)
+    else:
+        fullds, region = foggie_load(fn,track_name,find_halo_center=False)
+
     zsnap = fullds.get_parameter('CosmologyCurrentRedshift')
     properwidth = fullds.refine_width # in kpc
     smallestcell = fullds.index.get_smallest_dx().in_units('code_length') # in code_length
@@ -184,7 +192,9 @@ def make_IFU(args, speedoflight=speedoflight):
     leftedge = region.left_edge
     rightedge = region.right_edge
     boxcenter = region.center
-    center, halo_velocity = get_halo_center(fullds, boxcenter)
+    if args.need_halo_center==True:
+        center, halo_velocity = get_halo_center(fullds, boxcenter)
+    else: center = boxcenter
 
     if stepsize == 0:
         stepsize = smallestcell
