@@ -125,6 +125,10 @@ def parse_args():
                         help="If custom_wl=True, define your end wavelength here. Default is 0.")
     parser.set_defaults(custom_endwl=0.)
 
+    parser.add_argument('--need_halo_center', dest='need_halo_center', action='store_true',
+                        help="Do you need the halo center? Default is no.")
+    parser.set_defaults(custom_endwl=False)
+
     args = parser.parse_args()
     return args
 
@@ -176,11 +180,9 @@ def make_IFU(args, speedoflight=speedoflight):
             startwl = 1132
             endwl = 1433
 
-    if (os.path.exists(code_path+"halo_infos/00"+args.halo+"/"+args.run+"/halo_c_v")):
-        print('found halo_c_v file - using standard foggie_load')
+    if args.need_halo_center==True:
         fullds, region = foggie_load(fn,track_name)
     else:
-        print('found no halo_c_v file - using foggie_load but will later use boxcenter instead of halocenter')
         fullds, region = foggie_load(fn,track_name,find_halo_center=False)
 
     zsnap = fullds.get_parameter('CosmologyCurrentRedshift')
@@ -190,7 +192,7 @@ def make_IFU(args, speedoflight=speedoflight):
     leftedge = region.left_edge
     rightedge = region.right_edge
     boxcenter = region.center
-    if (os.path.exists(code_path+"halo_infos/00"+args.halo+"/"+args.run+"/halo_c_v")):
+    if args.need_halo_center==True:
         center, halo_velocity = get_halo_center(fullds, boxcenter)
     else: center = boxcenter
 
