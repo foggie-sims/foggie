@@ -16,6 +16,8 @@ default_width = 85.  # kpc in projection
 
 core_width = 20. # width of slice to use in show_velphase
 
+##################################### dictionaries for plots
+
 axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'Dark_Matter_Density': 'log DM Density [g / cm$^3$]',
                     'temperature': 'log Temperature [K]',
@@ -131,8 +133,6 @@ halo_dict = {   '2392'  :  'Hurricane' ,
                 '005036'  :  'Maelstrom' ,
                 '008508'  :  'Tempest' }
 
-<<<<<<< HEAD
-=======
 background_color_dict = {'density':'black', \
                          'H_p0_number_density':'white', \
                          'C_p1_number_density':'black', \
@@ -144,9 +144,8 @@ background_color_dict = {'density':'black', \
                          'Mg_p1_number_density':'black',\
                          'O_p5_number_density':'black',\
                          'Ne_p7_number_density':'black'}
->>>>>>> ec53ae0b3dc67d24c5eb8bd353a3dbddfc5c8081
 
-#################### linelists for spectra ########################
+###################################### linelists for spectra
 
 linelist_jt = ['H I 1216', 'H I 919', \
                 'Mg II 2796', 'Si II 1260', 'Si III 1206', 'Si IV 1394', \
@@ -173,6 +172,8 @@ linelist_short = ['H I 1216', 'Si II 1260', 'O VI 1032']
 ################################################################
 
 
+################################## min/max values to be used in other code
+
 cgm_temperature_min = 1.5e4  #<---- in some FOGGIE codes this will be used to set a min
 cgm_density_max = 2e-26
 cgm_inner_radius = 10.
@@ -181,6 +182,11 @@ cgm_outer_radius = 200.
 #These are strings that can be used to produce yt CutRegions with consistent cuts.
 cgm_field_filter = ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max)
 ism_field_filter = ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max)
+
+#####################################################################
+
+
+################################## colormaps and min/max limits
 
 # these are useful for the refinement levels maps
 discrete_cmap = mpl.colors.ListedColormap(
@@ -201,9 +207,6 @@ dens_phase_min = 10.**-31
 dens_phase_max = 10.**-21
 metal_proj_min = 10.**54
 metal_proj_max = 10.**61
-
-
-#################### colormaps ########################
 
 metal_color_map = sns.blend_palette(
     ("black", "#4575b4", "#984ea3", "#984ea3", "#d73027",
@@ -255,10 +258,14 @@ old_o6_color_map = sns.blend_palette(("white", "black", "#4daf4a",
 o6_color_map = "magma"
 o6_min = 1.e11
 o6_max = 1.e15
+no6_min = 1.e-15
+no6_max = 1.e-9
 
 c4_color_map = "inferno"
 c4_min = 1.e11
 c4_max = 1.e16
+nc4_min = 1.e-18
+nc4_max = 1.e-10
 
 mg2_color_map = "plasma"
 mg2_min = 1.e10
@@ -267,14 +274,20 @@ mg2_max = 1.e17
 c2_color_map = "plasma"
 c2_min = 1.e10
 c2_max = 1.e17
+nc2_min = 1.e-21
+nc2_max = 1.e-13
 
 c3_color_map = "magma"
 c3_min = 1.e11
 c3_max = 1.e16
+nc3_min = 1.e-20
+nc3_max = 1.e-12
 
 si2_color_map = "plasma"
 si2_min = 1.e10
 si2_max = 1.e17
+nsi2_min = 1.e-22
+nsi2_max = 1.e-14
 
 si3_color_map = "magma"
 si3_min = 1.e11
@@ -291,6 +304,8 @@ n5_max = 1.e15
 o7_color_map = "magma"
 o7_min = 1.e11
 o7_max = 1.e15
+no7_min = 1.e-12
+no7_max = 1.e-8
 
 o8_color_map = "magma"
 o8_min = 1.e11
@@ -316,10 +331,19 @@ mg10_color_map = "plasma"
 mg10_min = 1.e11
 mg10_max = 1.e15
 
+# electron column density maps
+e_color_map = sns.blend_palette(("white", "#FFA07A", "#FF6347", "#9370DB", "#663399"), as_cmap=True)
+e_min = 3.1e18 # in unit of cm-2, equal to 1 pc/cm3 for dispersion measure unit
+e_max = 3.1e20 # in unit of cm-2, equal to 100 pc/cm3
 
-################################################################################
+#####################################################################
 
-#set up the ionization fraction colormap
+
+
+################################# discrete colormaps
+
+
+############# ionization fraction
 def categorize_by_fraction(f_ion):
     """ define the ionization category strings"""
     frac = np.chararray(np.size(f_ion), 4)
@@ -335,7 +359,8 @@ def categorize_by_fraction(f_ion):
 # Just in case this is needed, this might work instead without producing a figure:
 ion_frac_color_key = sns.blend_palette(("grey","#ff6600"), n_colors=10)
 
-############################# set up the temperature colormap
+
+############# temperature
 temp_colors = sns.blend_palette(
     ('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), n_colors=17)
 temperature_discrete_cmap = mpl.colors.ListedColormap(temp_colors)
@@ -420,7 +445,9 @@ logT_colors_mw_fine = sns.blend_palette(('salmon', "#984ea3", "#4daf4a",
                                          '#ffe34d', 'darkorange'),
                                          n_colors=len(logT_color_labels_mw_fine))
 logT_discrete_cmap_mw_fine = mpl.colors.ListedColormap(logT_colors_mw_fine)
-###################################################################
+
+
+############# metals
 metal_color_labels = [b'free', b'free1', b'free2', b'free3', b'poor',
                       b'poor1', b'poor2', b'poor3', b'low', b'low1',
                       b'low2', b'low3', b'solar', b'solar1', b'solar2',
@@ -467,8 +494,7 @@ def categorize_by_metals(metal):
     phase[metal < metal_vals[0]] = b'free'
     return phase
 
-##############################################################
-# I made a simplier categoy for mokcy way, 10/10/2019, Yong Zheng.
+# I made a simpler category for mocky way, 10/10/2019, Yong Zheng.
 metal_color_labels_mw = [b'<0.01', b'[0.01, 0.1)',
                          b'[0.1, 0.5)', b'[0.5, 1.0)',
                          b'[1.0, 2.0)', b'>=2.0']
@@ -495,7 +521,8 @@ def categorize_by_metallicity_mw(metal):
 
     return phase
 
-#######################################################################
+
+############# H I
 hi_colors =  sns.blend_palette(("white", "#ababab", "#565656", "black",
                                   "#4575b4", "#984ea3", "#d73027",
                                   "darkorange", "#ffe34d"), n_colors=26)
@@ -563,8 +590,8 @@ def categorize_by_hi(hi):
     phase[hi < hi_vals[0]] = b'free'
     return phase
 
-############### Yong Zheng add cat_radius for mocky way ########
-### categorize halo gas by radius.
+
+############# radius (Yong Zheng)
 # radius_df_colname = 'cat_radius' # name of radius in dataframe
 radius_color_labels = [b'0-10', b'10-20', b'20-30', b'30-40',
                        b'40-50', b'50-60', b'60-70', b'70-80',
@@ -593,8 +620,8 @@ def categorize_by_radius(radius):
     cat_radius[np.all([radius>=110, radius<120], axis=0)] = b'110-120'
     return cat_radius
 
-############### Yong Zheng add cat_velocity for mocky way ########
-### categorize halo gas by velocity.
+
+############# velocity (Yong Zheng)
 # velocity_df_colname = 'cat_velocity' # this is the name of velocity in dataframe
 velocity_color_labels = [b'<-100', b'[-100, -50]', b'[-50, 0]',
                          b'[0, 50]', b'[50, 100]', b'>100']
@@ -625,8 +652,8 @@ def categorize_by_velocity(velocity):
     cat_vel[np.all([vv>=-20, vv<0], axis=0)] = b'[-20, 0)'
     return cat_velocity
 
-############### Yong Zheng add cat_outflow for mocky way ########
-### categorize halo gas by velocity.
+
+############# outflow velocity (Yong Zheng)
 # outflow_df_colname = 'cat_vel' # this is the name of velocity in dataframe
 outflow_color_labels = [b'[0, 20)', b'[20, 40)', b'[40, 60)', b'[60, 80)',
                         b'[80, 100)', b'[100, 120)', b'[120, 140)',
@@ -664,8 +691,8 @@ def categorize_by_outflow(velocity):
     cat_vel[vv>400] = b'>400'
     return cat_vel
 
-############### Yong Zheng add cat_inflow for mocky way ########
-### categorize halo gas by velocity.
+
+############# inflow velocity (Yong Zheng)
 # inflow_df_colname = 'cat_inflow' # this is the name of velocity in dataframe
 inflow_color_labels = [b'<-400',
                        b'[-400, -300)', b'[-300, -200)', b'[-200, -180)',
@@ -704,9 +731,8 @@ def categorize_by_inflow(velocity):
     cat_vel[np.all([vv>=-20, vv<=0], axis=0)] = b'[-20, 0)'
     return cat_vel
 
-############### Yong Zheng add cat_outflow_inflow for mocky way ########
-### here! yong!
-### categorize halo gas by velocity.
+
+############# outflow/inflow velocity (Yong Zheng)
 outflow_inflow_color_labels = [b'<-200',  b'[-200, -150)',
                                b'[-150, -100)', b'[-100, -50)',
                                b'[-50, 0)', b'[0, 50)', b'[50, 100)',
@@ -741,29 +767,7 @@ def categorize_by_outflow_inflow(velocity):
     cat_vel[vv>=200] = b'>=200'
     return cat_vel
 
-############################################################
 
-colormap_dict = {'phase': new_phase_color_key,
-                 'metal': new_metals_color_key,
-                 'h1': hi_color_key,
-                 'density': density_color_map,
-                 'O_p5_number_density': o6_color_map,
-                 'H_p0_number_density': h1_color_map,
-                 'C_p1_number_density': c2_color_map,
-                 'C_p3_number_density': c4_color_map,
-                 'Mg_p1_number_density': mg2_color_map,
-                 'Si_p1_number_density': si2_color_map,
-                 'Si_p2_number_density': si3_color_map,
-                 'Si_p3_number_density': si4_color_map,
-                 'N_p4_number_density': n5_color_map,
-                 'O_p6_number_density': o7_color_map,
-                 'O_p7_number_density': o8_color_map,
-                 'Ne_p6_number_density': ne7_color_map,
-                 'Ne_p7_number_density': ne8_color_map}
-
-
-<<<<<<< HEAD
-=======
 ############# pressure (Cassi)
 pressure_discrete_cmap = mpl.cm.get_cmap(pressure_color_map, 11)
 pressure_color_key = collections.OrderedDict()
@@ -948,7 +952,6 @@ colormap_dict = {'phase': new_phase_color_key,
                  'Ne_p7_number_density': ne8_color_map,
                  'El_number_density': e_color_map}
 
->>>>>>> ec53ae0b3dc67d24c5eb8bd353a3dbddfc5c8081
 proj_max_dict = {'density': 1e-1,
                  'H_p0_number_density': h1_proj_max,
                  'C_p1_number_density': c2_max,
@@ -963,13 +966,8 @@ proj_max_dict = {'density': 1e-1,
                  'O_p6_number_density': o7_max,
                  'O_p7_number_density': o8_max,
                  'Ne_p6_number_density': ne7_max,
-<<<<<<< HEAD
-                 'Ne_p7_number_density': ne8_max}
-
-=======
                  'Ne_p7_number_density': ne8_max,
                  'El_number_density': e_max}
->>>>>>> ec53ae0b3dc67d24c5eb8bd353a3dbddfc5c8081
 
 proj_min_dict = {'density':1e-6,
                  'H_p0_number_density':h1_proj_min,
@@ -985,21 +983,5 @@ proj_min_dict = {'density':1e-6,
                  'O_p6_number_density': o7_min,
                  'O_p7_number_density': o8_min,
                  'Ne_p6_number_density': ne7_min,
-<<<<<<< HEAD
-                 'Ne_p7_number_density':ne8_min}
-
-background_color_dict = {'density':'black', \
-                         'H_p0_number_density':'white', \
-                         'C_p1_number_density':'black', \
-                         'C_p2_number_density':'black', \
-                         'C_p3_number_density':'black', \
-                         'Si_p1_number_density':'black',\
-                         'Si_p2_number_density':'black',\
-                         'Si_p3_number_density':'black',\
-                         'Mg_p1_number_density':'black',\
-                         'O_p5_number_density':'black',\
-                         'Ne_p7_number_density':'black'}
-=======
                  'Ne_p7_number_density':ne8_min,
                  'El_number_density': e_min}
->>>>>>> ec53ae0b3dc67d24c5eb8bd353a3dbddfc5c8081
