@@ -16,7 +16,6 @@ import yt
 from yt.units import dimensions
 import trident
 import numpy as np
-from astropy.table import Table
 
 import os
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
@@ -124,7 +123,6 @@ def render_image(frame, field1, field2, colorcode, x_range, y_range, filename, p
     """ renders density and temperature 'Phase' with linear aggregation"""
 
     cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
-
     print("render_image: will spread shaded image by ", pixspread, " pixels.")
 
     if ('ion_frac' in colorcode):

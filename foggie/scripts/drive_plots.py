@@ -11,25 +11,29 @@ import foggie.render.shade_maps as sm
 plt.rcParams["image.origin"] = 'lower'
 
 import frame 
+
 """
 This is a generic plot script driver.
 Import the plotting routine you need above and run it within 'gs' 
 """
-
 snapshot_dir='/nobackup/mpeeples/halo_008508/nref11c_nref9f/'
 
-def gs(ds_name):
-    print("gs ", ds_name) 
-    #frame.flows(ds_name) 
-    frame.frame(ds_name) 
-    #frame.velocities(ds_name) 
-    #frame.disk(ds_name) 
-    #frame.age(ds_name) 
+def gs(ds_name, axis, width, prefix):
+    print("gs ", ds_name, width, prefix) 
 
-def script(dataset_list): 
+    #frame.flows(ds_name, width, prefix) 
+    #frame.frame(ds_name, axis, width, prefix) 
+    frame.velocities(ds_name,axis,width,prefix)
+    #frame.disk(ds_name, axis, width, prefix) 
+    #frame.age(ds_name, width, prefix) 
+    #frame.lum(ds_name, axis, width, prefix) 
+    #frame.zfilter(ds_name,axis,width,prefix)
+
+
+def script(dataset_list, axis, width, prefix): 
     for ds in dataset_list: 
         print("script driving :", ds) 
-        gs(ds) 
+        gs(ds, axis, width, prefix) 
 
 def chunks(l, n): 
    """Yield successive n-sized chunks from l.""" 
@@ -38,45 +42,48 @@ def chunks(l, n):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="   ")
-    parser.add_argument('--card', metavar='card', type=str, action='store',
-                        help='wildcards')
+
+    parser.add_argument('--card', metavar='card', type=str, action='store',help='wildcards')
     parser.set_defaults(card='DD????/DD????')
+
+    parser.add_argument('--axis', metavar='axis', type=str, action='store',help='axis to project on') 
+    parser.set_defaults(axis='x') 
+
+    parser.add_argument('--width', metavar='width', type=float, action='store',help='plot width in kpc')
+    parser.set_defaults(width=0.2)
+
+    parser.add_argument('--prefix', metavar='prefix', type=str, action='store',help='filename prefix')
+    parser.set_defaults(prefix='outputs/') 
+
+    parser.add_argument('--nthreads', metavar='nthreads', type=int, action='store',help='number of multiprocessing threads')
+    parser.set_defaults(prefix='20') 
+
     args = parser.parse_args()
     return args
+
 
 if __name__ == '__main__':
 
     args = parse_args()
     print('wildcard = ', args.card)
+    print('    axis = ', args.axis)
+    print('   width = ', args.width)
+    print('  prefix = ', args.prefix)
+    print('nthreads = ', args.nthreads)
 
     ts = yt.load(snapshot_dir+args.card) 
     ts.outputs.reverse() # work backwards in time
     print("the snapshots are: ", ts.outputs)
     print("there are N = ", len(ts.outputs), " outputs ") 
 
-    chunksize = int(np.ceil(len(ts.outputs) / 20.)) 
-    dslist = list(chunks(ts.outputs, chunksize))
+    print("We will be using Nthreads = ", args.nthreads, " processing threads") 
 
-    with ProcessPoolExecutor(20) as executor:
+    chunksize = int(np.ceil(len(ts.outputs) / args.nthreads)) 
+    dslist = list(chunks(ts.outputs, chunksize))
+ 
+    with ProcessPoolExecutor(args.nthreads) as executor:
         # these return immediately and are executed in parallel on separate processes
-        future_1 =  executor.submit(script, dslist[0])      
-        future_2 =  executor.submit(script, dslist[1])      
-        future_3 =  executor.submit(script, dslist[2])      
-        future_4 =  executor.submit(script, dslist[3])      
-        future_5 =  executor.submit(script, dslist[4])      
-        future_6 =  executor.submit(script, dslist[5])      
-        future_7 =  executor.submit(script, dslist[6])      
-        future_8 =  executor.submit(script, dslist[7])      
-        future_9 =  executor.submit(script, dslist[8])      
-        future_10 = executor.submit(script, dslist[9])      
-        future_11 = executor.submit(script, dslist[10])      
-        future_12 = executor.submit(script, dslist[11])      
-        future_13 = executor.submit(script, dslist[12])      
-        future_14 = executor.submit(script, dslist[13])      
-        future_15 = executor.submit(script, dslist[14])      
-        future_16 = executor.submit(script, dslist[15])      
-        future_17 = executor.submit(script, dslist[16])      
-        future_18 = executor.submit(script, dslist[17])      
-        future_19 = executor.submit(script, dslist[18])      
-        future_20 = executor.submit(script, dslist[19])      
+        for index in np.arange(args.nthreads): 
+            print(index) 
+            _ = executor.submit(script, dslist[index], args.axis, args.width, args.prefix)      
 

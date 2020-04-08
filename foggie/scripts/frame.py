@@ -10,9 +10,9 @@ from astropy import units as u
 import foggie.render.shade_maps as sm
 from foggie.utils import prep_dataframe
 
-TRACKFILE = '/home/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10'
+TRACKFILE = '/u/jtumlins/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10'
 
-def vels(ds_name, axis, width, prefix): 
+def velocities(ds_name, axis, width, prefix): 
 
     field_list = ['position_x', 'position_y', 'radius_corrected', 'temperature', \
  			'radial_velocity_corrected', 'tangential_velocity_corrected', 'O_p5_ion_fraction'] 
@@ -28,35 +28,31 @@ def vels(ds_name, axis, width, prefix):
     screenrange = [-10, 10] 
     mask = (data_frame[screenfield] > screenrange[0]) & (data_frame[screenfield] < screenrange[1])
 
-    filename = prefix+dataset.parameter_filename[-6:]+'_x_y_rvir_phase' 
+    filename = prefix+'x_y/'+dataset.parameter_filename[-6:]+'_x_y_rvir_phase' 
+    print("filename = ", filename) 
     image = sm.render_image(data_frame[mask], 'position_x', 'position_y', 'phase', (-200,200),(-200,200), filename, pixspread=0) 
     sm.wrap_axes(dataset, image, filename, 'position_x', 'position_y', 'phase', ((-200,200),(-200,200)), 'rvir', filter=None)
 
-    filename = prefix+dataset.parameter_filename[-6:]+'_radius_temperature_rvir_phase' 
+    filename = prefix+'r_temp/'+dataset.parameter_filename[-6:]+'_radius_temperature_rvir_phase' 
+    print("filename = ", filename) 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'temperature', 'phase', (0,200),(1, 8), filename, pixspread=0)       
     sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), 'rvir', filter=None)
 
-    filename = prefix+dataset.parameter_filename[-6:]+'_rv_tv_rvir_phase' 
+    filename = prefix+'rv_tv/'+dataset.parameter_filename[-6:]+'_rv_tv_rvir_phase' 
+    print("filename = ", filename) 
     image = sm.render_image(data_frame[mask], 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', (-500,500),(-50,500), filename, pixspread=0)       
     sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), 'rvir', filter=None)
 
-    filename = prefix+dataset.parameter_filename[-6:]+'_r_tv_rvir_phase' 
+    filename = prefix+'r_tv/'+dataset.parameter_filename[-6:]+'_r_tv_rvir_phase' 
+    print("filename = ", filename) 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'tangential_velocity_corrected', 'phase', (0,200),(-50,500), filename, pixspread=0)       
     sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), 'rvir', filter=None)
 
-    filename = prefix+dataset.parameter_filename[-6:]+'_r_rv_rvir_phase' 
+    filename = prefix+'r_rv/'+dataset.parameter_filename[-6:]+'_r_rv_rvir_phase' 
+    print("filename = ", filename) 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'radial_velocity_corrected', 'phase', (0,200),(-500,500), filename, pixspread=0)       
     sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), 'rvir', filter=None)
 
-
-def velocities(ds_name):
-    
-    sm.simple_plot(ds_name, track, 'radius', 'radial_velocity', 'phase', ((0,200),(-1000,1000)), 'rv/'+ds_name[-6:]+'_radius_rv_phase', region='cgm') 
-    sm.simple_plot(ds_name, track, 'radius', 'radial_velocity', 'metal', ((0,200),(-1000,1000)), 'rv/'+ds_name[-6:]+'_radius_rv_metal', region='cgm') 
-    sm.simple_plot(ds_name, track, 'radius', 'radial_velocity', 'phase', ((0,200),(-1000,1000)), 'rv/'+ds_name[-6:]+'_radius_rv_phase_fOVI', region='cgm', 
-							screenfield='O_p5_ion_fraction', screenrange=(0.1, 1.))
-    sm.simple_plot(ds_name, track, 'radius', 'radial_velocity', 'metal', ((0,200),(-1000,1000)), 'rv/'+ds_name[-6:]+'_radius_rv_metal_fOVI', region='cgm',
-							screenfield='O_p5_ion_fraction', screenrange=(0.1, 1.))
 
 def disk(ds_name, axis, width, prefix): 
 
