@@ -976,39 +976,21 @@ def weighted_avg_and_std(values, weights):
     return (average, math.sqrt(variance))
 
 def get_line_info(line):
-    if line == 'SiIV1394':
-        lines = ['Si IV 1394']
-        lab_lambda = 1393.7550
-        ion_field = 'Si_p3_number_density'
+    ## e.g., lines = ['SiIV1394', 'CIV1548']
+    from yztools.line_wave_fval import line_wave_fval
+    from foggie.utils import consistency
+    import re
 
-    elif line == 'SiIV1403':
-        lines = ['Si IV 1403']
-        lab_lambda = 1402.7700
-        ion_field = 'Si_p3_number_density'
+    line_info = line_wave_fval(line)
+    line_wave = line_info['wave']
 
-    elif line == 'CIV1548':
-        lines = ['C IV 1548']
-        lab_lambda = 1548.2049  # 1550.7785
-        ion_field = "C_p3_number_density"
+    ion = re.split('(\d+)', line)[0]
+    ion_field  = consistency.species_dict[ion]
 
-    elif line == 'CIV1550':
-        lines = ['C IV 1550']
-        lab_lambda = 1550.7785
-        ion_field = "C_p3_number_density"
+    ele = ion_field.split('_')[0]
+    stat = ion[len(ele):]
+    input_wave = re.split('(\d+)', line)[1]
 
-    elif line == 'OVI1302':
-        lines = ['O VI 1032']
-        lab_lambda = 1031.9261
-        ion_field = "O_p5_number_density"
+    tr_line_format = '%s %s %s'%(ele, stat, input_wave)
 
-    elif line == 'SiII1527':
-        lines = ['Si II 1527']
-        lab_lambda = 1526.7066
-        ion_field = "Si_p1_number_density"
-
-    else:
-        print("Do not recognize this line, please check name or update get_line_info.py")
-        sys.exit(1)
-
-    print("Reading line: ", lines[0])
-    return lines, lab_lambda, ion_field
+    return line_wave, ion_field, tr_line_format

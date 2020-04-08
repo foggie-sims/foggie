@@ -16,7 +16,6 @@ import yt
 from yt.units import dimensions
 import trident
 import numpy as np
-from astropy.table import Table
 
 import os
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
@@ -33,7 +32,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
         function adds some bespoke FOGGIE fields, extracts the desired FOGGIE
         region, and applies an input Boolean filter to the dataset."""
 
-    dataset, refine_box, refine_box_center, refine_width = fload.load(fname, trackfile)
+    dataset, refine_box = fload.foggie_load(fname, trackfile)
 
     trident.add_ion_fields(dataset, ions=ion_list)
     for ion, func in zip(['H_p0','C_p3','O_p5'], [yt_fields._nh1, yt_fields._c4, yt_fields._no6]):
@@ -48,8 +47,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     print("prep_dataset: will now apply filter ", filter)
     cut_region_all_data = all_data.cut_region([filter])
 
-    return dataset, cut_region_all_data, refine_box_center
-
+    return dataset, cut_region_all_data
 
 def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region, filter):
     """intended to be run after render_image, take the image and wraps it in
@@ -125,7 +123,6 @@ def render_image(frame, field1, field2, colorcode, x_range, y_range, filename, p
     """ renders density and temperature 'Phase' with linear aggregation"""
 
     cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
-
     print("render_image: will spread shaded image by ", pixspread, " pixels.")
 
     if ('ion_frac' in colorcode):
@@ -168,7 +165,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
     if ('pixspread' in kwargs.keys()):
         pixspread = kwargs['pixspread']
 
-    dataset, all_data, halo_center  = prep_dataset(fname, trackfile, \
+    dataset, all_data  = prep_dataset(fname, trackfile, \
                         ion_list=['H I','C II','C III','C IV','Si II','Si III','Si IV',\
                                     'O I','O II','O III','O IV','O V','O VI','O VII','O VIII'],
                         filter=filter, region=region)

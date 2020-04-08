@@ -115,7 +115,8 @@ species_dict = {'CIII': 'C_p2_number_density',
                 'OVIII': 'O_p7_number_density',
                 'NeVII': 'Ne_p6_number_density',
                 'NeVIII': 'Ne_p7_number_density',
-                'MgX': 'Mg_p9_number_density'}
+                'MgX': 'Mg_p9_number_density',
+                'Electron': 'El_number_density'}
 
 halo_dict = {   '2392'  :  'Hurricane' ,
                 '2878'  :  'Cyclone' ,
@@ -130,6 +131,20 @@ halo_dict = {   '2392'  :  'Hurricane' ,
                 '005036'  :  'Maelstrom' ,
                 '008508'  :  'Tempest' }
 
+<<<<<<< HEAD
+=======
+background_color_dict = {'density':'black', \
+                         'H_p0_number_density':'white', \
+                         'C_p1_number_density':'black', \
+                         'C_p2_number_density':'black', \
+                         'C_p3_number_density':'black', \
+                         'Si_p1_number_density':'black',\
+                         'Si_p2_number_density':'black',\
+                         'Si_p3_number_density':'black',\
+                         'Mg_p1_number_density':'black',\
+                         'O_p5_number_density':'black',\
+                         'Ne_p7_number_density':'black'}
+>>>>>>> ec53ae0b3dc67d24c5eb8bd353a3dbddfc5c8081
 
 #################### linelists for spectra ########################
 
@@ -213,8 +228,14 @@ entropy_min = 1.e-4
 entropy_max = 1.e3
 
 pressure_color_map = "Spectral"
-pressure_min = 1.e-16
-pressure_max = 1.e-9
+pressure_min_old = 1.e-16
+pressure_max_old = 1.e-9
+pressure_min = 1.e-2
+pressure_max = 1.e3
+
+HSE_color_map = 'RdYlGn'
+HSE_min = 1.e-3
+HSE_max = 1.e3
 
 h1_color_map = sns.blend_palette(("white", "#ababab", "#565656", "black",
                                   "#4575b4", "#984ea3", "#d73027",
@@ -296,7 +317,7 @@ mg10_min = 1.e11
 mg10_max = 1.e15
 
 
-################################################################################    
+################################################################################
 
 #set up the ionization fraction colormap
 def categorize_by_fraction(f_ion):
@@ -354,6 +375,9 @@ logT_color_labels_mw = [b'<4.0', b'4.0-4.5', b'4.5-5.0', b'5.0-5.5',
 logT_colors_mw = sns.blend_palette(('salmon', "#984ea3", "#4daf4a",
                                     '#ffe34d', 'darkorange'),
                                     n_colors=len(logT_color_labels_mw))
+logT_colors_mw_smooth = sns.blend_palette(('salmon', "#984ea3", "#4daf4a",
+                                    '#ffe34d', 'darkorange'),
+                                    as_cmap=True)
 logT_discrete_cmap_mw = mpl.colors.ListedColormap(logT_colors_mw)
 logT_color_key_mw = collections.OrderedDict()
 for i in np.arange(np.size(logT_color_labels_mw)):
@@ -403,6 +427,8 @@ metal_color_labels = [b'free', b'free1', b'free2', b'free3', b'poor',
                       b'solar3', b'high', b'high1', b'high2', b'high3', b'high4']
 metallicity_colors = sns.blend_palette(("black", "#4575b4", "#984ea3", "#984ea3", "#d73027",
      "darkorange", "#ffe34d"), n_colors=21)
+metal_smooth_cmap = sns.blend_palette(("black", "#4575b4", "#984ea3", "#984ea3", "#d73027",
+     "darkorange", "#ffe34d"), as_cmap=True)
 metal_discrete_cmap = mpl.colors.ListedColormap(metallicity_colors)
 new_metals_color_key = collections.OrderedDict()
 for i in np.arange(np.size(metal_color_labels)):
@@ -736,6 +762,193 @@ colormap_dict = {'phase': new_phase_color_key,
                  'Ne_p7_number_density': ne8_color_map}
 
 
+<<<<<<< HEAD
+=======
+############# pressure (Cassi)
+pressure_discrete_cmap = mpl.cm.get_cmap(pressure_color_map, 11)
+pressure_color_key = collections.OrderedDict()
+
+pressure_color_labels = [b'low1', b'low2', b'med', b'med1', b'med2',
+                      b'high1', b'high2', b'high3',
+                      b'vhi1', b'vhi2', b'vhi3']
+for i in np.arange(np.size(pressure_color_labels)):
+    pressure_color_key[pressure_color_labels[i]] = to_hex(pressure_discrete_cmap(i))
+
+def categorize_by_pres(pressure):
+    """ define the pressure category strings"""
+    pres = np.chararray(np.size(pressure), 5)
+    pres[pressure > np.log10(pressure_max)] = pressure_color_labels[-1]
+    for i in range(len(pressure_color_labels)):
+        val = np.log10(pressure_max) - (np.log10(pressure_max)-np.log10(pressure_min))/(np.size(pressure_color_labels)-1.)*i
+        pres[pressure < val] = pressure_color_labels[-1 - i]
+    return pres
+
+
+############# HSE (Cassi)
+HSE_discrete_cmap = mpl.cm.get_cmap(HSE_color_map, 13)
+HSE_color_key = collections.OrderedDict()
+
+HSE_color_labels = [b'low1', b'low2', b'low3', b'med1', b'med2', b'med3',
+                      b'high1', b'high2', b'high3', b'vhi',
+                      b'vhi1', b'vhi2', b'vhi3']
+for i in np.arange(np.size(HSE_color_labels)):
+    HSE_color_key[HSE_color_labels[i]] = to_hex(HSE_discrete_cmap(i))
+
+def categorize_by_HSE(HSEdeg):
+    """ define the pressure category strings"""
+    HSE = np.chararray(np.size(HSEdeg), 5)
+    HSE[HSEdeg > np.log10(HSE_max)] = HSE_color_labels[-1]
+    for i in range(len(HSE_color_labels)):
+        val = np.log10(HSE_max) - (np.log10(HSE_max)-np.log10(HSE_min))/(np.size(HSE_color_labels)-1.)*i
+        HSE[HSEdeg < val] = HSE_color_labels[-1 - i]
+    return HSE
+
+
+################################ discrete colormaps for ions, uses ion labels above
+
+############# O VI
+o6_discrete_cmap = mpl.cm.get_cmap(o6_color_map, 13)
+o6_color_key = collections.OrderedDict()
+
+o6_color_labels = [b'low1', b'low2', b'low3', b'med1', b'med2', b'med3',
+                      b'high1', b'high2', b'high3', b'vhi',
+                      b'vhi1', b'vhi2', b'vhi3']
+for i in np.arange(np.size(o6_color_labels)):
+    o6_color_key[o6_color_labels[i]] = to_hex(o6_discrete_cmap(i))
+
+def categorize_by_o6(no6):
+    """ define the number density category strings"""
+    o6 = np.chararray(np.size(no6), 5)
+    o6[no6 > np.log10(no6_max)] = o6_color_labels[-1]
+    for i in range(len(o6_color_labels)):
+        val = np.log10(no6_max) - (np.log10(no6_max)-np.log10(no6_min))/(np.size(o6_color_labels)-1.)*i
+        o6[no6 < val] = o6_color_labels[-1 - i]
+    return o6
+
+
+############# C IV
+c4_discrete_cmap = mpl.cm.get_cmap(c4_color_map, 17)
+c4_color_key = collections.OrderedDict()
+
+c4_color_labels = [b'low', b'low1', b'low2', b'low3', b'med', b'med1', b'med2', b'med3',
+                      b'high', b'high1', b'high2', b'high3', b'vhi',
+                      b'vhi1', b'vhi2', b'vhi3', b'vhi4']
+for i in np.arange(np.size(c4_color_labels)):
+    c4_color_key[c4_color_labels[i]] = to_hex(c4_discrete_cmap(i))
+
+def categorize_by_c4(nc4):
+    """ define the number density category strings"""
+    c4 = np.chararray(np.size(nc4), 5)
+    c4[nc4 > np.log10(nc4_max)] = c4_color_labels[-1]
+    for i in range(len(c4_color_labels)):
+        val = np.log10(nc4_max) - (np.log10(nc4_max)-np.log10(nc4_min))/(np.size(c4_color_labels)-1.)*i
+        c4[nc4 < val] = c4_color_labels[-1 - i]
+    return c4
+
+
+############# C III
+c3_discrete_cmap = mpl.cm.get_cmap(c3_color_map, 17)
+c3_color_key = collections.OrderedDict()
+
+c3_color_labels = [b'low', b'low1', b'low2', b'low3', b'med', b'med1', b'med2', b'med3',
+                      b'high', b'high1', b'high2', b'high3', b'vhi',
+                      b'vhi1', b'vhi2', b'vhi3', b'vhi4']
+for i in np.arange(np.size(c3_color_labels)):
+    c3_color_key[c3_color_labels[i]] = to_hex(c3_discrete_cmap(i))
+
+def categorize_by_c3(nc3):
+    """ define the number density category strings"""
+    c3 = np.chararray(np.size(nc3), 5)
+    c3[nc3 > np.log10(nc3_max)] = c3_color_labels[-1]
+    for i in range(len(c3_color_labels)):
+        val = np.log10(nc3_max) - (np.log10(nc3_max)-np.log10(nc3_min))/(np.size(c3_color_labels)-1.)*i
+        c3[nc3 < val] = c3_color_labels[-1 - i]
+    return c3
+
+
+############# Si II
+si2_discrete_cmap = mpl.cm.get_cmap(si2_color_map, 17)
+si2_color_key = collections.OrderedDict()
+
+si2_color_labels = [b'low', b'low1', b'low2', b'low3', b'med', b'med1', b'med2', b'med3',
+                      b'high', b'high1', b'high2', b'high3', b'vhi',
+                      b'vhi1', b'vhi2', b'vhi3', b'vhi4']
+for i in np.arange(np.size(si2_color_labels)):
+    si2_color_key[si2_color_labels[i]] = to_hex(si2_discrete_cmap(i))
+
+def categorize_by_si2(nsi2):
+    """ define the number density category strings"""
+    si2 = np.chararray(np.size(nsi2), 5)
+    si2[nsi2 > np.log10(nsi2_max)] = si2_color_labels[-1]
+    for i in range(len(si2_color_labels)):
+        val = np.log10(nsi2_max) - (np.log10(nsi2_max)-np.log10(nsi2_min))/(np.size(si2_color_labels)-1.)*i
+        si2[nsi2 < val] = si2_color_labels[-1 - i]
+    return si2
+
+
+############# C II
+c2_discrete_cmap = mpl.cm.get_cmap(c2_color_map, 17)
+c2_color_key = collections.OrderedDict()
+
+c2_color_labels = [b'low', b'low1', b'low2', b'low3', b'med', b'med1', b'med2', b'med3',
+                      b'high', b'high1', b'high2', b'high3', b'vhi',
+                      b'vhi1', b'vhi2', b'vhi3', b'vhi4']
+for i in np.arange(np.size(c2_color_labels)):
+    c2_color_key[c2_color_labels[i]] = to_hex(c2_discrete_cmap(i))
+
+def categorize_by_c2(nc2):
+    """ define the number density category strings"""
+    c2 = np.chararray(np.size(nc2), 5)
+    c2[nc2 > np.log10(nc2_max)] = c2_color_labels[-1]
+    for i in range(len(c2_color_labels)):
+        val = np.log10(nc2_max) - (np.log10(nc2_max)-np.log10(nc2_min))/(np.size(c2_color_labels)-1.)*i
+        c2[nc2 < val] = c2_color_labels[-1 - i]
+    return c2
+
+
+############# O VII
+o7_discrete_cmap = mpl.cm.get_cmap(o7_color_map, 9)
+o7_color_key = collections.OrderedDict()
+
+o7_color_labels = [b'low', b'low1', b'med', b'med1',
+                      b'high', b'high1', b'vhi',
+                      b'vhi1', b'vhi2']
+for i in np.arange(np.size(o7_color_labels)):
+    o7_color_key[o7_color_labels[i]] = to_hex(o7_discrete_cmap(i))
+
+def categorize_by_o7(no7):
+    """ define the number density category strings"""
+    o7 = np.chararray(np.size(no7), 5)
+    o7[no7 > np.log10(no7_max)] = o7_color_labels[-1]
+    for i in range(len(o7_color_labels)):
+        val = np.log10(no7_max) - (np.log10(no7_max)-np.log10(no7_min))/(np.size(o7_color_labels)-1.)*i
+        o7[no7 < val] = o7_color_labels[-1 - i]
+    return o7
+
+#############################################################
+
+
+##################################### more dictionaries that depend on other stuf
+colormap_dict = {'phase': new_phase_color_key,
+                 'metal': new_metals_color_key,
+                 'h1': hi_color_key,
+                 'density': density_color_map,
+                 'O_p5_number_density': o6_color_map,
+                 'H_p0_number_density': h1_color_map,
+                 'C_p1_number_density': c2_color_map,
+                 'C_p3_number_density': c4_color_map,
+                 'Mg_p1_number_density': mg2_color_map,
+                 'Si_p1_number_density': si2_color_map,
+                 'Si_p2_number_density': si3_color_map,
+                 'Si_p3_number_density': si4_color_map,
+                 'N_p4_number_density': n5_color_map,
+                 'O_p6_number_density': o7_color_map,
+                 'O_p7_number_density': o8_color_map,
+                 'Ne_p6_number_density': ne7_color_map,
+                 'Ne_p7_number_density': ne8_color_map,
+                 'El_number_density': e_color_map}
+
+>>>>>>> ec53ae0b3dc67d24c5eb8bd353a3dbddfc5c8081
 proj_max_dict = {'density': 1e-1,
                  'H_p0_number_density': h1_proj_max,
                  'C_p1_number_density': c2_max,
@@ -750,8 +963,13 @@ proj_max_dict = {'density': 1e-1,
                  'O_p6_number_density': o7_max,
                  'O_p7_number_density': o8_max,
                  'Ne_p6_number_density': ne7_max,
+<<<<<<< HEAD
                  'Ne_p7_number_density': ne8_max}
 
+=======
+                 'Ne_p7_number_density': ne8_max,
+                 'El_number_density': e_max}
+>>>>>>> ec53ae0b3dc67d24c5eb8bd353a3dbddfc5c8081
 
 proj_min_dict = {'density':1e-6,
                  'H_p0_number_density':h1_proj_min,
@@ -767,6 +985,7 @@ proj_min_dict = {'density':1e-6,
                  'O_p6_number_density': o7_min,
                  'O_p7_number_density': o8_min,
                  'Ne_p6_number_density': ne7_min,
+<<<<<<< HEAD
                  'Ne_p7_number_density':ne8_min}
 
 background_color_dict = {'density':'black', \
@@ -780,3 +999,7 @@ background_color_dict = {'density':'black', \
                          'Mg_p1_number_density':'black',\
                          'O_p5_number_density':'black',\
                          'Ne_p7_number_density':'black'}
+=======
+                 'Ne_p7_number_density':ne8_min,
+                 'El_number_density': e_min}
+>>>>>>> ec53ae0b3dc67d24c5eb8bd353a3dbddfc5c8081

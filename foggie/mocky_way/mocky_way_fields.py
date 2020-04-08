@@ -178,7 +178,7 @@ def _l_Galactic_Longitude(field, data):
     # let there be some decimal numbers
     l[ind] = (180.-np.arccos(cos_phi[ind])/np.pi*180.) % 360.
     noind = np.logical_not(ind)
-    l[noind] = np.around(180.+np.arccos(cos_phi[noind])/np.pi*180.) % 360.
+    # l[noind] = np.around(180.+np.arccos(cos_phi[noind])/np.pi*180.) % 360.
     l[noind] = (180.+np.arccos(cos_phi[noind])/np.pi*180.) % 360.
     l = yt.YTArray(np.reshape(l, data[("gas", "x")].shape), "degree")
 

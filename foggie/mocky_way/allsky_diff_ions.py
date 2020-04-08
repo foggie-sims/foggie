@@ -68,7 +68,8 @@ disk_rs = 3.4 # DO NOT CHANGE. See core_funcs.dict_disk_rs_zs
 disk_zs = 0.5 # DO NOT CHANGE, See core_funcs.dict_disk_rs_zs
 r_for_L = 5 # DO NOT CHANGE. See core_funcs.dict_sphere_for_gal_ang_mom
 rvir = 161  # DO NOT CHANGE. in unit of kpc, pre-run already by foggie.mocky_way.find_r200
-pathlength = ds.quan(120, 'kpc') # DO NOT CHANGE. within refinement box size.
+# pathlength = ds.quan(120, 'kpc') # DO NOT CHANGE. within refinement box size.
+pathlength = ds.quan(160, 'kpc') # try rvir
 
 ## post processing the data
 import trident
@@ -79,6 +80,9 @@ print("Adding ion fields: ", td_ion_list)
 trident.add_ion_fields(ds, ftype="gas", ions=td_ion_list, force_override=True)
 ion_list = [ss.replace(' ', '') for ss in td_ion_list]
 ion_list.append('HI')
+ion_list.append('Electron')
+ 
+# ion_list = ['HI', 'Electron']
 
 ### now let's find halo center ###
 from foggie.get_halo_center import get_halo_center
@@ -128,12 +132,12 @@ gc = plt.cm.Greys(0.8) # gc = gridcolor
 #### decide if only project cgm, or proj the whole cgm+disk ###
 # obj_tag = 'all' # means cgm+disk, or can do 'cgm' only
 if obj_tag == 'all':
-    # sp = ds.sphere(halo_center, (120, 'kpc'))
-    sp = ds.sphere(halo_center, (120, 'kpc'))
+    # sp = ds.sphere(halo_center, (160, 'kpc'))
+    sp = ds.sphere(halo_center, (160, 'kpc'))
     obj = sp
 elif obj_tag == 'cgm':
     # sp = ds.sphere(ds_paras['halo_center'], ds_paras['rvir'])
-    sp = ds.sphere(halo_center, (120, 'kpc'))
+    sp = ds.sphere(halo_center, (160, 'kpc'))
     disk_size_r = 4*disk_rs # 4 is decided by eyeballing the size in find_flat_disk_offaxproj
     disk_size_z = 4*disk_zs # one side,
     disk = ds.disk(halo_center, L_vec,
@@ -214,9 +218,9 @@ for obs_xyz, obs_tag in zip([halo_center, offcenter_location],
 
         # save the healpix projection result
         filename = '%s_%s_%s_%s_%s'%(sim_name, dd_name, obj_tag, obs_tag, ion)
-        save_to_fits = '%s/%s.fits'%(fig_dir, filename)
+        save_to_fits = '%s/%s_r160.fits'%(fig_dir, filename)
         save_allsky_healpix_img(img, nside, save_to_fits)
 
-        save_to_pdf = '%s/%s.pdf'%(fig_dir, filename)
+        save_to_pdf = '%s/%s_r160.pdf'%(fig_dir, filename)
         plt_allsky_healpix_img(img, ion, xsize, dd_name,
                                zsnap, save_to_pdf)

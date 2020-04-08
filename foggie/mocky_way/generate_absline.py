@@ -1,6 +1,6 @@
 def generate_absline(ds, ds_paras, los_rs, los_re,
                      lab_lambda=1393.7550,
-                     lines=['Si IV 1394'],
+                     line='Si IV 1394',
                      line_snr=20, fontsize=16,
                      figname='./spec'):
     """
@@ -45,7 +45,7 @@ def generate_absline(ds, ds_paras, los_rs, los_re,
     tri_ray = trident.make_simple_ray(ds, start_position=los_rs.copy(),
                                       end_position=los_re.copy(),
                                       data_filename=save_ray,
-                                      lines=lines)
+                                      lines=[line])
 
     # the wavelength
     line_dir = '/Users/Yong/ForkedRepo/trident/trident/data/line_lists'
@@ -61,7 +61,7 @@ def generate_absline(ds, ds_paras, los_rs, los_re,
                                    dlambda=0.01,
                                    #line_database='atom_wave_gamma_f.dat'
                                    line_database=line_dir+'/lines.txt')
-    sg.make_spectrum(tri_ray, lines=lines, min_tau=1.e-5, store_observables=True)
+    sg.make_spectrum(tri_ray, lines=[line], min_tau=1.e-5, store_observables=True)
 
     # spectrum flux and wavelength within lsf and noise
     from astropy.constants import c as light_speed
@@ -158,15 +158,15 @@ def absline_l_b_r(line, ds, ds_paras, los_l_deg, los_b_deg, los_r_kpc=200,
 
     # thisline = 'SiIV1394'
     from foggie.mocky_way.core_funcs import get_line_info
-    lines, lab_lambda, ion_field = get_line_info(line)
+    lab_lambda, ion_field, tr_line_format = get_line_info(line)
 
     if os.path.isdir(figdir) is False:
         os.mkdir(figdir)
-    figname = '%s/%s_glon%.1f_glat%.1f'%(figdir, lines[0].replace(' ', ''), los_l_deg, los_b_deg)
+    figname = '%s/%s_glon%.1f_glat%.1f'%(figdir, line.replace(' ', ''), los_l_deg, los_b_deg)
     print(los_rs, los_re, unit_vec)
     # fig = '/Users/Yong/Desktop/%s_l%.1f_b%.1f.pdf'%(lines[0].replace(' ', ''), los_l, los_b)
     spec = generate_absline(ds, ds_paras, los_rs, los_re,
-                            lab_lambda=lab_lambda, lines=lines,
+                            lab_lambda=lab_lambda, line=tr_line_format,
                             line_snr=20, figname=figname)
     print('==> Saved to: %s.pdf and .fits'%(figname))
 
