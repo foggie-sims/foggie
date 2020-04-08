@@ -19,57 +19,56 @@ def velocities(ds_name, axis, width, prefix):
 
     dataset, all_data = sm.prep_dataset(ds_name, TRACKFILE, \
                             ion_list=['H I','C II','C III','C IV','Si II','Si III','Si IV',\
-                                        'O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], region='rvir') 
+                                        'O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], region='cgm') 
 
     data_frame = prep_dataframe.prep_dataframe(dataset, all_data, field_list, 'phase', \
                         halo_center = dataset.halo_center_code, halo_vcenter=dataset.halo_velocity_kms)
 
     #first we do the 'normal' plots that are NOT O VI filtered 
-
-    filename = prefix+'normal/x_y/'+dataset.parameter_filename[-6:]+'_x_y_rvir_phase' 
+    filename = prefix+'normal/x_y/'+dataset.parameter_filename[-6:]+'_x_y_cgm_phase' 
     image = sm.render_image(data_frame, 'position_x', 'position_y', 'phase', (-200,200),(-200,200), filename) 
-    sm.wrap_axes(dataset, image, filename, 'position_x', 'position_y', 'phase', ((-200,200),(-200,200)), 'rvir', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'position_x', 'position_y', 'phase', ((-200,200),(-200,200)), 'cgm', filter=None)
 
-    filename = prefix+'normal/r_temp/'+dataset.parameter_filename[-6:]+'_radius_temperature_rvir_phase' 
+    filename = prefix+'normal/r_temp/'+dataset.parameter_filename[-6:]+'_radius_temperature_cgm_phase' 
     image = sm.render_image(data_frame, 'radius_corrected', 'temperature', 'phase', (0,200),(1, 8), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), 'rvir', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), 'cgm', filter=None)
 
-    filename = prefix+'normal/rv_tv/'+dataset.parameter_filename[-6:]+'_rv_tv_rvir_phase' 
+    filename = prefix+'normal/rv_tv/'+dataset.parameter_filename[-6:]+'_rv_tv_cgm_phase' 
     image = sm.render_image(data_frame, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', (-500,500),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), 'rvir', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), 'cgm', filter=None)
 
-    filename = prefix+'normal/r_tv/'+dataset.parameter_filename[-6:]+'_r_tv_rvir_phase' 
+    filename = prefix+'normal/r_tv/'+dataset.parameter_filename[-6:]+'_r_tv_cgm_phase' 
     image = sm.render_image(data_frame, 'radius_corrected', 'tangential_velocity_corrected', 'phase', (0,200),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), 'rvir', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), 'cgm', filter=None)
 
-    filename = prefix+'normal/r_rv/'+dataset.parameter_filename[-6:]+'_r_rv_rvir_phase' 
+    filename = prefix+'normal/r_rv/'+dataset.parameter_filename[-6:]+'_r_rv_cgm_phase' 
     image = sm.render_image(data_frame, 'radius_corrected', 'radial_velocity_corrected', 'phase', (0,200),(-500,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), 'rvir', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), 'cgm', filter=None)
 
     # now do it again but filtered by O VI this time. 
     screenfield = 'O_p5_ion_fraction' 
     screenrange = [0.1, 1.] 
     mask = (data_frame[screenfield] > screenrange[0]) & (data_frame[screenfield] < screenrange[1])
 
-    filename = prefix+'fOVI/x_y/'+dataset.parameter_filename[-6:]+'_x_y_rvir_phase_fOVI' 
+    filename = prefix+'fOVI/x_y/'+dataset.parameter_filename[-6:]+'_x_y_cgm_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'position_x', 'position_y', 'phase', (-200,200),(-200,200), filename) 
-    sm.wrap_axes(dataset, image, filename, 'position_x', 'position_y', 'phase', ((-200,200),(-200,200)), 'rvir', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'position_x', 'position_y', 'phase', ((-200,200),(-200,200)), 'cgm', filter=None)
 
-    filename = prefix+'fOVI/r_temp/'+dataset.parameter_filename[-6:]+'_radius_temperature_rvir_phase_fOVI' 
+    filename = prefix+'fOVI/r_temp/'+dataset.parameter_filename[-6:]+'_radius_temperature_cgm_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'temperature', 'phase', (0,200),(1, 8), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), 'rvir', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), 'cgm', filter=None)
 
-    filename = prefix+'fOVI/rv_tv/'+dataset.parameter_filename[-6:]+'_rv_tv_rvir_phase_fOVI' 
+    filename = prefix+'fOVI/rv_tv/'+dataset.parameter_filename[-6:]+'_rv_tv_cgm_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', (-500,500),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), 'rvir', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), 'cgm', filter=None)
 
-    filename = prefix+'fOVI/r_tv/'+dataset.parameter_filename[-6:]+'_r_tv_rvir_phase_fOVI' 
+    filename = prefix+'fOVI/r_tv/'+dataset.parameter_filename[-6:]+'_r_tv_cgm_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'tangential_velocity_corrected', 'phase', (0,200),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), 'rvir', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), 'cgm', filter=None)
 
-    filename = prefix+'fOVI/r_rv/'+dataset.parameter_filename[-6:]+'_r_rv_rvir_phase_fOVI' 
+    filename = prefix+'fOVI/r_rv/'+dataset.parameter_filename[-6:]+'_r_rv_cgm_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'radial_velocity_corrected', 'phase', (0,200),(-500,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), 'rvir', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), 'cgm', filter=None)
 
 
 
