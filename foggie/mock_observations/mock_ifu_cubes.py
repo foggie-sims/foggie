@@ -83,8 +83,7 @@ def parse_args():
 
     parser.add_argument('--line_list', metavar='line_list', type=str, action='store',
                         help="Which lines? Default is ['H', 'C', 'Si','N', 'O', 'Mg']")
-    #parser.set_defaults(line_list=['H', 'C', 'Si','N', 'O', 'Mg'])
-    parser.set_defaults(line_list=['Mg'])
+    parser.set_defaults(line_list=['H', 'C', 'Si','N', 'O', 'Mg'])
 
     parser.add_argument('--steps', metavar='steps', type=int, action='store',
                         help="How many steps? Default is 0")
