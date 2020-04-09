@@ -53,10 +53,10 @@ def parse_args():
     parser.set_defaults(width=0.2)
 
     parser.add_argument('--prefix', metavar='prefix', type=str, action='store',help='filename prefix')
-    parser.set_defaults(prefix='outputs/') 
+    parser.set_defaults(prefix='./') 
 
     parser.add_argument('--nthreads', metavar='nthreads', type=int, action='store',help='number of multiprocessing threads')
-    parser.set_defaults(prefix='20') 
+    parser.set_defaults(prefix='5') 
 
     args = parser.parse_args()
     return args
