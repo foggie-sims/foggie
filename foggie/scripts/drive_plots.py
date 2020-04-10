@@ -57,7 +57,7 @@ def parse_args():
     parser.set_defaults(prefix='./') 
 
     parser.add_argument('--nthreads', metavar='nthreads', type=int, action='store',help='number of multiprocessing threads')
-    parser.set_defaults(prefix='5') 
+    parser.set_defaults(nthreads=5) 
 
     parser.add_argument('--functions', metavar='functions', type=str, action='store',help='comma-delimited string of analysis functions to apply')
     parser.set_defaults(functions='frame') 
