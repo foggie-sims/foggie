@@ -118,16 +118,40 @@ def parse_args():
     parser.set_defaults(custom_wl=False)
 
     parser.add_argument('--custom_startwl', metavar='custom_startwl', type=float, action='store',
-                        help="If custom_wl=True, define your start wavelength here. Default is 0.")
+                        help="If custom_wl=True, define your start wavelength here. Default is 0. If you want to give wavelengths in restframe use custom_wl_rf etc.")
     parser.set_defaults(custom_startwl=0.)
 
     parser.add_argument('--custom_endwl', metavar='custom_endwl', type=float, action='store',
-                        help="If custom_wl=True, define your end wavelength here. Default is 0.")
+                        help="If custom_wl=True, define your end wavelength here. Default is 0. If you want to give wavelengths in restframe use custom_wl_rf etc.")
     parser.set_defaults(custom_endwl=0.)
+
+    parser.add_argument('--custom_wl_rf', dest='custom_wl_rf', action='store_true', \
+                        help="Is your custom wavelength in restframe (instead of observed)? Default is False")
+    parser.set_defaults(custom_wl_rf=False)
 
     parser.add_argument('--need_halo_center', dest='need_halo_center', action='store_true',
                         help="Do you need the halo center? Default is no.")
     parser.set_defaults(custom_endwl=False)
+
+    parser.add_argument('--create_rf_spectra_woMW', dest='create_rf_spectra_woMW', action='store_true',
+                        help="Do you want the created spectra to be at restframe and without MW contribution? Default is no.")
+    parser.set_defaults(create_rf_spectra_woMW=False)
+
+    parser.add_argument('--start_spectra_at_center', dest='start_spectra_at_center', action='store_true',
+                        help="Do you want the created spectra to start at the halo or box center? Default is no.")
+    parser.set_defaults(create_rf_spectra_woMW=False)
+
+    parser.add_argument('--which_projection', metavar='which_projection', type=str, action='store',
+                        help="Which projection are you looking at? Default is y.")
+    parser.set_defaults(which_projection='y')
+
+    parser.add_argument('--starti', metavar='starti', type=int, action='store',
+                        help="At which step i do you want to start? Default is 0. This is useful to change if the code stopped at some point i.")
+    parser.set_defaults(starti=0)
+
+    parser.add_argument('--startj', metavar='startj', type=int, action='store',
+                        help="At which step j do you want to start at point starti? Default is 0. This is useful to change if the code stopped at some point i-j.")
+    parser.set_defaults(startj=0)
 
     args = parser.parse_args()
     return args
@@ -179,6 +203,7 @@ def make_IFU(args, speedoflight=speedoflight):
         else:
             startwl = 1132
             endwl = 1433
+        wlres = 0.01
 
     if args.need_halo_center==True:
         fullds, region = foggie_load(fn,track_name)
@@ -203,8 +228,9 @@ def make_IFU(args, speedoflight=speedoflight):
     xc, yc, zc = center
     xl, yl, zl = leftedge
     xr, yr, zr = rightedge
-    startwl =  startwl * (1+zsnap)
-    endwl =  endwl * (1+zsnap)
+    if args.custom_wl_rf == True:
+        startwl =  startwl * (1+zsnap)
+        endwl =  endwl * (1+zsnap)
 
     if make_plots == True:
         px = yt.ProjectionPlot(fullds, 'x', 'density', center=center, width=properwidth)
@@ -212,70 +238,53 @@ def make_IFU(args, speedoflight=speedoflight):
         pz = yt.ProjectionPlot(fullds, 'z', 'density', center=center, width=properwidth)
 
     if make_spectra == True:
-        i = 0 # use this if run breaks down at some point for restart
+        i = args.starti
         while i < steps:
             print(i)
-            """ # use this if run breaks down at some point for restart
-            if i == 25:
-                j = 424
+            if i == args.starti:
+                j = args.startj
             else: j = 0
-            """
-            j = 0
             while j < steps:
-                startx = xl
-                starty = yl
-                startz = zl
+                if args.start_spectra_at_center == True:
+                    startx = xc
+                    starty = yc
+                    startz = zc
+                else:
+                    startx = xl
+                    starty = yl
+                    startz = zl
                 stepsize = stepsize.in_units('code_length')
-                ray_start = [startx + i * stepsize, yl, startz + j * stepsize]
-                ray_end = [startx + i * stepsize, yr, startz + j * stepsize]
+                if args.which_projection == 'x':
+                    ray_start = [startx , starty+ i * stepsize, startz + j * stepsize]
+                    ray_end = [xr, starty+ i * stepsize, startz + j * stepsize]
+                elif args.which_projection == 'y':
+                    ray_start = [startx + i * stepsize, starty, startz + j * stepsize]
+                    ray_end = [startx + i * stepsize, yr, startz + j * stepsize]
+                elif args.which_projection == 'z':
+                    ray_start = [startx + i * stepsize, starty + j * stepsize, startz ]
+                    ray_end = [startx + i * stepsize, starty + j * stepsize, zr]
                 print(ray_start)
                 print(ray_end)
-                ray = trident.make_simple_ray(fullds,start_position=ray_start,end_position=ray_end,data_filename="ray.h5",lines=line_list,ftype='gas',redshift=zsnap)
+                if args.create_rf_spectra_woMW == True: ray = trident.make_simple_ray(fullds,start_position=ray_start,end_position=ray_end,data_filename="ray.h5",lines=line_list,ftype='gas',redshift=0)
+                elif args.create_rf_spectra_woMW == False: ray = trident.make_simple_ray(fullds,start_position=ray_start,end_position=ray_end,data_filename="ray.h5",lines=line_list,ftype='gas',redshift=zsnap)
                 if make_plots == True:
                     px.annotate_ray(ray, arrow=True)
                     py.annotate_ray(ray, arrow=True)
                     pz.annotate_ray(ray, arrow=True)
-                    if instrument == 'COS-G130M':
-                        sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=0.01)
-                        sg.make_spectrum(ray, lines=line_list)
-                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
-                        sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'raw_'+str(snap)+'.png')
-                        sg.add_milky_way_foreground()
-                        sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'MW_'+str(snap)+'.png')
-                        sg.apply_lsf(filename="avg_COS_G130M.txt")
-                        sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'MW+LSF_'+str(snap)+'.png')
-                        sg.add_gaussian_noise(30)
-                        sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'MW+LSF+noise_'+str(snap)+'.png')
-                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_final.txt')
-                    if instrument == 'KCWI':
-                        sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=wlres)
-                        sg.make_spectrum(ray, lines=line_list)
-                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
-                        sgi = sg
-                        sgi.apply_lsf(function='boxcar',width=3) # THIS NEEDS TO BE UPDATED WITH A PROPER LSF KERNEL FILE
-                        sgi.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_finali.txt')
-                        sg.add_milky_way_foreground() # WE ALSO NEED AN ATMOSPHERE MODEL!
-                        sg.apply_lsf(function='boxcar',width=3) # THIS NEEDS TO BE UPDATED WITH A PROPER LSF KERNEL FILE
-                        sg.add_gaussian_noise(30)
-                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_final.txt')
-                        trident.plot_spectrum([sg.lambda_field, sgi.lambda_field],[sg.flux_field, sgi.flux_field],lambda_limits=[startwl,endwl], stagger=0, step=[False, True],label=['Observed','Ideal'], filename=str(i)+'_'+str(j)+'_'+'ideal_and_obs'+str(zsnap)+'.png')
-                else:
-                    if instrument == 'COS-G130M':
-                        sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=0.01)
-                        sg.make_spectrum(ray, lines=line_list)
-                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
-                        sg.add_milky_way_foreground()
-                        sg.apply_lsf(filename="avg_COS_G130M.txt")
-                        sg.add_gaussian_noise(30)
-                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_final.txt')
-                    if instrument == 'KCWI':
-                        sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=wlres)
-                        sg.make_spectrum(ray, lines=line_list)
-                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
-                        sg.add_milky_way_foreground()
-                        sg.apply_lsf(function='boxcar',width=3) # THIS NEEDS TO BE UPDATED WITH A PROPER LSF KERNEL FILE
-                        sg.add_gaussian_noise(30)
-                        sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_final.txt')
+
+                sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=wlres)
+                sg.make_spectrum(ray, lines=line_list)
+                sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
+                if make_plots == True: sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'raw_'+str(snap)+'.png')
+                if args.create_rf_spectra_woMW == False:
+                    sg.add_milky_way_foreground()
+                    if make_plots == True: sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'MW_'+str(snap)+'.png')
+                if instrument == 'COS-G130M': sg.apply_lsf(filename="avg_COS_G130M.txt")
+                elif instrument == 'KCWI': sg.apply_lsf(function='boxcar',width=3) # THIS NEEDS TO BE UPDATED WITH A PROPER LSF KERNEL FILE
+                if make_plots == True: sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'+LSF_'+str(snap)+'.png')
+                sg.add_gaussian_noise(30)
+                if make_plots == True: sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'+noise_'+str(snap)+'.png')
+                sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_final.txt')
                 j+=1
             i += 1
     if make_plots == True:

@@ -18,22 +18,35 @@ Import the plotting routine you need above and run it within 'gs'
 """
 snapshot_dir='/nobackup/mpeeples/halo_008508/nref11c_nref9f/'
 
-def gs(ds_name, axis, width, prefix):
-    print("gs ", ds_name, width, prefix) 
+def gs(ds_name, axis, width, prefix, functions):
+    print("gs ", ds_name, width, prefix, functions) 
 
-    #frame.flows(ds_name, width, prefix) 
-    #frame.frame(ds_name, axis, width, prefix) 
-    frame.velocities(ds_name,axis,width,prefix)
-    #frame.disk(ds_name, axis, width, prefix) 
-    #frame.age(ds_name, width, prefix) 
-    #frame.lum(ds_name, axis, width, prefix) 
-    #frame.zfilter(ds_name,axis,width,prefix)
+    if ('flows' in functions): 
+        print('calling flows from gs') 
+        frame.flows(ds_name, width, prefix)
+    if ('frame' in functions): 
+        print('calling frame from gs') 
+        frame.frame(ds_name,axis,width,prefix)
+    if ('velocities' in functions): 
+        print('calling velocities from gs') 
+        frame.velocities(ds_name,axis,width,prefix)
+    if ('disk' in functions): 
+        print('calling disk from gs') 
+        frame.disk(ds_name, axis, width, prefix) 
+    if ('age' in functions): 
+        print('calling age from gs') 
+        frame.age(ds_name, width, prefix) 
+    if ('lum' in functions): 
+        print('calling lum from gs') 
+        frame.lum(ds_name, axis, width, prefix) 
+    if ('zfilter' in functions): 
+        print('zfilter lum from gs') 
+        frame.zfilter(ds_name,axis,width,prefix)
 
-
-def script(dataset_list, axis, width, prefix): 
+def script(dataset_list, axis, width, prefix, functions): 
     for ds in dataset_list: 
         print("script driving :", ds) 
-        gs(ds, axis, width, prefix) 
+        gs(ds, axis, width, prefix, functions) 
 
 def chunks(l, n): 
    """Yield successive n-sized chunks from l.""" 
@@ -53,10 +66,13 @@ def parse_args():
     parser.set_defaults(width=0.2)
 
     parser.add_argument('--prefix', metavar='prefix', type=str, action='store',help='filename prefix')
-    parser.set_defaults(prefix='outputs/') 
+    parser.set_defaults(prefix='./') 
 
     parser.add_argument('--nthreads', metavar='nthreads', type=int, action='store',help='number of multiprocessing threads')
-    parser.set_defaults(prefix='20') 
+    parser.set_defaults(nthreads=5) 
+
+    parser.add_argument('--functions', metavar='functions', type=str, action='store',help='comma-delimited string of analysis functions to apply')
+    parser.set_defaults(functions='frame') 
 
     args = parser.parse_args()
     return args
@@ -65,11 +81,12 @@ def parse_args():
 if __name__ == '__main__':
 
     args = parse_args()
-    print('wildcard = ', args.card)
-    print('    axis = ', args.axis)
-    print('   width = ', args.width)
-    print('  prefix = ', args.prefix)
-    print('nthreads = ', args.nthreads)
+    print('  wildcard = ', args.card)
+    print('      axis = ', args.axis)
+    print('     width = ', args.width)
+    print('    prefix = ', args.prefix)
+    print('  nthreads = ', args.nthreads)
+    print(' functions = ', args.functions)
 
     ts = yt.load(snapshot_dir+args.card) 
     ts.outputs.reverse() # work backwards in time
@@ -77,6 +94,7 @@ if __name__ == '__main__':
     print("there are N = ", len(ts.outputs), " outputs ") 
 
     print("We will be using Nthreads = ", args.nthreads, " processing threads") 
+    print("We will apply the plotting functions: ", args.functions)
 
     chunksize = int(np.ceil(len(ts.outputs) / args.nthreads)) 
     dslist = list(chunks(ts.outputs, chunksize))
@@ -85,5 +103,4 @@ if __name__ == '__main__':
         # these return immediately and are executed in parallel on separate processes
         for index in np.arange(args.nthreads): 
             print(index) 
-            _ = executor.submit(script, dslist[index], args.axis, args.width, args.prefix)      
-
+            _ = executor.submit(script, dslist[index], args.axis, args.width, args.prefix, args.functions)      
