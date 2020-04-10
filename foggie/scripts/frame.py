@@ -219,12 +219,12 @@ def frame(ds_name, axis, width, prefix):
     field='temperature' 
     if (width > 0.): 
         print("Inside T frame plot width will be: ", width, " in kpc") 
-        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, weight_field='density', center = halo_center, width=(width, 'kpc')) 
+        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, weight_field='density', center = ds.halo_center_code, width=(width, 'kpc')) 
     else:
         #if we are in this branch of the if stmnt the width given is arcmin which we convert to kpc 
         plotwidth = (-1.*width) * (cosmo.kpc_proper_per_arcmin(ds.current_redshift)).value 
         print("Inside T frame plot width will be: ", plotwidth, " from angular size of ", width) 
-        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, weight_field='density', center = halo_center, width=(plotwidth, 'kpc')) 
+        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, weight_field='density', center = ds.halo_center_code, width=(plotwidth, 'kpc')) 
     p.set_zlim(field, 3e3, 1e6) 
     p.set_cmap(field, 'magma') 
     p.set_buff_size(1080) 
