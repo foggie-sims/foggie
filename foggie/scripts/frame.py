@@ -70,11 +70,9 @@ def velocities(ds_name, axis, width, prefix):
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'radial_velocity_corrected', 'phase', (0,200),(-500,500), filename)       
     sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), 'cgm', filter=None)
 
-
-
 def disk(ds_name, axis, width, prefix): 
 
-    ds, refine_box, refine_box_center, refine_width = fload.load(ds_name, TRACKFILE, disk_relative=True, particle_type_angmom='young_stars')
+    ds, refine_box = fload.foggie_load(ds_name, TRACKFILE, disk_relative=True, particle_type_angmom='young_stars')
     rvir = gr.get_region(ds, 'rvir')
 
     field = 'density' 
@@ -123,7 +121,6 @@ def disk(ds_name, axis, width, prefix):
     p.set_figure_size(10.8)
     p.set_background_color(field, 'black')
     p.save(prefix+'/'+axis+'/temperature/'+ds.parameter_filename[-6:])
-
 
 def star_particle_luminosity(field, data):
     s99 = Table.read('s99', format='ascii')
@@ -192,25 +189,22 @@ def zfilter(ds_name, axis, width, prefix):
     p.annotate_timestamp(redshift=True)
     p.set_zlim('O_p5_number_density', o6_min, o6_max)
     p.save(prefix+axis+'/zfilter/'+ds.parameter_filename[-6:]+'_o6_lowz2')
-
-                                    
+                       
 def frame(ds_name, axis, width, prefix): 
 
-    ds, refine_box, refine_box_center, refine_width = fload.load(ds_name, TRACKFILE)
+    ds, _ = fload.foggie_load(ds_name, TRACKFILE)
     trident.add_ion_fields(ds, ions=['H I','C II', 'C III', 'C IV', 'O I', 'O II', 'O III', 'O IV', 'O V', 'O VI', 'O VII', 'O VIII', 'Mg II']) 
-
-    halo_center, velocity = ghc.get_halo_center(ds, refine_box_center) 
     rvir = gr.get_region(ds, 'rvir')
 
     field='density' 
     if (width > 0.): 
         print("Inside rho frame plot width will be: ", width, " in kpc") 
-        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, center = halo_center, width=(width, 'kpc'))
+        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, center = ds.halo_center_code, width=(width, 'kpc'))
     else:
         #if we are in this branch of the if stmnt the width given is arcmin which we convert to kpc 
         plotwidth = (-1.*width) * (cosmo.kpc_proper_per_arcmin(ds.current_redshift)).value 
         print("Inside rho frame plot width will be: ", plotwidth, " from angular size of ", width) 
-        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, center = halo_center, width=(plotwidth, 'kpc'))
+        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, center = ds.halo_center_code, width=(plotwidth, 'kpc'))
     p.set_zlim(field, proj_min_dict[field], proj_max_dict[field])
     p.set_cmap(field, colormap_dict[field])
     p.set_buff_size(1080)
@@ -256,7 +250,6 @@ def shades(ds_name):
 					region='cgm', screenfield='O_p5_ion_fraction',screenrange=(0.10,1))
     sm.simple_plot(ds_name,TRACKFILE,'radius','H_p0_column_density', 'phase', ((0,250), (8,14)), 'outputs/radius/NHI/'+ds_name[-6:]+'_radius_NHI_phase_cgm_fOVI', \
 					region='cgm', screenfield='O_p5_ion_fraction',screenrange=(0.10,1))
-
 
 def flow_plots(ds, region, refine_box_center, refine_width, filetag): 
 
