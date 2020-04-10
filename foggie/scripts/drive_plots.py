@@ -21,20 +21,32 @@ snapshot_dir='/nobackup/mpeeples/halo_008508/nref11c_nref9f/'
 def gs(ds_name, axis, width, prefix, functions):
     print("gs ", ds_name, width, prefix, functions) 
 
+    if ('flows' in functions): 
+        print('calling flows from gs') 
+        frame.flows(ds_name, width, prefix)
+    if ('frame' in functions): 
+        print('calling frame from gs') 
+        frame.frame(ds_name,axis,width,prefix)
+    if ('velocities' in functions): 
+        print('calling velocities from gs') 
+        frame.velocities(ds_name,axis,width,prefix)
+    if ('disk' in functions): 
+        print('calling disk from gs') 
+        frame.disk(ds_name, axis, width, prefix) 
+    if ('age' in functions): 
+        print('calling age from gs') 
+        frame.age(ds_name, width, prefix) 
+    if ('lum' in functions): 
+        print('calling lum from gs') 
+        frame.lum(ds_name, axis, width, prefix) 
+    if ('zfilter' in functions): 
+        print('zfilter lum from gs') 
+        frame.zfilter(ds_name,axis,width,prefix)
 
-    if ('flows' in functions): frame.flows(ds_name, width, prefix)
-    if ('frame' in functions): frame.frame(ds_name,axis,width,prefix)
-    if ('velocities' in functions): frame.velocities(ds_name,axis,width,prefix)
-    if ('disk' in functions): frame.disk(ds_name, axis, width, prefix) 
-    if ('age' in functions): frame.age(ds_name, width, prefix) 
-    if ('lum' in functions): frame.lum(ds_name, axis, width, prefix) 
-    if ('zfilter' in functions): frame.zfilter(ds_name,axis,width,prefix)
-
-
-def script(dataset_list, axis, width, prefix): 
+def script(dataset_list, axis, width, prefix, functions): 
     for ds in dataset_list: 
         print("script driving :", ds) 
-        gs(ds, axis, width, prefix) 
+        gs(ds, axis, width, prefix, functions) 
 
 def chunks(l, n): 
    """Yield successive n-sized chunks from l.""" 
@@ -92,4 +104,3 @@ if __name__ == '__main__':
         for index in np.arange(args.nthreads): 
             print(index) 
             _ = executor.submit(script, dslist[index], args.axis, args.width, args.prefix, args.functions)      
-
