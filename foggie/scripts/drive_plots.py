@@ -18,18 +18,18 @@ Import the plotting routine you need above and run it within 'gs'
 """
 snapshot_dir='/nobackup/mpeeples/halo_008508/nref11c_nref9f/'
 
-def gs(ds_name, axis, width, prefix, functions):
-    print("gs ", ds_name, width, prefix, functions) 
+def gs(ds_name, axis, width, prefix, functions, region):
+    print("gs ", ds_name, width, prefix, functions, region) 
 
     if ('flows' in functions): 
         print('calling flows from gs') 
         frame.flows(ds_name, width, prefix)
     if ('frame' in functions): 
         print('calling frame from gs') 
-        frame.frame(ds_name,axis,width,prefix)
+        frame.frame(ds_name,axis,width,prefix, region)
     if ('velocities' in functions): 
         print('calling velocities from gs') 
-        frame.velocities(ds_name,axis,width,prefix)
+        frame.velocities(ds_name,axis,width,prefix, region)
     if ('disk' in functions): 
         print('calling disk from gs') 
         frame.disk(ds_name, axis, width, prefix) 
@@ -43,10 +43,10 @@ def gs(ds_name, axis, width, prefix, functions):
         print('zfilter lum from gs') 
         frame.zfilter(ds_name,axis,width,prefix)
 
-def script(dataset_list, axis, width, prefix, functions): 
+def script(dataset_list, axis, width, prefix, functions, region): 
     for ds in dataset_list: 
         print("script driving :", ds) 
-        gs(ds, axis, width, prefix, functions) 
+        gs(ds, axis, width, prefix, functions, region) 
 
 def chunks(l, n): 
    """Yield successive n-sized chunks from l.""" 
@@ -65,15 +65,22 @@ def parse_args():
     parser.add_argument('--width', metavar='width', type=float, action='store',help='plot width in kpc')
     parser.set_defaults(width=0.2)
 
-    parser.add_argument('--prefix', metavar='prefix', type=str, action='store',help='filename prefix')
+    parser.add_argument('--prefix', metavar='prefix', type=str, \
+        action='store',help='filename prefix')
     parser.set_defaults(prefix='./') 
 
-    parser.add_argument('--nthreads', metavar='nthreads', type=int, action='store',help='number of multiprocessing threads')
+    parser.add_argument('--nthreads', metavar='nthreads', type=int, \
+        action='store',help='number of multiprocessing threads')
     parser.set_defaults(nthreads=5) 
 
-    parser.add_argument('--functions', metavar='functions', type=str, action='store',help='comma-delimited string of analysis functions to apply')
+    parser.add_argument('--functions', metavar='functions', type=str, \
+        action='store',help='comma-delimited string of analysis functions to apply')
     parser.set_defaults(functions='frame') 
 
+    parser.add_argument('--region', metavar='region', type=str, \
+        action='store',help='FOGGIE-defined region to use, e.g. cgm or ism')
+    parser.set_defaults(region='cgm') 
+    
     args = parser.parse_args()
     return args
 
@@ -87,6 +94,8 @@ if __name__ == '__main__':
     print('    prefix = ', args.prefix)
     print('  nthreads = ', args.nthreads)
     print(' functions = ', args.functions)
+    print('    region = ', args.region)
+    
 
     ts = yt.load(snapshot_dir+args.card) 
     ts.outputs.reverse() # work backwards in time
@@ -95,6 +104,7 @@ if __name__ == '__main__':
 
     print("We will be using Nthreads = ", args.nthreads, " processing threads") 
     print("We will apply the plotting functions: ", args.functions)
+    print("              onto the FOGGIE region: ", args.region)
 
     chunksize = int(np.ceil(len(ts.outputs) / args.nthreads)) 
     dslist = list(chunks(ts.outputs, chunksize))
@@ -103,4 +113,4 @@ if __name__ == '__main__':
         # these return immediately and are executed in parallel on separate processes
         for index in np.arange(args.nthreads): 
             print(index) 
-            _ = executor.submit(script, dslist[index], args.axis, args.width, args.prefix, args.functions)      
+            _ = executor.submit(script, dslist[index], args.axis, args.width, args.prefix, args.functions, args.region)      

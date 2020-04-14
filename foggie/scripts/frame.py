@@ -1,6 +1,6 @@
 import yt 
 import trident 
-import foggie.utils.foggie_load as fload
+import foggie.utils.foggie_load as foggie_load
 import foggie.utils.get_halo_center as ghc 
 import foggie.utils.get_region as gr 
 from foggie.utils.consistency import *
@@ -12,14 +12,14 @@ from foggie.utils import prep_dataframe
 
 TRACKFILE = '/u/jtumlins/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10'
 
-def velocities(ds_name, axis, width, prefix): 
+def velocities(ds_name, axis, width, prefix, region): 
 
     field_list = ['position_x', 'position_y', 'radius_corrected', 'temperature', \
  			'radial_velocity_corrected', 'tangential_velocity_corrected', 'O_p5_ion_fraction'] 
 
     dataset, all_data = sm.prep_dataset(ds_name, TRACKFILE, \
                             ion_list=['H I','C II','C III','C IV','Si II','Si III','Si IV',\
-                                        'O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], region='cgm') 
+                                        'O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], region=region) 
 
     data_frame = prep_dataframe.prep_dataframe(dataset, all_data, field_list, 'phase', \
                         halo_center = dataset.halo_center_code, halo_vcenter=dataset.halo_velocity_kms)
@@ -27,48 +27,46 @@ def velocities(ds_name, axis, width, prefix):
     #first we do the 'normal' plots that are NOT O VI filtered 
     filename = prefix+'normal/x_y/'+dataset.parameter_filename[-6:]+'_x_y_cgm_phase' 
     image = sm.render_image(data_frame, 'position_x', 'position_y', 'phase', (-200,200),(-200,200), filename) 
-    sm.wrap_axes(dataset, image, filename, 'position_x', 'position_y', 'phase', ((-200,200),(-200,200)), 'cgm', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'position_x', 'position_y', 'phase', ((-200,200),(-200,200)), region, filter=None)
 
     filename = prefix+'normal/r_temp/'+dataset.parameter_filename[-6:]+'_radius_temperature_cgm_phase' 
     image = sm.render_image(data_frame, 'radius_corrected', 'temperature', 'phase', (0,200),(1, 8), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), 'cgm', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), region, filter=None)
 
     filename = prefix+'normal/rv_tv/'+dataset.parameter_filename[-6:]+'_rv_tv_cgm_phase' 
     image = sm.render_image(data_frame, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', (-500,500),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), 'cgm', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), region, filter=None)
 
     filename = prefix+'normal/r_tv/'+dataset.parameter_filename[-6:]+'_r_tv_cgm_phase' 
     image = sm.render_image(data_frame, 'radius_corrected', 'tangential_velocity_corrected', 'phase', (0,200),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), 'cgm', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), region, filter=None)
 
     filename = prefix+'normal/r_rv/'+dataset.parameter_filename[-6:]+'_r_rv_cgm_phase' 
     image = sm.render_image(data_frame, 'radius_corrected', 'radial_velocity_corrected', 'phase', (0,200),(-500,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), 'cgm', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), region, filter=None)
 
     # now do it again but filtered by O VI this time. 
-    screenfield = 'O_p5_ion_fraction' 
-    screenrange = [0.1, 1.] 
-    mask = (data_frame[screenfield] > screenrange[0]) & (data_frame[screenfield] < screenrange[1])
+    mask = (data_frame['O_p5_ion_fraction'] > 0.1) & (data_frame['O_p5_ion_fraction'] < 1.)
 
     filename = prefix+'fOVI/x_y/'+dataset.parameter_filename[-6:]+'_x_y_cgm_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'position_x', 'position_y', 'phase', (-200,200),(-200,200), filename) 
-    sm.wrap_axes(dataset, image, filename, 'position_x', 'position_y', 'phase', ((-200,200),(-200,200)), 'cgm', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'position_x', 'position_y', 'phase', ((-200,200),(-200,200)), region, filter=None)
 
     filename = prefix+'fOVI/r_temp/'+dataset.parameter_filename[-6:]+'_radius_temperature_cgm_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'temperature', 'phase', (0,200),(1, 8), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), 'cgm', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), region, filter=None)
 
     filename = prefix+'fOVI/rv_tv/'+dataset.parameter_filename[-6:]+'_rv_tv_cgm_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', (-500,500),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), 'cgm', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), region, filter=None)
 
     filename = prefix+'fOVI/r_tv/'+dataset.parameter_filename[-6:]+'_r_tv_cgm_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'tangential_velocity_corrected', 'phase', (0,200),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), 'cgm', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), region, filter=None)
 
     filename = prefix+'fOVI/r_rv/'+dataset.parameter_filename[-6:]+'_r_rv_cgm_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'radial_velocity_corrected', 'phase', (0,200),(-500,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), 'cgm', filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), region, filter=None)
 
 def disk(ds_name, axis, width, prefix): 
 
@@ -129,8 +127,7 @@ def star_particle_luminosity(field, data):
     return yt.YTArray(star_lum, 'dimensionless') 
 
 def lum(ds_name, axis, width, prefix):
-    ds, refine_box, refine_box_center, refine_width = fload.load(ds_name, TRACKFILE)
-    halo_center, velocity = ghc.get_halo_center(ds, refine_box_center)
+    ds, _ = fload.foggie_load(ds_name, TRACKFILE)
     ds.add_field(('stars', 'star_lum'), function=star_particle_luminosity, units='dimensionless', \
                  take_log=True, force_override=True, particle_type=True)
     
@@ -138,12 +135,12 @@ def lum(ds_name, axis, width, prefix):
     axis2 = {'x':'particle_position_z', 'y':'particle_position_z', 'z':'particle_position_y'} 
     if (width > 0.): 
         print("Inside lum plot width will be: ", width, " in kpc") 
-        p = yt.ParticlePlot(ds, axis1[axis], axis2[axis], ('stars','star_lum'), center=halo_center, width=(width, 'kpc'))
+        p = yt.ParticlePlot(ds, axis1[axis], axis2[axis], ('stars','star_lum'), center=ds.halo_center_code, width=(width, 'kpc'))
     else:
         #if we are in this branch of the if stmnt the width given is arcmin which we convert to kpc 
         plotwidth = (-1.*width) * (cosmo.kpc_proper_per_arcmin(ds.current_redshift)).value 
         print("Inside lum plot width will be: ", plotwidth, " from angular size of ", width) 
-        p = yt.ParticlePlot(ds, axis1[axis], axis2[axis], ('stars','star_lum'), center=halo_center, width=(plotwidth, 'kpc'))
+        p = yt.ParticlePlot(ds, axis1[axis], axis2[axis], ('stars','star_lum'), center=ds.halo_center_code, width=(plotwidth, 'kpc'))
     p.annotate_timestamp(redshift=True, draw_inset_box=True, text_args={'color':'black'}) 
     p.set_cmap(('stars','star_lum'), 'gray')
     p.set_buff_size(1080)
@@ -190,21 +187,21 @@ def zfilter(ds_name, axis, width, prefix):
     p.set_zlim('O_p5_number_density', o6_min, o6_max)
     p.save(prefix+axis+'/zfilter/'+ds.parameter_filename[-6:]+'_o6_lowz2')
                        
-def frame(ds_name, axis, width, prefix): 
+def frame(ds_name, axis, width, prefix, region): 
 
-    ds, _ = fload.foggie_load(ds_name, TRACKFILE)
+    ds, _ = foggie_load.foggie_load(ds_name, TRACKFILE)
     trident.add_ion_fields(ds, ions=['H I','C II', 'C III', 'C IV', 'O I', 'O II', 'O III', 'O IV', 'O V', 'O VI', 'O VII', 'O VIII', 'Mg II']) 
-    rvir = gr.get_region(ds, 'rvir')
+    region = gr.get_region(ds, region)
 
     field='density' 
     if (width > 0.): 
         print("Inside rho frame plot width will be: ", width, " in kpc") 
-        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, center = ds.halo_center_code, width=(width, 'kpc'))
+        p = yt.ProjectionPlot(ds, axis, field, data_source=region, center = ds.halo_center_code, width=(width, 'kpc'))
     else:
         #if we are in this branch of the if stmnt the width given is arcmin which we convert to kpc 
         plotwidth = (-1.*width) * (cosmo.kpc_proper_per_arcmin(ds.current_redshift)).value 
         print("Inside rho frame plot width will be: ", plotwidth, " from angular size of ", width) 
-        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, center = ds.halo_center_code, width=(plotwidth, 'kpc'))
+        p = yt.ProjectionPlot(ds, axis, field, data_source=region, center = ds.halo_center_code, width=(plotwidth, 'kpc'))
     p.set_zlim(field, proj_min_dict[field], proj_max_dict[field])
     p.set_cmap(field, colormap_dict[field])
     p.set_buff_size(1080)
@@ -214,17 +211,17 @@ def frame(ds_name, axis, width, prefix):
     p.annotate_timestamp(redshift=True, draw_inset_box=True) 
     p.set_figure_size(10.8)
     p.set_background_color(field, 'black') 
-    p.save(prefix+axis+'/density/'+ds.parameter_filename[-6:]+'_rvir')
+    p.save(prefix+axis+'/density/'+ds.parameter_filename[-6:]+'_'+region)
 
     field='temperature' 
     if (width > 0.): 
         print("Inside T frame plot width will be: ", width, " in kpc") 
-        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, weight_field='density', center = ds.halo_center_code, width=(width, 'kpc')) 
+        p = yt.ProjectionPlot(ds, axis, field, data_source=region, weight_field='density', center = ds.halo_center_code, width=(width, 'kpc')) 
     else:
         #if we are in this branch of the if stmnt the width given is arcmin which we convert to kpc 
         plotwidth = (-1.*width) * (cosmo.kpc_proper_per_arcmin(ds.current_redshift)).value 
         print("Inside T frame plot width will be: ", plotwidth, " from angular size of ", width) 
-        p = yt.ProjectionPlot(ds, axis, field, data_source=rvir, weight_field='density', center = ds.halo_center_code, width=(plotwidth, 'kpc')) 
+        p = yt.ProjectionPlot(ds, axis, field, data_source=region, weight_field='density', center = ds.halo_center_code, width=(plotwidth, 'kpc')) 
     p.set_zlim(field, 3e3, 1e6) 
     p.set_cmap(field, 'magma') 
     p.set_buff_size(1080) 
@@ -233,7 +230,7 @@ def frame(ds_name, axis, width, prefix):
     p.hide_axes() 
     p.set_figure_size(10.8) 
     p.set_background_color(field, 'black')
-    p.save(prefix+axis+'/temperature/'+ds.parameter_filename[-6:]+'_rvir') 
+    p.save(prefix+axis+'/temperature/'+ds.parameter_filename[-6:]+'_'+region) 
 
 def shades(ds_name): 
     sm.simple_plot(ds_name,TRACKFILE,'position_x','position_y', 'phase', ( (-100,100), (-100,100) ), 'outputs/x_y_phase/'+ds_name[-6:]+'_x_y_phase_cgm_fOVI', \
