@@ -15,7 +15,7 @@ from foggie.utils import prep_dataframe
 
 TRACKFILE = '/u/jtumlins/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10'
 
-def velocities(ds_name, axis, widt h, prefix, region): 
+def velocities(ds_name, axis, width, prefix, region): 
 
     field_list = ['position_x', 'position_y', 'radius_corrected', 'temperature', \
  			'radial_velocity_corrected', 'tangential_velocity_corrected', 'O_p5_ion_fraction'] 
