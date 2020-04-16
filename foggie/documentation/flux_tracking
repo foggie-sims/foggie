@@ -55,6 +55,9 @@ Which output(s)? Options: Specify a single output (this is default and the defau
 or specify a range of outputs using commas to list individual outputs and dashes for ranges of
 outputs (e.g. "RD0020-RD0025" or "DD1341,DD1353,DD1600-DD1700", no spaces!).
 
+--output_step X
+If you want every Nth output, this specifies N. Default: 1 (every output in specified range)
+
 --system XXXXXXXX
 Which system are you on? Default is cassiopeia.
 

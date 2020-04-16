@@ -55,6 +55,10 @@ def parse_args():
                         '(e.g. "RD0020-RD0025" or "DD1341,DD1353,DD1600-DD1700", no spaces!)')
     parser.set_defaults(output='RD0036')
 
+    parser.add_argument('--output_step', metavar='output_step', type=int, action='store', \
+                        help='If you want to do every Nth output, this specifies N. Default: 1 (every output in specified range)')
+    parser.set_defaults(output_step=1)
+
     parser.add_argument('--system', metavar='system', type=str, action='store', \
                         help='Which system are you on? Default is cassiopeia')
     parser.set_defaults(system='cassiopeia')
@@ -155,8 +159,8 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
         snap_name = snap_dir + '/' + snap
-    ds, refine_box, refine_box_center, refine_width = load(snap_name, track, use_halo_c_v=True, halo_c_v_name=halo_c_v_name, filter_particles=False)
-    refine_width_kpc = ds.quan(refine_width, 'kpc')
+    ds, refine_box = foggie_load(snap_name, track, halo_c_v_name=halo_c_v_name)
+    refine_width_kpc = ds.quan(ds.refine_width, 'kpc')
 
     # Make the region for finding satellites
     region = ds.sphere(ds.halo_center_kpc, refine_width_kpc*5.)
@@ -178,13 +182,14 @@ if __name__ == "__main__":
     print(args.halo)
     print(args.run)
     print(args.system)
-    foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    if (args.system=='pleiades_cassi'): code_path = '/home5/clochhaa/FOGGIE/foggie/foggie/'
-    elif (args.system=='cassiopeia'):
-        code_path = '/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/'
-        if (args.local):
-            foggie_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/'
-    track_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+
+    # Set directory for output location, making it if necessary
+    prefix = output_dir + 'satellites_halo_00' + args.halo + '/' + args.run + '/'
+    if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
+
+    print('foggie_dir: ', foggie_dir)
+    halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
 
     # Build output list
     if (',' in args.output):
@@ -196,7 +201,7 @@ if __name__ == "__main__":
                 last = outs[i][ind+3:]
                 output_type = outs[i][:2]
                 outs_sub = []
-                for j in range(int(first), int(last)+1):
+                for j in range(int(first), int(last)+1, args.output_step):
                     if (j < 10):
                         pad = '000'
                     elif (j >= 10) and (j < 100):
@@ -221,7 +226,7 @@ if __name__ == "__main__":
         last = args.output[ind+3:]
         output_type = args.output[:2]
         outs = []
-        for i in range(int(first), int(last)+1):
+        for i in range(int(first), int(last)+1, args.output_step):
             if (i < 10):
                 pad = '000'
             elif (i >= 10) and (i < 100):
@@ -232,13 +237,6 @@ if __name__ == "__main__":
                 pad = ''
             outs.append(output_type + pad + str(i))
     else: outs = [args.output]
-
-    # Set directory for output location, making it if necessary
-    prefix = output_dir + 'satellites_halo_00' + args.halo + '/' + args.run + '/'
-    if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
-
-    print('foggie_dir: ', foggie_dir)
-    halo_c_v_name = track_dir + 'halo_c_v'
 
     # Loop over outputs, for either single-processor or parallel processor computing
     if (args.nproc==1):
