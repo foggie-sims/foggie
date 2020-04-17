@@ -819,7 +819,10 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
         fluxtype_filename += '_Oions'
 
     # Save to file
-    totals.write(tablename + '_sphere' + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    if (sat_radius!=0.):
+        totals.write(tablename + '_nosat_sphere' + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    else:
+        totals.write(tablename + '_sphere' + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     return "Totals have been calculated for snapshot " + snap + "!"
 
@@ -1497,7 +1500,10 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
         fluxtype_filename += '_Oions'
 
     # Save to file
-    totals.write(tablename + '_frustum_' + frus_filename + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    if (sat_radius!=0.):
+        totals.write(tablename + '_nosat_frustum_' + frus_filename + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    else:
+        totals.write(tablename + '_frustum_' + frus_filename + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     return "Totals have been calculated for snapshot " + snap + "!"
 
