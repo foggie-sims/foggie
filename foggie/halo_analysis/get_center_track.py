@@ -223,19 +223,19 @@ if __name__ == "__main__":
     if args.halo == "5016":
         first_center = [0.5360746383666992,  0.4564027786254883, 0.5105409622192384]
         start_snap = 1996
-        end_snap = 2025
+        end_snap = 2168
     elif args.halo == "4123":
-        first_center = [0.4820127487182618,  0.4726438522338867, 0.48097705841064453]
-        start_snap = 934
-        end_snap = 1040
+        first_center = [0.48108005523681635,  0.4710550308227539,  0.4799013137817382]
+        start_snap = 1039
+        end_snap = 2000
     elif args.halo == "5036":
         first_center = [0.47722530364990234, 0.5019979476928711, 0.5026788711547852]
         start_snap = 1213
         end_snap = 1300
     elif args.halo == "2392":
-        first_center = [0.49743175506591797, 0.49085521697998047,  0.4734659194946289]
-        start_snap = 965
-        end_snap = 1045
+        first_center = [0.4972772598266602, 0.48969554901123047,  0.4724550247192383]
+        start_snap = 1045
+        end_snap = 2000
     else:
         sys.exit("halo not found!")
 
