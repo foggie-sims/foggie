@@ -21,7 +21,7 @@ Units:
 xc, yc, zc are given in physical kpc. xv, yv, zv are given in km/s.
 
 Exists for:
-8508/nref11c_nref9f snapshots DD0044-DD2253, RD0012-RD0040
+8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
 8508/nref11n_nref10f snapshots DD0044-DD1630
 5016/nref11c_nref9f snapshots DD0250-DD1763, RD0020-RD0030
 
@@ -71,7 +71,7 @@ later be combined. The masses.hdf5 file is the combined version.
 
 How to use:
 from astropy.table import Table
-masses = Table.read('/path/to/table/masses.hdf5', path='all_data')
+masses = Table.read('/path/to/table/masses_z-less-2.hdf5', path='all_data')
 
 To plot the mass enclosed profiles for a specific snapshot, e.g. RD0042:
 import matplotlib.pyplot as plt
@@ -130,7 +130,7 @@ Units:
 "sat_x, sat_y, sat_z" are all given in physical kpc.
 
 Exists for:
-8508/nref11c_nref9f snapshots DD0044-DD1630, DD1800-DD1926, all located within the same
+8508/nref11c_nref9f snapshots DD0046-DD2427, RD0013-RD0042, all located within the same
 satellites.hdf5 file in the halo_infos/8508/nref11c_nref9f folder.
 
 Created by:
