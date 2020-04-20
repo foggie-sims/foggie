@@ -83,7 +83,8 @@ def parse_args():
 
     parser.add_argument('--line_list', metavar='line_list', type=str, action='store',
                         help="Which lines? Default is ['H', 'C', 'Si','N', 'O', 'Mg']")
-    parser.set_defaults(line_list=['H', 'C', 'Si','N', 'O', 'Mg'])
+    #parser.set_defaults(line_list=['H', 'C', 'Si','N', 'O', 'Mg'])
+    parser.set_defaults(line_list=['Mg II 2796'])
 
     parser.add_argument('--steps', metavar='steps', type=int, action='store',
                         help="How many steps? Default is 0")
@@ -153,6 +154,10 @@ def parse_args():
                         help="At which step j do you want to start at point starti? Default is 0. This is useful to change if the code stopped at some point i-j.")
     parser.set_defaults(startj=0)
 
+    parser.add_argument('--velocity', dest='velocity', action='store_true',
+                        help="Do you want the created spectra to be in velocity space? Default is no.")
+    parser.set_defaults(velocity=False)
+
     args = parser.parse_args()
     return args
 
@@ -204,6 +209,10 @@ def make_IFU(args, speedoflight=speedoflight):
             startwl = 1132
             endwl = 1433
         wlres = 0.01
+        psf = 0.8 #in units arcsec
+        instrument_pixelsize = 0.4 #arcsec
+    halfdv = 500 #kwargs.get('halfdv', 500.)  # km/s
+    pixdv = 0.2 #kwargs.get('pixdv', 0.2) # km/s
 
     if args.need_halo_center==True:
         fullds, region = foggie_load(fn,track_name)
@@ -212,8 +221,11 @@ def make_IFU(args, speedoflight=speedoflight):
 
     zsnap = fullds.get_parameter('CosmologyCurrentRedshift')
     properwidth = fullds.refine_width # in kpc
-    smallestcell = fullds.index.get_smallest_dx().in_units('code_length') # in code_length
-    smallestcell = fullds.index.get_smallest_dx().in_units('kpc') # in kpc
+    print(properwidth)
+    #smallestcell = fullds.index.get_smallest_dx().in_units('code_length') # in code_length
+    #smallestcell = fullds.index.get_smallest_dx().in_units('kpc') # in kpc
+    #mediancell = np.median(region["dx"]).in_units('code_length')
+    mediancell = np.median(region["dx"]).in_units('kpc')
     leftedge = region.left_edge
     rightedge = region.right_edge
     boxcenter = region.center
@@ -222,9 +234,10 @@ def make_IFU(args, speedoflight=speedoflight):
     else: center = boxcenter
 
     if stepsize == 0:
-        stepsize = smallestcell
+        stepsize = mediancell
     if steps == 0:
         steps= int(properwidth/stepsize)
+    if args.start_spectra_at_center == True: steps = int(steps/2.)
     xc, yc, zc = center
     xl, yl, zl = leftedge
     xr, yr, zr = rightedge
@@ -233,9 +246,12 @@ def make_IFU(args, speedoflight=speedoflight):
         endwl =  endwl * (1+zsnap)
 
     if make_plots == True:
-        px = yt.ProjectionPlot(fullds, 'x', 'density', center=center, width=properwidth)
-        py = yt.ProjectionPlot(fullds, 'y', 'density', center=center, width=properwidth)
-        pz = yt.ProjectionPlot(fullds, 'z', 'density', center=center, width=properwidth)
+        px = yt.ProjectionPlot(fullds, 'x', 'density', center=center, width=properwidth*kpc)
+        py = yt.ProjectionPlot(fullds, 'y', 'density', center=center, width=properwidth*kpc)
+        pz = yt.ProjectionPlot(fullds, 'z', 'density', center=center, width=properwidth*kpc)
+        px.save(halo+'_'+sim+'_'+snap+'_'+'projection_x.png')
+        py.save(halo+'_'+sim+'_'+snap+'_'+'projection_y.png')
+        pz.save(halo+'_'+sim+'_'+snap+'_'+'projection_z.png')
 
     if make_spectra == True:
         i = args.starti
@@ -255,13 +271,13 @@ def make_IFU(args, speedoflight=speedoflight):
                     startz = zl
                 stepsize = stepsize.in_units('code_length')
                 if args.which_projection == 'x':
-                    ray_start = [startx , starty+ i * stepsize, startz + j * stepsize]
+                    ray_start = [xl , starty+ i * stepsize, startz + j * stepsize]
                     ray_end = [xr, starty+ i * stepsize, startz + j * stepsize]
                 elif args.which_projection == 'y':
-                    ray_start = [startx + i * stepsize, starty, startz + j * stepsize]
+                    ray_start = [startx + i * stepsize, yl, startz + j * stepsize]
                     ray_end = [startx + i * stepsize, yr, startz + j * stepsize]
                 elif args.which_projection == 'z':
-                    ray_start = [startx + i * stepsize, starty + j * stepsize, startz ]
+                    ray_start = [startx + i * stepsize, starty + j * stepsize, zl ]
                     ray_end = [startx + i * stepsize, starty + j * stepsize, zr]
                 print(ray_start)
                 print(ray_end)
@@ -272,13 +288,22 @@ def make_IFU(args, speedoflight=speedoflight):
                     py.annotate_ray(ray, arrow=True)
                     pz.annotate_ray(ray, arrow=True)
 
-                sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=wlres)
-                sg.make_spectrum(ray, lines=line_list)
-                sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
-                if make_plots == True: sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'raw_'+str(snap)+'.png')
-                if args.create_rf_spectra_woMW == False:
-                    sg.add_milky_way_foreground()
-                    if make_plots == True: sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'MW_'+str(snap)+'.png')
+                if args.velocity == True:
+
+                    sg = trident.SpectrumGenerator(lambda_min=-1.0*halfdv,
+                                                   lambda_max=halfdv,
+                                                   dlambda=pixdv,  # km/s
+                                                   bin_space='velocity',
+                                                   line_database='lines.txt')
+                    sg.make_spectrum(ray, lines=line_list, min_tau=1.e-5,store_observables=True)
+                    sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
+                    if make_plots == True: sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'raw_'+str(snap)+'.png')
+                else:
+                    sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=wlres)
+                    sg.make_spectrum(ray, lines=line_list)
+                    if args.create_rf_spectra_woMW == False:
+                        sg.add_milky_way_foreground()
+                        if make_plots == True: sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'MW_'+str(snap)+'.png')
                 if instrument == 'COS-G130M': sg.apply_lsf(filename="avg_COS_G130M.txt")
                 elif instrument == 'KCWI': sg.apply_lsf(function='boxcar',width=3) # THIS NEEDS TO BE UPDATED WITH A PROPER LSF KERNEL FILE
                 if make_plots == True: sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'+LSF_'+str(snap)+'.png')
@@ -337,21 +362,51 @@ def make_IFU(args, speedoflight=speedoflight):
 
                 if physical_properties_in_header == True:
 
-                    totalgasmass = sum(region['gas', 'matter_mass']).in_units('g')
-                    totalgasmass_in_msol = totalgasmass.in_units('Msun')
-                    totalstellarmass = sum(region['stars', 'particle_mass']).in_units('g')
-                    totalstellarmass_in_msol = totalstellarmass.in_units('Msun')
-                    totaldmmass = sum(region['dm', 'particle_mass']).in_units('g')
-                    totaldmmass_in_msol = totaldmmass.in_units('Msun')
-                    hdr['STMASS'] = (totalstellarmass, 'in units g')
-                    hdr['STMASS'] = (totalstellarmass_in_msol, 'in units M_sol')
-                    hdr['GASMASS'] = (totalgasmass, 'in units g')
-                    hdr['GASMASS'] = (totalgasmass_in_msol, 'in units M_sol')
-                    hdr['DMMASS'] = (totaldmmass, 'in units g')
-                    hdr['DMMASS'] = (totaldmmass_in_msol, 'in units M_sol')
+                    physpropfile = output_dir+'%s_physical_properties.txt'%snap
+                    if not (os.path.exists(physpropfile)):
+                        f = open(physpropfile,'w')
+                        f.write('# %s\n'%halo)
+                        f.write('# %s\n'%snap)
+                        f.write('# %s\n'%sim)
+                        totalgasmass = sum(region['gas', 'matter_mass']).in_units('g')
+                        print(totalgasmass)
+                        f.write('%s # gas mass in g \n'%str(totalgasmass.item()))
+                        totalgasmass_in_msol = totalgasmass.in_units('Msun')
+                        print(totalgasmass_in_msol)
+                        f.write('%s # gas mass in M_sol \n'%str(totalgasmass_in_msol.item()))
+                        totalstellarmass = sum(region['stars', 'particle_mass']).in_units('g')
+                        print(totalstellarmass)
+                        f.write('%s # stellar mass in g \n'%str(totalstellarmass.item()))
+                        totalstellarmass_in_msol = totalstellarmass.in_units('Msun')
+                        print(totalstellarmass_in_msol)
+                        f.write('%s # stellar mass in M_sol \n'%str(totalstellarmass_in_msol.item()))
+                        totaldmmass = sum(region['dm', 'particle_mass']).in_units('g')
+                        print(totaldmmass)
+                        f.write('%s # dm mass in g \n'%str(totaldmmass.item()))
+                        totaldmmass_in_msol = totaldmmass.in_units('Msun')
+                        print(totaldmmass_in_msol)
+                        f.write('%s # dm mass in M_sol \n'%str(totaldmmass_in_msol.item()))
+                        sfr = StarFormationRate(fullds, data_source=region).Msol_yr[-1]
+                        print(sfr)
+                        f.write('%s # sfr in M_sol/yr \n'%str(sfr.item()))
+                        f.close()
 
-                    sfr = StarFormationRate(ds, data_source=region).Msol_yr[-1]
-                    hdr['SFR'] = (sfr.item(), 'in units M_sol/yr')
+                    if (os.path.exists(physpropfile)):
+                        f = np.loadtxt(physpropfile)
+                        totalgasmass = f[0]
+                        totalgasmass_in_msol = f[1]
+                        totalstellarmass = f[2]
+                        totalstellarmass_in_msol = f[3]
+                        totaldmmass = f[4]
+                        totaldmmass_in_msol = f[5]
+                        sfr = f[6]
+                        hdr['STMASS'] = (totalstellarmass, 'in units g')
+                        hdr['STMASS'] = (totalstellarmass_in_msol, 'in units M_sol')
+                        hdr['GASMASS'] = (totalgasmass, 'in units g')
+                        hdr['GASMASS'] = (totalgasmass_in_msol, 'in units M_sol')
+                        hdr['DMMASS'] = (totaldmmass, 'in units g')
+                        hdr['DMMASS'] = (totaldmmass_in_msol, 'in units M_sol')
+                        hdr['SFR'] = (sfr, 'in units M_sol/yr')
 
             elif hdr in [hdr1,hdr2,hdr3,hdr4]:
                 hdr['NAXIS'] = 3
@@ -368,11 +423,18 @@ def make_IFU(args, speedoflight=speedoflight):
                 hdr['CUNIT2'] = 'kpc'
                 hdr['CRVAL1'] = 0.
                 hdr['CRVAL2'] = 0.
-                hdr['CTYPE3'] = 'AWAV    '
-                hdr['CUNIT3'] = 'Angstrom'
-                hdr['CD3_3'] = wlres
-                hdr['CRPIX3'] = 1.
-                hdr['CRVAL3'] = startwl
+                if args.velocity == True:
+                    hdr['CTYPE3'] = 'velocity    '
+                    hdr['CUNIT3'] = 'km/s'
+                    hdr['CD3_3'] = pixdv
+                    hdr['CRPIX3'] = 1.
+                    hdr['CRVAL3'] = -halfdv
+                else:
+                    hdr['CTYPE3'] = 'AWAV    '
+                    hdr['CUNIT3'] = 'Angstrom'
+                    hdr['CD3_3'] = wlres
+                    hdr['CRPIX3'] = 1.
+                    hdr['CRVAL3'] = startwl
         primary_hdu = fits.PrimaryHDU(header = hdr0)
         data_raw_hdu = fits.ImageHDU(data_raw, header = hdr1)
         errors_raw_hdu = fits.ImageHDU(errors_raw, header = hdr2)
@@ -380,6 +442,7 @@ def make_IFU(args, speedoflight=speedoflight):
         errors_final_hdu = fits.ImageHDU(errors_final, header = hdr4)
         hdulist = fits.HDUList([primary_hdu, data_raw_hdu, errors_raw_hdu, data_final_hdu, errors_final_hdu])
         fitsfile = halo+'_'+sim+'_'+snap+'_'+'foggie_ifu'+'_isteps'+str(isteps)+'_jsteps'+str(jsteps)+'_stepsize'+str(stepsize.value)+'.fits'
+        if (os.path.exists(output_dir+fitsfile)): os.system('rm ' + output_dir+fitsfile)
         hdulist.writeto(fitsfile)
     if convolve_with_instrument_psf == True:
 
@@ -395,7 +458,8 @@ def make_IFU(args, speedoflight=speedoflight):
 
         ### going from physical coordinates to sky coordinates
         cosmo = FlatLambdaCDM(H0=69.5, Om0=0.285, Tcmb0=2.725)
-        kpcperarcmin = cosmo.kpc_proper_per_arcmin(zsnap)
+        kpcperarcmin = cosmo.kpc_proper_per_arcmin(zsnap).value
+        print(kpcperarcmin)
         arcminperdegree = 60.
         hdr3['CD1_1'] = stepsize.in_units('kpc').item()
         hdr3['CD2_2'] = stepsize.in_units('kpc').item()
@@ -447,12 +511,13 @@ def make_IFU(args, speedoflight=speedoflight):
         hdr4['CD2_2'] = instrument_pixelsize
 
         ### add new info to primary Header
-        hdr0['INSTR'] = 'KCWI'
+        hdr0['INSTR'] = args.instrument
         primary_hdu = fits.PrimaryHDU(header = hdr0)
         data_hdu = fits.ImageHDU(rebinneddata, header = hdr3)
         error_hdu = 'TBD'
         hdulist = fits.HDUList([primary_hdu, data_hdu])
         newfitsfile = 'mock_'+instrument+'_obs'+fitsfile
+        if (os.path.exists(output_dir+newfitsfile)): os.system('rm ' + output_dir+newfitsfile)
         hdulist.writeto(newfitsfile)
 
 
