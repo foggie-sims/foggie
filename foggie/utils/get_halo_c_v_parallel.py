@@ -136,12 +136,13 @@ def get_halo_info(system, snap, track, t):
     and saves it to the multiprocessing queue 't'.
     '''
 
-    if (system=='pleiades_cassi'):
+    '''if (system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap[-6:]
         shutil.copytree(snap[:-7], snap_dir)
         snap_name = snap_dir + '/' + snap[-6:]
-    else: snap_name = snap
+    else: snap_name = snap'''
+    snap_name = snap
 
     print('Loading ' + snap[-6:])
     ds = yt.load(snap_name)
@@ -159,9 +160,9 @@ def get_halo_info(system, snap, track, t):
             halo_velocity_kms[0], halo_velocity_kms[1], halo_velocity_kms[2]]
     print(snap[-6:] + ' done')
     t.put(row)
-    if (system=='pleiades_cassi'):
+    '''if (system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
-        shutil.rmtree(snap_dir)
+        shutil.rmtree(snap_dir)'''
 
     ds.index.clear_all_data()
 
@@ -173,11 +174,9 @@ if __name__ == "__main__":
     warnings.filterwarnings('ignore', category=FutureWarning)
     warnings.filterwarnings('ignore', category=DeprecationWarning)
 
-    foggie_dir, output_dir, run_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     output_dir = output_dir + 'halo_centers/' + 'halo_00' + args.halo + '/' + args.run + '/'
     if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
-    if (args.system=='cassiopeia') and (args.local):
-        foggie_dir = '/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/'
     run_dir = foggie_dir + run_dir
 
     # Build output list
