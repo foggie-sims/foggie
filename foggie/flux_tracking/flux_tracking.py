@@ -533,8 +533,12 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                     (np.abs(sat_z[i] - halo_center_kpc[2].v) <= 1.)):
                 sat_list.append([sat_x[i] - halo_center_kpc[0].v, sat_y[i] - halo_center_kpc[1].v, sat_z[i] - halo_center_kpc[2].v])
         sat_list = np.array(sat_list)
-        snap2 = int(snap[-4:])+1
         snap_type = snap[-6:-4]
+        if (snap_type=='RD'):
+            # If using an RD output, calculate satellite fluxes as if satellites don't move in snap2, i.e. snap1 = snap2
+            snap2 = int(snap[-4:])
+        else:
+            snap2 = int(snap[-4:])+1
         if (snap2 < 10): snap2 = snap_type + '000' + str(snap2)
         elif (snap2 < 100): snap2 = snap_type + '00' + str(snap2)
         elif (snap2 < 1000): snap2 = snap_type + '0' + str(snap2)
@@ -1718,8 +1722,12 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                     (np.abs(sat_z[i] - halo_center_kpc[2].v) <= 1.)):
                 sat_list.append([sat_x[i] - halo_center_kpc[0].v, sat_y[i] - halo_center_kpc[1].v, sat_z[i] - halo_center_kpc[2].v])
         sat_list = np.array(sat_list)
-        snap2 = int(snap[-4:])+1
         snap_type = snap[-6:-4]
+        if (snap_type=='RD'):
+            # If using an RD output, calculate satellite fluxes as if satellites don't move in snap2, i.e. snap1 = snap2
+            snap2 = int(snap[-4:])
+        else:
+            snap2 = int(snap[-4:])+1
         if (snap2 < 10): snap2 = snap_type + '000' + str(snap2)
         elif (snap2 < 100): snap2 = snap_type + '00' + str(snap2)
         elif (snap2 < 1000): snap2 = snap_type + '0' + str(snap2)
@@ -2926,19 +2934,26 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
     if (sat_radius!=0.):
         sat_file = sat_dir + 'satellites.hdf5'
         sat = Table.read(sat_file, path='all_data')
-        # Load halo center for second snapshot
-        snap2 = int(snap[-4:])+1
-        snap_type = snap[-6:-4]
-        if (snap2 < 10): snap2 = snap_type + '000' + str(snap2)
-        elif (snap2 < 100): snap2 = snap_type + '00' + str(snap2)
-        elif (snap2 < 1000): snap2 = snap_type + '0' + str(snap2)
-        else: snap2 = snap_type + str(snap2)
-        halo_c_v = Table.read(halo_c_v_name, format='ascii')
-        halo_ind = np.where(halo_c_v['col3']==snap2)[0][0]
-        halo_center_kpc2 = ds.arr([float(halo_c_v['col4'][halo_ind]), \
-                                  float(halo_c_v['col5'][halo_ind]), \
-                                  float(halo_c_v['col6'][halo_ind])], 'kpc')
-
+        # Load halo center for second snapshot if first snapshot is not an RD output
+        if (snap[:2]!='RD'):
+            snap2 = int(snap[-4:])+1
+            snap_type = snap[-6:-4]
+            if (snap2 < 10): snap2 = snap_type + '000' + str(snap2)
+            elif (snap2 < 100): snap2 = snap_type + '00' + str(snap2)
+            elif (snap2 < 1000): snap2 = snap_type + '0' + str(snap2)
+            else: snap2 = snap_type + str(snap2)
+            halo_c_v = Table.read(halo_c_v_name, format='ascii')
+            halo_ind = np.where(halo_c_v['col3']==snap2)[0][0]
+            halo_center_kpc2 = ds.arr([float(halo_c_v['col4'][halo_ind]), \
+                                      float(halo_c_v['col5'][halo_ind]), \
+                                      float(halo_c_v['col6'][halo_ind])], 'kpc')
+        else:
+            print("Removing satellites for an RD output is not as accurate as for DD outputs, but I'll do it anyway")
+            halo_c_v = Table.read(halo_c_v_name, format='ascii')
+            halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
+            halo_center_kpc2 = ds.arr([float(halo_c_v['col4'][halo_ind]), \
+                                      float(halo_c_v['col5'][halo_ind]), \
+                                      float(halo_c_v['col6'][halo_ind])], 'kpc')
     # Do the actual calculation
     #message = calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, Menc_func=Menc_func)
     if (surface_args[0]=='sphere'):
@@ -2978,8 +2993,6 @@ if __name__ == "__main__":
 
     # Specify where satellite files are saved
     if (args.remove_sats):
-        if ('RD' in args.output):
-            sys.exit('Sorry, cannot remove satellites with RD outputs. Either include satellites or try a DD output.')
         sat_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
         sat_radius = args.sat_radius
     else:
