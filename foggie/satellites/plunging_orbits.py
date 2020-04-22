@@ -11,7 +11,9 @@ from astropy import constants as c
 from astropy.cosmology import Planck13 as cosmo
 import scipy
 from scipy import stats
+from scipy import interpolate
 from scipy.interpolate import interp1d
+import astropy.units as u
 plt.ioff()
 plt.close('all')
 np.random.seed(1)
@@ -117,7 +119,7 @@ def create_plunging_tunnels(haloname, DDname, simnames = ['nref11c_nref9f'],  ra
 
 
 
-def simulate_plunging_orbits(haloname, DDname, simnames = ['nref11c_nref9f'], dinner_start = 100., nrays = 5):
+def simulate_plunging_orbits(haloname, DDname, ms, simnames = ['nref11c_nref9f'], dinner_start = 100., nrays = 5):
 
 
     rays = np.load('/Users/rsimons/Dropbox/foggie/outputs/plunge_tunnels/%s_rays.npy'%(haloname), allow_pickle = True)[()]
@@ -125,45 +127,55 @@ def simulate_plunging_orbits(haloname, DDname, simnames = ['nref11c_nref9f'], di
     to_save = {}
 
 
-
     for s, simname in enumerate(simnames):
         to_save_simname = {}
-        for i in arange(nrays+1):
 
+        for i in arange(nrays+1):
             if i <  nrays: 
-                dinner_crit = 9
+                dinner_crit = 9 * u.kpc
                 ray_name = 'ray_%s'%i
             else: 
-                dinner_crit = 0.2
+                dinner_crit = 9* u.kpc
                 ray_name = 'average'
 
             to_save_rays = {}
 
             if i%25 == 0: print (haloname, simname, i, '/', nrays)
-            dinner = yt.YTArray(dinner_start, 'kpc')
-            dt = yt.YTArray(1.e6, 'yr')
+            dinner = dinner_start*u.kpc
+            dt = 1.e6 * u.yr
             M, t = 0, 0
             tot_Ms, P_all, ts, dmids = [], [], [], []
 
-            vel_r  = rays[simname][ray_name]['vel_r']
-            dist_r = rays[simname][ray_name]['dist_r']
+            vel_r  = rays[simname][ray_name]['vel_r'].value*u.km/u.s
+            dist_r = rays[simname][ray_name]['dist_r'].value*u.kpc
+
 
 
             while True:
                 douter = dinner
 
-                vmax_interp = yt.YTArray(np.interp(douter, vesc['r_%s'%simname], vesc['vesc_%s'%simname]), 'km/s')
+                vmax_interp = np.interp(douter.value, vesc['r_%s'%simname].value, vesc['vesc_%s'%simname].value) * u.km/u.s
                 dinner = douter - (vmax_interp * dt.to('s')).to('kpc')
                 if dinner < dinner_crit : break
-                gd = argmin(abs(dist_r - (dinner + douter)/2.))
+                gd = argmin(abs(dist_r.value - (dinner.value + douter.value)/2.))
 
-                dens = rays[simname][ray_name]['density'][gd]
 
-                #dvel = vel_r[gd] + yt.YTArray(vmax_interp, 'km/s')
-                dvel = yt.YTArray(min([(vel_r[gd] - yt.YTArray(vmax_interp, 'km/s')).value, 0]), 'km/s')
+                if ray_name == 'average':
+                    #dens = rays[simname][ray_name]['density'][gd]
+                    #dvel = vel_r[gd] + yt.YTArray(vmax_interp, 'km/s')
+                    #dvel = yt.YTArray(min([(vel_r[gd] - yt.YTArray(vmax_interp, 'km/s')).value, 0]), 'km/s')
+                    dens = 10**(ms[haloname][0]*log10(dist_r[gd].value) + ms[haloname][1]) * u.g/u.cm**3.
+                    dvel = vmax_interp
+                else:
+                    dens = rays[simname][ray_name]['density'][gd].value * u.g/u.cm**3.
+                    #dvel = vel_r[gd] + yt.YTArray(vmax_interp, 'km/s')
+                    dvel = min([(vel_r[gd].value -  vmax_interp.value), 0]) * u.km/u.s
+
+
+
 
                 P = (dens * dvel**2.).to('dyne * cm**-2')
-                M += (P * dt).to('Msun * km/s * 1/kpc**2')
+                M += (P * dt).to('Msun * km/s/kpc**2')
                 tot_Ms.append(M.value)
                 P_all.append(P.value)
                 dmids.append((dinner + douter).value/2.)
@@ -196,15 +208,15 @@ def plot_plunging_orbits(haloname, name, DDname, simnames = ['nref11c_nref9f'], 
     plt.rcParams['ytick.major.size'] = 5.
     plt.rcParams['xtick.minor.size'] = 3.
     plt.rcParams['xtick.major.size'] = 5.
-
-    plt.rcParams['xtick.labelsize'] = 12.
-    plt.rcParams['ytick.labelsize'] = 12.
+    fs = 12
+    plt.rcParams['xtick.labelsize'] = 11
+    plt.rcParams['ytick.labelsize'] = 11.
     fig, axes = plt.subplots(2,1, figsize = (5.5,10))
 
     plt.ioff()
     plunge_sim = np.load('/Users/rsimons/Dropbox/foggie/outputs/plunge_tunnels/%s_simulated_plunge.npy'%(haloname), allow_pickle = True)[()]
 
-    clrs = ['black', 'red', 'blue']
+
     to_save = {}
     for s, simname in enumerate(simnames):
 
@@ -220,27 +232,51 @@ def plot_plunging_orbits(haloname, name, DDname, simnames = ['nref11c_nref9f'], 
                 lw = 0.1
                 ls = '-'
                 alp = 0.5
-                clrs[s] = 'black'
+                clr = 'black'
+                ts      = plunge_sim[simname][ray_name]['time']
+                tot_Ms  = plunge_sim[simname][ray_name]['tot_M']
+                P     = plunge_sim[simname][ray_name]['P']
+                dmids   = plunge_sim[simname][ray_name]['dmids']
             else: 
                 ray_name = 'average'
                 lw = 3.0
                 ls = '--'
                 alp = 1.0
-                clrs[s] = 'red'
+                clr = 'red'
+                '''
+                average = plunge_sim[simname]['average']                                                        
+                average_dist_r = average['dmids']
+                average_P = average['P']
+                average_totM = plunge_sim[simname][ray_name]['tot_M']
+                (m, b), v = np.polyfit(log10(average_dist_r), np.log10(average_P), deg = 1, cov = True)
 
+                fit_x = log10(np.linspace(1, 100, 1000))
+                fit_y = m*fit_x + b#*fit_x + bb
+                interp_P_average = interpolate.interp1d(10**fit_x, fit_y, bounds_error = False, fill_value = fit_y[0])
+
+                P       = 10**interp_P_average(average_dist_r)
+                ts      = plunge_sim[simname][ray_name]['time']
+                dt      = 1.e6
+                tot_Ms  = cumsum((P * dt * 1.51112067e12))
+                '''
+            dmids   = plunge_sim[simname][ray_name]['dmids']
             ts      = plunge_sim[simname][ray_name]['time']
             tot_Ms  = plunge_sim[simname][ray_name]['tot_M']
             P     = plunge_sim[simname][ray_name]['P']
             dmids   = plunge_sim[simname][ray_name]['dmids']
-
             ts_all  = concatenate((ts_all, ts))
             P_all  = concatenate((P_all, P))
             m_all  = concatenate((m_all, tot_Ms))
             dmids_all = concatenate((dmids_all, dmids))
 
             
-            axes[0].plot(ts, P, color = clrs[s], linestyle = ls, alpha = alp, linewidth = lw)    
-            axes[1].plot(ts, tot_Ms, color = clrs[s], linestyle = ls, alpha = alp, linewidth = lw)    
+            axes[0].plot(ts, P, color = clr, linestyle = ls, alpha = alp, linewidth = lw, zorder = 2)    
+            axes[1].plot(ts, tot_Ms, color = clr, linestyle = ls, alpha = alp, linewidth = lw, zorder = 3)    
+
+
+
+
+
 
             if ray_name == 'average': 
                 print ()
@@ -332,8 +368,8 @@ def plot_plunging_orbits(haloname, name, DDname, simnames = ['nref11c_nref9f'], 
         axes[1].plot(smoothed_t + 2.5, 10**(smoothed_M_50), color = clr, linewidth = 3)
         axes[1].plot(smoothed_t + 2.5, 10**(smoothed_M_84), color = clr,  linewidth = 1.5)
 
-    axes[0].set_ylabel(r'Surface Ram Pressure (dyne cm$^{-2}$)')
-    axes[1].set_ylabel(r'Cumulative Momentum Imparted (M$_{\odot}$ km s$^{-1}$ kpc$^{-2}$)')
+    axes[0].set_ylabel(r'Surface Ram Pressure (dyne cm$^{-2}$)', fontsize = fs)
+    axes[1].set_ylabel(r'Cumulative Momentum Imparted (M$_{\odot}$ km s$^{-1}$ kpc$^{-2}$)', fontsize = fs)
 
     for a, ax in enumerate(axes.ravel()):
         ax.set_yscale('log')
@@ -359,7 +395,7 @@ def plot_plunging_orbits(haloname, name, DDname, simnames = ['nref11c_nref9f'], 
         ax.set_xlim(ax2_tick_locs[-1], ax2_tick_locs[0])
         ax2.set_xlim(ax.get_xlim())
 
-        ax.axvspan(xmin = max(smoothed_t+2.5), xmax = ax.get_xlim()[1], color = 'grey', alpha = 1.0)
+        ax.axvspan(xmin = max(smoothed_t+2.5), xmax = ax.get_xlim()[1], color = 'grey', alpha = 1.0, zorder = 10)
 
 
         if a == 0:
@@ -367,7 +403,7 @@ def plot_plunging_orbits(haloname, name, DDname, simnames = ['nref11c_nref9f'], 
             ax.set_xticklabels([''])
             ax.set_xlabel('')
             #ax.set_ylim(5.e-17, 8.e-11)
-            ax2.set_xlabel('Distance from Central Galaxy (kpc)')
+            ax2.set_xlabel('Distance from Central Galaxy (kpc)', fontsize = fs)
             ax.set_yscale('symlog', linthreshy=1.e-16)
             #ax.set_ylim(-1.e-18, 5.e-12)
             #ax.set_yticks([0., 1.e-17, 1.e-16, 1.e-15, 1.e-14, 1.e-13, 1.e-12])
@@ -387,24 +423,43 @@ def plot_plunging_orbits(haloname, name, DDname, simnames = ['nref11c_nref9f'], 
         else:
             ax2.set_xticklabels([''])
             ax2.set_xlabel('')
-            ax.set_xlabel('Elapsed Time (Myr)')
+            ax.set_xlabel('Elapsed Time (Myr)', fontsize = fs)
             ax.set_ylim(1.e3, 1.e9)
 
 
-    axes[0].annotate(name, (0.05, 0.88), ha = 'left', va = 'bottom', xycoords = 'axes fraction', fontsize = 30, color = 'black', fontweight = 'bold')
-    axes[0].annotate('%i radial trajectories'%nrays, (0.05, 0.87), ha = 'left', va = 'top', xycoords = 'axes fraction', fontsize = 16, color = 'grey')
+    axes[0].annotate(name, (0.05, 0.88), ha = 'left', va = 'bottom', xycoords = 'axes fraction', fontsize = 25, color = 'black', fontweight = 'bold')
+    axes[1].annotate('true CGM', (0.90, 0.12), ha = 'right', va = 'bottom', xycoords = 'axes fraction', fontsize = 18, color = 'grey')
+    axes[1].annotate('spherically-averaged CGM', (0.90, 0.10), ha = 'right', va = 'top', xycoords = 'axes fraction', fontsize = 18, color = 'red')
 
 
     fig.tight_layout()
     fig.subplots_adjust(hspace = 0.10)
     #print ('saving %s'%haloname)
-    print ('%s %.2f  %.2f  %.2f  %.2f  %.2f  %.2f'%(haloname, smoothed_M_5[-1], smoothed_M_16[-1], smoothed_M_50[-1], smoothed_M_84[-1],smoothed_M_95[-1], tot_ms_average))
+    if haloname == 'halo_004123': 
+          hm =  0.48 
+          sm =  5.27
+    if haloname == 'halo_002878': 
+          hm =  0.73 
+          sm =  6.72
+    if haloname == 'halo_002392': 
+          hm =  0.52 
+          sm =  2.83
+    if haloname == 'halo_005036': 
+          hm =  0.33 
+          sm =  3.28
+    if haloname == 'halo_005016': 
+          hm =  0.16 
+          sm =  1.07
+    if haloname == 'halo_008508': 
+          hm =  0.14 
+          sm =  1.58
+    print ('%s %.2f  %.2f %.2f  %.2f  %.2f  %.2f  %.2f  %.2f'%(haloname, hm, sm, smoothed_M_5[-1], smoothed_M_16[-1], smoothed_M_50[-1], smoothed_M_84[-1],smoothed_M_95[-1], tot_ms_average))
     if haloname == 'halo_008508':
         fig_dir = '/Users/rsimons/Dropbox/foggie/figures/for_paper'
 
         fig.savefig(fig_dir + '/%s_nref11c_nref9f.png'%haloname, dpi = 300)
 
-    fig.savefig('/Users/rsimons/Dropbox/foggie/figures/simulated_plunges/%s_nref11c_nref9f.png'%haloname, dpi = 300)
+    fig.savefig('/Users/rsimons/Dropbox/foggie/figures/simulated_plunges/%s_nref11c_nref9f_test.png'%haloname, dpi = 300)
 
 
 
@@ -429,10 +484,31 @@ if __name__ == '__main__':
 
     nrays = 100
     halonames = halonames
+    ms = {}
+    #average density profile
+    #        fit_x = log10(np.linspace(10, 300, 1000))
+    #        fit_y = m*fit_x + b#*fit_x + bb
+    ms['halo_002392'] = [-1.588654056892834, -24.615833933058113]
+    ms['halo_002878'] = [-0.9224813099551425, -25.899655180513736]
+    ms['halo_004123'] = [-2.0563930627738847, -23.745455437461473]
+    ms['halo_005016'] = [ -1.6095668505200567, -24.717412198736657]
+    ms['halo_005036'] = [-1.5884352273933084, -24.64630120455833]
+    ms['halo_008508'] = [ -1.5188196045400442, -24.967176740412583]
+
+
+
+
+
     #Parallel(n_jobs = 2)(delayed(create_plunging_tunnels)(haloname, DDname, nrays = nrays) for (haloname,  name,DDname) in halonames)
-    #Parallel(n_jobs = -1)(delayed(simulate_plunging_orbits)(haloname,DDname,  nrays = nrays) for (haloname, name, DDname) in halonames)
+    #Parallel(n_jobs = -1)(delayed(simulate_plunging_orbits)(haloname,DDname,  ms, nrays = nrays) for (haloname, name, DDname) in halonames)
+
+
+    #for (haloname, name, DDname) in halonames:
+    #        simulate_plunging_orbits(haloname,DDname,  ms, nrays = 5)
+
     Parallel(n_jobs = -1)(delayed(plot_plunging_orbits)(haloname, name, DDname,   nrays = nrays) for (haloname, name, DDname) in halonames)
-    #plot_plunging_orbits(halonames[0][0], halonames[0][1],halonames[0][2],   nrays = nrays)
+    #for (haloname, name, DDname) in halonames:
+    #    plot_plunging_orbits(haloname, name, DDname,  nrays = 5)
 
 
 

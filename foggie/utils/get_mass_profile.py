@@ -80,6 +80,10 @@ def parse_args():
                         ' specified, code will run one output per processor')
     parser.set_defaults(nproc=1)
 
+    parser.add_argument('--simple', dest='simple', action='store_true', \
+                        help='Use this option to skip computing the ion gas masses.')
+    parser.set_defaults(simple=False)
+
 
     args = parser.parse_args()
     return args
@@ -98,24 +102,31 @@ def set_table_units(table):
         table[key].unit = table_units[key]
     return table
 
-def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename):
+def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename, ions=True):
     """Computes the mass enclosed in spheres centered on the halo center.
     Takes the dataset for the snapshot 'ds', the name of the snapshot 'snap', the redshfit of the
     snapshot 'zsnap', and the width of the refine box in kpc 'refine_width_kpc'
-    and does the calculation, then writes a hdf5 table out to 'tablename'.
+    and does the calculation, then writes a hdf5 table out to 'tablename'. If 'ions' is True then it
+    computes the enclosed mass for various gas-phase ions.
     """
 
     halo_center_kpc = ds.halo_center_kpc
 
     # Set up table of everything we want
     # NOTE: Make sure table units are updated when things are added to this table!
-    data = Table(names=('redshift', 'snapshot', 'radius', 'total_mass', 'dm_mass', \
-                        'stars_mass', 'young_stars_mass', 'old_stars_mass', 'sfr', 'gas_mass', \
-                        'gas_metal_mass', 'gas_H_mass', 'gas_HI_mass', 'gas_HII_mass', 'gas_CII_mass', \
-                        'gas_CIII_mass', 'gas_CIV_mass', 'gas_OVI_mass', 'gas_OVII_mass', 'gas_MgII_mass', \
-                        'gas_SiII_mass', 'gas_SiIII_mass', 'gas_SiIV_mass', 'gas_NeVIII_mass'), \
-                 dtype=('f8', 'S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
+    if (ions):
+        data = Table(names=('redshift', 'snapshot', 'radius', 'total_mass', 'dm_mass', \
+                            'stars_mass', 'young_stars_mass', 'old_stars_mass', 'sfr', 'gas_mass', \
+                            'gas_metal_mass', 'gas_H_mass', 'gas_HI_mass', 'gas_HII_mass', 'gas_CII_mass', \
+                            'gas_CIII_mass', 'gas_CIV_mass', 'gas_OVI_mass', 'gas_OVII_mass', 'gas_MgII_mass', \
+                            'gas_SiII_mass', 'gas_SiIII_mass', 'gas_SiIV_mass', 'gas_NeVIII_mass'), \
+                     dtype=('f8', 'S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
+    else:
+        data = Table(names=('redshift', 'snapshot', 'radius', 'total_mass', 'dm_mass', \
+                            'stars_mass', 'young_stars_mass', 'old_stars_mass', 'sfr', 'gas_mass', \
+                            'gas_metal_mass'), \
+                     dtype=('f8', 'S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
     # Define the radii of the spheres where we want to calculate mass enclosed
     radii = refine_width_kpc * np.logspace(-2,.7,250)
@@ -127,19 +138,20 @@ def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename):
 
     gas_mass = sphere['gas','cell_mass'].in_units('Msun').v
     gas_metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
-    gas_H_mass = sphere['gas','H_mass'].in_units('Msun').v
-    gas_HI_mass = sphere['gas','H_p0_mass'].in_units('Msun').v
-    gas_HII_mass = sphere['gas','H_p1_mass'].in_units('Msun').v
-    gas_CII_mass = sphere['gas','C_p1_mass'].in_units('Msun').v
-    gas_CIII_mass = sphere['gas','C_p2_mass'].in_units('Msun').v
-    gas_CIV_mass = sphere['gas','C_p3_mass'].in_units('Msun').v
-    gas_OVI_mass = sphere['gas','O_p5_mass'].in_units('Msun').v
-    gas_OVII_mass = sphere['gas','O_p6_mass'].in_units('Msun').v
-    gas_MgII_mass = sphere['gas','Mg_p1_mass'].in_units('Msun').v
-    gas_SiII_mass = sphere['gas','Si_p1_mass'].in_units('Msun').v
-    gas_SiIII_mass = sphere['gas','Si_p2_mass'].in_units('Msun').v
-    gas_SiIV_mass = sphere['gas','Si_p3_mass'].in_units('Msun').v
-    gas_NeVIII_mass = sphere['gas','Ne_p7_mass'].in_units('Msun').v
+    if (ions):
+        gas_H_mass = sphere['gas','H_mass'].in_units('Msun').v
+        gas_HI_mass = sphere['gas','H_p0_mass'].in_units('Msun').v
+        gas_HII_mass = sphere['gas','H_p1_mass'].in_units('Msun').v
+        gas_CII_mass = sphere['gas','C_p1_mass'].in_units('Msun').v
+        gas_CIII_mass = sphere['gas','C_p2_mass'].in_units('Msun').v
+        gas_CIV_mass = sphere['gas','C_p3_mass'].in_units('Msun').v
+        gas_OVI_mass = sphere['gas','O_p5_mass'].in_units('Msun').v
+        gas_OVII_mass = sphere['gas','O_p6_mass'].in_units('Msun').v
+        gas_MgII_mass = sphere['gas','Mg_p1_mass'].in_units('Msun').v
+        gas_SiII_mass = sphere['gas','Si_p1_mass'].in_units('Msun').v
+        gas_SiIII_mass = sphere['gas','Si_p2_mass'].in_units('Msun').v
+        gas_SiIV_mass = sphere['gas','Si_p3_mass'].in_units('Msun').v
+        gas_NeVIII_mass = sphere['gas','Ne_p7_mass'].in_units('Msun').v
     dm_mass = sphere['dm','particle_mass'].in_units('Msun').v
     stars_mass = sphere['stars','particle_mass'].in_units('Msun').v
     young_stars_mass = sphere['young_stars','particle_mass'].in_units('Msun').v
@@ -159,19 +171,20 @@ def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename):
         # Cut the data interior to this radius
         gas_mass_enc = np.sum(gas_mass[gas_radius <= radii[i]])
         gas_metal_mass_enc = np.sum(gas_metal_mass[gas_radius <= radii[i]])
-        gas_H_mass_enc = np.sum(gas_H_mass[gas_radius <= radii[i]])
-        gas_HI_mass_enc = np.sum(gas_HI_mass[gas_radius <= radii[i]])
-        gas_HII_mass_enc = np.sum(gas_HII_mass[gas_radius <= radii[i]])
-        gas_CII_mass_enc = np.sum(gas_CII_mass[gas_radius <= radii[i]])
-        gas_CIII_mass_enc = np.sum(gas_CIII_mass[gas_radius <= radii[i]])
-        gas_CIV_mass_enc = np.sum(gas_CIV_mass[gas_radius <= radii[i]])
-        gas_OVI_mass_enc = np.sum(gas_OVI_mass[gas_radius <= radii[i]])
-        gas_OVII_mass_enc = np.sum(gas_OVII_mass[gas_radius <= radii[i]])
-        gas_MgII_mass_enc = np.sum(gas_MgII_mass[gas_radius <= radii[i]])
-        gas_SiII_mass_enc = np.sum(gas_SiII_mass[gas_radius <= radii[i]])
-        gas_SiIII_mass_enc = np.sum(gas_SiIII_mass[gas_radius <= radii[i]])
-        gas_SiIV_mass_enc = np.sum(gas_SiIV_mass[gas_radius <= radii[i]])
-        gas_NeVIII_mass_enc = np.sum(gas_NeVIII_mass[gas_radius <= radii[i]])
+        if (ions):
+            gas_H_mass_enc = np.sum(gas_H_mass[gas_radius <= radii[i]])
+            gas_HI_mass_enc = np.sum(gas_HI_mass[gas_radius <= radii[i]])
+            gas_HII_mass_enc = np.sum(gas_HII_mass[gas_radius <= radii[i]])
+            gas_CII_mass_enc = np.sum(gas_CII_mass[gas_radius <= radii[i]])
+            gas_CIII_mass_enc = np.sum(gas_CIII_mass[gas_radius <= radii[i]])
+            gas_CIV_mass_enc = np.sum(gas_CIV_mass[gas_radius <= radii[i]])
+            gas_OVI_mass_enc = np.sum(gas_OVI_mass[gas_radius <= radii[i]])
+            gas_OVII_mass_enc = np.sum(gas_OVII_mass[gas_radius <= radii[i]])
+            gas_MgII_mass_enc = np.sum(gas_MgII_mass[gas_radius <= radii[i]])
+            gas_SiII_mass_enc = np.sum(gas_SiII_mass[gas_radius <= radii[i]])
+            gas_SiIII_mass_enc = np.sum(gas_SiIII_mass[gas_radius <= radii[i]])
+            gas_SiIV_mass_enc = np.sum(gas_SiIV_mass[gas_radius <= radii[i]])
+            gas_NeVIII_mass_enc = np.sum(gas_NeVIII_mass[gas_radius <= radii[i]])
         dm_mass_enc = np.sum(dm_mass[dm_radius <= radii[i]])
         stars_mass_enc = np.sum(stars_mass[stars_radius <= radii[i]])
         young_stars_mass_enc = np.sum(young_stars_mass[young_stars_radius <= radii[i]])
@@ -180,12 +193,16 @@ def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename):
         total_mass_enc = gas_mass_enc + dm_mass_enc + stars_mass_enc
 
         # Add everything to the table
-        data.add_row([zsnap, snap, radii[i], total_mass_enc, dm_mass_enc, stars_mass_enc, \
-                    young_stars_mass_enc, old_stars_mass_enc, sfr_enc, gas_mass_enc, gas_metal_mass_enc, \
-                    gas_H_mass_enc, gas_HI_mass_enc, gas_HII_mass_enc, gas_CII_mass_enc, \
-                    gas_CIII_mass_enc, gas_CIV_mass_enc, gas_OVI_mass_enc, gas_OVII_mass_enc, \
-                    gas_MgII_mass_enc, gas_SiII_mass_enc, gas_SiIII_mass_enc, gas_SiIV_mass_enc, \
-                    gas_NeVIII_mass_enc])
+        if (ions):
+            data.add_row([zsnap, snap, radii[i], total_mass_enc, dm_mass_enc, stars_mass_enc, \
+                        young_stars_mass_enc, old_stars_mass_enc, sfr_enc, gas_mass_enc, gas_metal_mass_enc, \
+                        gas_H_mass_enc, gas_HI_mass_enc, gas_HII_mass_enc, gas_CII_mass_enc, \
+                        gas_CIII_mass_enc, gas_CIV_mass_enc, gas_OVI_mass_enc, gas_OVII_mass_enc, \
+                        gas_MgII_mass_enc, gas_SiII_mass_enc, gas_SiIII_mass_enc, gas_SiIV_mass_enc, \
+                        gas_NeVIII_mass_enc])
+        else:
+            data.add_row([zsnap, snap, radii[i], total_mass_enc, dm_mass_enc, stars_mass_enc, \
+                        young_stars_mass_enc, old_stars_mass_enc, sfr_enc, gas_mass_enc, gas_metal_mass_enc])
 
     # Save to file
     data = set_table_units(data)
@@ -193,10 +210,11 @@ def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename):
 
     return "Masses have been calculated for snapshot" + snap + "!"
 
-def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename):
+def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, ions=True):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the halo center file 'halo_c_v_name', and the name
-    of the table to output 'tablename', then does the calculation on the loaded snapshot.'''
+    of the table to output 'tablename', then does the calculation on the loaded snapshot.
+    If 'ions' is True then it computes the enclosed mass of various gas-phase ions.'''
 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
     if (system=='pleiades_cassi'):
@@ -207,10 +225,11 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
     ds, refine_box = foggie_load(snap_name, track, halo_c_v_name=halo_c_v_name)
     refine_width_kpc = ds.quan(ds.refine_width, 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-    trident.add_ion_fields(ds, ions=['O VI', 'O VII', 'Mg II', 'Si II', 'C II', 'C III', 'C IV',  'Si III', 'Si IV', 'Ne VIII'], ftype='gas')
+    if (ions):
+        trident.add_ion_fields(ds, ions=['O VI', 'O VII', 'Mg II', 'Si II', 'C II', 'C III', 'C IV',  'Si III', 'Si IV', 'Ne VIII'], ftype='gas')
 
     # Do the actual calculation
-    message = calc_masses(ds, snap, zsnap, refine_width_kpc, tablename)
+    message = calc_masses(ds, snap, zsnap, refine_width_kpc, tablename, ions=ions)
     if (system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
@@ -278,6 +297,9 @@ if __name__ == "__main__":
             outs.append(output_type + pad + str(i))
     else: outs = [args.output]
 
+    if (args.simple): ions = False
+    else: ions = True
+
     # Loop over outputs, for either single-processor or parallel processor computing
     if (args.nproc==1):
         for i in range(len(outs)):
@@ -285,7 +307,7 @@ if __name__ == "__main__":
             # Make the output table name for this snapshot
             tablename = prefix + snap + '_masses'
             # Do the actual calculation
-            load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)
+            load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions=ions)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
@@ -295,7 +317,7 @@ if __name__ == "__main__":
                 snap = outs[args.nproc*i+j]
                 tablename = prefix + snap + '_masses'
                 threads.append(multi.Process(target=load_and_calculate, \
-			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
+			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))
             for t in threads:
                 t.start()
             for t in threads:
@@ -306,7 +328,7 @@ if __name__ == "__main__":
             snap = outs[-(j+1)]
             tablename = prefix + snap + '_masses'
             threads.append(multi.Process(target=load_and_calculate, \
-			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename)))
+			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))
         for t in threads:
             t.start()
         for t in threads:

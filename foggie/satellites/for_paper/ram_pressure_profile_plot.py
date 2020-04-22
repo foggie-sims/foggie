@@ -3,6 +3,9 @@ import numpy as np
 from numpy import *
 from scipy import interpolate
 from astropy.io import ascii
+import yt
+import astropy.units as u
+plt.rcParams['text.latex.preamble'] = [r'\usepackage{amsmath}']
 plt.ioff()
 plt.close('all')
 
@@ -57,6 +60,8 @@ t_90 = []
 t_90_ifaverage = []
 examples = [('8508', 'b'), ('5036', 'b'), ('4123', 'd')]
 #examples = []
+flag = False
+#halos = ['8508', '5036', '4123']
 
 for h, halo in enumerate(halos):
     fig3, ax_check = plt.subplots(1,1, figsize = (8, 8))    
@@ -65,12 +70,6 @@ for h, halo in enumerate(halos):
     average = np.load('/Users/rsimons/Dropbox/foggie/outputs/plunge_tunnels/halo_00%s_simulated_plunge.npy'%halo, allow_pickle =True)[()]['nref11c_nref9f']['average']                                                        
     average_dist_r = average['dmids']
     average_P = average['P']
-
-
-
-    
-
-
 
     (m, b), v = np.polyfit(log10(average_dist_r), np.log10(average_P), deg = 1, cov = True)
 
@@ -83,21 +82,21 @@ for h, halo in enumerate(halos):
 
     ax_check.legend()
 
-    flag = False
     if flag:  interp_average = interpolate.interp1d(average_dist_r, average_P, bounds_error = False, fill_value = average_P[-1])
     else:     interp_average = interpolate.interp1d(10**fit_x, fit_y, bounds_error = False, fill_value = fit_y[0])
 
-
     for sat in sat_cat_halo['id']:
         #if (halo, sat) not in examples: continue
+
+        
 
         if sat == '0': continue
         rp_track = rp_tracks[halo][sat]
         if np.isnan(rp_track['time_interp'][0]): continue
 
         time_interp  = rp_track['time_interp'] * 1000.
-        rp_interp = rp_track['ram_interp']
-        dt        = rp_track['dt'].to('Myr')
+        rp_interp = rp_track['ram_interp'].value# * u.dyne/(u.cm**2.) 
+        dt        = rp_track['dt'].to('Myr').value#*u.Myr
 
         dist_interp = rp_track['dist_interp']
 
@@ -111,7 +110,7 @@ for h, halo in enumerate(halos):
         sort_arg = argsort(rp_interp)[::-1]
         sort_rp    = rp_interp[sort_arg]
         sort_time  = time_interp[sort_arg]
-        sort_mom = cumsum(sort_rp * dt)
+        sort_mom = cumsum(sort_rp* dt)
         tot_mom = sort_mom[-1]
 
 
@@ -126,13 +125,31 @@ for h, halo in enumerate(halos):
 
         if (halo, sat) in examples:
             ###Example#####
-            axes[cnt].plot(time_interp, rp_interp/(1.e-11), color = 'black')
-            #axes[cnt].plot(time_interp, rp_interp_ifaverage/(1.e-11), color = 'red')
-
+            axes[cnt].plot(time_interp, rp_interp/(1.e-11), color = 'black', zorder = 10)
+            axes[cnt].plot(time_interp, rp_interp_ifaverage/(1.e-11), color = 'red', zorder = 10)
+            print (rp_interp_ifaverage[argmin(dist_interp)]/(1.e-11))
 
             perc_90_arg = argmin(abs(sort_mom - tot_mom * 0.90))
 
             print (min(time_interp), max(time_interp))
+
+            if halo == '8508':
+                gd = argmin(dist_interp)
+                alp = 1.0
+                zo = 20
+                axes[cnt].axvline(x = time_interp[gd], color = 'grey', alpha = alp, zorder = zo)
+                axes[cnt].annotate('periapsis', (time_interp[gd]*1.02, 0.65), rotation = -90, ha = 'left', va = 'top',  color = 'grey', fontsize = 10)
+
+            if halo == '5036':
+                gd = argmin(dist_interp)
+                axes[cnt].axvline(x = time_interp[gd], color = 'grey', alpha = alp, zorder = zo)
+            if halo == '4123':
+                gd1 = argmin(rp_track['dist_interp'][rp_track['time_interp'] < 0.3])
+                gd2 = argmin(rp_track['dist_interp'][(rp_track['time_interp'] < 0.6) & (rp_track['time_interp'] >0.4)])
+
+                axes[cnt].axvline(x = time_interp[rp_track['time_interp'] < 0.3][gd1], color = 'grey', alpha = alp, zorder = zo)
+                axes[cnt].axvline(x = time_interp[(rp_track['time_interp'] < 0.6) & (rp_track['time_interp'] >0.4)][gd2], color = 'grey', alpha = alp, zorder = zo)
+
 
             for i in arange(0, perc_90_arg):
 
@@ -141,7 +158,7 @@ for h, halo in enumerate(halos):
                                       where = abs(time_interp - sort_time[i]) < 5*dt,
                                        color = 'blue', alpha = 0.1)
 
-            cnt+=1
+            cnt+=1  
 
 
 
@@ -152,9 +169,8 @@ for h, halo in enumerate(halos):
 
         axes2.plot(np.linspace(0, 1, len(sort_mom))[:arg_90], sort_mom[:arg_90]/tot_mom, 'b-')
         axes2.plot(np.linspace(0, 1, len(sort_mom))[arg_90:], sort_mom[arg_90:]/tot_mom, '-', color = 'grey')
-
         arg_90_ifaverage = argmin(abs(sort_mom_ifaverage/tot_mom_ifaverage - 0.9))
-        #axes2.plot(np.linspace(0, 1, len(sort_mom_ifaverage))[:arg_90_ifaverage], sort_mom_ifaverage[:arg_90_ifaverage]/tot_mom_ifaverage, 'r-', alpha = 0.4)
+        axes2.plot(np.linspace(0, 1, len(sort_mom_ifaverage))[:arg_90_ifaverage], sort_mom_ifaverage[:arg_90_ifaverage]/tot_mom_ifaverage, 'r-', alpha = 0.4)
         axes2.plot(np.linspace(0, 1, len(sort_mom_ifaverage))[arg_90_ifaverage:], sort_mom_ifaverage[arg_90_ifaverage:]/tot_mom_ifaverage, '-', color = 'grey')
 
         t_90_ifaverage.append(t_plot[arg_90_ifaverage])
@@ -176,7 +192,7 @@ axes[-1].set_xlabel('time (Myr)', fontsize = 18)
 
 bns = np.linspace(0, 1., 16)
 counts1, edges1, bars1 = axes22.hist(t_90, color = 'blue', bins = bns, zorder = 5,  linewidth = 3)
-#counts2, edges2, bars2 = axes22.hist(t_90_ifaverage, color = 'red', bins = bns, zorder = 5, alpha = 1.0, linewidth = 3)
+counts2, edges2, bars2 = axes22.hist(t_90_ifaverage, color = 'red', bins = bns, zorder = 5, alpha = 1.0, linewidth = 3)
 
 
 
@@ -212,7 +228,7 @@ axes22.annotate('constant\nram pressure', (0.88, 0.96), ha = 'right', va = 'top'
 
 
 axes22.annotate('true\nsimulated\nCGM', (0.18, 0.90), ha = 'left', va = 'top', xycoords = 'axes fraction', color = 'blue', fontsize = 18)
-#axes22.annotate('spherically-\naveraged\nsimulated\nCGM', (0.75, 0.6), ha = 'right', va = 'top', xycoords = 'axes fraction', color = 'red', fontsize = 18)
+axes22.annotate('spherically-\naveraged\nsimulated\nCGM', (0.63, 0.6), ha = 'right', va = 'top', xycoords = 'axes fraction', color = 'red', fontsize = 18)
 
 
 
@@ -306,7 +322,8 @@ axes0_0.set_xlim(500, 650)
 axes0_0.axis('off')
 
 axes0_0.annotate(r'$\Delta$t$_{90}$', (0.30, 0.02), color = 'black', ha = 'right', xycoords = 'axes fraction', va = 'bottom')
-axes0_0.annotate(r't$_{\textrm{total}}$', (0.30, 0.85),color = 'black', ha = 'right',  xycoords = 'axes fraction', va = 'top')
+#axes0_0.annotate(r't$_{\textrm{total}}$', (0.30, 0.85),color = 'black', ha = 'right',  xycoords = 'axes fraction', va = 'top')
+axes0_0.annotate(r't$_{total}$', (0.30, 0.85),color = 'black', ha = 'right',  xycoords = 'axes fraction', va = 'top')
 
 axes0_0.annotate('90$\%$\nof total', (0.62, 0.72),color = 'blue', ha = 'left',  xycoords = 'axes fraction', va = 'top')
 
@@ -318,6 +335,7 @@ xmx = max(x[y>5.e-3])
 xmd = (xmn+xmx)/2.
 xer = abs(xmd - xmn)
 axes0_0.errorbar([xmd], [-0.005], yerr = [0], xerr = xer,  fmt = '', capsize=5, elinewidth=2, color = 'black')
+
 
 
 
@@ -338,7 +356,7 @@ axes22.annotate('less bursty\nram pressure', xy = (0.85, 1.065), xytext = (0.75,
 
 
 fig.subplots_adjust(top = 0.85)
-fig.savefig('/Users/rsimons/Dropbox/foggie/figures/for_paper/ram_pressure_cumulative_onlyblue.png', dpi = 350)
+fig.savefig('/Users/rsimons/Dropbox/foggie/figures/for_paper/ram_pressure_cumulative_test.png', dpi = 350)
 #fig2.savefig('/Users/rsimons/Dropbox/foggie/figures/for_paper/cumulative_momentum_plot.png', dpi = 350)
 
 

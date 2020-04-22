@@ -21,7 +21,7 @@ plt.rcParams['text.usetex'] = True
 
 
 
-def Re_lange(mass, a = 6.347, b = 0.327, sigma = 0.16):
+def Re_lange(mass, a = 6.347, b = 0.327, sigma = 0.10):
   return 10**(np.log10(a * (mass.value * 1.e-10)**b) + np.random.normal(0, sigma))
 
 
@@ -67,12 +67,6 @@ mbary_to_mtot = 1/2.
 mstar_to_mgas = 1/1.
 
 
-
-
-
-
-
-
 for m, (mstar, ann_str) in enumerate(toy_models):
     mgas = mstar/mstar_to_mgas
     Re_arr = np.array([Re_lange(mstar) for i in np.arange(1000)])*u.kpc
@@ -81,8 +75,9 @@ for m, (mstar, ann_str) in enumerate(toy_models):
     sigma_0 = mgas/pi/alpha**2./2.
     sigma_re = sigma_0 * np.exp(-(Re_arr/alpha))
 
-    mtot = (mstar + mgas)/mbary_to_mtot
+    mtot = (mstar + mgas)/mbary_to_mtot/2.
     vesc = np.sqrt(2*G * mtot/(Re_arr))
+
 
     log_mom_n1 = log10((vesc * sigma_re).to('Msun * km * s**-1 * kpc**-2').value)
 
@@ -98,7 +93,7 @@ for m, (mstar, ann_str) in enumerate(toy_models):
     log_mom_tot = concatenate((log_mom_n1, log_mom_n4))
     mom_tot_perc = np.percentile(log_mom_tot, [16, 50, 84])
 
-    ax.axhspan(ymin = mom_tot_perc[0], ymax = mom_tot_perc[1], xmin = 0, xmax = 1, color = 'grey', zorder = 0., alpha = 0.3)
+    ax.axhspan(ymin = mom_tot_perc[0], ymax = mom_tot_perc[-1], xmin = 0, xmax = 1, color = 'grey', zorder = 0., alpha = 0.3)
     #ax.axhline(y = log_mom, xmin = 0.15, xmax = 1.0, color = 'grey', linestyle = 'dashed')
     xann = 11.98
     yann = mom_tot_perc[0] * 0.998
@@ -145,7 +140,7 @@ ax_inset.set_yticks([])
 
 
 fig.tight_layout()
-fig.savefig(fig_dir + '/momentum_versus_mass_halonames.png', dpi = 400)
+fig.savefig(fig_dir + '/momentum_versus_mass_halonames_test3.png', dpi = 400)
 
 
 
