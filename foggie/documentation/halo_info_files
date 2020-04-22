@@ -24,6 +24,7 @@ Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
 8508/nref11n_nref10f snapshots DD0044-DD1630
 5016/nref11c_nref9f snapshots DD0250-DD1763, RD0020-RD0030
+2392/nref11c_nref9f snapshots DD0511-DD0959, RD0019-RD0021
 
 Created by:
 utils/get_halo_c_v_parallel.py
