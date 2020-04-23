@@ -163,11 +163,12 @@ Units:
 
 Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
+5016/nref11c_nref9f snapshots DD0250-DD1763, RD0020-RD0030
     - these are the 8508 snapshots with catalogued mass profiles as of 04/23/20
 
 Created by:
 utils/get_rvir.py 
-        python get_rvir.py --halo 8508 --use_catalog_profile
+        use as e.g., python get_rvir.py --halo 8508 --use_catalog_profile
 Author:
 Raymond (04/23/20), using Cassi's mass profile catalogs "masses_z-gtr-2.hdf5 and masses_z-less-2.hdf5"
 
