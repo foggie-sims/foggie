@@ -2,7 +2,7 @@
 Filename: get_rvir.py
 Author: Raymond
 Created: 01-16-19
-Last modified:  01-16-19
+Last modified:  04-23-19
 
 This file calculates the virial radius (R200) and the total/dark/gas/star mass inside Rvir.
 '''
@@ -63,7 +63,7 @@ def parse_args():
 
     parser.add_argument('--figdir', metavar='figdir', type=str, action='store',
                         help='which output? default is RD0020')
-    parser.set_defaults(figdir='.')
+    parser.set_defaults(figdir='/Users/rsimons/Dropbox/foggie/figures/rvir_check')
 
 
 
@@ -170,7 +170,7 @@ def make_fig(args, masses_trim, internal_density, rho_crit, data):
     ax.set_ylabel(r'M ($<$ r) (M$_{\odot}$)')
 
     fig.tight_layout()
-    fig.savefig('/Users/rsimons/Dropbox/foggie/figures/rvir_check/%s_%s_%s_r200.png'%(args.halo, args.run, args.output), dpi = 300)
+    fig.savefig('%s/%s_%s_%s_r200.png'%(args.figdir, args.halo, args.run, args.output), dpi = 300)
 
 
 def find_rvir(ds, halo_center = None, do_fig = False, sphere_radius = 250*kpc, figdir = '.', n_bins = 500):
@@ -221,19 +221,10 @@ def find_rvir_catalogs(args, data, halo_infos_dir, figdir = '.'):
       #snapshot less than 2
       masses = Table.read('%s/masses_z-less-2.hdf5'%halo_infos_dir)
       gd = where(masses['snapshot'] == args.output)[0]
-
-    
+      
 
     radius  = masses['radius'][gd]
     total_mass = masses['total_mass'][gd]
-    gas_mass   = masses['gas_mass'][gd]
-    stars_mass = masses['stars_mass'][gd]
-    dm_mass = masses['dm_mass'][gd]
-
-
-    masses_unit =  masses['total_mass'].unit
-    radius_unit =  masses['radius'].unit
-
     redshift = masses['redshift'][gd][0]
 
     internal_density =  total_mass.to('g')/(4*np.pi*radius.to('cm')**3./3.)
@@ -250,9 +241,7 @@ def find_rvir_catalogs(args, data, halo_infos_dir, figdir = '.'):
         interp_fnc = interp1d(radius, masses[key][gd])
         res.append(interp_fnc(rvir))
 
-
     data.add_row(res)
-
 
     if args.do_fig: make_fig(args, masses[gd], internal_density, rho_crit, data)
 
@@ -284,20 +273,37 @@ if __name__ == '__main__':
     data = set_table_units(data)
 
 
-  outputs = ['DD%.4i'%i for i in np.arange(45, 2400,1)]
-  for args.output in outputs:
-    if args.use_catalog_profile:
-      if float(args.output.strip('DD'))%200 == 0:  args.do_fig = True
-      else: args.do_fig = False
-      data = find_rvir_catalogs(args, data, halo_infos_dir)
+  if args.use_catalog_profile:
+    DDoutputs = ['DD%.4i'%i for i in np.arange(44, 2428,1)]
+    masses1 = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
+    masses2 = Table.read('%s/masses_z-less-2.hdf5'%halo_infos_dir)
+    list1 = list(masses1['snapshot'])
+    list2 = list(masses2['snapshot'])
+    full_list = np.array(list1 +   list2)
+    
+    outputs = unique(full_list)
+    for args.output in DDoutputs:
+        if 'DD' in args.output:
+          if float(args.output.strip('DD'))%200 == 0:  args.do_fig = True
+          else: args.do_fig = False
+        else: 
+          args.do_fig = True
 
-    else:
-      ds, refine_box = sim_load(args)
-      res = find_rvir(ds, halo_center = ds.halo_center_kpc, do_fig = args.do_fig, figdir = args.figdir)
+
+        data = find_rvir_catalogs(args, data, halo_infos_dir)
+        print ('\t %s %s %s Rvir (kpc) = %.2f'%(args.halo, args.run, args.output, data['radius'][-1]))
+
+    data.write(halo_infos_dir + '/rvir_masses.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+  
+
+
+
+  else:
+    ds, refine_box = sim_load(args)
+    res = find_rvir(ds, halo_center = ds.halo_center_kpc, do_fig = args.do_fig, figdir = args.figdir)
 
 
   
-    print ('\t %s %s %s Rvir (kpc) = %.2f'%(args.halo, args.run, args.output, data['radius'][-1]))
     if False:
       print ('\t Rvir (kpc) = %.2f'%(res['rvir'].to('kpc').value))
       print ('\t Mvir (10^11 Msun) = %.3f'%(res['Mvir'].to('Msun').value/1.e11))
@@ -307,12 +313,6 @@ if __name__ == '__main__':
       print ('\t Mbary/Mdark = %.3f'%((res['Mgas_rvir'] + res['Mstars_rvir'])/res['Mdm_rvir']))
       print ('\t Mbary/Mtot  = %.3f'%((res['Mgas_rvir'] + res['Mstars_rvir'])/res['Mvir']))
      
-
-  
-
-  data.write(halo_infos_dir + '/rvir_masses.hdf5', path='all_data', serialize_meta=True, overwrite=True)
-  
-
 
 
 
