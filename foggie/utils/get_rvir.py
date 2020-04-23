@@ -108,7 +108,7 @@ def make_fig(args, masses_trim, internal_density, rho_crit, data):
     ax.plot(masses_trim['radius'], masses_trim['gas_mass'],\
             color = plot_colors['gas'], linewidth = 1.5, linestyle = '--')
 
-    ax.set_xlim(0, 150.)
+    ax.set_xlim(0, 200.)
     ax2 = ax.twinx()
 
     ax2.plot(masses_trim['radius'],  internal_density, color = 'blue', linestyle = '-', linewidth = 3.5)
@@ -221,7 +221,7 @@ def find_rvir_catalogs(args, data, halo_infos_dir, figdir = '.'):
       #snapshot less than 2
       masses = Table.read('%s/masses_z-less-2.hdf5'%halo_infos_dir)
       gd = where(masses['snapshot'] == args.output)[0]
-      
+
 
     radius  = masses['radius'][gd]
     total_mass = masses['total_mass'][gd]
@@ -289,7 +289,7 @@ if __name__ == '__main__':
         else: 
           args.do_fig = True
 
-
+          
         data = find_rvir_catalogs(args, data, halo_infos_dir)
         print ('\t %s %s %s Rvir (kpc) = %.2f'%(args.halo, args.run, args.output, data['radius'][-1]))
 
