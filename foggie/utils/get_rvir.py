@@ -20,7 +20,7 @@ import numpy as np
 from numpy import *
 import argparse
 from foggie.utils.foggie_load import *
-
+from scipy.interpolate import interp1d 
 
 
 
@@ -48,6 +48,9 @@ def parse_args():
                         help='just use the pwd?, default is no')
     parser.set_defaults(use_halo_c_v=False)
 
+    parser.add_argument('--use_catalog_profile', dest='use_catalog_profile', action='store_true',
+                        help='just use the pwd?, default is no')
+    parser.set_defaults(use_halo_c_v=False)
 
     parser.add_argument('--output', metavar='output', type=str, action='store',
                         help='which output? default is RD0020')
@@ -68,6 +71,106 @@ def parse_args():
     return args
 
 
+def make_fig(args, masses_trim, internal_density, rho_crit, data):
+    plt.close('all')
+    plt.ioff()
+    fig, ax = plt.subplots(1,1, figsize = (7,7))
+    if len(data) > 1:
+      rvir = data['radius'][-1]
+      Mvir = data['total_mass'][-1]
+      Mdm_rvir = data['dm_mass'][-1]
+      Mgas_rvir = data['gas_mass'][-1]
+      Mstars_rvir = data['young_stars_mass'][-1]
+    else:
+      rvir = data['radius']
+      Mvir = data['total_mass']
+      Mdm_rvir = data['dm_mass']
+      Mgas_rvir = data['gas_mass']
+      Mstars_rvir = data['young_stars_mass']
+
+
+    plot_colors = {}
+    plot_colors['total']  = 'black'
+    plot_colors['dark']   = 'grey'
+    plot_colors['stars']  = 'goldenrod'
+    plot_colors['gas']    = 'green'
+
+
+
+    #plot total mass profile
+    ax.plot(masses_trim['radius'], masses_trim['total_mass'], \
+            color = plot_colors['total'], linewidth = 3.5, linestyle = '-')
+    #plot component mass profiles
+    ax.plot(masses_trim['radius'], masses_trim['dm_mass'],\
+            color = plot_colors['dark'], linewidth = 1.5,linestyle = '--')
+    ax.plot(masses_trim['radius'], masses_trim['stars_mass'],\
+            color = plot_colors['stars'], linewidth = 1.5,linestyle = '--')
+    ax.plot(masses_trim['radius'], masses_trim['gas_mass'],\
+            color = plot_colors['gas'], linewidth = 1.5, linestyle = '--')
+
+    ax.set_xlim(0, 150.)
+    ax2 = ax.twinx()
+
+    ax2.plot(masses_trim['radius'],  internal_density, color = 'blue', linestyle = '-', linewidth = 3.5)
+
+
+    ax2.yaxis.label.set_color('blue')
+    ax2.spines['right'].set_color('blue')
+    ax2.tick_params(axis='y', colors='blue')
+
+
+
+    ax2.axvline(rvir, color = 'darkblue', alpha = 0.4)
+    ax2.axhline(y = 200*rho_crit.value, xmin = 0.0, xmax = 0.77, color = 'darkblue', alpha = 0.4)
+
+
+
+    ax2.set_ylabel(r'$\rho$ ($<$r) (g cm$^{-3}$)')
+    ax2.set_yscale('log')
+
+    fs = 15
+    ax2.set_ylim(1.e-30, 1.e-18)
+
+
+
+    ax2.annotate(r'z = %.2f'%(data['redshift'][-1]), (0.98, 0.98),  xycoords = 'axes fraction', ha = 'right', va = 'top',\
+                 color = plot_colors['total'], fontsize = fs )
+    ax2.annotate(r'%s'%(data['snapshot'][-1]), (0.98, 0.94),  xycoords = 'axes fraction', ha = 'right', va = 'top',\
+                 color = plot_colors['total'], fontsize = fs )
+
+    ax2.annotate(r'R$_{200}$ = %.1f kpc'%(rvir), (0.98, 0.90),  xycoords = 'axes fraction', ha = 'right', va = 'top',\
+                 color = plot_colors['total'], fontsize = fs )
+    ax2.annotate(r'M$_{200, tot}$ = %.4f x $10^{11}$ M$_{\odot}$'%(Mvir/1.e11), (0.98, 0.86), xycoords = 'axes fraction', ha = 'right', va = 'top', \
+                color = plot_colors['total'], fontsize = fs)
+    ax2.annotate(r'M$_{200, dark}$ = %.4f x $10^{11}$ M$_{\odot}$'%(Mdm_rvir/1.e11), (0.98, 0.82), xycoords = 'axes fraction', ha = 'right', va = 'top', \
+                color = plot_colors['dark'], fontsize = fs)
+    ax2.annotate(r'M$_{200, stars}$ = %.4f x $10^{11}$ M$_{\odot}$'%(Mstars_rvir/1.e11),(0.98, 0.78), xycoords = 'axes fraction',  ha = 'right', va = 'top', \
+                color = plot_colors['stars'], fontsize = fs)
+    ax2.annotate(r'M$_{200, gas}$ = %.4f x $10^{11}$ M$_{\odot}$'%(Mgas_rvir/1.e11), (0.98, 0.74),  xycoords = 'axes fraction', ha = 'right', va = 'top', \
+                color = plot_colors['gas'], fontsize = fs)
+
+
+
+
+
+
+    ax.scatter(rvir, Mvir, c = plot_colors['total'], s = 20)
+    ax.scatter(rvir, Mdm_rvir, c = plot_colors['dark'], s = 20)
+    ax.scatter(rvir, Mgas_rvir, c = plot_colors['gas'], s = 20)
+    ax.scatter(rvir, Mstars_rvir, c = plot_colors['stars'], s = 20)
+
+    ax2.plot(rvir,200*rho_crit,  'x', color = 'b', markersize = 20)
+
+
+
+    ax2.annotate(r'200 x $\rho_{crit}$', (148, 200*rho_crit.value), ha = 'right', va = 'center',\
+                 color = 'darkblue', fontsize = 18 )
+
+    ax.set_xlabel('distance from central (kpc)')
+    ax.set_ylabel(r'M ($<$ r) (M$_{\odot}$)')
+
+    fig.tight_layout()
+    fig.savefig('/Users/rsimons/Dropbox/foggie/figures/rvir_check/%s_%s_%s_r200.png'%(args.halo, args.run, args.output), dpi = 300)
 
 
 def find_rvir(ds, halo_center = None, do_fig = False, sphere_radius = 250*kpc, figdir = '.', n_bins = 500):
@@ -105,85 +208,58 @@ def find_rvir(ds, halo_center = None, do_fig = False, sphere_radius = 250*kpc, f
     res['Mstars_rvir'] = Mstars_rvir.to('Msun')
 
 
-    if do_fig:
-
-      plt.close('all')
-      plt.ioff()
-      plot_colors = {}
-      plot_colors['total']  = 'black'
-      plot_colors['dark']   = 'grey'
-      plot_colors['stars']  = 'goldenrod'
-      plot_colors['gas']    = 'green'
-
-
-      fig, ax = plt.subplots(1,1, figsize = (7,7))
-
-      #plot total mass profile
-      ax.plot(prof_dm.x.to('kpc'), prof_dm[('deposit', 'dm_mass')].to('Msun') + prof_stars[('deposit', 'stars_mass')].to('Msun') +  prof_gas[('gas', 'cell_mass')].to('Msun'), \
-              color = plot_colors['total'], linewidth = 3.5, linestyle = '-')
-
-      #plot component mass profiles
-      ax.plot(prof_dm.x.to('kpc'), prof_dm[('deposit', 'dm_mass')].to('Msun'),\
-              color = plot_colors['dark'], linewidth = 1.5,linestyle = '--')
-      ax.plot(prof_stars.x.to('kpc'), prof_stars[('deposit', 'stars_mass')].to('Msun'),\
-              color = plot_colors['stars'], linewidth = 1.5,linestyle = '--')
-      ax.plot(prof_gas.x.to('kpc'), prof_gas[('gas', 'cell_mass')].to('Msun'),\
-              color = plot_colors['gas'], linewidth = 1.5, linestyle = '--')
-
-      ax.set_xlim(0, float(sphere_radius.value))
-      ax2 = ax.twinx()
-
-      ax2.plot(prof_dm.x.to('kpc'),  internal_density.to('g * cm**-3'), color = 'blue', linestyle = '-', linewidth = 3.5)
-
-
-      ax2.yaxis.label.set_color('blue')
-      ax2.spines['right'].set_color('blue')
-      ax2.tick_params(axis='y', colors='blue')
-
-
-
-      ax2.axvline(rvir.to('kpc'), color = 'darkblue', alpha = 0.4)
-      ax2.axhline(y = 200*rho_crit.value, xmin = 0.0, xmax = 0.77, color = 'darkblue', alpha = 0.4)
-
-
-
-      ax2.set_ylabel(r'$\rho$ ($<$r) (g cm$^{-3}$)')
-      ax2.set_yscale('log')
-
-      fs = 15
-      ax2.set_ylim(1.e-30, 1.e-18)
-      ax2.annotate(r'R$_{200}$ = %.1f kpc'%(rvir.to('kpc')), (0.98, 0.6),  xycoords = 'axes fraction', ha = 'right', va = 'top',\
-                   color = plot_colors['total'], fontsize = fs )
-      ax2.annotate(r'M$_{200, tot}$ = %.2f x $10^{11}$ M$_{\odot}$'%(Mvir.to('Msun')/1.e11), (0.98, 0.56), xycoords = 'axes fraction', ha = 'right', va = 'top', \
-                  color = plot_colors['total'], fontsize = fs)
-      ax2.annotate(r'M$_{200, dark}$ = %.2f x $10^{11}$ M$_{\odot}$'%(Mdm_rvir.to('Msun')/1.e11), (0.98, 0.52), xycoords = 'axes fraction', ha = 'right', va = 'top', \
-                  color = plot_colors['dark'], fontsize = fs)
-      ax2.annotate(r'M$_{200, stars}$ = %.2f x $10^{11}$ M$_{\odot}$'%(Mstars_rvir.to('Msun')/1.e11),(0.98, 0.48), xycoords = 'axes fraction',  ha = 'right', va = 'top', \
-                  color = plot_colors['stars'], fontsize = fs)
-      ax2.annotate(r'M$_{200, gas}$ = %.2f x $10^{11}$ M$_{\odot}$'%(Mgas_rvir.to('Msun')/1.e11), (0.98, 0.44),  xycoords = 'axes fraction', ha = 'right', va = 'top', \
-                  color = plot_colors['gas'], fontsize = fs)
-
-      ax.scatter(rvir.to('kpc'), Mvir.to('Msun'), c = plot_colors['total'], s = 20)
-      ax.scatter(rvir.to('kpc'), Mdm_rvir.to('Msun'), c = plot_colors['dark'], s = 20)
-      ax.scatter(rvir.to('kpc'), Mgas_rvir.to('Msun'), c = plot_colors['gas'], s = 20)
-      ax.scatter(rvir.to('kpc'), Mstars_rvir.to('Msun'), c = plot_colors['stars'], s = 20)
-
-      ax2.plot(rvir.to('kpc'),200*rho_crit.value,  'x', color = 'b', markersize = 20)
-
-
-
-      ax2.annotate(r'200 x $\rho_{crit}$', (float(sphere_radius.value) * 0.98, 200*rho_crit.value), ha = 'right', va = 'center',\
-                   color = 'darkblue', fontsize = 18 )
-      ax.set_xlabel('distance from central (kpc)')
-      ax.set_ylabel(r'M ($<$ r) (M$_{\odot}$)')
-
-      fig.tight_layout()
-      halo =  ds.fullpath.split('/')[-3]
-      run =  ds.fullpath.split('/')[-2]
-      ddname =  ds.fullpath.split('/')[-1] 
-      fig.savefig(figdir + '/%s_%s_%s_r200.png'%(halo, run, ddname), dpi = 300)
-
     return res
+
+
+
+def find_rvir_catalogs(args, data, halo_infos_dir, figdir = '.'):
+
+    from astropy.table import Table
+    masses = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
+    gd = where(masses['snapshot'] == args.output)[0]
+    if len(gd) == 0:
+      #snapshot less than 2
+      masses = Table.read('%s/masses_z-less-2.hdf5'%halo_infos_dir)
+      gd = where(masses['snapshot'] == args.output)[0]
+
+    
+
+    radius  = masses['radius'][gd]
+    total_mass = masses['total_mass'][gd]
+    gas_mass   = masses['gas_mass'][gd]
+    stars_mass = masses['stars_mass'][gd]
+    dm_mass = masses['dm_mass'][gd]
+
+
+    masses_unit =  masses['total_mass'].unit
+    radius_unit =  masses['radius'].unit
+
+    redshift = masses['redshift'][gd][0]
+
+    internal_density =  total_mass.to('g')/(4*np.pi*radius.to('cm')**3./3.)
+    rho_crit = cosmo.critical_density(redshift)
+    #argrvir = argmin(abs(internal_density - 200*rho_crit))
+    interp_fnc = interp1d(internal_density, radius)
+
+    rvir = interp_fnc(200*rho_crit)#radius[argrvir] * radius_unit
+    res = []
+    for key in masses.keys():
+      if (key == 'redshift') | (key == 'snapshot'):
+        res.append(masses[key][gd][0])
+      else:
+        interp_fnc = interp1d(radius, masses[key][gd])
+        res.append(interp_fnc(rvir))
+
+
+    data.add_row(res)
+
+
+    if args.do_fig: make_fig(args, masses[gd], internal_density, rho_crit, data)
+
+
+    return data
+
+    
 
 
 
@@ -192,18 +268,50 @@ if __name__ == '__main__':
 
   args = parse_args()
 
-  ds, refine_box = sim_load(args)
-  res = find_rvir(ds, halo_center = ds.halo_center_kpc, do_fig = args.do_fig, figdir = args.figdir)
 
-  print ('\t %s %s %s'%(args.halo, args.run, args.output))
-  print ('\t Rvir (kpc) = %.1f'%(res['rvir'].to('kpc')))
-  print ('\t Mvir (10^11 Msun) = %.3f'%(res['Mvir'].to('Msun')/1.e11))
-  print ('\t Msta (10^11 Msun) = %.3f'%(res['Mstars_rvir'].to('Msun')/1.e11))
-  print ('\t Mgas (10^11 Msun) = %.3f'%(res['Mgas_rvir'].to('Msun')/1.e11))
-  print ('\t Mdar (10^11 Msun) = %.3f'%(res['Mdm_rvir'].to('Msun')/1.e11))
-  print ('\t Mbary/Mdark = %.3f'%((res['Mgas_rvir'] + res['Mstars_rvir'])/res['Mdm_rvir']))
-  print ('\t Mbary/Mtot  = %.3f'%((res['Mgas_rvir'] + res['Mstars_rvir'])/res['Mvir']))
+  if args.use_catalog_profile:
+    _, _, _, code_path, _, _, _, _ = get_run_loc_etc(args)
+    halo_infos_dir = code_path + '/halo_infos/00%s/%s'%(args.halo, args.run)
+    data = Table(names=('redshift', 'snapshot', 'radius', 'total_mass', 'dm_mass', \
+                        'stars_mass', 'young_stars_mass', 'old_stars_mass', 'sfr', 'gas_mass', \
+                        'gas_metal_mass', 'gas_H_mass', 'gas_HI_mass', 'gas_HII_mass', 'gas_CII_mass', \
+                        'gas_CIII_mass', 'gas_CIV_mass', 'gas_OVI_mass', 'gas_OVII_mass', 'gas_MgII_mass', \
+                        'gas_SiII_mass', 'gas_SiIII_mass', 'gas_SiIV_mass', 'gas_NeVIII_mass'), \
+                 dtype=('f8', 'S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
+    from foggie.utils.get_mass_profile import set_table_units
 
+    data = set_table_units(data)
+
+
+  outputs = ['DD%.4i'%i for i in np.arange(45, 2400,1)]
+  for args.output in outputs:
+    if args.use_catalog_profile:
+      if float(args.output.strip('DD'))%200 == 0:  args.do_fig = True
+      else: args.do_fig = False
+      data = find_rvir_catalogs(args, data, halo_infos_dir)
+
+    else:
+      ds, refine_box = sim_load(args)
+      res = find_rvir(ds, halo_center = ds.halo_center_kpc, do_fig = args.do_fig, figdir = args.figdir)
+
+
+  
+    print ('\t %s %s %s Rvir (kpc) = %.2f'%(args.halo, args.run, args.output, data['radius'][-1]))
+    if False:
+      print ('\t Rvir (kpc) = %.2f'%(res['rvir'].to('kpc').value))
+      print ('\t Mvir (10^11 Msun) = %.3f'%(res['Mvir'].to('Msun').value/1.e11))
+      print ('\t Msta (10^11 Msun) = %.3f'%(res['Mstars_rvir'].to('Msun').value/1.e11))
+      print ('\t Mgas (10^11 Msun) = %.3f'%(res['Mgas_rvir'].to('Msun').value/1.e11))
+      print ('\t Mdar (10^11 Msun) = %.3f'%(res['Mdm_rvir'].to('Msun').value/1.e11))
+      print ('\t Mbary/Mdark = %.3f'%((res['Mgas_rvir'] + res['Mstars_rvir'])/res['Mdm_rvir']))
+      print ('\t Mbary/Mtot  = %.3f'%((res['Mgas_rvir'] + res['Mstars_rvir'])/res['Mvir']))
+     
+
+  
+
+  data.write(halo_infos_dir + '/rvir_masses.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+  
 
 
 
