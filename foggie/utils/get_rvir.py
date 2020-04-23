@@ -282,14 +282,14 @@ if __name__ == '__main__':
     full_list = np.array(list1 +   list2)
     
     outputs = unique(full_list)
-    for args.output in DDoutputs:
+    for args.output in outputs:
         if 'DD' in args.output:
           if float(args.output.strip('DD'))%200 == 0:  args.do_fig = True
           else: args.do_fig = False
         else: 
           args.do_fig = True
 
-          
+
         data = find_rvir_catalogs(args, data, halo_infos_dir)
         print ('\t %s %s %s Rvir (kpc) = %.2f'%(args.halo, args.run, args.output, data['radius'][-1]))
 
