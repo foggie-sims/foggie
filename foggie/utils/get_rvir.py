@@ -163,7 +163,7 @@ def make_fig(args, masses_trim, internal_density, rho_crit, data):
 
 
 
-    ax2.annotate(r'200 x $\rho_{crit}$', (148, 200*rho_crit.value), ha = 'right', va = 'center',\
+    ax2.annotate(r'200 x $\rho_{crit}$', (198, 200*rho_crit.value), ha = 'right', va = 'center',\
                  color = 'darkblue', fontsize = 18 )
 
     ax.set_xlabel('distance from central (kpc)')
