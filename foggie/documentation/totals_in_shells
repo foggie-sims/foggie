@@ -93,6 +93,23 @@ then it will compute a frustum pointing the opposite direction.
 inner_radius, outer_radius, and num_radii are the same as for the sphere and opening_angle gives the
 angle in degrees of the opening angle of the cone, measured from axis (note that the total opening
 angle of the cone will be 2*opening_angle).
+If you want a cylinder, give:
+"['cylinder', axis, bottom_edge, top_edge, radius, step_direction, num_steps]"
+where axis specifies what axis to align the length of the cylinder with and can be one of the following:
+'x'
+'y'
+'z'
+'minor' (aligns with disk minor axis)
+(x,y,z) (a tuple giving a 3D vector for an arbitrary axis).
+For all axis definitions other than the arbitrary vector, if the axis string starts with a '-',
+it will compute a cylinder pointing in the opposite direction.
+bottom_edge, top_edge, and radius give the dimensions of the cylinder, where bottom_ and top_edge are
+distance from halo center, by default in units of refine_width (unless the --kpc option is specified),
+and radius is always in units of kpc.
+step_direction can be 'height', which will compute fluxes across circular planes in the cylinder
+parallel to the flat sides, or 'radius', which will compute fluxes across different radii within the
+cylinder perpendicular to the cylinder's flat sides.
+'num_steps' gives the number of places (either heights or radii) within the cylinder where to calculate fluxes.
 
 --kpc
 If this option is specified, inner_radius and outer_radius given in the surface argument will be
@@ -138,8 +155,10 @@ And you can find the units for a column (example here is radius) by doing:
     print(totals_table['radius'].unit)
 
 Each file has a ridiculous number of columns. The first few columns are information about the snapshot
-and where the total was calculated, they are "redshift", "inner_radius", "outer_radius", which tells
-you the redshift, and the radii *between* which the total is calculated.
+and where the total was calculated, they are "redshift", "inner_radius", "outer_radius"
+(sphere and frustum), which tells you the redshift, and the radii *between* which the total is calculated.
+For a cylinder with calculation direction "height" specified, instead of "inner_radius" and "outer_radius",
+there will be "bottom_edge" and "top_edge", which tells you the heights between which the total is calculated.
 
 The rest of the columns list the values of the totals, depending on what you specified for flux_type.
 The "mass" type gives columns of "mass" and "metals". These are given in Msun.
@@ -150,10 +169,10 @@ The "O_ion_mass" type gives columns for masses of total oxygen and each of the o
 "O_mass", "OI_mass", "OII_mass", etc. up to "OIX_mass". These are given in Msun.
 
 The totals are broken down into net, inward, and outward, specifying the total amount of stuff with
-cuts on radial velocity below or above zero. They are then
-further broken down into cold, cool, warm, and hot gas, with the sum of these 4 being equal to
-just the net total. To obtain the net total (meaning without any radial velocity cut), append "net_" to the
-front of the total type, e.g. "net_mass". To obtain the totals first cut on radial velocity, append
+cuts on radial (or vertical direction, for a cylinder with 'height' specified) velocity below or above
+zero. They are then further broken down into cold, cool, warm, and hot gas, with the sum of these 4 being equal to
+just the net total. To obtain the net total (meaning without any velocity cut), append "net_" to the
+front of the total type, e.g. "net_mass". To obtain the totals first cut on velocity, append
 "_in" or "_out" to the *end* of the total type (and remove "net_" from the beginning), e.g. "mass_in".
 To obtain the total for a specific temperature gas, append "cold_", "cool_", "warm_", or "hot_" to the
 beginning of the total type (but after "net_" if present), e.g. "cold_mass_in" or "net_hot_mass".

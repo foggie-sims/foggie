@@ -12,16 +12,11 @@ Requires:
 There must exist an entry in /halo_infos/haloID/runID/halo_c_v for the snapshot you are running
 flux_tracking.py on.
 
-If you would like to remove satellites, then you need a little bit more:
-There must exist an entry in /halo_infos/haloID/runID/halo_c_v for the snapshot immediately following the snapshot you are running
-flux_tracking.py on.
-
-There must exist an entry in /halo_infos/haloID/runID/satellites.hdf5 for the snapshot you are
-running flux_tracking.py on, and there must exist an entry in the same file for the snapshot
-immediately following the snapshot you are running flux_tracking.py on. ('haloID' is '008508' for Tempest,
+If you would like to remove fluxes, there must exist an entry in /halo_infos/haloID/runID/satellites.hdf5
+for the snapshot you are running flux_tracking.py on. ('haloID' is '008508' for Tempest,
 for example, and 'runID' is 'nref11c_nref9f', for example.) For example, if you would
 like to run flux_tracking.py on DD1920 of Tempest run nref11c_nref9f, there must be an entry in
-/halo_infos/8508/nref11c_nref9f/satellites.hdf5 file for both DD1920 and DD1921.
+/halo_infos/8508/nref11c_nref9f/satellites.hdf5 file for DD1920.
 
 If there are not entries in the above files for the snapshot you are running flux_tracking.py on,
 or if the above files do not exist for the halo and run you are running flux_tracking.py on, you
@@ -72,7 +67,7 @@ output only, do not use more than 1 processor.
 
 --surface "['XXXX', X, X, X, X]"
 What surface type for computing the flux? Default is sphere in 200 steps between 0.05*refine_width
-and 2*refine_width. Other option is "frustum". Note that all surfaces will be centered
+and 2*refine_width. Other options are "frustum" or "cylinder". Note that all surfaces will be centered
 on halo center. To specify the shape, size, and orientation of the surface you want, input a list as
 follows:
 Don't forget to put the whole list in quotes! The whole thing must be passed as a single string,
@@ -97,6 +92,23 @@ then it will compute a frustum pointing the opposite direction.
 inner_radius, outer_radius, and num_radii are the same as for the sphere and opening_angle gives the
 angle in degrees of the opening angle of the cone, measured from axis (note that the total opening
 angle of the cone will be 2*opening_angle).
+If you want a cylinder, give:
+"['cylinder', axis, bottom_edge, top_edge, radius, step_direction, num_steps]"
+where axis specifies what axis to align the length of the cylinder with and can be one of the following:
+'x'
+'y'
+'z'
+'minor' (aligns with disk minor axis)
+(x,y,z) (a tuple giving a 3D vector for an arbitrary axis).
+For all axis definitions other than the arbitrary vector, if the axis string starts with a '-',
+it will compute a cylinder pointing in the opposite direction.
+bottom_edge, top_edge, and radius give the dimensions of the cylinder, where bottom_ and top_edge are
+distance from halo center, by default in units of refine_width (unless the --kpc option is specified),
+and radius is always in units of kpc.
+step_direction can be 'height', which will compute fluxes across circular planes in the cylinder
+parallel to the flat sides, or 'radius', which will compute fluxes across different radii within the
+cylinder perpendicular to the cylinder's flat sides.
+'num_steps' gives the number of places (either heights or radii) within the cylinder where to calculate fluxes.
 
 --kpc
 If this option is specified, inner_radius and outer_radius given in the surface argument will be
@@ -151,7 +163,9 @@ For the _sat file, the first few columns are "redshift", "inner_radius", "outer_
 you again the redshift, and the radii *between* which the fluxes into and out of satellites are
 calculated. For example, if inner_radius is 30 kpc and outer_radius is 40 kpc, that indicates the
 fluxes are calculated to and from all satellites located between 30 and 40 kpc (which may be none,
-in which case the flux will be zero).
+in which case the flux will be zero). If the surface is a cylinder with 'height' specified as the
+flux direction, then instead of inner_radius and outer_radius, these will be replaced with bottom_edge
+and top_edge. Similarly, 'radius' will be replaced with 'height' in the _nosat file.
 
 The rest of the columns list the values of the fluxes, depending on what you specified for flux_type.
 The "mass" flux type gives columns of "mass_flux" and "metal_flux". These are given in Msun/yr.
@@ -174,12 +188,13 @@ in this case indicates flux that is *entering* the domain coming *from* satellit
 inner_radius and outer_radius (see above). Likewise, "_out" indicates flux that is *leaving* the
 domain and going *to* satellites.
 
-If the surface requested is a frustum, the above two files will be created, but there will also
+If the surface requested is a frustum or a cylinder, the above two files will be created, but there will also
 be one additional file, e.g. DD1236_fluxes_edges_frustum. This file also has inner_radius and
-outer_radius like the _sat file, and gives the fluxes passing through the outer edges of the cone
-between inner_radius and outer_radius. In this case, "_in" indicates fluxes *entering* the cone
-through the edges (i.e. not radially), and "_out" indicates fluxes *leaving* the cone through the
-edges.
+outer_radius (or bottom_edge and top_edge) like the _sat file, and gives the fluxes passing through
+the outer edges of the cone or cylinder between inner_radius and outer_radius, or passing through the
+outer curved edge of the cylinder between bottom_edge and top_edge. In this case, "_in" indicates fluxes
+*entering* the cone or cylinder through the edges, and "_out" indicates fluxes *leaving* the cone or
+cylinder through the edges.
 
 Note about radiative energy fluxes:
 By definition, the radiative energy flux is volumetric, not the physical motion of a gas quantity
