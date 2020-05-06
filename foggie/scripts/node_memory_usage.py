@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt 
 
 def get_memory_by_node():    
-    os.system('grep time mem* | cut -b 43-1000000 > mems') # quickly preprocess the memory trace files 
+    os.system('grep time mem* | grep -v time | cut -b 43-1000000 > mems') # quickly preprocess the memory trace files 
     memory_table = Table.read('mems', format='ascii')
     memory_table.rename_column('col1', 'timestamp')
     for k in memory_table.keys()[1:]: 
