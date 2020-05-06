@@ -100,7 +100,7 @@ def parse_args():
 
     parser.add_argument('--surface', metavar='surface', type=str, action='store', \
                         help='What surface type for computing the totals? Default is sphere' + \
-                        ' and the other option is "frustum".\nNote that all surfaces will be centered on halo center.\n' + \
+                        ' and the other options are "frustum" or "cylinder".\nNote that all surfaces will be centered on halo center.\n' + \
                         'To specify the shape, size, and orientation of the surface you want, ' + \
                         'input a list as follows (don\'t forget the outer quotes):\nIf you want a sphere, give:\n' + \
                         '"[\'sphere\', inner_radius, outer_radius, num_radii]"\n' + \
@@ -114,7 +114,17 @@ def parse_args():
                         "'x'\n'y'\n'z'\n'minor' (aligns with disk minor axis)\n(x,y,z) (a tuple giving a 3D vector for an arbitrary axis).\n" + \
                         'For all axis definitions other than the arbitrary vector, if the axis string starts with a \'-\', it will compute a frustum pointing in the opposite direction.\n' + \
                         'inner_radius, outer_radius, and num_radii are the same as for the sphere\n' + \
-                        'and opening_angle gives the angle in degrees of the opening angle of the cone, measured from axis.')
+                        'and opening_angle gives the angle in degrees of the opening angle of the cone, measured from axis.\n' + \
+                        'If you want a cylinder, give:\n' + \
+                        '"[\'cylinder\', axis, bottom_edge, top_edge, radius, step_direction, num_steps]"\n' + \
+                        'where axis specifies what axis to align the length of the cylinder with and can be one of the following:\n' + \
+                        "'x'\n'y'\n'z'\n'minor' (aligns with disk minor axis)\n(x,y,z) (a tuple giving a 3D vector for an arbitrary axis).\n" + \
+                        'For all axis definitions other than the arbitrary vector, if the axis string starts with a \'-\', it will compute a cylinder pointing in the opposite direction.\n' + \
+                        'bottom_edge, top_edge, and radius give the dimensions of the cylinder, where bottom_ and top_edge are distance from halo center,\n' + \
+                        'by default in units of refine_width (unless the --kpc option is specified), and radius is always in units of kpc.\n' + \
+                        "step_direction can be 'height', which will compute fluxes across circular planes in the cylinder parallel to the flat sides, or 'radius', which\n" + \
+                        "will compute fluxes across different radii within the cylinder perpendicular to the cylinder's flat sides.\n" + \
+                        "'num_steps' gives the number of places (either heights or radii) within the cylinder where to calculate fluxes.")
     parser.set_defaults(surface="['sphere', 0.05, 2., 200]")
 
     parser.add_argument('--kpc', dest='kpc', action='store_true',
@@ -139,6 +149,7 @@ def set_table_units(table):
     the table. Returns the table.'''
 
     table_units = {'redshift':None,'inner_radius':'kpc','outer_radius':'kpc', \
+             'bottom_edge':'kpc', 'top_edge':'kpc', \
              'net_mass':'Msun', 'net_metals':'Msun', \
              'mass_in':'Msun', 'mass_out':'Msun', \
              'metals_in' :'Msun', 'metals_out':'Msun',\
@@ -1095,7 +1106,6 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
         # Cut data to remove anything within satellites and to things that cross into and out of satellites
         # Restrict to only things that start or end within the frustum
         print('Cutting data to remove satellites')
-        sat_radius = 10.         # kpc
         sat_radius_sq = sat_radius**2.
         # An attempt to remove satellites faster:
         # Holy cow this is so much faster, do it this way
@@ -1507,6 +1517,725 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
 
     return "Totals have been calculated for snapshot " + snap + "!"
 
+def calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_args, flux_types, **kwargs):
+    '''This function calculates the totals of gas properties between surfaces within a cylinder,
+    with satellites removed, at a variety of heights or radii. It
+    uses the dataset stored in 'ds', which is from time snapshot 'snap', has redshift
+    'zsnap', and has width of the refine box in kpc 'refine_width_kpc', and stores the totals in
+    'tablename'. 'surface_args' gives the properties of the cylinder.'''
+
+    sat = kwargs.get('sat')
+    sat_radius = kwargs.get('sat_radius', 0.)
+
+    halo_center_kpc = ds.halo_center_kpc
+
+    cmtopc = 3.086e18
+    stoyr = 3.154e7
+    gtoMsun = 1.989e33
+
+    units_kpc = surface_args[8]
+    if (units_kpc):
+        bottom_edge = ds.quan(surface_args[3], 'kpc')
+        top_edge = ds.quan(surface_args[4], 'kpc')
+    else:
+        bottom_edge = surface_args[3]*refine_width_kpc
+        top_edge = surface_args[4]*refine_width_kpc
+    cyl_radius = ds.quan(surface_args[5], 'kpc')
+    if (surface_args[6]=='height'):
+        dz = (top_edge - bottom_edge)/surface_args[7]
+    elif (surface_args[6]=='radius'):
+        dz = cyl_radius/surface_args[7]
+    axis = surface_args[1]
+    flip = surface_args[2]
+
+    # Set up table of everything we want
+    # NOTE: Make sure table units are updated when things are added to this table!
+    if (surface_args[6]=='height'):
+        names_list = ('redshift', 'bottom_edge', 'top_edge')
+    elif (surface_args[6]=='radius'):
+        names_list = ('redshift', 'inner_radius', 'outer_radius')
+    types_list = ('f8', 'f8', 'f8')
+    if ('mass' in flux_types):
+        new_names = ('net_mass', 'net_metals', \
+        'mass_in', 'mass_out', 'metals_in', 'metals_out', \
+        'net_cold_mass', 'cold_mass_in', 'cold_mass_out', \
+        'net_cool_mass', 'cool_mass_in', 'cool_mass_out', \
+        'net_warm_mass', 'warm_mass_in', 'warm_mass_out', \
+        'net_hot_mass', 'hot_mass_in', 'hot_mass_out', \
+        'net_cold_metals', 'cold_metals_in', 'cold_metals_out', \
+        'net_cool_metals', 'cool_metals_in', 'cool_metals_out', \
+        'net_warm_metals', 'warm_metals_in', 'warm_metals_out', \
+        'net_hot_metals', 'hot_metals_in', 'hot_metals_out')
+        new_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
+        names_list += new_names
+        types_list += new_types
+    if ('energy' in flux_types):
+        new_names = ('net_kinetic_energy', 'net_thermal_energy', 'net_potential_energy', \
+        'kinetic_energy_in', 'kinetic_energy_out', \
+        'thermal_energy_in', 'thermal_energy_out', \
+        'potential_energy_in', 'potential_energy_out', \
+        'net_cold_kinetic_energy', 'cold_kinetic_energy_in', 'cold_kinetic_energy_out', \
+        'net_cool_kinetic_energy', 'cool_kinetic_energy_in', 'cool_kinetic_energy_out', \
+        'net_warm_kinetic_energy', 'warm_kinetic_energy_in', 'warm_kinetic_energy_out', \
+        'net_hot_kinetic_energy', 'hot_kinetic_energy_in', 'hot_kinetic_energy_out', \
+        'net_cold_thermal_energy', 'cold_thermal_energy_in', 'cold_thermal_energy_out', \
+        'net_cool_thermal_energy', 'cool_thermal_energy_in', 'cool_thermal_energy_out', \
+        'net_warm_thermal_energy', 'warm_thermal_energy_in', 'warm_thermal_energy_out', \
+        'net_hot_thermal_energy', 'hot_thermal_energy_in', 'hot_thermal_energy_out', \
+        'net_cold_potential_energy', 'cold_potential_energy_in', 'cold_potential_energy_out', \
+        'net_cool_potential_energy', 'cool_potential_energy_in', 'cool_potential_energy_out', \
+        'net_warm_potential_energy', 'warm_potential_energy_in', 'warm_potential_energy_out', \
+        'net_hot_potential_energy', 'hot_potential_energy_in', 'hot_potential_energy_out')
+        new_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
+        names_list += new_names
+        types_list += new_types
+    if ('entropy' in flux_types):
+        new_names = ('net_entropy', 'entropy_in', 'entropy_out', \
+        'net_cold_entropy', 'cold_entropy_in', 'cold_entropy_out', \
+        'net_cool_entropy', 'cool_entropy_in', 'cool_entropy_out', \
+        'net_warm_entropy', 'warm_entropy_in', 'warm_entropy_out', \
+        'net_hot_entropy', 'hot_entropy_in', 'hot_entropy_out')
+        new_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
+        names_list += new_names
+        types_list += new_types
+    if ('O_ion_mass' in flux_types):
+        new_names = ('net_O_mass', 'O_mass_in', 'O_mass_out', \
+        'net_cold_O_mass', 'cold_O_mass_in', 'cold_O_mass_out', \
+        'net_cool_O_mass', 'cool_O_mass_in', 'cool_O_mass_out', \
+        'net_warm_O_mass', 'warm_O_mass_in', 'warm_O_mass_out', \
+        'net_hot_O_mass', 'hot_O_mass_in', 'hot_O_mass_out', \
+        'net_OI_mass', 'OI_mass_in', 'OI_mass_out', \
+        'net_cold_OI_mass', 'cold_OI_mass_in', 'cold_OI_mass_out', \
+        'net_cool_OI_mass', 'cool_OI_mass_in', 'cool_OI_mass_out', \
+        'net_warm_OI_mass', 'warm_OI_mass_in', 'warm_OI_mass_out', \
+        'net_hot_OI_mass', 'hot_OI_mass_in', 'hot_OI_mass_out', \
+        'net_OII_mass', 'OII_mass_in', 'OII_mass_out', \
+        'net_cold_OII_mass', 'cold_OII_mass_in', 'cold_OII_mass_out', \
+        'net_cool_OII_mass', 'cool_OII_mass_in', 'cool_OII_mass_out', \
+        'net_warm_OII_mass', 'warm_OII_mass_in', 'warm_OII_mass_out', \
+        'net_hot_OII_mass', 'hot_OII_mass_in', 'hot_OII_mass_out', \
+        'net_OIII_mass', 'OIII_mass_in', 'OIII_mass_out', \
+        'net_cold_OIII_mass', 'cold_OIII_mass_in', 'cold_OIII_mass_out', \
+        'net_cool_OIII_mass', 'cool_OIII_mass_in', 'cool_OIII_mass_out', \
+        'net_warm_OIII_mass', 'warm_OIII_mass_in', 'warm_OIII_mass_out', \
+        'net_hot_OIII_mass', 'hot_OIII_mass_in', 'hot_OIII_mass_out', \
+        'net_OIV_mass', 'OIV_mass_in', 'OIV_mass_out', \
+        'net_cold_OIV_mass', 'cold_OIV_mass_in', 'cold_OIV_mass_out', \
+        'net_cool_OIV_mass', 'cool_OIV_mass_in', 'cool_OIV_mass_out', \
+        'net_warm_OIV_mass', 'warm_OIV_mass_in', 'warm_OIV_mass_out', \
+        'net_hot_OIV_mass', 'hot_OIV_mass_in', 'hot_OIV_mass_out', \
+        'net_OV_mass', 'OV_mass_in', 'OV_mass_out', \
+        'net_cold_OV_mass', 'cold_OV_mass_in', 'cold_OV_mass_out', \
+        'net_cool_OV_mass', 'cool_OV_mass_in', 'cool_OV_mass_out', \
+        'net_warm_OV_mass', 'warm_OV_mass_in', 'warm_OV_mass_out', \
+        'net_hot_OV_mass', 'hot_OV_mass_in', 'hot_OV_mass_out', \
+        'net_OVI_mass', 'OVI_mass_in', 'OVI_mass_out', \
+        'net_cold_OVI_mass', 'cold_OVI_mass_in', 'cold_OVI_mass_out', \
+        'net_cool_OVI_mass', 'cool_OVI_mass_in', 'cool_OVI_mass_out', \
+        'net_warm_OVI_mass', 'warm_OVI_mass_in', 'warm_OVI_mass_out', \
+        'net_hot_OVI_mass', 'hot_OVI_mass_in', 'hot_OVI_mass_out', \
+        'net_OVII_mass', 'OVII_mass_in', 'OVII_mass_out', \
+        'net_cold_OVII_mass', 'cold_OVII_mass_in', 'cold_OVII_mass_out', \
+        'net_cool_OVII_mass', 'cool_OVII_mass_in', 'cool_OVII_mass_out', \
+        'net_warm_OVII_mass', 'warm_OVII_mass_in', 'warm_OVII_mass_out', \
+        'net_hot_OVII_mass', 'hot_OVII_mass_in', 'hot_OVII_mass_out', \
+        'net_OVIII_mass', 'OVIII_mass_in', 'OVIII_mass_out', \
+        'net_cold_OVIII_mass', 'cold_OVIII_mass_in', 'cold_OVIII_mass_out', \
+        'net_cool_OVIII_mass', 'cool_OVIII_mass_in', 'cool_OVIII_mass_out', \
+        'net_warm_OVIII_mass', 'warm_OVIII_mass_in', 'warm_OVIII_mass_out', \
+        'net_hot_OVIII_mass', 'hot_OVIII_mass_in', 'hot_OVIII_mass_out', \
+        'net_OIX_mass', 'OIX_mass_in', 'OIX_mass_out', \
+        'net_cold_OIX_mass', 'cold_OIX_mass_in', 'cold_OIX_mass_out', \
+        'net_cool_OIX_mass', 'cool_OIX_mass_in', 'cool_OIX_mass_out', \
+        'net_warm_OIX_mass', 'warm_OIX_mass_in', 'warm_OIX_mass_out', \
+        'net_hot_OIX_mass', 'hot_OIX_mass_in', 'hot_OIX_mass_out')
+        new_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8','f8', 'f8', 'f8')
+        names_list += new_names
+        types_list += new_types
+    totals = Table(names=names_list, dtype=types_list)
+
+    # Define the surfaces where we want to calculate fluxes
+    if (surface_args[6]=='height'):
+        surfaces = ds.arr(np.arange(bottom_edge, top_edge+dz, dz), 'kpc')
+    elif (surface_args[6]=='radius'):
+        surfaces = ds.arr(np.arange(0., cyl_radius+dz, dz), 'kpc')
+
+    # Load arrays of all fields we need
+    print('Loading field arrays')
+    sphere = ds.sphere(halo_center_kpc, max([bottom_edge, top_edge+dz, cyl_radius+dz]))
+
+    x = sphere['gas','x'].in_units('kpc').v - halo_center_kpc[0].v
+    y = sphere['gas','y'].in_units('kpc').v - halo_center_kpc[1].v
+    z = sphere['gas','z'].in_units('kpc').v - halo_center_kpc[2].v
+    vx = sphere['gas','vx_corrected'].in_units('km/s').v
+    vy = sphere['gas','vy_corrected'].in_units('km/s').v
+    vz = sphere['gas','vz_corrected'].in_units('km/s').v
+    temperature = sphere['gas','temperature'].in_units('K').v
+    if ('mass' in flux_types):
+        mass = sphere['gas','cell_mass'].in_units('Msun').v
+        metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
+    if ('energy' in flux_types):
+        kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
+        thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
+        potential_energy = (sphere['gas','cell_mass'] * \
+          ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
+    if ('entropy' in flux_types):
+        entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
+    if ('O_ion_mass' in flux_types):
+        trident.add_ion_fields(ds, ions='all', ftype='gas')
+        abundances = trident.ion_balance.solar_abundance
+        OI_frac = sphere['O_p0_ion_fraction'].v
+        OII_frac = sphere['O_p1_ion_fraction'].v
+        OIII_frac = sphere['O_p2_ion_fraction'].v
+        OIV_frac = sphere['O_p3_ion_fraction'].v
+        OV_frac = sphere['O_p4_ion_fraction'].v
+        OVI_frac = sphere['O_p5_ion_fraction'].v
+        OVII_frac = sphere['O_p6_ion_fraction'].v
+        OVIII_frac = sphere['O_p7_ion_fraction'].v
+        OIX_frac = sphere['O_p8_ion_fraction'].v
+        renorm = OI_frac + OII_frac + OIII_frac + OIV_frac + OV_frac + \
+          OVI_frac + OVII_frac + OVIII_frac + OIX_frac
+        O_frac = abundances['O']/(sum(abundances.values()) - abundances['H'] - abundances['He'])
+        O_mass = sphere['metal_mass'].in_units('Msun').v*O_frac
+        OI_mass = OI_frac/renorm*O_mass
+        OII_mass = OII_frac/renorm*O_mass
+        OIII_mass = OIII_frac/renorm*O_mass
+        OIV_mass = OIV_frac/renorm*O_mass
+        OV_mass = OV_frac/renorm*O_mass
+        OVI_mass = OVI_frac/renorm*O_mass
+        OVII_mass = OVII_frac/renorm*O_mass
+        OVIII_mass = OVIII_frac/renorm*O_mass
+        OIX_mass = OIX_frac/renorm*O_mass
+
+    # Cut data to only the cylinder considered here
+    if (flip):
+        cyl_filename = '-'
+    else:
+        cyl_filename = ''
+    if (axis=='z'):
+        norm_coord = z
+        rad_coord = np.sqrt(x**2. + y**2.)
+        norm_v = vz
+        rad_v = vx*x/rad_coord + vy*y/rad_coord
+        cyl_filename += 'z'
+    if (axis=='x'):
+        norm_coord = x
+        rad_coord = np.sqrt(y**2. + z**2.)
+        norm_v = vx
+        rad_v = vz*z/rad_coord + vy*y/rad_coord
+        cyl_filename += 'x'
+    if (axis=='y'):
+        norm_coord = y
+        rad_coord = np.sqrt(x**2. + z**2.)
+        norm_v = vy
+        rad_v = vz*z/rad_coord + vx*x/rad_coord
+        cyl_filename += 'y'
+    if (axis=='disk minor axis'):
+        x_disk = sphere['gas','x_disk'].in_units('kpc').v
+        y_disk = sphere['gas','y_disk'].in_units('kpc').v
+        z_disk = sphere['gas','z_disk'].in_units('kpc').v
+        vx_disk = sphere['gas','vx_disk'].in_units('km/s').v
+        vy_disk = sphere['gas','vy_disk'].in_units('km/s').v
+        vz_disk = sphere['gas','vz_disk'].in_units('km/s').v
+        norm_coord = z_disk
+        rad_coord = np.sqrt(x_disk**2. + y_disk**2.)
+        norm_v = vz_disk
+        rad_v = vx_disk*x_disk/rad_coord + vy_disk*y_disk/rad_coord
+        cyl_filename += 'disk'
+    if (type(axis)==tuple) or (type(axis)==list):
+        axis = np.array(axis)
+        norm_axis = axis / np.sqrt((axis**2.).sum())
+        # Define other unit vectors orthagonal to the angular momentum vector
+        np.random.seed(99)
+        x_axis = np.random.randn(3)            # take a random vector
+        x_axis -= x_axis.dot(norm_axis) * norm_axis       # make it orthogonal to L
+        x_axis /= np.linalg.norm(x_axis)            # normalize it
+        y_axis = np.cross(norm_axis, x_axis)           # cross product with L
+        x_vec = ds.arr(x_axis)
+        y_vec = ds.arr(y_axis)
+        z_vec = ds.arr(norm_axis)
+        # Calculate the rotation matrix for converting from original coordinate system
+        # into this new basis
+        xhat = np.array([1,0,0])
+        yhat = np.array([0,1,0])
+        zhat = np.array([0,0,1])
+        transArr0 = np.array([[xhat.dot(x_vec), xhat.dot(y_vec), xhat.dot(z_vec)],
+                             [yhat.dot(x_vec), yhat.dot(y_vec), yhat.dot(z_vec)],
+                             [zhat.dot(x_vec), zhat.dot(y_vec), zhat.dot(z_vec)]])
+        rotationArr = np.linalg.inv(transArr0)
+        x_rot = rotationArr[0][0]*x + rotationArr[0][1]*y + rotationArr[0][2]*z
+        y_rot = rotationArr[1][0]*x + rotationArr[1][1]*y + rotationArr[1][2]*z
+        z_rot = rotationArr[2][0]*x + rotationArr[2][1]*y + rotationArr[2][2]*z
+        vx_rot = rotationArr[0][0]*vx + rotationArr[0][1]*vy + rotationArr[0][2]*vz
+        vy_rot = rotationArr[1][0]*vx + rotationArr[1][1]*vy + rotationArr[1][2]*vz
+        vz_rot = rotationArr[2][0]*vx + rotationArr[2][1]*vy + rotationArr[2][2]*vz
+        norm_coord = z_rot
+        rad_coord = np.sqrt(x_rot**2. + y_rot**2.)
+        norm_v = vz_rot
+        rad_v = vx_rot*x_rot/rad_coord + vy_rot*y_rot/rad_coord
+        cyl_filename += 'axis_' + str(axis[0]) + '_' + str(axis[1]) + '_' + str(axis[2])
+    cyl_filename += '_r' + str(cyl_radius.v) + '_' + surface_args[6]
+
+    # Load list of satellite positions
+    if (sat_radius!=0):
+        print('Loading satellite positions')
+        sat_x = sat['sat_x'][sat['snap']==snap]
+        sat_y = sat['sat_y'][sat['snap']==snap]
+        sat_z = sat['sat_z'][sat['snap']==snap]
+        sat_list = []
+        for i in range(len(sat_x)):
+            if not ((np.abs(sat_x[i] - halo_center_kpc[0].v) <= 1.) & \
+                    (np.abs(sat_y[i] - halo_center_kpc[1].v) <= 1.) & \
+                    (np.abs(sat_z[i] - halo_center_kpc[2].v) <= 1.)):
+                sat_list.append([sat_x[i] - halo_center_kpc[0].v, sat_y[i] - halo_center_kpc[1].v, sat_z[i] - halo_center_kpc[2].v])
+        sat_list = np.array(sat_list)
+
+        # Cut data to remove anything within satellites
+        # Restrict to only things that are within the cylinder
+        print('Cutting data to remove satellites')
+        sat_radius_sq = sat_radius**2.
+        # An attempt to remove satellites faster:
+        # Holy cow this is so much faster, do it this way
+        bool_inside_sat = []
+        for s in range(len(sat_list)):
+            sat_x = sat_list[s][0]
+            sat_y = sat_list[s][1]
+            sat_z = sat_list[s][2]
+            dist_from_sat_sq = (x-sat_x)**2. + (y-sat_y)**2. + (z-sat_z)**2.
+            bool_inside_sat.append((dist_from_sat_sq < sat_radius_sq))
+        bool_inside_sat = np.array(bool_inside_sat)
+        inside_sat = np.count_nonzero(bool_inside_sat, axis=0)
+        # inside_sat should now both be an array of length = # of pixels where the value is an
+        # integer. If the value is zero, that pixel is not inside any satellites. If the value is > 0,
+        # that pixel is in a satellite.
+        bool_nosat = (inside_sat == 0)
+
+        norm_coord_nosat = norm_coord[bool_nosat]
+        rad_coord_nosat = rad_coord[bool_nosat]
+        norm_v_nosat = norm_v[bool_nosat]
+        rad_v_nosat = rad_v[bool_nosat]
+        temperature_nosat = temperature[bool_nosat]
+        if ('mass' in flux_types):
+            mass_nosat = mass[bool_nosat]
+            metal_mass_nosat = metal_mass[bool_nosat]
+        if ('energy' in flux_types):
+            kinetic_energy_nosat = kinetic_energy[bool_nosat]
+            thermal_energy_nosat = thermal_energy[bool_nosat]
+            potential_energy_nosat = potential_energy[bool_nosat]
+        if ('entropy' in flux_types):
+            entropy_nosat = entropy[bool_nosat]
+        if ('O_ion_mass' in flux_types):
+            O_mass_nosat = O_mass[bool_nosat]
+            OI_mass_nosat = OI_mass[bool_nosat]
+            OII_mass_nosat = OII_mass[bool_nosat]
+            OIII_mass_nosat = OIII_mass[bool_nosat]
+            OIV_mass_nosat = OIV_mass[bool_nosat]
+            OV_mass_nosat = OV_mass[bool_nosat]
+            OVI_mass_nosat = OVI_mass[bool_nosat]
+            OVII_mass_nosat = OVII_mass[bool_nosat]
+            OVIII_mass_nosat = OVIII_mass[bool_nosat]
+            OIX_mass_nosat = OIX_mass[bool_nosat]
+    else:
+        norm_coord_nosat = norm_coord
+        rad_coord_nosat = rad_coord
+        norm_v_nosat = norm_v
+        rad_v_nosat = rad_v
+        temperature_nosat = temperature
+        if ('mass' in flux_types):
+            mass_nosat = mass
+            metal_mass_nosat = metal_mass
+        if ('energy' in flux_types):
+            kinetic_energy_nosat = kinetic_energy
+            thermal_energy_nosat = thermal_energy
+            potential_energy_nosat = potential_energy
+        if ('entropy' in flux_types):
+            entropy_nosat = entropy
+        if ('O_ion_mass' in flux_types):
+            O_mass_nosat = O_mass
+            OI_mass_nosat = OI_mass
+            OII_mass_nosat = OII_mass
+            OIII_mass_nosat = OIII_mass
+            OIV_mass_nosat = OIV_mass
+            OV_mass_nosat = OV_mass
+            OVI_mass_nosat = OVI_mass
+            OVII_mass_nosat = OVII_mass
+            OVIII_mass_nosat = OVIII_mass
+            OIX_mass_nosat = OIX_mass
+
+    # Cut satellite-removed data to frustum of interest
+    bool_cyl = (norm_coord_nosat >= bottom_edge) & (norm_coord_nosat <= top_edge) & (rad_coord_nosat <= cyl_radius)
+
+    norm_nosat_cyl = norm_coord_nosat[bool_cyl]
+    rad_nosat_cyl = rad_coord_nosat[bool_cyl]
+    norm_v_nosat_cyl = norm_v_nosat[bool_cyl]
+    rad_v_nosat_cyl = rad_v_nosat[bool_cyl]
+    temperature_nosat_cyl = temperature_nosat[bool_cyl]
+    if ('mass' in flux_types):
+        mass_nosat_cyl = mass_nosat[bool_cyl]
+        metal_mass_nosat_cyl = metal_mass_nosat[bool_cyl]
+    if ('energy' in flux_types):
+        kinetic_energy_nosat_cyl = kinetic_energy_nosat[bool_cyl]
+        thermal_energy_nosat_cyl = thermal_energy_nosat[bool_cyl]
+        potential_energy_nosat_cyl = potential_energy_nosat[bool_cyl]
+    if ('entropy' in flux_types):
+        entropy_nosat_cyl = entropy_nosat[bool_cyl]
+    if ('O_ion_mass' in flux_types):
+        O_mass_nosat_cyl = O_mass_nosat[bool_cyl]
+        OI_mass_nosat_cyl = OI_mass_nosat[bool_cyl]
+        OII_mass_nosat_cyl = OII_mass_nosat[bool_cyl]
+        OIII_mass_nosat_cyl = OIII_mass_nosat[bool_cyl]
+        OIV_mass_nosat_cyl = OIV_mass_nosat[bool_cyl]
+        OV_mass_nosat_cyl = OV_mass_nosat[bool_cyl]
+        OVI_mass_nosat_cyl = OVI_mass_nosat[bool_cyl]
+        OVII_mass_nosat_cyl = OVII_mass_nosat[bool_cyl]
+        OVIII_mass_nosat_cyl = OVIII_mass_nosat[bool_cyl]
+        OIX_mass_nosat_cyl = OIX_mass_nosat[bool_cyl]
+
+    # Cut satellite-removed frustum data on temperature
+    # These are lists of lists where the first index goes from 0 to 4 for
+    # [all gas, cold, cool, warm, hot]
+    if (sat_radius!=0):
+        print('Cutting satellite-removed data on temperature')
+    else:
+        print('Cutting data on temperature')
+    norm_nosat_cyl_Tcut = []
+    rad_nosat_cyl_Tcut = []
+    norm_v_nosat_cyl_Tcut = []
+    rad_v_nosat_cyl_Tcut = []
+    if ('mass' in flux_types):
+        mass_nosat_cyl_Tcut = []
+        metal_mass_nosat_cyl_Tcut = []
+    if ('energy' in flux_types):
+        kinetic_energy_nosat_cyl_Tcut = []
+        thermal_energy_nosat_cyl_Tcut = []
+        potential_energy_nosat_cyl_Tcut = []
+    if ('entropy' in flux_types):
+        entropy_nosat_cyl_Tcut = []
+    if ('O_ion_mass' in flux_types):
+        O_mass_nosat_cyl_Tcut = []
+        OI_mass_nosat_cyl_Tcut = []
+        OII_mass_nosat_cyl_Tcut = []
+        OIII_mass_nosat_cyl_Tcut = []
+        OIV_mass_nosat_cyl_Tcut = []
+        OV_mass_nosat_cyl_Tcut = []
+        OVI_mass_nosat_cyl_Tcut = []
+        OVII_mass_nosat_cyl_Tcut = []
+        OVIII_mass_nosat_cyl_Tcut = []
+        OIX_mass_nosat_cyl_Tcut = []
+    for j in range(5):
+        if (j==0):
+            t_low = 0.
+            t_high = 10**12.
+        if (j==1):
+            t_low = 0.
+            t_high = 10**4.
+        if (j==2):
+            t_low = 10**4.
+            t_high = 10**5.
+        if (j==3):
+            t_low = 10**5.
+            t_high = 10**6.
+        if (j==4):
+            t_low = 10**6.
+            t_high = 10**12.
+        bool_temp_nosat_cyl = (temperature_nosat_cyl < t_high) & (temperature_nosat_cyl > t_low)
+        norm_nosat_cyl_Tcut.append(norm_nosat_cyl[bool_temp_nosat_cyl])
+        rad_nosat_cyl_Tcut.append(rad_nosat_cyl[bool_temp_nosat_cyl])
+        norm_v_nosat_cyl_Tcut.append(norm_v_nosat_cyl[bool_temp_nosat_cyl])
+        rad_v_nosat_cyl_Tcut.append(rad_v_nosat_cyl[bool_temp_nosat_cyl])
+        if ('mass' in flux_types):
+            mass_nosat_cyl_Tcut.append(mass_nosat_cyl[bool_temp_nosat_cyl])
+            metal_mass_nosat_cyl_Tcut.append(metal_mass_nosat_cyl[bool_temp_nosat_cyl])
+        if ('energy' in flux_types):
+            kinetic_energy_nosat_cyl_Tcut.append(kinetic_energy_nosat_cyl[bool_temp_nosat_cyl])
+            thermal_energy_nosat_cyl_Tcut.append(thermal_energy_nosat_cyl[bool_temp_nosat_cyl])
+            potential_energy_nosat_cyl_Tcut.append(potential_energy_nosat_cyl[bool_temp_nosat_cyl])
+        if ('entropy' in flux_types):
+            entropy_nosat_cyl_Tcut.append(entropy_nosat_cyl[bool_temp_nosat_cyl])
+        if ('O_ion_mass' in flux_types):
+            O_mass_nosat_cyl_Tcut.append(O_mass_nosat_cyl[bool_temp_nosat_cyl])
+            OI_mass_nosat_cyl_Tcut.append(OI_mass_nosat_cyl[bool_temp_nosat_cyl])
+            OII_mass_nosat_cyl_Tcut.append(OII_mass_nosat_cyl[bool_temp_nosat_cyl])
+            OIII_mass_nosat_cyl_Tcut.append(OIII_mass_nosat_cyl[bool_temp_nosat_cyl])
+            OIV_mass_nosat_cyl_Tcut.append(OIV_mass_nosat_cyl[bool_temp_nosat_cyl])
+            OV_mass_nosat_cyl_Tcut.append(OV_mass_nosat_cyl[bool_temp_nosat_cyl])
+            OVI_mass_nosat_cyl_Tcut.append(OVI_mass_nosat_cyl[bool_temp_nosat_cyl])
+            OVII_mass_nosat_cyl_Tcut.append(OVII_mass_nosat_cyl[bool_temp_nosat_cyl])
+            OVIII_mass_nosat_cyl_Tcut.append(OVIII_mass_nosat_cyl[bool_temp_nosat_cyl])
+            OIX_mass_nosat_cyl_Tcut.append(OIX_mass_nosat_cyl[bool_temp_nosat_cyl])
+
+    # Loop over steps
+    for i in range(len(surfaces)):
+        inner_surface = surfaces[i].v
+        if (i < len(surfaces) - 1): outer_surface = surfaces[i+1].v
+
+        if (surface_args[6]=='radius'):
+            if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(surfaces)) + \
+                                " for snapshot " + snap)
+        elif (surface_args[6]=='height'):
+            if (i%10==0): print("Computing height " + str(i) + "/" + str(len(surfaces)) + \
+                                " for snapshot " + snap)
+
+        # Compute net, in, and out totals within the cylinder with satellites removed
+        # These are nested lists where the first index goes from 0 to 2 for [net, in, out]
+        # and the second index goes from 0 to 4 for [all, cold, cool, warm, hot]
+        if ('mass' in flux_types):
+            mass_total_nosat = []
+            metals_total_nosat = []
+        if ('energy' in flux_types):
+            kinetic_energy_total_nosat = []
+            thermal_energy_total_nosat = []
+            potential_energy_total_nosat = []
+        if ('entropy' in flux_types):
+            entropy_total_nosat = []
+        if ('O_ion_mass' in flux_types):
+            O_total_nosat = []
+            OI_total_nosat = []
+            OII_total_nosat = []
+            OIII_total_nosat = []
+            OIV_total_nosat = []
+            OV_total_nosat = []
+            OVI_total_nosat = []
+            OVII_total_nosat = []
+            OVIII_total_nosat = []
+            OIX_total_nosat = []
+        for j in range(3):
+            if ('mass' in flux_types):
+                mass_total_nosat.append([])
+                metals_total_nosat.append([])
+            if ('energy' in flux_types):
+                kinetic_energy_total_nosat.append([])
+                thermal_energy_total_nosat.append([])
+                potential_energy_total_nosat.append([])
+            if ('entropy' in flux_types):
+                entropy_total_nosat.append([])
+            if ('O_ion_mass' in flux_types):
+                O_total_nosat.append([])
+                OI_total_nosat.append([])
+                OII_total_nosat.append([])
+                OIII_total_nosat.append([])
+                OIV_total_nosat.append([])
+                OV_total_nosat.append([])
+                OVI_total_nosat.append([])
+                OVII_total_nosat.append([])
+                OVIII_total_nosat.append([])
+                OIX_total_nosat.append([])
+            for k in range(5):
+                if (surface_args[6]=='radius'):
+                    bool_in_s = (rad_nosat_cyl_Tcut[k] > inner_surface) & (rad_nosat_cyl_Tcut[k] < outer_surface) & (rad_v_nosat_cyl_Tcut[k] < 0.)
+                    bool_out_s = (rad_nosat_cyl_Tcut[k] > inner_surface) & (rad_nosat_cyl_Tcut[k] < outer_surface) & (rad_v_nosat_cyl_Tcut[k] > 0.)
+                elif (surface_args[6]=='height'):
+                    bool_in_s = (norm_nosat_cyl_Tcut[k] > inner_surface) & (norm_nosat_cyl_Tcut[k] < outer_surface) & (norm_v_nosat_cyl_Tcut[k] < 0.)
+                    bool_out_s = (norm_nosat_cyl_Tcut[k] > inner_surface) & (norm_nosat_cyl_Tcut[k] < outer_surface) & (norm_v_nosat_cyl_Tcut[k] > 0.)
+                if (j==0):
+                    if ('mass' in flux_types):
+                        mass_total_nosat[j].append((np.sum(mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(mass_nosat_cyl_Tcut[k][bool_in_s])))
+                        metals_total_nosat[j].append((np.sum(metal_mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(metal_mass_nosat_cyl_Tcut[k][bool_in_s])))
+                    if ('energy' in flux_types):
+                        kinetic_energy_total_nosat[j].append((np.sum(kinetic_energy_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(kinetic_energy_nosat_cyl_Tcut[k][bool_in_s])))
+                        thermal_energy_total_nosat[j].append((np.sum(thermal_energy_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(thermal_energy_nosat_cyl_Tcut[k][bool_in_s])))
+                        potential_energy_total_nosat[j].append((np.sum(potential_energy_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(potential_energy_nosat_cyl_Tcut[k][bool_in_s])))
+                    if ('entropy' in flux_types):
+                        entropy_total_nosat[j].append((np.sum(entropy_nosat_cyl_Tcut[k][bool_out_s]) + \
+                        np.sum(entropy_nosat_cyl_Tcut[k][bool_in_s])))
+                    if ('O_ion_mass' in flux_types):
+                        O_total_nosat[j].append((np.sum(O_mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(O_mass_nosat_cyl_Tcut[k][bool_in_s])))
+                        OI_total_nosat[j].append((np.sum(OI_mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(OI_mass_nosat_cyl_Tcut[k][bool_in_s])))
+                        OII_total_nosat[j].append((np.sum(OII_mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(OII_mass_nosat_cyl_Tcut[k][bool_in_s])))
+                        OIII_total_nosat[j].append((np.sum(OIII_mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(OIII_mass_nosat_cyl_Tcut[k][bool_in_s])))
+                        OIV_total_nosat[j].append((np.sum(OIV_mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(OIV_mass_nosat_cyl_Tcut[k][bool_in_s])))
+                        OV_total_nosat[j].append((np.sum(OV_mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(OV_mass_nosat_cyl_Tcut[k][bool_in_s])))
+                        OVI_total_nosat[j].append((np.sum(OVI_mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(OVI_mass_nosat_cyl_Tcut[k][bool_in_s])))
+                        OVII_total_nosat[j].append((np.sum(OVII_mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(OVII_mass_nosat_cyl_Tcut[k][bool_in_s])))
+                        OVIII_total_nosat[j].append((np.sum(OVIII_mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(OVIII_mass_nosat_cyl_Tcut[k][bool_in_s])))
+                        OIX_total_nosat[j].append((np.sum(OIX_mass_nosat_cyl_Tcut[k][bool_out_s]) + \
+                          np.sum(OIX_mass_nosat_cyl_Tcut[k][bool_in_s])))
+                if (j==1):
+                    if ('mass' in flux_types):
+                        mass_total_nosat[j].append(np.sum(mass_nosat_cyl_Tcut[k][bool_in_s]))
+                        metals_total_nosat[j].append(np.sum(metal_mass_nosat_cyl_Tcut[k][bool_in_s]))
+                    if ('energy' in flux_types):
+                        kinetic_energy_total_nosat[j].append(np.sum(kinetic_energy_nosat_cyl_Tcut[k][bool_in_s]))
+                        thermal_energy_total_nosat[j].append(np.sum(thermal_energy_nosat_cyl_Tcut[k][bool_in_s]))
+                        potential_energy_total_nosat[j].append(np.sum(potential_energy_nosat_cyl_Tcut[k][bool_in_s]))
+                    if ('entropy' in flux_types):
+                        entropy_total_nosat[j].append(np.sum(entropy_nosat_cyl_Tcut[k][bool_in_s]))
+                    if ('O_ion_mass' in flux_types):
+                        O_total_nosat[j].append(np.sum(O_mass_nosat_cyl_Tcut[k][bool_in_s]))
+                        OI_total_nosat[j].append(np.sum(OI_mass_nosat_cyl_Tcut[k][bool_in_s]))
+                        OII_total_nosat[j].append(np.sum(OII_mass_nosat_cyl_Tcut[k][bool_in_s]))
+                        OIII_total_nosat[j].append(np.sum(OIII_mass_nosat_cyl_Tcut[k][bool_in_s]))
+                        OIV_total_nosat[j].append(np.sum(OIV_mass_nosat_cyl_Tcut[k][bool_in_s]))
+                        OV_total_nosat[j].append(np.sum(OV_mass_nosat_cyl_Tcut[k][bool_in_s]))
+                        OVI_total_nosat[j].append(np.sum(OVI_mass_nosat_cyl_Tcut[k][bool_in_s]))
+                        OVII_total_nosat[j].append(np.sum(OVII_mass_nosat_cyl_Tcut[k][bool_in_s]))
+                        OVIII_total_nosat[j].append(np.sum(OVIII_mass_nosat_cyl_Tcut[k][bool_in_s]))
+                        OIX_total_nosat[j].append(np.sum(OIX_mass_nosat_cyl_Tcut[k][bool_in_s]))
+                if (j==2):
+                    if ('mass' in flux_types):
+                        mass_total_nosat[j].append(np.sum(mass_nosat_cyl_Tcut[k][bool_out_s]))
+                        metals_total_nosat[j].append(np.sum(metal_mass_nosat_cyl_Tcut[k][bool_out_s]))
+                    if ('energy' in flux_types):
+                        kinetic_energy_total_nosat[j].append(np.sum(kinetic_energy_nosat_cyl_Tcut[k][bool_out_s]))
+                        thermal_energy_total_nosat[j].append(np.sum(thermal_energy_nosat_cyl_Tcut[k][bool_out_s]))
+                        potential_energy_total_nosat[j].append(np.sum(potential_energy_nosat_cyl_Tcut[k][bool_out_s]))
+                    if ('entropy' in flux_types):
+                        entropy_total_nosat[j].append(np.sum(entropy_nosat_cyl_Tcut[k][bool_out_s]))
+                    if ('O_ion_mass' in flux_types):
+                        O_total_nosat[j].append(np.sum(O_mass_nosat_cyl_Tcut[k][bool_out_s]))
+                        OI_total_nosat[j].append(np.sum(OI_mass_nosat_cyl_Tcut[k][bool_out_s]))
+                        OII_total_nosat[j].append(np.sum(OII_mass_nosat_cyl_Tcut[k][bool_out_s]))
+                        OIII_total_nosat[j].append(np.sum(OIII_mass_nosat_cyl_Tcut[k][bool_out_s]))
+                        OIV_total_nosat[j].append(np.sum(OIV_mass_nosat_cyl_Tcut[k][bool_out_s]))
+                        OV_total_nosat[j].append(np.sum(OV_mass_nosat_cyl_Tcut[k][bool_out_s]))
+                        OVI_total_nosat[j].append(np.sum(OVI_mass_nosat_cyl_Tcut[k][bool_out_s]))
+                        OVII_total_nosat[j].append(np.sum(OVII_mass_nosat_cyl_Tcut[k][bool_out_s]))
+                        OVIII_total_nosat[j].append(np.sum(OVIII_mass_nosat_cyl_Tcut[k][bool_out_s]))
+                        OIX_total_nosat[j].append(np.sum(OIX_mass_nosat_cyl_Tcut[k][bool_out_s]))
+
+        # Add everything to the tables
+        new_row = [zsnap, inner_surface, outer_surface]
+        if ('mass' in flux_types):
+            new_row += [mass_total_nosat[0][0], metals_total_nosat[0][0], \
+            mass_total_nosat[1][0], mass_total_nosat[2][0], metals_total_nosat[1][0], metals_total_nosat[2][0], \
+            mass_total_nosat[0][1], mass_total_nosat[1][1], mass_total_nosat[2][1], \
+            mass_total_nosat[0][2], mass_total_nosat[1][2], mass_total_nosat[2][2], \
+            mass_total_nosat[0][3], mass_total_nosat[1][3], mass_total_nosat[2][3], \
+            mass_total_nosat[0][4], mass_total_nosat[1][4], mass_total_nosat[2][4], \
+            metals_total_nosat[0][1], metals_total_nosat[1][1], metals_total_nosat[2][1], \
+            metals_total_nosat[0][2], metals_total_nosat[1][2], metals_total_nosat[2][2], \
+            metals_total_nosat[0][3], metals_total_nosat[1][3], metals_total_nosat[2][3], \
+            metals_total_nosat[0][4], metals_total_nosat[1][4], metals_total_nosat[2][4]]
+        if ('energy' in flux_types):
+            new_row += [kinetic_energy_total_nosat[0][0], thermal_energy_total_nosat[0][0], \
+            potential_energy_total_nosat[0][0], \
+            kinetic_energy_total_nosat[1][0], kinetic_energy_total_nosat[2][0], \
+            thermal_energy_total_nosat[1][0], thermal_energy_total_nosat[2][0], \
+            potential_energy_total_nosat[1][0], potential_energy_total_nosat[2][0], \
+            kinetic_energy_total_nosat[0][1], kinetic_energy_total_nosat[1][1], kinetic_energy_total_nosat[2][1], \
+            kinetic_energy_total_nosat[0][2], kinetic_energy_total_nosat[1][2], kinetic_energy_total_nosat[2][2], \
+            kinetic_energy_total_nosat[0][3], kinetic_energy_total_nosat[1][3], kinetic_energy_total_nosat[2][3], \
+            kinetic_energy_total_nosat[0][4], kinetic_energy_total_nosat[1][4], kinetic_energy_total_nosat[2][4], \
+            thermal_energy_total_nosat[0][1], thermal_energy_total_nosat[1][1], thermal_energy_total_nosat[2][1], \
+            thermal_energy_total_nosat[0][2], thermal_energy_total_nosat[1][2], thermal_energy_total_nosat[2][2], \
+            thermal_energy_total_nosat[0][3], thermal_energy_total_nosat[1][3], thermal_energy_total_nosat[2][3], \
+            thermal_energy_total_nosat[0][4], thermal_energy_total_nosat[1][4], thermal_energy_total_nosat[2][4], \
+            potential_energy_total_nosat[0][1], potential_energy_total_nosat[1][1], potential_energy_total_nosat[2][1], \
+            potential_energy_total_nosat[0][2], potential_energy_total_nosat[1][2], potential_energy_total_nosat[2][2], \
+            potential_energy_total_nosat[0][3], potential_energy_total_nosat[1][3], potential_energy_total_nosat[2][3], \
+            potential_energy_total_nosat[0][4], potential_energy_total_nosat[1][4], potential_energy_total_nosat[2][4]]
+        if ('entropy' in flux_types):
+            new_row += [entropy_total_nosat[0][0], \
+            entropy_total_nosat[1][0], entropy_total_nosat[2][0], \
+            entropy_total_nosat[0][1], entropy_total_nosat[1][1], entropy_total_nosat[2][1], \
+            entropy_total_nosat[0][2], entropy_total_nosat[1][2], entropy_total_nosat[2][2], \
+            entropy_total_nosat[0][3], entropy_total_nosat[1][3], entropy_total_nosat[2][3], \
+            entropy_total_nosat[0][4], entropy_total_nosat[1][4], entropy_total_nosat[2][4]]
+        if ('O_ion_mass' in flux_types):
+            new_row += [O_total_nosat[0][0], O_total_nosat[1][0], O_total_nosat[2][0], \
+            O_total_nosat[0][1], O_total_nosat[1][1], O_total_nosat[2][1], \
+            O_total_nosat[0][2], O_total_nosat[1][2], O_total_nosat[2][2], \
+            O_total_nosat[0][3], O_total_nosat[1][3], O_total_nosat[2][3], \
+            O_total_nosat[0][4], O_total_nosat[1][4], O_total_nosat[2][4], \
+            OI_total_nosat[0][0], OI_total_nosat[1][0], OI_total_nosat[2][0], \
+            OI_total_nosat[0][1], OI_total_nosat[1][1], OI_total_nosat[2][1], \
+            OI_total_nosat[0][2], OI_total_nosat[1][2], OI_total_nosat[2][2], \
+            OI_total_nosat[0][3], OI_total_nosat[1][3], OI_total_nosat[2][3], \
+            OI_total_nosat[0][4], OI_total_nosat[1][4], OI_total_nosat[2][4], \
+            OII_total_nosat[0][0], OII_total_nosat[1][0], OII_total_nosat[2][0], \
+            OII_total_nosat[0][1], OII_total_nosat[1][1], OII_total_nosat[2][1], \
+            OII_total_nosat[0][2], OII_total_nosat[1][2], OII_total_nosat[2][2], \
+            OII_total_nosat[0][3], OII_total_nosat[1][3], OII_total_nosat[2][3], \
+            OII_total_nosat[0][4], OII_total_nosat[1][4], OII_total_nosat[2][4], \
+            OIII_total_nosat[0][0], OIII_total_nosat[1][0], OIII_total_nosat[2][0], \
+            OIII_total_nosat[0][1], OIII_total_nosat[1][1], OIII_total_nosat[2][1], \
+            OIII_total_nosat[0][2], OIII_total_nosat[1][2], OIII_total_nosat[2][2], \
+            OIII_total_nosat[0][3], OIII_total_nosat[1][3], OIII_total_nosat[2][3], \
+            OIII_total_nosat[0][4], OIII_total_nosat[1][4], OIII_total_nosat[2][4], \
+            OIV_total_nosat[0][0], OIV_total_nosat[1][0], OIV_total_nosat[2][0], \
+            OIV_total_nosat[0][1], OIV_total_nosat[1][1], OIV_total_nosat[2][1], \
+            OIV_total_nosat[0][2], OIV_total_nosat[1][2], OIV_total_nosat[2][2], \
+            OIV_total_nosat[0][3], OIV_total_nosat[1][3], OIV_total_nosat[2][3], \
+            OIV_total_nosat[0][4], OIV_total_nosat[1][4], OIV_total_nosat[2][4], \
+            OV_total_nosat[0][0], OV_total_nosat[1][0], OV_total_nosat[2][0], \
+            OV_total_nosat[0][1], OV_total_nosat[1][1], OV_total_nosat[2][1], \
+            OV_total_nosat[0][2], OV_total_nosat[1][2], OV_total_nosat[2][2], \
+            OV_total_nosat[0][3], OV_total_nosat[1][3], OV_total_nosat[2][3], \
+            OV_total_nosat[0][4], OV_total_nosat[1][4], OV_total_nosat[2][4], \
+            OVI_total_nosat[0][0], OVI_total_nosat[1][0], OVI_total_nosat[2][0], \
+            OVI_total_nosat[0][1], OVI_total_nosat[1][1], OVI_total_nosat[2][1], \
+            OVI_total_nosat[0][2], OVI_total_nosat[1][2], OVI_total_nosat[2][2], \
+            OVI_total_nosat[0][3], OVI_total_nosat[1][3], OVI_total_nosat[2][3], \
+            OVI_total_nosat[0][4], OVI_total_nosat[1][4], OVI_total_nosat[2][4], \
+            OVII_total_nosat[0][0], OVII_total_nosat[1][0], OVII_total_nosat[2][0], \
+            OVII_total_nosat[0][1], OVII_total_nosat[1][1], OVII_total_nosat[2][1], \
+            OVII_total_nosat[0][2], OVII_total_nosat[1][2], OVII_total_nosat[2][2], \
+            OVII_total_nosat[0][3], OVII_total_nosat[1][3], OVII_total_nosat[2][3], \
+            OVII_total_nosat[0][4], OVII_total_nosat[1][4], OVII_total_nosat[2][4], \
+            OVIII_total_nosat[0][0], OVIII_total_nosat[1][0], OVIII_total_nosat[2][0], \
+            OVIII_total_nosat[0][1], OVIII_total_nosat[1][1], OVIII_total_nosat[2][1], \
+            OVIII_total_nosat[0][2], OVIII_total_nosat[1][2], OVIII_total_nosat[2][2], \
+            OVIII_total_nosat[0][3], OVIII_total_nosat[1][3], OVIII_total_nosat[2][3], \
+            OVIII_total_nosat[0][4], OVIII_total_nosat[1][4], OVIII_total_nosat[2][4], \
+            OIX_total_nosat[0][0], OIX_total_nosat[1][0], OIX_total_nosat[2][0], \
+            OIX_total_nosat[0][1], OIX_total_nosat[1][1], OIX_total_nosat[2][1], \
+            OIX_total_nosat[0][2], OIX_total_nosat[1][2], OIX_total_nosat[2][2], \
+            OIX_total_nosat[0][3], OIX_total_nosat[1][3], OIX_total_nosat[2][3], \
+            OIX_total_nosat[0][4], OIX_total_nosat[1][4], OIX_total_nosat[2][4]]
+        totals.add_row(new_row)
+
+    totals = set_table_units(totals)
+
+    fluxtype_filename = ''
+    if ('mass' in flux_types):
+        fluxtype_filename += '_mass'
+    if ('energy' in flux_types):
+        fluxtype_filename += '_energy'
+    if ('entropy' in flux_types):
+        fluxtype_filename += '_entropy'
+    if ('O_ion_mass' in flux_types):
+        fluxtype_filename += '_Oions'
+
+    # Save to file
+    if (sat_radius!=0.):
+        totals.write(tablename + '_nosat_cylinder_' + cyl_filename + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    else:
+        totals.write(tablename + '_cylinder_' + cyl_filename + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
+    return "Totals have been calculated for snapshot " + snap + "!"
+
 def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, surface_args, flux_types, sat_dir, sat_radius):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the halo_c_v file, the name of the snapshot,
@@ -1520,7 +2249,7 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
         snap_name = snap_dir + '/' + snap
-    if (surface_args[0]=='frustum') and (surface_args[1]=='disk minor axis'):
+    if ((surface_args[0]=='frustum') or (surface_args[0]=='cylinder')) and (surface_args[1]=='disk minor axis'):
         ds, refine_box = foggie_load(snap_name, track, halo_c_v_name=halo_c_v_name, disk_relative=True)
     else:
         ds, refine_box = foggie_load(snap_name, track, halo_c_v_name=halo_c_v_name, do_filter_particles=False)
@@ -1547,6 +2276,13 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
         else:
             message = calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_args, \
               flux_types)
+    if (surface_args[0]=='cylinder'):
+        if (sat_radius!=0.):
+            message = calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_args, \
+              flux_types, sat=sat, sat_radius=sat_radius)
+        else:
+            message = calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_args, \
+              flux_types)
     if (system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
@@ -1570,8 +2306,6 @@ if __name__ == "__main__":
 
     # Specify where satellite files are saved
     if (args.remove_sats):
-        if ('RD' in args.output):
-            sys.exit('Sorry, cannot remove satellites with RD outputs. Either include satellites or try a DD output.')
         sat_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
         sat_radius = args.sat_radius
     else:
@@ -1623,6 +2357,44 @@ if __name__ == "__main__":
         else:
             print('Frustum arguments: axis - %s inner_radius - %.3f outer_radius - %.3f num_radius - %d opening_angle - %d' % \
               (str(axis), surface_args[3], surface_args[4], surface_args[5], surface_args[6]))
+    elif (surface_args[0]=='cylinder'):
+        if (surface_args[1]=='x'):
+            axis = 'x'
+            flip = False
+        elif (surface_args[1]=='y'):
+            axis = 'y'
+            flip = False
+        elif (surface_args[1]=='z'):
+            axis = 'z'
+            flip = False
+        elif (surface_args[1]=='minor'):
+            axis = 'disk minor axis'
+            flip = False
+        elif (surface_args[1]=='-x'):
+            axis = 'x'
+            flip = True
+        elif (surface_args[1]=='-y'):
+            axis = 'y'
+            flip = True
+        elif (surface_args[1]=='-z'):
+            axis = 'z'
+            flip = True
+        elif (surface_args[1]=='-minor'):
+            axis = 'disk minor axis'
+            flip = True
+        elif (type(surface_args[1])==tuple) or (type(surface_args[1])==list):
+            axis = surface_args[1]
+            flip = False
+        else: sys.exit("I don't understand what axis you want.")
+        if (surface_args[5]!='height') and (surface_args[5]!='radius'):
+            sys.exit("I don't understand which way you want to calculate fluxes. Specify 'height' or 'radius'.")
+        surface_args = [surface_args[0], axis, flip, surface_args[2], surface_args[3], surface_args[4], surface_args[5], surface_args[6]]
+        if (flip):
+            print('Cylinder arguments: axis - flipped %s bottom_edge - %.3f top_edge - %.3f radius - %.3f step_direction - %s num_steps - %d' % \
+              (axis, surface_args[3], surface_args[4], surface_args[5], surface_args[6], surface_args[7]))
+        else:
+            print('Cylinder arguments: axis - %s bottom_edge - %.3f top_edge - %.3f radius - %.3f step_direction - %s num_steps - %d' % \
+              (str(axis), surface_args[3], surface_args[4], surface_args[5], surface_args[6], surface_args[7]))
     else:
         sys.exit("That surface has not been implemented. Ask Cassi to add it.")
 
