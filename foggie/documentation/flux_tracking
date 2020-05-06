@@ -102,9 +102,9 @@ where axis specifies what axis to align the length of the cylinder with and can 
 (x,y,z) (a tuple giving a 3D vector for an arbitrary axis).
 For all axis definitions other than the arbitrary vector, if the axis string starts with a '-',
 it will compute a cylinder pointing in the opposite direction.
-bottom_edge, top_edge, and radius give the dimensions of the cylinder, where bottom_ and top_edge are
-distance from halo center, by default in units of refine_width (unless the --kpc option is specified),
-and radius is always in units of kpc.
+bottom_edge, top_edge, and radius give the dimensions of the cylinder,
+by default in units of refine_width (unless the --kpc option is specified), where bottom_ and top_edge are
+distance from halo center.
 step_direction can be 'height', which will compute fluxes across circular planes in the cylinder
 parallel to the flat sides, or 'radius', which will compute fluxes across different radii within the
 cylinder perpendicular to the cylinder's flat sides.
@@ -170,7 +170,7 @@ and top_edge. Similarly, 'radius' will be replaced with 'height' in the _nosat f
 The rest of the columns list the values of the fluxes, depending on what you specified for flux_type.
 The "mass" flux type gives columns of "mass_flux" and "metal_flux". These are given in Msun/yr.
 The "energy" flux type gives columns of "kinetic_energy_flux", "thermal_energy_flux", "potential_energy_flux",
-and "radiative_energy_flux" (see note below about this one). These are given in erg/yr.
+"radiative_energy_flux" (see note below about this one), and "total_energy_flux". These are given in erg/yr.
 The "entropy" flux type gives columns of "entropy_flux". This is given in cm^2*keV/yr.
 The "O_ion_mass" flux type gives columns for fluxes of total oxygen flux and each of the oxygen ions,
 "O_flux", "OI_flux", "OII_flux", etc. up to "OIX_flux". These fluxes are mass fluxes, given in Msun/yr.

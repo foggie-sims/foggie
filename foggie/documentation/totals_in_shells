@@ -103,9 +103,9 @@ where axis specifies what axis to align the length of the cylinder with and can 
 (x,y,z) (a tuple giving a 3D vector for an arbitrary axis).
 For all axis definitions other than the arbitrary vector, if the axis string starts with a '-',
 it will compute a cylinder pointing in the opposite direction.
-bottom_edge, top_edge, and radius give the dimensions of the cylinder, where bottom_ and top_edge are
-distance from halo center, by default in units of refine_width (unless the --kpc option is specified),
-and radius is always in units of kpc.
+bottom_edge, top_edge, and radius give the dimensions of the cylinder,
+by default in units of refine_width (unless the --kpc option is specified), where bottom_ and top_edge are
+distance from halo center.
 step_direction can be 'height', which will compute fluxes across circular planes in the cylinder
 parallel to the flat sides, or 'radius', which will compute fluxes across different radii within the
 cylinder perpendicular to the cylinder's flat sides.
@@ -162,7 +162,7 @@ there will be "bottom_edge" and "top_edge", which tells you the heights between 
 
 The rest of the columns list the values of the totals, depending on what you specified for flux_type.
 The "mass" type gives columns of "mass" and "metals". These are given in Msun.
-The "energy" type gives columns of "kinetic_energy", "thermal_energy", and "potential_energy".
+The "energy" type gives columns of "kinetic_energy", "thermal_energy", "potential_energy", and "total_energy".
 These are given in ergs.
 The "entropy" type gives columns of "entropy". This is given in cm^2*keV.
 The "O_ion_mass" type gives columns for masses of total oxygen and each of the oxygen ions,

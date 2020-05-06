@@ -121,8 +121,9 @@ def parse_args():
                         'where axis specifies what axis to align the length of the cylinder with and can be one of the following:\n' + \
                         "'x'\n'y'\n'z'\n'minor' (aligns with disk minor axis)\n(x,y,z) (a tuple giving a 3D vector for an arbitrary axis).\n" + \
                         'For all axis definitions other than the arbitrary vector, if the axis string starts with a \'-\', it will compute a cylinder pointing in the opposite direction.\n' + \
-                        'bottom_edge, top_edge, and radius give the dimensions of the cylinder, where bottom_ and top_edge are distance from halo center,\n' + \
-                        'by default in units of refine_width (unless the --kpc option is specified), and radius is always in units of kpc.\n' + \
+                        'bottom_edge, top_edge, and radius give the dimensions of the cylinder,\n' + \
+                        'by default in units of refine_width (unless the --kpc option is specified), where bottom_ and top_edge are' + \
+                        ' distance from halo center.\n' + \
                         "step_direction can be 'height', which will compute fluxes across circular planes in the cylinder parallel to the flat sides, or 'radius', which\n" + \
                         "will compute fluxes across different radii within the cylinder perpendicular to the cylinder's flat sides.\n" + \
                         "'num_steps' gives the number of places (either heights or radii) within the cylinder where to calculate fluxes.")
@@ -168,11 +169,12 @@ def set_table_units(table):
              'hot_metal_flux_in' :'Msun/yr', 'hot_metal_flux_out' :'Msun/yr', \
              'net_kinetic_energy_flux':'erg/yr', 'net_thermal_energy_flux':'erg/yr', \
              'net_potential_energy_flux':'erg/yr', 'net_radiative_energy_flux':'erg/yr', \
-             'net_entropy_flux':'cm**2*keV/yr', \
+             'net_total_energy_flux':'erg/yr', 'net_entropy_flux':'cm**2*keV/yr', \
              'kinetic_energy_flux_in':'erg/yr', 'kinetic_energy_flux_out':'erg/yr', \
              'thermal_energy_flux_in':'erg/yr', 'thermal_energy_flux_out':'erg/yr', \
              'potential_energy_flux_in':'erg/yr', 'potential_energy_flux_out':'erg/yr', \
              'radiative_energy_flux_in':'erg/yr', 'radiative_energy_flux_out':'erg/yr', \
+             'total_energy_flux_in':'erg/yr', 'total_energy_flux_out':'erg/yr', \
              'entropy_flux_in':'cm**2*keV/yr', 'entropy_flux_out':'cm**2*keV/yr', \
              'net_cold_kinetic_energy_flux':'erg/yr', 'cold_kinetic_energy_flux_in':'erg/yr', 'cold_kinetic_energy_flux_out':'erg/yr', \
              'net_cool_kinetic_energy_flux':'erg/yr', 'cool_kinetic_energy_flux_in':'erg/yr', 'cool_kinetic_energy_flux_out':'erg/yr', \
@@ -190,6 +192,10 @@ def set_table_units(table):
              'net_cool_radiative_energy_flux':'erg/yr', 'cool_radiative_energy_flux_in':'erg/yr', 'cool_radiative_energy_flux_out':'erg/yr', \
              'net_warm_radiative_energy_flux':'erg/yr', 'warm_radiative_energy_flux_in':'erg/yr', 'warm_radiative_energy_flux_out':'erg/yr', \
              'net_hot_radiative_energy_flux':'erg/yr', 'hot_radiative_energy_flux_in':'erg/yr', 'hot_radiative_energy_flux_out':'erg/yr', \
+             'net_cold_total_energy_flux':'erg/yr', 'cold_total_energy_flux_in':'erg/yr', 'cold_total_energy_flux_out':'erg/yr', \
+             'net_cool_total_energy_flux':'erg/yr', 'cool_total_energy_flux_in':'erg/yr', 'cool_total_energy_flux_out':'erg/yr', \
+             'net_warm_total_energy_flux':'erg/yr', 'warm_total_energy_flux_in':'erg/yr', 'warm_total_energy_flux_out':'erg/yr', \
+             'net_hot_total_energy_flux':'erg/yr', 'hot_total_energy_flux_in':'erg/yr', 'hot_total_energy_flux_out':'erg/yr', \
              'net_cold_entropy_flux':'cm**2*keV/yr', 'cold_entropy_flux_in':'cm**2*keV/yr', 'cold_entropy_flux_out':'cm**2*keV/yr', \
              'net_cool_entropy_flux':'cm**2*keV/yr', 'cool_entropy_flux_in':'cm**2*keV/yr', 'cool_entropy_flux_out':'cm**2*keV/yr', \
              'net_warm_entropy_flux':'cm**2*keV/yr', 'warm_entropy_flux_in':'cm**2*keV/yr', 'warm_entropy_flux_out':'cm**2*keV/yr', \
@@ -307,11 +313,12 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             types_list_sat += new_types
     if ('energy' in flux_types):
         new_names = ('net_kinetic_energy_flux', 'net_thermal_energy_flux', \
-        'net_potential_energy_flux', 'net_radiative_energy_flux', \
+        'net_potential_energy_flux', 'net_radiative_energy_flux', 'net_total_energy_flux',\
         'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
         'thermal_energy_flux_in', 'thermal_energy_flux_out', \
         'potential_energy_flux_in', 'potential_energy_flux_out', \
         'radiative_energy_flux_in', 'radiative_energy_flux_out', \
+        'total_energy_flux_in', 'total_energy_flux_out', \
         'net_cold_kinetic_energy_flux', 'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
         'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
         'net_warm_kinetic_energy_flux', 'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
@@ -327,18 +334,49 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         'net_cold_radiative_energy_flux', 'cold_radiative_energy_flux_in', 'cold_radiative_energy_flux_out', \
         'net_cool_radiative_energy_flux', 'cool_radiative_energy_flux_in', 'cool_radiative_energy_flux_out', \
         'net_warm_radiative_energy_flux', 'warm_radiative_energy_flux_in', 'warm_radiative_energy_flux_out', \
-        'net_hot_radiative_energy_flux', 'hot_radiative_energy_flux_in', 'hot_radiative_energy_flux_out')
-        new_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-        'f8', 'f8', 'f8')
+        'net_hot_radiative_energy_flux', 'hot_radiative_energy_flux_in', 'hot_radiative_energy_flux_out', \
+        'net_cold_total_energy_flux', 'cold_total_energy_flux_in', 'cold_total_energy_flux_out', \
+        'net_cool_total_energy_flux', 'cool_total_energy_flux_in', 'cool_total_energy_flux_out', \
+        'net_warm_total_energy_flux', 'warm_total_energy_flux_in', 'warm_total_energy_flux_out', \
+        'net_hot_total_energy_flux', 'hot_total_energy_flux_in', 'hot_total_energy_flux_out')
+        new_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_list += new_names
         types_list += new_types
         if (sat_radius!=0):
-            names_list_sat += new_names
-            types_list_sat += new_types
+            new_names_sat = ('net_kinetic_energy_flux', 'net_thermal_energy_flux', \
+            'net_potential_energy_flux', 'net_total_energy_flux',\
+            'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
+            'thermal_energy_flux_in', 'thermal_energy_flux_out', \
+            'potential_energy_flux_in', 'potential_energy_flux_out', \
+            'total_energy_flux_in', 'total_energy_flux_out', \
+            'net_cold_kinetic_energy_flux', 'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
+            'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
+            'net_warm_kinetic_energy_flux', 'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
+            'net_hot_kinetic_energy_flux', 'hot_kinetic_energy_flux_in', 'hot_kinetic_energy_flux_out', \
+            'net_cold_thermal_energy_flux', 'cold_thermal_energy_flux_in', 'cold_thermal_energy_flux_out', \
+            'net_cool_thermal_energy_flux', 'cool_thermal_energy_flux_in', 'cool_thermal_energy_flux_out', \
+            'net_warm_thermal_energy_flux', 'warm_thermal_energy_flux_in', 'warm_thermal_energy_flux_out', \
+            'net_hot_thermal_energy_flux', 'hot_thermal_energy_flux_in', 'hot_thermal_energy_flux_out', \
+            'net_cold_potential_energy_flux', 'cold_potential_energy_flux_in', 'cold_potential_energy_flux_out', \
+            'net_cool_potential_energy_flux', 'cool_potential_energy_flux_in', 'cool_potential_energy_flux_out', \
+            'net_warm_potential_energy_flux', 'warm_potential_energy_flux_in', 'warm_potential_energy_flux_out', \
+            'net_hot_potential_energy_flux', 'hot_potential_energy_flux_in', 'hot_potential_energy_flux_out', \
+            'net_cold_total_energy_flux', 'cold_total_energy_flux_in', 'cold_total_energy_flux_out', \
+            'net_cool_total_energy_flux', 'cool_total_energy_flux_in', 'cool_total_energy_flux_out', \
+            'net_warm_total_energy_flux', 'warm_total_energy_flux_in', 'warm_total_energy_flux_out', \
+            'net_hot_total_energy_flux', 'hot_total_energy_flux_in', 'hot_total_energy_flux_out')
+            new_types_sat = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+            'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
+            names_list_sat += new_names_sat
+            types_list_sat += new_types_sat
     if ('entropy' in flux_types):
         new_names = ('net_entropy_flux', 'entropy_flux_in', 'entropy_flux_out', \
         'net_cold_entropy_flux', 'cold_entropy_flux_in', 'cold_entropy_flux_out', \
@@ -456,6 +494,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
         potential_energy = (sphere['gas','cell_mass'] * \
           ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
+        total_energy = kinetic_energy + thermal_energy + potential_energy
         cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
@@ -615,6 +654,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             kinetic_energy_nosat = kinetic_energy[bool_nosat]
             thermal_energy_nosat = thermal_energy[bool_nosat]
             potential_energy_nosat = potential_energy[bool_nosat]
+            total_energy_nosat = total_energy[bool_nosat]
             cooling_time_nosat = cooling_time[bool_nosat]
         if ('entropy' in flux_types):
             entropy_nosat = entropy[bool_nosat]
@@ -651,6 +691,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             kinetic_energy_nosat = kinetic_energy
             thermal_energy_nosat = thermal_energy
             potential_energy_nosat = potential_energy
+            total_energy_nosat = total_energy
             cooling_time_nosat = cooling_time
         if ('entropy' in flux_types):
             entropy_nosat = entropy
@@ -682,6 +723,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         kinetic_energy_nosat_Tcut = []
         thermal_energy_nosat_Tcut = []
         potential_energy_nosat_Tcut = []
+        total_energy_nosat_Tcut = []
         cooling_time_nosat_Tcut = []
     if ('entropy' in flux_types):
         entropy_nosat_Tcut = []
@@ -723,6 +765,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             kinetic_energy_nosat_Tcut.append(kinetic_energy_nosat[bool_temp])
             thermal_energy_nosat_Tcut.append(thermal_energy_nosat[bool_temp])
             potential_energy_nosat_Tcut.append(potential_energy_nosat[bool_temp])
+            total_energy_nosat_Tcut.append(total_energy_nosat[bool_temp])
             cooling_time_nosat_Tcut.append(cooling_time_nosat[bool_temp])
         if ('entropy' in flux_types):
             entropy_nosat_Tcut.append(entropy_nosat[bool_temp])
@@ -752,6 +795,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             kinetic_energy_sat = []
             thermal_energy_sat = []
             potential_energy_sat = []
+            total_energy_sat = []
         if ('entropy' in flux_types):
             entropy_sat = []
         if ('O_ion_mass' in flux_types):
@@ -777,6 +821,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                     kinetic_energy_sat.append(kinetic_energy[bool_fromsat])
                     thermal_energy_sat.append(thermal_energy[bool_fromsat])
                     potential_energy_sat.append(potential_energy[bool_fromsat])
+                    total_energy_sat.append(total_energy[bool_fromsat])
                 if ('entropy' in flux_types):
                     entropy_sat.append(entropy[bool_fromsat])
                 if ('O_ion_mass' in flux_types):
@@ -801,6 +846,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                     kinetic_energy_sat.append(kinetic_energy[bool_tosat])
                     thermal_energy_sat.append(thermal_energy[bool_tosat])
                     potential_energy_sat.append(potential_energy[bool_tosat])
+                    total_energy_sat.append(total_energy[bool_tosat])
                 if ('entropy' in flux_types):
                     entropy_sat.append(entropy[bool_tosat])
                 if ('O_ion_mass' in flux_types):
@@ -828,6 +874,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             kinetic_energy_sat_Tcut = []
             thermal_energy_sat_Tcut = []
             potential_energy_sat_Tcut = []
+            total_energy_sat_Tcut = []
         if ('entropy' in flux_types):
             entropy_sat_Tcut = []
         if ('O_ion_mass' in flux_types):
@@ -851,6 +898,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                 kinetic_energy_sat_Tcut.append([])
                 thermal_energy_sat_Tcut.append([])
                 potential_energy_sat_Tcut.append([])
+                total_energy_sat_Tcut.append([])
             if ('entropy' in flux_types):
                 entropy_sat_Tcut.append([])
             if ('O_ion_mass' in flux_types):
@@ -890,6 +938,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                     kinetic_energy_sat_Tcut[i].append(kinetic_energy_sat[i][bool_temp])
                     thermal_energy_sat_Tcut[i].append(thermal_energy_sat[i][bool_temp])
                     potential_energy_sat_Tcut[i].append(potential_energy_sat[i][bool_temp])
+                    total_energy_sat_Tcut[i].append(total_energy_sat[i][bool_temp])
                 if ('entropy' in flux_types):
                     entropy_sat_Tcut[i].append(entropy_sat[i][bool_temp])
                 if ('O_ion_mass' in flux_types):
@@ -922,6 +971,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             kinetic_energy_flux_nosat = []
             thermal_energy_flux_nosat = []
             potential_energy_flux_nosat = []
+            total_energy_flux_nosat = []
         if ('entropy' in flux_types):
             entropy_flux_nosat = []
         if ('O_ion_mass' in flux_types):
@@ -943,6 +993,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                 kinetic_energy_flux_nosat.append([])
                 thermal_energy_flux_nosat.append([])
                 potential_energy_flux_nosat.append([])
+                total_energy_flux_nosat.append([])
             if ('entropy' in flux_types):
                 entropy_flux_nosat.append([])
             if ('O_ion_mass' in flux_types):
@@ -972,6 +1023,8 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                           np.sum(thermal_energy_nosat_Tcut[k][bool_in]))/dt)
                         potential_energy_flux_nosat[j].append((np.sum(potential_energy_nosat_Tcut[k][bool_out]) - \
                           np.sum(potential_energy_nosat_Tcut[k][bool_in]))/dt)
+                        total_energy_flux_nosat[j].append((np.sum(total_energy_nosat_Tcut[k][bool_out]) - \
+                          np.sum(total_energy_nosat_Tcut[k][bool_in]))/dt)
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append((np.sum(entropy_nosat_Tcut[k][bool_out]) - \
                           np.sum(entropy_nosat_Tcut[k][bool_in]))/dt)
@@ -1004,6 +1057,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                         kinetic_energy_flux_nosat[j].append(-np.sum(kinetic_energy_nosat_Tcut[k][bool_in])/dt)
                         thermal_energy_flux_nosat[j].append(-np.sum(thermal_energy_nosat_Tcut[k][bool_in])/dt)
                         potential_energy_flux_nosat[j].append(-np.sum(potential_energy_nosat_Tcut[k][bool_in])/dt)
+                        total_energy_flux_nosat[j].append(-np.sum(total_energy_nosat_Tcut[k][bool_in])/dt)
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append(-np.sum(entropy_nosat_Tcut[k][bool_in])/dt)
                     if ('O_ion_mass' in flux_types):
@@ -1025,6 +1079,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                         kinetic_energy_flux_nosat[j].append(np.sum(kinetic_energy_nosat_Tcut[k][bool_out])/dt)
                         thermal_energy_flux_nosat[j].append(np.sum(thermal_energy_nosat_Tcut[k][bool_out])/dt)
                         potential_energy_flux_nosat[j].append(np.sum(potential_energy_nosat_Tcut[k][bool_out])/dt)
+                        total_energy_flux_nosat[j].append(np.sum(total_energy_nosat_Tcut[k][bool_out])/dt)
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append(np.sum(entropy_nosat_Tcut[k][bool_out])/dt)
                     if ('O_ion_mass' in flux_types):
@@ -1050,6 +1105,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                 kinetic_energy_flux_sat = []
                 thermal_energy_flux_sat = []
                 potential_energy_flux_sat = []
+                total_energy_flux_sat = []
             if (sat_radius!=0) and ('entropy' in flux_types):
                 entropy_flux_sat = []
             if ('energy' in flux_types):
@@ -1073,6 +1129,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                     kinetic_energy_flux_sat.append([])
                     thermal_energy_flux_sat.append([])
                     potential_energy_flux_sat.append([])
+                    total_energy_flux_sat.append([])
                 if (sat_radius!=0) and ('entropy' in flux_types):
                     entropy_flux_sat.append([])
                 if ('energy' in flux_types):
@@ -1107,6 +1164,8 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                                                               np.sum(thermal_energy_sat_Tcut[1][k][bool_out]))/dt)
                             potential_energy_flux_sat[j].append((np.sum(potential_energy_sat_Tcut[0][k][bool_in]) - \
                                                                 np.sum(potential_energy_sat_Tcut[1][k][bool_out]))/dt)
+                            total_energy_flux_sat[j].append((np.sum(total_energy_sat_Tcut[0][k][bool_in]) - \
+                                                                np.sum(total_energy_sat_Tcut[1][k][bool_out]))/dt)
                         if (sat_radius!=0) and ('entropy' in flux_types):
                             entropy_flux_sat[j].append((np.sum(entropy_sat_Tcut[0][k][bool_in]) - \
                                                         np.sum(entropy_sat_Tcut[1][k][bool_out]))/dt)
@@ -1142,6 +1201,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                             kinetic_energy_flux_sat[j].append(np.sum(kinetic_energy_sat_Tcut[0][k][bool_in])/dt)
                             thermal_energy_flux_sat[j].append(np.sum(thermal_energy_sat_Tcut[0][k][bool_in])/dt)
                             potential_energy_flux_sat[j].append(np.sum(potential_energy_sat_Tcut[0][k][bool_in])/dt)
+                            total_energy_flux_sat[j].append(np.sum(total_energy_sat_Tcut[0][k][bool_in])/dt)
                         if (sat_radius!=0) and ('entropy' in flux_types):
                             entropy_flux_sat[j].append(np.sum(entropy_sat_Tcut[0][k][bool_in])/dt)
                         if ('energy' in flux_types):
@@ -1168,6 +1228,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                             kinetic_energy_flux_sat[j].append(-np.sum(kinetic_energy_sat_Tcut[1][k][bool_out])/dt)
                             thermal_energy_flux_sat[j].append(-np.sum(thermal_energy_sat_Tcut[1][k][bool_out])/dt)
                             potential_energy_flux_sat[j].append(-np.sum(potential_energy_sat_Tcut[1][k][bool_out])/dt)
+                            total_energy_flux_sat[j].append(-np.sum(total_energy_sat_Tcut[1][k][bool_out])/dt)
                         if (sat_radius!=0) and ('entropy' in flux_types):
                             entropy_flux_sat[j].append(-np.sum(entropy_sat_Tcut[1][k][bool_out])/dt)
                         if ('energy' in flux_types):
@@ -1203,10 +1264,12 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         if ('energy' in flux_types):
             new_row += [kinetic_energy_flux_nosat[0][0], thermal_energy_flux_nosat[0][0], \
             potential_energy_flux_nosat[0][0], radiative_energy_flux_nosat[0][0], \
+            total_energy_flux_nosat[0][0], \
             kinetic_energy_flux_nosat[1][0], kinetic_energy_flux_nosat[2][0], \
             thermal_energy_flux_nosat[1][0], thermal_energy_flux_nosat[2][0], \
             potential_energy_flux_nosat[1][0], potential_energy_flux_nosat[2][0], \
             radiative_energy_flux_nosat[1][0], radiative_energy_flux_nosat[2][0], \
+            total_energy_flux_nosat[1][0], total_energy_flux_nosat[2][0], \
             kinetic_energy_flux_nosat[0][1], kinetic_energy_flux_nosat[1][1], kinetic_energy_flux_nosat[2][1], \
             kinetic_energy_flux_nosat[0][2], kinetic_energy_flux_nosat[1][2], kinetic_energy_flux_nosat[2][2], \
             kinetic_energy_flux_nosat[0][3], kinetic_energy_flux_nosat[1][3], kinetic_energy_flux_nosat[2][3], \
@@ -1222,7 +1285,11 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             radiative_energy_flux_nosat[0][1], radiative_energy_flux_nosat[1][1], radiative_energy_flux_nosat[2][1], \
             radiative_energy_flux_nosat[0][2], radiative_energy_flux_nosat[1][2], radiative_energy_flux_nosat[2][2], \
             radiative_energy_flux_nosat[0][3], radiative_energy_flux_nosat[1][3], radiative_energy_flux_nosat[2][3], \
-            radiative_energy_flux_nosat[0][4], radiative_energy_flux_nosat[1][4], radiative_energy_flux_nosat[2][4]]
+            radiative_energy_flux_nosat[0][4], radiative_energy_flux_nosat[1][4], radiative_energy_flux_nosat[2][4], \
+            total_energy_flux_nosat[0][1], total_energy_flux_nosat[1][1], total_energy_flux_nosat[2][1], \
+            total_energy_flux_nosat[0][2], total_energy_flux_nosat[1][2], total_energy_flux_nosat[2][2], \
+            total_energy_flux_nosat[0][3], total_energy_flux_nosat[1][3], total_energy_flux_nosat[2][3], \
+            total_energy_flux_nosat[0][4], total_energy_flux_nosat[1][4], total_energy_flux_nosat[2][4]]
         if ('entropy' in flux_types):
             new_row += [entropy_flux_nosat[0][0], entropy_flux_nosat[1][0], entropy_flux_nosat[2][0], \
                         entropy_flux_nosat[0][1], entropy_flux_nosat[1][1], entropy_flux_nosat[2][1], \
@@ -1296,10 +1363,11 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                 metal_flux_sat[0][3], metal_flux_sat[1][3], metal_flux_sat[2][3], \
                 metal_flux_sat[0][4], metal_flux_sat[1][4], metal_flux_sat[2][4]]
             if ('energy' in flux_types):
-                new_row += [kinetic_energy_flux_sat[0][0], thermal_energy_flux_sat[0][0], potential_energy_flux_sat[0][0], \
+                new_row += [kinetic_energy_flux_sat[0][0], thermal_energy_flux_sat[0][0], potential_energy_flux_sat[0][0], total_energy_flux_sat[0][0], \
                 kinetic_energy_flux_sat[1][0], kinetic_energy_flux_sat[2][0], \
                 thermal_energy_flux_sat[1][0], thermal_energy_flux_sat[2][0], \
                 potential_energy_flux_sat[1][0], potential_energy_flux_sat[2][0], \
+                total_energy_flux_sat[1][0], total_energy_flux_sat[2][0], \
                 kinetic_energy_flux_sat[0][1], kinetic_energy_flux_sat[1][1], kinetic_energy_flux_sat[2][1], \
                 kinetic_energy_flux_sat[0][2], kinetic_energy_flux_sat[1][2], kinetic_energy_flux_sat[2][2], \
                 kinetic_energy_flux_sat[0][3], kinetic_energy_flux_sat[1][3], kinetic_energy_flux_sat[2][3], \
@@ -1311,7 +1379,11 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                 potential_energy_flux_sat[0][1], potential_energy_flux_sat[1][1], potential_energy_flux_sat[2][1], \
                 potential_energy_flux_sat[0][2], potential_energy_flux_sat[1][2], potential_energy_flux_sat[2][2], \
                 potential_energy_flux_sat[0][3], potential_energy_flux_sat[1][3], potential_energy_flux_sat[2][3], \
-                potential_energy_flux_sat[0][4], potential_energy_flux_sat[1][4], potential_energy_flux_sat[2][4]]
+                potential_energy_flux_sat[0][4], potential_energy_flux_sat[1][4], potential_energy_flux_sat[2][4], \
+                total_energy_flux_sat[0][1], total_energy_flux_sat[1][1], total_energy_flux_sat[2][1], \
+                total_energy_flux_sat[0][2], total_energy_flux_sat[1][2], total_energy_flux_sat[2][2], \
+                total_energy_flux_sat[0][3], total_energy_flux_sat[1][3], total_energy_flux_sat[2][3], \
+                total_energy_flux_sat[0][4], total_energy_flux_sat[1][4], total_energy_flux_sat[2][4]]
             if ('entropy' in flux_types):
                 new_row += [entropy_flux_sat[0][0], entropy_flux_sat[1][0], entropy_flux_sat[2][0], \
                 entropy_flux_sat[0][1], entropy_flux_sat[1][1], entropy_flux_sat[2][1], \
@@ -1454,11 +1526,12 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         type_list_edge += new_types
     if ('energy' in flux_types):
         new_names = ('net_kinetic_energy_flux', 'net_thermal_energy_flux', \
-        'net_potential_energy_flux', 'net_radiative_energy_flux', \
+        'net_potential_energy_flux', 'net_radiative_energy_flux', 'net_total_energy_flux',\
         'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
         'thermal_energy_flux_in', 'thermal_energy_flux_out', \
         'potential_energy_flux_in', 'potential_energy_flux_out', \
         'radiative_energy_flux_in', 'radiative_energy_flux_out', \
+        'total_energy_flux_in', 'total_energy_flux_out', \
         'net_cold_kinetic_energy_flux', 'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
         'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
         'net_warm_kinetic_energy_flux', 'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
@@ -1474,17 +1547,23 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         'net_cold_radiative_energy_flux', 'cold_radiative_energy_flux_in', 'cold_radiative_energy_flux_out', \
         'net_cool_radiative_energy_flux', 'cool_radiative_energy_flux_in', 'cool_radiative_energy_flux_out', \
         'net_warm_radiative_energy_flux', 'warm_radiative_energy_flux_in', 'warm_radiative_energy_flux_out', \
-        'net_hot_radiative_energy_flux', 'hot_radiative_energy_flux_in', 'hot_radiative_energy_flux_out')
+        'net_hot_radiative_energy_flux', 'hot_radiative_energy_flux_in', 'hot_radiative_energy_flux_out', \
+        'net_cold_total_energy_flux', 'cold_total_energy_flux_in', 'cold_total_energy_flux_out', \
+        'net_cool_total_energy_flux', 'cool_total_energy_flux_in', 'cool_total_energy_flux_out', \
+        'net_warm_total_energy_flux', 'warm_total_energy_flux_in', 'warm_total_energy_flux_out', \
+        'net_hot_total_energy_flux', 'hot_total_energy_flux_in', 'hot_total_energy_flux_out')
         new_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         new_names_edge = ('net_kinetic_energy_flux', 'net_thermal_energy_flux', \
-        'net_potential_energy_flux', \
+        'net_potential_energy_flux', 'net_total_energy_flux', \
         'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
         'thermal_energy_flux_in', 'thermal_energy_flux_out', \
         'potential_energy_flux_in', 'potential_energy_flux_out', \
+        'total_energy_flux_in', 'total_energy_flux_out', \
         'net_cold_kinetic_energy_flux', 'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
         'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
         'net_warm_kinetic_energy_flux', 'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
@@ -1496,9 +1575,14 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         'net_cold_potential_energy_flux', 'cold_potential_energy_flux_in', 'cold_potential_energy_flux_out', \
         'net_cool_potential_energy_flux', 'cool_potential_energy_flux_in', 'cool_potential_energy_flux_out', \
         'net_warm_potential_energy_flux', 'warm_potential_energy_flux_in', 'warm_potential_energy_flux_out', \
-        'net_hot_potential_energy_flux', 'hot_potential_energy_flux_in', 'hot_potential_energy_flux_out')
+        'net_hot_potential_energy_flux', 'hot_potential_energy_flux_in', 'hot_potential_energy_flux_out', \
+        'net_cold_total_energy_flux', 'cold_total_energy_flux_in', 'cold_total_energy_flux_out', \
+        'net_cool_total_energy_flux', 'cool_total_energy_flux_in', 'cool_total_energy_flux_out', \
+        'net_warm_total_energy_flux', 'warm_total_energy_flux_in', 'warm_total_energy_flux_out', \
+        'net_hot_total_energy_flux', 'hot_total_energy_flux_in', 'hot_total_energy_flux_out')
         new_types_edge = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_rad += new_names
@@ -1621,6 +1705,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
         potential_energy = (sphere['gas','cell_mass'] * \
           ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
+        total_energy = kinetic_energy + thermal_energy + potential_energy
         cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
@@ -1664,17 +1749,17 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         theta = np.arccos(z/radius)
         new_theta = np.arccos(new_z/new_radius)
         phi = np.arctan2(y, x)
-        frus_filename += 'z_' + str(op_angle)
+        frus_filename += 'z_op' + str(op_angle)
     if (axis=='x'):
         theta = np.arccos(x/radius)
         new_theta = np.arccos(new_x/new_radius)
         phi = np.arctan2(z, y)
-        frus_filename += 'x_' + str(op_angle)
+        frus_filename += 'x_op' + str(op_angle)
     if (axis=='y'):
         theta = np.arccos(y/radius)
         new_theta = np.arccos(new_y/new_radius)
         phi = np.arctan2(x, z)
-        frus_filename += 'y_' + str(op_angle)
+        frus_filename += 'y_op' + str(op_angle)
     if (axis=='disk minor axis'):
         x_disk = sphere['gas','x_disk'].in_units('kpc').v
         y_disk = sphere['gas','y_disk'].in_units('kpc').v
@@ -1688,7 +1773,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         theta = np.arccos(z_disk/radius)
         new_theta = np.arccos(new_z_disk/new_radius)
         phi = np.arctan2(y_disk, x_disk)
-        frus_filename += 'disk_' + str(op_angle)
+        frus_filename += 'disk_op' + str(op_angle)
     if (type(axis)==tuple) or (type(axis)==list):
         axis = np.array(axis)
         norm_axis = axis / np.sqrt((axis**2.).sum())
@@ -1718,7 +1803,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         new_z_rot = rotationArr[2][0]*new_x + rotationArr[2][1]*new_y + rotationArr[2][2]*new_z
         theta = np.arccos(z_rot/radius)
         new_theta = np.arccos(new_z_rot/new_radius)
-        frus_filename += 'axis_' + str(axis[0]) + '_' + str(axis[1]) + '_' + str(axis[2]) + '_' + str(op_angle)
+        frus_filename += 'axis_' + str(axis[0]) + '_' + str(axis[1]) + '_' + str(axis[2]) + '_op' + str(op_angle)
 
     fluxtype_filename = ''
     if ('mass' in flux_types):
@@ -1808,6 +1893,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             kinetic_energy_nosat = kinetic_energy[bool_nosat]
             thermal_energy_nosat = thermal_energy[bool_nosat]
             potential_energy_nosat = potential_energy[bool_nosat]
+            total_energy_nosat = total_energy[bool_nosat]
             cooling_time_nosat = cooling_time[bool_nosat]
         if ('entropy' in flux_types):
             entropy_nosat = entropy[bool_nosat]
@@ -1837,6 +1923,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             kinetic_energy_nosat = kinetic_energy
             thermal_energy_nosat = thermal_energy
             potential_energy_nosat = potential_energy
+            total_energy_nosat = total_energy
             cooling_time_nosat = cooling_time
         if ('entropy' in flux_types):
             entropy_nosat = entropy
@@ -1869,6 +1956,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         kinetic_energy_nosat_frus = []
         thermal_energy_nosat_frus = []
         potential_energy_nosat_frus = []
+        total_energy_nosat_frus = []
         cooling_time_nosat_frus = []
     if ('entropy' in flux_types):
         entropy_nosat_frus = []
@@ -1896,6 +1984,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 kinetic_energy_nosat_frus.append(kinetic_energy_nosat[bool_frus])
                 thermal_energy_nosat_frus.append(thermal_energy_nosat[bool_frus])
                 potential_energy_nosat_frus.append(potential_energy_nosat[bool_frus])
+                total_energy_nosat_frus.append(total_energy_nosat[bool_frus])
                 cooling_time_nosat_frus.append(cooling_time_nosat[bool_frus])
             if ('entropy' in flux_types):
                 entropy_nosat_frus.append(entropy_nosat[bool_frus])
@@ -1922,6 +2011,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 kinetic_energy_nosat_frus.append(kinetic_energy_nosat[bool_infrus])
                 thermal_energy_nosat_frus.append(thermal_energy_nosat[bool_infrus])
                 potential_energy_nosat_frus.append(potential_energy_nosat[bool_infrus])
+                total_energy_nosat_frus.append(total_energy_nosat[bool_infrus])
                 cooling_time_nosat_frus.append(cooling_time_nosat[bool_infrus])
             if ('entropy' in flux_types):
                 entropy_nosat_frus.append(entropy_nosat[bool_infrus])
@@ -1948,6 +2038,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 kinetic_energy_nosat_frus.append(kinetic_energy_nosat[bool_outfrus])
                 thermal_energy_nosat_frus.append(thermal_energy_nosat[bool_outfrus])
                 potential_energy_nosat_frus.append(potential_energy_nosat[bool_outfrus])
+                total_energy_nosat_frus.append(total_energy_nosat[bool_outfrus])
                 cooling_time_nosat_frus.append(cooling_time_nosat[bool_outfrus])
             if ('entropy' in flux_types):
                 entropy_nosat_frus.append(entropy_nosat[bool_outfrus])
@@ -1981,6 +2072,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         kinetic_energy_nosat_frus_Tcut = []
         thermal_energy_nosat_frus_Tcut = []
         potential_energy_nosat_frus_Tcut = []
+        total_energy_nosat_frus_Tcut = []
         cooling_time_nosat_frus_Tcut = []
     if ('entropy' in flux_types):
         entropy_nosat_frus_Tcut = []
@@ -2006,6 +2098,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             kinetic_energy_nosat_frus_Tcut.append([])
             thermal_energy_nosat_frus_Tcut.append([])
             potential_energy_nosat_frus_Tcut.append([])
+            total_energy_nosat_frus_Tcut.append([])
             cooling_time_nosat_frus_Tcut.append([])
         if ('entropy' in flux_types):
             entropy_nosat_frus_Tcut.append([])
@@ -2047,6 +2140,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 kinetic_energy_nosat_frus_Tcut[i].append(kinetic_energy_nosat_frus[i][bool_temp_nosat_frus])
                 thermal_energy_nosat_frus_Tcut[i].append(thermal_energy_nosat_frus[i][bool_temp_nosat_frus])
                 potential_energy_nosat_frus_Tcut[i].append(potential_energy_nosat_frus[i][bool_temp_nosat_frus])
+                total_energy_nosat_frus_Tcut[i].append(total_energy_nosat_frus[i][bool_temp_nosat_frus])
                 cooling_time_nosat_frus_Tcut[i].append(cooling_time_nosat_frus[i][bool_temp_nosat_frus])
             if ('entropy' in flux_types):
                 entropy_nosat_frus_Tcut[i].append(entropy_nosat_frus[i][bool_temp_nosat_frus])
@@ -2076,6 +2170,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             kinetic_energy_sat = []
             thermal_energy_sat = []
             potential_energy_sat = []
+            total_energy_sat = []
         if ('entropy' in flux_types):
             entropy_sat = []
         if ('O_ion_mass' in flux_types):
@@ -2101,6 +2196,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                     kinetic_energy_sat.append(kinetic_energy[bool_fromsat])
                     thermal_energy_sat.append(thermal_energy[bool_fromsat])
                     potential_energy_sat.append(potential_energy[bool_fromsat])
+                    total_energy_sat.append(total_energy[bool_fromsat])
                 if ('entropy' in flux_types):
                     entropy_sat.append(entropy[bool_fromsat])
                 if ('O_ion_mass' in flux_types):
@@ -2125,6 +2221,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                     kinetic_energy_sat.append(kinetic_energy[bool_tosat])
                     thermal_energy_sat.append(thermal_energy[bool_tosat])
                     potential_energy_sat.append(potential_energy[bool_tosat])
+                    total_energy_sat.append(total_energy[bool_tosat])
                 if ('entropy' in flux_types):
                     entropy_sat.append(entropy[bool_tosat])
                 if ('O_ion_mass' in flux_types):
@@ -2152,6 +2249,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             kinetic_energy_sat_Tcut = []
             thermal_energy_sat_Tcut = []
             potential_energy_sat_Tcut = []
+            total_energy_sat_Tcut = []
         if ('entropy' in flux_types):
             entropy_sat_Tcut = []
         if ('O_ion_mass' in flux_types):
@@ -2175,6 +2273,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 kinetic_energy_sat_Tcut.append([])
                 thermal_energy_sat_Tcut.append([])
                 potential_energy_sat_Tcut.append([])
+                total_energy_sat_Tcut.append([])
             if ('entropy' in flux_types):
                 entropy_sat_Tcut.append([])
             if ('O_ion_mass' in flux_types):
@@ -2214,6 +2313,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                     kinetic_energy_sat_Tcut[i].append(kinetic_energy_sat[i][bool_temp_sat])
                     thermal_energy_sat_Tcut[i].append(thermal_energy_sat[i][bool_temp_sat])
                     potential_energy_sat_Tcut[i].append(potential_energy_sat[i][bool_temp_sat])
+                    total_energy_sat_Tcut[i].append(total_energy_sat[i][bool_temp_sat])
                 if ('entropy' in flux_types):
                     entropy_sat_Tcut[i].append(entropy_sat[i][bool_temp_sat])
                 if ('O_ion_mass' in flux_types):
@@ -2246,6 +2346,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             kinetic_energy_flux_nosat = []
             thermal_energy_flux_nosat = []
             potential_energy_flux_nosat = []
+            total_energy_flux_nosat = []
         if ('entropy' in flux_types):
             entropy_flux_nosat = []
         if ('O_ion_mass' in flux_types):
@@ -2267,6 +2368,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 kinetic_energy_flux_nosat.append([])
                 thermal_energy_flux_nosat.append([])
                 potential_energy_flux_nosat.append([])
+                total_energy_flux_nosat.append([])
             if ('entropy' in flux_types):
                 entropy_flux_nosat.append([])
             if ('O_ion_mass' in flux_types):
@@ -2296,6 +2398,8 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                           np.sum(thermal_energy_nosat_frus_Tcut[0][k][bool_in_r]))/dt)
                         potential_energy_flux_nosat[j].append((np.sum(potential_energy_nosat_frus_Tcut[0][k][bool_out_r]) - \
                           np.sum(potential_energy_nosat_frus_Tcut[0][k][bool_in_r]))/dt)
+                        total_energy_flux_nosat[j].append((np.sum(total_energy_nosat_frus_Tcut[0][k][bool_out_r]) - \
+                          np.sum(total_energy_nosat_frus_Tcut[0][k][bool_in_r]))/dt)
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append((np.sum(entropy_nosat_frus_Tcut[0][k][bool_out_r]) - \
                           np.sum(entropy_nosat_frus_Tcut[0][k][bool_in_r]))/dt)
@@ -2328,6 +2432,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                         kinetic_energy_flux_nosat[j].append(-np.sum(kinetic_energy_nosat_frus_Tcut[0][k][bool_in_r])/dt)
                         thermal_energy_flux_nosat[j].append(-np.sum(thermal_energy_nosat_frus_Tcut[0][k][bool_in_r])/dt)
                         potential_energy_flux_nosat[j].append(-np.sum(potential_energy_nosat_frus_Tcut[0][k][bool_in_r])/dt)
+                        total_energy_flux_nosat[j].append(-np.sum(total_energy_nosat_frus_Tcut[0][k][bool_in_r])/dt)
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append(-np.sum(entropy_nosat_frus_Tcut[0][k][bool_in_r])/dt)
                     if ('O_ion_mass' in flux_types):
@@ -2349,6 +2454,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                         kinetic_energy_flux_nosat[j].append(np.sum(kinetic_energy_nosat_frus_Tcut[0][k][bool_out_r])/dt)
                         thermal_energy_flux_nosat[j].append(np.sum(thermal_energy_nosat_frus_Tcut[0][k][bool_out_r])/dt)
                         potential_energy_flux_nosat[j].append(np.sum(potential_energy_nosat_frus_Tcut[0][k][bool_out_r])/dt)
+                        total_energy_flux_nosat[j].append(np.sum(total_energy_nosat_frus_Tcut[0][k][bool_out_r])/dt)
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append(np.sum(entropy_nosat_frus_Tcut[0][k][bool_out_r])/dt)
                     if ('O_ion_mass' in flux_types):
@@ -2374,6 +2480,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 kinetic_energy_flux_sat = []
                 thermal_energy_flux_sat = []
                 potential_energy_flux_sat = []
+                total_energy_flux_sat = []
             if (sat_radius!=0) and ('entropy' in flux_types):
                 entropy_flux_sat = []
             if ('energy' in flux_types):
@@ -2397,6 +2504,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                     kinetic_energy_flux_sat.append([])
                     thermal_energy_flux_sat.append([])
                     potential_energy_flux_sat.append([])
+                    total_energy_flux_sat.append([])
                 if (sat_radius!=0) and ('entropy' in flux_types):
                     entropy_flux_sat.append([])
                 if ('energy' in flux_types):
@@ -2431,6 +2539,8 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                                                               np.sum(thermal_energy_sat_Tcut[1][k][bool_to]))/dt)
                             potential_energy_flux_sat[j].append((np.sum(potential_energy_sat_Tcut[0][k][bool_from]) - \
                                                                 np.sum(potential_energy_sat_Tcut[1][k][bool_to]))/dt)
+                            total_energy_flux_sat[j].append((np.sum(total_energy_sat_Tcut[0][k][bool_from]) - \
+                                                                np.sum(total_energy_sat_Tcut[1][k][bool_to]))/dt)
                         if (sat_radius!=0) and ('entropy' in flux_types):
                             entropy_flux_sat[j].append((np.sum(entropy_sat_Tcut[0][k][bool_from]) - \
                                                         np.sum(entropy_sat_Tcut[1][k][bool_to]))/dt)
@@ -2466,6 +2576,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                             kinetic_energy_flux_sat[j].append(np.sum(kinetic_energy_sat_Tcut[0][k][bool_from])/dt)
                             thermal_energy_flux_sat[j].append(np.sum(thermal_energy_sat_Tcut[0][k][bool_from])/dt)
                             potential_energy_flux_sat[j].append(np.sum(potential_energy_sat_Tcut[0][k][bool_from])/dt)
+                            total_energy_flux_sat[j].append(np.sum(total_energy_sat_Tcut[0][k][bool_from])/dt)
                         if (sat_radius!=0) and ('entropy' in flux_types):
                             entropy_flux_sat[j].append(np.sum(entropy_sat_Tcut[0][k][bool_from])/dt)
                         if ('energy' in flux_types):
@@ -2492,6 +2603,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                             kinetic_energy_flux_sat[j].append(-np.sum(kinetic_energy_sat_Tcut[1][k][bool_to])/dt)
                             thermal_energy_flux_sat[j].append(-np.sum(thermal_energy_sat_Tcut[1][k][bool_to])/dt)
                             potential_energy_flux_sat[j].append(-np.sum(potential_energy_sat_Tcut[1][k][bool_to])/dt)
+                            total_energy_flux_sat[j].append(-np.sum(total_energy_sat_Tcut[1][k][bool_to])/dt)
                         if (sat_radius!=0) and ('entropy' in flux_types):
                             entropy_flux_sat[j].append(-np.sum(entropy_sat_Tcut[1][k][bool_to])/dt)
                         if ('energy' in flux_types):
@@ -2522,6 +2634,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 kinetic_energy_flux_edge = []
                 thermal_energy_flux_edge = []
                 potential_energy_flux_edge = []
+                total_energy_flux_edge = []
             if ('entropy' in flux_types):
                 entropy_flux_edge = []
             if ('O_ion_mass' in flux_types):
@@ -2543,6 +2656,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                     kinetic_energy_flux_edge.append([])
                     thermal_energy_flux_edge.append([])
                     potential_energy_flux_edge.append([])
+                    total_energy_flux_edge.append([])
                 if ('entropy' in flux_types):
                     entropy_flux_edge.append([])
                 if ('O_ion_mass' in flux_types):
@@ -2572,6 +2686,8 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                                                               np.sum(thermal_energy_nosat_frus_Tcut[2][k][bool_out]))/dt)
                             potential_energy_flux_edge[j].append((np.sum(potential_energy_nosat_frus_Tcut[1][k][bool_in]) - \
                                                                 np.sum(potential_energy_nosat_frus_Tcut[2][k][bool_out]))/dt)
+                            total_energy_flux_edge[j].append((np.sum(total_energy_nosat_frus_Tcut[1][k][bool_in]) - \
+                                                                np.sum(total_energy_nosat_frus_Tcut[2][k][bool_out]))/dt)
                         if ('entropy' in flux_types):
                             entropy_flux_edge[j].append((np.sum(entropy_nosat_frus_Tcut[1][k][bool_in]) - \
                                                         np.sum(entropy_nosat_frus_Tcut[2][k][bool_out]))/dt)
@@ -2604,6 +2720,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                             kinetic_energy_flux_edge[j].append(np.sum(kinetic_energy_nosat_frus_Tcut[1][k][bool_in])/dt)
                             thermal_energy_flux_edge[j].append(np.sum(thermal_energy_nosat_frus_Tcut[1][k][bool_in])/dt)
                             potential_energy_flux_edge[j].append(np.sum(potential_energy_nosat_frus_Tcut[1][k][bool_in])/dt)
+                            total_energy_flux_edge[j].append(np.sum(total_energy_nosat_frus_Tcut[1][k][bool_in])/dt)
                         if ('entropy' in flux_types):
                             entropy_flux_edge[j].append(np.sum(entropy_nosat_frus_Tcut[1][k][bool_in])/dt)
                         if ('O_ion_mass' in flux_types):
@@ -2625,6 +2742,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                             kinetic_energy_flux_edge[j].append(-np.sum(kinetic_energy_nosat_frus_Tcut[2][k][bool_out])/dt)
                             thermal_energy_flux_edge[j].append(-np.sum(thermal_energy_nosat_frus_Tcut[2][k][bool_out])/dt)
                             potential_energy_flux_edge[j].append(-np.sum(potential_energy_nosat_frus_Tcut[2][k][bool_out])/dt)
+                            total_energy_flux_edge[j].append(-np.sum(total_energy_nosat_frus_Tcut[2][k][bool_out])/dt)
                         if ('entropy' in flux_types):
                             entropy_flux_edge[j].append(-np.sum(entropy_nosat_frus_Tcut[2][k][bool_out])/dt)
                         if ('O_ion_mass' in flux_types):
@@ -2666,9 +2784,11 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
         if ('energy' in flux_types):
             new_row_rad += [kinetic_energy_flux_nosat[0][0], thermal_energy_flux_nosat[0][0], \
             potential_energy_flux_nosat[0][0], radiative_energy_flux_nosat[0][0], \
+            total_energy_flux_nosat[0][0], \
             kinetic_energy_flux_nosat[1][0], kinetic_energy_flux_nosat[2][0], \
             thermal_energy_flux_nosat[1][0], thermal_energy_flux_nosat[2][0], \
             potential_energy_flux_nosat[1][0], potential_energy_flux_nosat[2][0], \
+            total_energy_flux_nosat[1][0], total_energy_flux_nosat[2][0], \
             radiative_energy_flux_nosat[1][0], radiative_energy_flux_nosat[2][0], \
             kinetic_energy_flux_nosat[0][1], kinetic_energy_flux_nosat[1][1], kinetic_energy_flux_nosat[2][1], \
             kinetic_energy_flux_nosat[0][2], kinetic_energy_flux_nosat[1][2], kinetic_energy_flux_nosat[2][2], \
@@ -2685,12 +2805,17 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             radiative_energy_flux_nosat[0][1], radiative_energy_flux_nosat[1][1], radiative_energy_flux_nosat[2][1], \
             radiative_energy_flux_nosat[0][2], radiative_energy_flux_nosat[1][2], radiative_energy_flux_nosat[2][2], \
             radiative_energy_flux_nosat[0][3], radiative_energy_flux_nosat[1][3], radiative_energy_flux_nosat[2][3], \
-            radiative_energy_flux_nosat[0][4], radiative_energy_flux_nosat[1][4], radiative_energy_flux_nosat[2][4]]
+            radiative_energy_flux_nosat[0][4], radiative_energy_flux_nosat[1][4], radiative_energy_flux_nosat[2][4], \
+            total_energy_flux_nosat[0][1], total_energy_flux_nosat[1][1], total_energy_flux_nosat[2][1], \
+            total_energy_flux_nosat[0][2], total_energy_flux_nosat[1][2], total_energy_flux_nosat[2][2], \
+            total_energy_flux_nosat[0][3], total_energy_flux_nosat[1][3], total_energy_flux_nosat[2][3], \
+            total_energy_flux_nosat[0][4], total_energy_flux_nosat[1][4], total_energy_flux_nosat[2][4]]
             new_row_edge += [kinetic_energy_flux_edge[0][0], thermal_energy_flux_edge[0][0], \
-            potential_energy_flux_edge[0][0], \
+            potential_energy_flux_edge[0][0], total_energy_flux_edge[0][0], \
             kinetic_energy_flux_edge[1][0], kinetic_energy_flux_edge[2][0], \
             thermal_energy_flux_edge[1][0], thermal_energy_flux_edge[2][0], \
             potential_energy_flux_edge[1][0], potential_energy_flux_edge[2][0], \
+            total_energy_flux_edge[1][0], total_energy_flux_edge[2][0], \
             kinetic_energy_flux_edge[0][1], kinetic_energy_flux_edge[1][1], kinetic_energy_flux_edge[2][1], \
             kinetic_energy_flux_edge[0][2], kinetic_energy_flux_edge[1][2], kinetic_energy_flux_edge[2][2], \
             kinetic_energy_flux_edge[0][3], kinetic_energy_flux_edge[1][3], kinetic_energy_flux_edge[2][3], \
@@ -2702,7 +2827,11 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
             potential_energy_flux_edge[0][1], potential_energy_flux_edge[1][1], potential_energy_flux_edge[2][1], \
             potential_energy_flux_edge[0][2], potential_energy_flux_edge[1][2], potential_energy_flux_edge[2][2], \
             potential_energy_flux_edge[0][3], potential_energy_flux_edge[1][3], potential_energy_flux_edge[2][3], \
-            potential_energy_flux_edge[0][4], potential_energy_flux_edge[1][4], potential_energy_flux_edge[2][4]]
+            potential_energy_flux_edge[0][4], potential_energy_flux_edge[1][4], potential_energy_flux_edge[2][4], \
+            total_energy_flux_edge[0][1], total_energy_flux_edge[1][1], total_energy_flux_edge[2][1], \
+            total_energy_flux_edge[0][2], total_energy_flux_edge[1][2], total_energy_flux_edge[2][2], \
+            total_energy_flux_edge[0][3], total_energy_flux_edge[1][3], total_energy_flux_edge[2][3], \
+            total_energy_flux_edge[0][4], total_energy_flux_edge[1][4], total_energy_flux_edge[2][4]]
         if ('entropy' in flux_types):
             new_row_rad += [entropy_flux_nosat[0][0], entropy_flux_nosat[1][0], entropy_flux_nosat[2][0], \
             entropy_flux_nosat[0][1], entropy_flux_nosat[1][1], entropy_flux_nosat[2][1], \
@@ -2832,9 +2961,10 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 metal_flux_sat[0][4], metal_flux_sat[1][4], metal_flux_sat[2][4]]
             if ('energy' in flux_types):
                 new_row_sat += [kinetic_energy_flux_sat[0][0], thermal_energy_flux_sat[0][0], \
-                potential_energy_flux_sat[0][0], kinetic_energy_flux_sat[1][0], kinetic_energy_flux_sat[2][0], \
+                potential_energy_flux_sat[0][0], total_energy_flux_sat[0][0],  kinetic_energy_flux_sat[1][0], kinetic_energy_flux_sat[2][0], \
                 thermal_energy_flux_sat[1][0], thermal_energy_flux_sat[2][0], \
                 potential_energy_flux_sat[1][0], potential_energy_flux_sat[2][0], \
+                total_energy_flux_sat[1][0], total_energy_flux_sat[2][0], \
                 kinetic_energy_flux_sat[0][1], kinetic_energy_flux_sat[1][1], kinetic_energy_flux_sat[2][1], \
                 kinetic_energy_flux_sat[0][2], kinetic_energy_flux_sat[1][2], kinetic_energy_flux_sat[2][2], \
                 kinetic_energy_flux_sat[0][3], kinetic_energy_flux_sat[1][3], kinetic_energy_flux_sat[2][3], \
@@ -2846,7 +2976,11 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                 potential_energy_flux_sat[0][1], potential_energy_flux_sat[1][1], potential_energy_flux_sat[2][1], \
                 potential_energy_flux_sat[0][2], potential_energy_flux_sat[1][2], potential_energy_flux_sat[2][2], \
                 potential_energy_flux_sat[0][3], potential_energy_flux_sat[1][3], potential_energy_flux_sat[2][3], \
-                potential_energy_flux_sat[0][4], potential_energy_flux_sat[1][4], potential_energy_flux_sat[2][4]]
+                potential_energy_flux_sat[0][4], potential_energy_flux_sat[1][4], potential_energy_flux_sat[2][4], \
+                total_energy_flux_sat[0][1], total_energy_flux_sat[1][1], total_energy_flux_sat[2][1], \
+                total_energy_flux_sat[0][2], total_energy_flux_sat[1][2], total_energy_flux_sat[2][2], \
+                total_energy_flux_sat[0][3], total_energy_flux_sat[1][3], total_energy_flux_sat[2][3], \
+                total_energy_flux_sat[0][4], total_energy_flux_sat[1][4], total_energy_flux_sat[2][4]]
             if ('entropy' in flux_types):
                 new_row_sat += [entropy_flux_sat[0][0], entropy_flux_sat[1][0], entropy_flux_sat[2][0], \
                 entropy_flux_sat[0][1], entropy_flux_sat[1][1], entropy_flux_sat[2][1], \
@@ -2950,10 +3084,11 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
     if (units_kpc):
         bottom_edge = ds.quan(surface_args[3], 'kpc')
         top_edge = ds.quan(surface_args[4], 'kpc')
+        cyl_radius = ds.quan(surface_args[5], 'kpc')
     else:
         bottom_edge = surface_args[3]*refine_width_kpc
         top_edge = surface_args[4]*refine_width_kpc
-    cyl_radius = ds.quan(surface_args[5], 'kpc')
+        cyl_radius = surface_args[5]*refine_width_kpc
     if (surface_args[6]=='height'):
         dz = (top_edge - bottom_edge)/surface_args[7]
     elif (surface_args[6]=='radius'):
@@ -2991,11 +3126,12 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
         type_list_edge += new_types
     if ('energy' in flux_types):
         new_names = ('net_kinetic_energy_flux', 'net_thermal_energy_flux', \
-        'net_potential_energy_flux', 'net_radiative_energy_flux', \
+        'net_potential_energy_flux', 'net_radiative_energy_flux', 'net_total_energy_flux',\
         'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
         'thermal_energy_flux_in', 'thermal_energy_flux_out', \
         'potential_energy_flux_in', 'potential_energy_flux_out', \
         'radiative_energy_flux_in', 'radiative_energy_flux_out', \
+        'total_energy_flux_in', 'total_energy_flux_out', \
         'net_cold_kinetic_energy_flux', 'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
         'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
         'net_warm_kinetic_energy_flux', 'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
@@ -3011,17 +3147,23 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
         'net_cold_radiative_energy_flux', 'cold_radiative_energy_flux_in', 'cold_radiative_energy_flux_out', \
         'net_cool_radiative_energy_flux', 'cool_radiative_energy_flux_in', 'cool_radiative_energy_flux_out', \
         'net_warm_radiative_energy_flux', 'warm_radiative_energy_flux_in', 'warm_radiative_energy_flux_out', \
-        'net_hot_radiative_energy_flux', 'hot_radiative_energy_flux_in', 'hot_radiative_energy_flux_out')
+        'net_hot_radiative_energy_flux', 'hot_radiative_energy_flux_in', 'hot_radiative_energy_flux_out', \
+        'net_cold_total_energy_flux', 'cold_total_energy_flux_in', 'cold_total_energy_flux_out', \
+        'net_cool_total_energy_flux', 'cool_total_energy_flux_in', 'cool_total_energy_flux_out', \
+        'net_warm_total_energy_flux', 'warm_total_energy_flux_in', 'warm_total_energy_flux_out', \
+        'net_hot_total_energy_flux', 'hot_total_energy_flux_in', 'hot_total_energy_flux_out')
         new_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         new_names_edge = ('net_kinetic_energy_flux', 'net_thermal_energy_flux', \
-        'net_potential_energy_flux', \
+        'net_potential_energy_flux', 'net_total_energy_flux', \
         'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
         'thermal_energy_flux_in', 'thermal_energy_flux_out', \
         'potential_energy_flux_in', 'potential_energy_flux_out', \
+        'total_energy_flux_in', 'total_energy_flux_out', \
         'net_cold_kinetic_energy_flux', 'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
         'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
         'net_warm_kinetic_energy_flux', 'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
@@ -3033,9 +3175,14 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
         'net_cold_potential_energy_flux', 'cold_potential_energy_flux_in', 'cold_potential_energy_flux_out', \
         'net_cool_potential_energy_flux', 'cool_potential_energy_flux_in', 'cool_potential_energy_flux_out', \
         'net_warm_potential_energy_flux', 'warm_potential_energy_flux_in', 'warm_potential_energy_flux_out', \
-        'net_hot_potential_energy_flux', 'hot_potential_energy_flux_in', 'hot_potential_energy_flux_out')
+        'net_hot_potential_energy_flux', 'hot_potential_energy_flux_in', 'hot_potential_energy_flux_out', \
+        'net_cold_total_energy_flux', 'cold_total_energy_flux_in', 'cold_total_energy_flux_out', \
+        'net_cool_total_energy_flux', 'cool_total_energy_flux_in', 'cool_total_energy_flux_out', \
+        'net_warm_total_energy_flux', 'warm_total_energy_flux_in', 'warm_total_energy_flux_out', \
+        'net_hot_total_energy_flux', 'hot_total_energy_flux_in', 'hot_total_energy_flux_out')
         new_types_edge = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_dir += new_names
@@ -3155,6 +3302,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
         potential_energy = (sphere['gas','cell_mass'] * \
           ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
+        total_energy = kinetic_energy + thermal_energy + potential_energy
         cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
@@ -3269,7 +3417,8 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
         norm_v = vz_rot
         rad_v = vx_rot*x_rot/rad_coord + vy_rot*y_rot/rad_coord
         cyl_filename += 'axis_' + str(axis[0]) + '_' + str(axis[1]) + '_' + str(axis[2])
-    cyl_filename += '_r' + str(cyl_radius.v) + '_' + surface_args[6]
+    if (surface_args[6]=='height'): cyl_filename += '_r' + str(surface_args[5]) + '_' + surface_args[6]
+    elif (surface_args[6]=='radius'): cyl_filename += '_h' + str(np.abs(surface_args[4]-surface_args[3])) + '_' + surface_args[6]
     fluxtype_filename = ''
     if ('mass' in flux_types):
         fluxtype_filename += '_mass'
@@ -3359,6 +3508,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
             kinetic_energy_nosat = kinetic_energy[bool_nosat]
             thermal_energy_nosat = thermal_energy[bool_nosat]
             potential_energy_nosat = potential_energy[bool_nosat]
+            total_energy_nosat = total_energy[bool_nosat]
             cooling_time_nosat = cooling_time[bool_nosat]
         if ('entropy' in flux_types):
             entropy_nosat = entropy[bool_nosat]
@@ -3389,6 +3539,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
             kinetic_energy_nosat = kinetic_energy
             thermal_energy_nosat = thermal_energy
             potential_energy_nosat = potential_energy
+            total_energy_nosat = total_energy
             cooling_time_nosat = cooling_time
         if ('entropy' in flux_types):
             entropy_nosat = entropy
@@ -3429,6 +3580,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
         kinetic_energy_nosat_cyl = []
         thermal_energy_nosat_cyl = []
         potential_energy_nosat_cyl = []
+        total_energy_nosat_cyl = []
         cooling_time_nosat_cyl = []
     if ('entropy' in flux_types):
         entropy_nosat_cyl = []
@@ -3459,6 +3611,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                 kinetic_energy_nosat_cyl.append(kinetic_energy_nosat[bool_cyl])
                 thermal_energy_nosat_cyl.append(thermal_energy_nosat[bool_cyl])
                 potential_energy_nosat_cyl.append(potential_energy_nosat[bool_cyl])
+                total_energy_nosat_cyl.append(total_energy_nosat[bool_cyl])
                 cooling_time_nosat_cyl.append(cooling_time_nosat[bool_cyl])
             if ('entropy' in flux_types):
                 entropy_nosat_cyl.append(entropy_nosat[bool_cyl])
@@ -3488,6 +3641,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                 kinetic_energy_nosat_cyl.append(kinetic_energy_nosat[bool_incyl])
                 thermal_energy_nosat_cyl.append(thermal_energy_nosat[bool_incyl])
                 potential_energy_nosat_cyl.append(potential_energy_nosat[bool_incyl])
+                total_energy_nosat_cyl.append(total_energy_nosat[bool_incyl])
                 cooling_time_nosat_cyl.append(cooling_time_nosat[bool_incyl])
             if ('entropy' in flux_types):
                 entropy_nosat_cyl.append(entropy_nosat[bool_incyl])
@@ -3517,6 +3671,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                 kinetic_energy_nosat_cyl.append(kinetic_energy_nosat[bool_outcyl])
                 thermal_energy_nosat_cyl.append(thermal_energy_nosat[bool_outcyl])
                 potential_energy_nosat_cyl.append(potential_energy_nosat[bool_outcyl])
+                total_energy_nosat_cyl.append(total_energy_nosat[bool_outcyl])
                 cooling_time_nosat_cyl.append(cooling_time_nosat[bool_outcyl])
             if ('entropy' in flux_types):
                 entropy_nosat_cyl.append(entropy_nosat[bool_outcyl])
@@ -3553,6 +3708,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
         kinetic_energy_nosat_cyl_Tcut = []
         thermal_energy_nosat_cyl_Tcut = []
         potential_energy_nosat_cyl_Tcut = []
+        total_energy_nosat_cyl_Tcut = []
         cooling_time_nosat_cyl_Tcut = []
     if ('entropy' in flux_types):
         entropy_nosat_cyl_Tcut = []
@@ -3581,6 +3737,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
             kinetic_energy_nosat_cyl_Tcut.append([])
             thermal_energy_nosat_cyl_Tcut.append([])
             potential_energy_nosat_cyl_Tcut.append([])
+            total_energy_nosat_cyl_Tcut.append([])
             cooling_time_nosat_cyl_Tcut.append([])
         if ('entropy' in flux_types):
             entropy_nosat_cyl_Tcut.append([])
@@ -3625,6 +3782,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                 kinetic_energy_nosat_cyl_Tcut[i].append(kinetic_energy_nosat_cyl[i][bool_temp_nosat_cyl])
                 thermal_energy_nosat_cyl_Tcut[i].append(thermal_energy_nosat_cyl[i][bool_temp_nosat_cyl])
                 potential_energy_nosat_cyl_Tcut[i].append(potential_energy_nosat_cyl[i][bool_temp_nosat_cyl])
+                total_energy_nosat_cyl_Tcut[i].append(total_energy_nosat_cyl[i][bool_temp_nosat_cyl])
                 cooling_time_nosat_cyl_Tcut[i].append(cooling_time_nosat_cyl[i][bool_temp_nosat_cyl])
             if ('entropy' in flux_types):
                 entropy_nosat_cyl_Tcut[i].append(entropy_nosat_cyl[i][bool_temp_nosat_cyl])
@@ -3658,6 +3816,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
             kinetic_energy_sat = []
             thermal_energy_sat = []
             potential_energy_sat = []
+            total_energy_sat = []
         if ('entropy' in flux_types):
             entropy_sat = []
         if ('O_ion_mass' in flux_types):
@@ -3687,6 +3846,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                     kinetic_energy_sat.append(kinetic_energy[bool_fromsat])
                     thermal_energy_sat.append(thermal_energy[bool_fromsat])
                     potential_energy_sat.append(potential_energy[bool_fromsat])
+                    total_energy_sat.append(total_energy[bool_fromsat])
                 if ('entropy' in flux_types):
                     entropy_sat.append(entropy[bool_fromsat])
                 if ('O_ion_mass' in flux_types):
@@ -3715,6 +3875,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                     kinetic_energy_sat.append(kinetic_energy[bool_tosat])
                     thermal_energy_sat.append(thermal_energy[bool_tosat])
                     potential_energy_sat.append(potential_energy[bool_tosat])
+                    total_energy_sat.append(total_energy[bool_tosat])
                 if ('entropy' in flux_types):
                     entropy_sat.append(entropy[bool_tosat])
                 if ('O_ion_mass' in flux_types):
@@ -3746,6 +3907,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
             kinetic_energy_sat_Tcut = []
             thermal_energy_sat_Tcut = []
             potential_energy_sat_Tcut = []
+            total_energy_sat_Tcut = []
         if ('entropy' in flux_types):
             entropy_sat_Tcut = []
         if ('O_ion_mass' in flux_types):
@@ -3773,6 +3935,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                 kinetic_energy_sat_Tcut.append([])
                 thermal_energy_sat_Tcut.append([])
                 potential_energy_sat_Tcut.append([])
+                total_energy_sat_Tcut.append([])
             if ('entropy' in flux_types):
                 entropy_sat_Tcut.append([])
             if ('O_ion_mass' in flux_types):
@@ -3816,6 +3979,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                     kinetic_energy_sat_Tcut[i].append(kinetic_energy_sat[i][bool_temp_sat])
                     thermal_energy_sat_Tcut[i].append(thermal_energy_sat[i][bool_temp_sat])
                     potential_energy_sat_Tcut[i].append(potential_energy_sat[i][bool_temp_sat])
+                    total_energy_sat_Tcut[i].append(total_energy_sat[i][bool_temp_sat])
                 if ('entropy' in flux_types):
                     entropy_sat_Tcut[i].append(entropy_sat[i][bool_temp_sat])
                 if ('O_ion_mass' in flux_types):
@@ -3852,6 +4016,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
             kinetic_energy_flux_nosat = []
             thermal_energy_flux_nosat = []
             potential_energy_flux_nosat = []
+            total_energy_flux_nosat = []
         if ('entropy' in flux_types):
             entropy_flux_nosat = []
         if ('O_ion_mass' in flux_types):
@@ -3873,6 +4038,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                 kinetic_energy_flux_nosat.append([])
                 thermal_energy_flux_nosat.append([])
                 potential_energy_flux_nosat.append([])
+                total_energy_flux_nosat.append([])
             if ('entropy' in flux_types):
                 entropy_flux_nosat.append([])
             if ('O_ion_mass' in flux_types):
@@ -3906,6 +4072,8 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                           np.sum(thermal_energy_nosat_cyl_Tcut[0][k][bool_in_s]))/dt)
                         potential_energy_flux_nosat[j].append((np.sum(potential_energy_nosat_cyl_Tcut[0][k][bool_out_s]) - \
                           np.sum(potential_energy_nosat_cyl_Tcut[0][k][bool_in_s]))/dt)
+                        total_energy_flux_nosat[j].append((np.sum(total_energy_nosat_cyl_Tcut[0][k][bool_out_s]) - \
+                          np.sum(total_energy_nosat_cyl_Tcut[0][k][bool_in_s]))/dt)
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append((np.sum(entropy_nosat_cyl_Tcut[0][k][bool_out_s]) - \
                           np.sum(entropy_nosat_cyl_Tcut[0][k][bool_in_s]))/dt)
@@ -3938,6 +4106,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                         kinetic_energy_flux_nosat[j].append(-np.sum(kinetic_energy_nosat_cyl_Tcut[0][k][bool_in_s])/dt)
                         thermal_energy_flux_nosat[j].append(-np.sum(thermal_energy_nosat_cyl_Tcut[0][k][bool_in_s])/dt)
                         potential_energy_flux_nosat[j].append(-np.sum(potential_energy_nosat_cyl_Tcut[0][k][bool_in_s])/dt)
+                        total_energy_flux_nosat[j].append(-np.sum(total_energy_nosat_cyl_Tcut[0][k][bool_in_s])/dt)
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append(-np.sum(entropy_nosat_cyl_Tcut[0][k][bool_in_s])/dt)
                     if ('O_ion_mass' in flux_types):
@@ -3959,6 +4128,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                         kinetic_energy_flux_nosat[j].append(np.sum(kinetic_energy_nosat_cyl_Tcut[0][k][bool_out_s])/dt)
                         thermal_energy_flux_nosat[j].append(np.sum(thermal_energy_nosat_cyl_Tcut[0][k][bool_out_s])/dt)
                         potential_energy_flux_nosat[j].append(np.sum(potential_energy_nosat_cyl_Tcut[0][k][bool_out_s])/dt)
+                        total_energy_flux_nosat[j].append(np.sum(total_energy_nosat_cyl_Tcut[0][k][bool_out_s])/dt)
                     if ('entropy' in flux_types):
                         entropy_flux_nosat[j].append(np.sum(entropy_nosat_cyl_Tcut[0][k][bool_out_s])/dt)
                     if ('O_ion_mass' in flux_types):
@@ -3984,6 +4154,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                 kinetic_energy_flux_sat = []
                 thermal_energy_flux_sat = []
                 potential_energy_flux_sat = []
+                total_energy_flux_sat = []
             if (sat_radius!=0) and ('entropy' in flux_types):
                 entropy_flux_sat = []
             if ('energy' in flux_types):
@@ -4007,6 +4178,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                     kinetic_energy_flux_sat.append([])
                     thermal_energy_flux_sat.append([])
                     potential_energy_flux_sat.append([])
+                    total_energy_flux_sat.append([])
                 if (sat_radius!=0) and ('entropy' in flux_types):
                     entropy_flux_sat.append([])
                 if ('energy' in flux_types):
@@ -4050,6 +4222,8 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                                                               np.sum(thermal_energy_sat_Tcut[1][k][bool_to]))/dt)
                             potential_energy_flux_sat[j].append((np.sum(potential_energy_sat_Tcut[0][k][bool_from]) - \
                                                                 np.sum(potential_energy_sat_Tcut[1][k][bool_to]))/dt)
+                            total_energy_flux_sat[j].append((np.sum(total_energy_sat_Tcut[0][k][bool_from]) - \
+                                                                np.sum(total_energy_sat_Tcut[1][k][bool_to]))/dt)
                         if (sat_radius!=0) and ('entropy' in flux_types):
                             entropy_flux_sat[j].append((np.sum(entropy_sat_Tcut[0][k][bool_from]) - \
                                                         np.sum(entropy_sat_Tcut[1][k][bool_to]))/dt)
@@ -4085,13 +4259,14 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                             kinetic_energy_flux_sat[j].append(np.sum(kinetic_energy_sat_Tcut[0][k][bool_from])/dt)
                             thermal_energy_flux_sat[j].append(np.sum(thermal_energy_sat_Tcut[0][k][bool_from])/dt)
                             potential_energy_flux_sat[j].append(np.sum(potential_energy_sat_Tcut[0][k][bool_from])/dt)
+                            total_energy_flux_sat[j].append(np.sum(total_energy_sat_Tcut[0][k][bool_from])/dt)
                         if (sat_radius!=0) and ('entropy' in flux_types):
                             entropy_flux_sat[j].append(np.sum(entropy_sat_Tcut[0][k][bool_from])/dt)
                         if ('energy' in flux_types):
                             radiative_energy_flux_nosat[j].append(np.sum( \
                               thermal_energy_nosat_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]<0.)] * \
                               mass_nosat_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]<0.)]*gtoMsun / \
-                              cooling_time_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]<0.)]))
+                              cooling_time_nosat_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]<0.)]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
                             O_flux_sat[j].append(np.sum(O_mass_sat_Tcut[0][k][bool_from])/dt)
                             OI_flux_sat[j].append(np.sum(OI_mass_sat_Tcut[0][k][bool_from])/dt)
@@ -4111,6 +4286,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                             kinetic_energy_flux_sat[j].append(-np.sum(kinetic_energy_sat_Tcut[1][k][bool_to])/dt)
                             thermal_energy_flux_sat[j].append(-np.sum(thermal_energy_sat_Tcut[1][k][bool_to])/dt)
                             potential_energy_flux_sat[j].append(-np.sum(potential_energy_sat_Tcut[1][k][bool_to])/dt)
+                            total_energy_flux_sat[j].append(-np.sum(total_energy_sat_Tcut[1][k][bool_to])/dt)
                         if (sat_radius!=0) and ('entropy' in flux_types):
                             entropy_flux_sat[j].append(-np.sum(entropy_sat_Tcut[1][k][bool_to])/dt)
                         if ('energy' in flux_types):
@@ -4141,6 +4317,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                 kinetic_energy_flux_edge = []
                 thermal_energy_flux_edge = []
                 potential_energy_flux_edge = []
+                total_energy_flux_edge = []
             if ('entropy' in flux_types):
                 entropy_flux_edge = []
             if ('O_ion_mass' in flux_types):
@@ -4162,6 +4339,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                     kinetic_energy_flux_edge.append([])
                     thermal_energy_flux_edge.append([])
                     potential_energy_flux_edge.append([])
+                    total_energy_flux_edge.append([])
                 if ('entropy' in flux_types):
                     entropy_flux_edge.append([])
                 if ('O_ion_mass' in flux_types):
@@ -4195,6 +4373,8 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                                                               np.sum(thermal_energy_nosat_cyl_Tcut[2][k][bool_out]))/dt)
                             potential_energy_flux_edge[j].append((np.sum(potential_energy_nosat_cyl_Tcut[1][k][bool_in]) - \
                                                                 np.sum(potential_energy_nosat_cyl_Tcut[2][k][bool_out]))/dt)
+                            total_energy_flux_edge[j].append((np.sum(total_energy_nosat_cyl_Tcut[1][k][bool_in]) - \
+                                                                np.sum(total_energy_nosat_cyl_Tcut[2][k][bool_out]))/dt)
                         if ('entropy' in flux_types):
                             entropy_flux_edge[j].append((np.sum(entropy_nosat_cyl_Tcut[1][k][bool_in]) - \
                                                         np.sum(entropy_nosat_cyl_Tcut[2][k][bool_out]))/dt)
@@ -4227,6 +4407,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                             kinetic_energy_flux_edge[j].append(np.sum(kinetic_energy_nosat_cyl_Tcut[1][k][bool_in])/dt)
                             thermal_energy_flux_edge[j].append(np.sum(thermal_energy_nosat_cyl_Tcut[1][k][bool_in])/dt)
                             potential_energy_flux_edge[j].append(np.sum(potential_energy_nosat_cyl_Tcut[1][k][bool_in])/dt)
+                            total_energy_flux_edge[j].append(np.sum(total_energy_nosat_cyl_Tcut[1][k][bool_in])/dt)
                         if ('entropy' in flux_types):
                             entropy_flux_edge[j].append(np.sum(entropy_nosat_cyl_Tcut[1][k][bool_in])/dt)
                         if ('O_ion_mass' in flux_types):
@@ -4248,6 +4429,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                             kinetic_energy_flux_edge[j].append(-np.sum(kinetic_energy_nosat_cyl_Tcut[2][k][bool_out])/dt)
                             thermal_energy_flux_edge[j].append(-np.sum(thermal_energy_nosat_cyl_Tcut[2][k][bool_out])/dt)
                             potential_energy_flux_edge[j].append(-np.sum(potential_energy_nosat_cyl_Tcut[2][k][bool_out])/dt)
+                            total_energy_flux_edge[j].append(-np.sum(total_energy_nosat_cyl_Tcut[2][k][bool_out])/dt)
                         if ('entropy' in flux_types):
                             entropy_flux_edge[j].append(-np.sum(entropy_nosat_cyl_Tcut[2][k][bool_out])/dt)
                         if ('O_ion_mass' in flux_types):
@@ -4289,9 +4471,11 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
         if ('energy' in flux_types):
             new_row_s += [kinetic_energy_flux_nosat[0][0], thermal_energy_flux_nosat[0][0], \
             potential_energy_flux_nosat[0][0], radiative_energy_flux_nosat[0][0], \
+            total_energy_flux_nosat[0][0], \
             kinetic_energy_flux_nosat[1][0], kinetic_energy_flux_nosat[2][0], \
             thermal_energy_flux_nosat[1][0], thermal_energy_flux_nosat[2][0], \
             potential_energy_flux_nosat[1][0], potential_energy_flux_nosat[2][0], \
+            total_energy_flux_nosat[1][0], total_energy_flux_nosat[2][0], \
             radiative_energy_flux_nosat[1][0], radiative_energy_flux_nosat[2][0], \
             kinetic_energy_flux_nosat[0][1], kinetic_energy_flux_nosat[1][1], kinetic_energy_flux_nosat[2][1], \
             kinetic_energy_flux_nosat[0][2], kinetic_energy_flux_nosat[1][2], kinetic_energy_flux_nosat[2][2], \
@@ -4308,12 +4492,17 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
             radiative_energy_flux_nosat[0][1], radiative_energy_flux_nosat[1][1], radiative_energy_flux_nosat[2][1], \
             radiative_energy_flux_nosat[0][2], radiative_energy_flux_nosat[1][2], radiative_energy_flux_nosat[2][2], \
             radiative_energy_flux_nosat[0][3], radiative_energy_flux_nosat[1][3], radiative_energy_flux_nosat[2][3], \
-            radiative_energy_flux_nosat[0][4], radiative_energy_flux_nosat[1][4], radiative_energy_flux_nosat[2][4]]
+            radiative_energy_flux_nosat[0][4], radiative_energy_flux_nosat[1][4], radiative_energy_flux_nosat[2][4], \
+            total_energy_flux_nosat[0][1], total_energy_flux_nosat[1][1], total_energy_flux_nosat[2][1], \
+            total_energy_flux_nosat[0][2], total_energy_flux_nosat[1][2], total_energy_flux_nosat[2][2], \
+            total_energy_flux_nosat[0][3], total_energy_flux_nosat[1][3], total_energy_flux_nosat[2][3], \
+            total_energy_flux_nosat[0][4], total_energy_flux_nosat[1][4], total_energy_flux_nosat[2][4]]
             new_row_edge += [kinetic_energy_flux_edge[0][0], thermal_energy_flux_edge[0][0], \
-            potential_energy_flux_edge[0][0], \
+            potential_energy_flux_edge[0][0], total_energy_flux_edge[0][0], \
             kinetic_energy_flux_edge[1][0], kinetic_energy_flux_edge[2][0], \
             thermal_energy_flux_edge[1][0], thermal_energy_flux_edge[2][0], \
             potential_energy_flux_edge[1][0], potential_energy_flux_edge[2][0], \
+            total_energy_flux_edge[1][0], total_energy_flux_edge[2][0], \
             kinetic_energy_flux_edge[0][1], kinetic_energy_flux_edge[1][1], kinetic_energy_flux_edge[2][1], \
             kinetic_energy_flux_edge[0][2], kinetic_energy_flux_edge[1][2], kinetic_energy_flux_edge[2][2], \
             kinetic_energy_flux_edge[0][3], kinetic_energy_flux_edge[1][3], kinetic_energy_flux_edge[2][3], \
@@ -4325,7 +4514,11 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
             potential_energy_flux_edge[0][1], potential_energy_flux_edge[1][1], potential_energy_flux_edge[2][1], \
             potential_energy_flux_edge[0][2], potential_energy_flux_edge[1][2], potential_energy_flux_edge[2][2], \
             potential_energy_flux_edge[0][3], potential_energy_flux_edge[1][3], potential_energy_flux_edge[2][3], \
-            potential_energy_flux_edge[0][4], potential_energy_flux_edge[1][4], potential_energy_flux_edge[2][4]]
+            potential_energy_flux_edge[0][4], potential_energy_flux_edge[1][4], potential_energy_flux_edge[2][4], \
+            total_energy_flux_edge[0][1], total_energy_flux_edge[1][1], total_energy_flux_edge[2][1], \
+            total_energy_flux_edge[0][2], total_energy_flux_edge[1][2], total_energy_flux_edge[2][2], \
+            total_energy_flux_edge[0][3], total_energy_flux_edge[1][3], total_energy_flux_edge[2][3], \
+            total_energy_flux_edge[0][4], total_energy_flux_edge[1][4], total_energy_flux_edge[2][4]]
         if ('entropy' in flux_types):
             new_row_s += [entropy_flux_nosat[0][0], entropy_flux_nosat[1][0], entropy_flux_nosat[2][0], \
             entropy_flux_nosat[0][1], entropy_flux_nosat[1][1], entropy_flux_nosat[2][1], \
@@ -4455,9 +4648,10 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                 metal_flux_sat[0][4], metal_flux_sat[1][4], metal_flux_sat[2][4]]
             if ('energy' in flux_types):
                 new_row_sat += [kinetic_energy_flux_sat[0][0], thermal_energy_flux_sat[0][0], \
-                potential_energy_flux_sat[0][0], kinetic_energy_flux_sat[1][0], kinetic_energy_flux_sat[2][0], \
+                potential_energy_flux_sat[0][0], total_energy_flux_sat[0][0], kinetic_energy_flux_sat[1][0], kinetic_energy_flux_sat[2][0], \
                 thermal_energy_flux_sat[1][0], thermal_energy_flux_sat[2][0], \
                 potential_energy_flux_sat[1][0], potential_energy_flux_sat[2][0], \
+                total_energy_flux_sat[1][0], total_energy_flux_sat[2][0], \
                 kinetic_energy_flux_sat[0][1], kinetic_energy_flux_sat[1][1], kinetic_energy_flux_sat[2][1], \
                 kinetic_energy_flux_sat[0][2], kinetic_energy_flux_sat[1][2], kinetic_energy_flux_sat[2][2], \
                 kinetic_energy_flux_sat[0][3], kinetic_energy_flux_sat[1][3], kinetic_energy_flux_sat[2][3], \
@@ -4469,7 +4663,11 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                 potential_energy_flux_sat[0][1], potential_energy_flux_sat[1][1], potential_energy_flux_sat[2][1], \
                 potential_energy_flux_sat[0][2], potential_energy_flux_sat[1][2], potential_energy_flux_sat[2][2], \
                 potential_energy_flux_sat[0][3], potential_energy_flux_sat[1][3], potential_energy_flux_sat[2][3], \
-                potential_energy_flux_sat[0][4], potential_energy_flux_sat[1][4], potential_energy_flux_sat[2][4]]
+                potential_energy_flux_sat[0][4], potential_energy_flux_sat[1][4], potential_energy_flux_sat[2][4], \
+                total_energy_flux_sat[0][1], total_energy_flux_sat[1][1], total_energy_flux_sat[2][1], \
+                total_energy_flux_sat[0][2], total_energy_flux_sat[1][2], total_energy_flux_sat[2][2], \
+                total_energy_flux_sat[0][3], total_energy_flux_sat[1][3], total_energy_flux_sat[2][3], \
+                total_energy_flux_sat[0][4], total_energy_flux_sat[1][4], total_energy_flux_sat[2][4]]
             if ('entropy' in flux_types):
                 new_row_sat += [entropy_flux_sat[0][0], entropy_flux_sat[1][0], entropy_flux_sat[2][0], \
                 entropy_flux_sat[0][1], entropy_flux_sat[1][1], entropy_flux_sat[2][1], \
