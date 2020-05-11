@@ -318,7 +318,7 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
         names_list += new_names
         types_list += new_types
     if ('entropy' in flux_types):
-        new_names += ('net_entropy', \
+        new_names = ('net_entropy', \
         'entropy_in', 'entropy_out', \
         'net_cold_entropy', 'cold_entropy_in', 'cold_entropy_out', \
         'net_cool_entropy', 'cool_entropy_in', 'cool_entropy_out', \
