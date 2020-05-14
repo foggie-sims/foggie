@@ -229,9 +229,9 @@ if __name__ == "__main__":
         start_snap = 1039
         end_snap = 2000
     elif args.halo == "5036":
-        first_center = [0.47722530364990234, 0.5019979476928711, 0.5026788711547852]
-        start_snap = 1213
-        end_snap = 1400
+        first_center = [0.47565746307373047, 0.5019845962524414, 0.5024213790893555]
+        start_snap = 1364
+        end_snap = 1445 
     elif args.halo == "2392":
         first_center = [0.4972772598266602, 0.48969554901123047,  0.4724550247192383]
         start_snap = 1045
