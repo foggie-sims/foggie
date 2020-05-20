@@ -399,8 +399,11 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
     # Define the radii of the spherical shells where we want to calculate totals
     if (units_kpc):
         radii = ds.arr(np.arange(inner_radius, outer_radius+dr, dr), 'kpc')
+        ind = np.where(radii>=inner_radius+10.)[0][0]
     else:
         radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
+        ind = np.where(radii>=inner_radius+0.08*refine_width_kpc)[0][0]
+    outer_radii = radii[ind:]
 
     # Load arrays of all fields we need
     print('Loading field arrays')
@@ -605,9 +608,9 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
             OIX_mass_nosat_Tcut.append(OIX_mass_nosat[bool_temp])
 
     # Loop over radii
-    for i in range(len(radii)-1):
+    for i in range(len(outer_radii)):
         inner_r = radii[i].v
-        outer_r = radii[i+1].v
+        outer_r = outer_radii[i].v
 
         if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)) + \
                             " for snapshot " + snap)
