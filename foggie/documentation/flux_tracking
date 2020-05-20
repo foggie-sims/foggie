@@ -190,11 +190,12 @@ domain and going *to* satellites.
 
 If the surface requested is a frustum or a cylinder, the above two files will be created, but there will also
 be one additional file, e.g. DD1236_fluxes_edges_frustum. This file also has inner_radius and
-outer_radius (or bottom_edge and top_edge) like the _sat file, and gives the fluxes passing through
-the outer edges of the cone or cylinder between inner_radius and outer_radius, or passing through the
-outer curved edge of the cylinder between bottom_edge and top_edge. In this case, "_in" indicates fluxes
-*entering* the cone or cylinder through the edges, and "_out" indicates fluxes *leaving* the cone or
-cylinder through the edges.
+outer_radius (or bottom_edge and top_edge) like the _sat file, and gives the fluxes entering into
+or leaving from the region between inner_radius and outer_radius or between bottom_edge and top_edge.
+In this case, "_in" indicates fluxes *entering* the region, and "_out" indicates fluxes *leaving* the region.
+Note that the edge fluxes do contain overlap with the fluxes within the frustum or cylinder, since
+they contain not only the fluxes passing into/out of the frustum or cylinder altogether but also
+any fluxes within the frustum or cylinder.
 
 Note about radiative energy fluxes:
 By definition, the radiative energy flux is volumetric, not the physical motion of a gas quantity

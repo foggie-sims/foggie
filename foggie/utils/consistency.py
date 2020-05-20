@@ -767,6 +767,26 @@ def categorize_by_outflow_inflow(velocity):
     cat_vel[vv>=200] = b'>=200'
     return cat_vel
 
+############# density (Cassi)
+den_colors = sns.blend_palette(
+    ("black", "#4575b4", "#4daf4a", "#ffe34d", "darkorange"), n_colors=11)
+density_discrete_cmap = mpl.colors.ListedColormap(den_colors)
+density_color_key = collections.OrderedDict()
+
+density_color_labels = [b'low1', b'low2', b'med', b'med1', b'med2',
+                      b'high1', b'high2', b'high3',
+                      b'vhi1', b'vhi2', b'vhi3']
+for i in np.arange(np.size(density_color_labels)):
+    density_color_key[density_color_labels[i]] = to_hex(density_discrete_cmap(i))
+
+def categorize_by_den(density):
+    """ define the density category strings"""
+    den = np.chararray(np.size(density), 5)
+    den[density > np.log10(dens_phase_max)] = density_color_labels[-1]
+    for i in range(len(density_color_labels)):
+        val = np.log10(dens_phase_max) - (np.log10(dens_phase_max)-np.log10(dens_phase_min))/(np.size(density_color_labels)-1.)*i
+        den[density < val] = density_color_labels[-1 - i]
+    return den
 
 ############# pressure (Cassi)
 pressure_discrete_cmap = mpl.cm.get_cmap(pressure_color_map, 11)
