@@ -402,7 +402,7 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
         ind = np.where(radii>=inner_radius+10.)[0][0]
     else:
         radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
-        ind = np.where(radii>=inner_radius+0.08*refine_width_kpc)[0][0]
+        ind = np.where(radii>=inner_radius*refine_width_kpc+0.05*refine_width_kpc)[0][0]
     outer_radii = radii[ind:]
 
     # Load arrays of all fields we need
