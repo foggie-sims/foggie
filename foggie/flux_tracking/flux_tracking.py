@@ -1354,8 +1354,8 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                             entropy_flux_sat[j].append((np.sum(entropy_sat_Tcut[0][k][bool_in]) - \
                                                         np.sum(entropy_sat_Tcut[1][k][bool_out]))/dt)
                         if ('energy' in flux_types):
-                            radiative_energy_flux_nosat[j].append(np.sum(thermal_energy_nosat_Tcut[k][bool_shell] * \
-                              mass_nosat_Tcut[k][bool_shell]*gtoMsun / cooling_time_nosat_Tcut[k][bool_shell]))
+                            radiative_energy_flux_nosat[j].append(np.sum(thermal_energy_nosat_Tcut[k][bool_shell] / \
+                              cooling_time_nosat_Tcut[k][bool_shell]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
                             O_flux_sat[j].append((np.sum(O_mass_sat_Tcut[0][k][bool_in]) - \
                               np.sum(O_mass_sat_Tcut[1][k][bool_out]))/dt)
@@ -1397,8 +1397,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                             entropy_flux_sat[j].append(np.sum(entropy_sat_Tcut[0][k][bool_in])/dt)
                         if ('energy' in flux_types):
                             radiative_energy_flux_nosat[j].append(np.sum( \
-                              thermal_energy_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]<0.)] * \
-                              mass_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]<0.)]*gtoMsun / \
+                              thermal_energy_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]<0.)] / \
                               cooling_time_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]<0.)]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
                             O_flux_sat[j].append(np.sum(O_mass_sat_Tcut[0][k][bool_in])/dt)
@@ -1428,8 +1427,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                             entropy_flux_sat[j].append(-np.sum(entropy_sat_Tcut[1][k][bool_out])/dt)
                         if ('energy' in flux_types):
                             radiative_energy_flux_nosat[j].append(np.sum( \
-                              thermal_energy_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]>0.)] * \
-                              mass_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]>0.)]*gtoMsun / \
+                              thermal_energy_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]>0.)] / \
                               cooling_time_nosat_Tcut[k][bool_shell & (rad_vel_nosat_Tcut[k]>0.)]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
                             O_flux_sat[j].append(-np.sum(O_mass_sat_Tcut[1][k][bool_out])/dt)
@@ -2789,8 +2787,8 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                             entropy_flux_sat[j].append((np.sum(entropy_sat_Tcut[0][k][bool_from]) - \
                                                         np.sum(entropy_sat_Tcut[1][k][bool_to]))/dt)
                         if ('energy' in flux_types):
-                            radiative_energy_flux_nosat[j].append(np.sum(thermal_energy_nosat_frus_Tcut[0][k][bool_r] * \
-                              mass_nosat_frus_Tcut[0][k][bool_r]*gtoMsun /cooling_time_nosat_frus_Tcut[0][k][bool_r]))
+                            radiative_energy_flux_nosat[j].append(np.sum(thermal_energy_nosat_frus_Tcut[0][k][bool_r] / \
+                              cooling_time_nosat_frus_Tcut[0][k][bool_r]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
                             O_flux_sat[j].append((np.sum(O_mass_sat_Tcut[0][k][bool_from]) - \
                               np.sum(O_mass_sat_Tcut[1][k][bool_to]))/dt)
@@ -2825,8 +2823,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                             entropy_flux_sat[j].append(np.sum(entropy_sat_Tcut[0][k][bool_from])/dt)
                         if ('energy' in flux_types):
                             radiative_energy_flux_nosat[j].append(np.sum( \
-                              thermal_energy_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]<0.)] * \
-                              mass_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]<0.)]*gtoMsun / \
+                              thermal_energy_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]<0.)] / \
                               cooling_time_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]<0.)]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
                             O_flux_sat[j].append(np.sum(O_mass_sat_Tcut[0][k][bool_from])/dt)
@@ -2852,8 +2849,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
                             entropy_flux_sat[j].append(-np.sum(entropy_sat_Tcut[1][k][bool_to])/dt)
                         if ('energy' in flux_types):
                             radiative_energy_flux_nosat[j].append(np.sum( \
-                              thermal_energy_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]>0.)] * \
-                              mass_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]>0.)]*gtoMsun / \
+                              thermal_energy_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]>0.)] / \
                               cooling_time_nosat_frus_Tcut[0][k][bool_r & (rad_vel_nosat_frus_Tcut[0][k]>0.)]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
                             O_flux_sat[j].append(-np.sum(O_mass_sat_Tcut[1][k][bool_to])/dt)
@@ -4555,8 +4551,8 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                             entropy_flux_sat[j].append((np.sum(entropy_sat_Tcut[0][k][bool_from]) - \
                                                         np.sum(entropy_sat_Tcut[1][k][bool_to]))/dt)
                         if ('energy' in flux_types):
-                            radiative_energy_flux_nosat[j].append(np.sum(thermal_energy_nosat_cyl_Tcut[0][k][bool_s] * \
-                              mass_nosat_cyl_Tcut[0][k][bool_s]*gtoMsun /cooling_time_nosat_cyl_Tcut[0][k][bool_s]))
+                            radiative_energy_flux_nosat[j].append(np.sum(thermal_energy_nosat_cyl_Tcut[0][k][bool_s] / \
+                              cooling_time_nosat_cyl_Tcut[0][k][bool_s]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
                             O_flux_sat[j].append((np.sum(O_mass_sat_Tcut[0][k][bool_from]) - \
                               np.sum(O_mass_sat_Tcut[1][k][bool_to]))/dt)
@@ -4591,8 +4587,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                             entropy_flux_sat[j].append(np.sum(entropy_sat_Tcut[0][k][bool_from])/dt)
                         if ('energy' in flux_types):
                             radiative_energy_flux_nosat[j].append(np.sum( \
-                              thermal_energy_nosat_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]<0.)] * \
-                              mass_nosat_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]<0.)]*gtoMsun / \
+                              thermal_energy_nosat_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]<0.)] / \
                               cooling_time_nosat_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]<0.)]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
                             O_flux_sat[j].append(np.sum(O_mass_sat_Tcut[0][k][bool_from])/dt)
@@ -4618,8 +4613,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
                             entropy_flux_sat[j].append(-np.sum(entropy_sat_Tcut[1][k][bool_to])/dt)
                         if ('energy' in flux_types):
                             radiative_energy_flux_nosat[j].append(np.sum( \
-                              thermal_energy_nosat_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]>0.)] * \
-                              mass_nosat_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]>0.)]*gtoMsun / \
+                              thermal_energy_nosat_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]>0.)] / \
                               cooling_time_nosat_cyl_Tcut[0][k][bool_s & (vel_surface[0][k]>0.)]))
                         if (sat_radius!=0) and ('O_ion_mass' in flux_types):
                             O_flux_sat[j].append(-np.sum(O_mass_sat_Tcut[1][k][bool_to])/dt)
