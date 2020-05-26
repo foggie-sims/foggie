@@ -399,8 +399,11 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
     # Define the radii of the spherical shells where we want to calculate totals
     if (units_kpc):
         radii = ds.arr(np.arange(inner_radius, outer_radius+dr, dr), 'kpc')
+        ind = np.where(radii>=inner_radius+10.)[0][0]
     else:
         radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
+        ind = np.where(radii>=inner_radius*refine_width_kpc+0.05*refine_width_kpc)[0][0]
+    outer_radii = radii[ind:]
 
     # Load arrays of all fields we need
     print('Loading field arrays')
@@ -605,9 +608,9 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
             OIX_mass_nosat_Tcut.append(OIX_mass_nosat[bool_temp])
 
     # Loop over radii
-    for i in range(len(radii)-1):
+    for i in range(len(outer_radii)):
         inner_r = radii[i].v
-        outer_r = radii[i+1].v
+        outer_r = outer_radii[i].v
 
         if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)) + \
                             " for snapshot " + snap)
@@ -1018,8 +1021,11 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
     # Define the radii of the surfaces where we want to calculate fluxes
     if (units_kpc):
         radii = ds.arr(np.arange(inner_radius, outer_radius+dr, dr), 'kpc')
+        ind = np.where(radii>=inner_radius+10.)[0][0]
     else:
         radii = refine_width_kpc * np.arange(inner_radius, outer_radius+dr, dr)
+        ind = np.where(radii>=inner_radius*refine_width_kpc+0.05*refine_width_kpc)[0][0]
+    outer_radii = radii[ind:]
 
     # Load arrays of all fields we need
     print('Loading field arrays')
@@ -1210,7 +1216,8 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
             OIX_mass_nosat = OIX_mass
 
     # Cut satellite-removed data to frustum of interest
-    bool_frus = (theta_nosat >= min_theta) & (theta_nosat <= max_theta)
+    bool_frus = (theta_nosat >= min_theta) & (theta_nosat <= max_theta) & \
+      (radius_nosat >= radii[0]) & (radius_nosat <= radii[-1])
 
     radius_nosat_frus = radius_nosat[bool_frus]
     rad_vel_nosat_frus = rad_vel_nosat[bool_frus]
@@ -1309,9 +1316,9 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
             OIX_mass_nosat_frus_Tcut.append(OIX_mass_nosat_frus[bool_temp_nosat_frus])
 
     # Loop over radii
-    for i in range(len(radii)-1):
+    for i in range(len(outer_radii)):
         inner_r = radii[i].v
-        outer_r = radii[i+1].v
+        outer_r = outer_radii[i].v
 
         if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(radii)) + \
                             " for snapshot " + snap)
@@ -1588,10 +1595,12 @@ def calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_a
         bottom_edge = ds.quan(surface_args[3], 'kpc')
         top_edge = ds.quan(surface_args[4], 'kpc')
         cyl_radius = ds.quan(surface_args[5], 'kpc')
+        edge_width = ds.quan(10., 'kpc')
     else:
         bottom_edge = surface_args[3]*refine_width_kpc
         top_edge = surface_args[4]*refine_width_kpc
         cyl_radius = surface_args[5]*refine_width_kpc
+        edge_width = 0.05*refine_width_kpc
     if (surface_args[6]=='height'):
         dz = (top_edge - bottom_edge)/surface_args[7]
     elif (surface_args[6]=='radius'):
@@ -1732,8 +1741,11 @@ def calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_a
     # Define the surfaces where we want to calculate fluxes
     if (surface_args[6]=='height'):
         surfaces = ds.arr(np.arange(bottom_edge, top_edge+dz, dz), 'kpc')
+        ind = np.where(surfaces>=bottom_edge+edge_width)[0][0]
     elif (surface_args[6]=='radius'):
         surfaces = ds.arr(np.arange(0., cyl_radius+dz, dz), 'kpc')
+        ind = np.where(surfaces>=edge_width)[0][0]
+    outer_surfaces = surfaces[ind:]
 
     # Load arrays of all fields we need
     print('Loading field arrays')
@@ -1941,7 +1953,7 @@ def calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_a
             OVIII_mass_nosat = OVIII_mass
             OIX_mass_nosat = OIX_mass
 
-    # Cut satellite-removed data to frustum of interest
+    # Cut satellite-removed data to cylinder of interest
     bool_cyl = (norm_coord_nosat >= bottom_edge) & (norm_coord_nosat <= top_edge) & (rad_coord_nosat <= cyl_radius)
 
     norm_nosat_cyl = norm_coord_nosat[bool_cyl]
@@ -2047,9 +2059,9 @@ def calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_a
             OIX_mass_nosat_cyl_Tcut.append(OIX_mass_nosat_cyl[bool_temp_nosat_cyl])
 
     # Loop over steps
-    for i in range(len(surfaces)):
+    for i in range(len(outer_surfaces)):
         inner_surface = surfaces[i].v
-        if (i < len(surfaces) - 1): outer_surface = surfaces[i+1].v
+        outer_surface = outer_surfaces[i].v
 
         if (surface_args[6]=='radius'):
             if (i%10==0): print("Computing radius " + str(i) + "/" + str(len(surfaces)) + \

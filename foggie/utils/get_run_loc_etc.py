@@ -41,7 +41,7 @@ def get_run_loc_etc(args):
         code_path = '/nobackupp2/rcsimons/git/foggie/foggie/'
     elif args.system == "cassiopeia":
         if (args.local):
-            foggie_dir = foggie_dir = "/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/"
+            foggie_dir = "/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/"
         else:
             foggie_dir = "/astro/simulations/FOGGIE/"
         output_path = "/Users/clochhaas/Documents/Research/FOGGIE/Outputs/"
