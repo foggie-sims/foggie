@@ -64,6 +64,7 @@ Units:
 
 Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
+5016/nref11c_nref9f snapshots DD0250-DD2099, RD0020-RD0035
 
 Created by:
 utils/get_mass_profile.py, which will output one "snapshot_masses.hdf5" per snapshot that can
