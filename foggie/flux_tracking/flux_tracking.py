@@ -560,7 +560,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = -G * mass*gtoMsun * Menc_profile(radius*1000.*cmtopc)*gtoMsun / (radius*1000.*cmtopc)
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
         total_energy = kinetic_energy + 5./3.*thermal_energy + potential_energy
         cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     if ('entropy' in flux_types):
@@ -2227,7 +2227,7 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = -G * mass*gtoMsun * Menc_profile(radius*1000.*cmtopc)*gtoMsun / (radius*1000.*cmtopc)
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
         total_energy = kinetic_energy + 5./3.*thermal_energy + potential_energy
         cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     if ('entropy' in flux_types):
@@ -3910,7 +3910,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = -G * mass*gtoMsun * Menc_profile(radius*1000.*cmtopc)*gtoMsun / (radius*1000.*cmtopc)
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
         total_energy = kinetic_energy + 5./3.*thermal_energy + potential_energy
         cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     if ('entropy' in flux_types):
