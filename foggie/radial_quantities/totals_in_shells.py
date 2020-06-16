@@ -423,8 +423,8 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = -G * mass*gtoMsun * Menc_profile(radius*1000.*cmtopc)*gtoMsun / (radius*1000.*cmtopc)
-        total_energy = kinetic_energy + 5./3.*thermal_energy + potential_energy
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
+        total_energy = kinetic_energy + thermal_energy + potential_energy
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
     if ('O_ion_mass' in flux_types):
@@ -1046,7 +1046,7 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = -G * mass*gtoMsun * Menc_profile(radius*1000.*cmtopc)*gtoMsun / (radius*1000.*cmtopc)
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
         total_energy = kinetic_energy + thermal_energy + potential_energy
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
@@ -1768,7 +1768,7 @@ def calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_a
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = -G * mass*gtoMsun * Menc_profile(radius*1000.*cmtopc)*gtoMsun / (radius*1000.*cmtopc)
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
         total_energy = kinetic_energy + thermal_energy + potential_energy
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
