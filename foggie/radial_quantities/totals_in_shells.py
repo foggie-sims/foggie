@@ -255,12 +255,14 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
 
     sat = kwargs.get('sat')
     sat_radius = kwargs.get('sat_radius', 0.)
+    Menc_profile = kwargs.get('Menc_profile')
 
     halo_center_kpc = ds.halo_center_kpc
 
     cmtopc = 3.086e18
     stoyr = 3.154e7
     gtoMsun = 1.989e33
+    G = 6.673e-8
 
     inner_radius = surface_args[1]
     outer_radius = surface_args[2]
@@ -415,14 +417,13 @@ def calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_arg
     z = sphere['gas','z'].in_units('kpc').v - halo_center_kpc[2].v
     rad_vel = sphere['gas','radial_velocity_corrected'].in_units('km/s').v
     temperature = sphere['gas','temperature'].in_units('K').v
+    mass = sphere['gas','cell_mass'].in_units('Msun').v
     if ('mass' in flux_types):
-        mass = sphere['gas','cell_mass'].in_units('Msun').v
         metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = (sphere['gas','cell_mass'] * \
-          ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
         total_energy = kinetic_energy + thermal_energy + potential_energy
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
@@ -876,12 +877,14 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
 
     sat = kwargs.get('sat')
     sat_radius = kwargs.get('sat_radius', 0.)
+    Menc_profile = kwargs.get('Menc_profile')
 
     halo_center_kpc = ds.halo_center_kpc
 
     cmtopc = 3.086e18
     stoyr = 3.154e7
     gtoMsun = 1.989e33
+    G = 6.673e-8
 
     inner_radius = surface_args[3]
     outer_radius = surface_args[4]
@@ -1037,14 +1040,13 @@ def calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_ar
     z = sphere['gas','z'].in_units('kpc').v - halo_center_kpc[2].v
     rad_vel = sphere['gas','radial_velocity_corrected'].in_units('km/s').v
     temperature = sphere['gas','temperature'].in_units('K').v
+    mass = sphere['gas','cell_mass'].in_units('Msun').v
     if ('mass' in flux_types):
-        mass = sphere['gas','cell_mass'].in_units('Msun').v
         metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = (sphere['gas','cell_mass'] * \
-          ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
         total_energy = kinetic_energy + thermal_energy + potential_energy
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
@@ -1583,12 +1585,14 @@ def calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_a
 
     sat = kwargs.get('sat')
     sat_radius = kwargs.get('sat_radius', 0.)
+    Menc_profile = kwargs.get('Menc_profile')
 
     halo_center_kpc = ds.halo_center_kpc
 
     cmtopc = 3.086e18
     stoyr = 3.154e7
     gtoMsun = 1.989e33
+    G = 6.673e-8
 
     units_kpc = surface_args[8]
     if (units_kpc):
@@ -1758,14 +1762,13 @@ def calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_a
     vy = sphere['gas','vy_corrected'].in_units('km/s').v
     vz = sphere['gas','vz_corrected'].in_units('km/s').v
     temperature = sphere['gas','temperature'].in_units('K').v
+    mass = sphere['gas','cell_mass'].in_units('Msun').v
     if ('mass' in flux_types):
-        mass = sphere['gas','cell_mass'].in_units('Msun').v
         metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = (sphere['gas','cell_mass'] * \
-          ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
         total_energy = kinetic_energy + thermal_energy + potential_energy
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
@@ -2323,7 +2326,7 @@ def calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_a
 
     return "Totals have been calculated for snapshot " + snap + "!"
 
-def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, surface_args, flux_types, sat_dir, sat_radius):
+def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, surface_args, flux_types, sat_dir, sat_radius, masses_dir):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the halo_c_v file, the name of the snapshot,
     the name of the table to output, the mass enclosed table, the list of surface arguments, and
@@ -2348,28 +2351,35 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
         sat_file = sat_dir + 'satellites.hdf5'
         sat = Table.read(sat_file, path='all_data')
 
+    if (zsnap > 2.):
+        masses = Table.read(masses_dir + 'masses_z-gtr-2.hdf5', path='all_data')
+    else:
+        masses = Table.read(masses_dir + 'masses_z-less-2.hdf5', path='all_data')
+    snap_ind = masses['snapshot']==snap
+    Menc_profile = IUS(masses['radius'][snap_ind], masses['total_mass'][snap_ind])
+
     # Do the actual calculation
     if (surface_args[0]=='sphere'):
         if (sat_radius!=0.):
             message = calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_args, \
-              flux_types, sat=sat, sat_radius=sat_radius)
+              flux_types, sat=sat, sat_radius=sat_radius, Menc_profile=Menc_profile)
         else:
             message = calc_totals_sphere(ds, snap, zsnap, refine_width_kpc, tablename, surface_args, \
-              flux_types)
+              flux_types, Menc_profile=Menc_profile)
     if (surface_args[0]=='frustum'):
         if (sat_radius!=0.):
             message = calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_args, \
-              flux_types, sat=sat, sat_radius=sat_radius)
+              flux_types, sat=sat, sat_radius=sat_radius, Menc_profile=Menc_profile)
         else:
             message = calc_totals_frustum(ds, snap, zsnap, refine_width_kpc, tablename, surface_args, \
-              flux_types)
+              flux_types, Menc_profile=Menc_profile)
     if (surface_args[0]=='cylinder'):
         if (sat_radius!=0.):
             message = calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_args, \
-              flux_types, sat=sat, sat_radius=sat_radius)
+              flux_types, sat=sat, sat_radius=sat_radius, Menc_profile=Menc_profile)
         else:
             message = calc_totals_cylinder(ds, snap, zsnap, refine_width_kpc, tablename, surface_args, \
-              flux_types)
+              flux_types, Menc_profile=Menc_profile)
     if (system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
@@ -2390,6 +2400,7 @@ if __name__ == "__main__":
 
     print('foggie_dir: ', foggie_dir)
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
+    masses_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
 
     # Specify where satellite files are saved
     if (args.remove_sats):
@@ -2557,7 +2568,7 @@ if __name__ == "__main__":
             tablename = prefix + snap + '_totals'
             # Do the actual calculation
             load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
-            tablename, surface_args, flux_types, sat_dir, sat_radius)
+            tablename, surface_args, flux_types, sat_dir, sat_radius, masses_dir)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
@@ -2568,7 +2579,7 @@ if __name__ == "__main__":
                 tablename = prefix + snap + '_totals'
                 threads.append(multi.Process(target=load_and_calculate, \
 			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
-                   tablename, surface_args, flux_types, sat_dir, sat_radius)))
+                   tablename, surface_args, flux_types, sat_dir, sat_radius, masses_dir)))
             for t in threads:
                 t.start()
             for t in threads:
@@ -2580,7 +2591,7 @@ if __name__ == "__main__":
             tablename = prefix + snap + '_totals'
             threads.append(multi.Process(target=load_and_calculate, \
 			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
-               tablename, surface_args, flux_types, sat_dir, sat_radius)))
+               tablename, surface_args, flux_types, sat_dir, sat_radius, masses_dir)))
         for t in threads:
             t.start()
         for t in threads:

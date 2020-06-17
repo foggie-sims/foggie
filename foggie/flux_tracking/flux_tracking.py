@@ -298,12 +298,14 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
     sat = kwargs.get('sat')
     sat_radius = kwargs.get('sat_radius', 0.)
     halo_center_kpc2 = kwargs.get('halo_center_kpc2', ds.halo_center_kpc)
+    Menc_profile = kwargs.get('Menc_profile')
 
     halo_center_kpc = ds.halo_center_kpc
 
     cmtopc = 3.086e18
     stoyr = 3.154e7
     gtoMsun = 1.989e33
+    G = 6.673e-8
 
     inner_radius = surface_args[1]
     outer_radius = surface_args[2]
@@ -316,7 +318,9 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         names_list_sat = ('redshift', 'inner_radius', 'outer_radius')
         types_list_sat = ('f8', 'f8', 'f8')
     names_list = ('redshift', 'radius')
+    names_edge = ('redshift', 'inner_radius', 'outer_radius')
     types_list = ('f8', 'f8')
+    types_edge = ('f8', 'f8', 'f8')
     if ('mass' in flux_types):
         new_names = ('net_mass_flux', 'net_metal_flux', \
         'mass_flux_in', 'mass_flux_out', 'metal_flux_in', 'metal_flux_out', \
@@ -332,7 +336,9 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_list += new_names
+        names_edge += new_names
         types_list += new_types
+        types_edge += new_types
         if (sat_radius!=0):
             names_list_sat += new_names
             types_list_sat += new_types
@@ -372,34 +378,36 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_list += new_names
         types_list += new_types
+        new_names_sat = ('net_kinetic_energy_flux', 'net_thermal_energy_flux', \
+        'net_potential_energy_flux', 'net_total_energy_flux',\
+        'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
+        'thermal_energy_flux_in', 'thermal_energy_flux_out', \
+        'potential_energy_flux_in', 'potential_energy_flux_out', \
+        'total_energy_flux_in', 'total_energy_flux_out', \
+        'net_cold_kinetic_energy_flux', 'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
+        'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
+        'net_warm_kinetic_energy_flux', 'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
+        'net_hot_kinetic_energy_flux', 'hot_kinetic_energy_flux_in', 'hot_kinetic_energy_flux_out', \
+        'net_cold_thermal_energy_flux', 'cold_thermal_energy_flux_in', 'cold_thermal_energy_flux_out', \
+        'net_cool_thermal_energy_flux', 'cool_thermal_energy_flux_in', 'cool_thermal_energy_flux_out', \
+        'net_warm_thermal_energy_flux', 'warm_thermal_energy_flux_in', 'warm_thermal_energy_flux_out', \
+        'net_hot_thermal_energy_flux', 'hot_thermal_energy_flux_in', 'hot_thermal_energy_flux_out', \
+        'net_cold_potential_energy_flux', 'cold_potential_energy_flux_in', 'cold_potential_energy_flux_out', \
+        'net_cool_potential_energy_flux', 'cool_potential_energy_flux_in', 'cool_potential_energy_flux_out', \
+        'net_warm_potential_energy_flux', 'warm_potential_energy_flux_in', 'warm_potential_energy_flux_out', \
+        'net_hot_potential_energy_flux', 'hot_potential_energy_flux_in', 'hot_potential_energy_flux_out', \
+        'net_cold_total_energy_flux', 'cold_total_energy_flux_in', 'cold_total_energy_flux_out', \
+        'net_cool_total_energy_flux', 'cool_total_energy_flux_in', 'cool_total_energy_flux_out', \
+        'net_warm_total_energy_flux', 'warm_total_energy_flux_in', 'warm_total_energy_flux_out', \
+        'net_hot_total_energy_flux', 'hot_total_energy_flux_in', 'hot_total_energy_flux_out')
+        new_types_sat = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+        'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
+        names_edge += new_names_sat
+        types_edge += new_types_sat
         if (sat_radius!=0):
-            new_names_sat = ('net_kinetic_energy_flux', 'net_thermal_energy_flux', \
-            'net_potential_energy_flux', 'net_total_energy_flux',\
-            'kinetic_energy_flux_in', 'kinetic_energy_flux_out', \
-            'thermal_energy_flux_in', 'thermal_energy_flux_out', \
-            'potential_energy_flux_in', 'potential_energy_flux_out', \
-            'total_energy_flux_in', 'total_energy_flux_out', \
-            'net_cold_kinetic_energy_flux', 'cold_kinetic_energy_flux_in', 'cold_kinetic_energy_flux_out', \
-            'net_cool_kinetic_energy_flux', 'cool_kinetic_energy_flux_in', 'cool_kinetic_energy_flux_out', \
-            'net_warm_kinetic_energy_flux', 'warm_kinetic_energy_flux_in', 'warm_kinetic_energy_flux_out', \
-            'net_hot_kinetic_energy_flux', 'hot_kinetic_energy_flux_in', 'hot_kinetic_energy_flux_out', \
-            'net_cold_thermal_energy_flux', 'cold_thermal_energy_flux_in', 'cold_thermal_energy_flux_out', \
-            'net_cool_thermal_energy_flux', 'cool_thermal_energy_flux_in', 'cool_thermal_energy_flux_out', \
-            'net_warm_thermal_energy_flux', 'warm_thermal_energy_flux_in', 'warm_thermal_energy_flux_out', \
-            'net_hot_thermal_energy_flux', 'hot_thermal_energy_flux_in', 'hot_thermal_energy_flux_out', \
-            'net_cold_potential_energy_flux', 'cold_potential_energy_flux_in', 'cold_potential_energy_flux_out', \
-            'net_cool_potential_energy_flux', 'cool_potential_energy_flux_in', 'cool_potential_energy_flux_out', \
-            'net_warm_potential_energy_flux', 'warm_potential_energy_flux_in', 'warm_potential_energy_flux_out', \
-            'net_hot_potential_energy_flux', 'hot_potential_energy_flux_in', 'hot_potential_energy_flux_out', \
-            'net_cold_total_energy_flux', 'cold_total_energy_flux_in', 'cold_total_energy_flux_out', \
-            'net_cool_total_energy_flux', 'cool_total_energy_flux_in', 'cool_total_energy_flux_out', \
-            'net_warm_total_energy_flux', 'warm_total_energy_flux_in', 'warm_total_energy_flux_out', \
-            'net_hot_total_energy_flux', 'hot_total_energy_flux_in', 'hot_total_energy_flux_out')
-            new_types_sat = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-            'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
-            'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
             names_list_sat += new_names_sat
             types_list_sat += new_types_sat
     if ('entropy' in flux_types):
@@ -411,7 +419,9 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         new_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_list += new_names
+        names_edge += new_names
         types_list += new_types
+        types_edge += new_types
         if (sat_radius!=0):
             names_list_sat += new_names
             types_list_sat += new_types
@@ -480,7 +490,9 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_list += new_names
+        names_edge += new_names
         types_list += new_types
+        types_edge += new_types
         if (sat_radius!=0):
             names_list_sat += new_names
             types_list_sat += new_types
@@ -505,11 +517,14 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
         'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         names_list += new_names
+        names_edge += new_names
         types_list += new_types
+        types_edge += new_types
         if (sat_radius!=0):
             names_list_sat += new_names
             types_list_sat += new_types
     fluxes = Table(names=names_list, dtype=types_list)
+    fluxes_edge = Table(names=names_edge, dtype=types_edge)
     if (sat_radius!=0):
         fluxes_sat = Table(names=names_list_sat, dtype=types_list_sat)
 
@@ -545,9 +560,8 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = (sphere['gas','cell_mass'] * \
-          ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
-        total_energy = kinetic_energy + thermal_energy + potential_energy
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
+        total_energy = kinetic_energy + 5./3.*thermal_energy + potential_energy
         cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
@@ -1270,6 +1284,165 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
                         ang_mom_y_flux_nosat[j].append(np.sum(ang_mom_y_nosat_Tcut[k][bool_out])/dt)
                         ang_mom_z_flux_nosat[j].append(np.sum(ang_mom_z_nosat_Tcut[k][bool_out])/dt)
 
+        # Compute fluxes from and to the radial shell (and net) between inner_r and outer_r
+        # These are nested lists where the first index goes from 0 to 2 for [net, from, to]
+        # and the second index goes from 0 to 4 for [all, cold, cool, warm, hot]
+        if (i < len(outer_radii)):
+            if ('mass' in flux_types):
+                mass_flux_edge = []
+                metal_flux_edge = []
+            if ('energy' in flux_types):
+                kinetic_energy_flux_edge = []
+                thermal_energy_flux_edge = []
+                potential_energy_flux_edge = []
+                total_energy_flux_edge = []
+            if ('entropy' in flux_types):
+                entropy_flux_edge = []
+            if ('O_ion_mass' in flux_types):
+                O_flux_edge = []
+                OI_flux_edge = []
+                OII_flux_edge = []
+                OIII_flux_edge = []
+                OIV_flux_edge = []
+                OV_flux_edge = []
+                OVI_flux_edge = []
+                OVII_flux_edge = []
+                OVIII_flux_edge = []
+                OIX_flux_edge = []
+            if ('angular_momentum' in flux_types):
+                ang_mom_x_flux_edge = []
+                ang_mom_y_flux_edge = []
+                ang_mom_z_flux_edge = []
+            for j in range(3):
+                if ('mass' in flux_types):
+                    mass_flux_edge.append([])
+                    metal_flux_edge.append([])
+                if ('energy' in flux_types):
+                    kinetic_energy_flux_edge.append([])
+                    thermal_energy_flux_edge.append([])
+                    potential_energy_flux_edge.append([])
+                    total_energy_flux_edge.append([])
+                if ('entropy' in flux_types):
+                    entropy_flux_edge.append([])
+                if ('O_ion_mass' in flux_types):
+                    O_flux_edge.append([])
+                    OI_flux_edge.append([])
+                    OII_flux_edge.append([])
+                    OIII_flux_edge.append([])
+                    OIV_flux_edge.append([])
+                    OV_flux_edge.append([])
+                    OVI_flux_edge.append([])
+                    OVII_flux_edge.append([])
+                    OVIII_flux_edge.append([])
+                    OIX_flux_edge.append([])
+                if ('angular_momentum' in flux_types):
+                    ang_mom_x_flux_edge.append([])
+                    ang_mom_y_flux_edge.append([])
+                    ang_mom_z_flux_edge.append([])
+                for k in range(5):
+                    bool_in = ((newradius_nosat_Tcut[k] > inner_r) & (newradius_nosat_Tcut[k] < outer_r)) & \
+                      (radius_nosat_Tcut[k] > outer_r) | (radius_nosat_Tcut[k] < inner_r)
+                    bool_out = ((radius_nosat_Tcut[k] > inner_r) & (radius_nosat_Tcut[k] < outer_r)) & \
+                      (newradius_nosat_Tcut[k] < inner_r) | (newradius_nosat_Tcut[k] > outer_r)
+                    if (j==0):
+                        if('mass' in flux_types):
+                            mass_flux_edge[j].append((np.sum(mass_nosat_Tcut[k][bool_in]) - \
+                                                    np.sum(mass_nosat_Tcut[k][bool_out]))/dt)
+                            metal_flux_edge[j].append((np.sum(metal_mass_nosat_Tcut[k][bool_in]) - \
+                                                    np.sum(metal_mass_nosat_Tcut[k][bool_out]))/dt)
+                        if('energy' in flux_types):
+                            kinetic_energy_flux_edge[j].append((np.sum(kinetic_energy_nosat_Tcut[k][bool_in]) - \
+                                                              np.sum(kinetic_energy_nosat_Tcut[k][bool_out]))/dt)
+                            thermal_energy_flux_edge[j].append((np.sum(thermal_energy_nosat_Tcut[k][bool_in]) - \
+                                                              np.sum(thermal_energy_nosat_Tcut[k][bool_out]))/dt)
+                            potential_energy_flux_edge[j].append((np.sum(potential_energy_nosat_Tcut[k][bool_in]) - \
+                                                                np.sum(potential_energy_nosat_Tcut[k][bool_out]))/dt)
+                            total_energy_flux_edge[j].append((np.sum(total_energy_nosat_Tcut[k][bool_in]) - \
+                                                                np.sum(total_energy_nosat_Tcut[k][bool_out]))/dt)
+                        if ('entropy' in flux_types):
+                            entropy_flux_edge[j].append((np.sum(entropy_nosat_Tcut[k][bool_in]) - \
+                                                        np.sum(entropy_nosat_Tcut[k][bool_out]))/dt)
+                        if ('O_ion_mass' in flux_types):
+                            O_flux_edge[j].append((np.sum(O_mass_nosat_Tcut[k][bool_in]) - \
+                              np.sum(O_mass_nosat_Tcut[k][bool_out]))/dt)
+                            OI_flux_edge[j].append((np.sum(OI_mass_nosat_Tcut[k][bool_in]) - \
+                              np.sum(OI_mass_nosat_Tcut[k][bool_out]))/dt)
+                            OII_flux_edge[j].append((np.sum(OII_mass_nosat_Tcut[k][bool_in]) - \
+                              np.sum(OII_mass_nosat_Tcut[k][bool_out]))/dt)
+                            OIII_flux_edge[j].append((np.sum(OIII_mass_nosat_Tcut[k][bool_in]) - \
+                              np.sum(OIII_mass_nosat_Tcut[k][bool_out]))/dt)
+                            OIV_flux_edge[j].append((np.sum(OIV_mass_nosat_Tcut[k][bool_in]) - \
+                              np.sum(OIV_mass_nosat_Tcut[k][bool_out]))/dt)
+                            OV_flux_edge[j].append((np.sum(OV_mass_nosat_Tcut[k][bool_in]) - \
+                              np.sum(OV_mass_nosat_Tcut[k][bool_out]))/dt)
+                            OVI_flux_edge[j].append((np.sum(OVI_mass_nosat_Tcut[k][bool_in]) - \
+                              np.sum(OVI_mass_nosat_Tcut[k][bool_out]))/dt)
+                            OVII_flux_edge[j].append((np.sum(OVII_mass_nosat_Tcut[k][bool_in]) - \
+                              np.sum(OVII_mass_nosat_Tcut[k][bool_out]))/dt)
+                            OVIII_flux_edge[j].append((np.sum(OVIII_mass_nosat_Tcut[k][bool_in]) - \
+                              np.sum(OVIII_mass_nosat_Tcut[k][bool_out]))/dt)
+                            OIX_flux_edge[j].append((np.sum(OIX_mass_nosat_Tcut[k][bool_in]) - \
+                              np.sum(OIX_mass_nosat_Tcut[k][bool_out]))/dt)
+                        if ('angular_momentum' in flux_types):
+                            ang_mom_x_flux_edge[j].append((np.sum(ang_mom_x_nosat_Tcut[k][bool_in]) - \
+                              np.sum(ang_mom_x_nosat_Tcut[k][bool_out]))/dt)
+                            ang_mom_y_flux_edge[j].append((np.sum(ang_mom_y_nosat_Tcut[k][bool_in]) - \
+                              np.sum(ang_mom_y_nosat_Tcut[k][bool_out]))/dt)
+                            ang_mom_z_flux_edge[j].append((np.sum(ang_mom_z_nosat_Tcut[k][bool_in]) - \
+                              np.sum(ang_mom_z_nosat_Tcut[k][bool_out]))/dt)
+                    if (j==1):
+                        if ('mass' in flux_types):
+                            mass_flux_edge[j].append(np.sum(mass_nosat_Tcut[k][bool_in])/dt)
+                            metal_flux_edge[j].append(np.sum(metal_mass_nosat_Tcut[k][bool_in])/dt)
+                        if ('energy' in flux_types):
+                            kinetic_energy_flux_edge[j].append(np.sum(kinetic_energy_nosat_Tcut[k][bool_in])/dt)
+                            thermal_energy_flux_edge[j].append(np.sum(thermal_energy_nosat_Tcut[k][bool_in])/dt)
+                            potential_energy_flux_edge[j].append(np.sum(potential_energy_nosat_Tcut[k][bool_in])/dt)
+                            total_energy_flux_edge[j].append(np.sum(total_energy_nosat_Tcut[k][bool_in])/dt)
+                        if ('entropy' in flux_types):
+                            entropy_flux_edge[j].append(np.sum(entropy_nosat_Tcut[k][bool_in])/dt)
+                        if ('O_ion_mass' in flux_types):
+                            O_flux_edge[j].append(np.sum(O_mass_nosat_Tcut[k][bool_in])/dt)
+                            OI_flux_edge[j].append(np.sum(OI_mass_nosat_Tcut[k][bool_in])/dt)
+                            OII_flux_edge[j].append(np.sum(OII_mass_nosat_Tcut[k][bool_in])/dt)
+                            OIII_flux_edge[j].append(np.sum(OIII_mass_nosat_Tcut[k][bool_in])/dt)
+                            OIV_flux_edge[j].append(np.sum(OIV_mass_nosat_Tcut[k][bool_in])/dt)
+                            OV_flux_edge[j].append(np.sum(OV_mass_nosat_Tcut[k][bool_in])/dt)
+                            OVI_flux_edge[j].append(np.sum(OVI_mass_nosat_Tcut[k][bool_in])/dt)
+                            OVII_flux_edge[j].append(np.sum(OVII_mass_nosat_Tcut[k][bool_in])/dt)
+                            OVIII_flux_edge[j].append(np.sum(OVIII_mass_nosat_Tcut[k][bool_in])/dt)
+                            OIX_flux_edge[j].append(np.sum(OIX_mass_nosat_Tcut[k][bool_in])/dt)
+                        if ('angular_momentum' in flux_types):
+                            ang_mom_x_flux_edge[j].append(np.sum(ang_mom_x_nosat_Tcut[k][bool_in])/dt)
+                            ang_mom_y_flux_edge[j].append(np.sum(ang_mom_y_nosat_Tcut[k][bool_in])/dt)
+                            ang_mom_z_flux_edge[j].append(np.sum(ang_mom_z_nosat_Tcut[k][bool_in])/dt)
+                    if (j==2):
+                        if ('mass' in flux_types):
+                            mass_flux_edge[j].append(-np.sum(mass_nosat_Tcut[k][bool_out])/dt)
+                            metal_flux_edge[j].append(-np.sum(metal_mass_nosat_Tcut[k][bool_out])/dt)
+                        if ('energy' in flux_types):
+                            kinetic_energy_flux_edge[j].append(-np.sum(kinetic_energy_nosat_Tcut[k][bool_out])/dt)
+                            thermal_energy_flux_edge[j].append(-np.sum(thermal_energy_nosat_Tcut[k][bool_out])/dt)
+                            potential_energy_flux_edge[j].append(-np.sum(potential_energy_nosat_Tcut[k][bool_out])/dt)
+                            total_energy_flux_edge[j].append(-np.sum(total_energy_nosat_Tcut[k][bool_out])/dt)
+                        if ('entropy' in flux_types):
+                            entropy_flux_edge[j].append(-np.sum(entropy_nosat_Tcut[k][bool_out])/dt)
+                        if ('O_ion_mass' in flux_types):
+                            O_flux_edge[j].append(-np.sum(O_mass_nosat_Tcut[k][bool_out])/dt)
+                            OI_flux_edge[j].append(-np.sum(OI_mass_nosat_Tcut[k][bool_out])/dt)
+                            OII_flux_edge[j].append(-np.sum(OII_mass_nosat_Tcut[k][bool_out])/dt)
+                            OIII_flux_edge[j].append(-np.sum(OIII_mass_nosat_Tcut[k][bool_out])/dt)
+                            OIV_flux_edge[j].append(-np.sum(OIV_mass_nosat_Tcut[k][bool_out])/dt)
+                            OV_flux_edge[j].append(-np.sum(OV_mass_nosat_Tcut[k][bool_out])/dt)
+                            OVI_flux_edge[j].append(-np.sum(OVI_mass_nosat_Tcut[k][bool_out])/dt)
+                            OVII_flux_edge[j].append(-np.sum(OVII_mass_nosat_Tcut[k][bool_out])/dt)
+                            OVIII_flux_edge[j].append(-np.sum(OVIII_mass_nosat_Tcut[k][bool_out])/dt)
+                            OIX_flux_edge[j].append(-np.sum(OIX_mass_nosat_Tcut[k][bool_out])/dt)
+                        if ('angular_momentum' in flux_types):
+                            ang_mom_x_flux_edge[j].append(-np.sum(ang_mom_x_nosat_Tcut[k][bool_out])/dt)
+                            ang_mom_y_flux_edge[j].append(-np.sum(ang_mom_y_nosat_Tcut[k][bool_out])/dt)
+                            ang_mom_z_flux_edge[j].append(-np.sum(ang_mom_z_nosat_Tcut[k][bool_out])/dt)
+
         # Compute fluxes from and to satellites (and net) between inner_r and outer_r
         # These are nested lists where the first index goes from 0 to 2 for [net, from, to]
         # and the second index goes from 0 to 4 for [all, cold, cool, warm, hot]
@@ -1563,118 +1736,230 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
             ang_mom_z_flux_nosat[0][4], ang_mom_z_flux_nosat[1][4], ang_mom_z_flux_nosat[2][4]]
         fluxes.add_row(new_row)
 
-        if (sat_radius!=0):
+        if (i < len(outer_radii)):
             new_row = [zsnap, inner_r, outer_r]
             if ('mass' in flux_types):
-                new_row += [mass_flux_sat[0][0], metal_flux_sat[0][0], \
-                mass_flux_sat[1][0], mass_flux_sat[2][0], metal_flux_sat[1][0], metal_flux_sat[2][0], \
-                mass_flux_sat[0][1], mass_flux_sat[1][1], mass_flux_sat[2][1], \
-                mass_flux_sat[0][2], mass_flux_sat[1][2], mass_flux_sat[2][2], \
-                mass_flux_sat[0][3], mass_flux_sat[1][3], mass_flux_sat[2][3], \
-                mass_flux_sat[0][4], mass_flux_sat[1][4], mass_flux_sat[2][4], \
-                metal_flux_sat[0][1], metal_flux_sat[1][1], metal_flux_sat[2][1], \
-                metal_flux_sat[0][2], metal_flux_sat[1][2], metal_flux_sat[2][2], \
-                metal_flux_sat[0][3], metal_flux_sat[1][3], metal_flux_sat[2][3], \
-                metal_flux_sat[0][4], metal_flux_sat[1][4], metal_flux_sat[2][4]]
+                new_row += [mass_flux_edge[0][0], metal_flux_edge[0][0], \
+                mass_flux_edge[1][0], mass_flux_edge[2][0], metal_flux_edge[1][0], metal_flux_edge[2][0], \
+                mass_flux_edge[0][1], mass_flux_edge[1][1], mass_flux_edge[2][1], \
+                mass_flux_edge[0][2], mass_flux_edge[1][2], mass_flux_edge[2][2], \
+                mass_flux_edge[0][3], mass_flux_edge[1][3], mass_flux_edge[2][3], \
+                mass_flux_edge[0][4], mass_flux_edge[1][4], mass_flux_edge[2][4], \
+                metal_flux_edge[0][1], metal_flux_edge[1][1], metal_flux_edge[2][1], \
+                metal_flux_edge[0][2], metal_flux_edge[1][2], metal_flux_edge[2][2], \
+                metal_flux_edge[0][3], metal_flux_edge[1][3], metal_flux_edge[2][3], \
+                metal_flux_edge[0][4], metal_flux_edge[1][4], metal_flux_edge[2][4]]
             if ('energy' in flux_types):
-                new_row += [kinetic_energy_flux_sat[0][0], thermal_energy_flux_sat[0][0], potential_energy_flux_sat[0][0], total_energy_flux_sat[0][0], \
-                kinetic_energy_flux_sat[1][0], kinetic_energy_flux_sat[2][0], \
-                thermal_energy_flux_sat[1][0], thermal_energy_flux_sat[2][0], \
-                potential_energy_flux_sat[1][0], potential_energy_flux_sat[2][0], \
-                total_energy_flux_sat[1][0], total_energy_flux_sat[2][0], \
-                kinetic_energy_flux_sat[0][1], kinetic_energy_flux_sat[1][1], kinetic_energy_flux_sat[2][1], \
-                kinetic_energy_flux_sat[0][2], kinetic_energy_flux_sat[1][2], kinetic_energy_flux_sat[2][2], \
-                kinetic_energy_flux_sat[0][3], kinetic_energy_flux_sat[1][3], kinetic_energy_flux_sat[2][3], \
-                kinetic_energy_flux_sat[0][4], kinetic_energy_flux_sat[1][4], kinetic_energy_flux_sat[2][4], \
-                thermal_energy_flux_sat[0][1], thermal_energy_flux_sat[1][1], thermal_energy_flux_sat[2][1], \
-                thermal_energy_flux_sat[0][2], thermal_energy_flux_sat[1][2], thermal_energy_flux_sat[2][2], \
-                thermal_energy_flux_sat[0][3], thermal_energy_flux_sat[1][3], thermal_energy_flux_sat[2][3], \
-                thermal_energy_flux_sat[0][4], thermal_energy_flux_sat[1][4], thermal_energy_flux_sat[2][4], \
-                potential_energy_flux_sat[0][1], potential_energy_flux_sat[1][1], potential_energy_flux_sat[2][1], \
-                potential_energy_flux_sat[0][2], potential_energy_flux_sat[1][2], potential_energy_flux_sat[2][2], \
-                potential_energy_flux_sat[0][3], potential_energy_flux_sat[1][3], potential_energy_flux_sat[2][3], \
-                potential_energy_flux_sat[0][4], potential_energy_flux_sat[1][4], potential_energy_flux_sat[2][4], \
-                total_energy_flux_sat[0][1], total_energy_flux_sat[1][1], total_energy_flux_sat[2][1], \
-                total_energy_flux_sat[0][2], total_energy_flux_sat[1][2], total_energy_flux_sat[2][2], \
-                total_energy_flux_sat[0][3], total_energy_flux_sat[1][3], total_energy_flux_sat[2][3], \
-                total_energy_flux_sat[0][4], total_energy_flux_sat[1][4], total_energy_flux_sat[2][4]]
+                new_row += [kinetic_energy_flux_edge[0][0], thermal_energy_flux_edge[0][0], potential_energy_flux_edge[0][0], total_energy_flux_edge[0][0], \
+                kinetic_energy_flux_edge[1][0], kinetic_energy_flux_edge[2][0], \
+                thermal_energy_flux_edge[1][0], thermal_energy_flux_edge[2][0], \
+                potential_energy_flux_edge[1][0], potential_energy_flux_edge[2][0], \
+                total_energy_flux_edge[1][0], total_energy_flux_edge[2][0], \
+                kinetic_energy_flux_edge[0][1], kinetic_energy_flux_edge[1][1], kinetic_energy_flux_edge[2][1], \
+                kinetic_energy_flux_edge[0][2], kinetic_energy_flux_edge[1][2], kinetic_energy_flux_edge[2][2], \
+                kinetic_energy_flux_edge[0][3], kinetic_energy_flux_edge[1][3], kinetic_energy_flux_edge[2][3], \
+                kinetic_energy_flux_edge[0][4], kinetic_energy_flux_edge[1][4], kinetic_energy_flux_edge[2][4], \
+                thermal_energy_flux_edge[0][1], thermal_energy_flux_edge[1][1], thermal_energy_flux_edge[2][1], \
+                thermal_energy_flux_edge[0][2], thermal_energy_flux_edge[1][2], thermal_energy_flux_edge[2][2], \
+                thermal_energy_flux_edge[0][3], thermal_energy_flux_edge[1][3], thermal_energy_flux_edge[2][3], \
+                thermal_energy_flux_edge[0][4], thermal_energy_flux_edge[1][4], thermal_energy_flux_edge[2][4], \
+                potential_energy_flux_edge[0][1], potential_energy_flux_edge[1][1], potential_energy_flux_edge[2][1], \
+                potential_energy_flux_edge[0][2], potential_energy_flux_edge[1][2], potential_energy_flux_edge[2][2], \
+                potential_energy_flux_edge[0][3], potential_energy_flux_edge[1][3], potential_energy_flux_edge[2][3], \
+                potential_energy_flux_edge[0][4], potential_energy_flux_edge[1][4], potential_energy_flux_edge[2][4], \
+                total_energy_flux_edge[0][1], total_energy_flux_edge[1][1], total_energy_flux_edge[2][1], \
+                total_energy_flux_edge[0][2], total_energy_flux_edge[1][2], total_energy_flux_edge[2][2], \
+                total_energy_flux_edge[0][3], total_energy_flux_edge[1][3], total_energy_flux_edge[2][3], \
+                total_energy_flux_edge[0][4], total_energy_flux_edge[1][4], total_energy_flux_edge[2][4]]
             if ('entropy' in flux_types):
-                new_row += [entropy_flux_sat[0][0], entropy_flux_sat[1][0], entropy_flux_sat[2][0], \
-                entropy_flux_sat[0][1], entropy_flux_sat[1][1], entropy_flux_sat[2][1], \
-                entropy_flux_sat[0][2], entropy_flux_sat[1][2], entropy_flux_sat[2][2], \
-                entropy_flux_sat[0][3], entropy_flux_sat[1][3], entropy_flux_sat[2][3], \
-                entropy_flux_sat[0][4], entropy_flux_sat[1][4], entropy_flux_sat[2][4]]
+                new_row += [entropy_flux_edge[0][0], entropy_flux_edge[1][0], entropy_flux_edge[2][0], \
+                entropy_flux_edge[0][1], entropy_flux_edge[1][1], entropy_flux_edge[2][1], \
+                entropy_flux_edge[0][2], entropy_flux_edge[1][2], entropy_flux_edge[2][2], \
+                entropy_flux_edge[0][3], entropy_flux_edge[1][3], entropy_flux_edge[2][3], \
+                entropy_flux_edge[0][4], entropy_flux_edge[1][4], entropy_flux_edge[2][4]]
             if ('O_ion_mass' in flux_types):
-                new_row += [O_flux_sat[0][0], O_flux_sat[1][0], O_flux_sat[2][0], \
-                O_flux_sat[0][1], O_flux_sat[1][1], O_flux_sat[2][1], \
-                O_flux_sat[0][2], O_flux_sat[1][2], O_flux_sat[2][2], \
-                O_flux_sat[0][3], O_flux_sat[1][3], O_flux_sat[2][3], \
-                O_flux_sat[0][4], O_flux_sat[1][4], O_flux_sat[2][4], \
-                OI_flux_sat[0][0], OI_flux_sat[1][0], OI_flux_sat[2][0], \
-                OI_flux_sat[0][1], OI_flux_sat[1][1], OI_flux_sat[2][1], \
-                OI_flux_sat[0][2], OI_flux_sat[1][2], OI_flux_sat[2][2], \
-                OI_flux_sat[0][3], OI_flux_sat[1][3], OI_flux_sat[2][3], \
-                OI_flux_sat[0][4], OI_flux_sat[1][4], OI_flux_sat[2][4], \
-                OII_flux_sat[0][0], OII_flux_sat[1][0], OII_flux_sat[2][0], \
-                OII_flux_sat[0][1], OII_flux_sat[1][1], OII_flux_sat[2][1], \
-                OII_flux_sat[0][2], OII_flux_sat[1][2], OII_flux_sat[2][2], \
-                OII_flux_sat[0][3], OII_flux_sat[1][3], OII_flux_sat[2][3], \
-                OII_flux_sat[0][4], OII_flux_sat[1][4], OII_flux_sat[2][4], \
-                OIII_flux_sat[0][0], OIII_flux_sat[1][0], OIII_flux_sat[2][0], \
-                OIII_flux_sat[0][1], OIII_flux_sat[1][1], OIII_flux_sat[2][1], \
-                OIII_flux_sat[0][2], OIII_flux_sat[1][2], OIII_flux_sat[2][2], \
-                OIII_flux_sat[0][3], OIII_flux_sat[1][3], OIII_flux_sat[2][3], \
-                OIII_flux_sat[0][4], OIII_flux_sat[1][4], OIII_flux_sat[2][4], \
-                OIV_flux_sat[0][0], OIV_flux_sat[1][0], OIV_flux_sat[2][0], \
-                OIV_flux_sat[0][1], OIV_flux_sat[1][1], OIV_flux_sat[2][1], \
-                OIV_flux_sat[0][2], OIV_flux_sat[1][2], OIV_flux_sat[2][2], \
-                OIV_flux_sat[0][3], OIV_flux_sat[1][3], OIV_flux_sat[2][3], \
-                OIV_flux_sat[0][4], OIV_flux_sat[1][4], OIV_flux_sat[2][4], \
-                OV_flux_sat[0][0], OV_flux_sat[1][0], OV_flux_sat[2][0], \
-                OV_flux_sat[0][1], OV_flux_sat[1][1], OV_flux_sat[2][1], \
-                OV_flux_sat[0][2], OV_flux_sat[1][2], OV_flux_sat[2][2], \
-                OV_flux_sat[0][3], OV_flux_sat[1][3], OV_flux_sat[2][3], \
-                OV_flux_sat[0][4], OV_flux_sat[1][4], OV_flux_sat[2][4], \
-                OVI_flux_sat[0][0], OVI_flux_sat[1][0], OVI_flux_sat[2][0], \
-                OVI_flux_sat[0][1], OVI_flux_sat[1][1], OVI_flux_sat[2][1], \
-                OVI_flux_sat[0][2], OVI_flux_sat[1][2], OVI_flux_sat[2][2], \
-                OVI_flux_sat[0][3], OVI_flux_sat[1][3], OVI_flux_sat[2][3], \
-                OVI_flux_sat[0][4], OVI_flux_sat[1][4], OVI_flux_sat[2][4], \
-                OVII_flux_sat[0][0], OVII_flux_sat[1][0], OVII_flux_sat[2][0], \
-                OVII_flux_sat[0][1], OVII_flux_sat[1][1], OVII_flux_sat[2][1], \
-                OVII_flux_sat[0][2], OVII_flux_sat[1][2], OVII_flux_sat[2][2], \
-                OVII_flux_sat[0][3], OVII_flux_sat[1][3], OVII_flux_sat[2][3], \
-                OVII_flux_sat[0][4], OVII_flux_sat[1][4], OVII_flux_sat[2][4], \
-                OVIII_flux_sat[0][0], OVIII_flux_sat[1][0], OVIII_flux_sat[2][0], \
-                OVIII_flux_sat[0][1], OVIII_flux_sat[1][1], OVIII_flux_sat[2][1], \
-                OVIII_flux_sat[0][2], OVIII_flux_sat[1][2], OVIII_flux_sat[2][2], \
-                OVIII_flux_sat[0][3], OVIII_flux_sat[1][3], OVIII_flux_sat[2][3], \
-                OVIII_flux_sat[0][4], OVIII_flux_sat[1][4], OVIII_flux_sat[2][4], \
-                OIX_flux_sat[0][0], OIX_flux_sat[1][0], OIX_flux_sat[2][0], \
-                OIX_flux_sat[0][1], OIX_flux_sat[1][1], OIX_flux_sat[2][1], \
-                OIX_flux_sat[0][2], OIX_flux_sat[1][2], OIX_flux_sat[2][2], \
-                OIX_flux_sat[0][3], OIX_flux_sat[1][3], OIX_flux_sat[2][3], \
-                OIX_flux_sat[0][4], OIX_flux_sat[1][4], OIX_flux_sat[2][4]]
+                new_row += [O_flux_edge[0][0], O_flux_edge[1][0], O_flux_edge[2][0], \
+                O_flux_edge[0][1], O_flux_edge[1][1], O_flux_edge[2][1], \
+                O_flux_edge[0][2], O_flux_edge[1][2], O_flux_edge[2][2], \
+                O_flux_edge[0][3], O_flux_edge[1][3], O_flux_edge[2][3], \
+                O_flux_edge[0][4], O_flux_edge[1][4], O_flux_edge[2][4], \
+                OI_flux_edge[0][0], OI_flux_edge[1][0], OI_flux_edge[2][0], \
+                OI_flux_edge[0][1], OI_flux_edge[1][1], OI_flux_edge[2][1], \
+                OI_flux_edge[0][2], OI_flux_edge[1][2], OI_flux_edge[2][2], \
+                OI_flux_edge[0][3], OI_flux_edge[1][3], OI_flux_edge[2][3], \
+                OI_flux_edge[0][4], OI_flux_edge[1][4], OI_flux_edge[2][4], \
+                OII_flux_edge[0][0], OII_flux_edge[1][0], OII_flux_edge[2][0], \
+                OII_flux_edge[0][1], OII_flux_edge[1][1], OII_flux_edge[2][1], \
+                OII_flux_edge[0][2], OII_flux_edge[1][2], OII_flux_edge[2][2], \
+                OII_flux_edge[0][3], OII_flux_edge[1][3], OII_flux_edge[2][3], \
+                OII_flux_edge[0][4], OII_flux_edge[1][4], OII_flux_edge[2][4], \
+                OIII_flux_edge[0][0], OIII_flux_edge[1][0], OIII_flux_edge[2][0], \
+                OIII_flux_edge[0][1], OIII_flux_edge[1][1], OIII_flux_edge[2][1], \
+                OIII_flux_edge[0][2], OIII_flux_edge[1][2], OIII_flux_edge[2][2], \
+                OIII_flux_edge[0][3], OIII_flux_edge[1][3], OIII_flux_edge[2][3], \
+                OIII_flux_edge[0][4], OIII_flux_edge[1][4], OIII_flux_edge[2][4], \
+                OIV_flux_edge[0][0], OIV_flux_edge[1][0], OIV_flux_edge[2][0], \
+                OIV_flux_edge[0][1], OIV_flux_edge[1][1], OIV_flux_edge[2][1], \
+                OIV_flux_edge[0][2], OIV_flux_edge[1][2], OIV_flux_edge[2][2], \
+                OIV_flux_edge[0][3], OIV_flux_edge[1][3], OIV_flux_edge[2][3], \
+                OIV_flux_edge[0][4], OIV_flux_edge[1][4], OIV_flux_edge[2][4], \
+                OV_flux_edge[0][0], OV_flux_edge[1][0], OV_flux_edge[2][0], \
+                OV_flux_edge[0][1], OV_flux_edge[1][1], OV_flux_edge[2][1], \
+                OV_flux_edge[0][2], OV_flux_edge[1][2], OV_flux_edge[2][2], \
+                OV_flux_edge[0][3], OV_flux_edge[1][3], OV_flux_edge[2][3], \
+                OV_flux_edge[0][4], OV_flux_edge[1][4], OV_flux_edge[2][4], \
+                OVI_flux_edge[0][0], OVI_flux_edge[1][0], OVI_flux_edge[2][0], \
+                OVI_flux_edge[0][1], OVI_flux_edge[1][1], OVI_flux_edge[2][1], \
+                OVI_flux_edge[0][2], OVI_flux_edge[1][2], OVI_flux_edge[2][2], \
+                OVI_flux_edge[0][3], OVI_flux_edge[1][3], OVI_flux_edge[2][3], \
+                OVI_flux_edge[0][4], OVI_flux_edge[1][4], OVI_flux_edge[2][4], \
+                OVII_flux_edge[0][0], OVII_flux_edge[1][0], OVII_flux_edge[2][0], \
+                OVII_flux_edge[0][1], OVII_flux_edge[1][1], OVII_flux_edge[2][1], \
+                OVII_flux_edge[0][2], OVII_flux_edge[1][2], OVII_flux_edge[2][2], \
+                OVII_flux_edge[0][3], OVII_flux_edge[1][3], OVII_flux_edge[2][3], \
+                OVII_flux_edge[0][4], OVII_flux_edge[1][4], OVII_flux_edge[2][4], \
+                OVIII_flux_edge[0][0], OVIII_flux_edge[1][0], OVIII_flux_edge[2][0], \
+                OVIII_flux_edge[0][1], OVIII_flux_edge[1][1], OVIII_flux_edge[2][1], \
+                OVIII_flux_edge[0][2], OVIII_flux_edge[1][2], OVIII_flux_edge[2][2], \
+                OVIII_flux_edge[0][3], OVIII_flux_edge[1][3], OVIII_flux_edge[2][3], \
+                OVIII_flux_edge[0][4], OVIII_flux_edge[1][4], OVIII_flux_edge[2][4], \
+                OIX_flux_edge[0][0], OIX_flux_edge[1][0], OIX_flux_edge[2][0], \
+                OIX_flux_edge[0][1], OIX_flux_edge[1][1], OIX_flux_edge[2][1], \
+                OIX_flux_edge[0][2], OIX_flux_edge[1][2], OIX_flux_edge[2][2], \
+                OIX_flux_edge[0][3], OIX_flux_edge[1][3], OIX_flux_edge[2][3], \
+                OIX_flux_edge[0][4], OIX_flux_edge[1][4], OIX_flux_edge[2][4]]
             if ('angular_momentum' in flux_types):
-                new_row += [ang_mom_x_flux_sat[0][0], ang_mom_y_flux_sat[0][0], ang_mom_z_flux_sat[0][0], \
-                ang_mom_x_flux_sat[1][0], ang_mom_x_flux_sat[2][0], \
-                ang_mom_y_flux_sat[1][0], ang_mom_y_flux_sat[2][0], \
-                ang_mom_z_flux_sat[1][0], ang_mom_z_flux_sat[2][0], \
-                ang_mom_x_flux_sat[0][1], ang_mom_x_flux_sat[1][1], ang_mom_x_flux_sat[2][1], \
-                ang_mom_x_flux_sat[0][2], ang_mom_x_flux_sat[1][2], ang_mom_x_flux_sat[2][2], \
-                ang_mom_x_flux_sat[0][3], ang_mom_x_flux_sat[1][3], ang_mom_x_flux_sat[2][3], \
-                ang_mom_x_flux_sat[0][4], ang_mom_x_flux_sat[1][4], ang_mom_x_flux_sat[2][4], \
-                ang_mom_y_flux_sat[0][1], ang_mom_y_flux_sat[1][1], ang_mom_y_flux_sat[2][1], \
-                ang_mom_y_flux_sat[0][2], ang_mom_y_flux_sat[1][2], ang_mom_y_flux_sat[2][2], \
-                ang_mom_y_flux_sat[0][3], ang_mom_y_flux_sat[1][3], ang_mom_y_flux_sat[2][3], \
-                ang_mom_y_flux_sat[0][4], ang_mom_y_flux_sat[1][4], ang_mom_y_flux_sat[2][4], \
-                ang_mom_z_flux_sat[0][1], ang_mom_z_flux_sat[1][1], ang_mom_z_flux_sat[2][1], \
-                ang_mom_z_flux_sat[0][2], ang_mom_z_flux_sat[1][2], ang_mom_z_flux_sat[2][2], \
-                ang_mom_z_flux_sat[0][3], ang_mom_z_flux_sat[1][3], ang_mom_z_flux_sat[2][3], \
-                ang_mom_z_flux_sat[0][4], ang_mom_z_flux_sat[1][4], ang_mom_z_flux_sat[2][4]]
-            fluxes_sat.add_row(new_row)
+                new_row += [ang_mom_x_flux_edge[0][0], ang_mom_y_flux_edge[0][0], ang_mom_z_flux_edge[0][0], \
+                ang_mom_x_flux_edge[1][0], ang_mom_x_flux_edge[2][0], \
+                ang_mom_y_flux_edge[1][0], ang_mom_y_flux_edge[2][0], \
+                ang_mom_z_flux_edge[1][0], ang_mom_z_flux_edge[2][0], \
+                ang_mom_x_flux_edge[0][1], ang_mom_x_flux_edge[1][1], ang_mom_x_flux_edge[2][1], \
+                ang_mom_x_flux_edge[0][2], ang_mom_x_flux_edge[1][2], ang_mom_x_flux_edge[2][2], \
+                ang_mom_x_flux_edge[0][3], ang_mom_x_flux_edge[1][3], ang_mom_x_flux_edge[2][3], \
+                ang_mom_x_flux_edge[0][4], ang_mom_x_flux_edge[1][4], ang_mom_x_flux_edge[2][4], \
+                ang_mom_y_flux_edge[0][1], ang_mom_y_flux_edge[1][1], ang_mom_y_flux_edge[2][1], \
+                ang_mom_y_flux_edge[0][2], ang_mom_y_flux_edge[1][2], ang_mom_y_flux_edge[2][2], \
+                ang_mom_y_flux_edge[0][3], ang_mom_y_flux_edge[1][3], ang_mom_y_flux_edge[2][3], \
+                ang_mom_y_flux_edge[0][4], ang_mom_y_flux_edge[1][4], ang_mom_y_flux_edge[2][4], \
+                ang_mom_z_flux_edge[0][1], ang_mom_z_flux_edge[1][1], ang_mom_z_flux_edge[2][1], \
+                ang_mom_z_flux_edge[0][2], ang_mom_z_flux_edge[1][2], ang_mom_z_flux_edge[2][2], \
+                ang_mom_z_flux_edge[0][3], ang_mom_z_flux_edge[1][3], ang_mom_z_flux_edge[2][3], \
+                ang_mom_z_flux_edge[0][4], ang_mom_z_flux_edge[1][4], ang_mom_z_flux_edge[2][4]]
+            fluxes_edge.add_row(new_row)
+
+            if (sat_radius!=0) and (i < len(outer_radii)):
+                new_row = [zsnap, inner_r, outer_r]
+                if ('mass' in flux_types):
+                    new_row += [mass_flux_sat[0][0], metal_flux_sat[0][0], \
+                    mass_flux_sat[1][0], mass_flux_sat[2][0], metal_flux_sat[1][0], metal_flux_sat[2][0], \
+                    mass_flux_sat[0][1], mass_flux_sat[1][1], mass_flux_sat[2][1], \
+                    mass_flux_sat[0][2], mass_flux_sat[1][2], mass_flux_sat[2][2], \
+                    mass_flux_sat[0][3], mass_flux_sat[1][3], mass_flux_sat[2][3], \
+                    mass_flux_sat[0][4], mass_flux_sat[1][4], mass_flux_sat[2][4], \
+                    metal_flux_sat[0][1], metal_flux_sat[1][1], metal_flux_sat[2][1], \
+                    metal_flux_sat[0][2], metal_flux_sat[1][2], metal_flux_sat[2][2], \
+                    metal_flux_sat[0][3], metal_flux_sat[1][3], metal_flux_sat[2][3], \
+                    metal_flux_sat[0][4], metal_flux_sat[1][4], metal_flux_sat[2][4]]
+                if ('energy' in flux_types):
+                    new_row += [kinetic_energy_flux_sat[0][0], thermal_energy_flux_sat[0][0], potential_energy_flux_sat[0][0], total_energy_flux_sat[0][0], \
+                    kinetic_energy_flux_sat[1][0], kinetic_energy_flux_sat[2][0], \
+                    thermal_energy_flux_sat[1][0], thermal_energy_flux_sat[2][0], \
+                    potential_energy_flux_sat[1][0], potential_energy_flux_sat[2][0], \
+                    total_energy_flux_sat[1][0], total_energy_flux_sat[2][0], \
+                    kinetic_energy_flux_sat[0][1], kinetic_energy_flux_sat[1][1], kinetic_energy_flux_sat[2][1], \
+                    kinetic_energy_flux_sat[0][2], kinetic_energy_flux_sat[1][2], kinetic_energy_flux_sat[2][2], \
+                    kinetic_energy_flux_sat[0][3], kinetic_energy_flux_sat[1][3], kinetic_energy_flux_sat[2][3], \
+                    kinetic_energy_flux_sat[0][4], kinetic_energy_flux_sat[1][4], kinetic_energy_flux_sat[2][4], \
+                    thermal_energy_flux_sat[0][1], thermal_energy_flux_sat[1][1], thermal_energy_flux_sat[2][1], \
+                    thermal_energy_flux_sat[0][2], thermal_energy_flux_sat[1][2], thermal_energy_flux_sat[2][2], \
+                    thermal_energy_flux_sat[0][3], thermal_energy_flux_sat[1][3], thermal_energy_flux_sat[2][3], \
+                    thermal_energy_flux_sat[0][4], thermal_energy_flux_sat[1][4], thermal_energy_flux_sat[2][4], \
+                    potential_energy_flux_sat[0][1], potential_energy_flux_sat[1][1], potential_energy_flux_sat[2][1], \
+                    potential_energy_flux_sat[0][2], potential_energy_flux_sat[1][2], potential_energy_flux_sat[2][2], \
+                    potential_energy_flux_sat[0][3], potential_energy_flux_sat[1][3], potential_energy_flux_sat[2][3], \
+                    potential_energy_flux_sat[0][4], potential_energy_flux_sat[1][4], potential_energy_flux_sat[2][4], \
+                    total_energy_flux_sat[0][1], total_energy_flux_sat[1][1], total_energy_flux_sat[2][1], \
+                    total_energy_flux_sat[0][2], total_energy_flux_sat[1][2], total_energy_flux_sat[2][2], \
+                    total_energy_flux_sat[0][3], total_energy_flux_sat[1][3], total_energy_flux_sat[2][3], \
+                    total_energy_flux_sat[0][4], total_energy_flux_sat[1][4], total_energy_flux_sat[2][4]]
+                if ('entropy' in flux_types):
+                    new_row += [entropy_flux_sat[0][0], entropy_flux_sat[1][0], entropy_flux_sat[2][0], \
+                    entropy_flux_sat[0][1], entropy_flux_sat[1][1], entropy_flux_sat[2][1], \
+                    entropy_flux_sat[0][2], entropy_flux_sat[1][2], entropy_flux_sat[2][2], \
+                    entropy_flux_sat[0][3], entropy_flux_sat[1][3], entropy_flux_sat[2][3], \
+                    entropy_flux_sat[0][4], entropy_flux_sat[1][4], entropy_flux_sat[2][4]]
+                if ('O_ion_mass' in flux_types):
+                    new_row += [O_flux_sat[0][0], O_flux_sat[1][0], O_flux_sat[2][0], \
+                    O_flux_sat[0][1], O_flux_sat[1][1], O_flux_sat[2][1], \
+                    O_flux_sat[0][2], O_flux_sat[1][2], O_flux_sat[2][2], \
+                    O_flux_sat[0][3], O_flux_sat[1][3], O_flux_sat[2][3], \
+                    O_flux_sat[0][4], O_flux_sat[1][4], O_flux_sat[2][4], \
+                    OI_flux_sat[0][0], OI_flux_sat[1][0], OI_flux_sat[2][0], \
+                    OI_flux_sat[0][1], OI_flux_sat[1][1], OI_flux_sat[2][1], \
+                    OI_flux_sat[0][2], OI_flux_sat[1][2], OI_flux_sat[2][2], \
+                    OI_flux_sat[0][3], OI_flux_sat[1][3], OI_flux_sat[2][3], \
+                    OI_flux_sat[0][4], OI_flux_sat[1][4], OI_flux_sat[2][4], \
+                    OII_flux_sat[0][0], OII_flux_sat[1][0], OII_flux_sat[2][0], \
+                    OII_flux_sat[0][1], OII_flux_sat[1][1], OII_flux_sat[2][1], \
+                    OII_flux_sat[0][2], OII_flux_sat[1][2], OII_flux_sat[2][2], \
+                    OII_flux_sat[0][3], OII_flux_sat[1][3], OII_flux_sat[2][3], \
+                    OII_flux_sat[0][4], OII_flux_sat[1][4], OII_flux_sat[2][4], \
+                    OIII_flux_sat[0][0], OIII_flux_sat[1][0], OIII_flux_sat[2][0], \
+                    OIII_flux_sat[0][1], OIII_flux_sat[1][1], OIII_flux_sat[2][1], \
+                    OIII_flux_sat[0][2], OIII_flux_sat[1][2], OIII_flux_sat[2][2], \
+                    OIII_flux_sat[0][3], OIII_flux_sat[1][3], OIII_flux_sat[2][3], \
+                    OIII_flux_sat[0][4], OIII_flux_sat[1][4], OIII_flux_sat[2][4], \
+                    OIV_flux_sat[0][0], OIV_flux_sat[1][0], OIV_flux_sat[2][0], \
+                    OIV_flux_sat[0][1], OIV_flux_sat[1][1], OIV_flux_sat[2][1], \
+                    OIV_flux_sat[0][2], OIV_flux_sat[1][2], OIV_flux_sat[2][2], \
+                    OIV_flux_sat[0][3], OIV_flux_sat[1][3], OIV_flux_sat[2][3], \
+                    OIV_flux_sat[0][4], OIV_flux_sat[1][4], OIV_flux_sat[2][4], \
+                    OV_flux_sat[0][0], OV_flux_sat[1][0], OV_flux_sat[2][0], \
+                    OV_flux_sat[0][1], OV_flux_sat[1][1], OV_flux_sat[2][1], \
+                    OV_flux_sat[0][2], OV_flux_sat[1][2], OV_flux_sat[2][2], \
+                    OV_flux_sat[0][3], OV_flux_sat[1][3], OV_flux_sat[2][3], \
+                    OV_flux_sat[0][4], OV_flux_sat[1][4], OV_flux_sat[2][4], \
+                    OVI_flux_sat[0][0], OVI_flux_sat[1][0], OVI_flux_sat[2][0], \
+                    OVI_flux_sat[0][1], OVI_flux_sat[1][1], OVI_flux_sat[2][1], \
+                    OVI_flux_sat[0][2], OVI_flux_sat[1][2], OVI_flux_sat[2][2], \
+                    OVI_flux_sat[0][3], OVI_flux_sat[1][3], OVI_flux_sat[2][3], \
+                    OVI_flux_sat[0][4], OVI_flux_sat[1][4], OVI_flux_sat[2][4], \
+                    OVII_flux_sat[0][0], OVII_flux_sat[1][0], OVII_flux_sat[2][0], \
+                    OVII_flux_sat[0][1], OVII_flux_sat[1][1], OVII_flux_sat[2][1], \
+                    OVII_flux_sat[0][2], OVII_flux_sat[1][2], OVII_flux_sat[2][2], \
+                    OVII_flux_sat[0][3], OVII_flux_sat[1][3], OVII_flux_sat[2][3], \
+                    OVII_flux_sat[0][4], OVII_flux_sat[1][4], OVII_flux_sat[2][4], \
+                    OVIII_flux_sat[0][0], OVIII_flux_sat[1][0], OVIII_flux_sat[2][0], \
+                    OVIII_flux_sat[0][1], OVIII_flux_sat[1][1], OVIII_flux_sat[2][1], \
+                    OVIII_flux_sat[0][2], OVIII_flux_sat[1][2], OVIII_flux_sat[2][2], \
+                    OVIII_flux_sat[0][3], OVIII_flux_sat[1][3], OVIII_flux_sat[2][3], \
+                    OVIII_flux_sat[0][4], OVIII_flux_sat[1][4], OVIII_flux_sat[2][4], \
+                    OIX_flux_sat[0][0], OIX_flux_sat[1][0], OIX_flux_sat[2][0], \
+                    OIX_flux_sat[0][1], OIX_flux_sat[1][1], OIX_flux_sat[2][1], \
+                    OIX_flux_sat[0][2], OIX_flux_sat[1][2], OIX_flux_sat[2][2], \
+                    OIX_flux_sat[0][3], OIX_flux_sat[1][3], OIX_flux_sat[2][3], \
+                    OIX_flux_sat[0][4], OIX_flux_sat[1][4], OIX_flux_sat[2][4]]
+                if ('angular_momentum' in flux_types):
+                    new_row += [ang_mom_x_flux_sat[0][0], ang_mom_y_flux_sat[0][0], ang_mom_z_flux_sat[0][0], \
+                    ang_mom_x_flux_sat[1][0], ang_mom_x_flux_sat[2][0], \
+                    ang_mom_y_flux_sat[1][0], ang_mom_y_flux_sat[2][0], \
+                    ang_mom_z_flux_sat[1][0], ang_mom_z_flux_sat[2][0], \
+                    ang_mom_x_flux_sat[0][1], ang_mom_x_flux_sat[1][1], ang_mom_x_flux_sat[2][1], \
+                    ang_mom_x_flux_sat[0][2], ang_mom_x_flux_sat[1][2], ang_mom_x_flux_sat[2][2], \
+                    ang_mom_x_flux_sat[0][3], ang_mom_x_flux_sat[1][3], ang_mom_x_flux_sat[2][3], \
+                    ang_mom_x_flux_sat[0][4], ang_mom_x_flux_sat[1][4], ang_mom_x_flux_sat[2][4], \
+                    ang_mom_y_flux_sat[0][1], ang_mom_y_flux_sat[1][1], ang_mom_y_flux_sat[2][1], \
+                    ang_mom_y_flux_sat[0][2], ang_mom_y_flux_sat[1][2], ang_mom_y_flux_sat[2][2], \
+                    ang_mom_y_flux_sat[0][3], ang_mom_y_flux_sat[1][3], ang_mom_y_flux_sat[2][3], \
+                    ang_mom_y_flux_sat[0][4], ang_mom_y_flux_sat[1][4], ang_mom_y_flux_sat[2][4], \
+                    ang_mom_z_flux_sat[0][1], ang_mom_z_flux_sat[1][1], ang_mom_z_flux_sat[2][1], \
+                    ang_mom_z_flux_sat[0][2], ang_mom_z_flux_sat[1][2], ang_mom_z_flux_sat[2][2], \
+                    ang_mom_z_flux_sat[0][3], ang_mom_z_flux_sat[1][3], ang_mom_z_flux_sat[2][3], \
+                    ang_mom_z_flux_sat[0][4], ang_mom_z_flux_sat[1][4], ang_mom_z_flux_sat[2][4]]
+                fluxes_sat.add_row(new_row)
 
     fluxes = set_table_units(fluxes)
+    fluxes_edge = set_table_units(fluxes_edge)
     if (sat_radius!=0):
         fluxes_sat = set_table_units(fluxes_sat)
 
@@ -1696,6 +1981,7 @@ def calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface
         fluxes_sat.write(tablename + '_sat_sphere' + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
     else:
         fluxes.write(tablename + '_sphere' + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    fluxes_edge.write(tablename + '_edges_sphere' + fluxtype_filename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     return "Fluxes have been calculated for snapshot " + snap + "!"
 
@@ -1718,12 +2004,14 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
     sat = kwargs.get('sat')
     sat_radius = kwargs.get('sat_radius', 0.)
     halo_center_kpc2 = kwargs.get('halo_center_kpc2', ds.halo_center_kpc)
+    Menc_profile = kwargs.get('Menc_profile')
 
     halo_center_kpc = ds.halo_center_kpc
 
     cmtopc = 3.086e18
     stoyr = 3.154e7
     gtoMsun = 1.989e33
+    G = 6.673e-8
 
     inner_radius = surface_args[3]
     outer_radius = surface_args[4]
@@ -1939,9 +2227,8 @@ def calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfac
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = (sphere['gas','cell_mass'] * \
-          ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
-        total_energy = kinetic_energy + thermal_energy + potential_energy
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
+        total_energy = kinetic_energy + 5./3.*thermal_energy + potential_energy
         cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
@@ -3389,12 +3676,14 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
     sat = kwargs.get('sat')
     sat_radius = kwargs.get('sat_radius', 0.)
     halo_center_kpc2 = kwargs.get('halo_center_kpc2', ds.halo_center_kpc)
+    Menc_profile = kwargs.get('Menc_profile')
 
     halo_center_kpc = ds.halo_center_kpc
 
     cmtopc = 3.086e18
     stoyr = 3.154e7
     gtoMsun = 1.989e33
+    G = 6.673e-8
 
     units_kpc = surface_args[8]
     if (units_kpc):
@@ -3621,9 +3910,8 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
     if ('energy' in flux_types):
         kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
-        potential_energy = (sphere['gas','cell_mass'] * \
-          ds.arr(sphere['enzo','Grav_Potential'].v, 'code_length**2/code_time**2')).in_units('erg').v
-        total_energy = kinetic_energy + thermal_energy + potential_energy
+        potential_energy = -G * mass*gtoMsun * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)
+        total_energy = kinetic_energy + 5./3.*thermal_energy + potential_energy
         cooling_time = sphere['gas','cooling_time'].in_units('yr').v
     if ('entropy' in flux_types):
         entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
@@ -5142,7 +5430,7 @@ def calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surfa
 
     return "Fluxes have been calculated for snapshot " + snap + "!"
 
-def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, surface_args, flux_types, sat_dir, sat_radius):
+def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, surface_args, flux_types, sat_dir, sat_radius, masses_dir):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the name of the halo_c_v file, the name of the snapshot,
     the name of the table to output, the mass enclosed table, the list of surface arguments, and
@@ -5188,29 +5476,38 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
             halo_center_kpc2 = ds.arr([float(halo_c_v['col4'][halo_ind]), \
                                       float(halo_c_v['col5'][halo_ind]), \
                                       float(halo_c_v['col6'][halo_ind])], 'kpc')
+
+    # Load the mass enclosed profile
+    if (zsnap > 2.):
+        masses = Table.read(masses_dir + 'masses_z-gtr-2.hdf5', path='all_data')
+    else:
+        masses = Table.read(masses_dir + 'masses_z-less-2.hdf5', path='all_data')
+    snap_ind = masses['snapshot']==snap
+    Menc_profile = IUS(masses['radius'][snap_ind], masses['total_mass'][snap_ind])
+
     # Do the actual calculation
     #message = calc_fluxes(ds, snap, zsnap, refine_width_kpc, tablename, Menc_func=Menc_func)
     if (surface_args[0]=='sphere'):
         if (sat_radius!=0.):
             message = calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface_args, \
-              flux_types, sat=sat, sat_radius=sat_radius, halo_center_kpc2=halo_center_kpc2)
+              flux_types, sat=sat, sat_radius=sat_radius, halo_center_kpc2=halo_center_kpc2, Menc_profile=Menc_profile)
         else:
             message = calc_fluxes_sphere(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface_args, \
-              flux_types)
+              flux_types, Menc_profile=Menc_profile)
     if (surface_args[0]=='frustum'):
         if (sat_radius!=0.):
             message = calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface_args, \
-              flux_types, sat=sat, sat_radius=sat_radius, halo_center_kpc2=halo_center_kpc2)
+              flux_types, sat=sat, sat_radius=sat_radius, halo_center_kpc2=halo_center_kpc2, Menc_profile=Menc_profile)
         else:
             message = calc_fluxes_frustum(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface_args, \
-              flux_types)
+              flux_types, Menc_profile=Menc_profile)
     if (surface_args[0]=='cylinder'):
         if (sat_radius!=0.):
             message = calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface_args, \
-              flux_types, sat=sat, sat_radius=sat_radius, halo_center_kpc2=halo_center_kpc2)
+              flux_types, sat=sat, sat_radius=sat_radius, halo_center_kpc2=halo_center_kpc2, Menc_profile=Menc_profile)
         else:
             message = calc_fluxes_cylinder(ds, snap, zsnap, dt, refine_width_kpc, tablename, surface_args, \
-              flux_types)
+              flux_types, Menc_profile=Menc_profile)
     if (system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
@@ -5231,6 +5528,7 @@ if __name__ == "__main__":
 
     print('foggie_dir: ', foggie_dir)
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
+    masses_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
 
     # Specify where satellite files are saved
     if (args.remove_sats):
@@ -5410,7 +5708,7 @@ if __name__ == "__main__":
             tablename = prefix + snap + '_fluxes'
             # Do the actual calculation
             load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
-              tablename, surface_args, flux_types, sat_dir, sat_radius)
+              tablename, surface_args, flux_types, sat_dir, sat_radius, masses_dir)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
@@ -5421,7 +5719,7 @@ if __name__ == "__main__":
                 tablename = prefix + snap + '_fluxes'
                 threads.append(multi.Process(target=load_and_calculate, \
 			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
-                     tablename, surface_args, flux_types, sat_dir, sat_radius)))
+                     tablename, surface_args, flux_types, sat_dir, sat_radius, masses_dir)))
             for t in threads:
                 t.start()
             for t in threads:
@@ -5433,7 +5731,7 @@ if __name__ == "__main__":
             tablename = prefix + snap + '_fluxes'
             threads.append(multi.Process(target=load_and_calculate, \
 			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
-                 tablename, surface_args, flux_types, sat_dir, sat_radius)))
+                 tablename, surface_args, flux_types, sat_dir, sat_radius, masses_dir)))
         for t in threads:
             t.start()
         for t in threads:
