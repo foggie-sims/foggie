@@ -1,0 +1,94 @@
+This document describes how to use the find_shape_for_region.py code, located in /segmenting_regions/find_shape_for_region.py.
+Author: Cassi
+
+Description:
+------------
+find_shape_for_region.py identifies ellipses in (theta,phi) polar coordinate space that best capture
+pristine filaments or metal-enriched galactic winds. The code takes in either a simulation output
+(or a series of outputs) or an FRB and filters it on metallicity, identifying galactic winds as
+metal-enriched Z > 1 and filaments as metal-poor Z < 0.01. It then computes an ellipse in (theta,phi)
+space that captures these regions, under the assumption that the geometric extent of the regions are
+well-described by elliptical cones (e.g., the polar coordinates of a filament do not change with radius).
+It saves the ellipse parameters to a text file, which can later be used to extract only those cells
+in the dataset within the region of interest.
+
+Importantly, the code allows for stacking of multiple outputs, which drastically reduces noise and
+helps to identify only those structures that are long-lived.
+
+
+User inputs:
+------------
+--halo XXXX
+Which halo? Default is Tempest (8508).
+
+--run nrefXX_nrefXX
+Which run? Default is nref11c_nref9f.
+
+--output XXXXXX
+Which output(s)? Options: Specify a single output (this is default and the default output is RD0034)
+or specify a range of outputs using commas to list individual outputs and dashes for ranges of
+outputs (e.g. "RD0020-RD0025" or "DD1341,DD1353,DD1600-DD1700", no spaces!). If multiple outputs
+are listed, they will be stacked into a single dataset.
+
+--output_step X
+If you want every Nth output, this specifies N. Default: 1 (every output in specified range)
+
+--system XXXXXXXX
+Which system are you on? Default is cassiopeia.
+
+--pwd
+Just use the working directory?, Default is no
+
+--region XXXXXXX
+What region do you want to find ellipses to identify? Options are
+'filament' or 'wind' or 'both', where 'filament' finds metal-pristine (inflowing) filaments
+and 'wind' finds metal-enriched (outflowing) galactic winds. If 'both' is
+specified, it will find and save elliptical regions for both filaments and winds separately.
+Default is 'filament'.
+
+--region_weight XXXXXXXX
+What field do you want to weight the region by? Options are cell_mass or cell_volume.
+Default is cell_volume. Note that galactic winds will not be identified and the code will likely
+exit with an error if cell_mass is chosen for identifying winds.
+
+--FRB_name XXXXXXXXX
+If using an FRB, what is the file name of the FRB?
+
+--save_suffix XXXXXXXX
+If you want to append a string to the end of the save file(s), what is it? Default is nothing appended.
+
+
+Outputs:
+--------
+The code saves a 2D histogram plot of phi vs. theta, color-coded by the specified
+region_weight, with ellipses drawn on. You can use this to check how well the ellipses capture the
+region of interest.
+
+The code saves a .txt file that lists the parameters of the conical ellipse(s) that capture the
+region of interest. The columns in the file are:
+center_theta    - location of ellipse center in theta
+center_phi      - location of ellipse center in phi
+theta_axis      - length of ellipse axis in theta direction
+phi_axis        - length of ellipse axis in phi direction
+rotation        - angle (in radians) of the rotation of the ellipse from the theta (horizontal) axis
+
+To use this file, see the function 'ellipse' in find_shape_for_region.py. This function takes in
+these ellipse parameters and (theta,phi) values (fields 'theta_pos' and 'phi_pos' in a dataset)
+and returns a boolean array indicating whether or not those (theta,phi) values are inside the ellipse.
+This function can be used to select only the simulation cells within the elliptical cone described
+by the given parameters. Here is a code snippet demonstrating how to use this function to filter a dataset,
+using DD2427 as an example:
+
+> import numpy as np
+> from foggie.utils.get_run_loc_etc import get_run_loc_etc
+> from foggie.utils.foggie_load import *
+> foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+> snap = 'DD2427'
+> snap_name = foggie_dir + run_dir + snap + '/' + snap
+> ds, refine_box = foggie_load(snap_name, trackname)
+> ellipse_params = np.loadtxt('DD2427_filament.txt')
+> for j in range(len(ellipse_params)):
+>   in_ellipse = ellipse(ellipse_params[j][0], ellipse_params[j][1], ellipse_params[j][2], \
+      ellipse_params[j][3], ellipse_params[j][4], refine_box['theta_pos'], refine_box['phi_pos'])
+    # Here is the temperature of only cells within the elliptical cone from the txt file:
+>   temp_in_cones = refine_box['temperature'][in_ellipse]
