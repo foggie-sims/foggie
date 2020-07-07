@@ -1,0 +1,165 @@
+Author: Brendan Boyd 7/7/2020
+
+Some details on how to use the tools in foggie/absorber_extraction in particular
+how to use salsa to generate an absorber catalog
+
+For a more detailed documentation check out the SALSA documentation at
+https://salsa.readthedocs.io
+
+There are some slight differences between this and the SALSA in foggie. but
+most functionality should be the same. (default dicts are kept in consistency
+instead of being hard coded for example).
+Only difference in examples is you have to import by using:
+
+  from foggie.absorber_extraction import salsa
+
+
+Example script can be found at foggie/absorber_extraction/create_catalog.py
+which has some hard coded paths but otherwise should be quite adaptable to use.
+
+**NOTE** The catalog and LightRay generation use MPI and mpi4py to split up the
+work among different processes. This becomes very necessary once you start
+analyzing thousands of LightRays at a time for large catalogs.
+
+Catalog Generation
+-------------------
+
+The most straightforward way to make an absorber catalog is to use
+salsa.generate_catalog. This function will handle the creation of LightRays and
+properly extract absorbers from those LightRays.
+
+See the docstring/documentation on readthedocs for more details on the inputs
+needed.
+
+LightRay Check/Creation
+************************
+
+The function starts by checking whether there are LightRays already saved in
+"raydir". If there are LightRays, it will check that there is the right number
+and that the LightRays contain the necessary fields for the absorber extraction
+phase (ie if you want to know the temperature of absorbers then the LightRay
+better have the temperature field saved). If either of these checks fail, the
+function will return a RunTimeError telling you remove the rays. Otherwise,
+these LightRays will be used and no new ones will be generated (which can save
+quite a bit of time).
+
+If there are no LightRays in "raydir" then the requested number, n_rays, will be
+randomly generated based on the "center" given and the min/max impact parameter.
+The LightRays are made by uniformly, randomly sampling impact parameter to line
+up with the sampling of observational studies. All these rays are saved in "raydir".
+
+Absorber Extraction
+********************
+
+Now that we have the correct LightRays, we can now start extracting absorbers.
+This is done either by using Spectacle or the SPICE method. See
+https://salsa.readthedocs.io/en/latest/absorber_extraction.html for more details
+on SPICE.
+
+All the absorbers from each LightRay is compiled into a pandas dataframe and this
+is the output of salsa.generate_catalog. You can then save this file or do other
+analysis with it.
+
+The units for each applicable column in dataframe is defined in consistency.py
+
+Some unique columns that might need explaining:
+
+  name:     Name of the ion species (ie H I or O VI)
+
+  wave:     The specific wavelength used in extraction in Angstrom. (SPICE doesn't
+            look at this and just returns the strongest line)
+
+  delta_v:  This is the central velocity of the absorber whether extracted via
+            Spectacle or SPICE
+
+  vel_dispersion: Only relevant for SPICE. This is the weighted standard deviation
+                  of the los velocity for the absorber. Weight is column density.
+
+  interval_start/end: This is the index along the LightRay where the absorber
+                      starts/ends. Useful if you want to look back at the LightRay
+                      for some reason. **NOTE** this index is only relevant if you
+                      use the same cut_region_filter. Otherwise it won't line up
+                      correctly and you'll get wacky results.
+
+Besides that, all the column should be fields you specified/explanatory. The
+Spectacle documentation may have more details if you are confused about the
+columns it outputs.
+
+
+Absorber Extraction
+--------------------
+
+salsa.AbsorberExtractor is the main class that handles extracting absorbers from
+a single LightRay. It is used by generate_catalog to then make the large absorber
+catalogs from many LightRays.
+
+To initialize an AbsorberExtractor you need to specify the dataset you are using,
+the lightay you are going to look at and the ion species (H I, O VI, etc).
+
+There are additional parameters you can tweak that change the extraction methods,
+but one big one is the "cut_region_filters" parameter. This is used to effectively
+mask regions of the LightRay so only absorbers in the "cgm" region or only gas
+with T > 10^5 K can be included in absorbers. This can lead to some very
+interesting analysis. The parameter takes in a list of strings that are defined
+in the way YT does their filtering, for example:
+ "(obj[('gas', 'temperature')].in_units('K') > 1.e5)"
+
+would be one such string. I have found that creating one large string by applying
+"&" operators has a tendency to fail. So it is best if you include seperate filters
+that you want to apply in a list (say [cgm_filter, hot_filter, low_density_filter]).
+
+Using SPICE
+************
+
+When extracting absorbers with SPICE there are three parameters that you can
+tweak. They are "absorber_min", "frac", and "velocity_res".
+
+--absorber_min: This defines the minimum column density that is observable for your ion.
+                This is of course not a rigourously defined number in most cases,
+                but it sets the minimum for absorbers that will be extracted and
+                tells SPICE when to stop looking for more absorbers.
+
+--frac:         This defines where each cut will take place. default is 0.8 or 80%.
+                The algorithm seems pretty robust and so any reasonable value should
+                do. The lower the value, the more iterations that will take place.
+                (see https://salsa.readthedocs.io/en/latest/absorber_extraction.html)
+
+--velocity_res: There is a combination phase in the SPICE method which will combine
+                two potential absorbers together if their average velocities are within
+                a threshold set by this parameter. The default is 10 km/s and is
+                motivated by the approximate resolution of observed spectra. The
+                idea is that if two absorbers have distinct velocities then they
+                will show up seperately on the spectra (two lines). If they have
+                the same or similar velocites they'll stack and we will get one line.
+
+Using Spectacle
+***************
+
+when using the spectacle method there are two parameters that can be tweaked.
+One is "spectacle_res", this defines how close to peaks can be in the spectra
+when the fitting process is taking place. It default to that set by "velocity_res"
+though it can independently be tweaked.
+
+The second is spectacle_defaults which is a dictionary of different defaults/limits
+the fitting process will use when trying to fit the spectra. See
+https://spectacle-py.readthedocs.io/en/latest/line_finding.html#defining-default-parameters
+for more info.
+
+
+Absorber Plotting
+------------------
+
+salsa.AbsorberPlotter is class based on AbsorberExtractor. It has additionally
+functionality though to create plots that show how the absorber extraction did.
+For example it will plot Spectacle's fitted lines on top of the spectra so you
+can see how well the fit lines up. Also it will plot the number density profile
+and shade in the regions which SPICE found absorbers.
+
+The main function of AbsorberPlotter is the create_multi_plot. This generates a
+multi-panel plot that shows a slice of the simulation with the LightRay so you
+can see some of the surrounding area as well as the two plots I described above
+that display the SPICE and Spectacle method. This is useful for comparing the two
+and checking that they are functioning appropriately.
+
+All the plotting features take in lots of extra parameters and excess bulk which
+it is kept separate from the absorber catalog making.
