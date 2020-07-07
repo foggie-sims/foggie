@@ -6,10 +6,10 @@
 #
 #
 
-from foggie.salsa.absorber_extractor import AbsorberExtractor
+from foggie.absorber_extraction.salsa.absorber_extractor import AbsorberExtractor
 
-from foggie.salsa.absorber_plotter import AbsorberPlotter
+from foggie.absorber_extraction.salsa.absorber_plotter import AbsorberPlotter
 
-from foggie.salsa.generate_light_rays import generate_lrays, construct_rays, random_sightlines
+from foggie.absorber_extraction.salsa.generate_light_rays import generate_lrays, construct_rays, random_sightlines
 
-from foggie.salsa.generate_catalog import generate_catalog, get_absorbers
+from foggie.absorber_extraction.salsa.generate_catalog import generate_catalog, get_absorbers

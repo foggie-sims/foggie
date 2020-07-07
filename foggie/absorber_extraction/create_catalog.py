@@ -14,13 +14,11 @@ import yt
 from mpi4py import MPI
 import argparse
 
-
-from foggie.salsa.utils.functions import parse_cut_filter
-from foggie.utils.consistency import units_dict, default_spice_fields, min_absorber_dict
-
-
-from foggie.utils.foggie_load import foggie_load
 from foggie.absorber_extraction import salsa
+from foggie.absorber_extraction.salsa.utils.functions import parse_cut_filter
+
+from foggie.utils.consistency import units_dict, default_spice_fields, min_absorber_dict
+from foggie.utils.foggie_load import foggie_load
 
 box_trackfile = '/mnt/home/boydbre1/data/track_files/halo_track_200kpc_nref10'
 hcv_file='/mnt/home/boydbre1/Repo/foggie/foggie/halo_infos/008508/nref11c_nref9f/halo_c_v'

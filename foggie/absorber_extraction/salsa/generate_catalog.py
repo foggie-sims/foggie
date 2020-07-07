@@ -10,10 +10,10 @@ import yt
 import trident
 import pandas as pd
 
-from foggie.salsa.absorber_extractor import AbsorberExtractor
-from foggie.salsa.utils.collect_files import collect_files, check_rays
-from foggie.salsa.utils.functions import ion_p_num
-from foggie.salsa.generate_light_rays import generate_lrays
+from foggie.absorber_extraction.salsa.absorber_extractor import AbsorberExtractor
+from foggie.absorber_extraction.salsa.utils.collect_files import collect_files, check_rays
+from foggie.absorber_extraction.salsa.utils.functions import ion_p_num
+from foggie.absorber_extraction.salsa.generate_light_rays import generate_lrays
 from mpi4py import MPI
 
 from yt.data_objects.static_output import \
