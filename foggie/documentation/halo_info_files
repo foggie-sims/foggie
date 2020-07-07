@@ -133,7 +133,7 @@ Units:
 
 Exists for:
 8508/nref11c_nref9f snapshots DD0046-DD2427, RD0013-RD0042
-5016/nref11c_nref9f snapshots DD0250-DD2399, RD0020-RD0035
+5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0035
 
 Created by:
 utils/get_satellite_positions.py, which will output one "snapshot_satellites.dat" ASCII file per
