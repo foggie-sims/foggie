@@ -15,12 +15,11 @@ def parse_cut_filter(cuts):
     YT cut_region filters
     """
     #define cut dictionary
-    cgm_rad = f"(obj[('gas', 'radius_corrected')].in_units('kpc') > {cgm_inner_radius}.) & (obj[('gas', 'radius_corrected')].in_units('kpc') < {cgm_outer_radius})"
-    cgm_d_t = cgm_field_filter[0]
-    cgm_filter = f"{cgm_rad} & {cgm_d_t}"
+    cgm_rad = f"(obj[('gas', 'radius_corrected')].in_units('kpc') > {cgm_inner_radius}) & (obj[('gas', 'radius_corrected')].in_units('kpc') < {cgm_outer_radius})"
+    cgm_filter = f"{cgm_rad} & {cgm_field_filter}"
 
     ism_in = f"(obj[('gas', 'radius_corrected')].in_units('kpc') < {cgm_inner_radius}.)"
-    ism_cold_dense = f"(obj[('gas', 'radius_corrected')].in_units('kpc') < {cgm_outer_radius}.) & ({ism_field_filter[0]})"
+    ism_cold_dense = f"(obj[('gas', 'radius_corrected')].in_units('kpc') < {cgm_outer_radius}) & {ism_field_filter}"
 
     ism_filter = f"({ism_in}) | ({ism_cold_dense})"# either ( r<10 kpc ) or ( r<200kpc and d/t criteria )
 
