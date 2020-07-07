@@ -1008,3 +1008,36 @@ proj_min_dict = {'density':1e-6,
                  'Ne_p6_number_density': ne7_min,
                  'Ne_p7_number_density':ne8_min,
                  'El_number_density': e_min}
+
+################################
+# dictionaries for absorber_extraction scripts
+units_dict={'velocity_los' : 'km/s',
+            'x' : 'code_length',
+            'y' : 'code_length',
+            'z' : 'code_length',
+            'radius' : 'kpc',
+            'radius_corrected' : 'kpc',
+            'density' : 'g/cm**3',
+            'metallicity' : 'Zsun',
+            'temperature' : 'K',
+            'radial_velocity' : 'km/s',
+            'radial_velocity_corrected' : 'km/s',
+            'tangential_velocity_corrected' : 'km/s',
+            'vx_corrected' : 'km/s',
+            'vy_corrected' : 'km/s',
+            'vz_corrected' : 'km/s'}
+
+min_absorber_dict= {'H I': 12.5, 'C IV':13, 'O VI':12.8}
+
+# default fields to include in catalog
+default_spice_fields=['x', 'y', 'z', 'radius_corrected',
+                      'density', 'metallicity', 'temperature',
+                      'radial_velocity_corrected',
+                      'tangential_velocity_corrected',
+                      'vx_corrected', 'vy_corrected', 'vz_corrected']
+
+# lims to use in plots by AbsorberPlotter
+plotter_limits_dict = dict(velocity_los=[-600, 600],
+                           metallicity=[0, 1],
+                           temperature=[1e4, 1e9],
+                           density=[1e-30, 1e-26])

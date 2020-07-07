@@ -1,0 +1,48 @@
+#!/bin/bash
+
+#SBATCH --ntasks=16
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=8G
+#SBATCH -t 00:30:00
+#SBATCH -o slurm_logs/slurm-%j.out
+
+refine=$1
+dsName=$2
+ionName=$3
+maxImpact=$4
+cuts=$5
+
+frac=0.8
+dataDir=${refine}_refinement
+
+s="/mnt/gs18/scratch/users/boydbre1"
+dataFile="$s/cosmological/$dataDir/$dsName/$dsName"
+mainDir="$s/analysis/$dataDir/$dsName/max_impact${maxImpact}"
+rayDir="$mainDir/rays"
+
+#label outdir but split ion into element and number
+ionLabel=${ionName% *}_${ionName#* }
+
+#make spaces in cuts to underscore
+cut_u=${cuts// /_}
+
+# check if just CGM filter
+outFile="$mainDir/output_$frac/ion_$ionLabel/$cut_u/absorber_catalog.csv"
+
+if ! [ -d $outDir ];
+then
+        mkdir -p $outFile/
+else
+	rm -rf $outFile
+fi
+
+srun -n 16					                         \
+	python create_catalog.py 						 \
+	--ds $dataFile                                   \
+    --raydir $rayDir                                 \
+    --outfile $outFile                               \
+    --ion "$ionName"                                 \
+    --max-impact $maxImpact                          \
+    --cut "$cuts"                                    \
+    -n 1500                                          \
+    -l  200
