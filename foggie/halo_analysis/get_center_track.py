@@ -220,10 +220,6 @@ if __name__ == "__main__":
     # first_center = [0.47943973541259766, 0.5020551681518555, 0.5029783248901367]
 
     args = parse_args()
-    if args.halo == "5016":
-        first_center = [0.5408124923706056, 0.4512834548950196, 0.5133180618286133]
-        start_snap = 2474
-        end_snap = 2490
     elif args.halo == "4123":
         first_center = [0.47987461090087896, 0.4689970016479493, 0.4785032272338868]
         start_snap = 1183
@@ -237,9 +233,9 @@ if __name__ == "__main__":
         start_snap = 1100
         end_snap = 1200
     elif args.halo == "2878":
-        first_center = [0.5090360641479492, 0.5104150772094727,  0.4877519607543945 ]
-        start_snap = 685
-        end_snap = 720
+        first_center = [0.5092020034790039, 0.5108404159545898,  0.4874162673950195]
+        start_snap = 720
+        end_snap = 800
     else:
         sys.exit("halo not found!")
 

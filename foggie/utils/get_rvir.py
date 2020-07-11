@@ -20,7 +20,7 @@ import numpy as np
 from numpy import *
 import argparse
 from foggie.utils.foggie_load import *
-from scipy.interpolate import interp1d 
+from scipy.interpolate import interp1d
 
 
 
@@ -215,11 +215,11 @@ def find_rvir(ds, halo_center = None, do_fig = False, sphere_radius = 250*kpc, f
 def find_rvir_catalogs(args, data, halo_infos_dir, figdir = '.'):
 
     from astropy.table import Table
-    if args.halo == '5016': 
-      masses = Table.read('%s/masses.hdf5'%halo_infos_dir)
+    if args.halo == '5016' or args.halo == '8508':
+      masses = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
 
     else:
-      masses = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
+      masses = Table.read('%s/masses.hdf5'%halo_infos_dir)
 
     gd = where(masses['snapshot'] == args.output)[0]
     if len(gd) == 0:
@@ -253,7 +253,7 @@ def find_rvir_catalogs(args, data, halo_infos_dir, figdir = '.'):
 
     return data
 
-    
+
 
 
 
@@ -270,8 +270,8 @@ if __name__ == '__main__':
 
 
   if args.use_catalog_profile:
-    
-    if args.halo == '8508':
+
+    if args.halo == '8508' or args.halo == '5016':
       data = Table(names=('redshift', 'snapshot', 'radius', 'total_mass', 'dm_mass', \
                           'stars_mass', 'young_stars_mass', 'old_stars_mass', 'sfr', 'gas_mass', \
                           'gas_metal_mass', 'gas_H_mass', 'gas_HI_mass', 'gas_HII_mass', 'gas_CII_mass', \
@@ -286,7 +286,7 @@ if __name__ == '__main__':
       list1 = list(masses1['snapshot'])
       list2 = list(masses2['snapshot'])
       full_list = np.array(list1 +   list2)
-    elif args.halo == '5016': 
+    else:
 
       data = Table(names=('redshift', 'snapshot', 'radius', \
                           'total_mass', 'dm_mass', \
@@ -304,18 +304,18 @@ if __name__ == '__main__':
 
     outputs = unique(full_list)
     for args.output in outputs:
-        if 'DD' in args.output:
+        '''if 'DD' in args.output:
           if float(args.output.strip('DD'))%200 == 0:  args.do_fig = True
           else: args.do_fig = False
-        else: 
-          args.do_fig = True
+        else:
+          args.do_fig = True'''
 
 
         data = find_rvir_catalogs(args, data, halo_infos_dir)
         print ('\t %s %s %s Rvir (kpc) = %.2f'%(args.halo, args.run, args.output, data['radius'][-1]))
 
     data.write(halo_infos_dir + '/rvir_masses.hdf5', path='all_data', serialize_meta=True, overwrite=True)
-  
+
 
 
 
@@ -324,7 +324,7 @@ if __name__ == '__main__':
     res = find_rvir(ds, halo_center = ds.halo_center_kpc, do_fig = args.do_fig, figdir = args.figdir)
 
 
-  
+
     if False:
       print ('\t Rvir (kpc) = %.2f'%(res['rvir'].to('kpc').value))
       print ('\t Mvir (10^11 Msun) = %.3f'%(res['Mvir'].to('Msun').value/1.e11))
@@ -333,35 +333,3 @@ if __name__ == '__main__':
       print ('\t Mdar (10^11 Msun) = %.3f'%(res['Mdm_rvir'].to('Msun').value/1.e11))
       print ('\t Mbary/Mdark = %.3f'%((res['Mgas_rvir'] + res['Mstars_rvir'])/res['Mdm_rvir']))
       print ('\t Mbary/Mtot  = %.3f'%((res['Mgas_rvir'] + res['Mstars_rvir'])/res['Mvir']))
-     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
