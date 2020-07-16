@@ -223,7 +223,7 @@ if __name__ == "__main__":
     elif args.halo == "4123":
         first_center = [0.47987461090087896, 0.4689970016479493, 0.4785032272338868]
         start_snap = 1183
-        end_snap = 2000
+        end_snap = 1400
     elif args.halo == "5036":
         first_center = [0.4733991622924805, 0.5019330978393555, 0.5020914077758789]
         start_snap = 1600
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     elif args.halo == "2392":
         first_center = [0.49716663360595703,  0.4889211654663086,  0.4717836380004883]
         start_snap = 1100
-        end_snap = 1200
+        end_snap = 1260
     elif args.halo == "2878":
         first_center = [0.5092020034790039, 0.5108404159545898,  0.4874162673950195]
         start_snap = 720
