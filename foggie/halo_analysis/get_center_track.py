@@ -220,7 +220,7 @@ if __name__ == "__main__":
     # first_center = [0.47943973541259766, 0.5020551681518555, 0.5029783248901367]
 
     args = parse_args()
-    elif args.halo == "4123":
+    if args.halo == "4123":
         first_center = [0.47987461090087896, 0.4689970016479493, 0.4785032272338868]
         start_snap = 1183
         end_snap = 1400
