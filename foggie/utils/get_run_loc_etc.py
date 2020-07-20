@@ -45,7 +45,7 @@ def get_run_loc_etc(args):
         code_path = "/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/"
     elif args.system == "pleiades_cassi":
         foggie_dir = "/nobackup/mpeeples/"
-        output_path = "/home5/clochhaa/FOGGIE/Outputs/"
+        output_path = "/nobackup/clochhaa/Outputs/"
         code_path = "/home5/clochhaa/FOGGIE/foggie/foggie/"
     elif args.system == "ramona":
         foggie_dir = "/Users/raugustin/WORK/SIMULATIONS/"
