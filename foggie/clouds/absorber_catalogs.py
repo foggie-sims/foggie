@@ -13,7 +13,7 @@ absorber_axis_labels = {'radius_corrected':'Radius [kpc]', 'b_effective':'effect
 
 def read_absorber_catalog(filename):
     #read the table
-    ab = Table.read('corrected_absorber_catalog.csv')
+    ab = Table.read(filename, format='ascii.basic')
     ab['phase'] = categorize_by_temp(np.log10(ab['temperature']))
 
     #assign colors to phases using FOGGIE utilities 
@@ -36,6 +36,13 @@ def read_absorber_catalog(filename):
     ab['b_thermal'] = (1.38e-16*ab['temperature'] / 16. / 1.67e-24)**0.5 / 1e5 # thermal b-value in km/s
     ab['b_nonthermal'] = ab['vel_dispersion'] / 2.
     ab['b_effective'] = (ab['b_thermal']**2 + ab['b_nonthermal']**2)**0.5
+
+    ab['b_thermal'] = (1.38e-16*ab['temperature'] / 16. / 1.67e-24)**0.5 / 1e5 # thermal b-value in km/s
+
+    ab['cooling_time'] = ab['cooling_time'] / 3.156e7 
+
+    for field in ['temperature', 'density', 'cooling_time', 'pressure', 'entropy']: 
+        ab[field] = np.log10(ab[field]) 
 
     return ab
 
