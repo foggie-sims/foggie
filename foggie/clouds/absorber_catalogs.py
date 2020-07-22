@@ -1,4 +1,4 @@
-from astropy.table import Table
+from astropy.table import Table, unique
 import matplotlib.pyplot as plt
 import foggie.render.shade_maps as sm
 from foggie.utils.consistency import *
@@ -10,6 +10,7 @@ absorber_axis_limits = {'radius_corrected':(0,200), 'radial_velocity_corrected':
 absorber_axis_labels = {'radius_corrected':'Radius [kpc]', 'b_effective':'effective b [km s$^{-1}$]', 
                         'radial_velocity_corrected':'Radial Velocity [km s$^{-1}$]', 'redshift':'z'}
 
+ion_colors={'H I': '#888888', 'C II': '#440000', 'C III':'#990000', 'C IV':'#FF0000', 'Mg II':'#999900', 'Si II':'#000044', 'Si III':'#000099', 'Si IV':'#0000FF', 'O VI':'#00FF00'}
 
 def read_absorber_catalog(filename):
     #read the table
@@ -69,3 +70,35 @@ def make_absorber_plot(ab_z, var1, var2):
     plt.xlabel(absorber_axis_labels[var1])
     plt.ylabel(absorber_axis_labels[var2])
     plt.savefig('abs_'+var1+'_'+var2+'_z_'+zlabel+'.png',transparent=True)
+
+
+def plot_absorbers(abcat, var1, var2, limit1, limit2, prefix): 
+    """ plots the absorbers color coded by ion in arbitrary FOGGIE axes"""
+    plt.figure(figsize=(8,8)) 
+    for rr, rrv, rcolor in zip(abcat[var1], abcat[var2], abcat['colors']): 
+        plt.plot(rr, rrv, 'o', markersize=5, color='#FFFFFF')
+        plt.plot(rr, rrv, 'o', markersize=3, color=rcolor)
+    plt.xlim(limit1)   
+    plt.ylim(limit2)
+    plt.xlabel(axes_label_dict[var1])
+    plt.ylabel(axes_label_dict[var2])
+    plt.savefig(prefix+'_abs_'+var1+'_'+var2+'.png',transparent=True)
+    plt.close()
+
+    
+def plot_ions(abcat, var1, var2, limit1, limit2, prefix): 
+    """ plots the absorbers color coded by ion in arbitrary FOGGIE axes"""
+    plt.figure(figsize=(8,8)) 
+    
+    for ion in unique(abcat, 'name')['name']: 
+        ab_ion = abcat[abcat['name'] == ion]
+        for rr, rrv in zip(ab_ion[var1], ab_ion[var2]): 
+            plt.plot(rr, rrv, '.', markersize=7, color=ion_colors[ion], alpha=0.2, fillstyle='full', markeredgewidth=0.0)
+
+    plt.xlim(limit1)   
+    plt.ylim(limit2)
+    plt.xlabel(axes_label_dict[var1])
+    plt.ylabel(axes_label_dict[var2])
+    plt.savefig(prefix+'_abs_'+var1+'_'+var2+'_ion.png',transparent=True, dpi=300)
+    plt.close()
+    
