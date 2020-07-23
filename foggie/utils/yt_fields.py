@@ -3,6 +3,7 @@
 # into other modules because python makes them private functions.
 
 import numpy as np
+from yt.units import *
 
 def _static_average_rampressure(field, data):
     bulk_velocity = data.get_field_parameter("bulk_velocity").in_units('km/s')
@@ -371,3 +372,10 @@ def tangential_velocity_diskrel(field, data):
     """Returns sqrt(v_theta^2 + v_phi^2), where v_theta and v_phi are oriented with the disk. -Cassi"""
 
     return np.sqrt(data['vtheta_disk']**2. + data['vphi_disk']**2.)
+
+def t_ff(field, data):
+    """Returns the free-fall time of the gas. Note tff is an interpolated function of radius so
+    this value will be the same for all cells with the same radius."""
+
+    rho = data.ds.Menc_profile(data['radius_corrected'])*Msun/(data['radius_corrected']**3.) * 3./(4.*np.pi)
+    return np.sqrt(3.*np.pi/(32.*G*rho))

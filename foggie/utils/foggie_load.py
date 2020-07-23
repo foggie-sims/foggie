@@ -4,6 +4,7 @@ from yt.units import *
 from yt import YTArray
 from astropy.table import Table
 import os
+from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 
 from foggie.utils.consistency import *
 from foggie.utils.get_halo_center import get_halo_center
@@ -54,6 +55,8 @@ def foggie_load(snap, trackfile, **kwargs):
     particle_type_for_angmom = kwargs.get('particle_type_for_angmom', 'young_stars')
     do_filter_particles = kwargs.get('do_filter_particles', True)
     region = kwargs.get('region', 'refine_box')
+    tff = kwargs.get('tff', False)
+    masses_dir = kwargs.get('masses_dir', '')
 
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
@@ -203,6 +206,17 @@ def foggie_load(snap, trackfile, **kwargs):
                      force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'vtan_disk'), function=tangential_velocity_diskrel, units='km/s', take_log=False, \
                      force_override=True, sampling_type='cell')
+
+    if (tff):
+        # Interpolate enclosed mass function to get tff
+        if (zsnap > 2.):
+            masses = Table.read(masses_dir + 'masses_z-gtr-2.hdf5', path='all_data')
+        else:
+            masses = Table.read(masses_dir + 'masses_z-less-2.hdf5', path='all_data')
+        snap_ind = masses['snapshot']==snap[-6:]
+        ds.Menc_profile = IUS(np.concatenate(([0],masses['radius'][snap_ind])), np.concatenate(([0],masses['total_mass'][snap_ind])))
+        ds.add_field(('gas', 'tff'), function=t_ff, units='yr', display_name='Free fall time', take_log=True, \
+                    force_override=True, sampling_type='cell')
 
     if (region=='refine_box'):
         region = refine_box
