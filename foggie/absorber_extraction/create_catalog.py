@@ -20,8 +20,8 @@ from foggie.absorber_extraction.salsa.utils.functions import parse_cut_filter
 from foggie.utils.consistency import units_dict, default_spice_fields, min_absorber_dict
 from foggie.utils.foggie_load import foggie_load
 
-box_trackfile = '/mnt/home/boydbre1/data/track_files/halo_track_200kpc_nref10'
-hcv_file='/mnt/home/boydbre1/Repo/foggie/foggie/halo_infos/008508/nref11c_nref9f/halo_c_v'
+box_trackfile = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10' 
+hcv_file='/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_infos/008508/nref11c_nref9f/halo_c_v' 
 
 def main(args):
 
@@ -50,7 +50,8 @@ def main(args):
     cut_filters= parse_cut_filter(cuts)
     ext_kwargs = {'absorber_min':min_absorber_dict[ion]}
 
-    df = salsa.generate_catalog(ds, n_rays, raydir, [ion],
+    df = salsa.generate_catalog(ds, n_rays, raydir, 
+                                ['H I', 'Mg II', 'C II', 'C III', 'C IV', 'Si II', 'Si III', 'Si IV', 'O VI'], 
                                 center=ds.halo_center_code,
                                 impact_param_lims=(0, max_imp),
                                 cut_region_filters=cut_filters,
