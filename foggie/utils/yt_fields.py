@@ -379,3 +379,9 @@ def t_ff(field, data):
 
     rho = data.ds.Menc_profile(data['radius_corrected'])*Msun/(data['radius_corrected']**3.) * 3./(4.*np.pi)
     return np.sqrt(3.*np.pi/(32.*G*rho))
+
+def tcool_tff_ratio(field, data):
+    """Returns the ratio of cooling time to free-fall time of the gas. Note tff is an interpolated
+    function of radius based on the enclosed mass profiles."""
+
+    return data['cooling_time']/data['tff']

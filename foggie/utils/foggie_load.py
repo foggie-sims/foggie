@@ -217,6 +217,8 @@ def foggie_load(snap, trackfile, **kwargs):
         ds.Menc_profile = IUS(np.concatenate(([0],masses['radius'][snap_ind])), np.concatenate(([0],masses['total_mass'][snap_ind])))
         ds.add_field(('gas', 'tff'), function=t_ff, units='yr', display_name='Free fall time', take_log=True, \
                     force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'tcool_tff'), function=tcool_tff_ratio, units=None, take_log=True, \
+                    force_override=True, sampling_type='cell')
 
     if (region=='refine_box'):
         region = refine_box
