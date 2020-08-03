@@ -215,7 +215,7 @@ def find_rvir(ds, halo_center = None, do_fig = False, sphere_radius = 250*kpc, f
 def find_rvir_catalogs(args, data, halo_infos_dir, figdir = '.'):
 
     from astropy.table import Table
-    if args.halo == '5016' or args.halo == '8508':
+    if args.halo == '5016' or args.halo == '8508' or args.halo == '5036':
       masses = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
 
     else:
@@ -271,7 +271,7 @@ if __name__ == '__main__':
 
   if args.use_catalog_profile:
 
-    if args.halo == '8508' or args.halo == '5016':
+    if args.halo == '8508' or args.halo == '5016' or args.halo == '5036':
       data = Table(names=('redshift', 'snapshot', 'radius', 'total_mass', 'dm_mass', \
                           'stars_mass', 'young_stars_mass', 'old_stars_mass', 'sfr', 'gas_mass', \
                           'gas_metal_mass', 'gas_H_mass', 'gas_HI_mass', 'gas_HII_mass', 'gas_CII_mass', \
