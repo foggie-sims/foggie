@@ -549,12 +549,12 @@ if __name__ == '__main__':
 
     smooths = [0.5, 1., 3., 5., 10., 15., 25.]
     smooths = [2., 7., 20.]
-    smooths = [12., 30., 50.]
+    smooths = [12.]#, 20., 30., 50.]
     #smooths = [1.0, 3.0, 5.0, 10.0]
     #for smooth in smooths:
     #smooth = 1.
     for (haloname, name, DDname) in halonames:
-        Parallel(n_jobs = -1)(delayed(create_plunging_tunnels)(haloname = haloname, DDname = DDname,  nrays = nrays, smooth = smooth) for smooth in smooths)
+        #Parallel(n_jobs = -1)(delayed(create_plunging_tunnels)(haloname = haloname, DDname = DDname,  nrays = nrays, smooth = smooth) for smooth in smooths)
         #for smooth in smooths:
         #    simulate_plunging_orbits(haloname,DDname,  ms, nrays = nrays, smooth = smooth)
         Parallel(n_jobs = -1)(delayed(simulate_plunging_orbits)(haloname,DDname,  ms, nrays = nrays, smooth = smooth) for smooth in smooths)
