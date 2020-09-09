@@ -113,7 +113,9 @@ def radial_velocity_corrected(field, data):
     x_hat /= r
     y_hat /= r
     z_hat /= r
-    return data['vx_corrected']*x_hat + data['vy_corrected']*y_hat + data['vz_corrected']*z_hat
+    vr = data['vx_corrected']*x_hat + data['vy_corrected']*y_hat + data['vz_corrected']*z_hat
+    vr[np.isnan(vr)] = 0.
+    return vr
 
 def theta_velocity_corrected(field, data):
     """Corrects the theta direction of the spherical coordinate velocity for the bulk motion of the
@@ -130,6 +132,7 @@ def theta_velocity_corrected(field, data):
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     rxy = np.sqrt(x_hat*x_hat + y_hat*y_hat)
     theta_v = (xv*y_hat - x_hat*yv)/(x_hat*x_hat + y_hat*y_hat)*rxy
+    theta_v[np.isnan(theta_v)] = 0.
     return theta_v
 
 def phi_velocity_corrected(field, data):
@@ -147,6 +150,7 @@ def phi_velocity_corrected(field, data):
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     rxy = np.sqrt(x_hat*x_hat + y_hat*y_hat)
     phi_v = (z_hat*(x_hat*xv + y_hat*yv)-zv*(x_hat*x_hat + y_hat*y_hat))/(r*r*rxy)*r
+    phi_v[np.isnan(phi_v)] = 0.
     return phi_v
 
 def tangential_velocity_corrected(field, data):
@@ -352,6 +356,7 @@ def theta_velocity_diskrel(field, data):
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     rxy = np.sqrt(x_hat*x_hat + y_hat*y_hat)
     theta_v = (xv*y_hat - x_hat*yv)/(x_hat*x_hat + y_hat*y_hat)*rxy
+    theta_v[np.isnan(theta_v)] = 0.
     return theta_v
 
 def phi_velocity_diskrel(field, data):
@@ -366,6 +371,7 @@ def phi_velocity_diskrel(field, data):
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     rxy = np.sqrt(x_hat*x_hat + y_hat*y_hat)
     phi_v = (z_hat*(x_hat*xv + y_hat*yv)-zv*(x_hat*x_hat + y_hat*y_hat))/(r*r*rxy)*r
+    phi_v[np.isnan(phi_v)] = 0.
     return phi_v
 
 def tangential_velocity_diskrel(field, data):

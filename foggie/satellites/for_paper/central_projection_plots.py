@@ -23,6 +23,10 @@ def parse_args(haloname, DDname):
                         help='Which system are you on? Default is Jase')
     parser.set_defaults(system="jase")
 
+    parser.add_argument('-do', '--do', metavar='do', type=str, action='store', \
+                        help='Which system are you on? Default is Jase')
+    parser.set_defaults(system="none")
+
     parser.add_argument('--run', metavar='run', type=str, action='store',
                         help='which run? default is natural')
     parser.set_defaults(run="nref11c_nref9f")
@@ -49,20 +53,14 @@ def parse_args(haloname, DDname):
     return args
 
 
-halonames = array([('halo_002392', 'Hurricane', 'DD0581'), 
-                   ('halo_002878', 'Cyclone',  'DD0581'), 
-                   ('halo_004123', 'Blizzard',  'DD0581'), 
-                   ('halo_005016', 'Squall',  'DD0581'), 
-                   ('halo_005036', 'Maelstrom',  'DD0581'), 
-                   ('halo_008508', 'Tempest',  'DD0487')])
-
 
 def do_plot(ds, field, axs, annotate_positions, \
                 small_box, center, x_width, \
                 cmap, name, unit = 'Msun/pc**2', zmin = density_proj_min, zmax = density_proj_max,\
-                 ann_sphere_rad = (1, 'kpc')):
+                 ann_sphere_rad = (1, 'kpc'), weight_field = None):
 
-    prj = yt.ProjectionPlot(ds, axs, field, center = center, data_source = small_box, width=x_width)
+    prj = yt.ProjectionPlot(ds, axs, field, center = center, data_source = small_box)#, \
+                            #width=x_width), weight_field = weight_field)
 
     prj.set_unit(field, unit)
     prj.set_zlim(field, zmin = zmin, zmax =  zmax)
@@ -83,7 +81,7 @@ def do_plot(ds, field, axs, annotate_positions, \
     #prj.annotate_text((0.05, 0.9), name, coord_system='axis', \
     #                  text_args = {'fontsize': 500, 'color': 'white'}, inset_box_args = {})
 
-    prj.hide_axes()
+    #prj.hide_axes()
     prj.hide_colorbar()
 
 
@@ -117,19 +115,63 @@ def make_projection_plots(ds, center, refine_box, x_width,fig_dir, haloname, nam
                 field = ('gas', 'density')
                 cmap = density_color_map
                 cmap.set_bad('k')
+                unit = 'Msun/pc**2'
+                zmin = density_proj_min 
+                zmax = density_proj_max
+                weight_field = None
             if d == 'stars':
                 field = ('deposit', 'stars_density')
                 cmap =  plt.cm.Greys_r
                 cmap.set_bad('k')
+                unit = 'Msun/pc**2'
+                zmin = density_proj_min 
+                zmax = density_proj_max
+                weight_field = None
 
             if d == 'dm':
                 field = ('deposit', 'dm_density')
                 cmap =  plt.cm.gist_heat
                 cmap.set_bad('k')
+                unit = 'Msun/pc**2'
+                zmin = density_proj_min 
+                zmax = density_proj_max
+                weight_field = None
+
+            if d == 'temp':
+                field = ('gas', 'temperature')
+                cmap =  temperature_color_map
+                cmap.set_bad('k')
+                weight_field = ('gas', 'density')
+                zmin = 1.e3
+                zmax = temperature_max
+                unit = 'K'
+
+
+            if d == 'metal':
+                field = ('gas', 'metallicity')
+                metal_color_map = sns.blend_palette(
+                    ("black", "#5d31c4", "#5d31c4","#4575b4", "#d73027",
+                     "darkorange", "#ffe34d"), as_cmap=True)
+                cmap =  metal_color_map
+                cmap.set_bad('k')
+                weight_field = ('gas', 'density')
+                metal_min = 1.e-3
+                zmin = metal_min
+                zmax = metal_max
+                unit = 'Zsun'
+
+            if d == 'vrad':
+                field = ('gas', 'metallicity')
+                cmap =  velocity_colors
+                cmap.set_bad('k')
+                weight_field = ('gas', 'density')
+                zmin = -250
+                zmax = 250
+                unit = 'km/s'
 
             prj = do_plot(ds, field, axs, annotate_positions, \
                           small_box, center, x_width,\
-                          cmap, name)
+                          cmap, name, unit = unit, zmin = zmin, zmax = zmax, weight_field = weight_field)
 
             if add_velocity: prj.annotate_velocity(factor=20)
             if add_arrow: 
@@ -144,8 +186,15 @@ def make_projection_plots(ds, center, refine_box, x_width,fig_dir, haloname, nam
 
 
 
+halonames = array([('halo_002392', 'Hurricane', 'DD0581'), 
+                   ('halo_002878', 'Cyclone',  'DD0581'), 
+                   ('halo_004123', 'Blizzard',  'DD0581'), 
+                   ('halo_005016', 'Squall',  'DD0581'), 
+                   ('halo_005036', 'Maelstrom',  'DD0581'), 
+                   ('halo_008508', 'Tempest',  'DD0487')])
 
-halonames = halonames[4:]
+
+halonames = halonames[1:2]
 for (haloname, name, DDname) in halonames:
     #ds = yt.load(flname)
     #center_dic =  np.load('/Users/rsimons/Desktop/foggie/outputs/centers/%s_nref11c_nref9f_%s.npy'%(haloname,DDname), allow_pickle = True)[()]
@@ -155,10 +204,10 @@ for (haloname, name, DDname) in halonames:
     ds, refine_box = load_sim(args)
 
     fig_dir = '/Users/rsimons/Dropbox/foggie/figures/for_paper/central_projections'
-    prj = make_projection_plots(refine_box.ds, ds.arr(ds.refine_box_center, 'code_length').to('kpc'),\
+    prj = make_projection_plots(refine_box.ds, ds.refine_box_center,\
                                 refine_box, ds.refine_width, fig_dir, haloname, name, \
                                 fig_end = 'projection',\
-                                do = ['stars'], axes = ['x'], is_central = True, add_arrow = False)
+                                do = [args.do], axes = ['x'], is_central = True, add_arrow = False)
 
 
 
