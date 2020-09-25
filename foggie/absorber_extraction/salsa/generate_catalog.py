@@ -3,8 +3,9 @@
 # Adapted from: https://github.com/biboyd/salsa
 #
 # Last Edits Made 07/07/2020
+# - Sept 24, 2020 put import of units_dict in here rather than as kwarg in call 
 #
-#
+
 import numpy as np
 import yt
 import trident
@@ -12,8 +13,9 @@ import pandas as pd
 
 from foggie.absorber_extraction.salsa.absorber_extractor import AbsorberExtractor
 from foggie.absorber_extraction.salsa.utils.collect_files import collect_files, check_rays
-from foggie.absorber_extraction.salsa.utils.functions import ion_p_num
+from foggie.absorber_extraction.salsa.utils.utility_functions import ion_p_num
 from foggie.absorber_extraction.salsa.generate_light_rays import generate_lrays
+from foggie.utils.consistency import units_dict
 from mpi4py import MPI
 
 from yt.data_objects.static_output import \
@@ -106,11 +108,6 @@ def generate_catalog(ds_file, n_rays,
         all ions must be specified (see 'O VI' included even though it's dictionary is empty)
 
         Default: {}
-
-    units_dict: dict, optional
-        dictionary of units to use for the fields when extracting properties
-        (only relevant for 'spice' method)
-        Default: None
 
     Returns
     -------
@@ -228,9 +225,6 @@ def get_absorbers(abs_extractor, ray_list, method, fields=None, units_dict=None)
     fields: list str, optional
         Fields to extract/add to catalog if using 'spice' method.
         Defaults=None
-
-    units_dict: dict
-        dictionary containing what units to use for each field
 
     Returns
     -------

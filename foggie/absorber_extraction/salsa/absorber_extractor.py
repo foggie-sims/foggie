@@ -18,7 +18,7 @@ from astropy.table import QTable
 from yt.data_objects.static_output import \
     Dataset
 
-from foggie.absorber_extraction.salsa.utils.functions import ion_p_num
+from foggie.absorber_extraction.salsa.utils.utility_functions import ion_p_num
 from foggie.utils.consistency import min_absorber_dict
 
 class AbsorberExtractor():

@@ -21,7 +21,7 @@ import astropy.units  as u
 from yt.data_objects.static_output import \
     Dataset
 
-from foggie.absorber_extraction.salsa.utils.functions import ion_p_num
+from foggie.absorber_extraction.salsa.utils.utility_functions import ion_p_num
 from foggie.utils.consistency import units_dict, plotter_limits_dict, min_absorber_dict
 from foggie.absorber_extraction.salsa.absorber_extractor import AbsorberExtractor
 
