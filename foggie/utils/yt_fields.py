@@ -391,3 +391,8 @@ def tcool_tff_ratio(field, data):
     function of radius based on the enclosed mass profiles."""
 
     return data['cooling_time']/data['tff']
+
+def cell_mass_msun(field, data):
+    """Returns the cell mass in units of Msun rather than the default of grams."""
+
+    return data['cell_mass'].in_units('Msun')
