@@ -45,7 +45,7 @@ class AbsorberExtractor():
         a list of filters defined by the way you use Cut Regions in YT
         Default: None
 
-    wavelegnth_center: float, optional
+    wavelength_center: float, optional
         The specific absorption line to look at (in unit Angstrom). None
         defaults to strongest absorption line for specified ion
         (using trident's ion table).

@@ -15,14 +15,21 @@ ion_colors={'H I': '#888888', 'C II': '#440000', 'C III':'#990000', 'C IV':'#FF0
 def read_absorber_catalog(filename):
     #read the table
     ab = Table.read(filename, format='ascii.basic')
-    ab['phase'] = categorize_by_temp(np.log10(ab['temperature']))
-
+    
     #assign colors to phases using FOGGIE utilities 
+    ab['phase'] = categorize_by_temp(np.log10(ab['temperature']))
     colors = []
-    for p in zip(ab['phase']):
-        colors.append( new_phase_color_key[str.encode(p[0])] ) 
+    for p in ab['phase']:   
+        colors.append( new_phase_color_key[str.encode(p)] ) 
 
-    ab['colors'] = colors   
+    ab['temp_colors'] = colors   
+
+    ab['metal'] = categorize_by_metals(ab['metallicity'])
+    metals = []
+    for p in ab['metal']:   
+        metals.append( new_metals_color_key[str.encode(p)] ) 
+
+    ab['metal_colors'] = metals   
 
     # add labels for each component 
     sightline_label = []
@@ -47,7 +54,6 @@ def read_absorber_catalog(filename):
 
     return ab
 
-
 def select_absorber_temperature(ab,T): 
     ab_t = ab[(ab['temperature'] > T[0]) & (ab['temperature'] < T[1])]
     return ab_t
@@ -57,7 +63,7 @@ def select_absorber_redshift(ab,z):
     return ab_z
 
 #make the plots 
-def make_absorber_plot(ab_z, var1, var2): 
+def abs_z(ab_z, var1, var2): 
  
     zlabel = str(np.round(ab_z['redshift'][0]*10.) / 10.)
     
@@ -72,17 +78,17 @@ def make_absorber_plot(ab_z, var1, var2):
     plt.savefig('abs_'+var1+'_'+var2+'_z_'+zlabel+'.png',transparent=True)
 
 
-def plot_absorbers(abcat, var1, var2, limit1, limit2, prefix): 
-    """ plots the absorbers color coded by ion in arbitrary FOGGIE axes"""
+def plot_absorbers(abcat, var1, var2, limit1, limit2, ion, code, prefix): 
+    """ plots the absorbers color-coded by temperature in arbitrary FOGGIE axes"""
     plt.figure(figsize=(8,8)) 
-    for rr, rrv, rcolor in zip(abcat[var1], abcat[var2], abcat['colors']): 
-        plt.plot(rr, rrv, 'o', markersize=5, color='#FFFFFF')
-        plt.plot(rr, rrv, 'o', markersize=3, color=rcolor)
+    for rr, rrv, rcolor in zip(abcat[var1][abcat['name'] == ion], abcat[var2][abcat['name'] == ion], abcat[code][abcat['name'] == ion]): 
+        plt.plot(rr, rrv, 'o', markersize=8, color='#FFFFFF')
+        plt.plot(rr, rrv, 'o', markersize=5, color=rcolor)
     plt.xlim(limit1)   
     plt.ylim(limit2)
     plt.xlabel(axes_label_dict[var1])
     plt.ylabel(axes_label_dict[var2])
-    plt.savefig(prefix+'_abs_'+var1+'_'+var2+'.png',transparent=True)
+    plt.savefig(prefix+'_abs_'+var1+'_'+var2+'_'+code+'.png',transparent=True)
     plt.close()
 
     

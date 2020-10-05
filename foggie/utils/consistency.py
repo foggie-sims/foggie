@@ -1041,7 +1041,7 @@ min_absorber_dict= {'H I': 12.5, 'C IV':13, 'O VI':12.8}
 # default fields to include in catalog
 default_spice_fields=['x', 'y', 'z', 'radius_corrected',
                       'density', 'metallicity', 'temperature',
-                      'radial_velocity_corrected',
+                      'radial_velocity_corrected', 'cell_mass_msun',
                       'tangential_velocity_corrected',
                       'vx_corrected', 'vy_corrected', 'vz_corrected', 
                       'cooling_time', 'pressure', 'entropy']

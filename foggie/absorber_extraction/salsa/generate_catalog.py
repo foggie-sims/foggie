@@ -3,7 +3,7 @@
 # Adapted from: https://github.com/biboyd/salsa
 #
 # Last Edits Made 07/07/2020
-# - Sept 24, 2020 put import of units_dict in here rather than as kwarg in call 
+# Sept 24, 2020 put import of units_dict in here rather than as kwarg in call 
 #
 
 import numpy as np
