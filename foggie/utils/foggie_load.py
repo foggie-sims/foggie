@@ -137,6 +137,8 @@ def foggie_load(snap, trackfile, **kwargs):
                  units='km/s', take_log=False, force_override=True, sampling_type='cell')
     ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
+    ds.add_field(('gas', 'cell_mass_msun'), function=cell_mass_msun, units='Msun', take_log=True, \
+                 force_override=True, sampling_type='cell')
 
     # filter particles into star and dm
     # JT moved this to before "disk_relative" so that the if statement can use the filtered particle fields
