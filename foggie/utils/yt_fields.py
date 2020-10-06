@@ -234,6 +234,18 @@ def kinetic_energy_corrected(field, data):
     units of km/s, to be defined. -Cassi"""
     return 0.5 * data['cell_mass'] * data['vel_mag_corrected']**2.
 
+def radial_kinetic_energy(field, data):
+    """Calculates the radial kinetic energy of cells corrected
+    for the halo velocity. Requires 'halo_velociy_kms', which is the halo velocity with yt
+    units of km/s, to be defined. -Cassi"""
+    return 0.5 * data['cell_mass'] * data['radial_velocity_corrected']**2.
+
+def tangential_kinetic_energy(field, data):
+    """Calculates the tangential kinetic energy of cells corrected
+    for the halo velocity. Requires 'halo_velociy_kms', which is the halo velocity with yt
+    units of km/s, to be defined. -Cassi"""
+    return 0.5 * data['cell_mass'] * data['tangential_velocity_corrected']**2.
+
 def _no6(field,data):
     return data["dx"] * data['O_p5_number_density']
 
@@ -378,6 +390,12 @@ def tangential_velocity_diskrel(field, data):
     """Returns sqrt(v_theta^2 + v_phi^2), where v_theta and v_phi are oriented with the disk. -Cassi"""
 
     return np.sqrt(data['vtheta_disk']**2. + data['vphi_disk']**2.)
+
+def tangential_kinetic_energy_diskrel(field, data):
+    """Calculates the tangential kinetic energy of cells corrected
+    for the halo velocity, relative to the disk. Requires 'halo_velociy_kms', which is the halo velocity with yt
+    units of km/s, to be defined. -Cassi"""
+    return 0.5 * data['cell_mass'] * data['vtan_disk']**2.
 
 def t_ff(field, data):
     """Returns the free-fall time of the gas. Note tff is an interpolated function of radius so
