@@ -41,13 +41,16 @@ def read_absorber_catalog(filename):
     ab['sightline_label'] = sightline_label
     ab['absorber_label'] = absorber_label
 
-    ab['b_thermal'] = (1.38e-16*ab['temperature'] / 16. / 1.67e-24)**0.5 / 1e5 # thermal b-value in km/s
+    ab['b_thermal'] = (1.38e-16*ab['temperature'] / 16. / 1.67e-24)**0.5 / 1e5 # thermal b-value in km/s O VI ONLY!!!!!
     ab['b_nonthermal'] = ab['vel_dispersion'] / 2.
     ab['b_effective'] = (ab['b_thermal']**2 + ab['b_nonthermal']**2)**0.5
 
-    ab['b_thermal'] = (1.38e-16*ab['temperature'] / 16. / 1.67e-24)**0.5 / 1e5 # thermal b-value in km/s
-
     ab['cooling_time'] = ab['cooling_time'] / 3.156e7 
+    ab['radius_corrected'] = ab['radius_corrected'] / 3.086e21
+    for v in ['vx_corrected', 'vy_corrected','vz_corrected', 'radial_velocity_corrected', 'tangential_velocity_corrected']: 
+        ab[v] = ab[v] / 1e5 
+    ab['cell_mass'] = ab['cell_mass'] / 1.989e33
+    ab['cell_size'] = ab['cell_volume']**0.333333333 / 3.086e21
 
     for field in ['temperature', 'density', 'cooling_time', 'pressure', 'entropy']: 
         ab[field] = np.log10(ab[field]) 
@@ -88,7 +91,7 @@ def plot_absorbers(abcat, var1, var2, limit1, limit2, ion, code, prefix):
     plt.ylim(limit2)
     plt.xlabel(axes_label_dict[var1])
     plt.ylabel(axes_label_dict[var2])
-    plt.savefig(prefix+'_abs_'+var1+'_'+var2+'_'+code+'.png',transparent=True)
+    plt.savefig(prefix+'_'+ion.replace(' ','')+'_'+var1+'_'+var2+'_'+code+'.png',transparent=True)
     plt.close()
 
     

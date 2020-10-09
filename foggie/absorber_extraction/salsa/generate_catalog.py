@@ -123,20 +123,21 @@ def generate_catalog(ds_file, n_rays,
     elif isinstance(ds_file, Dataset):
         ds = ds_file
 
-
     # add ion number density to fields to check
     check_fields = fields.copy()
     for i in ion_list:
         check_fields.append(ion_p_num(i))
 
     #check if rays already made
-    check =check_rays(ray_directory, n_rays, check_fields)
-    my_ray_bool= np.array([check], dtype=int)
+    check = check_rays(ray_directory, n_rays, check_fields)
+    my_ray_bool = np.array([check], dtype=int)
     ray_bool = np.array([0], dtype=int)
 
     # share if rays made already or not
     comm.Barrier()
     comm.Allreduce([my_ray_bool, MPI.INT],[ray_bool, MPI.INT], op=MPI.LAND)
+
+    print('We will use the '+method+' method to generate absorbers.')
 
     #generate rays randomly
     if not ray_bool[0]:
@@ -193,7 +194,7 @@ def generate_catalog(ds_file, n_rays,
     comm.Barrier()
 
     #gather all catalogs and creae one large
-    all_dfs= comm.allgather(my_catalog)
+    all_dfs = comm.allgather(my_catalog)
 
     # check if any absorbers were found
     if all(v is None for v in all_dfs):
