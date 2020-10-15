@@ -204,8 +204,6 @@ def generate_catalog(ds_file, n_rays,
 
     return full_catalog
 
-
-
 def get_absorbers(abs_extractor, ray_list, method, fields=None, units_dict=None):
     """
     Create catalog of the given rays usin absorber extractor
@@ -269,7 +267,6 @@ def get_absorbers(abs_extractor, ray_list, method, fields=None, units_dict=None)
     else:
         full_df = None
     return full_df
-
 
 def get_ray_num(file_path):
     """

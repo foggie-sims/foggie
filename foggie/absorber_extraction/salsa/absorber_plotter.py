@@ -27,7 +27,7 @@ from foggie.absorber_extraction.salsa.absorber_extractor import AbsorberExtracto
 
 class AbsorberPlotter(AbsorberExtractor):
     """
-    Create's plot to easily see where absorbers are found along the light ray
+    Creates a plot to easily see where absorbers are found along the light ray
     both directly and through resulting spectra. Uses absorber extractor as base
     class.
 
@@ -455,7 +455,7 @@ class AbsorberPlotter(AbsorberExtractor):
             ax.set_xlim(vel_min, vel_max)
             ax.xaxis.set_minor_locator(AutoMinorLocator(2))
             ax.set_title(f"Rel. to line {self.wavelength_center:.1f} $\AA$", loc='right')
-            ax.set_xlabel("Delta_v (km/s)")
+            ax.set_xlabel("Delta v (km/s)")
             ax.set_ylabel("Flux")
             ax.grid(zorder=0, which='both')
 
@@ -672,9 +672,9 @@ class AbsorberPlotter(AbsorberExtractor):
             ax_prop2.plot(l_list, prop2, **plot_kwargs)
 
             #set title and axis labels
-            ax_prop2.set_title(f"{prop2_name} Along Ray", loc='right')
+            #JTax_prop2.set_title(f"{prop2_name} Along Ray", loc='right')
             ax_prop2.set_xlabel("Length From Start of Ray $(kpc)$")
-            ax_prop2.set_ylabel(f"{prop2_name} $({prop2_units})$")
+            #JTax_prop2.set_ylabel(f"{prop2_name} $({prop2_units})$")
 
             #set limits
             ax_prop2.set_ylim(prop2_lb, prop2_ub)
@@ -726,7 +726,7 @@ class AbsorberPlotter(AbsorberExtractor):
 
         if (self.slice == None):
             #create the slicePlot using the field of the ion density
-            self.create_slice(cmap = cmap)
+            self.create_slice(cmap = cmap, width=500, height=500)
 
         grid = AxesGrid(self.fig, (0.,0.,0.5,0.5),
                         nrows_ncols = (1, 1),
