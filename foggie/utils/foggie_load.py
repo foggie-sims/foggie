@@ -137,6 +137,12 @@ def foggie_load(snap, trackfile, **kwargs):
                  units='km/s', take_log=False, force_override=True, sampling_type='cell')
     ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
+    ds.add_field(('gas', 'radial_kinetic_energy'), function=radial_kinetic_energy, \
+                 units='erg', take_log=True, force_override=True, sampling_type='cell')
+    ds.add_field(('gas', 'tangential_kinetic_energy'), function=tangential_kinetic_energy, \
+                 units='erg', take_log=True, force_override=True, sampling_type='cell')
+    ds.add_field(('gas', 'cell_mass_msun'), function=cell_mass_msun, units='Msun', take_log=True, \
+                 force_override=True, sampling_type='cell')
 
     # filter particles into star and dm
     # JT moved this to before "disk_relative" so that the if statement can use the filtered particle fields
@@ -206,6 +212,8 @@ def foggie_load(snap, trackfile, **kwargs):
                      force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'vtan_disk'), function=tangential_velocity_diskrel, units='km/s', take_log=False, \
                      force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'tangential_kinetic_energy_disk'), function=tangential_kinetic_energy_diskrel, \
+                     units='erg', take_log=True, force_override=True, sampling_type='cell')
 
     if (tff):
         # Interpolate enclosed mass function to get tff
