@@ -20,8 +20,9 @@ from foggie.absorber_extraction.salsa.utils.functions import parse_cut_filter
 from foggie.utils.consistency import units_dict, default_spice_fields, min_absorber_dict
 from foggie.utils.foggie_load import foggie_load
 
-box_trackfile = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10' 
-hcv_file='/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_infos/008508/nref11c_nref9f/halo_c_v' 
+box_trackfile = '/u/jtumlins/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10' 
+hcv_file='/u/jtumlins/foggie/foggie/halo_infos/008508/nref11c_nref9f/halo_c_v' 
+
 
 def main(args):
 
@@ -72,9 +73,8 @@ if __name__ == '__main__':
                         required=True)
     parser.add_argument("-o","--outfile", type=str, help="filename where catalog is saved",
                         required=True)
-    parser.add_argument("-i", "--ion", type=str,
-                        help='The ion to look at (ie "H I", "O VI")',
-                        required=True)
+    parser.add_argument("-i", "--ion", type=str, default='O VI', 
+                        help='The ion to look at (ie "H I", "O VI")')
     parser.add_argument("-m", "--max-impact", type=int,
                         help="Max impact parameter sampled", default=200)
     parser.add_argument("-c", "--cut", type=str, default='cgm')
