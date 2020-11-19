@@ -12,6 +12,7 @@ import os, sys, argparse
 from foggie.utils.consistency import *
 import matplotlib.pyplot as plt
 from foggie.utils.foggie_load import *
+from yt.units import *
 
 
 
@@ -58,9 +59,9 @@ def do_plot(ds, field, axs, annotate_positions, \
                 small_box, center, x_width, \
                 cmap, name, unit = 'Msun/pc**2', zmin = density_proj_min, zmax = density_proj_max,\
                  ann_sphere_rad = (1, 'kpc'), weight_field = None):
-
-    prj = yt.ProjectionPlot(ds, axs, field, center = center, data_source = small_box)#, \
-                            #width=x_width), weight_field = weight_field)
+    print (x_width)
+    prj = yt.ProjectionPlot(ds, axs, field, center = center, data_source = small_box,\
+                            width=x_width, weight_field = weight_field)
 
     prj.set_unit(field, unit)
     prj.set_zlim(field, zmin = zmin, zmax =  zmax)
@@ -100,15 +101,15 @@ def make_projection_plots(ds, center, refine_box, x_width,fig_dir, haloname, nam
                          fig_end = 'projection',  do = ['stars', 'gas', 'dm'],\
                          axes = ['x', 'y', 'z'], annotate_positions = [],\
                           add_velocity = False, is_central = False, add_arrow = False, start_arrow = [], end_arrow = []):
+    if is_central:
+        small_box = refine_box
 
-    if not is_central:
+    else:
         small_box = ds.r[center[0] - x_width/2.: center[0] + x_width/2.,
                      center[1] - x_width/2.: center[1] + x_width/2.,
                      center[2] - x_width/2.: center[2] + x_width/2.,
                     ]
-    else:
-        small_box = refine_box
-
+        
     for axs in axes:
         for d in do:
             if d == 'gas':
@@ -191,10 +192,12 @@ halonames = array([('halo_002392', 'Hurricane', 'DD0581'),
                    ('halo_004123', 'Blizzard',  'DD0581'), 
                    ('halo_005016', 'Squall',  'DD0581'), 
                    ('halo_005036', 'Maelstrom',  'DD0581'), 
-                   ('halo_008508', 'Tempest',  'DD0487')])
+                   ('halo_008508', 'Tempest',  'DD0487'),
+                   ('halo_008508', 'Tempest',  'DD1000')])
 
 
-halonames = halonames[1:2]
+halonames = halonames[6:7]
+
 for (haloname, name, DDname) in halonames:
     #ds = yt.load(flname)
     #center_dic =  np.load('/Users/rsimons/Desktop/foggie/outputs/centers/%s_nref11c_nref9f_%s.npy'%(haloname,DDname), allow_pickle = True)[()]
@@ -203,19 +206,14 @@ for (haloname, name, DDname) in halonames:
     args = parse_args(haloname, DDname)
     ds, refine_box = load_sim(args)
 
-    fig_dir = '/Users/rsimons/Dropbox/foggie/figures/for_paper/central_projections'
-    prj = make_projection_plots(refine_box.ds, ds.refine_box_center,\
-                                refine_box, ds.refine_width, fig_dir, haloname, name, \
+    #fig_dir = '/Users/rsimons/Dropbox/foggie/figures/for_paper/central_projections'
+    fig_dir = '.'
+    print (ds.refine_box_center, ds.refine_width*kpc)
+
+    prj = make_projection_plots(ds = refine_box.ds, center = ds.refine_box_center,\
+                                refine_box = refine_box, x_width = ds.refine_width*kpc,\
+                                fig_dir = fig_dir, haloname = haloname, name = name, \
                                 fig_end = 'projection',\
                                 do = [args.do], axes = ['x'], is_central = True, add_arrow = False)
-
-
-
-
-
-
-
-
-
 
 
