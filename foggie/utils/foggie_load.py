@@ -128,13 +128,13 @@ def foggie_load(snap, trackfile, **kwargs):
     ds.add_field(('gas', 'phi_pos'), function=phi_pos, units=None, take_log=False, \
                  sampling_type='cell')
     ds.add_field(('gas', 'radial_velocity_corrected'), function=radial_velocity_corrected, \
-                 units='km/s', take_log=False, force_override=True, sampling_type='cell')
+                 units='km/s', take_log=False, force_override=True, sampling_type='cell', display_name='Radial Velocity')
     ds.add_field(('gas', 'theta_velocity_corrected'), function=theta_velocity_corrected, \
                  units='km/s', take_log=False, force_override=True, sampling_type='cell')
     ds.add_field(('gas', 'phi_velocity_corrected'), function=phi_velocity_corrected, \
                  units='km/s', take_log=False, force_override=True, sampling_type='cell')
     ds.add_field(('gas', 'tangential_velocity_corrected'), function=tangential_velocity_corrected, \
-                 units='km/s', take_log=False, force_override=True, sampling_type='cell')
+                 units='km/s', take_log=False, force_override=True, sampling_type='cell', display_name='Tangential Velocity')
     ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
                  units='erg', take_log=True, force_override=True, sampling_type='cell')
     ds.add_field(('gas', 'radial_kinetic_energy'), function=radial_kinetic_energy, \
@@ -224,6 +224,8 @@ def foggie_load(snap, trackfile, **kwargs):
         snap_ind = masses['snapshot']==snap[-6:]
         ds.Menc_profile = IUS(np.concatenate(([0],masses['radius'][snap_ind])), np.concatenate(([0],masses['total_mass'][snap_ind])))
         ds.add_field(('gas', 'tff'), function=t_ff, units='yr', display_name='Free fall time', take_log=True, \
+                    force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'vff'), function=v_ff, units='km/s', display_name='Free fall velocity', take_log=False, \
                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'tcool_tff'), function=tcool_tff_ratio, units=None, display_name='t_{cool}/t_{ff}', take_log=True, \
                     force_override=True, sampling_type='cell')
