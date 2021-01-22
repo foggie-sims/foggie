@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # sample PBS script for running big enzo jobs on Pleiades; MSP, January 22, 2021
 # https://www.nas.nasa.gov/hecc/support/kb/sample-pbs-script-for-pleiades_190.html
 # is useful for much of this!
@@ -9,7 +8,8 @@
 # you can see what runs you have going with %qstat -u username
 #PBS -N halo_005036_nref11c_nref9f
 
-# charge to the correct FOGGIE group. s1938 is the main FOGGIE account;
+# charge to the correct FOGGIE group.
+# s1938 is the Molly's FOGGIE account;
 # s1698 is Jason's Roman SIT account (anything Milky Way related, stellar halos)
 #PBS -W group_list=s1938
 
@@ -30,11 +30,11 @@
 
 
 # these modules need to be up to date! and match what enzo was compiled with!
+# you can check your enzo Makefiles to be sure. more info at:
 # https://www.nas.nasa.gov/hecc/support/kb/using-software-modules_115.html
 module load comp-intel/2018.3.222
 module load mpi-hpe/mpt.2.21
 module load hdf5/1.8.18_serial
-
 
 # even so, this helps enzo not whine
 export HDF5_DISABLE_VERSION_CHECK=1
@@ -42,6 +42,12 @@ export HDF5_DISABLE_VERSION_CHECK=1
 cd $PBS_O_WORKDIR
 
 # this is a useful memory tracker JT wrote; update your path :-)
+# this script uses an NAS uiltity to log into each compute node
+# you're on and get its memory usage. This is important in
+# optimzing the memory usage across nodes and predicting if
+# and when your jobs may run out of memory.
+# run this script: "python $REPO/scripts/node_memory_trace.py" to get a plot of
+# memory usage vs. redshift for your run
 /u/mpeeples/memory_gauge.sh $PBS_JOBID > memory.$PBS_JOBID 2>&1 &
 
 #### the main workhorse
