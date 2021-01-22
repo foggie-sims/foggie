@@ -30,6 +30,7 @@
 
 
 # these modules need to be up to date! and match what enzo was compiled with!
+# https://www.nas.nasa.gov/hecc/support/kb/using-software-modules_115.html
 module load comp-intel/2018.3.222
 module load mpi-hpe/mpt.2.21
 module load hdf5/1.8.18_serial
