@@ -14,9 +14,12 @@ from foggie.absorber_extraction.salsa.utils.utility_functions import parse_cut_f
 from foggie.utils.consistency import default_spice_fields, min_absorber_dict
 from foggie.utils.foggie_load import foggie_load
 
-box_trackfile = os.getenv('BOX_TRACKFILE') 
-hcv_file = os.getenv('HCV_FILE') 
-mass_file = os.getenv('MASS_FILE') 
+box_trackfile = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10'
+hcv_file='/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_infos/008508/nref11c_nref9f/halo_c_v'
+
+dataset_name = 'RD0020'
+rvir = 52.3 
+ds, reg_foggie = foggie_load('../'+dataset_name+'/'+dataset_name, box_trackfile, halo_c_v_name=hcv_file)
 
 cgm_cut = [ "(obj[('gas', 'temperature')].in_units('K') > 1.e1)", #<---- temperature 
             "(obj[('gas', 'radial_velocity_corrected')] <= 1e12)",  #<---- radial velocity 
@@ -89,3 +92,5 @@ if __name__ == '__main__':
     df_inflow.to_csv('./'+args.dataset_name+'.absorbers/cgm_inflow.txt')
 
 
+df_inflow = get_absorber_table(cgm_inflow_cut, dataset_name+'.absorbers/cgm_inflow')
+df_inflow.to_csv(dataset_name+'.absorbers/cgm_inflow.txt')

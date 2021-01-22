@@ -71,6 +71,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/Users/anna/foggie/foggie/"
         output_path = "/Users/anna/Research/Outputs/"
         code_path = "/Users/anna/Research/Simulations/"
+    elif args.system == "ayan_local":
+        foggie_dir = "/Users/acharyya/models/simulation_output/foggie/"
+        output_path = "/Users/acharyya/Work/astro/foggie_outputs/"
+        code_path = "/Users/acharyya/Work/astro/ayan_codes/foggie/foggie/"
 
     if not args.pwd:
         if args.run == "natural":
