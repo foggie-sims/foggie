@@ -62,8 +62,8 @@ def parse_args():
     parser.set_defaults(halo='8508')
 
     parser.add_argument('--run', metavar='run', type=str, action='store', \
-                        help='Which run? Default is nref11c_nref9f')
-    parser.set_defaults(run='nref11c_nref9f')
+                        help='Which run? Default is nref11c_nref9f. Alternative: nref11n_nref10f')
+    parser.set_defaults(run='nref11n_nref10f')
 
     parser.add_argument('--output', metavar='output', type=str, action='store', \
                         help='Which output? Default is RD0032')
@@ -144,7 +144,8 @@ def parse_args():
 
     parser.add_argument('--which_projection', metavar='which_projection', type=str, action='store',
                         help="Which projection are you looking at? Default is y.")
-    parser.set_defaults(which_projection='y')
+    #parser.set_defaults(which_projection='y')
+    parser.set_defaults(which_projection='x')
 
     parser.add_argument('--starti', metavar='starti', type=int, action='store',
                         help="At which step i do you want to start? Default is 0. This is useful to change if the code stopped at some point i.")
@@ -237,7 +238,9 @@ def make_IFU(args, speedoflight=speedoflight):
         stepsize = mediancell
     if steps == 0:
         steps= int(properwidth/stepsize)
-    if args.start_spectra_at_center == True: steps = int(steps/2.)
+        if args.start_spectra_at_center == True: steps = int(steps/2.)
+    print("steps: "+str(steps))
+    print("stepsize: "+str(stepsize))
     xc, yc, zc = center
     xl, yl, zl = leftedge
     xr, yr, zr = rightedge
@@ -301,6 +304,8 @@ def make_IFU(args, speedoflight=speedoflight):
                 else:
                     sg = trident.SpectrumGenerator(lambda_min=startwl, lambda_max=endwl, dlambda=wlres)
                     sg.make_spectrum(ray, lines=line_list)
+                    sg.save_spectrum(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
+                    if make_plots == True: sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'raw_'+str(snap)+'.png')
                     if args.create_rf_spectra_woMW == False:
                         sg.add_milky_way_foreground()
                         if make_plots == True: sg.plot_spectrum(str(i)+'_'+str(j)+'_'+'MW_'+str(snap)+'.png')
@@ -335,16 +340,17 @@ def make_IFU(args, speedoflight=speedoflight):
         for i in range(isteps):
             print(i)
             for j in range(jsteps):
-                file_raw = np.loadtxt(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
-                file_final = np.loadtxt(str(i)+'_'+str(j)+'_'+'spec_final.txt')
-                flux_raw = file_raw[:,2]
-                flux_raw_error = file_raw[:,3]
-                flux_final = file_final[:,2]
-                flux_final_error = file_final[:,3]
-                data_raw[:,i,j]=flux_raw
-                errors_raw[:,i,j]=flux_raw_error
-                data_final[:,i,j]=flux_final
-                errors_final[:,i,j]=flux_final_error
+                if (os.path.exists(str(i)+'_'+str(j)+'_'+'spec_final.txt')):
+                    file_raw = np.loadtxt(str(i)+'_'+str(j)+'_'+'spec_raw.txt')
+                    file_final = np.loadtxt(str(i)+'_'+str(j)+'_'+'spec_final.txt')
+                    flux_raw = file_raw[:,2]
+                    flux_raw_error = file_raw[:,3]
+                    flux_final = file_final[:,2]
+                    flux_final_error = file_final[:,3]
+                    data_raw[:,i,j]=flux_raw
+                    errors_raw[:,i,j]=flux_raw_error
+                    data_final[:,i,j]=flux_final
+                    errors_final[:,i,j]=flux_final_error
         hdr0 = fits.Header()
         hdr1 = fits.Header()
         hdr2 = fits.Header()
@@ -442,7 +448,7 @@ def make_IFU(args, speedoflight=speedoflight):
         errors_final_hdu = fits.ImageHDU(errors_final, header = hdr4)
         hdulist = fits.HDUList([primary_hdu, data_raw_hdu, errors_raw_hdu, data_final_hdu, errors_final_hdu])
         fitsfile = halo+'_'+sim+'_'+snap+'_'+'foggie_ifu'+'_isteps'+str(isteps)+'_jsteps'+str(jsteps)+'_stepsize'+str(stepsize.value)+'.fits'
-        if (os.path.exists(output_dir+fitsfile)): os.system('rm ' + output_dir+fitsfile)
+        if (os.path.exists(output_dir+fitsfile)): os.system('mv ' + output_dir+fitsfile + ' '+ output_dir+'old_'+fitsfile)
         hdulist.writeto(fitsfile)
     if convolve_with_instrument_psf == True:
 
@@ -516,8 +522,8 @@ def make_IFU(args, speedoflight=speedoflight):
         data_hdu = fits.ImageHDU(rebinneddata, header = hdr3)
         error_hdu = 'TBD'
         hdulist = fits.HDUList([primary_hdu, data_hdu])
-        newfitsfile = 'mock_'+instrument+'_obs'+fitsfile
-        if (os.path.exists(output_dir+newfitsfile)): os.system('rm ' + output_dir+newfitsfile)
+        newfitsfile = 'mock_'+instrument+'_obs_'+fitsfile
+        if (os.path.exists(output_dir+newfitsfile)): os.system('mv ' + output_dir+newfitsfile + ' ' + output_dir+'old_'+newfitsfile)
         hdulist.writeto(newfitsfile)
 
 
