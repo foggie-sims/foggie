@@ -1,3 +1,7 @@
+#### script used to make the figure in Lehner et al. 2020. kind of convoluted script, sorry.
+#### written by ramona
+#### latest modification 2021-01-22
+
 import numpy as np
 import sys
 import os

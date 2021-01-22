@@ -1,3 +1,7 @@
+#### script used to make the figure for HST proposal in 2020, PI: Kate Rowlands. kind of convoluted script, sorry.
+#### written by ramona
+#### latest modification 2021-01-22
+
 import numpy as np
 import sys
 import os

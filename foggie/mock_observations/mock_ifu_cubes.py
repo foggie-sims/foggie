@@ -1,3 +1,7 @@
+#### routine to load foggie snapshots, create a block of absorption spectra and store them in an IFU like fits cube with halo properties in header
+#### written by ramona
+#### latest modification 2021-01-22
+
 import numpy as np
 import sys
 import os
