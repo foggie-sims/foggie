@@ -14,8 +14,8 @@ from foggie.utils.foggie_load import foggie_load
 box_trackfile = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10'
 hcv_file='/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_infos/008508/nref11c_nref9f/halo_c_v'
 
-dataset_name = 'RD0042'
-rvir = 168. 
+dataset_name = 'RD0020'
+rvir = 52.3 
 ds, reg_foggie = foggie_load('../'+dataset_name+'/'+dataset_name, box_trackfile, halo_c_v_name=hcv_file)
 
 cgm_cut = [ "(obj[('gas', 'temperature')].in_units('K') > 1.e1)", #<---- temperature 
