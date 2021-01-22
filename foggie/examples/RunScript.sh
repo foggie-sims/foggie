@@ -44,9 +44,10 @@ cd $PBS_O_WORKDIR
 /u/mpeeples/memory_gauge.sh $PBS_JOBID > memory.$PBS_JOBID 2>&1 &
 
 #### the main workhorse
-## simrun.pl is Britton Smith's useful code for automatically restarting enzo
-# after each output. Need to have "NumberOfOutputsBeforeExit = 1" set in your
-# enzo parameter file!! (here, "./DD2043/DD2043"). this helps with memory leakage
+## simrun.pl is Britton Smith's useful code (https://github.com/brittonsmith/simrun)
+# for automatically restarting enzo  after each output.
+# Need to have "NumberOfOutputsBeforeExit = 1" set in your  enzo parameter file!!
+# (here, "./DD2043/DD2043"). this helps with memory leakage
 ## in the mpi script, "-np 512" specifies the number of processors; check against request!
 # -n11 is the number of processors per node; helps with load balancing
 # other parts of this I don't really remember where came from, other than suggestions
