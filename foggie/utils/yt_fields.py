@@ -404,6 +404,13 @@ def t_ff(field, data):
     rho = data.ds.Menc_profile(data['radius_corrected'])*Msun/(data['radius_corrected']**3.) * 3./(4.*np.pi)
     return np.sqrt(3.*np.pi/(32.*G*rho))
 
+def v_ff(field, data):
+    """Returns the free-fall velocity of the gas. Note vff is an interpolated function of radius so
+    this value will be the same for all cells with the same radius."""
+
+    rho = data.ds.Menc_profile(data['radius_corrected'])*Msun/(data['radius_corrected']**3.) * 3./(4.*np.pi)
+    return -data['radius_corrected']/np.sqrt(3.*np.pi/(32.*G*rho))
+
 def tcool_tff_ratio(field, data):
     """Returns the ratio of cooling time to free-fall time of the gas. Note tff is an interpolated
     function of radius based on the enclosed mass profiles."""

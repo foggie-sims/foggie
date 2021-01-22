@@ -215,7 +215,7 @@ def find_rvir(ds, halo_center = None, do_fig = False, sphere_radius = 250*kpc, f
 def find_rvir_catalogs(args, data, halo_infos_dir, figdir = '.'):
 
     from astropy.table import Table
-    if args.halo == '5016' or args.halo == '8508' or args.halo == '5036':
+    if args.halo == '5016' or args.halo == '8508' or args.halo == '5036' or args.halo == '4123' or args.halo == '2392':
       masses = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
 
     else:
@@ -237,7 +237,10 @@ def find_rvir_catalogs(args, data, halo_infos_dir, figdir = '.'):
     #argrvir = argmin(abs(internal_density - 200*rho_crit))
     interp_fnc = interp1d(internal_density, radius)
 
-    rvir = interp_fnc(200*rho_crit)#radius[argrvir] * radius_unit
+    x = cosmo.Om(redshift) -1.
+    #delta_c = 18.*np.pi**2. + 82.*x - 39.*x**2.
+    delta_c = 200.
+    rvir = interp_fnc(delta_c*rho_crit)#radius[argrvir] * radius_unit
     res = []
     for key in masses.keys():
       if (key == 'redshift') | (key == 'snapshot'):
@@ -271,7 +274,7 @@ if __name__ == '__main__':
 
   if args.use_catalog_profile:
 
-    if args.halo == '8508' or args.halo == '5016' or args.halo == '5036':
+    if args.halo == '8508' or args.halo == '5016' or args.halo == '5036' or args.halo == '4123' or args.halo == '2392':
       data = Table(names=('redshift', 'snapshot', 'radius', 'total_mass', 'dm_mass', \
                           'stars_mass', 'young_stars_mass', 'old_stars_mass', 'sfr', 'gas_mass', \
                           'gas_metal_mass', 'gas_H_mass', 'gas_HI_mass', 'gas_HII_mass', 'gas_CII_mass', \
@@ -315,6 +318,7 @@ if __name__ == '__main__':
         print ('\t %s %s %s Rvir (kpc) = %.2f'%(args.halo, args.run, args.output, data['radius'][-1]))
 
     data.write(halo_infos_dir + '/rvir_masses.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    #data.write(halo_infos_dir + '/rvir_masses_evolving-delta-c.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
 
 
