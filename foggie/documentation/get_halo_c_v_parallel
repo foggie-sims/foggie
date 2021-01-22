@@ -1,5 +1,6 @@
 This document describes how to use the get_halo_c_v_parallel code, located in /utils/get_halo_c_v_parallel.py.
 Author: Cassi
+Last modified: 1/22/21
 
 Description:
 ------------
@@ -62,4 +63,4 @@ zv (halo z-velocity in km/s)
 
 Note that each time you run get_halo_c_v_parallel.py, it will make a new halo_c_v file containing
 only those outputs you've run the code on. If you want to combine all outputs into one file, you will
-have to do that separately.
+have to do that separately. Open the files in a text editor and copy-paste them into one big file.

@@ -1,0 +1,56 @@
+This document describes how to use the combine_halo_infos code, located in /utils/combine_halo_infos.py.
+Author: Cassi
+Last modified: 1/22/21
+
+Description:
+------------
+combine_halo_infos.py combines all the mass profile files made by get_mass_profile.py into two big
+files called masses_z-less-2.hdf5 and masses_z-gtr-2.hdf5, makes a file of SFR, and combines all the identified satellite
+catalogs made by get_satellite_positions.py into one big file called satellites.hdf5.
+
+See documentation 'halo_info_files' for a list of which halos, runs, and outputs this code has
+already been run on.
+
+
+Requires:
+---------
+You must have the correct paths set up for your machine in get_run_loc_etc.py.
+
+You must have already run both get_mass_profile.py and get_satellite_positions.py for all the outputs
+you want to combine before running combine_halo_infos.py. They must be stored in the default directory
+that get_mass_profile.py and get_satellite_positions.py put them into.
+
+
+User inputs:
+------------
+combine_halo_infos.py is designed to be run from the command line with command line options. You can do:
+> python combine_halo_infos.py --help
+to see the different command line options and what you can enter for each. If you do not enter
+any command line options, combine_halo_infos.py will run with all the default options selected.
+Here are the command line options:
+
+--halo XXXX
+Which halo? Default is Tempest (8508).
+
+--run nrefXX_nrefXX
+Which run? Default is nref11c_nref9f.
+
+--system XXXXXXXX
+Which system are you on? Default is cassiopeia.
+
+Outputs:
+--------
+The code creates two massive files 'masses_z-less-2.hdf5' and 'masses_z-gtr-2.hdf5'.
+The columns of these files match the columns in each individual snapshot's 'DDXXXX_masses.hdf5'
+file, simply combined into big tables.
+
+It also makes a file called 'sfr' that is an ascii file where the columns are snapshot name, redshift,
+and star formation rate within 20 kpc of the central galaxy.
+
+It also makes a file called 'satellites.hdf5' that has the same columns as each snapshot's
+'DDXXXX_satellites.hdf5' file, simply combined into one big table.
+
+It puts all of these files in the correct sub-folder within halo_infos in the repo. Check the
+README document in halo_infos to determine for which outputs for which halos/runs this has already
+been done -- you probably will never need to run combine_halo_infos.py yourself (as long as Cassi
+is on top of things)!

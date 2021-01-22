@@ -1,5 +1,6 @@
 This document describes how to use the get_mass_profile code, located in /utils/get_mass_profile.py.
 Author: Cassi
+Last modified: 1/22/21
 
 Description:
 ------------
@@ -66,7 +67,8 @@ stars_mass (in Msun)
 gas_mass (in Msun)
 
 Note that get_mass_profile.py will output one file per output it is run on. These files can later be
-combined into one big file, which is what is located in 'masses.hdf5' in the halo_infos folder.
+combined into one big file using utils/combine_halo_infos.py. The big file is what is located in
+'masses.hdf5' in the halo_infos folder.
 
 You can read the files output by get_mass_profile.py in python by doing:
 > from astropy.table import Table

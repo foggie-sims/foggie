@@ -1,5 +1,6 @@
 This document describes how to use the get_satellite_positions code, located in /utils/get_satellite_positions.py.
 Author: Cassi
+Last modified: 1/22/21
 
 Description:
 ------------
@@ -63,8 +64,9 @@ sat_y (y position in kpc)
 sat_z (z position in kpc)
 
 Note that get_satellite_positions.py will output one file per output it is run on. These files can later be
-combined into one big file, which is what is located in 'satellites.hdf5' in the halo_infos folder.
-The satellites.hdf5 file has one additional column at the beginning, which is 'snap', e.g. 'DD1800'.
+combined into one big file using utils/combine_halo_infos.py. The big file is what is located in
+'satellites.hdf5' in the halo_infos folder. The satellites.hdf5 file has one additional column at
+the beginning, which is 'snap', e.g. 'DD1800'.
 
 You can read the files output by get_satellite_positions.py in python by doing:
 > from astropy.table import Table
