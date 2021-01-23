@@ -9,6 +9,7 @@
 
 """
 from header import *
+from collections import defaultdict
 
 # ---------to parse keyword arguments----------
 def parse_args():
@@ -73,13 +74,13 @@ def make_projection_plots(ds, center, refine_box, x_width, fig_dir, haloname, na
 
     metal_color_map = sns.blend_palette(("black", "#5d31c4", "#5d31c4", "#4575b4", "#d73027","darkorange", "#ffe34d"), as_cmap=True)
 
-    # The variables used below come from
-    field_dict = {'gas':('gas', 'density'), 'stars':('deposit', 'stars_density'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density')}
-    cmap_dict = {'gas':density_color_map, 'stars':plt.cm.Greys_r, 'metal':metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat}
-    unit_dict = {'gas':'Msun/pc**2', 'stars':'Msun/pc**2', 'metal':'Zsun', 'temp':'K', 'dm':'Msun/pc**2'}
-    zmin_dict = {'gas':density_proj_min, 'stars':density_proj_min, 'metal':1.e-3, 'temp':1.e3, 'dm':density_proj_min}
-    zmax_dict = {'gas':density_proj_max, 'stars':density_proj_max, 'metal':metal_max, 'temp':temperature_max, 'dm':density_proj_max}
-    weight_field_dict = {'gas':None, 'stars':None, 'metal':('gas', 'density'), 'temp':('gas', 'density'), 'dm':None}
+    # The variables used below come from foggie.utils.consistency.py
+    field_dict = {'gas':('gas', 'density'), 'stars':('deposit', 'stars_density'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected')}
+    cmap_dict = {'gas':density_color_map, 'stars':plt.cm.Greys_r, 'metal':metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap}
+    unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', temp='K', vrad='km/s')
+    zmin_dict = defaultdict(lambda: density_proj_min, metal=1.e-3, temp=1.e3, vrad=-250)
+    zmax_dict = defaultdict(lambda: density_proj_max, metal= metal_max, temp= temperature_max, vrad=250)
+    weight_field_dict = defaultdict(lambda: None, metal=('gas', 'density'), temp=('gas', 'density'), vrad=('gas', 'density'))
 
     for ax in axes:
         for d in do:
@@ -93,8 +94,6 @@ def make_projection_plots(ds, center, refine_box, x_width, fig_dir, haloname, na
                     for s_arrow, e_arrow in zip(start_arrow, end_arrow):
                         prj.annotate_arrow(pos=e_arrow, starting_pos=s_arrow, coord_system='data')
 
-            # prj = eps.single_plot(prj) # failed attempt at saving as eps instead of png
-            # prj.save_fig(name=fig_dir + '/%s_%s' % (haloname, d), format='eps', mpl_kwargs={'dpi': 500})
             prj.save(name=fig_dir + '%s_%s' % (haloname, d), suffix='png', mpl_kwargs={'dpi': 500})
     return prj
 
@@ -102,7 +101,6 @@ def make_projection_plots(ds, center, refine_box, x_width, fig_dir, haloname, na
 if __name__ == '__main__':
 
     args = parse_args()
-    print(args.system) #
     ds, refine_box = load_sim(args, region='refine_box')
 
     print('box center =', ds.refine_box_center, 'box width =', ds.refine_width * kpc)
@@ -112,7 +110,7 @@ if __name__ == '__main__':
 
     prj = make_projection_plots(ds=refine_box.ds, center=ds.refine_box_center, \
                                 refine_box=refine_box, x_width=ds.refine_width * kpc, \
-                                fig_dir=output_dir, haloname=args.halo, name=halo_dict[args.halo], \
+                                fig_dir=output_dir, haloname=args.output, name=halo_dict[args.halo], \
                                 fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.proj.split(',')], is_central=True, add_arrow=False, add_velocity=False)
     prj.show()
     print('Completed')
