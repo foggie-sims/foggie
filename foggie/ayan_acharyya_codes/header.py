@@ -12,6 +12,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from pathlib import Path
+import time
 
 import pandas as pd
 pd.set_option('display.max_rows', 50)
