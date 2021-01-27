@@ -276,11 +276,11 @@ if __name__ == '__main__':
 
     if args.halo == '8508' or args.halo == '5016' or args.halo == '5036' or args.halo == '4123' or args.halo == '2392':
       data = Table(names=('redshift', 'snapshot', 'radius', 'total_mass', 'dm_mass', \
-                          'stars_mass', 'young_stars_mass', 'old_stars_mass', 'sfr', 'gas_mass', \
+                          'stars_mass', 'young_stars_mass', 'old_stars_mass', 'gas_mass', \
                           'gas_metal_mass', 'gas_H_mass', 'gas_HI_mass', 'gas_HII_mass', 'gas_CII_mass', \
                           'gas_CIII_mass', 'gas_CIV_mass', 'gas_OVI_mass', 'gas_OVII_mass', 'gas_MgII_mass', \
                           'gas_SiII_mass', 'gas_SiIII_mass', 'gas_SiIV_mass', 'gas_NeVIII_mass'), \
-                   dtype=('f8', 'S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
+                   dtype=('f8', 'S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', \
                           'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
 
