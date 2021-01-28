@@ -12,30 +12,6 @@
 from header import *
 from collections import defaultdict
 
-# ---------to parse keyword arguments----------
-def parse_args(haloname, RDname):
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='''identify satellites in FOGGIE simulations''')
-    parser.add_argument('--system', metavar='system', type=str, action='store', help='Which system are you on? Default is Jase')
-    parser.set_defaults(system='ayan_local')
-
-    parser.add_argument('--do', metavar='do', type=str, action='store', help='Which particles do you want to plot? Default is gas')
-    parser.set_defaults(do='gas')
-
-    parser.add_argument('--run', metavar='run', type=str, action='store', help='which run? default is natural')
-    parser.set_defaults(run="nref11c_nref9f")
-
-    parser.add_argument('--halo', metavar='halo', type=str, action='store', help='which halo? default is 8508 (Tempest)')
-    parser.set_defaults(halo=haloname)
-
-    parser.add_argument('--proj', metavar='proj', type=str, action='store', help='Which projection do you want to plot? Default is x')
-    parser.set_defaults(proj='x')
-
-    parser.add_argument('--output', metavar='output', type=str, action='store', help='which output? default is RD0020')
-    parser.set_defaults(output=RDname)
-
-    args = parser.parse_args()
-    return args
-
 # -------------make yt projection plot (adopted from foggie.satellites.for_paper.central_projection_plots) -----------
 def do_plot(ds, field, axs, annotate_positions, small_box, center, x_width, cmap, name, unit='Msun/pc**2', \
             zmin=density_proj_min, zmax=density_proj_max, ann_sphere_rad=(1, 'kpc'), weight_field=None):
