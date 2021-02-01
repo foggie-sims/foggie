@@ -6,40 +6,11 @@
     Notes :      Initial attempts to play around with FOGGIE outputs, make projection plots.
     Author:      Ayan Acharyya
     Started  :   January 2021
+    Example :    run projection_plot.py --system ayan_local --halo 8508 --output RD0042
 
 """
 from header import *
 from collections import defaultdict
-
-# ---------to parse keyword arguments----------
-def parse_args():
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='''identify satellites in FOGGIE simulations''')
-    parser.add_argument('--system', metavar='system', type=str, action='store', help='Which system are you on? Default is Jase')
-    parser.set_defaults(system='ayan_local')
-
-    parser.add_argument('--do', metavar='do', type=str, action='store', help='Which particles do you want to plot? Default is gas')
-    parser.set_defaults(do='gas')
-
-    parser.add_argument('--run', metavar='run', type=str, action='store', help='which run? default is natural')
-    parser.set_defaults(run="nref11c_nref9f")
-
-    parser.add_argument('--halo', metavar='halo', type=str, action='store', help='which halo? default is 8508 (Tempest)')
-    parser.set_defaults(halo='8508')
-
-    parser.add_argument('--proj', metavar='proj', type=str, action='store', help='Which projection do you want to plot? Default is x')
-    parser.set_defaults(proj='x')
-
-    parser.add_argument('--pwd', dest='pwd', action='store_true', help='just use the pwd?, default is no')
-    parser.set_defaults(pwd=False)
-
-    parser.add_argument('--run_all', dest='run_all', action='store_true', help='just use the pwd?, default is no')
-    parser.set_defaults(pwd=False)
-
-    parser.add_argument('--output', metavar='output', type=str, action='store', help='which output? default is RD0020')
-    parser.set_defaults(output='RD0042')
-
-    args = parser.parse_args()
-    return args
 
 # -------------make yt projection plot (adopted from foggie.satellites.for_paper.central_projection_plots) -----------
 def do_plot(ds, field, axs, annotate_positions, small_box, center, x_width, cmap, name, unit='Msun/pc**2', \
@@ -100,17 +71,20 @@ def make_projection_plots(ds, center, refine_box, x_width, fig_dir, haloname, na
 # -----main code-----------------
 if __name__ == '__main__':
 
-    args = parse_args()
-    ds, refine_box = load_sim(args, region='refine_box')
+    loop_over = [('8508', 'RD0042')]#, ('5036', 'RD0039'), ('5016', 'RD0042'), ('4123', 'RD0031'), ('2878', 'RD0020'), ('2392', 'RD0030')]
 
-    print('box center =', ds.refine_box_center, 'box width =', ds.refine_width * kpc)
+    for thisloop in loop_over:
+        args = parse_args(thisloop[0], thisloop[1])
+        ds, refine_box = load_sim(args, region='refine_box')
 
-    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
+        print('box center =', ds.refine_box_center, 'box width =', ds.refine_width * kpc)
 
-    prj = make_projection_plots(ds=refine_box.ds, center=ds.refine_box_center, \
-                                refine_box=refine_box, x_width=ds.refine_width * kpc, \
-                                fig_dir=output_dir, haloname=args.output, name=halo_dict[args.halo], \
-                                fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.proj.split(',')], is_central=True, add_arrow=False, add_velocity=False)
-    prj.show()
+        foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+        prj = make_projection_plots(ds=refine_box.ds, center=ds.refine_box_center, \
+                                    refine_box=refine_box, x_width=ds.refine_width * kpc, \
+                                    fig_dir=output_dir+'figs/', haloname=args.output, name=halo_dict[args.halo], \
+                                    fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.proj.split(',')], is_central=True, add_arrow=False, add_velocity=False)
+        prj.show()
     print('Completed')
