@@ -89,6 +89,14 @@ do_filter_particles - True or False, defaults to True. Decides if you want to lo
 find_halo_center - True or False, defaults to True. Decides if you want to find the halo center at all.
 region - 'refine_box' or 'cgm', defaults to 'refine_box'. Decides what part of the simulation data to
          return, along with returning ds.
+gravity - True or False, defaults to False. Specify this if you need any of the fields that depend
+          on the gravitational potential of the halo: free fall time, free fall velocity, ratio of
+          cooling time to free fall time, or hydrostatic equilibrium parameter (HSE). You'll also need
+          to specify the optional keyword masses_dir.
+masses_dir - string, path to directory where the masses_z-less-2.hdf5 and masses_z-gtr-2.hdf5 files
+             are for the specific halo/run you're loading. This directory should point to the
+             halo_infos folder in the FOGGIE repo, wherever that is on your local machine. You'll need
+             this only if you've specified the gravity optional keyword.
 
 foggie_load returns:
 ds - The yt dataset

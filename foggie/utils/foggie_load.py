@@ -55,7 +55,7 @@ def foggie_load(snap, trackfile, **kwargs):
     particle_type_for_angmom = kwargs.get('particle_type_for_angmom', 'young_stars')
     do_filter_particles = kwargs.get('do_filter_particles', True)
     region = kwargs.get('region', 'refine_box')
-    tff = kwargs.get('tff', False)
+    gravity = kwargs.get('gravity', False)
     masses_dir = kwargs.get('masses_dir', '')
 
     print ('Opening snapshot ' + snap)
@@ -215,7 +215,7 @@ def foggie_load(snap, trackfile, **kwargs):
         ds.add_field(('gas', 'tangential_kinetic_energy_disk'), function=tangential_kinetic_energy_diskrel, \
                      units='erg', take_log=True, force_override=True, sampling_type='cell')
 
-    if (tff):
+    if (gravity):
         # Interpolate enclosed mass function to get tff
         if (zsnap > 2.):
             masses = Table.read(masses_dir + 'masses_z-gtr-2.hdf5', path='all_data')
@@ -229,6 +229,11 @@ def foggie_load(snap, trackfile, **kwargs):
                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'tcool_tff'), function=tcool_tff_ratio, units=None, display_name='t_{cool}/t_{ff}', take_log=True, \
                     force_override=True, sampling_type='cell')
+        ds.add_field(('gas','grav_pot'), function=grav_pot, units='cm**2/s**2', force_override=True, sampling_type='cell', \
+                    display_name = 'Gravitational Potential')
+        grad_fields_grav = ds.add_gradient_fields(('gas','grav_pot'))
+        ds.add_field(('gas','HSE'), function=hse_ratio, units='', \
+                     display_name='HSE Parameter', force_override=True, sampling_type='cell')
 
     if (region=='refine_box'):
         region = refine_box
