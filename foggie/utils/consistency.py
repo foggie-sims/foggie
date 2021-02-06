@@ -1044,7 +1044,7 @@ default_spice_fields=['x', 'y', 'z', 'radius_corrected',
                       'radial_velocity_corrected', 'cell_mass',
                       'tangential_velocity_corrected', 'cell_volume',
                       'vx_corrected', 'vy_corrected', 'vz_corrected', 
-                      'cooling_time', 'pressure', 'entropy']
+                      'cooling_time', 'pressure', 'entropy', 'HSE']
 
 # lims to use in plots by AbsorberPlotter
 plotter_limits_dict = dict(velocity_los=[-600, 600],
