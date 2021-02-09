@@ -12,7 +12,7 @@ absorber_axis_labels = {'radius_corrected':'Radius [kpc]', 'b_effective':'effect
 
 ion_colors={'H I': '#888888', 'C II': '#440000', 'C III':'#990000', 'C IV':'#FF0000', 'Mg II':'#999900', 'Si II':'#000044', 'Si III':'#000099', 'Si IV':'#0000FF', 'O VI':'#00FF00'}
 
-def read_absorber_catalog(filename):
+def read_absorber_catalog(filename, format='astropy'):
     #read the table
     ab = Table.read(filename, format='ascii.basic')
     
@@ -55,7 +55,10 @@ def read_absorber_catalog(filename):
     for field in ['temperature', 'density', 'cooling_time', 'pressure', 'entropy']: 
         ab[field] = np.log10(ab[field]) 
 
-    return ab
+    if ('pandas' in format): 
+        return ab.to_pandas()
+    else: 
+        return ab
 
 def select_absorber_temperature(ab,T): 
     ab_t = ab[(ab['temperature'] > T[0]) & (ab['temperature'] < T[1])]
