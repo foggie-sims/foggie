@@ -277,7 +277,7 @@ def lookup_grid(paramlist, args):
                 coord = np.vstack([paramlist[quantity1a], paramlist[quantity2a], paramlist[quantity3a], paramlist[quantity4a]]).transpose()
 
                 # ---------compute fluxes by interpolating and scaling to star particle mass (MAPPINGS model mass for each star = 1000 Msun)---
-                for ind in range(len(linelist)): paramlist[linelist.loc[ind, 'label']] = (10**ifunc[ind](coord)) * paramlist['mass']/mmg.starparticle_mass
+                for ind in range(len(linelist)): paramlist[linelist.loc[ind, 'label']] = (10**ifunc[ind](coord)) * paramlist['mass']/mappings_starparticle_mass
 
                 # ---to discard outliers that are beyond the parameters used to calibrate the diagnostic---
                 if args.nooutliers and diag == 'D16':
@@ -335,7 +335,10 @@ if __name__ == '__main__':
     args = parse_args('8508', 'RD0042')
     foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     #mappings_grid_file = 'totalspec' + mmg.outtag + '.txt'  # name of MAPPINGS grid file to be used
-    mappings_grid_file = 'totalspec_sph_logT4.0_MADtemp_ion_lum_from_age_Z0.05,2.0_age0.0,5.0_lnII6.0,11.0_lU-4.0,-1.0_4D.txt' # this is ONLY for testing, until the above ACTUAL model finishes running
+    #mappings_starparticle_mass = mmg.starparticle_mass
+    # the following is ONLY for testing, until the above ACTUAL model finishes running
+    mappings_grid_file = 'totalspec_sph_logT4.0_MADtemp_ion_lum_from_age_Z0.05,2.0_age0.0,5.0_lnII6.0,11.0_lU-4.0,-1.0_4D.txt'
+    mappings_starparticle_mass = 300.
 
     infilename = output_dir + 'txtfiles/' + args.output + '_radius_list' + args.mergeHII_text + '.txt'
     paramlist = pd.read_table(infilename, delim_whitespace=True, comment='#') # reading in the list of HII region parameters
