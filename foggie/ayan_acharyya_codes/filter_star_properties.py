@@ -4,8 +4,9 @@
 
     Title :      filter_star_properties
     Notes :      To extract physial properties of young (< 10Myr) stars e.g., position, velocity, mass etc. and output to an ASCII file
-    Author:      Ayan Acharyya
-    Started  :   January 2021
+    Output :     One pandas dataframe as a txt file
+    Author :     Ayan Acharyya
+    Started :    January 2021
     Example :    run filter_star_properties.py --system ayan_local --halo 8508 --output RD0042
 
 """
