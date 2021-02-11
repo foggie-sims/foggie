@@ -111,13 +111,13 @@ def calcprint(i, Z, age, lognII, logU, table=False):
     U = 10 ** logU
     lQ0 = SB99_logQ[np.where(SB99_age == age * 10 ** 6)[0][0]] + np.log10(mappings_starparticle_mass) - np.log10(sb99_mass)  # taking logQ of each gridpoint from the
     # corresponding age  in the SB99 quanta file and
-    # then scaling 1M Msun to 300 Msun
-    Om = op.fminbound(solve_for_Om, 0., 1e5, args=(nII, U, lQ0))
+    # then scaling sb99_mass (1e6 Msun) to mappings_starparticle_mass (1e3 Msun)
+    Om = op.fminbound(solve_for_Om, 0., 1e5, args=(nII, U, lQ0)) # Omega of HII region, determines volume ratio of wind cavity to ionised shell (see Acharyya+2019b)
     lpok = lognII + ltemp - 6.  # MAPPINGS needs p/k in cgs units, hence -6
-    Rs = (3 * (10 ** lQ0) / (4 * np.pi * alpha_B * nII ** 2)) ** (1 / 3.)
-    r_i = Rs * (Om ** (1 / 3.))
-    r_m = Rs * ((1 + Om) ** (1 / 3.))
-    lUin = np.log10((10 ** lQ0) / (4 * np.pi * r_i ** 2 * nII * c))
+    Rs = (3 * (10 ** lQ0) / (4 * np.pi * alpha_B * nII ** 2)) ** (1 / 3.) # Stromgen radius
+    r_i = Rs * (Om ** (1 / 3.)) # inner radius of ionised shell
+    r_m = Rs * ((1 + Om) ** (1 / 3.)) # outer radius of ionises shell
+    lUin = np.log10((10 ** lQ0) / (4 * np.pi * r_i ** 2 * nII * c)) # (log) ionisation parameter at innermost edge of shell, this is required for input to MAPPINGS
     if not table:
         return lpok, lUin, lQ0, (str(i) + '\t' + str('%.2F' % Z) + '\t' + str(format(age * 10 ** 6, '0.0e')) + '\t' + str(
             format(nII, '0.0e')) + '\t' + str(format(U, '0.0e')) + \
