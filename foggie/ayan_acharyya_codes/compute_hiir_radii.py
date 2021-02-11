@@ -3,9 +3,10 @@
 """"
 
     Title :      compute_hiir_radii
-    Notes :      To compute the instantaneous radii of HII regions around young star particles (and output to an ASCII file) using subgrid dynamical HII modeling; based on Verdolini+2013
-    Author:      Ayan Acharyya
-    Started  :   January 2021
+    Notes :      To compute the instantaneous radii of HII regions around young star particles using subgrid dynamical HII modeling; based on Verdolini+2013
+    Output :     One pandas dataframe as a txt file
+    Author :     Ayan Acharyya
+    Started :    January 2021
     Example :    run <scriptname>.py --system ayan_local --halo 8508 --output RD0042
 
 """
@@ -19,12 +20,12 @@ def merge_HIIregions(df, args):
     weightcol = 'Q_H0'
     initial_nh2r = len(df)
 
-    g = int(np.ceil(args.galrad / args.mergeHII))
+    g = int(np.ceil(args.galrad * 2 / args.mergeHII))
     gz = int(np.ceil(args.galthick / args.mergeHII))
 
-    xind = ((df['pos_x'] - args.galcenter[0] + args.galrad/2.) / args.mergeHII).astype(np.int) # (df['x(kpc)'][j] - args.galcenter[0]) used to range from (-galrad/2, galrad/2) kpc, which is changed here to (0, galrad) kpc
-    yind = ((df['pos_y'] - args.galcenter[1] + args.galrad/2.) / args.mergeHII).astype(np.int)
-    zind = ((df['pos_z'] - args.galcenter[2] + args.galthick/2.) / args.mergeHII).astype(np.int)
+    xind = ((df['pos_x'] - args.galcenter[0] + args.galrad) / args.mergeHII).astype(np.int) # (df['x(kpc)'][j] - args.galcenter[0]) used to range from (-galrad, galrad) kpc, which is changed here to (0, galrad*2) kpc
+    yind = ((df['pos_y'] - args.galcenter[1] + args.galrad) / args.mergeHII).astype(np.int)
+    zind = ((df['pos_z'] - args.galcenter[2] + args.galthick / 2) / args.mergeHII).astype(np.int)
     df[groupbycol] = xind + yind * g + zind * g * gz
 
     if 'Sl.' in df.columns: df.drop(['Sl.'], axis=1, inplace=True)
@@ -98,11 +99,8 @@ def Flog(x, a, b, c):
 # -----------------function to handle input/outut dataframe of list of parameters------------------------
 def get_radii_for_df(paramlist, args):
     start_time = time.time()
-    if args.mergeHII is not None: args.mergeHII = float(args.mergeHII) # kpc, within which if two HII regions are they'll be treated as merged
-
     # -----------------------------------------------------------------------------------
-    mergeHII_text = '_mergeHII=' + str(args.mergeHII) + 'kpc' if args.mergeHII is not None else ''
-    outfilename = output_dir + 'txtfiles/' + args.output + '_radius_list' + mergeHII_text + '.txt'
+    outfilename = output_dir + 'txtfiles/' + args.output + '_radius_list' + args.mergeHII_text + '.txt'
 
     # ----------------------Creating new radius list file if one doesn't exist-------------------------------------------
     if not os.path.exists(outfilename) or args.clobber:
@@ -110,14 +108,14 @@ def get_radii_for_df(paramlist, args):
         elif args.clobber: print(outfilename + ' exists but over-writing..')
 
         # ----------------------Reading starburst99 file-------------------------------------------
-        SB_data = pd.read_table(SBfilepath+ SBmodel + '/' + SBmodel + '.quanta', delim_whitespace=True,comment='#', skiprows=6, \
+        SB_data = pd.read_table(sb99_dir + sb99_model + '/' + sb99_model + '.quanta', delim_whitespace=True,comment='#', skiprows=6, \
                                 header=None, names=('age', 'HI/sec', 'HI%ofL', 'HeI/sec', 'HeI%ofL', 'HeII/sec', 'HeII%ofL', 'logQ'))
         SB_data.loc[0, 'age'] = 1e-6 # Myr # force first i.e. minimum age to be 1 yr instead of 0 yr to avoid math error
         interp_func = interp1d(np.log10(SB_data['age']/1e6), SB_data['HI/sec'], kind='cubic')
 
         nh2r_initial = len(paramlist)
-        paramlist = paramlist[['pos_x', 'pos_y', 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'age', 'mass', 'gas_pressure']] # only need these columns henceforth
-        paramlist['Q_H0'] = paramlist['mass'] * 10 ** (interp_func(np.log10(paramlist['age'])) - 6) # '6' bcz starburst was run for mass of 1M Msun
+        paramlist = paramlist[['pos_x', 'pos_y', 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'age', 'mass', 'gas_pressure', 'gas_metal']] # only need these columns henceforth
+        paramlist['Q_H0'] = (paramlist['mass']/sb99_mass) * 10 ** (interp_func(np.log10(paramlist['age']))) # scaling by starburst99 model mass
         paramlist['gas_pressure'] /= 10 # to convert from dyne/cm^2 to N/m^2
         if args.mergeHII is not None: paramlist = merge_HIIregions(paramlist, args)
 
@@ -138,7 +136,8 @@ def get_radii_for_df(paramlist, args):
         r: assigned HII region radius, pc \n\
         <U>: volumne averaged ionsation parameter, dimensionless \n\
         nII: HII region number density per m^3\n\
-        log(P/k): HII region pressure, SI units\n'
+        log(P/k): HII region pressure, SI units\n\
+        Z: metallicity of ambient gas, Zsun units\n'
 
         np.savetxt(outfilename, [], header=header, comments='#')
         paramlist.to_csv(outfilename, sep='\t', mode='a', index=None)
@@ -168,10 +167,6 @@ alpha_B = 2.59e-19  # m^3/s OR 2.59e-13 cc/s, for Te = 1e4 K, referee quoted thi
 k_B = 1.38e-23  # m^2kg/s^2/K
 TII = 1e4 # K, because MAPPINGS models are computed at this temperature
 G = 6.67e-11  # Nm^2/kg^2
-
-# -------------------variables pertaining to Starburst99 models---------------------------------------------------
-SBmodel = 'starburst11'  # for fixed stellar mass input spectra = 1e6 Msun, run up to 10 Myr
-SBfilepath = HOME + '/SB99-v8-02/output/'
 
 # -------------------variables pertaining to simulation ouputs---------------------------------------------------
 ng = 350 # number of grid points to break the simulation in to, in each of x and y dimensions
