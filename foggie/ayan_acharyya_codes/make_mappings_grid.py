@@ -30,8 +30,8 @@ def num(s):
 
 # ------------function to read pre-defined line list-----------------------------
 def read_linelist(linelistfile):
-    lines_to_pick = pd.read_table(linelistfile, comment='#', delim_whitespace=True, skiprows=3, names=('wave', 'label', 'wave_vacuum'))
-    lines_to_pick = lines_to_pick.sort_values(by=('wave')).reset_index(drop=True)
+    lines_to_pick = pd.read_table(linelistfile, comment='#', delim_whitespace=True, skiprows=3, names=('wave_vacuum', 'label', 'wave_air'))
+    lines_to_pick = lines_to_pick.sort_values(by=('wave_vacuum')).reset_index(drop=True)
     return lines_to_pick
 
 # ----------------function to collate the recently produced model grid and write as one txt file----------------------------------------
@@ -50,22 +50,19 @@ def collate_grid(lines_to_pick, outtag):
             for lognII in lognII_arr:
                 for logU in logU_arr:
                     i += 1
-                    Z1, ag1, nII1, U1, lQ01, Om1, lpok1, R_s1, r_i1, r_m1, lqin1 = calcprint(i, Z, age, lognII, logU,
-                                                                                               table=True)
+                    Z1, ag1, nII1, U1, lQ01, Om1, lpok1, R_s1, r_i1, r_m1, lqin1 = calcprint(i, Z, age, lognII, logU, table=True)
                     lpok.append(lpok1), R_s.append(R_s1), r_i.append(r_i1), r_m.append(r_m1), lqin.append(lqin1), \
-                    ind.append(i), ag.append(ag1), nII.append(nII1), U.append(U1), lQ0.append(lQ01), Om.append(
-                        Om1), ZZ.append(Z1)
+                    ind.append(i), ag.append(ag1), nII.append(nII1), U.append(U1), lQ0.append(lQ01), Om.append(Om1), ZZ.append(Z1)
                     fname = mappings_lab_dir + 'results' + outtag + '/spec' + str(i) + '.csv'
                     fin = open(fname, 'r')
                     lines = fin.readlines()
                     em1 = []
-                    hb_line_ind = int(
-                        subprocess.check_output(['grep -nF  "H-beta" ' + fname], shell=True).split()[0][:-1]) - 1
+                    hb_line_ind = int(subprocess.check_output(['grep -nF  "H-beta" ' + fname], shell=True).split()[0][:-1]) - 1
                     hb = float(num(lines[hb_line_ind].split()[4]))
-                    for j in lines_to_pick['wave']:
+                    for j in lines_to_pick['wave_air'].round(3).astype(str): # since MAPPINGS models output in air wavelengths
                         flag = 0
                         for line in lines:
-                            if str(j) in line:
+                            if j in line:
                                 em1.append(float(num(line.split()[2])) * hb)
                                 flag = 1
                                 break
@@ -80,8 +77,10 @@ def collate_grid(lines_to_pick, outtag):
     outar = np.row_stack((ind, ZZ, ag, nII, U, lQ0, Om, lpok, R_s, r_i, r_m, lqin, em))
     np.savetxt(fout, np.transpose(outar), "%d  %.2F  %.0E  %.0E  %.0E  %.3F  %.1E  %.3F  %.1E  %.1E  %.1E  %.3F" + " %.2E" * len(lines_to_pick), header=head, comments='')
     fout.close()
-
     print ('Saved model grid as', gridfilename)
+
+    photgrid = pd.read_table(gridfilename, comment='#', delim_whitespace=True)
+    return photgrid
 
 # --------------------------------------------------------
 def getset(i):
@@ -231,6 +230,6 @@ if __name__ == '__main__':
 
     # ------------collating the output grid into one txt file-----------------------------------------
     lines_to_pick = read_linelist(mappings_lab_dir + 'targetlines.txt')
-    collate_grid(lines_to_pick, outtag)
+    photgrid = collate_grid(lines_to_pick, outtag)
     # -----------------------------------------------------
     print('Done in %s minutes' % ((time.time() - start_time)/60))
