@@ -4,8 +4,9 @@
 
     Title :      projection_plot
     Notes :      Initial attempts to play around with FOGGIE outputs, make projection plots.
-    Author:      Ayan Acharyya
-    Started  :   January 2021
+    Output :     projection plots as png files
+    Author :     Ayan Acharyya
+    Started :    January 2021
     Example :    run projection_plot.py --system ayan_local --halo 8508 --output RD0042
 
 """
