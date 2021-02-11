@@ -276,8 +276,8 @@ def lookup_grid(paramlist, args):
                 paramlist['r_Strom'] /= 3.06e16  # convert to pc from m
                 coord = np.vstack([paramlist[quantity1a], paramlist[quantity2a], paramlist[quantity3a], paramlist[quantity4a]]).transpose()
 
-                # ---------compute fluxes by interpolating and scaling to star particle mass (MAPPINGS model mass for each star = 300 Msun)---
-                for ind in range(len(linelist)): paramlist[linelist.loc[ind, 'label']] = (10**ifunc[ind](coord)) * paramlist['mass']/300.
+                # ---------compute fluxes by interpolating and scaling to star particle mass (MAPPINGS model mass for each star = 1000 Msun)---
+                for ind in range(len(linelist)): paramlist[linelist.loc[ind, 'label']] = (10**ifunc[ind](coord)) * paramlist['mass']/mmg.starparticle_mass
 
                 # ---to discard outliers that are beyond the parameters used to calibrate the diagnostic---
                 if args.nooutliers and diag == 'D16':
