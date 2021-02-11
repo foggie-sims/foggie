@@ -421,3 +421,23 @@ def cell_mass_msun(field, data):
     """Returns the cell mass in units of Msun rather than the default of grams."""
 
     return data['cell_mass'].in_units('Msun')
+
+def grav_pot(field, data):
+    Menc = data.ds.Menc_profile(data['radius_corrected'])*Msun
+    return G*Menc/data['radius_corrected']
+
+def hse_ratio(field, data):
+    center = data.ds.halo_center_kpc
+    x_hat = data["x"].in_units('kpc') - center[0]
+    y_hat = data["y"].in_units('kpc') - center[1]
+    z_hat = data["z"].in_units('kpc') - center[2]
+    r = np.sqrt(x_hat*x_hat+y_hat*y_hat+z_hat*z_hat)
+    gx = -data["density"] * data["grav_pot_gradient_x"]
+    gy = -data["density"] * data["grav_pot_gradient_y"]
+    gz = -data["density"] * data["grav_pot_gradient_z"]
+    x_hat /= r
+    y_hat /= r
+    z_hat /= r
+    gr = gx*x_hat + gy*y_hat + gz*z_hat
+    pr = data['pressure_gradient_x']*x_hat + data['pressure_gradient_y']*y_hat + data['pressure_gradient_z']*z_hat
+    return np.sqrt(pr**2./gr**2.)
