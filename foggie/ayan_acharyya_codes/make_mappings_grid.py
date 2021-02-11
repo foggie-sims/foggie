@@ -35,14 +35,12 @@ def read_linelist(linelistfile):
     return lines_to_pick
 
 # ----------------function to collate the recently produced model grid and write as one txt file----------------------------------------
-def collate_grid(lines_to_pick):
-    wavelengths_to_pick = lines_to_pick['wave']
-
-    gridfilename = mappings_lab_dir + mappings_grid_file
+def collate_grid(lines_to_pick, outtag):
+    gridfilename = mappings_lab_dir + 'totalspec' + outtag + '.txt'
     fout = open(gridfilename, 'w')
 
     head = 'GN Z age nII <U> logQ0   Om  lpok    Rs(pc)  r_i(pc) r_m(pc) lqin'
-    for n in lines_to_pick[:, 1]: head += '  ' + n
+    for n in lines_to_pick['label']: head += '  ' + n
 
     i = 0
     ind, ag, nII, U, lQ0, Om, lpok, R_s, r_i, r_m, lqin, em, ZZ = [], [], [], [], [], [], [], [], [], [], [], [], []
@@ -64,7 +62,7 @@ def collate_grid(lines_to_pick):
                     hb_line_ind = int(
                         subprocess.check_output(['grep -nF  "H-beta" ' + fname], shell=True).split()[0][:-1]) - 1
                     hb = float(num(lines[hb_line_ind].split()[4]))
-                    for j in wavelengths_to_pick:
+                    for j in lines_to_pick['wave']:
                         flag = 0
                         for line in lines:
                             if str(j) in line:
@@ -80,9 +78,7 @@ def collate_grid(lines_to_pick):
                     fin.close()
     em = np.transpose(np.array(em))
     outar = np.row_stack((ind, ZZ, ag, nII, U, lQ0, Om, lpok, R_s, r_i, r_m, lqin, em))
-    np.savetxt(fout, np.transpose([outar]),
-               "%d  %.2F  %.0E  %.0E  %.0E  %.3F  %.1E  %.3F  %.1E  %.1E  %.1E  %.3F" + " %.2E" * len(
-                   wavelengths_to_pick), header=head, comments='')
+    np.savetxt(fout, np.transpose(outar), "%d  %.2F  %.0E  %.0E  %.0E  %.3F  %.1E  %.3F  %.1E  %.1E  %.1E  %.3F" + " %.2E" * len(lines_to_pick), header=head, comments='')
     fout.close()
 
     print ('Saved model grid as', gridfilename)
@@ -114,7 +110,7 @@ def calcprint(i, Z, age, lognII, logU, table=False):
     global alpha_B, c, ltemp, lQ0
     nII = 10 ** lognII
     U = 10 ** logU
-    lQ0 = SB99_logQ[np.where(SB99_age == age * 10 ** 6)[0][0]] + np.log10(starparticle_mass) - np.log10(sb99_mass)  # taking logQ of each gridpoint from the
+    lQ0 = SB99_logQ[np.where(SB99_age == age * 10 ** 6)[0][0]] + np.log10(mappings_starparticle_mass) - np.log10(sb99_mass)  # taking logQ of each gridpoint from the
     # corresponding age  in the SB99 quanta file and
     # then scaling 1M Msun to 300 Msun
     Om = op.fminbound(solve_for_Om, 0., 1e5, args=(nII, U, lQ0))
@@ -177,7 +173,7 @@ global i, alpha_B, c, ltemp, outtag
 alpha_B = 2.59e-19  # m^3/s OR 2.59e-13 cc/s, for Te = 1e4 K, referee quoted this values
 ltemp = 4.  # assumed 1e4 K temp; for what? for the initial guess??
 c = 3e8  # m/s
-starparticle_mass = 1000. # Msun, mass to scale the output SB99 luminosity to; 1000 Msun because median mass for FOGGIE star particles ~ 1000 Msun
+mappings_starparticle_mass = 1000. # Msun, mass to scale the output SB99 luminosity to; 1000 Msun because median mass for FOGGIE star particles ~ 1000 Msun
 
 i_start = 0 # set to non-zero in case some of the model grid is already computed
 i_end = 1e10 # set to some crazy high value to let the code run through till the end of the grid
@@ -198,15 +194,20 @@ Z_arr = np.array([0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0])  # in Zsun units; metalli
 age_arr = np.linspace(0., 10., 11)  # in Myr
 lognII_arr = np.linspace(6., 11., 6)  # nII in particles/m^3 # so that log(P/k) is from 4 to 9 (assuming T=1e4 K)
 logU_arr = np.linspace(-4., -1., 4)  # dimensionless
-outtag = '_sph_logT' + str(ltemp) + '_mass' + str(starparticle_mass) + '_MADtemp_ion_lum_from_age' + '_Z' + str(np.min(Z_arr)) + ',' + str(np.max(Z_arr)) + '_age' + str(
+
+# ------------declaring filenames--------------------------------------------
+outtag = '_sph_logT' + str(ltemp) + '_mass' + str(mappings_starparticle_mass) + '_MADtemp_ion_lum_from_age' + '_Z' + str(np.min(Z_arr)) + ',' + str(np.max(Z_arr)) + '_age' + str(
     np.min(age_arr)) + ',' + str(np.max(age_arr)) + '_lnII' + str(np.min(lognII_arr)) + ',' + str(
     np.max(lognII_arr)) + '_lU' + str(np.min(logU_arr)) + ',' + str(logU_arr[-1]) + '_4D' # string to be used in file/folder names
 
+# ------------main function--------------------------------------------
 if __name__ == '__main__':
     cpu = int(sys.argv[1]) if len(sys.argv) > 1 else int(mproc.cpu_count() / 2)
-    # --------------------------------------------------------
+
+    c# --------------------------------------------------------
     subprocess.call(['mkdir -p ' + mappings_lab_dir + 'results' + outtag], shell=True)
     subprocess.call(['cp make_mappings_grid.py ' + mappings_lab_dir + 'results' + outtag + '/USED_make_mappings_grid.py'], shell=True)
+
     # ---------------------Parallelised loop--------------------------------------------
     parallel = True
     print('Running in parallel using', cpu, 'cores.')
@@ -230,6 +231,6 @@ if __name__ == '__main__':
 
     # ------------collating the output grid into one txt file-----------------------------------------
     lines_to_pick = read_linelist(mappings_lab_dir + 'targetlines.txt')
-    collate_grid(lines_to_pick)
+    collate_grid(lines_to_pick, outtag)
     # -----------------------------------------------------
     print('Done in %s minutes' % ((time.time() - start_time)/60))
