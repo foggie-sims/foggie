@@ -1,6 +1,6 @@
 ##!/usr/bin/env python3
 
-""""
+"""
 
     Title :      make_mappings_grid.py
     Notes :      To compute 4D MAPPINGS grid of age-nII(density)-<U> (volume avergaed ionisation parameter)-metallicity, in parallel using multiple cores

@@ -1,6 +1,6 @@
 ##!/usr/bin/env python3
 
-""""
+"""
 
     Title :      filter_star_properties
     Notes :      To extract physial properties of young (< 10Myr) stars e.g., position, velocity, mass etc. and output to an ASCII file

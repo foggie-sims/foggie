@@ -1,6 +1,6 @@
 ##!/usr/bin/env python3
 
-""""
+"""
 
     Title :      projection_plot
     Notes :      Initial attempts to play around with FOGGIE outputs, make projection plots.
