@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-""""
+"""
 
     Title :      header
     Notes :      Header file for importing packages/modulesand parsing args required for working with FOGGIE code.
@@ -80,7 +80,7 @@ def parse_args(haloname, RDname):
     parser.add_argument('--galthick', metavar='galthick', type=float, action='store', help='thickness of stellar disk, in kpc; default is 0.3 kpc')
     parser.set_defaults(galthick=0.3)
 
-    parser.add_argument('--mergeHII', metavar='mergeHII', type=str, action='store', help='separation btwn HII regions below which to merge them, in kpc; default is None i.e., do not merge')
+    parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', help='separation btwn HII regions below which to merge them, in kpc; default is None i.e., do not merge')
     parser.set_defaults(mergeHII=None)
 
     parser.add_argument('--galcenter', metavar='galcenter', type=str, action='store', help='1x3 array to store the center of the simulation box, in kpc; default is that of Tempest')

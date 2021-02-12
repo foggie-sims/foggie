@@ -1,6 +1,6 @@
 ##!/usr/bin/env python3
 
-""""
+"""
 
     Title :      compute_hiir_radii
     Notes :      To compute the instantaneous radii of HII regions around young star particles using subgrid dynamical HII modeling; based on Verdolini+2013
@@ -12,9 +12,9 @@
 """
 from header import *
 
-# ---------------function for merging HII regions within args.mergeHII kpc distance -------------------------------------------------
+# ---------------function for merging HII regions within args.mergeHII kpc distance; weighted by weightcol-------------------------------------------------
 def merge_HIIregions(df, args):
-    # Columns of table are 'pos_x', 'pos_y', 'pos_z', 'vel_z', 'age', 'mass', 'gas_press', 'Q_H0'
+    # Columns of table are 'pos_x', 'pos_y', 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'age', 'mass', 'gas_pressure', 'gas_metal', 'Q_H0'
     print('Merging HII regions within '+ str(args.mergeHII * 1e3) + ' pc. May take 10-20 seconds...')
     groupbycol = 'cell_index'
     weightcol = 'Q_H0'
@@ -29,14 +29,16 @@ def merge_HIIregions(df, args):
     df[groupbycol] = xind + yind * g + zind * g * gz
 
     if 'Sl.' in df.columns: df.drop(['Sl.'], axis=1, inplace=True)
-    weighted_mean = lambda x: np.average(x, weights=df.loc[x.index, weightcol]) # function to weight by mass
-    cols_to_sum = [weightcol] + ['mass']
-    cols_to_wtmean = df.columns[~df.columns.isin([groupbycol] + cols_to_sum)]
+    weighted_mean = lambda x: np.average(x, weights=df.loc[x.index, weightcol]) # function to weight by weightcol
+    cols_to_sum = [weightcol] + ['mass'] # which columns should be summed after merging?
+    cols_to_wtmean = df.columns[~df.columns.isin([groupbycol] + cols_to_sum)] # which columns should be weighted mean after merging
 
-    df = df.groupby([groupbycol], as_index=False).agg(dict({weightcol: {'': sum, 'count': 'count'}}.items() + {'mass': {'': sum}}.items() \
-        + {item:{'':weighted_mean} for item in cols_to_wtmean}.items())).drop([groupbycol], axis=1).reset_index(drop=True)
-    df.columns = [''.join(x) for x in df.columns.ravel()]
-    df.rename(columns={weightcol + 'count':'count'}, inplace=True)
+    sum_operations = {item:sum for item in cols_to_sum}
+    weighted_mean_operations = {item:weighted_mean for item in cols_to_wtmean}
+    all_operations = {**sum_operations, **weighted_mean_operations, **{groupbycol:'count'}}
+
+    df = df.groupby(groupbycol, as_index=False).agg(all_operations)
+    df.rename(columns={groupbycol:'count'}, inplace=True)
 
     print('Merged', initial_nh2r, 'HII regions into', len(df), 'HII regions\n')
     return df
