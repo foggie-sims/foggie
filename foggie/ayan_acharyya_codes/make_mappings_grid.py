@@ -13,29 +13,45 @@
 from header import *
 start_time = time.time()
 
-# -----------function to check if float------------------------------
+# -------------------------------------------------------------------------
 def isfloat(str):
+    '''
+    Function to check if input is float
+    '''
+
     try:
         float(str)
     except ValueError:
         return False
     return True
 
-# ------------function to check if number-----------------------------------
+# -------------------------------------------------------------------------------
 def num(s):
+    '''
+    Function to check if input is a number
+    '''
+
     if s[-1].isdigit():
         return str(format(float(s), '0.2e'))
     else:
         return str(format(float(s[:-1]), '0.2e'))
 
-# ------------function to read pre-defined line list-----------------------------
+# -------------------------------------------------------------------------
 def read_linelist(linelistfile):
+    '''
+    Function to read pre-defined line list
+    '''
+
     lines_to_pick = pd.read_table(linelistfile, comment='#', delim_whitespace=True, skiprows=3, names=('wave_vacuum', 'label', 'wave_air'))
     lines_to_pick = lines_to_pick.sort_values(by=('wave_vacuum')).reset_index(drop=True)
     return lines_to_pick
 
-# ----------------function to collate the recently produced model grid and write as one txt file----------------------------------------
+# ----------------------------------------------------------------------------------------
 def collate_grid(lines_to_pick, outtag):
+    '''
+    Function to collate the recently produced model grid and write as one txt file
+    '''
+
     gridfilename = mappings_lab_dir + 'totalspec' + outtag + '.txt'
     fout = open(gridfilename, 'w')
 
@@ -84,6 +100,10 @@ def collate_grid(lines_to_pick, outtag):
 
 # --------------------------------------------------------
 def getset(i):
+    '''
+    Function to setup the working directory for running each MAPPINGS model
+    '''
+
     os.chdir(mappings_lab_dir + '')
     subprocess.call(['mkdir -p child' + str(i)], shell=True)
     os.chdir('child' + str(i))
@@ -96,16 +116,28 @@ def getset(i):
 
 # --------------------------------------------------------
 def func(nII, lQ0):
+    '''
+    Function used to solve for Omega
+    '''
+
     global alpha_B, c, ltemp
     return ((81. * nII * (10 ** lQ0) * alpha_B ** 2 / (256. * np.pi * c ** 3)) ** (1 / 3.)) # Acharyya+2019a
 
 # --------------------------------------------------------
 def solve_for_Om(Om, nII, U, lQ0):
+    '''
+    Function to solve for Omega
+    '''
+
     global alpha_B, c, ltemp
     return (np.abs(func(nII, lQ0) * ((1 + Om) ** (4 / 3.) - (4. / 3. + Om) * Om ** (1 / 3.)) - U)) # Acharyya+2019a
 
-# -----------calculate quantities to print on screen---------------------------------------------
+# --------------------------------------------------------
 def calcprint(i, Z, age, lognII, logU, table=False):
+    '''
+    Function to calculate quantities to print on screen, or save in table
+    '''
+
     global alpha_B, c, ltemp, lQ0
     nII = 10 ** lognII
     U = 10 ** logU
@@ -129,8 +161,12 @@ def calcprint(i, Z, age, lognII, logU, table=False):
     else:
         return Z, age * 10 ** 6, nII, U, lQ0, Om, lpok, Rs / 3.086e16, r_i / 3.086e16, r_m / 3.086e16, lUin
 
-# -------------compute MAPPINGS model for a single grid point-------------------------------------------
+# -------------------------------------------------------------------------------
 def rungridpoint(i, Z, age, lognII, logU, parallel, clobber=False):
+    '''
+    Function to compute MAPPINGS model for a single grid point
+    '''
+
     start_time2 = time.time()
     global alpha_B, c, ltemp, outtag
     if not clobber and os.path.exists(mappings_lab_dir + 'results' + outtag + '/spec' + str(i) + '.csv'):

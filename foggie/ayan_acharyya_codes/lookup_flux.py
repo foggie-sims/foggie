@@ -14,63 +14,103 @@ from header import *
 import make_mappings_grid as mmg
 reload(mmg)
 
-# -------------function to find element in array nearest to a given value---------------------
+# ------------------------------------------------------------------------------------------------------------------
 def find_nearest(array, value):
+    '''
+    Function to find element in array nearest to a given value
+    '''
+
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return array[idx]
 
-# -------------function to derive Omega for each HII region, given its galactocentric diatance---------------------
+# ---------------------------------------------------------------------------------------------
 def getOmega(radius, scale_length = 4.):
-    # there are 11 uniformly spaced points in log-scale, from Om=0.05 to )m = 5.0, both inclusive,
-    # to account for radially varying Omega from 5 at r=0 to 0.05 at r > 2R_e
-    # log Omega = max[log(5) - r/R_e, log(0.05)]
-    # Hence, Omega = 5 at r = 0, Omega = 0.5 at r = R_e, and Omega = 0.05 at r >= 2 R_e
+    '''
+    Function to derive Omega for each HII region, given its galactocentric diatance
+    There are 11 uniformly spaced points in log-scale, from Om=0.05 to )m = 5.0, both inclusive,
+    to account for radially varying Omega from 5 at r=0 to 0.05 at r > 2R_e
+    log Omega = max[log(5) - r/R_e, log(0.05)].
+    Hence, Omega = 5 at r = 0, Omega = 0.5 at r = R_e, and Omega = 0.05 at r >= 2 R_e
+    '''
+
     Omega = 10**(np.max([np.log10(5) - radius/scale_length, np.log10(0.05)])) # radius and scale_length in kpc
     return Omega
 
 # --------------------------------------------------------
 def calc_n2(Om, r, Q_H0):
+    '''
+    Function to calculate HII region density
+    '''
+
     return (np.sqrt(3 * Q_H0 * (1 + Om) / (4 * np.pi * mmg.alpha_B * r ** 3)))
 
 # -----------------------------------------------
 def calc_U(Om, nII, Q_H0):
+    '''
+    Function to calculate volume averaged ionisation parameter
+    '''
+
     return mmg.func(nII, np.log10(Q_H0)) * ((1 + Om) ** (4 / 3.) - (4. / 3. + Om) * (Om ** (1 / 3.)))
 
-# ---------function to paint metallicity gradient-----------------------------------------------
+# --------------------------------------------------------
 def calc_Z(r, logOHcen, logOHgrad, logOHsun):
+    '''
+    Function to "paint" metallicity gradient
+    '''
+
     Z = 10 ** (logOHcen - logOHsun + logOHgrad * r)  # assuming central met logOHcen and gradient logOHgrad dex/kpc, logOHsun = 8.77 (Dopita 16)
     return Z
 
-# -------------function to delete a certain HII region from all lists--------------------------
+# ----------------------------------------------------------
 def remove_star(indices, list_of_var):
+    '''
+    Function to delete a certain HII region from all lists
+    '''
+
     new_list_of_var = []
     for list in list_of_var:
         list = np.delete(list, indices, 0)
         new_list_of_var.append(list)
     return new_list_of_var
 
-# -------------function to use KD02 R23 diagnostic for the upper Z branch--------------------------
+# -----------------------------------------------------------------
 def poly(x, R, k):
+    '''
+    Function to use KD02 R23 diagnostic for the upper Z branch
+    '''
+
     return np.abs(np.poly1d(k)(x) - np.log10(R))
 
 
-# ------------function to compute KD02 metallicity-----------------------------------
+# --------------------------------------------------------------------------
 def get_KD02_metallicity(photgrid):
+    '''
+    Function to compute KD02 metallicity
+    '''
+
     log_ratio = np.log10(np.divide(photgrid['NII6584'], (photgrid['OII3727'] + photgrid['OII3729'])))
     logOH = 1.54020 + 1.26602 * log_ratio + 0.167977 * log_ratio ** 2
     Z = 10 ** logOH  # converting to Z (in units of Z_sol) from log(O/H) + 12
     return Z
 
-# ------------function to compute D16 metallicity-----------------------------------
+# ---------------------------------------------------------------------------------
 def get_D16_metallicity(photgrid):
+    '''
+    Function to compute D16 metallicity
+    '''
+
     log_ratio = np.log10(np.divide(photgrid['NII6584'], (photgrid['SII6730'] + photgrid['SII6717']))) + 0.264 * np.log10(np.divide(photgrid['NII6584'], photgrid['H6562']))
     logOH = log_ratio + 0.45 * (log_ratio + 0.3) ** 5  # + 8.77
     Z = 10 ** logOH  # converting to Z (in units of Z_sol) from log(O/H) + 12
     return Z
 
-# -------------function to read in photoionisation model grid------------------
+# ------------------------------------------------------------------------
 def read_photoionisation_grid(gridfilename):
+    '''
+    Function to read in photoionisation model grid
+    '''
+
     photgrid = pd.read_table(gridfilename, comment='#', delim_whitespace=True)
     if photgrid['age'].max() > 100.: photgrid['age'] /= 1e6 # convert age to units of Myr if already not so; if it is already in units of Myr then it is unlikely to have ages > 100 Myr
     photgrid['lognII'] = np.log10(photgrid['nII'])
@@ -81,14 +121,22 @@ def read_photoionisation_grid(gridfilename):
     photgrid['D16'] = get_D16_metallicity(photgrid)
     return photgrid
 
-# ---------------function to save plots with a consistent nomenclature----------------
+# ------------------------------------------------------------------
 def saveplot(fig, args, plot_suffix):
-    outplotname = output_dir + 'figs/' + args.output + args.mergeHII_text + args.without_outlier + plot_suffix + '.eps'
+    '''
+    Function to save plots with a consistent nomenclature
+    '''
+
+    outplotname = args.output_dir + 'figs/' + args.output + args.mergeHII_text + args.without_outlier + plot_suffix + '.png'
     fig.savefig(outplotname)
     print('Saved plot as', outplotname)
 
-# ----------function to plot the P-r phase space---------------------
+# ---------------------------------------------------------------
 def makeplot_phase_space(paramlist, args, plot_suffix=''):
+    '''
+    Function to plot the P-r phase space of HII regions
+    '''
+
     fig = plt.figure()
 
     paramlist['P'] = 10 ** paramlist['log(P/k)'] * 1.38e-16  # converting P/k in CGS units to pressure in dyne/cm^2
@@ -120,8 +168,12 @@ def makeplot_phase_space(paramlist, args, plot_suffix=''):
     plt.show(block=False)
     return fig
 
-# ------------function to plot grid of model flux ratios, overlaid with interpolated fluxes: for diagnostic purposes------------------
+# --------------------------------------------------------------
 def makeplot_fluxgrid(paramlist, photgrid, args, quant1='Z', quant2='nII', quant3='age', quant4='logU', plot_suffix=''):
+    '''
+    Function to plot grid of model flux ratios, overlaid with interpolated fluxes: for diagnostic purposes
+    '''
+
     if args.xratio is None: args.xratio = 'NII6584/H6562'
     if args.yratio is None: args.yratio = 'NII6584/SII6717,SII6730'
 
@@ -174,8 +226,12 @@ def makeplot_fluxgrid(paramlist, photgrid, args, quant1='Z', quant2='nII', quant
     plt.show(block=False)
     return ax_fluxgrid
 
-# ------------function to plot metallicity gradient------------------------
+# --------------------------------------------------------------------
 def makeplot_metgrad(paramlist, Zoutcol, args, plot_suffix=''):
+    '''
+    Function to plot metallicity gradient given a list of HII regions
+    '''
+
     fig = plt.figure()
 
     plt.scatter(paramlist['radial_dist'], np.log10(paramlist['Zin']), c='k', lw=0, alpha=0.5)
@@ -196,8 +252,12 @@ def makeplot_metgrad(paramlist, Zoutcol, args, plot_suffix=''):
     plt.show(block=False)
     return ax
 
-# ------------function to plot input vs output metallicities------------------------
+# --------------------------------------------------------------------
 def makeplot_Zin_Zout(paramlist, Zoutcol, args, plot_suffix=''):
+    '''
+    Function to plot input vs output metallicities
+    '''
+
     fig = plt.figure()
 
     plt.scatter(np.log10(paramlist['Zin']), np.log10(paramlist[Zoutcol]), c=paramlist['nII'].values, lw=0, alpha=0.5)
@@ -213,8 +273,12 @@ def makeplot_Zin_Zout(paramlist, Zoutcol, args, plot_suffix=''):
     plt.show(block=False)
     return fig
 
-# --------------function to deal with input/output dataframe to do the whole computation-----------
+# ---------------------------------------------------------
 def lookup_grid(paramlist, args):
+    '''
+    Function to deal with input/output dataframe to do the whole computation
+    '''
+
     start_time = time.time()
 
     # -------------------reading in external models-----------------------
@@ -222,7 +286,7 @@ def lookup_grid(paramlist, args):
     linelist = mmg.read_linelist(mappings_lab_dir + 'targetlines.txt') # reading list of emission lines to be extracted from the models
 
     # -------------------calculating two new quantities for HII regions-----------------------
-    paramlist['radial_dist'] = np.sqrt((paramlist['pos_x'] - args.galcenter[0]) ** 2 + (paramlist['pos_y'] - args.galcenter[1]) ** 2)  # kpc
+    paramlist['radial_dist'] = np.sqrt((paramlist['pos_x'] - args.halo_center[0]) ** 2 + (paramlist['pos_y'] - args.halo_center[1]) ** 2)  # kpc
     print('Deb226: min, max hii region distance in kpc', np.min(paramlist['radial_dist']), np.max(paramlist['radial_dist']), '\n') #
     paramlist['logQ'] = np.log10(paramlist['Q_H0'])
     paramlist.rename(columns={'gas_metal':'Zin'}, inplace=True)
@@ -258,7 +322,7 @@ def lookup_grid(paramlist, args):
         else: logOHsun = 8.77  # Dopita 16
 
         # --------------creating output directories---------------------------------
-        path = output_dir + 'txtfiles/' + args.output + '_emission_list' + '_' + diag + mmg.outtag
+        path = args.output_dir + 'txtfiles/' + args.output + '_emission_list' + '_' + diag + mmg.outtag
         subprocess.call(['mkdir -p ' + path], shell=True)
 
         # ----------looping over Om_arr to lookup fluxes-------------------------------------
@@ -332,20 +396,20 @@ def lookup_grid(paramlist, args):
     print('Done in %s minutes' % ((time.time() - start_time) / 60))
     return paramlist
 
+# ---------to use the MAPPINGS model grid generated by make_mappings_grid.py---------
+mappings_grid_file = 'totalspec' + mmg.outtag + '.txt'  # name of MAPPINGS grid file to be used
+mappings_starparticle_mass = mmg.mappings_starparticle_mass
+'''
+# ---------to use a custom photoionisation grid (must be in the same format as the MAPPINGS grid)-------------------
+mappings_grid_file = 'totalspec_sph_logT4.0_MADtemp_ion_lum_from_age_Z0.05,2.0_age0.0,5.0_lnII6.0,11.0_lU-4.0,-1.0_4D.txt'
+mappings_starparticle_mass = 300.
+'''
+
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
     args = parse_args('8508', 'RD0042')
     if not args.keep: plt.close('all')
-    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
 
-    # ---------to use the MAPPINGS model grid generated by make_mappings_grid.py---------
-    mappings_grid_file = 'totalspec' + mmg.outtag + '.txt'  # name of MAPPINGS grid file to be used
-    mappings_starparticle_mass = mmg.mappings_starparticle_mass
-    '''
-    # ---------to use a custom photoionisation grid (must be in the same format as the MAPPINGS grid)-------------------
-    mappings_grid_file = 'totalspec_sph_logT4.0_MADtemp_ion_lum_from_age_Z0.05,2.0_age0.0,5.0_lnII6.0,11.0_lU-4.0,-1.0_4D.txt'
-    mappings_starparticle_mass = 300.
-    '''
-    infilename = output_dir + 'txtfiles/' + args.output + '_radius_list' + args.mergeHII_text + '.txt'
+    infilename = args.output_dir + 'txtfiles/' + args.output + '_radius_list' + args.mergeHII_text + '.txt'
     paramlist = pd.read_table(infilename, delim_whitespace=True, comment='#') # reading in the list of HII region parameters
     paramlist = lookup_grid(paramlist, args)

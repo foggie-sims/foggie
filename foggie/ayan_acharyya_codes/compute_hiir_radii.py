@@ -11,10 +11,15 @@
 
 """
 from header import *
+from lookup_flux import *
 
-# ---------------function for merging HII regions within args.mergeHII kpc distance; weighted by weightcol-------------------------------------------------
+# ----------------------------------------------------------------------------------------------------
 def merge_HIIregions(df, args):
-    # Columns of table are 'pos_x', 'pos_y', 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'age', 'mass', 'gas_pressure', 'gas_metal', 'Q_H0'
+    '''
+    Function for merging HII regions within args.mergeHII kpc distance; weighted by weightcol
+    Columns of input df are: 'pos_x', 'pos_y', 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'age', 'mass', 'gas_pressure', 'gas_metal', 'Q_H0'
+    '''
+
     print('Merging HII regions within '+ str(args.mergeHII * 1e3) + ' pc. May take 10-20 seconds...')
     groupbycol = 'cell_index'
     weightcol = 'Q_H0'
@@ -23,9 +28,9 @@ def merge_HIIregions(df, args):
     g = int(np.ceil(args.galrad * 2 / args.mergeHII))
     gz = int(np.ceil(args.galthick / args.mergeHII))
 
-    xind = ((df['pos_x'] - args.galcenter[0] + args.galrad) / args.mergeHII).astype(np.int) # (df['x(kpc)'][j] - args.galcenter[0]) used to range from (-galrad, galrad) kpc, which is changed here to (0, galrad*2) kpc
-    yind = ((df['pos_y'] - args.galcenter[1] + args.galrad) / args.mergeHII).astype(np.int)
-    zind = ((df['pos_z'] - args.galcenter[2] + args.galthick / 2) / args.mergeHII).astype(np.int)
+    xind = ((df['pos_x'] - args.halo_center[0] + args.galrad) / args.mergeHII).astype(np.int) # (df['x(kpc)'][j] - args.halo_center[0]) used to range from (-galrad, galrad) kpc, which is changed here to (0, galrad*2) kpc
+    yind = ((df['pos_y'] - args.halo_center[1] + args.galrad) / args.mergeHII).astype(np.int)
+    zind = ((df['pos_z'] - args.halo_center[2] + args.galthick / 2) / args.mergeHII).astype(np.int)
     df[groupbycol] = xind + yind * g + zind * g * gz
 
     if 'Sl.' in df.columns: df.drop(['Sl.'], axis=1, inplace=True)
@@ -43,8 +48,12 @@ def merge_HIIregions(df, args):
     print('Merged', initial_nh2r, 'HII regions into', len(df), 'HII regions\n')
     return df
 
-# -----------------function to compute final radius of HII regions--------------------------------------
+# ----------------------------------------------------------------------------------------------
 def compute_radii(paramlist):
+    '''
+    Function to compute final radius of HII regions, and append a few new columns to the dataframe
+    '''
+
     # --------calculating characteristic radius-----------#
     r_ch = (alpha_B * eps ** 2 * f_trap ** 2 * psi ** 2 * paramlist['Q_H0']) / (12 * np.pi * phi * k_B ** 2 * TII ** 2 * c ** 2)
 
@@ -92,17 +101,25 @@ def compute_radii(paramlist):
     paramlist['r_stall'] /= 3.06e16 # to convert distance to pc units
     return paramlist
 
-# -------------------------Function to solve the equation:------------------------
-# -------------------    P^2r^4 -2aPr^2 -br + a^2 = 0    ----------------
+# ---------------------------------------------------------------------------------------------------
 def Flog(x, a, b, c):
+    '''
+    Function to solve the equation:
+    P^2r^4 -2aPr^2 -br + a^2 = 0
+    '''
+
     # return (c**2)*(10**(4*x)) - 2*a*c*(10**(2*x)) - b*10**x + a**2
     return a / (c * 10 ** (2 * x)) + b / (c * 10 ** (x * 1.5)) - 1
 
-# -----------------function to handle input/outut dataframe of list of parameters------------------------
+# -------------------------------------------------------------------------------------------------
 def get_radii_for_df(paramlist, args):
+    '''
+    Function to handle input/outut dataframe of list of parameters
+    '''
+
     start_time = time.time()
     # -----------------------------------------------------------------------------------
-    outfilename = output_dir + 'txtfiles/' + args.output + '_radius_list' + args.mergeHII_text + '.txt'
+    outfilename = args.output_dir + 'txtfiles/' + args.output + '_radius_list' + args.mergeHII_text + '.txt'
 
     # ----------------------Creating new radius list file if one doesn't exist-------------------------------------------
     if not os.path.exists(outfilename) or args.clobber:
@@ -149,7 +166,9 @@ def get_radii_for_df(paramlist, args):
         paramlist = pd.read_table(outfilename, delim_whitespace=True, comment='#')
 
     print(args.output + ' done in %s minutes' % ((time.time() - start_time) / 60))
-    #paramlist = lu.lookup_full_df(paramlist, args)
+    if args.automate:
+        print('Will execute lookup_grid() for ', args.output, '...')
+        paramlist = lookup_grid(paramlist, args)
     return paramlist
 
 # -------------------defining constants for assumed models---------------------------------------------------
@@ -178,8 +197,7 @@ size = 287.76978417  # kpc; size of refined simulation box
 # -------------------------------------------------------------------------------
 if __name__ == '__main__':
     args = parse_args('8508', 'RD0042')
-    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    infilename = output_dir + 'txtfiles/' + args.output + '_young_star_properties.txt'
+    infilename = args.output_dir + 'txtfiles/' + args.output + '_young_star_properties.txt'
 
     # ----------------------Reading star particles-------------------------------------------
     paramlist = pd.read_table(infilename, delim_whitespace=True, comment='#')
