@@ -17,6 +17,7 @@ from scipy import optimize as op
 from scipy.interpolate import interp1d
 
 from astropy.io import ascii
+from astropy.table import Table
 from operator import itemgetter
 from scipy.interpolate import RegularGridInterpolator as RGI
 from scipy.interpolate import LinearNDInterpolator as LND
@@ -41,8 +42,46 @@ from foggie.utils.consistency import *
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
 
-# ---------to parse keyword arguments----------
+# ----------------------------------------------------------------------------------------------
+def pull_halo_center(args):
+    '''
+    Function to pull halo center from halo catalogue, if exists, otherwise compute halo center
+    Adapted from utils.foggie_load()
+    '''
+
+    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    args.output_dir = output_dir # so that output_dir is automatically propagated henceforth as args
+    halos_df_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_c_v'
+
+    if os.path.exists(halos_df_name):
+        halos_df = pd.read_table(halos_df_name, sep='|')
+        halos_df.columns = halos_df.columns.str.strip() # trimming column names of extra whitespace
+        halos_df['name'] = halos_df['name'].str.strip() # trimming column 'name' of extra whitespace
+
+        if halos_df['name'].str.contains(args.output).any():
+            print("Pulling halo center from catalog file")
+            halo_ind = halos_df.index[halos_df['name'] == args.output][0]
+            args.halo_center = halos_df.loc[halo_ind, ['xc', 'yc', 'zc']].values # in kpc units
+            args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
+            calc_hc = False
+        else:
+            print('This snapshot is not in the halos_df file, calculating halo center...')
+            calc_hc = True
+    else:
+        print("This halos_df file doesn't exist, calculating halo center...")
+        calc_hc = True
+    if calc_hc:
+        ds, refine_box = load_sim(args, region='refine_box')
+        args.halo_center = ds.halo_center_kpc
+        args.halo_velocity = ds.halo_velocity_kms
+    return args
+
+# --------------------------------------------------------------------------------------------------------------
 def parse_args(haloname, RDname):
+    '''
+    Function to parse keyword arguments
+    '''
+
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='''identify satellites in FOGGIE simulations''')
     # ---- common args used widely over the full codebase ------------
     parser.add_argument('--system', metavar='system', type=str, action='store', help='Which system are you on? Default is Jase')
@@ -66,25 +105,28 @@ def parse_args(haloname, RDname):
     parser.add_argument('--pwd', dest='pwd', action='store_true', help='Just use the current working directory?, default is no')
     parser.set_defaults(pwd=False)
 
+    parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', help='Run the code on all simulation snapshots available?, default is no')
+    parser.set_defaults(do_all_sims=False)
+
     # ------- args added for filter_star_properties.py ------------------------------
-    parser.add_argument('--plotmap', dest='plotmap', action='store_true', help='plot projection map? default is no')
-    parser.set_defaults(plotmap=False)
+    parser.add_argument('--plot_proj', dest='plot_proj', action='store_true', help='plot projection map? default is no')
+    parser.set_defaults(plot_proj=False)
 
     parser.add_argument('--clobber', dest='clobber', action='store_true', help='overwrite existing outputs with same name?, default is no')
     parser.set_defaults(clobber=False)
 
+    parser.add_argument('--automate', dest='automate', action='store_true', help='automatically execute the next script?, default is no')
+    parser.set_defaults(automate=False)
+
     # ------- args added for compute_hii_radii.py ------------------------------
     parser.add_argument('--galrad', metavar='galrad', type=float, action='store', help='radius of the galaxy, in kpc, i.e. the radial extent to which computations will be done; default is 50')
-    parser.set_defaults(galrad=50.)
+    parser.set_defaults(galrad=20.)
 
     parser.add_argument('--galthick', metavar='galthick', type=float, action='store', help='thickness of stellar disk, in kpc; default is 0.3 kpc')
     parser.set_defaults(galthick=0.3)
 
     parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', help='separation btwn HII regions below which to merge them, in kpc; default is None i.e., do not merge')
     parser.set_defaults(mergeHII=None)
-
-    parser.add_argument('--galcenter', metavar='galcenter', type=str, action='store', help='1x3 array to store the center of the simulation box, in kpc; default is that of Tempest')
-    parser.set_defaults(galcenter=[70484.17266187, 67815.25179856, 73315.10791367]) # from halo_008508/nref11c_nref9f/RD0042
 
     # ------- args added for lookup_flux.py ------------------------------
     parser.add_argument('--diag_arr', metavar='diag_arr', type=str, action='store', help='list of metallicity diagnostics to use')
@@ -142,6 +184,7 @@ def parse_args(haloname, RDname):
     args.mergeHII_text = '_mergeHII=' + str(args.mergeHII) + 'kpc' if args.mergeHII is not None else '' # to be used as filename suffix to denote whether HII regions have been merged
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 
+    args = pull_halo_center(args) # pull details about center of the snapshot
     return args
 
 # ------------declaring overall paths (can be modified on a machine/user basis)-----------
@@ -156,3 +199,14 @@ sb99_dir = HOME + '/SB99-v8-02/output/' # this is where your Starburst99 model o
                                         # this path is used only when you are using compute_hiir_radii.py or lookup_flux.py
 sb99_model = 'starburst11'  # for fixed stellar mass input spectra = 1e6 Msun, run up to 10 Myr
 sb99_mass = 1e6 # Msun, mass of star cluster in given SB99 model
+
+# ------------declaring list of ALL simulations-----------
+#all_sims = [('8508', 'RD0042'), ('5036', 'RD0039'), ('5016', 'RD0042'), ('4123', 'RD0031'), ('2878', 'RD0020'), ('2392', 'RD0030')] # only the final (lowest z) available snapshot for each sim
+all_sims = [('8508', 'RD0042'), ('8508', 'RD0039'), ('8508', 'RD0031'), ('8508', 'RD0030'), \
+            ('5036', 'RD0039'), ('5036', 'RD0031'), ('5036', 'RD0030'), ('5036', 'RD0020'), \
+            ('5016', 'RD0042'), ('5016', 'RD0039'), ('5016', 'RD0031'), ('5016', 'RD0030'), ('5016', 'RD0022'), ('5016', 'RD0020'), \
+            ('4123', 'RD0031'), ('4123', 'RD0030'), \
+            ('2878', 'RD0020'), ('2878', 'RD0018'), \
+            ('2392', 'RD0030'), \
+            ] # all redshifts available in the HD
+
