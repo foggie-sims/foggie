@@ -186,34 +186,34 @@ def make_projection_plots(ds, center, refine_box, x_width,fig_dir, haloname, nam
     return prj
 
 
+if __name__ == '__main__':
+    halonames = array([('halo_002392', 'Hurricane', 'DD0581'), 
+                       ('halo_002878', 'Cyclone',  'DD0581'), 
+                       ('halo_004123', 'Blizzard',  'DD0581'), 
+                       ('halo_005016', 'Squall',  'DD0581'), 
+                       ('halo_005036', 'Maelstrom',  'DD0581'), 
+                       ('halo_008508', 'Tempest',  'DD0487'),
+                       ('halo_008508', 'Tempest',  'DD1000')])
 
-halonames = array([('halo_002392', 'Hurricane', 'DD0581'), 
-                   ('halo_002878', 'Cyclone',  'DD0581'), 
-                   ('halo_004123', 'Blizzard',  'DD0581'), 
-                   ('halo_005016', 'Squall',  'DD0581'), 
-                   ('halo_005036', 'Maelstrom',  'DD0581'), 
-                   ('halo_008508', 'Tempest',  'DD0487'),
-                   ('halo_008508', 'Tempest',  'DD1000')])
 
+    halonames = halonames[6:7]
 
-halonames = halonames[6:7]
+    for (haloname, name, DDname) in halonames:
+        #ds = yt.load(flname)
+        #center_dic =  np.load('/Users/rsimons/Desktop/foggie/outputs/centers/%s_nref11c_nref9f_%s.npy'%(haloname,DDname), allow_pickle = True)[()]
+        #center = ds.arr(center_dic, 'code_length').to('kpc')
 
-for (haloname, name, DDname) in halonames:
-    #ds = yt.load(flname)
-    #center_dic =  np.load('/Users/rsimons/Desktop/foggie/outputs/centers/%s_nref11c_nref9f_%s.npy'%(haloname,DDname), allow_pickle = True)[()]
-    #center = ds.arr(center_dic, 'code_length').to('kpc')
+        args = parse_args(haloname, DDname)
+        ds, refine_box = load_sim(args)
 
-    args = parse_args(haloname, DDname)
-    ds, refine_box = load_sim(args)
+        #fig_dir = '/Users/rsimons/Dropbox/foggie/figures/for_paper/central_projections'
+        fig_dir = '.'
+        print (ds.refine_box_center, ds.refine_width*kpc)
 
-    #fig_dir = '/Users/rsimons/Dropbox/foggie/figures/for_paper/central_projections'
-    fig_dir = '.'
-    print (ds.refine_box_center, ds.refine_width*kpc)
-
-    prj = make_projection_plots(ds = refine_box.ds, center = ds.refine_box_center,\
-                                refine_box = refine_box, x_width = ds.refine_width*kpc,\
-                                fig_dir = fig_dir, haloname = haloname, name = name, \
-                                fig_end = 'projection',\
-                                do = [args.do], axes = ['x'], is_central = True, add_arrow = False)
+        prj = make_projection_plots(ds = refine_box.ds, center = ds.refine_box_center,\
+                                    refine_box = refine_box, x_width = ds.refine_width*kpc,\
+                                    fig_dir = fig_dir, haloname = haloname, name = name, \
+                                    fig_end = 'projection',\
+                                    do = [args.do], axes = ['x'], is_central = True, add_arrow = False)
 
 
