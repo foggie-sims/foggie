@@ -79,6 +79,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/Volumes/foggieforayan/"
         output_path = "/Users/acharyya/Work/astro/foggie_outputs/"
         code_path = "/Users/acharyya/Work/astro/ayan_codes/foggie/foggie/"
+    elif args.system == "msu_hpcc":
+        foggie_dir = "/mnt/research/galaxies-REU/sims/FOGGIE/"
+        output_path = "/mnt/home/kopenhaf/foggie_calcs/"
+        code_path = "/mnt/home/kopenhaf/foggie/foggie/"
 
     if not args.pwd:
         if args.run == "natural":
