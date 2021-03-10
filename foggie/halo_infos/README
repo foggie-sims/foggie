@@ -72,7 +72,7 @@ Units:
 Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
-5036/nref11c_nref9f snapshots DD0272-DD2399, RD0015-RD0041
+5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0355-DD1599, RD0016-RD0029
 2392/nref11c_nref9f snapshots DD0511-DD1444, RD0019-RD0031
 
@@ -106,7 +106,7 @@ SFR is given in Msun/yr
 Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
-5036/nref11c_nref9f snapshots DD0272-DD2399, RD0015-RD0041
+5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0355-DD1599, RD0016-RD0029
 2392/nref11c_nref9f snapshots DD0511-DD1444, RD0019-RD0031
 
@@ -181,7 +181,7 @@ Units:
 Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
-5036/nref11c_nref9f snapshots DD0272-DD2399, RD0015-RD0041
+5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0355-DD1599, RD0016-RD0029
 2392/nref11c_nref9f snapshots DD0511-DD1444, RD0019-RD0031
 
