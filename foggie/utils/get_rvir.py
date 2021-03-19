@@ -215,11 +215,7 @@ def find_rvir(ds, halo_center = None, do_fig = False, sphere_radius = 250*kpc, f
 def find_rvir_catalogs(args, data, halo_infos_dir, figdir = '.'):
 
     from astropy.table import Table
-    if args.halo == '5016' or args.halo == '8508' or args.halo == '5036' or args.halo == '4123' or args.halo == '2392':
-      masses = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
-
-    else:
-      masses = Table.read('%s/masses.hdf5'%halo_infos_dir)
+    masses = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
 
     gd = where(masses['snapshot'] == args.output)[0]
     if len(gd) == 0:
@@ -274,8 +270,7 @@ if __name__ == '__main__':
 
   if args.use_catalog_profile:
 
-    if args.halo == '8508' or args.halo == '5016' or args.halo == '5036' or args.halo == '4123' or args.halo == '2392':
-      data = Table(names=('redshift', 'snapshot', 'radius', 'total_mass', 'dm_mass', \
+    data = Table(names=('redshift', 'snapshot', 'radius', 'total_mass', 'dm_mass', \
                           'stars_mass', 'young_stars_mass', 'old_stars_mass', 'gas_mass', \
                           'gas_metal_mass', 'gas_H_mass', 'gas_HI_mass', 'gas_HII_mass', 'gas_CII_mass', \
                           'gas_CIII_mass', 'gas_CIV_mass', 'gas_OVI_mass', 'gas_OVII_mass', 'gas_MgII_mass', \
@@ -284,22 +279,11 @@ if __name__ == '__main__':
                           'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
 
-      masses1 = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
-      masses2 = Table.read('%s/masses_z-less-2.hdf5'%halo_infos_dir)
-      list1 = list(masses1['snapshot'])
-      list2 = list(masses2['snapshot'])
-      full_list = np.array(list1 +   list2)
-    else:
-
-      data = Table(names=('redshift', 'snapshot', 'radius', \
-                          'total_mass', 'dm_mass', \
-                          'stars_mass', 'gas_mass'), \
-                   dtype=('f8', 'S6', 'f8', \
-                          'f8', 'f8', \
-                          'f8', 'f8',))
-
-      masses1 = Table.read('%s/masses.hdf5'%halo_infos_dir)
-      full_list = list(masses1['snapshot'])
+    masses1 = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
+    masses2 = Table.read('%s/masses_z-less-2.hdf5'%halo_infos_dir)
+    list1 = list(masses1['snapshot'])
+    list2 = list(masses2['snapshot'])
+    full_list = np.array(list1 +   list2)
 
     from foggie.utils.get_mass_profile import set_table_units
 
