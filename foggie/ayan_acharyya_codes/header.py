@@ -177,6 +177,7 @@ def parse_args(haloname, RDname):
     parser.add_argument('--use_RGI', dest='use_RGI', action='store_true', help='kuse RGI interpolation vs LND?, default is no')
     parser.set_defaults(use_RGI=False)
 
+    # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 
     args.diag_arr = [item for item in args.diag_arr.split(',')]
@@ -201,12 +202,14 @@ sb99_model = 'starburst11'  # for fixed stellar mass input spectra = 1e6 Msun, r
 sb99_mass = 1e6 # Msun, mass of star cluster in given SB99 model
 
 # ------------declaring list of ALL simulations-----------
-#all_sims = [('8508', 'RD0042'), ('5036', 'RD0039'), ('5016', 'RD0042'), ('4123', 'RD0031'), ('2878', 'RD0020'), ('2392', 'RD0030')] # only the final (lowest z) available snapshot for each sim
+#all_sims = [('8508', 'RD0042'), ('5036', 'RD0039'), ('5016', 'RD0042'), ('4123', 'RD0031'), ('2878', 'RD0020'), ('2392', 'RD0030')] # only the latest (lowest z) available snapshot for each halo
+
+#all_sims = [('8508', 'RD0030'), ('5036', 'RD0030'), ('5016', 'RD0030'), ('4123', 'RD0030'), ('2392', 'RD0030')] # all same z (=0.7) snapshots for each halo
+
 all_sims = [('8508', 'RD0042'), ('8508', 'RD0039'), ('8508', 'RD0031'), ('8508', 'RD0030'), \
             ('5036', 'RD0039'), ('5036', 'RD0031'), ('5036', 'RD0030'), ('5036', 'RD0020'), \
-            ('5016', 'RD0042'), ('5016', 'RD0039'), ('5016', 'RD0031'), ('5016', 'RD0030'), ('5016', 'RD0022'), ('5016', 'RD0020'), \
+            ('5016', 'RD0042'), ('5016', 'RD0039'), ('5016', 'RD0031'), ('5016', 'RD0030'), ('5016', 'RD0020'), \
             ('4123', 'RD0031'), ('4123', 'RD0030'), \
             ('2878', 'RD0020'), ('2878', 'RD0018'), \
             ('2392', 'RD0030'), \
-            ] # all redshifts available in the HD
-
+            ] # all snapshots in the HD
