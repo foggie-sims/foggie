@@ -4,6 +4,8 @@ from foggie.utils.foggie_load import foggie_load as fl
 import os
 import matplotlib.pyplot as plt
 import numpy as np
+from foggie.utils.get_run_loc_etc import get_run_loc_etc
+import argparse
 
 def parse_args():
     '''Parse command line arguments. Returns args object.
@@ -20,14 +22,21 @@ def parse_args():
     parser.set_defaults(run='nref11c_nref9f')
 
     parser.add_argument('--output', metavar='output', type=str, action='store', \
-                        help='Which output? Default is RD0032')
+                        help='Which output? Default is RD0027 = redshift 1')
     parser.set_defaults(output='RD0027')
 
     parser.add_argument('--system', metavar='system', type=str, action='store', \
-                        help='Which system are you on? Default is ramona')
+                        help='Which system are you on? Default is ramona_pleiades')
     parser.set_defaults(system='ramona_pleiades')
 
+    parser.add_argument('--pwd', dest='pwd', action='store_true', \
+                        help='Just use the working directory? Default is no')
+    parser.set_defaults(pwd=False)
 
+    args = parser.parse_args()
+    return args
+
+args = parse_args()
 foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
 output_dir = output_dir+"clumps/"
 if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
