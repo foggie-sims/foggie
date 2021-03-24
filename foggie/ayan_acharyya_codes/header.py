@@ -10,18 +10,24 @@
 """
 
 import numpy as np
+import multiprocessing as mproc
+import os, sys, argparse, re, subprocess, time, math
+
 from matplotlib import pyplot as plt
+
 from pathlib import Path
 from importlib import reload
+
 from scipy import optimize as op
 from scipy.interpolate import interp1d
-
-from astropy.io import ascii
-from astropy.table import Table
-from operator import itemgetter
 from scipy.interpolate import RegularGridInterpolator as RGI
 from scipy.interpolate import LinearNDInterpolator as LND
-import multiprocessing as mproc
+from scipy.special import erf
+
+from astropy.io import ascii, fits
+from astropy.table import Table
+
+from operator import itemgetter
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -35,12 +41,49 @@ import yt
 from yt.units import *
 import yt.visualization.eps_writer as eps
 
-import os, sys, argparse, re, subprocess, time, math
-
 from foggie.utils.get_run_loc_etc import *
 from foggie.utils.consistency import *
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
+
+# -------------------------------------------------------------------------------------------
+def myprint(text, args):
+    '''
+    Function to direct the print output to stdout or a file, depending upon user args
+    '''
+    if not text[-1] == '\n': text += '\n'
+    if not args.silent:
+        if args.print_to_file:
+            ofile = open(args.printoutfile, 'a')
+            ofile.write(text)
+            ofile.close()
+        else:
+            print(text)
+
+# -------------------------------------------------------------------------------------------
+def get_cube_output_path(args, diag='D16', Om=0.5):
+    '''
+    Function to deduce which specific directory (in this jungle of folders) a given ifu datacube should be stored
+    '''
+    cube_output_path = args.output_dir + 'fits/' + args.output + '/diagnostic_' + diag + '/Om_' + str(Om) + '/inc_' + \
+        str(args.inclination) + '/spectral_res_' + str(args.base_spec_res) + '/spatial_res_' + str(args.base_spatial_res)
+    Path(cube_output_path).mkdir(parents=True, exist_ok=True) # creating the directory structure, if doesn't exist already
+
+    return cube_output_path
+
+# -------------------------------------------------------------------------------------------
+def write_fits(filename, data, args, fill_val=np.nan, for_qfits=True):
+    '''
+    Function to write a datacube to a FITS file
+    '''
+    if for_qfits and np.shape(data)[0] == np.shape(data)[1]: data = data.swapaxes(0,2) # QFitsView requires (wave, pos, pos) arrangement rather than (pos, pos, wave)  arrangement
+
+    hdu = fits.PrimaryHDU(np.ma.filled(data, fill_value=fill_val))
+    hdulist = fits.HDUList([hdu])
+    if filename[-5:] != '.fits':
+        filename += '.fits'
+    hdulist.writeto(filename, clobber=True)
+    myprint('Written file ' + filename + '\n', args)
 
 # ----------------------------------------------------------------------------------------------
 def pull_halo_center(args):
@@ -108,6 +151,9 @@ def parse_args(haloname, RDname):
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', help='Run the code on all simulation snapshots available?, default is no')
     parser.set_defaults(do_all_sims=False)
 
+    parser.add_argument('--silent', dest='silent', action='store_true', help='Suppress all print statements?, default is no')
+    parser.set_defaults(silent=False)
+
     # ------- args added for filter_star_properties.py ------------------------------
     parser.add_argument('--plot_proj', dest='plot_proj', action='store_true', help='plot projection map? default is no')
     parser.set_defaults(plot_proj=False)
@@ -122,8 +168,8 @@ def parse_args(haloname, RDname):
     parser.add_argument('--galrad', metavar='galrad', type=float, action='store', help='radius of the galaxy, in kpc, i.e. the radial extent to which computations will be done; default is 50')
     parser.set_defaults(galrad=20.)
 
-    parser.add_argument('--galthick', metavar='galthick', type=float, action='store', help='thickness of stellar disk, in kpc; default is 0.3 kpc')
-    parser.set_defaults(galthick=0.3)
+    parser.add_argument('--galthick', metavar='galthick', type=float, action='store', help='thickness of stellar disk, in kpc; default is 0.4 kpc = 400 pc')
+    parser.set_defaults(galthick=0.4)
 
     parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', help='separation btwn HII regions below which to merge them, in kpc; default is None i.e., do not merge')
     parser.set_defaults(mergeHII=None)
@@ -176,6 +222,43 @@ def parse_args(haloname, RDname):
 
     parser.add_argument('--use_RGI', dest='use_RGI', action='store_true', help='kuse RGI interpolation vs LND?, default is no')
     parser.set_defaults(use_RGI=False)
+
+    # ------- args added for make_ideal_datacube.py ------------------------------
+    parser.add_argument('--wave_start', metavar='wave_start', type=float, action='store', help='starting (bluest) wavelength for the ifu datacube, in A; default is 6400 A')
+    parser.set_defaults(wave_start=6400.)
+
+    parser.add_argument('--wave_end', metavar='wave_end', type=float, action='store', help='last (reddest) wavelength for the ifu datacube, in A; default is 6800 A')
+    parser.set_defaults(wave_end=6800.)
+
+    parser.add_argument('--vel_disp', metavar='vel_disp', type=float, action='store', help='intrinsic velocity dispersion for each emission line, in km/s; default is 15 km/s')
+    parser.set_defaults(vel_disp=15.)
+
+    parser.add_argument('--nbin_cont', metavar='nbin_cont', type=int, action='store', help='no. of spectral bins to bin the continuum (witout emission lines) in to; default is 1000')
+    parser.set_defaults(nbin_cont=1000)
+
+    parser.add_argument('--vel_highres_win', metavar='vel_highres_win', type=float, action='store', help='velocity window on either side of each emission line, in km/s, within which the continuum is resolved into finer (nbin_highres_cont) spectral elements; default is 500 km/s')
+    parser.set_defaults(vel_highres_win=500.)
+
+    parser.add_argument('--nbin_highres_cont', metavar='nbin_highres_cont', type=int, action='store', help='no. of additonal spectral bins to introduce around each emission line; default is 100')
+    parser.set_defaults(nbin_highres_cont=100)
+
+    parser.add_argument('--base_spec_res', metavar='base_spec_res', type=float, action='store', help='base spectral resolution, in km/s, i.e. to be employed while making the ideal datacube; default is 30 km/s')
+    parser.set_defaults(base_spec_res=30.)
+
+    parser.add_argument('--base_spatial_res', metavar='base_spatial_res', type=float, action='store', help='base spatial resolution, in kpc, i.e. to be employed while making the ideal datacube; default is 0.04 kpc = 40 pc')
+    parser.set_defaults(base_spatial_res=0.04)
+
+    parser.add_argument('--inclination', metavar='inclination', type=float, action='store', help='inclination angle to rotate the galaxy by, on YZ plane (keeping X fixed), in degrees; default is 0')
+    parser.set_defaults(inclination=0.)
+
+    parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', help='Redirect all print statements to a file?, default is no')
+    parser.set_defaults(print_to_file=False)
+
+    parser.add_argument('--printoutfile', metavar='printoutfile', type=str, action='store', help='file to write all print statements to; default is ./logfile.out')
+    parser.set_defaults(printoutfile='./logfile.out')
+
+    parser.add_argument('--debug', dest='debug', action='store_true', help='run in debug mode (lots of print checks)?, default is no')
+    parser.set_defaults(debug=False)
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
