@@ -98,7 +98,7 @@ if __name__ == '__main__':
         args = parse_args(this_sim[0], this_sim[1])
         ds, refine_box = load_sim(args, region='refine_box')
 
-        Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+        Path(args.output_dir+'figs/').mkdir(parents=True, exist_ok=True)
 
         prj = make_projection_plots(ds=refine_box.ds, center=ds.halo_center_kpc, \
                                     refine_box=refine_box, x_width=ds.refine_width * kpc, \

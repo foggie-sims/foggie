@@ -20,7 +20,7 @@ def merge_HIIregions(df, args):
     Columns of input df are: 'pos_x', 'pos_y', 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'age', 'mass', 'gas_pressure', 'gas_metal', 'Q_H0'
     '''
 
-    print('Merging HII regions within '+ str(args.mergeHII * 1e3) + ' pc. May take 10-20 seconds...')
+    myprint('Merging HII regions within '+ str(args.mergeHII * 1e3) + ' pc. May take 10-20 seconds...', args)
     groupbycol = 'cell_index'
     weightcol = 'Q_H0'
     initial_nh2r = len(df)
@@ -45,7 +45,7 @@ def merge_HIIregions(df, args):
     df = df.groupby(groupbycol, as_index=False).agg(all_operations)
     df.rename(columns={groupbycol:'count'}, inplace=True)
 
-    print('Merged', initial_nh2r, 'HII regions into', len(df), 'HII regions\n')
+    myprint('Merged ' + str(initial_nh2r) + ' HII regions into ' + str(len(df)) + ' HII regions\n', args)
     return df
 
 # ----------------------------------------------------------------------------------------------
@@ -123,8 +123,8 @@ def get_radii_for_df(paramlist, args):
 
     # ----------------------Creating new radius list file if one doesn't exist-------------------------------------------
     if not os.path.exists(outfilename) or args.clobber:
-        if not os.path.exists(outfilename): print(outfilename + ' does not exist. Creating afresh..')
-        elif args.clobber: print(outfilename + ' exists but over-writing..')
+        if not os.path.exists(outfilename): myprint(outfilename + ' does not exist. Creating afresh..', args)
+        elif args.clobber: myprint(outfilename + ' exists but over-writing..', args)
 
         # ----------------------Reading starburst99 file-------------------------------------------
         SB_data = pd.read_table(sb99_dir + sb99_model + '/' + sb99_model + '.quanta', delim_whitespace=True,comment='#', skiprows=6, \
@@ -140,7 +140,7 @@ def get_radii_for_df(paramlist, args):
 
         # ------------------solving--------------------------------------------------------------
         paramlist = compute_radii(paramlist)
-        print('Using', len(paramlist), 'HII regions of', nh2r_initial)
+        myprint('Using ' + str(len(paramlist)) + ' HII regions of ' + str(nh2r_initial), args)
 
         # ------------------writing dataframe to file--------------------------------------------------------------
         header = 'Units for the following columns: \n\
@@ -160,14 +160,14 @@ def get_radii_for_df(paramlist, args):
 
         np.savetxt(outfilename, [], header=header, comments='#')
         paramlist.to_csv(outfilename, sep='\t', mode='a', index=None)
-        print('Radii list saved at', outfilename)
+        myprint('Radii list saved at ' + outfilename, args)
     else:
-        print('Reading from existing file', outfilename)
+        myprint('Reading from existing file ' + outfilename, args)
         paramlist = pd.read_table(outfilename, delim_whitespace=True, comment='#')
 
-    print(args.output + ' done in %s minutes' % ((time.time() - start_time) / 60))
+    myprint(args.output + ' done in %s minutes' % ((time.time() - start_time) / 60), args)
     if args.automate:
-        print('Will execute lookup_grid() for ', args.output, '...')
+        myprint('Will execute lookup_grid() for ' + args.output + '...', args)
         paramlist = lookup_grid(paramlist, args)
     return paramlist
 
@@ -205,4 +205,4 @@ if __name__ == '__main__':
 
     # --------------------------------------------------------------------------------
     nstalled = sum(paramlist['r'] == paramlist['r_stall'])
-    print(str(nstalled) + ' HII regions have stalled expansion which is ' + str(nstalled * 100. / len(paramlist)) + ' % of the total.')
+    myprint(str(nstalled) + ' HII regions have stalled expansion which is ' + str(nstalled * 100. / len(paramlist)) + ' % of the total.', args)

@@ -28,14 +28,14 @@ if __name__ == '__main__':
 
         # ----------------------Reading in simulation data-------------------------------------------
         if not os.path.exists(outfilename) or args.clobber:
-            if not os.path.exists(outfilename): print(outfilename + ' does not exist. Creating afresh..')
-            elif args.clobber: print(outfilename + ' exists but over-writing..')
+            if not os.path.exists(outfilename): myprint(outfilename + ' does not exist. Creating afresh..', args)
+            elif args.clobber: myprint(outfilename + ' exists but over-writing..', args)
 
             ds, refine_box = load_sim(args, region='refine_box')
             ad = ds.all_data()
 
             if args.plot_proj:
-                print('Will execute make_projection_plots() for ', args.output, '...')
+                myprint('Will execute make_projection_plots() for ' + args.output + '...', args)
                 prj = make_projection_plots(ds=refine_box.ds, center=ds.halo_center_kpc, \
                                             refine_box=refine_box, x_width=ds.refine_width * kpc, \
                                             fig_dir=args.output_dir + 'figs/', haloname=args.output,
@@ -45,7 +45,7 @@ if __name__ == '__main__':
                                             add_velocity=False)  # using halo_center_kpc instead of refine_box_center
 
             xgrid = ad['young_stars', 'particle_position_x']
-            print('Extracting parameters for '+ str(len(xgrid)) +' young stars...')
+            myprint('Extracting parameters for '+ str(len(xgrid)) +' young stars...', args)
             zgrid = ad['young_stars', 'particle_position_z']
             ygrid = ad['young_stars', 'particle_position_y']
 
@@ -82,12 +82,12 @@ if __name__ == '__main__':
             # creating and saving the dataframe itself to the file which already has the header
             paramlist = pd.DataFrame({'pos_x':px, 'pos_y':py, 'pos_z':pz, 'vel_x':vx, 'vel_y':vy, 'vel_z':vz, 'age':age, 'mass':mass, 'gas_density':den, 'gas_pressure':pres, 'gas_temp':temp, 'gas_metal':Z})
             paramlist.to_csv(outfilename, sep='\t', mode='a', index=None)
-            print('Saved file at', outfilename)
+            myprint('Saved file at ' + outfilename, args)
         else:
-            print('Reading from existing file', outfilename)
+            myprint('Reading from existing file ' + outfilename, args)
             paramlist = pd.read_table(outfilename, delim_whitespace=True, comment='#')
 
-        print(args.output + ' completed in %s minutes' % ((time.time() - start_time) / 60))
+        myprint(args.output + ' completed in %s minutes' % ((time.time() - start_time) / 60), args)
         if args.automate:
-            print('Will execute get_radii_for_df() for ', args.output, '...')
+            myprint('Will execute get_radii_for_df() for ' + args.output + '...', args)
             paramlist = get_radii_for_df(paramlist, args)
