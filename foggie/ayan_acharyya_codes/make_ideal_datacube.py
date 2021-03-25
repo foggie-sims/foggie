@@ -163,7 +163,6 @@ def gauss(wave_arr, flux_arr, this_wave_cen, this_flux, vel_disp, vel_z):
     # gaussian = amplitude * np.exp(-((wave_arr - this_wave_cen)**2)/(2 * sigma**2))
     gaussian = get_erf(wave_arr, amplitude, this_wave_cen, sigma, delta_wave) # compute what the gaussian should look like if the area has to be equal to the given flux
 
-    if args.debug: myprint('Deb38: input gaussian parm (ergs/s/A/pc^2) = %.2E, %.2E, %.2E, %.2E' %(flux_arr[0] / (args.base_spatial_res * 1e3) ** 2, (this_flux / np.sqrt(2 * np.pi * sigma ** 2)) / (args.res * 1e3) ** 2, this_wave_cen, sigma), args)  #
     flux_arr = flux_arr + gaussian
     return flux_arr
 
