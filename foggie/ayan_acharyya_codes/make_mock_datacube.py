@@ -26,15 +26,29 @@ class mockcube(idealcube):
         self.pix_per_beam = args.pix_per_beam
 
         self.smoothed_ndisp = self.ndisp
-        self.smoothed_box_size_in_pix = int(round(2 * args.galrad / (self.obs_spatial_res/self.pix_per_beam)))  # the size of the mock ifu cube in pixels
+        self.smoothed_box_size_in_pix = int(round(2 * args.galrad / (self.obs_spatial_res/self.pix_per_beam))) # the size of the mock ifu cube in pixels
+        self.pixel_size = 2 * args.galrad / self.smoothed_box_size_in_pix # pixel size in kpc
+        self.achieved_spatial_res = self.pixel_size * self.pix_per_beam # kpc (this can vary very slightly from the 'intended' obs_spatial_res
 
         self.data = np.zeros((self.smoothed_box_size_in_pix, self.smoothed_box_size_in_pix, self.smoothed_ndisp)) # initialise datacube with zeroes
+
+        # compute kernels to convolve by
+        if args.kernel == 'gauss':
+            self.sigma = gf2s * self.pix_per_beam
+            self.ker_size = int((self.sigma * args.ker_factor) // 2 * 2 + 1) # rounding off to nearest odd integer because kernels need odd integer as size
+            self.kernel = con.Gaussian2DKernel(self.sigma, x_size=self.ker_size, y_size=self.ker_size)
+        elif args.ker == 'moff':
+            self.sigma = self.pix_per_beam / (2 * np.sqrt(2 ** (1. / args.moff_beta) - 1.))
+            self.ker_size = int((self.sigma * args.ker_factor) // 2 * 2 + 1) # rounding off to nearest odd integer because kernels need odd integer as size
+            self.kernel = con.Moffat2DKernel(self.sigma, args.moff_beta, x_size=self.ker_size, y_size=self.ker_size)
+
         self.declare_obs_param(args)
 
     # ---------print observation parameters-----------
     def declare_obs_param(self, args):
         myprint('For spectral res= ' + str(self.obs_spec_res) + ' km/s, and wavelength range of ' + str(self.rest_wave_range[0]) + ' to ' + str(self.rest_wave_range[1]) + ' A, length of dispersion axis= ' + str(self.smoothed_ndisp) + ' pixels', args)
-        myprint('For spatial res= ' + str(args.obs_spatial_res) + ' arcsec => physical res on galaxy= ' + str(self.obs_spatial_res) + ' kpc, and pixel per beam = ' + str(self.pix_per_beam) + ', size of smoothed box= ' + str(self.smoothed_box_size_in_pix) + ' pixels', args)
+        myprint('For spatial res= ' + str(args.obs_spatial_res) + ' arcsec on sky => physical res at redshift ' + str(self.z) + ' galaxy= ' + str(self.obs_spatial_res) + ' kpc, and pixel per beam = ' + str(self.pix_per_beam) + ', size of smoothed box= ' + str(self.smoothed_box_size_in_pix) + ' pixels', args)
+        myprint('Going to convolve with ' + args.kernel + ' kernel with FWHM = ' + str(self.pix_per_beam) + ' pixels (' + str(self.achieved_spatial_res) + ' kpc) => sigma = ' + str(self.sigma) + ' pixels, and total size of smoothing kernel = ' + str(self.ker_size) + ' pixels', args)
 
 # -----------------------------------------------------------------
 def rebin(array, dimensions=None, scale=None):
@@ -132,10 +146,12 @@ def get_mock_datacube(ideal_ifu, args, linelist, cube_output_path):
         myprint('Reading from already existing file ' + args.mockcube_filename + ', use --args.clobber to overwrite', args)
     else:
         myprint('Mock cube file does not exist. Creating now..', args)
+
         # -------just for testing: simple rebinning of ideal data cube------------------
         for slice in range(np.shape(ideal_ifu)[2]):
-            myprint('Slice ' + str(slice + 1) + ' of ' + str(np.shape(ideal_ifu)[2]) + '..', args)
-            ifu.data[:, :, slice] = rebin(ideal_ifu[:, :, slice], (ifu.smoothed_box_size_in_pix, ifu.smoothed_box_size_in_pix)) # mock for testing
+            myprint('Rebinning & convolving slice ' + str(slice + 1) + ' of ' + str(np.shape(ideal_ifu)[2]) + '..', args)
+            rebinned_slice = rebin(ideal_ifu[:, :, slice], (ifu.smoothed_box_size_in_pix, ifu.smoothed_box_size_in_pix)) # rebinning before convolving
+            ifu.data[:, :, slice] = con.convolve_fft(rebinned_slice, ifu.kernel, normalize_kernel=True) # convolving with kernel
 
         write_fitsobj(args.mockcube_filename, ifu, args, for_qfits=True) # writing into FITS file
 
