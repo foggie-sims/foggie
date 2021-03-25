@@ -2,7 +2,7 @@
 
 """
 
-    Title :      make_deal_datacube
+    Title :      make_ideal_datacube
     Notes :      Produces an idealised IFU datacube by projecting a list of HII region emissions on to a 2D grid, for a given inc & PA, and a base (high) spatial + spectral resolution
     Output :     FITS cube
     Author :     Ayan Acharyya
@@ -11,6 +11,8 @@
 
 """
 from header import *
+from compute_hiir_radii import *
+from filter_star_properties import *
 import make_mappings_grid as mmg
 
 # ---------------------object containing info about the dispersion axis of the ifu datacube----------------------------------------
@@ -21,7 +23,7 @@ class cube(object):
         self.wave_end = args.wave_end
         self.box_size_in_pix = int(2 * args.galrad / args.base_spatial_res)  # the size of the ideal ifu cube in pixels
         self.get_dispersion_arr(args, linelist)
-        self.cube = np.zeros((self.box_size_in_pix, self.box_size_in_pix, self.ndisp)) # initialise datacube with zeroes
+        self.data = np.zeros((self.box_size_in_pix, self.box_size_in_pix, self.ndisp)) # initialise datacube with zeroes
         self.declare_dimensions(args)
 
     # ---------compute dispersion array-----------
@@ -206,10 +208,10 @@ def get_ideal_datacube(paramlist, args, linelist):
             flux = np.array([flux[ifu.bin_index == ii].mean() for ii in range(1, len(ifu.dispersion_arr) + 1)])  # spectral smearing i.e. rebinning of spectrum                                                                                                                             #mean() is used here to conserve flux; as f is in units of ergs/s/A, we want integral of f*dlambda to be preserved (same before and after resampling)
             # this can be checked as np.sum(f[1:]*np.diff(wavelength_array))
 
-            ifu.cube[int(HIIregion['pos_x_grid'])][int(HIIregion['pos_y_grid'])][:] += flux  # flux is ergs/s/A, ifucube becomes ergs/s/A/pixel
+            ifu.data[int(HIIregion['pos_x_grid'])][int(HIIregion['pos_y_grid'])][:] += flux  # flux is ergs/s/A, ifucube becomes ergs/s/A/pixel
 
-        write_fits(args.idealcube_filename, ifu.cube, args, for_qfits=True) # writing into FITS file
-    ifu.cube = fits.open(args.idealcube_filename)[0].data
+        write_fits(args.idealcube_filename, ifu.data, args, for_qfits=True) # writing into FITS file
+    ifu.data = fits.open(args.idealcube_filename)[0].data
     myprint('Done in %s minutes' % ((time.time() - start_time) / 60), args)
 
     return ifu, paramlist
@@ -228,7 +230,12 @@ if __name__ == '__main__':
         emission_path = args.output_dir + 'txtfiles/' + args.output + '_emission_list' + '_' + diag + mmg.outtag
         for Om in args.Om_arr:
             emission_file = emission_path + '/emission_list_Om' + str(Om) + args.mergeHII_text + '.txt'
-            myprint('Reading HII region emission file ' + emission_file, args)
+            if os.path.exists(emission_file):
+                myprint('Reading HII region emission file ' + emission_file, args)
+            else:
+                myprint('HII region emission file does not exist, calling filter_star_properties.py..', args)
+                args.automate = True # so that it cascades to subsequent scripts as necessary
+                paramlist = get_star_properties(args)
             paramlist = pd.read_table(emission_file, delim_whitespace=True, comment='#') # reading in the list of HII region emission fluxes
 
             cube_output_path = get_cube_output_path(args, diag, Om)
