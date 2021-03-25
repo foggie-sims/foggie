@@ -61,27 +61,60 @@ def myprint(text, args):
             print(text)
 
 # -------------------------------------------------------------------------------------------
-def get_cube_output_path(args, diag='D16', Om=0.5):
+def get_cube_output_path(args):
     '''
     Function to deduce which specific directory (in this jungle of folders) a given ifu datacube should be stored
     '''
-    cube_output_path = args.output_dir + 'fits/' + args.output + '/diagnostic_' + diag + '/Om_' + str(Om) + '/boxsize_' + str(2*args.galrad) + \
-        '/inc_' + str(args.inclination) + '/spectral_res_' + str(args.base_spec_res) + '/spatial_res_' + str(args.base_spatial_res)
+    cube_output_path = args.output_dir + 'fits/' + args.output + '/diagnostic_' + args.diag + '/Om_' + str(args.Om) + '/boxsize_' + str(2*args.galrad) + \
+        '/inc_' + str(args.inclination) + '/base_spectral_res_' + str(args.base_spec_res) + '/base_spatial_res_' + str(args.base_spatial_res) + '/'
     Path(cube_output_path).mkdir(parents=True, exist_ok=True) # creating the directory structure, if doesn't exist already
 
     return cube_output_path
 
-# -------------------------------------------------------------------------------------------
-def write_fits(filename, data, args, fill_val=np.nan, for_qfits=True):
-    '''
-    Function to write a datacube to a FITS file
-    '''
-    if for_qfits and np.shape(data)[0] == np.shape(data)[1]: data = data.swapaxes(0,2) # QFitsView requires (wave, pos, pos) arrangement rather than (pos, pos, wave)  arrangement
+# ---------------------object containing info about ifu datacubes that have been read in-----------------------------
+class readcube(object):
+    # ---------initialise object-----------
+    def __init__(self, filename, args):
+        '''
+        Function to read a fits file (that has been written by write_fitsobj) and store the fits data in an object
+        :param filename:
+        :return:
+        '''
+        myprint('Reading in cube file ' + filename, args)
+        cube = fits.open(filename)
+        self.data = cube[0].data # reading in just the 3D data cube
+        self.wavelength = cube[1].data
+        self.header = cube[0].header
 
-    hdu = fits.PrimaryHDU(np.ma.filled(data, fill_value=fill_val))
-    hdulist = fits.HDUList([hdu])
+        self.data = np.nan_to_num(self.data) # replacing all NaN values with 0, otherwise calculations get messed up
+        self.data = self.data.swapaxes(0, 2) # switching from (wave, pos, pos) arrangement (QFitsView requires) to (pos, pos, wave) arrangement (traditional)
+
+# -------------------------------------------------------------------------------------------
+def write_fitsobj(filename, cube, args, fill_val=np.nan, for_qfits=True):
+    '''
+    Function to write a ifu cube.data to a FITS file, along with all other attributes of the cube
+    '''
+    if for_qfits and np.shape(cube.data)[0] == np.shape(cube.data)[1]:
+        cube.data = cube.data.swapaxes(0,2) # QFitsView requires (wave, pos, pos) arrangement rather than (pos, pos, wave)  arrangement
     if filename[-5:] != '.fits':
         filename += '.fits'
+
+    flux = np.ma.filled(cube.data, fill_value=fill_val)
+    wavelength = cube.dispersion_arr
+
+    flux_header = fits.Header({'simulation': args.halo, 'snapshot': args.output, 'metallicity_diagnostic': args.diag, 'Omega': args.Om, 'inclination(deg)': cube.inclination, \
+                               'redshift': cube.z, 'distance(Mpc)': cube.distance, 'rest_wave_range(A)': ','.join(cube.rest_wave_range.astype(str)), \
+                               'base_spatial_res(kpc)':cube.base_spatial_res, 'base_spec_res(km/s)': cube.base_spec_res, 'instrument_name': cube.instrument_name, \
+                               'box_size': ','.join(np.array([cube.box_size_in_pix, cube.box_size_in_pix, cube.ndisp]).astype(str)), \
+                               'cutout_from_sim(kpc)': 2 * args.galrad, 'line_labels': ','.join(cube.linelist['label']), \
+                               'line_restwaves': ','.join(cube.linelist['wave_vacuum'].astype(str))})
+    if hasattr(cube, 'obs_spatial_res'): # i.e. it is a mock datacube rather than an ideal datacube
+        flux_header.update({'obs_spatial_res(kpc)':cube.obs_spatial_res, 'obs_spec_res(km/s)': cube.obs_spec_res, 'pix_per_beam': cube.pix_per_beam})
+
+
+    flux_hdu = fits.PrimaryHDU(flux, header=flux_header)
+    wavelength_hdu = fits.ImageHDU(wavelength)
+    hdulist = fits.HDUList([flux_hdu, wavelength_hdu])
     hdulist.writeto(filename, clobber=True)
     myprint('Written file ' + filename + '\n', args)
 
@@ -178,8 +211,8 @@ def parse_args(haloname, RDname):
     parser.add_argument('--diag_arr', metavar='diag_arr', type=str, action='store', help='list of metallicity diagnostics to use')
     parser.set_defaults(diag_arr='D16')
 
-    parser.add_argument('--Om_arr', metavar='Om_arr', type=float, action='store', help='list of Omega values to use')
-    parser.set_defaults(Om_arr=0.5)
+    parser.add_argument('--Om_arr', metavar='Om_arr', type=str, action='store', help='list of Omega values to use')
+    parser.set_defaults(Om_arr='0.5')
 
     parser.add_argument('--nooutliers', dest='nooutliers', action='store_true', help='discard outlier HII regions (according to D16 diagnostic)?, default is no')
     parser.set_defaults(nooutliers=False)
@@ -224,11 +257,14 @@ def parse_args(haloname, RDname):
     parser.set_defaults(use_RGI=False)
 
     # ------- args added for make_ideal_datacube.py ------------------------------
-    parser.add_argument('--wave_start', metavar='wave_start', type=float, action='store', help='starting (bluest) wavelength for the ifu datacube, in A; default is 6400 A')
-    parser.set_defaults(wave_start=6400.)
+    parser.add_argument('--obs_wave_range', metavar='obs_wave_range', type=str, action='store', help='observed wavelength range for the simulated instrument, in micron; default is (0.8, 1.7) microns')
+    parser.set_defaults(obs_wave_range='0.8,1.7')
 
-    parser.add_argument('--wave_end', metavar='wave_end', type=float, action='store', help='last (reddest) wavelength for the ifu datacube, in A; default is 6800 A')
-    parser.set_defaults(wave_end=6800.)
+    parser.add_argument('--z', metavar='z', type=float, action='store', help='redshift of the mock datacube; default is 0')
+    parser.set_defaults(z=0.)
+
+    parser.add_argument('--inclination', metavar='inclination', type=float, action='store', help='inclination angle to rotate the galaxy by, on YZ plane (keeping X fixed), in degrees; default is 0')
+    parser.set_defaults(inclination=0.)
 
     parser.add_argument('--vel_disp', metavar='vel_disp', type=float, action='store', help='intrinsic velocity dispersion for each emission line, in km/s; default is 15 km/s')
     parser.set_defaults(vel_disp=15.)
@@ -248,23 +284,34 @@ def parse_args(haloname, RDname):
     parser.add_argument('--base_spatial_res', metavar='base_spatial_res', type=float, action='store', help='base spatial resolution, in kpc, i.e. to be employed while making the ideal datacube; default is 0.04 kpc = 40 pc')
     parser.set_defaults(base_spatial_res=0.04)
 
-    parser.add_argument('--inclination', metavar='inclination', type=float, action='store', help='inclination angle to rotate the galaxy by, on YZ plane (keeping X fixed), in degrees; default is 0')
-    parser.set_defaults(inclination=0.)
-
     parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', help='Redirect all print statements to a file?, default is no')
     parser.set_defaults(print_to_file=False)
 
     parser.add_argument('--printoutfile', metavar='printoutfile', type=str, action='store', help='file to write all print statements to; default is ./logfile.out')
     parser.set_defaults(printoutfile='./logfile.out')
 
+    parser.add_argument('--instrument', metavar='instrument', type=str, action='store', help='which instrument to simulate?; default is dummy')
+    parser.set_defaults(instrument='dummy')
+
     parser.add_argument('--debug', dest='debug', action='store_true', help='run in debug mode (lots of print checks)?, default is no')
     parser.set_defaults(debug=False)
+
+    # ------- args added for make_ideal_datacube.py ------------------------------
+    parser.add_argument('--obs_spec_res', metavar='obs_spec_res', type=float, action='store', help='observed spectral resolution of the instrument, in km/s; default is 60 km/s')
+    parser.set_defaults(obs_spec_res=30.)
+
+    parser.add_argument('--obs_spatial_res', metavar='obs_spatial_res', type=float, action='store', help='observed spatial resolution of the instrument, in arcsec; default is 1.0"')
+    parser.set_defaults(obs_spatial_res=1.0)
+
+    parser.add_argument('--pix_per_beam', metavar='pix_per_beam', type=int, action='store', help='number of pixels to sample the resolution element (PSF) by; default is 6"')
+    parser.set_defaults(pix_per_beam=6)
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 
     args.diag_arr = [item for item in args.diag_arr.split(',')]
-    args.Om_arr = [float(item) for item in str(args.Om_arr).split(',')]
+    args.Om_arr = [float(item) for item in args.Om_arr.split(',')]
+    args.obs_wave_range = [float(item) for item in args.obs_wave_range.split(',')]
     args.mergeHII_text = '_mergeHII=' + str(args.mergeHII) + 'kpc' if args.mergeHII is not None else '' # to be used as filename suffix to denote whether HII regions have been merged
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 
