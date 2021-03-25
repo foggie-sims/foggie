@@ -65,8 +65,8 @@ def get_cube_output_path(args, diag='D16', Om=0.5):
     '''
     Function to deduce which specific directory (in this jungle of folders) a given ifu datacube should be stored
     '''
-    cube_output_path = args.output_dir + 'fits/' + args.output + '/diagnostic_' + diag + '/Om_' + str(Om) + '/inc_' + \
-        str(args.inclination) + '/spectral_res_' + str(args.base_spec_res) + '/spatial_res_' + str(args.base_spatial_res)
+    cube_output_path = args.output_dir + 'fits/' + args.output + '/diagnostic_' + diag + '/Om_' + str(Om) + '/boxsize_' + str(2*args.galrad) + \
+        '/inc_' + str(args.inclination) + '/spectral_res_' + str(args.base_spec_res) + '/spatial_res_' + str(args.base_spatial_res)
     Path(cube_output_path).mkdir(parents=True, exist_ok=True) # creating the directory structure, if doesn't exist already
 
     return cube_output_path
