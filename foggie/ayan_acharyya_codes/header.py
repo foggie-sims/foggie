@@ -26,6 +26,8 @@ from scipy.special import erf
 
 from astropy.io import ascii, fits
 from astropy.table import Table
+from astropy.stats import gaussian_fwhm_to_sigma as gf2s
+from astropy import convolution as con
 
 from operator import itemgetter
 
@@ -109,7 +111,9 @@ def write_fitsobj(filename, cube, args, fill_val=np.nan, for_qfits=True):
                                'cutout_from_sim(kpc)': 2 * args.galrad, 'line_labels': ','.join(cube.linelist['label']), \
                                'line_restwaves': ','.join(cube.linelist['wave_vacuum'].astype(str))})
     if hasattr(cube, 'obs_spatial_res'): # i.e. it is a mock datacube rather than an ideal datacube
-        flux_header.update({'obs_spatial_res(kpc)':cube.obs_spatial_res, 'obs_spec_res(km/s)': cube.obs_spec_res, 'pix_per_beam': cube.pix_per_beam})
+        flux_header.update({'obs_spatial_res(kpc)':cube.obs_spatial_res, 'obs_spec_res(km/s)': cube.obs_spec_res, \
+                            'smoothing_kernel': args.kernel, 'pix_per_beam': cube.pix_per_beam, 'kernel_fwhm(pix)': cube.pix_per_beam, \
+                            'kernel_fwhm(kpc)': cube.achieved_spatial_res, 'kernel_sigma(pix)': cube.sigma, 'kernel_size(pix)': cube.ker_size})
 
 
     flux_hdu = fits.PrimaryHDU(flux, header=flux_header)
@@ -296,7 +300,7 @@ def parse_args(haloname, RDname):
     parser.add_argument('--debug', dest='debug', action='store_true', help='run in debug mode (lots of print checks)?, default is no')
     parser.set_defaults(debug=False)
 
-    # ------- args added for make_ideal_datacube.py ------------------------------
+    # ------- args added for make_mock_datacube.py ------------------------------
     parser.add_argument('--obs_spec_res', metavar='obs_spec_res', type=float, action='store', help='observed spectral resolution of the instrument, in km/s; default is 60 km/s')
     parser.set_defaults(obs_spec_res=30.)
 
@@ -305,6 +309,15 @@ def parse_args(haloname, RDname):
 
     parser.add_argument('--pix_per_beam', metavar='pix_per_beam', type=int, action='store', help='number of pixels to sample the resolution element (PSF) by; default is 6"')
     parser.set_defaults(pix_per_beam=6)
+
+    parser.add_argument('--kernel', metavar='kernel', type=str, action='store', help='which kernel to simulate for seeing, gauss or moff?; default is gauss')
+    parser.set_defaults(kernel='gauss')
+
+    parser.add_argument('--ker_factor', metavar='ker_factor', type=int, action='store', help='factor to multiply kernel sigma by to get kernel size, e.g. if PSF sigma=5 pixel and ker_factor=5, kernel size=25 pixel; default is 5"')
+    parser.set_defaults(ker_factor=5)
+
+    parser.add_argument('--moff_beta', metavar='moff_beta', type=float, action='store', help='beta (power index) in moffat kernel; default is 4.7"')
+    parser.set_defaults(moff_beta=4.7)
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
