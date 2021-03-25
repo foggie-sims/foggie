@@ -111,7 +111,7 @@ def write_fitsobj(filename, cube, args, fill_val=np.nan, for_qfits=True):
                                'cutout_from_sim(kpc)': 2 * args.galrad, 'line_labels': ','.join(cube.linelist['label']), \
                                'line_restwaves': ','.join(cube.linelist['wave_vacuum'].astype(str))})
     if hasattr(cube, 'obs_spatial_res'): # i.e. it is a mock datacube rather than an ideal datacube
-        flux_header.update({'obs_spatial_res(kpc)':cube.obs_spatial_res, 'obs_spec_res(km/s)': cube.obs_spec_res, \
+        flux_header.update({'obs_spatial_res(arcsec)':args.obs_spatial_res, 'obs_spatial_res(kpc)':cube.obs_spatial_res, 'obs_spec_res(km/s)': cube.obs_spec_res, \
                             'smoothing_kernel': args.kernel, 'pix_per_beam': cube.pix_per_beam, 'kernel_fwhm(pix)': cube.pix_per_beam, \
                             'kernel_fwhm(kpc)': cube.achieved_spatial_res, 'kernel_sigma(pix)': cube.sigma, 'kernel_size(pix)': cube.ker_size})
 
