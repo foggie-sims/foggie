@@ -14,7 +14,7 @@ from header import *
 import make_mappings_grid as mmg
 from make_ideal_datacube import *
 
-# ---------------------object containing info about the mock ifu datacube: sub class of ideal datacube----------------------------------------
+# ---------------------object containing info about the noiseless mock ifu datacube: sub class of ideal datacube----------------------------------------
 class mockcube(idealcube):
     # ---------initialise object-----------
     def __init__(self, args, instrument, linelist):
@@ -25,30 +25,68 @@ class mockcube(idealcube):
         self.obs_spec_res = instrument.obs_spec_res # km/s
         self.pix_per_beam = args.pix_per_beam
 
-        self.smoothed_ndisp = self.ndisp
-        self.smoothed_box_size_in_pix = int(round(2 * args.galrad / (self.obs_spatial_res/self.pix_per_beam))) # the size of the mock ifu cube in pixels
-        self.pixel_size = 2 * args.galrad / self.smoothed_box_size_in_pix # pixel size in kpc
-        self.achieved_spatial_res = self.pixel_size * self.pix_per_beam # kpc (this can vary very slightly from the 'intended' obs_spatial_res
+        self.box_size_in_pix = int(round(2 * args.galrad / (self.obs_spatial_res/self.pix_per_beam))) # the size of the mock ifu cube in pixels
+        self.pixel_size_kpc = 2 * args.galrad / self.box_size_in_pix # pixel size in kpc
+        self.achieved_spatial_res = self.pixel_size_kpc * self.pix_per_beam # kpc (this can vary very slightly from the 'intended' obs_spatial_res
 
-        self.data = np.zeros((self.smoothed_box_size_in_pix, self.smoothed_box_size_in_pix, self.smoothed_ndisp)) # initialise datacube with zeroes
+        self.data = np.zeros((self.box_size_in_pix, self.box_size_in_pix, self.ndisp)) # initialise datacube with zeroes
+        self.get_obs_dispersion_arr(args)
 
         # compute kernels to convolve by
         if args.kernel == 'gauss':
             self.sigma = gf2s * self.pix_per_beam
-            self.ker_size = int((self.sigma * args.ker_factor) // 2 * 2 + 1) # rounding off to nearest odd integer because kernels need odd integer as size
+            self.ker_size = int((self.sigma * args.ker_size_factor) // 2 * 2 + 1) # rounding off to nearest odd integer because kernels need odd integer as size
             self.kernel = con.Gaussian2DKernel(self.sigma, x_size=self.ker_size, y_size=self.ker_size)
         elif args.ker == 'moff':
             self.sigma = self.pix_per_beam / (2 * np.sqrt(2 ** (1. / args.moff_beta) - 1.))
-            self.ker_size = int((self.sigma * args.ker_factor) // 2 * 2 + 1) # rounding off to nearest odd integer because kernels need odd integer as size
+            self.ker_size = int((self.sigma * args.ker_size_factor) // 2 * 2 + 1) # rounding off to nearest odd integer because kernels need odd integer as size
             self.kernel = con.Moffat2DKernel(self.sigma, args.moff_beta, x_size=self.ker_size, y_size=self.ker_size)
 
         self.declare_obs_param(args)
 
-    # ---------print observation parameters-----------
+    # ------------------------------------------------
+    def get_obs_dispersion_arr(self, args):
+        '''
+        Function to compute the (mock) observed dispersion array (spectral dimension) for the mock ifu datacube
+        :param args: It rebins (modifies in situ) cube.dispersion_arr (which is the dispersion array based on the base_spec_res) and to an array with the given obs_spec_res
+        '''
+        # --------spectral binning as per args.base_spec_res-----------------------------------
+        binned_wave_arr = [self.dispersion_arr[0]]
+        while binned_wave_arr[-1] <= self.dispersion_arr[-1]:
+            binned_wave_arr.append(binned_wave_arr[-1] * (1 + self.obs_spec_res / c)) # creating spectrally binned wavelength array
+            # by appending new wavelength at delta_lambda interval, where delta_lambda = lambda * velocity_resolution / c
+
+        self.bin_index = np.digitize(self.dispersion_arr, binned_wave_arr)
+        self.dispersion_arr = np.array(binned_wave_arr)
+        self.delta_lambda = np.diff(self.dispersion_arr)  # wavelength spacing for each wavecell; in Angstrom
+        self.dispersion_arr = self.dispersion_arr[1:] # why are we omiting the first cell, again?
+        self.ndisp = len(self.dispersion_arr)
+
+    # -------------------------------------------------
     def declare_obs_param(self, args):
-        myprint('For spectral res= ' + str(self.obs_spec_res) + ' km/s, and wavelength range of ' + str(self.rest_wave_range[0]) + ' to ' + str(self.rest_wave_range[1]) + ' A, length of dispersion axis= ' + str(self.smoothed_ndisp) + ' pixels', args)
-        myprint('For spatial res= ' + str(args.obs_spatial_res) + ' arcsec on sky => physical res at redshift ' + str(self.z) + ' galaxy= ' + str(self.obs_spatial_res) + ' kpc, and pixel per beam = ' + str(self.pix_per_beam) + ', size of smoothed box= ' + str(self.smoothed_box_size_in_pix) + ' pixels', args)
+        '''
+        Function to print observation parameters
+        '''
+        myprint('For obs spectral res= ' + str(self.obs_spec_res) + ' km/s, and wavelength range of ' + str(self.rest_wave_range[0]) + ' to ' + str(self.rest_wave_range[1]) + ' A, length of dispersion axis= ' + str(self.ndisp) + ' pixels', args)
+        myprint('For obs spatial res= ' + str(args.obs_spatial_res) + ' arcsec on sky => physical res at redshift ' + str(self.z) + ' galaxy= ' + str(self.obs_spatial_res) + ' kpc, and pixel per beam = ' + str(self.pix_per_beam) + ', size of smoothed box= ' + str(self.box_size_in_pix) + ' pixels', args)
         myprint('Going to convolve with ' + args.kernel + ' kernel with FWHM = ' + str(self.pix_per_beam) + ' pixels (' + str(self.achieved_spatial_res) + ' kpc) => sigma = ' + str(self.sigma) + ' pixels, and total size of smoothing kernel = ' + str(self.ker_size) + ' pixels', args)
+
+# ---------------------object containing info about the noisy mock ifu datacube: sub class of mock datacube----------------------------------------
+class noisycube(mockcube):
+    # ---------initialise object-----------
+    def __init__(self, args, instrument, linelist):
+        mockcube.__init__(self, args, instrument, linelist) # getting most attributes from the parent class 'mockcube'
+
+        self.exptime = args.exptime # in seconds
+        self.snr = args.snr # target SNR per pixel
+        self.declare_noise_param(args)
+
+    # -------------------------------------------------
+    def declare_noise_param(self, args):
+        '''
+        Function to print noise parameters
+        '''
+        myprint('Noisy cube initialised with exposure time = ' + str(self.exptime) + ' s, and target SNR/pixel = ' + str(self.snr), args)
 
 # -----------------------------------------------------------------
 def rebin(array, dimensions=None, scale=None):
@@ -128,6 +166,90 @@ def rebin(array, dimensions=None, scale=None):
     assert (array.sum() < result.sum() * (1 + allowError)) & (array.sum() > result.sum() * (1 - allowError))
     return result
 
+# ---------------------------------------------------------------------
+def spatial_convolve(ideal_ifu, mock_ifu, args):
+    '''
+    Function to spatially (rebin and) convolve ideal data cube, with a given PSF, wavelength slice by wavelength slice
+    :return: mockcube object: mock_ifu
+    '''
+    start_time = time.time()
+
+    for slice in range(np.shape(ideal_ifu.data)[2]):
+        myprint('Rebinning & convolving slice ' + str(slice + 1) + ' of ' + str(np.shape(ideal_ifu.data)[2]) + '..', args)
+        rebinned_slice = rebin(ideal_ifu.data[:, :, slice], (mock_ifu.box_size_in_pix, mock_ifu.box_size_in_pix))  # rebinning before convolving
+        mock_ifu.data[:, :, slice] = con.convolve_fft(rebinned_slice, mock_ifu.kernel, normalize_kernel=True)  # convolving with kernel
+
+    myprint('Completed spatial convolution in %s minutes' % ((time.time() - start_time) / 60), args)
+    return mock_ifu
+
+# ---------------------------------------------------------------------
+def spectral_bin(mock_ifu, args):
+    '''
+    Function to spectrally rebin given data cube, with a given spectral resolution, pixel by pixel
+    :return: mockcube object: mock_ifu
+    '''
+    start_time = time.time()
+
+    smoothed_data = mock_ifu.data # smoothed_data is only spatially smoothed but as yet spectrally unbinned
+    xlen, ylen = np.shape(smoothed_data)[0], np.shape(smoothed_data)[1]
+    mock_ifu.data = np.zeros((mock_ifu.box_size_in_pix, mock_ifu.box_size_in_pix, mock_ifu.ndisp))  # initialise datacube with zeroes
+
+    for index in range(xlen*ylen - 1):
+        i, j = int(index / ylen), int(index % ylen) # cell position
+        myprint('Spectral rebinning pixel (' + str(i) + ',' + str(j) + '), i.e. ' + str(index + 1) + ' out of ' + str(xlen * ylen) + '..', args)
+        unbinned_spectra = smoothed_data[i, j, :]
+        mock_ifu.data[i, j, :] = np.array([unbinned_spectra[mock_ifu.bin_index == ii].mean() for ii in range(1, len(mock_ifu.dispersion_arr) + 1)])  # spectral smearing i.e. rebinning of spectrum                                                                                                                             #mean() is used here to conserve flux; as f is in units of ergs/s/A, we want integral of f*dlambda to be preserved (same before and after resampling)
+
+    myprint('Completed spectral binning in %s minutes' % ((time.time() - start_time) / 60), args)
+    return mock_ifu
+
+# ---------------------------------------------------------------------
+def add_noise(mock_ifu, instrument, args):
+    '''
+    Function to add noise to a data cube, with a given target SNR, voxel by voxel (i.e. the noise is spatially and spectrally variable)
+    :return: mockcube object: mock_ifu
+    '''
+    start_time = time.time()
+
+    clean_data = mock_ifu.data # clean_data has no noise, in flux density units
+    (xlen, ylen, zlen) = np.shape(clean_data)
+    mock_ifu.data = np.zeros(np.shape(clean_data))  # initialise datacube with zeroes
+
+    for index in range(xlen * ylen * zlen - 1):
+        i, j, k = int(index / (ylen * zlen)), int((index / zlen) % ylen), int(index % zlen) # cell position
+        myprint('Adding noise to voxel (' + str(i) + ',' + str(j) + ',' + str(k) + '), i.e. ' + str(index + 1) + ' out of ' + str(xlen * ylen * zlen) + '..', args)
+        flux = clean_data[i, j, k]
+        wavelength = mock_ifu.dispersion_arr[k]
+        delta_lambda = mock_ifu.delta_lambda[k]
+
+        if args.debug: myprint('Deb225: flux = ' + str(flux) + ' ergs/s/cm^2/A; wavelength = ' + str(wavelength) + ' A; delta lambda = ' + str(delta_lambda) + ' A', args)
+        # compute conversion factor from flux density units to photon count (will be used to add noise), based on telescope properties
+        flux_density_to_counts = np.pi * (instrument.radius * 1e2)**2 * mock_ifu.exptime * instrument.el_per_phot * delta_lambda / (planck * (c * 1e3) / (wavelength * 1e-10))  # to bring ergs/s/A/pixel to units of counts/pixel (ADUs)
+
+        flux = flux * flux_density_to_counts  # converting flux density units to counts (photons)
+
+        if args.debug: myprint('Deb231: flux = ' + str(flux) + ' electrons/pix; using factor = ' + str(flux_density_to_counts) + ' A.s.cm^2/ergs', args)
+
+        noisyflux = flux + get_noise_in_voxel(flux, wavelength, mock_ifu.snr, args) # adding noise to the flux, in counts unit                                                                                                                           #mean() is used here to conserve flux; as f is in units of ergs/s/A, we want integral of f*dlambda to be preserved (same before and after resampling)
+        mock_ifu.data[i, j, k] = noisyflux / flux_density_to_counts # converting counts to flux density units
+
+        if args.debug: myprint('Deb236: noisy flux = ' + str(noisyflux) + ' electrons/pix = ' + str(mock_ifu.data[i, j, k]) + ' ergs/s/cm^2/A', args)
+
+    myprint('Completed adding noise in %s minutes' % ((time.time() - start_time) / 60), args)
+    return mock_ifu
+
+# ---------------------------------------------------------------------
+def get_noise_in_voxel(data, wavelength, target_SNR, args):
+    '''
+    Function to compute the noise to add to a single voxel, given the data (flux) in photon counts, wavelength and target SNR
+    :return: initial data + randomly generated noise
+    '''
+    absolute_noise = data / target_SNR
+    random_noise = np.random.poisson(lam=absolute_noise ** 2, size=np.shape(data)) - absolute_noise ** 2
+
+    if args.debug: myprint('Deb250: data = ' + str(data) + ' electrons; absolute_noise = ' + str(absolute_noise) + '; random noise = ' + str(random_noise) + ' electrons', args)
+
+    return random_noise
 # -----------------------------------------------------------------------
 def get_mock_datacube(ideal_ifu, args, linelist, cube_output_path):
     '''
@@ -139,24 +261,31 @@ def get_mock_datacube(ideal_ifu, args, linelist, cube_output_path):
     start_time = time.time()
 
     instrument = telescope(args)  # declare the instrument
-    ifu = mockcube(args, instrument, linelist) # declare the datacube object
-    args.mockcube_filename = cube_output_path + instrument.path + 'mock_ifu' + '_z' + str(ifu.z) + args.mergeHII_text + '_ppb' + str(ifu.pix_per_beam) + '.fits'
+    args.smoothed_cube_filename = cube_output_path + instrument.path + 'smoothed_ifu' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '.fits'
+    args.mockcube_filename = cube_output_path + instrument.path + 'mock_ifu' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '_exp' + str(args.exptime) + 's_snr' + str(args.snr) + '.fits'
 
     if os.path.exists(args.mockcube_filename) and not args.clobber:
-        myprint('Reading from already existing file ' + args.mockcube_filename + ', use --args.clobber to overwrite', args)
+        myprint('Reading noisy mock ifu from already existing file ' + args.mockcube_filename + ', use --args.clobber to overwrite', args)
     else:
-        myprint('Mock cube file does not exist. Creating now..', args)
+        if os.path.exists(args.smoothed_cube_filename) and not args.clobber:
+            myprint('Reading from already existing no-noise cube file ' + args.mockcube_filename + ', use --args.clobber to overwrite', args)
+        else:
+            myprint('Noisy or no-noise mock cube file does not exist. Creating now..', args)
+            ifu = mockcube(args, instrument, linelist)  # declare the noiseless mock datacube object
+            ifu = spatial_convolve(ideal_ifu, ifu, args) # spatial convolution based on obs_spatial_res
+            ifu = spectral_bin(ifu, args) # spectral rebinning based on obs_spec_res
+            write_fitsobj(args.smoothed_cube_filename, ifu, instrument, args, for_qfits=True) # writing smoothed, no-noise cube into FITS file
 
-        # -------just for testing: simple rebinning of ideal data cube------------------
-        for slice in range(np.shape(ideal_ifu)[2]):
-            myprint('Rebinning & convolving slice ' + str(slice + 1) + ' of ' + str(np.shape(ideal_ifu)[2]) + '..', args)
-            rebinned_slice = rebin(ideal_ifu[:, :, slice], (ifu.smoothed_box_size_in_pix, ifu.smoothed_box_size_in_pix)) # rebinning before convolving
-            ifu.data[:, :, slice] = con.convolve_fft(rebinned_slice, ifu.kernel, normalize_kernel=True) # convolving with kernel
+        ifu = noisycube(args, instrument, linelist)  # declare the noisy mock datacube object
+        ifu.data = readcube(args.smoothed_cube_filename, args).data # reading in and paste no-noise ifu data in to 'data' attribute of ifu, so that all other attributes of ifu can be used too
 
-        write_fitsobj(args.mockcube_filename, ifu, args, for_qfits=True) # writing into FITS file
+        if ifu.snr > 0: # otherwise no point of adding noise
+            ifu = add_noise(ifu, instrument, args) # adding noise based on snr
+
+        write_fitsobj(args.mockcube_filename, ifu, instrument, args, for_qfits=True) # writing into FITS file
 
     ifu = readcube(args.mockcube_filename, args)
-    myprint('Done in %s minutes' % ((time.time() - start_time) / 60), args)
+    myprint('Mock cube ready in %s minutes' % ((time.time() - start_time) / 60), args)
 
     return ifu, args
 
@@ -181,7 +310,7 @@ def wrap_get_mock_datacube(args):
 
     ideal_ifu = readcube(args.idealcube_filename, args) # read in the ideal datacube
 
-    mock_ifu, args = get_mock_datacube(ideal_ifu.data, args, linelist, cube_output_path)
+    mock_ifu, args = get_mock_datacube(ideal_ifu, args, linelist, cube_output_path)
     return mock_ifu, ideal_ifu, args
 
 # -----------------------------------------------------------------------------
