@@ -370,7 +370,7 @@ def lookup_grid(paramlist, args):
                 nII: HII region number density per m^3\n\
                 log(P/k): HII region pressure, SI units\n\
                 Z: metallicity of ambient gas, Zsun units\n\
-                fluxes: ergs/s/cm^2\n'
+                fluxes: ergs/s\n'
 
                 np.savetxt(fout, [], header=header, comments='#')
                 paramlist.to_csv(fout, sep='\t', mode='a', index=None)
