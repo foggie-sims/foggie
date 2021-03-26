@@ -92,7 +92,7 @@ class readcube(object):
         self.data = self.data.swapaxes(0, 2) # switching from (wave, pos, pos) arrangement (QFitsView requires) to (pos, pos, wave) arrangement (traditional)
 
 # -------------------------------------------------------------------------------------------
-def write_fitsobj(filename, cube, args, fill_val=np.nan, for_qfits=True):
+def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=True):
     '''
     Function to write a ifu cube.data to a FITS file, along with all other attributes of the cube
     '''
@@ -104,16 +104,55 @@ def write_fitsobj(filename, cube, args, fill_val=np.nan, for_qfits=True):
     flux = np.ma.filled(cube.data, fill_value=fill_val)
     wavelength = cube.dispersion_arr
 
-    flux_header = fits.Header({'simulation': args.halo, 'snapshot': args.output, 'metallicity_diagnostic': args.diag, 'Omega': args.Om, 'inclination(deg)': cube.inclination, \
-                               'redshift': cube.z, 'distance(Mpc)': cube.distance, 'rest_wave_range(A)': ','.join(cube.rest_wave_range.astype(str)), \
-                               'base_spatial_res(kpc)':cube.base_spatial_res, 'base_spec_res(km/s)': cube.base_spec_res, 'instrument_name': cube.instrument_name, \
+    flux_header = fits.Header({'CRPIX1': 1, \
+                               'CRVAL1': -2 * args.galrad, \
+                               'CDELT1': 2 * args.galrad / np.shape(cube.data)[1], \
+                               'CTYPE1': 'kpc', \
+                               'CRPIX2': 1, \
+                               'CRVAL2': -2 * args.galrad, \
+                               'CDELT2': 2 * args.galrad / np.shape(cube.data)[1], \
+                               'CTYPE2': 'kpc', \
+                               'CRPIX3': 1, \
+                               'CRVAL3': cube.dispersion_arr[0], \
+                               'CDELT3': cube.delta_lambda[0], \
+                               'CTYPE3': 'A', \
+                               'data_unit(flambda)': 'ergs/s/cm^2/A', \
+                               'simulation': args.halo, \
+                               'snapshot': args.output, \
+                               'metallicity_diagnostic': args.diag, \
+                               'Omega': args.Om, \
+                               'cutout_from_sim(kpc)': 2 * args.galrad, \
+                               'inclination(deg)': cube.inclination, \
+                               'redshift': cube.z, \
+                               'distance(Mpc)': cube.distance, \
+                               'base_spatial_res(kpc)':cube.base_spatial_res, \
+                               'base_spec_res(km/s)': cube.base_spec_res, \
                                'box_size': ','.join(np.array([cube.box_size_in_pix, cube.box_size_in_pix, cube.ndisp]).astype(str)), \
-                               'cutout_from_sim(kpc)': 2 * args.galrad, 'line_labels': ','.join(cube.linelist['label']), \
-                               'line_restwaves': ','.join(cube.linelist['wave_vacuum'].astype(str))})
-    if hasattr(cube, 'obs_spatial_res'): # i.e. it is a mock datacube rather than an ideal datacube
-        flux_header.update({'obs_spatial_res(arcsec)':args.obs_spatial_res, 'obs_spatial_res(kpc)':cube.obs_spatial_res, 'obs_spec_res(km/s)': cube.obs_spec_res, \
-                            'smoothing_kernel': args.kernel, 'pix_per_beam': cube.pix_per_beam, 'kernel_fwhm(pix)': cube.pix_per_beam, \
-                            'kernel_fwhm(kpc)': cube.achieved_spatial_res, 'kernel_sigma(pix)': cube.sigma, 'kernel_size(pix)': cube.ker_size})
+                               'pixel_size(kpc)': cube.pixel_size_kpc, \
+                               'rest_wave_range(A)': ','.join(cube.rest_wave_range.astype(str)), \
+                               'line_labels': ','.join(cube.linelist['label']), \
+                               'line_restwaves': ','.join(cube.linelist['wave_vacuum'].astype(str)), \
+                               'instrument_name': instrument.name, \
+                                }) # all the CRPIX3 etc. keywords are to make sure qfits has the wavelength information upon loading
+
+    if hasattr(cube, 'obs_spatial_res'): # i.e. it is a smoothed mock datacube rather than an ideal datacube
+        flux_header.update({'obs_spatial_res(arcsec)': instrument.obs_spatial_res, \
+                            'obs_spatial_res(kpc)': cube.obs_spatial_res, \
+                            'obs_spec_res(km/s)': instrument.obs_spec_res, \
+                            'smoothing_kernel': args.kernel, \
+                            'pix_per_beam': cube.pix_per_beam, \
+                            'kernel_fwhm(pix)': cube.pix_per_beam, \
+                            'kernel_fwhm(kpc)': cube.achieved_spatial_res, \
+                            'kernel_sigma(pix)': cube.sigma, \
+                            'kernel_size(pix)': cube.ker_size, \
+                            })
+
+    if hasattr(cube, 'snr'):  # i.e. it is a smoothed AND noisy mock datacube rather than an ideal datacube
+        flux_header.update({'exptime(s)': cube.exptime, \
+                            'target_snr': cube.snr, \
+                            'electrons_per_photon': instrument.el_per_phot, \
+                            'telescope_radius(m)': instrument.radius, \
+                            })
 
 
     flux_hdu = fits.PrimaryHDU(flux, header=flux_header)
@@ -262,10 +301,10 @@ def parse_args(haloname, RDname):
 
     # ------- args added for make_ideal_datacube.py ------------------------------
     parser.add_argument('--obs_wave_range', metavar='obs_wave_range', type=str, action='store', help='observed wavelength range for the simulated instrument, in micron; default is (0.8, 1.7) microns')
-    parser.set_defaults(obs_wave_range='0.8,1.7')
+    parser.set_defaults(obs_wave_range='0.65,0.68')
 
-    parser.add_argument('--z', metavar='z', type=float, action='store', help='redshift of the mock datacube; default is 0')
-    parser.set_defaults(z=0.)
+    parser.add_argument('--z', metavar='z', type=float, action='store', help='redshift of the mock datacube; default is 0.0001 (not 0, so as to avoid flux unit conversion issues)')
+    parser.set_defaults(z=0.0001)
 
     parser.add_argument('--inclination', metavar='inclination', type=float, action='store', help='inclination angle to rotate the galaxy by, on YZ plane (keeping X fixed), in degrees; default is 0')
     parser.set_defaults(inclination=0.)
@@ -313,11 +352,23 @@ def parse_args(haloname, RDname):
     parser.add_argument('--kernel', metavar='kernel', type=str, action='store', help='which kernel to simulate for seeing, gauss or moff?; default is gauss')
     parser.set_defaults(kernel='gauss')
 
-    parser.add_argument('--ker_factor', metavar='ker_factor', type=int, action='store', help='factor to multiply kernel sigma by to get kernel size, e.g. if PSF sigma=5 pixel and ker_factor=5, kernel size=25 pixel; default is 5"')
-    parser.set_defaults(ker_factor=5)
+    parser.add_argument('--ker_size_factor', metavar='ker_size_factor', type=int, action='store', help='factor to multiply kernel sigma by to get kernel size, e.g. if PSF sigma=5 pixel and ker_size_factor=5, kernel size=25 pixel; default is 5"')
+    parser.set_defaults(ker_size_factor=5)
 
     parser.add_argument('--moff_beta', metavar='moff_beta', type=float, action='store', help='beta (power index) in moffat kernel; default is 4.7"')
     parser.set_defaults(moff_beta=4.7)
+
+    parser.add_argument('--snr', metavar='snr', type=float, action='store', help='target SNR of the datacube; default is 0, i.e. noiseless"')
+    parser.set_defaults(snr=0)
+
+    parser.add_argument('--tel_radius', metavar='tel_radius', type=float, action='store', help='radius of telescope, in metres; default is 1 m')
+    parser.set_defaults(tel_radius=1)
+
+    parser.add_argument('--exptime', metavar='exptime', type=float, action='store', help='exposure time of observation, in sec; default is 1200 sec')
+    parser.set_defaults(exptime=1200)
+
+    parser.add_argument('--el_per_phot', metavar='el_per_phot', type=float, action='store', help='how many electrons do each photon trigger in the instrument; default is 1"')
+    parser.set_defaults(el_per_phot=1)
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
@@ -330,6 +381,15 @@ def parse_args(haloname, RDname):
 
     args = pull_halo_center(args) # pull details about center of the snapshot
     return args
+
+# ------------declaring constants to be used globally-----------
+c = 3e5  # km/s
+H0 = 70.  # km/s/Mpc Hubble's constant
+planck = 6.626e-27  # ergs.sec Planck's constant
+nu = 5e14  # Hz H-alpha frequency to compute photon energy approximately
+Mpc_to_m = 3.08e22
+Mpc_to_cm = Mpc_to_m * 100
+kpc_to_cm = Mpc_to_cm / 1000
 
 # ------------declaring overall paths (can be modified on a machine/user basis)-----------
 HOME = os.getenv('HOME')
