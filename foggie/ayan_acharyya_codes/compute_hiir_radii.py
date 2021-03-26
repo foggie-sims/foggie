@@ -55,14 +55,14 @@ def compute_radii(paramlist):
     '''
 
     # --------calculating characteristic radius-----------#
-    r_ch = (alpha_B * eps ** 2 * f_trap ** 2 * psi ** 2 * paramlist['Q_H0']) / (12 * np.pi * phi * k_B ** 2 * TII ** 2 * c ** 2)
+    r_ch = (alpha_B * eps ** 2 * f_trap ** 2 * psi ** 2 * paramlist['Q_H0']) / (12 * np.pi * phi * k_B ** 2 * TII ** 2 * (c*1e3) ** 2)
 
     # --------calculating characteristic time-----------#
     m_SI = paramlist['mass'] * 1.989e30  # converting Msun to kg
     age_SI = paramlist['age'] * 3.1536e13  # converting Myr to sec
     r_0 = (m_SI ** 2 * (3 - k_rho) ** 2 * G / (paramlist['gas_pressure'] * 8 * np.pi)) ** (1 / 4.)
     rho_0 = (2 / np.pi) ** (1 / 4.) * (paramlist['gas_pressure'] / G) ** (3 / 4.) / np.sqrt(m_SI * (3 - k_rho))
-    t_ch = np.sqrt(4 * np.pi * rho_0 * r_0 ** k_rho * c * r_ch ** (4 - k_rho) / ((3 - k_rho) * f_trap * psi * eps * paramlist['Q_H0']))
+    t_ch = np.sqrt(4 * np.pi * rho_0 * r_0 ** k_rho * (c*1e3) * r_ch ** (4 - k_rho) / ((3 - k_rho) * f_trap * psi * eps * paramlist['Q_H0']))
     tau = age_SI / t_ch
 
     # --------calculating radiation pressure radius-----------#
@@ -76,7 +76,7 @@ def compute_radii(paramlist):
     paramlist['r_inst'] = xII_apr * r_ch
 
     # --------calculating stall radius-----------#
-    Prad_const = psi * eps * f_trap * paramlist['Q_H0'] / (4 * np.pi * c)
+    Prad_const = psi * eps * f_trap * paramlist['Q_H0'] / (4 * np.pi * (c*1e3))
     Pgas_const = np.sqrt(3 * phi * paramlist['Q_H0'] / (4 * np.pi * alpha_B * (1 + Y / (4 * X)))) * (mu_H * m_H * cII ** 2)
     r0 = (Pgas_const /paramlist['gas_pressure']) ** (2/3.)
 
@@ -90,7 +90,7 @@ def compute_radii(paramlist):
     paramlist['nII'] = np.sqrt(3 * phi * paramlist['Q_H0'] / (4 * (paramlist['r'] ** 3) * np.pi * alpha_B * (1 + Y / (4 * X))))
 
     # --------calculating volume averaged ionisation parameter inside HII region-----------#
-    paramlist['<U>'] = paramlist['Q_H0'] / (4 * np.pi * paramlist['r'] ** 2 * c * paramlist['nII'])
+    paramlist['<U>'] = paramlist['Q_H0'] / (4 * np.pi * paramlist['r'] ** 2 * (c*1e3) * paramlist['nII'])
 
     # --------calculating HII region pressure-----------#
     paramlist['log(P/k)'] = np.log10(paramlist['nII'] * TII)
@@ -181,7 +181,7 @@ Y = 0.23
 X = 0.75
 psi = 3.2
 eps = 2.176e-18  # Joules or 13.6 eV
-c = 3e8  # m/s
+# speed of light c is imported from header.py, in units of km/s
 f_trap = 2  # Verdolini et. al.
 #alpha_B = 3.46e-19  # m^3/s OR 3.46e-13 cc/s, Krumholz Matzner (2009) for 7e3 K
 alpha_B = 2.59e-19  # m^3/s OR 2.59e-13 cc/s, for Te = 1e4 K, referee quoted this values

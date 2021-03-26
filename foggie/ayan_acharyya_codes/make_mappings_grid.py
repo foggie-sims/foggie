@@ -120,8 +120,8 @@ def func(nII, lQ0):
     Function used to solve for Omega
     '''
 
-    global alpha_B, c, ltemp
-    return ((81. * nII * (10 ** lQ0) * alpha_B ** 2 / (256. * np.pi * c ** 3)) ** (1 / 3.)) # Acharyya+2019a
+    global alpha_B, ltemp
+    return ((81. * nII * (10 ** lQ0) * alpha_B ** 2 / (256. * np.pi * (c*1e3) ** 3)) ** (1 / 3.)) # Acharyya+2019a
 
 # --------------------------------------------------------
 def solve_for_Om(Om, nII, U, lQ0):
@@ -129,7 +129,7 @@ def solve_for_Om(Om, nII, U, lQ0):
     Function to solve for Omega
     '''
 
-    global alpha_B, c, ltemp
+    global alpha_B, ltemp
     return (np.abs(func(nII, lQ0) * ((1 + Om) ** (4 / 3.) - (4. / 3. + Om) * Om ** (1 / 3.)) - U)) # Acharyya+2019a
 
 # --------------------------------------------------------
@@ -138,7 +138,7 @@ def calcprint(i, Z, age, lognII, logU, table=False):
     Function to calculate quantities to print on screen, or save in table
     '''
 
-    global alpha_B, c, ltemp, lQ0
+    global alpha_B, ltemp, lQ0
     nII = 10 ** lognII
     U = 10 ** logU
     lQ0 = SB99_logQ[np.where(SB99_age == age * 10 ** 6)[0][0]] + np.log10(mappings_starparticle_mass) - np.log10(sb99_mass)  # taking logQ of each gridpoint from the
@@ -149,7 +149,7 @@ def calcprint(i, Z, age, lognII, logU, table=False):
     Rs = (3 * (10 ** lQ0) / (4 * np.pi * alpha_B * nII ** 2)) ** (1 / 3.) # Stromgen radius
     r_i = Rs * (Om ** (1 / 3.)) # inner radius of ionised shell
     r_m = Rs * ((1 + Om) ** (1 / 3.)) # outer radius of ionises shell
-    lUin = np.log10((10 ** lQ0) / (4 * np.pi * r_i ** 2 * nII * c)) # (log) ionisation parameter at innermost edge of shell, this is required for input to MAPPINGS
+    lUin = np.log10((10 ** lQ0) / (4 * np.pi * r_i ** 2 * nII * (c*1e3))) # (log) ionisation parameter at innermost edge of shell, this is required for input to MAPPINGS
     if not table:
         return lpok, lUin, lQ0, (str(i) + '\t' + str('%.2F' % Z) + '\t' + str(format(age * 10 ** 6, '0.0e')) + '\t' + str(
             format(nII, '0.0e')) + '\t' + str(format(U, '0.0e')) + \
@@ -168,7 +168,7 @@ def rungridpoint(i, Z, age, lognII, logU, parallel, clobber=False):
     '''
 
     start_time2 = time.time()
-    global alpha_B, c, ltemp, outtag
+    global alpha_B, ltemp, outtag
     if not clobber and os.path.exists(mappings_lab_dir + 'results' + outtag + '/spec' + str(i) + '.csv'):
         print('lines_to_pick file already exists. Use clobber=True to overwrite.\n')
         return
@@ -203,12 +203,12 @@ def rungridpoint(i, Z, age, lognII, logU, parallel, clobber=False):
 
 
 # ----------- declaring constants ---------------------------------------------
-global i, alpha_B, c, ltemp, outtag
+global i, alpha_B, ltemp, outtag
 #alpha_B = 3.46e-19  # m^3/s OR 3.46e-13 cc/s, Krumholz & Matzner (2009) for 7e3 K
 alpha_B = 2.59e-19  # m^3/s OR 2.59e-13 cc/s, for Te = 1e4 K, referee quoted this values
 ltemp = 4.  # assumed 1e4 K temp; for what? for the initial guess??
-c = 3e8  # m/s
 mappings_starparticle_mass = 1000. # Msun, mass to scale the output SB99 luminosity to; 1000 Msun because median mass for FOGGIE star particles ~ 1000 Msun
+# speed of light c is imported from header.py, in units of km/s
 
 i_start = 0 # set to non-zero in case some of the model grid is already computed
 i_end = 1e10 # set to some crazy high value to let the code run through till the end of the grid
@@ -239,7 +239,7 @@ outtag = '_sph_logT' + str(ltemp) + '_mass' + str(mappings_starparticle_mass) + 
 if __name__ == '__main__':
     cpu = int(sys.argv[1]) if len(sys.argv) > 1 else int(mproc.cpu_count() / 2)
 
-    c# --------------------------------------------------------
+    # --------------------------------------------------------
     subprocess.call(['mkdir -p ' + mappings_lab_dir + 'results' + outtag], shell=True)
     subprocess.call(['cp make_mappings_grid.py ' + mappings_lab_dir + 'results' + outtag + '/USED_make_mappings_grid.py'], shell=True)
 
