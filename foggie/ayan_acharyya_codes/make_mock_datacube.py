@@ -7,7 +7,7 @@
     Output :     FITS cube
     Author :     Ayan Acharyya
     Started :    January 2021
-    Example :    run make_mock_datacube.py --system ayan_local --halo 8508 --output RD0042 --mergeHII 0.04 --inc 0 --arc 1.0 --vres 60
+    Example :    run make_mock_datacube.py --system ayan_local --halo 8508 --output RD0042 --mergeHII 0.04 --base_spatial_res 0.4 --z 0.25 --obs_wave_range 0.8,0.85 --obs_spatial_res 1 --obs_spec_res 60 --exptime 1200 --snr 5 --debug
 
 """
 from header import *
@@ -25,7 +25,17 @@ class mockcube(idealcube):
         self.obs_spec_res = instrument.obs_spec_res # km/s
         self.pix_per_beam = args.pix_per_beam
 
+        base_box_size = self.box_size_in_pix # temporary variable to store the ideal datacube's box size
         self.box_size_in_pix = int(round(2 * args.galrad / (self.obs_spatial_res/self.pix_per_beam))) # the size of the mock ifu cube in pixels
+
+        if self.box_size_in_pix > base_box_size: # lest we have to rebin to a "finer" grid, thereby doing unnecessary interpolations
+            intended_pix_per_beam = self.pix_per_beam
+            self.pix_per_beam = self.obs_spatial_res / (2 * args.galrad / base_box_size) # reducing pix_per_beam as far as necessary to not enlarge the box size in pixels
+            myprint('To sample spatial resolution = ' +str(self.obs_spatial_res) + ' kpc with ' +str(intended_pix_per_beam) + \
+                    ' beams, required box size (= ' + str(self.box_size_in_pix) + ' pix) is larger than base box size (= ' + str(base_box_size) + \
+                    ' pix). In order to keep the box size and spatial resolution unchanged, your beam will now be sampled by only ' + str(self.pix_per_beam) + ' pixels. ' + \
+                    'To avoid this scenario, either aim for a coarser obs_spatial_res or use a finer base_spatial_res or target a smaller pix_per_beam.', args)
+
         self.pixel_size_kpc = 2 * args.galrad / self.box_size_in_pix # pixel size in kpc
         self.achieved_spatial_res = self.pixel_size_kpc * self.pix_per_beam # kpc (this can vary very slightly from the 'intended' obs_spatial_res
 
