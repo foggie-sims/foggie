@@ -67,8 +67,10 @@ class idealcube(object):
         self.distance = get_distance(self.z)  # distance to object; in Mpc
         self.inclination = args.inclination
 
-        self.rest_wave_range = instrument.obs_wave_range / (1 + self.z) # converting from obs to rest frame
-        self.rest_wave_range *= 1e4 # converting from microns to Angstroms
+        #self.rest_wave_range = instrument.obs_wave_range / (1 + self.z) # converting from obs to rest frame
+        #self.rest_wave_range *= 1e4 # converting from microns to Angstroms
+
+        self.rest_wave_range = np.array([950., 6800.]) # Angstroms, rest frame wavelength
 
         delta_lambda = args.vel_highres_win / c  # buffer on either side of central wavelength, for judging which lines should be included in the given wavelength range
         self.linelist = linelist[linelist['wave_vacuum'].between(self.rest_wave_range[0] * (1 + delta_lambda), self.rest_wave_range[1] * (1 - delta_lambda))].reset_index(drop=True)  # curtailing list of lines based on the restframe wavelength range
@@ -136,6 +138,14 @@ class mockcube(idealcube):
     def __init__(self, args, instrument, linelist):
         idealcube.__init__(self, args, instrument, linelist) # getting most attributes from the parent class 'idealcube'
 
+        # new wavelength range depending on instrument's observed wavelength range and object's redshift
+        self.rest_wave_range = instrument.obs_wave_range / (1 + self.z) # converting from obs to rest frame
+        self.rest_wave_range *= 1e4 # converting from microns to Angstroms
+
+        delta_lambda = args.vel_highres_win / c  # buffer on either side of central wavelength, for judging which lines should be included in the given wavelength range
+        self.linelist = linelist[linelist['wave_vacuum'].between(self.rest_wave_range[0] * (1 + delta_lambda), self.rest_wave_range[1] * (1 - delta_lambda))].reset_index(drop=True)  # curtailing list of lines based on the restframe wavelength range
+        self.get_base_dispersion_arr(args) # re-computing dispersion array with base spectral resolution, but with the instrument observed wavelength range and redshift
+
         # observed resolutions with which the mock cube is made, depending on the instrument being simulated
         self.obs_spatial_res = instrument.obs_spatial_res * np.pi / (3600 * 180) * (self.distance * 1e3) # since instrument resolution is in arcsec, converting to kpc (self.distance is in Mpc)
         self.obs_spec_res = instrument.obs_spec_res # km/s
@@ -155,7 +165,6 @@ class mockcube(idealcube):
         self.pixel_size_kpc = 2 * args.galrad / self.box_size_in_pix # pixel size in kpc
         self.achieved_spatial_res = self.pixel_size_kpc * self.pix_per_beam # kpc (this can vary very slightly from the 'intended' obs_spatial_res
 
-        self.data = np.zeros((self.box_size_in_pix, self.box_size_in_pix, self.ndisp)) # initialise datacube with zeroes
         self.get_obs_dispersion_arr(args)
 
         # compute kernels to convolve by
@@ -177,8 +186,8 @@ class mockcube(idealcube):
         :param args: It rebins (modifies in situ) cube.dispersion_arr (which is the dispersion array based on the base_spec_res) and to an array with the given obs_spec_res
         '''
         # --------spectral binning as per args.base_spec_res-----------------------------------
-        binned_wave_arr = [self.dispersion_arr[0]]
-        while binned_wave_arr[-1] <= self.dispersion_arr[-1]:
+        binned_wave_arr = [self.rest_wave_range[0]]
+        while binned_wave_arr[-1] <= self.rest_wave_range[1]:
             binned_wave_arr.append(binned_wave_arr[-1] * (1 + self.obs_spec_res / c)) # creating spectrally binned wavelength array
             # by appending new wavelength at delta_lambda interval, where delta_lambda = lambda * velocity_resolution / c
 
@@ -354,7 +363,7 @@ def rebin(array, dimensions=None, scale=None):
         result[J, I_] += array[j, i] * dy * (1 - dx)
         result[J_, I_] += array[j, i] * (1 - dx) * (1 - dy)
     allowError = 0.1
-    assert (array.sum() < result.sum() * (1 + allowError)) & (array.sum() > result.sum() * (1 - allowError))
+    if array.sum() > 0: assert (array.sum() < result.sum() * (1 + allowError)) & (array.sum() > result.sum() * (1 - allowError))
     return result
 
 # --------------------------------------------------------------------------
@@ -447,8 +456,8 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
                                'box_size': ','.join(np.array([cube.box_size_in_pix, cube.box_size_in_pix, cube.ndisp]).astype(str)), \
                                'pixel_size(kpc)': cube.pixel_size_kpc, \
                                'rest_wave_range(A)': ','.join(cube.rest_wave_range.astype(str)), \
-                               'line_labels': ','.join(cube.linelist['label']), \
-                               'line_restwaves': ','.join(cube.linelist['wave_vacuum'].astype(str)), \
+                               'labels': ','.join(cube.linelist['label']), \
+                               'lambdas': ','.join(cube.linelist['wave_vacuum'].astype(str)), \
                                'instrument_name': instrument.name, \
                                 }) # all the CRPIX3 etc. keywords are to make sure qfits has the wavelength information upon loading
 

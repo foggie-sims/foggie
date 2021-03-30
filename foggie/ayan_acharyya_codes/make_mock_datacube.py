@@ -22,8 +22,11 @@ def spatial_convolve(ideal_ifu, mock_ifu, args):
     '''
     start_time = time.time()
 
-    for slice in range(np.shape(ideal_ifu.data)[2]):
-        myprint('Rebinning & convolving slice ' + str(slice + 1) + ' of ' + str(np.shape(ideal_ifu.data)[2]) + '..', args)
+    wlen = np.shape(ideal_ifu.data)[2] # length of dispersion axis
+    mock_ifu.data = np.zeros((mock_ifu.box_size_in_pix, mock_ifu.box_size_in_pix, wlen))  # initialise datacube with zeroes
+
+    for slice in range(wlen):
+        myprint('Rebinning & convolving slice ' + str(slice + 1) + ' of ' + str(wlen) + '..', args)
         rebinned_slice = rebin(ideal_ifu.data[:, :, slice], (mock_ifu.box_size_in_pix, mock_ifu.box_size_in_pix))  # rebinning before convolving
         mock_ifu.data[:, :, slice] = con.convolve_fft(rebinned_slice, mock_ifu.kernel, normalize_kernel=True)  # convolving with kernel
 
@@ -116,21 +119,28 @@ def get_mock_datacube(ideal_ifu, args, linelist, cube_output_path):
         myprint('Reading noisy mock ifu from already existing file ' + args.mockcube_filename + ', use --args.clobber to overwrite', args)
     else:
         if os.path.exists(args.smoothed_cube_filename) and not args.clobber:
-            myprint('Reading from already existing no-noise cube file ' + args.mockcube_filename + ', use --args.clobber to overwrite', args)
+            myprint('Reading from already existing no-noise cube file ' + args.smoothed_cube_filename + ', use --args.clobber to overwrite', args)
         else:
             myprint('Noisy or no-noise mock cube file does not exist. Creating now..', args)
             ifu = mockcube(args, instrument, linelist)  # declare the noiseless mock datacube object
+
+            # ----- cut wavelength slice from ideal_ifu, depending on mock_ifu's 'observed' wavelength range ------
+            start_wave_index = np.where(ideal_ifu.wavelength >= ifu.rest_wave_range[0])[0][0]
+            end_wave_index = np.where(ideal_ifu.wavelength >= ifu.rest_wave_range[1])[0][0]
+            ideal_ifu.data = ideal_ifu.data[:, :, start_wave_index : end_wave_index]
+
             ifu = spatial_convolve(ideal_ifu, ifu, args) # spatial convolution based on obs_spatial_res
             ifu = spectral_bin(ifu, args) # spectral rebinning based on obs_spec_res
             write_fitsobj(args.smoothed_cube_filename, ifu, instrument, args, for_qfits=True) # writing smoothed, no-noise cube into FITS file
 
-        ifu = noisycube(args, instrument, linelist)  # declare the noisy mock datacube object
-        ifu.data = readcube(args.smoothed_cube_filename, args).data # reading in and paste no-noise ifu data in to 'data' attribute of ifu, so that all other attributes of ifu can be used too
-
-        if ifu.snr > 0: # otherwise no point of adding noise
+        if args.snr > 0: # otherwise no point of adding noise
+            ifu = noisycube(args, instrument, linelist)  # declare the noisy mock datacube object
+            ifu.data = readcube(args.smoothed_cube_filename, args).data # reading in and paste no-noise ifu data in to 'data' attribute of ifu, so that all other attributes of ifu can be used too
             ifu = add_noise(ifu, instrument, args) # adding noise based on snr
 
-        write_fitsobj(args.mockcube_filename, ifu, instrument, args, for_qfits=True) # writing into FITS file
+            write_fitsobj(args.mockcube_filename, ifu, instrument, args, for_qfits=True) # writing into FITS file
+        else:
+            args.mockcube_filename = args.smoothed_cube_filename # so that in no-noise case, merely the smoothed datacube is read in
 
     ifu = readcube(args.mockcube_filename, args)
     myprint('Mock cube ready in %s minutes' % ((time.time() - start_time) / 60), args)
@@ -148,7 +158,8 @@ def wrap_get_mock_datacube(args):
 
     instrument = telescope(args)  # declare an instrument
     cube_output_path = get_cube_output_path(args)
-    args.idealcube_filename = cube_output_path + instrument.path + 'ideal_ifu' + '_z' + str(args.z) + args.mergeHII_text + '.fits'
+    #args.idealcube_filename = cube_output_path + instrument.path + 'ideal_ifu' + '_z' + str(args.z) + args.mergeHII_text + '.fits'
+    args.idealcube_filename = cube_output_path + 'ideal_ifu' + args.mergeHII_text + '.fits'
 
     if os.path.exists(args.idealcube_filename):
         myprint('Ideal cube file exists ' + args.idealcube_filename, args)
@@ -173,7 +184,7 @@ if __name__ == '__main__':
             args.Om = Om
             mock_ifu, ideal_ifu, args = wrap_get_mock_datacube(args)
 
-    myprint('Done making ideal datacubes for all given args.diag_arr and args.Om_arr', args)
+    myprint('Done making mock datacubes for all given args.diag_arr and args.Om_arr', args)
 
 
 

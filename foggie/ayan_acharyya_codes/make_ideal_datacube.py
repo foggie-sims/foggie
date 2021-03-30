@@ -152,8 +152,10 @@ def get_ideal_datacube(args, linelist):
     ifu = idealcube(args, instrument, linelist) # declare a cube object
 
     cube_output_path = get_cube_output_path(args)
-    Path(cube_output_path + instrument.path).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
-    args.idealcube_filename = cube_output_path + instrument.path + 'ideal_ifu' + '_z' + str(ifu.z) + args.mergeHII_text + '.fits'
+    #Path(cube_output_path + instrument.path).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
+    #args.idealcube_filename = cube_output_path + instrument.path + 'ideal_ifu' + '_z' + str(ifu.z) + args.mergeHII_text + '.fits'
+
+    args.idealcube_filename = cube_output_path + 'ideal_ifu' + args.mergeHII_text + '.fits'
 
     if os.path.exists(args.idealcube_filename) and not args.clobber:
         myprint('Reading from already existing file ' + args.idealcube_filename + ', use --args.clobber to overwrite', args)
@@ -169,7 +171,11 @@ def get_ideal_datacube(args, linelist):
             flux = np.multiply(cont_interp_func_arr[age_rounded](ifu.base_wave_arr), (HIIregion['mass'] / sb99_mass))  # to scale the continuum by HII region mass, as the ones produced by SB99 was for sb99_mass; ergs/s/A
 
             for dummy, thisline in ifu.linelist.iterrows():
-                flux = gauss(ifu.base_wave_arr, flux, thisline['wave_vacuum'], HIIregion[thisline['label']], args.vel_disp, HIIregion['vel_z_inc'])  # adding every line flux on top of continuum; gaussians are in ergs/s/A
+                try:
+                    flux = gauss(ifu.base_wave_arr, flux, thisline['wave_vacuum'], HIIregion[thisline['label']], args.vel_disp, HIIregion['vel_z_inc'])  # adding every line flux on top of continuum; gaussians are in ergs/s/A
+                except KeyError:
+                    ifu.linelist = ifu.linelist.drop(thisline[0]).reset_index(drop=True)  # discarding label from linelist if it is not present in HIIRegion dataframe
+                    pass
 
             flux = np.array([flux[ifu.bin_index == ii].mean() for ii in range(1, len(ifu.dispersion_arr) + 1)])  # spectral smearing i.e. rebinning of spectrum                                                                                                                             #mean() is used here to conserve flux; as f is in units of ergs/s/A, we want integral of f*dlambda to be preserved (same before and after resampling)
             # this can be checked as np.sum(f[1:]*np.diff(wavelength_array))
@@ -177,6 +183,7 @@ def get_ideal_datacube(args, linelist):
             ifu.data[int(HIIregion['pos_x_grid'])][int(HIIregion['pos_y_grid'])][:] += flux  # flux is ergs/s/A
 
         ifu.data = ifu.data / (4 * np.pi * (ifu.distance * Mpc_to_cm)**2) # converting from ergs/s/A to ergs/s/cm^2/A
+        return ifu, paramlist, args #
         write_fitsobj(args.idealcube_filename, ifu, instrument, args, for_qfits=True) # writing into FITS file
 
     ifu = readcube(args.idealcube_filename, args)
