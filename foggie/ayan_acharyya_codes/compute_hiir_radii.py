@@ -11,7 +11,8 @@
 
 """
 from header import *
-from lookup_flux import *
+from util import *
+from lookup_flux import lookup_grid
 
 # ----------------------------------------------------------------------------------------------------
 def merge_HIIregions(df, args):
@@ -174,25 +175,13 @@ def get_radii_for_df(paramlist, args):
 # -------------------defining constants for assumed models---------------------------------------------------
 k_rho = 0. #1. corrected to zero, since we assume constant density profile
 mu_H = 1.33
-m_H = 1.67e-27  # kg
 cII = 9.74e3  # m/s
 phi = 0.73
 Y = 0.23
 X = 0.75
 psi = 3.2
-eps = 2.176e-18  # Joules or 13.6 eV
-# speed of light c is imported from header.py, in units of km/s
 f_trap = 2  # Verdolini et. al.
-#alpha_B = 3.46e-19  # m^3/s OR 3.46e-13 cc/s, Krumholz Matzner (2009) for 7e3 K
-alpha_B = 2.59e-19  # m^3/s OR 2.59e-13 cc/s, for Te = 1e4 K, referee quoted this values
-k_B = 1.38e-23  # m^2kg/s^2/K
 TII = 1e4 # K, because MAPPINGS models are computed at this temperature
-G = 6.67e-11  # Nm^2/kg^2
-
-# -------------------variables pertaining to simulation ouputs---------------------------------------------------
-ng = 350 # number of grid points to break the simulation in to, in each of x and y dimensions
-res = 0.02  # kpc; base resolution of simulation inside refined box
-size = 287.76978417  # kpc; size of refined simulation box
 
 # -------------------------------------------------------------------------------
 if __name__ == '__main__':

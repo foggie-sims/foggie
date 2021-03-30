@@ -11,7 +11,8 @@
 
 """
 from header import *
-from compute_hiir_radii import *
+from util import *
+from compute_hiir_radii import get_radii_for_df
 from projection_plot import make_projection_plots
 
 # ----------------------------------------------------------------------------------

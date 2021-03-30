@@ -11,40 +11,8 @@
 
 """
 from header import *
+from util import *
 start_time = time.time()
-
-# -------------------------------------------------------------------------
-def isfloat(str):
-    '''
-    Function to check if input is float
-    '''
-
-    try:
-        float(str)
-    except ValueError:
-        return False
-    return True
-
-# -------------------------------------------------------------------------------
-def num(s):
-    '''
-    Function to check if input is a number
-    '''
-
-    if s[-1].isdigit():
-        return str(format(float(s), '0.2e'))
-    else:
-        return str(format(float(s[:-1]), '0.2e'))
-
-# -------------------------------------------------------------------------
-def read_linelist(linelistfile):
-    '''
-    Function to read pre-defined line list
-    '''
-
-    lines_to_pick = pd.read_table(linelistfile, comment='#', delim_whitespace=True, skiprows=3, names=('wave_vacuum', 'label', 'wave_air'))
-    lines_to_pick = lines_to_pick.sort_values(by=('wave_vacuum')).reset_index(drop=True)
-    return lines_to_pick
 
 # ----------------------------------------------------------------------------------------
 def collate_grid(lines_to_pick, outtag):
@@ -204,8 +172,6 @@ def rungridpoint(i, Z, age, lognII, logU, parallel, clobber=False):
 
 # ----------- declaring constants ---------------------------------------------
 global i, alpha_B, ltemp, outtag
-#alpha_B = 3.46e-19  # m^3/s OR 3.46e-13 cc/s, Krumholz & Matzner (2009) for 7e3 K
-alpha_B = 2.59e-19  # m^3/s OR 2.59e-13 cc/s, for Te = 1e4 K, referee quoted this values
 ltemp = 4.  # assumed 1e4 K temp; for what? for the initial guess??
 mappings_starparticle_mass = 1000. # Msun, mass to scale the output SB99 luminosity to; 1000 Msun because median mass for FOGGIE star particles ~ 1000 Msun
 # speed of light c is imported from header.py, in units of km/s

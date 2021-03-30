@@ -6,145 +6,15 @@
     Notes :      Produces an idealised IFU datacube by projecting a list of HII region emissions on to a 2D grid, for a given inc & PA, and a base (high) spatial + spectral resolution
     Output :     FITS cube
     Author :     Ayan Acharyya
-    Started :    January 2021
+    Started :    February 2021
     Example :    run make_ideal_datacube.py --system ayan_local --halo 5036 --output RD0030 --mergeHII 0.04 --base_spatial_res 0.4 --z 0.25 --obs_wave_range 0.8,0.85 --instrument dummy
 
 """
 from header import *
+from util import *
 from compute_hiir_radii import *
-from filter_star_properties import *
+from filter_star_properties import get_star_properties
 import make_mappings_grid as mmg
-
-
-# ---------------------object containing info about the instrument being simulated----------------------------------------
-class telescope(object):
-    # ---------initialise object-----------
-    def __init__(self, args):
-        self.name = args.instrument.lower()
-        self.get_instrument_properties(args)
-        self.get_instrument_path()
-
-    # ---------deduce folder corresponding to this instrument--------
-    def get_instrument_properties(self, args):
-        '''
-        Function to set attributes of the given instrument either based on pre-saved list or the user inputs
-        For the list of pre-saved instrument attributes intrument_dict:
-        name: must be in lowercase
-        obs_wave_range: in microns
-        obs_spec_res: in km/s
-        obs_spatial_res: in arcseconds
-        '''
-        self.instrument_dict = {'wfc3_grism': {'obs_wave_range': (0.8, 1.7), 'obs_spec_res': 200., 'obs_spatial_res': 0.1, 'el_per_phot': 1, 'radius': 2.0}, \
-                           'sami': {'obs_wave_range': (0.8, 1.7), 'obs_spec_res': 30., 'obs_spatial_res': 1.0, 'el_per_phot': 1, 'radius': 2.0}, \
-                           }
-
-        if self.name in self.instrument_dict: # assigning known parameters (by overriding user input parameters, if any) for a known instrument
-            myprint('Known instrument: ' + self.name + '; using pre-assigned attributes (over-riding user inputs, if any)', args)
-            for key in self.instrument_dict[self.name]:
-                setattr(self, key, self.instrument_dict[self.name][key])
-            self.obs_wave_range = np.array(self.obs_wave_range)
-
-        else: # assigning user input parameters for this unknown instrument
-            myprint('Unknown instrument: ' + self.name + '; using user input/default attributes', args)
-            self.name = 'dummy'
-            self.obs_wave_range = np.array(args.obs_wave_range) # in microns
-            self.obs_spec_res = args.obs_spec_res # in km/s
-            self.obs_spatial_res = args.obs_spatial_res # in arcseconds
-            self.el_per_phot = args.el_per_phot # dimensionless
-            self.radius = args.tel_radius # metres
-
-    # ---------deduce folder corresponding to this instrument--------
-    def get_instrument_path(self):
-        '''
-        Function to deduce which specific instrument directory (in this jungle of folders) a given ifu datacube should be stored
-        '''
-        if self.name in self.instrument_dict:
-            self.path = 'instrument_' + self.name + '/'
-        else:
-            self.path = 'dummy_instrument' + '_obs_wave_range_' + str(self.obs_wave_range[0]) + '-' + str(self.obs_wave_range[1]) + \
-                        'mu_spectral_res_' + str(self.obs_spec_res) + 'kmps_spatial_res_' + str(self.obs_spatial_res) + 'arcsec' + \
-                        '_rad' + str(self.radius) + 'm_epp_' + str(self.el_per_phot) + '/'
-
-# ---------------------object containing info about the ideal ifu datacube----------------------------------------
-class idealcube(object):
-    # ---------initialise object-----------
-    def __init__(self, args, instrument, linelist):
-        self.z = args.z # redshift of the cube
-        self.distance = get_distance(self.z)  # distance to object; in Mpc
-        self.inclination = args.inclination
-
-        self.rest_wave_range = instrument.obs_wave_range / (1 + self.z) # converting from obs to rest frame
-        self.rest_wave_range *= 1e4 # converting from microns to Angstroms
-
-        delta_lambda = args.vel_highres_win / c  # buffer on either side of central wavelength, for judging which lines should be included in the given wavelength range
-        self.linelist = linelist[linelist['wave_vacuum'].between(self.rest_wave_range[0] * (1 + delta_lambda), self.rest_wave_range[1] * (1 - delta_lambda))].reset_index(drop=True)  # curtailing list of lines based on the restframe wavelength range
-
-        # base resolutions with which the ideal cube is made
-        self.base_spatial_res = args.base_spatial_res # kpc
-        self.base_spec_res = args.base_spec_res # km/s
-        self.get_base_dispersion_arr(args)
-
-        self.box_size_in_pix = int(round(2 * args.galrad / self.base_spatial_res))  # the size of the ideal ifu cube in pixels
-        self.pixel_size_kpc = 2 * args.galrad / self.box_size_in_pix # pixel size in kpc
-        self.data = np.zeros((self.box_size_in_pix, self.box_size_in_pix, self.ndisp)) # initialise datacube with zeroes
-        self.declare_dimensions(args) # printing the dimensions
-
-    # ---------compute dispersion array-----------
-    def get_base_dispersion_arr(self, args):
-        '''
-        Function to compute the dispersion array (spectral dimension) for the ideal ifu datacube
-        :param args: It first creates a linear, uniform grid of length args.nbin_cont within self.rest_wave_range
-        and then 'adds' further refinement of args.nbin_highres_cont bins to the continuum within +/- args.vel_highres_win window
-        around each emission line; and then finally bin the entire wavelength array to a spectral resolution of args.base_spec_res
-
-        For the default values (in header.py): within a wavelength range of ~ 3000 - 6000 A,
-        the base array (1000 bins) has 3 A pixels => 300 (blue end) to 150 (red end) km/s spectral resolution,
-        and around each emission line, a +/- 500 km/s window has 100 bins => 2*500/100 = 10 km/s spectral resolution;
-        at the end, the whole wavelength array is binned to 30 km/s i.e. continuum is generally oversampled, except near the emission lines, where it is undersampled
-        :return: args (with new variables included)
-        '''
-        wave_arr = np.linspace(self.rest_wave_range[0], self.rest_wave_range[1], args.nbin_cont) # base wavelength array (uniformly binned)
-        wave_highres_win = args.vel_highres_win / c # wavelength window within which to inject finer refinement around each emission line
-
-        # -------injecting finer refinement around emission lines------
-        for this_cen in self.linelist['wave_vacuum']:
-            this_leftedge = this_cen * (1 - wave_highres_win)
-            this_rightedge = this_cen * (1 + wave_highres_win)
-            wave_highres_arr = np.linspace(this_leftedge, this_rightedge, args.nbin_highres_cont)  # just a cutout of high spectral resolution array around this given emission line
-            blueward_of_this_leftedge = wave_arr[:np.where(wave_arr < this_leftedge)[0][-1] + 1]
-            redward_of_this_rightedge = wave_arr[np.where(wave_arr > this_rightedge)[0][0]:]
-            wave_arr = np.hstack((blueward_of_this_leftedge, wave_highres_arr, redward_of_this_rightedge))  # slicing the original (coarse) wavelength array around the emission line and sticking in the highres wavelength array there
-
-        # --------spectral binning as per args.base_spec_res-----------------------------------
-        binned_wave_arr = [wave_arr[0]]
-        while binned_wave_arr[-1] <= wave_arr[-1]:
-            binned_wave_arr.append(binned_wave_arr[-1] * (1 + self.base_spec_res / c)) # creating spectrally binned wavelength array
-            # by appending new wavelength at delta_lambda interval, where delta_lambda = lambda * velocity_resolution / c
-
-        self.base_wave_arr = wave_arr
-        self.bin_index = np.digitize(wave_arr, binned_wave_arr)
-        self.dispersion_arr = np.array(binned_wave_arr)
-        self.delta_lambda = np.diff(self.dispersion_arr)  # wavelength spacing for each wavecell; in Angstrom
-        self.dispersion_arr = self.dispersion_arr[1:] # why are we omiting the first cell, again?
-        self.ndisp = len(self.dispersion_arr)
-
-    # -------------------------------------------------
-    def declare_dimensions(self, args):
-        '''
-        Function to print the box dimensions
-        '''
-        myprint('For base spectral res= ' + str(self.base_spec_res) + ' km/s, and wavelength range of ' + str(self.rest_wave_range[0]) + ' to ' + str(self.rest_wave_range[1]) + ' A, length of dispersion axis= ' + str(self.ndisp) + ' pixels', args)
-        myprint('For base spatial res= ' + str(self.base_spatial_res) + ' kpc, size of box= ' + str(self.box_size_in_pix) + ' pixels', args)
-
-# -------------------------------------------------------------------------------------------
-def get_distance(z, H0=70.):
-    '''
-    Function to ~approximately~ convert redshift (z) in to distance
-    :param H0: default is 70 km/s/Mpc
-    :return: distance in Mpc
-    '''
-    dist = z * c / H0  # Mpc
-    return dist
 
 # -------------------------------------------------------------------------------------------------
 def get_erf(lambda_array, height, centre, width, delta_lambda):
@@ -319,7 +189,7 @@ if __name__ == '__main__':
     args = parse_args('8508', 'RD0042')
     if not args.keep: plt.close('all')
 
-    linelist = mmg.read_linelist(mappings_lab_dir + 'targetlines.txt')  # list of emission lines
+    linelist = read_linelist(mappings_lab_dir + 'targetlines.txt')  # list of emission lines
 
     # ----------iterating over diag_arr and Om_ar to find the correct file with emission line fluxes-----------------------
     for diag in args.diag_arr:

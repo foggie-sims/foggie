@@ -11,6 +11,7 @@
 
 """
 from header import *
+from util import *
 import make_mappings_grid as mmg
 reload(mmg)
 
@@ -73,37 +74,6 @@ def remove_star(indices, list_of_var):
         list = np.delete(list, indices, 0)
         new_list_of_var.append(list)
     return new_list_of_var
-
-# -----------------------------------------------------------------
-def poly(x, R, k):
-    '''
-    Function to use KD02 R23 diagnostic for the upper Z branch
-    '''
-
-    return np.abs(np.poly1d(k)(x) - np.log10(R))
-
-
-# --------------------------------------------------------------------------
-def get_KD02_metallicity(photgrid):
-    '''
-    Function to compute KD02 metallicity
-    '''
-
-    log_ratio = np.log10(np.divide(photgrid['NII6584'], (photgrid['OII3727'] + photgrid['OII3729'])))
-    logOH = 1.54020 + 1.26602 * log_ratio + 0.167977 * log_ratio ** 2
-    Z = 10 ** logOH  # converting to Z (in units of Z_sol) from log(O/H) + 12
-    return Z
-
-# ---------------------------------------------------------------------------------
-def get_D16_metallicity(photgrid):
-    '''
-    Function to compute D16 metallicity
-    '''
-
-    log_ratio = np.log10(np.divide(photgrid['NII6584'], (photgrid['SII6730'] + photgrid['SII6717']))) + 0.264 * np.log10(np.divide(photgrid['NII6584'], photgrid['H6562']))
-    logOH = log_ratio + 0.45 * (log_ratio + 0.3) ** 5  # + 8.77
-    Z = 10 ** logOH  # converting to Z (in units of Z_sol) from log(O/H) + 12
-    return Z
 
 # ------------------------------------------------------------------------
 def read_photoionisation_grid(gridfilename):
@@ -283,7 +253,7 @@ def lookup_grid(paramlist, args):
 
     # -------------------reading in external models-----------------------
     photgrid = read_photoionisation_grid(mappings_lab_dir + mappings_grid_file) # reading HII model grid file
-    linelist = mmg.read_linelist(mappings_lab_dir + 'targetlines.txt') # reading list of emission lines to be extracted from the models
+    linelist = read_linelist(mappings_lab_dir + 'targetlines.txt') # reading list of emission lines to be extracted from the models
 
     # -------------------calculating two new quantities for HII regions-----------------------
     paramlist['radial_dist'] = np.sqrt((paramlist['pos_x'] - args.halo_center[0]) ** 2 + (paramlist['pos_y'] - args.halo_center[1]) ** 2)  # kpc
