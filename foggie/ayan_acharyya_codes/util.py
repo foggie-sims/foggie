@@ -67,7 +67,7 @@ class idealcube(object):
         self.distance = get_distance(self.z)  # distance to object; in Mpc
         self.inclination = args.inclination
 
-        self.rest_wave_range = np.array([950., 6800.]) # Angstroms, rest frame wavelength
+        self.rest_wave_range = args.ideal_wave_range * 1e4 # Angstroms, rest frame wavelength range for the ideal datacube
 
         delta_lambda = args.vel_highres_win / c  # buffer on either side of central wavelength, for judging which lines should be included in the given wavelength range
         self.linelist = linelist[linelist['wave_vacuum'].between(self.rest_wave_range[0] * (1 + delta_lambda), self.rest_wave_range[1] * (1 - delta_lambda))].reset_index(drop=True)  # curtailing list of lines based on the restframe wavelength range
@@ -158,6 +158,7 @@ class mockcube(idealcube):
                     ' beams, required box size (= ' + str(self.box_size_in_pix) + ' pix) is larger than base box size (= ' + str(base_box_size) + \
                     ' pix). In order to keep the box size and spatial resolution unchanged, your beam will now be sampled by only ' + str(self.pix_per_beam) + ' pixels. ' + \
                     'To avoid this scenario, either aim for a coarser obs_spatial_res or use a finer base_spatial_res or target a smaller pix_per_beam.', args)
+            self.box_size_in_pix = base_box_size
 
         self.pixel_size_kpc = 2 * args.galrad / self.box_size_in_pix # pixel size in kpc
         self.achieved_spatial_res = self.pixel_size_kpc * self.pix_per_beam # kpc (this can vary very slightly from the 'intended' obs_spatial_res
@@ -629,6 +630,9 @@ def parse_args(haloname, RDname):
     parser.add_argument('--z', metavar='z', type=float, action='store', help='redshift of the mock datacube; default is 0.0001 (not 0, so as to avoid flux unit conversion issues)')
     parser.set_defaults(z=0.0001)
 
+    parser.add_argument('--ideal_wave_range', metavar='ideal_wave_range', type=str, action='store', help='wavelength range for the ideal datacube, in micron; default is (0.095, 0.68) microns')
+    parser.set_defaults(ideal_wave_range='0.095,0.68')
+
     parser.add_argument('--inclination', metavar='inclination', type=float, action='store', help='inclination angle to rotate the galaxy by, on YZ plane (keeping X fixed), in degrees; default is 0')
     parser.set_defaults(inclination=0.)
 
@@ -698,7 +702,8 @@ def parse_args(haloname, RDname):
 
     args.diag_arr = [item for item in args.diag_arr.split(',')]
     args.Om_arr = [float(item) for item in args.Om_arr.split(',')]
-    args.obs_wave_range = [float(item) for item in args.obs_wave_range.split(',')]
+    args.obs_wave_range = np.array([float(item) for item in args.obs_wave_range.split(',')])
+    args.ideal_wave_range = np.array([float(item) for item in args.ideal_wave_range.split(',')])
     args.mergeHII_text = '_mergeHII=' + str(args.mergeHII) + 'kpc' if args.mergeHII is not None else '' # to be used as filename suffix to denote whether HII regions have been merged
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 
