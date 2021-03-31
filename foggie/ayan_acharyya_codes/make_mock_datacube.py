@@ -114,6 +114,7 @@ def get_mock_datacube(ideal_ifu, args, linelist, cube_output_path):
     instrument = telescope(args)  # declare the instrument
     args.smoothed_cube_filename = cube_output_path + instrument.path + 'smoothed_ifu' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '.fits'
     args.mockcube_filename = cube_output_path + instrument.path + 'mock_ifu' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '_exp' + str(args.exptime) + 's_snr' + str(args.snr) + '.fits'
+    Path(cube_output_path + instrument.path).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
 
     if os.path.exists(args.mockcube_filename) and not args.clobber:
         myprint('Reading noisy mock ifu from already existing file ' + args.mockcube_filename + ', use --args.clobber to overwrite', args)
@@ -156,9 +157,7 @@ def wrap_get_mock_datacube(args):
     '''
     linelist = read_linelist(mappings_lab_dir + 'targetlines.txt')  # list of emission lines
 
-    instrument = telescope(args)  # declare an instrument
     cube_output_path = get_cube_output_path(args)
-    #args.idealcube_filename = cube_output_path + instrument.path + 'ideal_ifu' + '_z' + str(args.z) + args.mergeHII_text + '.fits'
     args.idealcube_filename = cube_output_path + 'ideal_ifu' + args.mergeHII_text + '.fits'
 
     if os.path.exists(args.idealcube_filename):

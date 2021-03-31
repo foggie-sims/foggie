@@ -67,9 +67,6 @@ class idealcube(object):
         self.distance = get_distance(self.z)  # distance to object; in Mpc
         self.inclination = args.inclination
 
-        #self.rest_wave_range = instrument.obs_wave_range / (1 + self.z) # converting from obs to rest frame
-        #self.rest_wave_range *= 1e4 # converting from microns to Angstroms
-
         self.rest_wave_range = np.array([950., 6800.]) # Angstroms, rest frame wavelength
 
         delta_lambda = args.vel_highres_win / c  # buffer on either side of central wavelength, for judging which lines should be included in the given wavelength range
