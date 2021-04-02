@@ -67,7 +67,7 @@ class idealcube(object):
         self.distance = get_distance(self.z)  # distance to object; in Mpc
         self.inclination = args.inclination
 
-        self.rest_wave_range = args.ideal_wave_range * 1e4 # Angstroms, rest frame wavelength range for the ideal datacube
+        self.rest_wave_range = args.base_wave_range * 1e4 # Angstroms, rest frame wavelength range for the ideal datacube
 
         delta_lambda = args.vel_highres_win / c  # buffer on either side of central wavelength, for judging which lines should be included in the given wavelength range
         self.linelist = linelist[linelist['wave_vacuum'].between(self.rest_wave_range[0] * (1 + delta_lambda), self.rest_wave_range[1] * (1 - delta_lambda))].reset_index(drop=True)  # curtailing list of lines based on the restframe wavelength range
@@ -391,7 +391,7 @@ def get_cube_output_path(args):
     '''
     Function to deduce which specific directory (in this jungle of folders) a given ifu datacube should be stored
     '''
-    cube_output_path = args.output_dir + 'fits/' + args.output + '/diagnostic_' + args.diag + '/Om_' + str(args.Om) + '/boxsize_' + str(2*args.galrad) + \
+    cube_output_path = args.output_dir + 'fits/' + args.output + '/diagnostic_' + args.diag + '/Om_' + str(args.Om) + '/proj_los_' + args.projection + '/boxsize_' + str(2*args.galrad) + \
         '/inc_' + str(args.inclination) + '/base_spectral_res_' + str(args.base_spec_res) + '/base_spatial_res_' + str(args.base_spatial_res) + '/'
     Path(cube_output_path).mkdir(parents=True, exist_ok=True) # creating the directory structure, if doesn't exist already
 
@@ -539,8 +539,8 @@ def parse_args(haloname, RDname):
     parser.add_argument('--halo', metavar='halo', type=str, action='store', help='which halo? default is 8508 (Tempest)')
     parser.set_defaults(halo=haloname)
 
-    parser.add_argument('--proj', metavar='proj', type=str, action='store', help='Which projection do you want to plot? Default is x')
-    parser.set_defaults(proj='x')
+    parser.add_argument('--projection', metavar='projection', type=str, action='store', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x')
+    parser.set_defaults(projection='x')
 
     parser.add_argument('--output', metavar='output', type=str, action='store', help='which output? default is RD0020')
     parser.set_defaults(output=RDname)
@@ -565,11 +565,8 @@ def parse_args(haloname, RDname):
     parser.set_defaults(automate=False)
 
     # ------- args added for compute_hii_radii.py ------------------------------
-    parser.add_argument('--galrad', metavar='galrad', type=float, action='store', help='radius of the galaxy, in kpc, i.e. the radial extent to which computations will be done; default is 50')
+    parser.add_argument('--galrad', metavar='galrad', type=float, action='store', help='the radial extent (in each spatial dimension) to which computations will be done, in kpc; default is 20')
     parser.set_defaults(galrad=20.)
-
-    parser.add_argument('--galthick', metavar='galthick', type=float, action='store', help='thickness of stellar disk, in kpc; default is 0.4 kpc = 400 pc')
-    parser.set_defaults(galthick=0.4)
 
     parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', help='separation btwn HII regions below which to merge them, in kpc; default is None i.e., do not merge')
     parser.set_defaults(mergeHII=None)
@@ -630,10 +627,10 @@ def parse_args(haloname, RDname):
     parser.add_argument('--z', metavar='z', type=float, action='store', help='redshift of the mock datacube; default is 0.0001 (not 0, so as to avoid flux unit conversion issues)')
     parser.set_defaults(z=0.0001)
 
-    parser.add_argument('--ideal_wave_range', metavar='ideal_wave_range', type=str, action='store', help='wavelength range for the ideal datacube, in micron; default is (0.095, 0.68) microns')
-    parser.set_defaults(ideal_wave_range='0.095,0.68')
+    parser.add_argument('--base_wave_range', metavar='base_wave_range', type=str, action='store', help='wavelength range for the ideal datacube, in micron; default is (0.64, 0.68) microns')
+    parser.set_defaults(base_wave_range='0.64,0.68')
 
-    parser.add_argument('--inclination', metavar='inclination', type=float, action='store', help='inclination angle to rotate the galaxy by, on YZ plane (keeping X fixed), in degrees; default is 0')
+    parser.add_argument('--inclination', metavar='inclination', type=float, action='store', help='inclination angle to rotate the galaxy by, on a plane perpendicular to projection plane, i.e. if projection is xy, rotation is on yz, in degrees; default is 0')
     parser.set_defaults(inclination=0.)
 
     parser.add_argument('--vel_disp', metavar='vel_disp', type=float, action='store', help='intrinsic velocity dispersion for each emission line, in km/s; default is 15 km/s')
@@ -703,7 +700,7 @@ def parse_args(haloname, RDname):
     args.diag_arr = [item for item in args.diag_arr.split(',')]
     args.Om_arr = [float(item) for item in args.Om_arr.split(',')]
     args.obs_wave_range = np.array([float(item) for item in args.obs_wave_range.split(',')])
-    args.ideal_wave_range = np.array([float(item) for item in args.ideal_wave_range.split(',')])
+    args.base_wave_range = np.array([float(item) for item in args.base_wave_range.split(',')])
     args.mergeHII_text = '_mergeHII=' + str(args.mergeHII) + 'kpc' if args.mergeHII is not None else '' # to be used as filename suffix to denote whether HII regions have been merged
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 

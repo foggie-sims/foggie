@@ -128,7 +128,7 @@ def get_mock_datacube(ideal_ifu, args, linelist, cube_output_path):
             # ----- cut wavelength slice from ideal_ifu, depending on mock_ifu's 'observed' wavelength range ------
             start_wave_index = np.where(ideal_ifu.wavelength >= ifu.rest_wave_range[0])[0][0]
             end_wave_index = np.where(ideal_ifu.wavelength >= ifu.rest_wave_range[1])[0][0]
-            ideal_ifu.data = ideal_ifu.data[:, :, start_wave_index : end_wave_index]
+            ideal_ifu.data = ideal_ifu.data[:, :, start_wave_index : end_wave_index + 1]
 
             ifu = spatial_convolve(ideal_ifu, ifu, args) # spatial convolution based on obs_spatial_res
             ifu = spectral_bin(ifu, args) # spectral rebinning based on obs_spec_res

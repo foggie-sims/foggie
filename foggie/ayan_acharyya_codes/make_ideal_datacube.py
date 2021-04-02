@@ -7,7 +7,7 @@
     Output :     FITS cube
     Author :     Ayan Acharyya
     Started :    February 2021
-    Example :    run make_ideal_datacube.py --system ayan_local --halo 5036 --output RD0030 --mergeHII 0.04 --base_spatial_res 0.4 --z 0.25 --obs_wave_range 0.8,0.85 --instrument dummy
+    Example :    run make_ideal_datacube.py --system ayan_local --halo 5036 --output RD0030 --mergeHII 0.04 --base_spatial_res 0.4 --z 0.25 --base_wave_range 0.64,0.68 --projection z --obs_wave_range 0.8,0.85 --instrument dummy
 
 """
 from header import *
@@ -61,20 +61,20 @@ def shift_ref_frame(paramlist, args):
 # -------------------------------------------------------------------
 def incline(paramlist, args):
     '''
-    Function to incline i.e. rotate the galaxy in YZ plane (keeping X fixed) for a given angle of inclination
+    Function to incline i.e. assuming xy projection, rotate the galaxy in YZ plane (keeping X fixed) for a given angle of inclination
     :return: modified dataframe with new positions and velocities as new columns
     '''
     inc = float(args.inclination) * np.pi/180 # converting degrees to radians
 
     # now doing coordinate transformation to get new coordinates
-    paramlist['pos_y_inc'] = paramlist['pos_y_cen'] * np.cos(inc) + paramlist['pos_z_cen'] * np.sin(inc)
-    paramlist['pos_z_inc'] = -paramlist['pos_y_cen'] * np.sin(inc) + paramlist['pos_z_cen'] * np.cos(inc)
-    paramlist['pos_x_inc'] = paramlist['pos_x_cen']
+    paramlist['pos_' + projection_dict[args.projection][1] + '_inc'] = paramlist['pos_' + projection_dict[args.projection][1] + '_cen'] * np.cos(inc) + paramlist['pos_' + args.projection + '_cen'] * np.sin(inc)
+    paramlist['pos_' + args.projection + '_inc'] = -paramlist['pos_' + projection_dict[args.projection][1] + '_cen'] * np.sin(inc) + paramlist['pos_' + args.projection + '_cen'] * np.cos(inc)
+    paramlist['pos_' + projection_dict[args.projection][0] + '_inc'] = paramlist['pos_' + projection_dict[args.projection][0] + '_cen']
 
     # now doing coordinate transformation to get new velocities
-    paramlist['vel_y_inc'] = paramlist['vel_y_cen'] * np.cos(inc) + paramlist['vel_z_cen'] * np.sin(inc)
-    paramlist['vel_z_inc'] = -paramlist['vel_y_cen'] * np.sin(inc) + paramlist['vel_z_cen'] * np.cos(inc)
-    paramlist['vel_x_inc'] = paramlist['vel_x_cen']
+    paramlist['vel_' + projection_dict[args.projection][1] + '_inc'] = paramlist['vel_' + projection_dict[args.projection][1] + '_cen'] * np.cos(inc) + paramlist['vel_' + args.projection + '_cen'] * np.sin(inc)
+    paramlist['vel_' + args.projection + '_inc'] = -paramlist['vel_' + projection_dict[args.projection][1] + '_cen'] * np.sin(inc) + paramlist['vel_' + args.projection + '_cen'] * np.cos(inc)
+    paramlist['vel_' + projection_dict[args.projection][0] + '_inc'] = paramlist['vel_' + projection_dict[args.projection][0] + '_cen']
 
     return paramlist
 
@@ -93,7 +93,7 @@ def get_grid_coord(paramlist, args):
 
     paramlist['pos_x_grid'] = ((paramlist['pos_x_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
     paramlist['pos_y_grid'] = ((paramlist['pos_y_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
-    paramlist['pos_z_grid'] = ((paramlist['pos_z_inc'] + args.galthick/2.)/args.base_spatial_res).astype(np.int)
+    paramlist['pos_z_grid'] = ((paramlist['pos_z_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
 
     return paramlist
 
@@ -178,7 +178,7 @@ def get_ideal_datacube(args, linelist):
             flux = np.array([flux[ifu.bin_index == ii].mean() for ii in range(1, len(ifu.dispersion_arr) + 1)])  # spectral smearing i.e. rebinning of spectrum                                                                                                                             #mean() is used here to conserve flux; as f is in units of ergs/s/A, we want integral of f*dlambda to be preserved (same before and after resampling)
             # this can be checked as np.sum(f[1:]*np.diff(wavelength_array))
 
-            ifu.data[int(HIIregion['pos_x_grid'])][int(HIIregion['pos_y_grid'])][:] += flux  # flux is ergs/s/A
+            ifu.data[int(HIIregion['pos_' + projection_dict[args.projection][0] + '_grid'])][int(HIIregion['pos_' + projection_dict[args.projection][1] + '_grid'])][:] += flux  # flux is ergs/s/A
 
         ifu.data = ifu.data / (4 * np.pi * (ifu.distance * Mpc_to_cm)**2) # converting from ergs/s/A to ergs/s/cm^2/A
         write_fitsobj(args.idealcube_filename, ifu, instrument, args, for_qfits=True) # writing into FITS file

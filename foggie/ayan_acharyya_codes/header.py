@@ -77,6 +77,8 @@ sb99_dir = HOME + '/SB99-v8-02/output/' # this is where your Starburst99 model o
 sb99_model = 'starburst11'  # for fixed stellar mass input spectra = 1e6 Msun, run up to 10 Myr
 sb99_mass = 1e6 # Msun, mass of star cluster in given SB99 model
 
+projection_dict = {'x': ('y', 'z'), 'y':('z', 'x'), 'z':('x', 'y')} # which axes are projected for which line of sight args.projection
+
 # ------------declaring list of ALL simulations-----------
 #all_sims = [('8508', 'RD0042'), ('5036', 'RD0039'), ('5016', 'RD0042'), ('4123', 'RD0031'), ('2878', 'RD0020'), ('2392', 'RD0030')] # only the latest (lowest z) available snapshot for each halo
 
