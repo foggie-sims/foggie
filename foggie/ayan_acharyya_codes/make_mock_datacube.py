@@ -173,15 +173,21 @@ def wrap_get_mock_datacube(args):
 
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
-    args = parse_args('8508', 'RD0042')
-    if not args.keep: plt.close('all')
+    dummy_args = parse_args('8508', 'RD0042')
+    if not dummy_args.keep: plt.close('all')
 
-    # ----------iterating over diag_arr and Om_ar to find the correct file with emission line fluxes-----------------------
-    for diag in args.diag_arr:
-        args.diag = diag
-        for Om in args.Om_arr:
-            args.Om = Om
-            mock_ifu, ideal_ifu, args = wrap_get_mock_datacube(args)
+    if dummy_args.do_all_sims: list_of_sims = all_sims
+    else: list_of_sims = [(dummy_args.halo, dummy_args.output)]  # default simulation to work upon when comand line args not provided
+
+    for index, this_sim in enumerate(list_of_sims):
+        myprint('Doing halo ' + this_sim[0] + ' snapshot ' + this_sim[1] + ', which is ' + str(index + 1) + ' out of ' + str(len(list_of_sims)) + '..', dummy_args)
+        args = parse_args(this_sim[0], this_sim[1])
+        # ----------iterating over diag_arr and Om_ar to find the correct file with emission line fluxes-----------------------
+        for diag in args.diag_arr:
+            args.diag = diag
+            for Om in args.Om_arr:
+                args.Om = Om
+                mock_ifu, ideal_ifu, args = wrap_get_mock_datacube(args)
 
     myprint('Done making mock datacubes for all given args.diag_arr and args.Om_arr', args)
 

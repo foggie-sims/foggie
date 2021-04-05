@@ -429,11 +429,11 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
     wavelength = cube.dispersion_arr
 
     flux_header = fits.Header({'CRPIX1': 1, \
-                               'CRVAL1': -2 * args.galrad, \
+                               'CRVAL1': -1 * args.galrad, \
                                'CDELT1': 2 * args.galrad / np.shape(cube.data)[1], \
                                'CTYPE1': 'kpc', \
                                'CRPIX2': 1, \
-                               'CRVAL2': -2 * args.galrad, \
+                               'CRVAL2': -1 * args.galrad, \
                                'CDELT2': 2 * args.galrad / np.shape(cube.data)[1], \
                                'CTYPE2': 'kpc', \
                                'CRPIX3': 1, \

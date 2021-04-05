@@ -102,7 +102,7 @@ if __name__ == '__main__':
 
     dummy_args = parse_args('8508', 'RD0042')
     if dummy_args.do_all_sims: list_of_sims = all_sims
-    else: list_of_sims = [('8508', 'RD0042')]  # default simulation to work upon when comand line args not provided
+    else: list_of_sims = [(dummy_args.halo, dummy_args.output)]  # default simulation to work upon when comand line args not provided
 
     for this_sim in list_of_sims:
         args = parse_args(this_sim[0], this_sim[1])
