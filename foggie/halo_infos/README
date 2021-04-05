@@ -75,7 +75,7 @@ Exists for:
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0355-DD1599, RD0016-RD0029
-2392/nref11c_nref9f snapshots DD0511-DD1444, RD0019-RD0031
+2392/nref11c_nref9f snapshots DD0511-DD1499, RD0019-RD0031
 2878/nref11c_nref9f snapshots DD0398-DD0799, RD0016-RD0022
 
 Created by:
@@ -110,7 +110,7 @@ Exists for:
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0355-DD1599, RD0016-RD0029
-2392/nref11c_nref9f snapshots DD0511-DD1444, RD0019-RD0031
+2392/nref11c_nref9f snapshots DD0511-DD1499, RD0019-RD0031
 2878/nref11c_nref9f snapshots DD0398-DD0799, RD0016-RD0022
 
 Created by:
@@ -150,9 +150,9 @@ Units:
 Exists for:
 8508/nref11c_nref9f snapshots DD0046-DD2427, RD0013-RD0042
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
-5036/nref11c_nref9f snapshots DD0272-DD2399, RD0015-RD0041
+5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0355-DD1599, RD0016-RD0029
-2392/nref11c_nref9f snapshots DD0511-DD1444, RD0019-RD0031
+2392/nref11c_nref9f snapshots DD0511-DD1499, RD0019-RD0031
 
 Created by:
 utils/get_satellite_positions.py, which will output one "snapshot_satellites.dat" ASCII file per
@@ -186,7 +186,7 @@ Exists for:
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0355-DD1599, RD0016-RD0029
-2392/nref11c_nref9f snapshots DD0511-DD1444, RD0019-RD0031
+2392/nref11c_nref9f snapshots DD0511-DD1499, RD0019-RD0031
 2878/nref11c_nref9f snapshots DD0398-DD0799, RD0016-RD0022
 
 Created by:
