@@ -82,7 +82,7 @@ prj = yt.ProjectionPlot(ds, 0, ("gas", "density"),
                         center=chosencenter, width=(chosenwidth,'kpc'), data_source=data_source)
 
 prj.annotate_clumps(leaf_clumps)
-prj.save('halo_00'+halo+'/'+sim+'/'+snap+'/'+snap+'_clumps_density.png')
+prj.save('halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_density.png')
 #prj.show()
 
 master_clump=master_clump1
@@ -98,7 +98,7 @@ master_clump.add_info_item("distance_to_main_clump")
 
 
 
-fn = master_clump.save_as_dataset(filename='halo_00'+halo+'/'+sim+'/'+snap+'/'+snap+'_clumps_tree',fields=["density", "particle_mass",'particle_position'])
+fn = master_clump.save_as_dataset(filename='halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_tree',fields=["density", "particle_mass",'particle_position'])
 leaf_clumps = master_clump.leaves
 for clump in leaf_clumps:
     clumpfn=str(clump.clump_id)+'_single_clump'
@@ -106,32 +106,37 @@ for clump in leaf_clumps:
     clump.data.save_as_dataset(filename=clumpfn,fields=["density", "particle_mass",'particle_position','cell_mass',"cell_volume"])
 
 
-filename = 'halo_00'+halo+'/'+sim+'/'+snap+'/'+snap+'_clumps_cut_region'
+filename = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_cut_region'
 master_clump.data.save_as_dataset(filename=filename,fields=[('gas','x'),('gas','y'),('gas','z')])
 
 
 clumpmasses = []
 clumpvolumes = []
-
-
-for i in range(15):
+failedclumps = []
+for i in range(100):
     i=i+1
     clumpfile=str(i)+"_single_clump.h5"
     if (os.path.exists(clumpfile)):
         clump1 = yt.load(clumpfile)
         ad = clump1.all_data()
-        clumpmass = ad["gas", "cell_mass"].sum().in_units("Msun")
-        clumpvolume = ad["gas", "cell_volume"].sum().in_units("kpc**3")
-        print(i)
-        print(clumpmass)
-        print(clumpvolume)
-        clumpmasses.append(clumpmass)
-        clumpvolumes.append(clumpvolume)
+        try:
+            clumpmass = ad["gas", "cell_mass"].sum().in_units("Msun")
+            clumpvolume = ad["gas", "cell_volume"].sum().in_units("kpc**3")
+            print(i)
+            print(clumpmass)
+            print(clumpvolume)
+            clumpmasses.append(clumpmass)
+            clumpvolumes.append(clumpvolume)
+
+        except ValueError:
+            failedclumps.append(i)
+            pass
+
+print('Failed clumps: ')
+print(failedclumps)
 
 clumpmasses=np.array(clumpmasses)
 clumpvolumes=np.array(clumpvolumes)
-print(clumpmasses)
-print(clumpvolumes)
 
 
 plt.figure()
