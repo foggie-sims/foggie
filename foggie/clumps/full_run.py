@@ -70,10 +70,10 @@ data_source = ds.sphere(chosencenter, (chosenwidth, 'kpc'))
 
 
 master_clump1 = Clump(data_source, ("gas", "density"))
-master_clump1.add_validator("min_cells", 7)
+master_clump1.add_validator("min_cells", 20)
 c_min = data_source["gas", "density"].min()
 c_max = data_source["gas", "density"].max()
-step = 1.2 #100. #2.0
+step = 2 #100. #2.0
 find_clumps(master_clump1, c_min, c_max, step)
 
 leaf_clumps = master_clump1.leaves
