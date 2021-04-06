@@ -39,7 +39,7 @@ def parse_args():
 
     parser.add_argument('--step', metavar='step', type=float, action='store', \
                         help='clumpfinder step parameter. default = 2. ')
-    parser.set_defaults(width=2.)
+    parser.set_defaults(step=2.)
 
     args = parser.parse_args()
     return args
