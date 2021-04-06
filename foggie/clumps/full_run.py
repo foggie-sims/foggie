@@ -33,6 +33,14 @@ def parse_args():
                         help='Just use the working directory? Default is no')
     parser.set_defaults(pwd=False)
 
+    parser.add_argument('--width', metavar='width', type=float, action='store', \
+                        help='Width of the box around the halo center in kpc. default = 30')
+    parser.set_defaults(width=30.)
+
+    parser.add_argument('--step', metavar='step', type=float, action='store', \
+                        help='clumpfinder step parameter. default = 2. ')
+    parser.set_defaults(width=2.)
+
     args = parser.parse_args()
     return args
 
@@ -59,7 +67,7 @@ dz= ds.quan(19.,'kpc').in_units('code_length')
 print(dx)
 chosencenter=[centerx+dx,centery+dy,centerz+dz]
 chosencenter = region.center
-chosenwidth = 50
+chosenwidth = args.width
 data_source = ds.sphere(chosencenter, (chosenwidth, 'kpc'))
 
 #yt.ProjectionPlot(ds, 2, ("gas", "density"), center=chosencenter, width=(chosenwidth,'kpc'),data_source=data_source, weight_field=("gas", "density")).show()
@@ -73,7 +81,7 @@ master_clump1 = Clump(data_source, ("gas", "density"))
 master_clump1.add_validator("min_cells", 20)
 c_min = data_source["gas", "density"].min()
 c_max = data_source["gas", "density"].max()
-step = 2 #100. #2.0
+step = args.step #100. #2.0
 find_clumps(master_clump1, c_min, c_max, step)
 
 leaf_clumps = master_clump1.leaves
