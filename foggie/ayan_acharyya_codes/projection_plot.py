@@ -11,6 +11,7 @@
 
 """
 from header import *
+from util import *
 from collections import defaultdict
 start_time = time.time()
 
@@ -103,6 +104,6 @@ if __name__ == '__main__':
         prj = make_projection_plots(ds=refine_box.ds, center=ds.halo_center_kpc, \
                                     refine_box=refine_box, x_width=ds.refine_width * kpc, \
                                     fig_dir=args.output_dir+'figs/', haloname=args.output, name=halo_dict[args.halo], \
-                                    fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.proj.split(',')], is_central=True, add_arrow=False, add_velocity=False) # using halo_center_kpc instead of refine_box_center
+                                    fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.projection.split(',')], is_central=True, add_arrow=False, add_velocity=False) # using halo_center_kpc instead of refine_box_center
         prj.show()
         print('Completed in %s minutes' % ((time.time() - start_time) / 60))

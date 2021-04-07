@@ -173,11 +173,11 @@ def wrap_get_mock_datacube(args):
 
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
-    dummy_args = parse_args('8508', 'RD0042')
+    dummy_args = parse_args('8508', 'RD0042') # default simulation to work upon when comand line args not provided
     if not dummy_args.keep: plt.close('all')
 
     if dummy_args.do_all_sims: list_of_sims = all_sims
-    else: list_of_sims = [(dummy_args.halo, dummy_args.output)]  # default simulation to work upon when comand line args not provided
+    else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
 
     for index, this_sim in enumerate(list_of_sims):
         myprint('Doing halo ' + this_sim[0] + ' snapshot ' + this_sim[1] + ', which is ' + str(index + 1) + ' out of ' + str(len(list_of_sims)) + '..', dummy_args)
