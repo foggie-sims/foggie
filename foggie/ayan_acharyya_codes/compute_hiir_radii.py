@@ -132,7 +132,6 @@ def get_radii_for_df(paramlist, args):
         SB_data.loc[0, 'age'] = 1e-6 # Myr # force first i.e. minimum age to be 1 yr instead of 0 yr to avoid math error
         interp_func = interp1d(np.log10(SB_data['age']/1e6), SB_data['HI/sec'], kind='cubic')
 
-        nh2r_initial = len(paramlist)
         paramlist = paramlist[['pos_x', 'pos_y', 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'age', 'mass', 'gas_pressure', 'gas_metal']] # only need these columns henceforth
         paramlist['Q_H0'] = (paramlist['mass']/sb99_mass) * 10 ** (interp_func(np.log10(paramlist['age']))) # scaling by starburst99 model mass
         paramlist['gas_pressure'] /= 10 # to convert from dyne/cm^2 to N/m^2
@@ -140,7 +139,6 @@ def get_radii_for_df(paramlist, args):
 
         # ------------------solving--------------------------------------------------------------
         paramlist = compute_radii(paramlist)
-        myprint('Using ' + str(len(paramlist)) + ' HII regions of ' + str(nh2r_initial), args)
 
         # ------------------writing dataframe to file--------------------------------------------------------------
         header = 'Units for the following columns: \n\

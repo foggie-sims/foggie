@@ -89,7 +89,7 @@ def get_grid_coord(paramlist, args):
 
     initial_length = len(paramlist)
     paramlist = paramlist[(paramlist['pos_x_cen'].between(-args.galrad, args.galrad)) & (paramlist['pos_y_cen'].between(-args.galrad, args.galrad)) & (paramlist['pos_z_cen'].between(-args.galrad, args.galrad))].reset_index(drop=True)  # Curtails paramlist to keep only those HII regions that are within 2 x args.galrad kpx box
-    myprint(str(len(paramlist)) + ' HII regions remain out of ' + str(initial_length) + ', within the ' + str(2*args.galrad) + ' kpc^2 box', args)
+    myprint(str(len(paramlist)) + ' HII regions remain out of ' + str(initial_length) + ', within the ' + str(2*args.galrad) + ' kpc^3 box', args)
 
     paramlist['pos_x_grid'] = ((paramlist['pos_x_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
     paramlist['pos_y_grid'] = ((paramlist['pos_y_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)

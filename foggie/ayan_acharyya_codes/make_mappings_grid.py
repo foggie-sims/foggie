@@ -176,7 +176,7 @@ ltemp = 4.  # assumed 1e4 K temp; for what? for the initial guess??
 mappings_starparticle_mass = 1000. # Msun, mass to scale the output SB99 luminosity to; 1000 Msun because median mass for FOGGIE star particles ~ 1000 Msun
 # speed of light c is imported from header.py, in units of km/s
 
-i_start = 0 # set to non-zero in case some of the model grid is already computed
+i_start = 1849 # set to non-zero in case some of the model grid is already computed
 i_end = 1e10 # set to some crazy high value to let the code run through till the end of the grid
 clobber = False
 
@@ -191,7 +191,7 @@ SB99_age = np.array([float(x.split()[0]) for x in open(input_quanta).readlines()
 SB99_logQ = np.array([float(x.split()[1]) for x in open(input_quanta).readlines()[6:]])
 
 # --------declaring four 1D arrays over which the model grid would be computed------------------------------------------------
-Z_arr = np.array([0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0])  # in Zsun units; metallicity array of MAPPINGS grid #for outtag _MADtemp
+Z_arr = np.array([0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0, 3.0, 5.0])  # in Zsun units; metallicity array of MAPPINGS grid #for outtag _MADtemp
 age_arr = np.linspace(0., 10., 11)  # in Myr
 lognII_arr = np.linspace(6., 11., 6)  # nII in particles/m^3 # so that log(P/k) is from 4 to 9 (assuming T=1e4 K)
 logU_arr = np.linspace(-4., -1., 4)  # dimensionless
