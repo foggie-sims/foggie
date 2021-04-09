@@ -1,0 +1,135 @@
+Runs and files used for FOGGIE V paper analysis
+
+Main code used:
+-foggie/radial_quantities/stats_in_shells.py
+-foggie/radial_quantities/totals_in_shells.py
+-foggie/paper_plots/mod_vir_temp/mod_vir_temp_paper_plots.py
+
+
+For computing energy totals in spherical shells:
+-----------------------------------------------
+> /home5/clochhaa/miniconda3/bin/python3 /home5/clochhaa/FOGGIE/foggie/foggie/radial_quantities/totals_in_shells.py --system pleiades_cassi --nproc 8 --halo 8508 --output DD0497-DD2427 --output_step 10 --shape "['sphere', 0.3, 1.3, 100]" --cgm_filter --Rvir --vel_cut --temp_cut --save_suffix sphere_vcut-p5vff_cgm-filtered
+
+where:
+- output gives list of outputs to run on
+- output_step gives step size (in number of outputs) between outputs, so --output_step 10 says to do only every 10th output
+- shape says calculate in 100 spherical shells between 0.3 and 1.3 in radius
+- Rvir means that the radius given in shape is in units of Rvir
+- cgm_filter means to apply the filter on density and temperature in consistency.py, which at the time of running was T > 1.5e4 and den < 2e-26
+- vel_cut means to consider only gas cells with a radial velocity greater than -0.5*vff
+- temp_cut means to compute everything in temperature bins "cold,cool,warm,hot" which at time of running was <1e4, 1e4-1e5, 1e5-1e6, >1e6
+- save_suffix gives the save file name, where the file starts with the snapshot, then 'totals', then the suffix
+
+This was run over:
+-8508/nref11c_nref9f DD0497-DD2427, every 10th
+-5016/nref11c_nref9f DD0590-DD2520, every 10th
+-5036/nref11c_nref9f DD0590-DD2520, every 10th
+
+
+For computing velocity and temperature statistics and PDFs in spherical shells:
+------------------------------------------------------------------------------
+> /home5/clochhaa/miniconda3/bin/python3 /home5/clochhaa/FOGGIE/foggie/foggie/radial_quantities/stats_in_shells.py --system pleiades_cassi --nproc 8 --halo 5016 --output DD0590-DD2520 --output_step 10 --shape "['sphere', 0.3, 1.3, 100]" --cgm_filter --save_suffix sphere_mass-weighted_vcut-p5vff_dbl-gauss-fit_cgm-filtered --stat_type temperature,energy,velocity --stat_weight mass --vel_cut --vel_fit --Rvir --pdf
+
+where:
+- common keywords with totals_in_shells.py mean the same thing
+- stat_type says to calculate only for temperatures, energies, and velocities
+- stat_weight says to weight statistics and PDFs by mass
+- vel_fit says to fit a Gaussian to tangential velocity PDFs and a double-Gaussian to radial velocity PDFs (the functional forms are outlined in the paper)
+- pdf says to save to file PDFs of the temperature, energy, and velocity distributions for later callback
+
+This was run over:
+-8508/nref11c_nref9f DD0497-DD2427, every 10th
+-5016/nref11c_nref9f DD0590-DD2520, every 10th
+-5036/nref11c_nref9f DD0590-DD2520, every 10th
+
+
+For computing energy-SFR cross-correlation:
+------------------------------------------
+> /home5/clochhaa/miniconda3/bin/python3 /home5/clochhaa/FOGGIE/foggie/foggie/radial_quantities/totals_in_shells.py --system pleiades_cassi --nproc 8 --halo 5036 --output DD0590-DD2520 --shape "['sphere', 0.3, 1.3, 100]" --cgm_filter --Rvir --vel_cut --save_suffix sphere_vcut-p5vff_cgm-filtered --total_type energy
+
+where:
+- most keywords are same as computing totals above, but note that only energy totals are computed, the temperature split is not done, and it's run on EVERY snapshot
+
+This was run over:
+-8508/nref11c_nref9f DD0497-DD2427, every output
+-5016/nref11c_nref9f DD0590-DD2520, every output
+-5036/nref11c_nref9f DD0590-DD2520, every output
+
+
+For computing temperature-SFR cross-correlation:
+-----------------------------------------------
+> /home5/clochhaa/miniconda3/bin/python3 /home5/clochhaa/FOGGIE/foggie/foggie/radial_quantities/totals_in_shells.py --system pleiades_cassi --nproc 8 --halo 5036 --output DD0590-DD2520 --shape "['sphere', 0.3, 1.3, 100]" --cgm_filter --Rvir --vel_cut --save_suffix sphere_vcut-p5vff_cgm-filtered_Tvirbins --total_type mass --temp_cut_Tvir
+
+where:
+- most keywords are same as computing totals above, but note that only mass totals are computed, the temperature split is done relative to standard Tvir, and it's run on every snapshot
+	- At time of running, the temperature bins were log-space steps of 0.25 dex from 0.1 Tvir to 10 Tvir. These were later combined down into just 4 bins, but that was done in mod_vir_temp_paper_plots.py
+
+This was run over:
+-8508/nref11c_nref9f DD0497-DD2427, every output
+-5016/nref11c_nref9f DD0590-DD2520, every output
+-5036/nref11c_nref9f DD0590-DD2520, every output
+
+
+
+CHECKS:
+------
+
+- Appendix A plots were run using the same outputs from the code described above. The important changes were made within mod_vir_temp_paper_plots.py.
+
+- Checking the size of the radius bins:
+	- For energy, since it was just a sum in the bins anyway, I used the same outputs from the totals code described above and added up adjacent bins to make bigger bins. This was done in mod_vir_temp_paper_plots.py.
+	- For temperature, new stats code had to be run. The only difference was the shape argument, which was "['sphere', 0.25, 1.25, 10]", and the save_suffix, which had "_bigRbins" appended.
+	- I only did this check for Tempest DD2427.
+
+- Checking the boundary pressure term in the virial equation:
+	- I had to run the stats code above to get the median density and pressure at R200. It was run with the same keywords as above, but with "stat_type" being pressure,density. I didn't need the --pdf keyword since that wasn't used in the check (only the medians, not the full PDFs were used), but I ran it that way anyway since I forgot to turn it off. The --vel_fit keyword wasn't needed either but it doesn't do anything when "velocity" is not one of the "stat_type"s so it doesn't matter. The --save_suffix for these was sphere_mass-weighted_vcut-p5vff_cgm-filtered. The important changes to the plots used these output files and were done within mod_vir_temp_paper_plots.py.
+	- I did this for Tempest DD0497-DD2427 every 10th, Squall DD0590-DD2520 every 10th, and Maelstrom DD0590-DD2290 every 10th.
+
+- Checking if the un-refined cells contribution to the shell at R200 makes a difference:
+	- I ran both the totals and stats code as above, but with the added keyword "refined_only" which at the time of running restricted the calculation to only cells with grid_level > 8, and "refined-only" was appended to the file name.
+	- I did this for only one output from each halo, the same outputs that the energy and temperature vs. radius plots were done for.
+
+- Checking if a sum over the entire halo gas mass changes whether or not the halo is virialized:
+	- I ran the energy totals in shells as above except changed the shape argument to --shape "['sphere', 0., 1.3, 130]" and the file suffix to --save_suffix sphere_vcut-p5vff_cgm-filtered_to-zero and the summation over shells was done in mod_vir_temp_paper_plots.py.
+	- I did this for Tempest DD0497-DD2427 every 10th output, Squall DD0590-DD2520 every 10th, and Maelstrom DD0590-DD2520 every 10th
+
+- Checking if the filaments and ISM should be included in the halo virialization equation:
+	- I ran the energy totals in shells as above except changed the shape argument to --shape "['sphere', 0., 1.3, 130]" and the file suffix to --save_suffix sphere_cgm-filter_to-zero and removed the --vel_cut argument, and the summation over shells was done in mod_vir_temp_paper_plots.py. Similarly, I did the same but without the --cgm_filter argument even (so everything including disk ISM), and the --save_suffix for that one was sphere_all-gas_to-zero
+	- I did this for Tempest DD2387-DD2427 every 10th output
+	- Also had to run the boundary pressure stats code again now that filaments were being included. Did it the same as above but removed the --vel_cut argument. Also removed the --vel_fit and --pdf arguments, and ran on --stat_type velocity,density,pressure. --save_suffix was sphere_mass-weighted_cgm-filter
+	- I did this for Tempest DD2387-DD2427 every 10th output
+
+
+PLOTTING:
+--------
+- All calls to mod_vir_temp_paper_plots.py for both the plots that ended up in the paper and the checks are located in this directory, in run_plots.sh. If any of these plots need to be re-run, un-comment the appropriate line and run this shell file.
+- All data files to make the plots are stored in stats_halo_00XXXX/Tables and totals_halo_00XXXX/Tables on my local machine, within FOGGIE/Outputs.
+- The only plot in the paper that was not made by run_plots.sh is the gas density vs. radius plot for Appendix B. I made this one with:
+	> python plot_2Dhistograms.py --halo 8508 --output DD2427 --plot_x radius_corrected --plot_y density --plot_hist cell_mass --vel_cut --R_cut --save_suffix Tempest_SIS-NFW-compare --axis_bounds "[0,250,-31,-27]"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
