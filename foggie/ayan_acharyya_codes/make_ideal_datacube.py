@@ -129,7 +129,10 @@ def get_HII_list(args):
     else:
         myprint('HII region emission file does not exist, calling filter_star_properties.py..', args)
         args.automate = True  # so that it cascades to subsequent scripts as necessary
-        paramlist = get_star_properties(args)
+        clobber_holder = args.clobber # temporary variable to hold value of args.clobber
+        args.clobber = False # clobber set to false before calling chronologically previous scripts
+        paramlist = get_star_properties(args) # calling chronologically previous script
+        args.clobber = clobber_holder # restore whatever was the original value of args.clobber
     paramlist = pd.read_table(emission_file, delim_whitespace=True, comment='#')  # reading in the list of HII region emission fluxes
     return paramlist
 
@@ -190,16 +193,22 @@ def get_ideal_datacube(args, linelist):
 
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
-    args = parse_args('8508', 'RD0042')
-    if not args.keep: plt.close('all')
+    dummy_args = parse_args('8508', 'RD0042') # default simulation to work upon when comand line args not provided
+    if not dummy_args.keep: plt.close('all')
 
     linelist = read_linelist(mappings_lab_dir + 'targetlines.txt')  # list of emission lines
 
-    # ----------iterating over diag_arr and Om_ar to find the correct file with emission line fluxes-----------------------
-    for diag in args.diag_arr:
-        args.diag = diag
-        for Om in args.Om_arr:
-            args.Om = Om
-            ideal_ifu, paramlist, args = get_ideal_datacube(args, linelist)
+    if dummy_args.do_all_sims: list_of_sims = all_sims
+    else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
+
+    for index, this_sim in enumerate(list_of_sims):
+        myprint('Doing halo ' + this_sim[0] + ' snapshot ' + this_sim[1] + ', which is ' + str(index + 1) + ' out of ' + str(len(list_of_sims)) + '..', dummy_args)
+        args = parse_args(this_sim[0], this_sim[1])
+        # ----------iterating over diag_arr and Om_ar to find the correct file with emission line fluxes-----------------------
+        for diag in args.diag_arr:
+            args.diag = diag
+            for Om in args.Om_arr:
+                args.Om = Om
+                ideal_ifu, paramlist, args = get_ideal_datacube(args, linelist)
 
     myprint('Done making ideal datacubes for all given args.diag_arr and args.Om_arr', args)
