@@ -23,6 +23,7 @@ from scipy.interpolate import interp1d
 from scipy.interpolate import RegularGridInterpolator as RGI
 from scipy.interpolate import LinearNDInterpolator as LND
 from scipy.special import erf
+from scipy.optimize import curve_fit, fminbound
 
 from astropy.io import ascii, fits
 from astropy.table import Table
@@ -84,7 +85,7 @@ projection_dict = {'x': ('y', 'z'), 'y':('z', 'x'), 'z':('x', 'y')} # which axes
 
 #all_sims = [('8508', 'RD0030'), ('5036', 'RD0030'), ('5016', 'RD0030'), ('4123', 'RD0030'), ('2392', 'RD0030')] # all same z (=0.7) snapshots for each halo
 
-all_sims = [('8508', 'RD0042'), ('8508', 'RD0039'), ('8508', 'RD0031'), ('8508', 'RD0030'), \
+all_sims = [('8508', 'RD0042'), ('8508', 'RD0039'), ('8508', 'RD0031'), ('8508', 'RD0030'), ('8508', 'DD2288'), ('8508', 'DD2289'), \
             ('5036', 'RD0039'), ('5036', 'RD0031'), ('5036', 'RD0030'), ('5036', 'RD0020'), \
             ('5016', 'RD0042'), ('5016', 'RD0039'), ('5016', 'RD0031'), ('5016', 'RD0030'), ('5016', 'RD0020'), \
             ('4123', 'RD0031'), ('4123', 'RD0030'), \

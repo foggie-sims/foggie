@@ -694,6 +694,16 @@ def parse_args(haloname, RDname):
     parser.add_argument('--el_per_phot', metavar='el_per_phot', type=float, action='store', help='how many electrons do each photon trigger in the instrument; default is 1"')
     parser.set_defaults(el_per_phot=1)
 
+    # ------- args added for fit_mock_spectra.py ------------------------------
+    parser.add_argument('--test_pixel', metavar='test_pixel', type=str, action='store', help='pixel to test continuum and flux fitting on; default is 150')
+    parser.set_defaults(test_pixel='150,150')
+
+    parser.add_argument('--vel_mask', metavar='vel_mask', type=float, action='store', help='velocity window on either side of emission line, for masking, in km/s; default is 500')
+    parser.set_defaults(vel_mask=500.)
+
+    parser.add_argument('--testcontfit', dest='testcontfit', action='store_true', help='run a test of continuum fitting)?, default is no')
+    parser.set_defaults(testcontfit=False)
+
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 
@@ -701,6 +711,7 @@ def parse_args(haloname, RDname):
     args.Om_arr = [float(item) for item in args.Om_arr.split(',')]
     args.obs_wave_range = np.array([float(item) for item in args.obs_wave_range.split(',')])
     args.base_wave_range = np.array([float(item) for item in args.base_wave_range.split(',')])
+    args.test_pixel = np.array([int(item) for item in args.test_pixel.split(',')])
     args.mergeHII_text = '_mergeHII=' + str(args.mergeHII) + 'kpc' if args.mergeHII is not None else '' # to be used as filename suffix to denote whether HII regions have been merged
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 
