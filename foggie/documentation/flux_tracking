@@ -9,26 +9,28 @@ fluxes to a file in hdf5 format.
 
 Requires:
 ---------
-There must exist an entry in /halo_infos/haloID/runID/halo_c_v for the snapshot you are running
-flux_tracking.py on.
-
-If you would like to remove fluxes, there must exist an entry in /halo_infos/haloID/runID/satellites.hdf5
+If you would like to remove satellites, there must exist an entry in /halo_infos/haloID/runID/satellites.hdf5
 for the snapshot you are running flux_tracking.py on. ('haloID' is '008508' for Tempest,
 for example, and 'runID' is 'nref11c_nref9f', for example.) For example, if you would
 like to run flux_tracking.py on DD1920 of Tempest run nref11c_nref9f, there must be an entry in
 /halo_infos/8508/nref11c_nref9f/satellites.hdf5 file for DD1920.
 
+If you would like potential energy flux, there must exist an entry in /halo_infos/haloID/runID/masses_z-gtr-2.hdf5
+or masses_z-less-2.hdf5 for the snapshot you are running flux_tracking.py on.
+
+If you are using the --Rvir option (see below), there must exist an entry in /halo_infos/haloID/runID/rvir_masses.hdf5
+for the snapshot you are running flux_tracking.py on.
+
 If there are not entries in the above files for the snapshot you are running flux_tracking.py on,
 or if the above files do not exist for the halo and run you are running flux_tracking.py on, you
-must first add them. See the documentation for get_satellite_positions.py and
-get_halo_c_v_parallel.py to do so.
+must first add them. See the documentation for get_satellite_positions.py, get_mass_profile.py, and get_rvir.py to do so.
 
 If running from pleiades, the code will run in less than a tenth the length of time if you write
 your script to first copy the output files for whatever snapshot you're running it on to the /tmp
 folder of the node it's running on. This is automatically built into the code for running with
 system = pleiades_cassi, so it is very easy to add this functionality if you'd like it for your
 system too. Ask Cassi to add it, or search for 'if (system=='pleiades_cassi')' in the code and add
-it yourself.
+your own pleiades system.
 
 
 User inputs:
@@ -68,7 +70,9 @@ output only, do not use more than 1 processor.
 --surface "['XXXX', X, X, X, X]"
 What surface type for computing the flux? Default is sphere in 200 steps between 0.05*refine_width
 and 2*refine_width. Other options are "frustum" or "cylinder". Note that all surfaces will be centered
-on halo center. To specify the shape, size, and orientation of the surface you want, input a list as
+on halo center. Make sure the extent of your surface goes at least 15 kpc past the end point where you
+actually want fluxes! Flux tracking is not accurate within 15 kpc of the ends.
+To specify the shape, size, and orientation of the surface you want, input a list as
 follows:
 Don't forget to put the whole list in quotes! The whole thing must be passed as a single string,
 which also means you'll need to use a different type of quotes for the string specifying the shape
@@ -109,6 +113,18 @@ step_direction can be 'height', which will compute fluxes across circular planes
 parallel to the flat sides, or 'radius', which will compute fluxes across different radii within the
 cylinder perpendicular to the cylinder's flat sides.
 'num_steps' gives the number of places (either heights or radii) within the cylinder where to calculate fluxes.
+If you want elliptical cone(s), give:
+"['ellipse', ellipse_filename, inner_radius, outer_radius, num_steps]"
+where ellipse_filename is the name of the file where the ellipse(s) parameters are saved,
+and inner_radius, outer_radius, and num_steps are the same as for the other shapes.
+If you want multiple regions, use the same syntax but put each region list into a larger list, like:
+"[['frustum', 'x', 0.05, 2, 200, 15],['frustum', 'y', 0.05, 2, 200, 30]]"
+If you specify multiple shapes, they must all have the same inner_radius, outer_radius, and num_steps.
+You can specify many different shapes at once, as long as none of them are cylinders.
+If you want a cylinder, you can only do one at at time.
+
+--inverse
+Do you want to calculate for everything *outside* of the shape(s) you've specified? Default is no.
 
 --kpc
 If this option is specified, inner_radius and outer_radius given in the surface argument will be
@@ -116,10 +132,15 @@ in units of kpc rather than their default, which is fractions of refine_width. T
 option is False. If you want to track fluxes over time, such as for calculating gas changing phases,
 using kpc instead of fractions of refine_width will NOT work because the errors are too large.
 
+--Rvir
+If this option is specified, inner_radius and outer_radius given in the surface argument will be
+in units of virial radii rather than their default, which is fractions of refine_width. The default for this
+option is False. If you want to track fluxes over time, such as for calculating gas changing phases,
+using Rvir instead of fractions of refine_width will NOT work because the errors are too large.
+
 --remove_sats
-If this option is specified, it will excise satellites before calculating the flux. Note that this
-only works if computing the flux of a DD output! This cannot work with the RD outputs because
-they are spaced too far apart in time.
+If this option is specified, it will excise satellites before calculating the flux. Don't do this
+if your surface is a cylinder enclosing the central disk because it will try to remove parts of the disk.
 
 --sat_radius X
 If --remove_sats is specified, then this option decides the radius (in kpc) around satellites that
@@ -127,9 +148,27 @@ will be excised from the domain. The default is 10.
 
 --flux_type XXXX
 What fluxes do you want to compute? Currently, the options are "mass" (includes metal masses)
-"energy" "entropy" and "O_ion_mass". You can compute all of them by inputting "mass,energy,entropy,O_ion_mass" (no spaces!)
-and the default is to do all. Note that increasing the number of fluxes computed drastically increases runtime.
+"energy" "entropy" "O_ion_mass" and "angular_momentum". You can compute all of them by inputting
+"mass,energy,entropy,O_ion_mass,angular_momentum" (no spaces!) and the default is to do all.
+Note that increasing the number of fluxes computed drastically increases runtime.
 If there is a type of flux that you'd like that is not on this list, ask Cassi to add it.
+
+--temp_cut
+If this option is specified, fluxes will be computed not just for all gas but also for gas split
+into cold, cool, warm, and hot phases (<10^4 K, 10^4-10^5 K, 10^5-10^6 K, >10^6 K). Default is not to do this.
+
+--save_suffix XXXXXXXXXX
+If you want a string appended to the end of the output filename, use this option to specify what you want.
+
+--ang_mom_dir
+If computing the angular momentum flux, would you like to compute the components
+of the angular momentum vector in a specific coordinate system?
+Options are:
+x - realign z direction with x axis
+y - realign z direction with y axis
+minor - realign z direction with disk minor axis
+(x,y,z) - realign z direction with vector given by (x,y,z) tuple
+The default is to calculate angular momentum vector coordinates in the simulation box's x,y,z coordinates.
 
 Outputs:
 --------
@@ -137,14 +176,14 @@ The code saves to file a hdf5 table located within your output_path as specified
 It will output files per snapshot, and will be saved within subfolders specifying the halo id
 and run. For example, if you run flux_tracking.py on a sphere for halo 8508, nref11c_nref9f, output
 DD1236, using flux_type 'mass' and removing satellites it will output two files:
-output_path/fluxes_halo_008508/nref11c_nref9f/DD1236_fluxes_sphere_nosat_mass.hdf5
-output_path/fluxes_halo_008508/nref11c_nref9f/DD1236_fluxes_sphere_sat_mass.hdf5
+output_path/fluxes_halo_008508/nref11c_nref9f/DD1236_fluxes_nosat_mass.hdf5
+output_path/fluxes_halo_008508/nref11c_nref9f/DD1236_fluxes_sat_mass.hdf5
 The file with _nosat appended contains the fluxes with satellites excised from the domain. The file
 with _sat appended gives the fluxes into/out of those excised satellites.
 
 To read in the table in python, do:
     from astropy.table import Table
-    fluxes_table = Table.read('DD1236_fluxes_sphere_nosat_mass.hdf5', path='all_data')
+    fluxes_table = Table.read('DD1236_fluxes_nosat_mass.hdf5', path='all_data')
 Then to get each column of the table, index it with the name of the column, e.g.
     fluxes_table['radius']
     fluxes_table['net_mass_flux']
@@ -158,7 +197,7 @@ And you can find the units for a column (example here is radius) by doing:
 
 Each file has a ridiculous number of columns. The first few columns are information about the snapshot
 and where the flux was calculated, for the _nosat file, they are "redshift" and "radius", which tells
-you the redshift of the snapshot and the radius of the sphere where the fluxes are calculated.
+you the redshift of the snapshot and the radius of the sphere (for example) where the fluxes are calculated.
 For the _sat file, the first few columns are "redshift", "inner_radius", "outer_radius", which tells
 you again the redshift, and the radii *between* which the fluxes into and out of satellites are
 calculated. For example, if inner_radius is 30 kpc and outer_radius is 40 kpc, that indicates the
@@ -169,14 +208,17 @@ and top_edge. Similarly, 'radius' will be replaced with 'height' in the _nosat f
 
 The rest of the columns list the values of the fluxes, depending on what you specified for flux_type.
 The "mass" flux type gives columns of "mass_flux" and "metal_flux". These are given in Msun/yr.
-The "energy" flux type gives columns of "kinetic_energy_flux", "thermal_energy_flux", "potential_energy_flux",
-"radiative_energy_flux" (see note below about this one), and "total_energy_flux". These are given in erg/yr.
+The "energy" flux type gives columns of "thermal_energy_flux", "kinetic_energy_flux",
+"radial_kinetic_energy_flux", "tangential_kinetic_energy_flux", "potential_energy_flux", "bernoulli_energy_flux",
+and "cooling_energy_flux" (see note below about this one). These are given in erg/yr.
 The "entropy" flux type gives columns of "entropy_flux". This is given in cm^2*keV/yr.
 The "O_ion_mass" flux type gives columns for fluxes of total oxygen flux and each of the oxygen ions,
 "O_flux", "OI_flux", "OII_flux", etc. up to "OIX_flux". These fluxes are mass fluxes, given in Msun/yr.
+The "angular_momentum" flux type gives columns for fluxes of x, y, and z angular momentum in units of
+g cm^2/s/yr.
 
 The fluxes are broken down into net flux, inward flux, and outward flux. They are then
-further broken down into cold, cool, warm, and hot gas, with the sum of these 4 being equal to
+further broken down into cold, cool, warm, and hot gas, if --temp_cut is specified, with the sum of these 4 being equal to
 just the net flux. To obtain the net (meaning both inward and outward) flux, append "net_" to the
 front of the flux type, e.g. "net_mass_flux". To obtain the radially inward or outward flux, append
 "_in" or "_out" to the *end* of the flux type (and remove "net_" from the beginning), e.g. "mass_flux_in".
@@ -188,8 +230,8 @@ in this case indicates flux that is *entering* the domain coming *from* satellit
 inner_radius and outer_radius (see above). Likewise, "_out" indicates flux that is *leaving* the
 domain and going *to* satellites.
 
-If the surface requested is a frustum or a cylinder, the above two files will be created, but there will also
-be one additional file, e.g. DD1236_fluxes_edges_frustum. This file also has inner_radius and
+If the surface requested is a frustum, cylinder, or ellipse, the above two files will be created, but there will also
+be one additional file, e.g. DD1236_fluxes_edges. This file also has inner_radius and
 outer_radius (or bottom_edge and top_edge) like the _sat file, and gives the fluxes entering into
 or leaving from the region between inner_radius and outer_radius or between bottom_edge and top_edge.
 In this case, "_in" indicates fluxes *entering* the region, and "_out" indicates fluxes *leaving* the region.
@@ -200,8 +242,8 @@ any fluxes within the frustum or cylinder.
 Note about radiative energy fluxes:
 By definition, the radiative energy flux is volumetric, not the physical motion of a gas quantity
 across a surface. Therefore, the radiative energy flux is calculated as the amount of energy lost
-to radiation within a volume, and thus for both the sphere and the frustum, requires an inner_radius
-and an outer_radius to specify a shell of some volume. However, the radiative_energy_flux can only
+to radiation within a volume, and thus requires an inner_radius and an outer_radius to specify a
+shell of some volume. However, the radiative_energy_flux can only
 be found in the _nosat file, where only "radius" is specified. What this means is that the
 radiative_energy_flux listed for a given "radius" is *actually* the radiative energy lost *between*
 that radius and the next one. This means that the radiative_energy_flux column should be shorter
