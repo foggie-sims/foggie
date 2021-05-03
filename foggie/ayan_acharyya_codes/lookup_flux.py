@@ -11,6 +11,7 @@
 
 """
 from header import *
+from util import *
 import make_mappings_grid as mmg
 reload(mmg)
 
@@ -74,37 +75,6 @@ def remove_star(indices, list_of_var):
         new_list_of_var.append(list)
     return new_list_of_var
 
-# -----------------------------------------------------------------
-def poly(x, R, k):
-    '''
-    Function to use KD02 R23 diagnostic for the upper Z branch
-    '''
-
-    return np.abs(np.poly1d(k)(x) - np.log10(R))
-
-
-# --------------------------------------------------------------------------
-def get_KD02_metallicity(photgrid):
-    '''
-    Function to compute KD02 metallicity
-    '''
-
-    log_ratio = np.log10(np.divide(photgrid['NII6584'], (photgrid['OII3727'] + photgrid['OII3729'])))
-    logOH = 1.54020 + 1.26602 * log_ratio + 0.167977 * log_ratio ** 2
-    Z = 10 ** logOH  # converting to Z (in units of Z_sol) from log(O/H) + 12
-    return Z
-
-# ---------------------------------------------------------------------------------
-def get_D16_metallicity(photgrid):
-    '''
-    Function to compute D16 metallicity
-    '''
-
-    log_ratio = np.log10(np.divide(photgrid['NII6584'], (photgrid['SII6730'] + photgrid['SII6717']))) + 0.264 * np.log10(np.divide(photgrid['NII6584'], photgrid['H6562']))
-    logOH = log_ratio + 0.45 * (log_ratio + 0.3) ** 5  # + 8.77
-    Z = 10 ** logOH  # converting to Z (in units of Z_sol) from log(O/H) + 12
-    return Z
-
 # ------------------------------------------------------------------------
 def read_photoionisation_grid(gridfilename):
     '''
@@ -129,7 +99,7 @@ def saveplot(fig, args, plot_suffix):
 
     outplotname = args.output_dir + 'figs/' + args.output + args.mergeHII_text + args.without_outlier + plot_suffix + '.png'
     fig.savefig(outplotname)
-    print('Saved plot as', outplotname)
+    myprint('Saved plot as ' + outplotname, args)
 
 # ---------------------------------------------------------------
 def makeplot_phase_space(paramlist, args, plot_suffix=''):
@@ -283,11 +253,11 @@ def lookup_grid(paramlist, args):
 
     # -------------------reading in external models-----------------------
     photgrid = read_photoionisation_grid(mappings_lab_dir + mappings_grid_file) # reading HII model grid file
-    linelist = mmg.read_linelist(mappings_lab_dir + 'targetlines.txt') # reading list of emission lines to be extracted from the models
+    linelist = read_linelist(mappings_lab_dir + 'targetlines.txt') # reading list of emission lines to be extracted from the models
 
     # -------------------calculating two new quantities for HII regions-----------------------
     paramlist['radial_dist'] = np.sqrt((paramlist['pos_x'] - args.halo_center[0]) ** 2 + (paramlist['pos_y'] - args.halo_center[1]) ** 2)  # kpc
-    print('Deb226: min, max hii region distance in kpc', np.min(paramlist['radial_dist']), np.max(paramlist['radial_dist']), '\n') #
+    if args.debug: myprint('Deb226: min, max hii region distance in kpc ' + str(np.min(paramlist['radial_dist'])) + ', ' + str(np.max(paramlist['radial_dist'])), args) #
     paramlist['logQ'] = np.log10(paramlist['Q_H0'])
     paramlist.rename(columns={'gas_metal':'Zin'}, inplace=True)
 
@@ -301,7 +271,7 @@ def lookup_grid(paramlist, args):
    # -----------------reading grid files onto RGI-------------------------------------------------------------------
     quantity1, quantity2, quantity3, quantity4 = [quantity_dict[item] for item in choice_arr]
     quantity1a, quantity2a, quantity3a, quantity4a = [quantitya_dict[item] for item in choice_arr] # has to correspond to the same sequence as quantity1 etc.
-    print('Interpolating 4D in the sequence:', quantity1a, quantity2a, quantity3a, quantity4a)
+    myprint('Interpolating 4D in the sequence: ' + quantity1a + ', ' + quantity2a + ', ' + quantity3a + ', ' + quantity4a, args)
 
     ifunc = []
     for label in linelist['label']:
@@ -348,7 +318,7 @@ def lookup_grid(paramlist, args):
                 if args.nooutliers and diag == 'D16':
                     n = len(paramlist)
                     paramlist = paramlist[paramlist['nII'].between(10**(5.2-4+6), 10**(6.7-4+6))].reset_index(drop=True) #D16 models have 5.2 < lpok < 6.7
-                    print('Discarding outliers: For Om=', Om, ':', len(paramlist), 'out of', n, 'H2Rs ae retained as per D16 criteria')
+                    myprint('Discarding outliers: For Om= ' + str(Om) + ':' + str(len(paramlist)) + ' out of ' + str(n) + ' H2Rs ae retained as per D16 criteria', args)
 
                 # --------to calculate Zout based on different diagnostics---------------------------------------
                 paramlist['Zout_D16'] = 10 ** (np.log10(np.divide(paramlist['NII6584'], (paramlist['SII6717'] + paramlist['SII6730']))) + 0.264 * np.log10(np.divide(paramlist['NII6584'], paramlist['H6562'])))  # D16 method
@@ -370,13 +340,13 @@ def lookup_grid(paramlist, args):
                 nII: HII region number density per m^3\n\
                 log(P/k): HII region pressure, SI units\n\
                 Z: metallicity of ambient gas, Zsun units\n\
-                fluxes: ergs/s/cm^2\n'
+                fluxes: ergs/s\n'
 
                 np.savetxt(fout, [], header=header, comments='#')
                 paramlist.to_csv(fout, sep='\t', mode='a', index=None)
-                print('Parameter list saved at', fout)
+                myprint('Parameter list saved at ' + fout, args)
             else:
-                print('Reading existing file from', fout)
+                myprint('Reading existing file from ' + fout, args)
                 paramlist = pd.read_table(fout, delim_whitespace=True, comment='#')
 
             # ---------------choosing which metallicity indicator to work with for the rest of the diagnostic plots-------------------
@@ -393,7 +363,7 @@ def lookup_grid(paramlist, args):
             if args.plot_phase_space:
                 fig_phase_space = makeplot_phase_space(paramlist, args, plot_suffix='_' + diag + ',Om=' + str(Om) + '_P_vs_r_colorby_logQ')
 
-    print('Done in %s minutes' % ((time.time() - start_time) / 60))
+    myprint('Done in %s minutes' % ((time.time() - start_time) / 60), args)
     return paramlist
 
 # ---------to use the MAPPINGS model grid generated by make_mappings_grid.py---------

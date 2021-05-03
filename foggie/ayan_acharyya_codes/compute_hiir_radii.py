@@ -11,7 +11,8 @@
 
 """
 from header import *
-from lookup_flux import *
+from util import *
+from lookup_flux import lookup_grid
 
 # ----------------------------------------------------------------------------------------------------
 def merge_HIIregions(df, args):
@@ -20,18 +21,17 @@ def merge_HIIregions(df, args):
     Columns of input df are: 'pos_x', 'pos_y', 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'age', 'mass', 'gas_pressure', 'gas_metal', 'Q_H0'
     '''
 
-    print('Merging HII regions within '+ str(args.mergeHII * 1e3) + ' pc. May take 10-20 seconds...')
+    myprint('Merging HII regions within '+ str(args.mergeHII * 1e3) + ' pc. May take 10-20 seconds...', args)
     groupbycol = 'cell_index'
     weightcol = 'Q_H0'
     initial_nh2r = len(df)
 
     g = int(np.ceil(args.galrad * 2 / args.mergeHII))
-    gz = int(np.ceil(args.galthick / args.mergeHII))
 
     xind = ((df['pos_x'] - args.halo_center[0] + args.galrad) / args.mergeHII).astype(np.int) # (df['x(kpc)'][j] - args.halo_center[0]) used to range from (-galrad, galrad) kpc, which is changed here to (0, galrad*2) kpc
     yind = ((df['pos_y'] - args.halo_center[1] + args.galrad) / args.mergeHII).astype(np.int)
-    zind = ((df['pos_z'] - args.halo_center[2] + args.galthick / 2) / args.mergeHII).astype(np.int)
-    df[groupbycol] = xind + yind * g + zind * g * gz
+    zind = ((df['pos_z'] - args.halo_center[2] + args.galrad) / args.mergeHII).astype(np.int)
+    df[groupbycol] = xind + yind * g + zind * g * g
 
     if 'Sl.' in df.columns: df.drop(['Sl.'], axis=1, inplace=True)
     weighted_mean = lambda x: np.average(x, weights=df.loc[x.index, weightcol]) # function to weight by weightcol
@@ -45,7 +45,7 @@ def merge_HIIregions(df, args):
     df = df.groupby(groupbycol, as_index=False).agg(all_operations)
     df.rename(columns={groupbycol:'count'}, inplace=True)
 
-    print('Merged', initial_nh2r, 'HII regions into', len(df), 'HII regions\n')
+    myprint('Merged ' + str(initial_nh2r) + ' HII regions into ' + str(len(df)) + ' HII regions\n', args)
     return df
 
 # ----------------------------------------------------------------------------------------------
@@ -55,14 +55,14 @@ def compute_radii(paramlist):
     '''
 
     # --------calculating characteristic radius-----------#
-    r_ch = (alpha_B * eps ** 2 * f_trap ** 2 * psi ** 2 * paramlist['Q_H0']) / (12 * np.pi * phi * k_B ** 2 * TII ** 2 * c ** 2)
+    r_ch = (alpha_B * eps ** 2 * f_trap ** 2 * psi ** 2 * paramlist['Q_H0']) / (12 * np.pi * phi * k_B ** 2 * TII ** 2 * (c*1e3) ** 2)
 
     # --------calculating characteristic time-----------#
     m_SI = paramlist['mass'] * 1.989e30  # converting Msun to kg
     age_SI = paramlist['age'] * 3.1536e13  # converting Myr to sec
     r_0 = (m_SI ** 2 * (3 - k_rho) ** 2 * G / (paramlist['gas_pressure'] * 8 * np.pi)) ** (1 / 4.)
     rho_0 = (2 / np.pi) ** (1 / 4.) * (paramlist['gas_pressure'] / G) ** (3 / 4.) / np.sqrt(m_SI * (3 - k_rho))
-    t_ch = np.sqrt(4 * np.pi * rho_0 * r_0 ** k_rho * c * r_ch ** (4 - k_rho) / ((3 - k_rho) * f_trap * psi * eps * paramlist['Q_H0']))
+    t_ch = np.sqrt(4 * np.pi * rho_0 * r_0 ** k_rho * (c*1e3) * r_ch ** (4 - k_rho) / ((3 - k_rho) * f_trap * psi * eps * paramlist['Q_H0']))
     tau = age_SI / t_ch
 
     # --------calculating radiation pressure radius-----------#
@@ -76,7 +76,7 @@ def compute_radii(paramlist):
     paramlist['r_inst'] = xII_apr * r_ch
 
     # --------calculating stall radius-----------#
-    Prad_const = psi * eps * f_trap * paramlist['Q_H0'] / (4 * np.pi * c)
+    Prad_const = psi * eps * f_trap * paramlist['Q_H0'] / (4 * np.pi * (c*1e3))
     Pgas_const = np.sqrt(3 * phi * paramlist['Q_H0'] / (4 * np.pi * alpha_B * (1 + Y / (4 * X)))) * (mu_H * m_H * cII ** 2)
     r0 = (Pgas_const /paramlist['gas_pressure']) ** (2/3.)
 
@@ -90,7 +90,7 @@ def compute_radii(paramlist):
     paramlist['nII'] = np.sqrt(3 * phi * paramlist['Q_H0'] / (4 * (paramlist['r'] ** 3) * np.pi * alpha_B * (1 + Y / (4 * X))))
 
     # --------calculating volume averaged ionisation parameter inside HII region-----------#
-    paramlist['<U>'] = paramlist['Q_H0'] / (4 * np.pi * paramlist['r'] ** 2 * c * paramlist['nII'])
+    paramlist['<U>'] = paramlist['Q_H0'] / (4 * np.pi * paramlist['r'] ** 2 * (c*1e3) * paramlist['nII'])
 
     # --------calculating HII region pressure-----------#
     paramlist['log(P/k)'] = np.log10(paramlist['nII'] * TII)
@@ -123,8 +123,8 @@ def get_radii_for_df(paramlist, args):
 
     # ----------------------Creating new radius list file if one doesn't exist-------------------------------------------
     if not os.path.exists(outfilename) or args.clobber:
-        if not os.path.exists(outfilename): print(outfilename + ' does not exist. Creating afresh..')
-        elif args.clobber: print(outfilename + ' exists but over-writing..')
+        if not os.path.exists(outfilename): myprint(outfilename + ' does not exist. Creating afresh..', args)
+        elif args.clobber: myprint(outfilename + ' exists but over-writing..', args)
 
         # ----------------------Reading starburst99 file-------------------------------------------
         SB_data = pd.read_table(sb99_dir + sb99_model + '/' + sb99_model + '.quanta', delim_whitespace=True,comment='#', skiprows=6, \
@@ -132,7 +132,6 @@ def get_radii_for_df(paramlist, args):
         SB_data.loc[0, 'age'] = 1e-6 # Myr # force first i.e. minimum age to be 1 yr instead of 0 yr to avoid math error
         interp_func = interp1d(np.log10(SB_data['age']/1e6), SB_data['HI/sec'], kind='cubic')
 
-        nh2r_initial = len(paramlist)
         paramlist = paramlist[['pos_x', 'pos_y', 'pos_z', 'vel_x', 'vel_y', 'vel_z', 'age', 'mass', 'gas_pressure', 'gas_metal']] # only need these columns henceforth
         paramlist['Q_H0'] = (paramlist['mass']/sb99_mass) * 10 ** (interp_func(np.log10(paramlist['age']))) # scaling by starburst99 model mass
         paramlist['gas_pressure'] /= 10 # to convert from dyne/cm^2 to N/m^2
@@ -140,7 +139,6 @@ def get_radii_for_df(paramlist, args):
 
         # ------------------solving--------------------------------------------------------------
         paramlist = compute_radii(paramlist)
-        print('Using', len(paramlist), 'HII regions of', nh2r_initial)
 
         # ------------------writing dataframe to file--------------------------------------------------------------
         header = 'Units for the following columns: \n\
@@ -160,39 +158,27 @@ def get_radii_for_df(paramlist, args):
 
         np.savetxt(outfilename, [], header=header, comments='#')
         paramlist.to_csv(outfilename, sep='\t', mode='a', index=None)
-        print('Radii list saved at', outfilename)
+        myprint('Radii list saved at ' + outfilename, args)
     else:
-        print('Reading from existing file', outfilename)
+        myprint('Reading from existing file ' + outfilename, args)
         paramlist = pd.read_table(outfilename, delim_whitespace=True, comment='#')
 
-    print(args.output + ' done in %s minutes' % ((time.time() - start_time) / 60))
+    myprint(args.output + ' done in %s minutes' % ((time.time() - start_time) / 60), args)
     if args.automate:
-        print('Will execute lookup_grid() for ', args.output, '...')
+        myprint('Will execute lookup_grid() for ' + args.output + '...', args)
         paramlist = lookup_grid(paramlist, args)
     return paramlist
 
 # -------------------defining constants for assumed models---------------------------------------------------
 k_rho = 0. #1. corrected to zero, since we assume constant density profile
 mu_H = 1.33
-m_H = 1.67e-27  # kg
 cII = 9.74e3  # m/s
 phi = 0.73
 Y = 0.23
 X = 0.75
 psi = 3.2
-eps = 2.176e-18  # Joules or 13.6 eV
-c = 3e8  # m/s
 f_trap = 2  # Verdolini et. al.
-#alpha_B = 3.46e-19  # m^3/s OR 3.46e-13 cc/s, Krumholz Matzner (2009) for 7e3 K
-alpha_B = 2.59e-19  # m^3/s OR 2.59e-13 cc/s, for Te = 1e4 K, referee quoted this values
-k_B = 1.38e-23  # m^2kg/s^2/K
 TII = 1e4 # K, because MAPPINGS models are computed at this temperature
-G = 6.67e-11  # Nm^2/kg^2
-
-# -------------------variables pertaining to simulation ouputs---------------------------------------------------
-ng = 350 # number of grid points to break the simulation in to, in each of x and y dimensions
-res = 0.02  # kpc; base resolution of simulation inside refined box
-size = 287.76978417  # kpc; size of refined simulation box
 
 # -------------------------------------------------------------------------------
 if __name__ == '__main__':
@@ -205,4 +191,4 @@ if __name__ == '__main__':
 
     # --------------------------------------------------------------------------------
     nstalled = sum(paramlist['r'] == paramlist['r_stall'])
-    print(str(nstalled) + ' HII regions have stalled expansion which is ' + str(nstalled * 100. / len(paramlist)) + ' % of the total.')
+    myprint(str(nstalled) + ' HII regions have stalled expansion which is ' + str(nstalled * 100. / len(paramlist)) + ' % of the total.', args)

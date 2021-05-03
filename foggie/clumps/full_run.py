@@ -33,6 +33,14 @@ def parse_args():
                         help='Just use the working directory? Default is no')
     parser.set_defaults(pwd=False)
 
+    parser.add_argument('--width', metavar='width', type=float, action='store', \
+                        help='Width of the box around the halo center in kpc. default = 30')
+    parser.set_defaults(width=30.)
+
+    parser.add_argument('--step', metavar='step', type=float, action='store', \
+                        help='clumpfinder step parameter. default = 2. ')
+    parser.set_defaults(step=2.)
+
     args = parser.parse_args()
     return args
 
@@ -59,7 +67,7 @@ dz= ds.quan(19.,'kpc').in_units('code_length')
 print(dx)
 chosencenter=[centerx+dx,centery+dy,centerz+dz]
 chosencenter = region.center
-chosenwidth = 50
+chosenwidth = args.width
 data_source = ds.sphere(chosencenter, (chosenwidth, 'kpc'))
 
 #yt.ProjectionPlot(ds, 2, ("gas", "density"), center=chosencenter, width=(chosenwidth,'kpc'),data_source=data_source, weight_field=("gas", "density")).show()
@@ -70,10 +78,10 @@ data_source = ds.sphere(chosencenter, (chosenwidth, 'kpc'))
 
 
 master_clump1 = Clump(data_source, ("gas", "density"))
-master_clump1.add_validator("min_cells", 7)
+master_clump1.add_validator("min_cells", 20)
 c_min = data_source["gas", "density"].min()
 c_max = data_source["gas", "density"].max()
-step = 1.2 #100. #2.0
+step = args.step #100. #2.0
 find_clumps(master_clump1, c_min, c_max, step)
 
 leaf_clumps = master_clump1.leaves
@@ -82,7 +90,7 @@ prj = yt.ProjectionPlot(ds, 0, ("gas", "density"),
                         center=chosencenter, width=(chosenwidth,'kpc'), data_source=data_source)
 
 prj.annotate_clumps(leaf_clumps)
-prj.save('halo_00'+halo+'/'+sim+'/'+snap+'/'+snap+'_clumps_density.png')
+prj.save('halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_density.png')
 #prj.show()
 
 master_clump=master_clump1
@@ -98,7 +106,7 @@ master_clump.add_info_item("distance_to_main_clump")
 
 
 
-fn = master_clump.save_as_dataset(filename='halo_00'+halo+'/'+sim+'/'+snap+'/'+snap+'_clumps_tree',fields=["density", "particle_mass",'particle_position'])
+fn = master_clump.save_as_dataset(filename='halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_tree',fields=["density", "particle_mass",'particle_position'])
 leaf_clumps = master_clump.leaves
 for clump in leaf_clumps:
     clumpfn=str(clump.clump_id)+'_single_clump'
@@ -106,32 +114,37 @@ for clump in leaf_clumps:
     clump.data.save_as_dataset(filename=clumpfn,fields=["density", "particle_mass",'particle_position','cell_mass',"cell_volume"])
 
 
-filename = 'halo_00'+halo+'/'+sim+'/'+snap+'/'+snap+'_clumps_cut_region'
+filename = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_cut_region'
 master_clump.data.save_as_dataset(filename=filename,fields=[('gas','x'),('gas','y'),('gas','z')])
 
 
 clumpmasses = []
 clumpvolumes = []
-
-
-for i in range(15):
+failedclumps = []
+for i in range(100):
     i=i+1
     clumpfile=str(i)+"_single_clump.h5"
     if (os.path.exists(clumpfile)):
         clump1 = yt.load(clumpfile)
         ad = clump1.all_data()
-        clumpmass = ad["gas", "cell_mass"].sum().in_units("Msun")
-        clumpvolume = ad["gas", "cell_volume"].sum().in_units("kpc**3")
-        print(i)
-        print(clumpmass)
-        print(clumpvolume)
-        clumpmasses.append(clumpmass)
-        clumpvolumes.append(clumpvolume)
+        try:
+            clumpmass = ad["gas", "cell_mass"].sum().in_units("Msun")
+            clumpvolume = ad["gas", "cell_volume"].sum().in_units("kpc**3")
+            print(i)
+            print(clumpmass)
+            print(clumpvolume)
+            clumpmasses.append(clumpmass)
+            clumpvolumes.append(clumpvolume)
+
+        except ValueError:
+            failedclumps.append(i)
+            pass
+
+print('Failed clumps: ')
+print(failedclumps)
 
 clumpmasses=np.array(clumpmasses)
 clumpvolumes=np.array(clumpvolumes)
-print(clumpmasses)
-print(clumpvolumes)
 
 
 plt.figure()
