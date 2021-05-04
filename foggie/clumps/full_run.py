@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
 import argparse
+import trident
 
 def parse_args():
     '''Parse command line arguments. Returns args object.
@@ -41,12 +42,17 @@ def parse_args():
                         help='clumpfinder step parameter. default = 2. ')
     parser.set_defaults(step=2.)
 
+    parser.add_argument('--patchname', metavar='patchname', type=str, action='store', \
+                        help='Name  for the patch to find clumps? Default is central_30kpc')
+    parser.set_defaults(patchname='central_30kpc')
+
     args = parser.parse_args()
     return args
 
 args = parse_args()
 foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-output_dir = output_dir+"clumps/"
+patchname = args.patchname
+output_dir = output_dir+"clumps/"+patchname+'/'
 if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
 os.chdir(output_dir)
 halo = args.halo
@@ -56,6 +62,9 @@ snap = args.output
 filename = foggie_dir+'halo_00'+halo+'/'+sim+'/'+snap+'/'+snap
 track_name = trackname
 ds, region = fl(filename,trackname)
+
+for chosenion in ['O VI','C II','C IV','Si II','Si III','Si IV', 'Mg I', 'Mg II', 'H I']:
+    trident.add_ion_fields(ds, ions=[chosenion])
 
 [centerx,centery,centerz]=region.center
 dx= ds.quan(10.,'kpc').in_units('code_length')
@@ -90,7 +99,9 @@ prj = yt.ProjectionPlot(ds, 0, ("gas", "density"),
                         center=chosencenter, width=(chosenwidth,'kpc'), data_source=data_source)
 
 prj.annotate_clumps(leaf_clumps)
-prj.save('halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_density.png')
+plotsdir = output_dir +'plots'
+if not (os.path.exists(plotsdir)): os.system('mkdir -p ' + plotsdir)
+prj.save(plotsdir+'/halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_density.png')
 #prj.show()
 
 master_clump=master_clump1
@@ -106,18 +117,28 @@ master_clump.add_info_item("distance_to_main_clump")
 
 
 
-fn = master_clump.save_as_dataset(filename='halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_tree',fields=["density", "particle_mass",'particle_position'])
+fields_of_interest = [("gas", "density"),("gas", "temperature"), ("gas", "metallicity"),"particle_mass",'particle_position',("gas", 'cell_mass'),("gas", "cell_volume"), \
+                      ("gas", 'radial_velocity_corrected'), \
+                      ("gas", 'Si_p1_number_density'), ("gas", 'Si_p2_number_density'), ("gas", 'Si_p3_number_density'), ("gas", 'C_p1_number_density'), ("gas", 'C_p3_number_density'), ("gas", 'O_p5_number_density'), ("gas", 'Mg_p0_number_density'),("gas", 'Mg_p1_number_density'),("gas", 'H_p0_number_density'), \
+                      ("gas", 'Si_p1_mass'), ("gas", 'Si_p2_mass'), ("gas", 'Si_p3_mass'), ("gas", 'C_p1_mass'), ("gas", 'C_p3_mass'), ("gas", 'O_p5_mass'), ("gas", 'Mg_p0_mass'),("gas", 'Mg_p1_mass'),("gas", 'H_p0_mass') \
+                      ]
+
+
+fn = master_clump.save_as_dataset(filename='halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_tree',fields=fields_of_interest)
 leaf_clumps = master_clump.leaves
+
+indclumpdir = output_dir +'individual_clumps'
+if not (os.path.exists(indclumpdir)): os.system('mkdir -p ' + indclumpdir)
 for clump in leaf_clumps:
     clumpfn=str(clump.clump_id)+'_single_clump'
     #clump.save_as_dataset(filename=clumpfn,fields=["density", "particle_mass",'particle_position'])
-    clump.data.save_as_dataset(filename=clumpfn,fields=["density", "particle_mass",'particle_position','cell_mass',"cell_volume"])
+    clump.data.save_as_dataset(filename=indclumpdir+'/'+clumpfn,fields=fields_of_interest)
 
 
 filename = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_cut_region'
-master_clump.data.save_as_dataset(filename=filename,fields=[('gas','x'),('gas','y'),('gas','z')])
+master_clump.data.save_as_dataset(filename=filename,fields=fields_of_interest)
 
-
+"""
 clumpmasses = []
 clumpvolumes = []
 failedclumps = []
@@ -161,3 +182,4 @@ clumpradii = (3/4/np.pi * clumpvolumes)**(1/3)
 plt.figure()
 plt.hist(clumpradii)
 plt.savefig('clumpradii.png')
+"""
