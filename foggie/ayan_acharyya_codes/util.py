@@ -212,6 +212,7 @@ class noisycube(mockcube):
 
         self.exptime = args.exptime # in seconds
         self.snr = args.snr # target SNR per pixel
+        self.error = np.zeros((self.box_size_in_pix, self.box_size_in_pix, self.ndisp)) # initialise errorcube with zeroes
         self.declare_noise_param(args)
 
     # -------------------------------------------------
@@ -226,7 +227,7 @@ def myprint(text, args):
     '''
     Function to direct the print output to stdout or a file, depending upon user args
     '''
-    if not text[-1] == '\n': text += '\n'
+    if not isinstance(text, list) and not text[-1] == '\n': text += '\n'
     if not args.silent:
         if args.print_to_file:
             ofile = open(args.printoutfile, 'a')
@@ -415,6 +416,16 @@ class readcube(object):
         self.data = np.nan_to_num(self.data) # replacing all NaN values with 0, otherwise calculations get messed up
         self.data = self.data.swapaxes(0, 2) # switching from (wave, pos, pos) arrangement (QFitsView requires) to (pos, pos, wave) arrangement (traditional)
 
+        try:
+            self.error = cube[2].data
+            self.error = np.nan_to_num(self.error)  # replacing all NaN values with 0, otherwise calculations get messed up
+            self.error = self.error.swapaxes(0, 2)  # switching from (wave, pos, pos) arrangement (QFitsView requires) to (pos, pos, wave) arrangement (traditional)
+            myprint('Reading in available error cube', args)
+        except:
+            self.error = np.zeros(np.shape(self.data))
+            myprint('Error cube absent; filling with zeroes', args)
+            pass
+
 # -------------------------------------------------------------------------------------------
 def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=True):
     '''
@@ -471,19 +482,33 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
                             'kernel_size(pix)': cube.ker_size, \
                             })
 
-    if hasattr(cube, 'snr'):  # i.e. it is a smoothed AND noisy mock datacube rather than an ideal datacube
+    if hasattr(cube, 'snr'):  # i.e. it is a smoothed AND noisy mock datacube rather than an ideal datacube, and therefore has an additional errorcube associated with the datacube
         flux_header.update({'exptime(s)': cube.exptime, \
                             'target_snr': cube.snr, \
                             'electrons_per_photon': instrument.el_per_phot, \
                             'telescope_radius(m)': instrument.radius, \
                             })
 
-
     flux_hdu = fits.PrimaryHDU(flux, header=flux_header)
     wavelength_hdu = fits.ImageHDU(wavelength)
-    hdulist = fits.HDUList([flux_hdu, wavelength_hdu])
+    if hasattr(cube, 'error'):
+        error = np.ma.filled(cube.error, fill_value=fill_val)
+        error_hdu = fits.ImageHDU(error)
+        hdulist = fits.HDUList([flux_hdu, wavelength_hdu, error_hdu])
+    else:
+        hdulist = fits.HDUList([flux_hdu, wavelength_hdu])
     hdulist.writeto(filename, clobber=True)
     myprint('Written file ' + filename + '\n', args)
+
+# ----------------------------------------------------------------------------------------------
+def total_gauss(x, n, *p):
+    '''
+    Function to evaluate total (summed) gaussian for multiple lines, given n sets of fitted parameters
+    '''
+    result = p[0]
+    for xx in range(0, n):
+        result += p[3 * xx + 1] * exp(-((x - p[3 * xx + 2]) ** 2) / (2 * p[3 * xx + 3] ** 2))
+    return result
 
 # ----------------------------------------------------------------------------------------------
 def pull_halo_center(args):
@@ -694,6 +719,10 @@ def parse_args(haloname, RDname):
     parser.add_argument('--el_per_phot', metavar='el_per_phot', type=float, action='store', help='how many electrons do each photon trigger in the instrument; default is 1"')
     parser.set_defaults(el_per_phot=1)
 
+    # ------- args added for test_kit.py ------------------------------
+    parser.add_argument('--plot_hist', dest='plot_hist', action='store_true', help='make histogram plot?, default is no')
+    parser.set_defaults(plot_hist=False)
+
     # ------- args added for fit_mock_spectra.py ------------------------------
     parser.add_argument('--test_pixel', metavar='test_pixel', type=str, action='store', help='pixel to test continuum and flux fitting on; default is 150')
     parser.set_defaults(test_pixel='150,150')
@@ -703,6 +732,9 @@ def parse_args(haloname, RDname):
 
     parser.add_argument('--testcontfit', dest='testcontfit', action='store_true', help='run a test of continuum fitting)?, default is no')
     parser.set_defaults(testcontfit=False)
+
+    parser.add_argument('--testlinefit', dest='testlinefit', action='store_true', help='run a test of line fitting)?, default is no')
+    parser.set_defaults(testlinefit=False)
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()

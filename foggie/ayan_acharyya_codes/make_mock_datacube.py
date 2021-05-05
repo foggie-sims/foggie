@@ -65,6 +65,7 @@ def add_noise(mock_ifu, instrument, args):
     clean_data = mock_ifu.data # clean_data has no noise, in flux density units
     (xlen, ylen, zlen) = np.shape(clean_data)
     mock_ifu.data = np.zeros(np.shape(clean_data))  # initialise datacube with zeroes
+    mock_ifu.error = np.zeros(np.shape(clean_data))  # initialise datacube with zeroes
 
     for index in range(xlen * ylen * zlen - 1):
         i, j, k = int(index / (ylen * zlen)), int((index / zlen) % ylen), int(index % zlen) # cell position
@@ -81,8 +82,11 @@ def add_noise(mock_ifu, instrument, args):
 
         if args.debug: myprint('Deb231: flux = ' + str(flux) + ' electrons/pix; using factor = ' + str(flux_density_to_counts) + ' A.s.cm^2/ergs', args)
 
-        noisyflux = flux + get_noise_in_voxel(flux, wavelength, mock_ifu.snr, args) # adding noise to the flux, in counts unit                                                                                                                           #mean() is used here to conserve flux; as f is in units of ergs/s/A, we want integral of f*dlambda to be preserved (same before and after resampling)
+        absolute_noise, random_noise = get_noise_in_voxel(flux, wavelength, mock_ifu.snr, args)
+        noisyflux = flux + random_noise # adding noise to the flux, in counts unit
+
         mock_ifu.data[i, j, k] = noisyflux / flux_density_to_counts # converting counts to flux density units
+        mock_ifu.error[i, j, k] = absolute_noise / flux_density_to_counts # converting counts to flux density units; such that noisy flux spaxel = pure signal + random draw off error spaxel value
 
         if args.debug: myprint('Deb236: noisy flux = ' + str(noisyflux) + ' electrons/pix = ' + str(mock_ifu.data[i, j, k]) + ' ergs/s/cm^2/A', args)
 
@@ -100,7 +104,7 @@ def get_noise_in_voxel(data, wavelength, target_SNR, args):
 
     if args.debug: myprint('Deb250: data = ' + str(data) + ' electrons; absolute_noise = ' + str(absolute_noise) + '; random noise = ' + str(random_noise) + ' electrons', args)
 
-    return random_noise
+    return absolute_noise, random_noise
 # -----------------------------------------------------------------------
 def get_mock_datacube(ideal_ifu, args, linelist, cube_output_path):
     '''
