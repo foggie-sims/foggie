@@ -7,7 +7,8 @@
     Output :     FITS cube with each emission line map as a 2D slice
     Author :     Ayan Acharyya
     Started :    March 2021
-    Example :    run fit_mock_spectra.py --system ayan_local --halo 8508 --output RD0042 --mergeHII 0.04 --base_spatial_res 0.4 --z 0.25 --obs_wave_range 0.8,0.85 --obs_spatial_res 1 --obs_spec_res 60 --exptime 1200 --snr 5 --debug
+    Example :    run fit_mock_spectra.py --system ayan_local --halo 5036 --output RD0020 --mergeHII 0.04 --galrad 6 --testcontfit --test_pixel 143,144
+    OR           run fit_mock_spectra.py --system ayan_local --halo 8508 --output RD0042 --mergeHII 0.04 --galrad 6 --base_spatial_res 0.4 --z 0.25 --obs_wave_range 0.8,0.85 --obs_spatial_res 1 --obs_spec_res 60 --exptime 1200 --snr 5
 
 """
 from header import *
@@ -42,8 +43,8 @@ def fitcont(spec, fits_header, args):
 
     for thiswwave in wave_list:
         linemask_width = thiswwave * 1.5 * args.vel_mask / c
-        spec.loc[spec['wave'].between(thiswwave - linemask_width, thiswwave + linemask_width), 'badmask'] = True
-    masked_spec = spec[~spec['badmask']].reset_index(drop=True).drop('badmask', axis=1)
+        spec.loc[spec['wave'].between(thiswwave - linemask_width, thiswwave + linemask_width), 'linemask'] = True
+    masked_spec = spec[~spec['linemask']].reset_index(drop=True).drop('linemask', axis=1)
 
     wave_bins = np.linspace(rest_wave_range[0], rest_wave_range[1], int(args.nbin_cont/10))
     wave_index = np.digitize(masked_spec['wave'], wave_bins, right=True)
@@ -54,7 +55,7 @@ def fitcont(spec, fits_header, args):
     smoothed_spec = smoothed_spec.dropna().reset_index(drop=True)  # dropping those fluxes where mean wavelength value in the bin is nan
 
     if args.testcontfit:
-        myprint(smoothed_spec, args)
+        print(smoothed_spec)
         fig = plt.figure(figsize=(17, 5))
         fig.subplots_adjust(hspace=0.7, top=0.85, bottom=0.1, left=0.05, right=0.95)
 
@@ -83,7 +84,7 @@ def fitcont(spec, fits_header, args):
     spec['cont_u'] = np.ones(len(spec)) * np.sqrt(np.sum((masked_spec['cont'] - masked_spec['flux']) ** 2) / len(spec))
 
     if args.testcontfit:
-        myprint(spec, args)
+        print(spec)
         plt.plot(spec['wave'], spec['cont'], c='g', label='cont')
         plt.plot(spec['wave'], spec['cont_u'], c='g', label='cont_u', linestyle='dotted')
         plt.legend()
@@ -91,48 +92,61 @@ def fitcont(spec, fits_header, args):
 
     return spec
 
-# -------------Fucntion for fitting multiple lines----------------------------
-def fit_all_lines(args, wave, flam, flam_u, cont, pix_i, pix_j, z=0, z_err=0.0001):
-    scaling = 1e-19 if args.contsub else 1.  # to make "good" numbers that python can handle
-    flam /= scaling
-    flam_u /= scaling
-    cont /= scaling
-    kk, count, flux_array, flux_error_array, vel_disp_array, vel_disp_error_array = 1, 0, [], [], [], []
-    ndlambda_left, ndlambda_right = [args.nres] * 2  # how many delta-lambda wide will the window (for line fitting) be on either side of the central wavelength, default 5
+# --------------------------------------------------------------------------------
+def fit_all_lines(spec, fits_header, args, which_pixel=None):
+    '''
+    Fucntion for fitting multiple lines
+    :param spec:
+    :param fits_header:
+    :param args:
+    :return:
+    '''
+    if which_pixel is None: which_pixel = args.test_pixel
+    wave_list = [float(item) for item in fits_header['lambdas'].split(',')]
+    label_list = [item for item in fits_header['labels'].split(',')]
+    
+    if 'obs_spec_res(km/s)' in fits_header: args.vel_res = fits_header['obs_spec_res(km/s)']  # in km/s
+    else: args.vel_res = fits_header['base_spec_res(km/s)']
+    args.resolution = c / args.vel_res
+
+    if 'cont' not in spec: spec = fitcont(spec, fits_header, args)
+    spec['flux_norm'] = spec['flux'] / spec['cont']
+    spec['flux_u_norm'] = np.sqrt((spec['flux_u'] / spec['cont'])**2 + (spec['flux'] * spec['cont_u'] / spec['cont']**2)**2) # error propagation
+
+    kk= 1
+    fitted_df = pd.DataFrame(columns=('label', 'wave', 'flux', 'flux_u', 'vel', 'vel_u', 'vel_disp', 'vel_disp_u')) # to store the results of the line fits
+    ndlambda_left, ndlambda_right = [5.] * 2  # how many delta-lambda wide will the window (for line fitting) be on either side of the central wavelength, default 5
+
     try:
         count = 1
-        first, last = [logbook.wlist[0]] * 2
+        first, last = [wave_list[0]] * 2
     except IndexError:
         pass
-    while kk <= len(logbook.llist):
-        center1 = last
-        if kk == len(logbook.llist):
-            center2 = 1e10  # insanely high number, required to plot last line
-        else:
-            center2 = logbook.wlist[kk]
-        if center2 * (1. - ndlambda_left / logbook.resoln) > center1 * (1. + ndlambda_right / logbook.resoln):
-            leftlim = first * (1. - ndlambda_left / logbook.resoln)
-            rightlim = last * (1. + ndlambda_right / logbook.resoln)
-            wave_short = wave[(leftlim < wave) & (wave < rightlim)]
-            flam_short = flam[(leftlim < wave) & (wave < rightlim)]
-            flam_u_short = flam_u[(leftlim < wave) & (wave < rightlim)]
-            cont_short = cont[(leftlim < wave) & (wave < rightlim)]
-            if args.debug: myprint('Trying to fit ' + str(logbook.llist[kk - count:kk]) + ' line/s at once. Total ' + str(count) + '\n',
-                args)
-            try:
-                popt, pcov = fitline(wave_short, flam_short, flam_u_short, logbook.wlist[kk - count:kk], logbook.resoln,
-                                     z=z, z_err=z_err, contsub=args.contsub)
-                popt, pcov = np.array(popt), np.array(pcov)
-                level = 0. if args.contsub else 1.
-                popt = np.concatenate(([level],
-                                       popt))  # for fitting after continuum normalised (OR subtracted), so continuum is fixed=1 (OR 0) and has to be inserted to popt[] by hand after fitting
-                pcov = np.hstack((np.zeros((np.shape(pcov)[0] + 1, 1)), np.vstack((np.zeros(np.shape(pcov)[1]),
-                                                                                   pcov))))  # for fitting after continuum normalised (OR subtracted), so error in continuum is fixed=0 and has to be inserted to pcov[] by hand after fitting
-                if args.showfit:  #
-                    plt.axvline(leftlim, linestyle='--', c='g')
-                    plt.axvline(rightlim, linestyle='--', c='g')
 
-                ndlambda_left, ndlambda_right = [args.nres] * 2
+    while kk <= len(label_list):
+        center1 = last
+        if kk == len(label_list):
+            center2 = 1e10  # insanely high number, required to capture reddest line
+        else:
+            center2 = wave_list[kk]
+        if center2 * (1. - ndlambda_left / args.resolution) > center1 * (1. + ndlambda_right / args.resolution): # if the left-edge of the redder neighbour is beyond (greater than) the right edge of the bluer neighbour, then we can stop adding further neighbours to the current group and fit the current group
+            left_edge = first * (1. - ndlambda_left / args.resolution)
+            right_edge = last * (1. + ndlambda_right / args.resolution)
+            spec_thisgroup = spec[spec['wave'].between(left_edge, right_edge)] # sliced only the current group of neighbouring lines
+
+            if args.debug: myprint('Trying to fit ' + str(label_list[kk - count:kk]) + ' line/s at once. Total ' + str(count) + '\n', args)
+            
+            try:
+                popt, pcov = fitline(spec_thisgroup, wave_list[kk - count:kk], args)
+                popt, pcov = np.array(popt), np.array(pcov)
+                popt = np.concatenate(([1], popt))  # for fitting after continuum normalised, so continuum is fixed=1 and has to be inserted to popt[] by hand after fitting
+                pcov = np.hstack((np.zeros((np.shape(pcov)[0] + 1, 1)), np.vstack((np.zeros(np.shape(pcov)[1]), pcov))))  # for fitting after continuum normalised, so error in continuum is fixed=0 and has to be inserted to pcov[] by hand after fitting
+                
+                if args.testlinefit:
+                    plt.axvline(left_edge, linestyle='--', c='g')
+                    plt.axvline(right_edge, linestyle='--', c='g')
+
+                ndlambda_left, ndlambda_right = [5.] * 2
                 if args.debug: myprint('Done this fitting!' + '\n', args)
 
             except TypeError:
@@ -140,14 +154,11 @@ def fit_all_lines(args, wave, flam, flam_u, cont, pix_i, pix_j, z=0, z_err=0.000
                 ndlambda_left += 1
                 ndlambda_right += 1
                 continue
+            
             except (RuntimeError, ValueError):
-                level = 0. if args.contsub else 1.
-                popt = np.concatenate(([level], np.zeros(
-                    count * 3)))  # if could not fit the line/s fill popt with zeros so flux_array gets zeros
-                pcov = np.zeros((count * 3 + 1,
-                                 count * 3 + 1))  # if could not fit the line/s fill popt with zeros so flux_array gets zeros
-                if args.debug: myprint('Could not fit lines ' + str(logbook.llist[kk - count:kk]) + ' for pixel ' + str(
-                    pix_i) + ', ' + str(pix_j) + '\n', args)
+                popt = np.concatenate(([1], np.zeros(count * 3)))  # if could not fit the line/s fill popt with zeros so flux_array gets zeros
+                pcov = np.zeros((count * 3 + 1, count * 3 + 1))  # if could not fit the line/s fill popt with zeros so flux_array gets zeros
+                if args.debug: myprint('Could not fit lines ' + str(label_list[kk - count:kk]) + ' for pixel ' + str(which_pixel[0]) + ', ' + str(which_pixel[1]) + '\n', args)
                 pass
 
             for xx in range(0, count):
@@ -184,37 +195,36 @@ def fit_all_lines(args, wave, flam, flam_u, cont, pix_i, pix_j, z=0, z_err=0.000
                 # i.e. var_vd = vdd/c^2 + d^2*vcc/c^4 + 2*d*vcd/c^3
                 #
                 popt_single = np.concatenate(([popt[0]], popt[3 * xx + 1:3 * (xx + 1) + 1]))
-                cont_at_line = cont[np.where(wave >= logbook.wlist[kk + xx - count])[0][0]]
-                if args.debug and args.oneHII is not None: print('Debugging534: linefit param at (', pix_i, ',', pix_j, ') for ', logbook.llist[kk + xx - count], '(ergs/s/pc^2/A) =', popt_single)  #
-                flux = np.sqrt(2 * np.pi) * (popt_single[1] - popt_single[0]) * popt_single[3] * scaling  # total flux = integral of guassian fit ; resulting flux in ergs/s/pc^2 units
-                if args.debug and not args.contsub: flux *= cont_at_line  # if continuum is normalised (and NOT subtracted) then need to change back to physical units by multiplying continuum at that wavelength
-                if args.oneHII is not None: print('Debugging536: lineflux at (', pix_i, ',', pix_j, ') for ', logbook.llist[kk + xx - count], '(ergs/s/pc^2/A) =', flux)  #
+                cont_at_line = spec[spec['wave'] >= wave_list[kk + xx - count]]['cont'].values[0]
+                
+                if args.debug: print('Deb198: linefit param at (', which_pixel[0], ',', which_pixel[1], ') for ', label_list[kk + xx - count], '(ergs/s/pc^2/A) =', popt_single)  #
+
+                flux = np.sqrt(2 * np.pi) * (popt_single[1] - popt_single[0]) * popt_single[3] * cont_at_line # total flux = integral of guassian fit ; resulting flux in ergs/s/pc^2 units
                 flux_error = np.sqrt(2 * np.pi * (popt_single[3] ** 2 * (pcov[0][0] + pcov[3 * xx + 1][3 * xx + 1]) \
-                                                  + (popt_single[1] - popt_single[0]) ** 2 * pcov[3 * (xx + 1)][
-                                                      3 * (xx + 1)] \
+                                                  + (popt_single[1] - popt_single[0]) ** 2 * pcov[3 * (xx + 1)][3 * (xx + 1)] \
                                                   - 2 * popt_single[3] ** 2 * pcov[3 * xx + 1][0] \
-                                                  + 2 * (popt_single[1] - popt_single[0]) * popt_single[3] * (
-                                                          pcov[3 * xx + 1][3 * (xx + 1)] - pcov[0][3 * (xx + 1)]) \
-                                                  )) * scaling  # var_f = 3^2(00 + 11) + (1-0)^2*33 - (2)*3^2*10 + (2)*3*(1-0)*(13-03)
+                                                  + 2 * (popt_single[1] - popt_single[0]) * popt_single[3] * (pcov[3 * xx + 1][3 * (xx + 1)] - pcov[0][3 * (xx + 1)]) \
+                                                  )) * cont_at_line # var_f = 3^2(00 + 11) + (1-0)^2*33 - (2)*3^2*10 + (2)*3*(1-0)*(13-03)
+
                 vel_disp = c * popt_single[3]/popt_single[2] # in km/s
                 vel_disp_error = c * np.sqrt(pcov[3 * xx + 3][3 * xx + 3]/(popt_single[2] ** 2) + popt_single[3]**2 * pcov[3 * xx + 2][3 * xx + 2] / (popt_single[2] ** 4) + 2 * popt_single[3] * pcov[3 * xx + 2][3 * xx + 3]/ (popt_single[2] ** 3)) # in km/s
-                if not args.contsub: flux_error *= cont_at_line  # if continuum is normalised (and NOT subtracted) then need to change back to physical units by multiplying continuum at that wavelength
 
-                flux_array.append(flux)
-                flux_error_array.append(flux_error)
-                vel_disp_array.append(vel_disp)
-                vel_disp_error_array.append(vel_disp_error)
-                if args.showfit:
-                    leftlim = popt_single[2] * (1. - args.nres / logbook.resoln)
-                    rightlim = popt_single[2] * (1. + args.nres / logbook.resoln)
-                    wave_short_single = wave[(leftlim < wave) & (wave < rightlim)]
-                    cont_short_single = cont[(leftlim < wave) & (wave < rightlim)]
-                    if args.contsub: plt.plot(wave_short_single, (su.gaus(wave_short_single,1, *popt_single) + cont_short_single)*scaling,lw=1, c='r') # adding back the continuum just for plotting purpose
-                    else: plt.plot(wave_short_single, su.gaus(wave_short_single,1, *popt_single)*cont_short_single,lw=1, c='r')
+                velocity = c * (wave_list[kk + xx - count] - popt_single[2]) / popt_single[2]  # in km/s
+                velocity_error = c * wave_list[kk + xx - count] * pcov[3 * xx + 2][3 * xx + 2] / popt_single[2] ** 2  # in km/s
+
+                fitted_df.loc[len(fitted_df)] = [label_list[kk + xx - count], wave_list[kk + xx - count], flux, flux_error, velocity, velocity_error, vel_disp, vel_disp_error] # store measured quantities in df
+
+                if args.testlinefit:
+                    left_edge_single = popt_single[2] * (1. - 5 / args.resolution)
+                    right_edge_single = popt_single[2] * (1. + 5 / args.resolution)
+                    spec_single = spec[spec['wave'].between(left_edge_single, right_edge_single)]
+                    #plt.plot(spec_single['wave'], total_gauss(spec_single['wave'], 1, *popt_single) * spec_single['cont'],lw=1, c='r')
+                    plt.plot(spec_single['wave'], total_gauss(spec_single['wave'], 1, *popt_single),lw=1, c='r')
                     count = 1
-            if args.showfit:
+            if args.testlinefit:
                 if count > 1:
-                    plt.plot(wave_short, undo_contnorm(su.gaus(wave_short, count, *popt), cont_short, contsub=args.contsub), lw=2, c='brown')
+                    #plt.plot(spec_thisgroup['wave'], total_gauss(spec_thisgroup['wave'], count, *popt) * spec_thisgroup['cont'], lw=2, c='brown')
+                    plt.plot(spec_thisgroup['wave'], total_gauss(spec_thisgroup['wave'], count, *popt), lw=2, c='brown')
                 plt.draw()
 
             first, last = [center2] * 2
@@ -222,15 +232,13 @@ def fit_all_lines(args, wave, flam, flam_u, cont, pix_i, pix_j, z=0, z_err=0.000
             last = center2
             count += 1
         kk += 1
-    # -------------------------------------------------------------------------------------------
-    flux_array = np.array(flux_array)
-    flux_error_array = np.array(flux_error_array)
-    vel_disp_array = np.array(vel_disp_array)
-    vel_disp_error_array = np.array(vel_disp_error_array)
-    return flux_array, flux_error_array, vel_disp_array, vel_disp_error_array
+
+    if args.debug: print('Deb234:', fitted_df)
+
+    return fitted_df
 
 # -------------------------------------------------------------------------------------------
-def fitline(spec, waves_to_fit, fits_header, args):
+def fitline(spec, waves_to_fit, args):
     '''
     Function to fit one group of neighbouring emission line
     :param spec:
@@ -239,32 +247,34 @@ def fitline(spec, waves_to_fit, fits_header, args):
     :param args:
     :return:
     '''
-    if 'obs_spec_res(km/s)' in fits_header: vel_res = fits_header['obs_spec_res(km/s)']  # 10*vres in km/s
-    else: vel_res = fits_header['base_spec_res(km/s)']
-    v_maxwidth = 10 * vel_res
-    R = c / vel_res
+    v_maxwidth = 10 * args.vel_res
     z_allow = 3e-3  # wavelengths are at restframe; assumed error in redshift
 
     p_init, lbound, ubound = [], [], []
     for xx in range(0, len(waves_to_fit)):
-        p_init = np.append(p_init, [np.max(spec['flux']) - spec['flux'].values[0], waves_to_fit[xx], waves_to_fit[xx] * 2. * gf2s / R])
-        lbound = np.append(lbound, [0., waves_to_fit[xx] * (1. - z_allow), waves_to_fit[xx] * 1. * gf2s / R])
+        p_init = np.append(p_init, [np.max(spec['flux_norm']) - spec['flux_norm'].values[0], waves_to_fit[xx], waves_to_fit[xx] * 2. * gf2s / args.resolution])
+        lbound = np.append(lbound, [0., waves_to_fit[xx] * (1. - z_allow), waves_to_fit[xx] * 1. * gf2s / args.resolution])
         ubound = np.append(ubound, [np.inf, waves_to_fit[xx] * (1. + z_allow), waves_to_fit[xx] * v_maxwidth * gf2s / c])
-    level = 0. if args.contsub else 1.
 
-    if spec['flux_u'].any():
-        popt, pcov = curve_fit(lambda x, *p: fixcont_erf(x, level, len(waves_to_fit), *p), spec['wave'], spec['flux'], p0=p_init, maxfev=10000, bounds=(lbound, ubound), sigma=spec['flux_u'], absolute_sigma=True)
+    print('Deb257:', waves_to_fit, len(waves_to_fit), p_init, lbound, ubound, spec) #
+
+    if spec['flux_u_norm'].any():
+        popt, pcov = curve_fit(lambda x, *p: fixcont_erf(x, 1, len(waves_to_fit), *p), spec['wave'], spec['flux_norm'], p0=p_init, maxfev=10000, bounds=(lbound, ubound), sigma=spec['flux_u_norm'], absolute_sigma=True)
     else:
-        popt, pcov = curve_fit(lambda x, *p: fixcont_erf(x, level, len(waves_to_fit), *p), spec['wave'], spec['flux'], p0=p_init, max_nfev=10000, bounds=(lbound, ubound))
+        popt, pcov = curve_fit(lambda x, *p: fixcont_erf(x, 1, len(waves_to_fit), *p), spec['wave'], spec['flux_norm'], p0=p_init, max_nfev=10000, bounds=(lbound, ubound))
 
     if args.testlinefit:
         plt.figure()
+        '''
         plt.plot(spec['wave'], spec['flux'], c='k', label='flam')
         plt.plot(spec['wave'], spec['flux_u'], c='gray', label='flam_u')
         plt.plot(spec['wave'], spec['cont'], c='g', label='cont')
+        '''
+        plt.plot(spec['wave'], spec['flux_norm'], c='k', label='flam')
+        plt.plot(spec['wave'], spec['flux_u_norm'], c='gray', label='flam_u')
 
-        plt.plot(spec['wave'], fixcont_erf(spec['wave'], level, len(waves_to_fit), *p_init), c='b', label='initial guess')
-        plt.plot(spec['wave'], fixcont_erf(spec['wave'], level, len(waves_to_fit), *popt), c='r', label='best fit')
+        plt.plot(spec['wave'], fixcont_erf(spec['wave'], 1, len(waves_to_fit), *p_init), c='b', label='initial guess')
+        plt.plot(spec['wave'], fixcont_erf(spec['wave'], 1, len(waves_to_fit), *popt), c='r', label='best fit')
 
         #plt.ylim(-0.2e-18, 1.2e-18)
         plt.legend()
@@ -288,11 +298,12 @@ if __name__ == '__main__':
     args.idealcube_filename = cube_output_path + 'ideal_ifu' + args.mergeHII_text + '.fits'
 
     ifu = readcube(args.idealcube_filename, args)
-    spec = pd.DataFrame({'flux': ifu.data[args.test_pixel[0], args.test_pixel[1], :], \
-                         'wave': ifu.wavelength, \
-                         'flux_u': np.zeros(len(ifu.wavelength)), \
-                         'badmask': False})
+    spec = pd.DataFrame({'flux': np.array(ifu.data[args.test_pixel[0], args.test_pixel[1], :]).byteswap().newbyteorder(), \
+                         'wave': np.array(ifu.wavelength).byteswap().newbyteorder(), \
+                         'flux_u': np.array(ifu.error[args.test_pixel[0], args.test_pixel[1], :]), \
+                         'linemask': False})
 
-    spec = fitcont(spec, ifu.header, args)
+    #spec = fitcont(spec, ifu.header, args)
+    fitted_df = fit_all_lines(spec, ifu.header, args)
 
     print('Complete in %s minutes' % ((time.time() - start_time) / 60))
