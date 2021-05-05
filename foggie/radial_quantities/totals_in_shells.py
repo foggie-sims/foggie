@@ -1,10 +1,9 @@
 """
-Filename: stats_in_shells.py
+Filename: totals_in_shells.py
 Author: Cassi
 Date created: 7-30-20
-Date last modified: 7-31-20
-This file takes command line arguments and computes statistics of fields in shells:
-median, interquartile range, standard deviation, and mean, and saves these to file.
+Date last modified: 4-30-21
+This file takes command line arguments and computes totals of mass, volume, or energy in shells.
 
 Dependencies:
 utils/consistency.py
@@ -13,6 +12,8 @@ utils/get_halo_center.py
 utils/get_proper_box_size.py
 utils/get_run_loc_etc.py
 utils/yt_fields.py
+utils/foggie_load.py
+utils/analysis_utils.py
 """
 
 # Import everything as needed
@@ -105,12 +106,6 @@ def parse_args():
                         '"mass,volume,energy" (no spaces!) ' + \
                         'and the default is to do all.')
     parser.set_defaults(total_type="mass,volume,energy")
-
-    parser.add_argument('--disk', dest='disk', action='store_true',
-                        help='Do you want to calculate theta and phi kinetic energies' + \
-                        'relative to the disk? Default is no. If you use a shape that is aligned with the disk,' + \
-                        'this will be done automatically.')
-    parser.set_defaults(disk=False)
 
     parser.add_argument('--shape', metavar='shape', type=str, action='store', \
                         help='What shape for computing properties for a segment of the CGM? Default is sphere' + \
@@ -264,11 +259,6 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape
     (in kpc) around satellites to excise. If 'inverse' is True, then calculate for everything *outside*
     of the shapes given in 'shape_args'. If 'disk' is True, then at least one shape requires disk-relative fields
     or the kinetic energies will be calculated relative to the disk directions.'''
-
-    cmtopc = 3.086e18
-    stoyr = 3.154e7
-    gtoMsun = 1.989e33
-    G = 6.673e-8
 
     totals = []
     total_filename = ''
@@ -447,7 +437,7 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape
     for i in range(len(fields)):
         fields[i] = fields[i][bool_nosat]
 
-    # Loop over chunks and compute stats to add to table
+    # Loop over chunks and compute totals to add to table
     if (args.temp_cut): temps = [0.,4.,5.,6.,12.]
     if (args.temp_cut_Tvir):
         temps = np.concatenate(([0],np.log10(10**(np.arange(-1.,1.25,0.25))*Tvir),[12]))
@@ -522,13 +512,14 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
         snap_name = snap_dir + '/' + snap
 
     # Load the snapshot depending on if disk minor axis is needed
+    disk = False
     for i in range(len(shape_args)):
-        if (((shape_args[i][0]=='frustum') or (shape_args[i][0]=='cylinder')) and (shape_args[i][4]=='disk minor axis')) or (args.disk):
-            ds, refine_box = foggie_load(snap_name, track, disk_relative=True, halo_c_v_name=halo_c_v_name)
+        if (((shape_args[i][0]=='frustum') or (shape_args[i][0]=='cylinder')) and (shape_args[i][4]=='disk minor axis')):
             disk = True
-        else:
-            ds, refine_box = foggie_load(snap_name, track, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
-            disk = False
+    if (disk):
+        ds, refine_box = foggie_load(snap_name, track, disk_relative=True, halo_c_v_name=halo_c_v_name)
+    else:
+        ds, refine_box = foggie_load(snap_name, track, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
     refine_width_kpc = ds.quan(ds.refine_width, 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
