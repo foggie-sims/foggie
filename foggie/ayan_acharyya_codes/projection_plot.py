@@ -86,7 +86,7 @@ def make_projection_plots(ds, center, refine_box, x_width, fig_dir, haloname, na
                     for s_arrow, e_arrow in zip(start_arrow, end_arrow):
                         prj.annotate_arrow(pos=e_arrow, starting_pos=s_arrow, coord_system='data')
 
-            prj.save(name=fig_dir + '%s_%s' % (haloname, d), suffix='png', mpl_kwargs={'dpi': 500})
+            prj.save(name=fig_dir + '%s' % (d), suffix='png', mpl_kwargs={'dpi': 500})
     return prj
 
 # -----main code-----------------
@@ -99,11 +99,14 @@ if __name__ == '__main__':
         args = parse_args(this_sim[0], this_sim[1])
         ds, refine_box = load_sim(args, region='refine_box')
 
-        Path(args.output_dir+'figs/').mkdir(parents=True, exist_ok=True)
+        fig_dir = args.output_dir + 'figs/' + args.output + '/'
+        Path(fig_dir).mkdir(parents=True, exist_ok=True)
+
+        plot_width = 2 * args.galrad # ds.refine_width # 
 
         prj = make_projection_plots(ds=refine_box.ds, center=ds.halo_center_kpc, \
-                                    refine_box=refine_box, x_width=ds.refine_width * kpc, \
-                                    fig_dir=args.output_dir+'figs/', haloname=args.output, name=halo_dict[args.halo], \
-                                    fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.projection.split(',')], is_central=True, add_arrow=False, add_velocity=False) # using halo_center_kpc instead of refine_box_center
+                                    refine_box=refine_box, x_width=plot_width * kpc, \
+                                    fig_dir=fig_dir, haloname=args.output, name=halo_dict[args.halo], \
+                                    fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.projection.split(',')], is_central=False, add_arrow=False, add_velocity=False) # using halo_center_kpc instead of refine_box_center
         prj.show()
         print('Completed in %s minutes' % ((time.time() - start_time) / 60))

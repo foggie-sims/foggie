@@ -91,16 +91,6 @@ def read_photoionisation_grid(gridfilename):
     photgrid['D16'] = get_D16_metallicity(photgrid)
     return photgrid
 
-# ------------------------------------------------------------------
-def saveplot(fig, args, plot_suffix):
-    '''
-    Function to save plots with a consistent nomenclature
-    '''
-
-    outplotname = args.output_dir + 'figs/' + args.output + args.mergeHII_text + args.without_outlier + plot_suffix + '.png'
-    fig.savefig(outplotname)
-    myprint('Saved plot as ' + outplotname, args)
-
 # ---------------------------------------------------------------
 def makeplot_phase_space(paramlist, args, plot_suffix=''):
     '''

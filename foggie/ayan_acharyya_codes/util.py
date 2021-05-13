@@ -398,6 +398,47 @@ def get_cube_output_path(args):
 
     return cube_output_path
 
+# ------------------------------------------------------------------
+def saveplot(fig, args, plot_suffix, outputdir=None):
+    '''
+    Function to save plots with a consistent nomenclature
+    '''
+    if not outputdir: outputdir = args.output_dir + 'figs/' + args.output + '/'
+    Path(outputdir).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
+
+    outputname = plot_suffix
+    if args.mergeHII_text not in outputname: outputname = args.mergeHII_text + outputname
+    if args.without_outlier not in outputname: outputname = args.without_outlier + outputname
+
+    outplotname = outputdir + outputname + '.png'
+    fig.savefig(outplotname)
+    myprint('Saved plot as ' + outplotname, args)
+
+# ------------------------------------------------------------------
+def movefiles():
+    '''
+    Function to move files in to appropriate directories
+    '''
+    start_time = time.time()
+
+    for (thishalo, thissim) in all_sims:
+        print('Starting', thishalo, thissim, end=' ')
+
+        source = '/Users/acharyya/Work/astro/foggie_outputs/plots_halo_00'+thishalo+'/nref11c_nref9f/figs'
+        destination = source + '/' + thissim
+        Path(destination).mkdir(parents=True, exist_ok=True)
+
+        files = os.listdir(source)
+        count = 0
+
+        for thisfile in files:
+            if thisfile.startswith(thissim) and not os.path.isdir(source + '/' + thisfile): # making sure it is a file (not a directory) starting with the snapshot's name
+                shutil.move(source + '/' + thisfile, destination + '/' + thisfile)
+                count += 1
+        print(count, 'files moved')
+
+    print('Moving done in %s minutes' % ((time.time() - start_time) / 60))
+
 # ---------------------object containing info about ifu datacubes that have been read in-----------------------------
 class readcube(object):
     # ---------initialise object-----------
@@ -777,7 +818,7 @@ def parse_args(haloname, RDname):
     parser.set_defaults(tel_radius=1)
 
     parser.add_argument('--exptime', metavar='exptime', type=float, action='store', help='exposure time of observation, in sec; default is 1200 sec')
-    parser.set_defaults(exptime=1200)
+    parser.set_defaults(exptime=1200.)
 
     parser.add_argument('--el_per_phot', metavar='el_per_phot', type=float, action='store', help='how many electrons do each photon trigger in the instrument; default is 1"')
     parser.set_defaults(el_per_phot=1)
