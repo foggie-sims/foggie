@@ -12,7 +12,7 @@
 """
 from header import *
 from util import *
-from plot_mock_observables import *
+from fit_mock_spectra import fit_mock_spectra
 
 # -----------------------------------------------------------------------------
 def wrap_write_fitsobj(data, data_u, property_name, measured_cube, args):
@@ -50,9 +50,17 @@ def get_metallicity(measured_cube, args):
         measured_cube = read_measured_cube(args.measured_cube_filename, args)
         metallicity, metallicity_u = measured_cube.get_derived_prop('metallicity')
 
-    if args.plot_property: ax = plot_property(metallicity, args)
-
     return metallicity, metallicity_u
+
+# ----------------------------------------------------------------------------
+def compute_properties(measured_cube, args):
+    '''
+    Wrapper function to call the appropriate function to compute a given property
+    :return: 2D map of property, along with associated uncertainty map
+    '''
+    if args.compute_property == 'metallicity': property, property_u = get_metallicity(measured_cube, args)
+
+    return property, property_u
 
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
@@ -69,9 +77,12 @@ if __name__ == '__main__':
     if args.snr == 0: args.measured_cube_filename = cube_output_path + 'measured_cube' + args.mergeHII_text + '.fits'
     else: args.measured_cube_filename = cube_output_path + instrument.path + 'measured_cube' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '_exp' + str(args.exptime) + 's_snr' + str(args.snr) + '.fits'
 
-    if os.path.exists(args.measured_cube_filename): measured_cube = read_measured_cube(args.measured_cube_filename, args)
-    else: raise ValueError(args.measured_cube_filename + ' does not exist, try creating the file first using fit_mock_spectra.py')
+    if not os.path.exists(args.measured_cube_filename):
+        myprint('measured_cube does not exist, so calling fit_mock_spectra.py to create one..', args)
+        measured_cube_dummy = fit_mock_spectra(args)
 
-    if args.compute_property == 'metallicity': metallicity, metallicity_u = get_metallicity(measured_cube, args)
+    measured_cube = read_measured_cube(args.measured_cube_filename, args)
+
+    property, property_u = compute_properties(measured_cube, args)
 
     print('Complete in %s minutes' % ((time.time() - start_time) / 60))

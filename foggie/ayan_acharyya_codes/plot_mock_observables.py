@@ -11,6 +11,8 @@
 """
 from header import *
 from util import *
+from fit_mock_spectra import fit_mock_spectra
+from make_mock_measurements import compute_properties
 
 # -----------------------------------------------------------------------------
 def get_property_name(args):
@@ -35,7 +37,7 @@ def plot_property(property, args):
     line_dict = {'H6562': r'H$\alpha$', 'NII6584':r'NII 6584', 'SII6717':r'SII 6717', 'SII6730':r'SII 6730'}
     isline = args.get_property in ['flux', 'flux_u', 'vel', 'vel_u', 'vel_disp', 'vel_disp_u']
 
-    cmap = 'BrBG' if 'vel' in args.get_property else 'viridis'
+    cmap = 'BrBG' if 'vel' == args.get_property else 'viridis'
     fig, ax = plt.subplots()
     fig.subplots_adjust(top=0.95)
 
@@ -55,7 +57,10 @@ def plot_property(property, args):
     if args.saveplot:
         log_text = '_log' if args.islog else ''
         line_text = '_' + args.line if isline else ''
-        figname = os.path.splitext(args.measured_cube_filename)[0] + log_text + line_text + '_' + str(args.get_property) + '.pdf'
+        fig_output_dir = os.path.split(args.measured_cube_filename)[0].replace('/fits/', '/figs/') + '/'
+        Path(fig_output_dir).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
+        rootname = os.path.splitext(os.path.split(args.measured_cube_filename)[1])[0]
+        figname = fig_output_dir + rootname + log_text + line_text + '_' + str(args.get_property) + '.pdf'
         fig.savefig(figname)
         myprint('Saved plot as ' + figname, args)
 
@@ -76,8 +81,15 @@ def get_property(measured_cube, args):
 
         property = line_prop[:, :, property_index]
         property_u = line_prop_u[:, :, property_index]
-    elif which_property in measured_cube.derived_quantities: # i.e. this is a derived property, not based on one particular emission line
+    elif not hasattr(measured_cube, 'derived_quantities') or which_property not in measured_cube.derived_quantities: # i.e. this measured cube does not have any derived quantities (only has fitted quantities) yet
+        myprint('Derived property ' + which_property + ' does not exist in measured_cube yet, so calling compute_property()..', args)
+        tmp = args.plot_property
+        args.write_property, args.plot_property, args.compute_property = True, False, which_property # to ensure this sub-call does not plot property (it will plot in the current routine anyway) and that the newly computed property is written to file
+        property, property_u = compute_properties(measured_cube, args)
+        args.plot_property = tmp
+    else: # i.e. this is a derived property (not based on one particular emission line) AND it exists in the currently loaded cube's list of derived properties
         property, property_u = measured_cube.get_derived_prop(which_property)
+
 
     if 'flux' in args.get_property: property = np.ma.masked_less(property, 0) # masks negaitve flux values
     if 'metallicity' in args.get_property: property = np.ma.masked_outside(property, 1e-2, 1e2) # masks too unphysical metallicity values
@@ -104,8 +116,11 @@ if __name__ == '__main__':
     if args.snr == 0: args.measured_cube_filename = cube_output_path + 'measured_cube' + args.mergeHII_text + '.fits'
     else: args.measured_cube_filename = cube_output_path + instrument.path + 'measured_cube' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '_exp' + str(args.exptime) + 's_snr' + str(args.snr) + '.fits'
 
-    if os.path.exists(args.measured_cube_filename): measured_cube = read_measured_cube(args.measured_cube_filename, args)
-    else: raise ValueError(args.measured_cube_filename + ' does not exist, try creating the file first using fit_mock_spectra.py')
+    if not os.path.exists(args.measured_cube_filename):
+        myprint('measured_cube does not exist, so calling fit_mock_spectra.py to create one..', args)
+        measured_cube_dummy = fit_mock_spectra(args)
+
+    measured_cube = read_measured_cube(args.measured_cube_filename, args)
 
     property, property_u = get_property(measured_cube, args)
 

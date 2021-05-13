@@ -13,6 +13,7 @@
 """
 from header import *
 from util import *
+from make_ideal_datacube import get_ideal_datacube
 from make_mock_datacube import wrap_get_mock_datacube
 
 # -------------------------------------------------------------------------------------------------
@@ -249,11 +250,6 @@ def fit_all_lines(spec, fits_header, args, which_pixel=None):
 def fitline(spec, waves_to_fit, args):
     '''
     Function to fit one group of neighbouring emission line
-    :param spec:
-    :param waves_to_fit:
-    :param fits_header:
-    :param args:
-    :return:
     '''
     v_maxwidth = 10 * args.vel_res
     z_allow = 3e-3  # wavelengths are at restframe; assumed error in redshift
@@ -283,26 +279,26 @@ def fitline(spec, waves_to_fit, args):
     return popt, pcov
 
 # -----------------------------------------------------------------------------
-if __name__ == '__main__':
-    start_time = time.time()
-
-    args = parse_args('8508', 'RD0042')
-    args.diag = args.diag_arr[0]
-    args.Om = args.Om_arr[0]
-    if not args.keep: plt.close('all')
-    if (args.testlinefit or args.testcontfit) and args.test_pixel is None: raise AssertionError('Cannot test fitting without a specified test_pixel')
-
+def fit_mock_spectra(args):
+    '''
+    Function to load mock data cube and fit spectra along each line of sight, and write measured fitted quantities for each emission line into a FITS data cube
+    :return: measured_datacube
+    '''
     cube_output_path = get_cube_output_path(args)
-    linelist_dummy = read_linelist(mappings_lab_dir + 'targetlines.txt')  # list of emission lines
+    linelist = read_linelist(mappings_lab_dir + 'targetlines.txt')  # list of emission lines
     instrument = telescope(args)  # declare the instrument
     if args.snr == 0:
         file_to_fit = cube_output_path + 'ideal_ifu' + args.mergeHII_text + '.fits'
-        if not os.path.exists(file_to_fit): raise ValueError(file_to_fit + ' does not exist, try creating the file first using make_ideal_datacube.py')
-        measured_cube = idealcube(args, instrument, linelist_dummy)  # declare a cube object
+        if not os.path.exists(file_to_fit):
+            myprint('Ideal cube file does not exist, calling make_ideal_cube.py..', args)
+            dummy = get_ideal_datacube(args, linelist)
+        measured_cube = idealcube(args, instrument, linelist)  # declare a cube object
     else:
         file_to_fit = cube_output_path + instrument.path + 'mock_ifu' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '_exp' + str(args.exptime) + 's_snr' + str(args.snr) + '.fits'
-        if not os.path.exists(file_to_fit): raise ValueError(file_to_fit + ' does not exist, try creating the file first using make_mock_datacube.py')
-        measured_cube = noisycube(args, instrument, linelist_dummy)  # declare the noisy mock datacube object
+        if not os.path.exists(file_to_fit):
+            myprint('Mock cube file does not exist, calling make_ideal_cube.py..', args)
+            dummy = wrap_get_mock_datacube(args)
+        measured_cube = noisycube(args, instrument, linelist)  # declare the noisy mock datacube object
 
     failed_pixel_count = 0
     measured_quantities = ['flux', 'vel', 'vel_disp']
@@ -338,5 +334,17 @@ if __name__ == '__main__':
     myprint(str(failed_pixel_count) + ' out of ' + str(xlen * ylen) + ' pixels, i.e., ' + str(failed_pixel_count * 100. / (xlen * ylen)) + '% pixels failed to fit.', args)
     args.measured_cube_filename = file_to_fit.replace('ideal_ifu', 'measured_cube').replace('mock_ifu', 'measured_cube')
     write_fitsobj(args.measured_cube_filename, measured_cube, instrument, args, for_qfits=True, measured_cube=True, measured_quantities=measured_quantities)  # writing into FITS file
+    return measured_cube
 
+# -----------------------------------------------------------------------------
+if __name__ == '__main__':
+    start_time = time.time()
+
+    args = parse_args('8508', 'RD0042')
+    args.diag = args.diag_arr[0]
+    args.Om = args.Om_arr[0]
+    if not args.keep: plt.close('all')
+    if (args.testlinefit or args.testcontfit) and args.test_pixel is None: raise AssertionError('Cannot test fitting without a specified test_pixel')
+
+    measured_cube = fit_mock_spectra(args)
     print('Complete in %s minutes' % ((time.time() - start_time) / 60))
