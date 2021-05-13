@@ -11,7 +11,7 @@
 
 import numpy as np
 import multiprocessing as mproc
-import os, sys, argparse, re, subprocess, time, math
+import os, sys, argparse, re, subprocess, time, math, shutil
 
 from matplotlib import pyplot as plt
 from matplotlib import patheffects as fx
