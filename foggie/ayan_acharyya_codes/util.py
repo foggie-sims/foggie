@@ -404,8 +404,6 @@ class readcube(object):
     def __init__(self, filename, args):
         '''
         Function to read a fits file (that has been written by write_fitsobj) and store the fits data in an object
-        :param filename:
-        :return:
         '''
         myprint('Reading in cube file ' + filename, args)
         cube = fits.open(filename)
@@ -426,8 +424,75 @@ class readcube(object):
             myprint('Error cube absent; filling with zeroes', args)
             pass
 
+# ---------------------object containing info about measured data products that have been read in-----------------------------
+class read_measured_cube(object):
+    # ---------initialise object-----------
+    def __init__(self, filename, args):
+        '''
+        Function to read a fits file (that has been written by write_fitsobj) and store the fits data in an object
+        '''
+        myprint('Reading in cube file ' + filename, args)
+        cube = fits.open(filename)
+        self.data = cube[0].data # reading in the measured quantities: flux, velocity and velocity dispersion
+        self.error = cube[1].data # associated uncertainties
+        self.header = cube[0].header
+
+        self.data = np.nan_to_num(self.data) # replacing all NaN values with 0, otherwise calculations get messed up
+        self.data = self.data.swapaxes(0, 2) # switching from (wave, pos, pos) arrangement (QFitsView requires) to (pos, pos, wave) arrangement (traditional)
+
+        self.error = np.nan_to_num(self.error)  # replacing all NaN values with 0, otherwise calculations get messed up
+        self.error = self.error.swapaxes(0, 2)  # switching from (wave, pos, pos) arrangement (QFitsView requires) to (pos, pos, wave) arrangement (traditional)
+
+        self.fitted_lines = np.array(self.header['labels'].split(','))
+        self.measured_quantities = np.array(self.header['measured_quantities'].split(','))
+        if 'derived_quantities' in self.header: self.derived_quantities = np.array(self.header['derived_quantities'].split(','))
+
+        args.pixel_size_kpc = self.header['pixel_size(kpc)']
+
+    # ----------------------------------
+    def get_line_prop(self, line):
+        '''
+        Function to assimilate all properties of a given emission line into a cube and uncertainty_cube
+        '''
+        line_index = np.where(self.fitted_lines == line)[0][0]
+        n_mq = len(self.measured_quantities)
+
+        line_prop = self.data[:, :, n_mq * line_index : n_mq * (line_index + 1)]
+        line_prop_u = self.error[:, :, n_mq * line_index : n_mq * (line_index + 1)]
+
+        return line_prop, line_prop_u
+
+    # ----------------------------------
+    def get_all_lines(self, property):
+        '''
+        Function to assimilate a given property for all emission lines into a cube and uncertainty_cube
+        '''
+        property_index = np.where(self.measured_quantities == property)[0][0]
+        this_prop = self.data[:, :, property_index] # property for first line, i.e.e index= 0
+        this_prop_u = self.error[:, :, property_index]
+
+        for index in range(1, len(self.fitted_lines)):
+            this_prop = np.dstack([this_prop, self.data[:, :, index * len(self.measured_quantities) + property_index]])
+            this_prop_u = np.dstack([this_prop_u, self.error[:, :, index * len(self.measured_quantities) + property_index]])
+
+        return this_prop, this_prop_u
+
+    # ----------------------------------
+    def get_derived_prop(self, property):
+        '''
+        Function to extract a derived (not associated to a particular emission line) property into a 2D map and uncertainty_map
+        '''
+        property_index = np.where(self.derived_quantities == property)[0][0]
+        n_mq = len(self.measured_quantities)
+        n_fl = len(self.fitted_lines)
+
+        derived_prop = self.data[:, :, n_mq * n_fl + property_index]
+        derived_prop_u = self.error[:, :, n_mq * n_fl + property_index]
+
+        return derived_prop, derived_prop_u
+
 # -------------------------------------------------------------------------------------------
-def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=True):
+def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=True, measured_cube=False, measured_quantities=None, derived_quantities=None):
     '''
     Function to write a ifu cube.data to a FITS file, along with all other attributes of the cube
     '''
@@ -489,26 +554,24 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
                             'telescope_radius(m)': instrument.radius, \
                             })
 
+    if measured_quantities is not None: # i.e. it is a measured data cube (post line fitting) and we want to store what the measured quantities actually are, in the header
+        flux_header.update({'measured_quantities': ','.join(measured_quantities)})
+
+    if derived_quantities is not None: # i.e. consists of derived (in addition to measured) quantities e.g. metallicity
+        flux_header.update({'derived_quantities': ','.join(derived_quantities)})
+
     flux_hdu = fits.PrimaryHDU(flux, header=flux_header)
     wavelength_hdu = fits.ImageHDU(wavelength)
     if hasattr(cube, 'error'):
         error = np.ma.filled(cube.error, fill_value=fill_val)
+        error = error.swapaxes(0,2) # QFitsView requires (wave, pos, pos) arrangement rather than (pos, pos, wave)  arrangement
         error_hdu = fits.ImageHDU(error)
-        hdulist = fits.HDUList([flux_hdu, wavelength_hdu, error_hdu])
+        if measured_cube: hdulist = fits.HDUList([flux_hdu, error_hdu]) # this is a measured parameters file, so no need to save the dispersion array
+        else: hdulist = fits.HDUList([flux_hdu, wavelength_hdu, error_hdu])
     else:
         hdulist = fits.HDUList([flux_hdu, wavelength_hdu])
     hdulist.writeto(filename, clobber=True)
     myprint('Written file ' + filename + '\n', args)
-
-# ----------------------------------------------------------------------------------------------
-def total_gauss(x, n, *p):
-    '''
-    Function to evaluate total (summed) gaussian for multiple lines, given n sets of fitted parameters
-    '''
-    result = p[0]
-    for xx in range(0, n):
-        result += p[3 * xx + 1] * exp(-((x - p[3 * xx + 2]) ** 2) / (2 * p[3 * xx + 3] ** 2))
-    return result
 
 # ----------------------------------------------------------------------------------------------
 def pull_halo_center(args):
@@ -724,17 +787,46 @@ def parse_args(haloname, RDname):
     parser.set_defaults(plot_hist=False)
 
     # ------- args added for fit_mock_spectra.py ------------------------------
-    parser.add_argument('--test_pixel', metavar='test_pixel', type=str, action='store', help='pixel to test continuum and flux fitting on; default is 150')
-    parser.set_defaults(test_pixel='150,150')
+    parser.add_argument('--test_pixel', metavar='test_pixel', type=str, action='store', help='pixel to test continuum and flux fitting on; default is None')
+    parser.set_defaults(test_pixel=None)
 
     parser.add_argument('--vel_mask', metavar='vel_mask', type=float, action='store', help='velocity window on either side of emission line, for masking, in km/s; default is 500')
     parser.set_defaults(vel_mask=500.)
+
+    parser.add_argument('--nres_elements', metavar='nres_elements', type=int, action='store', help='how many resolution elements to consider on either side of each emission line, for determining group of lines; default is 15')
+    parser.set_defaults(nres_elements=15)
 
     parser.add_argument('--testcontfit', dest='testcontfit', action='store_true', help='run a test of continuum fitting)?, default is no')
     parser.set_defaults(testcontfit=False)
 
     parser.add_argument('--testlinefit', dest='testlinefit', action='store_true', help='run a test of line fitting)?, default is no')
     parser.set_defaults(testlinefit=False)
+
+    # ------- args added for make_mock_measurements.py ------------------------------
+    parser.add_argument('--compute_property', metavar='compute_property', type=str, action='store', help='which property to compute?; default is metallicity')
+    parser.set_defaults(compute_property='metallicity')
+
+    parser.add_argument('--write_property', dest='write_property', action='store_true', help='append the property to existing measured cube file?; default is no')
+    parser.set_defaults(write_property=False)
+
+    # ------- args added for plot_mock_observables.py ------------------------------
+    parser.add_argument('--line', metavar='line', type=str, action='store', help='which emission line?; default is H6562')
+    parser.set_defaults(line='H6562')
+
+    parser.add_argument('--get_property', metavar='get_property', type=str, action='store', help='which property to get?; default is flux')
+    parser.set_defaults(get_property='flux')
+
+    parser.add_argument('--plot_property', dest='plot_property', action='store_true', help='plot the property?, default is no')
+    parser.set_defaults(plot_property=False)
+
+    parser.add_argument('--islog', dest='islog', action='store_true', help='make log plot?, default is no')
+    parser.set_defaults(islog=False)
+
+    parser.add_argument('--cmin', metavar='cmin', type=float, action='store', help='minimum value for plotting imshow colorbar; default is None')
+    parser.set_defaults(cmin=None)
+
+    parser.add_argument('--cmax', metavar='cmax', type=float, action='store', help='maximum value for plotting imshow colorbar; default is None')
+    parser.set_defaults(cmax=None)
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
@@ -743,7 +835,7 @@ def parse_args(haloname, RDname):
     args.Om_arr = [float(item) for item in args.Om_arr.split(',')]
     args.obs_wave_range = np.array([float(item) for item in args.obs_wave_range.split(',')])
     args.base_wave_range = np.array([float(item) for item in args.base_wave_range.split(',')])
-    args.test_pixel = np.array([int(item) for item in args.test_pixel.split(',')])
+    args.test_pixel = np.array([int(item) for item in args.test_pixel.split(',')]) if args.test_pixel is not None else None
     args.mergeHII_text = '_mergeHII=' + str(args.mergeHII) + 'kpc' if args.mergeHII is not None else '' # to be used as filename suffix to denote whether HII regions have been merged
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 

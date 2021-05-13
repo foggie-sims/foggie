@@ -45,7 +45,7 @@ def spectral_bin(mock_ifu, args):
     xlen, ylen = np.shape(smoothed_data)[0], np.shape(smoothed_data)[1]
     mock_ifu.data = np.zeros((mock_ifu.box_size_in_pix, mock_ifu.box_size_in_pix, mock_ifu.ndisp))  # initialise datacube with zeroes
 
-    for index in range(xlen*ylen - 1):
+    for index in range(xlen*ylen):
         i, j = int(index / ylen), int(index % ylen) # cell position
         myprint('Spectral rebinning pixel (' + str(i) + ',' + str(j) + '), i.e. ' + str(index + 1) + ' out of ' + str(xlen * ylen) + '..', args)
         unbinned_spectra = smoothed_data[i, j, :]
@@ -67,7 +67,7 @@ def add_noise(mock_ifu, instrument, args):
     mock_ifu.data = np.zeros(np.shape(clean_data))  # initialise datacube with zeroes
     mock_ifu.error = np.zeros(np.shape(clean_data))  # initialise datacube with zeroes
 
-    for index in range(xlen * ylen * zlen - 1):
+    for index in range(xlen * ylen * zlen):
         i, j, k = int(index / (ylen * zlen)), int((index / zlen) % ylen), int(index % zlen) # cell position
         myprint('Adding noise to voxel (' + str(i) + ',' + str(j) + ',' + str(k) + '), i.e. ' + str(index + 1) + ' out of ' + str(xlen * ylen * zlen) + '..', args)
         flux = clean_data[i, j, k]

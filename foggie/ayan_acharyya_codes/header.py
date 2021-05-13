@@ -14,11 +14,13 @@ import multiprocessing as mproc
 import os, sys, argparse, re, subprocess, time, math
 
 from matplotlib import pyplot as plt
+from matplotlib import patheffects as fx
+plt.style.use('seaborn')
 
 from pathlib import Path
 from importlib import reload
 
-from scipy import optimize as op
+from scipy import optimize as op, exp
 from scipy.interpolate import interp1d
 from scipy.interpolate import RegularGridInterpolator as RGI
 from scipy.interpolate import LinearNDInterpolator as LND
