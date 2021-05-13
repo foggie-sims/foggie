@@ -76,7 +76,7 @@ def get_run_loc_etc(args):
         output_path = "/Users/acharyya/Work/astro/foggie_outputs/"
         code_path = "/Users/acharyya/Work/astro/ayan_codes/foggie/foggie/"
     elif args.system == "ayan_hd":
-        foggie_dir = "/Volumes/foggieforayan/"
+        foggie_dir = "/Volumes/Elements/foggieforayan/"
         output_path = "/Users/acharyya/Work/astro/foggie_outputs/"
         code_path = "/Users/acharyya/Work/astro/ayan_codes/foggie/foggie/"
     elif args.system == "msu_hpcc":
