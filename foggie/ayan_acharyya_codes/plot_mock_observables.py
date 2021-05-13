@@ -58,11 +58,8 @@ def plot_property(property, args):
         log_text = '_log' if args.islog else ''
         line_text = '_' + args.line if isline else ''
         fig_output_dir = os.path.split(args.measured_cube_filename)[0].replace('/fits/', '/figs/') + '/'
-        Path(fig_output_dir).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
         rootname = os.path.splitext(os.path.split(args.measured_cube_filename)[1])[0]
-        figname = fig_output_dir + rootname + log_text + line_text + '_' + str(args.get_property) + '.pdf'
-        fig.savefig(figname)
-        myprint('Saved plot as ' + figname, args)
+        saveplot(fig, args, rootname + log_text + line_text + '_' + str(args.get_property), outputdir=fig_output_dir)
 
     plt.show(block=False)
     return ax
