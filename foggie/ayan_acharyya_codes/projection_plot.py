@@ -102,7 +102,7 @@ if __name__ == '__main__':
         fig_dir = args.output_dir + 'figs/' + args.output + '/'
         Path(fig_dir).mkdir(parents=True, exist_ok=True)
 
-        plot_width = 2 * args.galrad # ds.refine_width # 
+        plot_width = 2 * args.galrad # ds.refine_width #
 
         prj = make_projection_plots(ds=refine_box.ds, center=ds.halo_center_kpc, \
                                     refine_box=refine_box, x_width=plot_width * kpc, \

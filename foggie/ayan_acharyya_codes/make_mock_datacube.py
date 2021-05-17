@@ -167,7 +167,7 @@ def wrap_get_mock_datacube(args):
     if os.path.exists(args.idealcube_filename):
         myprint('Ideal cube file exists ' + args.idealcube_filename, args)
     else:
-        myprint('Ideal cube file ' + args.idealcube_filename + ' does not exist, calling make_ideal_cube.py..', args)
+        myprint('Ideal cube file ' + args.idealcube_filename + ' does not exist, calling make_ideal_datacube.py..', args)
         ideal_ifu, paramlist, args = get_ideal_datacube(args, linelist)
 
     ideal_ifu = readcube(args.idealcube_filename, args) # read in the ideal datacube

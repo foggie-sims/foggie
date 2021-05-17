@@ -7,12 +7,13 @@
     Author :     Ayan Acharyya
     Started :    May 2021
     Example :    run plot_mock_observables.py --system ayan_local --halo 5036 --output RD0020 --mergeHII 0.04 --galrad 6 --base_spatial_res 0.04 --z 0.25 --obs_wave_range 0.8,0.85 --obs_spatial_res 0.1 --obs_spec_res 60 --exptime 1200 --snr 5 --get_property flux --line H6562 --plot_property
-
+    OR           run plot_mock_observables.py --system ayan_local --halo 4123 --output RD0020 --mergeHII 0.04 --galrad 60 --base_spatial_res 0.06 --z 0.25 --obs_wave_range 0.8,0.85 --obs_spatial_res  0.07 --obs_spec_res 60 --snr 5 --keep --islog --line H6562 --get_property metallicity --plot_property --cmax 1.2 --cmin -3
 """
 from header import *
 from util import *
 from fit_mock_spectra import fit_mock_spectra
 from make_mock_measurements import compute_properties
+plt.style.use('seaborn')
 
 # -----------------------------------------------------------------------------
 def get_property_name(args):
@@ -37,7 +38,8 @@ def plot_property(property, args):
     line_dict = {'H6562': r'H$\alpha$', 'NII6584':r'NII 6584', 'SII6717':r'SII 6717', 'SII6730':r'SII 6730'}
     isline = args.get_property in ['flux', 'flux_u', 'vel', 'vel_u', 'vel_disp', 'vel_disp_u']
 
-    cmap = 'BrBG' if 'vel' == args.get_property else 'viridis'
+    #cmap = 'BrBG' if args.get_property == 'vel' else 'viridis' if args.get_property == 'metallicity' else 'viridis'
+    cmap = velocity_discrete_cmap if args.get_property == 'vel' else metal_color_map if args.get_property == 'metallicity' else density_color_map # 'viridis'
     fig, ax = plt.subplots()
     fig.subplots_adjust(top=0.95)
 

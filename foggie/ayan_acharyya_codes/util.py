@@ -410,7 +410,7 @@ def saveplot(fig, args, plot_suffix, outputdir=None):
     if args.mergeHII_text not in outputname: outputname = args.mergeHII_text + outputname
     if args.without_outlier not in outputname: outputname = args.without_outlier + outputname
 
-    outplotname = outputdir + outputname + '.png'
+    outplotname = outputdir + outputname + '.pdf'
     fig.savefig(outplotname)
     myprint('Saved plot as ' + outplotname, args)
 

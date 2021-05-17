@@ -290,13 +290,13 @@ def fit_mock_spectra(args):
     if args.snr == 0:
         file_to_fit = cube_output_path + 'ideal_ifu' + args.mergeHII_text + '.fits'
         if not os.path.exists(file_to_fit):
-            myprint('Ideal cube file ' + file_to_fit + ' does not exist, calling make_ideal_cube.py..', args)
+            myprint('Ideal cube file ' + file_to_fit + ' does not exist, calling make_ideal_datacube.py..', args)
             dummy = get_ideal_datacube(args, linelist)
         measured_cube = idealcube(args, instrument, linelist)  # declare a cube object
     else:
         file_to_fit = cube_output_path + instrument.path + 'mock_ifu' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '_exp' + str(args.exptime) + 's_snr' + str(args.snr) + '.fits'
         if not os.path.exists(file_to_fit):
-            myprint('Mock cube file ' + file_to_fit + ' does not exist, calling make_ideal_cube.py..', args)
+            myprint('Mock cube file ' + file_to_fit + ' does not exist, calling make_mock_datacube.py..', args)
             dummy = wrap_get_mock_datacube(args)
         measured_cube = noisycube(args, instrument, linelist)  # declare the noisy mock datacube object
 

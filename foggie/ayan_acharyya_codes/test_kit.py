@@ -13,6 +13,7 @@ from header import *
 from util import *
 from make_ideal_datacube import *
 import make_mappings_grid as mmg
+plt.style.use('seaborn')
 
 # -----------------------------------------------------------------------------
 def getscatterplot(df, quant1, quant2, colby=None):
