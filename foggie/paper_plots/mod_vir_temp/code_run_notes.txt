@@ -99,6 +99,12 @@ CHECKS:
 	- Also had to run the boundary pressure stats code again now that filaments were being included. Did it the same as above but removed the --vel_cut argument. Also removed the --vel_fit and --pdf arguments, and ran on --stat_type velocity,density,pressure. --save_suffix was sphere_mass-weighted_cgm-filter
 	- I did this for Tempest DD2387-DD2427 every 10th output
 
+- Checking if cooling times are in fact longer than the Hubble time, for referee report 2:
+	- I added a column for cooling energy rate to totals_in_shells.py and re-ran exactly as above, with '_cooling' appended on the save name, but only for Tempest DD2427, Squall DD2360, and Maelstrom DD2510.
+	- I added a column for cooling time to stats_in_shells.py and ran as:
+	> python foggie/foggie/radial_quantities/stats_in_shells.py --halo 8508 --output DD2427 --shape "['sphere', 0.3, 1.3, 100]" --cgm_filter --save_suffix sphere_mass-weighted_cgm-filtered_cooling --stat_type tcool --stat_weight mass --vel_cut --Rvir
+	for Tempest DD2427, Squall DD2360, and Maelstrom DD2510.
+
 
 PLOTTING:
 --------

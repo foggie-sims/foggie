@@ -97,6 +97,9 @@ def parse_args():
                         'temperature_vs_time    -  temperature at Rvir over time compared to modified virial temp\n' + \
                         'temperature_vs_radius  -  temperature over radius compared to modified virial temp NOTE:' + \
                         ' requires full simulation output for the snapshot you want unless you specify --hist_from_file!\n' + \
+                        'tcool_vs_radius_hist   -  cooling time in each cell over radius compared to Hubble time NOTE:' + \
+                        ' requires full simulation output for the snapshot you want unless you specify --hist_from_file!\n' + \
+                        'tcool_vs_radius_tot    -  summed cooling time in radial shells over radius compared to Hubble time\n' + \
                         'energy_SFR_xcorr       -  cross-correlation of energies at Rvir with SFR vs delay time\n' + \
                         'temp_SFR_xcorr         -  cross-correlation of mass in temp bins at Rvir with SFR vs delay time\n' + \
                         'energy_vs_radius_comp  -  compare exact vs. SIS or cumulative vs. shell in energies over radius\n' + \
@@ -927,6 +930,71 @@ def temperature_vs_radius(snap):
     plt.savefig(save_dir + snap + '_temperature_vs_radius_mass-colored' + save_suffix + '.pdf')
     print('Plot made.')
 
+def tcool_vs_radius(snap, hist=False):
+    '''Plots the cooling time for snapshot 'snap' as a function of radius. If 'hist' is True, it will
+    plot the cooling time for each cell as a mass-weighted 2D histogram in cooling time-radius space.
+    Otherwise, it will plot the cooling time found by summing the thermal energy and cooling rate for
+    all cells in spherical shells, as a function of radius. The former requires the simulation dataset
+    to plot, the later requires a totals file specified with the --filename argument to plot.'''
+
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+    masses_ind = np.where(masses['snapshot']==snap)[0]
+    Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
+    fig = plt.figure(figsize=(8,6),dpi=500)
+    ax = fig.add_subplot(1,1,1)
+
+    if (hist):
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
+        cgm = ds.sphere(ds.halo_center_kpc, (2.*ds.refine_width, 'kpc')) - ds.sphere(ds.halo_center_kpc, (0.3*Rvir, 'kpc'))
+        cgm = cgm.cut_region("(obj['density'] < %.2e) & (obj['temperature'] > %.2e)" % (cgm_density_max, cgm_temperature_min))
+        radius = cgm['radius_corrected'].in_units('kpc').flatten().v
+        tcool = np.log10(cgm['cooling_time'].in_units('Myr').flatten().v)
+        weights = np.log10(cgm['cell_mass'].in_units('Msun').flatten().v)
+        rho = Menc_profile(radius)*gtoMsun/((radius*1000*cmtopc)**3.) * 3./(4.*np.pi)
+        vff = -(radius*1000*cmtopc)/np.sqrt(3.*np.pi/(32.*G*rho))/1e5
+        rad_vel = cgm['radial_velocity_corrected'].in_units('km/s').flatten().v
+        tcool = tcool[(rad_vel > 0.5*vff)]
+        weights = weights[(rad_vel > 0.5*vff)]
+        radius = radius[(rad_vel > 0.5*vff)]
+        x_range = [0, 250]
+        y_range = [0, 7]
+        cmin = np.min(np.array(weights)[np.nonzero(weights)[0]])
+        hist = ax.hist2d(radius, tcool, weights=weights, bins=(500, 500), cmin=cmin, range=[x_range,y_range], cmap=plt.cm.BuPu)
+        cbaxes = fig.add_axes([0.7, 0.95, 0.25, 0.03])
+        cbar = plt.colorbar(hist[3], cax=cbaxes, orientation='horizontal', ticks=[])
+        cbar.set_label('log Mass', fontsize=18)
+    else:
+        tablename_prefix = output_dir + 'totals_halo_00' + args.halo + '/' + args.run + '/Tables/'
+        totals = Table.read(tablename_prefix + snap + '_' + args.filename + '.hdf5', path='all_data')
+        stats_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+        stats = Table.read(stats_prefix + snap + '_stats_tcool_sphere_mass-weighted_cgm-filtered_cooling.hdf5', path='all_data')
+        radius_list = 0.5*(totals['inner_radius'] + totals['outer_radius'])
+        zsnap = totals['redshift'][0]
+        ax.plot(radius_list, np.log10(totals['net_thermal_energy']/totals['net_cooling_energy_rate']/(1e6*yrtosec)), \
+                  color='k', ls='-', lw=2, label='Summed cooling')
+        ax.plot(radius_list, np.log10(stats['net_tcool_med']), \
+                  color='k', ls='--', lw=2, label='Median $t_\mathrm{cool}$')
+        ax.text(15, 0.5, '$z=%.2f$' % (zsnap), fontsize=18, ha='left', va='center')
+        ax.legend(loc=2, frameon=False, fontsize=18)
+
+    ax.set_ylabel('log Cooling time [Myr]', fontsize=18)
+    ax.set_xlabel('Radius [kpc]', fontsize=18)
+    ax.axis([0,250,0,7])
+    ax.text(15,1,halo_dict[args.halo],ha='left',va='center',fontsize=18)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [np.log10(13.75*1e3),np.log10(13.75*1e3)], 'k:', lw=1)
+    ax.text(5., np.log10(13.75*1e3)+0.05, 'Hubble time', fontsize=18, ha='left', va='bottom')
+    ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+    ax.text(Rvir-3., 1, '$R_{200}$', fontsize=18, ha='right', va='center')
+    ax.plot([0.5*Rvir, 0.5*Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+    ax.text(0.5*Rvir+3., 1, '$0.5R_{200}$', fontsize=18, ha='left', va='center')
+    plt.subplots_adjust(top=0.88,bottom=0.11,right=0.95,left=0.08)
+    if (hist): plt.savefig(save_dir + snap + '_tcool_vs_r_hist' + save_suffix + '.pdf')
+    else: plt.savefig(save_dir + snap + '_tcool_vs_r' + save_suffix + '.pdf')
+    plt.close()
+
 def energy_SFR_xcorr(snaplist):
     '''Plots a cross-correlation between VE (at Rvir) and SFR as a function of time delay between them.'''
 
@@ -1415,6 +1483,7 @@ if __name__ == "__main__":
 
     gtoMsun = 1.989e33
     cmtopc = 3.086e18
+    yrtosec = 3.154e7
     G = 6.673e-8
     kB = 1.38e-16
     mu = 0.6
@@ -1439,7 +1508,7 @@ if __name__ == "__main__":
     outs = make_output_list(args.output, output_step=args.output_step)
 
     if (not args.filename) and (args.plot!='visualization') and (args.plot!='den_vel_proj') and \
-       (args.plot!='mass_vs_time'):
+       (args.plot!='mass_vs_time') and (args.plot!='tcool_vs_radius_hist'):
         sys.exit("You must specify a filename where the data you want to plot is saved.")
 
     if (args.save_suffix): save_suffix = '_' + args.save_suffix
@@ -1510,6 +1579,58 @@ if __name__ == "__main__":
             for t in threads:
                 t.join()
         print("All snapshots finished!")
+    elif (args.plot=='tcool_vs_radius_hist'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                tcool_vs_radius(outs[i], hist=True)
+        else:
+            # Split into a number of groupings equal to the number of processors
+            # and run one process per processor
+            for i in range(len(outs)//args.nproc):
+                threads = []
+                for j in range(args.nproc):
+                    snap = outs[args.nproc*i+j]
+                    threads.append(multi.Process(target=tcool_vs_radius, args=[snap, True]))
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+            # For any leftover snapshots, run one per processor
+            threads = []
+            for j in range(len(outs)%args.nproc):
+                snap = outs[-(j+1)]
+                threads.append(multi.Process(target=tcool_vs_radius, args=[snap, True]))
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+        print("All snapshots finished!")
+    elif (args.plot=='tcool_vs_radius_tot'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                tcool_vs_radius(outs[i])
+        else:
+            # Split into a number of groupings equal to the number of processors
+            # and run one process per processor
+            for i in range(len(outs)//args.nproc):
+                threads = []
+                for j in range(args.nproc):
+                    snap = outs[args.nproc*i+j]
+                    threads.append(multi.Process(target=tcool_vs_radius, args=[snap]))
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+            # For any leftover snapshots, run one per processor
+            threads = []
+            for j in range(len(outs)%args.nproc):
+                snap = outs[-(j+1)]
+                threads.append(multi.Process(target=tcool_vs_radius, args=[snap]))
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+        print("All snapshots finished!")
     elif (args.plot=='energy_SFR_xcorr'):
         energy_SFR_xcorr(outs)
     elif (args.plot=='temp_SFR_xcorr'):
@@ -1518,5 +1639,5 @@ if __name__ == "__main__":
     else:
         sys.exit('You must specify what to plot from these options:\n' + \
                  'visualization, den_vel_proj, mass_vs_time, velocity_PDF, energy_vs_time,\n' + \
-                 'energy_vs_radius, temperature_vs_time, temperature_vs_radius, energy_SFR_xcorr,\n' + \
-                 'energy_vs_radius_comp, energy_vs_time_comp')
+                 'energy_vs_radius, temperature_vs_time, temperature_vs_radius, tcool_vs_radius_hist,\n' + \
+                 'tcool_vs_radius_tot, energy_SFR_xcorr, energy_vs_radius_comp, energy_vs_time_comp')
