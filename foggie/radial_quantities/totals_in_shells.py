@@ -2,7 +2,7 @@
 Filename: totals_in_shells.py
 Author: Cassi
 Date created: 7-30-20
-Date last modified: 4-30-21
+Date last modified: 5-5-21
 This file takes command line arguments and computes totals of mass, volume, or energy in shells.
 
 Dependencies:
@@ -212,8 +212,10 @@ def set_table_units(table):
             table[key].unit = 'Msun'
         elif ('volume' in key):
             table[key].unit = 'kpc**3'
-        elif ('energy' in key):
+        elif ('energy' in key) and (not ('rate') in key):
             table[key].unit = 'erg'
+        elif ('energy' in key) and ('rate' in key):
+            table[key].unit = 'erg/s'
     return table
 
 def make_table(total_types, shape_type):
@@ -276,6 +278,7 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape
         totals.append('potential_energy')
         totals.append('total_energy')
         totals.append('virial_energy')
+        totals.append('cooling_energy_rate')
         total_filename += '_energy'
 
     # Define list of ways to chunk up the shape over radius or height
@@ -355,6 +358,8 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape
         potential_energy = -G * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)*sphere['gas','cell_mass'].in_units('g').v
         total_energy = kinetic_energy + thermal_energy + potential_energy
         virial_energy = 2.*(thermal_energy + kinetic_energy) + 3./2.*potential_energy
+        cooling_time = sphere['gas','cooling_time'].in_units('s').v
+        cooling_rate = thermal_energy/cooling_time
         fields.append(thermal_energy)
         fields.append(kinetic_energy)
         fields.append(radial_kinetic_energy)
@@ -362,6 +367,7 @@ def calc_totals(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape
         fields.append(potential_energy)
         fields.append(total_energy)
         fields.append(virial_energy)
+        fields.append(cooling_rate)
 
     # Cut to just the shapes specified
     if (disk):

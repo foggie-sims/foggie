@@ -2,7 +2,7 @@
 Filename: stats_in_shells.py
 Author: Cassi
 Date created: 7-30-20
-Date last modified: 7-31-20
+Date last modified: 5-3-21
 This file takes command line arguments and computes statistics of fields in shells:
 median, interquartile range, standard deviation, and mean, and saves these to file.
 
@@ -36,6 +36,7 @@ import scipy.special as sse
 import shutil
 import ast
 import trident
+import matplotlib.pyplot as plt
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -100,14 +101,15 @@ def parse_args():
     parser.set_defaults(cgm_filter=False)
 
     parser.add_argument('--stat_type', metavar='stat_type', type=str, action='store', \
-                        help='What fields do you want to compute stats for? Currently, the options are "temperature"' + \
-                        ' "pressure" "density" "energy" "entropy" "metallicity" and "velocity".\nYou can compute all of them by inputting ' + \
-                        '"temperature,pressure,density,energy,entropy,metallicity,velocity" (no spaces!) ' + \
-                        'and the default is to do all.')
-    parser.set_defaults(stat_type="temperature,pressure,density,energy,entropy,metallicity,velocity")
+                        help='What fields do you want to compute stats for? Currently, the options are "temperature"\n' + \
+                        '"pressure" "density" "energy" "entropy" "metallicity" "velocity" "grav_pot"\n' + \
+                        'and "tcool". You can compute whichever of them you\'d like by inputting, for example,\n' + \
+                        '"temperature,pressure,density,energy,velocity" (no spaces!)\n' + \
+                        'and the default is to do temperature, pressure, and density.')
+    parser.set_defaults(stat_type="temperature,pressure,density")
 
     parser.add_argument('--stat_weight', metavar='stat_weight', type=str, action='store', \
-                        help='What field do you want to weight the statistics by? Options are volume and mass. Defaults is volume.')
+                        help='What field do you want to weight the statistics by? Options are volume and mass. Default is volume.')
     parser.set_defaults(stat_weight='volume')
 
     parser.add_argument('--pdf', dest='pdf', action='store_true', \
@@ -182,7 +184,7 @@ def parse_args():
     parser.set_defaults(units_rvir=False)
 
     parser.add_argument('--vel_fit', dest='vel_fit', action='store_true',
-                        help='Do you want to fit a Gaussian to the velocity distributions and save the best-fit parameters? Default is no.')
+                        help='Do you want to fit Gaussians to the velocity distributions and save the best-fit parameters? Default is no.')
     parser.set_defaults(vel_fit=False)
 
     parser.add_argument('--vel_cut', dest='vel_cut', action='store_true',
@@ -209,6 +211,16 @@ def parse_args():
                         'level 9? This enforces only the refine box is used for volumes that are partially\n' + \
                         'in, partially out of the refine box. Default is not to do this.')
     parser.set_defaults(refined_only=False)
+
+    parser.add_argument('--region_filter', metavar='region_filter', type=str, action='store', \
+                        help='Do you want to filter the gas into different regions and calculate pressures\n' + \
+                        'for each? Options are:\n' + \
+                        'velocity       -- cut into 3 regions: v < -0.5v_ff, v > v_esc, and everything else\n' + \
+                        'metallicity    -- cut into 3 regions: Z < 0.01, Z > 1., and everyting else\n' + \
+                        'Default is not to filter at all. Use --temp_cut if you want to filter on temperature,\n' + \
+                        'which can be used in addition to this filtering if desired. DO NOT use --vel_cut if you\n' + \
+                        'want to filter on velocity.')
+    parser.set_defaults(region_filter="none")
 
 
     args = parser.parse_args()
@@ -241,6 +253,8 @@ def set_table_units(table):
             table[key].unit = 'log Zsun'
         elif ('velocity' in key):
             table[key].unit == 'km/s'
+        elif ('tcool' in key):
+            table[key].unit == 'Myr'
     return table
 
 def make_table(stat_types, shape_type):
@@ -274,7 +288,11 @@ def make_table(stat_types, shape_type):
                     names_list += [name]
                     types_list += ['f8']
                 if (args.vel_fit) and ('velocity' in stat_types[i]) and (j==0):
-                    if (stat_types[i]=='radial_velocity'): fit_names = ['_mu', '_sig', '_A1', '_A2']
+                    if (stat_types[i]=='radial_velocity') and (args.region_filter!='velocity'):
+                        if (args.vel_cut):
+                            fit_names = ['_mu', '_sig', '_A', '_Aturb']
+                        else:
+                            fit_names = ['_muOut', '_sigOut', '_AOut', '_muIn', '_sigIn', '_AIn', '_Aturb']
                     else: fit_names = ['_mu', '_sig', '_A']
                     for fit_name in fit_names:
                         name = dir_name[j]
@@ -330,11 +348,24 @@ def gauss_pos(x, mu, sig, A):
     func[x<=0.] = 0.
     return func
 
+def gauss_neg(x, mu, sig, A):
+    func = A*np.exp(-(x-mu)**2/2/sig**2)
+    func[x>0.] = 0.
+    return func
+
 def double_gauss(x, mu1, sig1, A1, mu2, sig2, A2):
     func1 = A1*np.exp(-(x-mu1)**2/2/sig1**2)
     func2 = A2*np.exp(-(x-mu2)**2/2/sig2**2)
     func2[x<=0.] = 0.
     return func1 + func2
+
+def triple_gauss(x, mu1, sig1, A1, mu2, sig2, A2, mu3, sig3, A3):
+    func1 = A1*np.exp(-(x-mu1)**2/2/sig1**2)
+    func2 = A2*np.exp(-(x-mu2)**2/2/sig2**2)
+    func3 = A3*np.exp(-(x-mu3)**2/2/sig3**2)
+    func2[x<=0.] = 0.
+    func3[x>=0.] = 0.
+    return func1 + func2 + func3
 
 def exp_gauss(x, mu, sig, A, lam):
     func = A*sig*lam*np.sqrt(np.pi/2.)*np.exp(lam/2.*(2.*mu+lam*sig**2.-2.*x))*sse.erfc((mu+lam*sig**2.-x)/(np.sqrt(2.)*sig))
@@ -412,12 +443,15 @@ def calc_stats(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape_
         stats.append('tangential_velocity')
         stats.append('radial_velocity')
         stat_filename += '_velocity'
+    if ('grav_pot' in stat_types):
+        stats.append('grav_pot')
+        stat_filename += '_grav'
+    if ('tcool' in stat_types):
+        stats.append('tcool')
+        stat_filename += '_tcool'
 
     # Define list of ways to chunk up the shape over radius or height
     if (shape_args[0][0]=='cylinder'):
-        table = make_table(stats, ['cylinder', shape_args[0][7]])
-        if (args.pdf):
-            table_pdf = make_pdf_table(stats, ['cylinder', shape_args[0][7]])
         bottom_edge = shape_args[0][1]
         top_edge = shape_args[0][2]
         cyl_radius = shape_args[0][6]
@@ -446,9 +480,6 @@ def calc_stats(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape_
         inner_radius = shape_args[0][1]
         outer_radius = shape_args[0][2]
         num_steps = shape_args[0][3]
-        table = make_table(stats, ['sphere', 0])
-        if (args.pdf):
-            table_pdf = make_pdf_table(stats, ['sphere', 0])
         if (args.units_kpc):
             dr = (outer_radius-inner_radius)/num_steps
             chunks = ds.arr(np.arange(inner_radius,outer_radius+dr,dr), 'kpc')
@@ -482,6 +513,11 @@ def calc_stats(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape_
         weights = sphere['gas','cell_volume'].v
     if (weight_field=='mass'):
         weights = sphere['gas','cell_mass'].v
+    if (args.region_filter=='velocity') or (args.vel_cut):
+        vff = sphere['gas','vff'].in_units('km/s').v
+        vesc = sphere['gas','vesc'].in_units('km/s').v
+    if (args.region_filter=='metallicity'):
+        Z = sphere['gas','metallicity'].in_units('Zsun').v
     fields = []
     x_ranges = []
     if ('temperature' in stat_types):
@@ -532,10 +568,18 @@ def calc_stats(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape_
         fields.append(phi_vel)
         fields.append(tan_vel)
         fields.append(rad_vel)
-        x_ranges.append([-200,200])
-        x_ranges.append([-200,200])
-        x_ranges.append([-200,200])
-        x_ranges.append([-200,500])
+        x_ranges.append([-500,500])
+        x_ranges.append([-500,500])
+        x_ranges.append([-500,500])
+        x_ranges.append([-500,2000])
+    if ('grav_pot' in stat_types):
+        grav_pot = -G * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)**2.
+        fields.append(grav_pot)
+        x_ranges.append([-4e14,6e14])
+    if ('tcool' in stat_types):
+        tcool = sphere['gas','cooling_time'].in_units('Myr').v
+        fields.append(tcool)
+        x_ranges.append([1e-2,1e7])
 
     # Cut to just the shapes specified
     if (disk):
@@ -556,12 +600,15 @@ def calc_stats(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape_
     x = x[bool_inshapes]
     y = y[bool_inshapes]
     z = z[bool_inshapes]
-    theta = theta[bool_inshapes]
-    phi = phi[bool_inshapes]
     radius = radius[bool_inshapes]
     rad_vel = rad_vel[bool_inshapes]
     temperature = temperature[bool_inshapes]
     weights = weights[bool_inshapes]
+    if (args.region_filter=='velocity') or (args.vel_cut):
+        vff = vff[bool_inshapes]
+        vesc = vesc[bool_inshapes]
+    if (args.region_filter=='metallicity'):
+        Z = Z[bool_inshapes]
     for i in range(len(fields)):
         fields[i] = fields[i][bool_inshapes]
 
@@ -601,165 +648,284 @@ def calc_stats(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape_
     else:
         bool_nosat = np.ones(len(x), dtype=bool)
 
-    x = x[bool_nosat]
-    y = y[bool_nosat]
-    z = z[bool_nosat]
-    theta = theta[bool_nosat]
-    phi = phi[bool_nosat]
     radius = radius[bool_nosat]
     rad_vel = rad_vel[bool_nosat]
     temperature = temperature[bool_nosat]
     weights = weights[bool_nosat]
+    if (args.region_filter=='velocity') or (args.vel_cut):
+        vff = vff[bool_nosat]
+        vesc = vesc[bool_nosat]
+    if (args.region_filter=='metallicity'):
+        Z = Z[bool_nosat]
     for i in range(len(fields)):
         fields[i] = fields[i][bool_nosat]
 
-    # Loop over chunks and compute stats to add to table
+    if (args.vel_cut):
+        radius = radius[(rad_vel>0.5*vff) & (rad_vel < vesc)]
+        temperature = temperature[(rad_vel>0.5*vff) & (rad_vel < vesc)]
+        weights = weights[(rad_vel>0.5*vff) & (rad_vel < vesc)]
+        for i in range(len(fields)):
+            fields[i] = fields[i][(rad_vel>0.5*vff) & (rad_vel < vesc)]
+        rad_vel = rad_vel[(rad_vel>0.5*vff) & (rad_vel < vesc)]
+
+    if (args.region_filter=='velocity'):
+        looper = ['low_v','mid_v','high_v']
+        radius_orig = radius
+        rad_vel_orig = rad_vel
+        temperature_orig = temperature
+        weights_orig = weights
+        vff_orig = vff
+        vesc_orig = vesc
+        fields_orig = []
+        for i in range(len(fields)):
+            fields_orig.append(fields[i])
+    elif (args.region_filter=='metallicity'):
+        looper = ['low_Z','mid_Z','high_Z']
+        radius_orig = radius
+        rad_vel_orig = rad_vel
+        temperature_orig = temperature
+        weights_orig = weights
+        Z_orig = Z
+        fields_orig = []
+        for i in range(len(fields)):
+            fields_orig.append(fields[i])
+    else:
+        looper = ['none']
     if (args.temp_cut): temps = [0.,4.,5.,6.,12.]
     else: temps = [0.]
-    # Index r is for radial/height chunk, index i is for the property we're computing stats for,
-    # index j is for net, in, or out, and index k is for temperature, net, cold, cool, warm, hot
-    for r in range(len(chunks)-1):
-        if (r%10==0): print("Computing chunk " + str(r) + "/" + str(len(chunks)) + \
-                            " for snapshot " + snap)
-        inner = chunks[r]
-        outer = chunks[r+1]
-        row = [zsnap, inner, outer]
-        if (args.pdf):
-            pdf_array = []
-        bool_r = (radius > inner) & (radius < outer)
-        rad_vel_r = rad_vel[bool_r]
-        temp_r = temperature[bool_r]
-        weights_r = weights[bool_r]
-        if (args.vel_cut):
-            center = 0.5*(inner + outer)
-            rho = Menc_profile(center)*gtoMsun/((center*1000*cmtopc)**3.) * 3./(4.*np.pi)
-            vff = -(center*1000*cmtopc)/np.sqrt(3.*np.pi/(32.*G*rho))/1e5
-            vesc = np.sqrt(2.*G*Menc_profile(center)*gtoMsun/(center*1000.*cmtopc))/1e5
-            temp_r = temp_r[(rad_vel_r > 0.5*vff)]
-            weights_r = weights_r[(rad_vel_r > 0.5*vff)]
-            rad_vel_cut_r = rad_vel_r[(rad_vel_r > 0.5*vff)]
+
+    for loop in looper:
+        if (loop=='low_v'):
+            radius = radius_orig[rad_vel_orig < 0.5*vff_orig]
+            temperature = temperature_orig[rad_vel_orig < 0.5*vff_orig]
+            weights = weights_orig[rad_vel_orig < 0.5*vff_orig]
+            fields = []
+            for i in range(len(fields_orig)):
+                fields.append(fields_orig[i][rad_vel_orig < 0.5*vff_orig])
+            rad_vel = rad_vel_orig[rad_vel_orig < 0.5*vff_orig]
+            stat_filename_reg = stat_filename + '_low-v'
+        if (loop=='mid_v'):
+            radius = radius_orig[(rad_vel_orig>0.5*vff_orig) & (rad_vel_orig < vesc_orig)]
+            temperature = temperature_orig[(rad_vel_orig>0.5*vff_orig) & (rad_vel_orig < vesc_orig)]
+            weights = weights_orig[(rad_vel_orig>0.5*vff_orig) & (rad_vel_orig < vesc_orig)]
+            fields = []
+            for i in range(len(fields_orig)):
+                fields.append(fields_orig[i][(rad_vel_orig>0.5*vff_orig) & (rad_vel_orig < vesc_orig)])
+            rad_vel = rad_vel_orig[(rad_vel_orig>0.5*vff_orig) & (rad_vel_orig < vesc_orig)]
+            stat_filename_reg = stat_filename + '_mid-v'
+        if (loop=='high_v'):
+            radius = radius_orig[rad_vel_orig > vesc_orig]
+            temperature = temperature_orig[rad_vel_orig > vesc_orig]
+            weights = weights_orig[rad_vel_orig > vesc_orig]
+            fields = []
+            for i in range(len(fields_orig)):
+                fields.append(fields_orig[i][rad_vel_orig > vesc_orig])
+            rad_vel = rad_vel_orig[rad_vel_orig > vesc_orig]
+            stat_filename_reg = stat_filename + '_high-v'
+        if (loop=='low_Z'):
+            radius = radius_orig[Z_orig < 0.01]
+            temperature = temperature_orig[Z_orig < 0.01]
+            weights = weights_orig[Z_orig < 0.01]
+            fields = []
+            for i in range(len(fields_orig)):
+                fields.append(fields_orig[i][Z_orig < 0.01])
+            rad_vel = rad_vel_orig[Z_orig < 0.01]
+            stat_filename_reg = stat_filename + '_low-Z'
+        if (loop=='mid_Z'):
+            radius = radius_orig[(Z_orig > 0.01) & (Z_orig < 1.)]
+            temperature = temperature_orig[(Z_orig > 0.01) & (Z_orig < 1.)]
+            weights = weights_orig[(Z_orig > 0.01) & (Z_orig < 1.)]
+            fields = []
+            for i in range(len(fields_orig)):
+                fields.append(fields_orig[i][(Z_orig > 0.01) & (Z_orig < 1.)])
+            rad_vel = rad_vel_orig[(Z_orig > 0.01) & (Z_orig < 1.)]
+            stat_filename_reg = stat_filename + '_mid-Z'
+        if (loop=='high_Z'):
+            radius = radius_orig[Z_orig > 1.]
+            temperature = temperature_orig[Z_orig > 1.]
+            weights = weights_orig[Z_orig > 1.]
+            fields = []
+            for i in range(len(fields_orig)):
+                fields.append(fields_orig[i][Z_orig > 1.])
+            rad_vel = rad_vel_orig[Z_orig > 1.]
+            stat_filename_reg = stat_filename + '_high-Z'
+        if (loop=='none'):
+            stat_filename_reg = stat_filename
+
+        if (shape_args[0][0]=='cylinder'):
+            table = make_table(stats, ['cylinder', shape_args[0][7]])
+            if (args.pdf):
+                table_pdf = make_pdf_table(stats, ['cylinder', shape_args[0][7]])
         else:
-            rad_vel_cut_r = rad_vel_r
-        for i in range(len(fields)):
-            field = fields[i]
-            field_r = field[bool_r]
-            if (args.vel_cut):
-                field_r = field_r[(rad_vel_r > 0.5*vff)]
-            for j in range(3):
-                if (j==0): bool_vel = np.ones(len(field_r), dtype=bool)
-                if (j==1): bool_vel = (rad_vel_cut_r < 0.)
-                if (j==2): bool_vel = (rad_vel_cut_r > 0.)
-                field_v = field_r[bool_vel]
-                temp_v = temp_r[bool_vel]
-                weights_v = weights_r[bool_vel]
-                if (args.vel_fit) and (stats[i]=='tangential_velocity') and (j==0):
-                    sig_tan = []
-                for k in range(len(temps)):
-                    if (k==0):
-                        bool_temp = (temp_v > 0.)
-                    else:
-                        bool_temp = (temp_v > temps[k-1]) & (temp_v < temps[k])
-                    field_t = field_v[bool_temp]
-                    weights_t = weights_v[bool_temp]
-                    if (args.pdf) and (j==0) and (k==0):
-                        if (len(field_t)>0):
-                            hist, bin_edges = np.histogram(field_t, weights=weights_t, bins=(200), range=x_ranges[i], density=True)
-                            pdf_array.append(bin_edges[:-1])
-                            pdf_array.append(bin_edges[1:])
-                            pdf_array.append(hist)
-                    if (len(field_t)==0):
-                        row.append(0.)
-                        row.append(0.)
-                        row.append(0.)
-                        row.append(0.)
-                        if (args.vel_fit) and ('velocity' in stats[i]) and (j==0):
-                            row.append(0.)
-                            row.append(0.)
-                            row.append(0.)
-                            if (stats[i]=='radial_velocity'): row.append(0.)
-                        if (args.pdf):
-                            pdf_array.append(np.zeros(200))
-                            if (j==0) and (k==0):
-                                pdf_array.append(np.zeros(200))
-                                pdf_array.append(np.zeros(200))
-                    else:
-                        quantiles = weighted_quantile(field_t, weights_t, np.array([0.25,0.5,0.75]))
-                        row.append(quantiles[1])
-                        row.append(quantiles[2]-quantiles[0])
-                        avg, std = weighted_avg_and_std(field_t, weights_t)
-                        row.append(avg)
-                        row.append(std)
-                        if (args.pdf) and (j+k>0):
-                            hist, bins = np.histogram(field_t, weights=weights_t, bins=(200), range=x_ranges[i], density=True)
-                            pdf_array.append(hist)
-                        if (args.vel_fit) and ('velocity' in stats[i]) and (j==0):
-                            hist_vel, bins_vel = np.histogram(field_t, weights=weights_t, bins=(200), range=x_ranges[i], density=True)
-                            bin_centers = np.diff(bins_vel) + bins_vel[:-1]
-                            if (stats[i]=='radial_velocity'):
-                                #skew = 3./2.*(avg - quantiles[1])/std
-                                #if (skew<0.): skew=0.01
-                                #guesses = [avg - std*skew**(1./3.), std*np.sqrt(1. - skew**(2./3.)), np.max(hist_vel), 1./(std*skew**(1./3.))]
-                                guesses = [0., sig_tan[k], hist_vel[np.where(bin_centers>=0.)[0][0]]]
-                                try:
-                                    #params, cov = curve_fit(gauss, bin_centers, hist_vel, p0=guesses, \
-                                      #bounds=([0.,sig_tan[j][k],0.],[0.1,sig_tan[j][k]+0.1,2.*np.max(hist_vel)]))
-                                    # Start with estimate of how much turbulence contributes to the radial velocity distribution
-                                    fit = gauss(bin_centers, 0., sig_tan[k], hist_vel[np.where(bin_centers>=0.)[0][0]])
-                                    A2 = hist_vel[np.where(bin_centers>=0.)[0][0]]
-                                    # Subtract this out to get just the outflow at positive velocities
-                                    leftover = hist_vel - fit
-                                    leftover_pos = leftover[bin_centers>=0.]
-                                    bins_pos = bin_centers[bin_centers>=0.]
-                                    # Use the outflow as the initial guesses to the fit
-                                    guesses = [0., sig_tan[k], A2, bins_pos[leftover_pos==np.max(leftover_pos)][0], sig_tan[k], np.max(leftover_pos)]
-                                    # Fit two Gaussians, one that is forced to the properties of turbulence and one that is only at positive velocities
-                                    params, cov = curve_fit(double_gauss, bin_centers, hist_vel, p0=guesses, \
-                                      bounds=([0., sig_tan[k], 0.5*A2, 0., 0., 0.],[0.1,sig_tan[k]+0.1, 1.5*A2, np.inf, np.inf, np.inf]))
-                                    # Save the parameters of the outflow Gaussian and the height of the turbulence Gaussian (its mu and std are saved elsewhere)
-                                    row.append(params[3])
-                                    row.append(params[4])
-                                    row.append(params[5])
-                                    row.append(params[2])
-                                except RuntimeError:
-                                    row.append(0.)
-                                    row.append(0.)
-                                    row.append(0.)
-                                    row.append(0.)
-                            else:
-                                guesses = [avg, std, np.max(hist)]
-                                try:
-                                    params, cov = curve_fit(gauss, bin_centers, hist_vel, p0=guesses)
-                                    if (stats[i]=='tangential_velocity'): sig_tan.append(params[1])
-                                    row.append(params[0])
-                                    row.append(params[1])
-                                    row.append(params[2])
-                                except RuntimeError:
-                                    if (stats[i]=='tangential_velocity'): sig_tan.append(0.)
-                                    row.append(0.)
-                                    row.append(0.)
-                                    row.append(0.)
-        if (args.pdf):
-            pdf_array = np.vstack(pdf_array)
-            pdf_array = np.transpose(pdf_array)
-            for p in range(len(pdf_array)):
-                row_pdf = [zsnap, inner, outer]
-                row_pdf += list(pdf_array[p])
-                table_pdf.add_row(row_pdf)
-        table.add_row(row)
+            table = make_table(stats, ['sphere', 0])
+            if (args.pdf):
+                table_pdf = make_pdf_table(stats, ['sphere', 0])
 
-    table = set_table_units(table)
-    if (args.pdf): table_pdf = set_table_units(table_pdf)
+        # Loop over chunks and compute stats to add to table
+        # Index r is for radial/height chunk, index i is for the property we're computing stats for,
+        # index j is for net, in, or out, and index k is for temperature, net, cold, cool, warm, hot
+        for r in range(len(chunks)-1):
+            if (r%10==0): print("Computing chunk " + str(r) + "/" + str(len(chunks)) + \
+                                " for snapshot " + snap)
+            inner = chunks[r]
+            outer = chunks[r+1]
+            row = [zsnap, inner, outer]
+            if (args.pdf):
+                pdf_array = []
+            bool_r = (radius > inner) & (radius < outer)
+            rad_vel_r = rad_vel[bool_r]
+            temp_r = temperature[bool_r]
+            weights_r = weights[bool_r]
+            for i in range(len(fields)):
+                field = fields[i]
+                field_r = field[bool_r]
+                for j in range(3):
+                    if (j==0): bool_vel = np.ones(len(field_r), dtype=bool)
+                    if (j==1): bool_vel = (rad_vel_r < 0.)
+                    if (j==2): bool_vel = (rad_vel_r > 0.)
+                    field_v = field_r[bool_vel]
+                    temp_v = temp_r[bool_vel]
+                    weights_v = weights_r[bool_vel]
+                    if (args.vel_fit) and (stats[i]=='tangential_velocity') and (j==0):
+                        sig_tan = []
+                    for k in range(len(temps)):
+                        if (k==0):
+                            bool_temp = (temp_v > 0.)
+                        else:
+                            bool_temp = (temp_v > temps[k-1]) & (temp_v < temps[k])
+                        field_t = field_v[bool_temp]
+                        weights_t = weights_v[bool_temp]
+                        if (args.pdf) and (j==0) and (k==0):
+                            if (len(field_t)>0):
+                                hist, bin_edges = np.histogram(field_t, weights=weights_t, bins=(200), range=x_ranges[i], density=True)
+                                pdf_array.append(bin_edges[:-1])
+                                pdf_array.append(bin_edges[1:])
+                                pdf_array.append(hist)
+                        if (len(field_t)==0):
+                            row.append(0.)
+                            row.append(0.)
+                            row.append(0.)
+                            row.append(0.)
+                            if (args.vel_fit) and ('velocity' in stats[i]) and (j==0):
+                                row.append(0.)
+                                row.append(0.)
+                                row.append(0.)
+                                if (stats[i]=='radial_velocity'):
+                                    if (args.vel_cut):
+                                        row.append(0.)
+                                    elif (args.region_filter!='velocity'):
+                                        row.append(0.)
+                                        row.append(0.)
+                                        row.append(0.)
+                                        row.append(0.)
+                            if (args.pdf):
+                                pdf_array.append(np.zeros(200))
+                                if (j==0) and (k==0):
+                                    pdf_array.append(np.zeros(200))
+                                    pdf_array.append(np.zeros(200))
+                        else:
+                            quantiles = weighted_quantile(field_t, weights_t, np.array([0.25,0.5,0.75]))
+                            row.append(quantiles[1])
+                            row.append(quantiles[2]-quantiles[0])
+                            avg, std = weighted_avg_and_std(field_t, weights_t)
+                            row.append(avg)
+                            row.append(std)
+                            if (args.pdf) and (j+k>0):
+                                hist, bins = np.histogram(field_t, weights=weights_t, bins=(200), range=x_ranges[i], density=True)
+                                pdf_array.append(hist)
+                            if (args.vel_fit) and ('velocity' in stats[i]) and (j==0):
+                                hist_vel, bins_vel = np.histogram(field_t, weights=weights_t, bins=(200), range=x_ranges[i], density=True)
+                                bin_centers = np.diff(bins_vel) + bins_vel[:-1]
+                                if (stats[i]=='radial_velocity') and (args.region_filter!='velocity'):
+                                    guesses = [0., sig_tan[k], hist_vel[np.where(bin_centers>=0.)[0][0]]]
+                                    try:
+                                        # Start with estimate of how much turbulence contributes to the radial velocity distribution
+                                        fit = gauss(bin_centers, 0., sig_tan[k], hist_vel[np.where(bin_centers>=0.)[0][0]])
+                                        A2 = hist_vel[np.where(bin_centers>=0.)[0][0]]
+                                        # Subtract this out to get just the outflow at positive velocities
+                                        leftover = hist_vel - fit
+                                        leftover_pos = leftover[bin_centers>=sig_tan[k]]
+                                        leftover_pos[leftover_pos<0.] = 0.
+                                        bins_pos = bin_centers[bin_centers>=sig_tan[k]]
+                                        leftover_neg = leftover[bin_centers<-sig_tan[k]]
+                                        leftover_neg[leftover_neg<0.] = 0.
+                                        bins_neg = bin_centers[bin_centers<-sig_tan[k]]
+                                        if (args.vel_cut):
+                                            # Use the outflow as the initial guesses to the fit
+                                            guesses = [0., sig_tan[k], A2, bins_pos[leftover_pos==np.max(leftover_pos)][0], sig_tan[k], np.max(leftover_pos)]
+                                            # Fit two Gaussians, one that is forced to the properties of turbulence and one that is only at positive velocities
+                                            params, cov = curve_fit(double_gauss, bin_centers, hist_vel, p0=guesses, \
+                                              bounds=([0., sig_tan[k], 0.5*A2, 0., 0., 0.],[0.1,sig_tan[k]+0.1, 1.5*A2, np.inf, np.inf, np.inf]))
+                                            # Save the parameters of the outflow Gaussian and the height of the turbulence Gaussian (its mu and std are saved elsewhere)
+                                            row.append(params[3])
+                                            row.append(params[4])
+                                            row.append(params[5])
+                                            row.append(params[2])
+                                        else:
+                                            # Use the outflow and inflow as the initial guesses to the fit
+                                            guesses = [0., sig_tan[k], A2, \
+                                              bins_pos[leftover_pos==np.max(leftover_pos)][0], sig_tan[k], np.max(leftover_pos), \
+                                              bins_neg[leftover_neg==np.max(leftover_neg)][0], sig_tan[k], np.max(leftover_neg)]
+                                            # Fit three Gaussians, one that is forced to the properties of turbulence and one each for positive and negative velocities
+                                            params, cov = curve_fit(triple_gauss, bin_centers, hist_vel, p0=guesses, \
+                                              bounds=([0., sig_tan[k], 0.5*A2, 0., 0., 0., -np.inf, 0., 0.],[0.1,sig_tan[k]+0.1, 1.5*A2+0.1, np.inf, np.inf, np.inf, 0., np.inf, np.inf]))
+                                            # Save the parameters of the inflow and outflow Gaussians and the height of the turbulence Gaussian (its mu and std are saved elsewhere)
+                                            row.append(params[3])
+                                            row.append(params[4])
+                                            row.append(params[5])
+                                            row.append(params[6])
+                                            row.append(params[7])
+                                            row.append(params[8])
+                                            row.append(params[2])
+                                    except RuntimeError:
+                                        if (args.vel_cut):
+                                            row.append(0.)
+                                            row.append(0.)
+                                            row.append(0.)
+                                            row.append(0.)
+                                        else:
+                                            row.append(0.)
+                                            row.append(0.)
+                                            row.append(0.)
+                                            row.append(0.)
+                                            row.append(0.)
+                                            row.append(0.)
+                                            row.append(0.)
+                                else:
+                                    guesses = [avg, std, np.max(hist)]
+                                    try:
+                                        params, cov = curve_fit(gauss, bin_centers, hist_vel, p0=guesses)
+                                        if (stats[i]=='tangential_velocity'): sig_tan.append(params[1])
+                                        row.append(params[0])
+                                        row.append(params[1])
+                                        row.append(params[2])
+                                    except RuntimeError:
+                                        if (stats[i]=='tangential_velocity'): sig_tan.append(0.)
+                                        row.append(0.)
+                                        row.append(0.)
+                                        row.append(0.)
+            if (args.pdf):
+                pdf_array = np.vstack(pdf_array)
+                pdf_array = np.transpose(pdf_array)
+                for p in range(len(pdf_array)):
+                    row_pdf = [zsnap, inner, outer]
+                    row_pdf += list(pdf_array[p])
+                    table_pdf.add_row(row_pdf)
+            table.add_row(row)
 
-    # Save to file
-    if (sat_radius!=0.):
-        table.write(tablename + '_nosat' + stat_filename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
-    else:
-        table.write(tablename + stat_filename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
-    if (args.pdf):
+        table = set_table_units(table)
+        if (args.pdf): table_pdf = set_table_units(table_pdf)
+
+        # Save to file
         if (sat_radius!=0.):
-            table_pdf.write(tablename + '_nosat' + stat_filename + '_pdf' + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+            table.write(tablename + '_nosat' + stat_filename_reg + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
         else:
-            table_pdf.write(tablename + stat_filename + '_pdf' + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+            table.write(tablename + stat_filename_reg + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        if (args.pdf):
+            if (sat_radius!=0.):
+                table_pdf.write(tablename + '_nosat' + stat_filename_reg + '_pdf' + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+            else:
+                table_pdf.write(tablename + stat_filename_reg + '_pdf' + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     return "Stats have been calculated for snapshot " + snap + "!"
 
@@ -782,10 +948,10 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
     # Load the snapshot depending on if disk minor axis is needed
     for i in range(len(shape_args)):
         if (((shape_args[i][0]=='frustum') or (shape_args[i][0]=='cylinder')) and (shape_args[i][4]=='disk minor axis')) or (args.disk):
-            ds, refine_box = foggie_load(snap_name, track, disk_relative=True, halo_c_v_name=halo_c_v_name)
+            ds, refine_box = foggie_load(snap_name, track, disk_relative=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
             disk = True
         else:
-            ds, refine_box = foggie_load(snap_name, track, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
+            ds, refine_box = foggie_load(snap_name, track, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
             disk = False
     refine_width_kpc = ds.quan(ds.refine_width, 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
@@ -849,6 +1015,12 @@ if __name__ == "__main__":
     if (args.stat_weight!='volume') and (args.stat_weight!='mass'):
         sys.exit('You must choose either mass or volume to weight the statistics by.')
 
+    if (args.region_filter!='none') and (args.region_filter!='velocity') and (args.region_filter!='metallicity'):
+        if (args.region_filter=='temperature'):
+            sys.exit('For a temperature filter, use --temp_cut, not --region_filter.')
+        else:
+            sys.exit('The options for --region_filter are "velocity" or "metallicity".')
+
     shapes = identify_shape(args.shape, args.halo, args.run, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
     outs = make_output_list(args.output, output_step=args.output_step)
 
@@ -860,7 +1032,7 @@ if __name__ == "__main__":
     for i in range(len(stat_types)):
         if (stat_types[i]!='temperature') and (stat_types[i]!='energy') and (stat_types[i]!='entropy') and \
            (stat_types[i]!='metallicity') and (stat_types[i]!='velocity') and (stat_types[i]!='density') and \
-           (stat_types[i]!='pressure'):
+           (stat_types[i]!='pressure') and (stat_types[i]!='tcool') and (stat_types[i]!='grav_pot'):
             print('The property   %s   has not been implemented. Ask Cassi to add it.' % (stat_types[i]))
             sys.exit()
 
