@@ -119,7 +119,8 @@ def parse_args():
                         'pressure_slice         -  x-slices of different types of pressure (specify with --pressure_type keyword)\n' + \
                         'support_slice          -  x-slices of different types of pressure support (specify with --pressure_type keyword)\n' + \
                         'velocity_slice         -  x-slices of the three spherical components of velocity, comparing the velocity,\n' + \
-                        '                          the smoothed velocity, and the difference between the velocity and the smoothed velocity')
+                        '                          the smoothed velocity, and the difference between the velocity and the smoothed velocity\n' + \
+                        'vorticity_slice        -  x-slice of the velocity vorticity magnitude')
 
     parser.add_argument('--region_filter', metavar='region_filter', type=str, action='store', \
                         help='Do you want to show pressures in different regions? Options are:\n' + \
@@ -476,7 +477,7 @@ def pressure_vs_r_rv_shaded(snap):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     # Copy output to temp directory if on pleiades
-    if (system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -665,7 +666,7 @@ def pressure_vs_r_rv_shaded(snap):
             plt.close()
 
     # Delete output from temp directory if on pleiades
-    if (system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -679,7 +680,7 @@ def support_vs_r_rv_shaded(snap):
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -888,7 +889,7 @@ def support_vs_r_rv_shaded(snap):
             plt.close()
 
     # Delete output from temp directory if on pleiades
-    if (system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -901,7 +902,7 @@ def pressure_slice(snap):
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -994,7 +995,7 @@ def pressure_slice(snap):
         plt.savefig(save_dir + snap + '_' + ptypes[i] + '_pressure_slice_x' + save_suffix + '.pdf')
 
     # Delete output from temp directory if on pleiades
-    if (system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -1007,7 +1008,7 @@ def support_slice(snap):
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -1122,7 +1123,7 @@ def support_slice(snap):
         plt.savefig(save_dir + snap + '_' + ptypes[i] + '_support_slice_x' + save_suffix + '.pdf')
 
     # Delete output from temp directory if on pleiades
-    if (system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -1135,7 +1136,7 @@ def velocity_slice(snap):
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -1210,9 +1211,22 @@ def velocity_slice(snap):
         plt.savefig(save_dir + snap + '_' + vtypes[i] + '_velocity_slice_x' + save_suffix + '.pdf')
 
     # Delete output from temp directory if on pleiades
-    if (system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
+
+def vorticity_slice(snap):
+    '''Plots a slice of velocity vorticity through the center of the halo.'''
+
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+
+    slc = yt.SlicePlot(ds, 'x', 'vorticity_magnitude', center=ds.halo_center_kpc, width=(Rvir*2, 'kpc'))
+    slc.set_zlim('vorticity_magnitude', 1e-17, 1e-13)
+    slc.set_cmap('vorticity_magnitude', 'BuGn')
+    slc.save(save_dir + snap + '_vorticity_slice_x' + save_suffix + '.pdf')
 
 if __name__ == "__main__":
 
@@ -1268,7 +1282,7 @@ if __name__ == "__main__":
             for i in range(len(outs)):
                 support_vs_r_rv_shaded(outs[i])
         else:
-            target = support_vr_r_rv_shaded
+            target = support_vs_r_rv_shaded
     elif (args.plot=='pressure_slice'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -1287,6 +1301,12 @@ if __name__ == "__main__":
                 velocity_slice(outs[i])
         else:
             target = velocity_slice
+    elif (args.plot=='vorticity_slice'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                vorticity_slice(outs[i])
+        else:
+            target = vorticity_slice
     else:
         sys.exit("That plot type hasn't been implemented!")
 
