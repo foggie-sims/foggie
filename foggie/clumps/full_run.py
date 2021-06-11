@@ -44,7 +44,11 @@ def parse_args():
 
     parser.add_argument('--patchname', metavar='patchname', type=str, action='store', \
                         help='Name  for the patch to find clumps? Default is central_30kpc')
-    parser.set_defaults(patchname='central_30kpc')
+    parser.set_defaults(patchname='box1')
+
+    parser.add_argument('--center', metavar='center', type=float, action='store', \
+                        help='Center of the box in the halo center in code units. default = center1')
+    parser.set_defaults(center=center1)
 
     args = parser.parse_args()
     return args
@@ -66,17 +70,50 @@ ds, region = fl(filename,trackname)
 for chosenion in ['O VI','C II','C IV','Si II','Si III','Si IV', 'Mg I', 'Mg II', 'H I']:
     trident.add_ion_fields(ds, ions=[chosenion])
 
-[centerx,centery,centerz]=region.center
-dx= ds.quan(10.,'kpc').in_units('code_length')
 
-dy= ds.quan(12.,'kpc').in_units('code_length')
 
-dz= ds.quan(19.,'kpc').in_units('code_length')
-
-print(dx)
-chosencenter=[centerx+dx,centery+dy,centerz+dz]
-chosencenter = region.center
 chosenwidth = args.width
+
+dx= ds.quan(chosenwidth,'kpc').in_units('code_length')
+
+dy= ds.quan(chosenwidth,'kpc').in_units('code_length')
+
+dz= ds.quan(chosenwidth,'kpc').in_units('code_length')
+
+
+[centerx,centery,centerz]=region.center
+
+
+center1 = [centerx+dx,centery,centerz]
+center2 = [centerx+dx,centery+dy,centerz]
+center3 = [centerx+dx,centery+dy,centerz+dz]
+center4 = [centerx+dx,centery+dy,centerz-dz]
+center5 = [centerx+dx,centery,centerz+dz]
+center6 = [centerx+dx,centery,centerz-dz]
+center7 = [centerx+dx,centery-dy,centerz]
+center8 = [centerx+dx,centery-dy,centerz+dz]
+center9 = [centerx+dx,centery-dy,centerz-dz]
+center10 = [centerx,centery,centerz]
+center11 = [centerx,centery+dy,centerz]
+center12 = [centerx,centery+dy,centerz+dz]
+center13 = [centerx,centery+dy,centerz-dz]
+center14 = [centerx,centery,centerz+dz]
+center15 = [centerx,centery,centerz-dz]
+center16 = [centerx,centery-dy,centerz]
+center17 = [centerx,centery-dy,centerz+dz]
+center18 = [centerx,centery-dy,centerz-dz]
+center19 = [centerx-dx,centery,centerz]
+center20 = [centerx-dx,centery+dy,centerz]
+center21 = [centerx-dx,centery+dy,centerz+dz]
+center22 = [centerx-dx,centery+dy,centerz-dz]
+center23 = [centerx-dx,centery,centerz+dz]
+center24 = [centerx-dx,centery,centerz-dz]
+center25 = [centerx-dx,centery-dy,centerz]
+center26 = [centerx-dx,centery-dy,centerz+dz]
+center27 = [centerx-dx,centery-dy,centerz-dz]
+
+print(center)
+chosencenter =  args.center
 data_source = ds.sphere(chosencenter, (chosenwidth, 'kpc'))
 
 #yt.ProjectionPlot(ds, 2, ("gas", "density"), center=chosencenter, width=(chosenwidth,'kpc'),data_source=data_source, weight_field=("gas", "density")).show()
