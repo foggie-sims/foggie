@@ -46,9 +46,9 @@ def parse_args():
                         help='Name  for the patch to find clumps? Default is central_30kpc')
     parser.set_defaults(patchname='box1')
 
-    parser.add_argument('--center', metavar='center', type=float, action='store', \
+    parser.add_argument('--center', metavar='center', type=str, action='store', \
                         help='Center of the box in the halo center in code units. default = center1')
-    parser.set_defaults(center=center1)
+    parser.set_defaults(center='center1')
 
     args = parser.parse_args()
     return args
@@ -83,7 +83,6 @@ dz= ds.quan(chosenwidth,'kpc').in_units('code_length')
 
 [centerx,centery,centerz]=region.center
 
-
 center1 = [centerx+dx,centery,centerz]
 center2 = [centerx+dx,centery+dy,centerz]
 center3 = [centerx+dx,centery+dy,centerz+dz]
@@ -112,8 +111,63 @@ center25 = [centerx-dx,centery-dy,centerz]
 center26 = [centerx-dx,centery-dy,centerz+dz]
 center27 = [centerx-dx,centery-dy,centerz-dz]
 
-print(center)
-chosencenter =  args.center
+
+if args.center == 'center1':
+    chosencenter =  center1
+if args.center == 'center2':
+    chosencenter =  center2
+if args.center == 'center3':
+    chosencenter =  center3
+if args.center == 'center4':
+    chosencenter =  center4
+if args.center == 'center5':
+    chosencenter =  center5
+if args.center == 'center6':
+    chosencenter =  center6
+if args.center == 'center7':
+    chosencenter =  center7
+if args.center == 'center8':
+    chosencenter =  center8
+if args.center == 'center9':
+    chosencenter =  center9
+if args.center == 'center10':
+    chosencenter =  center10
+if args.center == 'center11':
+    chosencenter =  center11
+if args.center == 'center12':
+    chosencenter =  center12
+if args.center == 'center13':
+    chosencenter =  center13
+if args.center == 'center14':
+    chosencenter =  center14
+if args.center == 'center15':
+    chosencenter =  center15
+if args.center == 'center16':
+    chosencenter =  center16
+if args.center == 'center17':
+    chosencenter =  center17
+if args.center == 'center18':
+    chosencenter =  center18
+if args.center == 'center19':
+    chosencenter =  center19
+if args.center == 'center20':
+    chosencenter =  center20
+if args.center == 'center21':
+    chosencenter =  center21
+if args.center == 'center22':
+    chosencenter =  center22
+if args.center == 'center23':
+    chosencenter =  center23
+if args.center == 'center24':
+    chosencenter =  center24
+if args.center == 'center25':
+    chosencenter =  center25
+if args.center == 'center26':
+    chosencenter =  center26
+if args.center == 'center27':
+    chosencenter =  center27
+
+#print(center)
 data_source = ds.sphere(chosencenter, (chosenwidth, 'kpc'))
 
 #yt.ProjectionPlot(ds, 2, ("gas", "density"), center=chosencenter, width=(chosenwidth,'kpc'),data_source=data_source, weight_field=("gas", "density")).show()
