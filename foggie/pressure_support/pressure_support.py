@@ -507,8 +507,8 @@ def pressure_vs_r_rv_shaded(snap):
     pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
     lvl1_res = pix_res*2.**11.
     level = 9
-    refine_res = int(500./(lvl1_res/(2.**level)))
-    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([250.,250.,250.],'kpc'), dims=[refine_res, refine_res, refine_res])
+    refine_res = int(3.*Rvir/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
     temperature = box['temperature'].v
     if (args.plot=='pressure_vs_r_shaded'):
@@ -711,8 +711,8 @@ def support_vs_r_rv_shaded(snap):
     lvl1_res = pix_res*2.**11.
     level = 9
     dx = lvl1_res/(2.**level)
-    refine_res = int(500./dx)
-    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([250.,250.,250.],'kpc'), dims=[refine_res, refine_res, refine_res])
+    refine_res = int(3.*Rvir/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
     temperature = box['temperature'].v
     r = box['radius_corrected'].in_units('kpc').v
@@ -796,6 +796,7 @@ def support_vs_r_rv_shaded(snap):
 
         support_filtered = 1.0*support
         support_filtered[(density > cgm_density_max) & (temperature < cgm_temperature_min)] = 1e-10
+        support_filtered[support_filtered==0.] = 1e-10
         for j in range(len(regions)):
             if (regions[j]=='_low-T'):
                 support_masked = 1.0*support_filtered
@@ -921,8 +922,8 @@ def pressure_slice(snap):
     pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
     lvl1_res = pix_res*2.**11.
     level = 9
-    refine_res = int(500./(lvl1_res/(2.**level)))
-    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([250.,250.,250.],'kpc'), dims=[refine_res, refine_res, refine_res])
+    refine_res = int(3.*Rvir/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
     temperature = box['temperature'].v
 
@@ -981,7 +982,7 @@ def pressure_slice(snap):
         cmap.set_over(color='w')
         # Need to rotate to match up with how yt plots it
         im = ax.imshow(rotate(np.log10(pressure[len(pressure)//2,:,:]),90), cmap=cmap, norm=colors.Normalize(vmin=-18, vmax=-12), \
-                  extent=[-250,250,-250,250])
+                  extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
         ax.set_xlabel('y [kpc]', fontsize=20)
         ax.set_ylabel('z [kpc]', fontsize=20)
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
@@ -1029,8 +1030,8 @@ def support_slice(snap):
     lvl1_res = pix_res*2.**11.
     level = 9
     dx = lvl1_res/(2.**level)
-    refine_res = int(500./dx)
-    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([250.,250.,250.],'kpc'), dims=[refine_res, refine_res, refine_res])
+    refine_res = int(3.*Rvir/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
     temperature = box['temperature'].v
     grav_pot = box['grav_pot'].v
@@ -1104,12 +1105,14 @@ def support_slice(snap):
         support = np.sqrt(pr**2./gr**2.)
 
         support[(density > cgm_density_max) & (temperature < cgm_temperature_min)] = 1.
+        support[support==0.] = 1.
+        print(np.log10(support[len(support)//2,:,:]))
         fig = plt.figure(figsize=(12,10),dpi=500)
         ax = fig.add_subplot(1,1,1)
         cmap = copy.copy(mpl.cm.BrBG)
         # Need to rotate to match up with how yt plots it
         im = ax.imshow(rotate(np.log10(support[len(support)//2,:,:]),90), cmap=cmap, norm=colors.Normalize(vmin=-2, vmax=2), \
-                  extent=[-250,250,-250,250])
+                  extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
         ax.set_xlabel('y [kpc]', fontsize=20)
         ax.set_ylabel('z [kpc]', fontsize=20)
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
