@@ -76,7 +76,7 @@ Exists for:
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0355-DD1999, RD0016-RD0034
 2392/nref11c_nref9f snapshots DD0511-DD1599, RD0019-RD0031
-2878/nref11c_nref9f snapshots DD0398-DD0799, RD0016-RD0022
+2878/nref11c_nref9f snapshots DD0398-DD0899, RD0016-RD0024
 
 Created by:
 utils/get_mass_profile.py, which will output one "snapshot_masses.hdf5" per snapshot that can
@@ -111,7 +111,7 @@ Exists for:
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0355-DD1999, RD0016-RD0034
 2392/nref11c_nref9f snapshots DD0511-DD1599, RD0019-RD0031
-2878/nref11c_nref9f snapshots DD0398-DD0799, RD0016-RD0022
+2878/nref11c_nref9f snapshots DD0398-DD0899, RD0016-RD0024
 
 Created by:
 utils/get_mass_profile.py, which will output one "snapshot_masses.hdf5" per snapshot that can later
@@ -153,6 +153,7 @@ Exists for:
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0355-DD1999, RD0016-RD0034
 2392/nref11c_nref9f snapshots DD0511-DD1599, RD0019-RD0031
+2878/nref11c_nref9f snapshots DD0398-DD0899, RD0016-RD0024
 
 Created by:
 utils/get_satellite_positions.py, which will output one "snapshot_satellites.dat" ASCII file per
@@ -187,7 +188,7 @@ Exists for:
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0355-DD1999, RD0016-RD0034
 2392/nref11c_nref9f snapshots DD0511-DD1599, RD0019-RD0031
-2878/nref11c_nref9f snapshots DD0398-DD0799, RD0016-RD0022
+2878/nref11c_nref9f snapshots DD0398-DD0899, RD0016-RD0024
 
 Created by:
 utils/get_rvir.py
