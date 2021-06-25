@@ -117,10 +117,12 @@ def parse_args():
                         '       or                 For these options, specify what type of support to plot with the --pressure_type keyword\n' + \
                         'support_vs_rv_shaded      and what you want to color-code the points by with the --shader_color keyword\n' + \
                         'pressure_slice         -  x-slices of different types of pressure (specify with --pressure_type keyword)\n' + \
+                        'force_slice            -  x-slices of different forces (specify with --force_type keyword)\n' + \
                         'support_slice          -  x-slices of different types of pressure support (specify with --pressure_type keyword)\n' + \
                         'velocity_slice         -  x-slices of the three spherical components of velocity, comparing the velocity,\n' + \
                         '                          the smoothed velocity, and the difference between the velocity and the smoothed velocity\n' + \
-                        'vorticity_slice        -  x-slice of the velocity vorticity magnitude')
+                        'vorticity_slice        -  x-slice of the velocity vorticity magnitude\n' + \
+                        'vorticity_direction    -  2D histograms of vorticity direction split by temperature and radius')
 
     parser.add_argument('--region_filter', metavar='region_filter', type=str, action='store', \
                         help='Do you want to show pressures in different regions? Options are:\n' + \
@@ -150,6 +152,13 @@ def parse_args():
                         '"total", or "all", which will make one datashader plot per pressure type.\n' + \
                         'Default is "thermal".')
     parser.set_defaults(pressure_type='thermal')
+
+    parser.add_argument('--force_type', metavar='pressure_type', type=str, action='store', \
+                        help='If plotting forces_vs_r_shaded or force_slice, what forces do you\n' + \
+                        'want to plot? Options are "thermal", "turbulent", "outflow", "inflow", "rotation",\n' + \
+                        '"gravity", "total", or "all", which will make one datashader plot per force.\n' + \
+                        'Default is "thermal".')
+    parser.set_defaults(force_type='force')
 
     parser.add_argument('--shader_color', metavar='shader_color', type=str, action='store', \
                         help='If plotting support_vs_r_shaded, what field do you want to color-code the points by?\n' + \
@@ -507,6 +516,7 @@ def pressure_vs_r_rv_shaded(snap):
     pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
     lvl1_res = pix_res*2.**11.
     level = 9
+    dx = lvl1_res/(2.**level)
     refine_res = int(3.*Rvir/dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
@@ -913,7 +923,7 @@ def pressure_slice(snap):
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
 
     if (args.pressure_type=='all'):
-        ptypes = ['thermal', 'turbulent', 'outflow', 'inflow', 'rotation', 'total']
+        ptypes = ['thermal', 'turbulent', 'outflow', 'inflow']
     elif (',' in args.pressure_type):
         ptypes = args.pressure_type.split(',')
     else:
@@ -922,58 +932,46 @@ def pressure_slice(snap):
     pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
     lvl1_res = pix_res*2.**11.
     level = 9
+    dx = lvl1_res/(2.**level)
     refine_res = int(3.*Rvir/dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
     temperature = box['temperature'].v
 
     for i in range(len(ptypes)):
-        if (ptypes[i]=='thermal') or ('total' in ptypes):
+        if (ptypes[i]=='thermal'):
             thermal_pressure = box['pressure'].in_units('erg/cm**3').v
-            if (ptypes[i]=='thermal'):
-                pressure = thermal_pressure
-                pressure_label = 'Thermal'
-        if (ptypes[i]=='turbulent') or (ptypes[i]=='rotation') or (ptypes[i]=='inflow') or \
-           (ptypes[i]=='outflow') or ('total' in ptypes):
-            vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
-            vphi = box['phi_velocity_corrected'].in_units('cm/s').v
+            pressure = thermal_pressure
+            pressure_label = 'Thermal'
+        if (ptypes[i]=='turbulent'):
+            vx = box['vx_corrected'].in_units('cm/s').v
+            vy = box['vy_corrected'].in_units('cm/s').v
+            vz = box['vz_corrected'].in_units('cm/s').v
+            smooth_vx = uniform_filter(vx, size=20)
+            smooth_vy = uniform_filter(vy, size=20)
+            smooth_vz = uniform_filter(vz, size=20)
+            sig_x = (vx - smooth_vx)**2.
+            sig_y = (vy - smooth_vy)**2.
+            sig_z = (vz - smooth_vz)**2.
+            vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
+            turb_pressure = density*vdisp**2.
+            pressure = turb_pressure
+            pressure_label = 'Turbulent'
+        if (ptypes[i]=='inflow') or (ptypes[i]=='outflow'):
             vr = box['radial_velocity_corrected'].in_units('cm/s').v
-            smooth_vtheta = uniform_filter(vtheta, size=20)
-            smooth_vphi = uniform_filter(vphi, size=20)
             smooth_vr = uniform_filter(vr, size=20)
-            if (ptypes[i]=='turbulent') or ('total' in ptypes):
-                sig_theta = (vtheta - smooth_vtheta)**2.
-                sig_phi = (vphi - smooth_vphi)**2.
-                sig_r = (vr - smooth_vr)**2.
-                vdisp = np.sqrt((sig_theta + sig_phi + sig_r)/3.)
-                turb_pressure = density*vdisp**2.
-                if (ptypes[i]=='turbulent'):
-                    pressure = turb_pressure
-                    print(np.min(pressure), np.max(pressure))
-                    pressure_label = 'Turbulent'
-            if (ptypes[i]=='rotation') or ('total' in ptypes):
-                rot_pressure = density*smooth_vtheta**2. + density*smooth_vphi**2.
-                if (ptypes[i]=='rotation'):
-                    pressure = rot_pressure
-                    pressure_label = 'Rotational'
-            if (ptypes[i]=='inflow') or ('total' in ptypes):
+            if (ptypes[i]=='inflow'):
                 vr_in = 1.0*smooth_vr
                 vr_in[smooth_vr > 0.] = 0.
                 in_pressure = density*vr_in**2.
-                if (ptypes[i]=='inflow'):
-                    pressure = in_pressure
-                    pressure_label = 'Inflow Ram'
-            if (ptypes[i]=='outflow') or ('total' in ptypes):
+                pressure = in_pressure
+                pressure_label = 'Inflow Ram'
+            if (ptypes[i]=='outflow'):
                 vr_out = 1.0*smooth_vr
                 vr_out[smooth_vr < 0.] = 0.
                 out_pressure = density*vr_out**2.
-                if (ptypes[i]=='outflow'):
-                    pressure = out_pressure
-                    pressure_label = 'Outflow Ram'
-        if (ptypes[i]=='total'):
-            tot_pressure = thermal_pressure + turb_pressure + rot_pressure + out_pressure
-            pressure = tot_pressure
-            pressure_label = 'Total'
+                pressure = out_pressure
+                pressure_label = 'Outflow Ram'
 
         pressure = np.ma.masked_where((density > cgm_density_max) & (temperature < cgm_temperature_min), pressure)
         fig = plt.figure(figsize=(12,10),dpi=500)
@@ -983,6 +981,7 @@ def pressure_slice(snap):
         # Need to rotate to match up with how yt plots it
         im = ax.imshow(rotate(np.log10(pressure[len(pressure)//2,:,:]),90), cmap=cmap, norm=colors.Normalize(vmin=-18, vmax=-12), \
                   extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
+        ax.axis([-250,250,-250,250])
         ax.set_xlabel('y [kpc]', fontsize=20)
         ax.set_ylabel('z [kpc]', fontsize=20)
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
@@ -1000,9 +999,138 @@ def pressure_slice(snap):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
+def force_slice(snap):
+    '''Plots a slice of different force terms through the center of the halo. The option --force_type indicates
+    what type of force to plot.'''
+
+    masses_ind = np.where(masses['snapshot']==snap)[0]
+    Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
+    Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap
+        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+        snap_name = snap_dir + '/' + snap
+    else:
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+
+    if (args.force_type=='all'):
+        ftypes = ['thermal', 'turbulent', 'outflow', 'inflow', 'rotation', 'gravity', 'total']
+    elif (',' in args.force_type):
+        ftypes = args.force_type.split(',')
+    else:
+        ftypes = [args.force_type]
+
+    pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
+    lvl1_res = pix_res*2.**11.
+    level = 9
+    dx = lvl1_res/(2.**level)
+    dx_cm = dx*1000*cmtopc
+    refine_res = int(3.*Rvir/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
+    density = box['density'].in_units('g/cm**3').v
+    temperature = box['temperature'].v
+    x_hat = box['x'].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
+    y_hat = box['y'].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
+    z_hat = box['z'].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
+    r = box['radius_corrected'].in_units('cm').v
+    x_hat /= r
+    y_hat /= r
+    z_hat /= r
+
+    for i in range(len(ftypes)):
+        if (ftypes[i]=='thermal') or ('total' in ftypes):
+            thermal_pressure = box['pressure'].in_units('erg/cm**3').v
+            pres_grad = np.gradient(thermal_pressure, dx_cm)
+            dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+            thermal_force = 1./density * dPdr
+            force = thermal_force
+            force_label = 'Thermal Pressure'
+        if (ftypes[i]=='turbulent'):
+            vx = box['vx_corrected'].in_units('cm/s').v
+            vy = box['vy_corrected'].in_units('cm/s').v
+            vz = box['vz_corrected'].in_units('cm/s').v
+            smooth_vx = uniform_filter(vx, size=20)
+            smooth_vy = uniform_filter(vy, size=20)
+            smooth_vz = uniform_filter(vz, size=20)
+            sig_x = (vx - smooth_vx)**2.
+            sig_y = (vy - smooth_vy)**2.
+            sig_z = (vz - smooth_vz)**2.
+            vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
+            turb_pressure = density*vdisp**2.
+            pres_grad = np.gradient(turb_pressure, dx_cm)
+            dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+            turb_force = 1./density * dPdr
+            force = turb_force
+            force_label = 'Turbulent Pressure'
+        if (ftypes[i]=='inflow') or (ftypes[i]=='outflow'):
+            vr = box['radial_velocity_corrected'].in_units('cm/s').v
+            smooth_vr = uniform_filter(vr, size=20)
+            if (ftypes[i]=='inflow'):
+                vr_in = 1.0*smooth_vr
+                vr_in[smooth_vr > 0.] = 0.
+                in_pressure = density*vr_in**2.
+                pres_grad = np.gradient(in_pressure, dx_cm)
+                dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+                in_force = 1./density * dPdr
+                force = in_force
+                force_label = 'Inflow Ram Pressure'
+            if (ftypes[i]=='outflow'):
+                vr_out = 1.0*smooth_vr
+                vr_out[smooth_vr < 0.] = 0.
+                out_pressure = density*vr_out**2.
+                pres_grad = np.gradient(out_pressure, dx_cm)
+                dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+                out_force = 1./density * dPdr
+                force = out_force
+                force_label = 'Outflow Ram Pressure'
+        if (ftypes[i]=='rotation'):
+            vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
+            vphi = box['phi_velocity_corrected'].in_units('cm/s').v
+            smooth_vtheta = uniform_filter(vtheta, size=20)
+            smooth_vphi = uniform_filter(vphi, size=20)
+            rot_force = (smooth_vtheta**2. + smooth_vphi**2.)/r
+            force = rot_force
+            force_label = 'Rotation'
+        if (ftypes[i]=='gravity'):
+            grav_force = -G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.
+            force = grav_force
+            force_label = 'Gravity'
+        if (ftypes[i]=='total'):
+            tot_force = thermal_force + turb_force + rot_force + out_force + in_force + grav_force
+            force = tot_force
+            force_label = 'Total'
+
+        force = np.ma.masked_where((density > cgm_density_max) & (temperature < cgm_temperature_min), force)
+        fig = plt.figure(figsize=(12,10),dpi=500)
+        ax = fig.add_subplot(1,1,1)
+        # Need to rotate to match up with how yt plots it
+        im = ax.imshow(rotate(force[len(force)//2,:,:],90), cmap='BrBG', norm=colors.SymLogNorm(vmin=-1e-5, vmax=1e-5, linthresh=1e-9, base=10), \
+                  extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
+        ax.axis([-250,250,-250,250])
+        ax.set_xlabel('y [kpc]', fontsize=20)
+        ax.set_ylabel('z [kpc]', fontsize=20)
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+          top=True, right=True)
+        cax = fig.add_axes([0.855, 0.08, 0.03, 0.9])
+        cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+          top=True, right=True)
+        fig.colorbar(im, cax=cax, orientation='vertical')
+        ax.text(1.15, 0.5, 'log ' + force_label + ' Force [cm/s$^2$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
+        plt.subplots_adjust(bottom=0.08, top=0.98, left=0.08, right=0.88)
+        plt.savefig(save_dir + snap + '_' + ftypes[i] + '_force_slice_x' + save_suffix + '.pdf')
+
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
+
 def support_slice(snap):
-    '''Plots a slice of pressure support through the center of the halo. The option --pressure_type indicates
-    what type of pressure support to plot.'''
+    '''Plots a slice of the ratio of supporting forces to gravity through the center of the halo.
+    The option --force_type indicates what type of support to plot.'''
 
     masses_ind = np.where(masses['snapshot']==snap)[0]
     Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
@@ -1019,100 +1147,94 @@ def support_slice(snap):
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
     ds.add_gradient_fields(('gas','pressure'))
 
-    if (args.pressure_type=='all'):
-        ptypes = ['thermal', 'turbulent', 'outflow', 'inflow', 'rotation', 'total']
-    elif (',' in args.pressure_type):
-        ptypes = args.pressure_type.split(',')
+    if (args.force_type=='all'):
+        ftypes = ['thermal', 'turbulent', 'outflow', 'inflow', 'rotation']
+    elif (',' in args.force_type):
+        ftypes = args.force_type.split(',')
     else:
-        ptypes = [args.pressure_type]
+        ftypes = [args.force_type]
 
     pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
     lvl1_res = pix_res*2.**11.
     level = 9
     dx = lvl1_res/(2.**level)
+    dx_cm = dx*1000.*cmtopc
     refine_res = int(3.*Rvir/dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
     temperature = box['temperature'].v
-    grav_pot = box['grav_pot'].v
-    x_hat = box['x'].in_units('kpc').v - ds.halo_center_kpc[0].v
-    y_hat = box['y'].in_units('kpc').v - ds.halo_center_kpc[1].v
-    z_hat = box['z'].in_units('kpc').v - ds.halo_center_kpc[2].v
-    r = box['radius_corrected'].in_units('kpc').v
-    grav_pot_grad = np.gradient(grav_pot, dx)
-    g = -density*grav_pot_grad
-    gx = g[0]
-    gy = g[1]
-    gz = g[2]
+    x_hat = box['x'].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
+    y_hat = box['y'].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
+    z_hat = box['z'].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
+    r = box['radius_corrected'].in_units('cm').v
     x_hat /= r
     y_hat /= r
     z_hat /= r
 
-    for i in range(len(ptypes)):
-        if (ptypes[i]=='thermal') or ('total' in ptypes):
-            thermal_pressure = box['pressure'].in_units('erg/cm**3').v
-            if (ptypes[i]=='thermal'):
-                pressure = thermal_pressure
-                pressure_label = 'Thermal'
-        if (ptypes[i]=='turbulent') or (ptypes[i]=='rotation') or (ptypes[i]=='inflow') or \
-           (ptypes[i]=='outflow') or ('total' in ptypes):
-            vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
-            vphi = box['phi_velocity_corrected'].in_units('cm/s').v
-            vr = box['radial_velocity_corrected'].in_units('cm/s').v
-            smooth_vtheta = uniform_filter(vtheta, size=20)
-            smooth_vphi = uniform_filter(vphi, size=20)
-            smooth_vr = uniform_filter(vr, size=20)
-            if (ptypes[i]=='turbulent') or ('total' in ptypes):
-                sig_theta = (vtheta - smooth_vtheta)**2.
-                sig_phi = (vphi - smooth_vphi)**2.
-                sig_r = (vr - smooth_vr)**2.
-                vdisp = np.sqrt((sig_theta + sig_phi + sig_r)/3.)
-                turb_pressure = density*vdisp**2.
-                if (ptypes[i]=='turbulent'):
-                    pressure = turb_pressure
-                    pressure_label = 'Turbulent'
-            if (ptypes[i]=='rotation') or ('total' in ptypes):
-                rot_pressure = density*smooth_vtheta**2. + density*smooth_vphi**2.
-                if (ptypes[i]=='rotation'):
-                    pressure = rot_pressure
-                    pressure_label = 'Rotational'
-            if (ptypes[i]=='inflow') or ('total' in ptypes):
-                vr_in = 1.0*smooth_vr
-                vr_in[smooth_vr > 0.] = 0.
-                in_pressure = density*vr_in**2.
-                if (ptypes[i]=='inflow'):
-                    pressure = in_pressure
-                    pressure_label = 'Inflow Ram'
-            if (ptypes[i]=='outflow') or ('total' in ptypes):
-                vr_out = 1.0*smooth_vr
-                vr_out[smooth_vr < 0.] = 0.
-                out_pressure = density*vr_out**2.
-                if (ptypes[i]=='outflow'):
-                    pressure = out_pressure
-                    pressure_label = 'Outflow Ram'
-        if (ptypes[i]=='total'):
-            tot_pressure = thermal_pressure + turb_pressure + rot_pressure + out_pressure
-            pressure = tot_pressure
-            pressure_label = 'Total'
-            in_pres_grad = np.gradient(in_pressure, dx)
-            gx -= in_pres_grad[0]
-            gy -= in_pres_grad[1]
-            gz -= in_pres_grad[2]
+    grav_force = -G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.
+    thermal_pressure = box['pressure'].in_units('erg/cm**3').v
+    pres_grad = np.gradient(thermal_pressure, dx_cm)
+    dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+    thermal_force = 1./density * dPdr
+    vx = box['vx_corrected'].in_units('cm/s').v
+    vy = box['vy_corrected'].in_units('cm/s').v
+    vz = box['vz_corrected'].in_units('cm/s').v
+    smooth_vx = uniform_filter(vx, size=20)
+    smooth_vy = uniform_filter(vy, size=20)
+    smooth_vz = uniform_filter(vz, size=20)
+    sig_x = (vx - smooth_vx)**2.
+    sig_y = (vy - smooth_vy)**2.
+    sig_z = (vz - smooth_vz)**2.
+    vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
+    turb_pressure = density*vdisp**2.
+    pres_grad = np.gradient(turb_pressure, dx_cm)
+    dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+    turb_force = 1./density * dPdr
+    vr = box['radial_velocity_corrected'].in_units('cm/s').v
+    smooth_vr = uniform_filter(vr, size=20)
+    vr_in = 1.0*smooth_vr
+    vr_in[smooth_vr > 0.] = 0.
+    in_pressure = density*vr_in**2.
+    pres_grad = np.gradient(in_pressure, dx_cm)
+    dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+    in_force = 1./density * dPdr
+    vr_out = 1.0*smooth_vr
+    vr_out[smooth_vr < 0.] = 0.
+    out_pressure = density*vr_out**2.
+    pres_grad = np.gradient(out_pressure, dx_cm)
+    dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+    out_force = 1./density * dPdr
+    vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
+    vphi = box['phi_velocity_corrected'].in_units('cm/s').v
+    smooth_vtheta = uniform_filter(vtheta, size=20)
+    smooth_vphi = uniform_filter(vphi, size=20)
+    rot_force = (smooth_vtheta**2. + smooth_vphi**2.)/r
+    tot_force = grav_force + thermal_force + turb_force + rot_force + in_force + out_force
 
-        gr = gx*x_hat + gy*y_hat + gz*z_hat
-        pres_grad = np.gradient(pressure, dx)
-        pr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-        support = np.sqrt(pr**2./gr**2.)
+    for i in range(len(ftypes)):
+        if (ftypes[i]=='thermal'):
+            support = thermal_force/(grav_force + tot_force)
+            support_label = 'Thermal'
+        if (ftypes[i]=='turbulent'):
+            support = turb_force/(grav_force + tot_force)
+            support_label = 'Turbulent'
+        if (ftypes[i]=='inflow'):
+            support = in_force/(grav_force + tot_force)
+            support_label = 'Inflow'
+        if (ftypes[i]=='outflow'):
+            support = out_force/(grav_force + tot_force)
+            support_label = 'Outflow'
+        if (ftypes[i]=='rotation'):
+            support = rot_force/(grav_force + tot_force)
+            support_label = 'Rotation'
 
         support[(density > cgm_density_max) & (temperature < cgm_temperature_min)] = 1.
-        support[support==0.] = 1.
-        print(np.log10(support[len(support)//2,:,:]))
         fig = plt.figure(figsize=(12,10),dpi=500)
         ax = fig.add_subplot(1,1,1)
-        cmap = copy.copy(mpl.cm.BrBG)
         # Need to rotate to match up with how yt plots it
-        im = ax.imshow(rotate(np.log10(support[len(support)//2,:,:]),90), cmap=cmap, norm=colors.Normalize(vmin=-2, vmax=2), \
+        im = ax.imshow(rotate(support[len(support)//2,:,:],90), cmap='BrBG', norm=colors.Normalize(vmin=-2, vmax=2), \
                   extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
+        ax.axis([-250,250,-250,250])
         ax.set_xlabel('y [kpc]', fontsize=20)
         ax.set_ylabel('z [kpc]', fontsize=20)
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
@@ -1121,9 +1243,9 @@ def support_slice(snap):
         cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
           top=True, right=True)
         fig.colorbar(im, cax=cax, orientation='vertical')
-        ax.text(1.15, 0.5, 'log ' + pressure_label + ' Pressure Support', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
+        ax.text(1.15, 0.5, support_label + ' Force / ($F_\mathrm{grav} + F_\mathrm{net}$)', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
         plt.subplots_adjust(bottom=0.08, top=0.98, left=0.08, right=0.88)
-        plt.savefig(save_dir + snap + '_' + ptypes[i] + '_support_slice_x' + save_suffix + '.pdf')
+        plt.savefig(save_dir + snap + '_' + ftypes[i] + '_support_slice_x' + save_suffix + '.pdf')
 
     # Delete output from temp directory if on pleiades
     if (args.system=='pleiades_cassi'):
@@ -1148,30 +1270,35 @@ def velocity_slice(snap):
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
 
-    vtypes = ['radial', 'theta', 'phi']
-    vlabels = ['Radial', '$\\theta$', '$\phi$']
-    vmins = [-500, -200, -200]
-    vmaxes = [500, 200, 200]
+    #vtypes = ['radial', 'theta', 'phi']
+    #vlabels = ['Radial', '$\\theta$', '$\phi$']
+    #vmins = [-500, -200, -200]
+    #vmaxes = [500, 200, 200]
+    vtypes = ['x', 'y', 'z']
+    vlabels = ['$x$', '$y$', '$z$']
+    vmins = [-500, -500, -500]
+    vmaxes = [500, 500, 500]
 
     pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
     lvl1_res = pix_res*2.**11.
     level = 9
-    refine_res = int(500./(lvl1_res/(2.**level)))
-    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([250.,250.,250.],'kpc'), dims=[refine_res, refine_res, refine_res])
+    refine_res = int(3.*Rvir/(lvl1_res/(2.**level)))
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
     temperature = box['temperature'].v
-    vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
-    vphi = box['phi_velocity_corrected'].in_units('cm/s').v
-    vr = box['radial_velocity_corrected'].in_units('cm/s').v
-    smooth_vtheta = uniform_filter(vtheta, size=20)
-    smooth_vphi = uniform_filter(vphi, size=20)
-    smooth_vr = uniform_filter(vr, size=20)
-    sig_theta = vtheta - smooth_vtheta
-    sig_phi = vphi - smooth_vphi
-    sig_r = vr - smooth_vr
+    #vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
+    #vphi = box['phi_velocity_corrected'].in_units('cm/s').v
+    #vr = box['radial_velocity_corrected'].in_units('cm/s').v
+    #smooth_vtheta = uniform_filter(vtheta, size=20)
+    #smooth_vphi = uniform_filter(vphi, size=20)
+    #smooth_vr = uniform_filter(vr, size=20)
+    #sig_theta = vtheta - smooth_vtheta
+    #sig_phi = vphi - smooth_vphi
+    #sig_r = vr - smooth_vr
 
     for i in range(len(vtypes)):
-        v = box[vtypes[i] + '_velocity_corrected'].in_units('km/s').v
+        #v = box[vtypes[i] + '_velocity_corrected'].in_units('km/s').v
+        v = box['v' + vtypes[i] + '_corrected'].in_units('km/s').v
         smooth_v = uniform_filter(v, size=20)
         sig_v = v - smooth_v
         v = np.ma.masked_where((density > cgm_density_max) & (temperature < cgm_temperature_min), v)
@@ -1184,7 +1311,7 @@ def velocity_slice(snap):
         cmap = copy.copy(mpl.cm.RdBu)
         # Need to rotate to match up with how yt plots it
         im1 = ax1.imshow(rotate(v[len(v)//2,:,:],90), cmap=cmap, norm=colors.Normalize(vmin=vmins[i], vmax=vmaxes[i]), \
-                  extent=[-250,250,-250,250])
+                  extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
         ax1.set_xlabel('y [kpc]', fontsize=20)
         ax1.set_ylabel('z [kpc]', fontsize=20)
         ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
@@ -1193,7 +1320,7 @@ def velocity_slice(snap):
         cb.ax.tick_params(labelsize=16)
         cb.ax.set_ylabel(vlabels[i] + ' Velocity [km/s]', fontsize=16)
         im2 = ax2.imshow(rotate(smooth_v[len(smooth_v)//2,:,:],90), cmap=cmap, norm=colors.Normalize(vmin=vmins[i], vmax=vmaxes[i]), \
-                  extent=[-250,250,-250,250])
+                  extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
         ax2.set_xlabel('y [kpc]', fontsize=20)
         ax2.set_ylabel('z [kpc]', fontsize=20)
         ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
@@ -1201,8 +1328,8 @@ def velocity_slice(snap):
         cb = fig.colorbar(im2, ax=ax2, orientation='vertical', pad=0)
         cb.ax.tick_params(labelsize=16)
         cb.ax.set_ylabel('Smoothed ' + vlabels[i] + ' Velocity [km/s]', fontsize=16)
-        im3 = ax3.imshow(rotate(sig_v[len(sig_v)//2,:,:],90), cmap=cmap, norm=colors.Normalize(vmin=-200, vmax=200), \
-                  extent=[-250,250,-250,250])
+        im3 = ax3.imshow(rotate(sig_v[len(sig_v)//2,:,:],90), cmap=cmap, norm=colors.Normalize(vmin=vmins[i], vmax=vmaxes[i]), \
+                  extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
         ax3.set_xlabel('y [kpc]', fontsize=20)
         ax3.set_ylabel('z [kpc]', fontsize=20)
         ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
@@ -1230,6 +1357,66 @@ def vorticity_slice(snap):
     slc.set_zlim('vorticity_magnitude', 1e-17, 1e-13)
     slc.set_cmap('vorticity_magnitude', 'BuGn')
     slc.save(save_dir + snap + '_vorticity_slice_x' + save_suffix + '.pdf')
+
+def vorticity_direction(snap):
+    '''Plots a mass-weighted histogram of vorticity direction in theta-phi space split into cold,
+    cool, warm, and hot gas for each thin spherical shell in the dataset given by snapshot 'snap'.'''
+
+    masses_ind = np.where(masses['snapshot']==snap)[0]
+    Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
+    Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    # Copy output to temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap
+        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+        snap_name = snap_dir + '/' + snap
+    else:
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+
+    sphere = ds.sphere(ds.halo_center_kpc, (100., 'kpc'))
+    mass = sphere['cell_mass'].in_units('Msun').v
+    radius = sphere['radius_corrected'].in_units('kpc').v
+    temperature = sphere['temperature'].v
+    vort_x = sphere['vorticity_x'].v
+    vort_y = sphere['vorticity_y'].v
+    vort_z = sphere['vorticity_z'].v
+    r = np.sqrt(vort_x*vort_x + vort_y*vort_y + vort_z*vort_z)
+    vort_theta = np.arccos(vort_z/r)
+    vort_phi = np.arctan2(vort_y, vort_x)
+    print('Fields loaded')
+
+    Tcut = [0.,10**4.5,10**5.5,10**6.5,10**9]
+    Tlabels = ['Cold gas', 'Cool gas', 'Warm gas', 'Hot gas']
+    shells = np.arange(5.,101.,1)
+    x_range = [0, np.pi]
+    y_range = [-np.pi, np.pi]
+
+    for i in range(len(shells)-1):
+        if (i % 10 == 0): print('%d/%d' % (i, len(shells)-1))
+        fig = plt.figure(figsize=(8,8))
+        vort_theta_shell = vort_theta[(radius >= shells[i]) & (radius < shells[i+1])]
+        vort_phi_shell = vort_phi[(radius >= shells[i]) & (radius < shells[i+1])]
+        temp_shell = temperature[(radius >= shells[i]) & (radius < shells[i+1])]
+        mass_shell = mass[(radius >= shells[i]) & (radius < shells[i+1])]
+        for j in range(len(Tcut)-1):
+            vort_theta_T = vort_theta_shell[(temp_shell >= Tcut[j]) & (temp_shell < Tcut[j+1])]
+            vort_phi_T = vort_phi_shell[(temp_shell >= Tcut[j]) & (temp_shell < Tcut[j+1])]
+            mass_T = mass_shell[(temp_shell >= Tcut[j]) & (temp_shell < Tcut[j+1])]
+            ax = fig.add_subplot(2,2,j+1)
+            hist = ax.hist2d(vort_theta_T, vort_phi_T, weights=mass_T, bins=100, range=[x_range, y_range])
+            ax.set_xlabel('$\\theta$', fontsize=18)
+            ax.set_ylabel('$\\phi$', fontsize=18)
+            ax.set_title(Tlabels[j], fontsize=20)
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+              top=True, right=True)
+            if (j==1): ax.text(np.pi, np.pi+1., '$%.1f \\mathrm{kpc} < r < %.1f \\mathrm{kpc}$' % (shells[i], shells[i+1]), \
+                               fontsize=20, ha='right', va='center')
+        plt.subplots_adjust(left=0.095, bottom=0.067, right=0.979, top=0.917, wspace=0.248, hspace=0.286)
+        plt.savefig(save_dir + '/' + snap + '_vorticity_direction_r%.1f-%.1fkpc' % (shells[i], shells[i+1]) + save_suffix + '.png')
 
 if __name__ == "__main__":
 
@@ -1310,6 +1497,18 @@ if __name__ == "__main__":
                 vorticity_slice(outs[i])
         else:
             target = vorticity_slice
+    elif (args.plot=='force_slice'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                force_slice(outs[i])
+        else:
+            target = force_slice
+    elif (args.plot=='vorticity_direction'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                vorticity_direction(outs[i])
+        else:
+            target = vorticity_direction
     else:
         sys.exit("That plot type hasn't been implemented!")
 
