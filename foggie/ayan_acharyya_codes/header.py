@@ -11,15 +11,18 @@
 
 import numpy as np
 import multiprocessing as mproc
-import os, sys, argparse, re, subprocess, time, math, shutil
+import seaborn as sns
+import os, sys, argparse, re, subprocess, time, math, shutil, copy
 
 from matplotlib import pyplot as plt
+plt.style.use('seaborn')
 from matplotlib import patheffects as fx
+from matplotlib.colors import LogNorm
 
 from pathlib import Path
 from importlib import reload
 
-from scipy import optimize as op, exp
+from scipy import optimize as op, exp, stats
 from scipy.interpolate import interp1d
 from scipy.interpolate import RegularGridInterpolator as RGI
 from scipy.interpolate import LinearNDInterpolator as LND
@@ -32,6 +35,7 @@ from astropy.stats import gaussian_fwhm_to_sigma as gf2s
 from astropy import convolution as con
 
 from operator import itemgetter
+from collections import defaultdict
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -42,6 +46,7 @@ pd.set_option('display.max_columns', 50)
 pd.set_option('display.width', 1000)
 
 import yt
+#yt.toggle_interactivity()
 from yt.units import *
 import yt.visualization.eps_writer as eps
 
@@ -49,6 +54,7 @@ from foggie.utils.get_run_loc_etc import *
 from foggie.utils.consistency import *
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
+from foggie.utils.get_proper_box_size import get_proper_box_size
 
 # ------------declaring constants to be used globally-----------
 c = 3e5  # km/s
@@ -79,7 +85,7 @@ sb99_dir = HOME + '/SB99-v8-02/output/' # this is where your Starburst99 model o
 sb99_model = 'starburst11'  # for fixed stellar mass input spectra = 1e6 Msun, run up to 10 Myr
 sb99_mass = 1e6 # Msun, mass of star cluster in given SB99 model
 
-projection_dict = {'x': ('y', 'z'), 'y':('z', 'x'), 'z':('x', 'y')} # which axes are projected for which line of sight args.projection
+projection_dict = {'x': ('y', 'z', 'x'), 'y':('z', 'x', 'y'), 'z':('x', 'y', 'z')} # which axes are projected for which line of sight args.projection
 
 # ------------declaring list of ALL simulations-----------
 #all_sims = [('8508', 'RD0042'), ('5036', 'RD0039'), ('5016', 'RD0042'), ('4123', 'RD0031'), ('2878', 'RD0020'), ('2392', 'RD0030')] # only the latest (lowest z) available snapshot for each halo
@@ -93,3 +99,11 @@ all_sims = [('8508', 'RD0042'), ('8508', 'RD0039'), ('8508', 'RD0031'), ('8508',
             ('2878', 'RD0020'), ('2878', 'RD0018'), \
             ('2392', 'RD0030'), \
             ] # all snapshots in the HD
+
+# -----------declaring/modifying colormaps to be ued for certain properties throughout my code------------
+# individually comment out following lines to keep the original color_map as defined in foggie.utils.consistency
+#density_color_map = 'viridis'
+metal_color_map = 'viridis'
+#metal_color_map = sns.blend_palette(("#4575b4", "#984ea3", "#984ea3", "#d73027", "darkorange", "#ffe34d"), as_cmap=True)
+velocity_discrete_cmap = 'coolwarm'
+temperature_color_map = sns.blend_palette(("darkred", "#d73027", "darkorange", "#ffe34d"), as_cmap=True)
