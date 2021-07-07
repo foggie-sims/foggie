@@ -144,6 +144,12 @@ def parse_args():
                         'If you want a cylinder, you can only do one at at time.')
     parser.set_defaults(surface="['sphere', 0.05, 2., 200]")
 
+    parser.add_argument('--simple', dest='simple', action='store_true',
+                        help='Specify this if you just want to compute fluxes into and out of the shape(s)\n' + \
+                        "you've specified and ignoring fluxes within the shape itself. If using --simple,\n" + \
+                        'simply use 0 for num_steps in the --surface argument.')
+    parser.set_defaults(simple=False)
+
     parser.add_argument('--inverse', dest='inverse', action='store_true',
                         help='Do you want to calculate for everything *outside* of the shape(s) you\'ve specified?')
     parser.set_defaults(inverse=False)
@@ -197,7 +203,7 @@ def set_table_units(table):
             table[key].unit = None
         elif ('radius' in key) or ('height' in key) or ('edge' in key):
             table[key].unit = 'kpc'
-        elif ('mass' in key):
+        elif ('mass' in key) or ('metal' in key):
             table[key].unit = 'Msun/yr'
         elif ('energy' in key):
             table[key].unit = 'erg/yr'
@@ -259,6 +265,372 @@ def make_table(flux_types, surface_type, edge=False):
     table = Table(names=names_list, dtype=types_list)
 
     return table
+
+def make_table_simple(flux_types, surface_type):
+    '''Makes the giant table that will be saved to file.'''
+
+    if (surface_type[0]=='sphere'):
+            names_list = ['redshift', 'inner_radius', 'outer_radius']
+            types_list = ['f8', 'f8', 'f8']
+    if (surface_type[0]=='cylinder'):
+        if (surface_type[1]=='radius'):
+            names_list = ['redshift', 'radius', 'bottom_edge', 'top_edge']
+            types_list = ['f8', 'f8', 'f8', 'f8']
+
+    dir_name = ['net_', '_in', '_out']
+    if (args.temp_cut): temp_name = ['', 'cold_', 'cool_', 'warm_', 'hot_']
+    else: temp_name = ['']
+    for i in range(len(flux_types)):
+        for k in range(len(temp_name)):
+            for j in range(len(dir_name)):
+                if (flux_types[i]=='cooling_energy_flux'):
+                    if (j==0):
+                        name = 'net_' + temp_name[k] + 'cooling_energy_flux'
+                        names_list += [name]
+                        types_list += ['f8']
+                else:
+                    if (j==0): name = dir_name[j]
+                    else: name = ''
+                    name += temp_name[k]
+                    name += flux_types[i]
+                    if (j>0): name += dir_name[j]
+                    names_list += [name]
+                    types_list += ['f8']
+
+    table = Table(names=names_list, dtype=types_list)
+
+    return table
+
+def calc_fluxes_simple(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_suffix, surface_args, flux_types, Menc_profile, disk=False, Rvir=100., halo_center_kpc2=[0,0,0]):
+    '''This function calculates the fluxes specified by 'flux_types' into and out of the surfaces specified by 'surface_args'. It
+    uses the dataset stored in 'ds', which is from time snapshot 'snap', has redshift
+    'zsnap', and has width of the refine box in kpc 'refine_width_kpc', the time step between outputs
+    'dt', and stores the fluxes in 'tablename' with 'save_suffix' appended. If 'disk' is True,
+    then at least once surface shape requires disk-relative fields or angular momentum will be
+    calculated relative to disk directions.
+
+    This function calculates the flux as the sum of all cells whose velocity and distance from the
+    surface of interest indicate that the gas contained in that cell will be displaced across the
+    surface of interest by the next timestep. That is, the properties of a cell contribute to the
+    flux if it is no further from the surface of interest than v*dt where v is the cell's velocity
+    normal to the surface and dt is the time between snapshots, which is dt = 5.38e6 yrs for the DD
+    outputs.
+
+    This function differs from calc_fluxes below in that it returns just one flux across each surface
+    specified, rather than fluxes at a number of steps within the total shape bounded by the surface.
+    It only tracks things entering or leaving the closed surface and nothing else.'''
+
+    # Set up table of everything we want
+    fluxes = []
+    flux_filename = ''
+    if ('mass' in flux_types):
+        fluxes.append('mass_flux')
+        fluxes.append('metal_flux')
+        flux_filename += '_mass'
+    if ('energy' in flux_types):
+        fluxes.append('thermal_energy_flux')
+        fluxes.append('kinetic_energy_flux')
+        fluxes.append('radial_kinetic_energy_flux')
+        fluxes.append('tangential_kinetic_energy_flux')
+        fluxes.append('potential_energy_flux')
+        fluxes.append('bernoulli_energy_flux')
+        fluxes.append('cooling_energy_flux')
+        flux_filename += '_energy'
+    if ('entropy' in flux_types):
+        fluxes.append('entropy_flux')
+        flux_filename += '_entropy'
+    if ('O_ion_mass' in flux_types):
+        fluxes.append('O_mass_flux')
+        fluxes.append('OI_mass_flux')
+        fluxes.append('OII_mass_flux')
+        fluxes.append('OIII_mass_flux')
+        fluxes.append('OIV_mass_flux')
+        fluxes.append('OV_mass_flux')
+        fluxes.append('OVI_mass_flux')
+        fluxes.append('OVII_mass_flux')
+        fluxes.append('OVIII_mass_flux')
+        fluxes.append('OIX_mass_flux')
+        flux_filename += '_Oion'
+    if ('angular_momentum' in flux_types):
+        fluxes.append('angular_momentum_x_flux')
+        fluxes.append('angular_momentum_y_flux')
+        fluxes.append('angular_momentum_z_flux')
+        flux_filename += '_angmom'
+
+    if (surface_args[0][0]=='cylinder'):
+        table = make_table_simple(fluxes, ['cylinder', surface_args[0][7]])
+        bottom_edge = surface_args[0][1]
+        top_edge = surface_args[0][2]
+        cyl_radius = surface_args[0][6]
+        max_radius = np.sqrt(cyl_radius**2. + max(abs(bottom_edge), abs(top_edge)))
+        if (args.units_kpc):
+            max_radius = ds.quan(max_radius+20., 'kpc')
+            row = [zsnap, cyl_radius, bottom_edge, top_edge]
+        elif (args.units_rvir):
+            max_radius = ds.quan(max_radius*Rvir+20., 'kpc')
+            row = [zsnap, cyl_radius*Rvir, bottom_edge*Rvir, top_edge*Rvir]
+        else:
+            max_radius = max_radius*refine_width_kpc+20.
+            row = [zsnap, cyl_radius*refine_width_kpc, bottom_edge*refine_width_kpc, top_edge*refine_width_kpc]
+    else:
+        table = make_table_simple(fluxes, ['sphere', 0])
+        inner_radius = surface_args[0][1]
+        outer_radius = surface_args[0][2]
+        if (args.units_kpc):
+            max_radius = ds.quan(outer_radius+20., 'kpc')
+            row = [zsnap, inner_radius, outer_radius]
+        elif (args.units_rvir):
+            max_radius = ds.quan(outer_radius*Rvir+20., 'kpc')
+            row = [zsnap, inner_radius*Rvir, outer_radius*Rvir]
+        else:
+            max_radius = outer_radius*refine_width_kpc+20.
+            row = [zsnap, inner_radius*refine_width_kpc, outer_radius*refine_width_kpc]
+
+    # Load arrays of all fields we need
+    print('Loading field arrays')
+    sphere = ds.sphere(ds.halo_center_kpc, max_radius)
+
+    radius = sphere['gas','radius_corrected'].in_units('kpc').v
+    x = sphere['gas','x'].in_units('kpc').v - ds.halo_center_kpc[0].v
+    y = sphere['gas','y'].in_units('kpc').v - ds.halo_center_kpc[1].v
+    z = sphere['gas','z'].in_units('kpc').v - ds.halo_center_kpc[2].v
+    if (disk):
+        x_disk = sphere['gas','x_disk'].in_units('kpc').v
+        y_disk = sphere['gas','y_disk'].in_units('kpc').v
+        z_disk = sphere['gas','z_disk'].in_units('kpc').v
+        vx_disk = sphere['gas','vx_disk'].in_units('km/s').v
+        vy_disk = sphere['gas','vy_disk'].in_units('km/s').v
+        vz_disk = sphere['gas','vz_disk'].in_units('km/s').v
+        new_x_disk = x_disk + vx_disk*dt*(100./cmtopc*stoyr)
+        new_y_disk = y_disk + vy_disk*dt*(100./cmtopc*stoyr)
+        new_z_disk = z_disk + vz_disk*dt*(100./cmtopc*stoyr)
+    theta = sphere['gas','theta_pos'].v
+    phi = sphere['gas', 'phi_pos'].v
+    vx = sphere['gas','vx_corrected'].in_units('km/s').v
+    vy = sphere['gas','vy_corrected'].in_units('km/s').v
+    vz = sphere['gas','vz_corrected'].in_units('km/s').v
+    rad_vel = sphere['gas','radial_velocity_corrected'].in_units('km/s').v
+    new_x = x + vx*dt*(100./cmtopc*stoyr)
+    new_y = y + vy*dt*(100./cmtopc*stoyr)
+    new_z = z + vz*dt*(100./cmtopc*stoyr)
+    new_radius = np.sqrt(new_x**2. + new_y**2. + new_z**2.)
+    new_theta = np.arccos(new_z/new_radius)
+    new_phi = np.arctan2(new_y, new_x)
+    temperature = np.log10(sphere['gas','temperature'].in_units('K').v)
+    fields = []
+    if ('mass' in flux_types):
+        mass = sphere['gas','cell_mass'].in_units('Msun').v
+        metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
+        fields.append(mass)
+        fields.append(metal_mass)
+    if ('energy' in flux_types):
+        kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
+        radial_kinetic_energy = sphere['gas','radial_kinetic_energy'].in_units('erg').v
+        if (disk): tangential_kinetic_energy = sphere['gas','tangential_kinetic_energy_disk'].in_units('erg').v
+        else: tangential_kinetic_energy = sphere['gas','tangential_kinetic_energy'].in_units('erg').v
+        thermal_energy = (sphere['gas','cell_mass']*sphere['gas','thermal_energy']).in_units('erg').v
+        potential_energy = -G * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)*sphere['gas','cell_mass'].in_units('g').v
+        bernoulli_energy = kinetic_energy + 5./3.*thermal_energy + potential_energy
+        cooling_energy = thermal_energy/sphere['gas','cooling_time'].in_units('yr').v
+        fields.append(thermal_energy)
+        fields.append(kinetic_energy)
+        fields.append(radial_kinetic_energy)
+        fields.append(tangential_kinetic_energy)
+        fields.append(potential_energy)
+        fields.append(bernoulli_energy)
+        fields.append(cooling_energy)
+    if ('entropy' in flux_types):
+        entropy = sphere['gas','entropy'].in_units('keV*cm**2').v
+        fields.append(entropy)
+    if ('O_ion_mass' in flux_types):
+        trident.add_ion_fields(ds, ions='all', ftype='gas')
+        abundances = trident.ion_balance.solar_abundance
+        OI_frac = sphere['O_p0_ion_fraction'].v
+        OII_frac = sphere['O_p1_ion_fraction'].v
+        OIII_frac = sphere['O_p2_ion_fraction'].v
+        OIV_frac = sphere['O_p3_ion_fraction'].v
+        OV_frac = sphere['O_p4_ion_fraction'].v
+        OVI_frac = sphere['O_p5_ion_fraction'].v
+        OVII_frac = sphere['O_p6_ion_fraction'].v
+        OVIII_frac = sphere['O_p7_ion_fraction'].v
+        OIX_frac = sphere['O_p8_ion_fraction'].v
+        renorm = OI_frac + OII_frac + OIII_frac + OIV_frac + OV_frac + \
+          OVI_frac + OVII_frac + OVIII_frac + OIX_frac
+        O_frac = abundances['O']/(sum(abundances.values()) - abundances['H'] - abundances['He'])
+        O_mass = sphere['metal_mass'].in_units('Msun').v*O_frac
+        OI_mass = OI_frac/renorm*O_mass
+        OII_mass = OII_frac/renorm*O_mass
+        OIII_mass = OIII_frac/renorm*O_mass
+        OIV_mass = OIV_frac/renorm*O_mass
+        OV_mass = OV_frac/renorm*O_mass
+        OVI_mass = OVI_frac/renorm*O_mass
+        OVII_mass = OVII_frac/renorm*O_mass
+        OVIII_mass = OVIII_frac/renorm*O_mass
+        OIX_mass = OIX_frac/renorm*O_mass
+        fields.append(O_mass)
+        fields.append(OI_mass)
+        fields.append(OII_mass)
+        fields.append(OIII_mass)
+        fields.append(OIV_mass)
+        fields.append(OV_mass)
+        fields.append(OVI_mass)
+        fields.append(OVII_mass)
+        fields.append(OVIII_mass)
+        fields.append(OIX_mass)
+    if ('angular_momentum' in flux_types):
+        if (args.ang_mom_dir!='default') and (args.ang_mom_dir!='x') and (args.ang_mom_dir!='y') and (args.ang_mom_dir!='minor'):
+            try:
+                ang_mom_dir = ast.literal_eval(args.ang_mom_dir)
+            except ValueError:
+                sys.exit("Something's wrong with the way you are specifying your angular momentum vector.\n" + \
+                        "options are: x, y, minor, or a tuple specifying the 3D coordinates of a vector.")
+        if (args.ang_mom_dir=='default'):
+            ang_x = x
+            ang_y = y
+            ang_z = z
+            ang_vx = vx
+            ang_vy = vy
+            ang_vz = vz
+        elif (args.ang_mom_dir=='x'):
+            ang_x = y
+            ang_y = z
+            ang_z = x
+            ang_vx = vy
+            ang_vy = vz
+            ang_vz = vx
+        elif (args.ang_mom_dir=='y'):
+            ang_x = z
+            ang_y = x
+            ang_z = y
+            ang_vx = vz
+            ang_vy = vx
+            ang_vz = vy
+        elif (args.ang_mom_dir=='minor'):
+            ang_x = sphere['gas','x_disk'].in_units('kpc').v
+            ang_y = sphere['gas','y_disk'].in_units('kpc').v
+            ang_z = sphere['gas','z_disk'].in_units('kpc').v
+            ang_vx = sphere['gas','vx_disk'].in_units('km/s').v
+            ang_vy = sphere['gas','vy_disk'].in_units('km/s').v
+            ang_vz = sphere['gas','vz_disk'].in_units('km/s').v
+        else:
+            axis = np.array(ang_mom_dir)
+            norm_axis = axis / np.sqrt((axis**2.).sum())
+            # Define other unit vectors orthagonal to the angular momentum vector
+            np.random.seed(99)
+            x_axis = np.random.randn(3)            # take a random vector
+            x_axis -= x_axis.dot(norm_axis) * norm_axis       # make it orthogonal to L
+            x_axis /= np.linalg.norm(x_axis)            # normalize it
+            y_axis = np.cross(norm_axis, x_axis)           # cross product with L
+            x_vec = ds.arr(x_axis)
+            y_vec = ds.arr(y_axis)
+            z_vec = ds.arr(norm_axis)
+            # Calculate the rotation matrix for converting from original coordinate system
+            # into this new basis
+            xhat = np.array([1,0,0])
+            yhat = np.array([0,1,0])
+            zhat = np.array([0,0,1])
+            transArr0 = np.array([[xhat.dot(x_vec), xhat.dot(y_vec), xhat.dot(z_vec)],
+                                 [yhat.dot(x_vec), yhat.dot(y_vec), yhat.dot(z_vec)],
+                                 [zhat.dot(x_vec), zhat.dot(y_vec), zhat.dot(z_vec)]])
+            rotationArr = np.linalg.inv(transArr0)
+            ang_x = rotationArr[0][0]*x + rotationArr[0][1]*y + rotationArr[0][2]*z
+            ang_y = rotationArr[1][0]*x + rotationArr[1][1]*y + rotationArr[1][2]*z
+            ang_z = rotationArr[2][0]*x + rotationArr[2][1]*y + rotationArr[2][2]*z
+            ang_vx = rotationArr[0][0]*vx + rotationArr[0][1]*vy + rotationArr[0][2]*vz
+            ang_vy = rotationArr[1][0]*vx + rotationArr[1][1]*vy + rotationArr[1][2]*vz
+            ang_vz = rotationArr[2][0]*vx + rotationArr[2][1]*vy + rotationArr[2][2]*vz
+        ang_mom_x = mass*gtoMsun*(ang_y*ang_vz - ang_z*ang_vy)*1e5*1000*cmtopc
+        ang_mom_y = mass*gtoMsun*(ang_z*ang_vx - ang_x*ang_vz)*1e5*1000*cmtopc
+        ang_mom_z = mass*gtoMsun*(ang_x*ang_vy - ang_y*ang_vx)*1e5*1000*cmtopc
+        fields.append(ang_mom_x)
+        fields.append(ang_mom_y)
+        fields.append(ang_mom_z)
+
+    # Cut to just the shapes specified
+    if (disk):
+        if (surface_args[0][0]=='cylinder'):
+            bool_inshapes, radius = segment_region(x, y, z, theta, phi, radius, surface_args, refine_width_kpc, \
+              x_disk=x_disk, y_disk=y_disk, z_disk=z_disk, Rvir=Rvir, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+            bool_inshapes_new, new_radius = segment_region(new_x, new_y, new_z, new_theta, new_phi, new_radius, surface_args, refine_width_kpc, \
+              x_disk=new_x_disk, y_disk=new_y_disk, z_disk=new_z_disk, Rvir=Rvir, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+        else:
+            bool_inshapes = segment_region(x, y, z, theta, phi, radius, surface_args, refine_width_kpc, \
+              x_disk=x_disk, y_disk=y_disk, z_disk=z_disk, Rvir=Rvir, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+            bool_inshapes_new = segment_region(new_x, new_y, new_z, new_theta, new_phi, new_radius, surface_args, refine_width_kpc, \
+              x_disk=new_x_disk, y_disk=new_y_disk, z_disk=new_z_disk, Rvir=Rvir, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+    else:
+        if (surface_args[0][0]=='cylinder'):
+            bool_inshapes, radius = segment_region(x, y, z, theta, phi, radius, surface_args, refine_width_kpc, \
+              Rvir=Rvir, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+            bool_inshapes_new, new_radius = segment_region(new_x, new_y, new_z, new_theta, new_phi, new_radius, surface_args, refine_width_kpc, \
+              Rvir=Rvir, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+        else:
+            bool_inshapes = segment_region(x, y, z, theta, phi, radius, surface_args, refine_width_kpc, \
+              Rvir=Rvir, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+            bool_inshapes_new = segment_region(new_x, new_y, new_z, new_theta, new_phi, new_radius, surface_args, refine_width_kpc, \
+              Rvir=Rvir, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+    bool_inshapes_entire = (bool_inshapes) & (bool_inshapes_new)
+    bool_toshapes = (~bool_inshapes) & (bool_inshapes_new)
+    bool_fromshapes = (bool_inshapes) & (~bool_inshapes_new)
+
+    # Cut to entering/leaving shapes
+    fields_in_shapes = []
+    fields_out_shapes = []
+    radius_in_shapes = radius[bool_toshapes]
+    new_radius_in_shapes = new_radius[bool_toshapes]
+    temperature_in_shapes = temperature[bool_toshapes]
+    temperature_shapes = temperature[bool_inshapes_entire]
+    radius_out_shapes = radius[bool_fromshapes]
+    new_radius_out_shapes = new_radius[bool_fromshapes]
+    temperature_out_shapes = temperature[bool_fromshapes]
+    for i in range(len(fields)):
+        field = fields[i]
+        fields_in_shapes.append(field[bool_toshapes])
+        fields_out_shapes.append(field[bool_fromshapes])
+
+    if (args.temp_cut): temps = [0.,4.,5.,6.,12.]
+    else: temps = [0.]
+
+    for i in range(len(fields)):
+        if (fluxes[i]=='cooling_energy_flux'):
+            iter = [0]
+            field = fields[i][bool_inshapes_entire]
+        else:
+            iter = [0,1,2]
+            field_in = fields_in_shapes[i]
+            field_out = fields_out_shapes[i]
+
+        for k in range(len(temps)):
+            if (k==0):
+                if (fluxes[i]=='cooling_energy_flux'):
+                    field_t = field
+                else:
+                    field_in_t = field_in
+                    field_out_t = field_out
+            else:
+                if (fluxes[i]=='cooling_energy_flux'):
+                    field_t = field[(temperature_shapes > temps[k-1]) & (temperature_shapes < temps[k])]
+                else:
+                    field_in_t = field_in[(temperature_in_shapes > temps[k-1]) & (temperature_in_shapes < temps[k])]
+                    field_out_t = field_out[(temperature_out_shapes > temps[k-1]) & (temperature_out_shapes < temps[k])]
+            for j in iter:
+                if (j==0):
+                    if (fluxes[i]=='cooling_energy_flux'):
+                        row.append(-np.sum(field_t))
+                    else:
+                        row.append(np.sum(field_out_t)/dt - np.sum(field_in_t)/dt)
+                if (j==1):
+                    row.append(-np.sum(field_in_t)/dt)
+                if (j==2):
+                    row.append(np.sum(field_out_t)/dt)
+
+    table.add_row(row)
+    table = set_table_units(table)
+
+    # Save to file
+    table.write(tablename + flux_filename + save_suffix + '_simple.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
+    return "Fluxes have been calculated for snapshot " + snap + "!"
 
 def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_suffix, surface_args, flux_types, Menc_profile, sat=False, sat_radius=0.,inverse=False, disk=False, Rvir=100., halo_center_kpc2=[0,0,0]):
     '''This function calculates the fluxes specified by 'flux_types' into and out of the surfaces specified by 'surface_args'. It
@@ -834,7 +1206,13 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap]
 
     # Do the actual calculation
-    message = calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_suffix, surface_args, flux_types, Menc_profile, sat=sat, sat_radius=sat_radius,inverse=args.inverse, disk=disk, Rvir=Rvir, halo_center_kpc2=halo_center_kpc2)
+    if (args.simple):
+        message = calc_fluxes_simple(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_suffix, \
+          surface_args, flux_types, Menc_profile, disk=disk, Rvir=Rvir, halo_center_kpc2=halo_center_kpc2)
+    else:
+        message = calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_suffix, \
+          surface_args, flux_types, Menc_profile, sat=sat, sat_radius=sat_radius,inverse=args.inverse, \
+          disk=disk, Rvir=Rvir, halo_center_kpc2=halo_center_kpc2)
 
     # Delete output from temp directory if on pleiades
     if (system=='pleiades_cassi'):

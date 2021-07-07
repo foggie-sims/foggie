@@ -227,6 +227,8 @@ def foggie_load(snap, trackfile, **kwargs):
                     force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'vff'), function=v_ff, units='km/s', display_name='Free fall velocity', take_log=False, \
                     force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'vesc'), function=v_esc, units='km/s', display_name='Escape velocity', take_log=False, \
+                    force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'tcool_tff'), function=tcool_tff_ratio, units=None, display_name='t_{cool}/t_{ff}', take_log=True, \
                     force_override=True, sampling_type='cell')
         ds.add_field(('gas','grav_pot'), function=grav_pot, units='cm**2/s**2', force_override=True, sampling_type='cell', \
