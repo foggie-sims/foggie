@@ -82,14 +82,9 @@ def incline(paramlist, args):
 def get_grid_coord(paramlist, args):
     '''
     Function to convert physical coordinates to grid (pixel) coordinates
-    :param paramlist: (1) Curtails paramlist to keep only those HII regions that are within 2 x args.galrad kpx box
-                      (2) Adds new columns to paramlist, corresponding to every spatial coordinate
+    :param paramlist: Adds new columns to paramlist, corresponding to every spatial coordinate
     :return: paramlist
     '''
-
-    initial_length = len(paramlist)
-    paramlist = paramlist[(paramlist['pos_x_cen'].between(-args.galrad, args.galrad)) & (paramlist['pos_y_cen'].between(-args.galrad, args.galrad)) & (paramlist['pos_z_cen'].between(-args.galrad, args.galrad))].reset_index(drop=True)  # Curtails paramlist to keep only those HII regions that are within 2 x args.galrad kpx box
-    myprint(str(len(paramlist)) + ' HII regions remain out of ' + str(initial_length) + ', within the ' + str(2*args.galrad) + ' kpc^3 box', args)
 
     paramlist['pos_x_grid'] = ((paramlist['pos_x_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
     paramlist['pos_y_grid'] = ((paramlist['pos_y_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
@@ -97,8 +92,27 @@ def get_grid_coord(paramlist, args):
 
     return paramlist
 
+# -----------------------------------------------------------------------
+def filter_h2list(paramlist, args, linelist):
+    '''
+    Function to curtail the HII region list as per various criteria
+    :param paramlist: (1) Curtails paramlist to keep only those HII regions that are within 2 x args.galrad kpcs box
+                      (2) Curtails paramlist to keep only those HII regions that have finite flux values for relevant emission lines (i.e. whose phase space coordinates lie within our MAPPINGS grid interpolation range)
+    :return: paramlist
+    '''
+
+    initial_length = len(paramlist)
+    paramlist = paramlist[(paramlist['pos_x_cen'].between(-args.galrad, args.galrad)) & (paramlist['pos_y_cen'].between(-args.galrad, args.galrad)) & (paramlist['pos_z_cen'].between(-args.galrad, args.galrad))].reset_index(drop=True)  # Curtails paramlist to keep only those HII regions that are within 2 x args.galrad kpx box
+    myprint(str(len(paramlist)) + ' HII regions remain out of ' + str(initial_length) + ', within the ' + str(2*args.galrad) + ' kpc^3 box', args)
+
+    initial_length = len(paramlist)
+    paramlist = paramlist.dropna(axis=0, subset=linelist['label'].values).reset_index(drop=True)
+    myprint(str(len(paramlist)) + ' HII regions remain out of ' + str(initial_length) + ', after discarding those outside the (Zin, lognII, age, logU) parameter space', args)
+
+    return paramlist
+
 # -------------------------------------------------------------------------------------------------
-def get_SB99continuum(wmin, wmax):
+def get_SB99continuum():
     '''
     Function to read in Starburst99 file, interpolate the continuum vs wavelength for a given stellar age
     :param wmin: starting wavelength to compute continuum
@@ -153,26 +167,23 @@ def get_ideal_datacube(args, linelist):
 
     instrument = telescope(args) # declare an instrument
     ifu = idealcube(args, instrument, linelist) # declare a cube object
-
-    cube_output_path = get_cube_output_path(args)
-    args.idealcube_filename = cube_output_path + 'ideal_ifu' + args.mergeHII_text + '.fits'
+    paramlist = filter_h2list(paramlist, args, ifu.linelist)
 
     if os.path.exists(args.idealcube_filename) and not args.clobber:
         myprint('Reading from already existing file ' + args.idealcube_filename + ', use --args.clobber to overwrite', args)
     else:
         myprint('Ideal cube file does not exist. Creating now..', args)
-        cont_interp_func_arr = get_SB99continuum(ifu.rest_wave_range[0], ifu.rest_wave_range[1])
+        cont_interp_func_arr = get_SB99continuum()
+        ifu.counts = np.zeros((np.shape(ifu.data)[0], np.shape(ifu.data)[1])) # to keep a tab on how many HII regions contributed to a certain pixel
 
         # -------iterating over each HII region now, to compute LoS spectra (stellar continuum + nebular emission) for each-------------
         for index, HIIregion in paramlist.iterrows():
-            myprint('Particle ' + str(index + 1) + ' of ' + str(len(paramlist)) + '..', args)
-
             age_rounded = int(round(HIIregion['age']))
             flux = np.multiply(cont_interp_func_arr[age_rounded](ifu.base_wave_arr), (HIIregion['mass'] / sb99_mass))  # to scale the continuum by HII region mass, as the ones produced by SB99 was for sb99_mass; ergs/s/A
 
             for line_index, thisline in ifu.linelist.iterrows():
                 try:
-                    flux = gauss(ifu.base_wave_arr, flux, thisline['wave_vacuum'], HIIregion[thisline['label']], args.vel_disp, HIIregion['vel_z_inc'])  # adding every line flux on top of continuum; gaussians are in ergs/s/A
+                    flux = gauss(ifu.base_wave_arr, flux, thisline['wave_vacuum'], HIIregion[thisline['label']], args.vel_disp, HIIregion['vel_' + projection_dict[args.projection][2] + '_inc'])  # adding every line flux on top of continuum; gaussians are in ergs/s/A
                 except KeyError:
                     ifu.linelist = ifu.linelist.drop(line_index)  # discarding label from linelist if it is not present in HIIRegion dataframe
                     pass
@@ -180,8 +191,12 @@ def get_ideal_datacube(args, linelist):
 
             flux = np.array([flux[ifu.bin_index == ii].mean() for ii in range(1, len(ifu.dispersion_arr) + 1)])  # spectral smearing i.e. rebinning of spectrum                                                                                                                             #mean() is used here to conserve flux; as f is in units of ergs/s/A, we want integral of f*dlambda to be preserved (same before and after resampling)
             # this can be checked as np.sum(f[1:]*np.diff(wavelength_array))
-
-            ifu.data[int(HIIregion['pos_' + projection_dict[args.projection][0] + '_grid'])][int(HIIregion['pos_' + projection_dict[args.projection][1] + '_grid'])][:] += flux  # flux is ergs/s/A
+            x_cell = int(HIIregion['pos_' + projection_dict[args.projection][0] + '_grid'])
+            y_cell = int(HIIregion['pos_' + projection_dict[args.projection][1] + '_grid'])
+            ifu.data[x_cell][y_cell][:] += flux  # flux is ergs/s/A
+            ifu.counts[x_cell][y_cell] += 1
+            myprint('Particle ' + str(index + 1) + ' of ' + str(len(paramlist)) + '..', args)
+            if args.debug: myprint('with bolometric flux = ' + '%.2E'%(np.sum(flux)) + ' ers/s/A, ' + ' is assigned to cell ' + str(x_cell) + ',' + str(y_cell) + ' which now has total ' + '%d'%(ifu.counts[x_cell][y_cell]) + ' star particles and total flux ' + '%.2E'%(np.sum(ifu.data[x_cell, y_cell, :])) + ' ers/s/A', args)
 
         ifu.data = ifu.data / (4 * np.pi * (ifu.distance * Mpc_to_cm)**2) # converting from ergs/s/A to ergs/s/cm^2/A
         write_fitsobj(args.idealcube_filename, ifu, instrument, args, for_qfits=True) # writing into FITS file
@@ -204,11 +219,6 @@ if __name__ == '__main__':
     for index, this_sim in enumerate(list_of_sims):
         myprint('Doing halo ' + this_sim[0] + ' snapshot ' + this_sim[1] + ', which is ' + str(index + 1) + ' out of ' + str(len(list_of_sims)) + '..', dummy_args)
         args = parse_args(this_sim[0], this_sim[1])
-        # ----------iterating over diag_arr and Om_ar to find the correct file with emission line fluxes-----------------------
-        for diag in args.diag_arr:
-            args.diag = diag
-            for Om in args.Om_arr:
-                args.Om = Om
-                ideal_ifu, paramlist, args = get_ideal_datacube(args, linelist)
+        ideal_ifu, paramlist, args = get_ideal_datacube(args, linelist)
 
     myprint('Done making ideal datacubes for all given args.diag_arr and args.Om_arr', args)
