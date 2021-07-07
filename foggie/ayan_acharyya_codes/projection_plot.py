@@ -37,13 +37,13 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     elif normal_vector is not None: # do rotated off axis ProjectionPlot
         prj = yt.OffAxisProjectionPlot(ds, normal_vector, field, north_vector=north_vector, center=center, width=box_width_code, data_source=small_box, weight_field=weight_field)
     else: # do ProjectionPlot
-        prj = yt.ProjectionPlot(ds, axs, field, center=center, data_source=small_box, width=box_width_kpc)#, weight_field=weight_field)
+        prj = yt.ProjectionPlot(ds, axs, field, center=center, data_source=small_box, width=box_width_kpc, weight_field=weight_field)
 
     print('Just the plotting took %s minutes' % ((time.time() - start_time2) / 60))
 
     prj.set_log(field, iscolorlog)
-    #prj.set_unit(field, unit)
-    #prj.set_zlim(field, zmin=zmin, zmax=zmax)
+    prj.set_unit(field, unit)
+    prj.set_zlim(field, zmin=zmin, zmax=zmax)
     if field[1] == 'age': prj.set_buff_size((67, 67)) ##
     try: cmap.set_bad('k')
     except: pass
