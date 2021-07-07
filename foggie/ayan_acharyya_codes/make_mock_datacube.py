@@ -106,7 +106,7 @@ def get_noise_in_voxel(data, wavelength, target_SNR, args):
 
     return absolute_noise, random_noise
 # -----------------------------------------------------------------------
-def get_mock_datacube(ideal_ifu, args, linelist, cube_output_path):
+def get_mock_datacube(ideal_ifu, args, linelist):
     '''
     Function to produce ideal IFU datacube, for a given base spatial and spectral resolution;
     :param paramlist: Computes spectra (stellar continuum + emission lines) for each HII region (in paramlist), then adds all spectra along each LoS, binned spatially
@@ -116,9 +116,6 @@ def get_mock_datacube(ideal_ifu, args, linelist, cube_output_path):
     start_time = time.time()
 
     instrument = telescope(args)  # declare the instrument
-    args.smoothed_cube_filename = cube_output_path + instrument.path + 'smoothed_ifu' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '.fits'
-    args.mockcube_filename = cube_output_path + instrument.path + 'mock_ifu' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '_exp' + str(args.exptime) + 's_snr' + str(args.snr) + '.fits'
-    Path(cube_output_path + instrument.path).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
 
     if os.path.exists(args.mockcube_filename) and not args.clobber:
         myprint('Reading noisy mock ifu from already existing file ' + args.mockcube_filename + ', use --args.clobber to overwrite', args)
@@ -128,6 +125,7 @@ def get_mock_datacube(ideal_ifu, args, linelist, cube_output_path):
         else:
             myprint('Noisy or no-noise mock cube file does not exist. Creating now..', args)
             ifu = mockcube(args, instrument, linelist)  # declare the noiseless mock datacube object
+            Path(args.cube_output_path + instrument.path).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
 
             # ----- cut wavelength slice from ideal_ifu, depending on mock_ifu's 'observed' wavelength range ------
             start_wave_index = np.where(ideal_ifu.wavelength >= ifu.rest_wave_range[0])[0][0]
@@ -161,9 +159,6 @@ def wrap_get_mock_datacube(args):
     '''
     linelist = read_linelist(mappings_lab_dir + 'targetlines.txt')  # list of emission lines
 
-    cube_output_path = get_cube_output_path(args)
-    args.idealcube_filename = cube_output_path + 'ideal_ifu' + args.mergeHII_text + '.fits'
-
     if os.path.exists(args.idealcube_filename):
         myprint('Ideal cube file exists ' + args.idealcube_filename, args)
     else:
@@ -172,7 +167,7 @@ def wrap_get_mock_datacube(args):
 
     ideal_ifu = readcube(args.idealcube_filename, args) # read in the ideal datacube
 
-    mock_ifu, args = get_mock_datacube(ideal_ifu, args, linelist, cube_output_path)
+    mock_ifu, args = get_mock_datacube(ideal_ifu, args, linelist)
     return mock_ifu, ideal_ifu, args
 
 # -----------------------------------------------------------------------------
@@ -186,12 +181,7 @@ if __name__ == '__main__':
     for index, this_sim in enumerate(list_of_sims):
         myprint('Doing halo ' + this_sim[0] + ' snapshot ' + this_sim[1] + ', which is ' + str(index + 1) + ' out of ' + str(len(list_of_sims)) + '..', dummy_args)
         args = parse_args(this_sim[0], this_sim[1])
-        # ----------iterating over diag_arr and Om_ar to find the correct file with emission line fluxes-----------------------
-        for diag in args.diag_arr:
-            args.diag = diag
-            for Om in args.Om_arr:
-                args.Om = Om
-                mock_ifu, ideal_ifu, args = wrap_get_mock_datacube(args)
+        mock_ifu, ideal_ifu, args = wrap_get_mock_datacube(args)
 
     myprint('Done making mock datacubes for all given args.diag_arr and args.Om_arr', args)
 
