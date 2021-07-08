@@ -48,7 +48,7 @@ pd.set_option('display.width', 1000)
 import yt
 #yt.toggle_interactivity()
 from yt.units import *
-import yt.visualization.eps_writer as eps
+#import yt.visualization.eps_writer as eps
 
 from foggie.utils.get_run_loc_etc import *
 from foggie.utils.consistency import *

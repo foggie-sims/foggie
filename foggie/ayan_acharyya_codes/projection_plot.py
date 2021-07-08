@@ -18,18 +18,14 @@ start_time = time.time()
 # --------------------------------------------------------------------------------
 def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cmap, name, unit='Msun/pc**2', \
             zmin=density_proj_min, zmax=density_proj_max, ann_sphere_rad=(1, 'kpc'), weight_field=None, \
-            normal_vector=None, north_vector=None, hide_axes=False, iscolorlog=False):
+            normal_vector=None, north_vector=None, hide_axes=False, iscolorlog=False, noweight=False):
     '''
     Function to make yt projection plot
     (adopted from foggie.satellites.for_paper.central_projection_plots)
     '''
     box_width_kpc = box_width * kpc
     box_width_code = box_width / get_proper_box_size(ds) # converting from kpc to code units
-    '''
-    from yt.visualization.volume_rendering.transfer_function_helper import TransferFunctionHelper
-    tfh = TransferFunctionHelper(ds)
-    tfh.set_bounds(5e-2, 1e4)
-    '''
+    if noweight: weight_field = None
 
     start_time2 = time.time()
     if field[1] == 'age': # then do ParticlePlot
@@ -42,8 +38,9 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     print('Just the plotting took %s minutes' % ((time.time() - start_time2) / 60))
 
     prj.set_log(field, iscolorlog)
-    prj.set_unit(field, unit)
-    prj.set_zlim(field, zmin=zmin, zmax=zmax)
+    if not noweight:
+        prj.set_unit(field, unit)
+        prj.set_zlim(field, zmin=zmin, zmax=zmax)
     if field[1] == 'age': prj.set_buff_size((67, 67)) ##
     try: cmap.set_bad('k')
     except: pass
@@ -66,7 +63,7 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
 def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                           fig_end='projection', do=['stars', 'gas', 'metal'], axes=['x', 'y', 'z'], annotate_positions=[], \
                           is_central=False, add_velocity=False, add_arrow=False, start_arrow=[], end_arrow=[], rot_frame=0, \
-                          nframes=200, hide_axes=False, iscolorlog=False):
+                          nframes=200, hide_axes=False, iscolorlog=False, noweight=False):
     '''
     Function to arrange overheads of yt projection plot
     (adopted from foggie.satellites.for_paper.central_projection_plots)
@@ -100,7 +97,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
         for d in do:
             zmin = zmin_dict[d] if args.cmin is None else args.cmin
             zmax = zmax_dict[d] if args.cmax is None else args.cmax
-            prj = do_plot(ds, field_dict[d], ax, annotate_positions, small_box, center, box_width, cmap_dict[d], name, unit=unit_dict[d], zmin=zmin, zmax=zmax, weight_field=weight_field_dict[d], normal_vector=normal_vector, north_vector=north_vector, hide_axes=hide_axes, iscolorlog=iscolorlog)
+            prj = do_plot(ds, field_dict[d], ax, annotate_positions, small_box, center, box_width, cmap_dict[d], name, unit=unit_dict[d], zmin=zmin, zmax=zmax, weight_field=weight_field_dict[d], normal_vector=normal_vector, north_vector=north_vector, hide_axes=hide_axes, iscolorlog=iscolorlog, noweight=noweight)
 
             if add_velocity: prj.annotate_velocity(factor=20)
             if add_arrow:
@@ -168,7 +165,7 @@ if __name__ == '__main__':
                                         fig_dir=fig_dir, name=halo_dict[args.halo], \
                                         fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.projection.split(',')], \
                                         is_central=args.do_central, add_arrow=args.add_arrow, add_velocity=args.add_velocity, rot_frame=nrot, \
-                                        nframes=args.nframes, hide_axes=args.hide_axes, iscolorlog=args.iscolorlog) # using halo_center_kpc instead of refine_box_center
+                                        nframes=args.nframes, hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight) # using halo_center_kpc instead of refine_box_center
             #prj.show(block=False)
         else:
             print('Skipping plotting step')

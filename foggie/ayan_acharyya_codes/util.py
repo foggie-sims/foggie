@@ -740,6 +740,7 @@ def parse_args(haloname, RDname):
     # ------- args added for projection_plot.py ------------------------------
     parser.add_argument('--age_thresh', metavar='age_thresh', type=float, action='store', default=10., help='age threshold to decide young/not-young stars, in Myr; default is 10')
     parser.add_argument('--noplot', dest='noplot', action='store_true', default=False, help='Skip all plotting steps?, default is no')
+    parser.add_argument('--noweight', dest='noweight', action='store_true', default=False, help='Skip weighting the projection?, default is no')
     parser.add_argument('--makerotmovie', dest='makerotmovie', action='store_true', default=False, help='Make a rotation projection movie?, default is no')
     parser.add_argument('--nframes', metavar='nframes', type=int, action='store', default=200, help='total number of frames in movie, i.e. number of parts to divide the full 2*pi into; default is 200')
     parser.add_argument('--nrot', metavar='nrot', type=int, action='store', default=0, help='what fraction of rotation (0=0, 1 = 2*pi)? default is 0, i.e. first slice = no rotation')
