@@ -88,6 +88,11 @@ if __name__ == '__main__':
         myprint('Doing halo ' + this_sim[0] + ' snapshot ' + this_sim[1] + ', which is ' + str(index + 1) + ' out of ' + str(len(list_of_sims)) + '..', dummy_args)
         if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
         else: args = dummy_args # since parse_args() has already been called and evaluated once, no need to repeat it
+
+        if type(args) is tuple:
+            args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+            myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
+
         args.diag = args.diag_arr[0]
         args.Om = args.Om_arr[0]
 

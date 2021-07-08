@@ -106,10 +106,15 @@ if __name__ == '__main__':
     if dummy_args.do_all_sims: list_of_sims = get_all_sims(dummy_args)
     else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
 
-    for index, this_sim in enumerate(list_of_sims):
+    for index, this_sim in enumerate(list_of_sims[20:]):
         myprint('Doing snashot %s of halo %s which is %d out of %d total snapshots...'%(this_sim[1], this_sim[0], index+1, len(list_of_sims)), dummy_args)
         if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
         else: args = dummy_args # since parse_args() has already been called and evaluated once, no need to repeat it
+
+        if type(args) is tuple:
+            args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+            myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
+
         paramlist = get_star_properties(args)
 
     myprint('All sims done in %s minutes' % ((time.time() - start_time) / 60), args)
