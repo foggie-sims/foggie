@@ -22,6 +22,8 @@ from matplotlib.colors import LogNorm
 from pathlib import Path
 from importlib import reload
 
+from mpi4py import MPI
+
 from scipy import optimize as op, exp, stats
 from scipy.interpolate import interp1d
 from scipy.interpolate import RegularGridInterpolator as RGI

@@ -223,6 +223,15 @@ class noisycube(mockcube):
         myprint('Noisy cube initialised with exposure time = ' + str(self.exptime) + ' s, and target SNR/pixel = ' + str(self.snr), args)
 
 # -------------------------------------------------------------------------------------------
+def print_mpi(string, args):
+    '''
+    Function to print corresponding to each mpi thread
+    '''
+    comm = MPI.COMM_WORLD
+    if comm.rank == 0: myprint('[' + str(comm.rank) + '] ' + string + '\n', args)
+    else: myprint('[' + str(comm.rank) + '] {' + subprocess.check_output(['uname -n'],shell=True)[:-1].decode("utf-8") + '} ' + string + '\n', args)
+
+# -------------------------------------------------------------------------------------------
 def myprint(text, args):
     '''
     Function to direct the print output to stdout or a file, depending upon user args
@@ -673,7 +682,7 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
 # --------------------------------------------------------------------------------------------
 def get_all_sims(args):
     '''
-    Function assimilate the names of all halows and snapshots available in the given directory
+    Function assimilate the names of all halos and snapshots available in the given directory
     '''
     foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     halo_paths = glob.glob(foggie_dir + 'halo_*')
@@ -683,6 +692,19 @@ def get_all_sims(args):
         snashot_paths = glob.glob(foggie_dir + 'halo_00' + thishalo + '/nref11c_nref9f/*/')
         snapshots = [item.split('/')[-2] for item in snashot_paths]
         for thissnap in snapshots: all_sims.append([thishalo, thissnap])
+
+    return all_sims
+
+# --------------------------------------------------------------------------------------------
+def get_all_sims_for_this_halo(args):
+    '''
+    Function assimilate the names of all snapshots available for the given halo
+    '''
+    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    all_sims = []
+    snashot_paths = glob.glob(foggie_dir + 'halo_00' + args.halo + '/nref11c_nref9f/*/')
+    snapshots = [item.split('/')[-2] for item in snashot_paths]
+    for thissnap in snapshots: all_sims.append([args.halo, thissnap])
 
     return all_sims
 

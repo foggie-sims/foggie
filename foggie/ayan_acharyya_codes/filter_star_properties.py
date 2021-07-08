@@ -105,16 +105,39 @@ if __name__ == '__main__':
 
     if dummy_args.do_all_sims: list_of_sims = get_all_sims(dummy_args)
     else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
+    total_snaps = len(list_of_sims)
 
-    for index, this_sim in enumerate(list_of_sims[20:]):
-        myprint('Doing snashot %s of halo %s which is %d out of %d total snapshots...'%(this_sim[1], this_sim[0], index+1, len(list_of_sims)), dummy_args)
-        if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
-        else: args = dummy_args # since parse_args() has already been called and evaluated once, no need to repeat it
+    # --------domain decomposition; for mpi parallelisation-------------
+    comm = MPI.COMM_WORLD
+    ncores = comm.size
+    rank = comm.rank
+
+    split_at_cpu = total_snaps - ncores * int(total_snaps/ncores)
+    nper_cpu1 = int(total_snaps / ncores)
+    nper_cpu2 = nper_cpu1 + 1
+    if rank < split_at_cpu:
+        core_start = rank * nper_cpu2
+        core_end = (rank+1) * nper_cpu2 - 1
+    else:
+        core_start = split_at_cpu * nper_cpu2 + (rank - split_at_cpu) * nper_cpu1
+        core_end = split_at_cpu * nper_cpu2 + (rank - split_at_cpu + 1) * nper_cpu1 - 1
+    # --------------------------------------------------------------
+
+    for index in range(core_start, core_end + 1):
+        this_sim = list_of_sims[index]
+        print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index) + ' out of ' + str(core_end) + ' of the ' + str(core_end - core_start + 1) + ' snapshots alloted to this core...', dummy_args)
+        try:
+            if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
+            else: args = dummy_args # since parse_args() has already been called and evaluated once, no need to repeat it
+        except FileNotFoundError:
+            print_mpi(this_sim[1] + ' not found; skipping..', dummy_args)
+            total_snaps = total_snaps - 1
+            continue
 
         if type(args) is tuple:
             args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
-            myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
+            print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
 
-        paramlist = get_star_properties(args)
+        #paramlist = get_star_properties(args)
 
-    myprint('All sims done in %s minutes' % ((time.time() - start_time) / 60), args)
+    print_mpi('All sims done in %s minutes' % ((time.time() - start_time) / 60), args)
