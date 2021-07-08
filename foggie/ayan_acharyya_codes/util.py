@@ -39,7 +39,7 @@ class telescope(object):
             self.obs_wave_range = np.array(self.obs_wave_range)
 
         else: # assigning user input parameters for this unknown instrument
-            myprint('Unknown instrument: ' + self.name + '; using user input/default attributes', args)
+            #myprint('Unknown instrument: ' + self.name + '; using user input/default attributes', args)
             self.name = 'dummy'
             self.obs_wave_range = np.array(args.obs_wave_range) # in microns
             self.obs_spec_res = args.obs_spec_res # in km/s
@@ -682,7 +682,7 @@ def get_all_sims(args):
     for thishalo in halos:
         snashot_paths = glob.glob(foggie_dir + 'halo_00' + thishalo + '/nref11c_nref9f/*/')
         snapshots = [item.split('/')[-2] for item in snashot_paths]
-        for thissnap in snapshots: all_sims.append(thishalo, thissnap)
+        for thissnap in snapshots: all_sims.append([thishalo, thissnap])
 
     return all_sims
 

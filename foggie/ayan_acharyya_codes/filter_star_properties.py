@@ -106,10 +106,10 @@ if __name__ == '__main__':
     if dummy_args.do_all_sims: list_of_sims = get_all_sims(dummy_args)
     else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
 
-    for this_sim in list_of_sims:
-        myprint('Doing snashot %s of halo %s...'%(this_sim[1], this_sim[0]), args)
+    for index, this_sim in enumerate(list_of_sims):
+        myprint('Doing snashot %s of halo %s which is %d out of %d total snapshots...'%(this_sim[1], this_sim[0], index+1, len(list_of_sims)), dummy_args)
         if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
         else: args = dummy_args # since parse_args() has already been called and evaluated once, no need to repeat it
-        #paramlist = get_star_properties(args)
+        paramlist = get_star_properties(args)
 
     myprint('All sims done in %s minutes' % ((time.time() - start_time) / 60), args)
