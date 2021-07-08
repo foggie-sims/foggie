@@ -43,7 +43,8 @@ def get_metallicity(measured_cube, args):
         flux_dict[thisline] = fluxes[:, :, thisline_index]
 
     metallicity = get_D16_metallicity(flux_dict)
-    metallicity_u = np.zeros(np.shape(metallicity)) # temporary
+    #metallicity = get_PPN2_metallicity(flux_dict)
+    metallicity_u = np.zeros(np.shape(metallicity)) # placeholder for future brainwave
 
     if args.write_property:
         wrap_write_fitsobj(metallicity, metallicity_u, 'metallicity', measured_cube, args)
@@ -67,22 +68,18 @@ if __name__ == '__main__':
     start_time = time.time()
 
     args = parse_args('8508', 'RD0042')
-    args.diag = args.diag_arr[0]
-    args.Om = args.Om_arr[0]
+    if type(args) is tuple: args = args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     if not args.keep: plt.close('all')
 
-    cube_output_path = get_cube_output_path(args)
-    instrument = telescope(args)  # declare the instrument
-
-    if args.snr == 0: args.measured_cube_filename = cube_output_path + 'measured_cube' + args.mergeHII_text + '.fits'
-    else: args.measured_cube_filename = cube_output_path + instrument.path + 'measured_cube' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '_exp' + str(args.exptime) + 's_snr' + str(args.snr) + '.fits'
-
-    if not os.path.exists(args.measured_cube_filename):
+    if args.doideal: fitted_file = args.idealcube_filename
+    elif args.snr == 0: fitted_file = args.smoothed_cube_filename
+    else: fitted_file = args.mockcube_filename
+    measured_cube_filename = get_measured_cube_filename(fitted_file)
+    if not os.path.exists(measured_cube_filename):
         myprint('measured_cube does not exist, so calling fit_mock_spectra.py to create one..', args)
         measured_cube_dummy = fit_mock_spectra(args)
 
-    measured_cube = read_measured_cube(args.measured_cube_filename, args)
-
+    measured_cube = read_measured_cube(measured_cube_filename, args)
     property, property_u = compute_properties(measured_cube, args)
 
     print('Complete in %s minutes' % ((time.time() - start_time) / 60))

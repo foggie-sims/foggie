@@ -39,7 +39,7 @@ class telescope(object):
             self.obs_wave_range = np.array(self.obs_wave_range)
 
         else: # assigning user input parameters for this unknown instrument
-            myprint('Unknown instrument: ' + self.name + '; using user input/default attributes', args)
+            #myprint('Unknown instrument: ' + self.name + '; using user input/default attributes', args)
             self.name = 'dummy'
             self.obs_wave_range = np.array(args.obs_wave_range) # in microns
             self.obs_spec_res = args.obs_spec_res # in km/s
@@ -223,6 +223,15 @@ class noisycube(mockcube):
         myprint('Noisy cube initialised with exposure time = ' + str(self.exptime) + ' s, and target SNR/pixel = ' + str(self.snr), args)
 
 # -------------------------------------------------------------------------------------------
+def print_mpi(string, args):
+    '''
+    Function to print corresponding to each mpi thread
+    '''
+    comm = MPI.COMM_WORLD
+    if comm.rank == 0: myprint('[' + str(comm.rank) + '] ' + string + '\n', args)
+    else: myprint('[' + str(comm.rank) + '] {' + subprocess.check_output(['uname -n'],shell=True)[:-1].decode("utf-8") + '} ' + string + '\n', args)
+
+# -------------------------------------------------------------------------------------------
 def myprint(text, args):
     '''
     Function to direct the print output to stdout or a file, depending upon user args
@@ -371,9 +380,8 @@ def get_KD02_metallicity(photgrid):
     Function to compute KD02 metallicity from an input pandas dataframe with line fluxes as columns
     '''
 
-    log_ratio = np.log10(np.divide(photgrid['NII6584'], (photgrid['OII3727'] + photgrid['OII3729'])))
-    logOH = 1.54020 + 1.26602 * log_ratio + 0.167977 * log_ratio ** 2
-    Z = 10 ** logOH  # converting to Z (in units of Z_sol) from log(O/H) + 12
+    photgrid['N2O2'] = np.divide(photgrid['NII6584'], (photgrid['OII3727'] + photgrid['OII3729']))
+    Z =  get_KD02_metallicity_from_ratios(photgrid)
     return Z
 
 # ---------------------------------------------------------------------------------
@@ -381,9 +389,52 @@ def get_D16_metallicity(photgrid):
     '''
     Function to compute D16 metallicity from an input pandas dataframe with line fluxes as columns
     '''
+    photgrid['N2S2'] = np.divide(photgrid['NII6584'], (photgrid['SII6730'] + photgrid['SII6717']))
+    photgrid['N2Ha'] = np.divide(photgrid['NII6584'], photgrid['H6562'])
+    Z =  get_D16_metallicity_from_ratios(photgrid)
+    return Z
 
-    log_ratio = np.log10(np.divide(photgrid['NII6584'], (photgrid['SII6730'] + photgrid['SII6717']))) + 0.264 * np.log10(np.divide(photgrid['NII6584'], photgrid['H6562']))
+# ---------------------------------------------------------------------------------
+def get_PPN2_metallicity(photgrid):
+    '''
+    Function to compute PP04 N2/Ha metallicity from an input pandas dataframe with line fluxes as columns
+    '''
+
+    photgrid['N2Ha'] = np.divide(photgrid['NII6584'], photgrid['H6562'])
+    Z = get_PPN2_metallicity_from_ratios(photgrid)
+    return Z
+
+# ---------------------------------------------------------------------------------
+def get_D16_metallicity_from_ratios(photgrid):
+    '''
+    Function to compute D16 metallicity from an input pandas dataframe with line ratios as columns
+    '''
+
+    log_ratio = np.log10(photgrid['N2S2']) + 0.264 * np.log10(photgrid['N2Ha'])
     logOH = log_ratio + 0.45 * (log_ratio + 0.3) ** 5  # + 8.77
+    Z = 10 ** logOH  # converting to Z (in units of Z_sol) from log(O/H) + 12
+    return Z
+
+# ---------------------------------------------------------------------------------
+def get_PPN2_metallicity_from_ratios(photgrid):
+    '''
+    Function to compute PP04 N2/Ha metallicity from an input pandas dataframe with line ratios as columns
+    '''
+
+    log_ratio = np.log10(photgrid['N2Ha'])
+    logOH = 9.37 + 2.03 * log_ratio + 1.26 * log_ratio ** 2 + 0.32 * log_ratio ** 3 # from Pettini & Pagel 2004 eq 2
+    logOHsol = 8.66 # from PP04
+    Z = 10 ** (logOH - logOHsol)  # converting to Z (in units of Z_sol) from log(O/H) + 12
+    return Z
+
+# ---------------------------------------------------------------------------------
+def get_KD02_metallicity_from_ratios(photgrid):
+    '''
+    Function to compute KD02 metallicity from an input pandas dataframe with line ratios as columns
+    '''
+
+    log_ratio = np.log10(photgrid['N2O2'])
+    logOH = 1.54020 + 1.26602 * log_ratio + 0.167977 * log_ratio ** 2
     Z = 10 ** logOH  # converting to Z (in units of Z_sol) from log(O/H) + 12
     return Z
 
@@ -398,6 +449,13 @@ def get_cube_output_path(args):
 
     return cube_output_path
 
+# -------------------------------------------------------------------------------------------------
+def get_measured_cube_filename(parentfile):
+    '''
+    Function to derive the name of the measured cube file, based on the name of the fits file being fitted for emission lines
+    '''
+    return os.path.split(parentfile)[0] + '/measured_cube_' + os.path.split(parentfile)[1]
+
 # ------------------------------------------------------------------
 def saveplot(fig, args, plot_suffix, outputdir=None):
     '''
@@ -407,10 +465,10 @@ def saveplot(fig, args, plot_suffix, outputdir=None):
     Path(outputdir).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
 
     outputname = plot_suffix
-    if args.mergeHII_text not in outputname: outputname = args.mergeHII_text + outputname
-    if args.without_outlier not in outputname: outputname = args.without_outlier + outputname
+    if args.mergeHII_text not in outputname: outputname = outputname + args.mergeHII_text
+    if args.without_outlier not in outputname: outputname = outputname + args.without_outlier
 
-    outplotname = outputdir + outputname + '.png'
+    outplotname = outputdir + outputname + '.pdf'
     fig.savefig(outplotname)
     myprint('Saved plot as ' + outplotname, args)
 
@@ -454,16 +512,18 @@ class readcube(object):
 
         self.data = np.nan_to_num(self.data) # replacing all NaN values with 0, otherwise calculations get messed up
         self.data = self.data.swapaxes(0, 2) # switching from (wave, pos, pos) arrangement (QFitsView requires) to (pos, pos, wave) arrangement (traditional)
+        self.error = np.zeros_like(self.data) # assigning to with zeros for now, to be filled in later IF error array is available in the fits file
 
-        try:
-            self.error = cube[2].data
-            self.error = np.nan_to_num(self.error)  # replacing all NaN values with 0, otherwise calculations get messed up
-            self.error = self.error.swapaxes(0, 2)  # switching from (wave, pos, pos) arrangement (QFitsView requires) to (pos, pos, wave) arrangement (traditional)
-            myprint('Reading in available error cube', args)
-        except:
-            self.error = np.zeros(np.shape(self.data))
-            myprint('Error cube absent; filling with zeroes', args)
-            pass
+        if len(cube) > 2:
+            additional_data = cube[2].data
+            if len(np.shape(additional_data)) == 2: # then this is the 2D counts map attribute
+                self.counts = additional_data
+                myprint('Reading in available counts map', args)
+            elif len(np.shape(additional_data)) == 3: # then this is the 3D error cube attribute
+                self.error = additional_data
+                self.error = np.nan_to_num(self.error)  # replacing all NaN values with 0, otherwise calculations get messed up
+                self.error = self.error.swapaxes(0, 2)  # switching from (wave, pos, pos) arrangement (QFitsView requires) to (pos, pos, wave) arrangement (traditional)
+                myprint('Reading in available error cube', args)
 
 # ---------------------object containing info about measured data products that have been read in-----------------------------
 class read_measured_cube(object):
@@ -603,7 +663,12 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
 
     flux_hdu = fits.PrimaryHDU(flux, header=flux_header)
     wavelength_hdu = fits.ImageHDU(wavelength)
-    if hasattr(cube, 'error'):
+
+    if hasattr(cube, 'counts'): # number of hii regions contributing to each pixel; ONLY for ideal data cubes
+        counts = np.ma.filled(cube.counts, fill_value=fill_val)
+        counts_hdu = fits.ImageHDU(counts)
+        hdulist = fits.HDUList([flux_hdu, wavelength_hdu, counts_hdu])
+    elif hasattr(cube, 'error'): # error sttribute is only available for noisy data cubes
         error = np.ma.filled(cube.error, fill_value=fill_val)
         error = error.swapaxes(0,2) # QFitsView requires (wave, pos, pos) arrangement rather than (pos, pos, wave)  arrangement
         error_hdu = fits.ImageHDU(error)
@@ -613,6 +678,46 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
         hdulist = fits.HDUList([flux_hdu, wavelength_hdu])
     hdulist.writeto(filename, clobber=True)
     myprint('Written file ' + filename + '\n', args)
+
+# --------------------------------------------------------------------------------------------
+def get_all_sims(args):
+    '''
+    Function assimilate the names of all halos and snapshots available in the given directory
+    '''
+    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    halo_paths = glob.glob(foggie_dir + 'halo_*')
+    halos = [item.split('/')[-1][7:] for item in halo_paths]
+    all_sims = []
+    for thishalo in halos:
+        snashot_paths = glob.glob(foggie_dir + 'halo_00' + thishalo + '/nref11c_nref9f/*/')
+        snapshots = [item.split('/')[-2] for item in snashot_paths]
+        for thissnap in snapshots: all_sims.append([thishalo, thissnap])
+
+    return all_sims
+
+# --------------------------------------------------------------------------------------------
+def get_all_sims_for_this_halo(args):
+    '''
+    Function assimilate the names of all snapshots available for the given halo
+    '''
+    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    all_sims = []
+    snashot_paths = glob.glob(foggie_dir + 'halo_00' + args.halo + '/nref11c_nref9f/*/')
+    snapshots = [item.split('/')[-2] for item in snashot_paths]
+    for thissnap in snapshots: all_sims.append([args.halo, thissnap])
+
+    return all_sims
+
+# ---------------------------------------------------------------------------------------------
+def pull_halo_redshift(args):
+    '''
+    Function to pull the current redshift of the halo (WITHOUT having to load the simulation), by matching with the corresponding halo_c_v file
+    '''
+    _, _, _, code_path, _, haloname, _, _ = get_run_loc_etc(args)
+    halo_cat_file = code_path + 'halo_infos/00' + args.halo + '/nref11c_nref9f/halo_c_v'
+    df = pd.read_csv(halo_cat_file, comment='#', sep='\s+|')
+    z = df.loc[df['name']==args.output, 'redshift']
+    return z
 
 # ----------------------------------------------------------------------------------------------
 def pull_halo_center(args):
@@ -631,22 +736,24 @@ def pull_halo_center(args):
         halos_df['name'] = halos_df['name'].str.strip() # trimming column 'name' of extra whitespace
 
         if halos_df['name'].str.contains(args.output).any():
-            print("Pulling halo center from catalog file")
+            myprint("Pulling halo center from catalog file", args)
             halo_ind = halos_df.index[halos_df['name'] == args.output][0]
             args.halo_center = halos_df.loc[halo_ind, ['xc', 'yc', 'zc']].values # in kpc units
             args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
             calc_hc = False
         else:
-            print('This snapshot is not in the halos_df file, calculating halo center...')
+            myprint('This snapshot is not in the halos_df file, calculating halo center...', args)
             calc_hc = True
     else:
-        print("This halos_df file doesn't exist, calculating halo center...")
+        myprint("This halos_df file doesn't exist, calculating halo center...", args)
         calc_hc = True
     if calc_hc:
         ds, refine_box = load_sim(args, region='refine_box')
         args.halo_center = ds.halo_center_kpc
         args.halo_velocity = ds.halo_velocity_kms
-    return args
+        return args, ds, refine_box
+    else:
+        return args
 
 # --------------------------------------------------------------------------------------------------------------
 def parse_args(haloname, RDname):
@@ -656,224 +763,140 @@ def parse_args(haloname, RDname):
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='''identify satellites in FOGGIE simulations''')
     # ---- common args used widely over the full codebase ------------
-    parser.add_argument('--system', metavar='system', type=str, action='store', help='Which system are you on? Default is Jase')
-    parser.set_defaults(system='ayan_local')
+    parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_local', help='Which system are you on? Default is Jase')
+    parser.add_argument('--do', metavar='do', type=str, action='store', default='gas', help='Which particles do you want to plot? Default is gas')
+    parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f', help='which run? default is natural')
+    parser.add_argument('--halo', metavar='halo', type=str, action='store', default=haloname, help='which halo? default is 8508 (Tempest)')
+    parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x')
+    parser.add_argument('--output', metavar='output', type=str, action='store', default=RDname, help='which output? default is RD0020')
+    parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the current working directory?, default is no')
+    parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available?, default is no')
+    parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
+    parser.add_argument('--galrad', metavar='galrad', type=float, action='store', default=20., help='the radial extent (in each spatial dimension) to which computations will be done, in kpc; default is 20')
+    parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False, help='Use full refine box, ignoring args.galrad?, default is no')
 
-    parser.add_argument('--do', metavar='do', type=str, action='store', help='Which particles do you want to plot? Default is gas')
-    parser.set_defaults(do='gas')
-
-    parser.add_argument('--run', metavar='run', type=str, action='store', help='which run? default is natural')
-    parser.set_defaults(run="nref11c_nref9f")
-
-    parser.add_argument('--halo', metavar='halo', type=str, action='store', help='which halo? default is 8508 (Tempest)')
-    parser.set_defaults(halo=haloname)
-
-    parser.add_argument('--projection', metavar='projection', type=str, action='store', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x')
-    parser.set_defaults(projection='x')
-
-    parser.add_argument('--output', metavar='output', type=str, action='store', help='which output? default is RD0020')
-    parser.set_defaults(output=RDname)
-
-    parser.add_argument('--pwd', dest='pwd', action='store_true', help='Just use the current working directory?, default is no')
-    parser.set_defaults(pwd=False)
-
-    parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', help='Run the code on all simulation snapshots available?, default is no')
-    parser.set_defaults(do_all_sims=False)
-
-    parser.add_argument('--silent', dest='silent', action='store_true', help='Suppress all print statements?, default is no')
-    parser.set_defaults(silent=False)
+    # ------- args added for projection_plot.py ------------------------------
+    parser.add_argument('--age_thresh', metavar='age_thresh', type=float, action='store', default=10., help='age threshold to decide young/not-young stars, in Myr; default is 10')
+    parser.add_argument('--noplot', dest='noplot', action='store_true', default=False, help='Skip all plotting steps?, default is no')
+    parser.add_argument('--noweight', dest='noweight', action='store_true', default=False, help='Skip weighting the projection?, default is no')
+    parser.add_argument('--makerotmovie', dest='makerotmovie', action='store_true', default=False, help='Make a rotation projection movie?, default is no')
+    parser.add_argument('--nframes', metavar='nframes', type=int, action='store', default=200, help='total number of frames in movie, i.e. number of parts to divide the full 2*pi into; default is 200')
+    parser.add_argument('--nrot', metavar='nrot', type=int, action='store', default=0, help='what fraction of rotation (0=0, 1 = 2*pi)? default is 0, i.e. first slice = no rotation')
+    parser.add_argument('--do_central', dest='do_central', action='store_true', default=False, help='Do central refine box projection?, default is no')
+    parser.add_argument('--add_arrow', dest='add_arrow', action='store_true', default=False, help='Add arrows?, default is no')
+    parser.add_argument('--add_velocity', dest='add_velocity', action='store_true', default=False, help='Add velocity?, default is no')
+    parser.add_argument('--hide_axes', dest='hide_axes', action='store_true', default=False, help='Hide all axes?, default is no')
 
     # ------- args added for filter_star_properties.py ------------------------------
-    parser.add_argument('--plot_proj', dest='plot_proj', action='store_true', help='plot projection map? default is no')
-    parser.set_defaults(plot_proj=False)
-
-    parser.add_argument('--clobber', dest='clobber', action='store_true', help='overwrite existing outputs with same name?, default is no')
-    parser.set_defaults(clobber=False)
-
-    parser.add_argument('--automate', dest='automate', action='store_true', help='automatically execute the next script?, default is no')
-    parser.set_defaults(automate=False)
+    parser.add_argument('--plot_proj', dest='plot_proj', action='store_true', default=False, help='plot projection map? default is no')
+    parser.add_argument('--clobber', dest='clobber', action='store_true', default=False, help='overwrite existing outputs with same name?, default is no')
+    parser.add_argument('--automate', dest='automate', action='store_true', default=False, help='automatically execute the next script?, default is no')
 
     # ------- args added for compute_hii_radii.py ------------------------------
-    parser.add_argument('--galrad', metavar='galrad', type=float, action='store', help='the radial extent (in each spatial dimension) to which computations will be done, in kpc; default is 20')
-    parser.set_defaults(galrad=20.)
-
-    parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', help='separation btwn HII regions below which to merge them, in kpc; default is None i.e., do not merge')
-    parser.set_defaults(mergeHII=None)
+    parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', default=None, help='separation btwn HII regions below which to merge them, in kpc; default is None i.e., do not merge')
 
     # ------- args added for lookup_flux.py ------------------------------
-    parser.add_argument('--diag_arr', metavar='diag_arr', type=str, action='store', help='list of metallicity diagnostics to use')
-    parser.set_defaults(diag_arr='D16')
-
-    parser.add_argument('--Om_arr', metavar='Om_arr', type=str, action='store', help='list of Omega values to use')
-    parser.set_defaults(Om_arr='0.5')
-
-    parser.add_argument('--nooutliers', dest='nooutliers', action='store_true', help='discard outlier HII regions (according to D16 diagnostic)?, default is no')
-    parser.set_defaults(nooutliers=False)
-
-    parser.add_argument('--xratio', metavar='xratio', type=str, action='store', help='ratio of lines to plot on X-axis; default is None')
-    parser.set_defaults(xratio=None)
-
-    parser.add_argument('--yratio', metavar='yratio', type=str, action='store', help='ratio of lines to plot on Y-axis; default is None')
-    parser.set_defaults(yratio=None)
-
-    parser.add_argument('--fontsize', metavar='fontsize', type=int, action='store', help='fontsize of plot labels, etc.; default is 15')
-    parser.set_defaults(fontsize=15)
-
-    parser.add_argument('--plot_metgrad', dest='plot_metgrad', action='store_true', help='make metallicity gradient plot?, default is no')
-    parser.set_defaults(plot_metgrad=False)
-
-    parser.add_argument('--plot_phase_space', dest='plot_phase_space', action='store_true', help='make P-r phase space plot?, default is no')
-    parser.set_defaults(plot_phase_space=False)
-
-    parser.add_argument('--plot_obsv_phase_space', dest='plot_obsv_phase_space', action='store_true', help='overlay observed P-r phase space on plot?, default is no')
-    parser.set_defaults(plot_obsv_phase_space=False)
-
-    parser.add_argument('--plot_fluxgrid', dest='plot_fluxgrid', action='store_true', help='make flux ratio grid plot?, default is no')
-    parser.set_defaults(plot_fluxgrid=False)
-
-    parser.add_argument('--annotate', dest='annotate', action='store_true', help='annotate grid plot?, default is no')
-    parser.set_defaults(annotate=False)
-
-    parser.add_argument('--pause', dest='pause', action='store_true', help='pause after annotating each grid?, default is no')
-    parser.set_defaults(pause=False)
-
-    parser.add_argument('--plot_Zin_Zout', dest='plot_Zin_Zout', action='store_true', help='make input vs output metallicity plot?, default is no')
-    parser.set_defaults(plot_Zin_Zout=False)
-
-    parser.add_argument('--saveplot', dest='saveplot', action='store_true', help='save the plot?, default is no')
-    parser.set_defaults(saveplot=False)
-
-    parser.add_argument('--keep', dest='keep', action='store_true', help='keep previously displayed plots on screen?, default is no')
-    parser.set_defaults(keep=False)
-
-    parser.add_argument('--use_RGI', dest='use_RGI', action='store_true', help='kuse RGI interpolation vs LND?, default is no')
-    parser.set_defaults(use_RGI=False)
+    parser.add_argument('--diag_arr', metavar='diag_arr', type=str, action='store', default='D16', help='list of metallicity diagnostics to use')
+    parser.add_argument('--Om_arr', metavar='Om_arr', type=str, action='store', default='0.5', help='list of Omega values to use')
+    parser.add_argument('--nooutliers', dest='nooutliers', action='store_true', default=False, help='discard outlier HII regions (according to D16 diagnostic)?, default is no')
+    parser.add_argument('--xratio', metavar='xratio', type=str, action='store', default=None, help='ratio of lines to plot on X-axis; default is None')
+    parser.add_argument('--yratio', metavar='yratio', type=str, action='store', default=None, help='ratio of lines to plot on Y-axis; default is None')
+    parser.add_argument('--fontsize', metavar='fontsize', type=int, action='store', default=15, help='fontsize of plot labels, etc.; default is 15')
+    parser.add_argument('--plot_metgrad', dest='plot_metgrad', action='store_true', default=False, help='make metallicity gradient plot?, default is no')
+    parser.add_argument('--plot_phase_space', dest='plot_phase_space', action='store_true', default=False, help='make P-r phase space plot?, default is no')
+    parser.add_argument('--plot_obsv_phase_space', dest='plot_obsv_phase_space', action='store_true', default=False, help='overlay observed P-r phase space on plot?, default is no')
+    parser.add_argument('--plot_fluxgrid', dest='plot_fluxgrid', action='store_true', default=False, help='make flux ratio grid plot?, default is no')
+    parser.add_argument('--annotate', dest='annotate', action='store_true', default=False, help='annotate grid plot?, default is no')
+    parser.add_argument('--pause', dest='pause', action='store_true', default=False, help='pause after annotating each grid?, default is no')
+    parser.add_argument('--plot_Zin_Zout', dest='plot_Zin_Zout', action='store_true', default=False, help='make input vs output metallicity plot?, default is no')
+    parser.add_argument('--saveplot', dest='saveplot', action='store_true', default=False, help='save the plot?, default is no')
+    parser.add_argument('--keep', dest='keep', action='store_true', default=False, help='keep previously displayed plots on screen?, default is no')
+    parser.add_argument('--use_RGI', dest='use_RGI', action='store_true', default=False, help='kuse RGI interpolation vs LND?, default is no')
 
     # ------- args added for make_ideal_datacube.py ------------------------------
-    parser.add_argument('--obs_wave_range', metavar='obs_wave_range', type=str, action='store', help='observed wavelength range for the simulated instrument, in micron; default is (0.8, 1.7) microns')
-    parser.set_defaults(obs_wave_range='0.65,0.68')
-
-    parser.add_argument('--z', metavar='z', type=float, action='store', help='redshift of the mock datacube; default is 0.0001 (not 0, so as to avoid flux unit conversion issues)')
-    parser.set_defaults(z=0.0001)
-
-    parser.add_argument('--base_wave_range', metavar='base_wave_range', type=str, action='store', help='wavelength range for the ideal datacube, in micron; default is (0.64, 0.68) microns')
-    parser.set_defaults(base_wave_range='0.64,0.68')
-
-    parser.add_argument('--inclination', metavar='inclination', type=float, action='store', help='inclination angle to rotate the galaxy by, on a plane perpendicular to projection plane, i.e. if projection is xy, rotation is on yz, in degrees; default is 0')
-    parser.set_defaults(inclination=0.)
-
-    parser.add_argument('--vel_disp', metavar='vel_disp', type=float, action='store', help='intrinsic velocity dispersion for each emission line, in km/s; default is 15 km/s')
-    parser.set_defaults(vel_disp=15.)
-
-    parser.add_argument('--nbin_cont', metavar='nbin_cont', type=int, action='store', help='no. of spectral bins to bin the continuum (witout emission lines) in to; default is 1000')
-    parser.set_defaults(nbin_cont=1000)
-
-    parser.add_argument('--vel_highres_win', metavar='vel_highres_win', type=float, action='store', help='velocity window on either side of each emission line, in km/s, within which the continuum is resolved into finer (nbin_highres_cont) spectral elements; default is 500 km/s')
-    parser.set_defaults(vel_highres_win=500.)
-
-    parser.add_argument('--nbin_highres_cont', metavar='nbin_highres_cont', type=int, action='store', help='no. of additonal spectral bins to introduce around each emission line; default is 100')
-    parser.set_defaults(nbin_highres_cont=100)
-
-    parser.add_argument('--base_spec_res', metavar='base_spec_res', type=float, action='store', help='base spectral resolution, in km/s, i.e. to be employed while making the ideal datacube; default is 30 km/s')
-    parser.set_defaults(base_spec_res=30.)
-
-    parser.add_argument('--base_spatial_res', metavar='base_spatial_res', type=float, action='store', help='base spatial resolution, in kpc, i.e. to be employed while making the ideal datacube; default is 0.04 kpc = 40 pc')
-    parser.set_defaults(base_spatial_res=0.04)
-
-    parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', help='Redirect all print statements to a file?, default is no')
-    parser.set_defaults(print_to_file=False)
-
-    parser.add_argument('--printoutfile', metavar='printoutfile', type=str, action='store', help='file to write all print statements to; default is ./logfile.out')
-    parser.set_defaults(printoutfile='./logfile.out')
-
-    parser.add_argument('--instrument', metavar='instrument', type=str, action='store', help='which instrument to simulate?; default is dummy')
-    parser.set_defaults(instrument='dummy')
-
-    parser.add_argument('--debug', dest='debug', action='store_true', help='run in debug mode (lots of print checks)?, default is no')
-    parser.set_defaults(debug=False)
+    parser.add_argument('--center_wrt_halo', metavar='center_wrt_halo', type=str, action='store', default='0,0,0', help='where to center the mock ifu data cube relative to the halo center? (x,y,z) position coordinates in kpc; default is (0,0,0) i.e. no offset from halo center')
+    parser.add_argument('--obs_wave_range', metavar='obs_wave_range', type=str, action='store', default='0.65,0.68', help='observed wavelength range for the simulated instrument, in micron; default is (0.8, 1.7) microns')
+    parser.add_argument('--z', metavar='z', type=float, action='store', default=0.0001, help='redshift of the mock datacube; default is 0.0001 (not 0, so as to avoid flux unit conversion issues)')
+    parser.add_argument('--base_wave_range', metavar='base_wave_range', type=str, action='store', default='0.64,0.68', help='wavelength range for the ideal datacube, in micron; default is (0.64, 0.68) microns')
+    parser.add_argument('--inclination', metavar='inclination', type=float, action='store', default=0., help='inclination angle to rotate the galaxy by, on a plane perpendicular to projection plane, i.e. if projection is xy, rotation is on yz, in degrees; default is 0')
+    parser.add_argument('--vel_disp', metavar='vel_disp', type=float, action='store', default=15., help='intrinsic velocity dispersion for each emission line, in km/s; default is 15 km/s')
+    parser.add_argument('--nbin_cont', metavar='nbin_cont', type=int, action='store', default=1000, help='no. of spectral bins to bin the continuum (witout emission lines) in to; default is 1000')
+    parser.add_argument('--vel_highres_win', metavar='vel_highres_win', type=float, action='store', default=500., help='velocity window on either side of each emission line, in km/s, within which the continuum is resolved into finer (nbin_highres_cont) spectral elements; default is 500 km/s')
+    parser.add_argument('--nbin_highres_cont', metavar='nbin_highres_cont', type=int, action='store', default=100, help='no. of additonal spectral bins to introduce around each emission line; default is 100')
+    parser.add_argument('--base_spec_res', metavar='base_spec_res', type=float, action='store', default=30., help='base spectral resolution, in km/s, i.e. to be employed while making the ideal datacube; default is 30 km/s')
+    parser.add_argument('--base_spatial_res', metavar='base_spatial_res', type=float, action='store', default=0.04, help='base spatial resolution, in kpc, i.e. to be employed while making the ideal datacube; default is 0.04 kpc = 40 pc')
+    parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', default=False, help='Redirect all print statements to a file?, default is no')
+    parser.add_argument('--printoutfile', metavar='printoutfile', type=str, action='store', default='./logfile.out', help='file to write all print statements to; default is ./logfile.out')
+    parser.add_argument('--instrument', metavar='instrument', type=str, action='store', default='dummy', help='which instrument to simulate?; default is dummy')
+    parser.add_argument('--debug', dest='debug', action='store_true', default=False, help='run in debug mode (lots of print checks)?, default is no')
 
     # ------- args added for make_mock_datacube.py ------------------------------
-    parser.add_argument('--obs_spec_res', metavar='obs_spec_res', type=float, action='store', help='observed spectral resolution of the instrument, in km/s; default is 60 km/s')
-    parser.set_defaults(obs_spec_res=30.)
-
-    parser.add_argument('--obs_spatial_res', metavar='obs_spatial_res', type=float, action='store', help='observed spatial resolution of the instrument, in arcsec; default is 1.0"')
-    parser.set_defaults(obs_spatial_res=1.0)
-
-    parser.add_argument('--pix_per_beam', metavar='pix_per_beam', type=int, action='store', help='number of pixels to sample the resolution element (PSF) by; default is 6"')
-    parser.set_defaults(pix_per_beam=6)
-
-    parser.add_argument('--kernel', metavar='kernel', type=str, action='store', help='which kernel to simulate for seeing, gauss or moff?; default is gauss')
-    parser.set_defaults(kernel='gauss')
-
-    parser.add_argument('--ker_size_factor', metavar='ker_size_factor', type=int, action='store', help='factor to multiply kernel sigma by to get kernel size, e.g. if PSF sigma=5 pixel and ker_size_factor=5, kernel size=25 pixel; default is 5"')
-    parser.set_defaults(ker_size_factor=5)
-
-    parser.add_argument('--moff_beta', metavar='moff_beta', type=float, action='store', help='beta (power index) in moffat kernel; default is 4.7"')
-    parser.set_defaults(moff_beta=4.7)
-
-    parser.add_argument('--snr', metavar='snr', type=float, action='store', help='target SNR of the datacube; default is 0, i.e. noiseless"')
-    parser.set_defaults(snr=0)
-
-    parser.add_argument('--tel_radius', metavar='tel_radius', type=float, action='store', help='radius of telescope, in metres; default is 1 m')
-    parser.set_defaults(tel_radius=1)
-
-    parser.add_argument('--exptime', metavar='exptime', type=float, action='store', help='exposure time of observation, in sec; default is 1200 sec')
-    parser.set_defaults(exptime=1200.)
-
-    parser.add_argument('--el_per_phot', metavar='el_per_phot', type=float, action='store', help='how many electrons do each photon trigger in the instrument; default is 1"')
-    parser.set_defaults(el_per_phot=1)
+    parser.add_argument('--obs_spec_res', metavar='obs_spec_res', type=float, action='store', default=30., help='observed spectral resolution of the instrument, in km/s; default is 60 km/s')
+    parser.add_argument('--obs_spatial_res', metavar='obs_spatial_res', type=float, action='store', default=1.0, help='observed spatial resolution of the instrument, in arcsec; default is 1.0"')
+    parser.add_argument('--pix_per_beam', metavar='pix_per_beam', type=int, action='store', default=6, help='number of pixels to sample the resolution element (PSF) by; default is 6"')
+    parser.add_argument('--kernel', metavar='kernel', type=str, action='store', default='gauss', help='which kernel to simulate for seeing, gauss or moff?; default is gauss')
+    parser.add_argument('--ker_size_factor', metavar='ker_size_factor', type=int, action='store', default=5, help='factor to multiply kernel sigma by to get kernel size, e.g. if PSF sigma=5 pixel and ker_size_factor=5, kernel size=25 pixel; default is 5"')
+    parser.add_argument('--moff_beta', metavar='moff_beta', type=float, action='store', default=4.7, help='beta (power index) in moffat kernel; default is 4.7"')
+    parser.add_argument('--snr', metavar='snr', type=float, action='store', default=0, help='target SNR of the datacube; default is 0, i.e. noiseless"')
+    parser.add_argument('--tel_radius', metavar='tel_radius', type=float, action='store', default=1, help='radius of telescope, in metres; default is 1 m')
+    parser.add_argument('--exptime', metavar='exptime', type=float, action='store', default=1200., help='exposure time of observation, in sec; default is 1200 sec')
+    parser.add_argument('--el_per_phot', metavar='el_per_phot', type=float, action='store', default=1, help='how many electrons do each photon trigger in the instrument; default is 1"')
 
     # ------- args added for test_kit.py ------------------------------
-    parser.add_argument('--plot_hist', dest='plot_hist', action='store_true', help='make histogram plot?, default is no')
-    parser.set_defaults(plot_hist=False)
+    parser.add_argument('--plot_hist', dest='plot_hist', action='store_true', default=False, help='make histogram plot?, default is no')
 
     # ------- args added for fit_mock_spectra.py ------------------------------
-    parser.add_argument('--test_pixel', metavar='test_pixel', type=str, action='store', help='pixel to test continuum and flux fitting on; default is None')
-    parser.set_defaults(test_pixel=None)
-
-    parser.add_argument('--vel_mask', metavar='vel_mask', type=float, action='store', help='velocity window on either side of emission line, for masking, in km/s; default is 500')
-    parser.set_defaults(vel_mask=500.)
-
-    parser.add_argument('--nres_elements', metavar='nres_elements', type=int, action='store', help='how many resolution elements to consider on either side of each emission line, for determining group of lines; default is 15')
-    parser.set_defaults(nres_elements=15)
-
-    parser.add_argument('--testcontfit', dest='testcontfit', action='store_true', help='run a test of continuum fitting)?, default is no')
-    parser.set_defaults(testcontfit=False)
-
-    parser.add_argument('--testlinefit', dest='testlinefit', action='store_true', help='run a test of line fitting)?, default is no')
-    parser.set_defaults(testlinefit=False)
+    parser.add_argument('--test_pixel', metavar='test_pixel', type=str, action='store', default=None, help='pixel to test continuum and flux fitting on; default is None')
+    parser.add_argument('--vel_mask', metavar='vel_mask', type=float, action='store', default=500., help='velocity window on either side of emission line, for masking, in km/s; default is 500')
+    parser.add_argument('--nres_elements', metavar='nres_elements', type=int, action='store', default=20, help='how many resolution elements to consider on either side of each emission line, for determining group of lines; default is 20')
+    parser.add_argument('--testcontfit', dest='testcontfit', action='store_true', default=False, help='run a test of continuum fitting)?, default is no')
+    parser.add_argument('--testlinefit', dest='testlinefit', action='store_true', default=False, help='run a test of line fitting)?, default is no')
+    parser.add_argument('--doideal', dest='doideal', action='store_true', default=False, help='run on the ideal data cube (and corresponding products)?, default is no')
 
     # ------- args added for make_mock_measurements.py ------------------------------
-    parser.add_argument('--compute_property', metavar='compute_property', type=str, action='store', help='which property to compute?; default is metallicity')
-    parser.set_defaults(compute_property='metallicity')
-
-    parser.add_argument('--write_property', dest='write_property', action='store_true', help='append the property to existing measured cube file?; default is no')
-    parser.set_defaults(write_property=False)
+    parser.add_argument('--compute_property', metavar='compute_property', type=str, action='store', default='metallicity', help='which property to compute?; default is metallicity')
+    parser.add_argument('--write_property', dest='write_property', action='store_true', default=False, help='append the property to existing measured cube file?; default is no')
 
     # ------- args added for plot_mock_observables.py ------------------------------
-    parser.add_argument('--line', metavar='line', type=str, action='store', help='which emission line?; default is H6562')
-    parser.set_defaults(line='H6562')
+    parser.add_argument('--line', metavar='line', type=str, action='store', default='H6562', help='which emission line?; default is H6562')
+    parser.add_argument('--get_property', metavar='get_property', type=str, action='store', default='flux', help='which property to get?; default is flux')
+    parser.add_argument('--plot_property', dest='plot_property', action='store_true', default=False, help='plot the property?, default is no')
+    parser.add_argument('--compare_property', dest='compare_property', action='store_true', default=False, help='plot a comparison of the derived property with corresponding intrinsic values from yt?, default is no')
+    parser.add_argument('--iscolorlog', dest='iscolorlog', action='store_true', default=False, help='set color of property to log scale?, default is no')
+    parser.add_argument('--cmin', metavar='cmin', type=float, action='store', default=None, help='minimum value for plotting imshow colorbar; default is None')
+    parser.add_argument('--cmax', metavar='cmax', type=float, action='store', default=None, help='maximum value for plotting imshow colorbar; default is None')
 
-    parser.add_argument('--get_property', metavar='get_property', type=str, action='store', help='which property to get?; default is flux')
-    parser.set_defaults(get_property='flux')
+    # ------- args added for investigate)metallicity.py ------------------------------
+    parser.add_argument('--lookup_metallicity', metavar='lookup_metallicity', type=int, action='store', default=None, help='index of HII region (in the dataframe) to lookup metallicity values for; default is None')
+    parser.add_argument('--Zout', metavar='Zout', type=str, action='store', default='D16', help='which metallicity diagnostic to be plotted as Zout; default is D16')
+    parser.add_argument('--islog', dest='islog', action='store_true', default=False, help='set x- and y- scale as log?, default is no')
+    parser.add_argument('--which_df', metavar='which_df', type=str, action='store', default='H2_summed', help='which dataframe to plot (out of H2_summed, H2_all, 4D_grid & 3D_grid; default is H2_summed')
+    parser.add_argument('--plot3d', dest='plot3d', action='store_true', default=False, help='plot 3D grid plots?, default is no')
+    parser.add_argument('--age_slice', metavar='age_slice', type=float, action='store', default=1, help='slice of age (in Myr) value for which to make the 3D grid plot; default is 1')
+    parser.add_argument('--plotstyle', metavar='plotstyle', type=str, action='store', default='scatter', help='which plot style to use out of map, hexbin, contour, hist and scatter? default is scatter')
+    parser.add_argument('--correlation', dest='correlation', action='store_true', default=False, help='compute and display the Spearman correlation on plot?, default is no')
 
-    parser.add_argument('--plot_property', dest='plot_property', action='store_true', help='plot the property?, default is no')
-    parser.set_defaults(plot_property=False)
-
-    parser.add_argument('--islog', dest='islog', action='store_true', help='make log plot?, default is no')
-    parser.set_defaults(islog=False)
-
-    parser.add_argument('--cmin', metavar='cmin', type=float, action='store', help='minimum value for plotting imshow colorbar; default is None')
-    parser.set_defaults(cmin=None)
-
-    parser.add_argument('--cmax', metavar='cmax', type=float, action='store', help='maximum value for plotting imshow colorbar; default is None')
-    parser.set_defaults(cmax=None)
+    # ------- args added for volume_rendering_movie.py ------------------------------
+    parser.add_argument('--makemovie', dest='makemovie', action='store_true', default=False, help='Accumulate all pngs at the end into a movie?, default is no')
+    parser.add_argument('--nmovframes', metavar='nmovframes', type=int, action='store', default=0, help='total number of frames in movie, i.e. number of parts to divide the full 2*pi into; default is 200')
+    parser.add_argument('--max_frot', metavar='max_frot', type=float, action='store', default=1, help='what fraction of full rotation (0=0, 1 = 2*pi)? default is 1')
+    parser.add_argument('--max_zoom', metavar='max_zoom', type=float, action='store', default=1, help='what factor of zoom? default is 1 i.e. no zoom')
+    parser.add_argument('--imres', metavar='imres', type=int, action='store', default=256, help='image resolution in pixels x pixels? default is 256 x 256')
+    parser.add_argument('--sigma', metavar='sigma', type=int, action='store', default=8, help='sigma clipping? default is 8')
+    parser.add_argument('--delay_frame', metavar='delay_frame', type=float, action='store', default=0.1, help='duration per frame of the movie, in sec; default is 0.1 sec')
+    parser.add_argument('--annotate_domain', dest='annotate_domain', action='store_true', default=False, help='annotate domain boundaries?, default is no')
+    parser.add_argument('--annotate_axes', dest='annotate_axes', action='store_true', default=False, help='annotate coordinate axes?, default is no')
+    parser.add_argument('--move_to', metavar='move_to', type=str, action='store', default='0,0,0', help='move camera position to (x,y,z) position coordinates in domain_length units, relative to starting position; default is (0,0,0) i.e. no movement')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 
     args.diag_arr = [item for item in args.diag_arr.split(',')]
     args.Om_arr = [float(item) for item in args.Om_arr.split(',')]
+    args.diag = args.diag_arr[0]
+    args.Om = args.Om_arr[0]
+    args.move_to = np.array([float(item) for item in args.move_to.split(',')])  # kpc
+    args.center_wrt_halo = np.array([float(item) for item in args.center_wrt_halo.split(',')])  # kpc
     args.obs_wave_range = np.array([float(item) for item in args.obs_wave_range.split(',')])
     args.base_wave_range = np.array([float(item) for item in args.base_wave_range.split(',')])
     args.test_pixel = np.array([int(item) for item in args.test_pixel.split(',')]) if args.test_pixel is not None else None
@@ -881,5 +904,16 @@ def parse_args(haloname, RDname):
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 
     args = pull_halo_center(args) # pull details about center of the snapshot
-    return args
+    if type(args) is tuple: args, ds, refine_box = args
 
+    args.halo_center = args.halo_center + args.center_wrt_halo # kpc # offsetting center of ifu data cube wrt halo center, if any
+
+    instrument_dummy = telescope(args) # declare a dummy instrument; just to set proper paths
+    args.cube_output_path = get_cube_output_path(args)
+
+    args.idealcube_filename = args.cube_output_path + 'ideal_ifu' + args.mergeHII_text + '.fits'
+    args.smoothed_cube_filename = args.cube_output_path + instrument_dummy.path + 'smoothed_ifu' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '.fits'
+    args.mockcube_filename = args.cube_output_path + instrument_dummy.path + 'mock_ifu' + '_z' + str(args.z) + args.mergeHII_text + '_ppb' + str(args.pix_per_beam) + '_exp' + str(args.exptime) + 's_snr' + str(args.snr) + '.fits'
+
+    if 'ds' in locals(): return args, ds, refine_box # if ds has already been loaded then return it, so that subsequent functions won't need to re-load ds
+    else: return args

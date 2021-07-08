@@ -311,8 +311,8 @@ def lookup_grid(paramlist, args):
                     myprint('Discarding outliers: For Om= ' + str(Om) + ':' + str(len(paramlist)) + ' out of ' + str(n) + ' H2Rs ae retained as per D16 criteria', args)
 
                 # --------to calculate Zout based on different diagnostics---------------------------------------
-                paramlist['Zout_D16'] = 10 ** (np.log10(np.divide(paramlist['NII6584'], (paramlist['SII6717'] + paramlist['SII6730']))) + 0.264 * np.log10(np.divide(paramlist['NII6584'], paramlist['H6562'])))  # D16 method
-                paramlist['Zout_KD02'] = 1.54020 + 1.26602 * np.log10(np.divide(paramlist['NII6584'], (paramlist['OII3727'] + paramlist['OII3729']))) + 0.167977 * np.log10(np.divide(paramlist['NII6584'],(paramlist['OII3727'] + paramlist['OII3729']))) ** 2  # KD02 method
+                paramlist['Zout_D16'] = get_D16_metallicity(paramlist)  # D16 method
+                paramlist['Zout_KD02'] = get_KD02_metallicity(paramlist)  # KD02 method
 
                 # ------------------writing dataframe to file--------------------------------------------------------------
                 header = 'Units for the following columns: \n\
@@ -368,6 +368,7 @@ mappings_starparticle_mass = 300.
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
     args = parse_args('8508', 'RD0042')
+    if type(args) is tuple: args = args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     if not args.keep: plt.close('all')
 
     infilename = args.output_dir + 'txtfiles/' + args.output + '_radius_list' + args.mergeHII_text + '.txt'
