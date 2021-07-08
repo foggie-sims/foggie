@@ -150,6 +150,14 @@ def parse_args():
                         'simply use 0 for num_steps in the --surface argument.')
     parser.set_defaults(simple=False)
 
+    parser.add_argument('--cgm_filter', dest='cgm_filter', action='store_true',
+                        help='Do you want to remove gas above a certain density threshold and below\n' + \
+                        'a certain temperature threshold defined in consistency.py? This is much more\n' + \
+                        'effective at removing gas associated with satellites than the --remove_sats option,\n' + \
+                        "but shouldn't be used if you're calculating things changing phases/species.\n" + \
+                        'Default is not to do this.')
+    parser.set_defaults(cgm_filter=False)
+
     parser.add_argument('--inverse', dest='inverse', action='store_true',
                         help='Do you want to calculate for everything *outside* of the shape(s) you\'ve specified?')
     parser.set_defaults(inverse=False)
@@ -389,6 +397,8 @@ def calc_fluxes_simple(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_su
     # Load arrays of all fields we need
     print('Loading field arrays')
     sphere = ds.sphere(ds.halo_center_kpc, max_radius)
+    if (args.cgm_filter):
+        sphere = sphere.cut_region("(obj['density'] < %.2e) & (obj['temperature'] > %.2e)" % (cgm_density_max, cgm_temperature_min))
 
     radius = sphere['gas','radius_corrected'].in_units('kpc').v
     x = sphere['gas','x'].in_units('kpc').v - ds.halo_center_kpc[0].v
@@ -743,6 +753,8 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_suffix, s
     # Load arrays of all fields we need
     print('Loading field arrays')
     sphere = ds.sphere(ds.halo_center_kpc, chunks[-1])
+    if (args.cgm_filter):
+        sphere = sphere.cut_region("(obj['density'] < %.2e) & (obj['temperature'] > %.2e)" % (cgm_density_max, cgm_temperature_min))
 
     radius = sphere['gas','radius_corrected'].in_units('kpc').v
     x = sphere['gas','x'].in_units('kpc').v - ds.halo_center_kpc[0].v
