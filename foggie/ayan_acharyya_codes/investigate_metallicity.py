@@ -292,7 +292,13 @@ if __name__ == '__main__':
         paramsum_initial_length = len(paramsum)
         paramsum = paramsum[paramsum['lognII'].between(lognII_min, lognII_max)]
         print('Upon removing outliers beyond lognII=', lognII_min, 'and', lognII_max, 'summed HII list loses %.2F %% particles'%((1 - len(paramsum) / paramsum_initial_length) * 100))
-
+    '''
+    # ----------temporary----------------
+    Zout_highcut = 10**0.8
+    paramsub_initial_length = len(paramsub)
+    paramsub = paramsub[paramsub['Zout_' + args.diag] <= Zout_highcut]  ## tmeporary
+    print('Upon removing outliers beyond Zout_%s >'%args.diag, Zout_highcut, 'HII list loses %.2F %% particles' % ((1 - len(paramsub) / paramsub_initial_length) * 100))
+    '''
     # -----plot stuff-----------------
     if not args.noplot:
         if args.which_df == 'H2_all':

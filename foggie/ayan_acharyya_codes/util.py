@@ -670,6 +670,22 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
     hdulist.writeto(filename, clobber=True)
     myprint('Written file ' + filename + '\n', args)
 
+# --------------------------------------------------------------------------------------------
+def get_all_sims(args):
+    '''
+    Function assimilate the names of all halows and snapshots available in the given directory
+    '''
+    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    halo_paths = glob.glob(foggie_dir + 'halo_*')
+    halos = [item.split('/')[-1][7:] for item in halo_paths]
+    all_sims = []
+    for thishalo in halos:
+        snashot_paths = glob.glob(foggie_dir + 'halo_00' + thishalo + '/nref11c_nref9f/*/')
+        snapshots = [item.split('/')[-2] for item in snashot_paths]
+        for thissnap in snapshots: all_sims.append(thishalo, thissnap)
+
+    return all_sims
+
 # ---------------------------------------------------------------------------------------------
 def pull_halo_redshift(args):
     '''

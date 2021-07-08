@@ -173,14 +173,16 @@ def wrap_get_mock_datacube(args):
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
     dummy_args = parse_args('8508', 'RD0042') # default simulation to work upon when comand line args not provided
+    if type(dummy_args) is tuple: dummy_args = dummy_args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     if not dummy_args.keep: plt.close('all')
 
-    if dummy_args.do_all_sims: list_of_sims = all_sims
+    if dummy_args.do_all_sims: list_of_sims = get_all_sims(dummy_args)
     else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
 
     for index, this_sim in enumerate(list_of_sims):
         myprint('Doing halo ' + this_sim[0] + ' snapshot ' + this_sim[1] + ', which is ' + str(index + 1) + ' out of ' + str(len(list_of_sims)) + '..', dummy_args)
-        args = parse_args(this_sim[0], this_sim[1])
+        if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
+        else: args = dummy_args # since parse_args() has already been called and evaluated once, no need to repeat it
         mock_ifu, ideal_ifu, args = wrap_get_mock_datacube(args)
 
     myprint('Done making mock datacubes for all given args.diag_arr and args.Om_arr', args)

@@ -2,18 +2,16 @@
 
 """
 
-    Title :      filter_star_properties
-    Notes :      To extract physial properties of young (< 10Myr) stars e.g., position, velocity, mass etc. and output to an ASCII file
-    Output :     One pandas dataframe as a txt file
+    Title :      track_metallicity_evolution
+    Notes :      To TRACK ambient gas metallicity around young (< 10Myr) stars as function of redshift, write to file, and plot
+    Output :     One pandas dataframe per halo as a txt file (Or fits file?)
     Author :     Ayan Acharyya
-    Started :    January 2021
-    Example :    run filter_star_properties.py --system ayan_local --halo 8508 --output RD0042
+    Started :    July 2021
+    Example :    run track_metallicity_evolution.py --system ayan_local --halo 8508 --output
 
 """
 from header import *
 from util import *
-from compute_hiir_radii import get_radii_for_df
-from projection_plot import make_projection_plots
 
 # ----------------------------------------------------------------------------------
 def get_star_properties(args):
@@ -100,16 +98,15 @@ def get_star_properties(args):
 if __name__ == '__main__':
     start_time = time.time()
 
-    dummy_args = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
+    dummy_args = parse_args('8508', 'RD0042')
     if type(dummy_args) is tuple: dummy_args = dummy_args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
 
     if dummy_args.do_all_sims: list_of_sims = get_all_sims(dummy_args)
-    else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
+    else: list_of_sims = [(dummy_args.halo, dummy_args.output)]  # default simulation to work upon when comand line args not provided
 
     for this_sim in list_of_sims:
-        myprint('Doing snashot %s of halo %s...'%(this_sim[1], this_sim[0]), args)
         if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
         else: args = dummy_args # since parse_args() has already been called and evaluated once, no need to repeat it
-        #paramlist = get_star_properties(args)
+        paramlist = get_star_properties(args)
 
     myprint('All sims done in %s minutes' % ((time.time() - start_time) / 60), args)

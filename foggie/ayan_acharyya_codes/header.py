@@ -12,7 +12,7 @@
 import numpy as np
 import multiprocessing as mproc
 import seaborn as sns
-import os, sys, argparse, re, subprocess, time, math, shutil, copy
+import os, sys, argparse, re, subprocess, time, math, shutil, copy, glob
 
 from matplotlib import pyplot as plt
 plt.style.use('seaborn')

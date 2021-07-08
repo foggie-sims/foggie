@@ -368,6 +368,7 @@ mappings_starparticle_mass = 300.
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
     args = parse_args('8508', 'RD0042')
+    if type(args) is tuple: args = args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     if not args.keep: plt.close('all')
 
     infilename = args.output_dir + 'txtfiles/' + args.output + '_radius_list' + args.mergeHII_text + '.txt'

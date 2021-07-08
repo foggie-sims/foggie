@@ -183,6 +183,7 @@ TII = 1e4 # K, because MAPPINGS models are computed at this temperature
 # -------------------------------------------------------------------------------
 if __name__ == '__main__':
     args = parse_args('8508', 'RD0042')
+    if type(args) is tuple: args = args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     infilename = args.output_dir + 'txtfiles/' + args.output + '_young_star_properties.txt'
 
     # ----------------------Reading star particles-------------------------------------------

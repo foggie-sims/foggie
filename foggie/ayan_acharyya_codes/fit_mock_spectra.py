@@ -619,6 +619,7 @@ if __name__ == '__main__':
     start_time = time.time()
 
     args = parse_args('8508', 'RD0042')
+    if type(args) is tuple: args = args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     if not args.keep: plt.close('all')
     if (args.testlinefit or args.testcontfit) and args.test_pixel is None: raise AssertionError('Cannot test fitting without a specified test_pixel')
 
