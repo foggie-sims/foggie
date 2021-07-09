@@ -214,7 +214,8 @@ if __name__ == '__main__':
 
     linelist = read_linelist(mappings_lab_dir + 'targetlines.txt')  # list of emission lines
 
-    if dummy_args.do_all_sims: list_of_sims = all_sims
+    if dummy_args.do_all_halos: list_of_sims = get_all_sims(dummy_args) # all snapshots of all halos
+    elif dummy_args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(dummy_args) # all snapshots of this particular halo
     else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
 
     for index, this_sim in enumerate(list_of_sims):

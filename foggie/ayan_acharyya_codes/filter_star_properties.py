@@ -103,7 +103,8 @@ if __name__ == '__main__':
     dummy_args = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
     if type(dummy_args) is tuple: dummy_args = dummy_args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
 
-    if dummy_args.do_all_sims: list_of_sims = get_all_sims(dummy_args)
+    if dummy_args.do_all_halos: list_of_sims = get_all_sims(dummy_args) # all snapshots of all halos
+    elif dummy_args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(dummy_args) # all snapshots of this particular halo
     else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
     total_snaps = len(list_of_sims)
 
@@ -129,16 +130,17 @@ if __name__ == '__main__':
         try:
             if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
             else: args = dummy_args # since parse_args() has already been called and evaluated once, no need to repeat it
+
+            if type(args) is tuple:
+                args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+                print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
+
+            if args.dryrun: print_mpi('Skipping main computation because this is a dryrun.', args)
+            else: paramlist = get_star_properties(args)
+
         except (FileNotFoundError, PermissionError) as e:
-            print_mpi(this_sim[1] + ' not found; skipping..', dummy_args)
+            print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), dummy_args)
             total_snaps = total_snaps - 1
             continue
-
-        if type(args) is tuple:
-            args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
-            print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
-
-        if args.dryrun: print_mpi('Skipping main computation because this is a dryrun.', args)
-        else: paramlist = get_star_properties(args)
 
     print_mpi('All sims done in %s minutes' % ((time.time() - start_time) / 60), args)

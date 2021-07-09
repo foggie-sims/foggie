@@ -81,7 +81,8 @@ if __name__ == '__main__':
     if type(dummy_args) is tuple: dummy_args = dummy_args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     if not dummy_args.keep: plt.close('all')
     
-    if dummy_args.do_all_sims: list_of_sims = get_all_sims(dummy_args)
+    if dummy_args.do_all_halos: list_of_sims = get_all_sims(dummy_args) # all snapshots of all halos
+    elif dummy_args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(dummy_args) # all snapshots of this particular halo
     else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
 
     for index, this_sim in enumerate(list_of_sims):
