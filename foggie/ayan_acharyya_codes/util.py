@@ -724,9 +724,12 @@ def get_all_halos(args):
     '''
     Function assimilate the names of all halos in the given directory
     '''
-    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    halo_paths = glob.glob(foggie_dir + 'halo_*')
-    halos = [item.split('/')[-1][7:] for item in halo_paths]
+    if args.system == 'ayan_local':
+        halos =  ['8508', '5036', '2878', '2392', '5016', '4123']
+    else:
+        foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+        halo_paths = glob.glob(foggie_dir + 'halo_*')
+        halos = [item.split('/')[-1][7:] for item in halo_paths]
     return halos
 
 # --------------------------------------------------------------------------------------------
@@ -734,11 +737,14 @@ def get_all_sims_for_this_halo(args):
     '''
     Function assimilate the names of all snapshots available for the given halo
     '''
-    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    all_sims = []
-    snashot_paths = glob.glob(foggie_dir + 'halo_00' + args.halo + '/nref11c_nref9f/*/')
-    snapshots = [item.split('/')[-2] for item in snashot_paths]
-    for thissnap in snapshots: all_sims.append([args.halo, thissnap])
+    if args.system == 'ayan_local':
+        all_sims = all_sims_dict[args.halo]
+    else:
+        foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+        all_sims = []
+        snashot_paths = glob.glob(foggie_dir + 'halo_00' + args.halo + '/nref11c_nref9f/*/')
+        snapshots = [item.split('/')[-2] for item in snashot_paths]
+        for thissnap in snapshots: all_sims.append([args.halo, thissnap])
 
     return all_sims
 
@@ -749,8 +755,12 @@ def pull_halo_redshift(args):
     '''
     _, _, _, code_path, _, haloname, _, _ = get_run_loc_etc(args)
     halo_cat_file = code_path + 'halo_infos/00' + args.halo + '/nref11c_nref9f/halo_c_v'
-    df = pd.read_csv(halo_cat_file, comment='#', sep='\s+|')
-    z = df.loc[df['name']==args.output, 'redshift']
+    #df = pd.read_csv(halo_cat_file, comment='#', sep='\s+|')
+    #try: z = df.loc[df['name']==args.output, 'redshift'].values[0]
+    # shifted from pandas to astropy because pandas runs in to weird error on pleiades
+    df = Table.read(halo_cat_file, format='ascii')
+    try: z = float(df['col2'][np.where(df['col3']==args.output)[0][0]])
+    except IndexError: z = -99
     return z
 
 # ----------------------------------------------------------------------------------------------
@@ -925,6 +935,7 @@ def parse_args(haloname, RDname):
 
     # ------- args added for track_metallicity_evolution.py ------------------------------
     parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False, help='loop over all available halos?, default is no')
+    parser.add_argument('--nocallback', dest='nocallback', action='store_true', default=False, help='callback previous functions if a file is not found?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()

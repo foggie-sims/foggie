@@ -68,10 +68,16 @@ def assimilate_this_halo(args):
     Function to assimilate metallicities of all young stars of all snapshots for a given halo and write to fits file
     :return: a fits file
     '''
-    list_of_sims = get_all_sims_for_this_halo(args)
-
     foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     outfilename = output_dir + 'txtfiles/' + args.halo + '_Z_vs_z_allsnaps.txt'
+
+    list_of_sims = get_all_sims_for_this_halo(args)
+    if args.nocallback: # only consider those snapshots which ALREADY have young star properties filtered out by filter_star_properties.py
+        list_of_sims = []
+        snashot_paths = glob.glob(args.output_dir + 'txtfiles/*_young_star_properties.txt')
+        snapshots = [item.split('/')[-1][:6] for item in snashot_paths]
+        for thissnap in snapshots: list_of_sims.append([args.halo, thissnap])
+        myprint('Only using the ' + str(len(snapshots)) + ' found that already exist, due to --nocallback', args)
 
     if not os.path.exists(outfilename) or args.clobber:
         Z_arr, z_arr = [], []
@@ -85,8 +91,8 @@ def assimilate_this_halo(args):
                     this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
 
             this_Z_arr = read_metallicity(args).tolist()
-            try: this_z = pull_halo_redshift(args).values[0]
-            except: this_z = ds.current_redshift  # if this snapshot is not yet in the halo catalog
+            this_z = pull_halo_redshift(args)
+            if this_z == -99: this_z = ds.current_redshift  # if this snapshot is not yet in the halo catalog
 
             Z_arr.append(this_Z_arr)
             z_arr.append(this_z)
