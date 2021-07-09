@@ -6,7 +6,7 @@
     Notes :      Python wrapper to create and submit one or more jobs on pleiades
     Author :     Ayan Acharyya
     Started :    July 2021
-    Example :    run submit_jobs.py --call filter_star_properties --prefix fsp --do_all_sims --nnodes 50 --proc ivy --queue devel --dryrun
+    Example :    run submit_jobs.py --call filter_star_properties --prefix fsp --do_all_sims --nnodes 50 --ncores 8 --proc has --queue devel --dryrun
 
 """
 import numpy as np
@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument('--start', metavar='start', type=int, action='store', default=1)
     parser.add_argument('--stop', metavar='stop', type=int, action='store', default=1)
     parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', default=None)
-    parser.add_argument('--proj', metavar='proj', type=str, action='store', default='s1938')
+    parser.add_argument('--proj', metavar='proj', type=str, action='store', default='s1698')
     parser.add_argument('--prefix', metavar='prefix', type=str, action='store', default=None)
     parser.add_argument('--callfunc', metavar='callfunc', type=str, action='store', default='filter_star_properties')
     parser.add_argument('--dryrun', dest='dryrun', action='store_true', default=False)
