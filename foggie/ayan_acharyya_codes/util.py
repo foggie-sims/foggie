@@ -223,16 +223,23 @@ class noisycube(mockcube):
         myprint('Noisy cube initialised with exposure time = ' + str(self.exptime) + ' s, and target SNR/pixel = ' + str(self.snr), args)
 
 # -------------------------------------------------------------------------------------------
+def myprint(text, args):
+    '''
+    Function to re-direct to print_mpi()
+    '''
+    print_mpi(text, args)
+
+# -------------------------------------------------------------------------------------------
 def print_mpi(string, args):
     '''
     Function to print corresponding to each mpi thread
     '''
     comm = MPI.COMM_WORLD
-    if comm.rank == 0: myprint('[' + str(comm.rank) + '] ' + string + '\n', args)
-    else: myprint('[' + str(comm.rank) + '] {' + subprocess.check_output(['uname -n'],shell=True)[:-1].decode("utf-8") + '} ' + string + '\n', args)
+    if comm.rank == 0: myprint_orig('[' + str(comm.rank) + '] ' + string + '\n', args)
+    else: myprint_orig('[' + str(comm.rank) + '] {' + subprocess.check_output(['uname -n'],shell=True)[:-1].decode("utf-8") + '} ' + string + '\n', args)
 
 # -------------------------------------------------------------------------------------------
-def myprint(text, args):
+def myprint_orig(text, args):
     '''
     Function to direct the print output to stdout or a file, depending upon user args
     '''
@@ -244,6 +251,25 @@ def myprint(text, args):
             ofile.close()
         else:
             print(text)
+
+# ------------------------------------------------------------------------
+def insert_line_in_file(line, pos, filename, output=None):
+    '''
+    Function for nserting a line in a file
+    '''
+    f = open(filename, 'r')
+    contents = f.readlines()
+    f.close()
+
+    if pos == -1: pos = len(contents)  # to append to end of file
+    contents.insert(pos, line)
+
+    if output is None: output = filename
+    f = open(output, 'w')
+    contents = ''.join(contents)
+    f.write(contents)
+    f.close()
+    return
 
 # -------------------------------------------------------------------------
 def isfloat(str):
@@ -684,16 +710,24 @@ def get_all_sims(args):
     '''
     Function assimilate the names of all halos and snapshots available in the given directory
     '''
+    halos = get_all_halos(args)
+    all_sims = []
+    for index, thishalo in enumerate(halos):
+        args.halo = thishalo
+        thishalo_sims = get_all_sims_for_this_halo(args)
+        all_sims = np.vstack([all_sims, thishalo_sims]) if index else thishalo_sims
+
+    return all_sims
+
+# --------------------------------------------------------------------------------------------
+def get_all_halos(args):
+    '''
+    Function assimilate the names of all halos in the given directory
+    '''
     foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     halo_paths = glob.glob(foggie_dir + 'halo_*')
     halos = [item.split('/')[-1][7:] for item in halo_paths]
-    all_sims = []
-    for thishalo in halos:
-        snashot_paths = glob.glob(foggie_dir + 'halo_00' + thishalo + '/nref11c_nref9f/*/')
-        snapshots = [item.split('/')[-2] for item in snashot_paths]
-        for thissnap in snapshots: all_sims.append([thishalo, thissnap])
-
-    return all_sims
+    return halos
 
 # --------------------------------------------------------------------------------------------
 def get_all_sims_for_this_halo(args):
@@ -736,7 +770,7 @@ def pull_halo_center(args):
         halos_df['name'] = halos_df['name'].str.strip() # trimming column 'name' of extra whitespace
 
         if halos_df['name'].str.contains(args.output).any():
-            myprint("Pulling halo center from catalog file", args)
+            myprint('Pulling halo center from catalog file', args)
             halo_ind = halos_df.index[halos_df['name'] == args.output][0]
             args.halo_center = halos_df.loc[halo_ind, ['xc', 'yc', 'zc']].values # in kpc units
             args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
@@ -791,6 +825,7 @@ def parse_args(haloname, RDname):
     parser.add_argument('--plot_proj', dest='plot_proj', action='store_true', default=False, help='plot projection map? default is no')
     parser.add_argument('--clobber', dest='clobber', action='store_true', default=False, help='overwrite existing outputs with same name?, default is no')
     parser.add_argument('--automate', dest='automate', action='store_true', default=False, help='automatically execute the next script?, default is no')
+    parser.add_argument('--dryrun', dest='dryrun', action='store_true', default=False, help='if this is just a dryrun only loop over and print statements will be carried out, none of the actual loading datasets and all; useful for debugging on pleiades, default is no')
 
     # ------- args added for compute_hii_radii.py ------------------------------
     parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', default=None, help='separation btwn HII regions below which to merge them, in kpc; default is None i.e., do not merge')
@@ -888,6 +923,9 @@ def parse_args(haloname, RDname):
     parser.add_argument('--annotate_axes', dest='annotate_axes', action='store_true', default=False, help='annotate coordinate axes?, default is no')
     parser.add_argument('--move_to', metavar='move_to', type=str, action='store', default='0,0,0', help='move camera position to (x,y,z) position coordinates in domain_length units, relative to starting position; default is (0,0,0) i.e. no movement')
 
+    # ------- args added for track_metallicity_evolution.py ------------------------------
+    parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False, help='loop over all available halos?, default is no')
+
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 
@@ -903,10 +941,13 @@ def parse_args(haloname, RDname):
     args.mergeHII_text = '_mergeHII=' + str(args.mergeHII) + 'kpc' if args.mergeHII is not None else '' # to be used as filename suffix to denote whether HII regions have been merged
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 
-    args = pull_halo_center(args) # pull details about center of the snapshot
-    if type(args) is tuple: args, ds, refine_box = args
+    try:
+        args = pull_halo_center(args) # pull details about center of the snapshot
+        if type(args) is tuple: args, ds, refine_box = args
 
-    args.halo_center = args.halo_center + args.center_wrt_halo # kpc # offsetting center of ifu data cube wrt halo center, if any
+        args.halo_center = args.halo_center + args.center_wrt_halo # kpc # offsetting center of ifu data cube wrt halo center, if any
+    except:
+        pass
 
     instrument_dummy = telescope(args) # declare a dummy instrument; just to set proper paths
     args.cube_output_path = get_cube_output_path(args)

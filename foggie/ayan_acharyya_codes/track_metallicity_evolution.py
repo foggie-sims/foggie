@@ -13,45 +13,105 @@
 """
 from header import *
 from util import *
+from filter_star_properties import get_star_properties
+
+# ----------------------------------------------------------------------------------
+def write_list_file(Z_arr, z_arr, filename, args):
+    '''
+    Function to write fits file with given arrays
+    '''
+    master_arr = []
+    for index, thisZ in enumerate(Z_arr): master_arr.append([z_arr[index], thisZ]) # master_arr = [[redshift1, [Zstar1, Zstar2, ....]], [redshift2, [Zstar1, Zstar2, Zstar3,..]]]
+    np.savetxt(filename, master_arr, fmt='%s')
+    myprint('Written file ' + filename, args)
+    return
+
+# ----------------------------------------------------------------------------------
+def read_list_file(filename, args):
+    '''
+    Function to read in file with given arrays
+    '''
+    z_arr, Z_arr =[], []
+    lines = np.atleast_1d(np.genfromtxt(filename, delimiter='\n', dtype=str))
+    for line in lines:
+        arr = line.split(', ')
+        thisz = float(arr[0].split(' [')[0])
+        arr[0] = arr[0].split(' [')[1]
+        arr[-1] = arr[-1].split(']')[0]
+        thisZ = [float(i) for i in arr]
+
+        z_arr.append(thisz)
+        Z_arr.append(thisZ)
+
+    return np.array(z_arr), np.array(Z_arr)
 
 # ----------------------------------------------------------------------------------
 def read_metallicity(args):
     '''
     Function to read in the properties of young stars and select the metallicity column
-    :return: dataframe (and writes dataframe as ASCII file too
     '''
     infilename = args.output_dir + 'txtfiles/' + args.output + '_young_star_properties.txt'
 
     # ----------------------Reading in simulation data-------------------------------------------
     if not os.path.exists(infilename):
-        myprint(infilename + 'does not exist. Call filter_star_properties.py first..', args)
-        sys.exit()
-    else:
-        paramlist = pd.read_table(infilename, delim_whitespace=True, comment='#')
-        Z_arr = paramlist['gas_metal']
+        myprint(infilename + 'does not exist. Calling get_star_properties() first..', args)
+        dummy = get_star_properties(args) # this creates the infilename
+
+    paramlist = pd.read_table(infilename, delim_whitespace=True, comment='#')
+    Z_arr = paramlist['gas_metal'].values
 
     return Z_arr
+
+# ----------------------------------------------------------------------------------
+def assimilate_this_halo(args):
+    '''
+    Function to assimilate metallicities of all young stars of all snapshots for a given halo and write to fits file
+    :return: a fits file
+    '''
+    list_of_sims = get_all_sims_for_this_halo(args)
+
+    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    outfilename = output_dir + 'txtfiles/' + args.halo + '_Z_vs_z_allsnaps.txt'
+
+    if not os.path.exists(outfilename) or args.clobber:
+        Z_arr, z_arr = [], []
+        # ----------looping over snapshots----------------------
+        for index, this_sim in enumerate(list_of_sims):
+            myprint('Doing snapshot ' + this_sim[1] + '; ' + str(index+1) + ' of ' + str(len(list_of_sims)), args)
+            args = parse_args(this_sim[0], this_sim[1])
+            if type(args) is tuple:
+                args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+                myprint('ds ' + str(ds) + ' for halo ' + str(
+                    this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
+
+            this_Z_arr = read_metallicity(args).tolist()
+            try: this_z = pull_halo_redshift(args).values[0]
+            except: this_z = ds.current_redshift  # if this snapshot is not yet in the halo catalog
+
+            Z_arr.append(this_Z_arr)
+            z_arr.append(this_z)
+
+        write_list_file(Z_arr, z_arr, outfilename, args)
+    else:
+        myprint(outfilename + ' already exists; use --clobber to overwrite', args)
+        z_arr, Z_arr = read_list_file(outfilename, args)
+
+    return Z_arr, z_arr
 
 # -----------------------------------------------------------------------------------
 if __name__ == '__main__':
     start_time = time.time()
 
-    dummy_args = parse_args('8508', 'RD0042')
-    if type(dummy_args) is tuple: dummy_args = dummy_args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+    args = parse_args('8508', 'RD0042')
+    if type(args) is tuple: args = args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
 
-    if dummy_args.do_all_sims: list_of_sims = get_all_sims(dummy_args)
-    else: list_of_sims = get_all_sims_for_this_halo(dummy_args)
+    if args.do_all_halos: list_of_halos = get_all_halos(args)
+    else: list_of_halos = [args.halo]
 
-    for this_sim in list_of_sims:
-        args = parse_args(this_sim[0], this_sim[1])
-        if type(args) is tuple:
-            args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
-            myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
+    # ----------looping over halos----------------------
+    for index, this_halo in enumerate(list_of_halos):
+        myprint('Doing halo ' + this_halo + '; ' + str(index+1) + ' of ' + str(len(list_of_halos)), args)
+        args.halo = this_halo
+        Z_arr, z_arr = assimilate_this_halo(args)
 
-        Z_arr = read_metallicity(args)
-        z = pull_halo_redshift(args)
-        if len(z) == 0: z = ds.redshift # if this snapshot is not yet in the halo catalog
-
-        paramlist = get_star_properties(args)
-
-    myprint('All sims done in %s minutes' % ((time.time() - start_time) / 60), args)
+    myprint('All halos done in %s minutes' % ((time.time() - start_time) / 60), args)

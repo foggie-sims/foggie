@@ -129,7 +129,7 @@ if __name__ == '__main__':
         try:
             if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
             else: args = dummy_args # since parse_args() has already been called and evaluated once, no need to repeat it
-        except FileNotFoundError:
+        except (FileNotFoundError, PermissionError) as e:
             print_mpi(this_sim[1] + ' not found; skipping..', dummy_args)
             total_snaps = total_snaps - 1
             continue
@@ -138,6 +138,7 @@ if __name__ == '__main__':
             args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
             print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
 
-        #paramlist = get_star_properties(args)
+        if args.dryrun: print_mpi('Skipping main computation because this is a dryrun.', args)
+        else: paramlist = get_star_properties(args)
 
     print_mpi('All sims done in %s minutes' % ((time.time() - start_time) / 60), args)
