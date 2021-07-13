@@ -225,7 +225,7 @@ class noisycube(mockcube):
 # -------------------------------------------------------------------------------------------
 def myprint(text, args):
     '''
-    Function to re-direct to print_mpi()
+    Function to re-direct to print_mpi(), for backwards compatibility
     '''
     print_mpi(text, args)
 
@@ -235,8 +235,15 @@ def print_mpi(string, args):
     Function to print corresponding to each mpi thread
     '''
     comm = MPI.COMM_WORLD
+    myprint_orig('[' + str(comm.rank) + '] {' + subprocess.check_output(['uname -n'],shell=True)[:-1].decode("utf-8") + '} ' + string + '\n', args)
+
+# -------------------------------------------------------------------------------------------
+def print_master(string, args):
+    '''
+    Function to print only if on the head node/thread
+    '''
+    comm = MPI.COMM_WORLD
     if comm.rank == 0: myprint_orig('[' + str(comm.rank) + '] ' + string + '\n', args)
-    else: myprint_orig('[' + str(comm.rank) + '] {' + subprocess.check_output(['uname -n'],shell=True)[:-1].decode("utf-8") + '} ' + string + '\n', args)
 
 # -------------------------------------------------------------------------------------------
 def myprint_orig(text, args):
@@ -725,7 +732,7 @@ def get_all_halos(args):
     Function assimilate the names of all halos in the given directory
     '''
     if args.system == 'ayan_local':
-        halos =  ['8508', '5036', '2878', '2392', '5016', '4123']
+        halos = ['8508', '5036', '2878', '2392', '5016', '4123']
     else:
         foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
         halo_paths = glob.glob(foggie_dir + 'halo_*')
@@ -760,11 +767,13 @@ def pull_halo_redshift(args):
     # shifted from pandas to astropy because pandas runs in to weird error on pleiades
     df = Table.read(halo_cat_file, format='ascii')
     try: z = float(df['col2'][np.where(df['col3']==args.output)[0][0]])
-    except IndexError: z = -99
+    except IndexError: # if this snapshot is not yet there in halo_c_v file
+        if args.halo == '4123' and args.output == 'RD0038': z = 0.15
+        else: z = -99
     return z
 
 # ----------------------------------------------------------------------------------------------
-def pull_halo_center(args):
+def pull_halo_center(args, fast=False):
     '''
     Function to pull halo center from halo catalogue, if exists, otherwise compute halo center
     Adapted from utils.foggie_load()
@@ -785,10 +794,10 @@ def pull_halo_center(args):
             args.halo_center = halos_df.loc[halo_ind, ['xc', 'yc', 'zc']].values # in kpc units
             args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
             calc_hc = False
-        else:
+        elif not fast:
             myprint('This snapshot is not in the halos_df file, calculating halo center...', args)
             calc_hc = True
-    else:
+    elif not fast:
         myprint("This halos_df file doesn't exist, calculating halo center...", args)
         calc_hc = True
     if calc_hc:
@@ -800,7 +809,7 @@ def pull_halo_center(args):
         return args
 
 # --------------------------------------------------------------------------------------------------------------
-def parse_args(haloname, RDname):
+def parse_args(haloname, RDname, fast=False):
     '''
     Function to parse keyword arguments
     '''
@@ -814,7 +823,8 @@ def parse_args(haloname, RDname):
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x')
     parser.add_argument('--output', metavar='output', type=str, action='store', default=RDname, help='which output? default is RD0020')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the current working directory?, default is no')
-    parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available?, default is no')
+    parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available for a given halo?, default is no')
+    parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False, help='loop over all available halos (and all snapshots each halo has)?, default is no')
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
     parser.add_argument('--galrad', metavar='galrad', type=float, action='store', default=20., help='the radial extent (in each spatial dimension) to which computations will be done, in kpc; default is 20')
     parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False, help='Use full refine box, ignoring args.galrad?, default is no')
@@ -920,6 +930,7 @@ def parse_args(haloname, RDname):
     parser.add_argument('--age_slice', metavar='age_slice', type=float, action='store', default=1, help='slice of age (in Myr) value for which to make the 3D grid plot; default is 1')
     parser.add_argument('--plotstyle', metavar='plotstyle', type=str, action='store', default='scatter', help='which plot style to use out of map, hexbin, contour, hist and scatter? default is scatter')
     parser.add_argument('--correlation', dest='correlation', action='store_true', default=False, help='compute and display the Spearman correlation on plot?, default is no')
+    parser.add_argument('--swap_axes', dest='swap_axes', action='store_true', default=False, help='swan x and y axes on plot?, default is no')
 
     # ------- args added for volume_rendering_movie.py ------------------------------
     parser.add_argument('--makemovie', dest='makemovie', action='store_true', default=False, help='Accumulate all pngs at the end into a movie?, default is no')
@@ -934,8 +945,9 @@ def parse_args(haloname, RDname):
     parser.add_argument('--move_to', metavar='move_to', type=str, action='store', default='0,0,0', help='move camera position to (x,y,z) position coordinates in domain_length units, relative to starting position; default is (0,0,0) i.e. no movement')
 
     # ------- args added for track_metallicity_evolution.py ------------------------------
-    parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False, help='loop over all available halos?, default is no')
     parser.add_argument('--nocallback', dest='nocallback', action='store_true', default=False, help='callback previous functions if a file is not found?, default is no')
+    parser.add_argument('--weight', metavar='weight', type=str, action='store', default=None, help='column name of quantity to weight the metallicity by; default is None i.e. no weight')
+    parser.add_argument('--nzbins', metavar='nzbins', type=int, action='store', default=10, help='number of redshift bins on heatmap? default is 10')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
@@ -953,9 +965,8 @@ def parse_args(haloname, RDname):
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 
     try:
-        args = pull_halo_center(args) # pull details about center of the snapshot
+        args = pull_halo_center(args, fast=fast) # pull details about center of the snapshot
         if type(args) is tuple: args, ds, refine_box = args
-
         args.halo_center = args.halo_center + args.center_wrt_halo # kpc # offsetting center of ifu data cube wrt halo center, if any
     except:
         pass
