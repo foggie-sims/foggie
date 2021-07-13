@@ -112,6 +112,8 @@ if __name__ == '__main__':
     comm = MPI.COMM_WORLD
     ncores = comm.size
     rank = comm.rank
+    print_master('Total number of MPI ranks = ' + str(ncores) + '. Starting at: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()), dummy_args)
+    comm.Barrier() # wait till all cores reached here and then resume
 
     split_at_cpu = total_snaps - ncores * int(total_snaps/ncores)
     nper_cpu1 = int(total_snaps / ncores)
@@ -122,11 +124,13 @@ if __name__ == '__main__':
     else:
         core_start = split_at_cpu * nper_cpu2 + (rank - split_at_cpu) * nper_cpu1
         core_end = split_at_cpu * nper_cpu2 + (rank - split_at_cpu + 1) * nper_cpu1 - 1
+
     # --------------------------------------------------------------
+    print_mpi('Operating on snapshots ' + str(core_start + 1) + ' to ' + str(core_end + 1) + 'i.e., ' + str(core_end - core_start + 1) + ' out of ' + str(total_snaps) + ' snapshots', dummy_args)
 
     for index in range(core_start, core_end + 1):
         this_sim = list_of_sims[index]
-        print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index) + ' out of ' + str(core_end) + ' of the ' + str(core_end - core_start + 1) + ' snapshots alloted to this core...', dummy_args)
+        print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1) + ' out of ' + str(core_end + 1) + ' of the ' + str(core_end - core_start + 1) + ' snapshots alloted to this core...', dummy_args)
         try:
             if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
             else: args = dummy_args # since parse_args() has already been called and evaluated once, no need to repeat it
@@ -143,4 +147,6 @@ if __name__ == '__main__':
             total_snaps = total_snaps - 1
             continue
 
-    print_mpi('All sims done in %s minutes' % ((time.time() - start_time) / 60), args)
+    comm.Barrier() # wait till all cores reached here and then resume
+    if ncores > 1: print_master('Parallely: time taken for filtering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
+    else: print_master('Serially: time taken for filtering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)

@@ -6,10 +6,10 @@
     Notes :      Python wrapper to create and submit one or more jobs on pleiades
     Author :     Ayan Acharyya
     Started :    July 2021
-    Example :    run submit_jobs.py --call filter_star_properties --prefix fsp --do_all_sims --nnodes 50 --ncores 8 --proc has --queue devel --dryrun
+    Example :    run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp_allsims --halo 8508 --dryrun
+    OR :         run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp_allsims --do_all_halos --dryrun
 
 """
-import numpy as np
 import os, subprocess, argparse, datetime
 HOME = os.getenv('HOME')
 
@@ -28,10 +28,12 @@ def parse_args():
     parser.add_argument('--stop', metavar='stop', type=int, action='store', default=1)
     parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', default=None)
     parser.add_argument('--proj', metavar='proj', type=str, action='store', default='s1698')
+    parser.add_argument('--halo', metavar='halo', type=str, action='store', default=None)
     parser.add_argument('--prefix', metavar='prefix', type=str, action='store', default=None)
     parser.add_argument('--callfunc', metavar='callfunc', type=str, action='store', default='filter_star_properties')
     parser.add_argument('--dryrun', dest='dryrun', action='store_true', default=False)
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False)
+    parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False)
     args, leftovers = parser.parse_known_args()
 
     return args
@@ -91,16 +93,28 @@ if __name__ == '__main__':
         qname = args.queue
 
     #----------looping over and creating + submitting job files--------
+    halos = ['8508', '5036', '2878', '2392', '5016', '4123']
+    if args.do_all_halos:
+        args.stop = len(halos) # do all halos by submitting ..
+        do_all_halosflag = '' # ..multiple jobs one job for each halo
+        #args.stop = args.start # do all halos by submitting..
+        #do_all_halosflag = ' --do_all_halos ' # ..ONE massive job that will loop over all halos
+    else:
+        do_all_halosflag = ''
 
     for jobid in range(args.start, args.stop+1):
-        jobname = prefixtext + 'job' + str(jobid)
+        thishalo = halos[jobid - 1] if args.halo is None else args.halo
+        haloflag = ' --halo ' + thishalo
+        jobname = prefixtext + thishalo + '_job' + str(jobid)
+
         nhours = '01' if args.dryrun or args.queue == 'devel' else '%02d'%(max_hours_dict[args.queue])
 
         out_jobscript = jobscript_path + 'jobscript_' + jobname + '.sh'
 
         replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NNODES': nnodes, 'NHOURS': nhours, 'CALLFILE': callfile, 'WORKDIR': workdir, \
                         'JOBSCRIPT_PATH':jobscript_path, 'NCORES': ncores, 'MEMORY': memory, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'PROC':args.proc, \
-                        'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG':do_all_simsflag, 'SYSTEMFLAG':systemflag, 'NCPUS':nnodes * ncores} # keywords to be replaced in template jobscript
+                        'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG':do_all_simsflag, 'DO_ALL_HALOSFLAG':do_all_halosflag, 'SYSTEMFLAG':systemflag, \
+                        'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores} # keywords to be replaced in template jobscript
 
         with open(jobscript_path + jobscript_template) as infile, open(out_jobscript, 'w') as outfile:
             for line in infile:
