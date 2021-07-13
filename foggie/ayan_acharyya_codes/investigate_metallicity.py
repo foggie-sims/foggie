@@ -92,6 +92,12 @@ def makeplot(df_orig, colorcol, args, xcol=None, ycol=None):
     if colorcol in df.columns: df = df.sort_values(by=colorcol, ascending=True) # to make color-coded scatter points a bit easier to visualise, by setting the sequence of overplotting of different points
     if xcol is None: xcol = 'pos_' + projection_dict[args.projection][0] + '_grid'
     if ycol is None: ycol = 'pos_' + projection_dict[args.projection][1] + '_grid'
+
+    if args.swap_axes: # swap x and y axes
+        temp = xcol
+        xcol = ycol
+        ycol = temp
+
     myprint('Plotting ' + xcol + ' vs ' + ycol + ' colored by ' + colorcol + '..', args)
 
     cmap_dict = defaultdict(lambda: metal_color_map, Z_ratio_upon_sum= 'coolwarm', Z_ratio_upon_diag='coolwarm', H6562= density_color_map, count_h2= 'Blues', age='Blues', logU='Blues', lognII='Blues', logq= 'Blues', logP_k= 'Blues', frequency='Blues', Q_H0='Blues', mass='Blues')
@@ -130,8 +136,7 @@ def makeplot(df_orig, colorcol, args, xcol=None, ycol=None):
         elif 'contour' in args.plotstyle: p = sns.kdeplot(x, y, ax=ax, shade=False, shade_lowest=False, alpha=1, n_levels=5, palette=cmap_dict[colorcol])
         elif 'hist' in args.plotstyle: p = sns.histplot(x=x, y=y, ax=ax, alpha=0.9, palette=cmap_dict[colorcol], cbar=True)
         elif 'scatter' in args.plotstyle : p = ax.scatter(x, y, s=30, c=df[colorcol], cmap=cmap_dict[colorcol], vmin=cmin_dict[colorcol], vmax=cmax_dict[colorcol], ec='none')
-        else:
-            print('Could not find indicated plot style. Please re-try by setting --plotstyle to one of the following: scatter, density OR contour')
+        else: print('Could not find indicated plot style. Please re-try by setting --plotstyle to one of the following: scatter, density OR contour')
 
         if 'hex' in args.plotstyle or 'scatter' in args.plotstyle: cb = plt.colorbar(p).ax
         elif 'contour' in args.plotstyle or 'hist' in args.plotstyle: cb = p.figure.axes[-1]
@@ -156,7 +161,7 @@ def makeplot(df_orig, colorcol, args, xcol=None, ycol=None):
     if ('Zin' in xcol or 'Zout' in xcol) and ('Zin' in ycol or 'Zout' in ycol): # for a Z vs Z comparison plot
         Zlim = [0.01, 5.5]
         if args.islog:
-            Zlim = ax.get_xlim()
+            Zlim = ax.get_ylim() if args.swap_axes else ax.get_xlim()
         else:
             ax.set_xlim(Zlim)
             ax.set_ylim(Zlim)
