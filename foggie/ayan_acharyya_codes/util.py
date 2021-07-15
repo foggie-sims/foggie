@@ -749,9 +749,10 @@ def get_all_sims_for_this_halo(args):
     else:
         foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
         all_sims = []
-        snashot_paths = glob.glob(foggie_dir + 'halo_00' + args.halo + '/nref11c_nref9f/*/')
-        snapshots = [item.split('/')[-2] for item in snashot_paths]
-        for thissnap in snapshots: all_sims.append([args.halo, thissnap])
+        snapshot_paths = glob.glob(foggie_dir + 'halo_00' + args.halo + '/nref11c_nref9f/*/')
+        snapshots = [item.split('/')[-2] for item in snapshot_paths]
+        for thissnap in snapshots:
+            if len(thissnap) == 6: all_sims.append([args.halo, thissnap])
 
     return all_sims
 

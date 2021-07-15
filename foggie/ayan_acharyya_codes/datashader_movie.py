@@ -7,8 +7,7 @@
     Output :     datashader plots as png files (which can be later converted to a movie via animate_png.py)
     Author :     Ayan Acharyya
     Started :    July 2021
-    Examples :
-run datashader_movie.py --system ayan_hd --halo 8508 --do gas --galrad 20 --xcol rad --ycol metal --colorcol vrad --do_all_sims --makemovie --delay 0.2
+    Examples :   run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol metal --colorcol vrad --do_all_sims --makemovie --delay 0.2
 
 """
 from header import *
