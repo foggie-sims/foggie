@@ -16,15 +16,14 @@
 #PBS -m abe
 #PBS -M aachary9@jhu.edu
 
-##this is commented out ## #set output and error directories
-##this is commented out ## #PBS -j oe
-##this is commented out ## #PBS -o output_RUN_NAME.out
+#set output and error directories
+#PBS -j oe
+#PBS -o pbs_RUN_NAME.out
 
 ##### Change to current working directory #####
 cd WORKDIR
 
 ##### Execute Program #####
 top -b -u $USER -n 172800 1>top_RUN_NAME.out &
-#mpirun -n NCPUS python CALLFILE SYSTEMFLAG DRYRUNFLAG HALOFLAG MERGEHIIFLAG DO_ALL_SIMSFLAG DO_ALL_HALOSFLAG
 mpirun -n NCPUS python CALLFILE SYSTEMFLAG DRYRUNFLAG HALOFLAG MERGEHIIFLAG DO_ALL_SIMSFLAG DO_ALL_HALOSFLAG 1>output_RUN_NAME.out 2>&1
 killall 'top'

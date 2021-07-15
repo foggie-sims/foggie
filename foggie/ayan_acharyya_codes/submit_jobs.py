@@ -7,7 +7,7 @@
     Author :     Ayan Acharyya
     Started :    July 2021
     Example :    run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp_allsims --halo 8508 --dryrun
-    OR :         run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp_allsims --do_all_halos --dryrun
+    OR :         run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp_allsims --do_all_halos --nhours 24 --dryrun
 
 """
 import os, subprocess, argparse, datetime
@@ -20,9 +20,10 @@ def parse_args():
     '''
     parser = argparse.ArgumentParser(description="calling plotobservables for full parameter space")
     parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_pleiades')
-    parser.add_argument('--queue', metavar='queue', type=str, action='store', default='normal')
+    parser.add_argument('--queue', metavar='queue', type=str, action='store', default='long')
     parser.add_argument('--nnodes', metavar='nnodes', type=int, action='store', default=1)
     parser.add_argument('--ncores', metavar='ncores', type=int, action='store', default=None)
+    parser.add_argument('--nhours', metavar='nhours', type=int, action='store', default=None)
     parser.add_argument('--proc', metavar='proc', type=str, action='store', default='has')
     parser.add_argument('--start', metavar='start', type=int, action='store', default=1)
     parser.add_argument('--stop', metavar='stop', type=int, action='store', default=1)
@@ -107,7 +108,7 @@ if __name__ == '__main__':
         haloflag = ' --halo ' + thishalo
         jobname = prefixtext + thishalo + '_job' + str(jobid)
 
-        nhours = '01' if args.dryrun or args.queue == 'devel' else '%02d'%(max_hours_dict[args.queue])
+        nhours = args.nhours if args.nhours is not None else '01' if args.dryrun or args.queue == 'devel' else '%02d'%(max_hours_dict[args.queue])
 
         out_jobscript = jobscript_path + 'jobscript_' + jobname + '.sh'
 
