@@ -199,6 +199,7 @@ if __name__ == '__main__':
 
     # ----------------------------------------------------------------------------
     for index, this_sim in enumerate(list_of_sims):
+        start_time_this_snapshot = time.time()
         myprint('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1) + ' out of the total ' + str(len(list_of_sims)) + ' snapshots...', dummy_args)
         try:
             if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
@@ -227,7 +228,7 @@ if __name__ == '__main__':
 
         bounds_dict = defaultdict(lambda: None, rad=(0, args.galrad), gas=(1e-29, 1e-22), temp=(2e3, 4e6), metal=(1e-2, 1e1), vrad=(-400, 400))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
         df, fig = make_datashader_plot(box, thisfilename, args)
-        myprint('This snapshot ' + this_sim[1] + ' completed in %s minutes' % ((time.time() - start_time) / 60), args)
+        myprint('This snapshot ' + this_sim[1] + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
 
     if args.makemovie and args.do_all_sims:
         myprint('Finished creating snapshots, calling animate_png.py to create movie..', args)
