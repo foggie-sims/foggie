@@ -8,7 +8,7 @@
     Output :     One pandas dataframe per halo as a txt file (Or fits file?)
     Author :     Ayan Acharyya
     Started :    July 2021
-    Example :    run plot_metallicity_evolution.py --system ayan_hd --halo 8508 --saveplot
+    Example :    run plot_metallicity_evolution.py --system ayan_hd --halo 8508 --weight mass --nzbins 20 --saveplot
 
 """
 from header import *
@@ -17,24 +17,34 @@ from track_metallicity_evolution import *
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # ----------------------------------------------------------------------------------
-def plot_median_metallicity(z_arr, Z_arr, ax, args, color=['salmon', 'brown']):
+def plot_median_metallicity(z_arr, Z_arr, sfr_arr, ax, args, color=['salmon', 'brown']):
     '''
     Function to plot the metallicity evolution
     '''
-    median_arr, low_arr, up_arr, len_arr = [], [], [], []
-    for thisZ in Z_arr:
+    median_arr, low_arr, up_arr = [], [], []
+    for index,thisZ in enumerate(Z_arr):
         median_arr.append(np.median(thisZ))
         low_arr.append(np.percentile(thisZ, 16))
         up_arr.append(np.percentile(thisZ, 84))
-        len_arr.append(len(thisZ))
 
-    ax.fill_between(z_arr, low_arr, up_arr, color=color[0], lw=0.5, alpha=0.7)
-    ax.plot(z_arr, median_arr, color=color[1], lw=1)
+    uniform_z_arr = np.linspace(z_max, z_min, args.nzbins)
+    bin_index = np.digitize(z_arr, uniform_z_arr)
+    binned_median_arr, binned_low_arr, binned_up_arr, binned_sfr_arr = np.zeros((4, args.nzbins))
+    for index in range(args.nzbins):
+        binned_median_arr[index] = np.mean(np.array(median_arr)[bin_index == index])
+        binned_low_arr[index] = np.mean(np.array(low_arr)[bin_index == index])
+        binned_up_arr[index] = np.mean(np.array(up_arr)[bin_index == index])
+        binned_sfr_arr[index] = np.nanmean(np.array(sfr_arr)[bin_index == index])
 
-    ax.set_xlabel('Redshift', fontsize=args.fontsize)
-    ax.set_xticklabels(['%.1F'%item for item in ax.get_xticks()], fontsize=args.fontsize)
-    ax.set_xlim(z_min, z_max)
+    ax.fill_between(uniform_z_arr, binned_low_arr, binned_up_arr, color=color[0], lw=0.5, alpha=0.7)
+    ax.plot(uniform_z_arr, binned_median_arr, color=color[1], lw=1)
+
+    nxticks = 5
+    x_tick_arr = np.array([uniform_z_arr[int(item)] for item in np.linspace(0, args.nzbins - 1, nxticks)])
     ax.set_xlim(ax.get_xlim()[::-1])
+    ax.set_xticks(x_tick_arr)
+    ax.set_xticklabels(['%.1F'%item for item in x_tick_arr], fontsize=args.fontsize)
+    ax.set_xlabel('Redshift', fontsize=args.fontsize)
 
     ax.set_ylabel(r'Metallicity (Z/Z$_\odot$)', fontsize=args.fontsize)
     ax.set_yticks(np.linspace(Z_min, Z_max, 5))
@@ -42,31 +52,27 @@ def plot_median_metallicity(z_arr, Z_arr, ax, args, color=['salmon', 'brown']):
     ax.set_ylim(Z_min, Z_max)
 
     # plotting number of star-particles as function of redshift
+    col = 'royalblue'
     ax2 = ax.twinx()
-    ax2.plot(z_arr, np.log10(len_arr), color='k', lw=1, ls='dashed')
-    ax2.set_ylabel('log (# of stars)', fontsize=args.fontsize/1.5)
-    ax2.set_yticklabels(['%.1F'%item for item in ax2.get_yticks()], fontsize=args.fontsize/1.5)
-
+    ax2.scatter(uniform_z_arr, binned_sfr_arr, color=col, lw=0, s=20)
+    ax2.plot(uniform_z_arr, binned_sfr_arr, color=col, lw=1, ls='dashed')
+    ax2.set_ylabel(r'SFR (M$_\odot$/yr)', fontsize=args.fontsize, color=col)
+    ax2.set_yticklabels(['%.1F'%item for item in ax2.get_yticks()], fontsize=args.fontsize, color=col)
     return ax
 
 # ---------------------------------------------------------------------------------
-def make_heatmap(heat_arr, z_arr, ax, cmap='viridis', nybins=40, clabel='Metallicity PDF', nzbins=10):
+def make_heatmap(heat_arr, z_arr, ax, cmap='viridis', nybins=40, clabel='Metallicity PDF', nzbins=10, clim=(0, 1)):
     '''
     Function to actually plot the heatmap and fine polish axes labels, etc.
     :return: ax of the plot
     '''
-    global z_max, z_min
-    if z_max is None: z_max = z_arr[0]
-    if z_min is None: z_min = z_arr[-1]
     uniform_z_arr = np.linspace(z_max, z_min, nzbins)
     bin_index = np.digitize(z_arr, uniform_z_arr)
 
     heatmap = np.zeros((np.shape(heat_arr)[0], nzbins))
-    for index in range(nzbins):
-        heatmap[:, index] = np.mean(heat_arr[:, bin_index == index], axis=1)
-        heatmap[:, index] /= np.sum(heatmap[:, index])
+    for index in range(nzbins): heatmap[:, index] = np.mean(heat_arr[:, bin_index == index], axis=1)
 
-    im = ax.imshow(heatmap, cmap=cmap, aspect='auto', origin='lower', extent=(0, nzbins, 0, np.shape(heatmap)[0])) # extent = (left, right, bottom, top) in data coordinates
+    im = ax.imshow(heatmap, cmap=cmap, aspect='auto', origin='lower', vmin=clim[0], vmax=clim[1], extent=(0, nzbins, 0, np.shape(heatmap)[0])) # extent = (left, right, bottom, top) in data coordinates
 
     ax.grid(False)
     nxticks = 5
@@ -85,7 +91,7 @@ def make_heatmap(heat_arr, z_arr, ax, cmap='viridis', nybins=40, clabel='Metalli
     cax = divider.new_horizontal(size='5%', pad=0.05)
     fig.add_axes(cax)
     cb = plt.colorbar(im, cax=cax, orientation='vertical')
-    cb.ax.set_ylabel(clabel, fontsize=args.fontsize/1.5)
+    cb.ax.set_ylabel(clabel, fontsize=args.fontsize)
 
     return ax
 
@@ -116,14 +122,31 @@ def plot_metallicity_heatmap(z_arr, Z_arr, axes, args, weight_arr=None):
             mchist_arr.append(mchist)
 
     Zhist_arr = np.transpose(np.array(Zhist_arr))
-    ax1 = make_heatmap(Zhist_arr, z_arr, ax1, nybins=len(bin_edges) - 1, clabel='Metallicity PDF' if args.weight is None else args.weight + '-weighted metallicity PDF', nzbins=args.nzbins)
+    ax1 = make_heatmap(Zhist_arr, z_arr, ax1, nybins=len(bin_edges) - 1, clabel='Metallicity PDF' if args.weight is None else args.weight + '-weighted metallicity PDF', nzbins=args.nzbins, clim=(0, 1))
     if args.weight is not None:
         mhist_arr = np.transpose(np.array(mhist_arr))
         mchist_arr = np.transpose(np.array(mchist_arr))
-        ax2 = make_heatmap(mhist_arr, z_arr, ax2, nybins=len(bin_edges) - 1, clabel='Fraction of ' + args.weight + ' entrained', nzbins=args.nzbins)
-        ax3 = make_heatmap(mchist_arr, z_arr, ax3, nybins=len(bin_edges) - 1, clabel='Cumulative fraction of ' + args.weight + ' entrained', nzbins=args.nzbins)
+        ax2 = make_heatmap(mhist_arr, z_arr, ax2, nybins=len(bin_edges) - 1, clabel='Fraction of ' + args.weight + ' entrained', nzbins=args.nzbins, clim=(0, 0.25))
+        ax3 = make_heatmap(mchist_arr, z_arr, ax3, nybins=len(bin_edges) - 1, clabel='Cumulative fraction of ' + args.weight + ' entrained', nzbins=args.nzbins, clim=(0, 1))
 
     return axes
+
+# -----------------------------------------------------------------------------------
+def pull_halo_sfr(z_arr, args):
+    '''
+    Function to pull the list of SFRs corresponding to a given list of redshifts, for a given halo
+    '''
+    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    halo_df_file = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'sfr'
+    halo_df = pd.read_table(halo_df_file, delim_whitespace=True, comment='#', names=('snap', 'z', 'sfr'))
+    halo_df['z'] = np.round(halo_df['z'], 6)
+    z_arr = np.round(z_arr, 6)
+    sfr_arr = []
+    for thisz in z_arr:
+        thissfr = halo_df[halo_df['z'] == thisz]['sfr'].values
+        if len(thissfr): sfr_arr.append(thissfr[0])
+        else: sfr_arr.append(np.nan)
+    return sfr_arr
 
 # -----------------------------------------------------------------------------------
 if __name__ == '__main__':
@@ -156,18 +179,22 @@ if __name__ == '__main__':
         m_arr = [x for _, x in sorted(zip(z_arr, m_arr), key=lambda x: x[0], reverse=True)]
         Z_arr = [x for _, x in sorted(zip(z_arr, Z_arr), key=lambda x: x[0], reverse=True)]
         z_arr = sorted(z_arr, reverse=True)
-
+        sfr_arr = pull_halo_sfr(z_arr, args)
+        
         if args.weight is None:
             fig, axes = plt.subplots(1, 2, figsize=(10, 4))
             fig.subplots_adjust(top=0.95, left=0.1, right=0.9, bottom=0.15)
         else:
-            fig, axes = plt.subplots(1, 4, figsize=(20, 4))
+            fig, axes = plt.subplots(1, 4, figsize=(21, 4))
             fig.subplots_adjust(top=0.95, left=0.05, right=0.95, bottom=0.15, wspace=0.5)
 
-        axes[0] = plot_median_metallicity(z_arr, Z_arr, axes[0], args, color=color_arr[index])
+        if z_max is None: z_max = z_arr[0]
+        if z_min is None: z_min = z_arr[-1]
+        axes[0] = plot_median_metallicity(z_arr, Z_arr, sfr_arr, axes[0], args, color=color_arr[index])
         axes[1:] = plot_metallicity_heatmap(z_arr, Z_arr, axes[1:], args, weight_arr=m_arr)
         fig.text(0.15 if args.weight is None else 0.1, 0.85, halo_dict[args.halo], color='black', ha='left', va='top', fontsize=args.fontsize)
 
+        axes[0].set_xticklabels(['%.1F' % item for item in axes[0].get_xticks()], fontsize=args.fontsize)
         plt.show(block=False)
 
         if args.saveplot:
