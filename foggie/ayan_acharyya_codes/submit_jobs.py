@@ -99,7 +99,7 @@ if __name__ == '__main__':
     elif 'pleiades' in args.system:
         procs_dir = {'san':(16, 32), 'ivy':(20, 64), 'has':(24, 128), 'bro':(28, 128), 'bro_ele':(28, 128), 'sky_ele':(40, 192), 'cas_ait':(40, 192)} # (nnodes, mem) for each proc, from https://www.nas.nasa.gov/hecc/support/kb/pbs-resource-request-examples_188.html
         max_hours_dict = {'low':4, 'normal':8, 'long':120, 'debug':2, 'devel':2} # from https://www.nas.nasa.gov/hecc/support/kb/pbs-job-queue-structure_187.html
-        workdir = jobscript_path # for pleiades
+        workdir = '/nobackup/aachary2/foggie_outputs/pleiades_workdir' # for pleiades
         nnodes = args.nnodes
         ncores = args.ncores if args.ncores is not None else procs_dir[args.proc][0]
         if args.dryrun: memory = str(int(ncores) * 2) + 'GB'
@@ -123,7 +123,7 @@ if __name__ == '__main__':
 
         nhours = args.nhours if args.nhours is not None else '01' if args.dryrun or args.queue == 'devel' else '%02d'%(max_hours_dict[args.queue])
 
-        out_jobscript = jobscript_path + 'jobscript_' + jobname + '.sh'
+        out_jobscript = workdir + '/jobscript_' + jobname + '.sh'
 
         replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NNODES': nnodes, 'NHOURS': nhours, 'CALLFILE': callfile, 'WORKDIR': workdir, \
                         'JOBSCRIPT_PATH':jobscript_path, 'NCORES': ncores, 'MEMORY': memory, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'PROC':args.proc, \
