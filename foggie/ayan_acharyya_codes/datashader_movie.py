@@ -51,6 +51,7 @@ def wrap_axes(df, filename, args):
     This function is partly based on foggie.render.shade_maps.wrap_axes()
     :return: fig
     '''
+    npix_datashader = 1000
     # -----------------to initialise figure---------------------
     axes = sns.JointGrid(xcol, ycol, df, height=8)
     plt.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.1)
@@ -67,13 +68,27 @@ def wrap_axes(df, filename, args):
     y_min, y_max = bounds_dict[args.ycol]
     if islog_dict[args.ycol]: y_min, y_max = np.log10(y_min), np.log10(y_max)
 
-    # ----------to plot 1D histograms on the top and the right axes--------------
+    # ----------to filter and bin the dataframe--------------
     df = df[(df[xcol].between(x_min, x_max)) & (df[ycol].between(y_min, y_max))]
+    x_bin_size = bin_size_dict[args.xcol]
+    x_bins = np.arange(x_min, x_max + x_bin_size, x_bin_size)
+    df['binned_cat'] = pd.cut(df[xcol], x_bins)
+    if islog_dict[args.ycol]: df[args.ycol] = 10 ** df[ycol] # because otherwise args.ycol is not going to be present in df
+    y_binned = df.groupby('binned_cat', as_index=False).agg(np.mean)[args.ycol] # so that the averaging is done in linear space (as opposed to log space, which would be incorrect)
+    if islog_dict[args.ycol]: y_binned = np.log10(y_binned)
 
+    # ----------to plot mean binned y vs x profile--------------
+    x_bin_centers = x_bins[:-1] + x_bin_size / 2
+    x_on_plot = (x_bin_centers - x_min) * npix_datashader / (x_max - x_min) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
+    y_on_plot = (y_binned - y_min) * npix_datashader / (y_max - y_min)
+    ax1.plot(x_on_plot, y_on_plot, color='black', lw=1)
+
+    # ----------to plot 1D histogram on the top axes--------------
     sns.kdeplot(df[xcol], ax=axes.ax_marg_x, legend=False, color='black', lw=1)
     axes.ax_marg_x.tick_params(axis='x', which='both', top=False)
     axes.ax_marg_x.set_xlim(x_min, x_max)
 
+    # ----------to plot 1D histogram on the right axes--------------
     sns.kdeplot(df[ycol], ax=axes.ax_marg_y, vertical=True, legend=False, color='black', lw=1)
     axes.ax_marg_y.tick_params(axis='y', which='both', right=False)
     axes.ax_marg_y.set_ylim(y_min, y_max)
@@ -82,14 +97,14 @@ def wrap_axes(df, filename, args):
     log_text = 'Log ' if islog_dict[args.xcol] else ''
     delta_x = 100 if x_max - x_min > 100 else 30 if x_max - x_min > 30 else 5 if x_max - x_min > 5 else 1
     ax1.set_xlabel(log_text + labels_dict[args.xcol] + ' (' + unit_dict[args.xcol] + ')', fontsize=args.fontsize)
-    ax1.set_xticks(np.arange((x_max - x_min) + 1., step=delta_x) * 1000. / (x_max - x_min))
+    ax1.set_xticks(np.arange((x_max - x_min) + 1., step=delta_x) * npix_datashader / (x_max - x_min))
     ax1.set_xticklabels(['%.0F' % index for index in np.arange(x_min, x_max + 1, delta_x)], fontsize=args.fontsize)
 
     # ------to make the y axis-------------
     log_text = 'Log ' if islog_dict[args.ycol] else ''
     delta_y = 100 if y_max - y_min > 100 else 30 if y_max - y_min > 30 else 5 if y_max - y_min > 5 else 1
     ax1.set_ylabel(log_text + labels_dict[args.ycol] + ' (' + unit_dict[args.ycol] + ')', fontsize=args.fontsize)
-    ax1.set_yticks(np.arange((y_max - y_min) + 1., step=delta_y) * 1000. / (y_max - y_min))
+    ax1.set_yticks(np.arange((y_max - y_min) + 1., step=delta_y) * npix_datashader / (y_max - y_min))
     ax1.set_yticklabels(['%.0F' % index for index in np.arange(y_min, y_max + 1, delta_y)], fontsize=args.fontsize)
 
     # ------to make the small colorbar axis on top right-------------
@@ -154,9 +169,10 @@ def make_datashader_plot(ds, outfilename, args):
 if __name__ == '__main__':
     # set variables and dictionaries
     field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), 'stars':('deposit', 'stars_density'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected')}
-    unit_dict = {'rad':'kpc', 'density':'Msun/pc**2', 'metal':'Zsun', 'temp':'K', 'vrad':'km/s', 'ys_age':'Myr', 'ys_mas':'pc*Msun', 'gas_entropy':'keV*cm**3', 'vlos':'km/s'}
+    unit_dict = {'rad':'kpc', 'density':'Msun/pc**2', 'metal':r'Z/Z$_\odot$', 'temp':'K', 'vrad':'km/s', 'ys_age':'Myr', 'ys_mas':'pc*Msun', 'gas_entropy':'keV*cm**3', 'vlos':'km/s'}
     labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'ys_age':'Age', 'ys_mas':'Mass', 'gas_entropy':'Entropy', 'vlos':'LoS velocity'}
     islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True, gas_entropy=True)
+    bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
     categorize_by_dict = {'temp':categorize_by_temp, 'metal':categorize_by_metals, 'density':categorize_by_den, 'vrad':categorize_by_outflow_inflow, 'rad':categorize_by_radius}
     colorkey_dict = {'temp':new_phase_color_key, 'metal':new_metals_color_key, 'density': density_color_key, 'vrad': outflow_inflow_color_key, 'rad': radius_color_key}
 
