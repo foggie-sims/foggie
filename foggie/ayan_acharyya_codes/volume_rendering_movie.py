@@ -126,16 +126,38 @@ if __name__ == '__main__':
 
     if dummy_args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(dummy_args) # all snapshots of this particular halo
     else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
+    total_snaps = len(list_of_sims)
 
-    for index, this_sim in enumerate(list_of_sims):
-        myprint('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1) + ' out of the total ' + str(len(list_of_sims)) + ' snapshots...', dummy_args)
+    # --------domain decomposition; for mpi parallelisation-------------
+    comm = MPI.COMM_WORLD
+    ncores = comm.size
+    rank = comm.rank
+    print_master('Total number of MPI ranks = ' + str(ncores) + '. Starting at: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()), dummy_args)
+    comm.Barrier() # wait till all cores reached here and then resume
+
+    split_at_cpu = total_snaps - ncores * int(total_snaps/ncores)
+    nper_cpu1 = int(total_snaps / ncores)
+    nper_cpu2 = nper_cpu1 + 1
+    if rank < split_at_cpu:
+        core_start = rank * nper_cpu2
+        core_end = (rank+1) * nper_cpu2 - 1
+    else:
+        core_start = split_at_cpu * nper_cpu2 + (rank - split_at_cpu) * nper_cpu1
+        core_end = split_at_cpu * nper_cpu2 + (rank - split_at_cpu + 1) * nper_cpu1 - 1
+
+    # --------------------------------------------------------------
+    print_mpi('Operating on snapshots ' + str(core_start + 1) + ' to ' + str(core_end + 1) + 'i.e., ' + str(core_end - core_start + 1) + ' out of ' + str(total_snaps) + ' snapshots', dummy_args)
+
+    for index in range(core_start, core_end + 1):
+        this_sim = list_of_sims[index]
+        print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1) + ' out of the total ' + str(len(list_of_sims)) + ' snapshots...', dummy_args)
         try:
             if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
             else: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
 
             if type(args) is tuple:
                 args, ds, box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
-                myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
+                print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
             else:
                 ds, box = load_sim(args, region='refine_box', do_filter_particles=False)
         except (FileNotFoundError, PermissionError) as e:
@@ -199,7 +221,7 @@ if __name__ == '__main__':
         #start_frame, end_frame = 93, 95 # for debugging
 
         for thisframe in range(end_frame): # cannot start at start_frame because it has to loop through all camera orientations from frame 0 in order to get to the desired frame
-            myprint('Doing frame ' + str(thisframe+1) + ' out of ' + str(args.nmovframes), args)
+            print_mpi('Doing frame ' + str(thisframe+1) + ' out of ' + str(args.nmovframes), args)
 
             if thisframe < args.nmovframes / 2: zoom_factor = zoom_each_frame_factor  # zoom in during first half
             else: zoom_factor = 1 / zoom_each_frame_factor  # zoom out during second half
@@ -226,8 +248,8 @@ if __name__ == '__main__':
                       'camera width=', cam.get_width())
                 print('Camera object=', cam, '\n')
 
-            if should_render: myprint('Frame does not exist (or clobber=True), will render frame..', args)
-            else: myprint('Frame already exists (or outside specified frame index range). Skip rendering.', args)
+            if should_render: print_mpi('Frame does not exist (or clobber=True), will render frame..', args)
+            else: print_mpi('Frame already exists (or outside specified frame index range). Skip rendering.', args)
 
             if not args.noplot and should_render:
                 im = sc.render()
@@ -235,11 +257,14 @@ if __name__ == '__main__':
                 if args.annotate_redshift: annotate_image_with_text(thisframe_name, 'Redshift = %.4F'%(ds.current_redshift), args)
 
         if args.makemovie and args.nmovframes > 1 and not args.noplot:
-            myprint('Finished creating snapshots, calling animate_png.py to create movie..', args)
+            print_mpi('Finished creating snapshots, calling animate_png.py to create movie..', args)
             subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame)], shell=True)
 
+    comm.Barrier() # wait till all cores reached here and then resume
+
     if args.makemovie and args.do_all_sims and not args.noplot:
-        myprint('Finished creating snapshots, calling animate_png.py to create movie..', args)
+        print_master('Finished creating snapshots, calling animate_png.py to create movie..', args)
         subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname[:outfile_rootname.find('z_')+3] + '*' + outfile_rootname[outfile_rootname.find('_vol'):] + ' --delay ' + str(args.delay_frame)], shell=True)
 
-    print('Completed in %s minutes' % ((time.time() - start_time) / 60))
+    if ncores > 1: print_master('Parallely: time taken for filtering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
+    else: print_master('Serially: time taken for filtering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)

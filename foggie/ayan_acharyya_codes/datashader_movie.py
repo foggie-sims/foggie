@@ -184,6 +184,7 @@ if __name__ == '__main__':
 
     if dummy_args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(dummy_args) # all snapshots of this particular halo
     else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
+    total_snaps = len(list_of_sims)
 
     # parse column names, in case log
     xcol = 'log_' + dummy_args.xcol if islog_dict[dummy_args.xcol] else dummy_args.xcol
@@ -197,17 +198,37 @@ if __name__ == '__main__':
     outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (dummy_args.galrad, ycol, xcol, colorcol)
     if dummy_args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
 
-    # ----------------------------------------------------------------------------
-    for index, this_sim in enumerate(list_of_sims):
+    # --------domain decomposition; for mpi parallelisation-------------
+    comm = MPI.COMM_WORLD
+    ncores = comm.size
+    rank = comm.rank
+    print_master('Total number of MPI ranks = ' + str(ncores) + '. Starting at: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()), dummy_args)
+    comm.Barrier() # wait till all cores reached here and then resume
+
+    split_at_cpu = total_snaps - ncores * int(total_snaps/ncores)
+    nper_cpu1 = int(total_snaps / ncores)
+    nper_cpu2 = nper_cpu1 + 1
+    if rank < split_at_cpu:
+        core_start = rank * nper_cpu2
+        core_end = (rank+1) * nper_cpu2 - 1
+    else:
+        core_start = split_at_cpu * nper_cpu2 + (rank - split_at_cpu) * nper_cpu1
+        core_end = split_at_cpu * nper_cpu2 + (rank - split_at_cpu + 1) * nper_cpu1 - 1
+
+    # --------------------------------------------------------------
+    print_mpi('Operating on snapshots ' + str(core_start + 1) + ' to ' + str(core_end + 1) + 'i.e., ' + str(core_end - core_start + 1) + ' out of ' + str(total_snaps) + ' snapshots', dummy_args)
+
+    for index in range(core_start, core_end + 1):
         start_time_this_snapshot = time.time()
-        myprint('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1) + ' out of the total ' + str(len(list_of_sims)) + ' snapshots...', dummy_args)
+        this_sim = list_of_sims[index]
+        print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1) + ' out of the total ' + str(len(list_of_sims)) + ' snapshots...', dummy_args)
         try:
             if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
             else: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
 
             if type(args) is tuple:
                 args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
-                myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
+                print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
             else:
                 ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=False)
         except (FileNotFoundError, PermissionError) as e:
@@ -228,10 +249,13 @@ if __name__ == '__main__':
 
         bounds_dict = defaultdict(lambda: None, rad=(0, args.galrad), gas=(1e-29, 1e-22), temp=(2e3, 4e6), metal=(1e-2, 1e1), vrad=(-400, 400))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
         df, fig = make_datashader_plot(box, thisfilename, args)
-        myprint('This snapshot ' + this_sim[1] + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
+        print_mpi('This snapshot ' + this_sim[1] + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
+
+    comm.Barrier() # wait till all cores reached here and then resume
 
     if args.makemovie and args.do_all_sims:
-        myprint('Finished creating snapshots, calling animate_png.py to create movie..', args)
+        print_master('Finished creating snapshots, calling animate_png.py to create movie..', args)
         subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
 
-    print('Completed in %s minutes' % ((time.time() - start_time) / 60))
+    if ncores > 1: print_master('Parallely: time taken for filtering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
+    else: print_master('Serially: time taken for filtering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
