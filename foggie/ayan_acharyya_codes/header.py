@@ -12,12 +12,13 @@
 import numpy as np
 import multiprocessing as mproc
 import seaborn as sns
-import os, sys, argparse, re, subprocess, time, datetime, math, shutil, copy, glob
+import os, sys, argparse, re, subprocess, time, datetime, math, shutil, copy, glob, random
 
 from matplotlib import pyplot as plt
 plt.style.use('seaborn')
 from matplotlib import patheffects as fx
 from matplotlib.colors import LogNorm
+from matplotlib import image as mpimg
 
 from pathlib import Path
 from importlib import reload
@@ -39,6 +40,10 @@ from astropy import convolution as con
 from operator import itemgetter
 from collections import defaultdict
 
+import datashader as dsh
+from datashader.utils import export_image
+from datashader import transfer_functions as dstf
+
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -57,6 +62,7 @@ from foggie.utils.consistency import *
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
 from foggie.utils.get_proper_box_size import get_proper_box_size
+from foggie.render.cmap_utils import grab_cmap
 
 # ------------declaring constants to be used globally-----------
 c = 3e5  # km/s

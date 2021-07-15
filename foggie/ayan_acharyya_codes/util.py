@@ -935,19 +935,28 @@ def parse_args(haloname, RDname, fast=False):
     # ------- args added for volume_rendering_movie.py ------------------------------
     parser.add_argument('--makemovie', dest='makemovie', action='store_true', default=False, help='Accumulate all pngs at the end into a movie?, default is no')
     parser.add_argument('--nmovframes', metavar='nmovframes', type=int, action='store', default=0, help='total number of frames in movie, i.e. number of parts to divide the full 2*pi into; default is 200')
-    parser.add_argument('--max_frot', metavar='max_frot', type=float, action='store', default=1, help='what fraction of full rotation (0=0, 1 = 2*pi)? default is 1')
+    parser.add_argument('--starting_frot', metavar='starting_frot', type=float, action='store', default=0, help='what fraction of full rotation (0=0, 1 = 2*pi) to start with? default is 0')
+    parser.add_argument('--max_frot', metavar='max_frot', type=float, action='store', default=0, help='what fraction of full rotation (0=0, 1 = 2*pi)? default is 0')
     parser.add_argument('--max_zoom', metavar='max_zoom', type=float, action='store', default=1, help='what factor of zoom? default is 1 i.e. no zoom')
     parser.add_argument('--imres', metavar='imres', type=int, action='store', default=256, help='image resolution in pixels x pixels? default is 256 x 256')
     parser.add_argument('--sigma', metavar='sigma', type=int, action='store', default=8, help='sigma clipping? default is 8')
     parser.add_argument('--delay_frame', metavar='delay_frame', type=float, action='store', default=0.1, help='duration per frame of the movie, in sec; default is 0.1 sec')
     parser.add_argument('--annotate_domain', dest='annotate_domain', action='store_true', default=False, help='annotate domain boundaries?, default is no')
     parser.add_argument('--annotate_axes', dest='annotate_axes', action='store_true', default=False, help='annotate coordinate axes?, default is no')
+    parser.add_argument('--annotate_redshift', dest='annotate_redshift', action='store_true', default=False, help='annotate current redshift?, default is no')
     parser.add_argument('--move_to', metavar='move_to', type=str, action='store', default='0,0,0', help='move camera position to (x,y,z) position coordinates in domain_length units, relative to starting position; default is (0,0,0) i.e. no movement')
 
     # ------- args added for track_metallicity_evolution.py ------------------------------
     parser.add_argument('--nocallback', dest='nocallback', action='store_true', default=False, help='callback previous functions if a file is not found?, default is no')
+
+    # ------- args added for plot_metallicity_evolution.py ------------------------------
     parser.add_argument('--weight', metavar='weight', type=str, action='store', default=None, help='column name of quantity to weight the metallicity by; default is None i.e. no weight')
     parser.add_argument('--nzbins', metavar='nzbins', type=int, action='store', default=10, help='number of redshift bins on heatmap? default is 10')
+
+    # ------- args added for datashader_movie.py ------------------------------
+    parser.add_argument('--xcol', metavar='xcol', type=str, action='store', default='rad', help='x axis quantity; default is rad')
+    parser.add_argument('--ycol', metavar='ycol', type=str, action='store', default='metal', help='y axis quantity; default is metal')
+    parser.add_argument('--colorcol', metavar='colorcol', type=str, action='store', default='vrad', help='x axis quantity; default is vrad')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
