@@ -958,6 +958,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--xcol', metavar='xcol', type=str, action='store', default='rad', help='x axis quantity; default is rad')
     parser.add_argument('--ycol', metavar='ycol', type=str, action='store', default='metal', help='y axis quantity; default is metal')
     parser.add_argument('--colorcol', metavar='colorcol', type=str, action='store', default='vrad', help='x axis quantity; default is vrad')
+    parser.add_argument('--clobber_plot', dest='clobber_plot', action='store_true', default=False, help='overwrite existing plots with same name?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()

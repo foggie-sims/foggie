@@ -128,14 +128,14 @@ def wrap_axes(df, filename, args):
     delta_c = 200 if c_max - c_min > 200 else 60 if c_max - c_min > 60 else 10 if c_max - c_min > 10 else 2
     ax2.set_xticks(np.arange((c_max - c_min) + 1., step=delta_c) * np.shape(cbar_im)[1] / (c_max - c_min))
     ax2.set_xticklabels(['%.0F' % index for index in np.arange(c_min, c_max + 1, delta_c)], fontsize=args.fontsize/1.5)#, weight='bold')
-    ax2.text(np.shape(cbar_im)[1]/2, 1.5 * np.shape(cbar_im)[0], log_text + labels_dict[args.colorcol] + ' (' + unit_dict[args.colorcol] + ')', fontsize=args.fontsize/1.5, ha='center', va='top')
+    ax2.text(np.shape(cbar_im)[1]/2, 2.5 * np.shape(cbar_im)[0], log_text + labels_dict[args.colorcol] + ' (' + unit_dict[args.colorcol] + ')', fontsize=args.fontsize/1.5, ha='center', va='top')
 
     for item in ['top', 'bottom', 'left', 'right']: ax2.spines[item].set_color('white')
     ax2.set_yticklabels([])
     ax2.set_yticks([])
 
     # ---------to annotate and save the figure----------------------
-    plt.text(0.033, 0.05, 'z = '+str(np.round(args.current_redshift * 100.) / 100.), transform=ax1.transAxes, fontsize=args.fontsize)
+    plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift , transform=ax1.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=False)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
@@ -169,7 +169,7 @@ def make_datashader_plot(ds, outfilename, args):
 if __name__ == '__main__':
     # set variables and dictionaries
     field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), 'stars':('deposit', 'stars_density'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected')}
-    unit_dict = {'rad':'kpc', 'density':'Msun/pc**2', 'metal':r'Z/Z$_\odot$', 'temp':'K', 'vrad':'km/s', 'ys_age':'Myr', 'ys_mas':'pc*Msun', 'gas_entropy':'keV*cm**3', 'vlos':'km/s'}
+    unit_dict = {'rad':'kpc', 'density':'Msun/pc**2', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'ys_age':'Myr', 'ys_mas':'pc*Msun', 'gas_entropy':'keV*cm**3', 'vlos':'km/s'}
     labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'ys_age':'Age', 'ys_mas':'Mass', 'gas_entropy':'Entropy', 'vlos':'LoS velocity'}
     islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True, gas_entropy=True)
     bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
@@ -221,7 +221,7 @@ if __name__ == '__main__':
     for index in range(core_start, core_end + 1):
         start_time_this_snapshot = time.time()
         this_sim = list_of_sims[index]
-        print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1) + ' out of the total ' + str(len(list_of_sims)) + ' snapshots...', dummy_args)
+        print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
         try:
             if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
             else: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
@@ -238,17 +238,26 @@ if __name__ == '__main__':
         args.current_redshift = ds.current_redshift
         thisfilename = fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
-        if args.fullbox:
-            box_width = ds.refine_width  # kpc
-            args.galrad = box.width / 2
-        else:
-            box_center = ds.arr(args.halo_center, kpc)
-            box_width = args.galrad * 2 # in kpc
-            box_width_kpc = ds.arr(box_width, 'kpc')
-            box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+        if not os.path.exists(thisfilename) or args.clobber_plot:
+            if not os.path.exists(thisfilename):
+                print_mpi(thisfilename + ' plot does not exist. Creating afresh..', args)
+            elif args.clobber_plot:
+                print_mpi(thisfilename + ' plot exists but over-writing..', args)
 
-        bounds_dict = defaultdict(lambda: None, rad=(0, args.galrad), gas=(1e-29, 1e-22), temp=(2e3, 4e6), metal=(1e-2, 1e1), vrad=(-400, 400))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
-        df, fig = make_datashader_plot(box, thisfilename, args)
+            if args.fullbox:
+                box_width = ds.refine_width  # kpc
+                args.galrad = box.width / 2
+            else:
+                box_center = ds.arr(args.halo_center, kpc)
+                box_width = args.galrad * 2 # in kpc
+                box_width_kpc = ds.arr(box_width, 'kpc')
+                box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+
+            bounds_dict = defaultdict(lambda: None, rad=(0, args.galrad), gas=(1e-29, 1e-22), temp=(2e3, 4e6), metal=(1e-2, 1e1), vrad=(-400, 400))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
+            df, fig = make_datashader_plot(box, thisfilename, args)
+        else:
+            print_mpi('Skipping snapshot because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)
+
         print_mpi('This snapshot ' + this_sim[1] + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
 
     comm.Barrier() # wait till all cores reached here and then resume
