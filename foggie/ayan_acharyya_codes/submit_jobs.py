@@ -35,6 +35,12 @@ def parse_args():
     parser.add_argument('--dryrun', dest='dryrun', action='store_true', default=False)
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False)
     parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False)
+    parser.add_argument('--galrad', metavar='galrad', type=str, action='store', default=None)
+    parser.add_argument('--xcol', metavar='xcol', type=str, action='store', default=None)
+    parser.add_argument('--ycol', metavar='ycol', type=str, action='store', default=None)
+    parser.add_argument('--colorcol', metavar='colorcol', type=str, action='store', default=None)
+    parser.add_argument('--makemovie', dest='makemovie', action='store_true', default=False)
+    parser.add_argument('--delay', metavar='delay', type=str, action='store', default=None)
     args, leftovers = parser.parse_known_args()
 
     return args
@@ -51,6 +57,13 @@ if __name__ == '__main__':
     do_all_simsflag = ' --do_all_sims ' if args.do_all_sims else ''
     mergeHIIflag = ' --mergeHII ' + str(args.mergeHII) if args.mergeHII is not None else ''
     prefixtext = args.prefix + '_' if args.prefix is not None else ''
+    makemovie_flag = ' --makemovie ' if args.makemovie else ''
+    galrad_flag = ' --galrad ' + args.galrad if args.galrad is not None else ''
+    xcol_flag = ' --xcol ' + args.xcol if args.xcol is not None else ''
+    ycol_flag = ' --ycol ' + args.ycol if args.ycol is not None else ''
+    colorcol_flag = ' --colorcol ' + args.colorcol if args.colorcol is not None else ''
+    delay_flag = ' --delay ' + args.delay if args.delay is not None else ''
+
 
     jobscript_path = HOME+'/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
     jobscript_template = 'jobscript_template_' + args.system + '.txt'
@@ -115,7 +128,8 @@ if __name__ == '__main__':
         replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NNODES': nnodes, 'NHOURS': nhours, 'CALLFILE': callfile, 'WORKDIR': workdir, \
                         'JOBSCRIPT_PATH':jobscript_path, 'NCORES': ncores, 'MEMORY': memory, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'PROC':args.proc, \
                         'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG':do_all_simsflag, 'DO_ALL_HALOSFLAG':do_all_halosflag, 'SYSTEMFLAG':systemflag, \
-                        'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores} # keywords to be replaced in template jobscript
+                        'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG':xcol_flag, 'YCOL_FLAG':ycol_flag, \
+                        'COLORCOL_FLAG':colorcol_flag, 'MAKEMOVIE_FLAG':makemovie_flag, 'DELAY_FLAG':delay_flag} # keywords to be replaced in template jobscript
 
         with open(jobscript_path + jobscript_template) as infile, open(out_jobscript, 'w') as outfile:
             for line in infile:
