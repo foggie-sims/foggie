@@ -12,7 +12,8 @@ helper functions for creating colormaps for FOGGIE shade_maps - JT 090618
 """
 import os
 import numpy as np
-os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
+try: os.sys.path.insert(0, os.environ['FOGGIE_REPO']) # exception catching added by Ayan on July 14, 2021
+except: pass
 import yt
 import datashader as dshader
 import datashader.transfer_functions as tf
