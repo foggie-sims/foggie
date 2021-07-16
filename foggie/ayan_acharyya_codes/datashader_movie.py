@@ -32,9 +32,9 @@ def get_df_from_ds(ds, args):
             myprint(outfilename + ' exists but over-writing..', args)
 
         df = pd.DataFrame()
-        for field in [args.xcol, args.ycol, args.colorcol]:
+        for index, field in enumerate([args.xcol, args.ycol, args.colorcol]):
             arr = ds[field_dict[field]].in_units(unit_dict[field]).ndarray_view()
-            if islog_dict[field]:
+            if (index < 2 and islog_dict[field]) or (index == 2 and iscolorlog_dict[field]): # the color column is compared with a different dictionary than the coordinate axis columns
                 arr = np.log10(arr)
                 field = 'log_' + field
             df[field] = arr
@@ -60,34 +60,6 @@ def get_radial_velocity(paramlist):
     paramlist['vrad'] = paramlist['vel_x_cen'] * x_hat + paramlist['vel_y_cen'] * y_hat + paramlist['vel_z_cen'] * z_hat
     return paramlist
 
-# -----------------------------------------------------------------------------------
-def create_foggie_cmap(colname, c_min, c_max):
-    '''
-    Function to create the colorbar for the tiny colorbar axis on top right
-    Uses globally defined colorkey_dict, categorize_by_dict
-    This function is based on Cassi's foggie.pressure_support.create_foggie_cmap(), which is in turn based on Jason's foggie.render.cmap_utils.create_foggie_cmap()
-    '''
-    n = 100000
-    color_key = colorkey_dict[colname]
-
-    df = pd.DataFrame({'x':np.random.rand(n), 'y': np.random.rand(n)})
-    df[colname] = np.array([random.uniform(c_min, c_max) for i in range(n)])
-    if islog_dict[colname]: df[colname] = 10. ** df[colname]
-    df['cat'] = categorize_by_dict[colname](df[colname])
-
-    n_labels = np.size(list(color_key))
-    sightline_length = np.max(df['x']) - np.min(df['x'])
-    value = np.max(df['x'])
-
-    for index in np.flip(np.arange(n_labels), 0):
-        df['cat'][df['x'] > value - sightline_length * (1.*index+1)/n_labels] = list(color_key)[index]
-    df.cat = df.cat.astype('category') ##
-
-    cvs = dsh.Canvas(plot_width=750, plot_height=100, x_range=(np.min(df['x']), np.max(df['x'])), y_range=(np.min(df['y']), np.max(df['y'])))
-    agg = cvs.points(df, 'x', 'y', dsh.count_cat('cat'))
-    cmap = dstf.spread(dstf.shade(agg, color_key=color_key), px=2, shape='square')
-
-    return cmap
 # ---------------------------------------------------------------------------------
 def convert_to_datashader_frame(data, data_min, data_max, npix_datashader):
     '''
@@ -113,8 +85,9 @@ def overplot_stars(x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax
     paramlist = shift_ref_frame(paramlist, args)
     paramlist = paramlist.rename(columns={'gas_metal': 'metal', 'gas_density': 'density', 'gas_pressure': 'pressure', 'gas_temp': 'temp'})
     paramlist = get_radial_velocity(paramlist)
-    for field in [args.xcol, args.ycol, args.colorcol]:
-        if islog_dict[field]: paramlist['log_' + field] = np.log10(paramlist[field])
+    for index, field in enumerate([args.xcol, args.ycol, args.colorcol]):
+        if (index < 2 and islog_dict[field]) or (index == 2 and iscolorlog_dict[field]):  # the color column is compared with a different dictionary than the coordinate axis columns
+            paramlist['log_' + field] = np.log10(paramlist[field])
     paramlist = paramlist[(paramlist[xcol].between(x_min, x_max)) & (paramlist[ycol].between(y_min, y_max)) & (paramlist[colorcol].between(c_min, c_max))]
 
     # -------------to actually plot the simulation data------------
@@ -174,6 +147,35 @@ def make_coordinate_axis(colname, data_min, data_max, ax, npix_datashader, fonts
 
     return ax
 
+# -----------------------------------------------------------------------------------
+def create_foggie_cmap(colname, c_min, c_max):
+    '''
+    Function to create the colorbar for the tiny colorbar axis on top right
+    Uses globally defined colorkey_dict, categorize_by_dict
+    This function is based on Cassi's foggie.pressure_support.create_foggie_cmap(), which is in turn based on Jason's foggie.render.cmap_utils.create_foggie_cmap()
+    '''
+    n = 100000
+    color_key = colorkey_dict[colname]
+
+    df = pd.DataFrame({'x':np.random.rand(n), 'y': np.random.rand(n)})
+    df[colname] = np.array([random.uniform(c_min, c_max) for i in range(n)])
+    if iscolorlog_dict[colname]: df[colname] = 10. ** df[colname] # skipping taking log of metallicity because it is categorised in linear space
+    df['cat'] = categorize_by_dict[colname](df[colname])
+
+    n_labels = np.size(list(color_key))
+    sightline_length = np.max(df['x']) - np.min(df['x'])
+    value = np.max(df['x'])
+
+    for index in np.flip(np.arange(n_labels), 0):
+        df['cat'][df['x'] > value - sightline_length * (1.*index+1)/n_labels] = list(color_key)[index]
+    df.cat = df.cat.astype('category') ##
+
+    cvs = dsh.Canvas(plot_width=750, plot_height=100, x_range=(np.min(df['x']), np.max(df['x'])), y_range=(np.min(df['y']), np.max(df['y'])))
+    agg = cvs.points(df, 'x', 'y', dsh.count_cat('cat'))
+    cmap = dstf.spread(dstf.shade(agg, color_key=color_key), px=2, shape='square')
+
+    return cmap
+
 # ---------------------------------------------------------------------------------
 def make_colorbar_axis(colname, data_min, data_max, fig, fontsize):
     '''
@@ -185,7 +187,7 @@ def make_colorbar_axis(colname, data_min, data_max, fig, fontsize):
     ax = fig.add_axes([ax_xpos, ax_ypos, ax_width, ax_height])
     cbar_im = np.flip(color_field_cmap.to_pil(), 1)
     ax.imshow(cbar_im)
-    log_text = 'Log ' if islog_dict[colname] else ''
+    log_text = 'Log ' if iscolorlog_dict[colname] else ''
     delta_c = 200 if data_max - data_min > 200 else 60 if data_max - data_min > 60 else 10 if data_max - data_min > 10 else 2
     
     ax.set_xticks(np.arange((data_max - data_min) + 1., step=delta_c) * np.shape(cbar_im)[1] / (data_max - data_min))
@@ -222,7 +224,7 @@ def wrap_axes(df, filename, args):
     y_min, y_max = bounds_dict[args.ycol]
     if islog_dict[args.ycol]: y_min, y_max = np.log10(y_min), np.log10(y_max)
     c_min, c_max = bounds_dict[args.colorcol]
-    if islog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
+    if iscolorlog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
 
     # ----------to overplot young stars----------------
     if args.overplot_stars: ax1 = overplot_stars(x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax1, args)
@@ -278,10 +280,11 @@ if __name__ == '__main__':
     unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'ys_age':'Myr', 'ys_mas':'Msun', 'gas_entropy':'keV*cm**3', 'vlos':'km/s'}
     labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'ys_age':'Age', 'ys_mas':'Mass', 'gas_entropy':'Entropy', 'vlos':'LoS velocity'}
     islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True, gas_entropy=True)
+    iscolorlog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True, gas_entropy=True)
     bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
-    categorize_by_dict = {'temp':categorize_by_temp, 'metal':categorize_by_metallicity_mw, 'density':categorize_by_den, 'vrad':categorize_by_outflow_inflow, 'rad':categorize_by_radius}
-    colorkey_dict = {'temp':new_phase_color_key, 'metal':metal_color_key_mw, 'density': density_color_key, 'vrad': outflow_inflow_color_key, 'rad': radius_color_key}
-    colormap_dict = {'temp':temperature_discrete_cmap, 'metal':metal_discrete_cmap_mw, 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap}
+    categorize_by_dict = {'temp':categorize_by_temp, 'metal':categorize_by_log_metals if iscolorlog_dict['metal'] else categorize_by_metals, 'density':categorize_by_den, 'vrad':categorize_by_outflow_inflow, 'rad':categorize_by_radius}
+    colorkey_dict = {'temp':new_phase_color_key, 'metal':new_metals_color_key, 'density': density_color_key, 'vrad': outflow_inflow_color_key, 'rad': radius_color_key}
+    colormap_dict = {'temp':temperature_discrete_cmap, 'metal':metal_discrete_cmap, 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap}
 
     dummy_args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
     if type(dummy_args_tuple) is tuple: dummy_args = dummy_args_tuple[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
@@ -296,7 +299,7 @@ if __name__ == '__main__':
     # parse column names, in case log
     xcol = 'log_' + dummy_args.xcol if islog_dict[dummy_args.xcol] else dummy_args.xcol
     ycol = 'log_' + dummy_args.ycol if islog_dict[dummy_args.ycol] else dummy_args.ycol
-    colorcol = 'log_' + dummy_args.colorcol if islog_dict[dummy_args.colorcol] else dummy_args.colorcol
+    colorcol = 'log_' + dummy_args.colorcol if iscolorlog_dict[dummy_args.colorcol] else dummy_args.colorcol
     colorcol_cat = 'cat_' + colorcol
 
     # parse paths and filenames
