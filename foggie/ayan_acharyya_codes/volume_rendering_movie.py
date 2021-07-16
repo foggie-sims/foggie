@@ -8,9 +8,9 @@
     Author :     Ayan Acharyya
     Started :    July 2021
     Examples :
-run volume_rendering_movie.py --system ayan_hd --halo 4123 --output RD0038 --do gas --imres 128 --galrad 15 --nmovframes 10 --max_frot 0.25 --max_zoom 1.5 --move_to 0,0,0.75 --makemovie --sigma 8 --delay 1
-run volume_rendering_movie.py --system ayan_hd --halo 4123 --output RD0038 --do gas --imres 1024 --fullbox --nmovframes 200 --max_frot 1 --max_zoom 15 --move_to 0,0,0.75 --makemovie --sigma 8 --delay 0.1
-run volume_rendering_movie.py --system ayan_hd --halo 8508 --do gas --galrad 15 --imres 128 --starting_frot 0.125  --nmovframes 1 --sigma 8 --do_all_sims --annotate_redshift --makemovie --delay 0.1
+run volume_rendering_movie.py --system ayan_hd --halo 4123 --output RD0038 --do density --imres 128 --galrad 15 --nmovframes 10 --max_frot 0.25 --max_zoom 1.5 --move_to 0,0,0.75 --makemovie --sigma 8 --delay 1
+run volume_rendering_movie.py --system ayan_hd --halo 4123 --output RD0038 --do density --imres 1024 --fullbox --nmovframes 200 --max_frot 1 --max_zoom 15 --move_to 0,0,0.75 --makemovie --sigma 8 --delay 0.1
+run volume_rendering_movie.py --system ayan_hd --halo 8508 --do density --galrad 20 --imres 128 --starting_frot 0.125  --nmovframes 1 --sigma 8 --do_all_sims --annotate_redshift --makemovie --delay 0.1 --use_full_colormap
 
 """
 from header import *
@@ -20,38 +20,53 @@ from yt.visualization.volume_rendering.api import LineSource
 from PIL import Image, ImageFont, ImageDraw
 start_time = time.time()
 
+
 # --------------------------------------------------------------------------------
-def get_metal_color_function(tfh, bounds, colormap, nlayers=8):
+def linramp(vals, minval, maxval):
     '''
-    Function to make color transfer function for density
+    Function to map color transfer function to all values of the given property
     '''
-    tfh.tf.add_layers(nlayers, w=0.01, alpha=np.logspace(-2.0, 0, nlayers), colormap=colormap)
+    return (vals - minval)/(maxval - minval)
+
+# --------------------------------------------------------------------------------
+def get_metal_color_function(tfh, bounds, colormap, nlayers=8, use_full_colormap=False):
+    '''
+    Function to make color transfer function for metallicity
+    '''
+    if use_full_colormap:
+        tfh.tf.map_to_colormap(np.log10(bounds[0]), np.log10(bounds[1]), colormap=colormap, scale_func=linramp)
+    else:
+        tfh.tf.add_layers(nlayers, w=0.01, alpha=np.logspace(-2.0, 0, nlayers), colormap=colormap)
+
+    return tfh
+# --------------------------------------------------------------------------------
+def get_temp_color_function(tfh, bounds, colormap, nlayers=8, use_full_colormap=False):
+    '''
+    Function to make color transfer function for temperature
+    '''
+    if use_full_colormap:
+        tfh.tf.map_to_colormap(np.log10(bounds[0]), np.log10(bounds[1]), colormap=colormap, scale_func=linramp)
+    else:
+        tfh.tf.add_layers(nlayers, w=0.005, alpha=np.logspace(0, -2.5, nlayers), colormap=colormap)
 
     return tfh
 
 # --------------------------------------------------------------------------------
-def get_temp_color_function(tfh, bounds, colormap, nlayers=8):
-    '''
-    Function to make color transfer function for density
-    '''
-    tfh.tf.add_layers(nlayers, w=0.005, alpha=np.logspace(0, -2.5, nlayers), colormap=colormap)
-
-    return tfh
-
-# --------------------------------------------------------------------------------
-def get_density_color_function(tfh, bounds, colormap, nlayers=8):
+def get_density_color_function(tfh, bounds, colormap, nlayers=8, use_full_colormap=False):
     '''
     Function to make color transfer function for density
     '''
     # the values below are hard-coded, corresponding to the gas density field range in Blizzard RD0038
     col_max, more_gauss1, more_gauss2 = 3e-24, 1e-23, 3e-23
+    if use_full_colormap:
+        tfh.tf.map_to_colormap(np.log10(bounds[0]), np.log10(bounds[1]), colormap=colormap, scale_func=linramp)
+    else:
+        # add_layers() function will add evenly spaced isocontours along the transfer function, sampling a colormap to determine the colors of the layers
+        tfh.tf.add_layers(nlayers, w=0.01, alpha=np.logspace(-1.5, 0, nlayers), colormap=colormap, ma=np.log10(col_max), mi=np.log10(bounds[0]), col_bounds=[np.log10(bounds[0]), np.log10(col_max)])
 
-    # add_layers() function will add evenly spaced isocontours along the transfer function, sampling a colormap to determine the colors of the layers
-    tfh.tf.add_layers(nlayers, w=0.01, alpha=np.logspace(-1.5, 0, nlayers), colormap=colormap, ma=np.log10(col_max), mi=np.log10(bounds[0]), col_bounds=[np.log10(bounds[0]), np.log10(col_max)])
-
-    # if you would like to add a gaussian with a customized color or no color, use add_gaussian()
-    tfh.tf.add_gaussian(np.log10(more_gauss1), width=.005, height=[1, 0.35, 0.0, 2.0])  # height = [R,G,B,alpha]
-    tfh.tf.add_gaussian(np.log10(more_gauss2), width=.005, height=[1, 1, 0.8, 5.0])  # height = [R,G,B,alpha]
+        # if you would like to add a gaussian with a customized color or no color, use add_gaussian()
+        tfh.tf.add_gaussian(np.log10(more_gauss1), width=.005, height=[1, 0.35, 0.0, 2.0])  # height = [R,G,B,alpha]
+        tfh.tf.add_gaussian(np.log10(more_gauss2), width=.005, height=[1, 1, 0.8, 5.0])  # height = [R,G,B,alpha]
 
     return tfh
 
@@ -71,9 +86,9 @@ def make_transfer_function(ds, args):
     tfh.build_transfer_function()
     tfh.grey_opacity = True
 
-    color_func_dict = {'gas': get_density_color_function, 'temp': get_temp_color_function, 'metal': get_metal_color_function}
+    color_func_dict = {'density': get_density_color_function, 'temp': get_temp_color_function, 'metal': get_metal_color_function}
 
-    tfh = color_func_dict[args.do](tfh, bounds, colormap_dict[args.do], nlayers=nlayers_dict[args.do])
+    tfh = color_func_dict[args.do](tfh, bounds, colormap_dict[args.do], nlayers=nlayers_dict[args.do], use_full_colormap=args.use_full_colormap)
 
     if args.saveplot: tfh.plot(fn = fig_dir + 'trial_transfer_function_' + field_dict[args.do][1] + '.png', profile_field=field)
     return tfh
@@ -113,10 +128,10 @@ def annotate_image_with_text(filename, text, args):
 # -----main code-----------------
 if __name__ == '__main__':
     # set variables and dictionaries
-    colormap_dict = {'temp':temperature_color_map, 'metal':metal_color_map, 'gas':'viridis'} # density_color_map # 'cividis' #
-    field_dict = {'gas':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), 'stars':('deposit', 'stars_density'),'ys_density':('deposit', 'young_stars_density'), 'ys_age':('my_young_stars', 'age'), 'ys_mass':('deposit', 'young_stars_mass'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected')}
-    bounds_dict = defaultdict(lambda: None, gas=(1e-29, 1e-22), temp=(2e3, 4e6), metal=(1e-2, 1e1)) # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
-    nlayers_dict = defaultdict(lambda: 8, gas=8, temp=6, metal=5)
+    colormap_dict = {'temp':temperature_color_map, 'metal':metal_color_map, 'density':'viridis'} # density_color_map # 'cividis' #
+    field_dict = {'density':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), 'stars':('deposit', 'stars_density'),'ys_density':('deposit', 'young_stars_density'), 'ys_age':('my_young_stars', 'age'), 'ys_mass':('deposit', 'young_stars_mass'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected')}
+    bounds_dict = defaultdict(lambda: None, density=(1e-29, 1e-22), temp=(2e3, 4e6), metal=(1e-2, 1e1)) # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
+    nlayers_dict = defaultdict(lambda: 8, density=8, temp=6, metal=5)
     cam_pos_dict = defaultdict(lambda: box.left_edge.value, x=[1, 0.5, 0.5], y=[0.5, 1, 0.5], z=[0.5, 0.5, 1])
     north_vector_dict = defaultdict(lambda: [0.8, -0.4, -0.4], x=[0, 0, 1], y=[1, 0, 0], z=[0, 1, 0])
 
@@ -266,5 +281,5 @@ if __name__ == '__main__':
         print_master('Finished creating snapshots, calling animate_png.py to create movie..', args)
         subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname[:outfile_rootname.find('z_')+3] + '*' + outfile_rootname[outfile_rootname.find('_vol'):] + ' --delay ' + str(args.delay_frame)], shell=True)
 
-    if ncores > 1: print_master('Parallely: time taken for filtering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
-    else: print_master('Serially: time taken for filtering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
+    if ncores > 1: print_master('Parallely: time taken for volume rendering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
+    else: print_master('Serially: time taken for volume rendering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
