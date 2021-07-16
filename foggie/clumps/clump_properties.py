@@ -75,8 +75,7 @@ com=[]
 
 
 
-#for boxi in ['box6','box7','box8','box9','box10','box11','box12','box13','box14','box15','box16','box17','box18','box19','box20','box21','box22','box23','box24','box25','box26','box27']:
-for boxi in ['box6']:
+for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box10','box11','box12','box13','box14','box15','box16','box17','box18','box19','box20','box21','box22','box23','box24','box25','box26','box27']:
     clumpmasses = []
     clumpvolumes = []
     elongations = []
@@ -104,10 +103,10 @@ for boxi in ['box6']:
             clump1 = yt.load(clumpfile)
             f = yt.load(clumptree)
             for myclump in f.leaves:
-                if clump['clump','clump_id'] == i:
-                    raddist=clump['clump','distance_to_main_clump']
+                if myclump['clump','clump_id'] == i:
+                    raddist=myclump['clump','distance_to_main_clump']
                     radialdistances.append(raddist)
-                    comi=clump['clump','center_of_mass']
+                    comi=myclump['clump','center_of_mass']
                     com.append(comi)
             ad = clump1.all_data()
             clumpmass = ad["gas", "cell_mass"].sum().in_units("Msun")
@@ -201,7 +200,7 @@ for boxi in ['box6']:
 
     coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17])
     hdu = fits.BinTableHDU.from_columns(coldefs)
-    hdu.writeto('halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+boxi+'_clump_measurements.fits')
+    hdu.writeto('halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements.fits')
 """
 plt.figure()
 plt.hist(clumpvolumes,bins=50)

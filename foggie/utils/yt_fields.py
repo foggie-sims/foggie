@@ -431,7 +431,7 @@ def cell_mass_msun(field, data):
 
 def grav_pot(field, data):
     Menc = data.ds.Menc_profile(data['radius_corrected'])*Msun
-    return G*Menc/data['radius_corrected']
+    return G.to('cm**3/g/s**2')*Menc.to('g')/data['radius_corrected'].to('cm')
 
 def hse_ratio(field, data):
     center = data.ds.halo_center_kpc
