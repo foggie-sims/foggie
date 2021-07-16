@@ -177,14 +177,14 @@ data_source = ds.sphere(chosencenter, (chosenwidth, 'kpc'))
 #yt.ProjectionPlot(ds, 2, ("gas", "metallicity"), center=chosencenter, width=(chosenwidth,'kpc'),data_source=data_source, weight_field=("gas", "density")).show()
 
 
-master_clump1 = Clump(data_source, ("gas", "density"))
-master_clump1.add_validator("min_cells", 20)
+master_clump = Clump(data_source, ("gas", "density"))
+master_clump.add_validator("min_cells", 20)
 c_min = data_source["gas", "density"].min()
 c_max = data_source["gas", "density"].max()
 step = args.step #100. #2.0
-find_clumps(master_clump1, c_min, c_max, step)
+find_clumps(master_clump, c_min, c_max, step)
 
-leaf_clumps = master_clump1.leaves
+leaf_clumps = master_clump.leaves
 prj = yt.ProjectionPlot(ds, 0, ("gas", "density"),
                        # center=chosencenter, width=(chosenwidth,'kpc'),weight_field=("gas", "density"), data_source=data_source)
                         center=chosencenter, width=(chosenwidth,'kpc'), data_source=data_source)
@@ -195,7 +195,6 @@ if not (os.path.exists(plotsdir)): os.system('mkdir -p ' + plotsdir)
 prj.save(plotsdir+'/halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_density.png')
 #prj.show()
 
-master_clump=master_clump1
 master_clump.add_info_item("total_cells")
 master_clump.add_info_item("cell_mass")
 master_clump.add_info_item("mass_weighted_jeans_mass")
