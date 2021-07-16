@@ -75,8 +75,7 @@ com=[]
 
 
 
-#for boxi in ['box6','box7','box8','box9','box10','box11','box12','box13','box14','box15','box16','box17','box18','box19','box20','box21','box22','box23','box24','box25','box26','box27']:
-for boxi in ['box6']:
+for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box10','box11','box12','box13','box14','box15','box16','box17','box18','box19','box20','box21','box22','box23','box24','box25','box26','box27']:
     clumpmasses = []
     clumpvolumes = []
     elongations = []
