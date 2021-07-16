@@ -58,39 +58,57 @@ def parse_args():
 
 
 def find_disk_Lhat(ds):
-
     sp = ds.sphere(ds.halo_center_kpc, (3, 'kpc'))
+    sp = sp.cut_region(["(obj['temperature'] > {}) & (obj['temperature'] < {})".format(0, 1.e4)])
 
-    bulk_vel = sp.quantities.bulk_velocity().to('km/s')
+    #bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='dm').to('km/s')
+
+    bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+
+    #bulk_vel = sp.quantities.bulk_velocity().to('km/s')
+
+
     sp.set_field_parameter('bulk_velocity', bulk_vel)
-
     results = {}
     results['L'] = []
-
     for i in ['x', 'y', 'z']:
         L_gas     = sp.quantities.total_quantity(('gas', 'angular_momentum_%s'%i))
-
         results['L'].append(float(L_gas.to('cm**2*g/s').value))
-
     results['L'] = np.array(results['L'])
-
     disk_Lhat = results['L']/np.sqrt(np.sum(results['L']**2.))
-
-
     return disk_Lhat, bulk_vel
 
 
 
-def radial_profile(ds, bulk_vel, mass_types, args, save = True, sp_rad = (100., 'kpc'), rbins = np.arange(0, 100, 0.5)*kpc):
+def radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args, save = True, sp_rad = (250., 'kpc'), rprofbins = np.arange(0, 250, 0.5)*kpc):
     sp_sm = ds.sphere(ds.halo_center_kpc, sp_rad)
     sp_sm.set_field_parameter('bulk_velocity', bulk_vel)
-
+    sp_sm.set_field_parameter('normal', disk_Lhat)
     L_dic = {}
 
+    L_dic['props'] = {}
+    L_dic['props']['bulk_velocity'] = bulk_vel
+    L_dic['props']['center'] = ds.halo_center_kpc
+    L_dic['props']['sphere_radius'] = sp_rad
+    L_dic['props']['disk_Lhat'] = disk_Lhat
 
-    for (low_temp, high_temp, mtype, clr) in mass_types:
+    for (low_temp, high_temp, mtype, is_gas) in mass_types:
         print (mtype)
-        if low_temp < 0.:
+        if is_gas:
+            #gas w/temperature cut
+            sp_use = sp_sm.cut_region(["(obj['temperature'] > {}) & (obj['temperature'] < {})".format(low_temp, high_temp)])
+            rname = ('index', 'radius')
+            xname = ('gas', 'angular_momentum_x')
+            yname = ('gas', 'angular_momentum_y')
+            zname = ('gas', 'angular_momentum_z')
+            mname = ('gas', 'cell_mass')
+            vrname = ('gas', 'radial_velocity')
+            ctname = ('index', 'cylindrical_theta')
+            crname = ('index', 'cylindrical_radius')
+            czname = ('index', 'cylindrical_z')
+            metalname = ('gas', 'metallicity')
+
+        else:
             #particles
             sp_use = sp_sm
             rname = (mtype, 'particle_radius')
@@ -98,22 +116,16 @@ def radial_profile(ds, bulk_vel, mass_types, args, save = True, sp_rad = (100., 
             yname = (mtype, 'particle_angular_momentum_y')
             zname = (mtype, 'particle_angular_momentum_z')
             mname = (mtype, 'particle_mass')
-        else:
-            #gas w/temperature cut
-            sp_use = sp_sm.cut_region(["(obj['temperature'] > {}) & (obj['temperature'] < {})".format(low_temp, high_temp)])
-
-            rname = ('index', 'radius')
-            xname = ('gas', 'angular_momentum_x')
-            yname = ('gas', 'angular_momentum_y')
-            zname = ('gas', 'angular_momentum_z')
-            mname = ('gas', 'cell_mass')
+            vrname = (mtype, 'particle_radial_velocity')
+            ctname = (mtype, 'particle_position_cylindrical_theta')
+            crname = (mtype, 'particle_position_cylindrical_radius')
+            czname = (mtype, 'particle_position_cylindrical_z')
 
         Li       = yt.create_profile(sp_use, [rname], fields=[xname, yname, zname, mname], 
-                                     weight_field=None, accumulation=False, override_bins = {rname:rbins})
+                                     weight_field=None, accumulation=False, override_bins = {rname:rprofbins})
 
         L_dic[mtype] = {}
         L_dic[mtype]['rprof'] = {}
-        L_dic[mtype]['adist'] = {}
 
         L_dic[mtype]['rprof']['r']    = Li.x.to('kpc')
         L_dic[mtype]['rprof']['Lx']   = Li[xname].to('g*cm**2/s')
@@ -121,22 +133,74 @@ def radial_profile(ds, bulk_vel, mass_types, args, save = True, sp_rad = (100., 
         L_dic[mtype]['rprof']['Lz']   = Li[zname].to('g*cm**2/s')
         L_dic[mtype]['rprof']['mass'] = Li[mname].to('Msun')
 
-        Lx    = sp_use[xname].to('g*cm**2/s')
-        Ly    = sp_use[yname].to('g*cm**2/s')
-        Lz    = sp_use[zname].to('g*cm**2/s')
-        R     = sp_use[rname].to('kpc')
+        Lx       = sp_use[xname].to('g*cm**2/s')
+        Ly       = sp_use[yname].to('g*cm**2/s')
+        Lz       = sp_use[zname].to('g*cm**2/s')
+        R        = sp_use[rname].to('kpc')
+        vr       = sp_use[vrname].to('km/s')
         mass     = sp_use[mname].to('Msun')
+        cr       = sp_use[crname].to('kpc')
+        cz       = sp_use[czname].to('kpc')
 
-        Ltot = np.sqrt(Lx**2. + Ly**2. + Lz**2.)
+        if is_gas:
+            metallicity = sp_use[metalname].to('Zsun')
+            metalbins = np.array([0, 0.02, 1, np.inf])
+
+
+        Ltot = np.sqrt(Lx**2. + Ly**2. + Lz**2.)        
+        thel = np.arctan2(Ly,Lx)*180./pi
+        phil = np.arccos(Lz/Ltot)*180./pi
+
+        xvar, xmn, xmx               = thel, -180, 180
+        yvar, ymn, ymx               = phil,    0, 180
+        rvar, rmn, rmd, rmx          = R, 0, 20, 250
+        vrvar                        = vr
+        crvar, crmn, crmx, ncrbins   = cr, 0, 20, 6
+        czvar                        = cz
+
+        vrbins   = np.array([-np.inf, -250, -100, 0, 100, 250, np.inf])
+
+        nbins  = 200
+        nrbins = 100
+
+        crbins   = np.linspace(crmn, crmx, ncrbins)
+        rbins    = concatenate((np.linspace(rmn, rmd, 20), np.linspace(rmd, rmx, 10)))
+        czbins   = np.array([-30, -2, 2, 30])
+        thelbins = np.linspace(xmn, xmx, nbins)
+        philbins = np.linspace(ymn, ymx, nbins)
+
+        for hst_type in ['r_dist', 'c_dist']:
+            L_dic[mtype][hst_type] = {}
+
+            if is_gas:
+                if hst_type == 'r_dist':
+                    varlist     = (rvar, vrvar, metallicity, xvar, yvar)
+                    varnamelist = [rname, vrname, metalname, 'thel', 'phil']
+                    binlist     = (rbins, vrbins, metalbins, thelbins, philbins)
+                elif hst_type == 'c_dist':
+                    varlist     = ( crvar, czvar, vrvar, metallicity, xvar, yvar)
+                    varnamelist = [crname, czname, vrname, metalname, 'thel', 'phil']
+                    binlist     = (crbins, czbins, vrbins, metalbins, thelbins, philbins)
+            else:
+                if hst_type == 'r_dist':
+                    varlist     = (rvar, vrvar,   xvar, yvar)
+                    varnamelist = [rname, vrname, 'thel', 'phil']
+                    binlist     = (rbins, vrbins,  thelbins, philbins)
         
-        L_dic[mtype]['adist']['r']       = R
-        L_dic[mtype]['adist']['phil']    = np.arccos(Lz/Ltot)*180./pi
-        L_dic[mtype]['adist']['thel']    = np.arctan2(Ly,Lx)*180./pi
-        L_dic[mtype]['adist']['ltot']    = Ltot
-        L_dic[mtype]['adist']['mass']    = mass
+                elif hst_type == 'c_dist':
+                    varlist     = ( crvar, czvar,   vrvar,  xvar, yvar)
+                    varnamelist = [crname, czname, vrname,'thel', 'phil']
+                    binlist     = (crbins, czbins, vrbins,thelbins, philbins)
+
+            for (weights, weight_name) in [(Ltot, 'L_hst'), (mass, 'M_hst')]:
+                hst = np.histogramdd(varlist, bins = binlist, weights = weights)
+                L_dic[mtype][hst_type][weight_name]    = hst[0]
+
+            L_dic[mtype][hst_type]['hst_bins']  = hst[1]
+            L_dic[mtype][hst_type]['variables'] = varnamelist
 
     if save:
-        fname = '%s/angular_momentum/profiles/%s/Lprof_%s_%s.npy'%(args.save_dir, args.halo, args.halo, args.output)
+        fname = '%s/angular_momentum/profiles/%s/Lprof_%s_%s_test.npy'%(args.save_dir, args.halo, args.halo, args.output)
         np.save(fname, L_dic)
         print ('saved L dictionary to %s...'%fname)
     return L_dic
@@ -145,112 +209,16 @@ def radial_profile(ds, bulk_vel, mass_types, args, save = True, sp_rad = (100., 
 if __name__ == '__main__':
     args = parse_args()
     ds, refine_box = load_sim(args)
-
-
-
-    mass_types = [(0., 1.5e4, 'cold', 'darkblue'),
-                 (1.5e4, 1.e5, 'warm', 'blue'),
-                 (1.e5, 1.e6, 'warmhot', 'red'),
-                 (1.e6, 1.e10, 'hot', 'darkred'), 
-                 (-1., -1., 'stars', 'goldenrod'),
-                 (-1., -1., 'dm', 'black')]
+    mass_types = [(0.,    1.5e4, 'cold',   True),
+                  (1.5e4, 1.e5,  'warm',   True),
+                  (1.e5,  1.e6,  'warmhot',True),
+                  (1.e6,  1.e10, 'hot',    True), 
+                  (-1.,  -1.,    'young_stars',  False),                  
+                  (-1.,  -1.,    'stars',   False),
+                  (-1.,  -1.,    'dm',       False)]
 
     disk_Lhat, bulk_vel = find_disk_Lhat(ds)
-    L_dic               = radial_profile(ds, bulk_vel, mass_types, args)
-
-
-
-
-
-
-
-
-
-
-
-
-
-    '''
-    make_projection_plots(ds = refine_box.ds, center = ds.halo_center_kpc,
-                          refine_box = refine_box, x_width = 20.*kpc, 
-                          fig_dir = '/Users/rsimons/Desktop', haloname = args.halo, name = args.run, 
-                          fig_end = 'projection', do = ['temp'], axes = ['x', 'y', 'z'], is_central = True, add_arrow = False)
-
-    
-    sp_sm = ds.sphere(ds.halo_center_kpc, (15., 'kpc'))
-
-    Lx = sp_sm[('gas', 'angular_momentum_x')]
-    Ly = sp_sm[('gas', 'angular_momentum_y')]
-    Lz = sp_sm[('gas', 'angular_momentum_z')]
-    M_gas = sp_sm[('gas', 'cell_mass')]
-    R_gas = sp_sm[('gas', 'radius_corrected')]
-    T_gas = sp_sm[('gas', 'temperature')]
-    L_L = Lx * L[0] + Ly * L[1] + Lz * L[2]
-
-
-    fig, ax = plt.subplots(1,1, figsize = (10, 10))
-
-
-    gd = abs(L_L) < 2.e68
-    #ax.hist2d(R_gas[gd], L_L[gd], bins = 200,norm = matplotlib.colors.LogNorm(), weights = M_gas[gd])
-    ax.hist2d(R_gas, np.log10(T_gas), bins = 200, norm = matplotlib.colors.LogNorm(),weights = L_L)
-
-    #ax.set_ylim(-2.e67, 2.e67)
-
-    #ax.set_yscale('symlog', linthreshy=1.e66)
-    fig.savefig('/Users/rsimons/Desktop/test.png', dpi = 300)
-
-
-    if False:
-        field = ('gas', 'density')
-        cmap = density_color_map
-
-        unit = 'Msun/pc**2'
-        cmap.set_bad('k')
-        unit = 'Msun/pc**2'
-        zmin = density_proj_min 
-        zmax = density_proj_max
-        weight_field = None
-
-        np.random.seed(1)
-        E = np.random.randn(3)
-        E -= E.dot(L) * L / np.linalg.norm(L)**2
-        E/=np.sqrt(np.sum(E**2.))
-
-
-        slerp_vec_all = {}
-        north_vec_all = {}
-
-        march = [L, E, -L, -E, L, E]
-
-
-        Nslerps = 40
-        for ii in np.arange(4):
-            x = march[ii]
-            y = march[ii+1]
-            slerp_vec_all[ii] = geometric_slerp(x, y, np.linspace(1./Nslerps, 1., Nslerps))
-            north_vec_all[ii] = [y for i in np.arange(Nslerps-1)]
-            north_vec_all[ii].append(march[ii+2])
-
-        slerp_vecs = np.concatenate((slerp_vec_all[0], slerp_vec_all[1], slerp_vec_all[2], slerp_vec_all[3]))        
-        north_vecs = np.concatenate((north_vec_all[0], north_vec_all[1], north_vec_all[2], north_vec_all[3]))        
-
-
-
-        for d, (vec, north) in enumerate(zip(slerp_vecs, north_vecs)):
-            prj = yt.OffAxisProjectionPlot(ds, vec, field, center = ds.halo_center_kpc, width=(20, 'kpc'),
-                                           north_vector = north, data_source = sp_sm)
-            prj.set_unit(field, unit)
-            prj.set_zlim(field, zmin = zmin, zmax =  zmax)
-            prj.set_cmap(field, cmap)
-            prj.save('/user/rsimons/foggie/angular_momentum/movies/new_%i.png'%d)
-
-
-    '''
-
-
-
-
+    L_dic               = radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args)
 
 
 

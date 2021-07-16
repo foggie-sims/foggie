@@ -20,12 +20,13 @@ def get_lbl_name(name):
     return lbl_name
 
 
-def make_adist_plot(DDname, ddtime, mass_types, figname):
+def make_adist_plot(DDname, ddtime, mass_types, figname, overwrite = False):
     print (DDname)
     fl = '/nobackupp2/rcsimons/foggie/angular_momentum/profiles/8508/Lprof_8508_%s.npy'%DDname
 
     figname = fl.replace('npy', 'png').replace('/Lprof_', '/figures/%s/%s_'%(figname, figname))
-    if os.path.exists(figname): return
+    if (not overwrite) & (os.path.exists(figname)): return
+
     L_all = np.load(fl, allow_pickle = True)[()]
 
     fig, axes = plt.subplots(2,3, figsize = (9, 6))
@@ -70,12 +71,12 @@ def make_adist_plot(DDname, ddtime, mass_types, figname):
     fig.savefig(figname)
     plt.close(fig)
 
-def make_accum_plot(DDname, ddtime, mass_types, figname, Lmax = -99, Mmax = -99):
+def make_accum_plot(DDname, ddtime, mass_types, figname, Lmax = -99, Mmax = -99, overwrite = False):
     print (DDname)
     fl = '/nobackupp2/rcsimons/foggie/angular_momentum/profiles/8508/Lprof_8508_%s.npy'%DDname
 
     figname = fl.replace('npy', 'png').replace('/Lprof_', '/figures/%s/%s_'%(figname, figname))
-    if os.path.exists(figname): return
+    if (not overwrite) & (os.path.exists(figname)): return
 
     fig, ax = plt.subplots(3,1, figsize = (6,9))
     L_all = np.load(fl, allow_pickle = True)[()]
@@ -155,11 +156,20 @@ def parse_args():
     parser.add_argument('-n2', '--n2', metavar='n2', type=int, action='store')
     parser.set_defaults(n2=0)
     parser.add_argument('-n3', '--n3', metavar='n3', type=int, action='store')
-    parser.set_defaults(n2=1)
+    parser.set_defaults(n3=1)
     parser.add_argument('-n_jobs', '--n_jobs', metavar='n_jobs', type=int, action='store')
     parser.set_defaults(n_jobs=-1)
+    parser.add_argument('-overwrite', '--overwrite', dest='overwrite', action='store_true',
+                        help='just use the pwd?, default is no')
+    parser.set_defaults(overwrite=False)
+    parser.add_argument('-run_series', '--run_series', dest='run_series', action='store_true',
+                        help='just use the pwd?, default is no')
+    parser.set_defaults(overwrite=False)
+
     args = parser.parse_args()
     return args
+
+
 
 if __name__ == '__main__':
     args = parse_args()
@@ -180,10 +190,16 @@ if __name__ == '__main__':
 
     ddnums = np.arange(args.n1, args.n2, args.n3)
     n_jobs = args.n_jobs
-    #Parallel(n_jobs = n_jobs)(delayed(make_adist_plot)('DD%.4i'%ddnum, ddtime, mass_types,     figname = 'thel-phil') for ddnum in ddnums)
-    #Parallel(n_jobs = n_jobs)(delayed(make_accum_plot)('DD%.4i'%ddnum, ddtime, mass_types,     figname = 'rprof_all',     Lmax = 1.e74, Mmax = 4.e11) for ddnum in ddnums)
-    #Parallel(n_jobs = n_jobs)(delayed(make_accum_plot)('DD%.4i'%ddnum, ddtime, mass_types[1:], figname = 'rprof_baryons', Lmax = 3.e73, Mmax = 7.e10) for ddnum in ddnums)
-    Parallel(n_jobs = n_jobs)(delayed(make_accum_plot)('DD%.4i'%ddnum, ddtime, mass_types[2:], figname = 'rprof_gas',     Lmax = 3.e73, Mmax = 2.e10) for ddnum in ddnums)
+    overwrite = args.overwrite
+    if args.run_series:
+        for ddnum in ddnums:
+            make_adist_plot('DD%.4i'%ddnum, ddtime, mass_types,     figname = 'thel-phil', overwrite = overwrite)
+
+    else:
+        Parallel(n_jobs = n_jobs)(delayed(make_adist_plot)('DD%.4i'%ddnum, ddtime, mass_types,     figname = 'thel-phil', overwrite = overwrite) for ddnum in ddnums)
+        Parallel(n_jobs = n_jobs)(delayed(make_accum_plot)('DD%.4i'%ddnum, ddtime, mass_types,     figname = 'rprof_all',     Lmax = 1.e74, Mmax = 4.e11, overwrite = overwrite) for ddnum in ddnums)
+        Parallel(n_jobs = n_jobs)(delayed(make_accum_plot)('DD%.4i'%ddnum, ddtime, mass_types[1:], figname = 'rprof_baryons', Lmax = 3.e73, Mmax = 7.e10, overwrite = overwrite) for ddnum in ddnums)
+        Parallel(n_jobs = n_jobs)(delayed(make_accum_plot)('DD%.4i'%ddnum, ddtime, mass_types[2:], figname = 'rprof_gas',     Lmax = 3.e73, Mmax = 2.e10 , overwrite = overwrite) for ddnum in ddnums)
 
 
 
