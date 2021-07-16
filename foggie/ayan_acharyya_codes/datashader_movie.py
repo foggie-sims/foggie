@@ -113,7 +113,6 @@ def overplot_stars(x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax
     paramlist = shift_ref_frame(paramlist, args)
     paramlist = paramlist.rename(columns={'gas_metal': 'metal', 'gas_density': 'density', 'gas_pressure': 'pressure', 'gas_temp': 'temp'})
     paramlist = get_radial_velocity(paramlist)
-    paramlist['density'] = YTArray(paramlist['density'].values, 'g/cm**3').in_units('Msun/pc**3').value # convert density units
     for field in [args.xcol, args.ycol, args.colorcol]:
         if islog_dict[field]: paramlist['log_' + field] = np.log10(paramlist[field])
     paramlist = paramlist[(paramlist[xcol].between(x_min, x_max)) & (paramlist[ycol].between(y_min, y_max)) & (paramlist[colorcol].between(c_min, c_max))]
@@ -276,7 +275,7 @@ def make_datashader_plot(ds, outfilename, args):
 if __name__ == '__main__':
     # set variables and dictionaries
     field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), 'stars':('deposit', 'stars_density'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected')}
-    unit_dict = {'rad':'kpc', 'density':'Msun/pc**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'ys_age':'Myr', 'ys_mas':'Msun', 'gas_entropy':'keV*cm**3', 'vlos':'km/s'}
+    unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'ys_age':'Myr', 'ys_mas':'Msun', 'gas_entropy':'keV*cm**3', 'vlos':'km/s'}
     labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'ys_age':'Age', 'ys_mas':'Mass', 'gas_entropy':'Entropy', 'vlos':'LoS velocity'}
     islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True, gas_entropy=True)
     bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
@@ -361,7 +360,7 @@ if __name__ == '__main__':
                 box_width_kpc = ds.arr(box_width, 'kpc')
                 box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
 
-            bounds_dict = defaultdict(lambda: None, rad=(0, args.galrad), density=(1e-8, 1e1), temp=(1e1, 1e8), metal=(1e-2, 1e1), vrad=(-400, 400))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
+            bounds_dict = defaultdict(lambda: None, rad=(0, args.galrad), density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-2, 1e1), vrad=(-400, 400))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
             df, fig = make_datashader_plot(box, thisfilename, args)
         else:
             print_mpi('Skipping snapshot because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)

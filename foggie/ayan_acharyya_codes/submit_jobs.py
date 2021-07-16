@@ -42,6 +42,8 @@ def parse_args():
     parser.add_argument('--makemovie', dest='makemovie', action='store_true', default=False)
     parser.add_argument('--delay', metavar='delay', type=str, action='store', default=None)
     parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False)
+    parser.add_argument('--overplot_stars', dest='overplot_stars', action='store_true', default=False)
+    parser.add_argument('--clobber_plot', dest='clobber_plot', action='store_true', default=False)
     args, leftovers = parser.parse_known_args()
 
     return args
@@ -65,6 +67,8 @@ if __name__ == '__main__':
     colorcol_flag = ' --colorcol ' + args.colorcol if args.colorcol is not None else ''
     delay_flag = ' --delay ' + args.delay if args.delay is not None else ''
     fullbox_flag = ' --fullbox ' if args.fullbox else ''
+    overplot_stars_flag = ' --overplot_stars ' if args.overplot_stars else ''
+    clobber_plot_flag = ' --clobber_plot ' if args.clobber_plot else ''
 
 
     jobscript_path = HOME+'/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
@@ -128,10 +132,11 @@ if __name__ == '__main__':
         out_jobscript = workdir + '/jobscript_' + jobname + '.sh'
 
         replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NNODES': nnodes, 'NHOURS': nhours, 'CALLFILE': callfile, 'WORKDIR': workdir, \
-                        'JOBSCRIPT_PATH':jobscript_path, 'NCORES': ncores, 'MEMORY': memory, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'PROC':args.proc, \
-                        'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG':do_all_simsflag, 'DO_ALL_HALOSFLAG':do_all_halosflag, 'SYSTEMFLAG':systemflag, \
-                        'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG':xcol_flag, 'YCOL_FLAG':ycol_flag, \
-                        'COLORCOL_FLAG':colorcol_flag, 'MAKEMOVIE_FLAG':makemovie_flag, 'DELAY_FLAG':delay_flag, 'FULLBOX_FLAG':fullbox_flag} # keywords to be replaced in template jobscript
+                        'JOBSCRIPT_PATH': jobscript_path, 'NCORES': ncores, 'MEMORY': memory, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'PROC': args.proc, \
+                        'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG': do_all_simsflag, 'DO_ALL_HALOSFLAG': do_all_halosflag, 'SYSTEMFLAG': systemflag, \
+                        'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
+                        'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \
+                        'OVERPLOT_STARS_FLAG': overplot_stars_flag, 'CLOBBER_PLOT_FLAG': clobber_plot_flag} # keywords to be replaced in template jobscript
 
         with open(jobscript_path + jobscript_template) as infile, open(out_jobscript, 'w') as outfile:
             for line in infile:
