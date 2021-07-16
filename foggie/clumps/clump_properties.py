@@ -103,10 +103,10 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             clump1 = yt.load(clumpfile)
             f = yt.load(clumptree)
             for myclump in f.leaves:
-                if clump['clump','clump_id'] == i:
-                    raddist=clump['clump','distance_to_main_clump']
+                if myclump['clump','clump_id'] == i:
+                    raddist=myclump['clump','distance_to_main_clump']
                     radialdistances.append(raddist)
-                    comi=clump['clump','center_of_mass']
+                    comi=myclump['clump','center_of_mass']
                     com.append(comi)
             ad = clump1.all_data()
             clumpmass = ad["gas", "cell_mass"].sum().in_units("Msun")
