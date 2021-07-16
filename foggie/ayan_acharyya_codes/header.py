@@ -12,10 +12,11 @@
 import numpy as np
 import multiprocessing as mproc
 import seaborn as sns
-import os, sys, argparse, re, subprocess, time, datetime, math, shutil, copy, glob, random
+import os, sys, argparse, re, subprocess, time, datetime, math, shutil, copy, glob, random, collections
 
 from matplotlib import pyplot as plt
 plt.style.use('seaborn')
+from matplotlib import colors as mplcolors
 from matplotlib import patheffects as fx
 from matplotlib.colors import LogNorm
 from matplotlib import image as mpimg
@@ -62,7 +63,6 @@ from foggie.utils.consistency import *
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
 from foggie.utils.get_proper_box_size import get_proper_box_size
-from foggie.render.cmap_utils import grab_cmap
 
 # ------------declaring constants to be used globally-----------
 c = 3e5  # km/s
@@ -95,11 +95,7 @@ sb99_mass = 1e6 # Msun, mass of star cluster in given SB99 model
 
 projection_dict = {'x': ('y', 'z', 'x'), 'y':('z', 'x', 'y'), 'z':('x', 'y', 'z')} # which axes are projected for which line of sight args.projection
 
-# ------------declaring list of ALL simulations-----------
-#all_sims = [('8508', 'RD0042'), ('5036', 'RD0039'), ('5016', 'RD0042'), ('4123', 'RD0031'), ('2878', 'RD0020'), ('2392', 'RD0030')] # only the latest (lowest z) available snapshot for each halo
-
-#all_sims = [('8508', 'RD0030'), ('5036', 'RD0030'), ('5016', 'RD0030'), ('4123', 'RD0030'), ('2392', 'RD0030')] # all same z (=0.7) snapshots for each halo
-
+# ------------declaring list of ALL simulations present locally (on HD)-----------
 all_sims_dict = {'8508': [('8508', 'RD0042'), ('8508', 'RD0039'), ('8508', 'RD0031'), ('8508', 'RD0030'), ('8508', 'DD2288'), ('8508', 'DD2289')], \
                  '5036': [('5036', 'RD0039'), ('5036', 'RD0031'), ('5036', 'RD0030'), ('5036', 'RD0020')], \
                  '5016': [('5016', 'RD0042'), ('5016', 'RD0039'), ('5016', 'RD0031'), ('5016', 'RD0030'), ('5016', 'RD0020')], \
@@ -110,8 +106,20 @@ all_sims_dict = {'8508': [('8508', 'RD0042'), ('8508', 'RD0039'), ('8508', 'RD00
 
 # -----------declaring/modifying colormaps to be ued for certain properties throughout my code------------
 # individually comment out following lines to keep the original color_map as defined in foggie.utils.consistency
+
 #density_color_map = 'viridis'
-metal_color_map = 'viridis'
-#metal_color_map = sns.blend_palette(("#4575b4", "#984ea3", "#984ea3", "#d73027", "darkorange", "#ffe34d"), as_cmap=True)
+
 velocity_discrete_cmap = 'coolwarm'
-temperature_color_map = sns.blend_palette(("darkred", "#d73027", "darkorange", "#ffe34d"), as_cmap=True)
+
+temperature_color_list = ("darkred", "#d73027", "darkorange", "#ffe34d")
+temperature_color_map = sns.blend_palette(temperature_color_list, as_cmap=True)
+
+metal_color_list = ("#4575b4", "#984ea3", "#984ea3", "#d73027", "darkorange", "#ffe34d")
+#metal_color_map = sns.blend_palette(metal_color_list, as_cmap=True)
+metal_color_map = 'viridis'
+
+metal_colors_mw = sns.blend_palette(metal_color_list, n_colors=6)
+metal_discrete_cmap_mw = mplcolors.ListedColormap(metal_colors_mw)
+metal_color_key_mw = collections.OrderedDict()
+for i in np.arange(np.size(metal_color_labels_mw)): metal_color_key_mw[metal_color_labels_mw[i]] = to_hex(metal_colors_mw[i])
+
