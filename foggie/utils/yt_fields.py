@@ -4,6 +4,7 @@
 
 import numpy as np
 from yt.units import *
+from unyt import *
 
 def _static_average_rampressure(field, data):
     bulk_velocity = data.get_field_parameter("bulk_velocity").in_units('km/s')
