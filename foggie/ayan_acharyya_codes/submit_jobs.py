@@ -41,6 +41,7 @@ def parse_args():
     parser.add_argument('--colorcol', metavar='colorcol', type=str, action='store', default=None)
     parser.add_argument('--makemovie', dest='makemovie', action='store_true', default=False)
     parser.add_argument('--delay', metavar='delay', type=str, action='store', default=None)
+    parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False)
     args, leftovers = parser.parse_known_args()
 
     return args
@@ -63,6 +64,7 @@ if __name__ == '__main__':
     ycol_flag = ' --ycol ' + args.ycol if args.ycol is not None else ''
     colorcol_flag = ' --colorcol ' + args.colorcol if args.colorcol is not None else ''
     delay_flag = ' --delay ' + args.delay if args.delay is not None else ''
+    fullbox_flag = ' --fullbox ' if args.fullbox else ''
 
 
     jobscript_path = HOME+'/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
@@ -129,7 +131,7 @@ if __name__ == '__main__':
                         'JOBSCRIPT_PATH':jobscript_path, 'NCORES': ncores, 'MEMORY': memory, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'PROC':args.proc, \
                         'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG':do_all_simsflag, 'DO_ALL_HALOSFLAG':do_all_halosflag, 'SYSTEMFLAG':systemflag, \
                         'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG':xcol_flag, 'YCOL_FLAG':ycol_flag, \
-                        'COLORCOL_FLAG':colorcol_flag, 'MAKEMOVIE_FLAG':makemovie_flag, 'DELAY_FLAG':delay_flag} # keywords to be replaced in template jobscript
+                        'COLORCOL_FLAG':colorcol_flag, 'MAKEMOVIE_FLAG':makemovie_flag, 'DELAY_FLAG':delay_flag, 'FULLBOX_FLAG':fullbox_flag} # keywords to be replaced in template jobscript
 
         with open(jobscript_path + jobscript_template) as infile, open(out_jobscript, 'w') as outfile:
             for line in infile:
