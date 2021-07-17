@@ -972,6 +972,8 @@ def parse_args(haloname, RDname, fast=False):
     args.obs_wave_range = np.array([float(item) for item in args.obs_wave_range.split(',')])
     args.base_wave_range = np.array([float(item) for item in args.base_wave_range.split(',')])
     args.test_pixel = np.array([int(item) for item in args.test_pixel.split(',')]) if args.test_pixel is not None else None
+    args.colorcol = [item for item in args.colorcol.split(',')]
+
     args.mergeHII_text = '_mergeHII=' + str(args.mergeHII) + 'kpc' if args.mergeHII is not None else '' # to be used as filename suffix to denote whether HII regions have been merged
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 

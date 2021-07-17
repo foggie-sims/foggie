@@ -380,13 +380,14 @@ new_phase_color_key = collections.OrderedDict()
 
 phase_color_labels = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2',
                       b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot',
-                      b'hot1', b'hot2', b'hot3']
+                      b'hot1', b'hot2', b'hot3', b'hot4']
 for i in np.arange(np.size(phase_color_labels)):
     new_phase_color_key[phase_color_labels[i]] = to_hex(temp_colors[i])
 
 def categorize_by_temp(temperature):
     """ define the temp category strings"""
     phase = np.chararray(np.size(temperature), 5)
+    phase[temperature >= 9.] = b'hot4' # Added by ayan on 16 July 2021; because otherwise calling categorize_by_temp() was throwing an error for stuff hotter than 10^9 K
     phase[temperature < 9.] = b'hot3'
     phase[temperature < 6.6] = b'hot2'
     phase[temperature < 6.4] = b'hot1'

@@ -8,7 +8,8 @@
     Author :     Ayan Acharyya
     Started :    July 2021
     Examples :   run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol metal --colorcol vrad --overplot_stars --do_all_sims --makemovie --delay 0.2
-
+                 run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol temp --colorcol density,metal,vrad --output RD0042 --clobber_plot --overplot_stars
+                 run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol metal --colorcol vrad,density,temp --output RD0042 --clobber_plot --overplot_stars
 """
 from header import *
 from util import *
@@ -39,7 +40,7 @@ def get_df_from_ds(ds, args):
                 field = 'log_' + field
             df[field] = arr
 
-        df.to_csv(outfilename, sep='\t', mode='a', index=None)
+        df.to_csv(outfilename, sep='\t', index=None)
     else:
         myprint('Reading from existing file ' + outfilename, args)
         df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
@@ -297,14 +298,10 @@ if __name__ == '__main__':
     # parse column names, in case log
     xcol = 'log_' + dummy_args.xcol if islog_dict[dummy_args.xcol] else dummy_args.xcol
     ycol = 'log_' + dummy_args.ycol if islog_dict[dummy_args.ycol] else dummy_args.ycol
-    colorcol = 'log_' + dummy_args.colorcol if islog_dict[dummy_args.colorcol] else dummy_args.colorcol
-    colorcol_cat = 'cat_' + colorcol
 
     # parse paths and filenames
     fig_dir = dummy_args.output_dir + 'figs/' if dummy_args.do_all_sims else dummy_args.output_dir + 'figs/' + dummy_args.output + '/'
     Path(fig_dir).mkdir(parents=True, exist_ok=True)
-    outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (dummy_args.galrad, ycol, xcol, colorcol)
-    if dummy_args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
 
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
@@ -343,28 +340,40 @@ if __name__ == '__main__':
             print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), dummy_args)
             continue
 
-        args.current_redshift = ds.current_redshift
-        thisfilename = fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
-
-        if not os.path.exists(thisfilename) or args.clobber_plot:
-            if not os.path.exists(thisfilename):
-                print_mpi(thisfilename + ' plot does not exist. Creating afresh..', args)
-            elif args.clobber_plot:
-                print_mpi(thisfilename + ' plot exists but over-writing..', args)
-
-            if args.fullbox:
-                box_width = ds.refine_width  # kpc
-                args.galrad = box.width / 2
-            else:
-                box_center = ds.arr(args.halo_center, kpc)
-                box_width = args.galrad * 2 # in kpc
-                box_width_kpc = ds.arr(box_width, 'kpc')
-                box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
-
-            bounds_dict = defaultdict(lambda: None, rad=(0, args.galrad), density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-2, 1e1), vrad=(-400, 400))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
-            df, fig = make_datashader_plot(box, thisfilename, args)
+        if args.fullbox:
+            box_width = ds.refine_width  # kpc
+            args.galrad = box.width / 2
         else:
-            print_mpi('Skipping snapshot because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)
+            box_center = ds.arr(args.halo_center, kpc)
+            box_width = args.galrad * 2  # in kpc
+            box_width_kpc = ds.arr(box_width, 'kpc')
+            box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+
+        bounds_dict = defaultdict(lambda: None, rad=(0, args.galrad), density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-2, 1e1), vrad=(-400, 400))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
+
+        args.current_redshift = ds.current_redshift
+        colorcol_arr = args.colorcol
+
+        for index, thiscolorcol in enumerate(colorcol_arr):
+            args.colorcol = thiscolorcol
+            colorcol = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
+            colorcol_cat = 'cat_' + colorcol
+            print_mpi('Plotting ' + xcol + ' vs ' + ycol + ', color coded by ' + colorcol + ' i.e., plot ' + str(index + 1) + ' of ' + str(len(colorcol_arr)) + '..', args)
+
+            outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, ycol, xcol, colorcol)
+            if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
+
+            thisfilename = fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+
+            if not os.path.exists(thisfilename) or args.clobber_plot:
+                if not os.path.exists(thisfilename):
+                    print_mpi(thisfilename + ' plot does not exist. Creating afresh..', args)
+                elif args.clobber_plot:
+                    print_mpi(thisfilename + ' plot exists but over-writing..', args)
+
+                df, fig = make_datashader_plot(box, thisfilename, args)
+            else:
+                print_mpi('Skipping colorcol ' + thiscolorcol + ' because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)
 
         print_mpi('This snapshot ' + this_sim[1] + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
 
@@ -372,7 +381,11 @@ if __name__ == '__main__':
 
     if args.makemovie and args.do_all_sims:
         print_master('Finished creating snapshots, calling animate_png.py to create movie..', args)
-        subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
+        for thiscolorcol in colorcol_arr:
+            args.colorcol = thiscolorcol
+            colorcol = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
+            outfile_rootname = 'z=*_datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, ycol, xcol, colorcol)
+            subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
 
     if ncores > 1: print_master('Parallely: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
