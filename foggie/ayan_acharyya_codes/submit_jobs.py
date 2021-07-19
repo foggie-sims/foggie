@@ -6,8 +6,8 @@
     Notes :      Python wrapper to create and submit one or more jobs on pleiades
     Author :     Ayan Acharyya
     Started :    July 2021
-    Example :    run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp_allsims --halo 8508 --dryrun
-    OR :         run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp_allsims --do_all_halos --nhours 24 --dryrun
+    Example :    run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp --halo 8508 --dryrun
+    OR :         run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp --do_all_halos --nhours 24 --dryrun
     OR :         run ~/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 --do_all_sims --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has
 """
 import os, subprocess, argparse, datetime
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     for jobid in range(args.start, args.stop+1):
         thishalo = halos[jobid - 1] if args.halo is None else args.halo
         haloflag = ' --halo ' + thishalo
-        jobname = prefixtext + thishalo + '_job' + str(jobid)
+        jobname = prefixtext + thishalo# + '_job' + str(jobid)
 
         # ----------replacing keywords in jobscript template to make the actual jobscript---------
         out_jobscript = workdir + '/jobscript_' + jobname + '.sh'
