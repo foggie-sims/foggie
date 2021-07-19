@@ -8,10 +8,14 @@
     Started :    July 2021
     Example :    run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp_allsims --halo 8508 --dryrun
     OR :         run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp_allsims --do_all_halos --nhours 24 --dryrun
-
+    OR :         run ~/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 --do_all_sims --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has
 """
 import os, subprocess, argparse, datetime
+from collections import defaultdict
 HOME = os.getenv('HOME')
+if not os.path.exists(HOME + '/Work/astro/ayan_codes'):  # if the code directory does not exist in current home, then it must exist in /pleiades home
+    HOME = '/pleiades/u/' + os.getenv('USER')
+
 
 # ---------------------------------------------------------
 def parse_args():
@@ -25,6 +29,8 @@ def parse_args():
     parser.add_argument('--ncores', metavar='ncores', type=int, action='store', default=None)
     parser.add_argument('--nhours', metavar='nhours', type=int, action='store', default=None)
     parser.add_argument('--proc', metavar='proc', type=str, action='store', default='has')
+    parser.add_argument('--memory', metavar='memory', type=str, action='store', default=None)
+    parser.add_argument('--aoe', metavar='aoe', type=str, action='store', default=None)
     parser.add_argument('--start', metavar='start', type=int, action='store', default=1)
     parser.add_argument('--stop', metavar='stop', type=int, action='store', default=1)
     parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', default=None)
@@ -53,8 +59,13 @@ if __name__ == '__main__':
     time_of_begin = datetime.datetime.now()
     args = parse_args()
 
-    #----------setting different variables based on args--------
+    #----------special settings for ldan queue--------
+    if args.queue == 'ldan':
+        args.proc = 'ldan'
+        args.nnodes = 1
+        args.ncores = None
 
+    #----------setting different variables based on args--------
     systemflag = ' --system ' + args.system
     dryrunflag = ' --dryrun ' if args.dryrun else ''
     do_all_simsflag = ' --do_all_sims ' if args.do_all_sims else ''
@@ -69,7 +80,6 @@ if __name__ == '__main__':
     fullbox_flag = ' --fullbox ' if args.fullbox else ''
     overplot_stars_flag = ' --overplot_stars ' if args.overplot_stars else ''
     clobber_plot_flag = ' --clobber_plot ' if args.clobber_plot else ''
-
 
     jobscript_path = HOME+'/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
     jobscript_template = 'jobscript_template_' + args.system + '.txt'
@@ -103,14 +113,21 @@ if __name__ == '__main__':
         qname = 'hugemem' if args.queue == 'large' and args.nonewcube else 'normal'
 
     elif 'pleiades' in args.system:
-        procs_dir = {'san':(16, 32), 'ivy':(20, 64), 'has':(24, 128), 'bro':(28, 128), 'bro_ele':(28, 128), 'sky_ele':(40, 192), 'cas_ait':(40, 192)} # (nnodes, mem) for each proc, from https://www.nas.nasa.gov/hecc/support/kb/pbs-resource-request-examples_188.html
-        max_hours_dict = {'low':4, 'normal':8, 'long':120, 'debug':2, 'devel':2} # from https://www.nas.nasa.gov/hecc/support/kb/pbs-job-queue-structure_187.html
+        procs_dir = {'san':(16, 32), 'ivy':(20, 64), 'has':(24, 128), 'bro':(28, 128), 'bro_ele':(28, 128), 'sky_ele':(40, 192), 'cas_ait':(40, 192), 'ldan':(16, 750)} # (nnodes, mem) for each proc, from https://www.nas.nasa.gov/hecc/support/kb/pbs-resource-request-examples_188.html
+        max_hours_dict = defaultdict(lambda: 120, low=4, normal=8, long=120, debug=2, devel=2, ldan=72) # from https://www.nas.nasa.gov/hecc/support/kb/pbs-job-queue-structure_187.html
         workdir = '/nobackup/aachary2/foggie_outputs/pleiades_workdir' # for pleiades
         nnodes = args.nnodes
         ncores = args.ncores if args.ncores is not None else procs_dir[args.proc][0]
-        if args.dryrun: memory = str(int(ncores) * 2) + 'GB'
-        else: memory = str(int(nnodes) * procs_dir[args.proc][1]) + 'GB'
+        memory = args.memory if args.memory is not None else str(procs_dir[args.proc][1]) + 'GB' # minimum memory per node; by default the entire node me is allocated, therefore it is redundant to specify mem as the highest available memory per node
         qname = args.queue
+
+    # ----------determining what resource request goes into the job script, based on queues, procs, etc.---------
+    nhours = args.nhours if args.nhours is not None else '01' if args.dryrun or args.queue == 'devel' else '%02d' % (max_hours_dict[args.queue])
+
+    resources = 'select=' + str(nnodes) + ':ncpus=' + str(ncores) + ':mpiprocs=' + str(ncores)
+    if args.queue == 'ldan': resources += ':mem=' + memory # need to specify mem per node for jobs on LDAN (for other procs it is by default the max available node mem)
+    else: resources += ':model=' + args.proc # need to specify the proc (but not necessarily the mem if I'm using the full node memory) if not an LDAN job
+    if args.aoe is not None: resources += ':aoe=' + args.aoe
 
     #----------looping over and creating + submitting job files--------
     halos = ['8508', '5036', '2878', '2392', '5016', '4123']
@@ -127,12 +144,11 @@ if __name__ == '__main__':
         haloflag = ' --halo ' + thishalo
         jobname = prefixtext + thishalo + '_job' + str(jobid)
 
-        nhours = args.nhours if args.nhours is not None else '01' if args.dryrun or args.queue == 'devel' else '%02d'%(max_hours_dict[args.queue])
-
+        # ----------replacing keywords in jobscript template to make the actual jobscript---------
         out_jobscript = workdir + '/jobscript_' + jobname + '.sh'
 
-        replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NNODES': nnodes, 'NHOURS': nhours, 'CALLFILE': callfile, 'WORKDIR': workdir, \
-                        'JOBSCRIPT_PATH': jobscript_path, 'NCORES': ncores, 'MEMORY': memory, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'PROC': args.proc, \
+        replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NHOURS': nhours, 'CALLFILE': callfile, 'WORKDIR': workdir, \
+                        'JOBSCRIPT_PATH': jobscript_path, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'RESOURCES': resources, \
                         'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG': do_all_simsflag, 'DO_ALL_HALOSFLAG': do_all_halosflag, 'SYSTEMFLAG': systemflag, \
                         'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
                         'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \

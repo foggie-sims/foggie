@@ -6,7 +6,7 @@
 
 ##### Resources #####
 #PBS -W group_list=PROJ_CODE
-#PBS -l select=NNODES:ncpus=NCORES:mpiprocs=NCORES:model=PROC
+#PBS -l RESOURCES
 #PBS -l walltime=NHOURS:00:00
 
 ##### Queue #####

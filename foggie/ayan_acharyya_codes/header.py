@@ -82,18 +82,18 @@ m_H = 1.67e-27  # kg; mass of proton
 
 # ------------declaring overall paths (can be modified on a machine/user basis)-----------
 HOME = os.getenv('HOME')
-mappings_lab_dir = HOME + '/Mappings/lab/' # if you are producing the MAPPINGS grid,
-                                          # this is where your MAPPINGS executable .map51 is installed,
-                                          # otherwise, this is where your MAPPINGS grid and your emission line list is
-mappings_input_dir = HOME + '/Mappings/HIIGrid306/Q/inputs/' # if you are producing the MAPPINGS grid,
-                                                             # this is where your MAPPINGS input/ directory is
-                                                             # otherwise, ignore this variable
-sb99_dir = HOME + '/SB99-v8-02/output/' # this is where your Starburst99 model outputs reside
-                                        # this path is used only when you are using compute_hiir_radii.py or lookup_flux.py
+if not os.path.exists(HOME+'/Work/astro/ayan_codes'): # if the code directory does not exist in current home, then it must exist in /pleiades home
+    HOME = '/pleiades/u/' + os.getenv('USER')
+mappings_lab_dir = HOME + '/Mappings/lab/'  # if you are producing the MAPPINGS grid,
+# this is where your MAPPINGS executable .map51 is installed,
+# otherwise, this is where your MAPPINGS grid and your emission line list is
+mappings_input_dir = HOME + '/Mappings/HIIGrid306/Q/inputs/'  # if you are producing the MAPPINGS grid,
+# this is where your MAPPINGS input/ directory is
+# otherwise, ignore this variable
+sb99_dir = HOME + '/SB99-v8-02/output/'  # this is where your Starburst99 model outputs reside
+# this path is used only when you are using compute_hiir_radii.py or lookup_flux.py
 sb99_model = 'starburst11'  # for fixed stellar mass input spectra = 1e6 Msun, run up to 10 Myr
-sb99_mass = 1e6 # Msun, mass of star cluster in given SB99 model
-
-projection_dict = {'x': ('y', 'z', 'x'), 'y':('z', 'x', 'y'), 'z':('x', 'y', 'z')} # which axes are projected for which line of sight args.projection
+sb99_mass = 1e6  # Msun, mass of star cluster in given SB99 model
 
 # ------------declaring list of ALL simulations present locally (on HD)-----------
 all_sims_dict = {'8508': [('8508', 'RD0042'), ('8508', 'RD0039'), ('8508', 'RD0031'), ('8508', 'RD0030'), ('8508', 'DD2288'), ('8508', 'DD2289')], \
@@ -103,6 +103,8 @@ all_sims_dict = {'8508': [('8508', 'RD0042'), ('8508', 'RD0039'), ('8508', 'RD00
                  '2878': [('2878', 'RD0020'), ('2878', 'RD0018')], \
                  '2392': [('2392', 'RD0030')], \
     } # all snapshots in the HD
+
+projection_dict = {'x': ('y', 'z', 'x'), 'y':('z', 'x', 'y'), 'z':('x', 'y', 'z')} # which axes are projected for which line of sight args.projection
 
 # -----------declaring/modifying colormaps to be ued for certain properties throughout my code------------
 # individually comment out following lines to keep the original color_map as defined in foggie.utils.consistency
