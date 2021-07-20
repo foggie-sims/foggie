@@ -4,21 +4,22 @@
 
 import numpy as np
 from yt.units import *
+from unyt import *
 
 def _static_average_rampressure(field, data):
     bulk_velocity = data.get_field_parameter("bulk_velocity").in_units('km/s')
-    velx = data['enzo', 'x-velocity'].to('km/s') - bulk_velocity[0]
-    vely = data['enzo', 'y-velocity'].to('km/s') - bulk_velocity[1]
-    velz = data['enzo', 'z-velocity'].to('km/s') - bulk_velocity[2]
+    velx = data['enzo', 'x-velocity'].in_units('km/s') - bulk_velocity[0]
+    vely = data['enzo', 'y-velocity'].in_units('km/s') - bulk_velocity[1]
+    velz = data['enzo', 'z-velocity'].in_units('km/s') - bulk_velocity[2]
     vel = np.sqrt(velx**2. + vely**2. + velz**2.)/np.sqrt(3)
     rp = data['density'] * vel**2.
-    return np.log10(rp.to('dyne/cm**2').value)
+    return np.log10(rp.in_units('dyne/cm**2').value)
 
 def _static_radial_rampressure(field, data):
     vel = data['gas', 'radial_velocity']
     vel[vel<0] = 0.
     rp = data['density'] * vel**2.
-    return np.log10(rp.to('dyne/cm**2').value)
+    return np.log10(rp.in_units('dyne/cm**2').value)
 
 
 def _radial_rampressure(field, data):
@@ -26,7 +27,7 @@ def _radial_rampressure(field, data):
     vel = data['gas', 'circular_velocity'] + data['gas', 'radial_velocity']
     vel[vel<0] = 0.
     rp = data['density'] * vel**2.
-    return np.log10(rp.to('dyne/cm**2').value)
+    return np.log10(rp.in_units('dyne/cm**2').value)
 
 
 ### Filter Particles ###
@@ -431,7 +432,7 @@ def cell_mass_msun(field, data):
 
 def grav_pot(field, data):
     Menc = data.ds.Menc_profile(data['radius_corrected'])*Msun
-    return G.to('cm**3/g/s**2')*Menc.to('g')/data['radius_corrected'].to('cm')
+    return G.in_units('cm**3/g/s**2')*Menc.in_units('g')/data['radius_corrected'].in_units('cm')
 
 def hse_ratio(field, data):
     center = data.ds.halo_center_kpc

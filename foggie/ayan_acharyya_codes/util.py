@@ -744,15 +744,12 @@ def get_all_sims_for_this_halo(args):
     '''
     Function assimilate the names of all snapshots available for the given halo
     '''
-    if args.system == 'ayan_local':
-        all_sims = all_sims_dict[args.halo]
-    else:
-        foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-        all_sims = []
-        snapshot_paths = glob.glob(foggie_dir + 'halo_00' + args.halo + '/nref11c_nref9f/*/')
-        snapshots = [item.split('/')[-2] for item in snapshot_paths]
-        for thissnap in snapshots:
-            if len(thissnap) == 6: all_sims.append([args.halo, thissnap])
+    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    all_sims = []
+    snapshot_paths = glob.glob(foggie_dir + 'halo_00' + args.halo + '/nref11c_nref9f/*/')
+    snapshots = [item.split('/')[-2] for item in snapshot_paths]
+    for thissnap in snapshots:
+        if len(thissnap) == 6: all_sims.append([args.halo, thissnap])
 
     return all_sims
 
@@ -946,6 +943,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--annotate_axes', dest='annotate_axes', action='store_true', default=False, help='annotate coordinate axes?, default is no')
     parser.add_argument('--annotate_redshift', dest='annotate_redshift', action='store_true', default=False, help='annotate current redshift?, default is no')
     parser.add_argument('--move_to', metavar='move_to', type=str, action='store', default='0,0,0', help='move camera position to (x,y,z) position coordinates in domain_length units, relative to starting position; default is (0,0,0) i.e. no movement')
+    parser.add_argument('--use_full_colormap', dest='use_full_colormap', action='store_true', default=False, help='map the entire colormap within the given bounds?, default is no')
 
     # ------- args added for track_metallicity_evolution.py ------------------------------
     parser.add_argument('--nocallback', dest='nocallback', action='store_true', default=False, help='callback previous functions if a file is not found?, default is no')
@@ -958,6 +956,9 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--xcol', metavar='xcol', type=str, action='store', default='rad', help='x axis quantity; default is rad')
     parser.add_argument('--ycol', metavar='ycol', type=str, action='store', default='metal', help='y axis quantity; default is metal')
     parser.add_argument('--colorcol', metavar='colorcol', type=str, action='store', default='vrad', help='x axis quantity; default is vrad')
+    parser.add_argument('--clobber_plot', dest='clobber_plot', action='store_true', default=False, help='overwrite existing plots with same name?, default is no')
+    parser.add_argument('--overplot_stars', dest='overplot_stars', action='store_true', default=False, help='overplot young stars?, default is no')
+    parser.add_argument('--start_index', metavar='start_index', type=int, action='store', default=0, help='index of the list of snapshots to start from; default is 8')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
@@ -971,6 +972,8 @@ def parse_args(haloname, RDname, fast=False):
     args.obs_wave_range = np.array([float(item) for item in args.obs_wave_range.split(',')])
     args.base_wave_range = np.array([float(item) for item in args.base_wave_range.split(',')])
     args.test_pixel = np.array([int(item) for item in args.test_pixel.split(',')]) if args.test_pixel is not None else None
+    args.colorcol = [item for item in args.colorcol.split(',')]
+
     args.mergeHII_text = '_mergeHII=' + str(args.mergeHII) + 'kpc' if args.mergeHII is not None else '' # to be used as filename suffix to denote whether HII regions have been merged
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 

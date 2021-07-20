@@ -8,7 +8,7 @@
     Output :     One pandas dataframe per halo as a txt file (Or fits file?)
     Author :     Ayan Acharyya
     Started :    July 2021
-    Example :    run track_metallicity_evolution.py --system ayan_pleiades_ssd --halo 8508
+    Example :    run track_metallicity_evolution.py --system ayan_hd --halo 8508 --nocallback
     Example :    run track_metallicity_evolution.py --system ayan_pleiades --halo 8508 --nocallback
 
 """
@@ -97,7 +97,6 @@ def assimilate_this_halo(args):
             if type(args) is tuple:
                 args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
                 myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
-
 
             this_Z_arr, this_m_arr = read_metallicity(args)
 

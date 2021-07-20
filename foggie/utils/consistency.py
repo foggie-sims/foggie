@@ -380,13 +380,14 @@ new_phase_color_key = collections.OrderedDict()
 
 phase_color_labels = [b'cold1', b'cold2', b'cold3', b'cool', b'cool1', b'cool2',
                       b'cool3', b'warm', b'warm1', b'warm2', b'warm3', b'hot',
-                      b'hot1', b'hot2', b'hot3']
+                      b'hot1', b'hot2', b'hot3', b'hot4']
 for i in np.arange(np.size(phase_color_labels)):
     new_phase_color_key[phase_color_labels[i]] = to_hex(temp_colors[i])
 
 def categorize_by_temp(temperature):
     """ define the temp category strings"""
     phase = np.chararray(np.size(temperature), 5)
+    phase[temperature >= 9.] = b'hot4' # Added by ayan on 16 July 2021; because otherwise calling categorize_by_temp() was throwing an error for stuff hotter than 10^9 K
     phase[temperature < 9.] = b'hot3'
     phase[temperature < 6.6] = b'hot2'
     phase[temperature < 6.4] = b'hot1'
@@ -479,6 +480,40 @@ def categorize_by_metals(metal):
     """ define the temp category strings"""
     metal_vals = np.power(10.0, np.linspace(start=np.log10(metal_min),
                                             stop=np.log10(metal_max), num=21))
+    # make the highest value really high
+    metal_vals[20] = 50. * metal_vals[20]
+    phase = np.chararray(np.size(metal), 6)
+    # need to do this by iterating over keys insteard of hard coding indices
+    phase[metal < metal_vals[20]] = b'high4'
+    phase[metal < metal_vals[19]] = b'high3'
+    phase[metal < metal_vals[18]] = b'high2'
+    phase[metal < metal_vals[17]] = b'high1'
+    phase[metal < metal_vals[16]] = b'high'
+    phase[metal < metal_vals[15]] = b'solar3'
+    phase[metal < metal_vals[14]] = b'solar2'
+    phase[metal < metal_vals[13]] = b'solar1'
+    phase[metal < metal_vals[12]] = b'solar'
+    phase[metal < metal_vals[11]] = b'low3'
+    phase[metal < metal_vals[10]] = b'low2'
+    phase[metal < metal_vals[9]] = b'low1'
+    phase[metal < metal_vals[8]] = b'low'
+    phase[metal < metal_vals[7]] = b'poor3'
+    phase[metal < metal_vals[6]] = b'poor2'
+    phase[metal < metal_vals[5]] = b'poor1'
+    phase[metal < metal_vals[4]] = b'poor'
+    phase[metal < metal_vals[3]] = b'free3'
+    phase[metal < metal_vals[2]] = b'free2'
+    phase[metal < metal_vals[1]] = b'free1'
+    phase[metal < metal_vals[0]] = b'free'
+    return phase
+
+def categorize_by_log_metals(metal):
+    """ define the metallicity category strings in log space;
+    this is basically identical to categorize_by_metals() except: he first line where metal_vals is declared in log space instead of linear space AND
+    added by Ayan on 16th July, 2021
+    """
+    metal_vals = np.linspace(start=np.log10(metal_min),
+                                            stop=np.log10(metal_max), num=21)
     # make the highest value really high
     metal_vals[20] = 50. * metal_vals[20]
     phase = np.chararray(np.size(metal), 6)
