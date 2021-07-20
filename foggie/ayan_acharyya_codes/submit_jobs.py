@@ -130,7 +130,7 @@ if __name__ == '__main__':
     if args.aoe is not None: resources += ':aoe=' + args.aoe
 
     #----------looping over and creating + submitting job files--------
-    halos = ['8508', '5036', '2878', '2392', '5016', '4123']
+    halos = ['8508', '5036', '5016', '4123', '2878', '2392']
     if args.do_all_halos:
         args.stop = len(halos) # do all halos by submitting ..
         do_all_halosflag = '' # ..multiple jobs one job for each halo
@@ -152,7 +152,7 @@ if __name__ == '__main__':
                         'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG': do_all_simsflag, 'DO_ALL_HALOSFLAG': do_all_halosflag, 'SYSTEMFLAG': systemflag, \
                         'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
                         'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \
-                        'OVERPLOT_STARS_FLAG': overplot_stars_flag, 'CLOBBER_PLOT_FLAG': clobber_plot_flag} # keywords to be replaced in template jobscript
+                        'OVERPLOT_STARS_FLAG': overplot_stars_flag, 'CLOBBER_PLOT_FLAG': clobber_plot_flag, 'NSECONDS':str(nhours * 3600)} # keywords to be replaced in template jobscript
 
         with open(jobscript_path + jobscript_template) as infile, open(out_jobscript, 'w') as outfile:
             for line in infile:
