@@ -21,7 +21,6 @@ def _static_radial_rampressure(field, data):
     rp = data['density'] * vel**2.
     return np.log10(rp.in_units('dyne/cm**2').value)
 
-
 def _radial_rampressure(field, data):
 
     vel = data['gas', 'circular_velocity'] + data['gas', 'radial_velocity']
@@ -77,6 +76,42 @@ def _cooling_criteria(field,data):
     """adds cooling criteria field
     to use: yt.add_field(("gas","cooling_criteria"),function=_cooling_criteria,units=None)"""
     return -1*data['cooling_time'] / ((data['dx']/data['sound_speed']).in_units('s'))
+
+def phi_angular_momentum(field, data):
+    '''
+    Function to compute the phi direction of the angular momentum vector
+    Added here by Ayan
+    Based onRaymond's foggie.angular_momentum.lasso_data_selection.ipynb since the function cannot be imported from notebook
+    '''
+    if ('dm' in field.name[0]) | ('stars' in field.name[0]):
+        name = 'particle_angular_momentum'
+    else:
+        name = 'angular_momentum'
+    Lx = data['%s_x' % name]
+    Ly = data['%s_y' % name]
+    Lz = data['%s_z' % name]
+    L_tot = np.sqrt(Lx ** 2. + Ly ** 2. + Lz ** 2.)
+    phi_L = np.arccos(Lz / L_tot) * 180. / np.pi
+    phi_L[np.isnan(phi_L)] = 0.
+    return YTArray(phi_L, 'deg')
+
+def theta_angular_momentum(field, data):
+    '''
+    Function to compute the theta direction of the angular momentum vector
+    Added here by Ayan
+    Basically copied form Raymond's foggie.angular_momentum.lasso_data_selection.ipynb since the function cannot be imported from notebook
+    '''
+    if ('dm' in field.name[0]) | ('stars' in field.name[0]):
+        name = 'particle_angular_momentum'
+    else:
+        name = 'angular_momentum'
+
+    Lx = data['%s_x' % name]
+    Ly = data['%s_y' % name]
+
+    theta_L = np.arctan2(Ly, Lx) * 180. / np.pi
+    theta_L[np.isnan(theta_L)] = 0.
+    return YTArray(theta_L, 'deg')
 
 def vx_corrected(field, data):
     """Corrects the x-velocity for bulk motion of the halo. Requires 'halo_velocity_kms', which
