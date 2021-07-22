@@ -354,9 +354,11 @@ class SelectFromCollection:
 
         self.lasso = LassoSelector(ax, lambda verts: self.onselect(verts, npix_datashader, nbins))
         self.ind = []
+        self.count = 0
+        self.should_remove_highlight = False
 
     def onselect(self, verts, npix_datashader, nbins):
-        if len(self.ind) > 0: self.ax.images[-1].remove() # removing the last highlighted region, if any
+        if self.should_remove_highlight: self.ax.images[-1].remove() # removing the last highlighted region, if any
         path = mpl_Path(verts)
         self.ind = np.nonzero(path.contains_points(self.xys))[0]
         self.fc[:, -1] = self.alpha_other
@@ -364,16 +366,15 @@ class SelectFromCollection:
         self.collection.set_facecolors(self.fc)
 
         # -------to highlight the selected region-------------------
-        self.ax.texts[0].set_visible(False)
-        self.ax.text(0.5 * npix_datashader, 0.95 * npix_datashader, 'Press ENTER if happy with selection or select again', ha='center', fontsize=15)
+        self.ax.texts[-1].remove()
+        self.ax.text(0.5 * npix_datashader, 0.95 * npix_datashader, 'Press ENTER to proceed with this selection or select again', ha='center', fontsize=15)
         mask = np.zeros((nbins, nbins))
         mask.ravel()[self.ind] = 1.
         extent = 0, npix_datashader, 0, npix_datashader
         p = self.ax.imshow(mask, cmap=plt.cm.Greys_r, alpha=.5, interpolation='bilinear', extent=extent, zorder=10, aspect='auto')  # , origin='lower')
-
-        output_figname = fig_dir + 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s_lasso.png' % (args.galrad, ycol, xcol, colorcol)
-        self.ax.figure.savefig(output_figname)
         plt.draw()
+        self.count += 1
+        self.should_remove_highlight = True
 
     def disconnect(self):
         self.lasso.disconnect_events()
@@ -382,7 +383,7 @@ class SelectFromCollection:
         self.ax.figure.canvas.draw()
 
 # -------------------------------------------------------------------------------
-def projplot_selection(box, args, npix_datashader, nbins, selector, xgrid, ygrid):
+def projplot_selection(box, args, npix_datashader, nbins, selector, xgrid, ygrid, outfilename, field_to_plot='density'):
     '''
     Function to accept a key press event and plot selected region on yt ProjectionPlot
     This is based on Raymond's foggie.angular_momentum.lasso_data_selection.ipynb
@@ -412,16 +413,13 @@ def projplot_selection(box, args, npix_datashader, nbins, selector, xgrid, ygrid
 
     # ------to make new plots corresponding to the selected region----------
     if args.debug: myprint('Preparing to projection plot based on above cut regions: \n' + cut_crit, args)
-    field_to_plot = 'density'
     prj = do_plot(box_cut.ds, field_dict[field_to_plot], args.projection, [], box_cut, box.center.in_units(kpc), 2 * args.galrad * kpc, \
                   cmap_dict[field_to_plot], halo_dict[args.halo], unit=projected_unit_dict[field_to_plot], zmin=projected_bounds_dict[field_to_plot][0], \
                   zmax=projected_bounds_dict[field_to_plot][1], weight_field=weight_field_dict[field_to_plot], iscolorlog=islog_dict[field_to_plot], \
                   noweight=args.weight is None)
 
-    fig_dir = args.output_dir + 'figs/' + args.output + '/'
-    output_figname = fig_dir + '%s' % (field_to_plot) + '_box=%.2Fkpc' % (2 * args.galrad) + '_proj_' + args.projection + '_lassoby_' + ycol + '_vs_' + xcol +'_projection.png'
-    prj.save(output_figname, mpl_kwargs={'dpi': 500})
-    myprint('Saved cut out plot at ' + output_figname, args)
+    prj.save(outfilename, mpl_kwargs={'dpi': 500})
+    myprint('Saved cut out plot at ' + outfilename, args)
     prj.show()
 
     return prj
@@ -433,16 +431,31 @@ def on_key_press(event, box, ax, args, npix_datashader, nbins, selector, xgrid, 
     This is based on Raymond's foggie.angular_momentum.lasso_data_selection.ipynb
     '''
     if event.key == 'enter':
+        output_figname = fig_dir + 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s_lasso%d.png' % (args.galrad, ycol, xcol, colorcol, selector.count)
+        ax.figure.savefig(output_figname) # to save the highlighted image
         nselection = len(selector.ind)
         myprint('Selected ' + str(nselection) + ' binned pixels:', args)
         if args.debug: print(selector.xys[selector.ind])
+        if nselection > 0:
+            field_to_plot = 'density'
+            output_figname = fig_dir + '%s' % (field_to_plot) + '_box=%.2Fkpc' % (2 * args.galrad) + '_proj_' + args.projection + '_lasso' + str(selector.count) + '_by_' + ycol + '_vs_' + xcol + '_projection.png'
+            prj = projplot_selection(box, args, npix_datashader, nbins, selector, xgrid, ygrid, output_figname, field_to_plot=field_to_plot)
+        else:
+            myprint('No data point selected; therefore, not proceeding any further.', args)
+
+        # -----refreshing the image for next selection, if any-----------
+        selector.should_remove_highlight = False
+        if nselection > 0: ax.images[-1].remove()
+        ax.texts[-1].remove()
+        ax.text(0.5 * npix_datashader, 0.95 * npix_datashader, 'Select points by dragging mouse in a loop', ha='center', fontsize=args.fontsize)
+        plt.draw()
+    elif event.key == 'escape':
+        myprint('Exiting interactive mode..', args)
         selector.disconnect()
-        if nselection > 0: prj = projplot_selection(box, args, npix_datashader, nbins, selector, xgrid, ygrid)
-        else: myprint('No data point selected; therefore, not proceeding any further.', args)
-        ax.texts[0].set_visible(False)
+        for text in ax.texts: text.remove()
         plt.draw()
     else:
-        myprint('You need to press ENTER to see your selection', args)
+        myprint('You pressed ' + event.key + '; but you need to press ENTER to see your selection or ESC to exit interactive mode', args)
 
 # -------------------------------------------------------------------------------------------------------------
 def setup_interactive(box, ax, args, npix_datashader, nbins):
