@@ -11,6 +11,7 @@ plot for which halo and snapshots with command line arguments.
 from __future__ import print_function
 
 import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 import yt
 from yt.units import *
 from yt import YTArray
@@ -93,6 +94,7 @@ def parse_args():
                         'mass_vs_time           -  DM, stellar, gas, and total masses within Rvir over time\n' + \
                         'velocity_PDF           -  1D PDFs of each velocity component in a radius bin near Rvir\n' + \
                         'energy_vs_time         -  energies (virial, kinetic, thermal, etc.) at Rvir over time\n' + \
+                        'cooling_energy_vs_time -  cumulative cooling losses compared to other energies at Rvir over time\n' + \
                         'energy_vs_radius       -  energies (virial, kinetic, thermal, etc.) over radius\n' + \
                         'temperature_vs_time    -  temperature at Rvir over time compared to modified virial temp\n' + \
                         'temperature_vs_radius  -  temperature over radius compared to modified virial temp NOTE:' + \
@@ -945,6 +947,10 @@ def tcool_vs_radius(snap, hist=False):
 
     if (hist):
         snap_name = foggie_dir + run_dir + snap + '/' + snap
+        stats_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+        stats = Table.read(stats_prefix + snap + '_stats_tcool_sphere_mass-weighted_cgm-filtered_cooling.hdf5', path='all_data')
+        radius_list = 0.5*(stats['inner_radius'] + stats['outer_radius'])
+        zsnap = stats['redshift'][0]
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
         cgm = ds.sphere(ds.halo_center_kpc, (2.*ds.refine_width, 'kpc')) - ds.sphere(ds.halo_center_kpc, (0.3*Rvir, 'kpc'))
         cgm = cgm.cut_region("(obj['density'] < %.2e) & (obj['temperature'] > %.2e)" % (cgm_density_max, cgm_temperature_min))
@@ -961,6 +967,8 @@ def tcool_vs_radius(snap, hist=False):
         y_range = [0, 7]
         cmin = np.min(np.array(weights)[np.nonzero(weights)[0]])
         hist = ax.hist2d(radius, tcool, weights=weights, bins=(500, 500), cmin=cmin, range=[x_range,y_range], cmap=plt.cm.BuPu)
+        ax.plot(radius_list, np.log10(stats['net_tcool_med']), \
+                  color='r', ls='-', lw=2, label='Median $t_\mathrm{cool}$')
         cbaxes = fig.add_axes([0.7, 0.95, 0.25, 0.03])
         cbar = plt.colorbar(hist[3], cax=cbaxes, orientation='horizontal', ticks=[])
         cbar.set_label('log Mass', fontsize=18)
@@ -975,8 +983,6 @@ def tcool_vs_radius(snap, hist=False):
                   color='k', ls='-', lw=2, label='Summed cooling')
         ax.plot(radius_list, np.log10(stats['net_tcool_med']), \
                   color='k', ls='--', lw=2, label='Median $t_\mathrm{cool}$')
-        ax.text(15, 0.5, '$z=%.2f$' % (zsnap), fontsize=18, ha='left', va='center')
-        ax.legend(loc=2, frameon=False, fontsize=18)
 
     ax.set_ylabel('log Cooling time [Myr]', fontsize=18)
     ax.set_xlabel('Radius [kpc]', fontsize=18)
@@ -990,10 +996,99 @@ def tcool_vs_radius(snap, hist=False):
     ax.text(Rvir-3., 1, '$R_{200}$', fontsize=18, ha='right', va='center')
     ax.plot([0.5*Rvir, 0.5*Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
     ax.text(0.5*Rvir+3., 1, '$0.5R_{200}$', fontsize=18, ha='left', va='center')
+    ax.text(15, 0.5, '$z=%.2f$' % (zsnap), fontsize=18, ha='left', va='center')
+    ax.legend(loc=2, frameon=False, fontsize=18)
     plt.subplots_adjust(top=0.88,bottom=0.11,right=0.95,left=0.08)
     if (hist): plt.savefig(save_dir + snap + '_tcool_vs_r_hist' + save_suffix + '.pdf')
     else: plt.savefig(save_dir + snap + '_tcool_vs_r' + save_suffix + '.pdf')
     plt.close()
+
+def cooling_energy_vs_time(snaplist):
+    '''Plots the cooling energy integrated over the last 4 Gyr as a function of time, compared to
+    the thermal energy, kinetic energy, and potential energy, for a shell at Rvir.'''
+
+    tablename_prefix = output_dir + 'totals_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+
+    zlist = []
+    timelist = []
+    therm_list = []
+    kin_list = []
+    cool_list = []
+    pot_list = []
+
+    for i in range(len(snaplist)):
+        data = Table.read(tablename_prefix + snaplist[i] + '_' + args.filename + '.hdf5', path='all_data')
+        data_cool = Table.read(tablename_prefix + snaplist[i] + '_totals_energy_sphere_vcut-p5vff_cgm-filtered_cooling.hdf5', path='all_data')
+        rvir = rvir_masses['radius'][rvir_masses['snapshot']==snaplist[i]]
+        mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snaplist[i]]
+        pos_ind = np.where(data['outer_radius']>=rvir)[0]
+        if (len(pos_ind)==0):
+            pos_ind = len(data['outer_radius'])-1
+        else:
+            pos_ind = pos_ind[0]
+        mgas = np.cumsum(data['net_mass'])[pos_ind]
+
+        therm_list.append(data['net_thermal_energy'][pos_ind])
+        kin_list.append(data['net_kinetic_energy'][pos_ind])
+        cool_list.append(data_cool['net_cooling_energy_rate'][pos_ind])
+        pot_list.append(data['net_potential_energy'][pos_ind])
+
+        zlist.append(data['redshift'][0])
+        timelist.append(time_table['time'][time_table['snap']==snaplist[i]][0]/1000.)
+
+    cool_sum = np.sum(sliding_window_view(np.array(cool_list), window_shape = 60), axis = 1)
+    cool_sum_start = np.cumsum(np.array(cool_list))[:59]
+    print(len(cool_sum), len(cool_sum_start), len(timelist))
+    cool_sum = np.hstack([cool_sum_start, cool_sum])*5.36e7*yrtosec
+
+    fig = plt.figure(figsize=(8,6), dpi=500)
+    ax = fig.add_subplot(1,1,1)
+    ax.plot(timelist, np.array(therm_list)/-np.array(pot_list), \
+            color='g', ls='--', lw=2, label='KE$_\mathrm{th}$')
+    ax.plot(timelist, np.array(kin_list)/-np.array(pot_list), \
+            color='b', ls=':', lw=2, label='KE$_\mathrm{nt}$')
+    ax.plot(timelist, (np.array(therm_list) + np.array(kin_list))/-np.array(pot_list), \
+            color='c', ls='-', lw=3, label='Total KE')
+    ax.plot(timelist, cool_sum/-np.array(pot_list), \
+            color='k', ls='-', lw=2, label='Cooling losses')
+
+    ax.set_ylabel('Energy at $R_{200}$ / PE($R_{200}$)', fontsize=18)
+
+    z_sfr, sfr = np.loadtxt(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', unpack=True, usecols=[1,2], skiprows=1)
+    start_ind = np.where(z_sfr<=zlist[0])[0][0]
+
+    ax2 = ax.twiny()
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=False, right=False)
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True)
+    zlist.reverse()
+    timelist.reverse()
+    time_func = IUS(zlist, timelist)
+    timelist.reverse()
+    ax.set_xlim(np.min(timelist), np.max(timelist))
+    ax.set_ylim(-0.5, 3)
+    x0, x1 = ax.get_xlim()
+    z_ticks = [2,1.5,1,.75,.5,.3,.2,.1,0]
+    last_z = np.where(z_ticks >= zlist[0])[0][-1]
+    z_ticks = z_ticks[:last_z+1]
+    tick_pos = [z for z in time_func(z_ticks)]
+    tick_labels = ['%.2f' % (z) for z in z_ticks]
+    ax2.set_xlim(x0,x1)
+    ax2.set_xticks(tick_pos)
+    ax2.set_xticklabels(tick_labels)
+    ax.set_xlabel('Cosmic Time [Gyr]', fontsize=18)
+    ax2.set_xlabel('Redshift', fontsize=18)
+    ax.plot([x0, x1], [0,0], 'k-', lw=1)
+    if (args.halo=='8508'):
+        ax.legend(loc=1, frameon=False, fontsize=18)
+    ax.text(4,2.75,halo_dict[args.halo],ha='left',va='center',fontsize=18)
+    plt.subplots_adjust(top=0.9, bottom=0.12, right=0.96, left=0.15)
+    plt.savefig(save_dir + 'all_energies_vs_t' + save_suffix + '.pdf')
+    plt.close()
+
+    print('Plot made!')
 
 def energy_SFR_xcorr(snaplist):
     '''Plots a cross-correlation between VE (at Rvir) and SFR as a function of time delay between them.'''
@@ -1342,6 +1437,7 @@ def energy_vs_radius_compare(snap):
 
     ax.plot([-100,-100],[-100,-100], 'k-', lw=1, label='Thin lines:\nexact, cumulative')
     ax.plot([-100,-100],[-100,-100], 'k-', lw=2, label='Thick lines:\nSIS, shells')
+    ax.plot([0,250], [0,0], 'k-', lw=1)
 
     ax.set_xlabel('Radius [kpc]', fontsize=18)
     ax.set_ylabel('Specific energy [$10^{15}$ erg/g]', fontsize=18)
@@ -1543,6 +1639,8 @@ if __name__ == "__main__":
             velocity_PDF(outs[i])
     elif (args.plot=='energy_vs_time'):
         energy_vs_time(outs)
+    elif (args.plot=='cooling_energy_vs_time'):
+        cooling_energy_vs_time(outs)
     elif (args.plot=='energy_vs_radius'):
         for i in range(len(outs)):
             energy_vs_radius(outs[i])
