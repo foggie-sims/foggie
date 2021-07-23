@@ -10,6 +10,80 @@
 """
 from header import *
 
+# ------------------------------------------------------------------
+class BlitManager:
+    def __init__(self, canvas, animated_artists=()):
+        """
+        This class was borrowed from https://matplotlib.org/devdocs/tutorials/advanced/blitting.html?highlight=blitting
+        Parameters
+        ----------
+        canvas : FigureCanvasAgg
+            The canvas to work with, this only works for sub-classes of the Agg
+            canvas which have the `~FigureCanvasAgg.copy_from_bbox` and
+            `~FigureCanvasAgg.restore_region` methods.
+
+        animated_artists : Iterable[Artist]
+            List of the artists to manage
+        """
+        self.canvas = canvas
+        self._bg = None
+        self._artists = []
+
+        for a in animated_artists:
+            self.add_artist(a)
+        # grab the background on every draw
+        self.cid = canvas.mpl_connect("draw_event", self.on_draw)
+
+    def on_draw(self, event):
+        """Callback to register with 'draw_event'."""
+        cv = self.canvas
+        if event is not None:
+            if event.canvas != cv:
+                raise RuntimeError
+        self._bg = cv.copy_from_bbox(cv.figure.bbox)
+        self._draw_animated()
+
+    def add_artist(self, art):
+        """
+        Add an artist to be managed.
+
+        Parameters
+        ----------
+        art : Artist
+
+            The artist to be added.  Will be set to 'animated' (just
+            to be safe).  *art* must be in the figure associated with
+            the canvas this class is managing.
+
+        """
+        if art.figure != self.canvas.figure:
+            raise RuntimeError
+        art.set_animated(True)
+        self._artists.append(art)
+
+    def _draw_animated(self):
+        """Draw all of the animated artists."""
+        fig = self.canvas.figure
+        for a in self._artists:
+            fig.draw_artist(a)
+
+    def update(self):
+        """Update the screen with animated artists."""
+        cv = self.canvas
+        fig = cv.figure
+        # paranoia in case we missed the draw event,
+        if self._bg is None:
+            self.on_draw(None)
+        else:
+            # restore the background
+            cv.restore_region(self._bg)
+            # draw all of the animated artists
+            self._draw_animated()
+            # update the GUI state
+            cv.blit(fig.bbox)
+        # let the GUI event loop process anything it has to do
+        cv.flush_events()
+
 # ---------------------object containing info about the instrument being simulated----------------------------------------
 class telescope(object):
     # ---------initialise object-----------
@@ -251,6 +325,9 @@ def myprint_orig(text, args):
     Function to direct the print output to stdout or a file, depending upon user args
     '''
     if not isinstance(text, list) and not text[-1] == '\n': text += '\n'
+    if 'minutes' in text: text = fix_time_format(text, 'minutes')
+    elif 'mins' in text: text = fix_time_format(text, 'mins')
+
     if not args.silent:
         if args.print_to_file:
             ofile = open(args.printoutfile, 'a')
@@ -258,6 +335,19 @@ def myprint_orig(text, args):
             ofile.close()
         else:
             print(text)
+
+# --------------------------------------------------------------------------------------------
+def fix_time_format(text, keyword):
+    '''
+     Function to modify the way time is formatted in print statements
+    '''
+    arr = text.split(' ' + keyword)
+    pre_time = ' '.join(arr[0].split(' ')[:-1])
+    this_time = float(arr[0].split(' ')[-1])
+    post_time = ' '.join(arr[1].split(' '))
+    text = pre_time + ' %s' % (datetime.timedelta(minutes=this_time)) + post_time
+
+    return text
 
 # ------------------------------------------------------------------------
 def insert_line_in_file(line, pos, filename, output=None):
@@ -960,6 +1050,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--overplot_stars', dest='overplot_stars', action='store_true', default=False, help='overplot young stars?, default is no')
     parser.add_argument('--start_index', metavar='start_index', type=int, action='store', default=0, help='index of the list of snapshots to start from; default is 8')
     parser.add_argument('--interactive', dest='interactive', action='store_true', default=False, help='interactive mode?, default is no')
+    parser.add_argument('--combine', dest='combine', action='store_true', default=False, help='combine all outputs from lasso selection?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
