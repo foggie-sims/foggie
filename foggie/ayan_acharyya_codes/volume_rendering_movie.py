@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
     for index in range(core_start, core_end + 1):
         this_sim = list_of_sims[index]
-        print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1) + ' out of the total ' + str(len(list_of_sims)) + ' snapshots...', dummy_args)
+        print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(len(list_of_sims)) + ' snapshots...', dummy_args)
         try:
             if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
             else: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it

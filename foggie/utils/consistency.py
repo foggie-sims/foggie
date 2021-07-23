@@ -1086,3 +1086,38 @@ plotter_limits_dict = dict(velocity_los=[-600, 600],
                            metallicity=[0, 1],
                            temperature=[1e4, 1e9],
                            density=[1e-30, 1e-26])
+
+############# angle categorisation for -180 to 180 deg (Ayan)
+angle_color_labels_2pi = [b'-(180-157.5)', b'-(157.5-135)', b'-(135-112.5)', b'-(112.5-90)', b'-(90-67.5)',  b'-(67.5-45)', b'-(45-22.5)', b'-(22.5-0)',
+                      b'(0-22.5)', b'(22.5-45)', b'(45-67.5)', b'(67.5-90)', b'(90-112.5)', b'(112.5-135)', b'(135-157.5)', b'(157.5-180)']
+angle_color_names_2pi = ['sienna', 'teal', 'darkblue', 'olive', 'sienna']
+
+angle_colors_2pi = sns.blend_palette(angle_color_names_2pi, n_colors=len(angle_color_labels_2pi))
+angle_discrete_cmap_2pi = mpl.colors.ListedColormap(angle_colors_2pi)
+angle_color_key_2pi = collections.OrderedDict()
+for i in np.arange(np.size(angle_color_labels_2pi)):
+    angle_color_key_2pi[angle_color_labels_2pi[i]] = to_hex(angle_discrete_cmap_2pi(i))
+
+def categorize_by_angle_2pi(angle):
+    """ define the angle category strings for angle ranging from -180 to 180 deg"""
+    ang = np.chararray(np.size(angle), 13)
+    for i in range(len(angle_color_labels_2pi)):
+        val = 180 - 360/(np.size(angle_color_labels_2pi))*i
+        ang[angle <= val] = angle_color_labels_2pi[-1 - i]
+    return ang
+
+############# angle categorisation for 0 to 180 deg (Ayan)
+angle_color_labels_pi = angle_color_labels_2pi[int(len(angle_color_labels_2pi)/2) : ]
+angle_colors_pi = sns.blend_palette(angle_color_names_2pi[int(len(angle_color_names_2pi)/2) : ], n_colors=len(angle_color_labels_pi))
+angle_discrete_cmap_pi = mpl.colors.ListedColormap(angle_colors_pi)
+angle_color_key_pi = collections.OrderedDict()
+for i in np.arange(np.size(angle_color_labels_pi)):
+    angle_color_key_pi[angle_color_labels_pi[i]] = to_hex(angle_discrete_cmap_pi(i))
+
+def categorize_by_angle_pi(angle):
+    """ define the angle category strings for angle ranging from 0 to 180 deg"""
+    ang = np.chararray(np.size(angle), 13)
+    for i in range(len(angle_color_labels_pi)):
+        val = 180 - 180/(np.size(angle_color_labels_pi))*i
+        ang[angle <= val] = angle_color_labels_pi[-1 - i]
+    return ang
