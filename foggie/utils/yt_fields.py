@@ -3,8 +3,12 @@
 # into other modules because python makes them private functions.
 
 import numpy as np
-from yt.units import *
-from unyt import *
+import yt
+yt_ver = yt.__version__
+if (yt_ver[0]=='3'):
+    from yt.units import *
+if (yt_ver[0]=='4'):
+    from unyt import *
 
 def _static_average_rampressure(field, data):
     bulk_velocity = data.get_field_parameter("bulk_velocity").in_units('km/s')
