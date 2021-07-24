@@ -10,13 +10,17 @@
     Examples :   run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol metal --colorcol vrad --weight density --overplot_stars --do_all_sims --makemovie --delay 0.2
                  run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol temp --colorcol density,metal,vrad,phi_L,theta_L --output RD0042 --clobber_plot --overplot_stars --keep
                  run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol metal --colorcol vrad,density,temp,phi_L,theta_L --output RD0042 --clobber_plot --overplot_stars --keep
-                 run datashader_movie.py --system ayan_hd --halo 8508 --do gas --galrad 20 --xcol rad --ycol temp --colorcol vrad --output RD0030 --clobber_plot --overplot_stars --interactive --combine
+                 run datashader_movie.py --system ayan_local --halo 8508 --do gas --galrad 20 --xcol rad --ycol metal --colorcol temp --output RD0030 --clobber_plot --overplot_stars --interactive --selcol --combine
 """
 from header import *
 from util import *
 from projection_plot import do_plot
 from make_ideal_datacube import shift_ref_frame
 from filter_star_properties import get_star_properties
+
+from matplotlib.widgets import LassoSelector
+from matplotlib.widgets import SpanSelector
+
 start_time = time.time()
 
 # ------------------------------------------------------------------------------
@@ -164,7 +168,7 @@ def plot_1D_histogram(data, data_min, data_max, ax, vertical=False):
     return ax
 
 # ---------------------------------------------------------------------------------
-def make_coordinate_axis(colname, data_min, data_max, ax, npix_datashader, fontsize):
+def make_coordinate_axis(colname, data_min, data_max, ax, fontsize, npix_datashader=1000, dsh=True):
     '''
     Function to make the coordinate axis
     Uses globally defined islog_dict and unit_dict
@@ -174,7 +178,8 @@ def make_coordinate_axis(colname, data_min, data_max, ax, npix_datashader, fonts
     #delta = 100 if data_max - data_min > 100 else 30 if data_max - data_min > 30 else 5 if data_max - data_min > 5 else 1
     ax.set_label_text(log_text + labels_dict[colname] + ' (' + unit_dict[colname] + ')', fontsize=fontsize)
     ticks = np.linspace(data_min, data_max, nticks)
-    ax.set_ticks(convert_to_datashader_frame(ticks, data_min, data_max, npix_datashader))
+    if dsh: ax.set_ticks(convert_to_datashader_frame(ticks, data_min, data_max, npix_datashader))
+    else: ax.set_ticks(ticks)
     ax.set_ticklabels(['%.1F' % index for index in ticks], fontsize=fontsize)
 
     return ax
@@ -275,8 +280,8 @@ def wrap_axes(df, filename, npix_datashader, args):
     axes.ax_marg_y = plot_1D_histogram(df[ycol + '_in_pix'], 0, npix_datashader, axes.ax_marg_y, vertical=True)
 
     # ------to make the axes-------------
-    ax1.xaxis = make_coordinate_axis(args.xcol, x_min, x_max, ax1.xaxis, npix_datashader, args.fontsize)
-    ax1.yaxis = make_coordinate_axis(args.ycol, y_min, y_max, ax1.yaxis, npix_datashader, args.fontsize)
+    ax1.xaxis = make_coordinate_axis(args.xcol, x_min, x_max, ax1.xaxis, args.fontsize, npix_datashader=npix_datashader, dsh=True)
+    ax1.yaxis = make_coordinate_axis(args.ycol, y_min, y_max, ax1.yaxis, args.fontsize, npix_datashader=npix_datashader, dsh=True)
     fig, ax2 = make_colorbar_axis(args.colorcol, c_min, c_max, fig, args.fontsize)
 
     # ---------to annotate and save the figure----------------------
@@ -315,14 +320,13 @@ def make_datashader_plot(ds, outfilename, args, npix_datashader=1000):
 class SelectFromCollection:
     '''
     Object to interactively choose coordinate points in a given plot using the LassoSelector
-    This is copied from Raymond's foggie.angular_momentum.lasso_data_selection.ipynb
+    This is based on Raymond's foggie.angular_momentum.lasso_data_selection.ipynb
 
     Select indices from a matplotlib collection using `LassoSelector`.
 
     Selected indices are saved in the `ind` attribute. This tool fades out the
     points that are not part of the selection (i.e., reduces their alpha
-    values). If your collection has alpha < 1, this tool will permanently
-    alter the alpha values.
+    values).
 
     Note that this tool selects collection objects based on their *origins*
     (i.e., `offsets`).
@@ -334,29 +338,14 @@ class SelectFromCollection:
     collection : `matplotlib.collections.Collection` subclass
     Collection you want to select from.
     alpha_other : 0 <= float <= 1
-    To highlight a selection, this tool sets all selected points to an
-    alpha value of 1 and non-selected points to *alpha_other*.
     '''
-
-    def __init__(self, ax, collection, npix_datashader, nbins, alpha_other=0.5):
+    def __init__(self, ax, xys, npix_datashader, nbins, alpha_other=0.3):
         self.ax = ax
-        self.collection = collection
         self.alpha_other = alpha_other
+        self.xys = xys
 
-        self.xys = collection.get_offsets()
-        self.Npts = len(self.xys)
-
-        # Ensure that we have separate colors for each object
-        self.fc = collection.get_facecolors()
-        if len(self.fc) == 0:
-            raise ValueError('Collection must have a facecolor')
-        elif len(self.fc) == 1:
-            self.fc = np.tile(self.fc, (self.Npts, 1))
-
-        self.lasso = LassoSelector(ax, lambda verts: self.onselect(verts, npix_datashader, nbins))
+        self.lasso = LassoSelector(ax, lambda verts: self.onselect(verts, nbins))
         self.ind = []
-        self.count = 0
-        self.should_remove_highlight = False
 
         mask = np.zeros((nbins, nbins))
         extent = 0, npix_datashader, 0, npix_datashader
@@ -364,57 +353,117 @@ class SelectFromCollection:
         self.helpful_text = self.ax.text(0.5 * npix_datashader, 0.95 * npix_datashader, '', ha='center', fontsize=15)
         self.blitman = BlitManager(self.ax.figure.canvas, [self.mask_plot, self.helpful_text])
 
-    def onselect(self, verts, npix_datashader, nbins):
+    def onselect(self, verts, nbins):
         path = mpl_Path(verts)
         self.ind = np.nonzero(path.contains_points(self.xys))[0]
-        self.fc[:, -1] = self.alpha_other
-        self.fc[self.ind, -1] = 1
-        self.collection.set_facecolors(self.fc)
-        self.count += 1
-
         # -------to highlight the selected region-------------------
-        mask = np.zeros((nbins, nbins))
-        mask.ravel()[self.ind] = 1.
-        self.mask_plot.set_data(mask)
-        self.mask_plot.set_alpha(self.alpha_other)
-        self.helpful_text.set_text('Press ENTER to proceed with this selection or select again')
+        if len(self.ind) > 0:
+            mask = np.zeros((nbins, nbins))
+            mask.ravel()[self.ind] = 1.
+            self.mask_plot.set_data(mask)
+            self.mask_plot.set_alpha(self.alpha_other)
+            self.helpful_text.set_text('Press ENTER to proceed with this selection or select again')
+        else:
+            self.mask_plot.set_alpha(0.)
+            self.helpful_text.set_text('No data selected; select points by dragging mouse in a loop')
         self.blitman.update()
 
     def disconnect(self):
+        self.helpful_text.set_text('')
+        self.mask_plot.set_alpha(0.)
+        self.blitman.update()
         self.lasso.disconnect_events()
-        self.fc[:, -1] = 1
-        self.collection.set_facecolors(self.fc)
-        self.ax.figure.canvas.draw()
+
+# ------------------------------------------------------------------
+class SelectFromSlider:
+    '''
+    Object to interactively choose x axis range in a given histogram using the RangeSlider
+   '''
+    def __init__(self, ax, nbins, data_min, data_max, alpha_other=0.3):
+        self.ax = ax
+        self.alpha_other = alpha_other
+        self.data_min = data_min
+        self.data_max = data_max
+
+        onselect = lambda min, max: self.update_span(min, max, nbins)
+        self.slider = SpanSelector(ax, onselect, 'horizontal', onmove_callback=onselect, useblit=True, span_stays=True, rectprops=dict(alpha=0))
+        self.val = [data_min, data_max]
+
+        mask = np.zeros((nbins, nbins))
+        extent = self.data_min, self.data_max, self.ax.get_ylim()[0], self.ax.get_ylim()[1]
+        self.mask_plot = self.ax.imshow(mask, cmap=plt.cm.Greys_r, alpha=0, interpolation='bilinear', extent=extent, zorder=10, aspect='auto', vmin=0, vmax=1)
+
+        self.lower_limit_line = ax.axvline(self.data_min, color='k')
+        self.upper_limit_line = ax.axvline(self.data_max, color='k')
+        self.helpful_text = ax.text(ax.get_xlim()[0] + 0.5 * np.diff(ax.get_xlim())[0], ax.get_ylim()[0] + 0.95 * np.diff(ax.get_ylim())[0], 'Drag cursor to select a range in colors', ha='center', fontsize=args.fontsize)
+
+        # ----------setup the Blit manager and key press event---------------------------
+        self.blitman = BlitManager(self.ax.figure.canvas, [self.lower_limit_line, self.upper_limit_line, self.helpful_text])
+
+    def update_span(self, min, max, nbins):
+        '''
+        Function to update the val passed to a callback by the RangeSlider
+        '''
+        self.val = [min, max]
+        # -------to highlight the selected region-------------------
+        if self.val[1] - self.val[0] > 0:
+            mask = np.zeros((nbins, nbins))
+            mask[:, int((self.val[0] - self.data_min) * nbins/(self.data_max - self.data_min)) : int((self.val[1] - self.data_min) * nbins/(self.data_max - self.data_min))] = 1.
+            self.mask_plot.set_data(mask)
+            self.mask_plot.set_alpha(self.alpha_other)
+            self.helpful_text.set_text('Press ENTER to proceed with this selection or select again')
+        else:
+            self.mask_plot.set_alpha(0)
+            self.helpful_text.set_text('No range selected; select by dragging the cursor')
+        # ------update the position of the vertical lines------
+        self.lower_limit_line.set_xdata(self.val[0])
+        self.upper_limit_line.set_xdata(self.val[1])
+        self.blitman.update()
+
+    def disconnect(self):
+        self.helpful_text.set_text('')
+        self.mask_plot.set_alpha(0)
+        self.lower_limit_line.set_xdata(self.data_min)
+        self.upper_limit_line.set_xdata(self.data_max)
+        self.blitman.update()
+        self.slider.disconnect_events()
 
 # -------------------------------------------------------------------------------
-def combine_lasso_outputs(args, selection_figname, projection_figname):
+def combine_lasso_outputs(args, selection_figname, projection_figname, slider_figname=None):
     '''
     Function to combine the figures produced by lasso selection and display in one frame and write that frame to file
     '''
     myprint('Preparing to combine projection plots based on highlighted selection..', args)
-    nrow, ncol = 2, 2
-    fig, axes = plt.subplots(nrow, ncol, figsize=(8, 8))
+    crop_x1_proj, crop_x2_proj, crop_y1_proj, crop_y2_proj = 150, 3750, 50, 3000
+
+    proj_list_dict = {'dsh': ([10, 1550, 80, 1550], selection_figname, '2D selection')}
+    if slider_figname:
+        nrow, ncol, figsize = 2, 3, (12, 6)
+        proj_list_dict.update({'hist': ([10, 1550, 80, 1550], slider_figname, 'Color selection'), 'dummy': ([0, 0, 0, 0], 'dummy', 'dummy')})
+    else:
+        nrow, ncol, figsize = 2, 2, (9.7, 8)
+    proj_list_dict.update({'x': ([crop_x1_proj, crop_x2_proj, crop_y1_proj, crop_y2_proj], 'proj', 'Los = '), 'y': ([crop_x1_proj, crop_x2_proj, crop_y1_proj, crop_y2_proj], 'proj', 'Los = '), 'z': ([crop_x1_proj, crop_x2_proj, crop_y1_proj, crop_y2_proj], 'proj', 'Los = ')})
+
+    fig, axes = plt.subplots(nrow, ncol, figsize=figsize)
     fig.subplots_adjust(hspace=0, wspace=0, right=1, top=1, bottom=0, left=0)
 
-    for index, thisproj in enumerate(['dsh', 'x', 'y', 'z']):
-        if index: this_figname = projection_figname.replace('proj_' + args.projection, 'proj_' + thisproj)
-        else: this_figname = selection_figname
-        image = mpimg.imread(this_figname)
-        #image = imageio.imread(this_figname)
-        # how to crop extra margin off image?
-
+    for index, thisproj in enumerate(list(proj_list_dict.keys())):
         rowid, colid = int(index / ncol), index % ncol
-        # ---the only harccoded bits, for cropping---
-        if index: # for yt projection plots generated by this script datashader_movie.py
-            crop_x1, crop_x2 = 150, 3750
-            crop_y1, crop_y2 = 50, 3000
-        else: # for datashader plots generated by this script datashader_movie.py
-            crop_x1, crop_x2 = 10, 1550
-            crop_y1, crop_y2 = 80, 1550
-        # -------------------------------------
         axes[rowid][colid].axis('off')
+
+        if proj_list_dict[thisproj][1] == 'proj':
+            this_figname = projection_figname.replace('proj_' + args.projection, 'proj_' + thisproj)
+            this_label = proj_list_dict[thisproj][2] + thisproj
+        else:
+            this_figname = proj_list_dict[thisproj][1]
+            this_label = proj_list_dict[thisproj][2]
+
+        if not os.path.exists(this_figname): continue
+        image = mpimg.imread(this_figname)
+
+        crop_x1, crop_x2, crop_y1, crop_y2 = proj_list_dict[thisproj][0]
         axes[rowid][colid].imshow(image[crop_y1 : crop_y2, crop_x1 : crop_x2], origin='upper')
-        fig.text(0.15, 0.15, 'LoS = ' + thisproj if index else 'Selection' , color='white', transform=axes[rowid][colid].transAxes, fontsize=args.fontsize, ha='left', va='bottom')
+        fig.text(0.15, 0.15, this_label, color='white', transform=axes[rowid][colid].transAxes, fontsize=args.fontsize, ha='left', va='bottom')
 
     outfile_rootname = os.path.split(projection_figname)[1].replace('proj_' + args.projection, 'proj_xyz')
     outfile_rootname = os.path.splitext(outfile_rootname)[0]
@@ -424,37 +473,16 @@ def combine_lasso_outputs(args, selection_figname, projection_figname):
 
     return fig
 
-# -------------------------------------------------------------------------------
-def projplot_selection(box, args, npix_datashader, nbins, selector, xgrid, ygrid, outfilename, field_to_plot='density'):
+# ------------------------------------------------------------------
+def make_projections(box_cut, args, identifier, output_selfig, output_slidefig=None):
     '''
-    Function to accept a key press event and plot selected region on yt ProjectionPlot
-    This is based on Raymond's foggie.angular_momentum.lasso_data_selection.ipynb
+    Function to make projection plots once the selection has been finalised
     '''
-    # ----------to determine axes limits--------------
-    x_min, x_max = bounds_dict[args.xcol]
-    if islog_dict[args.xcol]: x_min, x_max = np.log10(x_min), np.log10(x_max)
-    y_min, y_max = bounds_dict[args.ycol]
-    if islog_dict[args.ycol]: y_min, y_max = np.log10(y_min), np.log10(y_max)
-
-    # ------to cut out the selected region----------
-    if args.debug: myprint('Preparing to cut regions based on highlighted selection..', args)
-    cut_crit = ""
-    for index, item in enumerate(selector.ind):
-        x_lower_bound = convert_from_datashader_frame(xgrid.ravel()[item] - 0.5 * npix_datashader / nbins, x_min, x_max, npix_datashader)
-        x_upper_bound = convert_from_datashader_frame(xgrid.ravel()[item] + 0.5 * npix_datashader / nbins, x_min, x_max, npix_datashader)
-        y_lower_bound = convert_from_datashader_frame(ygrid.ravel()[item] - 0.5 * npix_datashader / nbins, y_min, y_max, npix_datashader)
-        y_upper_bound = convert_from_datashader_frame(ygrid.ravel()[item] + 0.5 * npix_datashader / nbins, y_min, y_max, npix_datashader)
-
-        if islog_dict[args.xcol]: x_lower_bound, x_upper_bound = 10 ** x_lower_bound, 10 ** x_upper_bound
-        if islog_dict[args.ycol]: y_lower_bound, y_upper_bound = 10 ** y_lower_bound, 10 ** y_upper_bound
-
-        if index: cut_crit += '|'
-        cut_crit += "((obj[{}] > {}) & (obj[{}] < {}) & (obj[{}] > {}) & (obj[{}] < {}))".format(field_dict[args.xcol], x_lower_bound, field_dict[args.xcol], x_upper_bound, field_dict[args.ycol], y_lower_bound, field_dict[args.ycol], y_upper_bound)
-
-    box_cut = box.cut_region([cut_crit])
+    # -----make projection plots with the selection-----------
+    field_to_plot = 'density'
+    output_projfig = fig_dir + '%s' % (field_to_plot) + '_boxrad_%.2Fkpc' % (args.galrad) + '_proj_' + args.projection + '_lasso' + str(identifier) + '_by_' + ycol + '_vs_' + xcol + '_projection.png'
 
     # ------to make new plots corresponding to the selected region----------
-    if args.debug: myprint('Preparing to projection plot based on above cut regions: \n' + cut_crit, args)
     proj_arr = ['x', 'y', 'z'] if args.combine else [args.projection]
 
     for thisproj in proj_arr:
@@ -463,52 +491,143 @@ def projplot_selection(box, args, npix_datashader, nbins, selector, xgrid, ygrid
                       zmax=projected_bounds_dict[field_to_plot][1], weight_field=weight_field_dict[field_to_plot], iscolorlog=islog_dict[field_to_plot], \
                       noweight=args.weight is None)
 
-        this_figname = outfilename.replace('proj_' + args.projection, 'proj_' + thisproj)
+        this_figname = output_projfig.replace('proj_' + args.projection, 'proj_' + thisproj)
         prj.save(this_figname, mpl_kwargs={'dpi': 500})
+
+    if args.combine: fig = combine_lasso_outputs(args, output_selfig, output_projfig, slider_figname=output_slidefig)
 
     return prj
 
 # ------------------------------------------------------------------
-def on_key_press(event, box, ax, args, npix_datashader, nbins, selector, xgrid, ygrid):
+def on_second_key_press(event, box_cut, ax, args, range_selector, identifier, output_selfig):
     '''
     Function to accept a key press event and display the selected pixels and modify the axis title
     This is based on Raymond's foggie.angular_momentum.lasso_data_selection.ipynb
     '''
     if event.key == 'enter':
         start_time_on_press = time.time()
-        # -----save the selection-----------
-        output_selfig = fig_dir + 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s_lasso%d.png' % (args.galrad, ycol, xcol, colorcol, selector.count)
-        ax.figure.savefig(output_selfig) # to save the highlighted image
-        nselection = len(selector.ind)
-        myprint('Selected ' + str(nselection) + ' binned pixels:', args)
-        if args.debug: print(selector.xys[selector.ind])
+        x_lower_bound = range_selector.val[0]
+        x_upper_bound = range_selector.val[1]
 
-        # -----refresh the image for next selection, if any-----------
-        selector.helpful_text.set_text('Select points by dragging mouse in a loop')
-        selector.blitman.update()
+        if x_upper_bound > x_lower_bound:
+            # -----save the selection-----------
+            output_slidefig = fig_dir + 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s_slider%d.png' % (args.galrad, ycol, xcol, colorcol, identifier)
+            ax.figure.savefig(output_slidefig)  # to save the highlighted image
 
-        # -----make projection plots with the selection-----------
-        if nselection > 0:
-            field_to_plot = 'density'
-            output_projfig = fig_dir + '%s' % (field_to_plot) + '_boxrad_%.2Fkpc' % (args.galrad) + '_proj_' + args.projection + '_lasso' + str(selector.count) + '_by_' + ycol + '_vs_' + xcol + '_projection.png'
-            prj = projplot_selection(box, args, npix_datashader, nbins, selector, xgrid, ygrid, output_projfig, field_to_plot=field_to_plot)
-            if args.combine: fig = combine_lasso_outputs(args, output_selfig, output_projfig)
+            # ------to cut out the selected region----------
+            if args.debug: myprint('Preparing to cut regions further based on highlighted selection: %s from %.2F to %.2F %s'%(colorcol, x_lower_bound, x_upper_bound, unit_dict[args.colorcol]), args)
+
+            if islog_dict[args.colorcol]: x_lower_bound, x_upper_bound = 10 ** x_lower_bound, 10 ** x_upper_bound
+
+            cut_crit = "((obj[{}] > obj.ds.quan({}, '{}')) & (obj[{}] < obj.ds.quan({}, '{}')))".format(field_dict[args.colorcol], x_lower_bound, unit_dict[args.colorcol], field_dict[args.colorcol], x_upper_bound, unit_dict[args.colorcol])
+
+            box_cut = box_cut.cut_region([cut_crit])
+
+            # ------make projection plots----------
+            prj = make_projections(box_cut, args, identifier, output_selfig, output_slidefig=output_slidefig)
+
         else:
             myprint('No data point selected; therefore, not proceeding any further.', args)
 
-        myprint('Key press events completed in %s' % (datetime.timedelta(seconds = time.time() - start_time_on_press)), args)
+        myprint('Second key press events completed in %s' % (datetime.timedelta(seconds=time.time() - start_time_on_press)), args)
 
     elif event.key == 'escape':
         myprint('Exiting interactive mode..', args)
-        selector.helpful_text.set_text('')
-        selector.blitman.update()
+        range_selector.disconnect()
+    else:
+        myprint('You pressed ' + event.key + '; but you need to press ENTER to see your selection or ESC to exit interactive mode', args)
+
+# -------------------------------------------------------------------
+def make_histogram(box_cut, args, identifier, output_selfig, ncolbins):
+    '''
+    Function to prepare histogram with interactive range_selector, once the 2D selection is finalised
+    '''
+    # ----------to determine axes limits--------------
+    c_min, c_max = bounds_dict[args.colorcol]
+    if islog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
+
+    # ----------to plot the histogram of colors---------------------------
+    fig, ax = plt.subplots(1)
+    color_quant = box_cut[field_dict[args.colorcol]]
+    if islog_dict[args.colorcol]: color_quant = np.log10(color_quant)
+
+    Y, X = np.histogram(color_quant, bins=ncolbins, normed=1)
+    x_span = X.max() - X.min()
+    colors = [colormap_dict[args.colorcol](((x - X.min()) / x_span)) for x in X]
+
+    h = ax.bar(X[:-1], Y, color=colors, width=X[1] - X[0])
+    ax.xaxis = make_coordinate_axis(args.colorcol, c_min, c_max, ax.xaxis, args.fontsize, dsh=False)
+    ax.yaxis = make_coordinate_axis('PDF', 0, np.max(Y), ax.yaxis, args.fontsize, dsh=False)
+
+    # ---------setup the range range_selector on the histogram------------------
+    range_selector = SelectFromSlider(ax, ncolbins, c_min, c_max)
+    fig.canvas.mpl_connect("key_press_event", lambda event: on_second_key_press(event, box_cut, ax, args, range_selector, identifier, output_selfig))
+
+    return ax
+
+# ------------------------------------------------------------------
+def on_first_key_press(event, box, ax, args, npix_datashader, nbins, selector, xgrid, ygrid, ncolbins=100):
+    '''
+    Function to accept a key press event and display the selected pixels and modify the axis title
+    This is based on Raymond's foggie.angular_momentum.lasso_data_selection.ipynb
+    '''
+    if event.key == 'enter':
+        start_time_on_press = time.time()
+        nselection = len(selector.ind)
+
+        if nselection > 0:
+            # -----save the selection-----------
+            identifier = random.randint(10, 99)
+            output_selfig = fig_dir + 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s_lasso%d.png' % (args.galrad, ycol, xcol, colorcol, identifier)
+            ax.figure.savefig(output_selfig)  # to save the highlighted image
+            if args.debug: print('Selected ' + str(nselection) + ' binned pixels:', selector.xys[selector.ind])
+
+            # ----------to determine axes limits--------------
+            x_min, x_max = bounds_dict[args.xcol]
+            if islog_dict[args.xcol]: x_min, x_max = np.log10(x_min), np.log10(x_max)
+            y_min, y_max = bounds_dict[args.ycol]
+            if islog_dict[args.ycol]: y_min, y_max = np.log10(y_min), np.log10(y_max)
+            c_min, c_max = bounds_dict[args.colorcol]
+            if islog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
+
+            # ------to cut out the selected region----------
+            if args.debug: myprint('Preparing to cut regions based on highlighted selection..', args)
+            cut_crit = ""
+            for index, item in enumerate(selector.ind):
+                x_lower_bound = convert_from_datashader_frame(xgrid.ravel()[item] - 0.5 * npix_datashader / nbins, x_min, x_max, npix_datashader)
+                x_upper_bound = convert_from_datashader_frame(xgrid.ravel()[item] + 0.5 * npix_datashader / nbins, x_min, x_max, npix_datashader)
+                y_lower_bound = convert_from_datashader_frame(ygrid.ravel()[item] - 0.5 * npix_datashader / nbins, y_min, y_max, npix_datashader)
+                y_upper_bound = convert_from_datashader_frame(ygrid.ravel()[item] + 0.5 * npix_datashader / nbins, y_min, y_max, npix_datashader)
+
+                if islog_dict[args.xcol]: x_lower_bound, x_upper_bound = 10 ** x_lower_bound, 10 ** x_upper_bound
+                if islog_dict[args.ycol]: y_lower_bound, y_upper_bound = 10 ** y_lower_bound, 10 ** y_upper_bound
+
+                if index: cut_crit += '|'
+                cut_crit += "((obj[{}] > obj.ds.quan({}, '{}')) & (obj[{}] < obj.ds.quan({}, '{}')) & (obj[{}] > obj.ds.quan({}, '{}')) & (obj[{}] < obj.ds.quan({}, '{}')))".format(
+                    field_dict[args.xcol], x_lower_bound, unit_dict[args.xcol], field_dict[args.xcol], x_upper_bound,
+                    unit_dict[args.xcol], field_dict[args.ycol], y_lower_bound, unit_dict[args.ycol],
+                    field_dict[args.ycol],
+                    y_upper_bound, unit_dict[args.ycol])
+
+            box_cut = box.cut_region([cut_crit])
+
+            if args.selcol: ax_hist = make_histogram(box_cut, args, identifier, output_selfig, ncolbins=ncolbins) # make histogram for selection in color-space
+            else: prj = make_projections(box_cut, args, identifier, output_selfig) # OR directly plot projections with all underlying color values
+
+        else:
+            myprint('No data point selected; therefore, not proceeding any further.', args)
+
+        myprint('First key press events completed in %s' % (datetime.timedelta(seconds=time.time() - start_time_on_press)), args)
+
+    elif event.key == 'escape':
+        myprint('Exiting interactive mode..', args)
         selector.disconnect()
 
     else:
         myprint('You pressed ' + event.key + '; but you need to press ENTER to see your selection or ESC to exit interactive mode', args)
 
 # -------------------------------------------------------------------------------------------------------------
-def setup_interactive(box, ax, args, npix_datashader, nbins):
+def setup_interactive(box, ax, args, npix_datashader=1000, nbins=20, ncolbins=100):
     '''
     Function to interactively select points from a live plot using LassoSelector
     This is based on Raymond's foggie.angular_momentum.lasso_data_selection.ipynb
@@ -516,11 +635,11 @@ def setup_interactive(box, ax, args, npix_datashader, nbins):
     x = np.linspace(0, npix_datashader, nbins)
     y = np.linspace(0, npix_datashader, nbins)
     xgrid, ygrid = np.meshgrid(x, y)
-    pts = ax.scatter(xgrid, ygrid, s=10, alpha=0.0)
-    selector = SelectFromCollection(ax, pts, npix_datashader, nbins)
+    xys = np.array([xgrid.ravel(),ygrid.ravel()]).T
+    selector = SelectFromCollection(ax, xys, npix_datashader, nbins)
 
     fig = plt.gcf()
-    fig.canvas.mpl_connect("key_press_event", lambda event: on_key_press(event, box, ax, args, npix_datashader, nbins, selector, xgrid, ygrid))
+    fig.canvas.mpl_connect("key_press_event", lambda event: on_first_key_press(event, box, ax, args, npix_datashader, nbins, selector, xgrid, ygrid, ncolbins=ncolbins))
 
     selector.helpful_text.set_text('Select points by dragging mouse in a loop')
     selector.blitman.update()
@@ -529,13 +648,13 @@ def setup_interactive(box, ax, args, npix_datashader, nbins):
 
 # -----main code-----------------
 if __name__ == '__main__':
-    npix_datashader, nselection_bins = 1000, 20
+    npix_datashader, nselection_bins, ncolor_selection_bins = 1000, 20, 100
     # set variables and dictionaries
     field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'stars':('deposit', 'stars_density'), 'mass':('gas', 'mass'), \
                   'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'vrad':('gas', 'radial_velocity_corrected'), \
                   'phi_L':('gas', 'angular_momentum_phi'), 'theta_L':('gas', 'angular_momentum_theta')}
-    unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg'}
-    labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$'}
+    unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':''}
+    labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF'}
     islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True)
     bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
     categorize_by_dict = {'temp':categorize_by_temp, 'metal':categorize_by_log_metals, 'density':categorize_by_den, 'vrad':categorize_by_outflow_inflow, 'rad':categorize_by_radius, 'phi_L':categorize_by_angle_pi, 'theta_L':categorize_by_angle_2pi}
@@ -647,7 +766,7 @@ if __name__ == '__main__':
                 df, fig = make_datashader_plot(box, thisfilename, args, npix_datashader=npix_datashader)
                 if args.interactive:
                     myprint('This plot is now in interactive mode..', args)
-                    fig = setup_interactive(box, fig.axes[0], args, npix_datashader=npix_datashader, nbins=nselection_bins)
+                    fig = setup_interactive(box, fig.axes[0], args, npix_datashader=npix_datashader, nbins=nselection_bins, ncolbins=ncolor_selection_bins)
             else:
                 print_mpi('Skipping colorcol ' + thiscolorcol + ' because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)
 
