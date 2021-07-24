@@ -125,7 +125,7 @@ if __name__ == '__main__':
     nhours = args.nhours if args.nhours is not None else '01' if args.dryrun or args.queue == 'devel' else '%02d' % (max_hours_dict[args.queue])
 
     resources = 'select=' + str(nnodes) + ':ncpus=' + str(ncores) + ':mpiprocs=' + str(ncores)
-    if args.queue == 'ldan': resources += ':mem=' + memory # need to specify mem per node for jobs on LDAN (for other procs it is by default the max available node mem)
+    if args.queue == 'ldan': resources += ''# ':mem=' + memory # need to specify mem per node for jobs on LDAN (for other procs it is by default the max available node mem)
     else: resources += ':model=' + args.proc # need to specify the proc (but not necessarily the mem if I'm using the full node memory) if not an LDAN job
     if args.aoe is not None: resources += ':aoe=' + args.aoe
 

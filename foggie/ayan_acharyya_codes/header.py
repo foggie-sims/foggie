@@ -21,7 +21,6 @@ from matplotlib import patheffects as fx
 from matplotlib.colors import LogNorm
 from matplotlib import image as mpimg
 from matplotlib.path import Path as mpl_Path
-from matplotlib.widgets import LassoSelector
 
 from pathlib import Path
 from importlib import reload

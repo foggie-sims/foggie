@@ -1051,6 +1051,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--start_index', metavar='start_index', type=int, action='store', default=0, help='index of the list of snapshots to start from; default is 8')
     parser.add_argument('--interactive', dest='interactive', action='store_true', default=False, help='interactive mode?, default is no')
     parser.add_argument('--combine', dest='combine', action='store_true', default=False, help='combine all outputs from lasso selection?, default is no')
+    parser.add_argument('--selcol', dest='selcol', action='store_true', default=False, help='make a selection in the color space too?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
