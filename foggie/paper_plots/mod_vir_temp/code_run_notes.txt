@@ -105,6 +105,10 @@ CHECKS:
 	> python foggie/foggie/radial_quantities/stats_in_shells.py --halo 8508 --output DD2427 --shape "['sphere', 0.3, 1.3, 100]" --cgm_filter --save_suffix sphere_mass-weighted_cgm-filtered_cooling --stat_type tcool --stat_weight mass --vel_cut --Rvir
 	for Tempest DD2427, Squall DD2360, and Maelstrom DD2510.
 
+- Deeper checking into cooling for referee report 3:
+	- Ran totals_in_shells on all outputs for Tempest, Squall, and Maelstrom now that the cooling energy rate has been added so that I can track energy losses to cooling over time:
+	> python totals_in_shells.py --system pleiades_cassi --nproc 8 --halo 8508 --output DD0497-DD2427 --output_step 10 --shape "['sphere', 0.3, 1.3, 100]" --Rvir --save_suffix sphere_vcut-p5vff_cgm-filtered_cooling --total_type energy --cgm_filter --vel_cut
+	- Ran this over DD0497-DD2427 every 10th for Tempest, DD0590-DD2520 every 10th for Squall and Maelstrom
 
 PLOTTING:
 --------
