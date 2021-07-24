@@ -1,4 +1,3 @@
-
 # Note: any field definition functions that start with _ cannot be loaded
 # into other modules because python makes them private functions.
 
@@ -97,7 +96,10 @@ def phi_angular_momentum(field, data):
     L_tot = np.sqrt(Lx ** 2. + Ly ** 2. + Lz ** 2.)
     phi_L = np.arccos(Lz / L_tot) * 180. / np.pi
     phi_L[np.isnan(phi_L)] = 0.
-    return YTArray(phi_L, 'deg')
+
+    try: phi_L = unyt_array(phi_L, 'deg')
+    except NameError: phi_L = YTArray(phi_L, 'deg')
+    return phi_L
 
 def theta_angular_momentum(field, data):
     '''
@@ -115,7 +117,10 @@ def theta_angular_momentum(field, data):
 
     theta_L = np.arctan2(Ly, Lx) * 180. / np.pi
     theta_L[np.isnan(theta_L)] = 0.
-    return YTArray(theta_L, 'deg')
+
+    try: theta_L = unyt_array(theta_L, 'deg')
+    except NameError: theta_L = YTArray(theta_L, 'deg')
+    return theta_L
 
 def vx_corrected(field, data):
     """Corrects the x-velocity for bulk motion of the halo. Requires 'halo_velocity_kms', which
