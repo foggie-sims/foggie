@@ -27,6 +27,10 @@ def parse_args():
 
     parser.add_argument('-haloname', '--haloname', default='halo_008508', help='halo_name')
 
+    parser.add_argument('-df_mtype', '--df_mtype', default='particles', help='frame mtype')
+
+    parser.add_argument('-df_rad', '--df_rad', default=3, type = int, help='frame radius')
+
     parser.add_argument('--run', metavar='run', type=str, action='store',
                         help='which run? default is natural')
     parser.set_defaults(run="nref11c_nref9f")
@@ -57,16 +61,15 @@ def parse_args():
 
 
 
-def find_disk_Lhat(ds):
-    sp = ds.sphere(ds.halo_center_kpc, (3, 'kpc'))
+def find_disk_Lhat(ds, args):
+    sp = ds.sphere(ds.halo_center_kpc, (args.df_rad, 'kpc'))
+
+    if args.df_mtype == 'particles':
+        bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+    elif args.df_mtype == 'all':
+        bulk_vel = sp.quantities.bulk_velocity().to('km/s')
+
     sp = sp.cut_region(["(obj['temperature'] > {}) & (obj['temperature'] < {})".format(0, 1.e4)])
-
-    #bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='dm').to('km/s')
-
-    bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
-
-    #bulk_vel = sp.quantities.bulk_velocity().to('km/s')
-
 
     sp.set_field_parameter('bulk_velocity', bulk_vel)
     results = {}
@@ -91,6 +94,8 @@ def radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args, save = True, sp_ra
     L_dic['props']['center'] = ds.halo_center_kpc
     L_dic['props']['sphere_radius'] = sp_rad
     L_dic['props']['disk_Lhat'] = disk_Lhat
+    L_dic['props']['frame_radius'] = (args.df_rad, 'kpc')
+    L_dic['props']['frame_mtype']  = args.df_mtype
 
     for (low_temp, high_temp, mtype, is_gas) in mass_types:
         print (mtype)
@@ -155,7 +160,7 @@ def radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args, save = True, sp_ra
         yvar, ymn, ymx               = phil,    0, 180
         rvar, rmn, rmd, rmx          = R, 0, 20, 250
         vrvar                        = vr
-        crvar, crmn, crmx, ncrbins   = cr, 0, 20, 6
+        crvar                        = cr
         czvar                        = cz
 
         vrbins   = np.array([-np.inf, -250, -100, 0, 100, 250, np.inf])
@@ -163,9 +168,11 @@ def radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args, save = True, sp_ra
         nbins  = 200
         nrbins = 100
 
-        crbins   = np.linspace(crmn, crmx, ncrbins)
+        #crbins   = np.linspace(crmn, crmx, ncrbins)
+        crbins    = concatenate((np.linspace(0, 4, 4), np.linspace(4, 30, 4), np.linspace(30, 100, 4)))
+
         rbins    = concatenate((np.linspace(rmn, rmd, 20), np.linspace(rmd, rmx, 10)))
-        czbins   = np.array([-30, -2, 2, 30])
+        czbins   = np.array([-30, -10, -2, 2, 10, 30])
         thelbins = np.linspace(xmn, xmx, nbins)
         philbins = np.linspace(ymn, ymx, nbins)
 
@@ -200,9 +207,9 @@ def radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args, save = True, sp_ra
             L_dic[mtype][hst_type]['variables'] = varnamelist
 
     if save:
-        fname = '%s/angular_momentum/profiles/%s/Lprof_%s_%s_test.npy'%(args.save_dir, args.halo, args.halo, args.output)
-        np.save(fname, L_dic)
-        print ('saved L dictionary to %s...'%fname)
+        fname = '%s/angular_momentum/profiles/%s/Lprof_%s_%s'%(args.save_dir, args.halo, args.halo, args.output)
+        np.savez_compressed(fname, a = L_dic)
+        print ('saved L dictionary to %s.npz...'%fname)
     return L_dic
 
 
@@ -216,8 +223,7 @@ if __name__ == '__main__':
                   (-1.,  -1.,    'young_stars',  False),                  
                   (-1.,  -1.,    'stars',   False),
                   (-1.,  -1.,    'dm',       False)]
-
-    disk_Lhat, bulk_vel = find_disk_Lhat(ds)
+    disk_Lhat, bulk_vel = find_disk_Lhat(ds, args)
     L_dic               = radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args)
 
 
