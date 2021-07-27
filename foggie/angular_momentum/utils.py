@@ -19,3 +19,15 @@ def flatten_thelphil(bins, Lhst, Mhst):
     M_sum = np.sum(Mhst)*u.Msun
     j_sum = L_sum/M_sum
     return L_sum, j_sum.to('cm**2/s'), thel_mean, phil_mean, x_sum/M_sum, y_sum/M_sum, z_sum/M_sum, M_sum
+
+
+mtype_clr = {'cold': 'darkblue',
+             'warm': 'blue',
+             'warmhot': 'red',
+             'hot': 'darkred',
+             'stars': 'goldenrod',
+             'youngstars': 'gold',
+             'dm': 'black'}
+
+
+

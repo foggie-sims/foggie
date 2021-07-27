@@ -84,9 +84,6 @@ def find_disk_Lhat(ds, args):
 
 
 def radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args, save = True, sp_rad = (250., 'kpc'), rprofbins = np.arange(0, 250, 0.5)*kpc):
-    sp_sm = ds.sphere(ds.halo_center_kpc, sp_rad)
-    sp_sm.set_field_parameter('bulk_velocity', bulk_vel)
-    sp_sm.set_field_parameter('normal', disk_Lhat)
     L_dic = {}
 
     L_dic['props'] = {}
@@ -101,7 +98,11 @@ def radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args, save = True, sp_ra
         print (mtype)
         if is_gas:
             #gas w/temperature cut
-            sp_use = sp_sm.cut_region(["(obj['temperature'] > {}) & (obj['temperature'] < {})".format(low_temp, high_temp)])
+            sp_use = ds.sphere(ds.halo_center_kpc, sp_rad)
+            sp_use.set_field_parameter('bulk_velocity', bulk_vel)
+            sp_use.set_field_parameter('normal', disk_Lhat)
+
+            sp_use = sp_use.cut_region(["(obj['temperature'] > {}) & (obj['temperature'] < {})".format(low_temp, high_temp)])
             rname = ('index', 'radius')
             xname = ('gas', 'angular_momentum_x')
             yname = ('gas', 'angular_momentum_y')
@@ -115,11 +116,14 @@ def radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args, save = True, sp_ra
 
         else:
             #particles
-            sp_use = sp_sm
+            #sp_use = sp_sm
+            sp_use = ds.sphere(ds.halo_center_kpc, sp_rad)
+            sp_use.set_field_parameter('bulk_velocity', bulk_vel)
+            sp_use.set_field_parameter('normal', disk_Lhat)
             rname = (mtype, 'particle_radius')
-            xname = (mtype, 'particle_angular_momentum_x')
-            yname = (mtype, 'particle_angular_momentum_y')
-            zname = (mtype, 'particle_angular_momentum_z')
+            xname = (mtype, 'particle_relative_angular_momentum_x')
+            yname = (mtype, 'particle_relative_angular_momentum_y')
+            zname = (mtype, 'particle_relative_angular_momentum_z')
             mname = (mtype, 'particle_mass')
             vrname = (mtype, 'particle_radial_velocity')
             ctname = (mtype, 'particle_position_cylindrical_theta')
@@ -138,6 +142,7 @@ def radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args, save = True, sp_ra
         L_dic[mtype]['rprof']['Lz']   = Li[zname].to('g*cm**2/s')
         L_dic[mtype]['rprof']['mass'] = Li[mname].to('Msun')
 
+        
         Lx       = sp_use[xname].to('g*cm**2/s')
         Ly       = sp_use[yname].to('g*cm**2/s')
         Lz       = sp_use[zname].to('g*cm**2/s')
@@ -217,12 +222,12 @@ if __name__ == '__main__':
     args = parse_args()
     ds, refine_box = load_sim(args)
     mass_types = [(0.,    1.5e4, 'cold',   True),
+                  (-1.,  -1.,    'young_stars',  False),                  
                   (1.5e4, 1.e5,  'warm',   True),
                   (1.e5,  1.e6,  'warmhot',True),
                   (1.e6,  1.e10, 'hot',    True), 
-                  (-1.,  -1.,    'young_stars',  False),                  
                   (-1.,  -1.,    'stars',   False),
-                  (-1.,  -1.,    'dm',       False)]
+                  (-1.,  -1.,    'dm',       False)][:2]
     disk_Lhat, bulk_vel = find_disk_Lhat(ds, args)
     L_dic               = radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args)
 
