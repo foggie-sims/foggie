@@ -158,6 +158,76 @@ def foggie_load(snap, trackfile, **kwargs):
         ds.add_field(('dm', 'radius_corrected'), function=radius_corrected_dm, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
 
+
+        sam_un = ds.unit_system["specific_angular_momentum"]
+        am_un  = ds.unit_system["angular_momentum"]
+        for ptype in ['stars', 'young_stars', 'old_stars', 'dm']:
+            ds.add_field((ptype, "particle_relative_specific_angular_momentum"), sampling_type="particle",
+                         function=get_particle_relative_specific_angular_momentum(ptype), units=sam_un)
+
+            ds.add_field((ptype, "particle_relative_specific_angular_momentum_x"),sampling_type="particle",
+                        function= get_particle_relative_specific_angular_momentum_x(ptype), units=sam_un)
+            ds.add_field((ptype, "particle_relative_specific_angular_momentum_y"),sampling_type="particle",
+                        function= get_particle_relative_specific_angular_momentum_y(ptype), units=sam_un)
+            ds.add_field((ptype, "particle_relative_specific_angular_momentum_z"),sampling_type="particle",
+                        function= get_particle_relative_specific_angular_momentum_z(ptype), units=sam_un)
+
+            ds.add_field((ptype, "particle_relative_angular_momentum_x"),sampling_type="particle",
+                        function= get_particle_relative_angular_momentum_x(ptype), units=am_un)
+            ds.add_field((ptype, "particle_relative_angular_momentum_y"),sampling_type="particle",
+                        function= get_particle_relative_angular_momentum_y(ptype), units=am_un)
+            ds.add_field((ptype, "particle_relative_angular_momentum_z"),sampling_type="particle",
+                        function= get_particle_relative_angular_momentum_z(ptype), units=am_un)
+
+            '''
+            ds.add_field((ptype, "particle_relative_specific_angular_momentum"),
+              sampling_type="particle",
+              function=_particle_relative_specific_angular_momentum,
+              units=ds.unit_system["specific_angular_momentum"]
+              )
+
+
+            for axi, ax in enumerate("xyz"):
+                f, v = _get_spec_ang_mom_comp(axi, ax, ptype)
+
+            ds.add_field(
+                (ptype, f"particle_relative_angular_momentum_{ax}"),
+                sampling_type="particle",
+                function=v,
+                units=ds.unit_system["angular_momentum"]
+            )
+            '''
+
+
+            '''
+
+            def _particle_relative_specific_angular_momentum(field, data):
+                """Calculate the angular of a particle velocity.
+
+                Returns a vector for each particle.
+                """
+                pos = data.ds.arr([data[ptype, f"relative_particle_position_%s" % ax] for ax in "xyz"]).T
+                vel = data.ds.arr([data[ptype, f"relative_particle_velocity_%s" % ax] for ax in "xyz"]).T
+                return ucross(pos, vel, registry=data.ds.unit_registry)
+
+            def _get_spec_ang_mom_comp(axi, ax, _ptype):
+                def _particle_specific_angular_momentum_component(field, data):
+                    return data[_ptype, "particle_relative_specific_angular_momentum"][:, axi]
+
+                def _particle_angular_momentum_component(field, data):
+                    return (
+                        data[_ptype, "particle_mass"]
+                        * data[ptype, f"particle_relative_specific_angular_momentum_{ax}"]
+                    )
+
+                return (
+                    _particle_specific_angular_momentum_component,
+                    _particle_angular_momentum_component,
+                )
+            '''
+
+
+
     # Option to define velocities and coordinates relative to the angular momentum vector of the disk
     if (disk_relative):
         # Calculate angular momentum vector using sphere centered on halo center

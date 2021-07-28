@@ -80,6 +80,57 @@ def _cooling_criteria(field,data):
     to use: yt.add_field(("gas","cooling_criteria"),function=_cooling_criteria,units=None)"""
     return -1*data['cooling_time'] / ((data['dx']/data['sound_speed']).in_units('s'))
 
+
+
+
+def get_particle_relative_specific_angular_momentum(ptype):
+    def particle_relative_specific_angular_momentum(field, data):
+        """
+        Added by Raymond. Native YT "particle angular momentum" re-defines Z wrt the given normal direction. 
+        These definitions define it wrt to the cartesian grid, to be consistent with gas.
+        Calculate the angular of a particle velocity.
+
+        Returns a vector for each particle.
+        """
+        #ptype = field[0]
+        #print (field)
+        pos = data.ds.arr([data[ptype, f"relative_particle_position_%s" % ax] for ax in "xyz"]).T
+        vel = data.ds.arr([data[ptype, f"relative_particle_velocity_%s" % ax] for ax in "xyz"]).T
+        return ucross(pos, vel, registry=data.ds.unit_registry)
+    return particle_relative_specific_angular_momentum
+
+
+def get_particle_relative_specific_angular_momentum_x(ptype):
+    def particle_relative_specific_angular_momentum_x(field, data):
+        return data[ptype, "particle_relative_specific_angular_momentum"][:, 0]
+    return particle_relative_specific_angular_momentum_x
+
+
+def get_particle_relative_specific_angular_momentum_y(ptype):
+    def particle_relative_specific_angular_momentum_y(field, data):
+        return data[ptype, "particle_relative_specific_angular_momentum"][:, 1]
+    return particle_relative_specific_angular_momentum_y
+
+def get_particle_relative_specific_angular_momentum_z(ptype):
+    def particle_relative_specific_angular_momentum_z(field, data):
+        return data[ptype, "particle_relative_specific_angular_momentum"][:, 2]
+    return particle_relative_specific_angular_momentum_z
+
+def get_particle_relative_angular_momentum_x(ptype):
+    def particle_relative_angular_momentum_x(field, data):
+        return data[ptype, "particle_mass"] * data[ptype, f"particle_relative_specific_angular_momentum_x"]
+    return particle_relative_angular_momentum_x
+
+def get_particle_relative_angular_momentum_y(ptype):
+    def particle_relative_angular_momentum_y(field, data):
+        return data[ptype, "particle_mass"] * data[ptype, f"particle_relative_specific_angular_momentum_y"]
+    return particle_relative_angular_momentum_y
+
+def get_particle_relative_angular_momentum_z(ptype):
+    def particle_relative_angular_momentum_z(field, data):
+        return data[ptype, "particle_mass"] * data[ptype, f"particle_relative_specific_angular_momentum_z"]
+    return particle_relative_angular_momentum_z
+
 def phi_angular_momentum(field, data):
     '''
     Function to compute the phi direction of the angular momentum vector

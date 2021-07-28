@@ -61,7 +61,7 @@ def do_plot(ds, field, axs, annotate_positions, \
                  ann_sphere_rad = (1, 'kpc'), weight_field = None):
     print (x_width)
     prj = yt.ProjectionPlot(ds, axs, field, center = center, data_source = small_box,\
-                            width=x_width, weight_field = weight_field)
+                            width=x_width, weight_field = weight_field, buff_size = (250,250))
 
     prj.set_unit(field, unit)
     prj.set_zlim(field, zmin = zmin, zmax =  zmax)
@@ -112,7 +112,7 @@ def make_projection_plots(ds, center, refine_box, x_width,fig_dir, haloname, nam
         
     for axs in axes:
         for d in do:
-            if d == 'gas':
+            if (d == 'gas'):
                 field = ('gas', 'density')
                 cmap = density_color_map
                 cmap.set_bad('k')
@@ -120,6 +120,16 @@ def make_projection_plots(ds, center, refine_box, x_width,fig_dir, haloname, nam
                 zmin = density_proj_min 
                 zmax = density_proj_max
                 weight_field = None
+
+            if (d == 'gas2'):
+                field = ('gas', 'density')
+                cmap = density_color_map
+                cmap.set_bad('k')
+                unit = 'Msun/pc**3'
+                zmin = density_proj_min*1e-5
+                zmax = density_proj_max*1e-6
+                weight_field = ('gas', 'density')
+
             if d == 'stars':
                 field = ('deposit', 'stars_density')
                 cmap =  plt.cm.Greys_r
@@ -134,9 +144,19 @@ def make_projection_plots(ds, center, refine_box, x_width,fig_dir, haloname, nam
                 cmap =  plt.cm.gist_heat
                 cmap.set_bad('k')
                 unit = 'Msun/pc**2'
-                zmin = density_proj_min 
+                zmin = density_proj_min
                 zmax = density_proj_max
                 weight_field = None
+
+            if d == 'dm2':
+                field = ('deposit', 'dm_density')
+                cmap =  plt.cm.Greys_r
+                cmap.set_bad('k')
+                unit = 'Msun/pc**3'
+                zmin = density_proj_min*1e-5
+                zmax = density_proj_max*1e-3
+                weight_field = ('deposit', 'dm_density')
+
 
             if d == 'temp':
                 field = ('gas', 'temperature')
@@ -193,7 +213,7 @@ if __name__ == '__main__':
                        ('halo_005016', 'Squall',  'DD0581'), 
                        ('halo_005036', 'Maelstrom',  'DD0581'), 
                        ('halo_008508', 'Tempest',  'DD0487'),
-                       ('halo_008508', 'Tempest',  'DD1000')])
+                       ('halo_002878', 'Tempest',  'DD0581')])
 
 
     halonames = halonames[6:7]
@@ -205,15 +225,38 @@ if __name__ == '__main__':
 
         args = parse_args(haloname, DDname)
         ds, refine_box = load_sim(args)
+        if args.do == 'dm2':
+            def dm_density_sqrd(field, data):
+                return (data['deposit','dm_density'])**2.
+            yt.add_field(('dm', 'dm_density2'), function=dm_density_sqrd, units='Msun**2/pc**4', \
+                         take_log=False, force_override=True, sampling_type='particle')
 
         #fig_dir = '/Users/rsimons/Dropbox/foggie/figures/for_paper/central_projections'
         fig_dir = '.'
         print (ds.refine_box_center, ds.refine_width*kpc)
 
+        use_box = ds.all_data()
+        use_box.set_field_parameter('bulk_velocity', ds.halo_velocity_kms)
+        '''
         prj = make_projection_plots(ds = refine_box.ds, center = ds.refine_box_center,\
-                                    refine_box = refine_box, x_width = ds.refine_width*kpc,\
+                                    refine_box = refine_box, x_width = 3*ds.refine_width*kpc,\
                                     fig_dir = fig_dir, haloname = haloname, name = name, \
                                     fig_end = 'projection',\
                                     do = [args.do], axes = ['x'], is_central = True, add_arrow = False)
+        '''
+
+        prj = make_projection_plots(ds = use_box.ds, center = ds.refine_box_center,\
+                                refine_box = use_box, x_width = 3*ds.refine_width*kpc,\
+                                fig_dir = fig_dir, haloname = haloname, name = name, \
+                                fig_end = 'projection',\
+                                do = [args.do], axes = ['x'], is_central = True, add_arrow = False)
+
+
+
+
+
+
+
+
 
 
