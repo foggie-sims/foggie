@@ -130,7 +130,7 @@ if __name__ == '__main__':
     if args.aoe is not None: resources += ':aoe=' + args.aoe
 
     #----------looping over and creating + submitting job files--------
-    halos = ['8508', '5036', '5016', '4123', '2878', '2392']
+    halos = ['8508', '5036', '5016', '4123', '2392', '2878']
     if args.do_all_halos:
         args.stop = len(halos) # do all halos by submitting ..
         do_all_halosflag = '' # ..multiple jobs one job for each halo

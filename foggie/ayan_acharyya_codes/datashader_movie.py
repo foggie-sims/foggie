@@ -112,6 +112,7 @@ def overplot_stars(x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax
     paramlist = shift_ref_frame(paramlist, args)
     paramlist = paramlist.rename(columns={'gas_metal': 'metal', 'gas_density': 'density', 'gas_pressure': 'pressure', 'gas_temp': 'temp'})
     paramlist = get_radial_velocity(paramlist)
+    paramlist = paramlist[paramlist['rad'].between(0, args.galrad)] # to overplot only those young stars that are within the desired radius ('rad' is in kpc)
     for field in [args.xcol, args.ycol, args.colorcol]:
         if field not in paramlist.columns:
             print_mpi(field + ' does not exist in young star list, therefore cannot overplot stars..', args)
@@ -124,13 +125,14 @@ def overplot_stars(x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax
             paramlist[column_name + '_wtby_' + weightcol] = weight_by(paramlist[column_name], weights)
             column_name = column_name + '_wtby_' + weightcol
         if islog_dict[field]: paramlist['log_' + column_name] = np.log10(paramlist[column_name])
+    init_len = len(paramlist)
     paramlist = paramlist[(paramlist[xcol].between(x_min, x_max)) & (paramlist[ycol].between(y_min, y_max)) & (paramlist[colorcol].between(c_min, c_max))]
 
     # -------------to actually plot the simulation data------------
     x_on_plot = convert_to_datashader_frame(paramlist[xcol], x_min, x_max, npix_datashader) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
     y_on_plot = convert_to_datashader_frame(paramlist[ycol], y_min, y_max, npix_datashader)
     ax.scatter(x_on_plot, y_on_plot, c=paramlist[colorcol], edgecolors='black', lw=0.2, s=15, cmap=colormap_dict[args.colorcol])
-    print_mpi('Overplotted ' + str(len(paramlist)) + ' young stars..', args)
+    print_mpi('Overplotted ' + str(len(paramlist)) + ' of ' + str(init_len) + ', i.e., ' + '%.2F'%(len(paramlist) * 100 / init_len) + '% of young stars inside this box..', args)
 
     return ax
 
@@ -239,27 +241,19 @@ def make_colorbar_axis(colname, data_min, data_max, fig, fontsize):
     return fig, ax
 
 # -----------------------------------------------------------------------------------
-def wrap_axes(df, filename, npix_datashader, args):
+def wrap_axes(df, filename, npix_datashader, args, limits):
     '''
     Function to read in raw datashader plot and wrap it in axes using matplotlib AND added x- and y- marginalised histograms using seaborn
     This function is partly based on foggie.render.shade_maps.wrap_axes()
     :return: fig
     '''
-    # ----------to determine axes limits--------------
-    x_min, x_max = bounds_dict[args.xcol]
-    if islog_dict[args.xcol]: x_min, x_max = np.log10(x_min), np.log10(x_max)
-    y_min, y_max = bounds_dict[args.ycol]
-    if islog_dict[args.ycol]: y_min, y_max = np.log10(y_min), np.log10(y_max)
-    c_min, c_max = bounds_dict[args.colorcol]
-    if islog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
-    shift_right = 'phi' in args.ycol or 'theta' in args.ycol
-
-    # ----------to filter and bin the dataframe--------------
-    df = df[(df[xcol].between(x_min, x_max)) & (df[ycol].between(y_min, y_max))]
+    x_min, x_max, y_min, y_max, c_min, c_max = limits
+    # ----------to get quantities in datashader pixel units--------------
     df[xcol + '_in_pix'] = convert_to_datashader_frame(df[xcol], x_min, x_max, npix_datashader)
     df[ycol + '_in_pix'] = convert_to_datashader_frame(df[ycol], y_min, y_max, npix_datashader)
 
     # -----------------to initialise figure---------------------
+    shift_right = 'phi' in args.ycol or 'theta' in args.ycol
     axes = sns.JointGrid(xcol + '_in_pix', ycol + '_in_pix', df, height=8)
     extra_space = 0.03 if shift_right else 0
     plt.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95 + extra_space, top=0.95, bottom=0.1, left=0.1 + extra_space)
@@ -301,18 +295,26 @@ def make_datashader_plot(ds, outfilename, args, npix_datashader=1000):
     :return dataframe, figure
     '''
     df = get_df_from_ds(ds, args)
+
+    # ----------to determine axes limits--------------
+    x_min, x_max = bounds_dict[args.xcol]
+    if islog_dict[args.xcol]: x_min, x_max = np.log10(x_min), np.log10(x_max)
+    y_min, y_max = bounds_dict[args.ycol]
+    if islog_dict[args.ycol]: y_min, y_max = np.log10(y_min), np.log10(y_max)
+    c_min, c_max = bounds_dict[args.colorcol]
+    if islog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
+
+    # ----------to filter and categorize the dataframe--------------
+    df = df[(df[xcol].between(x_min, x_max)) & (df[ycol].between(y_min, y_max)) & (df[colorcol].between(c_min, c_max))]
     df[colorcol_cat] = categorize_by_dict[args.colorcol](df[colorcol])
     df[colorcol_cat] = df[colorcol_cat].astype('category')
 
-    x_range = np.log10(bounds_dict[args.xcol]) if islog_dict[args.xcol] else bounds_dict[args.xcol]
-    y_range = np.log10(bounds_dict[args.ycol]) if islog_dict[args.ycol] else bounds_dict[args.ycol]
-
-    cvs = dsh.Canvas(plot_width=npix_datashader, plot_height=npix_datashader, x_range=x_range, y_range=y_range)
+    cvs = dsh.Canvas(plot_width=npix_datashader, plot_height=npix_datashader, x_range=(x_min, x_max), y_range=(y_min, y_max))
     agg = cvs.points(df, xcol, ycol, dsh.count_cat(colorcol_cat))
     img = dstf.spread(dstf.shade(agg, color_key=colorkey_dict[args.colorcol], how='eq_hist', min_alpha=40), shape='square')
     export_image(img, os.path.splitext(outfilename)[0])
 
-    fig = wrap_axes(df, os.path.splitext(outfilename)[0] + '.png', npix_datashader, args)
+    fig = wrap_axes(df, os.path.splitext(outfilename)[0] + '.png', npix_datashader, args, limits=[x_min, x_max, y_min, y_max, c_min, c_max])
 
     return df, fig
 
@@ -344,7 +346,7 @@ class SelectFromCollection:
         self.alpha_other = alpha_other
         self.xys = xys
 
-        self.lasso = LassoSelector(ax, lambda verts: self.onselect(verts, nbins))
+        self.lasso = LassoSelector(ax, lambda verts: self.onselect(verts, nbins), useblit=True)
         self.ind = []
 
         mask = np.zeros((nbins, nbins))
@@ -547,13 +549,12 @@ def make_histogram(box_cut, args, identifier, output_selfig, ncolbins):
     if islog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
 
     # ----------to plot the histogram of colors---------------------------
-    fig, ax = plt.subplots(1)
+    fig, ax = plt.subplots(1, figsize=(8, 8))
     color_quant = box_cut[field_dict[args.colorcol]]
     if islog_dict[args.colorcol]: color_quant = np.log10(color_quant)
 
-    Y, X = np.histogram(color_quant, bins=ncolbins, normed=1)
-    x_span = X.max() - X.min()
-    colors = [colormap_dict[args.colorcol](((x - X.min()) / x_span)) for x in X]
+    Y, X = np.histogram(color_quant, bins=ncolbins, normed=True)
+    colors = [colormap_dict[args.colorcol]((x - c_min) / (c_max - c_min)) for x in X]
 
     h = ax.bar(X[:-1], Y, color=colors, width=X[1] - X[0])
     ax.xaxis = make_coordinate_axis(args.colorcol, c_min, c_max, ax.xaxis, args.fontsize, dsh=False)
@@ -613,7 +614,7 @@ def on_first_key_press(event, box, ax, args, npix_datashader, nbins, selector, x
 
             if args.selcol: ax_hist = make_histogram(box_cut, args, identifier, output_selfig, ncolbins=ncolbins) # make histogram for selection in color-space
             else: prj = make_projections(box_cut, args, identifier, output_selfig) # OR directly plot projections with all underlying color values
-
+            selector.ind = []
         else:
             myprint('No data point selected; therefore, not proceeding any further.', args)
 
@@ -771,7 +772,6 @@ if __name__ == '__main__':
                 print_mpi('Skipping colorcol ' + thiscolorcol + ' because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)
 
         print_mpi('This snapshot ' + this_sim[1] + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
-
     comm.Barrier() # wait till all cores reached here and then resume
 
     if args.makemovie and args.do_all_sims:
@@ -784,3 +784,4 @@ if __name__ == '__main__':
 
     if ncores > 1: print_master('Parallely: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
+
