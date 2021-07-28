@@ -42,6 +42,7 @@ from scipy.ndimage import rotate
 from scipy.ndimage import shift
 import copy
 import matplotlib.colors as colors
+import random
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -361,13 +362,16 @@ def Pk_turbulence(snap):
 
     plt.savefig(save_dir + snap + '_turbulent_energy_spectrum' + save_suffix + '.pdf')
 
-def vsf(snap):
-    '''Calculates and plots the velocity structure function for the snapshot 'snap'.'''
+def vsf_cubeshift(snap):
+    '''I DON'T THINK THIS WORKED PROPERLY. DO NOT USE.
+
+    Calculates and plots the velocity structure function for the snapshot 'snap' by shifting the
+    whole dataset by set amounts and calculating the velocity difference between shifted and un-shifted data.'''
 
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     if (args.load_vsf=='none'):
-        if (args.system=='pleiades_cassi'):
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
             print('Copying directory to /tmp')
             snap_dir = '/tmp/' + snap
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -422,18 +426,166 @@ def vsf(snap):
     else:
         seps, vsf = np.loadtxt(save_dir + snap + '_VSF' + args.load_vsf + '.dat', usecols=[0,1], unpack=True)
 
+    Kolmogorov_slope = []
+    for i in range(len(seps)):
+        Kolmogorov_slope.append(vsf[0]*(seps[i]/seps[0])**(2./3.))
+
     fig = plt.figure(figsize=(8,6),dpi=500)
     ax = fig.add_subplot(1,1,1)
 
     ax.plot(seps, vsf, 'k-', lw=2)
+    ax.plot(seps, Kolmogorov_slope, 'k--', lw=2)
 
     ax.set_xlabel('Separation [kpc]', fontsize=14)
     ax.set_ylabel('$\\langle | \\delta v | \\rangle$ [km/s]', fontsize=14)
-    ax.axis([0,120,0,300])
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.axis([0.5,120,1,300])
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
       top=True, right=True)
     plt.subplots_adjust(bottom=0.12, top=0.97, left=0.12, right=0.97)
     plt.savefig(save_dir + snap + '_VSF' + save_suffix + '.png')
+
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
+
+def vsf_randompoints(snap):
+    '''Calculates and plots the velocity structure function for the snapshot 'snap' by drawing a large
+    random number of pixel pairs and calculating velocity difference between them.'''
+
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    if (args.load_vsf=='none'):
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+            print('Copying directory to /tmp')
+            snap_dir = '/tmp/' + snap
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
+        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+        cgm = refine_box.cut_region(cgm_field_filter)
+        if (args.region_filter=='temperature'):
+            filter = cgm['temperature'].v
+            low = 10**5
+            high = 10**6
+        if (args.region_filter=='metallicity'):
+            filter = cgm['metallicity'].in_units('Zsun').v
+            low = 0.01
+            high = 1.
+
+        x = cgm['x'].in_units('kpc').v
+        y = cgm['y'].in_units('kpc').v
+        z = cgm['z'].in_units('kpc').v
+        vx = cgm['vx_corrected'].in_units('km/s').v
+        vy = cgm['vy_corrected'].in_units('km/s').v
+        vz = cgm['vz_corrected'].in_units('km/s').v
+        print('Fields loaded')
+
+        # Select random pairs of pixels
+        npairs = int(len(x)/2)
+        ind_A = random.sample(range(len(x)), npairs)
+        ind_B = random.sample(range(len(x)), npairs)
+
+        # Calculate separations and velocity differences
+        sep = np.sqrt((x[ind_A] - x[ind_B])**2. + (y[ind_A] - y[ind_B])**2. + (z[ind_A] - z[ind_B])**2.)
+        vdiff = np.sqrt((vx[ind_A] - vx[ind_B])**2. + (vy[ind_A] - vy[ind_B])**2. + (vz[ind_A] - vz[ind_B])**2.)
+
+        if (args.region_filter!='none'):
+            seps_fil = []
+            vdiffs_fil = []
+            for i in range(3):
+                if (i==0): bool = (filter < low)
+                if (i==1): bool = (filter > low) & (filter < high)
+                if (i==2): bool = (filter > high)
+                x_fil = x[bool]
+                y_fil = y[bool]
+                z_fil = z[bool]
+                vx_fil = vx[bool]
+                vy_fil = vy[bool]
+                vz_fil = vz[bool]
+                npairs_fil = int(len(x_fil)/2)
+                ind_A_fil = random.sample(range(len(x_fil)), npairs_fil)
+                ind_B_fil = random.sample(range(len(x_fil)), npairs_fil)
+                sep_fil = np.sqrt((x_fil[ind_A_fil] - x_fil[ind_B_fil])**2. + (y_fil[ind_A_fil] - y_fil[ind_B_fil])**2. + (z_fil[ind_A_fil] - z_fil[ind_B_fil])**2.)
+                vdiff_fil = np.sqrt((vx_fil[ind_A_fil] - vx_fil[ind_B_fil])**2. + (vy_fil[ind_A_fil] - vy_fil[ind_B_fil])**2. + (vz_fil[ind_A_fil] - vz_fil[ind_B_fil])**2.)
+                seps_fil.append(sep_fil)
+                vdiffs_fil.append(vdiff_fil)
+
+        # Find average vdiff in bins of pixel separation and save to file
+        f = open(save_dir + snap + '_VSF' + save_suffix + '.dat', 'w')
+        f.write('# Separation [kpc]   VSF [km/s]')
+        if (args.region_filter=='temperature'):
+            f.write('   low-T VSF [km/s]   mid-T VSF[km/s]   high-T VSF [km/s]\n')
+        elif (args.region_filter=='metallicity'):
+            f.write('   low-Z VSF [km/s]   mid-Z VSF[km/s]   high-Z VSF [km/s]\n')
+        else: f.write('\n')
+        sep_bins = np.arange(0.,2.*Rvir+1,1)
+        vsf = np.zeros(len(sep_bins)-1)
+        if (args.region_filter!='none'):
+            vsf_low = np.zeros(len(sep_bins)-1)
+            vsf_mid = np.zeros(len(sep_bins)-1)
+            vsf_high = np.zeros(len(sep_bins)-1)
+            npairs_bins_low = np.zeros(len(sep_bins))
+            npairs_bins_mid = np.zeros(len(sep_bins))
+            npairs_bins_high = np.zeros(len(sep_bins))
+        npairs_bins = np.zeros(len(sep_bins))
+        for i in range(len(sep_bins)-1):
+            npairs_bins[i] += len(sep[(sep > sep_bins[i]) & (sep < sep_bins[i+1])])
+            vsf[i] += np.mean(vdiff[(sep > sep_bins[i]) & (sep < sep_bins[i+1])])
+            f.write('%.5f              %.5f' % (sep_bins[i], vsf[i]))
+            if (args.region_filter!='none'):
+                npairs_bins_low[i] += len(seps_fil[0][(seps_fil[0] > sep_bins[i]) & (seps_fil[0] < sep_bins[i+1])])
+                vsf_low[i] += np.mean(vdiffs_fil[0][(seps_fil[0] > sep_bins[i]) & (seps_fil[0] < sep_bins[i+1])])
+                npairs_bins_mid[i] += len(seps_fil[1][(seps_fil[1] > sep_bins[i]) & (seps_fil[1] < sep_bins[i+1])])
+                vsf_mid[i] += np.mean(vdiffs_fil[1][(seps_fil[1] > sep_bins[i]) & (seps_fil[1] < sep_bins[i+1])])
+                npairs_bins_high[i] += len(seps_fil[2][(seps_fil[2] > sep_bins[i]) & (seps_fil[2] < sep_bins[i+1])])
+                vsf_high[i] += np.mean(vdiffs_fil[2][(seps_fil[2] > sep_bins[i]) & (seps_fil[2] < sep_bins[i+1])])
+                f.write('     %.5f           %.5f          %.5f\n' % (vsf_low[i], vsf_mid[i], vsf_high[i]))
+            else:
+                f.write('\n')
+        f.close()
+        bin_centers = sep_bins[:-1] + np.diff(sep_bins)
+    else:
+        if (args.region_filter!='none'):
+            sep_bins, vsf, vsf_low, vsf_mid, vsf_high = np.loadtxt(save_dir + snap + '_VSF' + args.load_vsf + '.dat', unpack=True, usecols=[0,1,2,3,4])
+        else:
+            sep_bins, vsf = np.loadtxt(save_dir + snap + '_VSF' + args.load_vsf + '.dat', unpack=True, usecols=[0,1])
+        sep_bins = np.append(sep_bins, sep_bins[-1]+np.diff(sep_bins)[-1])
+        bin_centers = sep_bins[:-1] + np.diff(sep_bins)
+
+    # Calculate expected VSF from subsonic Kolmogorov turbulence
+    Kolmogorov_slope = []
+    for i in range(len(bin_centers)):
+        Kolmogorov_slope.append(vsf[10]*(bin_centers[i]/bin_centers[10])**(1./3.))
+
+    # Plot
+    fig = plt.figure(figsize=(8,6),dpi=500)
+    ax = fig.add_subplot(1,1,1)
+
+    ax.plot(bin_centers, vsf, 'k-', lw=2)
+    ax.plot(bin_centers, Kolmogorov_slope, 'k--', lw=2)
+    if (args.region_filter!='none'):
+        ax.plot(bin_centers, vsf_low, 'b--', lw=2)
+        ax.plot(bin_centers, vsf_mid, 'g--', lw=2)
+        ax.plot(bin_centers, vsf_high, 'r--', lw=2)
+
+    ax.set_xlabel('Separation [kpc]', fontsize=14)
+    ax.set_ylabel('$\\langle | \\delta v | \\rangle$ [km/s]', fontsize=14)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.axis([0.5,350,10,1000])
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    plt.subplots_adjust(bottom=0.12, top=0.97, left=0.12, right=0.97)
+    plt.savefig(save_dir + snap + '_VSF' + save_suffix + '.png')
+
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
 
 if __name__ == "__main__":
 
@@ -494,9 +646,9 @@ if __name__ == "__main__":
     elif (args.plot=='vel_struc_func'):
         if (args.nproc==1):
             for i in range(len(outs)):
-                vsf(outs[i])
+                vsf_randompoints(outs[i])
         else:
-            target = vsf
+            target = vsf_randompoints
     else:
         sys.exit("That plot type hasn't been implemented!")
 
