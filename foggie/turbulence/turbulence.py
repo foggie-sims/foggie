@@ -137,7 +137,7 @@ def velocity_slice(snap):
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (args.system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -154,14 +154,16 @@ def velocity_slice(snap):
     pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
     lvl1_res = pix_res*2.**11.
     level = 9
-    refine_res = int(3.*Rvir/(lvl1_res/(2.**level)))
+    dx = lvl1_res/(2.**level)
+    smooth_scale = int(25./dx)
+    refine_res = int(3.*Rvir/dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
     temperature = box['temperature'].v
 
     for i in range(len(vtypes)):
         v = box['v' + vtypes[i] + '_corrected'].in_units('km/s').v
-        smooth_v = uniform_filter(v, size=20)
+        smooth_v = uniform_filter(v, size=smooth_scale)
         sig_v = v - smooth_v
         v = np.ma.masked_where((density > cgm_density_max) & (temperature < cgm_temperature_min), v)
         smooth_v = np.ma.masked_where((density > cgm_density_max) & (temperature < cgm_temperature_min), smooth_v)
@@ -203,7 +205,7 @@ def velocity_slice(snap):
         plt.savefig(save_dir + snap + '_' + vtypes[i] + '_velocity_slice_x' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
-    if (args.system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -602,7 +604,7 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    #foggie_dir = '/nobackupp18/mpeeples/'
+    foggie_dir = '/nobackupp18/mpeeples/'
 
     # Set directory for output location, making it if necessary
     save_dir = output_dir + 'turbulence_halo_00' + args.halo + '/' + args.run + '/'
