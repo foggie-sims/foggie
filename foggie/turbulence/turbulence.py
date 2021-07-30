@@ -552,9 +552,9 @@ def vsf_randompoints(snap):
         bin_centers = sep_bins[:-1] + np.diff(sep_bins)
     else:
         if (args.region_filter!='none'):
-            sep_bins, vsf, vsf_low, vsf_mid, vsf_high = np.loadtxt(save_dir + snap + '_VSF' + args.load_vsf + '.dat', unpack=True, usecols=[0,1,2,3,4])
+            sep_bins, vsf, vsf_low, vsf_mid, vsf_high = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF' + args.load_vsf + '.dat', unpack=True, usecols=[0,1,2,3,4])
         else:
-            sep_bins, vsf = np.loadtxt(save_dir + snap + '_VSF' + args.load_vsf + '.dat', unpack=True, usecols=[0,1])
+            sep_bins, vsf = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF' + args.load_vsf + '.dat', unpack=True, usecols=[0,1])
         sep_bins = np.append(sep_bins, sep_bins[-1]+np.diff(sep_bins)[-1])
         bin_centers = sep_bins[:-1] + np.diff(sep_bins)
 
@@ -574,6 +574,9 @@ def vsf_randompoints(snap):
         ax.plot(bin_centers, vsf_mid, 'g--', lw=2)
         ax.plot(bin_centers, vsf_high, 'r--', lw=2)
 
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+    zsnap = time_table['redshift'][time_table['snap']==snap]
+    ax.text(0.7,8e2,'$z=%.2f$' % (zsnap), fontsize=14, ha='left', va='top')
     ax.set_xlabel('Separation [kpc]', fontsize=14)
     ax.set_ylabel('$\\langle | \\delta v | \\rangle$ [km/s]', fontsize=14)
     ax.set_xscale('log')
@@ -582,7 +585,7 @@ def vsf_randompoints(snap):
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
       top=True, right=True)
     plt.subplots_adjust(bottom=0.12, top=0.97, left=0.12, right=0.97)
-    plt.savefig(save_dir + snap + '_VSF' + save_suffix + '.png')
+    plt.savefig(save_dir + 'Movie_frames/' + snap + '_VSF' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
     if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
@@ -604,7 +607,11 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    foggie_dir = '/nobackupp18/mpeeples/'
+    if ('feedback' in args.run):
+        foggie_dir = '/nobackup/clochhaa/'
+        run_dir = args.run + '/'
+    else:
+        foggie_dir = '/nobackupp18/mpeeples/'
 
     # Set directory for output location, making it if necessary
     save_dir = output_dir + 'turbulence_halo_00' + args.halo + '/' + args.run + '/'
