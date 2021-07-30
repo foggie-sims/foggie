@@ -54,7 +54,7 @@ def get_df_from_ds(ds, args):
                 weights = ds[field_dict[weight_field_dict[field]]].ndarray_view()
                 arr = weight_by(arr, weights)
                 column_name = column_name + '_wtby_' + weight_field_dict[field]
-            if islog_dict[field]:
+            if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log):
                 arr = np.log10(arr)
                 column_name = 'log_' + column_name
             df[column_name] = arr
@@ -81,11 +81,14 @@ def get_radial_velocity(paramlist):
     return paramlist
 
 # ---------------------------------------------------------------------------------
-def convert_to_datashader_frame(data, data_min, data_max, npix_datashader):
+def convert_to_datashader_frame(data, data_min, data_max, npix_datashader, log_scale=False):
     '''
     Function to convert physical quantities to corresponding pixel values in the datashader image frame
     '''
-    return (data - data_min) * npix_datashader / (data_max - data_min)
+    if log_scale:
+        data, data_min, data_max = np.log10(data), np.log10(data_min), np.log10(data_max)
+    data_in_pix = (data - data_min) * npix_datashader / (data_max - data_min)
+    return data_in_pix
 
 # ---------------------------------------------------------------------------------
 def convert_from_datashader_frame(data, data_min, data_max, npix_datashader):
@@ -124,14 +127,14 @@ def overplot_stars(x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax
             else: weights = np.ones(len(paramlist))
             paramlist[column_name + '_wtby_' + weightcol] = weight_by(paramlist[column_name], weights)
             column_name = column_name + '_wtby_' + weightcol
-        if islog_dict[field]: paramlist['log_' + column_name] = np.log10(paramlist[column_name])
+        if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log): paramlist['log_' + column_name] = np.log10(paramlist[column_name])
     init_len = len(paramlist)
     paramlist = paramlist[(paramlist[xcol].between(x_min, x_max)) & (paramlist[ycol].between(y_min, y_max)) & (paramlist[colorcol].between(c_min, c_max))]
 
     # -------------to actually plot the simulation data------------
-    x_on_plot = convert_to_datashader_frame(paramlist[xcol], x_min, x_max, npix_datashader) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
-    y_on_plot = convert_to_datashader_frame(paramlist[ycol], y_min, y_max, npix_datashader)
-    ax.scatter(x_on_plot, y_on_plot, c=paramlist[colorcol], edgecolors='black', lw=0.2, s=15, cmap=colormap_dict[args.colorcol])
+    x_on_plot = convert_to_datashader_frame(paramlist[xcol], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
+    y_on_plot = convert_to_datashader_frame(paramlist[ycol], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
+    ax.scatter(x_on_plot, y_on_plot, c=paramlist[colorcol], vmin=c_min, vmax=c_max, edgecolors='black', lw=0.2, s=15, cmap=colormap_dict[args.colorcol])
     print_mpi('Overplotted ' + str(len(paramlist)) + ' of ' + str(init_len) + ', i.e., ' + '%.2F'%(len(paramlist) * 100 / init_len) + '% of young stars inside this box..', args)
 
     return ax
@@ -145,14 +148,14 @@ def overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax, args):
     x_bin_size = bin_size_dict[args.xcol]
     x_bins = np.arange(x_min, x_max + x_bin_size, x_bin_size)
     df['binned_cat'] = pd.cut(df[xcol], x_bins)
-    if islog_dict[args.ycol]: df[args.ycol] = 10 ** df[ycol] # because otherwise args.ycol is not going to be present in df
+    if islog_dict[args.ycol] and not args.use_cvs_log: df[args.ycol] = 10 ** df[ycol] # because otherwise args.ycol is not going to be present in df
     y_binned = df.groupby('binned_cat', as_index=False).agg(np.mean)[args.ycol] # so that the averaging is done in linear space (as opposed to log space, which would be incorrect)
-    if islog_dict[args.ycol]: y_binned = np.log10(y_binned)
+    if islog_dict[args.ycol] and not args.use_cvs_log: y_binned = np.log10(y_binned)
 
     # ----------to plot mean binned y vs x profile--------------
     x_bin_centers = x_bins[:-1] + x_bin_size / 2
-    x_on_plot = convert_to_datashader_frame(x_bin_centers, x_min, x_max, npix_datashader) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
-    y_on_plot = convert_to_datashader_frame(y_binned, y_min, y_max, npix_datashader)
+    x_on_plot = convert_to_datashader_frame(x_bin_centers, x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
+    y_on_plot = convert_to_datashader_frame(y_binned, y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
     ax.plot(x_on_plot, y_on_plot, color='black', lw=1)
 
     return ax
@@ -170,19 +173,31 @@ def plot_1D_histogram(data, data_min, data_max, ax, vertical=False):
     return ax
 
 # ---------------------------------------------------------------------------------
-def make_coordinate_axis(colname, data_min, data_max, ax, fontsize, npix_datashader=1000, dsh=True):
+def make_coordinate_axis(colname, data_min, data_max, ax, fontsize, npix_datashader=1000, dsh=True, log_scale=False):
     '''
     Function to make the coordinate axis
     Uses globally defined islog_dict and unit_dict
     '''
-    log_text = 'Log ' if islog_dict[colname] else ''
-    nticks = 5
-    #delta = 100 if data_max - data_min > 100 else 30 if data_max - data_min > 30 else 5 if data_max - data_min > 5 else 1
+    log_text = 'Log ' if islog_dict[colname] and not log_scale else ''
     ax.set_label_text(log_text + labels_dict[colname] + ' (' + unit_dict[colname] + ')', fontsize=fontsize)
+
+    nticks = 50 if log_scale else 5
     ticks = np.linspace(data_min, data_max, nticks)
-    if dsh: ax.set_ticks(convert_to_datashader_frame(ticks, data_min, data_max, npix_datashader))
+    if dsh: ax.set_ticks(convert_to_datashader_frame(ticks, data_min, data_max, npix_datashader, log_scale=log_scale))
     else: ax.set_ticks(ticks)
-    ax.set_ticklabels(['%.1F' % index for index in ticks], fontsize=fontsize)
+
+    nticklabels = 6 if log_scale else 5
+    ticklabels = np.array(['     '] * nticks)
+    if log_scale:
+        label_arr = np.linspace(np.log10(data_min), np.log10(data_max), nticklabels + 1)
+        dig = np.digitize(np.log10(ticks), label_arr)
+        bins = [np.where(dig == i)[0][0] for i in np.unique(dig)]
+        for bin in bins: ticklabels[bin] = '%.1F' % ticks[bin]
+    else:
+        ticklabel_every = int(nticks/nticklabels)
+        ticklabels[:: ticklabel_every] = ['%.1F' % item for item in ticks[:: ticklabel_every]]
+
+    ax.set_ticklabels(ticklabels, fontsize=fontsize)
 
     return ax
 
@@ -249,8 +264,8 @@ def wrap_axes(df, filename, npix_datashader, args, limits):
     '''
     x_min, x_max, y_min, y_max, c_min, c_max = limits
     # ----------to get quantities in datashader pixel units--------------
-    df[xcol + '_in_pix'] = convert_to_datashader_frame(df[xcol], x_min, x_max, npix_datashader)
-    df[ycol + '_in_pix'] = convert_to_datashader_frame(df[ycol], y_min, y_max, npix_datashader)
+    df[xcol + '_in_pix'] = convert_to_datashader_frame(df[xcol], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log)
+    df[ycol + '_in_pix'] = convert_to_datashader_frame(df[ycol], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
 
     # -----------------to initialise figure---------------------
     shift_right = 'phi' in args.ycol or 'theta' in args.ycol
@@ -274,13 +289,13 @@ def wrap_axes(df, filename, npix_datashader, args, limits):
     axes.ax_marg_y = plot_1D_histogram(df[ycol + '_in_pix'], 0, npix_datashader, axes.ax_marg_y, vertical=True)
 
     # ------to make the axes-------------
-    ax1.xaxis = make_coordinate_axis(args.xcol, x_min, x_max, ax1.xaxis, args.fontsize, npix_datashader=npix_datashader, dsh=True)
-    ax1.yaxis = make_coordinate_axis(args.ycol, y_min, y_max, ax1.yaxis, args.fontsize, npix_datashader=npix_datashader, dsh=True)
+    ax1.xaxis = make_coordinate_axis(args.xcol, x_min, x_max, ax1.xaxis, args.fontsize, npix_datashader=npix_datashader, dsh=True, log_scale=islog_dict[args.xcol] and args.use_cvs_log)
+    ax1.yaxis = make_coordinate_axis(args.ycol, y_min, y_max, ax1.yaxis, args.fontsize, npix_datashader=npix_datashader, dsh=True, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
     fig, ax2 = make_colorbar_axis(args.colorcol, c_min, c_max, fig, args.fontsize)
 
     # ---------to annotate and save the figure----------------------
-    plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift , transform=ax1.transAxes, fontsize=args.fontsize)
-    plt.text(0.033, 0.1, 't = %.3F Gyr' % args.current_time , transform=ax1.transAxes, fontsize=args.fontsize)
+    plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift, transform=ax1.transAxes, fontsize=args.fontsize)
+    plt.text(0.033, 0.1, 't = %.3F Gyr' % args.current_time, transform=ax1.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=False)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
@@ -298,9 +313,9 @@ def make_datashader_plot(ds, outfilename, args, npix_datashader=1000):
 
     # ----------to determine axes limits--------------
     x_min, x_max = bounds_dict[args.xcol]
-    if islog_dict[args.xcol]: x_min, x_max = np.log10(x_min), np.log10(x_max)
+    if islog_dict[args.xcol] and not args.use_cvs_log: x_min, x_max = np.log10(x_min), np.log10(x_max)
     y_min, y_max = bounds_dict[args.ycol]
-    if islog_dict[args.ycol]: y_min, y_max = np.log10(y_min), np.log10(y_max)
+    if islog_dict[args.ycol] and not args.use_cvs_log: y_min, y_max = np.log10(y_min), np.log10(y_max)
     c_min, c_max = bounds_dict[args.colorcol]
     if islog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
 
@@ -309,7 +324,7 @@ def make_datashader_plot(ds, outfilename, args, npix_datashader=1000):
     df[colorcol_cat] = categorize_by_dict[args.colorcol](df[colorcol])
     df[colorcol_cat] = df[colorcol_cat].astype('category')
 
-    cvs = dsh.Canvas(plot_width=npix_datashader, plot_height=npix_datashader, x_range=(x_min, x_max), y_range=(y_min, y_max))
+    cvs = dsh.Canvas(plot_width=npix_datashader, plot_height=npix_datashader, x_range=(x_min, x_max), y_range=(y_min, y_max), x_axis_type='log' if islog_dict[args.xcol] and args.use_cvs_log else 'linear', y_axis_type='log' if islog_dict[args.ycol] and args.use_cvs_log  else 'linear')
     agg = cvs.points(df, xcol, ycol, dsh.count_cat(colorcol_cat))
     img = dstf.spread(dstf.shade(agg, color_key=colorkey_dict[args.colorcol], how='eq_hist', min_alpha=40), shape='square')
     export_image(img, os.path.splitext(outfilename)[0])
@@ -585,9 +600,9 @@ def on_first_key_press(event, box, ax, args, npix_datashader, nbins, selector, x
 
             # ----------to determine axes limits--------------
             x_min, x_max = bounds_dict[args.xcol]
-            if islog_dict[args.xcol]: x_min, x_max = np.log10(x_min), np.log10(x_max)
+            if islog_dict[args.xcol] and not args.use_cvs_log: x_min, x_max = np.log10(x_min), np.log10(x_max)
             y_min, y_max = bounds_dict[args.ycol]
-            if islog_dict[args.ycol]: y_min, y_max = np.log10(y_min), np.log10(y_max)
+            if islog_dict[args.ycol] and not args.use_cvs_log: y_min, y_max = np.log10(y_min), np.log10(y_max)
             c_min, c_max = bounds_dict[args.colorcol]
             if islog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
 
@@ -600,8 +615,8 @@ def on_first_key_press(event, box, ax, args, npix_datashader, nbins, selector, x
                 y_lower_bound = convert_from_datashader_frame(ygrid.ravel()[item] - 0.5 * npix_datashader / nbins, y_min, y_max, npix_datashader)
                 y_upper_bound = convert_from_datashader_frame(ygrid.ravel()[item] + 0.5 * npix_datashader / nbins, y_min, y_max, npix_datashader)
 
-                if islog_dict[args.xcol]: x_lower_bound, x_upper_bound = 10 ** x_lower_bound, 10 ** x_upper_bound
-                if islog_dict[args.ycol]: y_lower_bound, y_upper_bound = 10 ** y_lower_bound, 10 ** y_upper_bound
+                if islog_dict[args.xcol] and not args.use_cvs_log: x_lower_bound, x_upper_bound = 10 ** x_lower_bound, 10 ** x_upper_bound
+                if islog_dict[args.ycol] and not args.use_cvs_log: y_lower_bound, y_upper_bound = 10 ** y_lower_bound, 10 ** y_upper_bound
 
                 if index: cut_crit += '|'
                 cut_crit += "((obj[{}] > obj.ds.quan({}, '{}')) & (obj[{}] < obj.ds.quan({}, '{}')) & (obj[{}] > obj.ds.quan({}, '{}')) & (obj[{}] < obj.ds.quan({}, '{}')))".format(
@@ -678,8 +693,8 @@ if __name__ == '__main__':
     weight_field_dict = defaultdict(lambda: None, metal=dummy_args.weight, temp=dummy_args.weight, vrad=dummy_args.weight, phi_L=dummy_args.weight, theta_L=dummy_args.weight)
 
     # parse column names, in case log
-    xcol = 'log_' + dummy_args.xcol if islog_dict[dummy_args.xcol] else dummy_args.xcol
-    ycol = 'log_' + dummy_args.ycol if islog_dict[dummy_args.ycol] else dummy_args.ycol
+    xcol = 'log_' + dummy_args.xcol if islog_dict[dummy_args.xcol] and not dummy_args.use_cvs_log else dummy_args.xcol
+    ycol = 'log_' + dummy_args.ycol if islog_dict[dummy_args.ycol] and not dummy_args.use_cvs_log else dummy_args.ycol
     if weight_field_dict[dummy_args.xcol] and not dummy_args.noweight: xcol += '_wtby_' + weight_field_dict[dummy_args.xcol]
     if weight_field_dict[dummy_args.ycol] and not dummy_args.noweight: ycol += '_wtby_' + weight_field_dict[dummy_args.ycol]
 
