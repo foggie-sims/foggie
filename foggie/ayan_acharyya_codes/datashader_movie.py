@@ -18,6 +18,7 @@ from projection_plot import do_plot
 from make_ideal_datacube import shift_ref_frame
 from filter_star_properties import get_star_properties
 
+from matplotlib.colors import to_hex
 from matplotlib.widgets import LassoSelector
 from matplotlib.widgets import SpanSelector
 
@@ -36,33 +37,41 @@ def get_df_from_ds(ds, args):
     '''
     Function to make a pandas dataframe from the yt dataset based on the given field list and color category,
     then writes dataframe to file for faster access in future
-    This function is based upon foggie.utils.prep_dataframe.prep_dataframe()
+    This function is somewhat based on foggie.utils.prep_dataframe.prep_dataframe()
     :return: dataframe
     '''
-    outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_%s_vs_%s_colcat_%s.txt' % (args.galrad, ycol, xcol, colorcol)
+    # -------------read/write pandas df file with ALL fields-------------------
+    outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc.txt' % (args.galrad)
     if not os.path.exists(outfilename) or args.clobber:
         if not os.path.exists(outfilename):
             myprint(outfilename + ' does not exist. Creating afresh..', args)
         elif args.clobber:
             myprint(outfilename + ' exists but over-writing..', args)
 
-        df = pd.DataFrame()
-        for field in [args.xcol, args.ycol, args.colorcol]:
-            column_name = field
-            arr = ds[field_dict[field]].in_units(unit_dict[field]).ndarray_view()
-            if weight_field_dict[field] and args.weight:
-                weights = ds[field_dict[weight_field_dict[field]]].ndarray_view()
-                arr = weight_by(arr, weights)
-                column_name = column_name + '_wtby_' + weight_field_dict[field]
-            if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log):
-                arr = np.log10(arr)
-                column_name = 'log_' + column_name
-            df[column_name] = arr
+        df_allprop = pd.DataFrame()
+        all_fields = field_dict.keys()
+        for index,field in enumerate(all_fields):
+            myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(all_fields)) + ' fields..', args)
+            df_allprop[field] = ds[field_dict[field]].in_units(unit_dict[field]).ndarray_view()
 
-        df.to_csv(outfilename, sep='\t', index=None)
+        df_allprop.to_csv(outfilename, sep='\t', index=None)
     else:
         myprint('Reading from existing file ' + outfilename, args)
-        df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
+        df_allprop = pd.read_table(outfilename, delim_whitespace=True, comment='#')
+
+    # ----------extract only the relevant fields/columns for this analysis-------------
+    df = pd.DataFrame()
+    for field in [args.xcol, args.ycol, args.colorcol]:
+        column_name = field
+        arr = df_allprop[field]
+        if weight_field_dict[field] and args.weight:
+            weights = df_allprop[weight_field_dict[field]]
+            arr = weight_by(arr, weights)
+            column_name = column_name + '_wtby_' + weight_field_dict[field]
+        if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log):
+            arr = np.log10(arr)
+            column_name = 'log_' + column_name
+        df[column_name] = arr
 
     return df
 
@@ -205,28 +214,24 @@ def make_coordinate_axis(colname, data_min, data_max, ax, fontsize, npix_datasha
 def create_foggie_cmap(colname, c_min, c_max):
     '''
     Function to create the colorbar for the tiny colorbar axis on top right
-    Uses globally defined colorkey_dict, categorize_by_dict
+    Uses globally defined colormap_dict
     This function is based on Cassi's foggie.pressure_support.create_foggie_cmap(), which is in turn based on Jason's foggie.render.cmap_utils.create_foggie_cmap()
     '''
     n = 100000
-    color_key = colorkey_dict[colname]
+    color_key = get_color_keys(c_min, c_max, colormap_dict[colname])
+    n_labels = len(color_key)
 
     df = pd.DataFrame({'x':np.random.rand(n), 'y': np.random.rand(n)})
-    df[colname] = np.array([random.uniform(c_min, c_max) for i in range(n)])
-    if islog_dict[colname]: df[colname] = 10. ** df[colname] # skipping taking log of metallicity because it is categorised in linear space
-    df['cat'] = categorize_by_dict[colname](df[colname])
+    edges = np.linspace(np.min(df['x']), np.max(df['x']), n_labels + 1)
 
-    n_labels = np.size(list(color_key))
-    sightline_length = np.max(df['x']) - np.min(df['x'])
-    value = np.max(df['x'])
-
-    for index in np.flip(np.arange(n_labels), 0):
-        df['cat'][df['x'] > value - sightline_length * (1.*index+1)/n_labels] = list(color_key)[index]
-    df.cat = df.cat.astype('category') ##
+    df['cat'] = ''
+    for index in range(n_labels):
+        df['cat'][(df['x'] >= edges[index]) & (df['x'] <= edges[index + 1])] = list(color_key)[index]
+    df.cat = df.cat.astype('category')
 
     cvs = dsh.Canvas(plot_width=750, plot_height=100, x_range=(np.min(df['x']), np.max(df['x'])), y_range=(np.min(df['y']), np.max(df['y'])))
     agg = cvs.points(df, 'x', 'y', dsh.count_cat('cat'))
-    cmap = dstf.spread(dstf.shade(agg, color_key=color_key), px=2, shape='square')
+    cmap = dstf.spread(dstf.shade(agg, color_key=color_key, how='eq_hist', min_alpha=40), px=2, shape='square')
 
     return cmap
 
@@ -239,7 +244,7 @@ def make_colorbar_axis(colname, data_min, data_max, fig, fontsize):
     color_field_cmap = create_foggie_cmap(colname, data_min, data_max)
     ax_xpos, ax_ypos, ax_width, ax_height = 0.7, 0.82, 0.25, 0.06
     ax = fig.add_axes([ax_xpos, ax_ypos, ax_width, ax_height])
-    cbar_im = np.flip(color_field_cmap.to_pil(), 1)
+    cbar_im = color_field_cmap.to_pil()
     ax.imshow(cbar_im)
     log_text = 'Log ' if islog_dict[colname] else ''
     delta_c = 200 if data_max - data_min > 200 else 60 if data_max - data_min > 60 else 10 if data_max - data_min > 10 else 2
@@ -321,12 +326,13 @@ def make_datashader_plot(ds, outfilename, args, npix_datashader=1000):
 
     # ----------to filter and categorize the dataframe--------------
     df = df[(df[xcol].between(x_min, x_max)) & (df[ycol].between(y_min, y_max)) & (df[colorcol].between(c_min, c_max))]
-    df[colorcol_cat] = categorize_by_dict[args.colorcol](df[colorcol])
+    df[colorcol_cat] = categorize_by_quant(df[colorcol], c_min, c_max, colormap_dict[args.colorcol])
     df[colorcol_cat] = df[colorcol_cat].astype('category')
 
     cvs = dsh.Canvas(plot_width=npix_datashader, plot_height=npix_datashader, x_range=(x_min, x_max), y_range=(y_min, y_max), x_axis_type='log' if islog_dict[args.xcol] and args.use_cvs_log else 'linear', y_axis_type='log' if islog_dict[args.ycol] and args.use_cvs_log  else 'linear')
     agg = cvs.points(df, xcol, ycol, dsh.count_cat(colorcol_cat))
-    img = dstf.spread(dstf.shade(agg, color_key=colorkey_dict[args.colorcol], how='eq_hist', min_alpha=40), shape='square')
+    color_key = get_color_keys(c_min, c_max, colormap_dict[args.colorcol])
+    img = dstf.spread(dstf.shade(agg, color_key=color_key, how='eq_hist', min_alpha=40), shape='square')
     export_image(img, os.path.splitext(outfilename)[0])
 
     fig = wrap_axes(df, os.path.splitext(outfilename)[0] + '.png', npix_datashader, args, limits=[x_min, x_max, y_min, y_max, c_min, c_max])
@@ -568,7 +574,7 @@ def make_histogram(box_cut, args, identifier, output_selfig, ncolbins):
     color_quant = box_cut[field_dict[args.colorcol]]
     if islog_dict[args.colorcol]: color_quant = np.log10(color_quant)
 
-    Y, X = np.histogram(color_quant, bins=ncolbins, normed=True)
+    Y, X = np.histogram(color_quant, bins=ncolbins, normed=False)
     colors = [colormap_dict[args.colorcol]((x - c_min) / (c_max - c_min)) for x in X]
 
     h = ax.bar(X[:-1], Y, color=colors, width=X[1] - X[0])
@@ -662,19 +668,55 @@ def setup_interactive(box, ax, args, npix_datashader=1000, nbins=20, ncolbins=10
 
     return fig
 
+# -------------------------------------------------------------------------------------------------------------
+def get_color_labels(data_min, data_max, discrete_cmap):
+    '''
+    Function to determine the bin labels of every color category, to make the datashader plot
+    '''
+    nbins = len(discrete_cmap.colors)
+    edges = np.linspace(data_min, data_max, nbins + 1)
+    color_labels = np.chararray(nbins, 13)
+    for i in range(nbins):
+        color_labels[i] = b'[%.2F,%.2F)' % (edges[i], edges[i + 1])
+
+    return nbins, edges, color_labels
+
+# -------------------------------------------------------------------------------------------------------------
+def get_color_keys(data_min, data_max, discrete_cmap):
+    '''
+    Function to determine the actual color for every color category, based on a given discrete colormap
+    In this script, this function is used such that the discrete colormap is the corresponding discrete colormap in consistency.py
+    '''
+    nbins, _, color_labels = get_color_labels(data_min, data_max, discrete_cmap)
+    color_key = collections.OrderedDict()
+    for i in range(nbins):
+        color_key[color_labels[i]] = to_hex(discrete_cmap.colors[i])
+
+    return color_key
+
+# -------------------------------------------------------------------------------------------------------------
+def categorize_by_quant(data, data_min, data_max, discrete_cmap):
+    '''
+    Function to assign categories to the given data, to make the datashader plot color coding
+    '''
+    nbins, edges, color_labels = get_color_labels(data_min, data_max, discrete_cmap)
+    category = np.chararray(np.size(data), 13)
+    for i in range(nbins):
+        category[(data >= edges[i]) & (data <= edges[i + 1])] = color_labels[i]
+
+    return category
+
 # -----main code-----------------
 if __name__ == '__main__':
-    npix_datashader, nselection_bins, ncolor_selection_bins = 1000, 20, 100
+    npix_datashader, nselection_bins, ncolor_selection_bins = 1000, 50, 100
     # set variables and dictionaries
-    field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'stars':('deposit', 'stars_density'), 'mass':('gas', 'mass'), \
+    field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'mass':('gas', 'mass'), \
                   'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'vrad':('gas', 'radial_velocity_corrected'), \
-                  'phi_L':('gas', 'angular_momentum_phi'), 'theta_L':('gas', 'angular_momentum_theta')}
-    unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':''}
+                  'phi_L':('gas', 'angular_momentum_phi'), 'theta_L':('gas', 'angular_momentum_theta'), 'volume':('gas', 'volume')}
+    unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'volume':'pc**3'}
     labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF'}
     islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True)
     bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
-    categorize_by_dict = {'temp':categorize_by_temp, 'metal':categorize_by_log_metals, 'density':categorize_by_den, 'vrad':categorize_by_outflow_inflow, 'rad':categorize_by_radius, 'phi_L':categorize_by_angle_pi, 'theta_L':categorize_by_angle_2pi}
-    colorkey_dict = {'temp':new_phase_color_key, 'metal':new_metals_color_key, 'density': density_color_key, 'vrad': outflow_inflow_color_key, 'rad': radius_color_key, 'phi_L': angle_color_key_pi, 'theta_L': angle_color_key_2pi}
     colormap_dict = {'temp':temperature_discrete_cmap, 'metal':metal_discrete_cmap, 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi}
 
     projected_unit_dict = defaultdict(lambda x: unit_dict[x], density='Msun/pc**2')
