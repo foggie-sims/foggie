@@ -33,6 +33,7 @@ from astropy.io import ascii
 import multiprocessing as multi
 import datetime
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS
+from scipy.interpolate import RegularGridInterpolator
 import shutil
 import ast
 import trident
@@ -126,7 +127,9 @@ def parse_args():
                         'velocity_slice         -  x-slices of the three spherical components of velocity, comparing the velocity,\n' + \
                         '                          the smoothed velocity, and the difference between the velocity and the smoothed velocity\n' + \
                         'vorticity_slice        -  x-slice of the velocity vorticity magnitude\n' + \
-                        'vorticity_direction    -  2D histograms of vorticity direction split by temperature and radius')
+                        'vorticity_direction    -  2D histograms of vorticity direction split by temperature and radius\n' + \
+                        'force_rays             -  Line plots of forces along rays from the halo center to various points' + \
+                        'turbulent_spectrum    -  Turbulent energy power spectrum')
 
     parser.add_argument('--region_filter', metavar='region_filter', type=str, action='store', \
                         help='Do you want to show pressures in different regions? Options are:\n' + \
@@ -271,7 +274,7 @@ def make_table(stat_types):
                         'high_' + args.region_filter + '_']
     else: regions_name = ['']
     if (args.plot=='force_vs_radius'):
-        stat_names = ['_med', '_iqr', '_avg', '_std', '_sum']
+        stat_names = ['_med', '_iqr', '_avg', '_std', '_sum', '_weight_sum']
     else:
         stat_names = ['_med', '_iqr', '_avg', '_std']
     for i in range(len(stat_types)):
@@ -477,6 +480,7 @@ def pressures_vs_radius(snap):
         lvl1_res = pix_res*2.**11.
         level = 9
         dx = lvl1_res/(2.**level)
+        smooth_scale = int(25./dx)
         refine_res = int(3.*Rvir/dx)
         box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
         density = box['density'].in_units('g/cm**3').v.flatten()
@@ -503,26 +507,19 @@ def pressures_vs_radius(snap):
         vx = box['vx_corrected'].in_units('cm/s').v
         vy = box['vy_corrected'].in_units('cm/s').v
         vz = box['vz_corrected'].in_units('cm/s').v
-        smooth_vx = uniform_filter(vx, size=20)
-        smooth_vy = uniform_filter(vy, size=20)
-        smooth_vz = uniform_filter(vz, size=20)
+        smooth_vx = uniform_filter(vx, size=smooth_scale)
+        smooth_vy = uniform_filter(vy, size=smooth_scale)
+        smooth_vz = uniform_filter(vz, size=smooth_scale)
         sig_x = (vx - smooth_vx)**2.
         sig_y = (vy - smooth_vy)**2.
         sig_z = (vz - smooth_vz)**2.
         vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.).flatten()
         turb_pressure = (density*vdisp**2.)
         vr = box['radial_velocity_corrected'].in_units('cm/s').v
-        smooth_vr = uniform_filter(vr, size=20)
-        vr_in = 1.0*smooth_vr
-        vr_in[smooth_vr > 0.] = 0.
-        vr_in = vr_in.flatten()
-        in_pressure = (density*vr_in**2.)
-        vr_out = 1.0*smooth_vr
-        vr_out[smooth_vr < 0.] = 0.
-        vr_out = vr_out.flatten()
-        out_pressure = (density*vr_out**2.)
+        smooth_vr = uniform_filter(vr, size=smooth_scale).flatten()
+        ram_pressure = (density*smooth_vr**2.)
 
-        pressures = [thermal_pressure, turb_pressure, in_pressure, out_pressure]
+        pressures = [thermal_pressure, turb_pressure, ram_pressure]
         for i in range(len(pressures)):
             pressures[i] = pressures[i][(density < cgm_density_max) & (temperature > cgm_temperature_min)]
         new_density = density[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
@@ -530,7 +527,7 @@ def pressures_vs_radius(snap):
         density = new_density
         temperature = new_temp
 
-        stats = ['thermal_pressure', 'turbulent_pressure', 'inflow_pressure', 'outflow_pressure']
+        stats = ['thermal_pressure', 'turbulent_pressure', 'ram_pressure']
         table = make_table(stats)
         table_pdf = make_pdf_table(stats)
 
@@ -648,10 +645,10 @@ def pressures_vs_radius(snap):
         stats = table
         print("Stats have been calculated and saved to file for snapshot " + snap + "!")
 
-    plot_colors = ['r', 'g', 'm', 'c']
-    plot_labels = ['Thermal', 'Turbulent', 'Ram - in', 'Ram - out']
-    file_labels = ['thermal_pressure', 'turbulent_pressure', 'inflow_pressure', 'outflow_pressure']
-    linestyles = ['-', '--', ':', '-.']
+    plot_colors = ['r', 'g', 'm']
+    plot_labels = ['Thermal', 'Turbulent', 'Ram']
+    file_labels = ['thermal_pressure', 'turbulent_pressure', 'ram_pressure']
+    linestyles = ['-', '--', ':']
 
     radius_list = 0.5*(stats['inner_radius'] + stats['outer_radius'])
     zsnap = stats['redshift'][0]
@@ -738,6 +735,7 @@ def forces_vs_radius(snap):
         lvl1_res = pix_res*2.**11.
         level = 9
         dx = lvl1_res/(2.**level)
+        smooth_scale = int(25./dx)
         dx_cm = lvl1_res/(2.**level)*1000*cmtopc
         refine_res = int(3.*Rvir/dx)
         box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
@@ -759,9 +757,9 @@ def forces_vs_radius(snap):
         vx = box['vx_corrected'].in_units('cm/s').v
         vy = box['vy_corrected'].in_units('cm/s').v
         vz = box['vz_corrected'].in_units('cm/s').v
-        smooth_vx = uniform_filter(vx, size=20)
-        smooth_vy = uniform_filter(vy, size=20)
-        smooth_vz = uniform_filter(vz, size=20)
+        smooth_vx = uniform_filter(vx, size=smooth_scale)
+        smooth_vy = uniform_filter(vy, size=smooth_scale)
+        smooth_vz = uniform_filter(vz, size=smooth_scale)
         sig_x = (vx - smooth_vx)**2.
         sig_y = (vy - smooth_vy)**2.
         sig_z = (vz - smooth_vz)**2.
@@ -771,26 +769,18 @@ def forces_vs_radius(snap):
         dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
         turb_force = (-1./density * dPdr).flatten()
         vr = box['radial_velocity_corrected'].in_units('cm/s').v
-        smooth_vr = uniform_filter(vr, size=20)
-        vr_in = 1.0*smooth_vr
-        vr_in[smooth_vr > 0.] = 0.
-        in_pressure = density*vr_in**2.
-        pres_grad = np.gradient(in_pressure, dx_cm)
+        smooth_vr = uniform_filter(vr, size=smooth_scale)
+        ram_pressure = density*smooth_vr**2.
+        pres_grad = np.gradient(ram_pressure, dx_cm)
         dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-        in_force = (-1./density * dPdr).flatten()
-        vr_out = 1.0*smooth_vr
-        vr_out[smooth_vr < 0.] = 0.
-        out_pressure = density*vr_out**2.
-        pres_grad = np.gradient(out_pressure, dx_cm)
-        dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-        out_force = (-1./density * dPdr).flatten()
+        ram_force = (-1./density * dPdr).flatten()
         vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
         vphi = box['phi_velocity_corrected'].in_units('cm/s').v
-        smooth_vtheta = uniform_filter(vtheta, size=20)
-        smooth_vphi = uniform_filter(vphi, size=20)
+        smooth_vtheta = uniform_filter(vtheta, size=smooth_scale)
+        smooth_vphi = uniform_filter(vphi, size=smooth_scale)
         rot_force = ((smooth_vtheta**2. + smooth_vphi**2.)/r).flatten()
         grav_force = (-G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.).flatten()
-        tot_force = thermal_force + turb_force + rot_force + out_force + in_force + grav_force
+        tot_force = thermal_force + turb_force + rot_force + ram_force + grav_force
 
         density = density.flatten()
         radius = radius[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
@@ -810,7 +800,7 @@ def forces_vs_radius(snap):
             vff = vff[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
             vesc = vesc[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
 
-        forces = [thermal_force, turb_force, in_force, out_force, rot_force, grav_force, tot_force]
+        forces = [thermal_force, turb_force, ram_force, rot_force, grav_force, tot_force]
         for i in range(len(forces)):
             forces[i] = forces[i][(density < cgm_density_max) & (temperature > cgm_temperature_min)]
         new_density = density[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
@@ -818,7 +808,7 @@ def forces_vs_radius(snap):
         density = new_density
         temperature = new_temp
 
-        stats = ['thermal_force', 'turbulent_force', 'inflow_force', 'outflow_force', 'rotation_force', 'gravity_force', 'total_force']
+        stats = ['thermal_force', 'turbulent_force', 'ram_force', 'rotation_force', 'gravity_force', 'total_force']
         table = make_table(stats)
         table_pdf = make_pdf_table(stats)
 
@@ -882,6 +872,7 @@ def forces_vs_radius(snap):
                     row.append(avg)
                     row.append(std)
                     row.append(np.sum(force_shell*weights_shell))
+                    row.append(np.sum(weights_shell))
                     hist_pos, bin_edges_pos = np.histogram(np.log10(force_shell[force_shell>=1e-9]), \
                       weights=weights_shell[force_shell>=1e-9], bins=(100), range=[-9, -5])
                     hist_mid, bin_edges_mid = np.histogram(force_shell[(force_shell>=-1e-9) & (force_shell<=1e-9)], \
@@ -897,7 +888,7 @@ def forces_vs_radius(snap):
                     pdf_array.append(bin_edges[1:])
                     pdf_array.append(hist)
                     for k in range(len(regions)):
-                        force_shell = np.log10(force_regions[j][k][(radius_regions[k] >= radius_list[i]) & (radius_regions[k] < radius_list[i+1])])
+                        force_shell = force_regions[j][k][(radius_regions[k] >= radius_list[i]) & (radius_regions[k] < radius_list[i+1])]
                         weights_shell = weights_regions[k][(radius_regions[k] >= radius_list[i]) & (radius_regions[k] < radius_list[i+1])]
                         if (len(force_shell)!=0.):
                             quantiles = weighted_quantile(force_shell, weights_shell, np.array([0.25,0.5,0.75]))
@@ -907,6 +898,7 @@ def forces_vs_radius(snap):
                             row.append(avg)
                             row.append(std)
                             row.append(np.sum(force_shell*weights_shell))
+                            row.append(np.sum(weights_shell))
                             hist_pos, bin_edges_pos = np.histogram(np.log10(force_shell[force_shell>=1e-9]), \
                               weights=weights_shell[force_shell>=1e-9], bins=(100), range=[-9, -5])
                             hist_mid, bin_edges_mid = np.histogram(force_shell[(force_shell>=-1e-9) & (force_shell<=1e-9)], \
@@ -914,12 +906,8 @@ def forces_vs_radius(snap):
                             hist_neg, bin_edges_neg = np.histogram(np.log10(-force_shell[force_shell<=-1e-9]), \
                               weights=weights_shell[force_shell<=-1e-9], bins=(100), range=[-9, -5])
                             norm = np.sum([hist_neg, hist_mid, hist_pos])
-                            bin_edges_neg = np.flip(bin_edges_neg)
                             hist_neg = np.flip(hist_neg)
-                            bin_edges = np.hstack([10**bin_edges_neg[:-1], bin_edges_mid, 10**bin_edges_pos[1:]])
                             hist = np.hstack([hist_neg, hist_mid, hist_pos])/norm
-                            pdf_array.append(bin_edges[:-1])
-                            pdf_array.append(bin_edges[1:])
                             pdf_array.append(hist)
                         else:
                             row.append(0.)
@@ -927,23 +915,26 @@ def forces_vs_radius(snap):
                             row.append(0.)
                             row.append(0.)
                             row.append(0.)
-                            pdf_array.append(np.zeros(200))
+                            row.append(0.)
+                            pdf_array.append(np.zeros(300))
                 else:
                     row.append(0.)
                     row.append(0.)
                     row.append(0.)
                     row.append(0.)
                     row.append(0.)
-                    pdf_array.append(np.zeros(200))
-                    pdf_array.append(np.zeros(200))
-                    pdf_array.append(np.zeros(200))
+                    row.append(0.)
+                    pdf_array.append(np.zeros(300))
+                    pdf_array.append(np.zeros(300))
+                    pdf_array.append(np.zeros(300))
                     for k in range(len(regions)):
                         row.append(0.)
                         row.append(0.)
                         row.append(0.)
                         row.append(0.)
                         row.append(0.)
-                        pdf_array.append(np.zeros(200))
+                        row.append(0.)
+                        pdf_array.append(np.zeros(300))
 
             table.add_row(row)
             pdf_array = np.vstack(pdf_array)
@@ -963,10 +954,10 @@ def forces_vs_radius(snap):
         stats = table
         print("Stats have been calculated and saved to file for snapshot " + snap + "!")
 
-    plot_colors = ['r', 'g', 'm', 'c', 'b', 'gold', 'k']
-    plot_labels = ['Thermal', 'Turbulent', 'Ram - in', 'Ram - out', 'Rotation', 'Gravity', 'Total']
-    file_labels = ['thermal_force', 'turbulent_force', 'inflow_force', 'outflow_force', 'rotation_force', 'gravity_force', 'total_force']
-    linestyles = ['-', '--', ':', ':', '-.', '--', '-']
+    plot_colors = ['r', 'g', 'm', 'b', 'gold', 'k']
+    plot_labels = ['Thermal', 'Turbulent', 'Radial Ram', 'Rotation', 'Gravity', 'Total']
+    file_labels = ['thermal_force', 'turbulent_force', 'ram_force', 'rotation_force', 'gravity_force', 'total_force']
+    linestyles = ['-', '--', ':', '-.', '--', '-']
 
     radius_list = 0.5*(stats['inner_radius'] + stats['outer_radius'])
     zsnap = stats['redshift'][0]
@@ -976,55 +967,316 @@ def forces_vs_radius(snap):
 
     for i in range(len(plot_colors)):
         label = plot_labels[i]
-        ax.plot(radius_list, stats[file_labels[i] + '_sum'], ls=linestyles[i], color=plot_colors[i], \
+        ax.plot(radius_list, stats[file_labels[i] + '_sum']/stats[file_labels[i] + '_weight_sum'], ls=linestyles[i], color=plot_colors[i], \
                 lw=2, label=label)
 
-    ax.set_ylabel('Net Force on Shell [g cm/s$^2$]', fontsize=18)
+    ax.set_ylabel('Net Force on Shell [cm/s$^2$]', fontsize=18)
     ax.set_xlabel('Radius [kpc]', fontsize=18)
-    ax.axis([0,250,-1e33,1e33])
-    #ax.set_yscale('symlog', linthresh=1e-9)
+    ax.axis([0,250,-1e-5,1e-5])
+    ax.set_yscale('symlog', linthresh=1e-9)
     #ax.text(15, -1e-6, '$z=%.2f$' % (zsnap), fontsize=18, ha='left', va='center')
     #ax.text(15,-3e-6,halo_dict[args.halo],ha='left',va='center',fontsize=18)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
       top=True, right=True)
     ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
     #ax.text(Rvir-3., -3e-6, '$R_{200}$', fontsize=18, ha='right', va='center')
-    if (args.halo=='8508'): ax.legend(loc=2, frameon=False, fontsize=14)
+    if (args.halo=='8508'): ax.legend(loc=1, frameon=False, fontsize=14)
     plt.subplots_adjust(top=0.94,bottom=0.11,right=0.95,left=0.15)
-    plt.savefig(save_dir + snap + '_forces_vs_r' + save_suffix + '.pdf')
+    plt.savefig(save_dir + snap + '_forces_vs_r' + save_suffix + '.png')
     plt.close()
 
     if (args.region_filter!='none'):
-        fig = plt.figure(figsize=(8,6), dpi=500)
-        ax = fig.add_subplot(1,1,1)
+        regions = ['low_', 'mid_', 'high_']
+        alphas = [0.25,0.6,1.]
+        # Fig1 is a plot of all force types for all regions on one plot
+        fig1 = plt.figure(figsize=(8,6), dpi=500)
+        ax1 = fig1.add_subplot(1,1,1)
+        # Fig2 is plots of all force types for each region, one per region
+        figs2 = []
+        axs2 = []
+        for r in range(len(regions)):
+            figs2.append(plt.figure(figsize=(8,6), dpi=500))
+            axs2.append(figs2[-1].add_subplot(1,1,1))
 
         for i in range(len(plot_colors)):
+            # Fig3 is plots of all regions for each force type, one per force type
+            fig3 = plt.figure(figsize=(8,6), dpi=500)
+            ax3 = fig3.add_subplot(1,1,1)
             label = plot_labels[i]
-            if (i==0): label_regions = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, 'High ' + args.region_filter]
-            else: label_regions = ['__nolegend__', '__nolegend__', '__nolegend__']
-            ax.plot(radius_list, stats['low_' + args.region_filter + '_' + file_labels[i] + '_sum'], ls=linestyles[i], color=plot_colors[i], \
-                    lw=2, alpha=0.25, label=label_regions[0])
-            ax.plot(radius_list, stats['mid_' + args.region_filter + '_' + file_labels[i] + '_sum'], ls=linestyles[i], color=plot_colors[i], \
-                    lw=2, alpha=0.5, label=label_regions[1])
-            ax.plot(radius_list, stats['high_' + args.region_filter + '_' + file_labels[i] + '_sum'], ls=linestyles[i], color=plot_colors[i], \
-                    lw=2, label=label_regions[2])
-            ax.plot(radius_list, stats['high_' + args.region_filter + '_' + file_labels[i] + '_sum'], ls=linestyles[i], color=plot_colors[i], \
-                    lw=2, label=label)
+            label_regions = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, 'High ' + args.region_filter]
+            if (i==0):
+                label_regions_bigplot = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, 'High ' + args.region_filter]
+            else:
+                label_regions_bigplot = ['__nolegend__', '__nolegend__', '__nolegend__']
+            for j in range(len(regions)):
+                ax1.plot(radius_list, stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum']/ \
+                  stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_weight_sum'], \
+                  ls=linestyles[i], color=plot_colors[i], lw=2, alpha=alphas[j], label=label_regions_bigplot[j])
+                axs2[j].plot(radius_list, stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum']/ \
+                  stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_weight_sum'], \
+                  ls=linestyles[i], color=plot_colors[i], lw=2, alpha=alphas[j], label=label)
+                ax3.plot(radius_list, stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum']/ \
+                  stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_weight_sum'], \
+                  ls=linestyles[i], color=plot_colors[i], lw=2, alpha=alphas[j], label=label_regions[j])
+            ax1.plot(radius_list, stats['high_' + args.region_filter + '_' + file_labels[i] + '_sum']/ \
+              stats['high_' + args.region_filter + '_' + file_labels[i] + '_weight_sum'], \
+              ls=linestyles[i], color=plot_colors[i], lw=2, label=label)
+            ax3.plot(radius_list, stats['high_' + args.region_filter + '_' + file_labels[i] + '_sum']/ \
+              stats['high_' + args.region_filter + '_' + file_labels[i] + '_weight_sum'], \
+              ls=linestyles[i], color=plot_colors[i], lw=2, label=label)
 
-        ax.set_ylabel('Net Force on Shell [cm/s$^2$]', fontsize=18)
-        ax.set_xlabel('Radius [kpc]', fontsize=18)
-        ax.axis([0,250,-1e-5,1e-5])
-        ax.set_yscale('symlog', linthresh=1e-9)
-        ax.text(15, -1e-6, '$z=%.2f$' % (zsnap), fontsize=18, ha='left', va='center')
-        ax.text(15,-3e-6,halo_dict[args.halo],ha='left',va='center',fontsize=18)
-        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+            ax3.set_ylabel('Net Force on Shell [cm/s$^2$]', fontsize=18)
+            ax3.set_xlabel('Radius [kpc]', fontsize=18)
+            ax3.axis([0,250,-1e-5,1e-5])
+            ax3.set_yscale('symlog', linthresh=1e-8)
+            ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+              top=True, right=True)
+            ax3.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+            ax3.legend(loc=1, frameon=False, fontsize=14)
+            fig3.subplots_adjust(top=0.94,bottom=0.11,right=0.95,left=0.17)
+            fig3.savefig(save_dir + snap + '_' + file_labels[i] + '_vs_r_regions-' + args.region_filter + save_suffix + '.png')
+            plt.close()
+
+        for r in range(len(regions)):
+            axs2[r].set_ylabel('Net Force on Shell [cm/s$^2$]', fontsize=18)
+            axs2[r].set_xlabel('Radius [kpc]', fontsize=18)
+            axs2[r].axis([0,250,-1e-5,1e-5])
+            axs2[r].set_yscale('symlog', linthresh=1e-8)
+            axs2[r].tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+              top=True, right=True)
+            axs2[r].plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+            axs2[r].legend(loc=1, frameon=False, fontsize=14)
+            figs2[r].subplots_adjust(top=0.94,bottom=0.11,right=0.95,left=0.17)
+            figs2[r].savefig(save_dir + snap + '_forces_vs_r_' + regions[r] + args.region_filter + save_suffix + '.png')
+            plt.close()
+
+        ax1.set_ylabel('Net Force on Shell [cm/s$^2$]', fontsize=18)
+        ax1.set_xlabel('Radius [kpc]', fontsize=18)
+        ax1.axis([0,250,-1e-5,1e-5])
+        ax1.set_yscale('symlog', linthresh=1e-8)
+        #ax.text(15, -1e-6, '$z=%.2f$' % (zsnap), fontsize=18, ha='left', va='center')
+        #ax.text(15,-3e-6,halo_dict[args.halo],ha='left',va='center',fontsize=18)
+        ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
           top=True, right=True)
-        ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
-        ax.text(Rvir-3., -3e-6, '$R_{200}$', fontsize=18, ha='right', va='center')
-        if (args.halo=='8508'): ax.legend(loc=2, frameon=False, fontsize=14)
-        plt.subplots_adjust(top=0.94,bottom=0.11,right=0.95,left=0.15)
-        plt.savefig(save_dir + snap + '_forces_vs_r_regions-' + args.region_filter + save_suffix + '.pdf')
+        ax1.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+        #ax.text(Rvir-3., -3e-6, '$R_{200}$', fontsize=18, ha='right', va='center')
+        if (args.halo=='8508'): ax1.legend(loc=1, frameon=False, fontsize=14)
+        fig1.subplots_adjust(top=0.94,bottom=0.11,right=0.95,left=0.17)
+        fig1.savefig(save_dir + snap + '_all_forces_vs_r_regions-' + args.region_filter + save_suffix + '.png')
         plt.close()
+
+def force_rays(snap):
+    '''Makes plots of different forces (thermal, turbulent, ram, rotation, gravity, total) along
+    rays originating at the center of the galaxy and traveling outward in different directions.'''
+
+    masses_ind = np.where(masses['snapshot']==snap)[0]
+    Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
+    Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap
+        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+        snap_name = snap_dir + '/' + snap
+    else:
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir, disk_relative=True)
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
+    lvl1_res = pix_res*2.**11.
+    level = 9
+    dx = lvl1_res/(2.**level)
+    dx_cm = lvl1_res/(2.**level)*1000*cmtopc
+    refine_res = int(3.*Rvir/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
+    density = box['density'].in_units('g/cm**3').v
+    temperature = box['temperature'].v
+    radius = box['radius_corrected'].in_units('kpc').v
+
+    x = box['x'].in_units('kpc') - ds.halo_center_kpc[0]
+    y = box['y'].in_units('kpc') - ds.halo_center_kpc[1]
+    z = box['z'].in_units('kpc') - ds.halo_center_kpc[2]
+    r = box['radius_corrected'].in_units('cm').v
+    x_hat = x.to('cm').v/r
+    y_hat = y.to('cm').v/r
+    z_hat = z.to('cm').v/r
+    x = x[:,0,0].v
+    y = y[0,:,0].v
+    z = z[0,0,:].v
+    coords = (x,y,z)
+    thermal_pressure = box['pressure'].in_units('erg/cm**3').v
+    pres_grad = np.gradient(thermal_pressure, dx_cm)
+    dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+    thermal_force = -1./density * dPdr
+    vx = box['vx_corrected'].in_units('cm/s').v
+    vy = box['vy_corrected'].in_units('cm/s').v
+    vz = box['vz_corrected'].in_units('cm/s').v
+    smooth_vx = uniform_filter(vx, size=20)
+    smooth_vy = uniform_filter(vy, size=20)
+    smooth_vz = uniform_filter(vz, size=20)
+    sig_x = (vx - smooth_vx)**2.
+    sig_y = (vy - smooth_vy)**2.
+    sig_z = (vz - smooth_vz)**2.
+    vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
+    turb_pressure = density*vdisp**2.
+    pres_grad = np.gradient(turb_pressure, dx_cm)
+    dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+    turb_force = -1./density * dPdr
+    vr = box['radial_velocity_corrected'].in_units('cm/s').v
+    smooth_vr = uniform_filter(vr, size=20)
+    ram_pressure = density*smooth_vr**2.
+    pres_grad = np.gradient(ram_pressure, dx_cm)
+    dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+    ram_force = -1./density * dPdr
+    vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
+    vphi = box['phi_velocity_corrected'].in_units('cm/s').v
+    smooth_vtheta = uniform_filter(vtheta, size=20)
+    smooth_vphi = uniform_filter(vphi, size=20)
+    rot_force = (smooth_vtheta**2. + smooth_vphi**2.)/r
+    grav_force = -G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.
+    tot_force = thermal_force + turb_force + rot_force + ram_force + grav_force
+    forces = [thermal_force, turb_force, rot_force, ram_force, grav_force, tot_force]
+
+    # Rotate array to line up with disk
+    '''print(ds.z_unit_disk)
+    yz_rotate_angle = np.arccos(np.dot([0,1], [ds.z_unit_disk[1], ds.z_unit_disk[2]]))*180./np.pi
+    xy_rotate_angle = np.arccos(np.dot([0,1], [ds.z_unit_disk[0], ds.z_unit_disk[1]]))*180./np.pi
+    print(yz_rotate_angle, xy_rotate_angle)
+    rotated_forces = []
+    for i in range(len(forces)):
+        force = forces[i]
+        # Rotate first in x direction (rotation within y-z plane)
+        rotated_force = rotate(force, angle=yz_rotate_angle, axes=(1,2), reshape=False, order=0)
+        # Then rotate in z direction (rotation within x-y plane)
+        rotated_force = rotate(rotated_force, angle=xy_rotate_angle, axes=(0,1), reshape=False, order=0)
+        rotated_forces.append(rotated_force)
+    rotated_radius = rotate(radius, angle=yz_rotate_angle, axes=(1,2), reshape=False, order=0)
+    rotated_density = rotate(density, angle=yz_rotate_angle, axes=(1,2), reshape=False, order=0)
+    rotated_temperature = rotate(temperature, angle=yz_rotate_angle, axes=(1,2), reshape=False, order=0)
+    rotated_radius = rotate(rotated_radius, angle=xy_rotate_angle, axes=(0,1), reshape=False, order=0)
+    rotated_density = rotate(rotated_density, angle=xy_rotate_angle, axes=(0,1), reshape=False, order=0)
+    rotated_temperature = rotate(rotated_temperature, angle=xy_rotate_angle, axes=(0,1), reshape=False, order=0)
+    forces = rotated_forces
+    radius = rotated_radius
+    density = rotated_density
+    temperature = rotated_temperature'''
+
+    radius_func = RegularGridInterpolator(coords, radius)
+    density_func = RegularGridInterpolator(coords, density)
+    temperature_func = RegularGridInterpolator(coords, temperature)
+    ray_start = [0, 0, 0]
+    # List end points of rays
+    # Want: 3 within 30 deg opening angle of minor axis on both sides, 3 within 30 deg opening angle
+    # of major axis on both sides, 2 close to halfway between major and minor axis in all 4 quadrants
+    # = 6 + 6 + 8 = 20 total rays
+    ray_ends = [[0, -100, -150], [0, 150, -150], [0, 100, 150], [0, -150, 150]]
+    rays = ray_ends
+    '''rays = []
+    rotate = np.linalg.inv(ds.disk_rot_arr)
+    for r in range(len(ray_ends)):
+        # Rotate rays so they align with disk
+        ray_end = ray_ends[r]
+        ray_end_rot = []
+        for i in range(len(ray_end)):
+            ray_end_rot.append(rotate[i][0]*ray_end[0] + rotate[i][1]*ray_end[1] + rotate[i][2]*ray_end[2])
+        rays.append(ray_end_rot)'''
+
+    plot_colors = ['r', 'g', 'b', 'm', 'gold', 'k']
+    linestyles = ['-', '--', ':', '-.']
+    labels = ['Thermal', 'Turbulent', 'Rotation', 'Ram', 'Gravity', 'Total']
+    ftypes = ['thermal', 'turbulent', 'rotation', 'ram', 'gravity', 'total']
+
+    fig2 = plt.figure(figsize=(12,10),dpi=500)
+    ax2 = fig2.add_subplot(1,1,1)
+    im = ax2.imshow(rotate(temperature[len(temperature)//2,:,:], 90), cmap=sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True), norm=colors.LogNorm(vmin=10**4, vmax=10**7), \
+          extent=[np.min(coords[1]),np.max(coords[1]),np.min(coords[2]),np.max(coords[2])])
+    for r in range(len(rays)):
+        ray_end = rays[r]
+        ax2.plot([ray_start[1], ray_end[1]], [ray_start[2], ray_end[2]], color='k', ls=linestyles[r], lw=2)
+    ax2.axis([-250,250,-250,250])
+    ax2.set_xlabel('y [kpc]', fontsize=20)
+    ax2.set_ylabel('z [kpc]', fontsize=20)
+    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+      top=True, right=True)
+    cax = fig2.add_axes([0.855, 0.08, 0.03, 0.9])
+    cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+      top=True, right=True)
+    fig2.colorbar(im, cax=cax, orientation='vertical')
+    ax2.text(1.17, 0.5, 'Temperature [K]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax2.transAxes)
+    fig2.subplots_adjust(bottom=0.08, top=0.98, left=0.08, right=0.8)
+    fig2.savefig(save_dir + snap + '_temperature_slice_x_rays' + save_suffix + '.png')
+
+    ray_figs = []
+    ray_axs = []
+    for r in range(len(rays)):
+        ray_figs.append(plt.figure(figsize=(8,6), dpi=500))
+        ray_axs.append(ray_figs[-1].add_subplot(1,1,1))
+
+    for i in range(len(forces)):
+        # Fig 2 is a slice plot of each force for all rays, one per force
+        fig2 = plt.figure(figsize=(12,10),dpi=500)
+        ax2 = fig2.add_subplot(1,1,1)
+        # Fig. 3 is plot of each force for all rays, one per force
+        fig3 = plt.figure(figsize=(8,6), dpi=500)
+        ax3 = fig3.add_subplot(1,1,1)
+        force = forces[i]
+        im = ax2.imshow(rotate(force[len(force)//2,:,:], 90), cmap='BrBG', norm=colors.SymLogNorm(vmin=-1e-6, vmax=1e-6, linthresh=1e-9, base=10), \
+              extent=[np.min(coords[1]),np.max(coords[1]),np.min(coords[2]),np.max(coords[2])])
+        for r in range(len(rays)):
+            # Fig 1 is a plot of all forces for each ray, one per ray
+            fig1 = ray_figs[r]
+            ax1 = ray_axs[r]
+            ray_end = rays[r]
+            xpoints = np.linspace(ray_start[0], ray_end[0], 100)
+            ypoints = np.linspace(ray_start[1], ray_end[1], 100)
+            zpoints = np.linspace(ray_start[2], ray_end[2], 100)
+            points = np.array([xpoints, ypoints, zpoints]).transpose()
+            radius_ray = radius_func(points)
+            density_ray = density_func(points)
+            temperature_ray = temperature_func(points)
+            force_func = RegularGridInterpolator(coords, force)
+            force_ray = force_func(points)
+            radius_ray = radius_ray[(density_ray < cgm_density_max) & (temperature_ray > cgm_temperature_min)]
+            force_ray = force_ray[(density_ray < cgm_density_max) & (temperature_ray > cgm_temperature_min)]
+            ax1.plot(radius_ray, force_ray, color=plot_colors[i], ls=linestyles[r], lw=2, label=labels[i])
+            ax3.plot(radius_ray, force_ray, color=plot_colors[i], ls=linestyles[r], lw=2)
+            ax2.plot([ray_start[1], ray_end[1]], [ray_start[2], ray_end[2]], color='k', ls=linestyles[r], lw=2)
+
+            if (i==len(forces)-1):
+                ax1.set_xlabel('Distance along ray from galaxy center [kpc]', fontsize=18)
+                ax1.set_ylabel('Force felt [cm/s$^2$]', fontsize=18)
+                ax1.axis([0,250,-4e-7,4e-7])
+                ax1.set_yscale('symlog', linthresh=1e-8)
+                ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+                  top=True, right=True)
+                ax1.legend(loc=1, frameon=False, fontsize=14)
+                fig1.subplots_adjust(top=0.94,bottom=0.11,right=0.95,left=0.17)
+                fig1.savefig(save_dir + snap + '_forces_along_ray-' + str(r) + save_suffix + '.png')
+
+        ax2.axis([-250,250,-250,250])
+        ax2.set_xlabel('y [kpc]', fontsize=20)
+        ax2.set_ylabel('z [kpc]', fontsize=20)
+        ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+          top=True, right=True)
+        cax = fig2.add_axes([0.855, 0.08, 0.03, 0.9])
+        cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+          top=True, right=True)
+        fig2.colorbar(im, cax=cax, orientation='vertical')
+        ax2.text(1.17, 0.5, 'log ' + labels[i] + ' Force [cm/s$^2$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax2.transAxes)
+        fig2.subplots_adjust(bottom=0.08, top=0.98, left=0.08, right=0.8)
+        fig2.savefig(save_dir + snap + '_' + ftypes[i] + '_force_slice_x_ray' + save_suffix + '.png')
+
+        ax3.set_xlabel('Distance along ray from galaxy center [kpc]', fontsize=18)
+        ax3.set_ylabel('Force felt [cm/s$^2$]', fontsize=18)
+        ax3.axis([0,250,-4e-7,4e-7])
+        ax3.set_yscale('symlog', linthresh=1e-8)
+        ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+          top=True, right=True)
+        ax3.legend(loc=1, frameon=False, fontsize=14)
+        fig3.subplots_adjust(top=0.94,bottom=0.11,right=0.95,left=0.17)
+        fig3.savefig(save_dir + snap + '_' + ftypes[i] + '_force_along_rays' + save_suffix + '.png')
 
 def support_vs_radius(snap):
     '''Plots different types of pressure (thermal, turbulent, rotational, bulk inflow/outflow ram)
@@ -1776,7 +2028,7 @@ def pressure_slice(snap):
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (args.system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -1786,7 +2038,7 @@ def pressure_slice(snap):
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
 
     if (args.pressure_type=='all'):
-        ptypes = ['thermal', 'turbulent', 'outflow', 'inflow']
+        ptypes = ['thermal', 'turbulent', 'ram']
     elif (',' in args.pressure_type):
         ptypes = args.pressure_type.split(',')
     else:
@@ -1796,6 +2048,7 @@ def pressure_slice(snap):
     lvl1_res = pix_res*2.**11.
     level = 9
     dx = lvl1_res/(2.**level)
+    smooth_scale = int(25./dx)
     refine_res = int(3.*Rvir/dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
@@ -1810,9 +2063,9 @@ def pressure_slice(snap):
             vx = box['vx_corrected'].in_units('cm/s').v
             vy = box['vy_corrected'].in_units('cm/s').v
             vz = box['vz_corrected'].in_units('cm/s').v
-            smooth_vx = uniform_filter(vx, size=20)
-            smooth_vy = uniform_filter(vy, size=20)
-            smooth_vz = uniform_filter(vz, size=20)
+            smooth_vx = uniform_filter(vx, size=smooth_scale)
+            smooth_vy = uniform_filter(vy, size=smooth_scale)
+            smooth_vz = uniform_filter(vz, size=smooth_scale)
             sig_x = (vx - smooth_vx)**2.
             sig_y = (vy - smooth_vy)**2.
             sig_z = (vz - smooth_vz)**2.
@@ -1820,21 +2073,12 @@ def pressure_slice(snap):
             turb_pressure = density*vdisp**2.
             pressure = turb_pressure
             pressure_label = 'Turbulent'
-        if (ptypes[i]=='inflow') or (ptypes[i]=='outflow'):
+        if (ptypes[i]=='ram'):
             vr = box['radial_velocity_corrected'].in_units('cm/s').v
-            smooth_vr = uniform_filter(vr, size=20)
-            if (ptypes[i]=='inflow'):
-                vr_in = 1.0*smooth_vr
-                vr_in[smooth_vr > 0.] = 0.
-                in_pressure = density*vr_in**2.
-                pressure = in_pressure
-                pressure_label = 'Inflow Ram'
-            if (ptypes[i]=='outflow'):
-                vr_out = 1.0*smooth_vr
-                vr_out[smooth_vr < 0.] = 0.
-                out_pressure = density*vr_out**2.
-                pressure = out_pressure
-                pressure_label = 'Outflow Ram'
+            smooth_vr = uniform_filter(vr, size=smooth_scale)
+            ram_pressure = density*smooth_vr**2.
+            pressure = ram_pressure
+            pressure_label = 'Ram'
 
         pressure = np.ma.masked_where((density > cgm_density_max) & (temperature < cgm_temperature_min), pressure)
         fig = plt.figure(figsize=(12,10),dpi=500)
@@ -1858,7 +2102,7 @@ def pressure_slice(snap):
         plt.savefig(save_dir + snap + '_' + ptypes[i] + '_pressure_slice_x' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
-    if (args.system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -1881,7 +2125,7 @@ def force_slice(snap):
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
 
     if (args.force_type=='all'):
-        ftypes = ['thermal', 'turbulent', 'outflow', 'inflow', 'rotation', 'gravity', 'total']
+        ftypes = ['thermal', 'turbulent', 'ram', 'rotation', 'gravity', 'total']
     elif (',' in args.force_type):
         ftypes = args.force_type.split(',')
     else:
@@ -1891,6 +2135,7 @@ def force_slice(snap):
     lvl1_res = pix_res*2.**11.
     level = 9
     dx = lvl1_res/(2.**level)
+    smooth_scale = int(25./dx)
     dx_cm = dx*1000*cmtopc
     refine_res = int(3.*Rvir/dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
@@ -1909,16 +2154,17 @@ def force_slice(snap):
             thermal_pressure = box['pressure'].in_units('erg/cm**3').v
             pres_grad = np.gradient(thermal_pressure, dx_cm)
             dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-            thermal_force = 1./density * dPdr
-            force = thermal_force
-            force_label = 'Thermal Pressure'
+            thermal_force = -1./density * dPdr
+            if (ftypes[i]=='thermal'):
+                force = thermal_force
+                force_label = 'Thermal Pressure'
         if (ftypes[i]=='turbulent') or ('total' in ftypes):
             vx = box['vx_corrected'].in_units('cm/s').v
             vy = box['vy_corrected'].in_units('cm/s').v
             vz = box['vz_corrected'].in_units('cm/s').v
-            smooth_vx = uniform_filter(vx, size=20)
-            smooth_vy = uniform_filter(vy, size=20)
-            smooth_vz = uniform_filter(vz, size=20)
+            smooth_vx = uniform_filter(vx, size=smooth_scale)
+            smooth_vy = uniform_filter(vy, size=smooth_scale)
+            smooth_vz = uniform_filter(vz, size=smooth_scale)
             sig_x = (vx - smooth_vx)**2.
             sig_y = (vy - smooth_vy)**2.
             sig_z = (vz - smooth_vz)**2.
@@ -1926,44 +2172,36 @@ def force_slice(snap):
             turb_pressure = density*vdisp**2.
             pres_grad = np.gradient(turb_pressure, dx_cm)
             dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-            turb_force = 1./density * dPdr
-            force = turb_force
-            force_label = 'Turbulent Pressure'
-        if (ftypes[i]=='inflow') or (ftypes[i]=='outflow') or ('total' in ftypes):
+            turb_force = -1./density * dPdr
+            if (ftypes[i]=='turbulent'):
+                force = turb_force
+                force_label = 'Turbulent Pressure'
+        if (ftypes[i]=='ram') or ('total' in ftypes):
             vr = box['radial_velocity_corrected'].in_units('cm/s').v
-            smooth_vr = uniform_filter(vr, size=20)
-            if (ftypes[i]=='inflow') or ('total' in ftypes):
-                vr_in = 1.0*smooth_vr
-                vr_in[smooth_vr > 0.] = 0.
-                in_pressure = density*vr_in**2.
-                pres_grad = np.gradient(in_pressure, dx_cm)
-                dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-                in_force = 1./density * dPdr
-                force = in_force
-                force_label = 'Inflow Ram Pressure'
-            if (ftypes[i]=='outflow') or ('total' in ftypes):
-                vr_out = 1.0*smooth_vr
-                vr_out[smooth_vr < 0.] = 0.
-                out_pressure = density*vr_out**2.
-                pres_grad = np.gradient(out_pressure, dx_cm)
-                dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-                out_force = 1./density * dPdr
-                force = out_force
-                force_label = 'Outflow Ram Pressure'
+            smooth_vr = uniform_filter(vr, size=smooth_scale)
+            ram_pressure = density*smooth_vr**2.
+            pres_grad = np.gradient(ram_pressure, dx_cm)
+            dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+            ram_force = -1./density * dPdr
+            if (ftypes[i]=='ram'):
+                force = ram_force
+                force_label = 'Ram Pressure'
         if (ftypes[i]=='rotation') or ('total' in ftypes):
             vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
             vphi = box['phi_velocity_corrected'].in_units('cm/s').v
-            smooth_vtheta = uniform_filter(vtheta, size=20)
-            smooth_vphi = uniform_filter(vphi, size=20)
+            smooth_vtheta = uniform_filter(vtheta, size=smooth_scale)
+            smooth_vphi = uniform_filter(vphi, size=smooth_scale)
             rot_force = (smooth_vtheta**2. + smooth_vphi**2.)/r
-            force = rot_force
-            force_label = 'Rotation'
+            if (ftypes[i]=='rotation'):
+                force = rot_force
+                force_label = 'Rotation'
         if (ftypes[i]=='gravity') or ('total' in ftypes):
             grav_force = -G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.
-            force = grav_force
-            force_label = 'Gravity'
+            if (ftypes[i]=='gravity'):
+                force = grav_force
+                force_label = 'Gravity'
         if (ftypes[i]=='total'):
-            tot_force = thermal_force + turb_force + rot_force + out_force + in_force + grav_force
+            tot_force = thermal_force + turb_force + rot_force + ram_force + grav_force
             force = tot_force
             force_label = 'Total'
 
@@ -1971,19 +2209,19 @@ def force_slice(snap):
         fig = plt.figure(figsize=(12,10),dpi=500)
         ax = fig.add_subplot(1,1,1)
         # Need to rotate to match up with how yt plots it
-        im = ax.imshow(rotate(force[len(force)//2,:,:],90), cmap='BrBG', norm=colors.SymLogNorm(vmin=-1e-5, vmax=1e-5, linthresh=1e-9), \
+        im = ax.imshow(rotate(force[len(force)//2,:,:],90), cmap='BrBG', norm=colors.SymLogNorm(vmin=-1e-5, vmax=1e-5, linthresh=1e-9, base=10), \
                   extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
         ax.axis([-250,250,-250,250])
         ax.set_xlabel('y [kpc]', fontsize=20)
         ax.set_ylabel('z [kpc]', fontsize=20)
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
           top=True, right=True)
-        cax = fig.add_axes([0.855, 0.08, 0.03, 0.9])
+        cax = fig.add_axes([0.82, 0.11, 0.03, 0.84])
         cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
           top=True, right=True)
         fig.colorbar(im, cax=cax, orientation='vertical')
-        ax.text(1.15, 0.5, 'log ' + force_label + ' Force [cm/s$^2$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
-        plt.subplots_adjust(bottom=0.08, top=0.98, left=0.08, right=0.88)
+        ax.text(1.2, 0.5, force_label + ' Force [cm/s$^2$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
+        plt.subplots_adjust(bottom=0.08, top=0.98, left=0.12, right=0.82)
         plt.savefig(save_dir + snap + '_' + ftypes[i] + '_force_slice_x' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
@@ -2285,6 +2523,88 @@ def vorticity_direction(snap):
         plt.subplots_adjust(left=0.095, bottom=0.067, right=0.979, top=0.917, wspace=0.248, hspace=0.286)
         plt.savefig(save_dir + '/' + snap + '_vorticity_direction_r%.1f-%.1fkpc' % (shells[i], shells[i+1]) + save_suffix + '.png')
 
+def Pk_turbulence(snap):
+    '''Plots a turbulent energy power spectrum for the output given in 'snap'.'''
+
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap
+        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+        snap_name = snap_dir + '/' + snap
+    else:
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
+    lvl1_res = pix_res*2.**11.
+    level = 9
+    dx = lvl1_res/(2.**level)
+    refine_res = int(3.*Rvir/dx)
+    left_edge = ds.halo_center_kpc - ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc')
+    right_edge = ds.halo_center_kpc + ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc')
+    dims = np.array([refine_res, refine_res, refine_res])
+    box = ds.covering_grid(level=level, left_edge=left_edge, dims=dims)
+
+    nx, ny, nz = dims
+    nindex_rho = 1./3.
+    Kk = np.zeros((nx//2+1, ny//2+1, nz//2+1))
+
+    for vel in ["vx_corrected", "vy_corrected", "vz_corrected"]:
+        rho = box['density'].v
+        u = box[vel].in_units('cm/s').v
+
+        # do the FFTs -- note that since our data is real, there will be
+        # too much information here.  fftn puts the positive freq terms in
+        # the first half of the axes -- that's what we keep.  Our
+        # normalization has an '8' to account for this clipping to one
+        # octant.
+        ru = np.fft.fftn(rho**nindex_rho * u)[0:nx//2+1, 0:ny//2+1, 0:nz//2+1]
+        ru = 8.0*ru/(nx * ny * nz)
+        k_fft = np.abs(ru)**2
+        Kk += 0.5 * k_fft
+
+    # wavenumbers
+    L = (right_edge - left_edge).v
+    kx = np.fft.rfftfreq(nx) * nx/L[0]
+    ky = np.fft.rfftfreq(ny) * ny/L[1]
+    kz = np.fft.rfftfreq(nz) * nz/L[2]
+
+    # physical limits to the wavenumbers
+    kmin = np.min(1./L)
+    kmax = np.min(0.5*dims/L)
+
+    kbins = np.arange(kmin, kmax, kmin)
+    N = len(kbins)
+
+    # bin the Fourier KE into radial kbins
+    kx3d, ky3d, kz3d = np.meshgrid(kx, ky, kz, indexing="ij")
+    k = np.sqrt(kx3d**2 + ky3d**2 + kz3d**2)
+    whichbin = np.digitize(k.flat, kbins)
+    ncount = np.bincount(whichbin)
+    E_spectrum = np.zeros(len(ncount) - 1)
+
+    for n in range(1, len(ncount)):
+        E_spectrum[n - 1] = np.sum(Kk.flat[whichbin == n])
+
+    k = 0.5 * (kbins[0:N-1] + kbins[1:N])
+    l = 1./k
+    E_spectrum = E_spectrum[1:N]
+
+    index = np.argmax(E_spectrum)
+    kmax = k[index]
+    Emax = E_spectrum[index]
+
+    plt.loglog(l, E_spectrum)
+    plt.loglog(l, Emax * (k / kmax) ** (-5.0 / 3.0), ls=":", color="0.5")
+
+    #plt.xlabel(r"$k$")
+    plt.xlabel('$l$ [kpc]')
+    plt.ylabel(r"$E(k)dk$")
+
+    plt.savefig(save_dir + snap + '_turbulent_energy_spectrum' + save_suffix + '.pdf')
+
 if __name__ == "__main__":
 
     gtoMsun = 1.989e33
@@ -2300,7 +2620,7 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    #foggie_dir = '/nobackupp18/mpeeples/'
+    foggie_dir = '/nobackupp18/mpeeples/'
 
     # Set directory for output location, making it if necessary
     save_dir = output_dir + 'pressures_halo_00' + args.halo + '/' + args.run + '/'
@@ -2386,6 +2706,18 @@ if __name__ == "__main__":
                 vorticity_direction(outs[i])
         else:
             target = vorticity_direction
+    elif (args.plot=='force_rays'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                force_rays(outs[i])
+        else:
+            target = force_rays
+    elif (args.plot=='turbulent_spectrum'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                Pk_turbulence(outs[i])
+        else:
+            target = Pk_turbulence
     else:
         sys.exit("That plot type hasn't been implemented!")
 
