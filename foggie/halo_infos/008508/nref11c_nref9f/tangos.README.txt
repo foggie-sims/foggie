@@ -16,3 +16,4 @@ consistent_trees_link - all halos from the previous timestep that end up as part
 consistent_trees_id - ID number of merger tree in tree_0_0_0.dat (dimensionless)
 
 Note that rockstar is only run on type 4 DM particles, so all properties that come from rockstar are based entirely on those.
+The current database includes all halos with at least 75 type 4 DM particles.
