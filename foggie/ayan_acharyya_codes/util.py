@@ -842,7 +842,7 @@ def get_all_sims_for_this_halo(args):
     snapshots = [item.split('/')[-2] for item in snapshot_paths]
     for thissnap in snapshots:
         if len(thissnap) == 6: all_sims.append([args.halo, thissnap])
-
+    all_sims = all_sims[:: args.nevery]
     return all_sims
 
 # ---------------------------------------------------------------------------------------------
@@ -914,6 +914,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--output', metavar='output', type=str, action='store', default=RDname, help='which output? default is RD0020')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the current working directory?, default is no')
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available for a given halo?, default is no')
+    parser.add_argument('--nevery', metavar='nevery', type=int, action='store', default=1, help='use every nth snapshot when do_all_sims is specified; default is 1 i.e., all snapshots will be used')
     parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False, help='loop over all available halos (and all snapshots each halo has)?, default is no')
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
     parser.add_argument('--galrad', metavar='galrad', type=float, action='store', default=20., help='the radial extent (in each spatial dimension) to which computations will be done, in kpc; default is 20')

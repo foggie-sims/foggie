@@ -40,6 +40,7 @@ def parse_args():
     parser.add_argument('--callfunc', metavar='callfunc', type=str, action='store', default='filter_star_properties')
     parser.add_argument('--dryrun', dest='dryrun', action='store_true', default=False)
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False)
+    parser.add_argument('--nevery', metavar='nevery', type=int, action='store', default=1)
     parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False)
     parser.add_argument('--galrad', metavar='galrad', type=str, action='store', default=None)
     parser.add_argument('--xcol', metavar='xcol', type=str, action='store', default=None)
@@ -80,6 +81,7 @@ if __name__ == '__main__':
     fullbox_flag = ' --fullbox ' if args.fullbox else ''
     overplot_stars_flag = ' --overplot_stars ' if args.overplot_stars else ''
     clobber_plot_flag = ' --clobber_plot ' if args.clobber_plot else ''
+    nevery_flag = ' --nevery ' + str(args.nevery) if args.nevery > 1 and args.do_all_sims else ''
 
     jobscript_path = HOME+'/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
     jobscript_template = 'jobscript_template_' + args.system + '.txt'
@@ -142,7 +144,8 @@ if __name__ == '__main__':
     for jobid in range(args.start, args.stop+1):
         thishalo = halos[jobid - 1] if args.halo is None else args.halo
         haloflag = ' --halo ' + thishalo
-        jobname = prefixtext + thishalo# + '_job' + str(jobid)
+        jobname = prefixtext + thishalo
+        if args.do_all_sims and args.nevery > 1: jobname += '_ne' + str(args.nevery)
 
         # ----------replacing keywords in jobscript template to make the actual jobscript---------
         out_jobscript = workdir + '/jobscript_' + jobname + '.sh'
@@ -152,7 +155,8 @@ if __name__ == '__main__':
                         'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG': do_all_simsflag, 'DO_ALL_HALOSFLAG': do_all_halosflag, 'SYSTEMFLAG': systemflag, \
                         'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
                         'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \
-                        'OVERPLOT_STARS_FLAG': overplot_stars_flag, 'CLOBBER_PLOT_FLAG': clobber_plot_flag, 'NSECONDS':str(int(nhours) * 3600)} # keywords to be replaced in template jobscript
+                        'OVERPLOT_STARS_FLAG': overplot_stars_flag, 'CLOBBER_PLOT_FLAG': clobber_plot_flag, 'NSECONDS':str(int(nhours) * 3600), \
+                        'NEVERY_FLAG': nevery_flag} # keywords to be replaced in template jobscript
 
         with open(jobscript_path + jobscript_template) as infile, open(out_jobscript, 'w') as outfile:
             for line in infile:
