@@ -137,14 +137,16 @@ def overplot_stars(x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax
             paramlist[column_name + '_wtby_' + weightcol] = weight_by(paramlist[column_name], weights)
             column_name = column_name + '_wtby_' + weightcol
         if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log): paramlist['log_' + column_name] = np.log10(paramlist[column_name])
-    init_len = len(paramlist)
-    paramlist = paramlist[(paramlist[xcol].between(x_min, x_max)) & (paramlist[ycol].between(y_min, y_max)) & (paramlist[colorcol].between(c_min, c_max))]
 
-    # -------------to actually plot the simulation data------------
-    x_on_plot = convert_to_datashader_frame(paramlist[xcol], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
-    y_on_plot = convert_to_datashader_frame(paramlist[ycol], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
-    ax.scatter(x_on_plot, y_on_plot, c=paramlist[colorcol], vmin=c_min, vmax=c_max, edgecolors='black', lw=0.2, s=15, cmap=colormap_dict[args.colorcol])
-    print_mpi('Overplotted ' + str(len(paramlist)) + ' of ' + str(init_len) + ', i.e., ' + '%.2F'%(len(paramlist) * 100 / init_len) + '% of young stars inside this box..', args)
+    init_len = len(paramlist)
+    if init_len > 0:
+        paramlist = paramlist[(paramlist[xcol].between(x_min, x_max)) & (paramlist[ycol].between(y_min, y_max)) & (paramlist[colorcol].between(c_min, c_max))]
+
+        # -------------to actually plot the simulation data------------
+        x_on_plot = convert_to_datashader_frame(paramlist[xcol], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
+        y_on_plot = convert_to_datashader_frame(paramlist[ycol], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
+        ax.scatter(x_on_plot, y_on_plot, c=paramlist[colorcol], vmin=c_min, vmax=c_max, edgecolors='black', lw=0.2, s=15, cmap=colormap_dict[args.colorcol])
+        print_mpi('Overplotted ' + str(len(paramlist)) + ' of ' + str(init_len) + ', i.e., ' + '%.2F'%(len(paramlist) * 100 / init_len) + '% of young stars inside this box..', args)
 
     return ax
 
@@ -512,7 +514,7 @@ def make_projections(box_cut, args, identifier, output_selfig, output_slidefig=N
         prj = do_plot(box_cut.ds, field_dict[field_to_plot], thisproj, [], box_cut, box.center.in_units(kpc), 2 * args.galrad * kpc, \
                       cmap_dict[field_to_plot], halo_dict[args.halo], unit=projected_unit_dict[field_to_plot], zmin=projected_bounds_dict[field_to_plot][0], \
                       zmax=projected_bounds_dict[field_to_plot][1], weight_field=weight_field_dict[field_to_plot], iscolorlog=islog_dict[field_to_plot], \
-                      noweight=args.weight is None)
+                      noweight=False)
 
         this_figname = output_projfig.replace('proj_' + args.projection, 'proj_' + thisproj)
         prj.save(this_figname, mpl_kwargs={'dpi': 500})
