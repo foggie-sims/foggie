@@ -1057,6 +1057,12 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--selcol', dest='selcol', action='store_true', default=False, help='make a selection in the color space too?, default is no')
     parser.add_argument('--use_cvs_log', dest='use_cvs_log', action='store_true', default=False, help='make the datashader canvas itself in log-scale as opposed to converting the data to log?, default is no')
 
+    # ------- args added for flux_tracking_movie.py ------------------------------
+    parser.add_argument('--units_kpc', dest='units_kpc', action='store_true', default=False, help='the inner and outer radii of the sphere are in kpc units?, default is no')
+    parser.add_argument('--units_rvir', dest='units_rvir', action='store_true', default=False, help='the inner and outer radii of the sphere are in fraction of Rvir?, default is no')
+    parser.add_argument('--temp_cut', dest='temp_cut', action='store_true', default=False, help='compute everything broken into cold, cool, warm, and hot gas?, default is no')
+    parser.add_argument('--cgm_filter', dest='cgm_filter', action='store_true', default=False, help='remove CGM based on density and temp thresholds in consistency.py?, default is no')
+
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 
