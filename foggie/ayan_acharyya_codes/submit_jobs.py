@@ -51,6 +51,9 @@ def parse_args():
     parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False)
     parser.add_argument('--overplot_stars', dest='overplot_stars', action='store_true', default=False)
     parser.add_argument('--clobber_plot', dest='clobber_plot', action='store_true', default=False)
+    parser.add_argument('--units_kpc', dest='units_kpc', action='store_true', default=False)
+    parser.add_argument('--units_rvir', dest='units_rvir', action='store_true', default=False)
+    parser.add_argument('--temp_cut', dest='temp_cut', action='store_true', default=False)
     args, leftovers = parser.parse_known_args()
 
     return args
@@ -82,6 +85,8 @@ if __name__ == '__main__':
     overplot_stars_flag = ' --overplot_stars ' if args.overplot_stars else ''
     clobber_plot_flag = ' --clobber_plot ' if args.clobber_plot else ''
     nevery_flag = ' --nevery ' + str(args.nevery) if args.nevery > 1 and args.do_all_sims else ''
+    tempcut_flag = ' --temp_cut ' if args.temp_cut else ''
+    units_flag = ' --units_kpc ' if args.units_kpc else ' --units_rvir ' if args.units_rvir else ''
 
     jobscript_path = HOME+'/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
     jobscript_template = 'jobscript_template_' + args.system + '.txt'
@@ -156,7 +161,7 @@ if __name__ == '__main__':
                         'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
                         'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \
                         'OVERPLOT_STARS_FLAG': overplot_stars_flag, 'CLOBBER_PLOT_FLAG': clobber_plot_flag, 'NSECONDS':str(int(nhours) * 3600), \
-                        'NEVERY_FLAG': nevery_flag} # keywords to be replaced in template jobscript
+                        'NEVERY_FLAG': nevery_flag, 'UNITS_FLAG': units_flag, 'TEMPCUT_FLAG': tempcut_flag} # keywords to be replaced in template jobscript
 
         with open(jobscript_path + jobscript_template) as infile, open(out_jobscript, 'w') as outfile:
             for line in infile:
