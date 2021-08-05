@@ -328,7 +328,7 @@ if __name__ == '__main__':
         args.current_time = ds.current_time.in_units('Gyr')
 
         # ----------generating the flux tracking tables----------
-        table_name = table_dir + args.output + '_mass_fluxes.hdf5'
+        table_name = table_dir + args.output + '_fluxes_mass.hdf5'
         if not os.path.exists(table_name) or args.clobber:
             if not os.path.exists(table_name):
                 print_mpi(table_name + ' does not exist. Creating afresh..', args)
