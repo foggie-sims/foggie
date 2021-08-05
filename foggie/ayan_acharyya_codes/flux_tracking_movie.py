@@ -7,16 +7,180 @@
     Output :     flux profile plots as png files (which can be later converted to a movie via animate_png.py)
     Author :     Ayan Acharyya
     Started :    August 2021
-    Examples :   run flux_tracking_movie.py --system ayan_local --halo 8508 --galrad 20 --units_kpc --overplot_stars --output RD0042 --clobber_plot
-                 run flux_tracking_movie.py --system ayan_local --halo 8508 --galrad 20 --units_kpc --overplot_stars --do_all_sims --makemovie --delay 0.05
+    Examples :   run flux_tracking_movie.py --system ayan_local --halo 8508 --galrad 20 --units_kpc --output RD0042 --clobber_plot
+                 run flux_tracking_movie.py --system ayan_pleiades --halo 8508 --galrad 20 --units_kpc --do_all_sims --makemovie --delay 0.05
 """
 from header import *
 from util import *
-from flux_tracking_cassi import *
 from make_ideal_datacube import shift_ref_frame
 from filter_star_properties import get_star_properties
 from datashader_movie import get_radial_velocity
+from foggie.utils.analysis_utils import segment_region
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+# ---------------------------------------------------------------------------------
+def set_table_units(table):
+    '''
+    Sets the units for the table. Note this needs to be updated whenever something is added to the table. Returns the table.
+    This function is copied from Cassi's code foggie.flux_tracking.flux_tracking.set_table_units()
+    '''
+    for key in table.keys():
+        if (key=='redshift'):
+            table[key].unit = None
+        elif ('radius' in key):
+            table[key].unit = 'kpc'
+        elif ('mass' in key) or ('metal' in key):
+            table[key].unit = 'Msun/yr'
+    return table
+
+# ---------------------------------------------------------------------------------
+def make_table(flux_types, args):
+    '''
+    Makes the giant table that will be saved to file.
+    This function is adapted from Cassi's code foggie.flux_tracking.flux_tracking.make_table()
+    '''
+    names_list = ['redshift', 'radius']
+    types_list = ['f8', 'f8']
+
+    dir_name = ['net_', '_in', '_out']
+    if (args.temp_cut): temp_name = ['', 'cold_', 'cool_', 'warm_', 'hot_']
+    else: temp_name = ['']
+    for i in range(len(flux_types)):
+        for k in range(len(temp_name)):
+            for j in range(len(dir_name)):
+                if (j==0): name = dir_name[j]
+                else: name = ''
+                name += temp_name[k]
+                name += flux_types[i]
+                if (j>0): name += dir_name[j]
+                names_list += [name]
+                types_list += ['f8']
+
+    table = Table(names=names_list, dtype=types_list)
+
+    return table
+
+# ---------------------------------------------------------------------------------
+def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, args):
+    '''
+    This function calculates the gas and metal mass fluxes into and out of a spherical surface. It
+    uses the dataset stored in 'ds', which is from time snapshot 'snap', has redshift
+    'zsnap', and has width of the refine box in kpc 'refine_width_kpc', the time step between outputs
+    'dt', and stores the fluxes in 'tablename'.
+
+    This function calculates the flux as the sum
+    of all cells whose velocity and distance from the surface of interest indicate that the gas
+    contained in that cell will be displaced across the surface of interest by the next timestep.
+    That is, the properties of a cell contribute to the flux if it is no further from the surface of
+    interest than v*dt where v is the cell's velocity normal to the surface and dt is the time
+    between snapshots, which is dt = 5.38e6 yrs for the DD outputs. It is necessary to compute the
+    flux this way if satellites are to be removed because they become 'holes' in the dataset
+    and fluxes into/out of those holes need to be accounted for.
+    This function is adapted from Cassi's code foggie.flux_tracking.flux_tracking.calc_fluxes()
+    '''
+    # Set up table of everything we want
+    fluxes = ['mass_flux', 'metal_flux']
+
+    # Define list of ways to chunk up the shape over radius or height
+    inner_radius = 0.01
+    outer_radius = args.galrad
+    num_steps = 100
+    table = make_table(fluxes, args)
+    if (args.units_kpc):
+        dr = (outer_radius-inner_radius)/num_steps
+        chunks = ds.arr(np.arange(inner_radius,outer_radius+dr,dr), 'kpc')
+    elif (args.units_rvir):
+        # Load the mass enclosed profile
+        foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+        masses_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+        rvir_masses = Table.read(masses_dir + 'rvir_masses.hdf5', path='all_data')
+        Rvir = rvir_masses['radius'][rvir_masses['snapshot'] == snap]
+        dr = (outer_radius-inner_radius)/num_steps*Rvir
+        chunks = ds.arr(np.arange(inner_radius*Rvir,outer_radius*Rvir+dr,dr), 'kpc')
+    else:
+        dr = (outer_radius-inner_radius)/num_steps*refine_width_kpc
+        chunks = np.arange(inner_radius*refine_width_kpc,outer_radius*refine_width_kpc+dr,dr)
+
+    # Load arrays of all fields we need
+    print('Loading field arrays')
+    sphere = ds.sphere(ds.halo_center_kpc, chunks[-1])
+
+    radius = sphere['gas','radius_corrected'].in_units('kpc').v
+    x = sphere['gas','x'].in_units('kpc').v - ds.halo_center_kpc[0].v
+    y = sphere['gas','y'].in_units('kpc').v - ds.halo_center_kpc[1].v
+    z = sphere['gas','z'].in_units('kpc').v - ds.halo_center_kpc[2].v
+
+    theta = sphere['gas','theta_pos'].v
+    phi = sphere['gas', 'phi_pos'].v
+    vx = sphere['gas','vx_corrected'].in_units('km/s').v
+    vy = sphere['gas','vy_corrected'].in_units('km/s').v
+    vz = sphere['gas','vz_corrected'].in_units('km/s').v
+
+    new_x = x + vx*dt*(100./cmtopc*stoyr)
+    new_y = y + vy*dt*(100./cmtopc*stoyr)
+    new_z = z + vz*dt*(100./cmtopc*stoyr)
+    new_radius = np.sqrt(new_x**2. + new_y**2. + new_z**2.)
+    new_theta = np.arccos(new_z/new_radius)
+    new_phi = np.arctan2(new_y, new_x)
+    temperature = np.log10(sphere['gas','temperature'].in_units('K').v)
+
+    mass = sphere['gas','cell_mass'].in_units('Msun').v
+    metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
+    fields = [mass, metal_mass]
+
+    # Cut to just the shapes specified
+    bool_inshapes = segment_region(x, y, z, theta, phi, radius, [['sphere', inner_radius, outer_radius, num_steps]], refine_width_kpc, Rvir=Rvir if args.units_rvir else 0, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+    bool_inshapes_new = segment_region(new_x, new_y, new_z, new_theta, new_phi, new_radius, [['sphere', inner_radius, outer_radius, num_steps]], refine_width_kpc, Rvir=Rvir if args.units_rvir else 0, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+    bool_inshapes_entire = (bool_inshapes) & (bool_inshapes_new)
+
+    bool_nosat = np.ones(len(x), dtype=bool)
+
+    # Cut to within shapes, entering/leaving shapes, and entering/leaving satellites
+    fields_shapes = []
+    radius_shapes = radius[(bool_inshapes_entire) & (bool_nosat)]
+    new_radius_shapes = new_radius[(bool_inshapes_entire) & (bool_nosat)]
+    temperature_shapes = temperature[(bool_inshapes_entire) & (bool_nosat)]
+    for i in range(len(fields)):
+        field = fields[i]
+        fields_shapes.append(field[(bool_inshapes_entire) & (bool_nosat)])
+
+    if (args.temp_cut): temps = [0.,4.,5.,6.,12.]
+    else: temps = [0.]
+
+    # Loop over chunks and compute fluxes to add to tables
+    for r in range(len(chunks)-1):
+        if (r%10==0): print("Computing chunk " + str(r) + "/" + str(len(chunks)) + " for snapshot " + snap)
+
+        inner = chunks[r]
+        outer = chunks[r+1]
+        row = [zsnap, inner]
+
+        temp_up = temperature_shapes[(radius_shapes < inner) & (new_radius_shapes > inner)]
+        temp_down = temperature_shapes[(radius_shapes > inner) & (new_radius_shapes < inner)]
+
+        for i in range(len(fields)):
+            iter = [0,1,2]
+            field_up = fields_shapes[i][(radius_shapes < inner) & (new_radius_shapes > inner)]
+            field_down = fields_shapes[i][(radius_shapes > inner) & (new_radius_shapes < inner)]
+
+            for k in range(len(temps)):
+                if (k==0):
+                    field_up_t = field_up
+                    field_down_t = field_down
+                else:
+                    field_up_t = field_up[(temp_up > temps[k-1]) & (temp_up < temps[k])]
+                    field_down_t = field_down[(temp_down > temps[k-1]) & (temp_down < temps[k])]
+                for j in iter:
+                    if (j==0): row.append(np.sum(field_up_t)/dt - np.sum(field_down_t)/dt)
+                    if (j==1): row.append(-np.sum(field_down_t)/dt)
+                    if (j==2): row.append(np.sum(field_up_t)/dt)
+
+        table.add_row(row)
+
+    table = set_table_units(table)
+    table.write(tablename, path='all_data', serialize_meta=True, overwrite=True)
+
+    return table
 
 # ---------------------------------------------------------------------------------
 def overplot_stars(ax, args):
@@ -117,6 +281,8 @@ if __name__ == '__main__':
     table_dir = dummy_args.output_dir + 'txtfiles/'
     Path(table_dir).mkdir(parents=True, exist_ok=True)
 
+    cmtopc = 3.086e18
+    stoyr = 3.155e7
     dt = 5.38e6
 
     # --------domain decomposition; for mpi parallelisation-------------
@@ -162,15 +328,14 @@ if __name__ == '__main__':
         args.current_time = ds.current_time.in_units('Gyr')
 
         # ----------generating the flux tracking tables----------
-        table_root = table_dir + args.output + '_fluxes'
-        table_name = table_root + '_mass.hdf5'
+        table_name = table_dir + args.output + '_mass_fluxes.hdf5'
         if not os.path.exists(table_name) or args.clobber:
             if not os.path.exists(table_name):
                 print_mpi(table_name + ' does not exist. Creating afresh..', args)
             elif args.clobber:
                 print_mpi(table_name + ' exists but over-writing..', args)
 
-            message = calc_fluxes(ds, args.output, args.current_redshift, dt, refine_width_kpc, table_root, '', [['sphere', 0.01, args.galrad, 100]], ['mass'], 0, args)
+            table = calc_fluxes(ds, args.output, args.current_redshift, dt, refine_width_kpc, table_name, args)
             # inner and outer radii of sphere are by default as a fraction of refine_box_width, unless --units_kpc is specified in user args, in whic case they are in kpc
         else:
             print_mpi('Skipping ' + table_name + ' because file already exists (use --clobber to over-write)', args)
