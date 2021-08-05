@@ -192,6 +192,7 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, args):
 
     table = set_table_units(table)
     table.write(tablename, path='all_data', serialize_meta=True, overwrite=True)
+    myprint('Saved table ' + tablename, args)
 
     return table
 
@@ -236,17 +237,17 @@ def make_flux_plot(table_name, fig_name, args):
 
     # ------create new columns for 'metallicity'--------
     df['net_Z_flux'] = df['net_metal_flux'] / df['net_mass_flux']
-    df['Z_flux_in'] = df['metal_flux_in'] / df['mass_flux_in']
+    df['Z_flux_in'] = -1 * df['metal_flux_in'] / df['mass_flux_in']
     df['Z_flux_out'] = df['metal_flux_out'] / df['mass_flux_out']
 
     quant_arr = ['mass', 'metal', 'Z']
     ylabel_arr = [r'Gas mass flux (M$_{\odot}$/yr)', r'Metal mass flux (M$_{\odot}$/yr)', r'Metallicity flux (Z/Z$_{\odot}$)']
-    ylim_arr = [(-25, 110), (-0.5, 2.2), (-0.01, 0.044)]
+    ylim_arr = [(-100, 1000), (-10, 100), (-0.05, 0.05)]
 
     # --------plot radial profiles----------------
     fig, axes = plt.subplots(1, 3, figsize=(14,5))
     extra_space = 0.03 if not args.overplot_stars else 0
-    plt.subplots_adjust(hspace=0.05, wspace=0.25, right=0.94 + extra_space, top=0.95, bottom=0.12, left=0.07)
+    plt.subplots_adjust(wspace=0.3, right=0.94 + extra_space, top=0.95, bottom=0.12, left=0.08)
 
     for index, ax in enumerate(axes):
         ax.axhline(0, c='k', ls='--', lw=0.5)
@@ -263,6 +264,7 @@ def make_flux_plot(table_name, fig_name, args):
         ax.set_xticks(np.linspace(0, args.galrad, 5))
         ax.set_xticklabels(['%.1F'%item for item in ax.get_xticks()], fontsize=args.fontsize)
 
+        ax.set_yscale('symlog')
         ax.set_ylim(ylim_arr[index])
         ax.set_ylabel(ylabel_arr[index], fontsize=args.fontsize)
         ax.set_yticklabels(['%.2F'%item if quant_arr[index] == 'Z' else '%.1F'%item for item in ax.get_yticks()], fontsize=args.fontsize)
