@@ -15,14 +15,32 @@ from util import *
 from make_ideal_datacube import shift_ref_frame
 from filter_star_properties import get_star_properties
 from datashader_movie import get_radial_velocity
-from foggie.utils.analysis_utils import segment_region
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+# ---------------------------------------------------------------------------------
+def segment_region(radius, inner_radius, outer_radius, refine_width_kpc, Rvir=100., units_kpc=False, units_rvir=False):
+    '''
+    This function reads in arrays of x, y, z, theta_pos, phi_pos, and radius values and returns a
+    boolean list of the same size that is True if a cell is contained within a shape in the list of
+    shapes given by 'shapes' and is False otherwise. If disk-relative coordinates are needed for some
+    shapes, they can be passed in with the optional x_disk, y_disk, z_disk.
+    This function is abridged from Cassi's code foggie.utils.analysis_utils.segment_region()
+    '''
+    if (units_rvir):
+        inner_radius = inner_radius * Rvir
+        outer_radius = outer_radius * Rvir
+    elif not units_kpc:
+        inner_radius = inner_radius * refine_width_kpc
+        outer_radius = outer_radius * refine_width_kpc
+    bool_insphere = (radius > inner_radius) & (radius < outer_radius)
+
+    return bool_insphere
 
 # ---------------------------------------------------------------------------------
 def set_table_units(table):
     '''
     Sets the units for the table. Note this needs to be updated whenever something is added to the table. Returns the table.
-    This function is copied from Cassi's code foggie.flux_tracking.flux_tracking.set_table_units()
+    This function is abridged from Cassi's code foggie.flux_tracking.flux_tracking.set_table_units()
     '''
     for key in table.keys():
         if (key=='redshift'):
@@ -37,7 +55,7 @@ def set_table_units(table):
 def make_table(flux_types, args):
     '''
     Makes the giant table that will be saved to file.
-    This function is adapted from Cassi's code foggie.flux_tracking.flux_tracking.make_table()
+    This function is abridged from Cassi's code foggie.flux_tracking.flux_tracking.make_table()
     '''
     names_list = ['redshift', 'radius']
     types_list = ['f8', 'f8']
@@ -76,7 +94,7 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, args):
     between snapshots, which is dt = 5.38e6 yrs for the DD outputs. It is necessary to compute the
     flux this way if satellites are to be removed because they become 'holes' in the dataset
     and fluxes into/out of those holes need to be accounted for.
-    This function is adapted from Cassi's code foggie.flux_tracking.flux_tracking.calc_fluxes()
+    This function is abridged from Cassi's code foggie.flux_tracking.flux_tracking.calc_fluxes()
     '''
     # Set up table of everything we want
     fluxes = ['mass_flux', 'metal_flux']
@@ -110,8 +128,6 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, args):
     y = sphere['gas','y'].in_units('kpc').v - ds.halo_center_kpc[1].v
     z = sphere['gas','z'].in_units('kpc').v - ds.halo_center_kpc[2].v
 
-    theta = sphere['gas','theta_pos'].v
-    phi = sphere['gas', 'phi_pos'].v
     vx = sphere['gas','vx_corrected'].in_units('km/s').v
     vy = sphere['gas','vy_corrected'].in_units('km/s').v
     vz = sphere['gas','vz_corrected'].in_units('km/s').v
@@ -120,8 +136,6 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, args):
     new_y = y + vy*dt*(100./cmtopc*stoyr)
     new_z = z + vz*dt*(100./cmtopc*stoyr)
     new_radius = np.sqrt(new_x**2. + new_y**2. + new_z**2.)
-    new_theta = np.arccos(new_z/new_radius)
-    new_phi = np.arctan2(new_y, new_x)
     temperature = np.log10(sphere['gas','temperature'].in_units('K').v)
 
     mass = sphere['gas','cell_mass'].in_units('Msun').v
@@ -129,8 +143,8 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, args):
     fields = [mass, metal_mass]
 
     # Cut to just the shapes specified
-    bool_inshapes = segment_region(x, y, z, theta, phi, radius, [['sphere', inner_radius, outer_radius, num_steps]], refine_width_kpc, Rvir=Rvir if args.units_rvir else 0, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
-    bool_inshapes_new = segment_region(new_x, new_y, new_z, new_theta, new_phi, new_radius, [['sphere', inner_radius, outer_radius, num_steps]], refine_width_kpc, Rvir=Rvir if args.units_rvir else 0, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+    bool_inshapes = segment_region(radius, inner_radius, outer_radius, refine_width_kpc, Rvir=Rvir if args.units_rvir else 0, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
+    bool_inshapes_new = segment_region(new_radius, inner_radius, outer_radius, refine_width_kpc, Rvir=Rvir if args.units_rvir else 0, units_kpc=args.units_kpc, units_rvir=args.units_rvir)
     bool_inshapes_entire = (bool_inshapes) & (bool_inshapes_new)
 
     bool_nosat = np.ones(len(x), dtype=bool)
@@ -152,7 +166,6 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, args):
         if (r%10==0): print("Computing chunk " + str(r) + "/" + str(len(chunks)) + " for snapshot " + snap)
 
         inner = chunks[r]
-        outer = chunks[r+1]
         row = [zsnap, inner]
 
         temp_up = temperature_shapes[(radius_shapes < inner) & (new_radius_shapes > inner)]
