@@ -1,19 +1,25 @@
-Mvir - summed mass of dark matter particles within Rvir IDed by rockstar as bound to this halo (Msun)
-Mtot - summed mass of dark matter particles within Rvir as IDed by rockstar (Mvir_all), includes unbound particles (Msun)
-M200c - summed mass of dark matter particles enclosed within the radius within which the overdensity reaches 200xrho_crit (Msun)
-Rvir - virial radius as calculated by rockstar (kpc)
-X,Y,Z - center of halo as calculated by rockstar (Mpc)
-X_cu, Y_cu, Z_cu - center of halo as calculated by rockstar (code_length)
-Center - numpy array of [X,Y,Z] (Mpc)
-Center_cu - bumpy array of [X_cu,Y_cu,Z_cu] (code_length)
-VX,VY,VZ - peculiar velocity of halo as calculated by rockstar (km/s)
-Spin_DM_B - Bullock et al., 2001 spin parameter of dark matter particles as calculated by rockstar (dimensionless)
+DATABASE PROPERTIES:
+Mvir - summed mass of dark matter particles within Rvir IDed by rockstar as bound to this halo (Msun)*
+Mtot - summed mass of dark matter particles within Rvir as IDed by rockstar (Mvir_all), includes unbound particles (Msun)*
+M200c - summed mass of dark matter particles enclosed within the radius within which the overdensity reaches 200xrho_crit (Msun)*
+Rvir - virial radius as calculated by rockstar (kpc)*
+X,Y,Z - center of halo as calculated by rockstar (Mpc)*
+X_cu, Y_cu, Z_cu - center of halo as calculated by rockstar (code_length)*
+Center - numpy array of [X,Y,Z] (Mpc)*
+Center_cu - bumpy array of [X_cu,Y_cu,Z_cu] (code_length)*
+VX,VY,VZ - peculiar velocity of halo as calculated by rockstar (km/s)*
+Spin_DM_B - Bullock et al., 2001 spin parameter of dark matter particles as calculated by rockstar (dimensionless)*
 M_gas - summed mass of all gas cells within Rvir (Msun)
 M_coldgas - summed mass of gas with T<1.5e4 within Rvir (Msun)
 M_star - summed mass of all star particles within Rvir (Msun)
 ContamFrac - fraction of Mtot made up of type 1 dark matter particles (dimensionless)
 consistent_trees_link - all halos from the previous timestep that end up as part of this halo in the current timestep (array of halo objects)
-consistent_trees_id - ID number of merger tree in tree_0_0_0.dat (dimensionless)
+consistent_trees_id - ID number of halo's merger tree in tree_0_0_0.dat (dimensionless)
 
-Note that rockstar is only run on type 4 DM particles, so all properties that come from rockstar are based entirely on those.
-The current database includes all halos with at least 75 type 4 DM particles.
+*Note that rockstar is only run on type 4 DM particles, so all properties that come from rockstar are based entirely on those.
+
+CUSTOM LIVE CALCULATIONS:
+Satellites - all halos that are within halo's virial radius and have a lower virial mass than halo (array of halo objects)
+Hosts - all halos that contain halo within their virial radius and have a higher virial mass than halo (array of halo objects)
+
+Usage: e.g., sim[30][1].calculate('Satellites()') 
