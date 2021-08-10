@@ -241,7 +241,7 @@ def make_flux_plot(table_name, fig_name, args):
     df['Z_flux_out'] = df['metal_flux_out'] / df['mass_flux_out']
 
     quant_arr = ['mass', 'metal', 'Z']
-    ylabel_arr = [r'Gas mass flux (M$_{\odot}$/yr)', r'Metal mass flux (M$_{\odot}$/yr)', r'Metallicity flux (Z/Z$_{\odot}$)']
+    ylabel_arr = [r'Gas mass flux (M$_{\odot}$/yr)', r'Metal mass flux (M$_{\odot}$/yr)', r'Metallicity flux']
     ylim_arr = [(-100, 1000), (-10, 100), (-0.05, 0.05)]
 
     # --------plot radial profiles----------------
@@ -258,7 +258,7 @@ def make_flux_plot(table_name, fig_name, args):
         # ----------to overplot young stars----------------
         if args.overplot_stars and quant_arr[index] == 'Z': ax = overplot_stars(ax, args)
 
-        if index == 0: ax.legend(fontsize=args.fontsize)
+        if index == 1: ax.legend(fontsize=args.fontsize)
         ax.set_xlim(0, args.galrad)
         ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
         ax.set_xticks(np.linspace(0, args.galrad, 5))
