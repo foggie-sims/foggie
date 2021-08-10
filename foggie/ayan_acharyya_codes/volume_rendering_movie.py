@@ -283,7 +283,12 @@ if __name__ == '__main__':
 
     if args.makemovie and args.do_all_sims and not args.noplot:
         print_master('Finished creating snapshots, calling animate_png.py to create movie..', args)
-        subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname[:outfile_rootname.find('z_')+3] + '*' + outfile_rootname[outfile_rootname.find('_vol'):] + ' --delay ' + str(args.delay_frame)], shell=True)
+        if args.do_all_halos: halos = get_all_halos(args)
+        else: halos = dummy_args.halo_arr
+        for thishalo in halos:
+            args = parse_args(thishalo, 'RD0020') # RD0020 is inconsequential here, just a place-holder
+            fig_dir = args.output_dir + 'figs/'
+            subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname[:outfile_rootname.find('z_')+3] + '*' + outfile_rootname[outfile_rootname.find('_vol'):] + ' --delay ' + str(args.delay_frame)], shell=True)
 
     if ncores > 1: print_master('Parallely: time taken for volume rendering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for volume rendering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
