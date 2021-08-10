@@ -128,13 +128,16 @@ if __name__ == '__main__':
     if type(dummy_args_tuple) is tuple: dummy_args = dummy_args_tuple[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     else: dummy_args = dummy_args_tuple
 
-    if dummy_args.do_all_halos: list_of_sims = get_all_sims(dummy_args) # all snapshots of all halos
-    elif dummy_args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(dummy_args) # all snapshots of this particular halo
-    else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
+    if dummy_args.do_all_sims:
+        list_of_sims = get_all_sims(dummy_args) # all snapshots of this particular halo
+    else:
+        if dummy_args.do_all_halos: halos = get_all_halos(dummy_args)
+        else: halos = dummy_args.halo_arr
+        list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
 
     for this_sim in list_of_sims:
-        if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
-        else: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
+        if len(list_of_sims) == 1: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
+        else: args = parse_args(this_sim[0], this_sim[1])
 
         if type(args) is tuple:
             args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again

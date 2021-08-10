@@ -807,7 +807,9 @@ def get_all_sims(args):
     '''
     Function assimilate the names of all halos and snapshots available in the given directory
     '''
-    halos = get_all_halos(args)
+    if args.do_all_halos: halos = get_all_halos(args)
+    else: halos = args.halo_arr
+
     all_sims = []
     for index, thishalo in enumerate(halos):
         args.halo = thishalo
@@ -1066,9 +1068,13 @@ def parse_args(haloname, RDname, fast=False):
     args = parser.parse_args()
 
     args.diag_arr = [item for item in args.diag_arr.split(',')]
-    args.Om_arr = [float(item) for item in args.Om_arr.split(',')]
     args.diag = args.diag_arr[0]
+    args.Om_arr = [float(item) for item in args.Om_arr.split(',')]
     args.Om = args.Om_arr[0]
+    args.halo_arr = [item for item in args.halo.split(',')]
+    args.halo = args.halo_arr[0] if len(args.halo_arr) == 1 else haloname
+    args.output_arr = [item for item in args.output.split(',')]
+    args.output = args.output_arr[0] if len(args.output_arr) == 1 else RDname
     args.move_to = np.array([float(item) for item in args.move_to.split(',')])  # kpc
     args.center_wrt_halo = np.array([float(item) for item in args.center_wrt_halo.split(',')])  # kpc
     args.obs_wave_range = np.array([float(item) for item in args.obs_wave_range.split(',')])

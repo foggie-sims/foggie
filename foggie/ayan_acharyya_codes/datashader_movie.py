@@ -8,6 +8,7 @@
     Author :     Ayan Acharyya
     Started :    July 2021
     Examples :   run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol metal --colorcol vrad --weight density --overplot_stars --do_all_sims --makemovie --delay 0.2
+                 run datashader_movie.py --system ayan_hd --halo 8508,5036 --fullbox --xcol rad --ycol metal --colorcol vrad --output RD0020,RD0030 --clobber_plot
                  run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol temp --colorcol density,metal,vrad,phi_L,theta_L --output RD0042 --clobber_plot --overplot_stars --keep
                  run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol metal --colorcol vrad,density,temp,phi_L,theta_L --output RD0042 --clobber_plot --overplot_stars --keep
                  run datashader_movie.py --system ayan_local --halo 8508 --do gas --galrad 20 --xcol rad --ycol metal --colorcol temp --output RD0030 --clobber_plot --overplot_stars --interactive --selcol --combine
@@ -731,8 +732,12 @@ if __name__ == '__main__':
     if dummy_args.xcol == 'radius': dummy_args.xcol == 'rad'
     if not dummy_args.keep: plt.close('all')
 
-    if dummy_args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(dummy_args) # all snapshots of this particular halo
-    else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
+    if dummy_args.do_all_sims:
+        list_of_sims = get_all_sims(dummy_args) # all snapshots of this particular halo
+    else:
+        if dummy_args.do_all_halos: halos = get_all_halos(dummy_args)
+        else: halos = dummy_args.halo_arr
+        list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
     total_snaps = len(list_of_sims)
 
     weight_field_dict = defaultdict(lambda: None, metal=dummy_args.weight, temp=dummy_args.weight, vrad=dummy_args.weight, phi_L=dummy_args.weight, theta_L=dummy_args.weight)
@@ -772,8 +777,8 @@ if __name__ == '__main__':
         this_sim = list_of_sims[index]
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
         try:
-            if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
-            else: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
+            if len(list_of_sims) == 1: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
+            else: args = parse_args(this_sim[0], this_sim[1])
 
             if type(args) is tuple:
                 args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
