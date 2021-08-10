@@ -748,10 +748,6 @@ if __name__ == '__main__':
     if weight_field_dict[dummy_args.xcol] and not dummy_args.noweight: xcol += '_wtby_' + weight_field_dict[dummy_args.xcol]
     if weight_field_dict[dummy_args.ycol] and not dummy_args.noweight: ycol += '_wtby_' + weight_field_dict[dummy_args.ycol]
 
-    # parse paths and filenames
-    fig_dir = dummy_args.output_dir + 'figs/' if dummy_args.do_all_sims else dummy_args.output_dir + 'figs/' + dummy_args.output + '/'
-    Path(fig_dir).mkdir(parents=True, exist_ok=True)
-
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
     ncores = comm.size
@@ -793,6 +789,10 @@ if __name__ == '__main__':
         except (FileNotFoundError, PermissionError) as e:
             print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), dummy_args)
             continue
+
+        # parse paths and filenames
+        fig_dir = args.output_dir + 'figs/' if args.do_all_sims else args.output_dir + 'figs/' + args.output + '/'
+        Path(fig_dir).mkdir(parents=True, exist_ok=True)
 
         if args.fullbox:
             box_width = ds.refine_width  # kpc
@@ -841,11 +841,16 @@ if __name__ == '__main__':
 
     if args.makemovie and args.do_all_sims:
         print_master('Finished creating snapshots, calling animate_png.py to create movie..', args)
-        for thiscolorcol in colorcol_arr:
-            args.colorcol = thiscolorcol
-            colorcol = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
-            outfile_rootname = 'z=*_datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, ycol, xcol, colorcol)
-            subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
+        if args.do_all_halos: halos = get_all_halos(args)
+        else: halos = dummy_args.halo_arr
+        for thishalo in halos:
+            args = parse_args(thishalo, 'RD0020') # RD0020 is inconsequential here, just a place-holder
+            fig_dir = args.output_dir + 'figs/'
+            for thiscolorcol in colorcol_arr:
+                args.colorcol = thiscolorcol
+                colorcol = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
+                outfile_rootname = 'z=*_datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, ycol, xcol, colorcol)
+                subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
 
     if ncores > 1: print_master('Parallely: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)

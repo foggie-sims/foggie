@@ -294,12 +294,6 @@ if __name__ == '__main__':
         list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
     total_snaps = len(list_of_sims)
 
-    # parse paths and filenames
-    fig_dir = dummy_args.output_dir + 'figs/' if dummy_args.do_all_sims else dummy_args.output_dir + 'figs/' + dummy_args.output + '/'
-    Path(fig_dir).mkdir(parents=True, exist_ok=True)
-    table_dir = dummy_args.output_dir + 'txtfiles/'
-    Path(table_dir).mkdir(parents=True, exist_ok=True)
-
     cmtopc = 3.086e18
     stoyr = 3.155e7
     dt = 5.38e6
@@ -342,6 +336,12 @@ if __name__ == '__main__':
             print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), dummy_args)
             continue
 
+        # parse paths and filenames
+        fig_dir = args.output_dir + 'figs/' if args.do_all_sims else args.output_dir + 'figs/' + args.output + '/'
+        Path(fig_dir).mkdir(parents=True, exist_ok=True)
+        table_dir = args.output_dir + 'txtfiles/'
+        Path(table_dir).mkdir(parents=True, exist_ok=True)
+
         refine_width_kpc = ds.arr(ds.refine_width, 'kpc')
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr')
@@ -379,7 +379,12 @@ if __name__ == '__main__':
 
     if args.makemovie and args.do_all_sims:
         print_master('Finished creating snapshots, calling animate_png.py to create movie..', args)
-        subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
+        if args.do_all_halos: halos = get_all_halos(args)
+        else: halos = dummy_args.halo_arr
+        for thishalo in halos:
+            args = parse_args(thishalo, 'RD0020') # RD0020 is inconsequential here, just a place-holder
+            fig_dir = args.output_dir + 'figs/'
+            subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
 
     if ncores > 1: print_master('Parallely: %d snapshots completed in %s using %d cores' % (total_snaps, datetime.timedelta(seconds=time.time() - start_time), ncores), dummy_args)
     else: print_master('Serially: %d snapshots completed in %s using %d core' % (total_snaps, datetime.timedelta(seconds=time.time() - start_time), ncores), dummy_args)
