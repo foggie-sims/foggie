@@ -48,8 +48,9 @@ snap = args.output
 
 filename = foggie_dir+'halo_00'+halo+'/'+sim+'/'+snap+'/'+snap
 track_name = trackname
-
-
+ds, region = fl(filename,trackname)
+halocenter = region.center
+[halocenter_x,halocenter_y,halocenter_z]=region.center
 
 
 
@@ -72,7 +73,11 @@ HImasses = []
 IDs = []
 radialdistances=[]
 com=[]
-
+coordinates=[]
+xc=[]
+yc=[]
+zc=[]
+distancefromhalocenter=[]
 
 
 for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box10','box11','box12','box13','box14','box15','box16','box17','box18','box19','box20','box21','box22','box23','box24','box25','box26','box27']:
@@ -92,6 +97,7 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
     IDs = []
     radialdistances=[]
     com=[]
+    clumpcenter=[]
 
     for i in range(4000):
         i=i+1
@@ -123,20 +129,31 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
 
             clumpmasses.append(clumpmass)
             clumpvolumes.append(clumpvolume)
+            xi=ad["grid", "x"].mean()
+            xc.append(xi)
+            yi=ad["grid", "y"].mean()
+            yc.append(yi)
+            zi=ad["grid", "z"].mean()
+            zc.append(zi)
+            coordis = (xi,yi,zi)
+            coordinates.append(coordis)
 
+            distancefromhalocenteri= np.sqrt(((xi-halocenter_x))**2 + ((yi-halocenter_y))**2 + ((zi-halocenter_z)])**2)
+            distancefromhalocenteri=distancefromhalocenteri.in_units("kpc")
+            distancefromhalocenter.append(distancefromhalocenteri)
             x_extend = (ad["grid", "x"].max().in_units("kpc") - ad["gas", "x"].min().in_units("kpc"))
             y_extend = (ad["grid", "y"].max().in_units("kpc") - ad["gas", "y"].min().in_units("kpc"))
             z_extend = (ad["grid", "z"].max().in_units("kpc") - ad["gas", "z"].min().in_units("kpc"))
-            print(x_extend)
-            print(y_extend)
-            print(z_extend)
-            maxex=max([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value
-            minex=min([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value
-            print(maxex)
-            print(minex)
+            #print(x_extend)
+            #print(y_extend)
+            #print(z_extend)
+            #maxex=max([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value
+            #minex=min([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value
+            #print(maxex)
+            #print(minex)
             elo=(np.max([x_extend.value,y_extend.value,z_extend.value])-np.min([x_extend.value,y_extend.value,z_extend.value]))/(np.max([x_extend.value,y_extend.value,z_extend.value])+np.min([x_extend.value,y_extend.value,z_extend.value]))
-            elo = minex/maxex
-            print(elo)
+            #elo = minex/maxex
+            #print(elo)
             elongations.append(elo)
 
             SiIImass = ad["gas", 'Si_p1_mass'].sum().in_units("Msun")
@@ -175,7 +192,8 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
     HImasses=np.array(HImasses)
     radialdistances=np.array(radialdistances)
     com=np.array(com)
-
+    coordinates=np.array(coordinates)
+    distancefromhalocenter=np.array(distancefromhalocenter)
     clumpradii = (3/4/np.pi * clumpvolumes)**(1/3)
 
 
@@ -195,10 +213,16 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
     col13 = fits.Column(name='MgIImasses', format='E', unit='Msun', array=MgIImasses)
     col14 = fits.Column(name='HImasses', format='E', unit='Msun', array=HImasses)
     col15 = fits.Column(name='radialvelocities', format='E', unit='km/s', array=radialvelocities)
-    col16 = fits.Column(name='radialdistances', format='E', unit='pc', array=radialdistances)
-    col17 = fits.Column(name='com', format='3E', unit='code_units', array=com)
+    #col16 = fits.Column(name='radialdistances', format='E', unit='pc', array=radialdistances)
+    #col17 = fits.Column(name='com', format='3E', unit='code_units', array=com)
+    #col18 = fits.Column(name='coordinates', format='3E', unit='code_units', array=coordinates)
+    col19 = fits.Column(name='centerx', format='E', unit='code_units', array=xc)
+    col20 = fits.Column(name='centery', format='E', unit='code_units', array=yc)
+    col21 = fits.Column(name='centerz', format='E', unit='code_units', array=zc)
+    col22 = fits.Column(name='distancefromhalocenter', format='E', unit='kpc', array=distancefromhalocenter)
 
-    coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17])
+    #coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17, col18, col19, col20, col21, col22])
+    coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col19, col20, col21, col22])
     hdu = fits.BinTableHDU.from_columns(coldefs)
     hdu.writeto('halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements.fits')
 """
