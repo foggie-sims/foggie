@@ -48,6 +48,7 @@ def get_df_from_ds(ds, args):
         elif args.clobber:
             myprint(outfilename + ' exists but over-writing..', args)
 
+        myprint('Extracting all gas, once and for all, and putting them into dataframe, so that this step is not required for subsequently plotting other parameters and therefore subsequent plotting is faster; this may take a while..', args)
         df_allprop = pd.DataFrame()
         all_fields = field_dict.keys()
         for index,field in enumerate(all_fields):
@@ -790,7 +791,7 @@ if __name__ == '__main__':
 
         if args.fullbox:
             box_width = ds.refine_width  # kpc
-            args.galrad = box.width / 2
+            args.galrad = box_width / 2
             box = refine_box
         else:
             box_center = ds.arr(args.halo_center, kpc)
