@@ -138,7 +138,7 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             coordis = (xi,yi,zi)
             coordinates.append(coordis)
 
-            distancefromhalocenteri= np.sqrt(((xi-halocenter_x))**2 + ((yi-halocenter_y))**2 + ((zi-halocenter_z)])**2)
+            distancefromhalocenteri= np.sqrt(((xi-halocenter_x))**2 + ((yi-halocenter_y))**2 + ((zi-halocenter_z)))**2)
             distancefromhalocenteri=distancefromhalocenteri.in_units("kpc")
             distancefromhalocenter.append(distancefromhalocenteri)
             x_extend = (ad["grid", "x"].max().in_units("kpc") - ad["gas", "x"].min().in_units("kpc"))
