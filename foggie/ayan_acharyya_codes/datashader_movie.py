@@ -34,6 +34,30 @@ def weight_by(data, weights):
     return weighted_data
 
 # -------------------------------------------------------------------------------
+def extract_columns_from_df(df_allprop, args):
+    '''
+    Function to extract only the relevant fields/columns for this analysis
+    :return: dataframe
+    '''
+    if args.inflow_only: df_allprop = df_allprop[df_allprop['vrad'] < 0.]
+    elif args.outflow_only: df_allprop = df_allprop[df_allprop['vrad'] > 0.]
+
+    df = pd.DataFrame()
+    for field in [args.xcol, args.ycol, args.colorcol]:
+        column_name = field
+        arr = df_allprop[field]
+        if weight_field_dict[field] and args.weight:
+            weights = df_allprop[weight_field_dict[field]]
+            arr = weight_by(arr, weights)
+            column_name = column_name + '_wtby_' + weight_field_dict[field]
+        if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log):
+            arr = np.log10(arr)
+            column_name = 'log_' + column_name
+        df[column_name] = arr
+
+    return df
+
+# -------------------------------------------------------------------------------
 def get_df_from_ds(ds, args):
     '''
     Function to make a pandas dataframe from the yt dataset based on the given field list and color category,
@@ -61,20 +85,7 @@ def get_df_from_ds(ds, args):
         myprint('Reading from existing file ' + outfilename, args)
         df_allprop = pd.read_table(outfilename, delim_whitespace=True, comment='#')
 
-    # ----------extract only the relevant fields/columns for this analysis-------------
-    df = pd.DataFrame()
-    for field in [args.xcol, args.ycol, args.colorcol]:
-        column_name = field
-        arr = df_allprop[field]
-        if weight_field_dict[field] and args.weight:
-            weights = df_allprop[weight_field_dict[field]]
-            arr = weight_by(arr, weights)
-            column_name = column_name + '_wtby_' + weight_field_dict[field]
-        if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log):
-            arr = np.log10(arr)
-            column_name = 'log_' + column_name
-        df[column_name] = arr
-
+    df = extract_columns_from_df(df_allprop, args)
     return df
 
 # ----------------------------------------------------------------------------------
@@ -312,14 +323,12 @@ def wrap_axes(df, filename, npix_datashader, args, limits):
     return fig
 
 # --------------------------------------------------------------------------------
-def make_datashader_plot(ds, outfilename, args, npix_datashader=1000):
+def make_datashader_plot(df, outfilename, args, npix_datashader=1000):
     '''
     Function to make data shader plot of y_field vs x_field, colored in bins of color_field
     This function is based on foggie.render.shade_maps.render_image()
     :return dataframe, figure
     '''
-    df = get_df_from_ds(ds, args)
-
     # ----------to determine axes limits--------------
     x_min, x_max = bounds_dict[args.xcol]
     if islog_dict[args.xcol] and not args.use_cvs_log: x_min, x_max = np.log10(x_min), np.log10(x_max)
@@ -804,6 +813,15 @@ if __name__ == '__main__':
             box_width_kpc = ds.arr(box_width, 'kpc')
             box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
 
+        if args.inflow_only:
+            box = box.cut_region(["obj[('gas', 'radial_velocity_corrected')] < 0"])
+            inflow_outflow_text = '_inflow_only'
+        elif args.outflow_only:
+            box = box.cut_region(["obj[('gas', 'radial_velocity_corrected')] > 0"])
+            inflow_outflow_text = '_outflow_only'
+        else:
+            inflow_outflow_text = ''
+
         bounds_dict = defaultdict(lambda: None, rad=(0, args.galrad), density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-2, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
         projected_bounds_dict = defaultdict(lambda x: bounds_dict[x], density=(density_proj_min, density_proj_max))
 
@@ -818,7 +836,7 @@ if __name__ == '__main__':
             colorcol_cat = 'cat_' + colorcol
             print_mpi('Plotting ' + xcol + ' vs ' + ycol + ', color coded by ' + colorcol + ' i.e., plot ' + str(index + 1) + ' of ' + str(len(colorcol_arr)) + '..', args)
 
-            outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, ycol, xcol, colorcol)
+            outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.png' % (args.galrad, ycol, xcol, colorcol, inflow_outflow_text)
             if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
 
             thisfilename = fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
@@ -829,7 +847,8 @@ if __name__ == '__main__':
                 elif args.clobber_plot:
                     print_mpi(thisfilename + ' plot exists but over-writing..', args)
 
-                df, fig = make_datashader_plot(box, thisfilename, args, npix_datashader=npix_datashader)
+                df = get_df_from_ds(box, args)
+                df, fig = make_datashader_plot(df, thisfilename, args, npix_datashader=npix_datashader)
                 if args.interactive:
                     myprint('This plot is now in interactive mode..', args)
                     fig = setup_interactive(box, fig.axes[0], args, npix_datashader=npix_datashader, nbins=nselection_bins, ncolbins=ncolor_selection_bins)
