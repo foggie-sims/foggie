@@ -279,7 +279,7 @@ def make_colorbar_axis(colname, data_min, data_max, fig, fontsize):
     ax.set_xticks(np.arange((data_max - data_min) + 1., step=delta_c) * np.shape(cbar_im)[1] / (data_max - data_min))
     ax.set_xticklabels(['%.0F' % index for index in np.arange(data_min, data_max + 1, delta_c)], fontsize=fontsize/1.5)#, weight='bold')
     
-    fig.text(ax_xpos + ax_width / 2, ax_ypos + ax_height, log_text + labels_dict[args.colorcol] + ' (' + unit_dict[args.colorcol] + ')', fontsize=fontsize/1.5, ha='center', va='bottom')
+    fig.text(ax_xpos + ax_width / 2, ax_ypos + ax_height, log_text + labels_dict[colname] + ' (' + unit_dict[colname] + ')', fontsize=fontsize/1.5, ha='center', va='bottom')
 
     for item in ['top', 'bottom', 'left', 'right']: ax.spines[item].set_color('white')
     ax.set_yticklabels([])
