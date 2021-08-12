@@ -46,10 +46,10 @@ def extract_columns_from_df(df_allprop, args):
     for field in [args.xcol, args.ycol, args.colorcol]:
         column_name = field
         arr = df_allprop[field]
-        if weight_field_dict[field] and args.weight:
-            weights = df_allprop[weight_field_dict[field]]
+        if isfield_weighted_dict[field] and args.weight:
+            weights = df_allprop[args.weight]
             arr = weight_by(arr, weights)
-            column_name = column_name + '_wtby_' + weight_field_dict[field]
+            column_name = column_name + '_wtby_' + args.weight
         if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log):
             arr = np.log10(arr)
             column_name = 'log_' + column_name
@@ -120,7 +120,7 @@ def convert_from_datashader_frame(data, data_min, data_max, npix_datashader):
     return data * (data_max - data_min) / npix_datashader + data_min
 
 # ---------------------------------------------------------------------------------
-def overplot_stars(x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax, args):
+def get_stars_file(args):
     '''
     Function to overplot young stars on existing datashader plot
     Uses globally defined colormap_dict
@@ -138,27 +138,39 @@ def overplot_stars(x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax
     paramlist = paramlist.rename(columns={'gas_metal': 'metal', 'gas_density': 'density', 'gas_pressure': 'pressure', 'gas_temp': 'temp'})
     paramlist = get_radial_velocity(paramlist)
     paramlist = paramlist[paramlist['rad'].between(0, args.galrad)] # to overplot only those young stars that are within the desired radius ('rad' is in kpc)
+
+    if args.inflow_only: paramlist = paramlist[paramlist['vrad'] < 0.]
+    elif args.outflow_only: paramlist = paramlist[paramlist['vrad'] > 0.]
+
     for field in [args.xcol, args.ycol, args.colorcol]:
         if field not in paramlist.columns:
             print_mpi(field + ' does not exist in young star list, therefore cannot overplot stars..', args)
-            return ax
+            return pd.DataFrame() # return empty dataframe
         column_name = field
-        if weight_field_dict[field] and args.weight:
-            weightcol = weight_field_dict[field]
+        if isfield_weighted_dict[field] and args.weight:
+            weightcol = args.weight
             if weightcol in paramlist.columns: weights = paramlist[weightcol]
             else: weights = np.ones(len(paramlist))
             paramlist[column_name + '_wtby_' + weightcol] = weight_by(paramlist[column_name], weights)
             column_name = column_name + '_wtby_' + weightcol
         if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log): paramlist['log_' + column_name] = np.log10(paramlist[column_name])
 
+    return paramlist
+
+# ---------------------------------------------------------------------------------
+def overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax, args):
+    '''
+    Function to overplot young stars on existing datashader plot
+    Uses globally defined colormap_dict
+    '''
     init_len = len(paramlist)
     if init_len > 0:
-        paramlist = paramlist[(paramlist[xcol].between(x_min, x_max)) & (paramlist[ycol].between(y_min, y_max)) & (paramlist[colorcol].between(c_min, c_max))]
+        paramlist = paramlist[(paramlist[args.xcolname].between(x_min, x_max)) & (paramlist[args.ycolname].between(y_min, y_max)) & (paramlist[args.colorcolname].between(c_min, c_max))]
 
         # -------------to actually plot the simulation data------------
-        x_on_plot = convert_to_datashader_frame(paramlist[xcol], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
-        y_on_plot = convert_to_datashader_frame(paramlist[ycol], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
-        ax.scatter(x_on_plot, y_on_plot, c=paramlist[colorcol], vmin=c_min, vmax=c_max, edgecolors='black', lw=0.2, s=15, cmap=colormap_dict[args.colorcol])
+        x_on_plot = convert_to_datashader_frame(paramlist[args.xcolname], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
+        y_on_plot = convert_to_datashader_frame(paramlist[args.ycolname], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
+        ax.scatter(x_on_plot, y_on_plot, c=paramlist[args.colorcolname], vmin=c_min, vmax=c_max, edgecolors='black', lw=0.2, s=15, cmap=colormap_dict[args.colorcol])
         print_mpi('Overplotted ' + str(len(paramlist)) + ' of ' + str(init_len) + ', i.e., ' + '%.2F'%(len(paramlist) * 100 / init_len) + '% of young stars inside this box..', args)
 
     return ax
@@ -171,8 +183,8 @@ def overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax, args):
     '''
     x_bin_size = bin_size_dict[args.xcol]
     x_bins = np.arange(x_min, x_max + x_bin_size, x_bin_size)
-    df['binned_cat'] = pd.cut(df[xcol], x_bins)
-    if islog_dict[args.ycol] and not args.use_cvs_log: df[args.ycol] = 10 ** df[ycol] # because otherwise args.ycol is not going to be present in df
+    df['binned_cat'] = pd.cut(df[args.xcolname], x_bins)
+    if islog_dict[args.ycol] and not args.use_cvs_log: df[args.ycol] = 10 ** df[args.ycolname] # because otherwise args.ycol is not going to be present in df
     y_binned = df.groupby('binned_cat', as_index=False).agg(np.mean)[args.ycol] # so that the averaging is done in linear space (as opposed to log space, which would be incorrect)
     if islog_dict[args.ycol] and not args.use_cvs_log: y_binned = np.log10(y_binned)
 
@@ -276,7 +288,7 @@ def make_colorbar_axis(colname, data_min, data_max, fig, fontsize):
     return fig, ax
 
 # -----------------------------------------------------------------------------------
-def wrap_axes(df, filename, npix_datashader, args, limits):
+def wrap_axes(df, filename, npix_datashader, args, limits, paramlist=None):
     '''
     Function to read in raw datashader plot and wrap it in axes using matplotlib AND added x- and y- marginalised histograms using seaborn
     This function is partly based on foggie.render.shade_maps.wrap_axes()
@@ -284,12 +296,12 @@ def wrap_axes(df, filename, npix_datashader, args, limits):
     '''
     x_min, x_max, y_min, y_max, c_min, c_max = limits
     # ----------to get quantities in datashader pixel units--------------
-    df[xcol + '_in_pix'] = convert_to_datashader_frame(df[xcol], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log)
-    df[ycol + '_in_pix'] = convert_to_datashader_frame(df[ycol], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
+    df[args.xcolname + '_in_pix'] = convert_to_datashader_frame(df[args.xcolname], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log)
+    df[args.ycolname + '_in_pix'] = convert_to_datashader_frame(df[args.ycolname], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
 
     # -----------------to initialise figure---------------------
     shift_right = 'phi' in args.ycol or 'theta' in args.ycol
-    axes = sns.JointGrid(xcol + '_in_pix', ycol + '_in_pix', df, height=8)
+    axes = sns.JointGrid(args.xcolname + '_in_pix', args.ycolname + '_in_pix', df, height=8)
     extra_space = 0.03 if shift_right else 0
     plt.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95 + extra_space, top=0.95, bottom=0.1, left=0.1 + extra_space)
     fig, ax1 = plt.gcf(), axes.ax_joint
@@ -299,14 +311,14 @@ def wrap_axes(df, filename, npix_datashader, args, limits):
     ax1.imshow(np.flip(img, 0))
 
     # ----------to overplot young stars----------------
-    if args.overplot_stars: ax1 = overplot_stars(x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax1, args)
+    if args.overplot_stars: ax1 = overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax1, args)
 
     # ----------to overplot binned profile----------------
     ax1 = overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax1, args)
 
     # ----------to plot 1D histogram on the top and right axes--------------
-    axes.ax_marg_x = plot_1D_histogram(df[xcol + '_in_pix'], 0, npix_datashader, axes.ax_marg_x, vertical=False)
-    axes.ax_marg_y = plot_1D_histogram(df[ycol + '_in_pix'], 0, npix_datashader, axes.ax_marg_y, vertical=True)
+    axes.ax_marg_x = plot_1D_histogram(df[args.xcolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_x, vertical=False)
+    axes.ax_marg_y = plot_1D_histogram(df[args.ycolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_y, vertical=True)
 
     # ------to make the axes-------------
     ax1.xaxis = make_coordinate_axis(args.xcol, x_min, x_max, ax1.xaxis, args.fontsize, npix_datashader=npix_datashader, dsh=True, log_scale=islog_dict[args.xcol] and args.use_cvs_log)
@@ -314,8 +326,8 @@ def wrap_axes(df, filename, npix_datashader, args, limits):
     fig, ax2 = make_colorbar_axis(args.colorcol, c_min, c_max, fig, args.fontsize)
 
     # ---------to annotate and save the figure----------------------
-    plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift, transform=ax1.transAxes, fontsize=args.fontsize)
-    plt.text(0.033, 0.1, 't = %.3F Gyr' % args.current_time, transform=ax1.transAxes, fontsize=args.fontsize)
+    if args.current_redshift is not None: plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift, transform=ax1.transAxes, fontsize=args.fontsize)
+    if args.current_time is not None: plt.text(0.033, 0.1, 't = %.3F Gyr' % args.current_time, transform=ax1.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=False)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
@@ -323,13 +335,14 @@ def wrap_axes(df, filename, npix_datashader, args, limits):
     return fig
 
 # --------------------------------------------------------------------------------
-def make_datashader_plot(df, outfilename, args, npix_datashader=1000):
+def make_datashader_plot(df, outfilename, args, npix_datashader=1000, paramlist=None):
     '''
     Function to make data shader plot of y_field vs x_field, colored in bins of color_field
     This function is based on foggie.render.shade_maps.render_image()
     :return dataframe, figure
     '''
     # ----------to determine axes limits--------------
+    bounds_dict.update(rad=(0, args.galrad))
     x_min, x_max = bounds_dict[args.xcol]
     if islog_dict[args.xcol] and not args.use_cvs_log: x_min, x_max = np.log10(x_min), np.log10(x_max)
     y_min, y_max = bounds_dict[args.ycol]
@@ -338,17 +351,17 @@ def make_datashader_plot(df, outfilename, args, npix_datashader=1000):
     if islog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
 
     # ----------to filter and categorize the dataframe--------------
-    df = df[(df[xcol].between(x_min, x_max)) & (df[ycol].between(y_min, y_max)) & (df[colorcol].between(c_min, c_max))]
-    df[colorcol_cat] = categorize_by_quant(df[colorcol], c_min, c_max, colormap_dict[args.colorcol])
-    df[colorcol_cat] = df[colorcol_cat].astype('category')
+    df = df[(df[args.xcolname].between(x_min, x_max)) & (df[args.ycolname].between(y_min, y_max)) & (df[args.colorcolname].between(c_min, c_max))]
+    df[args.colorcol_cat] = categorize_by_quant(df[args.colorcolname], c_min, c_max, colormap_dict[args.colorcol])
+    df[args.colorcol_cat] = df[args.colorcol_cat].astype('category')
 
     cvs = dsh.Canvas(plot_width=npix_datashader, plot_height=npix_datashader, x_range=(x_min, x_max), y_range=(y_min, y_max), x_axis_type='log' if islog_dict[args.xcol] and args.use_cvs_log else 'linear', y_axis_type='log' if islog_dict[args.ycol] and args.use_cvs_log  else 'linear')
-    agg = cvs.points(df, xcol, ycol, dsh.count_cat(colorcol_cat))
+    agg = cvs.points(df, args.xcolname, args.ycolname, dsh.count_cat(args.colorcol_cat))
     color_key = get_color_keys(c_min, c_max, colormap_dict[args.colorcol])
     img = dstf.spread(dstf.shade(agg, color_key=color_key, how='eq_hist', min_alpha=40), shape='square')
     export_image(img, os.path.splitext(outfilename)[0])
 
-    fig = wrap_axes(df, os.path.splitext(outfilename)[0] + '.png', npix_datashader, args, limits=[x_min, x_max, y_min, y_max, c_min, c_max])
+    fig = wrap_axes(df, os.path.splitext(outfilename)[0] + '.png', npix_datashader, args, limits=[x_min, x_max, y_min, y_max, c_min, c_max], paramlist=paramlist)
 
     return df, fig
 
@@ -515,8 +528,9 @@ def make_projections(box_cut, args, identifier, output_selfig, output_slidefig=N
     Function to make projection plots once the selection has been finalised
     '''
     # -----make projection plots with the selection-----------
+    bounds_dict.update(rad=(0, args.galrad))
     field_to_plot = 'density'
-    output_projfig = fig_dir + '%s' % (field_to_plot) + '_boxrad_%.2Fkpc' % (args.galrad) + '_proj_' + args.projection + '_lasso' + str(identifier) + '_by_' + ycol + '_vs_' + xcol + '_projection.png'
+    output_projfig = fig_dir + '%s' % (field_to_plot) + '_boxrad_%.2Fkpc' % (args.galrad) + '_proj_' + args.projection + '_lasso' + str(identifier) + '_by_' + args.ycolname + '_vs_' + args.xcolname + '_projection.png'
 
     # ------to make new plots corresponding to the selected region----------
     proj_arr = ['x', 'y', 'z'] if args.combine else [args.projection]
@@ -524,7 +538,7 @@ def make_projections(box_cut, args, identifier, output_selfig, output_slidefig=N
     for thisproj in proj_arr:
         prj = do_plot(box_cut.ds, field_dict[field_to_plot], thisproj, [], box_cut, box.center.in_units(kpc), 2 * args.galrad * kpc, \
                       cmap_dict[field_to_plot], halo_dict[args.halo], unit=projected_unit_dict[field_to_plot], zmin=projected_bounds_dict[field_to_plot][0], \
-                      zmax=projected_bounds_dict[field_to_plot][1], weight_field=weight_field_dict[field_to_plot], iscolorlog=islog_dict[field_to_plot], \
+                      zmax=projected_bounds_dict[field_to_plot][1], weight_field=args.weight if isfield_weighted_dict[field_to_plot] else None, iscolorlog=islog_dict[field_to_plot], \
                       noweight=False)
 
         this_figname = output_projfig.replace('proj_' + args.projection, 'proj_' + thisproj)
@@ -547,11 +561,11 @@ def on_second_key_press(event, box_cut, ax, args, range_selector, identifier, ou
 
         if x_upper_bound > x_lower_bound:
             # -----save the selection-----------
-            output_slidefig = fig_dir + 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s_slider%d.png' % (args.galrad, ycol, xcol, colorcol, identifier)
+            output_slidefig = fig_dir + 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s_slider%d.png' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname, identifier)
             ax.figure.savefig(output_slidefig)  # to save the highlighted image
 
             # ------to cut out the selected region----------
-            if args.debug: myprint('Preparing to cut regions further based on highlighted selection: %s from %.2F to %.2F %s'%(colorcol, x_lower_bound, x_upper_bound, unit_dict[args.colorcol]), args)
+            if args.debug: myprint('Preparing to cut regions further based on highlighted selection: %s from %.2F to %.2F %s'%(args.colorcolname, x_lower_bound, x_upper_bound, unit_dict[args.colorcol]), args)
 
             if islog_dict[args.colorcol]: x_lower_bound, x_upper_bound = 10 ** x_lower_bound, 10 ** x_upper_bound
 
@@ -579,6 +593,7 @@ def make_histogram(box_cut, args, identifier, output_selfig, ncolbins):
     Function to prepare histogram with interactive range_selector, once the 2D selection is finalised
     '''
     # ----------to determine axes limits--------------
+    bounds_dict.update(rad=(0, args.galrad))
     c_min, c_max = bounds_dict[args.colorcol]
     if islog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
 
@@ -613,11 +628,12 @@ def on_first_key_press(event, box, ax, args, npix_datashader, nbins, selector, x
         if nselection > 0:
             # -----save the selection-----------
             identifier = random.randint(10, 99)
-            output_selfig = fig_dir + 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s_lasso%d.png' % (args.galrad, ycol, xcol, colorcol, identifier)
+            output_selfig = fig_dir + 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s_lasso%d.png' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname, identifier)
             ax.figure.savefig(output_selfig)  # to save the highlighted image
             if args.debug: print('Selected ' + str(nselection) + ' binned pixels:', selector.xys[selector.ind])
 
             # ----------to determine axes limits--------------
+            bounds_dict.update(rad=(0, args.galrad))
             x_min, x_max = bounds_dict[args.xcol]
             if islog_dict[args.xcol] and not args.use_cvs_log: x_min, x_max = np.log10(x_min), np.log10(x_max)
             y_min, y_max = bounds_dict[args.ycol]
@@ -719,21 +735,25 @@ def categorize_by_quant(data, data_min, data_max, discrete_cmap):
 
     return category
 
+#-------- set variables and dictionaries-----------
+field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'mass':('gas', 'mass'), \
+              'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'vrad':('gas', 'radial_velocity_corrected'), \
+              'phi_L':('gas', 'angular_momentum_phi'), 'theta_L':('gas', 'angular_momentum_theta'), 'volume':('gas', 'volume')}
+unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'volume':'pc**3'}
+labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF'}
+islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True)
+bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
+colormap_dict = {'temp':temperature_discrete_cmap, 'metal':metal_discrete_cmap, 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi}
+isfield_weighted_dict = defaultdict(lambda: False, metal=True, temp=True, vrad=True, phi_L=True, theta_L=True)
+bounds_dict = defaultdict(lambda: None, density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-2, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
+
+projected_unit_dict = defaultdict(lambda x: unit_dict[x], density='Msun/pc**2')
+cmap_dict = {'density':density_color_map, 'metal':metal_color_map, 'temp':temperature_color_map, 'vrad':velocity_discrete_cmap} # for projection plots, if any
+projected_bounds_dict = {'density': (density_proj_min, density_proj_max)}
+
 # -----main code-----------------
 if __name__ == '__main__':
     npix_datashader, nselection_bins, ncolor_selection_bins = 1000, 50, 100
-    # set variables and dictionaries
-    field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'mass':('gas', 'mass'), \
-                  'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'vrad':('gas', 'radial_velocity_corrected'), \
-                  'phi_L':('gas', 'angular_momentum_phi'), 'theta_L':('gas', 'angular_momentum_theta'), 'volume':('gas', 'volume')}
-    unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'volume':'pc**3'}
-    labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF'}
-    islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True)
-    bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
-    colormap_dict = {'temp':temperature_discrete_cmap, 'metal':metal_discrete_cmap, 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi}
-
-    projected_unit_dict = defaultdict(lambda x: unit_dict[x], density='Msun/pc**2')
-    cmap_dict = {'density':density_color_map, 'metal':metal_color_map, 'temp':temperature_color_map, 'vrad':velocity_discrete_cmap} # for projection plots, if any
 
     dummy_args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
     if type(dummy_args_tuple) is tuple: dummy_args = dummy_args_tuple[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
@@ -749,13 +769,11 @@ if __name__ == '__main__':
         list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
     total_snaps = len(list_of_sims)
 
-    weight_field_dict = defaultdict(lambda: None, metal=dummy_args.weight, temp=dummy_args.weight, vrad=dummy_args.weight, phi_L=dummy_args.weight, theta_L=dummy_args.weight)
-
     # parse column names, in case log
-    xcol = 'log_' + dummy_args.xcol if islog_dict[dummy_args.xcol] and not dummy_args.use_cvs_log else dummy_args.xcol
-    ycol = 'log_' + dummy_args.ycol if islog_dict[dummy_args.ycol] and not dummy_args.use_cvs_log else dummy_args.ycol
-    if weight_field_dict[dummy_args.xcol] and not dummy_args.noweight: xcol += '_wtby_' + weight_field_dict[dummy_args.xcol]
-    if weight_field_dict[dummy_args.ycol] and not dummy_args.noweight: ycol += '_wtby_' + weight_field_dict[dummy_args.ycol]
+    dummy_args.xcolname = 'log_' + dummy_args.xcol if islog_dict[dummy_args.xcol] and not dummy_args.use_cvs_log else dummy_args.xcol
+    dummy_args.ycolname = 'log_' + dummy_args.ycol if islog_dict[dummy_args.ycol] and not dummy_args.use_cvs_log else dummy_args.ycol
+    if isfield_weighted_dict[dummy_args.xcol] and dummy_args.weight: dummy_args.xcolname += '_wtby_' + dummy_args.weight
+    if isfield_weighted_dict[dummy_args.ycol] and dummy_args.weight: dummy_args.ycolname += '_wtby_' + dummy_args.weight
 
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
@@ -822,21 +840,19 @@ if __name__ == '__main__':
         else:
             inflow_outflow_text = ''
 
-        bounds_dict = defaultdict(lambda: None, rad=(0, args.galrad), density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-2, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
-        projected_bounds_dict = defaultdict(lambda x: bounds_dict[x], density=(density_proj_min, density_proj_max))
-
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr')
         colorcol_arr = args.colorcol
+        args.xcolname, args.ycolname = dummy_args.xcolname, dummy_args.ycolname
 
         for index, thiscolorcol in enumerate(colorcol_arr):
             args.colorcol = thiscolorcol
-            colorcol = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
-            if weight_field_dict[args.colorcol] and args.weight: colorcol += '_wtby_' + weight_field_dict[args.colorcol]
-            colorcol_cat = 'cat_' + colorcol
-            print_mpi('Plotting ' + xcol + ' vs ' + ycol + ', color coded by ' + colorcol + ' i.e., plot ' + str(index + 1) + ' of ' + str(len(colorcol_arr)) + '..', args)
+            args.colorcolname = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
+            if isfield_weighted_dict[args.colorcol] and args.weight: args.colorcolname += '_wtby_' + args.weight
+            args.colorcol_cat = 'cat_' + args.colorcolname
+            print_mpi('Plotting ' + args.xcolname + ' vs ' + args.ycolname + ', color coded by ' + args.colorcolname + ' i.e., plot ' + str(index + 1) + ' of ' + str(len(colorcol_arr)) + '..', args)
 
-            outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.png' % (args.galrad, ycol, xcol, colorcol, inflow_outflow_text)
+            outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.png' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text)
             if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
 
             thisfilename = fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
@@ -848,7 +864,8 @@ if __name__ == '__main__':
                     print_mpi(thisfilename + ' plot exists but over-writing..', args)
 
                 df = get_df_from_ds(box, args)
-                df, fig = make_datashader_plot(df, thisfilename, args, npix_datashader=npix_datashader)
+                paramlist = get_stars_file(args) if overplot_stars else None
+                df, fig = make_datashader_plot(df, thisfilename, args, npix_datashader=npix_datashader, paramlist=paramlist)
                 if args.interactive:
                     myprint('This plot is now in interactive mode..', args)
                     fig = setup_interactive(box, fig.axes[0], args, npix_datashader=npix_datashader, nbins=nselection_bins, ncolbins=ncolor_selection_bins)
@@ -867,8 +884,8 @@ if __name__ == '__main__':
             fig_dir = args.output_dir + 'figs/'
             for thiscolorcol in colorcol_arr:
                 args.colorcol = thiscolorcol
-                colorcol = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
-                outfile_rootname = 'z=*_datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, ycol, xcol, colorcol)
+                args.colorcolname = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
+                outfile_rootname = 'z=*_datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname)
                 subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
 
     if ncores > 1: print_master('Parallely: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
