@@ -150,6 +150,7 @@ if __name__ == '__main__':
         thishalo = halos[jobid - 1] if args.halo is None else args.halo
         haloflag = ' --halo ' + thishalo
         jobname = prefixtext + thishalo
+        if jobname[:3] != args.proc: jobname = args.proc + '_' + jobname
         if args.do_all_sims and args.nevery > 1: jobname += '_ne' + str(args.nevery)
 
         # ----------replacing keywords in jobscript template to make the actual jobscript---------
