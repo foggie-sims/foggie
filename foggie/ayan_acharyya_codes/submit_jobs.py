@@ -68,6 +68,10 @@ if __name__ == '__main__':
         args.proc = 'ldan'
         args.nnodes = 1
         args.ncores = None
+    # ----------special settings for endeavour queue--------
+    elif args.queue[:2] == 'e_':
+        args.proc = 'cas_end'
+        args.nnodes = 1
 
     #----------setting different variables based on args--------
     systemflag = ' --system ' + args.system
@@ -120,8 +124,8 @@ if __name__ == '__main__':
         qname = 'hugemem' if args.queue == 'large' and args.nonewcube else 'normal'
 
     elif 'pleiades' in args.system:
-        procs_dir = {'san':(16, 32), 'ivy':(20, 64), 'has':(24, 128), 'bro':(28, 128), 'bro_ele':(28, 128), 'sky_ele':(40, 192), 'cas_ait':(40, 192), 'ldan':(16, 750)} # (nnodes, mem) for each proc, from https://www.nas.nasa.gov/hecc/support/kb/pbs-resource-request-examples_188.html
-        max_hours_dict = defaultdict(lambda: 120, low=4, normal=8, long=120, debug=2, devel=2, ldan=72) # from https://www.nas.nasa.gov/hecc/support/kb/pbs-job-queue-structure_187.html
+        procs_dir = {'san':(16, 32), 'ivy':(20, 64), 'has':(24, 128), 'bro':(28, 128), 'bro_ele':(28, 128), 'sky_ele':(40, 192), 'cas_ait':(40, 192), 'ldan':(16, 750), 'cas_end':(28, 185)} # (nnodes, mem) for each proc, from https://www.nas.nasa.gov/hecc/support/kb/pbs-resource-request-examples_188.html
+        max_hours_dict = defaultdict(lambda: 120, low=4, normal=8, long=120, e_long=72, e_normal=8, e_vlong=600, e_debug=2, debug=2, devel=2, ldan=72) # from https://www.nas.nasa.gov/hecc/support/kb/pbs-job-queue-structure_187.html
         workdir = '/nobackup/aachary2/foggie_outputs/pleiades_workdir' # for pleiades
         nnodes = args.nnodes
         ncores = args.ncores if args.ncores is not None else procs_dir[args.proc][0]
@@ -131,9 +135,14 @@ if __name__ == '__main__':
     # ----------determining what resource request goes into the job script, based on queues, procs, etc.---------
     nhours = args.nhours if args.nhours is not None else '01' if args.dryrun or args.queue == 'devel' else '%02d' % (max_hours_dict[args.queue])
 
-    resources = 'select=' + str(nnodes) + ':ncpus=' + str(ncores) + ':mpiprocs=' + str(ncores)
+    resources = 'select=' + str(nnodes) + ':ncpus=' + str(ncores)
+
+    if args.queue[:2] == 'e_': resources += ':mem=' + memory # for submitting to endeavour
+    else: resources += ':mpiprocs=' + str(ncores)
+
     if args.queue == 'ldan': resources += ''# ':mem=' + memory # need to specify mem per node for jobs on LDAN (for other procs it is by default the max available node mem)
     else: resources += ':model=' + args.proc # need to specify the proc (but not necessarily the mem if I'm using the full node memory) if not an LDAN job
+
     if args.aoe is not None: resources += ':aoe=' + args.aoe
 
     #----------looping over and creating + submitting job files--------
