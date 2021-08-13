@@ -147,11 +147,12 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             #print(x_extend)
             #print(y_extend)
             #print(z_extend)
-            #maxex=max([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value
-            #minex=min([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value
+            maxex=max([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value #add cell size because otherwise minimum extend can be 0 but should always be at least  the length of the cell
+            minex=min([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value
             #print(maxex)
             #print(minex)
-            elo=(np.max([x_extend.value,y_extend.value,z_extend.value])-np.min([x_extend.value,y_extend.value,z_extend.value]))/(np.max([x_extend.value,y_extend.value,z_extend.value])+np.min([x_extend.value,y_extend.value,z_extend.value]))
+            #elo=(np.max([x_extend.value,y_extend.value,z_extend.value])-np.min([x_extend.value,y_extend.value,z_extend.value]))/(np.max([x_extend.value,y_extend.value,z_extend.value])+np.min([x_extend.value,y_extend.value,z_extend.value]))
+            elo = (maxex-minex)/(maxex+minex)
             #elo = minex/maxex
             #print(elo)
             elongations.append(elo)
