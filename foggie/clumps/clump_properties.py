@@ -224,7 +224,13 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
     #coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17, col18, col19, col20, col21, col22])
     coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col19, col20, col21, col22])
     hdu = fits.BinTableHDU.from_columns(coldefs)
-    hdu.writeto('halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements.fits')
+    outfile = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements.fits'
+    oldoutfile = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements_old.fits'
+    if (os.path.exists(outfile)):
+        if (os.path.exists(oldoutfile)):
+            os.remove(oldoutfile)
+        os.rename(outfile, oldoutfile)
+    hdu.writeto(outfile)
 """
 plt.figure()
 plt.hist(clumpvolumes,bins=50)
