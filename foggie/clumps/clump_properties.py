@@ -138,7 +138,7 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             coordis = (xi,yi,zi)
             coordinates.append(coordis)
 
-            distancefromhalocenteri= np.sqrt(((xi-halocenter_x))**2 + ((yi-halocenter_y))**2 + ((zi-halocenter_z)])**2)
+            distancefromhalocenteri= np.sqrt(((xi-halocenter_x))**2 + ((yi-halocenter_y))**2 + ((zi-halocenter_z)))**2)
             distancefromhalocenteri=distancefromhalocenteri.in_units("kpc")
             distancefromhalocenter.append(distancefromhalocenteri)
             x_extend = (ad["grid", "x"].max().in_units("kpc") - ad["gas", "x"].min().in_units("kpc"))
@@ -147,11 +147,12 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             #print(x_extend)
             #print(y_extend)
             #print(z_extend)
-            #maxex=max([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value
-            #minex=min([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value
+            maxex=max([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value #add cell size because otherwise minimum extend can be 0 but should always be at least  the length of the cell
+            minex=min([x_extend,y_extend,z_extend]).value + ad["grid", "dx"].mean().in_units("kpc").value
             #print(maxex)
             #print(minex)
-            elo=(np.max([x_extend.value,y_extend.value,z_extend.value])-np.min([x_extend.value,y_extend.value,z_extend.value]))/(np.max([x_extend.value,y_extend.value,z_extend.value])+np.min([x_extend.value,y_extend.value,z_extend.value]))
+            #elo=(np.max([x_extend.value,y_extend.value,z_extend.value])-np.min([x_extend.value,y_extend.value,z_extend.value]))/(np.max([x_extend.value,y_extend.value,z_extend.value])+np.min([x_extend.value,y_extend.value,z_extend.value]))
+            elo = (maxex-minex)/(maxex+minex)
             #elo = minex/maxex
             #print(elo)
             elongations.append(elo)
@@ -224,7 +225,13 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
     #coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17, col18, col19, col20, col21, col22])
     coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col19, col20, col21, col22])
     hdu = fits.BinTableHDU.from_columns(coldefs)
-    hdu.writeto('halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements.fits')
+    outfile = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements.fits'
+    oldoutfile = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements_old.fits'
+    if (os.path.exists(outfile)):
+        if (os.path.exists(oldoutfile)):
+            os.remove(oldoutfile)
+        os.rename(outfile, oldoutfile)
+    hdu.writeto(outfile)
 """
 plt.figure()
 plt.hist(clumpvolumes,bins=50)

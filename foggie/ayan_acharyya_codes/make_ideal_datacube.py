@@ -214,14 +214,17 @@ if __name__ == '__main__':
 
     linelist = read_linelist(mappings_lab_dir + 'targetlines.txt')  # list of emission lines
 
-    if dummy_args.do_all_halos: list_of_sims = get_all_sims(dummy_args) # all snapshots of all halos
-    elif dummy_args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(dummy_args) # all snapshots of this particular halo
-    else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
+    if dummy_args.do_all_sims:
+        list_of_sims = get_all_sims(dummy_args) # all snapshots of this particular halo
+    else:
+        if dummy_args.do_all_halos: halos = get_all_halos(dummy_args)
+        else: halos = dummy_args.halo_arr
+        list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
 
     for index, this_sim in enumerate(list_of_sims):
         myprint('Doing halo ' + this_sim[0] + ' snapshot ' + this_sim[1] + ', which is ' + str(index + 1) + ' out of ' + str(len(list_of_sims)) + '..', dummy_args)
-        if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
-        else: args = dummy_args # since parse_args() has already been called and evaluated once, no need to repeat it
+        if len(list_of_sims) == 1: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
+        else: args = parse_args(this_sim[0], this_sim[1])
 
         if type(args) is tuple:
             args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again

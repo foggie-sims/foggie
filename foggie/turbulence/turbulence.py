@@ -106,7 +106,8 @@ def parse_args():
                         'vorticity_slice        -  x-slice of the velocity vorticity magnitude\n' + \
                         'vorticity_direction    -  2D histograms of vorticity direction split by temperature and radius\n' + \
                         'turbulent_spectrum     -  Turbulent energy power spectrum\n' + \
-                        'vel_struc_func         -  Velocity structure function')
+                        'vel_struc_func         -  Velocity structure function\n' + \
+                        'vdisp_vs_radius        -  Velocity dispersion vs radius')
 
     parser.add_argument('--region_filter', metavar='region_filter', type=str, action='store', \
                         help='Do you want to calculate turbulence statistics in different regions? Options are:\n' + \
@@ -125,8 +126,116 @@ def parse_args():
                         'want to plot, use --load_vsf to specify the save_suffix of the file to load from.')
     parser.set_defaults(load_vsf='none')
 
+    parser.add_argument('--load_stats', dest='load_stats', action='store_true', \
+                        help='If plotting vdisp_vs_radius,\n' + \
+                        'do you want to load from file for plotting? This requires the files you need\n' + \
+                        'to already exist. Run first without this command to make the files.')
+    parser.set_defaults(load_stats=False)
+
+    parser.add_argument('--weight', metavar='weight', type=str, action='store', \
+                        help='If plotting vdisp_vs_radius\n' + \
+                        'do you want to weight statistics by mass or volume? Default is mass.')
+    parser.set_defaults(weight='mass')
+
+    parser.add_argument('--filename', metavar='filename', type=str, action='store', \
+                        help='What is the name of the file (after the snapshot name) to pull vdisp from?\n' + \
+                        'There is no default for this, you must specify a filename, unless you are plotting\n' + \
+                        'a datashader plot.')
+
     args = parser.parse_args()
     return args
+
+def weighted_quantile(values, weights, quantiles):
+    """ Very close to numpy.percentile, but supports weights.
+    NOTE: quantiles should be in [0, 1]!
+    :param values: numpy.array with data
+    :param weights: array-like of the same length as `array`
+    :param quantiles: array-like with many quantiles needed
+    :return: numpy.array with computed quantiles.
+    """
+
+    sorter = np.argsort(values)
+    values = values[sorter]
+    weights = weights[sorter]
+    weighted_quantiles = np.cumsum(weights) - 0.5 * weights
+    weighted_quantiles /= np.sum(weights)
+
+    return np.interp(quantiles, weighted_quantiles, values)
+
+def weighted_avg_and_std(values, weights):
+    """
+    Return the weighted average and standard deviation.
+    values, weights -- Numpy ndarrays with the same shape.
+    """
+    average = np.average(values, weights=weights)
+    variance = np.average((values-average)**2, weights=weights)
+    return average, np.sqrt(variance)
+
+def set_table_units(table):
+    '''Sets the units for the table. Note this needs to be updated whenever something is added to
+    the table. Returns the table.'''
+
+    for key in table.keys():
+        if (key=='redshift'):
+            table[key].unit = None
+        elif ('radius' in key):
+            table[key].unit = 'kpc'
+        elif ('pdf' in key) and (args.weight=='mass'):
+            table[key].unit = 'mass PDF'
+        elif ('pdf' in key) and (args.weight=='volume'):
+            table[key].unit = 'volume PDF'
+        elif ('vdisp' in key):
+            table[key].unit = 'km/s'
+    return table
+
+def make_table(stat_types):
+    '''Makes the giant table that will be saved to file.'''
+
+    names_list = ['redshift', 'inner_radius', 'outer_radius']
+    types_list = ['f8', 'f8', 'f8']
+
+    if (args.region_filter!='none'):
+        regions_name = ['', 'low_' + args.region_filter + '_', 'mid_' + args.region_filter + '_', \
+                        'high_' + args.region_filter + '_']
+    else: regions_name = ['']
+    stat_names = ['_med', '_iqr', '_avg', '_std']
+    for i in range(len(stat_types)):
+        for k in range(len(regions_name)):
+            for l in range(len(stat_names)):
+                name = ''
+                name += regions_name[k]
+                name += stat_types[i]
+                name += stat_names[l]
+                names_list += [name]
+                types_list += ['f8']
+
+    table = Table(names=names_list, dtype=types_list)
+
+    return table
+
+def make_pdf_table(stat_types):
+    '''Makes the giant table for the PDFs that will be saved to file.'''
+
+    names_list = ['redshift', 'inner_radius', 'outer_radius']
+    types_list = ['f8', 'f8', 'f8']
+
+    if (args.region_filter!='none'):
+        regions_name = ['', 'low_' + args.region_filter + '_', 'mid_' + args.region_filter + '_', \
+                        'high_' + args.region_filter + '_']
+    else: regions_name = ['']
+    for i in range(len(stat_types)):
+        names_list += ['lower_' + stat_types[i], 'upper_' + stat_types[i]]
+        types_list += ['f8', 'f8']
+        for k in range(len(regions_name)):
+            name = ''
+            name += regions_name[k]
+            name += stat_types[i]
+            names_list += [name + '_pdf']
+            types_list += ['f8']
+
+    table = Table(names=names_list, dtype=types_list)
+
+    return table
 
 def velocity_slice(snap):
     '''Plots slices of radial, theta, and phi velocity fields through the center of the halo. The field,
@@ -592,6 +701,237 @@ def vsf_randompoints(snap):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
+def vdisp_vs_radius(snap):
+    '''Plots the turbulent velocity dispersion in hot, warm, and cool gas as functions of galactocentric
+    radius.'''
+
+    tablename_prefix = output_dir + 'turbulence_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    if (args.load_stats):
+        if (args.filename!=''): filename = '_' + args.filename
+        else: filename = ''
+        stats = Table.read(tablename_prefix + snap + '_stats_vdisp' + filename + '.hdf5', path='all_data')
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    if (not args.load_stats):
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+            print('Copying directory to /tmp')
+            snap_dir = '/tmp/' + snap
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
+        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+        zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+        pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
+        lvl1_res = pix_res*2.**11.
+        level = 9
+        dx = lvl1_res/(2.**level)
+        smooth_scale = int(25./dx)
+        refine_res = int(3.*Rvir/dx)
+        box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
+        density = box['density'].in_units('g/cm**3').v.flatten()
+        temperature = box['temperature'].v.flatten()
+        radius = box['radius_corrected'].in_units('kpc').v.flatten()
+        radius = radius[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+        if (args.weight=='mass'):
+            weights = box['cell_mass'].in_units('Msun').v.flatten()
+        if (args.weight=='volume'):
+            weights = box['cell_volume'].in_units('kpc**3').v.flatten()
+        weights = weights[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+        if (args.region_filter=='metallicity'):
+            metallicity = box['metallicity'].in_units('Zsun').v.flatten()
+            metallicity = metallicity[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+        if (args.region_filter=='velocity'):
+            rv = box['radial_velocity_corrected'].in_units('km/s').v.flatten()
+            rv = rv[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+            vff = box['vff'].in_units('km/s').v.flatten()
+            vesc = box['vesc'].in_units('km/s').v.flatten()
+            vff = vff[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+            vesc = vesc[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+
+        vx = box['vx_corrected'].in_units('km/s').v
+        vy = box['vy_corrected'].in_units('km/s').v
+        vz = box['vz_corrected'].in_units('km/s').v
+        smooth_vx = uniform_filter(vx, size=smooth_scale)
+        smooth_vy = uniform_filter(vy, size=smooth_scale)
+        smooth_vz = uniform_filter(vz, size=smooth_scale)
+        sig_x = (vx - smooth_vx)**2.
+        sig_y = (vy - smooth_vy)**2.
+        sig_z = (vz - smooth_vz)**2.
+        vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.).flatten()
+
+        vdisp = vdisp[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+        new_density = density[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+        new_temp = temperature[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+        density = new_density
+        temperature = new_temp
+
+        stats = ['vdisp']
+        table = make_table(stats)
+        table_pdf = make_pdf_table(stats)
+
+        radius_list = np.linspace(0., 1.5*Rvir, 100)
+        if (args.region_filter!='none'):
+            vdisp_regions = []
+            weights_regions = []
+            radius_regions = []
+        if (args.region_filter=='temperature'):
+            regions = ['_low-T', '_mid-T', '_high-T']
+            weights_regions.append(weights[temperature < 10**5])
+            weights_regions.append(weights[(temperature > 10**5) & (temperature < 10**6)])
+            weights_regions.append(weights[temperature > 10**6])
+            radius_regions.append(radius[temperature < 10**5])
+            radius_regions.append(radius[(temperature > 10**5) & (temperature < 10**6)])
+            radius_regions.append(radius[temperature > 10**6])
+            vdisp_regions.append(vdisp[temperature < 10**5])
+            vdisp_regions.append(vdisp[(temperature > 10**5) & (temperature < 10**6)])
+            vdisp_regions.append(vdisp[temperature > 10**6])
+        elif (args.region_filter=='metallicity'):
+            regions = ['_low-Z', '_mid-Z', '_high-Z']
+            weights_regions.append(weights[metallicity < 0.01])
+            weights_regions.append(weights[(metallicity > 0.01) & (metallicity < 1)])
+            weights_regions.append(weights[metallicity > 1])
+            radius_regions.append(radius[metallicity < 0.01])
+            radius_regions.append(radius[(metallicity > 0.01) & (metallicity < 1)])
+            radius_regions.append(radius[metallicity > 1])
+            vdisp_regions.append(vdisp[metallicity < 0.01])
+            vdisp_regions.append(vdisp[(metallicity > 0.01) & (metallicity < 1)])
+            vdisp_regions.append(vdisp[metallicity > 1])
+        elif (args.region_filter=='velocity'):
+            regions = ['_low-v', '_mid-v', '_high-v']
+            weights_regions.append(weights[rv < 0.5*vff])
+            weights_regions.append(weights[(rv > 0.5*vff) & (rv < vesc)])
+            weights_regions.append(weights[rv > vesc])
+            radius_regions.append(radius[rv < 0.5*vff])
+            radius_regions.append(radius[(rv > 0.5*vff) & (rv < vesc)])
+            radius_regions.append(radius[rv > vesc])
+            vdisp_regions.append(vdisp[rv < 0.5*vff])
+            vdisp_regions.append(vdisp[(rv > 0.5*vff) & (rv < vesc)])
+            vdisp_regions.append(vdisp[rv > vesc])
+        else:
+            regions = []
+
+        for i in range(len(radius_list)-1):
+            row = [zsnap, radius_list[i], radius_list[i+1]]
+            pdf_array = []
+            vdisp_shell = vdisp[(radius >= radius_list[i]) & (radius < radius_list[i+1])]
+            weights_shell = weights[(radius >= radius_list[i]) & (radius < radius_list[i+1])]
+            if (len(vdisp_shell)!=0.):
+                quantiles = weighted_quantile(vdisp_shell, weights_shell, np.array([0.25,0.5,0.75]))
+                row.append(quantiles[1])
+                row.append(quantiles[2]-quantiles[0])
+                avg, std = weighted_avg_and_std(vdisp_shell, weights_shell)
+                row.append(avg)
+                row.append(std)
+                hist, bin_edges = np.histogram(vdisp_shell, weights=weights_shell, bins=(200), range=[-20, -12], density=True)
+                pdf_array.append(bin_edges[:-1])
+                pdf_array.append(bin_edges[1:])
+                pdf_array.append(hist)
+                for k in range(len(regions)):
+                    vdisp_shell = vdisp_regions[k][(radius_regions[k] >= radius_list[i]) & (radius_regions[k] < radius_list[i+1])]
+                    weights_shell = weights_regions[k][(radius_regions[k] >= radius_list[i]) & (radius_regions[k] < radius_list[i+1])]
+                    if (len(vdisp_shell)!=0.):
+                        quantiles = weighted_quantile(vdisp_shell, weights_shell, np.array([0.25,0.5,0.75]))
+                        row.append(quantiles[1])
+                        row.append(quantiles[2]-quantiles[0])
+                        avg, std = weighted_avg_and_std(vdisp_shell, weights_shell)
+                        row.append(avg)
+                        row.append(std)
+                        hist, bin_edges = np.histogram(vdisp_shell, weights=weights_shell, bins=(200), range=[-20, -12], density=True)
+                        pdf_array.append(hist)
+                    else:
+                        row.append(0.)
+                        row.append(0.)
+                        row.append(0.)
+                        row.append(0.)
+                        pdf_array.append(np.zeros(200))
+            else:
+                row.append(0.)
+                row.append(0.)
+                row.append(0.)
+                row.append(0.)
+                pdf_array.append(np.zeros(200))
+                pdf_array.append(np.zeros(200))
+                pdf_array.append(np.zeros(200))
+                for k in range(len(regions)):
+                    row.append(0.)
+                    row.append(0.)
+                    row.append(0.)
+                    row.append(0.)
+                    pdf_array.append(np.zeros(200))
+
+            table.add_row(row)
+            pdf_array = np.vstack(pdf_array)
+            pdf_array = np.transpose(pdf_array)
+            for p in range(len(pdf_array)):
+                row_pdf = [zsnap, radius_list[i], radius_list[i+1]]
+                row_pdf += list(pdf_array[p])
+                table_pdf.add_row(row_pdf)
+
+        table = set_table_units(table)
+        table_pdf = set_table_units(table_pdf)
+
+        # Save to file
+        table.write(tablename_prefix + snap + '_stats_vdisp' + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        table_pdf.write(tablename_prefix + snap + '_stats_vdisp_pdf' + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
+        stats = table
+        print("Stats have been calculated and saved to file for snapshot " + snap + "!")
+        # Delete output from temp directory if on pleiades
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+            print('Deleting directory from /tmp')
+            shutil.rmtree(snap_dir)
+
+
+    radius_list = 0.5*(stats['inner_radius'] + stats['outer_radius'])
+    zsnap = stats['redshift'][0]
+
+    fig = plt.figure(figsize=(8,6), dpi=500)
+    ax = fig.add_subplot(1,1,1)
+
+    ax.plot(radius_list, stats['vdisp_avg'], 'k-', lw=2)
+
+    ax.set_ylabel('Velocity Dispersion [km/s]', fontsize=18)
+    ax.set_xlabel('Radius [kpc]', fontsize=18)
+    ax.axis([0,250,0,200])
+    ax.text(240, 165, '$z=%.2f$' % (zsnap), fontsize=18, ha='right', va='center')
+    ax.text(240,180,halo_dict[args.halo],ha='right',va='center',fontsize=18)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+    ax.text(Rvir+3., 150, '$R_{200}$', fontsize=18, ha='left', va='center')
+    plt.subplots_adjust(top=0.94,bottom=0.11,right=0.95,left=0.12)
+    plt.savefig(save_dir + snap + '_vdisp_vs_r' + save_suffix + '.png')
+    plt.close()
+
+    if (args.region_filter!='none'):
+        plot_colors = ["#984ea3", "#4daf4a", 'darkorange']
+        table_labels = ['low_', 'mid_', 'high_']
+        linestyles = ['--', '-', ':']
+        labels = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, 'High ' + args.region_filter]
+
+        fig = plt.figure(figsize=(8,6), dpi=500)
+        ax = fig.add_subplot(1,1,1)
+
+        for i in range(len(plot_colors)):
+            ax.plot(radius_list, stats[table_labels[i] + args.region_filter + '_vdisp_avg'], ls=linestyles[i], color=plot_colors[i], \
+                    lw=2, label=labels[i])
+
+        ax.set_ylabel('Velocity Dispersion [km/s]', fontsize=18)
+        ax.set_xlabel('Radius [kpc]', fontsize=18)
+        ax.axis([0,250,0,200])
+        ax.text(240, 165, '$z=%.2f$' % (zsnap), fontsize=18, ha='right', va='center')
+        ax.text(240,180,halo_dict[args.halo],ha='right',va='center',fontsize=18)
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+          top=True, right=True)
+        ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+        ax.text(Rvir+3., 150, '$R_{200}$', fontsize=18, ha='left', va='center')
+        ax.legend(loc=2, fontsize=18, frameon=False, bbox_to_anchor=(0.1,1))
+        plt.subplots_adjust(top=0.94,bottom=0.11,right=0.95,left=0.12)
+        plt.savefig(save_dir + snap + '_vdisp_vs_r_regions-' + args.region_filter + save_suffix + '.png')
+        plt.close()
+
 if __name__ == "__main__":
 
     gtoMsun = 1.989e33
@@ -607,11 +947,12 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    if ('feedback' in args.run):
+    '''if ('feedback' in args.run):
         foggie_dir = '/nobackup/clochhaa/'
         run_dir = args.run + '/'
     else:
         foggie_dir = '/nobackupp18/mpeeples/'
+    '''
 
     # Set directory for output location, making it if necessary
     save_dir = output_dir + 'turbulence_halo_00' + args.halo + '/' + args.run + '/'
@@ -658,6 +999,12 @@ if __name__ == "__main__":
                 vsf_randompoints(outs[i])
         else:
             target = vsf_randompoints
+    elif (args.plot=='vdisp_vs_radius'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                vdisp_vs_radius(outs[i])
+        else:
+            target = vdisp_vs_radius
     else:
         sys.exit("That plot type hasn't been implemented!")
 

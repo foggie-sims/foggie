@@ -466,7 +466,7 @@ def pressures_vs_radius(snap):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     if (not args.load_stats):
-        if (args.system=='pleiades_cassi'):
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
             print('Copying directory to /tmp')
             snap_dir = '/tmp/' + snap
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -644,6 +644,10 @@ def pressures_vs_radius(snap):
 
         stats = table
         print("Stats have been calculated and saved to file for snapshot " + snap + "!")
+        # Delete output from temp directory if on pleiades
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+            print('Deleting directory from /tmp')
+            shutil.rmtree(snap_dir)
 
     plot_colors = ['r', 'g', 'm']
     plot_labels = ['Thermal', 'Turbulent', 'Ram']
@@ -721,7 +725,7 @@ def forces_vs_radius(snap):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     if (not args.load_stats):
-        if (args.system=='pleiades_cassi'):
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
             print('Copying directory to /tmp')
             snap_dir = '/tmp/' + snap
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -953,6 +957,10 @@ def forces_vs_radius(snap):
 
         stats = table
         print("Stats have been calculated and saved to file for snapshot " + snap + "!")
+        # Delete output from temp directory if on pleiades
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+            print('Deleting directory from /tmp')
+            shutil.rmtree(snap_dir)
 
     plot_colors = ['r', 'g', 'm', 'b', 'gold', 'k']
     plot_labels = ['Thermal', 'Turbulent', 'Radial Ram', 'Rotation', 'Gravity', 'Total']

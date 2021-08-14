@@ -139,8 +139,12 @@ if __name__ == '__main__':
     if type(dummy_args_tuple) is tuple: dummy_args = dummy_args_tuple[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     else: dummy_args = dummy_args_tuple
 
-    if dummy_args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(dummy_args) # all snapshots of this particular halo
-    else: list_of_sims = [(dummy_args.halo, dummy_args.output)]
+    if dummy_args.do_all_sims:
+        list_of_sims = get_all_sims(dummy_args) # all snapshots of this particular halo
+    else:
+        if dummy_args.do_all_halos: halos = get_all_halos(dummy_args)
+        else: halos = dummy_args.halo_arr
+        list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
     total_snaps = len(list_of_sims)
 
     # --------domain decomposition; for mpi parallelisation-------------
@@ -167,8 +171,8 @@ if __name__ == '__main__':
         this_sim = list_of_sims[index]
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(len(list_of_sims)) + ' snapshots...', dummy_args)
         try:
-            if dummy_args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
-            else: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
+            if len(list_of_sims) == 1: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
+            else: args = parse_args(this_sim[0], this_sim[1])
 
             if type(args) is tuple:
                 args, ds, box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
@@ -279,7 +283,12 @@ if __name__ == '__main__':
 
     if args.makemovie and args.do_all_sims and not args.noplot:
         print_master('Finished creating snapshots, calling animate_png.py to create movie..', args)
-        subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname[:outfile_rootname.find('z_')+3] + '*' + outfile_rootname[outfile_rootname.find('_vol'):] + ' --delay ' + str(args.delay_frame)], shell=True)
+        if args.do_all_halos: halos = get_all_halos(args)
+        else: halos = dummy_args.halo_arr
+        for thishalo in halos:
+            args = parse_args(thishalo, 'RD0020') # RD0020 is inconsequential here, just a place-holder
+            fig_dir = args.output_dir + 'figs/'
+            subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname[:outfile_rootname.find('z_')+3] + '*' + outfile_rootname[outfile_rootname.find('_vol'):] + ' --delay ' + str(args.delay_frame)], shell=True)
 
     if ncores > 1: print_master('Parallely: time taken for volume rendering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for volume rendering ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
