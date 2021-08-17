@@ -8,8 +8,8 @@
     Output :     a single datashader plot as png file
     Author :     Ayan Acharyya
     Started :    August 2021
-    Examples :   run merge_datashader_plots.py --system ayan_pleiades --do_all_halos --fullbox --xcol rad --ycol metal --colorcol vrad --output RD0020,RD0018,RD0016
-                 run merge_datashader_plots.py --system ayan_local --do_all_halos --fullbox --xcol rad --ycol metal --colorcol vrad --output RD0020,RD0018,RD0016 --inflow_only
+    Examples :   run merge_datashader_plots.py --system ayan_pleiades --do_all_halos --fullbox --xcol rad --ycol metal --colorcol vrad --output RD0016,RD0018,RD0020
+                 run merge_datashader_plots.py --system ayan_local --do_all_halos --fullbox --xcol rad --ycol metal --colorcol vrad --output RD0016,RD0018,RD0020 --inflow_only
 """
 from header import *
 from util import *
@@ -27,8 +27,6 @@ if __name__ == '__main__':
 
     if args.do_all_halos: halos = get_all_halos(args)
     else: halos = args.halo_arr
-    list_of_sims = list(itertools.product(halos, args.output_arr))
-    total_snaps = len(list_of_sims)
 
     if args.fullbox:
         z_boxrad_dict = {'RD0030':84.64, 'RD0020': 47.96, 'RD0018': 41.11, 'RD0016': 35.97}
@@ -57,37 +55,37 @@ if __name__ == '__main__':
 
     crop_x1, crop_x2, crop_y1, crop_y2 = 75, -1, 0, -1
     nrow, ncol, figsize = len(args.output_arr), len(halos), (12, 6)
+    total_snaps = len(halos) * len(args.output_arr)
 
     # ----------collating the different dataframes (correpsonding to each snapshot)-------------------------------------
-    for index, thiscolorcol in enumerate(colorcol_arr):
+    for index3, thiscolorcol in enumerate(colorcol_arr):
         args.colorcol = thiscolorcol
         args.colorcolname = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
         if isfield_weighted_dict[args.colorcol] and args.weight: args.colorcolname += '_wtby_' + args.weight
         args.colorcol_cat = 'cat_' + args.colorcolname
-        print_mpi('Combining ' + args.xcolname + ' vs ' + args.ycolname + ', color coded by ' + args.colorcolname + ' i.e., plot ' + str(index + 1) + ' of ' + str(len(colorcol_arr)) + '..', args)
+        print_mpi('Combining ' + args.xcolname + ' vs ' + args.ycolname + ', color coded by ' + args.colorcolname + ' i.e., plot ' + str(index3 + 1) + ' of ' + str(len(colorcol_arr)) + '..', args)
 
         fig, axes = plt.subplots(nrow, ncol, figsize=figsize)
         fig.subplots_adjust(hspace=0, wspace=0, right=1, top=1, bottom=0, left=0)
 
-        for index2, this_sim in enumerate(list_of_sims):
-            start_time_this_snapshot = time.time()
-            halo, output = this_sim[0], this_sim[1]
-            print_mpi('Reading plot ' + output + ' of halo ' + halo + ' which is ' + str(index2 + 1) + ' out of the total ' + str(total_snaps) + ' plots...', args)
+        for index1, output in enumerate(args.output_arr):
+            for index2, halo in enumerate(halos):
+                start_time_this_snapshot = time.time()
+                print_mpi('Reading plot ' + output + ' of halo ' + halo + ' which is ' + str(index1 * ncol + index2 + 1) + ' out of the total ' + str(total_snaps) + ' plots...', args)
 
-            thisboxrad = z_boxrad_dict[output] if args.fullbox else args.galrad
-            file = output_dir.replace(args.halo, halo) + 'figs/' + output + '/datashader_boxrad_%skpc_%s_vs_%s_colby_%s%s.png' % (thisboxrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text)
+                thisboxrad = z_boxrad_dict[output] if args.fullbox else args.galrad
+                file = output_dir.replace(args.halo, halo) + 'figs/' + output + '/datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.png' % (thisboxrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text)
 
-            if not os.path.exists(file):
-                myprint('Cannot find ' + file + '; skipping halo ' + halo + ' snapshot ' + output + '..' , args)
-                continue
+                if not os.path.exists(file):
+                    myprint('Cannot find ' + file + '; skipping halo ' + halo + ' snapshot ' + output + '..' , args)
+                    continue
 
-            image = mpimg.imread(file)
-            rowid, colid = int(index2 / ncol), index2 % ncol
-            axes[rowid][colid].axis('off')
-            axes[rowid][colid].imshow(image[crop_y1 : crop_y2, crop_x1 if colid else 0: crop_x2], origin='upper')
-            axes[rowid][colid].set_aspect('auto')
+                image = mpimg.imread(file)
+                axes[index1][index2].axis('off')
+                axes[index1][index2].imshow(image[crop_y1 : crop_y2, crop_x1 if index2 else 0: crop_x2], origin='upper')
+                axes[index1][index2].set_aspect('auto')
 
-            myprint('This snapshot ' + output + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
+                myprint('This halo ' + halo + ', snapshot ' + output + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
 
         thisfilename = fig_dir + 'combined_datashader_%s_%s_vs_%s_colby_%s_halos_%s_outputs_%s%s.png' % (galrad_text, args.ycolname, args.xcolname, args.colorcolname, halos_text, outputs_text, inflow_outflow_text)
         fig.savefig(thisfilename, dpi=500)

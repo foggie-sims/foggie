@@ -881,6 +881,7 @@ if __name__ == '__main__':
         else: halos = dummy_args.halo_arr
         for thishalo in halos:
             args = parse_args(thishalo, 'RD0020') # RD0020 is inconsequential here, just a place-holder
+            args.xcolname, args.ycolname = dummy_args.xcolname, dummy_args.ycolname
             fig_dir = args.output_dir + 'figs/'
             for thiscolorcol in colorcol_arr:
                 args.colorcol = thiscolorcol

@@ -102,7 +102,7 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, args):
     # Define list of ways to chunk up the shape over radius or height
     inner_radius = 0.01
     outer_radius = args.galrad
-    num_steps = 100
+    num_steps = args.nchunks
     table = make_table(fluxes, args)
     if (args.units_kpc):
         dr = (outer_radius-inner_radius)/num_steps
