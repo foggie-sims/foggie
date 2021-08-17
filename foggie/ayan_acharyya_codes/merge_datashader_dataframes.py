@@ -75,7 +75,7 @@ if __name__ == '__main__':
             print_mpi('Reading dataframe ' + output + ' of halo ' + halo + ' which is ' + str(index2 + 1) + ' out of the total ' + str(total_snaps) + ' snapshots...', args)
 
             thisboxrad = z_boxrad_dict[output] if args.fullbox else args.galrad
-            file = output_dir.replace(args.halo, halo) + 'txtfiles/' + output + '_df_boxrad_' + str(thisboxrad) + 'kpc.txt'
+            file = output_dir.replace(args.halo, halo) + 'txtfiles/' + output + '_df_boxrad_%.2Fkpc.txt' % (thisboxrad)
 
             if os.path.exists(file):
                 df = pd.read_table(file, delim_whitespace=True, comment='#')
