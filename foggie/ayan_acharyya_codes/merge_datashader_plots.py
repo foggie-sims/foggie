@@ -8,8 +8,8 @@
     Output :     a single datashader plot as png file
     Author :     Ayan Acharyya
     Started :    August 2021
-    Examples :   run merge_datashader_plots.py --system ayan_pleiades --do_all_halos --fullbox --xcol rad --ycol metal --colorcol vrad --output RD0020,RD0018,RD0016
-                 run merge_datashader_plots.py --system ayan_local --do_all_halos --fullbox --xcol rad --ycol metal --colorcol vrad --output RD0020,RD0018,RD0016 --inflow_only
+    Examples :   run merge_datashader_plots.py --system ayan_pleiades --do_all_halos --fullbox --xcol rad --ycol metal --colorcol vrad --output RD0016,RD0018,RD0020
+                 run merge_datashader_plots.py --system ayan_local --do_all_halos --fullbox --xcol rad --ycol metal --colorcol vrad --output RD0016,RD0018,RD0020 --inflow_only
 """
 from header import *
 from util import *
@@ -74,7 +74,7 @@ if __name__ == '__main__':
                 print_mpi('Reading plot ' + output + ' of halo ' + halo + ' which is ' + str(index1 * ncol + index2 + 1) + ' out of the total ' + str(total_snaps) + ' plots...', args)
 
                 thisboxrad = z_boxrad_dict[output] if args.fullbox else args.galrad
-                file = output_dir.replace(args.halo, halo) + 'figs/' + output + '/datashader_boxrad_%skpc_%s_vs_%s_colby_%s%s.png' % (thisboxrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text)
+                file = output_dir.replace(args.halo, halo) + 'figs/' + output + '/datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.png' % (thisboxrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text)
 
                 if not os.path.exists(file):
                     myprint('Cannot find ' + file + '; skipping halo ' + halo + ' snapshot ' + output + '..' , args)
