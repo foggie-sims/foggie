@@ -142,7 +142,7 @@ def radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args, save = True, sp_ra
         L_dic[mtype]['rprof']['Lz']   = Li[zname].to('g*cm**2/s')
         L_dic[mtype]['rprof']['mass'] = Li[mname].to('Msun')
 
-        
+
         Lx       = sp_use[xname].to('g*cm**2/s')
         Ly       = sp_use[yname].to('g*cm**2/s')
         Lz       = sp_use[zname].to('g*cm**2/s')
@@ -222,12 +222,12 @@ if __name__ == '__main__':
     args = parse_args()
     ds, refine_box = load_sim(args)
     mass_types = [(0.,    1.5e4, 'cold',   True),
-                  (-1.,  -1.,    'young_stars',  False),                  
                   (1.5e4, 1.e5,  'warm',   True),
                   (1.e5,  1.e6,  'warmhot',True),
                   (1.e6,  1.e10, 'hot',    True), 
                   (-1.,  -1.,    'stars',   False),
-                  (-1.,  -1.,    'dm',       False)][:2]
+                  (-1.,  -1.,    'young_stars',  False),                  
+                  (-1.,  -1.,    'dm',       False)]
     disk_Lhat, bulk_vel = find_disk_Lhat(ds, args)
     L_dic               = radial_profile(ds, bulk_vel, disk_Lhat, mass_types, args)
 
