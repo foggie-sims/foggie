@@ -38,7 +38,7 @@ if __name__ == '__main__':
         args.galrad = np.max([z_boxrad_dict[output] for output in args.output_arr])
         galrad_text = 'refbox'
     else:
-        galrad_text = '_boxrad_%.2Fkpc' % args.galrad
+        galrad_text = 'boxrad_%.2Fkpc' % args.galrad
 
     # parse column names, in case log
     args.xcolname = 'log_' + args.xcol if islog_dict[args.xcol] and not args.use_cvs_log else args.xcol
@@ -89,8 +89,10 @@ if __name__ == '__main__':
             if args.overplot_stars:
                 args.output_dir = output_dir.replace(args.halo, halo)
                 args.output = output
-                paramlist = get_stars_file(args)
+                paramlist = load_stars_file(args)
                 paramlist_merged.append(paramlist)
+
+            if args.overplot_absorbers: abslist = load_absorbers_file(args)
 
             myprint('This snapshot ' + output + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
 
@@ -102,7 +104,7 @@ if __name__ == '__main__':
                 elif args.clobber_plot:
                     print_mpi(thisfilename + ' plot exists but over-writing..', args)
 
-                df_merged, fig = make_datashader_plot(df_merged, thisfilename, args, npix_datashader=1000, paramlist=paramlist_merged)
+                df_merged, fig = make_datashader_plot(df_merged, thisfilename, args, npix_datashader=1000, paramlist=paramlist_merged, abslist=abslist)
             else:
                 myprint('Skipping colorcol ' + thiscolorcol + ' because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)
         else:
