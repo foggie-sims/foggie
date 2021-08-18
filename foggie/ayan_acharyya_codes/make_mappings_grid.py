@@ -187,8 +187,12 @@ input_quanta = sb99_dir + sb99_model + '/' + sb99_model + '.quanta'
 dust_filename = mappings_input_dir + '/Depln_Fe_1.50.txt'
 
 # ----------------reading in Starburst99 output-----------------------------
-SB99_age = np.array([float(x.split()[0]) for x in open(input_quanta).readlines()[6:]])
-SB99_logQ = np.array([float(x.split()[1]) for x in open(input_quanta).readlines()[6:]])
+try:
+    SB99_age = np.array([float(x.split()[0]) for x in open(input_quanta).readlines()[6:]])
+    SB99_logQ = np.array([float(x.split()[1]) for x in open(input_quanta).readlines()[6:]])
+except FileNotFoundError:
+    SB99_age = None
+    SB99_logQ = None
 
 # --------declaring four 1D arrays over which the model grid would be computed------------------------------------------------
 Z_arr = np.array([0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0, 3.0, 5.0])  # in Zsun units; metallicity array of MAPPINGS grid #for outtag _MADtemp

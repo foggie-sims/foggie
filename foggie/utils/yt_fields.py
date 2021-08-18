@@ -149,7 +149,7 @@ def phi_angular_momentum(field, data):
     phi_L[np.isnan(phi_L)] = 0.
 
     try: phi_L = unyt_array(phi_L, 'deg')
-    except NameError: phi_L = YTArray(phi_L, 'deg')
+    except NameError: phi_L = yt.YTArray(phi_L, 'deg')
     return phi_L
 
 def theta_angular_momentum(field, data):
@@ -170,7 +170,7 @@ def theta_angular_momentum(field, data):
     theta_L[np.isnan(theta_L)] = 0.
 
     try: theta_L = unyt_array(theta_L, 'deg')
-    except NameError: theta_L = YTArray(theta_L, 'deg')
+    except NameError: theta_L = yt.YTArray(theta_L, 'deg')
     return theta_L
 
 def vx_corrected(field, data):
