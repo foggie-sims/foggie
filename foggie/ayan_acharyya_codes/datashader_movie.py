@@ -245,7 +245,6 @@ def overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax, args):
     x_bins = np.arange(x_min, x_max + x_bin_size, x_bin_size)
     df['binned_cat'] = pd.cut(df[args.xcolname], x_bins)
 
-    #if isfield_weighted_dict[args.ycol] and args.weight: agg_func = lambda x: np.average(x, weights=df.loc[x.index, args.weight]) # function to weight by weightcol
     if isfield_weighted_dict[args.ycol] and args.weight: agg_func = lambda x: np.mean(weight_by(x, df.loc[x.index, args.weight])) # function to get weighted mean
     else: agg_func = np.mean
     y_binned = df.groupby('binned_cat', as_index=False).agg([(args.ycol, agg_func)])[args.ycol]
