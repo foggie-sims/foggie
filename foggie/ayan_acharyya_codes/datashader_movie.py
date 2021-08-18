@@ -223,8 +223,7 @@ def overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, npix_dat
         # -------------to actually plot the simulation data------------
         x_on_plot = convert_to_datashader_frame(paramlist[args.xcolname], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
         y_on_plot = convert_to_datashader_frame(paramlist[args.ycolname], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
-        #ax.scatter(x_on_plot, y_on_plot, c=paramlist[args.colorcolname], vmin=c_min, vmax=c_max, edgecolors='black', lw=0.2, s=15, marker=marker_dict[type], cmap=colormap_dict[args.colorcol])
-        ax.scatter(x_on_plot, y_on_plot, c=paramlist[args.colorcolname], vmin=c_min, vmax=c_max, edgecolors='black', lw=0 if len(paramlist) > 500 else 0.2, s=5 if len(paramlist) > 500 else 15, marker=marker_dict[type], cmap=colormap_dict[args.colorcol])
+        ax.scatter(x_on_plot, y_on_plot, c=paramlist[args.colorcolname], vmin=c_min, vmax=c_max, edgecolors='black', lw=0 if len(paramlist) > 700 else 0.2, s=5 if len(paramlist) > 700 else 15, marker=marker_dict[type], cmap=colormap_dict[args.colorcol])
 
         # ----------to plot 1D histogram on the top and right axes--------------
         if type == 'absorbers':
