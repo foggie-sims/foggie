@@ -23,6 +23,8 @@ from matplotlib.colors import to_hex
 from matplotlib.widgets import LassoSelector
 from matplotlib.widgets import SpanSelector
 
+yt_ver = yt.__version__
+
 start_time = time.time()
 
 # ------------------------------------------------------------------------------
@@ -804,6 +806,9 @@ def categorize_by_quant(data, data_min, data_max, discrete_cmap):
 field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'mass':('gas', 'mass'), \
               'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'vrad':('gas', 'radial_velocity_corrected'), \
               'phi_L':('gas', 'angular_momentum_phi'), 'theta_L':('gas', 'angular_momentum_theta'), 'volume':('gas', 'volume')}
+if yt_ver[0]=='3':
+    field_dict['mass'] = ('gas','cell_mass')
+    field_dict['volume'] = ('gas', 'cell_volume')
 unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'volume':'pc**3'}
 labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF'}
 islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True)
@@ -929,6 +934,7 @@ if __name__ == '__main__':
                     print_mpi(thisfilename + ' plot exists but over-writing..', args)
 
                 df = get_df_from_ds(box, args)
+
                 paramlist = load_stars_file(args) if args.overplot_stars else None
                 abslist = load_absorbers_file(args) if args.overplot_absorbers else None
                 df, fig = make_datashader_plot(df, thisfilename, args, npix_datashader=npix_datashader, paramlist=paramlist, abslist=abslist)
