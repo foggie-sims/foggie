@@ -85,7 +85,7 @@ def get_run_loc_etc(args):
         code_path = "/Users/acharyya/Work/astro/ayan_codes/foggie/foggie/"
     elif args.system == "msu_hpcc":
         foggie_dir = "/mnt/research/galaxies-REU/sims/FOGGIE/"
-        output_path = "/mnt/home/kopenhaf/foggie_calcs/"
+        output_path = "/mnt/scratch/kopenhaf/foggie_calcs/"
         code_path = "/mnt/home/kopenhaf/foggie/foggie/"
     elif args.system == "ayan_pleiades":
         foggie_dir = "/nobackup/mpeeples/"
