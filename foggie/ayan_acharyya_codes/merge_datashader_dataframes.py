@@ -92,7 +92,6 @@ if __name__ == '__main__':
                 paramlist = load_stars_file(args)
                 paramlist_merged.append(paramlist)
 
-            if args.overplot_absorbers: abslist = load_absorbers_file(args)
 
             myprint('This snapshot ' + output + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
 
@@ -104,6 +103,7 @@ if __name__ == '__main__':
                 elif args.clobber_plot:
                     print_mpi(thisfilename + ' plot exists but over-writing..', args)
 
+                if args.overplot_absorbers: abslist = load_absorbers_file(args)
                 df_merged, fig = make_datashader_plot(df_merged, thisfilename, args, npix_datashader=1000, paramlist=paramlist_merged, abslist=abslist)
             else:
                 myprint('Skipping colorcol ' + thiscolorcol + ' because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)
