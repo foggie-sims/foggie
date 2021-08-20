@@ -20,6 +20,7 @@ from matplotlib import image as mgimg
 import numpy as np
 import imageio
 from mpi4py import MPI
+import subprocess
 
 # -------------------------------------------------------------------------------------------
 def print_mpi(string):
