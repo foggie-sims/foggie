@@ -11,6 +11,7 @@
 """
 from header import *
 from util import *
+from animate_png import make_anim_imageio
 start_time = time.time()
 
 # -----main code-----------------
@@ -26,8 +27,7 @@ if __name__ == '__main__':
 
     xcol_arr = [item for item in args.xcol.split(',')]
     ycol_arr = [item for item in args.ycol.split(',')]
-    colorcol_arr = [item for item in args.colorcol.split(',')]
-    movies = list(itertools.product(xcol_arr, ycol_arr, colorcol_arr, halos_arr))
+    movies = list(itertools.product(xcol_arr, ycol_arr, args.colorcol, halos_arr))
     list_of_movies = [item for item in movies if len(item) == len(set(item))] # removing cases where x, y or color axes have same quantities
     nmovies = len(list_of_movies)
 
@@ -54,15 +54,19 @@ if __name__ == '__main__':
     for index in range(core_start, core_end + 1):
         start_time_this_snapshot = time.time()
         this_xcol, this_ycol, this_colorcol, this_halo = list_of_movies[index]
-        print_mpi('Doing movie ' + this_xcol + 'vs' + this_ycol + 'colored by' + this_colorcol + 'for halo ' + this_halo + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' movies...', args)
+        print_mpi('Doing movie ' + this_xcol + ' vs ' + this_ycol + ' colored by ' + this_colorcol + ' for halo ' + this_halo + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' movies...', args)
 
-        fig_dir = args.output_dir + 'figs/'
         if islog_dict[this_xcol]: this_xcol = 'log_' + this_xcol
         if islog_dict[this_ycol]: this_ycol = 'log_' + this_ycol
         if islog_dict[this_colorcol]: this_colorcol = 'log_' + this_colorcol
 
-        outfile_rootname = 'z=*_datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, this_ycol, this_xcol, this_colorcol)
-        subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
+        args.inpath = args.output_dir + 'figs/'
+        args.rootname = 'z=*_datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, this_ycol, this_xcol, this_colorcol)
+        args.outfile = args.rootname.replace('.png', '').replace('*', '').replace('/', '_') + '_anim.mp4'
+        args.duration = None
+        args.delay = args.delay_frame
+        args.reverse = True
+        args = make_anim_imageio(args)
 
     comm.Barrier() # wait till all cores reached here and then resume
 
