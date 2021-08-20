@@ -845,6 +845,7 @@ if __name__ == '__main__':
     dummy_args.ycolname = 'log_' + dummy_args.ycol if islog_dict[dummy_args.ycol] and not dummy_args.use_cvs_log else dummy_args.ycol
     if isfield_weighted_dict[dummy_args.xcol] and dummy_args.weight: dummy_args.xcolname += '_wtby_' + dummy_args.weight
     if isfield_weighted_dict[dummy_args.ycol] and dummy_args.weight: dummy_args.ycolname += '_wtby_' + dummy_args.weight
+    colorcol_arr = dummy_args.colorcol
 
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
@@ -913,7 +914,6 @@ if __name__ == '__main__':
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr')
-        colorcol_arr = args.colorcol
         args.xcolname, args.ycolname = dummy_args.xcolname, dummy_args.ycolname
 
         for index, thiscolorcol in enumerate(colorcol_arr):
@@ -946,11 +946,12 @@ if __name__ == '__main__':
                 print_mpi('Skipping colorcol ' + thiscolorcol + ' because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)
 
         print_mpi('This snapshot ' + this_sim[1] + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
+
     comm.Barrier() # wait till all cores reached here and then resume
 
-    if args.makemovie and args.do_all_sims:
-        print_master('Finished creating snapshots, calling animate_png.py to create movie..', args)
-        if args.do_all_halos: halos = get_all_halos(args)
+    if dummy_args.makemovie and dummy_args.do_all_sims:
+        print_master('Finished creating snapshots, calling animate_png.py to create movie..', dummy_args)
+        if dummy_args.do_all_halos: halos = get_all_halos(args)
         else: halos = dummy_args.halo_arr
         for thishalo in halos:
             args = parse_args(thishalo, 'RD0020') # RD0020 is inconsequential here, just a place-holder
