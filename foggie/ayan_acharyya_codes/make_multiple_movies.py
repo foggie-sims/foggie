@@ -11,8 +11,27 @@
 """
 from header import *
 from util import *
-from animate_png import make_anim_imageio
+import imageio
 start_time = time.time()
+
+# -------------------------------------------------------------------
+def make_anim_imageio(args):
+    filenames = glob.glob(args.inpath + args.rootname)
+    filenames.sort(key=str, reverse=args.reverse)
+    outputfile = args.inpath + args.rootname.replace('*', '').replace('/', '_').replace('.png', '_anim.mp4')
+
+    with imageio.get_writer(outputfile, mode='I', fps=int(1./args.delay_frame)) as writer:
+        for index, filename in enumerate(filenames):
+            print_mpi('Appending file ' + os.path.split(filename)[1] + ' which is ' + str(index + 1) + ' out of ' + str(len(filenames)))  #
+            image = imageio.imread(filename)
+            try:
+                writer.append_data(image)
+            except ValueError as e:
+                print_mpi('Skipping snapshot ' + str(index + 1) + ' due to ' + str(e))
+                continue
+
+    print_mpi('Combined ' + str(len(filenames)) + ' images into ' + outputfile)
+    return args
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -36,6 +55,7 @@ if __name__ == '__main__':
     ncores = comm.size
     rank = comm.rank
     print_master('Total number of MPI ranks = ' + str(ncores) + '. Starting at: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()), args)
+    print('List of movies:', list_of_movies)
     comm.Barrier() # wait till all cores reached here and then resume
 
     split_at_cpu = nmovies - ncores * int(nmovies/ncores)
@@ -60,12 +80,8 @@ if __name__ == '__main__':
         if islog_dict[this_ycol]: this_ycol = 'log_' + this_ycol
         if islog_dict[this_colorcol]: this_colorcol = 'log_' + this_colorcol
 
-        args.inpath = args.output_dir + 'figs/'
+        args.inpath = args.output_dir.replace(args.halo, this_halo) + 'figs/'
         args.rootname = 'z=*_datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, this_ycol, this_xcol, this_colorcol)
-        args.outfile = args.rootname.replace('.png', '').replace('*', '').replace('/', '_') + '_anim.mp4'
-        args.duration = None
-        args.delay = args.delay_frame
-        args.reverse = True
         args = make_anim_imageio(args)
 
     comm.Barrier() # wait till all cores reached here and then resume
