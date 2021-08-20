@@ -240,8 +240,11 @@ def overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax, args):
     Function to overplot binned data on existing datashader plot
     Uses globally defined islog_dict
     '''
-    x_bin_size = bin_size_dict[args.xcol]
-    x_bins = np.arange(x_min, x_max + x_bin_size, x_bin_size)
+    if args.xcol == 'rad':
+        x_bins = np.logspace(np.log10(x_min + 0.001), np.log10(x_max), 200) # the 0.001 term is to avoid taking log of 0, in case x_min = 0
+    else:
+        x_bin_size = bin_size_dict[args.xcol]
+        x_bins = np.arange(x_min, x_max + x_bin_size, x_bin_size)
     df['binned_cat'] = pd.cut(df[args.xcolname], x_bins)
 
     if isfield_weighted_dict[args.ycol] and args.weight: agg_func = lambda x: np.mean(weight_by(x, df.loc[x.index, args.weight])) # function to get weighted mean
@@ -250,7 +253,7 @@ def overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax, args):
     if islog_dict[args.ycol] and not args.use_cvs_log: y_binned = np.log10(y_binned)
 
     # ----------to plot mean binned y vs x profile--------------
-    x_bin_centers = x_bins[:-1] + x_bin_size / 2
+    x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
     x_on_plot = convert_to_datashader_frame(x_bin_centers, x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
     y_on_plot = convert_to_datashader_frame(y_binned, y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
     ax.plot(x_on_plot, y_on_plot, color='black', lw=1)

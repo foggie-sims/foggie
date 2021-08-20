@@ -103,7 +103,7 @@ if __name__ == '__main__':
                 elif args.clobber_plot:
                     print_mpi(thisfilename + ' plot exists but over-writing..', args)
 
-                if args.overplot_absorbers: abslist = load_absorbers_file(args)
+                abslist = load_absorbers_file(args) if args.overplot_absorbers else pd.DataFrame()
                 df_merged, fig = make_datashader_plot(df_merged, thisfilename, args, npix_datashader=1000, paramlist=paramlist_merged, abslist=abslist)
             else:
                 myprint('Skipping colorcol ' + thiscolorcol + ' because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)
