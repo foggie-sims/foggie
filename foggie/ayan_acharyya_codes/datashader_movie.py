@@ -23,6 +23,8 @@ from matplotlib.colors import to_hex
 from matplotlib.widgets import LassoSelector
 from matplotlib.widgets import SpanSelector
 
+yt_ver = yt.__version__
+
 start_time = time.time()
 
 # ------------------------------------------------------------------------------
@@ -44,16 +46,17 @@ def extract_columns_from_df(df_allprop, args):
 
     df = pd.DataFrame()
     for field in [args.xcol, args.ycol, args.colorcol]:
-        column_name = field
         arr = df_allprop[field]
+        column_name = field
+        df[column_name] = arr
         if isfield_weighted_dict[field] and args.weight:
-            weights = df_allprop[args.weight]
-            arr = weight_by(arr, weights)
+            df[args.weight] = df_allprop[args.weight]
+            arr = weight_by(arr, df[args.weight])
             column_name = column_name + '_wtby_' + args.weight
         if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log):
             arr = np.log10(arr)
             column_name = 'log_' + column_name
-        df[column_name] = arr
+        if column_name not in df: df[column_name] = arr
 
     return df
 
@@ -120,9 +123,9 @@ def convert_from_datashader_frame(data, data_min, data_max, npix_datashader):
     return data * (data_max - data_min) / npix_datashader + data_min
 
 # ---------------------------------------------------------------------------------
-def get_stars_file(args):
+def load_stars_file(args):
     '''
-    Function to overplot young stars on existing datashader plot
+    Function to load the young star parameters file
     Uses globally defined colormap_dict
     '''
     starlistfile = args.output_dir + 'txtfiles/' + args.output + '_young_star_properties.txt'
@@ -131,38 +134,88 @@ def get_stars_file(args):
     if not os.path.exists(starlistfile):
         print_mpi(starlistfile + 'does not exist. Calling get_star_properties() first..', args)
         dummy = get_star_properties(args)  # this creates the infilename
-    paramlist = pd.read_table(starlistfile, delim_whitespace=True, comment='#')
+    else:
+        print_mpi('Reading young star properties from ' + starlistfile + '..', args)
+    starlist = pd.read_table(starlistfile, delim_whitespace=True, comment='#')
 
     # -------------to prep the simulation data------------
-    paramlist = shift_ref_frame(paramlist, args)
-    paramlist = paramlist.rename(columns={'gas_metal': 'metal', 'gas_density': 'density', 'gas_pressure': 'pressure', 'gas_temp': 'temp'})
-    paramlist = get_radial_velocity(paramlist)
-    paramlist = paramlist[paramlist['rad'].between(0, args.galrad)] # to overplot only those young stars that are within the desired radius ('rad' is in kpc)
+    starlist = shift_ref_frame(starlist, args)
+    starlist = starlist.rename(columns={'gas_metal': 'metal', 'gas_density': 'density', 'gas_pressure': 'pressure', 'gas_temp': 'temp'})
+    starlist = get_radial_velocity(starlist)
+    starlist = starlist[starlist['rad'].between(0, args.galrad)] # to overplot only those young stars that are within the desired radius ('rad' is in kpc)
 
-    if args.inflow_only: paramlist = paramlist[paramlist['vrad'] < 0.]
-    elif args.outflow_only: paramlist = paramlist[paramlist['vrad'] > 0.]
+    if args.inflow_only: starlist = starlist[starlist['vrad'] < 0.]
+    elif args.outflow_only: starlist = starlist[starlist['vrad'] > 0.]
 
     for field in [args.xcol, args.ycol, args.colorcol]:
-        if field not in paramlist.columns:
+        if field not in starlist.columns:
             print_mpi(field + ' does not exist in young star list, therefore cannot overplot stars..', args)
             return pd.DataFrame() # return empty dataframe
         column_name = field
         if isfield_weighted_dict[field] and args.weight:
             weightcol = args.weight
-            if weightcol in paramlist.columns: weights = paramlist[weightcol]
-            else: weights = np.ones(len(paramlist))
-            paramlist[column_name + '_wtby_' + weightcol] = weight_by(paramlist[column_name], weights)
+            if weightcol in starlist.columns: weights = starlist[weightcol]
+            else: weights = np.ones(len(starlist))
+            starlist[column_name + '_wtby_' + weightcol] = weight_by(starlist[column_name], weights)
             column_name = column_name + '_wtby_' + weightcol
-        if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log): paramlist['log_' + column_name] = np.log10(paramlist[column_name])
+        if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log): starlist['log_' + column_name] = np.log10(starlist[column_name])
 
-    return paramlist
+    return starlist
 
 # ---------------------------------------------------------------------------------
-def overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax, args):
+def load_absorbers_file(args):
+    '''
+    Function to load the absorbers file made by Claire
+    Uses globally defined colormap_dict
+    '''
+    _, output_dir, _, _, _, _, _, _ = get_run_loc_etc(args)
+    abslistfile = '/'.join(output_dir.split('/')[:-3]) + '/foggie_absorbers_200kpc_flow.csv' # the absorber file is in the directory output_path as defined in get_run_loc_etc.py for a given args.system
+
+    # -------------to read in simulation data------------
+    if not os.path.exists(abslistfile):
+        print_mpi(abslistfile + 'does not exist. Cannot overplot absorbers.', args)
+        return pd.DataFrame() # return empty dataframe
+    else:
+        print_mpi('Reading absorber properties from ' + abslistfile + '..', args)
+    abslist = pd.read_csv(abslistfile, comment='#')
+
+    # -------------to prep the simulation data------------
+    abslist = abslist[abslist['name'] == 'H I']
+    if args.current_redshift is not None: abslist = abslist[abslist['redshift'].between(args.current_redshift * 0.999, args.current_redshift * 1.001)]
+
+    abslist = abslist.rename(columns={'metallicity': 'metal', 'col_dens': 'col_density', 'radius': 'rad', 'temperature': 'temp'})
+    abslist['vrad'] = abslist['velocity_magnitude'] * abslist['radial_alignment'] / np.abs(abslist['radial_alignment'])
+
+    abslist = abslist[['rad', 'vrad', 'metal', 'col_density', 'temp']]
+    abslist['col_density'] = 10 ** abslist['col_density'] # because column density was reported as log in Claire's file
+    abslist = abslist[abslist['rad'].between(0, args.galrad)] # to overplot only those absorbers that are within the desired radius ('rad' is in kpc)
+
+    if args.inflow_only: abslist = abslist[abslist['vrad'] < 0.]
+    elif args.outflow_only: abslist = abslist[abslist['vrad'] > 0.]
+
+    for field in [args.xcol, args.ycol, args.colorcol]:
+        if field not in abslist.columns:
+            print_mpi(field + ' does not exist in absorbers list, therefore cannot overplot absorbers..', args)
+            return pd.DataFrame() # return empty dataframe
+        column_name = field
+        if isfield_weighted_dict[field] and args.weight:
+            weightcol = args.weight
+            if weightcol in abslist.columns: weights = abslist[weightcol]
+            else: weights = np.ones(len(abslist))
+            abslist[column_name + '_wtby_' + weightcol] = weight_by(abslist[column_name], weights)
+            column_name = column_name + '_wtby_' + weightcol
+        if islog_dict[field] and (field == args.colorcol or not args.use_cvs_log): abslist['log_' + column_name] = np.log10(abslist[column_name])
+
+    return abslist
+
+# ---------------------------------------------------------------------------------
+def overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, axes, args, type='stars'):
     '''
     Function to overplot young stars on existing datashader plot
     Uses globally defined colormap_dict
     '''
+    marker_dict = {'stars':'o', 'absorbers':'s'}
+    ax = axes.ax_joint
     init_len = len(paramlist)
     if init_len > 0:
         paramlist = paramlist[(paramlist[args.xcolname].between(x_min, x_max)) & (paramlist[args.ycolname].between(y_min, y_max)) & (paramlist[args.colorcolname].between(c_min, c_max))]
@@ -170,10 +223,16 @@ def overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, npix_dat
         # -------------to actually plot the simulation data------------
         x_on_plot = convert_to_datashader_frame(paramlist[args.xcolname], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
         y_on_plot = convert_to_datashader_frame(paramlist[args.ycolname], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
-        ax.scatter(x_on_plot, y_on_plot, c=paramlist[args.colorcolname], vmin=c_min, vmax=c_max, edgecolors='black', lw=0.2, s=15, cmap=colormap_dict[args.colorcol])
-        print_mpi('Overplotted ' + str(len(paramlist)) + ' of ' + str(init_len) + ', i.e., ' + '%.2F'%(len(paramlist) * 100 / init_len) + '% of young stars inside this box..', args)
+        ax.scatter(x_on_plot, y_on_plot, c=paramlist[args.colorcolname], vmin=c_min, vmax=c_max, edgecolors='black', lw=0 if len(paramlist) > 700 else 0.2, s=5 if len(paramlist) > 700 else 15, marker=marker_dict[type], cmap=colormap_dict[args.colorcol])
 
-    return ax
+        # ----------to plot 1D histogram on the top and right axes--------------
+        if type == 'absorbers':
+            axes.ax_marg_x = plot_1D_histogram(x_on_plot, 0, npix_datashader, axes.ax_marg_x, vertical=False, type=type)
+            axes.ax_marg_y = plot_1D_histogram(y_on_plot, 0, npix_datashader, axes.ax_marg_y, vertical=True, type=type)
+
+        print_mpi('Overplotted ' + str(len(paramlist)) + ' of ' + str(init_len) + ', i.e., ' + '%.2F' % (len(paramlist) * 100 / init_len) + '% of ' + type + ' inside this box..', args)
+
+    return axes
 
 # ---------------------------------------------------------------------------------
 def overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax, args):
@@ -181,15 +240,20 @@ def overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax, args):
     Function to overplot binned data on existing datashader plot
     Uses globally defined islog_dict
     '''
-    x_bin_size = bin_size_dict[args.xcol]
-    x_bins = np.arange(x_min, x_max + x_bin_size, x_bin_size)
+    if args.xcol == 'rad':
+        x_bins = np.logspace(np.log10(x_min + 0.001), np.log10(x_max), 200) # the 0.001 term is to avoid taking log of 0, in case x_min = 0
+    else:
+        x_bin_size = bin_size_dict[args.xcol]
+        x_bins = np.arange(x_min, x_max + x_bin_size, x_bin_size)
     df['binned_cat'] = pd.cut(df[args.xcolname], x_bins)
-    if islog_dict[args.ycol] and not args.use_cvs_log: df[args.ycol] = 10 ** df[args.ycolname] # because otherwise args.ycol is not going to be present in df
-    y_binned = df.groupby('binned_cat', as_index=False).agg(np.mean)[args.ycol] # so that the averaging is done in linear space (as opposed to log space, which would be incorrect)
+
+    if isfield_weighted_dict[args.ycol] and args.weight: agg_func = lambda x: np.mean(weight_by(x, df.loc[x.index, args.weight])) # function to get weighted mean
+    else: agg_func = np.mean
+    y_binned = df.groupby('binned_cat', as_index=False).agg([(args.ycol, agg_func)])[args.ycol]
     if islog_dict[args.ycol] and not args.use_cvs_log: y_binned = np.log10(y_binned)
 
     # ----------to plot mean binned y vs x profile--------------
-    x_bin_centers = x_bins[:-1] + x_bin_size / 2
+    x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
     x_on_plot = convert_to_datashader_frame(x_bin_centers, x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
     y_on_plot = convert_to_datashader_frame(y_binned, y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
     ax.plot(x_on_plot, y_on_plot, color='black', lw=1)
@@ -197,11 +261,12 @@ def overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax, args):
     return ax
 
 # ---------------------------------------------------------------------------------
-def plot_1D_histogram(data, data_min, data_max, ax, vertical=False):
+def plot_1D_histogram(data, data_min, data_max, ax, vertical=False, type='gas'):
     '''
     Function to plot marginalised histograms using seaborn
     '''
-    sns.kdeplot(data, ax=ax, legend=False, color='black', lw=1, vertical=vertical)
+    linestyle_dict = {'gas':('solid', 'black'), 'stars':('dotted', 'brown'), 'absorbers':('dashed', 'darkgreen')}
+    sns.kdeplot(data, ax=ax, legend=False, lw=1, vertical=vertical, linestyle=linestyle_dict[type][0], color=linestyle_dict[type][1])
     ax.tick_params(axis='x', which='both', top=False)
     if vertical: ax.set_ylim(data_min, data_max)
     else: ax.set_xlim(data_min, data_max)
@@ -288,7 +353,7 @@ def make_colorbar_axis(colname, data_min, data_max, fig, fontsize):
     return fig, ax
 
 # -----------------------------------------------------------------------------------
-def wrap_axes(df, filename, npix_datashader, args, limits, paramlist=None):
+def wrap_axes(df, filename, npix_datashader, args, limits, paramlist=None, abslist=None):
     '''
     Function to read in raw datashader plot and wrap it in axes using matplotlib AND added x- and y- marginalised histograms using seaborn
     This function is partly based on foggie.render.shade_maps.wrap_axes()
@@ -311,7 +376,10 @@ def wrap_axes(df, filename, npix_datashader, args, limits, paramlist=None):
     ax1.imshow(np.flip(img, 0))
 
     # ----------to overplot young stars----------------
-    if args.overplot_stars: ax1 = overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, ax1, args)
+    if args.overplot_stars: axes = overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, axes, args, type='stars')
+
+    # ----------to overplot young stars----------------
+    if args.overplot_absorbers: axes = overplot_stars(abslist, x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, axes, args, type='absorbers')
 
     # ----------to overplot binned profile----------------
     ax1 = overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax1, args)
@@ -335,7 +403,7 @@ def wrap_axes(df, filename, npix_datashader, args, limits, paramlist=None):
     return fig
 
 # --------------------------------------------------------------------------------
-def make_datashader_plot(df, outfilename, args, npix_datashader=1000, paramlist=None):
+def make_datashader_plot(df, outfilename, args, npix_datashader=1000, paramlist=None, abslist=None):
     '''
     Function to make data shader plot of y_field vs x_field, colored in bins of color_field
     This function is based on foggie.render.shade_maps.render_image()
@@ -361,7 +429,7 @@ def make_datashader_plot(df, outfilename, args, npix_datashader=1000, paramlist=
     img = dstf.spread(dstf.shade(agg, color_key=color_key, how='eq_hist', min_alpha=40), shape='square')
     export_image(img, os.path.splitext(outfilename)[0])
 
-    fig = wrap_axes(df, os.path.splitext(outfilename)[0] + '.png', npix_datashader, args, limits=[x_min, x_max, y_min, y_max, c_min, c_max], paramlist=paramlist)
+    fig = wrap_axes(df, os.path.splitext(outfilename)[0] + '.png', npix_datashader, args, limits=[x_min, x_max, y_min, y_max, c_min, c_max], paramlist=paramlist, abslist=abslist)
 
     return df, fig
 
@@ -735,17 +803,20 @@ def categorize_by_quant(data, data_min, data_max, discrete_cmap):
 
     return category
 
-#-------- set variables and dictionaries-----------
+#-------- set variables and dictionaries such that they are available to other scripts importing this script-----------
 field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'mass':('gas', 'mass'), \
               'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'vrad':('gas', 'radial_velocity_corrected'), \
               'phi_L':('gas', 'angular_momentum_phi'), 'theta_L':('gas', 'angular_momentum_theta'), 'volume':('gas', 'volume')}
+if yt_ver[0]=='3':
+    field_dict['mass'] = ('gas','cell_mass')
+    field_dict['volume'] = ('gas', 'cell_volume')
 unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'volume':'pc**3'}
 labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF'}
 islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True)
 bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
 colormap_dict = {'temp':temperature_discrete_cmap, 'metal':metal_discrete_cmap, 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi}
 isfield_weighted_dict = defaultdict(lambda: False, metal=True, temp=True, vrad=True, phi_L=True, theta_L=True)
-bounds_dict = defaultdict(lambda: None, density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-2, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
+bounds_dict = defaultdict(lambda: None, density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-3, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
 
 projected_unit_dict = defaultdict(lambda x: unit_dict[x], density='Msun/pc**2')
 cmap_dict = {'density':density_color_map, 'metal':metal_color_map, 'temp':temperature_color_map, 'vrad':velocity_discrete_cmap} # for projection plots, if any
@@ -774,6 +845,7 @@ if __name__ == '__main__':
     dummy_args.ycolname = 'log_' + dummy_args.ycol if islog_dict[dummy_args.ycol] and not dummy_args.use_cvs_log else dummy_args.ycol
     if isfield_weighted_dict[dummy_args.xcol] and dummy_args.weight: dummy_args.xcolname += '_wtby_' + dummy_args.weight
     if isfield_weighted_dict[dummy_args.ycol] and dummy_args.weight: dummy_args.ycolname += '_wtby_' + dummy_args.weight
+    colorcol_arr = dummy_args.colorcol
 
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
@@ -842,7 +914,6 @@ if __name__ == '__main__':
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr')
-        colorcol_arr = args.colorcol
         args.xcolname, args.ycolname = dummy_args.xcolname, dummy_args.ycolname
 
         for index, thiscolorcol in enumerate(colorcol_arr):
@@ -864,8 +935,10 @@ if __name__ == '__main__':
                     print_mpi(thisfilename + ' plot exists but over-writing..', args)
 
                 df = get_df_from_ds(box, args)
-                paramlist = get_stars_file(args) if overplot_stars else None
-                df, fig = make_datashader_plot(df, thisfilename, args, npix_datashader=npix_datashader, paramlist=paramlist)
+
+                paramlist = load_stars_file(args) if args.overplot_stars else None
+                abslist = load_absorbers_file(args) if args.overplot_absorbers else None
+                df, fig = make_datashader_plot(df, thisfilename, args, npix_datashader=npix_datashader, paramlist=paramlist, abslist=abslist)
                 if args.interactive:
                     myprint('This plot is now in interactive mode..', args)
                     fig = setup_interactive(box, fig.axes[0], args, npix_datashader=npix_datashader, nbins=nselection_bins, ncolbins=ncolor_selection_bins)
@@ -873,11 +946,12 @@ if __name__ == '__main__':
                 print_mpi('Skipping colorcol ' + thiscolorcol + ' because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)
 
         print_mpi('This snapshot ' + this_sim[1] + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
+
     comm.Barrier() # wait till all cores reached here and then resume
 
-    if args.makemovie and args.do_all_sims:
-        print_master('Finished creating snapshots, calling animate_png.py to create movie..', args)
-        if args.do_all_halos: halos = get_all_halos(args)
+    if dummy_args.makemovie and dummy_args.do_all_sims:
+        print_master('Finished creating snapshots, calling animate_png.py to create movie..', dummy_args)
+        if dummy_args.do_all_halos: halos = get_all_halos(args)
         else: halos = dummy_args.halo_arr
         for thishalo in halos:
             args = parse_args(thishalo, 'RD0020') # RD0020 is inconsequential here, just a place-holder

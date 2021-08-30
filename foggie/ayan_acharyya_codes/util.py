@@ -823,8 +823,8 @@ def get_all_halos(args):
     '''
     Function assimilate the names of all halos in the given directory
     '''
-    if args.system == 'ayan_local':
-        halos = ['8508', '5036', '2878', '2392', '5016', '4123']
+    if 'ayan_' in args.system:
+        halos = ['8508', '5036', '5016', '4123', '2392', '2878'] # we exactly know the list of halos present in ayan's local (HD) or pleiades sytems and want them to be accessed in this specific order
     else:
         foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
         halo_paths = glob.glob(foggie_dir + 'halo_*')
@@ -1053,6 +1053,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--colorcol', metavar='colorcol', type=str, action='store', default='vrad', help='x axis quantity; default is vrad')
     parser.add_argument('--clobber_plot', dest='clobber_plot', action='store_true', default=False, help='overwrite existing plots with same name?, default is no')
     parser.add_argument('--overplot_stars', dest='overplot_stars', action='store_true', default=False, help='overplot young stars?, default is no')
+    parser.add_argument('--overplot_absorbers', dest='overplot_absorbers', action='store_true', default=False, help='overplot HI absorbers (from Claire)?, default is no')
     parser.add_argument('--start_index', metavar='start_index', type=int, action='store', default=0, help='index of the list of snapshots to start from; default is 8')
     parser.add_argument('--interactive', dest='interactive', action='store_true', default=False, help='interactive mode?, default is no')
     parser.add_argument('--combine', dest='combine', action='store_true', default=False, help='combine all outputs from lasso selection?, default is no')

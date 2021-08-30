@@ -72,6 +72,7 @@ if __name__ == '__main__':
             for index2, halo in enumerate(halos):
                 start_time_this_snapshot = time.time()
                 print_mpi('Reading plot ' + output + ' of halo ' + halo + ' which is ' + str(index1 * ncol + index2 + 1) + ' out of the total ' + str(total_snaps) + ' plots...', args)
+                axes[index1][index2].axis('off')
 
                 thisboxrad = z_boxrad_dict[output] if args.fullbox else args.galrad
                 file = output_dir.replace(args.halo, halo) + 'figs/' + output + '/datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.png' % (thisboxrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text)
@@ -81,7 +82,6 @@ if __name__ == '__main__':
                     continue
 
                 image = mpimg.imread(file)
-                axes[index1][index2].axis('off')
                 axes[index1][index2].imshow(image[crop_y1 : crop_y2, crop_x1 if index2 else 0: crop_x2], origin='upper')
                 axes[index1][index2].set_aspect('auto')
 
