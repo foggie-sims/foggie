@@ -21,5 +21,6 @@ consistent_trees_id - ID number of halo's merger tree in tree_0_0_0.dat (dimensi
 CUSTOM LIVE CALCULATIONS:
 Satellites - all halos that are within halo's virial radius and have a lower virial mass than halo (array of halo objects)
 Hosts - all halos that contain halo within their virial radius and have a higher virial mass than halo (array of halo objects)
+TimeStep - name of timestep (string; e.g., 'DD2382')
 
 Usage: e.g., sim[30][1].calculate('Satellites()') 
