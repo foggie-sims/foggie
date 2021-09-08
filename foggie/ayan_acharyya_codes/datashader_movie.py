@@ -23,8 +23,9 @@ from matplotlib.colors import to_hex
 from matplotlib.widgets import LassoSelector
 from matplotlib.widgets import SpanSelector
 
-yt_ver = yt.__version__
+from functools import partial
 
+yt_ver = yt.__version__
 start_time = time.time()
 
 # ------------------------------------------------------------------------------
@@ -478,8 +479,9 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
 
     # --------to make the main datashader plot--------------------------
     color_key = get_color_keys(c_min, c_max, colormap_dict[args.colorcol])
-    artist1 = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.count_cat(args.colorcol_cat), norm='eq_hist', color_key=color_key, \
-                     x_range=(x_min, x_max), y_range=(y_min, y_max), vmin=c_min, vmax=c_max, aspect = 'auto', ax=ax1, alpha_range=(254, 255))
+    artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.count_cat(args.colorcol_cat), norm='eq_hist', color_key=color_key, \
+                     x_range=(x_min, x_max), y_range=(y_min, y_max), vmin=c_min, vmax=c_max, aspect = 'auto', ax=ax1, alpha_range=(40, 255), \
+                     shade_hook=partial(dstf.spread, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # ----------to overplot young stars----------------
     if args.overplot_stars: axes = overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, axes, args, type='stars')
@@ -501,8 +503,8 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
     # ------to make the colorbar axis-------------
     cax_xpos, cax_ypos, cax_width, cax_height = 0.7, 0.82, 0.25, 0.06
     cax = fig.add_axes([cax_xpos, cax_ypos, cax_width, cax_height])
-    plt.colorbar(artist1, cax=cax, orientation='horizontal')
-    plt.legend(handles=artist1.get_legend_elements())
+    plt.colorbar(artist, cax=cax, orientation='horizontal')
+    plt.legend(handles=artist.get_legend_elements())
     '''
     fig, ax2 = make_colorbar_axis(args.colorcol, c_min, c_max, fig, args.fontsize)
 
