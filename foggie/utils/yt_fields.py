@@ -86,7 +86,7 @@ def _cooling_criteria(field,data):
 def get_particle_relative_specific_angular_momentum(ptype):
     def particle_relative_specific_angular_momentum(field, data):
         """
-        Added by Raymond. Native YT "particle angular momentum" re-defines Z wrt the given normal direction. 
+        Added by Raymond. Native YT "particle angular momentum" re-defines Z wrt the given normal direction.
         These definitions define it wrt to the cartesian grid, to be consistent with gas.
         Calculate the angular of a particle velocity.
 
@@ -202,9 +202,9 @@ def radial_velocity_corrected(field, data):
     Requires 'halo_center_kpc', which is the halo center with yt units of kpc, to be defined.
     Requires the other fields of _vx_corrected, _vy_corrected, and _vz_corrected. -Cassi"""
     halo_center_kpc = data.ds.halo_center_kpc
-    x_hat = data['x'].in_units('kpc') - halo_center_kpc[0]
-    y_hat = data['y'].in_units('kpc') - halo_center_kpc[1]
-    z_hat = data['z'].in_units('kpc') - halo_center_kpc[2]
+    x_hat = data['gas','x'].in_units('kpc') - halo_center_kpc[0]
+    y_hat = data['gas','y'].in_units('kpc') - halo_center_kpc[1]
+    z_hat = data['gas','z'].in_units('kpc') - halo_center_kpc[2]
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     x_hat /= r
     y_hat /= r
@@ -222,9 +222,9 @@ def theta_velocity_corrected(field, data):
     yv = data['vy_corrected']
     zv = data['vz_corrected']
     center = data.ds.halo_center_kpc
-    x_hat = data['x'].in_units('kpc') - center[0]
-    y_hat = data['y'].in_units('kpc') - center[1]
-    z_hat = data['z'].in_units('kpc') - center[2]
+    x_hat = data['gas','x'].in_units('kpc') - center[0]
+    y_hat = data['gas','y'].in_units('kpc') - center[1]
+    z_hat = data['gas','z'].in_units('kpc') - center[2]
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     rxy = np.sqrt(x_hat*x_hat + y_hat*y_hat)
     theta_v = (xv*y_hat - x_hat*yv)/(x_hat*x_hat + y_hat*y_hat)*rxy
@@ -240,9 +240,9 @@ def phi_velocity_corrected(field, data):
     yv = data['vy_corrected']
     zv = data['vz_corrected']
     center = data.ds.halo_center_kpc
-    x_hat = data['x'].in_units('kpc') - center[0]
-    y_hat = data['y'].in_units('kpc') - center[1]
-    z_hat = data['z'].in_units('kpc') - center[2]
+    x_hat = data['gas','x'].in_units('kpc') - center[0]
+    y_hat = data['gas','y'].in_units('kpc') - center[1]
+    z_hat = data['gas','z'].in_units('kpc') - center[2]
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     rxy = np.sqrt(x_hat*x_hat + y_hat*y_hat)
     phi_v = (z_hat*(x_hat*xv + y_hat*yv)-zv*(x_hat*x_hat + y_hat*y_hat))/(r*r*rxy)*r
@@ -308,9 +308,9 @@ def theta_pos(field, data):
     """Calculates the azimuthal position of cells for conversions to spherical coordinates.
     Requires 'halo_center_kpc', which is the halo center with yt units of kpc, to be defined. -Cassi"""
     halo_center_kpc = data.ds.halo_center_kpc
-    x_hat = data['x'].in_units('kpc') - halo_center_kpc[0]
-    y_hat = data['y'].in_units('kpc') - halo_center_kpc[1]
-    z_hat = data['z'].in_units('kpc') - halo_center_kpc[2]
+    x_hat = data['gas','x'].in_units('kpc') - halo_center_kpc[0]
+    y_hat = data['gas','y'].in_units('kpc') - halo_center_kpc[1]
+    z_hat = data['gas','z'].in_units('kpc') - halo_center_kpc[2]
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     return np.arccos(z_hat/r)
 
@@ -318,9 +318,9 @@ def phi_pos(field, data):
     """Calculates the angular position of cells for conversions to spherical coordinates.
     Requires 'halo_center_kpc', which is the halo center with yt units of kpc, to be defined. -Cassi"""
     halo_center_kpc = data.ds.halo_center_kpc
-    x_hat = data['x'].in_units('kpc') - halo_center_kpc[0]
-    y_hat = data['y'].in_units('kpc') - halo_center_kpc[1]
-    z_hat = data['z'].in_units('kpc') - halo_center_kpc[2]
+    x_hat = data['gas','x'].in_units('kpc') - halo_center_kpc[0]
+    y_hat = data['gas','y'].in_units('kpc') - halo_center_kpc[1]
+    z_hat = data['gas','z'].in_units('kpc') - halo_center_kpc[2]
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     return np.arctan2(y_hat, x_hat)
 
@@ -362,9 +362,9 @@ def x_diskrel(field, data):
     Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
 
     halo_center_kpc = data.ds.halo_center_kpc
-    oldx = data['x'].in_units('kpc') - halo_center_kpc[0]
-    oldy = data['y'].in_units('kpc') - halo_center_kpc[1]
-    oldz = data['z'].in_units('kpc') - halo_center_kpc[2]
+    oldx = data['gas','x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['gas','y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['gas','z'].in_units('kpc') - halo_center_kpc[2]
     newx = data.ds.disk_rot_arr[0][0]*oldx+data.ds.disk_rot_arr[0][1]*oldy+data.ds.disk_rot_arr[0][2]*oldz
 
     return newx.in_units('kpc')
@@ -376,9 +376,9 @@ def y_diskrel(field, data):
     Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
 
     halo_center_kpc = data.ds.halo_center_kpc
-    oldx = data['x'].in_units('kpc') - halo_center_kpc[0]
-    oldy = data['y'].in_units('kpc') - halo_center_kpc[1]
-    oldz = data['z'].in_units('kpc') - halo_center_kpc[2]
+    oldx = data['gas','x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['gas','y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['gas','z'].in_units('kpc') - halo_center_kpc[2]
     newy = data.ds.disk_rot_arr[1][0]*oldx+data.ds.disk_rot_arr[1][1]*oldy+data.ds.disk_rot_arr[1][2]*oldz
 
     return newy.in_units('kpc')
@@ -390,9 +390,9 @@ def z_diskrel(field, data):
     Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
 
     halo_center_kpc = data.ds.halo_center_kpc
-    oldx = data['x'].in_units('kpc') - halo_center_kpc[0]
-    oldy = data['y'].in_units('kpc') - halo_center_kpc[1]
-    oldz = data['z'].in_units('kpc') - halo_center_kpc[2]
+    oldx = data['gas','x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['gas','y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['gas','z'].in_units('kpc') - halo_center_kpc[2]
     newz = data.ds.disk_rot_arr[2][0]*oldx+data.ds.disk_rot_arr[2][1]*oldy+data.ds.disk_rot_arr[2][2]*oldz
 
     return newz.in_units('kpc')
@@ -531,9 +531,9 @@ def grav_pot(field, data):
 
 def hse_ratio(field, data):
     center = data.ds.halo_center_kpc
-    x_hat = data["x"].in_units('kpc') - center[0]
-    y_hat = data["y"].in_units('kpc') - center[1]
-    z_hat = data["z"].in_units('kpc') - center[2]
+    x_hat = data['gas',"x"].in_units('kpc') - center[0]
+    y_hat = data['gas',"y"].in_units('kpc') - center[1]
+    z_hat = data['gas',"z"].in_units('kpc') - center[2]
     r = np.sqrt(x_hat*x_hat+y_hat*y_hat+z_hat*z_hat)
     gx = -data["density"] * data["grav_pot_gradient_x"]
     gy = -data["density"] * data["grav_pot_gradient_y"]

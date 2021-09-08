@@ -33,7 +33,6 @@ from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 from scipy.optimize import curve_fit
 import shutil
 import ast
-import trident
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -43,6 +42,13 @@ from foggie.utils.get_proper_box_size import get_proper_box_size
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
+
+# These imports for datashader plots
+import datashader as dshader
+from datashader.utils import export_image
+import datashader.transfer_functions as tf
+import pandas as pd
+import matplotlib as mpl
 
 
 def identify_shape(shape_args, halo, run, units_kpc=False, units_rvir=False):
@@ -429,7 +435,7 @@ def filter_FRB(FRB, save_file=False, save_dir='', file_name='', save_suffix=''):
 
     return FRB_inflow, FRB_outflow, FRB_neither
 
-def create_foggie_cmap(cmin, cmax, cfunc, color_key, log):
+def create_foggie_cmap(cmin, cmax, cfunc, color_key, log=False):
     '''This function makes the image for the little colorbar that can be put on the datashader main
     image. It takes the minimum and maximum values of the field that is being turned into a colorbar,
     'cmin' and 'cmax', the name of the color-categorization function (in consistency.py), 'cfunc',
@@ -448,10 +454,11 @@ def create_foggie_cmap(cmin, cmax, cfunc, color_key, log):
     sightline_length = np.max(df['x']) - np.min(df['x'])
     value = np.max(df['x'])
 
-    df['cat'] = cfunc(df['rand'])
+    cat = cfunc(rand)
     for index in np.flip(np.arange(n_labels), 0):
-        df['cat'][df['x'] > value - sightline_length*(1.*index+1)/n_labels] = \
+        cat[x > value - sightline_length*(1.*index+1)/n_labels] = \
           list(color_key)[index]
+    df['cat'] = cat
     df.cat = df.cat.astype('category')
 
     cvs = dshader.Canvas(plot_width=750, plot_height=100,

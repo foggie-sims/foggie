@@ -78,7 +78,7 @@ xc=[]
 yc=[]
 zc=[]
 distancefromhalocenter=[]
-
+numberofcells = []
 
 for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box10','box11','box12','box13','box14','box15','box16','box17','box18','box19','box20','box21','box22','box23','box24','box25','box26','box27']:
     clumpmasses = []
@@ -138,7 +138,7 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             coordis = (xi,yi,zi)
             coordinates.append(coordis)
 
-            distancefromhalocenteri= np.sqrt(((xi-halocenter_x))**2 + ((yi-halocenter_y))**2 + ((zi-halocenter_z)))**2)
+            distancefromhalocenteri= np.sqrt(((xi-halocenter_x))**2 + ((yi-halocenter_y))**2 + ((zi-halocenter_z))**2)
             distancefromhalocenteri=distancefromhalocenteri.in_units("kpc")
             distancefromhalocenter.append(distancefromhalocenteri)
             x_extend = (ad["grid", "x"].max().in_units("kpc") - ad["gas", "x"].min().in_units("kpc"))
@@ -177,6 +177,9 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             MgIImasses.append(MgIImass)
             HImasses.append(HImass)
 
+            numberofcellsi = len(np.array(ad["grid", "x"]))
+            numberofcells.append(numberofcellsi)
+
     IDs=np.array(IDs)
     clumpmasses=np.array(clumpmasses)
     clumpvolumes=np.array(clumpvolumes)
@@ -195,6 +198,7 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
     com=np.array(com)
     coordinates=np.array(coordinates)
     distancefromhalocenter=np.array(distancefromhalocenter)
+    numberofcells=np.array(numberofcells)
     clumpradii = (3/4/np.pi * clumpvolumes)**(1/3)
 
 
@@ -221,9 +225,10 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
     col20 = fits.Column(name='centery', format='E', unit='code_units', array=yc)
     col21 = fits.Column(name='centerz', format='E', unit='code_units', array=zc)
     col22 = fits.Column(name='distancefromhalocenter', format='E', unit='kpc', array=distancefromhalocenter)
+    col23 = fits.Column(name='numberofcells', format='E', unit='None', array=numberofcells)
 
     #coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17, col18, col19, col20, col21, col22])
-    coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col19, col20, col21, col22])
+    coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col19, col20, col21, col22, col23])
     hdu = fits.BinTableHDU.from_columns(coldefs)
     outfile = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements.fits'
     oldoutfile = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements_old.fits'

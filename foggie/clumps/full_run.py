@@ -1,6 +1,7 @@
 import yt
 from yt.data_objects.level_sets.api import *
 from foggie.utils.foggie_load import foggie_load as fl
+from foggie.utils.foggie_load import load_sim
 import os
 import matplotlib.pyplot as plt
 import numpy as np
@@ -65,12 +66,24 @@ snap = args.output
 
 filename = foggie_dir+'halo_00'+halo+'/'+sim+'/'+snap+'/'+snap
 track_name = trackname
-ds, region = fl(filename,trackname)
+
+#ds, region = fl(filename,trackname)
+ds, region = fl(filename, trackname, \
+                        particle_type_for_angmom=False, do_filter_particles=False, \
+                        region='refine_box') # this *SHOULD* work better, I just hope I'm not losing anything important
+# if halo_c_v file does not include the halo center, foggie_load will try to calculate it (which doesnt work without problems in yt4 so here is the workaround from Ayan using load_sim)
+
+
+#ds, refine_box = load_sim(args, region='refine_box')
+#args.halo_center = ds.halo_center_kpc
+#args.halo_velocity = ds.halo_velocity_kms
+#[centerx,centery,centerz] = ds.halo_center
+#args.halo_velocity = ds.halo_velocity_kms
+
+
 
 for chosenion in ['O VI','C II','C IV','Si II','Si III','Si IV', 'Mg I', 'Mg II', 'H I']:
     trident.add_ion_fields(ds, ions=[chosenion])
-
-
 
 chosenwidth = args.width
 

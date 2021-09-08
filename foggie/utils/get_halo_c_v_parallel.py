@@ -16,7 +16,6 @@ from yt.units import *
 from yt import YTArray
 from astropy.table import Table
 from astropy.io import ascii
-from yt.analysis_modules.star_analysis.api import StarFormationRate
 import multiprocessing as mp
 import argparse
 import shutil
