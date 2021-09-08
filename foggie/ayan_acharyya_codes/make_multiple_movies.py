@@ -17,20 +17,27 @@ start_time = time.time()
 # -------------------------------------------------------------------
 def make_anim_imageio(args):
     filenames = glob.glob(args.inpath + args.rootname)
-    filenames.sort(key=str, reverse=args.reverse)
+    filenames.sort(key=str, reverse=True if 'z=*' in args.rootname else False) # reverse=True in order to arrange from highest to lowest redshift
     outputfile = args.inpath + args.rootname.replace('*', '').replace('/', '_').replace('.png', '_anim.mp4')
 
+    loops = 1 # 0 = infinite loop
+    images = []
+    for index, filename in enumerate(filenames):
+        print_mpi('Appending file ' + os.path.split(filename)[1] + ' which is ' + str(index + 1) + ' out of ' + str(len(filenames)), args) #
+        images.append(imageio.imread(filename))
+    imageio.mimsave(outputfile, images, duration=args.delay_frame, loop=loops)
+    '''
     with imageio.get_writer(outputfile, mode='I', fps=int(1./args.delay_frame)) as writer:
         for index, filename in enumerate(filenames):
-            print_mpi('Appending file ' + os.path.split(filename)[1] + ' which is ' + str(index + 1) + ' out of ' + str(len(filenames)))  #
+            print_mpi('Appending file ' + os.path.split(filename)[1] + ' which is ' + str(index + 1) + ' out of ' + str(len(filenames)), args)  #
             image = imageio.imread(filename)
             try:
                 writer.append_data(image)
-            except ValueError as e:
-                print_mpi('Skipping snapshot ' + str(index + 1) + ' due to ' + str(e))
+            except (ValueError, IOError) as e:
+                print_mpi('Skipping snapshot ' + str(index + 1) + ' due to ' + str(e), args)
                 continue
-
-    print_mpi('Combined ' + str(len(filenames)) + ' images into ' + outputfile)
+    '''
+    print_mpi('Combined ' + str(len(filenames)) + ' images into ' + outputfile, args)
     return args
 
 # -----main code-----------------
@@ -55,7 +62,7 @@ if __name__ == '__main__':
     ncores = comm.size
     rank = comm.rank
     print_master('Total number of MPI ranks = ' + str(ncores) + '. Starting at: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()), args)
-    print('List of movies:', list_of_movies)
+    if rank == 0: print('List of movies:', list_of_movies)
     comm.Barrier() # wait till all cores reached here and then resume
 
     split_at_cpu = nmovies - ncores * int(nmovies/ncores)

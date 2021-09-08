@@ -209,7 +209,7 @@ def load_absorbers_file(args):
     return abslist
 
 # ---------------------------------------------------------------------------------
-def overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, axes, args, type='stars'):
+def overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, axes, args, type='stars', npix_datashader=1000):
     '''
     Function to overplot young stars on existing datashader plot
     Uses globally defined colormap_dict
@@ -221,21 +221,29 @@ def overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, npix_dat
         paramlist = paramlist[(paramlist[args.xcolname].between(x_min, x_max)) & (paramlist[args.ycolname].between(y_min, y_max)) & (paramlist[args.colorcolname].between(c_min, c_max))]
 
         # -------------to actually plot the simulation data------------
-        x_on_plot = convert_to_datashader_frame(paramlist[args.xcolname], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
-        y_on_plot = convert_to_datashader_frame(paramlist[args.ycolname], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
-        ax.scatter(x_on_plot, y_on_plot, c=paramlist[args.colorcolname], vmin=c_min, vmax=c_max, edgecolors='black', lw=0 if len(paramlist) > 700 else 0.2, s=5 if len(paramlist) > 700 else 15, marker=marker_dict[type], cmap=colormap_dict[args.colorcol])
+        if datashader_ver <= 11 or args.use_old_dsh:
+            x_on_plot = convert_to_datashader_frame(paramlist[args.xcolname], x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
+            y_on_plot = convert_to_datashader_frame(paramlist[args.ycolname], y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
+            x_min_on_plot, x_max_on_plot = 0, npix_datashader
+            y_min_on_plot, y_max_on_plot = 0, npix_datashader
+        else:
+            x_on_plot, y_on_plot = paramlist[args.xcolname], paramlist[args.ycolname]
+            x_min_on_plot, x_max_on_plot = x_min, x_max
+            y_min_on_plot, y_max_on_plot = y_min, y_max
+
+        ax.scatter(x_on_plot, y_on_plot, c=paramlist[args.colorcolname], vmin=c_min, vmax=c_max, edgecolors='black', lw=0 if type == 'absorbers' and len(paramlist) > 700 else 0.2, s=5 if type == 'absorbers' and len(paramlist) > 700 else 15, marker=marker_dict[type], cmap=colormap_dict[args.colorcol])
 
         # ----------to plot 1D histogram on the top and right axes--------------
         if type == 'absorbers':
-            axes.ax_marg_x = plot_1D_histogram(x_on_plot, 0, npix_datashader, axes.ax_marg_x, vertical=False, type=type)
-            axes.ax_marg_y = plot_1D_histogram(y_on_plot, 0, npix_datashader, axes.ax_marg_y, vertical=True, type=type)
+            axes.ax_marg_x = plot_1D_histogram(x_on_plot, x_min_on_plot, x_max_on_plot, axes.ax_marg_x, vertical=False, type=type)
+            axes.ax_marg_y = plot_1D_histogram(y_on_plot, y_min_on_plot, y_max_on_plot, axes.ax_marg_y, vertical=True, type=type)
 
         print_mpi('Overplotted ' + str(len(paramlist)) + ' of ' + str(init_len) + ', i.e., ' + '%.2F' % (len(paramlist) * 100 / init_len) + '% of ' + type + ' inside this box..', args)
 
     return axes
 
 # ---------------------------------------------------------------------------------
-def overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax, args):
+def overplot_binned(df, x_min, x_max, y_min, y_max, ax, args, npix_datashader=1000):
     '''
     Function to overplot binned data on existing datashader plot
     Uses globally defined islog_dict
@@ -254,8 +262,12 @@ def overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax, args):
 
     # ----------to plot mean binned y vs x profile--------------
     x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
-    x_on_plot = convert_to_datashader_frame(x_bin_centers, x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
-    y_on_plot = convert_to_datashader_frame(y_binned, y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
+    if datashader_ver <= 11 or args.use_old_dsh:
+        x_on_plot = convert_to_datashader_frame(x_bin_centers, x_min, x_max, npix_datashader, log_scale=islog_dict[args.xcol] and args.use_cvs_log) # because we need to stretch the binned x and y into npix_datashader dimensions determined by the datashader plot
+        y_on_plot = convert_to_datashader_frame(y_binned, y_min, y_max, npix_datashader, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
+    else:
+        x_on_plot, y_on_plot = x_bin_centers, y_binned
+
     ax.plot(x_on_plot, y_on_plot, color='black', lw=1)
 
     return ax
@@ -376,13 +388,13 @@ def wrap_axes(df, filename, npix_datashader, args, limits, paramlist=None, absli
     ax1.imshow(np.flip(img, 0))
 
     # ----------to overplot young stars----------------
-    if args.overplot_stars: axes = overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, axes, args, type='stars')
+    if args.overplot_stars: axes = overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, axes, args, type='stars', npix_datashader=npix_datashader)
 
     # ----------to overplot young stars----------------
-    if args.overplot_absorbers: axes = overplot_stars(abslist, x_min, x_max, y_min, y_max, c_min, c_max, npix_datashader, axes, args, type='absorbers')
+    if args.overplot_absorbers: axes = overplot_stars(abslist, x_min, x_max, y_min, y_max, c_min, c_max, axes, args, type='absorbers', npix_datashader=npix_datashader)
 
     # ----------to overplot binned profile----------------
-    ax1 = overplot_binned(df, x_min, x_max, y_min, y_max, npix_datashader, ax1, args)
+    ax1 = overplot_binned(df, x_min, x_max, y_min, y_max, ax1, args, npix_datashader=npix_datashader)
 
     # ----------to plot 1D histogram on the top and right axes--------------
     axes.ax_marg_x = plot_1D_histogram(df[args.xcolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_x, vertical=False)
@@ -430,6 +442,77 @@ def make_datashader_plot(df, outfilename, args, npix_datashader=1000, paramlist=
     export_image(img, os.path.splitext(outfilename)[0])
 
     fig = wrap_axes(df, os.path.splitext(outfilename)[0] + '.png', npix_datashader, args, limits=[x_min, x_max, y_min, y_max, c_min, c_max], paramlist=paramlist, abslist=abslist)
+    #fig = img # to bypass wrap_axes, comment out previous line and uncomment this line
+
+    return df, fig
+
+# --------------------------------------------------------------------------------
+def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None):
+    '''
+    Function to make data shader plot of y_field vs x_field, colored in bins of color_field
+    This function is based on foggie.render.shade_maps.render_image()
+    This is different from make_datashader_plot() in that this function uses the newest version of datashader which has matplotlib support
+    So this function essentially combines make_datashader_plot() and wrap_axes(), because the latter is not needed anymore
+    :return dataframe, figure
+    '''
+    # ----------to determine axes limits--------------
+    bounds_dict.update(rad=(0, args.galrad))
+    x_min, x_max = bounds_dict[args.xcol]
+    if islog_dict[args.xcol] and not args.use_cvs_log: x_min, x_max = np.log10(x_min), np.log10(x_max)
+    y_min, y_max = bounds_dict[args.ycol]
+    if islog_dict[args.ycol] and not args.use_cvs_log: y_min, y_max = np.log10(y_min), np.log10(y_max)
+    c_min, c_max = bounds_dict[args.colorcol]
+    if islog_dict[args.colorcol]: c_min, c_max = np.log10(c_min), np.log10(c_max)
+
+    # ----------to filter and categorize the dataframe--------------
+    df = df[(df[args.xcolname].between(x_min, x_max)) & (df[args.ycolname].between(y_min, y_max)) & (df[args.colorcolname].between(c_min, c_max))]
+    df[args.colorcol_cat] = categorize_by_quant(df[args.colorcolname], c_min, c_max, colormap_dict[args.colorcol])
+    df[args.colorcol_cat] = df[args.colorcol_cat].astype('category')
+
+    # -----------------to initialise figure---------------------
+    shift_right = 'phi' in args.ycol or 'theta' in args.ycol
+    axes = sns.JointGrid(args.xcolname, args.ycolname, df, height=8)
+    extra_space = 0.03 if shift_right else 0
+    plt.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95 + extra_space, top=0.95, bottom=0.1, left=0.1 + extra_space)
+    fig, ax1 = plt.gcf(), axes.ax_joint
+
+    # --------to make the main datashader plot--------------------------
+    color_key = get_color_keys(c_min, c_max, colormap_dict[args.colorcol])
+    artist1 = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.count_cat(args.colorcol_cat), norm='eq_hist', color_key=color_key, \
+                     x_range=(x_min, x_max), y_range=(y_min, y_max), vmin=c_min, vmax=c_max, aspect = 'auto', ax=ax1, alpha_range=(254, 255))
+
+    # ----------to overplot young stars----------------
+    if args.overplot_stars: axes = overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, axes, args, type='stars')
+
+    # ----------to overplot young stars----------------
+    if args.overplot_absorbers: axes = overplot_stars(abslist, x_min, x_max, y_min, y_max, c_min, c_max, axes, args, type='absorbers')
+
+    # ----------to overplot binned profile----------------
+    ax1 = overplot_binned(df, x_min, x_max, y_min, y_max, ax1, args)
+
+    # ----------to plot 1D histogram on the top and right axes--------------
+    axes.ax_marg_x = plot_1D_histogram(df[args.xcolname], x_min, x_max, axes.ax_marg_x, vertical=False)
+    axes.ax_marg_y = plot_1D_histogram(df[args.ycolname], y_min, y_max, axes.ax_marg_y, vertical=True)
+
+    # ------to make the axes-------------
+    ax1.xaxis = make_coordinate_axis(args.xcol, x_min, x_max, ax1.xaxis, args.fontsize, dsh=False, log_scale=islog_dict[args.xcol] and args.use_cvs_log)
+    ax1.yaxis = make_coordinate_axis(args.ycol, y_min, y_max, ax1.yaxis, args.fontsize, dsh=False, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
+    '''
+    # ------to make the colorbar axis-------------
+    cax_xpos, cax_ypos, cax_width, cax_height = 0.7, 0.82, 0.25, 0.06
+    cax = fig.add_axes([cax_xpos, cax_ypos, cax_width, cax_height])
+    plt.colorbar(artist1, cax=cax, orientation='horizontal')
+    plt.legend(handles=artist1.get_legend_elements())
+    '''
+    fig, ax2 = make_colorbar_axis(args.colorcol, c_min, c_max, fig, args.fontsize)
+
+    # ---------to annotate and save the figure----------------------
+    if args.current_redshift is not None: plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift, transform=ax1.transAxes, fontsize=args.fontsize)
+    if args.current_time is not None: plt.text(0.033, 0.1, 't = %.3F Gyr' % args.current_time, transform=ax1.transAxes, fontsize=args.fontsize)
+    filename = os.path.splitext(outfilename)[0] + '.png'
+    plt.savefig(filename, transparent=False)
+    myprint('Saved figure ' + filename, args)
+    if not args.makemovie: plt.show(block=False)
 
     return df, fig
 
@@ -938,7 +1021,10 @@ if __name__ == '__main__':
 
                 paramlist = load_stars_file(args) if args.overplot_stars else None
                 abslist = load_absorbers_file(args) if args.overplot_absorbers else None
-                df, fig = make_datashader_plot(df, thisfilename, args, npix_datashader=npix_datashader, paramlist=paramlist, abslist=abslist)
+                if datashader_ver <= 11 or args.use_old_dsh:
+                    df, fig = make_datashader_plot(df, thisfilename, args, npix_datashader=npix_datashader, paramlist=paramlist, abslist=abslist)
+                else:
+                    df, fig = make_datashader_plot_mpl(df, thisfilename, args, paramlist=paramlist, abslist=abslist)
                 if args.interactive:
                     myprint('This plot is now in interactive mode..', args)
                     fig = setup_interactive(box, fig.axes[0], args, npix_datashader=npix_datashader, nbins=nselection_bins, ncolbins=ncolor_selection_bins)

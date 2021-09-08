@@ -8,14 +8,10 @@
     Started :    July 2021
     Example :    run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp --halo 8508 --dryrun
     OR :         run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp --do_all_halos --nhours 24 --dryrun
-    OR :         run ~/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 --do_all_sims --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has
+    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 --do_all_sims --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has
 """
-import os, subprocess, argparse, datetime
+import subprocess, argparse, datetime
 from collections import defaultdict
-HOME = os.getenv('HOME')
-if not os.path.exists(HOME + '/Work/astro/ayan_codes'):  # if the code directory does not exist in current home, then it must exist in /pleiades home
-    HOME = '/pleiades/u/' + os.getenv('USER')
-
 
 # ---------------------------------------------------------
 def parse_args():
@@ -92,7 +88,7 @@ if __name__ == '__main__':
     tempcut_flag = ' --temp_cut ' if args.temp_cut else ''
     units_flag = ' --units_kpc ' if args.units_kpc else ' --units_rvir ' if args.units_rvir else ''
 
-    jobscript_path = HOME+'/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
+    jobscript_path = '/nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
     jobscript_template = 'jobscript_template_' + args.system + '.txt'
     callfile = jobscript_path + args.callfunc + '.py'
 
