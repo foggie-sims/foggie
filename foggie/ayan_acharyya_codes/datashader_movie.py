@@ -365,6 +365,24 @@ def make_colorbar_axis(colname, data_min, data_max, fig, fontsize):
 
     return fig, ax
 
+# ---------------------------------------------------------------------------------
+def make_colorbar_axis_mpl(colname, artist, fig, fontsize):
+    '''
+    Function to make the coordinate axis
+    Uses globally defined islog_dict and unit_dict
+    Different from make_colorbar_axis() because this function uses native matplotlib support of datashader
+    '''
+    cax_xpos, cax_ypos, cax_width, cax_height = 0.7, 0.835, 0.25, 0.035
+    cax = fig.add_axes([cax_xpos, cax_ypos, cax_width, cax_height])
+    plt.colorbar(artist, cax=cax, orientation='horizontal')
+
+    cax.set_xticklabels(['%.0F' % index for index in cax.get_xticks()], fontsize=fontsize / 1.5)  # , weight='bold')
+
+    log_text = 'Log ' if islog_dict[colname] else ''
+    fig.text(cax_xpos + cax_width / 2, cax_ypos + cax_height + 0.005, log_text + labels_dict[colname] + ' (' + unit_dict[colname] + ')', fontsize=fontsize/1.5, ha='center', va='bottom')
+
+    return fig, cax
+
 # -----------------------------------------------------------------------------------
 def wrap_axes(df, filename, npix_datashader, args, limits, paramlist=None, abslist=None):
     '''
@@ -479,9 +497,8 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
 
     # --------to make the main datashader plot--------------------------
     color_key = get_color_keys(c_min, c_max, colormap_dict[args.colorcol])
-    artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.count_cat(args.colorcol_cat), norm='eq_hist', color_key=color_key, \
-                     x_range=(x_min, x_max), y_range=(y_min, y_max), vmin=c_min, vmax=c_max, aspect = 'auto', ax=ax1, alpha_range=(40, 255), \
-                     shade_hook=partial(dstf.spread, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
+    #artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.count_cat(args.colorcol_cat), norm='eq_hist', color_key=color_key, x_range=(x_min, x_max), y_range=(y_min, y_max), vmin=c_min, vmax=c_max, aspect = 'auto', ax=ax1, alpha_range=(40, 255), shade_hook=partial(dstf.spread, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
+    artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.mean(args.colorcolname), norm='linear', cmap=list(color_key.values()), x_range=(x_min, x_max), y_range=(y_min, y_max), vmin=c_min, vmax=c_max, aspect = 'auto', ax=ax1) #, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # ----------to overplot young stars----------------
     if args.overplot_stars: axes = overplot_stars(paramlist, x_min, x_max, y_min, y_max, c_min, c_max, axes, args, type='stars')
@@ -497,16 +514,13 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
     axes.ax_marg_y = plot_1D_histogram(df[args.ycolname], y_min, y_max, axes.ax_marg_y, vertical=True)
 
     # ------to make the axes-------------
+    #ax1.set_xlim(20, 0) #
     ax1.xaxis = make_coordinate_axis(args.xcol, x_min, x_max, ax1.xaxis, args.fontsize, dsh=False, log_scale=islog_dict[args.xcol] and args.use_cvs_log)
     ax1.yaxis = make_coordinate_axis(args.ycol, y_min, y_max, ax1.yaxis, args.fontsize, dsh=False, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
-    '''
+
     # ------to make the colorbar axis-------------
-    cax_xpos, cax_ypos, cax_width, cax_height = 0.7, 0.82, 0.25, 0.06
-    cax = fig.add_axes([cax_xpos, cax_ypos, cax_width, cax_height])
-    plt.colorbar(artist, cax=cax, orientation='horizontal')
-    plt.legend(handles=artist.get_legend_elements())
-    '''
-    fig, ax2 = make_colorbar_axis(args.colorcol, c_min, c_max, fig, args.fontsize)
+    #fig, ax2 = make_colorbar_axis(args.colorcol, c_min, c_max, fig, args.fontsize)
+    fig, ax2 = make_colorbar_axis_mpl(args.colorcol, artist, fig, args.fontsize)
 
     # ---------to annotate and save the figure----------------------
     if args.current_redshift is not None: plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift, transform=ax1.transAxes, fontsize=args.fontsize)
