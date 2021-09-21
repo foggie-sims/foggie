@@ -48,7 +48,10 @@ def get_run_loc_etc(args):
         output_path = "/Users/clochhaas/Documents/Research/FOGGIE/Outputs/"
         code_path = "/Users/clochhaas/Documents/Research/FOGGIE/Analysis_Code/foggie/foggie/"
     elif args.system == "pleiades_cassi":
-        foggie_dir = "/nobackup/mpeeples/"
+        if ('feedback' in args.run):
+            foggie_dir = '/nobackup/clochhaa/'
+        else:
+            foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackup/clochhaa/Outputs/"
         code_path = "/nobackup/clochhaa/foggie/foggie/"
     elif args.system == 'nnishimura':
@@ -118,6 +121,14 @@ def get_run_loc_etc(args):
             trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref9"
             infofile = code_path  + "halo_infos/00" + args.halo +"/nref11c_nref9f/halo_info"
             haloname = "halo_00"+ args.halo + "_nref11c_nref9f"
+            path_part = run_loc
+            output_dir = output_path + "plots_"+path_part
+            spectra_dir = output_dir+"spectra/"
+        elif 'feedback' in args.run:
+            run_loc = args.run + '/'
+            trackname = code_path + "halo_tracks/00"+ args.halo +"/nref11n_selfshield_15/halo_track_200kpc_nref9"
+            infofile = code_path  + "halo_infos/00" + args.halo +"/nref11c_nref9f/halo_info"
+            haloname = "halo_00"+ args.halo + "_" + args.run
             path_part = run_loc
             output_dir = output_path + "plots_"+path_part
             spectra_dir = output_dir+"spectra/"
