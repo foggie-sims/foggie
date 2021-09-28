@@ -12,6 +12,9 @@
                  run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol temp --colorcol density,metal,vrad,phi_L,theta_L --output RD0042 --clobber_plot --overplot_stars --keep
                  run datashader_movie.py --system ayan_hd --halo 8508 --galrad 20 --xcol rad --ycol metal --colorcol vrad,density,temp,phi_L,theta_L --output RD0042 --clobber_plot --overplot_stars --keep
                  run datashader_movie.py --system ayan_local --halo 8508 --do gas --galrad 20 --xcol rad --ycol metal --colorcol temp --output RD0030 --clobber_plot --overplot_stars --interactive --selcol --combine
+                 run datashader_movie.py --system ayan_pleiades --halo 8508 --run nref10n.3000 --galrad 200 --xcol rad --ycol metal --colorcol temp,vrad,density --do_all_sims --clobber_plot
+                 run datashader_movie.py --system ayan_pleiades --halo 8508 --run full_run_with_mrp_fix.64 --galrad 200 --xcol rad --ycol metal --colorcol temp,vrad,density --do_all_sims --clobber_plot
+
 """
 from header import *
 from util import *
@@ -169,8 +172,7 @@ def load_absorbers_file(args):
     Function to load the absorbers file made by Claire
     Uses globally defined colormap_dict
     '''
-    _, output_dir, _, _, _, _, _, _ = get_run_loc_etc(args)
-    abslistfile = '/'.join(output_dir.split('/')[:-3]) + '/foggie_absorbers_200kpc_flow.csv' # the absorber file is in the directory output_path as defined in get_run_loc_etc.py for a given args.system
+    abslistfile = '/'.join(args.output_dir.split('/')[:-3]) + '/foggie_absorbers_200kpc_flow.csv' # the absorber file is in the directory output_path as defined in get_run_loc_etc.py for a given args.system
 
     # -------------to read in simulation data------------
     if not os.path.exists(abslistfile):

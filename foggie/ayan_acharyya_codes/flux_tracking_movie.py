@@ -109,8 +109,7 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, args):
         chunks = ds.arr(np.arange(inner_radius,outer_radius+dr,dr), 'kpc')
     elif (args.units_rvir):
         # Load the mass enclosed profile
-        foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-        masses_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+        masses_dir = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
         rvir_masses = Table.read(masses_dir + 'rvir_masses.hdf5', path='all_data')
         Rvir = rvir_masses['radius'][rvir_masses['snapshot'] == snap]
         dr = (outer_radius-inner_radius)/num_steps*Rvir
