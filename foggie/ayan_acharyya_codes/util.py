@@ -839,7 +839,7 @@ def get_all_sims_for_this_halo(args):
     '''
     foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     all_sims = []
-    snapshot_paths = glob.glob(foggie_dir + 'halo_00' + args.halo + '/nref11c_nref9f/*/')
+    snapshot_paths = glob.glob(foggie_dir + run_loc + '*/')
     snapshot_paths.sort(key=os.path.getmtime)
     snapshots = [item.split('/')[-2] for item in snapshot_paths]
     for thissnap in snapshots:

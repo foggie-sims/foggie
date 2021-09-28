@@ -91,7 +91,8 @@ def get_run_loc_etc(args):
         output_path = "/mnt/scratch/kopenhaf/foggie_calcs/"
         code_path = "/mnt/home/kopenhaf/foggie/foggie/"
     elif args.system == "ayan_pleiades":
-        foggie_dir = "/nobackup/mpeeples/"
+        if "nref11c_nref9f" in args.run: foggie_dir = "/nobackup/mpeeples/"
+        else: foggie_dir = "/nobackup/jtumlins/"
         output_path = "/nobackup/aachary2/foggie_outputs/"
         code_path = "/nobackup/aachary2/ayan_codes/foggie/foggie/"
     elif args.system == "ayan_pleiades_ssd":
