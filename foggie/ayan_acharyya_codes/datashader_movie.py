@@ -1056,17 +1056,20 @@ if __name__ == '__main__':
 
     if dummy_args.makemovie and dummy_args.do_all_sims:
         print_master('Finished creating snapshots, calling animate_png.py to create movie..', dummy_args)
+        code_path = '/'.join(dummy_args.code_path.split('/')[:-3]) + '/'
         if dummy_args.do_all_halos: halos = get_all_halos(args)
         else: halos = dummy_args.halo_arr
         for thishalo in halos:
-            args = parse_args(thishalo, 'RD0020') # RD0020 is inconsequential here, just a place-holder
+            args_tuple = parse_args(thishalo, 'RD0020') # RD0020 is inconsequential here, just a place-holder
+            if type(args_tuple) is tuple: args = args_tuple[0]  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+            else: args = args_tuple
             args.xcolname, args.ycolname = dummy_args.xcolname, dummy_args.ycolname
             fig_dir = args.output_dir + 'figs/'
             for thiscolorcol in colorcol_arr:
                 args.colorcol = thiscolorcol
                 args.colorcolname = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
                 outfile_rootname = 'z=*_datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname)
-                subprocess.call(['python ' + HOME + '/Work/astro/ayan_codes/animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
+                subprocess.call(['python ' + code_path + 'animate_png.py --inpath ' + fig_dir + ' --rootname ' + outfile_rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
 
     if ncores > 1: print_master('Parallely: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
