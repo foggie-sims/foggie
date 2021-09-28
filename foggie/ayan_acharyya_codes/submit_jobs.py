@@ -32,6 +32,7 @@ def parse_args():
     parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', default=None)
     parser.add_argument('--proj', metavar='proj', type=str, action='store', default='s1698')
     parser.add_argument('--halo', metavar='halo', type=str, action='store', default=None)
+    parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f')
     parser.add_argument('--prefix', metavar='prefix', type=str, action='store', default=None)
     parser.add_argument('--callfunc', metavar='callfunc', type=str, action='store', default='filter_star_properties')
     parser.add_argument('--dryrun', dest='dryrun', action='store_true', default=False)
@@ -71,6 +72,7 @@ if __name__ == '__main__':
 
     #----------setting different variables based on args--------
     systemflag = ' --system ' + args.system
+    runsimflag = ' --run ' + args.run
     dryrunflag = ' --dryrun ' if args.dryrun else ''
     do_all_simsflag = ' --do_all_sims ' if args.do_all_sims else ''
     mergeHIIflag = ' --mergeHII ' + str(args.mergeHII) if args.mergeHII is not None else ''
@@ -162,7 +164,7 @@ if __name__ == '__main__':
         out_jobscript = workdir + '/jobscript_' + jobname + '.sh'
 
         replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NHOURS': nhours, 'CALLFILE': callfile, 'WORKDIR': workdir, \
-                        'JOBSCRIPT_PATH': jobscript_path, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'RESOURCES': resources, \
+                        'JOBSCRIPT_PATH': jobscript_path, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'RESOURCES': resources, 'RUNSIMFLAG': runsimflag,\
                         'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG': do_all_simsflag, 'DO_ALL_HALOSFLAG': do_all_halosflag, 'SYSTEMFLAG': systemflag, \
                         'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
                         'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \

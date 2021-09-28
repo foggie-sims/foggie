@@ -922,7 +922,7 @@ if __name__ == '__main__':
         list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
     total_snaps = len(list_of_sims)
     if dummy_args.dryrun:
-        print('List of sims =', list_of_sims)
+        print('List of the total ' + str(total_snaps) + ' sims =', list_of_sims)
         sys.exit('Exiting dryrun..')
     # parse column names, in case log
     dummy_args.xcolname = 'log_' + dummy_args.xcol if islog_dict[dummy_args.xcol] and not dummy_args.use_cvs_log else dummy_args.xcol
