@@ -74,6 +74,7 @@ def get_df_from_ds(ds, args):
     '''
     # -------------read/write pandas df file with ALL fields-------------------
     outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc.txt' % (args.galrad)
+    Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
     if not os.path.exists(outfilename) or args.clobber:
         if not os.path.exists(outfilename):
             myprint(outfilename + ' does not exist. Creating afresh..', args)
