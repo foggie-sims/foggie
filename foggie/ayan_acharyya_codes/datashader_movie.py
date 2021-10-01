@@ -215,8 +215,15 @@ def load_absorbers_file(args):
 # ---------------------------------------------------------------------------------
 def overplot_stars(paramlist, axes, args, type='stars', npix_datashader=1000):
     '''
-    Function to overplot young stars on existing datashader plot
-    Uses globally defined colormap_dict
+    Function to overplot young stars on existing datashader plot.
+    Uses globally defined colormap_dict.
+    Needs a pandas dataframe (paramlist) as an input; paramlist should have at least three columns = args.xcolname, args.ycolname and args.colorcolname
+    See the keys of the global dictionaries "field_dict" and "unit_dict" (below) for what should the column names exactly be and what units they need to be in
+    e.g. for a radial metallicity profile color-coded with temperature, paramlist should (at least) have the columns "rad", "metal" and "temp"
+    However, if you wish the metallicity and temperature to be in log scale, it should already be in log-scale in the paramlist being input here AND
+    the column names in the dataframe in that case need to be "rad", "log_metal" and "log_temperature", etc.
+    It does not matter if paramlist has other extra columns.
+    Also see the "bounds_dict" global dictionary for limits on each parameter. Values outside these ranges will not be plotted, so you may want to change that.
     '''
     marker_dict = {'stars':'o', 'absorbers':'s'}
     ax = axes.ax_joint
@@ -957,7 +964,7 @@ if __name__ == '__main__':
         this_sim = list_of_sims[index]
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
         try:
-            if len(list_of_sims) == 1: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
+            if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
 
             if type(args) is tuple:
@@ -970,7 +977,7 @@ if __name__ == '__main__':
             ds.add_field(('gas', 'angular_momentum_phi'), function=phi_angular_momentum, sampling_type='cell', units='degree')
             ds.add_field(('gas', 'angular_momentum_theta'), function=theta_angular_momentum, sampling_type='cell', units='degree')
 
-        except (FileNotFoundError, PermissionError) as e:
+        except Exception as e:
             print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), dummy_args)
             continue
 
