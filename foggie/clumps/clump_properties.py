@@ -48,7 +48,10 @@ snap = args.output
 
 filename = foggie_dir+'halo_00'+halo+'/'+sim+'/'+snap+'/'+snap
 track_name = trackname
-ds, region = fl(filename,trackname)
+#ds, region = fl(filename,trackname) # don't use this - it gives an error - probably due to yt4? idk
+ds, region = fl(filename, trackname, \
+                        particle_type_for_angmom=False, do_filter_particles=False, \
+                        region='refine_box')
 halocenter = region.center
 [halocenter_x,halocenter_y,halocenter_z]=region.center
 
@@ -79,8 +82,11 @@ yc=[]
 zc=[]
 distancefromhalocenter=[]
 numberofcells = []
-
+print('going through boxes for halo:')
+print(halo)
 for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box10','box11','box12','box13','box14','box15','box16','box17','box18','box19','box20','box21','box22','box23','box24','box25','box26','box27']:
+    print('starting calculations')
+    print(boxi)
     clumpmasses = []
     clumpvolumes = []
     elongations = []
@@ -98,6 +104,12 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
     radialdistances=[]
     com=[]
     clumpcenter=[]
+    coordinates=[]
+    xc=[]
+    yc=[]
+    zc=[]
+    distancefromhalocenter=[]
+    numberofcells = []
 
     for i in range(4000):
         i=i+1
@@ -180,6 +192,9 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             numberofcellsi = len(np.array(ad["grid", "x"]))
             numberofcells.append(numberofcellsi)
 
+
+    print('finished calculations - preparing output')
+    print(boxi)
     IDs=np.array(IDs)
     clumpmasses=np.array(clumpmasses)
     clumpvolumes=np.array(clumpvolumes)
@@ -237,6 +252,9 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             os.remove(oldoutfile)
         os.rename(outfile, oldoutfile)
     hdu.writeto(outfile)
+    print('successfuly wrote output file for:')
+    print(boxi)
+
 """
 plt.figure()
 plt.hist(clumpvolumes,bins=50)
