@@ -46,6 +46,13 @@ if __name__ == '__main__':
     if isfield_weighted_dict[args.xcol] and args.weight: args.xcolname += '_wtby_' + args.weight
     if isfield_weighted_dict[args.ycol] and args.weight: args.ycolname += '_wtby_' + args.weight
 
+    # ----------to determine axes limits--------------
+    bounds_dict.update(rad=(0, args.galrad))
+    args.x_min, args.x_max = bounds_dict[args.xcol]
+    if islog_dict[args.xcol] and not args.use_cvs_log: args.x_min, args.x_max = np.log10(args.x_min), np.log10(args.x_max)
+    args.y_min, args.y_max = bounds_dict[args.ycol]
+    if islog_dict[args.ycol] and not args.use_cvs_log: args.y_min, args.y_max = np.log10(args.y_min), np.log10(args.y_max)
+
     # parse paths and filenames
     output_dir = args.output_dir
     fig_dir = output_dir + 'figs/'
@@ -62,8 +69,12 @@ if __name__ == '__main__':
     for index, thiscolorcol in enumerate(colorcol_arr):
         args.colorcol = thiscolorcol
         args.colorcolname = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
-        if isfield_weighted_dict[args.colorcol] and args.weight: args.colorcolname += '_wtby_' + args.weight
         args.colorcol_cat = 'cat_' + args.colorcolname
+
+        args.c_min, args.c_max = bounds_dict[args.colorcol]
+        if islog_dict[args.colorcol]: args.c_min, args.c_max = np.log10(args.c_min), np.log10(args.c_max)
+        if isfield_weighted_dict[args.colorcol] and args.weight: args.colorcolname += '_wtby_' + args.weight
+
         print_mpi('Plotting ' + args.xcolname + ' vs ' + args.ycolname + ', color coded by ' + args.colorcolname + ' i.e., plot ' + str(index + 1) + ' of ' + str(len(colorcol_arr)) + '..', args)
 
         thisfilename = fig_dir + 'merged_datashader_%s_%s_vs_%s_colby_%s_halos_%s_outputs_%s%s.png' % (galrad_text, args.ycolname, args.xcolname, args.colorcolname, halos_text, outputs_text, inflow_outflow_text)
@@ -104,7 +115,10 @@ if __name__ == '__main__':
                     print_mpi(thisfilename + ' plot exists but over-writing..', args)
 
                 abslist = load_absorbers_file(args) if args.overplot_absorbers else pd.DataFrame()
-                df_merged, fig = make_datashader_plot(df_merged, thisfilename, args, npix_datashader=1000, paramlist=paramlist_merged, abslist=abslist)
+                if datashader_ver <= 11 or args.use_old_dsh:
+                    df_merged, fig = make_datashader_plot(df_merged, thisfilename, args, npix_datashader=1000, paramlist=paramlist_merged, abslist=abslist)
+                else:
+                    df_merged, fig = make_datashader_plot_mpl(df_merged, thisfilename, args, paramlist=paramlist_merged, abslist=abslist)
             else:
                 myprint('Skipping colorcol ' + thiscolorcol + ' because plot already exists (use --clobber_plot to over-write) at ' + thisfilename, args)
         else:

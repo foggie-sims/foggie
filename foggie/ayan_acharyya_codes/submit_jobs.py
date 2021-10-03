@@ -8,14 +8,10 @@
     Started :    July 2021
     Example :    run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp --halo 8508 --dryrun
     OR :         run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp --do_all_halos --nhours 24 --dryrun
-    OR :         run ~/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 --do_all_sims --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has
+    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 --do_all_sims --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has
 """
-import os, subprocess, argparse, datetime
+import subprocess, argparse, datetime
 from collections import defaultdict
-HOME = os.getenv('HOME')
-if not os.path.exists(HOME + '/Work/astro/ayan_codes'):  # if the code directory does not exist in current home, then it must exist in /pleiades home
-    HOME = '/pleiades/u/' + os.getenv('USER')
-
 
 # ---------------------------------------------------------
 def parse_args():
@@ -36,6 +32,7 @@ def parse_args():
     parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', default=None)
     parser.add_argument('--proj', metavar='proj', type=str, action='store', default='s1698')
     parser.add_argument('--halo', metavar='halo', type=str, action='store', default=None)
+    parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f')
     parser.add_argument('--prefix', metavar='prefix', type=str, action='store', default=None)
     parser.add_argument('--callfunc', metavar='callfunc', type=str, action='store', default='filter_star_properties')
     parser.add_argument('--dryrun', dest='dryrun', action='store_true', default=False)
@@ -75,6 +72,7 @@ if __name__ == '__main__':
 
     #----------setting different variables based on args--------
     systemflag = ' --system ' + args.system
+    runsimflag = ' --run ' + args.run
     dryrunflag = ' --dryrun ' if args.dryrun else ''
     do_all_simsflag = ' --do_all_sims ' if args.do_all_sims else ''
     mergeHIIflag = ' --mergeHII ' + str(args.mergeHII) if args.mergeHII is not None else ''
@@ -92,7 +90,7 @@ if __name__ == '__main__':
     tempcut_flag = ' --temp_cut ' if args.temp_cut else ''
     units_flag = ' --units_kpc ' if args.units_kpc else ' --units_rvir ' if args.units_rvir else ''
 
-    jobscript_path = HOME+'/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
+    jobscript_path = '/nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
     jobscript_template = 'jobscript_template_' + args.system + '.txt'
     callfile = jobscript_path + args.callfunc + '.py'
 
@@ -166,7 +164,7 @@ if __name__ == '__main__':
         out_jobscript = workdir + '/jobscript_' + jobname + '.sh'
 
         replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NHOURS': nhours, 'CALLFILE': callfile, 'WORKDIR': workdir, \
-                        'JOBSCRIPT_PATH': jobscript_path, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'RESOURCES': resources, \
+                        'JOBSCRIPT_PATH': jobscript_path, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'RESOURCES': resources, 'RUNSIMFLAG': runsimflag,\
                         'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG': do_all_simsflag, 'DO_ALL_HALOSFLAG': do_all_halosflag, 'SYSTEMFLAG': systemflag, \
                         'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
                         'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \

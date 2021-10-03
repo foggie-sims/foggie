@@ -46,6 +46,9 @@ import datashader as dsh
 from datashader.utils import export_image
 from datashader import transfer_functions as dstf
 
+datashader_ver = float(dsh.__version__.split('.')[1])
+if datashader_ver > 11: from datashader.mpl_ext import dsshow
+
 import warnings
 warnings.filterwarnings("ignore")
 
