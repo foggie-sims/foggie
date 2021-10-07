@@ -923,7 +923,10 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--noweight', dest='noweight', action='store_true', default=False, help='Skip weighting the projection?, default is no')
     parser.add_argument('--makerotmovie', dest='makerotmovie', action='store_true', default=False, help='Make a rotation projection movie?, default is no')
     parser.add_argument('--nframes', metavar='nframes', type=int, action='store', default=200, help='total number of frames in movie, i.e. number of parts to divide the full 2*pi into; default is 200')
-    parser.add_argument('--nrot', metavar='nrot', type=int, action='store', default=0, help='what fraction of rotation (0=0, 1 = 2*pi)? default is 0, i.e. first slice = no rotation')
+    parser.add_argument('--rot_normal_by', metavar='rot_normal_by', type=float, action='store', default=0, help='rotation (in degrees) for the normal vector? default is 0, i.e. first slice = no rotation')
+    parser.add_argument('--rot_normal_about', metavar='rot_normal_about', type=str, action='store', default='x', help='Which axis to rotate the normal vector about? Default is x')
+    parser.add_argument('--rot_north_by', metavar='rot_north_by', type=float, action='store', default=0, help='rotation (in degrees) for the north vector? default is 0, i.e. first slice = no rotation')
+    parser.add_argument('--rot_north_about', metavar='rot_north_about', type=str, action='store', default='y', help='Which axis to rotate the north vector about? Default is x')
     parser.add_argument('--do_central', dest='do_central', action='store_true', default=False, help='Do central refine box projection?, default is no')
     parser.add_argument('--add_arrow', dest='add_arrow', action='store_true', default=False, help='Add arrows?, default is no')
     parser.add_argument('--add_velocity', dest='add_velocity', action='store_true', default=False, help='Add velocity?, default is no')
@@ -1057,12 +1060,22 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--inflow_only', dest='inflow_only', action='store_true', default=False, help='only consider gas with negative radial velocity?, default is no')
     parser.add_argument('--outflow_only', dest='outflow_only', action='store_true', default=False, help='only consider gas with positive radial velocity?, default is no')
     parser.add_argument('--use_old_dsh', dest='use_old_dsh', action='store_true', default=False, help='use the old way of making datashader plots?, default is no')
+    parser.add_argument('--quick', dest='quick', action='store_true', default=False, help='proceed with only the relevant properties and not store all properties?, default is no')
 
     # ------- args added for flux_tracking_movie.py ------------------------------
     parser.add_argument('--units_kpc', dest='units_kpc', action='store_true', default=False, help='the inner and outer radii of the sphere are in kpc units?, default is no')
     parser.add_argument('--units_rvir', dest='units_rvir', action='store_true', default=False, help='the inner and outer radii of the sphere are in fraction of Rvir?, default is no')
     parser.add_argument('--temp_cut', dest='temp_cut', action='store_true', default=False, help='compute everything broken into cold, cool, warm, and hot gas?, default is no')
     parser.add_argument('--nchunks', metavar='nchunks', type=int, action='store', default=100, help='number of chunks to break up in to; default is 100')
+    parser.add_argument('--overplot_source_sink', dest='overplot_source_sink', action='store_true', default=False, help='overplot source and sink terms on flux plots?, default is no')
+
+    # ------- args added for datashader_quickplot.py ------------------------------
+    parser.add_argument('--xmin', metavar='xmin', type=float, action='store', default=None, help='minimum xaxis limit; default is None')
+    parser.add_argument('--xmax', metavar='xmax', type=float, action='store', default=None, help='maximum xaxis limit; default is None')
+    parser.add_argument('--ymin', metavar='ymin', type=float, action='store', default=None, help='minimum yaxis limit; default is None')
+    parser.add_argument('--ymax', metavar='ymax', type=float, action='store', default=None, help='maximum yaxis limit; default is None')
+    parser.add_argument('--cmap', metavar='cmap', type=str, action='store', default=None, help='colormap to use; default is None')
+    parser.add_argument('--ncolbins', metavar='ncolbins', type=int, action='store', default=None, help='number of bins in color space the data shader categories would be split across; default is None')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()

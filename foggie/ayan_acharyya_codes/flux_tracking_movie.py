@@ -7,15 +7,26 @@
     Output :     flux profile plots as png files (which can be later converted to a movie via animate_png.py)
     Author :     Ayan Acharyya
     Started :    August 2021
-    Examples :   run flux_tracking_movie.py --system ayan_local --halo 8508 --galrad 20 --units_kpc --output RD0042 --clobber_plot
+    Examples :   run flux_tracking_movie.py --system ayan_local --halo 8508 --galrad 20 --units_kpc --output RD0042 --clobber_plot --keep --nchunks 20 --overplot_source_sink --overplot_stars --colorcol log_Z_gas
                  run flux_tracking_movie.py --system ayan_pleiades --halo 8508 --galrad 20 --units_kpc --do_all_sims --makemovie --delay 0.05
 """
 from header import *
 from util import *
 from make_ideal_datacube import shift_ref_frame
-from filter_star_properties import get_star_properties
 from datashader_movie import get_radial_velocity
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+from yt.utilities.physical_ratios import metallicity_sun
+
+# -------------------------------------------------------------------
+def new_stars(pfilter, data):
+    '''
+    Filter star particles with creation time < dt Myr ago, where dt is the time gap between two consecutive snapshots
+    To use: yt.add_particle_filter("new_stars", function=new_stars, filtered_type='all', requires=["creation_time"])
+    Based on: foggie.yt_fields._young_stars8()
+    '''
+    isstar = data[(pfilter.filtered_type, "particle_type")] == 2
+    age = data.ds.current_time - data[pfilter.filtered_type, "creation_time"]
+    filter = np.logical_and(isstar, age.in_units('Myr') <= args.dt, age >= 0)
+    return filter
 
 # ---------------------------------------------------------------------------------
 def segment_region(radius, inner_radius, outer_radius, refine_width_kpc, Rvir=100., units_kpc=False, units_rvir=False):
@@ -47,7 +58,7 @@ def set_table_units(table):
             table[key].unit = None
         elif ('radius' in key):
             table[key].unit = 'kpc'
-        elif ('mass' in key) or ('metal' in key):
+        elif ('gas' in key) or ('metal' in key):
             table[key].unit = 'Msun/yr'
     return table
 
@@ -97,10 +108,10 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, args):
     This function is abridged from Cassi's code foggie.flux_tracking.flux_tracking.calc_fluxes()
     '''
     # Set up table of everything we want
-    fluxes = ['mass_flux', 'metal_flux']
+    fluxes = ['gas_flux', 'metal_flux']
 
     # Define list of ways to chunk up the shape over radius or height
-    inner_radius = 0.01
+    inner_radius = 0.3 # kpc; because yt can't take sphere smaller than 0.3 kpc; so this makes flux tracking bin-wise consistent with source sink calculation
     outer_radius = args.galrad
     num_steps = args.nchunks
     table = make_table(fluxes, args)
@@ -196,35 +207,150 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, args):
     return table
 
 # ---------------------------------------------------------------------------------
-def overplot_stars(ax, args):
+def calc_source_sink(ds, refine_width_kpc, args):
     '''
-    Function to overplot young stars on existing plot
+    This function calculates the gas and metal mass sink and source, respectively, i.e.
+    how much gas is being consumed by SF and how much metal is being produced, in a given
+    spherical shell.
     '''
-    starlistfile = args.output_dir + 'txtfiles/' + args.output + '_young_star_properties.txt'
+    StarMassEjectionFraction = 0.25 # from tempest RD0042 config file
+    StarMetalYield = 0.025 # from tempest RD0042 config file
 
+    # ------to ready the dataframe in which source sink will eventually be stored--------------
+    df_columns = ['radius', 'gas_produced', 'metal_produced', 'nstars', 'current_gas', 'current_metal']
+    df = pd.DataFrame(columns=df_columns)
+
+    # ------to ready the dataframe in which source sink will eventually be stored--------------
+    newstars_df_columns = ['radial_pos', 'mass', 'Z_star', 'vrad', 'age', 'Z_gas']
+    newstars_df = pd.DataFrame(columns=newstars_df_columns)
+
+    # ---------to add new particle filter to get stars that only just formed in this snapshot--------
+    yt.add_particle_filter('new_stars', function=new_stars, filtered_type='all', requires=['particle_type', 'creation_time'])
+    ds.add_particle_filter('new_stars')
+
+    # ----------to define list of ways to chunk up the shape over radius or height----------
+    inner_radius = 0.3 # kpc; because yt can't take sphere smaller than 0.3 kpc
+    outer_radius = args.galrad # kpc
+    num_steps = args.nchunks
+
+    if args.units_kpc:
+        dr = (outer_radius-inner_radius)/num_steps
+        bin_edges = ds.arr(np.arange(inner_radius, outer_radius + dr, dr), 'kpc')
+    elif args.units_rvir:
+        # ----- to load the mass enclosed profile--------
+        masses_dir = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+        rvir_masses = Table.read(masses_dir + 'rvir_masses.hdf5', path='all_data')
+        Rvir = rvir_masses['radius'][rvir_masses['snapshot'] == args.output]
+        dr = (outer_radius - inner_radius)/num_steps * Rvir
+        bin_edges = ds.arr(np.arange(inner_radius * Rvir, outer_radius * Rvir + dr, dr), 'kpc')
+    else:
+        dr = (outer_radius-inner_radius)/num_steps * refine_width_kpc
+        bin_edges = np.arange(inner_radius * refine_width_kpc, outer_radius * refine_width_kpc + dr, dr)
+
+    # ------looping over bins and compute source and sink terms to add to table-------------
+    for index in range(len(bin_edges)-1):
+        this_rad = bin_edges[index] # right bin edge
+        start_time_this_shell = time.time()
+
+        if index: # all but the first bin are shells
+            myprint('Computing for shell #' + str(index + 1) + ' out of ' + str(len(bin_edges) - 1) + ' shells, which extends from ' + str(bin_edges[index - 1]) + ' to ' + str(bin_edges[index]), args)
+            smaller_sphere = ds.sphere(ds.halo_center_kpc, bin_edges[index - 1])
+            larger_sphere = ds.sphere(ds.halo_center_kpc, bin_edges[index])
+            shell = larger_sphere - smaller_sphere
+        else: # the first radial bin is a small sphere
+            myprint('Computing for shell #' + str(index + 1) + ' out of ' + str(len(bin_edges) - 1) + ' shells, which is a sphere up to ' + str(bin_edges[index]), args)
+            shell = ds.sphere(ds.halo_center_kpc, bin_edges[index])
+
+        # ------to get age, mass & metallicity of new stars in the shell---------
+        age_star = shell['new_stars', 'age'].in_units('Myr')
+        mass_star = shell['new_stars', 'particle_mass'].in_units('Msun')
+        Z_star = shell['new_stars', 'metallicity_fraction'].in_units('Zsun')
+        nstars = len(mass_star)
+
+        # ------to get radial pos & vel of new stars in the shell, relative to halo---------
+        xgrid = shell['new_stars', 'particle_position_x'].in_units('kpc')
+        zgrid = shell['new_stars', 'particle_position_z'].in_units('kpc')
+        ygrid = shell['new_stars', 'particle_position_y'].in_units('kpc')
+
+        vxgrid = shell['new_stars', 'particle_velocity_x'].in_units('km/s')
+        vygrid = shell['new_stars', 'particle_velocity_y'].in_units('km/s')
+        vzgrid = shell['new_stars', 'particle_velocity_z'].in_units('km/s')
+
+        temp_df = pd.DataFrame({'pos_x': xgrid, 'pos_y': ygrid, 'pos_z': zgrid, 'vel_x': vxgrid, 'vel_y': vygrid, 'vel_z': vzgrid}) # the function shift_ref_frame() requires exactly these column names
+        temp_df = shift_ref_frame(temp_df, args) # to get coordinates relative to halo center
+        temp_df = get_radial_velocity(temp_df) # to get radial pos & vel
+        pos_star = temp_df['rad']
+        vrad_star = temp_df['vrad']
+
+        # ------to get AMBIENT metallicity of gas around new stars in the shell---------
+        coord = ds.arr(np.vstack([xgrid, ygrid, zgrid]).transpose().value, 'kpc').in_units('code_length') # coord has to be in code_lengths for find_field_values_at_points() to work
+        Z_gas = shell.ds.find_field_values_at_points([('gas', 'metallicity')], coord).in_units('Zsun')
+
+        # ------to get overall gas quantities in the shell---------
+        current_gas_mass = np.sum(shell[('gas', 'mass')].in_units('Msun'))
+        current_metal_mass = np.sum(shell[('gas', 'metal_mass')].in_units('Msun'))
+
+        # --- From from https://enzo.readthedocs.io/en/latest/physics/star_particles.html#star-particles: -----------------------
+        # --- M_ej = M_form * StarMassEjectionFraction of gas are returned to the grid and removed from the particle. -----------
+        # --- M_form * ((1 - Z_star) * StarMetalYield + StarMassEjectionFraction * Z_star) of metals are added to the cell, -----
+        # --- where Z_star is the star particle metallicity. This formulation accounts for gas recycling back into the stars. ---
+
+        total_new_mass = np.sum(mass_star)
+        total_gas_used = (1 - StarMassEjectionFraction) * total_new_mass # net gas mass that gets converted into stellar mass
+        metal_sources = mass_star * ((1 - Z_star) * StarMetalYield + StarMassEjectionFraction * Z_star) # factor 0.25 from
+        # metal_sources = 0.025 * m_star * (1 - Z_star) + 0.25 * Z_star # from Peeples+2019, but this is probably wrong, based on dimensional analysis
+        total_metal_produced = np.sum(metal_sources)
+
+        # --------to store the gas/metal mass source sink terms in df-----------
+        row = [this_rad.value, -1. * total_gas_used.value, total_metal_produced.value, nstars, current_gas_mass.value, current_metal_mass.value] # the -1 factor to denote sink, i.e., -ve gain in gas mass
+        df.loc[len(df)] = row
+
+        # --------to store the star particle properties in newstars_df------------
+        quant_arr = [pos_star, mass_star, Z_star, vrad_star, age_star, Z_gas]
+        thisbin_df = pd.DataFrame({newstars_df_columns[i]: quant_arr[i] for i in range(len(newstars_df_columns))})
+        newstars_df = newstars_df.append(thisbin_df, ignore_index=True)
+        print_mpi('This shell with ' + str(nstars) + ' stars completed in %s' % (datetime.timedelta(seconds=time.time() - start_time_this_shell)), args)
+
+    # ------define new columns and store table--------
+    df['current_Z'] = (df['current_metal'] / df['current_gas']) / metallicity_sun # to convert to Zsun
+    df.to_csv(args.source_table_name, sep='\t', index=None)
+    myprint('Saved source sink table as ' + args.source_table_name, args)
+
+    # ------define new columns and store table--------
+    newstars_df['metal_mass'] = newstars_df['mass'] * newstars_df['Z_star'] * metallicity_sun # because metallicity is in Zsun units
+    newstars_df.to_csv(args.starlistfile, sep='\t', index=None)
+    myprint('Saved new stars table as ' + args.starlistfile, args)
+
+    return df
+
+# ---------------------------------------------------------------------------------
+def overplot_stars(axes, args, colorcol='log_Z_gas'):
+    '''
+    Function to overplot new stars on existing plot
+    '''
     # -------------to read in simulation data------------
-    if not os.path.exists(starlistfile):
-        print_mpi(starlistfile + 'does not exist. Calling get_star_properties() first..', args)
-        dummy = get_star_properties(args)  # this creates the starlistfile
-    paramlist = pd.read_table(starlistfile, delim_whitespace=True, comment='#')
+    paramlist = pd.read_table(args.starlistfile, delim_whitespace=True, comment='#') # has columns ['radial_pos', 'mass', 'Z_star', 'vrad', 'age', 'Z_gas', 'metal_mass']
+    paramlist['log_Z_star'] = np.log10(paramlist['Z_star'])
+    paramlist['log_Z_gas'] = np.log10(paramlist['Z_gas'])
 
-    # -------------to prep the simulation data------------
-    paramlist = shift_ref_frame(paramlist, args)
-    paramlist = paramlist.rename(columns={'gas_metal': 'metal', 'gas_density': 'density', 'gas_pressure': 'pressure', 'gas_temp': 'temp'})
-    paramlist = get_radial_velocity(paramlist)
-    paramlist = paramlist[paramlist['rad'].between(0, args.galrad)] # to overplot only those young stars that are within the desired radius ('rad' is in kpc)
+    clabel_dict = {'log_Z_star':r'Log Stellar metallicity (Z/Z$_{\odot}$)', 'Z_star':r'Stellar metallicity (Z/Z$_{\odot}$)', 'log_Z_gas':r'Log Gas metallicity (Z/Z$_{\odot}$)', 'Z_gas':r'Gas metallicity (Z/Z$_{\odot}$)', 'vrad': 'Radial velocity (km/s)', 'age': 'Age (Myr)', 'radius': 'Star particle radius (pc)'}
+    clim_dict = {'log_Z_star': (-1.0, 0.4), 'Z_star': (-0.5, 0.3), 'log_Z_gas': (-1.0, 0.4), 'Z_gas': (-0.5, 0.3), 'vrad': (-100, 100), 'age': (0, 5), 'radius': (0, 200)}
+    cmap_dict = {'log_Z_star': metal_discrete_cmap, 'Z_star': metal_discrete_cmap, 'log_Z_gas': metal_discrete_cmap, 'Z_gas': metal_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'age': 'viridis', 'radius': 'viridis'}
 
     # -------------to actually plot the simulation data------------
-    im = ax.scatter(paramlist['rad'], paramlist['metal'], c=np.log10(paramlist['mass']), vmin=2.8, vmax=4.0, edgecolors='black', lw=0.2, s=15, cmap='YlGn_r')
-    print_mpi('Overplotted ' + str(len(paramlist)) + 'young star particles', args)
+    ycol_arr = ['mass', 'metal_mass', 'log_Z_star']
+    
+    for index, ax in enumerate(axes):
+        im = ax.scatter(paramlist['radial_pos'], paramlist[ycol_arr[index]], c=paramlist[colorcol], edgecolors='black', lw=0.2, s=15, cmap=cmap_dict[colorcol], vmin=clim_dict[colorcol][0], vmax=clim_dict[colorcol][1])
+    print_mpi('Overplotted ' + str(len(paramlist)) + ' new star particles', args)
 
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
+    ax_xpos, ax_ypos, ax_width, ax_height = 0.92, 0.1, 0.01, 0.8
+    cax = ax.figure.add_axes([ax_xpos, ax_ypos, ax_width, ax_height])
     ax.figure.colorbar(im, cax=cax, orientation='vertical')
-    cax.set_ylabel(r'Log Mass (M/M$_{\odot}$)', fontsize=args.fontsize)
-    cax.set_yticklabels(['%.1F'%item for item in cax.get_yticks()], fontsize=args.fontsize)
+    cax.set_ylabel(clabel_dict[colorcol], fontsize=args.fontsize)
+    cax.set_yticklabels(['%.1F'%item for item in cax.get_yticks()], fontsize=args.fontsize * 0.75)
 
-    return ax
+    return axes
 
 # -----------------------------------------------------
 def make_flux_plot(table_name, fig_name, args):
@@ -233,40 +359,71 @@ def make_flux_plot(table_name, fig_name, args):
     where 'metallicity flux' is the metal_mass/gas_mass of the inflowing OR outflowing material
     '''
     df = pd.read_hdf(table_name, key='all_data') # read in table
+    df['radius'] = np.round(df['radius'], 3)
 
     # ------create new columns for 'metallicity'--------
-    df['net_Z_flux'] = df['net_metal_flux'] / df['net_mass_flux']
-    df['Z_flux_in'] = -1 * df['metal_flux_in'] / df['mass_flux_in']
-    df['Z_flux_out'] = df['metal_flux_out'] / df['mass_flux_out']
+    df['net_Z_flux'] = (df['net_metal_flux'] / df['net_gas_flux']) / metallicity_sun # to convert to Zsun
+    df['Z_flux_in'] = (df['metal_flux_in'] / df['gas_flux_in']) / metallicity_sun # to convert to Zsun
+    df['Z_flux_out'] = (df['metal_flux_out'] / df['gas_flux_out']) / metallicity_sun # to convert to Zsun
 
-    quant_arr = ['mass', 'metal', 'Z']
-    ylabel_arr = [r'Gas mass flux (M$_{\odot}$/yr)', r'Metal mass flux (M$_{\odot}$/yr)', r'Metallicity flux']
-    ylim_arr = [(-100, 1000), (-10, 100), (-0.05, 0.05)]
+    quant_arr = ['gas', 'metal', 'Z']
+    ylabel_arr = [r'Gas mass (M$_{\odot}$/yr)', r'Metal mass (M$_{\odot}$/yr)', r'log Metallicity (Z/Zsun)']
+    if args.overplot_source_sink: ylim_arr = [(-1e6, 1e10), (-10, 1e8), (-1.0, 0.4)]
+    else: ylim_arr = [(-100, 1000), (-10, 100), (-1.3, 0.5)]
+
+    # -------read in source sink dataframe----------------
+    if args.overplot_source_sink:
+        df_ss = pd.read_table(args.source_table_name, delim_whitespace=True, comment='#')
+        df_ss['radius'] = np.round(df_ss['radius'], 3)
+        df = pd.merge(df, df_ss)
+        df['previous_gas'] = df['current_gas'] - df['gas_produced'] - df['net_gas_flux']
+        df['previous_metal'] = df['current_metal'] - df['metal_produced'] - df['net_metal_flux']
+        df['previous_Z'] = (df['previous_metal'] / df['previous_gas']) / metallicity_sun # to convert to Zsun
+
+        df['net_gas_appear'] = df['net_gas_flux'] + df['gas_produced'] # net gas mass that appears (net amount moved in + net amount produced)
+        df['net_metal_appear'] = df['net_metal_flux'] + df['metal_produced'] # net metal mass that appears (net amount moved in + net amount produced)
+        df['net_Z_appear'] = df['current_Z'] - df['previous_Z']
+
+    # -------to convert all Z related quantities to log-----------
+    df = df.dropna() # usually the first row (innrermost shell)  has 0/0 = NaNs
+    Z_cols = [item for item in df.columns if 'Z' in item]
+    for thiscol in Z_cols:
+        df[thiscol] = np.log10(df[thiscol])
+        df = df.rename(columns={thiscol : 'log_' + thiscol})
+
+    if args.overplot_source_sink: df['log_Z_produced'] = np.ones(len(df)) * np.nan  # dummy column just for sake of continuity of the code, lengds, etc.
 
     # --------plot radial profiles----------------
     fig, axes = plt.subplots(1, 3, figsize=(14,5))
-    extra_space = 0.03 if not args.overplot_stars else 0
-    plt.subplots_adjust(wspace=0.3, right=0.94 + extra_space, top=0.95, bottom=0.12, left=0.08)
+    extra_space = 0.07 if not args.overplot_stars else 0
+    plt.subplots_adjust(wspace=0.3, right=0.9 + extra_space, top=0.95, bottom=0.12, left=0.08)
 
     for index, ax in enumerate(axes):
+        prefix = 'log_' if quant_arr[index] == 'Z' else ''
         ax.axhline(0, c='k', ls='--', lw=0.5)
-        ax.plot(df['radius'], df[quant_arr[index] + '_flux_in'], c='cornflowerblue', label='Incoming')
-        ax.plot(df['radius'], df[quant_arr[index] + '_flux_out'], c='sienna', label='Outgoing')
-        ax.plot(df['radius'], df['net_' + quant_arr[index] + '_flux'], c='gray', alpha=0.5, label='Net flux')
+        ax.plot(df['radius'], df[prefix + quant_arr[index] + '_flux_in'], c='cornflowerblue', label='Incoming')
+        ax.plot(df['radius'], df[prefix + quant_arr[index] + '_flux_out'], c='sienna', label='Outgoing')
+        ax.plot(df['radius'], df[prefix + 'net_' + quant_arr[index] + '_flux'], c='gray', alpha=0.5, label='Net flux')
+        if args.overplot_source_sink:
+            ax.plot(df['radius'], df[prefix + quant_arr[index] + '_produced'], c='salmon', label='Net_produced')
+            #ax.plot(df['radius'], df[prefix + 'net_' + quant_arr[index] + '_appear'], c='darkgreen', label='Net appeared')
 
-        # ----------to overplot young stars----------------
-        if args.overplot_stars and quant_arr[index] == 'Z': ax = overplot_stars(ax, args)
+            ax.plot(df['radius'], df[prefix + 'previous_' + quant_arr[index]], c='cyan', label='Previous')
+            ax.plot(df['radius'], df[prefix + 'current_' + quant_arr[index]], c='blue', ls='dashed', label='Current')
 
-        if index == 1: ax.legend(fontsize=args.fontsize)
+        if index == 2: ax.legend(fontsize=args.fontsize * 0.75, loc='lower right')
         ax.set_xlim(0, args.galrad)
         ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
         ax.set_xticks(np.linspace(0, args.galrad, 5))
-        ax.set_xticklabels(['%.1F'%item for item in ax.get_xticks()], fontsize=args.fontsize)
+        ax.set_xticklabels(['%.1F'%item for item in ax.get_xticks()], fontsize=args.fontsize * 0.75)
 
-        ax.set_yscale('symlog')
+        if quant_arr[index] != 'Z': ax.set_yscale('symlog') # metallicity panel is not on log-scale, but the metallicity values themselves are in log
         ax.set_ylim(ylim_arr[index])
         ax.set_ylabel(ylabel_arr[index], fontsize=args.fontsize)
-        ax.set_yticklabels(['%.2F'%item if quant_arr[index] == 'Z' else '%.1F'%item for item in ax.get_yticks()], fontsize=args.fontsize)
+        ax.set_yticklabels(['%.2F'%item if quant_arr[index] == 'Z' else '%.0E'%item for item in ax.get_yticks()], fontsize=args.fontsize * 0.75)
+
+    # ----------to overplot young stars----------------
+    if args.overplot_stars: axes = overplot_stars(axes, args, colorcol=args.colorcol[0])
 
     ax.text(0.95, 0.97, 'z = %.4F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize, ha='right', va='top')
     ax.text(0.95, 0.9, 't = %.3F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize, ha='right', va='top')
@@ -295,7 +452,7 @@ if __name__ == '__main__':
 
     cmtopc = 3.086e18
     stoyr = 3.155e7
-    dt = 5.38e6
+    dt = 5.38e6 # yr
 
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
@@ -322,7 +479,7 @@ if __name__ == '__main__':
         this_sim = list_of_sims[index]
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
         try:
-            if len(list_of_sims) == 1: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
+            if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
 
             if type(args) is tuple:
@@ -344,9 +501,10 @@ if __name__ == '__main__':
         refine_width_kpc = ds.arr(ds.refine_width, 'kpc')
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr')
+        args.dt = dt / 1e6 # Myr
 
         # ----------generating the flux tracking tables----------
-        table_name = table_dir + args.output + '_fluxes_mass.hdf5'
+        table_name = table_dir + args.output + '_rad' + str(args.galrad) + 'kpc_nchunks' + str(args.nchunks) + '_fluxes_mass.hdf5'
         if not os.path.exists(table_name) or args.clobber:
             if not os.path.exists(table_name):
                 print_mpi(table_name + ' does not exist. Creating afresh..', args)
@@ -357,6 +515,35 @@ if __name__ == '__main__':
             # inner and outer radii of sphere are by default as a fraction of refine_box_width, unless --units_kpc is specified in user args, in whic case they are in kpc
         else:
             print_mpi('Skipping ' + table_name + ' because file already exists (use --clobber to over-write)', args)
+
+        # ----------generating the sink-source tables----------
+        args.source_table_name = table_dir + args.output + '_rad' + str(args.galrad) + 'kpc_nchunks' + str(args.nchunks) + '_metal_sink_source.txt'
+        args.starlistfile = table_dir + args.output + '_rad' + str(args.galrad) + 'kpc_new_stars_properties.txt'
+
+        if args.overplot_source_sink:
+            if not os.path.exists(args.source_table_name) or args.clobber:
+                if not os.path.exists(args.source_table_name):
+                    print_mpi(args.source_table_name + ' does not exist. Creating afresh..', args)
+                elif args.clobber:
+                    print_mpi(args.source_table_name + ' exists but over-writing..', args)
+
+                source_sink_table = calc_source_sink(ds, refine_width_kpc, args)
+                # inner and outer radii of sphere are by default as a fraction of refine_box_width, unless --units_kpc is specified in user args, in whic case they are in kpc
+            else:
+                print_mpi('Skipping ' + args.source_table_name + ' because file already exists (use --clobber to over-write)', args)
+
+        # ----------generating the new stars table----------
+        if args.overplot_stars:
+            if not os.path.exists(args.starlistfile) or args.clobber:
+                if not os.path.exists(args.starlistfile):
+                    print_mpi(args.starlistfile + ' does not exist. Creating afresh..', args)
+                elif args.clobber:
+                    print_mpi(args.starlistfile + ' exists but over-writing..', args)
+
+                source_sink_table = calc_source_sink(ds, refine_width_kpc, args)
+                # inner and outer radii of sphere are by default as a fraction of refine_box_width, unless --units_kpc is specified in user args, in whic case they are in kpc
+            else:
+                print_mpi('Skipping ' + args.starlistfile + ' because file already exists (use --clobber to over-write)', args)
 
         # ----------plotting the tracked flux----------
         outfile_rootname = 'metal_flux_profile_boxrad_%.2Fkpc.png' % (args.galrad)
