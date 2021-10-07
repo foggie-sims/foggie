@@ -101,10 +101,10 @@ logfields = ('Dark_Matter_Density', 'density', 'temperature',
              'O_p5_number_density', 'O_p5_column_density',
              'O_p6_number_density', 'O_p6_column_density',
              'O_p7_number_density', 'O_p7_column_density',
-             'C_p0_number_density', 'C_p0_column_density', 
-             'C_p1_number_density', 'C_p1_column_density', 
-             'C_p2_number_density', 'C_p2_column_density', 
-             'C_p3_number_density', 'C_p3_column_density', 
+             'C_p0_number_density', 'C_p0_column_density',
+             'C_p1_number_density', 'C_p1_column_density',
+             'C_p2_number_density', 'C_p2_column_density',
+             'C_p3_number_density', 'C_p3_column_density',
              'Si_p0_number_density', 'Si_p0_column_density',
              'Si_p1_number_density', 'Si_p1_column_density',
              'Si_p2_number_density', 'Si_p2_column_density',
@@ -251,6 +251,10 @@ pressure_max = 1.e3
 HSE_color_map = 'RdYlGn'
 HSE_min = 1.e-3
 HSE_max = 1.e3
+
+azimuthal_color_map = 'arbre'
+azimuthal_angle_min = 0
+azimuthal_angle_max = 90
 
 h1_color_map = sns.blend_palette(("white", "#ababab", "#565656", "black",
                                   "#4575b4", "#984ea3", "#d73027",
@@ -854,6 +858,25 @@ def categorize_by_pres(pressure):
         pres[pressure < val] = pressure_color_labels[-1 - i]
     return pres
 
+############# azimuthal angle (Cassi)
+azimuthal_discrete_cmap = mpl.cm.get_cmap(azimuthal_color_map, 9)
+azimuthal_color_key = collections.OrderedDict()
+
+azimuthal_color_labels = [b'low1', b'low2', b'med', b'med1', b'med2',
+                      b'high1', b'high2', b'high3',
+                      b'vhi1']
+for i in np.arange(np.size(azimuthal_color_labels)):
+    azimuthal_color_key[azimuthal_color_labels[i]] = to_hex(azimuthal_discrete_cmap(i))
+
+def categorize_by_azimuth(azimuth):
+    """ define the azimuthal angle category strings"""
+    az = np.chararray(np.size(azimuth), 5)
+    az[azimuth > azimuthal_angle_max] = azimuthal_color_labels[-1]
+    for i in range(len(azimuthal_color_labels)):
+        val = azimuthal_angle_max - (azimuthal_angle_max-azimuthal_angle_min)/(np.size(azimuthal_color_labels)-1.)*i
+        az[azimuth < val] = azimuthal_color_labels[-1 - i]
+    return az
+
 
 ############# HSE (Cassi)
 HSE_discrete_cmap = mpl.cm.get_cmap(HSE_color_map, 13)
@@ -1078,7 +1101,7 @@ default_spice_fields=['x', 'y', 'z', 'radius_corrected',
                       'density', 'metallicity', 'temperature',
                       'radial_velocity_corrected', 'cell_mass',
                       'tangential_velocity_corrected', 'cell_volume',
-                      'vx_corrected', 'vy_corrected', 'vz_corrected', 
+                      'vx_corrected', 'vy_corrected', 'vz_corrected',
                       'cooling_time', 'pressure', 'entropy', 'HSE']
 
 # lims to use in plots by AbsorberPlotter
