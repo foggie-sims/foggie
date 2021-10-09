@@ -298,7 +298,7 @@ if __name__ == '__main__':
 
     fig_dir = args.output_dir + 'figs/' + args.output + '/'
     Path(fig_dir).mkdir(parents=True, exist_ok=True)
-    thisfilename = fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+    thisfilename = fig_dir + outfile_rootname
 
     # ----------to actually make the plot--------------
     if not args.keep: plt.close('all')
