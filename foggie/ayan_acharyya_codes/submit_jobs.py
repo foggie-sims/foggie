@@ -48,6 +48,7 @@ def parse_args():
     parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False)
     parser.add_argument('--overplot_stars', dest='overplot_stars', action='store_true', default=False)
     parser.add_argument('--overplot_source_sink', dest='overplot_source_sink', action='store_true', default=False)
+    parser.add_argument('--nchunks', metavar='nchunks', type=str, action='store', default=None)
     parser.add_argument('--clobber_plot', dest='clobber_plot', action='store_true', default=False)
     parser.add_argument('--units_kpc', dest='units_kpc', action='store_true', default=False)
     parser.add_argument('--units_rvir', dest='units_rvir', action='store_true', default=False)
@@ -74,6 +75,7 @@ if __name__ == '__main__':
     #----------setting different variables based on args--------
     systemflag = ' --system ' + args.system
     runsimflag = ' --run ' + args.run
+    nchunks_flag = ' --nchunks ' + args.nchunks if args.nchunks is not None else ''
     dryrunflag = ' --dryrun ' if args.dryrun else ''
     do_all_simsflag = ' --do_all_sims ' if args.do_all_sims else ''
     mergeHIIflag = ' --mergeHII ' + str(args.mergeHII) if args.mergeHII is not None else ''
@@ -171,7 +173,7 @@ if __name__ == '__main__':
                         'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
                         'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \
                         'OVERPLOT_STARS_FLAG': overplot_stars_flag, 'OVERPLOT_SOURCE_SINK_FLAG': overplot_source_sink_flag, 'CLOBBER_PLOT_FLAG': clobber_plot_flag, 'NSECONDS':str(int(nhours) * 3600), \
-                        'NEVERY_FLAG': nevery_flag, 'UNITS_FLAG': units_flag, 'TEMPCUT_FLAG': tempcut_flag} # keywords to be replaced in template jobscript
+                        'NEVERY_FLAG': nevery_flag, 'UNITS_FLAG': units_flag, 'TEMPCUT_FLAG': tempcut_flag, 'NCHUNKS_FLAG': nchunks_flag} # keywords to be replaced in template jobscript
 
         with open(jobscript_path + jobscript_template) as infile, open(out_jobscript, 'w') as outfile:
             for line in infile:

@@ -1066,7 +1066,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--units_kpc', dest='units_kpc', action='store_true', default=False, help='the inner and outer radii of the sphere are in kpc units?, default is no')
     parser.add_argument('--units_rvir', dest='units_rvir', action='store_true', default=False, help='the inner and outer radii of the sphere are in fraction of Rvir?, default is no')
     parser.add_argument('--temp_cut', dest='temp_cut', action='store_true', default=False, help='compute everything broken into cold, cool, warm, and hot gas?, default is no')
-    parser.add_argument('--nchunks', metavar='nchunks', type=int, action='store', default=100, help='number of chunks to break up in to; default is 100')
+    parser.add_argument('--nchunks', metavar='nchunks', type=int, action='store', default=20, help='number of chunks to break up in to; default is 100')
     parser.add_argument('--overplot_source_sink', dest='overplot_source_sink', action='store_true', default=False, help='overplot source and sink terms on flux plots?, default is no')
 
     # ------- args added for datashader_quickplot.py ------------------------------
