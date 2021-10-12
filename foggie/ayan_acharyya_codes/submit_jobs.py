@@ -70,7 +70,6 @@ if __name__ == '__main__':
     # ----------special settings for endeavour queue--------
     elif args.queue[:2] == 'e_':
         args.proc = 'cas_end'
-        args.nnodes = 1
 
     #----------setting different variables based on args--------
     systemflag = ' --system ' + args.system
