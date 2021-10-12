@@ -16,6 +16,7 @@ from util import *
 from make_ideal_datacube import shift_ref_frame
 from datashader_movie import get_radial_velocity
 from yt.utilities.physical_ratios import metallicity_sun
+from flux_tracking_movie import calc_fluxes
 
 # -------------------------------------------------------------------
 def new_stars(pfilter, data):
@@ -265,8 +266,7 @@ def calc_source_sink(ds, refine_width_kpc, args):
         vrad_star = temp_df['vrad']
 
         # ------to get AMBIENT metallicity of gas around new stars in the shell---------
-        coord = ds.arr(np.vstack([xgrid, ygrid, zgrid]).transpose().value, 'kpc').in_units(
-            'code_length')  # coord has to be in code_lengths for find_field_values_at_points() to work
+        coord = ds.arr(np.vstack([xgrid, ygrid, zgrid]).transpose().value, 'kpc').in_units('code_length')  # coord has to be in code_lengths for find_field_values_at_points() to work
         Z_gas = shell.ds.find_field_values_at_points([('gas', 'metallicity')], coord).in_units('Zsun')
 
         # ------to get overall gas quantities in the shell---------
@@ -360,7 +360,7 @@ def make_total_plot(table_name, fig_name, args):
 
     quant_arr = ['gas', 'metal', 'Z']
     ylabel_arr = [r'Gas mass (M$_{\odot}$)', r'Metal mass (M$_{\odot}$)', r'Metallicity (Z/Zsun)']
-    if args.overplot_source_sink: ylim_arr = [(-1e9, 1e10), (-1e7, 1e8), (1e-7, 1e2)]
+    if args.overplot_source_sink: ylim_arr = [(-1e9, 1e10), (-1e7, 1e8), (1e-3, 1e1)]
     else: ylim_arr = [(1e7, 1e10), (1e5, 1e8), (1e-1, 1e1)]
 
     # -------to include source-sink terms----------------
@@ -371,22 +371,21 @@ def make_total_plot(table_name, fig_name, args):
         df = pd.merge(df, df_ss)
 
         # -------read in flux dataframe and merge----------------
-        flux_table_name = table_name.replace('total', 'fluxes')
-        df_fl = pd.read_hdf(flux_table_name, key='all_data')
+        df_fl = pd.read_hdf(args.flux_table_name, key='all_data')
         df_fl['net_gas_movedin'] = np.hstack((-1*np.diff(df_fl['net_gas_flux']), [np.nan])) # for each radius r, the rate of NET gas mass that moved INTO (from whciever direction) a SHELL within innder radius = r and outer radius = r + dr
         df_fl['net_metal_movedin'] = np.hstack((-1*np.diff(df_fl['net_metal_flux']), [np.nan])) # for each radius r, the rate of NET gas mass that moved INTO (from whciever direction) a SHELL within innder radius = r and outer radius = r + dr
         df_fl['radius'] = np.round(df_fl['radius'], 3)
         df = pd.merge(df, df_fl)
 
         # -------compute new quantities----------------
-        df['previous_gas'] = df['current_gas'] - df['gas_produced'] - df['net_gas_movedin'] * args.dt * 1e6 # since flux is in units of Msun/yr and args.dt is in Myr
-        df['previous_metal'] = df['current_metal'] - df['metal_produced'] - df['net_metal_movedin'] * args.dt * 1e6 # since flux is in units of Msun/yr and args.dt is in Myr
-        df['previous_Z'] = (df['previous_metal'] / df['previous_gas']) / metallicity_sun # to convert to Zsun
-
         df['net_gas_appear'] = df['net_gas_movedin'] * args.dt * 1e6 + df['gas_produced'] # net gas mass that appears (net amount moved in + net amount produced)
         df['net_metal_appear'] = df['net_metal_movedin'] * args.dt * 1e6 + df['metal_produced'] # net metal mass that appears (net amount moved in + net amount produced)
-        df['net_Z_appear'] = df['current_Z'] - df['previous_Z']
 
+        df['previous_gas'] = df['current_gas'] - df['net_gas_appear']
+        df['previous_metal'] = df['current_metal'] - df['net_metal_appear']
+        df['previous_Z'] = (df['previous_metal'] / df['previous_gas']) / metallicity_sun # to convert to Zsun
+
+        df['net_Z_appear'] = df['current_Z'] - df['previous_Z']
         df['net_Z_movedin'] = np.ones(len(df)) * np.nan  # dummy column just for sake of continuity of the code, legends, etc., but this column doesn't make any physical sense
         df['Z_produced'] = np.ones(len(df)) * np.nan  # dummy column just for sake of continuity of the code, legends, etc., but this column doesn't make any physical sense
 
@@ -433,6 +432,11 @@ def make_total_plot(table_name, fig_name, args):
     return df, fig
 
 # -----main code-----------------
+cmtopc = 3.086e18
+stoyr = 3.155e7
+dt = 5.38e6 # yr
+
+
 if __name__ == '__main__':
     start_time = time.time()
     dummy_args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
@@ -447,10 +451,6 @@ if __name__ == '__main__':
         else: halos = dummy_args.halo_arr
         list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
     total_snaps = len(list_of_sims)
-
-    cmtopc = 3.086e18
-    stoyr = 3.155e7
-    dt = 5.38e6 # yr
 
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
@@ -501,7 +501,7 @@ if __name__ == '__main__':
         args.current_time = ds.current_time.in_units('Gyr')
         args.dt = dt / 1e6 # Myr
 
-        # ----------generating the flux tracking tables----------
+        # ----------generating the total mass table----------
         table_name = table_dir + args.output + '_rad' + str(args.galrad) + 'kpc_nchunks' + str(args.nchunks) + '_total_mass.hdf5'
         if not os.path.exists(table_name) or args.clobber:
             if not os.path.exists(table_name):
@@ -519,6 +519,19 @@ if __name__ == '__main__':
         args.starlistfile = table_dir + args.output + '_rad' + str(args.galrad) + 'kpc_new_stars_properties.txt'
 
         if args.overplot_source_sink:
+            # ----------generating the flux table----------
+            args.flux_table_name = table_name.replace('total', 'fluxes')
+            if not os.path.exists(args.flux_table_name) or args.clobber:
+                if not os.path.exists(args.flux_table_name):
+                    print_mpi(args.flux_table_name + ' does not exist. Creating afresh..', args)
+                elif args.clobber:
+                    print_mpi(args.flux_table_name + ' exists but over-writing..', args)
+
+                flux_table = calc_fluxes(ds, args.output, args.current_redshift, dt, refine_width_kpc, args.flux_table_name, args)
+            else:
+                print_mpi('Skipping ' + args.flux_table_name + ' because file already exists (use --clobber to over-write)', args)
+
+            # ----------generating the sink-source tables----------
             if not os.path.exists(args.source_table_name) or args.clobber:
                 if not os.path.exists(args.source_table_name):
                     print_mpi(args.source_table_name + ' does not exist. Creating afresh..', args)
@@ -531,7 +544,7 @@ if __name__ == '__main__':
                 print_mpi('Skipping ' + args.source_table_name + ' because file already exists (use --clobber to over-write)', args)
 
         # ----------generating the new stars table----------
-        if args.overplot_stars:
+        if args.overplot_stars and not args.overplot_source_sink:
             if not os.path.exists(args.starlistfile) or args.clobber:
                 if not os.path.exists(args.starlistfile):
                     print_mpi(args.starlistfile + ' does not exist. Creating afresh..', args)

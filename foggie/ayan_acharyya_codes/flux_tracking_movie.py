@@ -240,6 +240,11 @@ def make_flux_plot(table_name, fig_name, args):
     return df, fig
 
 # -----main code-----------------
+cmtopc = 3.086e18
+stoyr = 3.155e7
+dt = 5.38e6 # yr
+
+
 if __name__ == '__main__':
     start_time = time.time()
     dummy_args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
@@ -254,10 +259,6 @@ if __name__ == '__main__':
         else: halos = dummy_args.halo_arr
         list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
     total_snaps = len(list_of_sims)
-
-    cmtopc = 3.086e18
-    stoyr = 3.155e7
-    dt = 5.38e6 # yr
 
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
