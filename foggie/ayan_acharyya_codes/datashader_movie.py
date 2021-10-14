@@ -512,7 +512,7 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
 
     # --------to make the main datashader plot--------------------------
     color_key = get_color_keys(args.cmin, args.cmax, args.color_list)
-    if len(df) > 0:
+    if not args.nofoggie:
         #artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.count_cat(args.colorcol_cat), norm='eq_hist', color_key=color_key, x_range=(args.xmin, args.xmax), y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect = 'auto', ax=ax1, alpha_range=(40, 255), shade_hook=partial(dstf.spread, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
         artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.mean(args.colorcolname), norm='linear', cmap=list(color_key.values()), x_range=(args.xmin, args.xmax), y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect = 'auto', ax=ax1) #, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
@@ -537,7 +537,7 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
 
     # ------to make the colorbar axis-------------
     #fig, ax2 = make_colorbar_axis(args.colorcol, args.cmin, args.cmax, fig, args.fontsize)
-    fig, ax2 = make_colorbar_axis_mpl(args.colorcol, artist if len(df) > 0 else overplotted, fig, args.fontsize)
+    fig, ax2 = make_colorbar_axis_mpl(args.colorcol, artist if not args.nofoggie else overplotted, fig, args.fontsize)
 
     # ---------to annotate and save the figure----------------------
     if args.current_redshift is not None: plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift, transform=ax1.transAxes, fontsize=args.fontsize)
@@ -1059,6 +1059,7 @@ if __name__ == '__main__':
             inflow_outflow_text = ''
 
         nofoggie_text = '_nofoggie' if args.nofoggie else ''
+        abs_text = '_wabs' if args.overplot_absorbers else ''
 
         if datashader_ver <= 11 or args.use_old_dsh:
             args.newold_text = '' # for backward compatibility
@@ -1094,7 +1095,7 @@ if __name__ == '__main__':
 
             print_mpi('Plotting ' + args.xcolname + ' vs ' + args.ycolname + ', color coded by ' + args.colorcolname + ' i.e., plot ' + str(index + 1) + ' of ' + str(len(colorcol_arr)) + '..', args)
 
-            outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s%s%s.png' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text, args.newold_text, nofoggie_text)
+            outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s%s%s%s.png' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text, args.newold_text, nofoggie_text, abs_text)
             if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
 
             thisfilename = fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))

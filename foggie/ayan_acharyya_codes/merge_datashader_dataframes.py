@@ -72,6 +72,7 @@ if __name__ == '__main__':
     outputs_text = 'all' if args.do_all_sims else ','.join(args.output_arr)
     inflow_outflow_text = '_inflow_only' if args.inflow_only else '_outflow_only' if args.outflow_only else ''
     nofoggie_text = '_nofoggie' if args.nofoggie else ''
+    abs_text = '_wabs' if args.overplot_absorbers else ''
 
     # ----------collating the different dataframes (correpsonding to each snapshot)-------------------------------------
     for index, thiscolorcol in enumerate(colorcol_arr):
@@ -98,7 +99,7 @@ if __name__ == '__main__':
 
         print_mpi('Plotting ' + args.xcolname + ' vs ' + args.ycolname + ', color coded by ' + args.colorcolname + ' i.e., plot ' + str(index + 1) + ' of ' + str(len(colorcol_arr)) + '..', args)
 
-        thisfilename = fig_dir + 'merged_datashader_%s_%s_vs_%s_colby_%s_halos_%s_outputs_%s%s%s.png' % (galrad_text, args.ycolname, args.xcolname, args.colorcolname, halos_text, outputs_text, inflow_outflow_text, nofoggie_text)
+        thisfilename = fig_dir + 'merged_datashader_%s_%s_vs_%s_colby_%s_halos_%s_outputs_%s%s%s%s.png' % (galrad_text, args.ycolname, args.xcolname, args.colorcolname, halos_text, outputs_text, inflow_outflow_text, nofoggie_text, abs_text)
 
         df_merged, paramlist_merged = pd.DataFrame(columns=[args.xcolname, args.ycolname, args.colorcolname]), pd.DataFrame()
         for index2, this_sim in enumerate(list_of_sims):
