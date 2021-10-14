@@ -25,6 +25,7 @@ from filter_star_properties import get_star_properties
 from matplotlib.colors import to_hex
 from matplotlib.widgets import LassoSelector
 from matplotlib.widgets import SpanSelector
+import matplotlib as mpl
 
 from functools import partial
 
@@ -246,7 +247,7 @@ def overplot_stars(paramlist, axes, args, type='stars', npix_datashader=1000):
             x_min_on_plot, x_max_on_plot = args.xmin, args.xmax
             y_min_on_plot, y_max_on_plot = args.ymin, args.ymax
 
-        ax.scatter(x_on_plot, y_on_plot, c=paramlist[args.colorcolname], vmin=args.cmin, vmax=args.cmax, edgecolors='black', lw=0 if type == 'absorbers' and len(paramlist) > 700 else 0.2, s=5 if type == 'absorbers' and len(paramlist) > 700 else 15, marker=marker_dict[type], cmap=args.cmap)
+        overplotted = ax.scatter(x_on_plot, y_on_plot, c=paramlist[args.colorcolname], vmin=args.cmin, vmax=args.cmax, edgecolors='black', lw=0 if type == 'absorbers' and len(paramlist) > 700 else 0.2, s=5 if type == 'absorbers' and len(paramlist) > 700 else 15, marker=marker_dict[type], cmap=args.cmap)
 
         # ----------to plot 1D histogram on the top and right axes--------------
         if type == 'absorbers':
@@ -255,7 +256,7 @@ def overplot_stars(paramlist, axes, args, type='stars', npix_datashader=1000):
 
         print_mpi('Overplotted ' + str(len(paramlist)) + ' of ' + str(init_len) + ', i.e., ' + '%.2F' % (len(paramlist) * 100 / init_len) + '% of ' + type + ' inside this box..', args)
 
-    return axes
+    return overplotted, axes
 
 # ---------------------------------------------------------------------------------
 def overplot_binned(df, ax, args, npix_datashader=1000):
@@ -330,7 +331,7 @@ def make_coordinate_axis(colname, data_min, data_max, ax, fontsize, npix_datasha
     return ax
 
 # -----------------------------------------------------------------------------------
-def create_foggie_cmap(c_min, c_max, color_list):
+def create_foggie_cmap_old(c_min, c_max, color_list):
     '''
     Function to create the colorbar for the tiny colorbar axis on top right
     This function is based on Cassi's foggie.pressure_support.create_foggie_cmap(), which is in turn based on Jason's foggie.render.cmap_utils.create_foggie_cmap()
@@ -354,12 +355,12 @@ def create_foggie_cmap(c_min, c_max, color_list):
     return cmap
 
 # ---------------------------------------------------------------------------------
-def make_colorbar_axis(colname, data_min, data_max, fig, fontsize, color_list):
+def make_colorbar_axis_old(colname, data_min, data_max, fig, fontsize, color_list):
     '''
-    Function to make the coordinate axis
+    Function to make the colorbar axis
     Uses globally defined islog_dict and unit_dict
     '''
-    color_field_cmap = create_foggie_cmap(data_min, data_max, color_list)
+    color_field_cmap = create_foggie_cmap_old(data_min, data_max, color_list)
     ax_xpos, ax_ypos, ax_width, ax_height = 0.7, 0.82, 0.25, 0.06
     ax = fig.add_axes([ax_xpos, ax_ypos, ax_width, ax_height])
     cbar_im = color_field_cmap.to_pil()
@@ -378,10 +379,30 @@ def make_colorbar_axis(colname, data_min, data_max, fig, fontsize, color_list):
 
     return fig, ax
 
+
+# ---------------------------------------------------------------------------------
+def make_colorbar_axis(colname, data_min, data_max, fig, fontsize):
+    '''
+    Function to make the colorbar axis with discrete color values, but without using JT's create_foggie_cmap()
+    Uses globally defined islog_dict and unit_dict
+    '''
+    discrete_cmap = colormap_dict[colname]
+    normalised_cmap = mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=data_min, vmax=data_max), cmap=discrete_cmap)
+    cax_xpos, cax_ypos, cax_width, cax_height = 0.7, 0.82, 0.25, 0.06
+    cax = fig.add_axes([cax_xpos, cax_ypos, cax_width, cax_height])
+    plt.colorbar(normalised_cmap, cax=cax, orientation='horizontal')
+
+    cax.set_xticklabels(['%.0F' % index for index in cax.get_xticks()], fontsize=fontsize / 1.5)
+
+    log_text = 'Log ' if islog_dict[colname] else ''
+    fig.text(cax_xpos + cax_width / 2, cax_ypos + cax_height + 0.005, log_text + labels_dict[colname] + ' (' + unit_dict[colname] + ')', fontsize=fontsize/1.5, ha='center', va='bottom')
+
+    return fig, cax
+
 # ---------------------------------------------------------------------------------
 def make_colorbar_axis_mpl(colname, artist, fig, fontsize):
     '''
-    Function to make the coordinate axis
+    Function to make the colorbar axis
     Uses globally defined islog_dict and unit_dict
     Different from make_colorbar_axis() because this function uses native matplotlib support of datashader
     '''
@@ -434,7 +455,7 @@ def wrap_axes(df, filename, npix_datashader, args, paramlist=None, abslist=None)
     # ------to make the axes-------------
     ax1.xaxis = make_coordinate_axis(args.xcol, args.xmin, args.xmax, ax1.xaxis, args.fontsize, npix_datashader=npix_datashader, dsh=True, log_scale=islog_dict[args.xcol] and args.use_cvs_log)
     ax1.yaxis = make_coordinate_axis(args.ycol, args.ymin, args.ymax, ax1.yaxis, args.fontsize, npix_datashader=npix_datashader, dsh=True, log_scale=islog_dict[args.ycol] and args.use_cvs_log)
-    fig, ax2 = make_colorbar_axis(args.colorcol, args.cmin, args.cmax, fig, args.fontsize, args.color_list)
+    fig, ax2 = make_colorbar_axis(args.colorcol, args.cmin, args.cmax, fig, args.fontsize)
 
     # ---------to annotate and save the figure----------------------
     if args.current_redshift is not None: plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift, transform=ax1.transAxes, fontsize=args.fontsize)
@@ -491,21 +512,23 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
 
     # --------to make the main datashader plot--------------------------
     color_key = get_color_keys(args.cmin, args.cmax, args.color_list)
-    #artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.count_cat(args.colorcol_cat), norm='eq_hist', color_key=color_key, x_range=(args.xmin, args.xmax), y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect = 'auto', ax=ax1, alpha_range=(40, 255), shade_hook=partial(dstf.spread, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
-    artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.mean(args.colorcolname), norm='linear', cmap=list(color_key.values()), x_range=(args.xmin, args.xmax), y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect = 'auto', ax=ax1) #, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
+    if len(df) > 0:
+        #artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.count_cat(args.colorcol_cat), norm='eq_hist', color_key=color_key, x_range=(args.xmin, args.xmax), y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect = 'auto', ax=ax1, alpha_range=(40, 255), shade_hook=partial(dstf.spread, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
+        artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.mean(args.colorcolname), norm='linear', cmap=list(color_key.values()), x_range=(args.xmin, args.xmax), y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect = 'auto', ax=ax1) #, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # ----------to overplot young stars----------------
-    if args.overplot_stars: axes = overplot_stars(paramlist, axes, args, type='stars')
+    if args.overplot_stars: overplotted, axes = overplot_stars(paramlist, axes, args, type='stars')
 
     # ----------to overplot young stars----------------
-    if args.overplot_absorbers: axes = overplot_stars(abslist, axes, args, type='absorbers')
+    if args.overplot_absorbers: overplotted, axes = overplot_stars(abslist, axes, args, type='absorbers')
 
-    # ----------to overplot binned profile----------------
-    ax1 = overplot_binned(df, ax1, args)
+    if len(df) > 0:
+        # ----------to overplot binned profile----------------
+        ax1 = overplot_binned(df, ax1, args)
 
-    # ----------to plot 1D histogram on the top and right axes--------------
-    axes.ax_marg_x = plot_1D_histogram(df[args.xcolname], args.xmin, args.xmax, axes.ax_marg_x, vertical=False)
-    axes.ax_marg_y = plot_1D_histogram(df[args.ycolname], args.ymin, args.ymax, axes.ax_marg_y, vertical=True)
+        # ----------to plot 1D histogram on the top and right axes--------------
+        axes.ax_marg_x = plot_1D_histogram(df[args.xcolname], args.xmin, args.xmax, axes.ax_marg_x, vertical=False)
+        axes.ax_marg_y = plot_1D_histogram(df[args.ycolname], args.ymin, args.ymax, axes.ax_marg_y, vertical=True)
 
     # ------to make the axes-------------
     #ax1.set_xlim(20, 0) #
@@ -514,7 +537,7 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
 
     # ------to make the colorbar axis-------------
     #fig, ax2 = make_colorbar_axis(args.colorcol, args.cmin, args.cmax, fig, args.fontsize)
-    fig, ax2 = make_colorbar_axis_mpl(args.colorcol, artist, fig, args.fontsize)
+    fig, ax2 = make_colorbar_axis_mpl(args.colorcol, artist if len(df) > 0 else overplotted, fig, args.fontsize)
 
     # ---------to annotate and save the figure----------------------
     if args.current_redshift is not None: plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift, transform=ax1.transAxes, fontsize=args.fontsize)
@@ -986,7 +1009,8 @@ if __name__ == '__main__':
                 args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
                 print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
             else:
-                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=True)
+                isdisk_required = np.array(['disk' in item for item in [args.xcol, args.ycol] + args.colorcol]).any()
+                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=isdisk_required)
 
             # -------create new fields for angular momentum vectors-----------
             ds.add_field(('gas', 'angular_momentum_phi'), function=phi_angular_momentum, sampling_type='cell', units='degree')
@@ -1034,6 +1058,8 @@ if __name__ == '__main__':
         else:
             inflow_outflow_text = ''
 
+        nofoggie_text = '_nofoggie' if args.nofoggie else ''
+
         if datashader_ver <= 11 or args.use_old_dsh:
             args.newold_text = '' # for backward compatibility
         else:
@@ -1068,7 +1094,7 @@ if __name__ == '__main__':
 
             print_mpi('Plotting ' + args.xcolname + ' vs ' + args.ycolname + ', color coded by ' + args.colorcolname + ' i.e., plot ' + str(index + 1) + ' of ' + str(len(colorcol_arr)) + '..', args)
 
-            outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s%s.png' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text, args.newold_text)
+            outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s%s%s.png' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text, args.newold_text, nofoggie_text)
             if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
 
             thisfilename = fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
@@ -1079,7 +1105,8 @@ if __name__ == '__main__':
                 elif args.clobber_plot:
                     print_mpi(thisfilename + ' plot exists but over-writing..', args)
 
-                df = get_df_from_ds(box, args)
+                if args.nofoggie: df = pd.DataFrame(columns=[args.xcolname, args.ycolname, args.colorcolname])
+                else: df = get_df_from_ds(box, args)
 
                 paramlist = load_stars_file(args) if args.overplot_stars else None
                 abslist = load_absorbers_file(args) if args.overplot_absorbers else None

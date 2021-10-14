@@ -10,6 +10,7 @@
     Started :    August 2021
     Examples :   run merge_datashader_dataframes.py --system ayan_pleiades --do_all_halos --fullbox --xcol rad --ycol metal --colorcol vrad --output RD0020,RD0018,RD0016
                  run merge_datashader_dataframes.py --system ayan_local --halo 8508,4123 --fullbox --xcol rad --ycol metal --colorcol vrad --output RD0030
+                 run merge_datashader_dataframes.py --system ayan_hd --do_all_halos --galrad 150 --xcol rad --ycol metal --colorcol vrad --output RD0020,RD0018,RD0016 --overplot_absorbers --ymin -5 --ymax 1 --inflow_only
 """
 from header import *
 from util import *
@@ -27,6 +28,8 @@ if __name__ == '__main__':
 
     if args.do_all_sims:
         list_of_sims = get_all_sims(args) # all snapshots of this particular halo
+    elif args.nofoggie:
+        list_of_sims = []
     else:
         if args.do_all_halos: halos = get_all_halos(args)
         else: halos = args.halo_arr
@@ -48,10 +51,14 @@ if __name__ == '__main__':
 
     # ----------to determine axes limits--------------
     bounds_dict.update(rad=(0, args.galrad))
-    args.x_min, args.x_max = bounds_dict[args.xcol]
-    if islog_dict[args.xcol] and not args.use_cvs_log: args.x_min, args.x_max = np.log10(args.x_min), np.log10(args.x_max)
-    args.y_min, args.y_max = bounds_dict[args.ycol]
-    if islog_dict[args.ycol] and not args.use_cvs_log: args.y_min, args.y_max = np.log10(args.y_min), np.log10(args.y_max)
+    if args.xmin is None:
+        args.xmin = np.log10(bounds_dict[args.xcol][0]) if islog_dict[args.xcol] and not args.use_cvs_log else bounds_dict[args.xcol][0]
+    if args.xmax is None:
+        args.xmax = np.log10(bounds_dict[args.xcol][1]) if islog_dict[args.xcol] and not args.use_cvs_log else bounds_dict[args.xcol][1]
+    if args.ymin is None:
+        args.ymin = np.log10(bounds_dict[args.ycol][0]) if islog_dict[args.ycol] and not args.use_cvs_log else bounds_dict[args.ycol][0]
+    if args.ymax is None:
+        args.ymax = np.log10(bounds_dict[args.ycol][1]) if islog_dict[args.ycol] and not args.use_cvs_log else bounds_dict[args.ycol][1]
 
     # parse paths and filenames
     output_dir = args.output_dir
@@ -64,22 +71,36 @@ if __name__ == '__main__':
     halos_text = 'all' if args.do_all_halos else ','.join(args.halo_arr)
     outputs_text = 'all' if args.do_all_sims else ','.join(args.output_arr)
     inflow_outflow_text = '_inflow_only' if args.inflow_only else '_outflow_only' if args.outflow_only else ''
+    nofoggie_text = '_nofoggie' if args.nofoggie else ''
 
     # ----------collating the different dataframes (correpsonding to each snapshot)-------------------------------------
     for index, thiscolorcol in enumerate(colorcol_arr):
         args.colorcol = thiscolorcol
         args.colorcolname = 'log_' + args.colorcol if islog_dict[args.colorcol] else args.colorcol
+        if isfield_weighted_dict[args.colorcol] and args.weight: args.colorcolname += '_wtby_' + args.weight
         args.colorcol_cat = 'cat_' + args.colorcolname
 
-        args.c_min, args.c_max = bounds_dict[args.colorcol]
-        if islog_dict[args.colorcol]: args.c_min, args.c_max = np.log10(args.c_min), np.log10(args.c_max)
-        if isfield_weighted_dict[args.colorcol] and args.weight: args.colorcolname += '_wtby_' + args.weight
+        # ----------to determine axes limits--------------
+        if args.cmin is None:
+            args.cmin = np.log10(bounds_dict[args.colorcol][0]) if islog_dict[args.colorcol] else bounds_dict[args.colorcol][0]
+        if args.cmax is None:
+            args.cmax = np.log10(bounds_dict[args.colorcol][1]) if islog_dict[args.colorcol] else bounds_dict[args.colorcol][1]
+
+        # ----------to determine colorbar parameters--------------
+        if args.cmap is None:
+            args.cmap = colormap_dict[args.colorcol]
+        else:
+            args.cmap = plt.get_cmap(args.cmap)
+        color_list = args.cmap.colors
+        ncolbins = args.ncolbins if args.ncolbins is not None else len(color_list)
+        args.color_list = color_list[::int(len(color_list) / ncolbins)]  # truncating color_list in to a length of rougly ncolbins
+        args.ncolbins = len(args.color_list)
 
         print_mpi('Plotting ' + args.xcolname + ' vs ' + args.ycolname + ', color coded by ' + args.colorcolname + ' i.e., plot ' + str(index + 1) + ' of ' + str(len(colorcol_arr)) + '..', args)
 
-        thisfilename = fig_dir + 'merged_datashader_%s_%s_vs_%s_colby_%s_halos_%s_outputs_%s%s.png' % (galrad_text, args.ycolname, args.xcolname, args.colorcolname, halos_text, outputs_text, inflow_outflow_text)
+        thisfilename = fig_dir + 'merged_datashader_%s_%s_vs_%s_colby_%s_halos_%s_outputs_%s%s%s.png' % (galrad_text, args.ycolname, args.xcolname, args.colorcolname, halos_text, outputs_text, inflow_outflow_text, nofoggie_text)
 
-        df_merged, paramlist_merged = pd.DataFrame(), pd.DataFrame()
+        df_merged, paramlist_merged = pd.DataFrame(columns=[args.xcolname, args.ycolname, args.colorcolname]), pd.DataFrame()
         for index2, this_sim in enumerate(list_of_sims):
             start_time_this_snapshot = time.time()
             halo, output = this_sim[0], this_sim[1]
@@ -107,7 +128,7 @@ if __name__ == '__main__':
             myprint('This snapshot ' + output + ' completed in %s minutes' % ((time.time() - start_time_this_snapshot) / 60), args)
 
         # -----------plotting one datashader plot with the giant merged dataframe-------------------------------------------
-        if len(df_merged) > 0:
+        if len(df_merged) > 0 or args.nofoggie:
             if not os.path.exists(thisfilename) or args.clobber_plot:
                 if not os.path.exists(thisfilename):
                     print_mpi(thisfilename + ' plot does not exist. Creating afresh..', args)

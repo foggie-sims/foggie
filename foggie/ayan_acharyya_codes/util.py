@@ -1061,6 +1061,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--outflow_only', dest='outflow_only', action='store_true', default=False, help='only consider gas with positive radial velocity?, default is no')
     parser.add_argument('--use_old_dsh', dest='use_old_dsh', action='store_true', default=False, help='use the old way of making datashader plots?, default is no')
     parser.add_argument('--quick', dest='quick', action='store_true', default=False, help='proceed with only the relevant properties and not store all properties?, default is no')
+    parser.add_argument('--nofoggie', dest='nofoggie', action='store_true', default=False, help='skip plotting foggie data?, default is no')
 
     # ------- args added for flux_tracking_movie.py ------------------------------
     parser.add_argument('--units_kpc', dest='units_kpc', action='store_true', default=False, help='the inner and outer radii of the sphere are in kpc units?, default is no')

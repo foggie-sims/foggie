@@ -234,7 +234,8 @@ if __name__ == '__main__':
         print_mpi('ds ' + str(ds) + ' for halo ' + str(args.output) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
     else:
         args = args_tuple
-        ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=True)
+        isdisk_required = np.array(['disk' in item for item in [args.xcol, args.ycol] + args.colorcol]).any()
+        ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=isdisk_required)
 
     # -------create new fields for angular momentum vectors-----------
     ds.add_field(('gas', 'angular_momentum_phi'), function=phi_angular_momentum, sampling_type='cell', units='degree')
