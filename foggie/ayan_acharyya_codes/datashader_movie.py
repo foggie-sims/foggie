@@ -40,6 +40,36 @@ def weight_by(data, weights):
     weighted_data = data * weights * len(weights) / np.sum(weights)
     return weighted_data
 
+# ---------------------------------------------
+def get_text_between_strings(full_string, left_string, right_string):
+    '''
+    Function to extract the string between two strings in a given parent string
+    '''
+    return full_string[full_string.find(left_string) + len(left_string):full_string.find(right_string)]
+
+# ---------------------------------------------
+def get_correct_tablename(args):
+    '''
+    Function to determine the correct tablename for a given set of args
+    '''
+    if args.quick: outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc_%s_vs_%s_colby_%s%s.txt' % (args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text)
+    else: outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc.txt'
+
+    outfile_list = glob.glob(outfileroot)
+    if len(outfile_list) == 0:
+        correct_rad_to_grab = args.galrad
+    else:
+        available_rads = np.sort([float(get_text_between_strings(item, 'boxrad_', 'kpc')) for item in outfile_list])
+        try:
+            index = np.where(available_rads >= args.galrad)[0][0]
+            correct_rad_to_grab = available_rads[index]
+        except IndexError:
+            correct_rad_to_grab = args.galrad
+            pass
+
+    outfilename = outfileroot.replace('*', '%.2F' % correct_rad_to_grab)
+    return outfilename
+
 # -------------------------------------------------------------------------------
 def extract_columns_from_df(df_allprop, args):
     '''
@@ -50,7 +80,10 @@ def extract_columns_from_df(df_allprop, args):
     elif args.outflow_only: df_allprop = df_allprop[df_allprop['vrad'] > 0.]
 
     df = pd.DataFrame()
-    for field in [args.xcol, args.ycol, args.colorcol]:
+    all_fields = [args.xcol, args.ycol, args.colorcol]
+    if 'rad' not in all_fields: all_fields = ['rad'] + all_fields
+
+    for field in all_fields:
         arr = df_allprop[field]
         column_name = field
         df[column_name] = arr
@@ -75,8 +108,7 @@ def get_df_from_ds(ds, args):
     '''
     # -------------read/write pandas df file with ALL fields-------------------
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
-    if args.quick: outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.txt' % (args.galrad, args.ycol, args.xcol, args.colorcol, inflow_outflow_text)
-    else: outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc.txt' % (args.galrad)
+    outfilename = get_correct_tablename(args)
 
     if not os.path.exists(outfilename) or args.clobber:
         if not os.path.exists(outfilename):
@@ -86,7 +118,10 @@ def get_df_from_ds(ds, args):
 
         if not args.quick: myprint('Extracting all gas, once and for all, and putting them into dataframe, so that this step is not required for subsequently plotting other parameters and therefore subsequent plotting is faster; this may take a while..', args)
         df_allprop = pd.DataFrame()
+
         all_fields = [args.xcol, args.ycol, args.colorcol] if args.quick else field_dict.keys() # only the relevant properties if in a hurry
+        if 'rad' not in all_fields: all_fields = ['rad'] + all_fields
+
         for index,field in enumerate(all_fields):
             myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(all_fields)) + ' fields..', args)
             if 'phi' in field and 'disk' in field: df_allprop[field] = np.abs(np.degrees(ds[field_dict[field]].v) - 90) # to convert from radian to degrees; and then restrict phi from 0 to 90
@@ -97,6 +132,12 @@ def get_df_from_ds(ds, args):
     else:
         myprint('Reading from existing file ' + outfilename, args)
         df_allprop = pd.read_table(outfilename, delim_whitespace=True, comment='#')
+        try:
+            df_allprop = df_allprop[df_allprop['rad'].between(0, args.galrad)] # curtailing in radius space, in case this dataframe has been read in from a file corresponding to a larger chunk of the box
+        except KeyError: # for files produced previously and therefore may not have a 'rad' column
+            rad_picked_up = float(get_text_between_strings(outfilename, 'boxrad_', 'kpc'))
+            if rad_picked_up == args.galrad: pass # if this file actually corresponds to the correct radius, then you're fine (even if the file itself doesn't have radius column)
+            else: sys.exit('Please regenerate ' + outfilename + ', using the --clobber option') # otherwise throw error
 
     df = extract_columns_from_df(df_allprop, args)
     return df
@@ -188,8 +229,10 @@ def load_absorbers_file(args):
     abslist = pd.read_csv(abslistfile, comment='#')
 
     # -------------to prep the simulation data------------
-    abslist = abslist[abslist['name'] == 'H I']
-    if args.current_redshift is not None: abslist = abslist[abslist['redshift'].between(args.current_redshift * 0.999, args.current_redshift * 1.001)]
+    abslist = abslist[abslist['name'] == 'H I'] # using HI absorbers only, because file itself has CIV and other absorbers too
+    if args.current_redshift is not None:
+        abslist = abslist[abslist['redshift'].between(args.current_redshift * 0.999, args.current_redshift * 1.001)]
+        if len(abslist) == 0: myprint('Warning: no absorbers remaining to plot after the redshift cut', args)
 
     abslist = abslist.rename(columns={'metallicity': 'metal', 'col_dens': 'col_density', 'radius': 'rad', 'temperature': 'temp'})
     abslist['vrad'] = abslist['velocity_magnitude'] * abslist['radial_alignment'] / np.abs(abslist['radial_alignment'])
@@ -885,6 +928,8 @@ def setup_interactive(box, ax, args, nbins=20, ncolbins=100, npix_datashader=Non
 def get_color_labels(data_min, data_max, nbins):
     '''
     Function to determine the bin labels of every color category, to make the datashader plot
+    This function is still here only to retain backward compatibility with previous versions of datashader which did not
+    have matplotlib support; otherwise these functions are redundant with the new mpl support
     '''
     edges = np.linspace(data_min, data_max, nbins + 1)
     color_labels = np.chararray(nbins, 13)
@@ -898,6 +943,8 @@ def get_color_keys(data_min, data_max, color_list):
     '''
     Function to determine the actual color for every color category, based on a given discrete colormap
     In this script, this function is used such that the discrete colormap is the corresponding discrete colormap in consistency.py
+    This function is still here only to retain backward compatibility with previous versions of datashader which did not
+    have matplotlib support; otherwise these functions are redundant with the new mpl support
     '''
     nbins = len(color_list)
     _, color_labels = get_color_labels(data_min, data_max, nbins)
@@ -911,6 +958,8 @@ def get_color_keys(data_min, data_max, color_list):
 def categorize_by_quant(data, data_min, data_max, nbins):
     '''
     Function to assign categories to the given data, to make the datashader plot color coding
+    This function is still here only to retain backward compatibility with previous versions of datashader which did not
+    have matplotlib support; otherwise these functions are redundant with the new mpl support
     '''
     edges, color_labels = get_color_labels(data_min, data_max, nbins)
     category = np.chararray(np.size(data), 13)
@@ -918,7 +967,6 @@ def categorize_by_quant(data, data_min, data_max, nbins):
         category[(data >= edges[i]) & (data <= edges[i + 1])] = color_labels[i]
 
     return category
-
 
 # -------------------------------------------------------------------------------------------------------------
 def update_dicts(param, ds):
@@ -1010,7 +1058,7 @@ if __name__ == '__main__':
                 print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
             else:
                 isdisk_required = np.array(['disk' in item for item in [args.xcol, args.ycol] + args.colorcol]).any()
-                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=isdisk_required)
+                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=isdisk_required and not args.nodiskload)
 
             # -------create new fields for angular momentum vectors-----------
             ds.add_field(('gas', 'angular_momentum_phi'), function=phi_angular_momentum, sampling_type='cell', units='degree')
@@ -1089,7 +1137,7 @@ if __name__ == '__main__':
             if args.cmap is None: args.cmap = colormap_dict[args.colorcol]
             else: args.cmap = plt.get_cmap(args.cmap)
             color_list = args.cmap.colors
-            ncolbins = args.ncolbins if args.ncolbins is not None else len(color_list)
+            ncolbins = args.ncolbins if args.ncolbins is not None else len(color_list) if len(color_list) <= 10 else 7
             args.color_list = color_list[::int(len(color_list) / ncolbins)]  # truncating color_list in to a length of rougly ncolbins
             args.ncolbins = len(args.color_list)
 
@@ -1145,4 +1193,3 @@ if __name__ == '__main__':
 
     if ncores > 1: print_master('Parallely: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
-

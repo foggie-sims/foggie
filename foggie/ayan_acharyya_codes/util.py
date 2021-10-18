@@ -1077,6 +1077,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--ymax', metavar='ymax', type=float, action='store', default=None, help='maximum yaxis limit; default is None')
     parser.add_argument('--cmap', metavar='cmap', type=str, action='store', default=None, help='colormap to use; default is None')
     parser.add_argument('--ncolbins', metavar='ncolbins', type=int, action='store', default=None, help='number of bins in color space the data shader categories would be split across; default is None')
+    parser.add_argument('--nodiskload', dest='nodiskload', action='store_true', default=False, help='skip loading disk-relative stuff in foggie load (saves time)?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()

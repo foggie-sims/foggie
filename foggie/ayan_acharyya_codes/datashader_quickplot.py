@@ -9,12 +9,42 @@
     Started :    Oct 2021
     Examples :   run datashader_quickplot.py --system ayan_local --halo 8508 --galrad 20 --xcol rad --ycol metal --colorcol vrad
                  run datashader_quickplot.py --system ayan_local --halo 8508 --fullbox --xcol vrad --xmin -320 --xmax 500 --ycol metal --ymin -4 --ymax 0.5 --colorcol phi_disk --cmap viridis --ncolbins 7
+                 run datashader_quickplot.py --system ayan_local --halo 8508 --fullbox --xcol vrad --xmin -400 --xmax 500 --ycol metal --ymin -4 --ymax 1 --colorcol phi_disk --cmap viridis --ncolbins 7 --nodiskload
 
 """
 from header import *
 from util import *
 yt_ver = yt.__version__
 start_time = time.time()
+
+# ---------------------------------------------
+def get_text_between_strings(full_string, left_string, right_string):
+    '''
+    Function to extract the string between two strings in a given parent string
+    '''
+    return full_string[full_string.find(left_string) + len(left_string):full_string.find(right_string)]
+
+# ---------------------------------------------
+def get_correct_tablename(args):
+    '''
+    Function to determine the correct tablename for a given set of args
+    '''
+    outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc_%s_vs_%s_colby_%s%s.txt' % (args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text)
+
+    outfile_list = glob.glob(outfileroot)
+    if len(outfile_list) == 0:
+        correct_rad_to_grab = args.galrad
+    else:
+        available_rads = np.sort([float(get_text_between_strings(item, 'boxrad_', 'kpc')) for item in outfile_list])
+        try:
+            index = np.where(available_rads >= args.galrad)[0][0]
+            correct_rad_to_grab = available_rads[index]
+        except IndexError:
+            correct_rad_to_grab = args.galrad
+            pass
+
+    outfilename = outfileroot.replace('*', '%.2F' % correct_rad_to_grab)
+    return outfilename
 
 # -------------------------------------------------------------------------------
 def get_df_from_ds(ds, args):
@@ -24,13 +54,15 @@ def get_df_from_ds(ds, args):
     This function is somewhat based on foggie.utils.prep_dataframe.prep_dataframe()
     :return: dataframe
     '''
-    outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.txt' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text)
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
+    outfilename = get_correct_tablename(args)
 
     if not os.path.exists(outfilename) or args.clobber:
         myprint('Creating file ' + outfilename + '..', args)
         df = pd.DataFrame()
         all_fields = [args.xcol, args.ycol, args.colorcol]
+        if 'rad' not in all_fields: all_fields = ['rad'] + all_fields
+
         for index,field in enumerate(all_fields):
             myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(all_fields)) + ' fields..', args)
             if 'phi' in field and 'disk' in field: arr = np.abs(np.degrees(ds[field_dict[field]].v) - 90) # to convert from radian to degrees; and then restrict phi from 0 to 90
@@ -53,6 +85,12 @@ def get_df_from_ds(ds, args):
     else:
         myprint('Reading from existing file ' + outfilename, args)
         df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
+        try:
+            df = df[df['rad'].between(0, args.galrad)] # curtailing in radius space, in case this dataframe has been read in from a file corresponding to a larger chunk of the box
+        except KeyError: # for files produced previously and therefore may not have a 'rad' column
+            rad_picked_up = float(get_text_between_strings(outfilename, 'boxrad_', 'kpc'))
+            if rad_picked_up == args.galrad: pass # if this file actually corresponds to the correct radius, then you're fine (even if the file itself doesn't have radius column)
+            else: sys.exit('Please regenerate ' + outfilename + ', using the --clobber option') # otherwise throw error
 
     return df
 
@@ -93,7 +131,7 @@ def make_coordinate_axis(colname, data_min, data_max, ax, fontsize):
 # ---------------------------------------------------------------------------------
 def make_colorbar_axis_mpl(colname, artist, fig, fontsize):
     '''
-    Function to make the coordinate axis
+    Function to make the colorbar axis
     Uses globally defined islog_dict and unit_dict
     Different from make_colorbar_axis() because this function uses native matplotlib support of datashader
     '''
@@ -117,16 +155,8 @@ def make_datashader_plot_mpl(df, outfilename, args):
     So this function essentially combines make_datashader_plot() and wrap_axes(), because the latter is not needed anymore
     :return dataframe, figure
     '''
-    # ----------to determine colorbar parameters--------------
-    color_list = plt.get_cmap(args.cmap) if args.cmap is not None else colormap_dict[args.colorcol].colors
-    ncol_bins = args.ncolbins if args.ncolbins is not None else len(color_list)
-    color_list = color_list[::int(len(color_list)/ncol_bins)] # truncating color_list in to a length of rougly ncol_bins
-    ncol_bins = len(color_list)
-
     # ----------to filter and categorize the dataframe--------------
     df = df[(df[args.xcolname].between(args.xmin, args.xmax)) & (df[args.ycolname].between(args.ymin, args.ymax)) & (df[args.colorcolname].between(args.cmin, args.cmax))]
-    df[args.colorcol_cat] = categorize_by_quant(df[args.colorcolname], args.cmin, args.cmax, ncol_bins)
-    df[args.colorcol_cat] = df[args.colorcol_cat].astype('category')
 
     # -----------------to initialise figure---------------------
     shift_right = 'phi' in args.ycol or 'theta' in args.ycol
@@ -136,9 +166,8 @@ def make_datashader_plot_mpl(df, outfilename, args):
     fig, ax1 = plt.gcf(), axes.ax_joint
 
     # --------to make the main datashader plot--------------------------
-    color_key = get_color_keys(args.cmin, args.cmax, color_list)
-    #artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.count_cat(args.colorcol_cat), norm='eq_hist', color_key=color_key, x_range=(args.xmin, args.xmax), y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect = 'auto', ax=ax1, alpha_range=(40, 255), shade_hook=partial(dstf.spread, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
-    artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.mean(args.colorcolname), norm='linear', cmap=list(color_key.values()), x_range=(args.xmin, args.xmax), y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect = 'auto', ax=ax1) #, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
+    color_key = [to_hex(item) for item in args.color_list]
+    artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.mean(args.colorcolname), norm='linear', cmap=color_key, x_range=(args.xmin, args.xmax), y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect = 'auto', ax=ax1) #, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # ----------to plot 1D histogram on the top and right axes--------------
     axes.ax_marg_x = plot_1D_histogram(df[args.xcolname], args.xmin, args.xmax, axes.ax_marg_x, vertical=False)
@@ -160,44 +189,6 @@ def make_datashader_plot_mpl(df, outfilename, args):
     plt.show(block=False)
 
     return df, fig
-
-# -------------------------------------------------------------------------------------------------------------
-def get_color_labels(data_min, data_max, nbins):
-    '''
-    Function to determine the bin labels of every color category, to make the datashader plot
-    '''
-    edges = np.linspace(data_min, data_max, nbins + 1)
-    color_labels = np.chararray(nbins, 13)
-    for i in range(nbins):
-        color_labels[i] = b'[%.2F,%.2F)' % (edges[i], edges[i + 1])
-
-    return edges, color_labels
-
-# -------------------------------------------------------------------------------------------------------------
-def get_color_keys(data_min, data_max, color_list):
-    '''
-    Function to determine the actual color for every color category, based on a given discrete colormap
-    In this script, this function is used such that the discrete colormap is the corresponding discrete colormap in consistency.py
-    '''
-    nbins = len(color_list)
-    _, color_labels = get_color_labels(data_min, data_max, nbins)
-    color_key = collections.OrderedDict()
-    for i in range(nbins):
-        color_key[color_labels[i]] = to_hex(color_list[i])
-
-    return color_key
-
-# -------------------------------------------------------------------------------------------------------------
-def categorize_by_quant(data, data_min, data_max, nbins):
-    '''
-    Function to assign categories to the given data, to make the datashader plot color coding
-    '''
-    edges, color_labels = get_color_labels(data_min, data_max, nbins)
-    category = np.chararray(np.size(data), 13)
-    for i in range(nbins):
-        category[(data >= edges[i]) & (data <= edges[i + 1])] = color_labels[i]
-
-    return category
 
 # -------------------------------------------------------------------------------------------------------------
 def update_dicts(param, ds):
@@ -235,7 +226,7 @@ if __name__ == '__main__':
     else:
         args = args_tuple
         isdisk_required = np.array(['disk' in item for item in [args.xcol, args.ycol] + args.colorcol]).any()
-        ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=isdisk_required)
+        ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=isdisk_required and not args.nodiskload)
 
     # -------create new fields for angular momentum vectors-----------
     ds.add_field(('gas', 'angular_momentum_phi'), function=phi_angular_momentum, sampling_type='cell', units='degree')
@@ -255,7 +246,6 @@ if __name__ == '__main__':
     if isfield_weighted_dict[args.xcol] and args.weight: args.xcolname += '_wtby_' + args.weight
     if isfield_weighted_dict[args.ycol] and args.weight: args.ycolname += '_wtby_' + args.weight
     if isfield_weighted_dict[args.colorcol] and args.weight: args.colorcolname += '_wtby_' + args.weight
-    args.colorcol_cat = 'cat_' + args.colorcolname
 
     # ----------to determine box size--------------
     if args.fullbox:
@@ -282,6 +272,15 @@ if __name__ == '__main__':
         args.cmin = np.log10(bounds_dict[args.colorcol][0]) if islog_dict[args.colorcol] else bounds_dict[args.colorcol][0]
     if args.cmax is None:
         args.cmax = np.log10(bounds_dict[args.colorcol][1]) if islog_dict[args.colorcol] else bounds_dict[args.colorcol][1]
+
+    # ----------to determine colorbar parameters--------------
+    if args.cmap is None:
+        args.cmap = colormap_dict[args.colorcol]
+    else:
+        args.cmap = plt.get_cmap(args.cmap)
+    color_list = args.cmap.colors
+    ncol_bins = args.ncolbins if args.ncolbins is not None else len(color_list) if len(color_list) <= 10 else 7
+    args.color_list = color_list[::int(len(color_list)/ncol_bins)] # truncating color_list in to a length of rougly ncol_bins
 
     if args.inflow_only:
         box = box.cut_region(["obj[('gas', 'radial_velocity_corrected')] < 0"])
