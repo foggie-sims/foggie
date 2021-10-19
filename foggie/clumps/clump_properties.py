@@ -198,6 +198,7 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
 
     print('finished calculations - preparing output')
     print(boxi)
+    if IDs == []: print('halo '+halo+' box '+boxi+' appears to be empty - check and rerun!')
     IDs=np.array(IDs)
     clumpmasses=np.array(clumpmasses)
     clumpvolumes=np.array(clumpvolumes)
