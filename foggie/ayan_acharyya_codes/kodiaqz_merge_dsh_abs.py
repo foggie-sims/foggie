@@ -244,7 +244,7 @@ if __name__ == '__main__':
     fig.text(0.55, 0.05, log_text + labels_dict[args.xcol] + ' (' + unit_dict[args.xcol] + ')', fontsize=args.fontsize, ha='center')
 
     log_text = 'Log ' if islog_dict[args.ycol] else ''
-    fig.text(0.05, 0.52, log_text + labels_dict[args.ycol] + ' (' + unit_dict[args.ycol] + ')', fontsize=args.fontsize, ha='center', rotation='vertical')
+    fig.text(0.05, 0.45, log_text + labels_dict[args.ycol] + ' (' + unit_dict[args.ycol] + ')', fontsize=args.fontsize, ha='center', rotation='vertical')
 
     filename = fig_dir + 'kodiaqz_merged_dsh_abs_%s_%s_vs_%s_colby_%s_halos_%s_outputs_%s.png' % (galrad_text, args.ycolname, args.xcolname, args.colorcolname, halos_text, outputs_text)
     plt.savefig(filename, transparent=False)
