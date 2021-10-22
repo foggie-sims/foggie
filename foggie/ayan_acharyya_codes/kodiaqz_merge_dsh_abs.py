@@ -194,6 +194,7 @@ if __name__ == '__main__':
     abs_arr = [abslist_outflow, pd.DataFrame(), abslist_inflow, pd.DataFrame()]
 
     # -----------creating four-panel datashader plot with merged dataframe-------------------------------------------
+    npix_datashader = 50
     nticks, nrow, ncol = 4, 2, 2
     fig = plt.figure(figsize=(10, 8))
     gs = gridspec.GridSpec(nrow, ncol, figure=fig, hspace=0.05, wspace=0.05, right=0.95, top=0.9, bottom=0.15, left=0.15)
@@ -206,13 +207,19 @@ if __name__ == '__main__':
         ax, margx, margy = axes.ax_joint, axes.ax_marg_x, axes.ax_marg_y
         dummy = SeabornFig2Grid(axes, fig, gs[index]) # move this entire set of jointplot axes to the index-th panel of the gridspec figure
 
-        artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.mean(args.colorcolname), norm='linear', cmap=list(color_key.values()), x_range=(args.xmin, args.xmax), y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect='auto', ax=ax)  # , shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
-
         if len(abs) > 0:
-            if index == 0: overplotted, axes = overplot_stars(abs, axes, args, type='absorbers')
-            elif index == 2: axes = hexplot_abs(abs, axes, args, 'Blues')
+            artist = dsshow(abs, dsh.Point(args.xcolname, args.ycolname), dsh.mean(args.colorcolname), norm='linear',
+                            cmap=list(color_key.values()), x_range=(args.xmin, args.xmax),
+                            y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect='auto', ax=ax,
+                            plot_width=npix_datashader, plot_height=npix_datashader) # same datashader plot with absorbers too, except in this case the pixel/bin sizes are larger than in case of FOGGIE plots
+            margx = plot_1D_histogram(abs[args.xcolname], args.xmin, args.xmax, margx, vertical=False)
+            margy = plot_1D_histogram(abs[args.ycolname], args.ymin, args.ymax, margy, vertical=True)
 
         if len(df) > 0:
+            artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.mean(args.colorcolname), norm='linear',
+                            cmap=list(color_key.values()), x_range=(args.xmin, args.xmax),
+                            y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect='auto',
+                            ax=ax)  # , shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
             ax = overplot_binned(df, ax, args)
             margx = plot_1D_histogram(df[args.xcolname], args.xmin, args.xmax, margx, vertical=False)
             margy = plot_1D_histogram(df[args.ycolname], args.ymin, args.ymax, margy, vertical=True)
