@@ -197,7 +197,7 @@ if __name__ == '__main__':
     npix_datashader = 50
     nticks, nrow, ncol = 4, 2, 2
     fig = plt.figure(figsize=(10, 8))
-    gs = gridspec.GridSpec(nrow, ncol, figure=fig, hspace=0.05, wspace=0.05, right=0.95, top=0.9, bottom=0.15, left=0.15)
+    gs = gridspec.GridSpec(nrow, ncol, figure=fig, hspace=0.05, wspace=0.05, right=0.98, top=0.85, bottom=0.1, left=0.15)
 
     for index in range(nrow * ncol):
         print_mpi('Doing panel ' + str(index + 1) + ' out of ' + str(nrow * ncol) + '..', args)
@@ -248,10 +248,16 @@ if __name__ == '__main__':
 
     # ---------to annotate and save the figure----------------------
     log_text = 'Log ' if islog_dict[args.xcol] else ''
-    fig.text(0.55, 0.05, log_text + labels_dict[args.xcol] + ' (' + unit_dict[args.xcol] + ')', fontsize=args.fontsize, ha='center')
+    fig.text(0.55, 0.03, log_text + labels_dict[args.xcol] + ' (' + unit_dict[args.xcol] + ')', fontsize=args.fontsize, ha='center')
 
     log_text = 'Log ' if islog_dict[args.ycol] else ''
-    fig.text(0.05, 0.45, log_text + labels_dict[args.ycol] + ' (' + unit_dict[args.ycol] + ')', fontsize=args.fontsize, ha='center', rotation='vertical')
+    fig.text(0.08, 0.35, log_text + labels_dict[args.ycol] + ' (' + unit_dict[args.ycol] + ')', fontsize=args.fontsize, ha='center', rotation='vertical')
+
+    fig.text(0.3, 0.87, 'All absorbers', fontsize=args.fontsize, ha='center')
+    fig.text(0.75, 0.87, 'All gas', fontsize=args.fontsize, ha='center')
+
+    fig.text(0.03, 0.25, 'Inflowing', fontsize=args.fontsize, ha='center', rotation='vertical')
+    fig.text(0.03, 0.65, 'Outflowing', fontsize=args.fontsize, ha='center', rotation='vertical')
 
     filename = fig_dir + 'kodiaqz_merged_dsh_abs_%s_%s_vs_%s_colby_%s_halos_%s_outputs_%s.png' % (galrad_text, args.ycolname, args.xcolname, args.colorcolname, halos_text, outputs_text)
     plt.savefig(filename, transparent=False)
