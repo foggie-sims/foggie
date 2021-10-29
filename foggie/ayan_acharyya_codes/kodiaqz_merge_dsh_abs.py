@@ -197,7 +197,7 @@ if __name__ == '__main__':
     npix_datashader = 50
     nticks, nrow, ncol = 4, 2, 2
     fig = plt.figure(figsize=(10, 8))
-    gs = gridspec.GridSpec(nrow, ncol, figure=fig, hspace=0.05, wspace=0.05, right=0.98, top=0.85, bottom=0.1, left=0.15)
+    gs = gridspec.GridSpec(nrow, ncol, figure=fig, hspace=0.05, wspace=0.05, right=0.98, top=0.83, bottom=0.08, left=0.1)
 
     for index in range(nrow * ncol):
         print_mpi('Doing panel ' + str(index + 1) + ' out of ' + str(nrow * ncol) + '..', args)
@@ -237,27 +237,27 @@ if __name__ == '__main__':
         else: ax.xaxis.set_ticklabels([])
 
     # ---------to annotate colorbar----------------------
-    cax_xpos, cax_ypos, cax_width, cax_height = 0.7, 0.93, 0.25, 0.035
+    cax_xpos, cax_ypos, cax_width, cax_height = 0.1, 0.93, 0.81, 0.03
     cax = fig.add_axes([cax_xpos, cax_ypos, cax_width, cax_height])
     plt.colorbar(artist, cax=cax, orientation='horizontal')
 
-    cax.set_xticklabels(['%.0F' % index for index in cax.get_xticks()], fontsize=args.fontsize / 1.2)  # , weight='bold')
+    cax.set_xticklabels(['%.0F' % index for index in cax.get_xticks()], fontsize=args.fontsize)  # , weight='bold')
 
     log_text = 'Log ' if islog_dict[args.colorcol] else ''
-    fig.text(cax_xpos + cax_width / 2, cax_ypos + cax_height + 0.005, log_text + labels_dict[args.colorcol] + ' (' + unit_dict[args.colorcol] + ')', fontsize=args.fontsize/1.2, ha='center', va='bottom')
+    fig.text(cax_xpos + cax_width / 2, cax_ypos + cax_height + 0.005, log_text + labels_dict[args.colorcol] + ' (' + unit_dict[args.colorcol] + ')', fontsize=args.fontsize, ha='center', va='bottom')
 
     # ---------to annotate and save the figure----------------------
     log_text = 'Log ' if islog_dict[args.xcol] else ''
-    fig.text(0.55, 0.03, log_text + labels_dict[args.xcol] + ' (' + unit_dict[args.xcol] + ')', fontsize=args.fontsize, ha='center')
+    fig.text(0.55, 0.015, log_text + labels_dict[args.xcol] + ' (' + unit_dict[args.xcol] + ')', fontsize=args.fontsize, ha='center')
 
     log_text = 'Log ' if islog_dict[args.ycol] else ''
-    fig.text(0.08, 0.35, log_text + labels_dict[args.ycol] + ' (' + unit_dict[args.ycol] + ')', fontsize=args.fontsize, ha='center', rotation='vertical')
+    fig.text(0.03, 0.35, log_text + labels_dict[args.ycol] + ' (' + unit_dict[args.ycol] + ')', fontsize=args.fontsize, ha='center', rotation='vertical')
 
-    fig.text(0.3, 0.87, 'All absorbers', fontsize=args.fontsize, ha='center')
-    fig.text(0.75, 0.87, 'All gas', fontsize=args.fontsize, ha='center')
+    fig.text(0.30, 0.85, 'All absorbers', fontsize=args.fontsize, ha='center')
+    fig.text(0.75, 0.85, 'All gas', fontsize=args.fontsize, ha='center')
 
-    fig.text(0.03, 0.25, 'Inflowing', fontsize=args.fontsize, ha='center', rotation='vertical')
-    fig.text(0.03, 0.65, 'Outflowing', fontsize=args.fontsize, ha='center', rotation='vertical')
+    fig.text(0.9, 0.11, 'Inflowing', fontsize=args.fontsize, ha='right')
+    fig.text(0.9, 0.50, 'Outflowing', fontsize=args.fontsize, ha='right')
 
     filename = fig_dir + 'kodiaqz_merged_dsh_abs_%s_%s_vs_%s_colby_%s_halos_%s_outputs_%s.png' % (galrad_text, args.ycolname, args.xcolname, args.colorcolname, halos_text, outputs_text)
     plt.savefig(filename, transparent=False)
