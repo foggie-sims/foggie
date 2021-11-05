@@ -247,11 +247,8 @@ if __name__ == '__main__':
     fig.text(cax_xpos + cax_width / 2, cax_ypos + cax_height + 0.005, log_text + labels_dict[args.colorcol] + ' (' + unit_dict[args.colorcol] + ')', fontsize=args.fontsize, ha='center', va='bottom')
 
     # ---------to annotate and save the figure----------------------
-    log_text = 'Log ' if islog_dict[args.xcol] else ''
-    fig.text(0.55, 0.015, log_text + labels_dict[args.xcol] + ' (' + unit_dict[args.xcol] + ')', fontsize=args.fontsize, ha='center')
-
-    log_text = 'Log ' if islog_dict[args.ycol] else ''
-    fig.text(0.03, 0.35, log_text + labels_dict[args.ycol] + ' (' + unit_dict[args.ycol] + ')', fontsize=args.fontsize, ha='center', rotation='vertical')
+    fig.text(0.55, 0.015, 'Radius (kpc)', fontsize=args.fontsize, ha='center') # xlabel
+    fig.text(0.03, 0.45, r'$\log{\,(Z/Z_\odot)}$', fontsize=args.fontsize, ha='center', rotation='vertical') # ylabel
 
     fig.text(0.30, 0.85, 'All absorbers', fontsize=args.fontsize, ha='center')
     fig.text(0.75, 0.85, 'All gas', fontsize=args.fontsize, ha='center')
