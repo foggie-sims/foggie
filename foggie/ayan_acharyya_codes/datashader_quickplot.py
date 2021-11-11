@@ -29,7 +29,7 @@ def get_correct_tablename(args):
     '''
     Function to determine the correct tablename for a given set of args
     '''
-    outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc_%s_vs_%s_colby_%s%s.txt' % (args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text)
+    outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc_%s_vs_%s_colby_%s%s.txt' % (args.ycol, args.xcol, args.colorcol, inflow_outflow_text)
 
     outfile_list = glob.glob(outfileroot)
     if len(outfile_list) == 0:
@@ -68,18 +68,7 @@ def get_df_from_ds(ds, args):
             if 'phi' in field and 'disk' in field: arr = np.abs(np.degrees(ds[field_dict[field]].v) - 90) # to convert from radian to degrees; and then restrict phi from 0 to 90
             elif 'theta' in field and 'disk' in field: arr = np.degrees(ds[field_dict[field]].v) # to convert from radian to degrees
             else: arr = ds[field_dict[field]].in_units(unit_dict[field]).ndarray_view()
-            column_name = field
-
-            if isfield_weighted_dict[field] and args.weight:
-                weights = ds[field_dict[args.weight]].in_units(unit_dict[args.weight]).ndarray_view()
-                arr = arr * weights * len(weights) / np.sum(weights)
-                df[args.weight] = weights
-                column_name = column_name + '_wtby_' + args.weight
-            if islog_dict[field]:
-                arr = np.log10(arr)
-                column_name = 'log_' + column_name
-
-            df[column_name] = arr
+            df[field] = arr
 
         df.to_csv(outfilename, sep='\t', index=None)
     else:
@@ -91,6 +80,17 @@ def get_df_from_ds(ds, args):
             rad_picked_up = float(get_text_between_strings(outfilename, 'boxrad_', 'kpc'))
             if rad_picked_up == args.galrad: pass # if this file actually corresponds to the correct radius, then you're fine (even if the file itself doesn't have radius column)
             else: sys.exit('Please regenerate ' + outfilename + ', using the --clobber option') # otherwise throw error
+
+    for field in all_fields:
+        if isfield_weighted_dict[field] and args.weight:
+            weights = ds[field_dict[args.weight]].in_units(unit_dict[args.weight]).ndarray_view()
+            arr = df[field] * weights * len(weights) / np.sum(weights)
+            df[args.weight] = weights
+            column_name = column_name + '_wtby_' + args.weight
+        if islog_dict[field]:
+            arr = np.log10(df[field])
+            column_name = 'log_' + column_name
+        if column_name not in df: df[column_name] = arr
 
     return df
 

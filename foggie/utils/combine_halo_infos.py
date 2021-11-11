@@ -80,8 +80,8 @@ if __name__ == "__main__":
                     big_table2 = data
                 else:
                     big_table2 = vstack([big_table2, data])
-        big_table1.write(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'masses_z-gtr-2.hdf5', path='all_data', serialize_meta=True, overwrite=True)
-        big_table2.write(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'masses_z-less-2.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        if (big_table1): big_table1.write(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'masses_z-gtr-2.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        if (big_table2): big_table2.write(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'masses_z-less-2.hdf5', path='all_data', serialize_meta=True, overwrite=True)
         redshift_s, snap_s, sfr_s = map(list, zip(*sorted(zip(redshift_list, snap_list, sfr_list), reverse=True)))
         f = open(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', 'w')
         f.write('#Snap     z           SFR (Msun/yr)\n')

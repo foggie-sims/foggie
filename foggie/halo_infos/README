@@ -30,9 +30,14 @@ Exists for:
 8508/nref11n_nref10f snapshots DD0044-DD1630
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
-4123/nref11c_nref9f snapshots DD0169-DD2399, RD0016-RD0038
+4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
 2392/nref11c_nref9f snapshots DD0511-DD1699, RD0019-RD0033
 2878/nref11c_nref9f snapshots DD0398-DD0899, RD0016-RD0024
+
+8508/high_feedback_restart snapshots DD1728-DD1876, RD0036-RD0037
+8508/feedback_return snapshots DD1747-DD2234, RD0036-RD0040
+8508/low_feedback_06 snapshots DD1621-DD2425, RD0034-RD0041
+8508/low_feedback_07 snapshots DD1621-DD2417, RD0034-RD0041
 
 Created by:
 utils/get_halo_c_v_parallel.py
@@ -74,9 +79,14 @@ Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
-4123/nref11c_nref9f snapshots DD0169-DD2399, RD0016-RD0038
+4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
 2392/nref11c_nref9f snapshots DD0511-DD1699, RD0019-RD0033
 2878/nref11c_nref9f snapshots DD0398-DD0899, RD0016-RD0024
+
+8508/high_feedback_restart snapshots DD1728-DD1876, RD0036-RD0037
+8508/feedback_return snapshots DD1747-DD2234, RD0036-RD0040
+8508/low_feedback_06 snapshots DD1621-DD2425, RD0034-RD0041
+8508/low_feedback_07 snapshots DD1621-DD2417, RD0034-RD0041
 
 Created by:
 utils/get_mass_profile.py, which will output one "snapshot_masses.hdf5" per snapshot that can
@@ -109,9 +119,14 @@ Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
-4123/nref11c_nref9f snapshots DD0169-DD2399, RD0016-RD0038
+4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
 2392/nref11c_nref9f snapshots DD0511-DD1699, RD0019-RD0033
 2878/nref11c_nref9f snapshots DD0398-DD0899, RD0016-RD0024
+
+8508/high_feedback_restart snapshots DD1728-DD1876, RD0036-RD0037
+8508/feedback_return snapshots DD1747-DD2234, RD0036-RD0040
+8508/low_feedback_06 snapshots DD1621-DD2425, RD0034-RD0041
+8508/low_feedback_07 snapshots DD1621-DD2417, RD0034-RD0041
 
 Created by:
 utils/get_mass_profile.py, which will output one "snapshot_masses.hdf5" per snapshot that can later
@@ -151,7 +166,7 @@ Exists for:
 8508/nref11c_nref9f snapshots DD0046-DD2427, RD0013-RD0042
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
-4123/nref11c_nref9f snapshots DD0169-DD2399, RD0016-RD0038
+4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
 2392/nref11c_nref9f snapshots DD0511-DD1699, RD0019-RD0033
 2878/nref11c_nref9f snapshots DD0398-DD0899, RD0016-RD0024
 
@@ -186,9 +201,14 @@ Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
 5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
 5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
-4123/nref11c_nref9f snapshots DD0169-DD2399, RD0016-RD0038
+4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
 2392/nref11c_nref9f snapshots DD0511-DD1699, RD0019-RD0033
 2878/nref11c_nref9f snapshots DD0398-DD0899, RD0016-RD0024
+
+8508/high_feedback_restart snapshots DD1728-DD1876, RD0036-RD0037
+8508/feedback_return snapshots DD1747-DD2234, RD0036-RD0040
+8508/low_feedback_06 snapshots DD1621-DD2425, RD0034-RD0041
+8508/low_feedback_07 snapshots DD1621-DD2417, RD0034-RD0041
 
 Created by:
 utils/get_rvir.py
