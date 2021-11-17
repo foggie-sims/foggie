@@ -35,7 +35,6 @@ from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 from scipy.interpolate import RegularGridInterpolator
 import shutil
 import ast
-import trident
 import matplotlib.pyplot as plt
 from scipy.ndimage import uniform_filter
 from scipy.ndimage import rotate
@@ -107,7 +106,11 @@ def parse_args():
                         'vorticity_direction    -  2D histograms of vorticity direction split by temperature and radius\n' + \
                         'turbulent_spectrum     -  Turbulent energy power spectrum\n' + \
                         'vel_struc_func         -  Velocity structure function\n' + \
-                        'vdisp_vs_radius        -  Velocity dispersion vs radius')
+                        'vdisp_vs_radius        -  Velocity dispersion vs radius\n' + \
+                        'vdisp_vs_mass_res      -  Datashader plot of cell-by-cell velocity dispersion vs. cell mass\n' + \
+                        'vdisp_vs_spatial_res   -  Plot of average velocity dispersion vs. spatial resolution\n' + \
+                        'vdisp_vs_time          -  Plot of velocity dispersion vs cosmic time\n' + \
+                        'vdisp_SFR_xcorr        -  Time-delay cross-correlation between velocity dispersion and SFR')
 
     parser.add_argument('--region_filter', metavar='region_filter', type=str, action='store', \
                         help='Do you want to calculate turbulence statistics in different regions? Options are:\n' + \
@@ -141,6 +144,11 @@ def parse_args():
                         help='What is the name of the file (after the snapshot name) to pull vdisp from?\n' + \
                         'There is no default for this, you must specify a filename, unless you are plotting\n' + \
                         'a datashader plot.')
+
+    parser.add_argument('--time_radius', metavar='time_radius', type=float, action='store', \
+                        help='If plotting vdisp_vs_time or vdisp_SFR_xcorr, at what radius do you\n' + \
+                        'want to plot, in units of fractions of Rvir? Default is 0.3Rvir.')
+    parser.set_defaults(time_radius=0.3)
 
     args = parser.parse_args()
     return args
@@ -580,12 +588,16 @@ def vsf_randompoints(snap):
         cgm = refine_box.cut_region(cgm_field_filter)
         if (args.region_filter=='temperature'):
             filter = cgm['temperature'].v
-            low = 10**5
-            high = 10**6
+            low = 10**4.8
+            high = 10**6.3
         if (args.region_filter=='metallicity'):
             filter = cgm['metallicity'].in_units('Zsun').v
             low = 0.01
             high = 1.
+        if (args.region_filter=='velocity'):
+            filter = cgm['radial_velocity_corrected'].in_units('km/s').v
+            low = -75.
+            high = 75.
 
         x = cgm['x'].in_units('kpc').v
         y = cgm['y'].in_units('kpc').v
@@ -632,6 +644,8 @@ def vsf_randompoints(snap):
             f.write('   low-T VSF [km/s]   mid-T VSF[km/s]   high-T VSF [km/s]\n')
         elif (args.region_filter=='metallicity'):
             f.write('   low-Z VSF [km/s]   mid-Z VSF[km/s]   high-Z VSF [km/s]\n')
+        elif (args.region_filter=='velocity'):
+            f.write('   low-v VSF [km/s]   mid-v VSF[km/s]   high-v VSF [km/s]\n')
         else: f.write('\n')
         sep_bins = np.arange(0.,2.*Rvir+1,1)
         vsf = np.zeros(len(sep_bins)-1)
@@ -932,6 +946,361 @@ def vdisp_vs_radius(snap):
         plt.savefig(save_dir + snap + '_vdisp_vs_r_regions-' + args.region_filter + save_suffix + '.png')
         plt.close()
 
+def vdisp_vs_mass_res(snap):
+    '''Plots the velocity dispersion as a function of cell mass, for all cells in a datashader plot,
+    color-coded by temperature.'''
+
+    masses_ind = np.where(masses['snapshot']==snap)[0]
+    Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
+    Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    # Copy output to temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap
+        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+        snap_name = snap_dir + '/' + snap
+    else:
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    FIRE_res = np.log10(7100.)        # Pandya et al. (2021)
+    Illustris_res = np.log10(8.5e4)   # IllustrisTNG website https://www.tng-project.org/about/
+
+    colorparam = 'temperature'
+    data_frame = pd.DataFrame({})
+    pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
+    lvl1_res = pix_res*2.**11.
+    level = 9
+    dx = lvl1_res/(2.**level)
+    smooth_scale = int(25./dx)
+    refine_res = int(3.*Rvir/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
+    mass = box['cell_mass'].in_units('Msun').v
+    temperature = box['temperature'].v
+    density = box['density'].in_units('g/cm**3').v
+    vx = box['vx_corrected'].in_units('km/s').v
+    vy = box['vy_corrected'].in_units('km/s').v
+    vz = box['vz_corrected'].in_units('km/s').v
+    smooth_vx = uniform_filter(vx, size=smooth_scale)
+    smooth_vy = uniform_filter(vy, size=smooth_scale)
+    smooth_vz = uniform_filter(vz, size=smooth_scale)
+    sig_x = (vx - smooth_vx)**2.
+    sig_y = (vy - smooth_vy)**2.
+    sig_z = (vz - smooth_vz)**2.
+    vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
+    data_frame['temperature'] = np.log10(temperature).flatten()
+    data_frame['temp_cat'] = categorize_by_temp(data_frame['temperature'])
+    data_frame.temp_cat = data_frame.temp_cat.astype('category')
+    color_key = new_phase_color_key
+    cat = 'temp_cat'
+    vdisp_filtered = 1.0*vdisp
+    vdisp_filtered[(density > cgm_density_max) & (temperature < cgm_temperature_min)] = 0.
+    data_frame['vdisp'] = vdisp_filtered.flatten()
+    data_frame['mass'] = np.log10(mass).flatten()
+    x_range = [0., 6.]
+    y_range = [0, 200]
+    cvs = dshader.Canvas(plot_width=1000, plot_height=800, x_range=x_range, y_range=y_range)
+    agg = cvs.points(data_frame, 'mass', 'vdisp', dshader.count_cat(cat))
+    img = tf.spread(tf.shade(agg, color_key=color_key, how='eq_hist',min_alpha=40), shape='square', px=0)
+    export_image(img, save_dir + snap + '_vdisp_vs_cell-mass_temperature-colored' + save_suffix + '_intermediate')
+    fig = plt.figure(figsize=(10,8),dpi=500)
+    ax = fig.add_subplot(1,1,1)
+    image = plt.imread(save_dir + snap + '_vdisp_vs_cell-mass_temperature-colored' + save_suffix + '_intermediate.png')
+    ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
+    ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_range[1]-y_range[0])))
+    ax.set_xlabel('log Mass Resolution [$M_\odot$]', fontsize=20)
+    ax.set_ylabel('Velocity Dispersion [km/s]', fontsize=20)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+      top=True, right=True)
+    ax.text(5.75, 180, '$z=%.2f$' % (zsnap), fontsize=20, ha='right', va='center')
+    #ax.text(5.75, 165, halo_dict[args.halo],ha='right',va='center',fontsize=20)
+    ax.plot([FIRE_res, FIRE_res],[0,200], 'k-', lw=1)
+    ax.text(FIRE_res+0.05, 25, 'FIRE', ha='left', va='center', fontsize=20)
+    ax.plot([Illustris_res,Illustris_res],[0,200], 'k-', lw=1)
+    ax.text(Illustris_res+0.05, 25, 'Illustris\nTNG50', ha='left', va='center', fontsize=20)
+    ax2 = fig.add_axes([0.7, 0.93, 0.25, 0.06])
+    cmap = create_foggie_cmap(temperature_min_datashader, temperature_max_datashader, categorize_by_temp, new_phase_color_key, log=True)
+    ax2.imshow(np.flip(cmap.to_pil(), 1))
+    ax2.set_xticks([50,300,550])
+    ax2.set_xticklabels(['4','5','6'],fontsize=16)
+    ax2.text(400, 150, 'log T [K]',fontsize=20, ha='center', va='center')
+    ax2.spines["top"].set_color('white')
+    ax2.spines["bottom"].set_color('white')
+    ax2.spines["left"].set_color('white')
+    ax2.spines["right"].set_color('white')
+    ax2.set_ylim(60, 180)
+    ax2.set_xlim(-10, 750)
+    ax2.set_yticklabels([])
+    ax2.set_yticks([])
+    plt.savefig(save_dir + snap + '_vdisp_vs_cell-mass_temperature-colored' + save_suffix + '.png')
+    os.system('rm ' + save_dir + snap + '_vdisp_vs_cell-mass_temperature-colored' + save_suffix + '_intermediate.png')
+    plt.close()
+
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
+
+def vdisp_vs_spatial_res(snap):
+    '''Plots the velocity dispersion as a function of simulation spatial resolution in hot, warm,
+    and cold gas regions.'''
+
+    masses_ind = np.where(masses['snapshot']==snap)[0]
+    Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
+    Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    # Copy output to temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap
+        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+        snap_name = snap_dir + '/' + snap
+    else:
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    Fielding_res = 1.4
+    Li_res = 0.39
+    Illustris_res = 8.
+
+    pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
+    lvl1_res = pix_res*2.**11.
+    levels = [5,6,7,8,9]
+    dxs = []
+    vdisp_all_list = []
+    vdisp_high_list = []
+    vdisp_med_list = []
+    vdisp_low_list = []
+    for i in range(len(levels)):
+        level = levels[i]
+        dx = lvl1_res/(2.**level)
+        dxs.append(dx)
+        smooth_scale = int(25./dx)
+        refine_res = int(3.*Rvir/dx)
+        box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
+        temperature = box['temperature'].v
+        density = box['density'].in_units('g/cm**3').v
+        mass = box['cell_mass'].in_units('Msun').v
+        vx = box['vx_corrected'].in_units('km/s').v
+        vy = box['vy_corrected'].in_units('km/s').v
+        vz = box['vz_corrected'].in_units('km/s').v
+        smooth_vx = uniform_filter(vx, size=smooth_scale)
+        smooth_vy = uniform_filter(vy, size=smooth_scale)
+        smooth_vz = uniform_filter(vz, size=smooth_scale)
+        sig_x = (vx - smooth_vx)**2.
+        sig_y = (vy - smooth_vy)**2.
+        sig_z = (vz - smooth_vz)**2.
+        vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
+        vdisp_filtered = vdisp[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+        mass_filtered = mass[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+        temperature_filtered = temperature[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+        vdisp_all = weighted_avg_and_std(vdisp_filtered, mass_filtered)[0]
+        vdisp_high = weighted_avg_and_std(vdisp_filtered[(temperature_filtered > 10**6)], \
+          mass_filtered[(temperature_filtered > 10**6)])[0]
+        vdisp_med = weighted_avg_and_std(vdisp_filtered[(temperature_filtered > 10**5) & (temperature_filtered < 10**6)], \
+          mass_filtered[(temperature_filtered > 10**5) & (temperature_filtered < 10**6)])[0]
+        vdisp_low = weighted_avg_and_std(vdisp_filtered[(temperature_filtered < 10**5)], \
+          mass_filtered[(temperature_filtered < 10**5)])[0]
+        vdisp_all_list.append(vdisp_all)
+        vdisp_high_list.append(vdisp_high)
+        vdisp_med_list.append(vdisp_med)
+        vdisp_low_list.append(vdisp_low)
+
+    fig = plt.figure(figsize=(10,8),dpi=500)
+    ax = fig.add_subplot(1,1,1)
+
+    #ax.plot(dxs, vdisp_all_list, marker='o', ls='-', color='k', markersize=8, label='All gas')
+    ax.plot(dxs, vdisp_high_list, marker='o', ls='-', color='darkorange', markersize=8, label='High temperature')
+    ax.plot(dxs, vdisp_med_list, marker='o', ls='-', color="#4daf4a", markersize=8, label='Mid temperature')
+    ax.plot(dxs, vdisp_low_list, marker='o', ls='-', color="#984ea3", markersize=8, label='Low temperature')
+
+    ax.plot([Illustris_res,Illustris_res],[-5,70], 'k-', lw=1)
+    ax.text(Illustris_res-0.5, 2, 'Illustris\nTNG50', ha='right', va='center', fontsize=20)
+    ax.plot([Fielding_res,Fielding_res],[-5,70], 'k-', lw=1)
+    ax.text(Fielding_res-0.1, 2, 'Fielding+\n2017', ha='right', va='center', fontsize=20)
+    ax.plot([Li_res,Li_res],[-5,70], 'k-', lw=1)
+    ax.text(Li_res+0.03, 18, 'Li+\n2020', ha='left', va='center', fontsize=20)
+
+    ax.set_xlabel('Spatial Resolution [kpc]', fontsize=20)
+    ax.set_ylabel('Velocity dispersion [km/s]', fontsize=20)
+    ax.axis([0.3,20,-5,70])
+    ax.set_xscale('log')
+    ax.text(19, 65, '$z=%.2f$' % (zsnap), fontsize=18, ha='right', va='center')
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax.legend(loc=2, fontsize=18, bbox_to_anchor=(0.06,0.9))
+    plt.savefig(save_dir + snap + '_vdisp_vs_spatial-res_temperature-colored' + save_suffix + '.png')
+    plt.close()
+
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
+
+def vdisp_vs_time(snaplist):
+    '''Plots the velocity dispersion of hot, warm, and cool gas at 0.3 Rvir as a function of time
+    for all outputs in the list 'snaplist'.'''
+
+    tablename_prefix = output_dir + 'turbulence_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+
+    plot_colors = ['darkorange', "#4daf4a", "#984ea3"]
+    plot_labels = ['High temperature', 'Mid temperature', 'Low temperature']
+    table_labels = ['high_temperature_', 'mid_temperature_', 'low_temperature_']
+    linestyles = ['-', '-', '-']
+
+    zlist = []
+    timelist = []
+    data_list = []
+    for j in range(len(table_labels)):
+        data_list.append([])
+
+    for i in range(len(snaplist)):
+        data = Table.read(tablename_prefix + snaplist[i] + '_' + args.filename + '.hdf5', path='all_data', format='hdf5')
+        rvir = rvir_masses['radius'][rvir_masses['snapshot']==snaplist[i]]
+        pos_ind = np.where(data['outer_radius']>=args.time_radius*rvir)[0][0]
+
+        for k in range(len(table_labels)):
+            data_list[k].append(data[table_labels[k] + 'vdisp_avg'][pos_ind])
+
+        zlist.append(data['redshift'][0])
+        timelist.append(time_table['time'][time_table['snap']==snaplist[i]][0]/1000.)
+
+    fig = plt.figure(figsize=(8,6), dpi=500)
+    ax = fig.add_subplot(1,1,1)
+    for i in range(len(table_labels)):
+        label = plot_labels[i]
+        ax.plot(timelist, np.array(data_list[i]), \
+                color=plot_colors[i], ls=linestyles[i], lw=2, label=label)
+
+    ax.set_ylabel('Velocity Dispersion [km/s]', fontsize=20)
+
+    z_sfr, sfr = np.loadtxt(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', unpack=True, usecols=[1,2], skiprows=1)
+    start_ind = np.where(z_sfr<=zlist[0])[0][0]
+
+    ax2 = ax.twiny()
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=False, right=False)
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True)
+    ax3 = ax.twinx()
+    zlist.reverse()
+    timelist.reverse()
+    time_func = IUS(zlist, timelist)
+    timelist.reverse()
+    ax.set_xlim(np.min(timelist), np.max(timelist))
+    ax.set_ylim(0, 200)
+    x0, x1 = ax.get_xlim()
+    z_ticks = [2,1.5,1,.75,.5,.3,.2,.1,0]
+    last_z = np.where(z_ticks >= zlist[0])[0][-1]
+    z_ticks = z_ticks[:last_z+1]
+    tick_pos = [z for z in time_func(z_ticks)]
+    tick_labels = ['%.2f' % (z) for z in z_ticks]
+    ax2.set_xlim(x0,x1)
+    ax2.set_xticks(tick_pos)
+    ax2.set_xticklabels(tick_labels)
+    ax.set_xlabel('Cosmic Time [Gyr]', fontsize=18)
+    ax2.set_xlabel('Redshift', fontsize=18)
+    ax3.plot(time_func(np.array(z_sfr)), sfr, 'b-', lw=1)
+    ax.plot([timelist[0],timelist[-1]], [-100,-100], 'b-', lw=1, label='SFR (right axis)')
+    ax.text(4, 185, '$%.2f R_{200}$' % (args.time_radius), fontsize=20, ha='left', va='center')
+    ax3.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, right=True)
+    ax3.set_ylim(-5,100)
+    ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=18)
+    if (args.halo=='8508'):
+        ax.legend(loc=1, frameon=False, fontsize=18)
+    #ax.text(4,9,halo_dict[args.halo],ha='left',va='center',fontsize=18)
+    plt.subplots_adjust(top=0.9, bottom=0.12, right=0.88, left=0.15)
+    plt.savefig(save_dir + 'vdisp_vs_t' + save_suffix + '.pdf')
+    plt.close()
+
+    print('Plot made!')
+
+def vdisp_SFR_xcorr(snaplist):
+    '''Plots a cross-correlation between velocity dispersion at 0.3Rvir and SFR as a function of time delay between them.'''
+
+    tablename_prefix = output_dir + 'turbulence_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+
+    plot_colors = ['darkorange', "#4daf4a", "#984ea3"]
+    plot_labels = ['High temperature', 'Mid temperature', 'Low temperature']
+    table_labels = ['high_temperature_', 'mid_temperature_', 'low_temperature_']
+    linestyles = ['-', '-', '-']
+
+    zlist = []
+    timelist = []
+    data_list = []
+    for j in range(len(table_labels)):
+        data_list.append([])
+
+    for i in range(len(snaplist)):
+        data = Table.read(tablename_prefix + snaplist[i] + '_' + args.filename + '.hdf5', path='all_data')
+        rvir = rvir_masses['radius'][rvir_masses['snapshot']==snaplist[i]]
+        pos_ind = np.where(data['outer_radius']>=args.time_radius*rvir)[0][0]
+
+        for k in range(len(table_labels)):
+            data_list[k].append(data[table_labels[k] + 'vdisp_avg'][pos_ind])
+
+        zlist.append(data['redshift'][0])
+        timelist.append(time_table['time'][time_table['snap']==snaplist[i]][0]/1000.)
+
+    z_sfr, sfr = np.loadtxt(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', unpack=True, usecols=[1,2], skiprows=1)
+    snap_sfr = np.loadtxt(code_path + 'halo_infos/00' +args.halo + '/' + args.run + '/sfr', unpack=True, usecols=[0], skiprows=1, dtype=str)
+    SFR_list = []
+    for i in range(len(snaplist)):
+        SFR_list.append(sfr[np.where(snap_sfr==snaplist[i])[0][0]])
+    SFR_list = np.array(SFR_list)
+    SFR_list2 = np.roll(np.array(SFR_list), 200)
+    SFR_mean = np.mean(SFR_list)
+    SFR_std = np.std(SFR_list)
+
+    delay_list = np.array(range(int(len(timelist)/3)))        # Consider delay times of zero all the way
+    dt = 5.38*args.output_step                                # up to a third of the full time evolution
+
+    xcorr_list = []
+    for i in range(len(table_labels)):
+        xcorr_list.append([])
+        mean = np.mean(data_list[i])
+        std = np.std(data_list[i])
+        data_list[i] = np.array(data_list[i])
+        for j in range(len(delay_list)):
+            xcorr_list[i].append(np.sum((SFR_list-SFR_mean)*(np.roll(data_list[i], -delay_list[j])-mean))/(SFR_std*std*len(data_list[i])))
+
+    fig = plt.figure(figsize=(8,6), dpi=500)
+    ax = fig.add_subplot(1,1,1)
+    for i in range(len(table_labels)):
+        label = plot_labels[i]
+        ax.plot(delay_list*dt, np.array(xcorr_list[i]), \
+                color=plot_colors[i], ls=linestyles[i], lw=2, label=label)
+
+    ax.set_ylabel('Velocity dispersion x-corr with SFR', fontsize=18)
+    ax.set_xlabel('Time delay [Myr]', fontsize=18)
+    ax.set_xlim(0., 2000.)
+    ax.set_ylim(-0.25, 1)
+    xticks = np.arange(0,2100,100)
+    ax.set_xticks(xticks)
+    xticklabels = []
+    for i in range(len(xticks)):
+        if (xticks[i]%500!=0): xticklabels.append('')
+        else: xticklabels.append(str(xticks[i]))
+    ax.set_xticklabels(xticklabels)
+    ax.text(1900, 0.9, '$%.2f R_{200}$' % (args.time_radius), fontsize=20, ha='right', va='center')
+    if (args.halo=='8508'): ax.legend(loc=3, fontsize=18)
+    #ax.text(200.,-.8,halo_dict[args.halo],ha='left',va='center',fontsize=18)
+    ax.plot([0,2000],[0,0],'k-',lw=1)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18)
+    ax.grid(which='both',axis='both',alpha=0.25,color='k',lw=1,ls='-')
+    plt.subplots_adjust(top=0.97, bottom=0.12, right=0.95, left=0.15)
+    plt.savefig(save_dir + 'xcorr_vdisp-SFR_vs_delay-t' + save_suffix + '.pdf')
+    plt.close()
+
+    print('Plot made!')
+
 if __name__ == "__main__":
 
     gtoMsun = 1.989e33
@@ -947,12 +1316,9 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    '''if ('feedback' in args.run):
+    if ('feedback' in args.run):
         foggie_dir = '/nobackup/clochhaa/'
         run_dir = args.run + '/'
-    else:
-        foggie_dir = '/nobackupp18/mpeeples/'
-    '''
 
     # Set directory for output location, making it if necessary
     save_dir = output_dir + 'turbulence_halo_00' + args.halo + '/' + args.run + '/'
@@ -1005,6 +1371,22 @@ if __name__ == "__main__":
                 vdisp_vs_radius(outs[i])
         else:
             target = vdisp_vs_radius
+    elif (args.plot=='vdisp_vs_mass_res'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                vdisp_vs_mass_res(outs[i])
+        else:
+            target = vdisp_vs_mass_res
+    elif (args.plot=='vdisp_vs_spatial_res'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                vdisp_vs_spatial_res(outs[i])
+        else:
+            target = vdisp_vs_spatial_res
+    elif (args.plot=='vdisp_vs_time'):
+        vdisp_vs_time(outs)
+    elif (args.plot=='vdisp_SFR_xcorr'):
+        vdisp_SFR_xcorr(outs)
     else:
         sys.exit("That plot type hasn't been implemented!")
 

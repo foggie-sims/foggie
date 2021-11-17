@@ -21,6 +21,7 @@ from numpy import *
 import argparse
 from foggie.utils.foggie_load import *
 from scipy.interpolate import interp1d
+import os.path
 
 
 
@@ -215,7 +216,10 @@ def find_rvir(ds, halo_center = None, do_fig = False, sphere_radius = 250*kpc, f
 def find_rvir_catalogs(args, data, halo_infos_dir, figdir = '.'):
 
     from astropy.table import Table
-    masses = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
+    if (os.path.isfile('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)):
+        masses = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
+    else:
+        masses = Table.read('%s/masses_z-less-2.hdf5'%halo_infos_dir)
 
     gd = where(masses['snapshot'] == args.output)[0]
     if len(gd) == 0:
@@ -279,10 +283,16 @@ if __name__ == '__main__':
                           'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))
 
 
-    masses1 = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
-    masses2 = Table.read('%s/masses_z-less-2.hdf5'%halo_infos_dir)
-    list1 = list(masses1['snapshot'])
-    list2 = list(masses2['snapshot'])
+    if (os.path.isfile('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)):
+        masses1 = Table.read('%s/masses_z-gtr-2.hdf5'%halo_infos_dir)
+        list1 = list(masses1['snapshot'])
+    else:
+        list1 = []
+    if (os.path.isfile('%s/masses_z-less-2.hdf5'%halo_infos_dir)):
+        masses2 = Table.read('%s/masses_z-less-2.hdf5'%halo_infos_dir)
+        list2 = list(masses2['snapshot'])
+    else:
+        list2 = []
     full_list = np.array(list1 +   list2)
 
     from foggie.utils.get_mass_profile import set_table_units
