@@ -31,6 +31,7 @@ if __name__ == '__main__':
     parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False, help='Use full refine box, ignoring args.galrad?, default is no')
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
     parser.add_argument('--center', metavar='center', type=str, action='store', default='-0.45787175,0.45856575,0.504577', help='center of projection in code units')
+    parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', default=False, help='Redirect all print statements to a file?, default is no')
 
     args = parser.parse_args()
     args.center = [float(item) for item in args.center.split(',')]
