@@ -7,8 +7,8 @@
     Output :     projection plots as png files
     Author :     Ayan Acharyya
     Started :    January 2021
-    Example :    run projection_plot_nondefault.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L1 --halo test --output RD0111 --do dm --proj x --galrad 500 --center -0.45787175,0.45856575,0.504577
-                 run projection_plot_nondefault.py --halo test --run 25Mpc_DM_256-L1 --center -0.45787175,0.45856575,0.504577
+    Example :    run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/projection_plot_nondefault.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L1 --halo test --output RD0111 --do dm --proj x --galrad 500 --center 0.54212825,0.45856575,0.504577
+                 run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/projection_plot_nondefault.py --halo test --run 25Mpc_DM_256-L1 --center 0.54212825,0.45856575,0.504577
 
 """
 from header import *
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     output_path = root_dir + args.foggie_dir + '/' + halo_name + '/'
     snap_name = root_dir + args.foggie_dir + '/' + halo_name + '/' + args.run + '/' + args.output + '/' + args.output
 
-    field_dict = {'dm':'dm_density'}
+    field_dict = {'dm':('deposit', 'all_density')}
 
     # ------------- main plotting -------------------------------
     ds = yt.load(snap_name)  # last output
