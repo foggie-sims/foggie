@@ -1123,7 +1123,7 @@ def forces_vs_radius(snap):
         radius = radius.flatten()
         for i in range(len(forces)):
             forces[i] = forces[i].flatten()
-        
+
         if (args.cgm_only): radius = radius[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
         if (args.weight=='mass'):
             weights = box['cell_mass'].in_units('g').v.flatten()
@@ -1135,10 +1135,10 @@ def forces_vs_radius(snap):
             if (args.cgm_only): metallicity = metallicity[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
         if (args.region_filter=='velocity'):
             rv = box['radial_velocity_corrected'].in_units('km/s').v.flatten()
-            rv = rv[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
             vff = box['vff'].in_units('km/s').v.flatten()
             vesc = box['vesc'].in_units('km/s').v.flatten()
             if (args.cgm_only):
+                rv = rv[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
                 vff = vff[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
                 vesc = vesc[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
 
@@ -1296,7 +1296,7 @@ def forces_vs_radius(snap):
         stats = table
         print("Stats have been calculated and saved to file for snapshot " + snap + "!")
         # Delete output from temp directory if on pleiades
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
             print('Deleting directory from /tmp')
             shutil.rmtree(snap_dir)
 
