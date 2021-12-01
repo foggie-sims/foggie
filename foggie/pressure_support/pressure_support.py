@@ -3706,7 +3706,7 @@ if __name__ == "__main__":
     else:
         sys.exit("That plot type hasn't been implemented!")
 
-    if (args.nproc!=1):
+    '''if (args.nproc!=1):
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
         for i in range(len(outs)//args.nproc):
@@ -3726,7 +3726,29 @@ if __name__ == "__main__":
         for t in threads:
             t.start()
         for t in threads:
-            t.join()
+            t.join()'''
+
+    if (args.nproc!=1):
+        '''# Split into a number of groupings equal to the number of processors
+        # and run one process per processor
+        for i in range(len(outs)//args.nproc):
+            snaps = []
+            for j in range(args.nproc):
+                snaps.append(outs[args.nproc*i+j])
+            pool = multi.Pool(processes=args.nproc)
+            pool.map(target, snaps)
+            pool.close()
+        # For any leftover snapshots, run one per processor
+        snaps = []
+        for j in range(len(outs)%args.nproc):
+            snaps.append(outs[-(j+1)])
+        pool = multi.Pool(processes=args.nproc)
+        pool.map(target, snaps)
+        pool.close()'''
+        print(target, outs)
+        pool = multi.Pool(processes=args.nproc)
+        pool.map(target, outs)
+        pool.close()
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")
