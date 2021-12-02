@@ -3168,7 +3168,7 @@ def force_slice(snap):
         cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
           top=True, right=True)
         fig.colorbar(im, cax=cax, orientation='vertical')
-        ax.text(1.2, 0.5, force_label + ' Force [g cm/s$^2$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
+        ax.text(1.2, 0.5, force_label + ' Force [cm/s$^2$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
         plt.subplots_adjust(bottom=0.08, top=0.98, left=0.12, right=0.82)
         plt.savefig(save_dir + snap + '_' + ftypes[i] + '_force_slice_x' + save_suffix + '.png')
 
@@ -3745,7 +3745,6 @@ if __name__ == "__main__":
         pool = multi.Pool(processes=args.nproc)
         pool.map(target, snaps)
         pool.close()'''
-        print(target, outs)
         pool = multi.Pool(processes=args.nproc)
         pool.map(target, outs)
         pool.close()
