@@ -109,13 +109,18 @@ def parse_args():
                         'This option only has meaning for running things on multiple snapshots.')
     parser.set_defaults(nproc=1)
 
+    parser.add_argument('--copy_to_tmp', dest='copy_to_tmp', action='store_true', \
+                        help='If running on pleiades, do you want to copy the simulation output into' + \
+                        "the node's /tmp directory before analysis? Default is no.")
+    parser.set_defaults(copy_to_tmp=False)
+
     args = parser.parse_args()
     return args
 
 def rendering_rotation(snap):
     '''Loads an output and makes several images of a slowly rotating volume render.'''
 
-    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -180,11 +185,19 @@ def rendering_rotation(snap):
     cam.north_vector = [0, 0, 1]
     cam.width = 2.*ds.refine_width * yt.units.kpc
     cam.switch_view()
+
+    # Use this code block if restarting from partway through the rotation sequence
+    #frame = 20
+    #cam.rotate(frame/40. * np.pi, rot_center = ds.halo_center_kpc)
+    #sc.render()
+    #sc.save(save_dir + snap + '_' + field_file + "_render_00" + str(frame) + save_suffix + ".png", sigma_clip=2)
+
+    # Use this code block if doing the whole rotation sequence
     sc.render()
     sc.save(save_dir + snap + '_' + field_file + "_render_0000" + save_suffix + ".png", sigma_clip=2)
-
     frame = 1
-    for _ in cam.iter_rotate(np.pi, 40, rot_center = ds.halo_center_kpc):
+
+    for _ in cam.iter_rotate((40-frame)/40.*np.pi, 40-frame, rot_center = ds.halo_center_kpc):
         sc.save(save_dir + snap + '_' + field_file + "_render_%04i" % frame + save_suffix  + '.png', sigma_clip=2)
         frame += 1
 
