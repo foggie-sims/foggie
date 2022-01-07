@@ -123,7 +123,8 @@ def sliceplot(ds, refine_box, new_center, new_left_edge, new_right_edge):
     dirs = ['x', 'y', 'z']
 
     for a in range(len(dirs)):
-        for f in ['density', 'temperature']:
+        for f in ['density', 'temperature', 'metallicity']:
+        #for f in ['metallicity']:
             slc = yt.SlicePlot(ds, dirs[a], f, data_source=refine_box, center=big_box_centers[a], width=(ds.refine_width, 'kpc'), fontsize=34)
             if (f=='density'):
                 slc.set_cmap('density', cmap=density_color_map)
@@ -132,6 +133,12 @@ def sliceplot(ds, refine_box, new_center, new_left_edge, new_right_edge):
             if (f=='temperature'):
                 slc.set_cmap('temperature', cmap=temperature_color_map)
                 slc.set_zlim('temperature', 3e3, 1e6)
+                slc.hide_axes()
+            if (f=='metallicity'):
+                slc.set_cmap('metallicity', cmap=sns.blend_palette(
+                    ("black", "#4575b4", "#984ea3", "#d73027",
+                     "darkorange", "#ffe34d"), as_cmap=True))
+                slc.set_zlim('metallicity', .01, 0.1)
                 slc.hide_axes()
             slc.annotate_timestamp(redshift=True)
             slc.annotate_line([new_left_edge[0], new_left_edge[1], new_left_edge[2]],
@@ -159,6 +166,12 @@ def sliceplot(ds, refine_box, new_center, new_left_edge, new_right_edge):
             if (f=='temperature'):
                 slc.set_cmap('temperature', cmap=temperature_color_map)
                 slc.set_zlim('temperature', 3e3, 1e6)
+                slc.hide_axes()
+            if (f=='metallicity'):
+                slc.set_cmap('metallicity', cmap=sns.blend_palette(
+                    ("black", "#4575b4", "#984ea3", "#d73027",
+                     "darkorange", "#ffe34d"), as_cmap=True))
+                slc.set_zlim('metallicity', .01, 0.1)
                 slc.hide_axes()
             '''if (a=='x'): slc.annotate_quiver(("gas", "vy_corrected"), ("gas", "vz_corrected"), factor=48,
                   plot_args={"color": "white"})
@@ -379,6 +392,6 @@ if __name__ == "__main__":
         new_center_code = ds.arr(small_box_left_edge, 'code_length') + 0.5*box_size_code
         new_center = new_center_code.to('kpc')
 
-        projection(ds, refine_box, small_box_left_edge, small_box_right_edge)
+        #projection(ds, refine_box, small_box_left_edge, small_box_right_edge)
         sliceplot(ds, refine_box, new_center, small_box_left_edge, small_box_right_edge)
         #resolution_comparison(ds, new_center, small_box_left_edge, small_box_right_edge)

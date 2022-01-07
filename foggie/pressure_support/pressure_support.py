@@ -1123,7 +1123,7 @@ def forces_vs_radius(snap):
         radius = radius.flatten()
         for i in range(len(forces)):
             forces[i] = forces[i].flatten()
-        
+
         if (args.cgm_only): radius = radius[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
         if (args.weight=='mass'):
             weights = box['cell_mass'].in_units('g').v.flatten()
@@ -1135,10 +1135,10 @@ def forces_vs_radius(snap):
             if (args.cgm_only): metallicity = metallicity[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
         if (args.region_filter=='velocity'):
             rv = box['radial_velocity_corrected'].in_units('km/s').v.flatten()
-            rv = rv[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
             vff = box['vff'].in_units('km/s').v.flatten()
             vesc = box['vesc'].in_units('km/s').v.flatten()
             if (args.cgm_only):
+                rv = rv[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
                 vff = vff[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
                 vesc = vesc[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
 
@@ -1296,7 +1296,7 @@ def forces_vs_radius(snap):
         stats = table
         print("Stats have been calculated and saved to file for snapshot " + snap + "!")
         # Delete output from temp directory if on pleiades
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
             print('Deleting directory from /tmp')
             shutil.rmtree(snap_dir)
 
@@ -3168,7 +3168,7 @@ def force_slice(snap):
         cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
           top=True, right=True)
         fig.colorbar(im, cax=cax, orientation='vertical')
-        ax.text(1.2, 0.5, force_label + ' Force [g cm/s$^2$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
+        ax.text(1.2, 0.5, force_label + ' Force [cm/s$^2$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
         plt.subplots_adjust(bottom=0.08, top=0.98, left=0.12, right=0.82)
         plt.savefig(save_dir + snap + '_' + ftypes[i] + '_force_slice_x' + save_suffix + '.png')
 
@@ -3711,22 +3711,61 @@ if __name__ == "__main__":
         # and run one process per processor
         for i in range(len(outs)//args.nproc):
             threads = []
+            snaps = []
             for j in range(args.nproc):
                 snap = outs[args.nproc*i+j]
+                snaps.append(snap)
                 threads.append(multi.Process(target=target, args=[snap]))
             for t in threads:
                 t.start()
             for t in threads:
                 t.join()
+            # Delete leftover outputs from failed processes from tmp directory if on pleiades
+            if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+                for s in range(len(snaps)):
+                    if (os.path.exists('/tmp/' + snaps[s])):
+                        print('Deleting failed %s from /tmp' % (snaps[s]))
+                        shutil.rmtree('/tmp/' + snaps[s])
         # For any leftover snapshots, run one per processor
         threads = []
+        snaps = []
         for j in range(len(outs)%args.nproc):
             snap = outs[-(j+1)]
+            snaps.append(snap)
             threads.append(multi.Process(target=target, args=[snap]))
         for t in threads:
             t.start()
         for t in threads:
             t.join()
+        # Delete leftover outputs from failed processes from tmp directory if on pleiades
+        if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+            for s in range(len(snaps)):
+                if (os.path.exists('/tmp/' + snaps[s])):
+                    print('Deleting failed %s from /tmp' % (snaps[s]))
+                    shutil.rmtree('/tmp/' + snaps[s])
+
+    '''if (args.nproc!=1):
+        # Split into a number of groupings equal to the number of processors
+        # and run one process per processor
+        for i in range(len(outs)//args.nproc):
+            snaps = []
+            for j in range(args.nproc):
+                snaps.append(outs[args.nproc*i+j])
+            print('Running', snaps)
+            pool = multi.Pool(processes=args.nproc)
+            pool.map(target, snaps)
+            pool.close()
+        # For any leftover snapshots, run one per processor
+        snaps = []
+        for j in range(len(outs)%args.nproc):
+            snaps.append(outs[-(j+1)])
+        print('Running', snaps)
+        pool = multi.Pool(processes=args.nproc)
+        pool.map(target, snaps)
+        pool.close()
+        #pool = multi.Pool(processes=args.nproc)
+        #pool.map(target, outs)
+        #pool.close()'''
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")
