@@ -12,7 +12,7 @@
                  run projection_plot_nondefault.py --halo test --width 1000 --run 25Mpc_DM_256-L2 --center 0.54212825,0.462472,0.50848325
                  run projection_plot_nondefault.py --halo test --width 1000 --run 25Mpc_DM_256-L3 --center 0.54212825,0.45856575,0.50848325
                  run projection_plot_nondefault.py --halo 8894 --annotate_grid --run 25Mpc_DM_256-L3 --center 0.5442269,0.45738622,0.50917259 --output RD0021
-
+                 run projection_plot_nondefault.py --halo 5133 --width 1000 --run 25Mpc_DM_256-L3 --center_offset 117,93,-73
 
 """
 from header import *
@@ -72,7 +72,7 @@ if __name__ == '__main__':
         p = yt.ProjectionPlot(ds, args.projection, field_dict[args.do], center=args.center)
         width_text = ''
     else:
-        box = ds.r[(args.center[0] - 0.5 * 1e-3 * args.width / 25.): (args.center[0] + 0.5 * 1e-3 * args.width / 25.), 0:1, 0:1]
+        box = ds.r[(center[0] - 0.5 * 1e-3 * args.width / 25.): (center[0] + 0.5 * 1e-3 * args.width / 25.), 0:1, 0:1]
         p = yt.ProjectionPlot(ds, args.projection, field_dict[args.do], center=center, data_source=box, width=(args.width, 'kpc'))
         width_text = '_width' + str(args.width) + 'kpc'
 
