@@ -1,0 +1,5 @@
+foggie/halo_infos/008508/nref11c_nref9f/Tempest.9f11c.DD.db filter=lfs diff=lfs merge=lfs -text
+foggie/halo_infos/004123/nref11c_nref9f/Blizzard.9f11c.DD.db filter=lfs diff=lfs merge=lfs -text
+foggie/halo_infos/005016/nref11c_nref9f/Squall.9f11c.DD.db filter=lfs diff=lfs merge=lfs -text
+foggie/halo_infos/005036/nref11c_nref9f/Maelstrom.9f11c.DD.db filter=lfs diff=lfs merge=lfs -text
+foggie/halo_infos/008508/nref11c_nref9f/testfile.jpeg filter=lfs diff=lfs merge=lfs -text
