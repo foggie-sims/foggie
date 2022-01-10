@@ -224,6 +224,7 @@ if __name__ == '__main__':
             margx = plot_1D_histogram(df[args.xcolname], args.xmin, args.xmax, margx, vertical=False)
             margy = plot_1D_histogram(df[args.ycolname], args.ymin, args.ymax, margy, vertical=True)
 
+        ax.axhline(0, c='black', linestyle='dashed', linewidth=1)
         xticks = np.linspace(args.xmin, args.xmax, nticks)
         yticks = np.linspace(args.ymin, args.ymax, nticks)
         ax.xaxis.set_ticks(xticks)

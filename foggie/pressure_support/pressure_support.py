@@ -989,7 +989,7 @@ def forces_vs_radius(snap):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     if (not args.load_stats):
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
             print('Copying directory to /tmp')
             snap_dir = '/tmp/' + snap
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -999,66 +999,131 @@ def forces_vs_radius(snap):
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
-        pix_res = float(np.min(refine_box['gas','dx'].in_units('kpc')))  # at level 11
+        pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))  # at level 11
         lvl1_res = pix_res*2.**11.
         level = 9
         dx = lvl1_res/(2.**level)
-        smooth_scale = int(25./dx)
-        dx_cm = lvl1_res/(2.**level)*1000*cmtopc
+        smooth_scale = (25./dx)/6.
+        dx_cm = dx*1000*cmtopc
         refine_res = int(3.*Rvir/dx)
         box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
         density = box['density'].in_units('g/cm**3').v
-        temperature = box['temperature'].v.flatten()
-        radius = box['radius_corrected'].in_units('kpc').v.flatten()
-
-        x_hat = box['gas','x'].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
-        y_hat = box['gas','y'].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
-        z_hat = box['gas','z'].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
+        temperature = box['temperature'].v
+        x = box[('gas','x')].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
+        y = box[('gas','y')].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
+        z = box[('gas','z')].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
         r = box['radius_corrected'].in_units('cm').v
-        x_hat /= r
-        y_hat /= r
-        z_hat /= r
-        # Thermal force:
+        radius = box['radius_corrected'].in_units('kpc').v
+        x_hat = x/r
+        y_hat = y/r
+        z_hat = z/r
+
+        # This next block needed for removing any ISM regions and then interpolating over the holes left behind
+        if (args.cgm_only):
+            # Define ISM regions to remove
+            disk_mask = (density > cgm_density_max) & (temperature < cgm_temperature_min)
+            # disk_mask_expanded is a binary mask of both ISM regions AND their surrounding pixels
+            struct = ndimage.generate_binary_structure(3,3)
+            disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
+            disk_mask_expanded = ndimage.binary_closing(disk_mask_expanded, structure=struct, iterations=3)
+            # disk_edges is a binary mask of ONLY pixels surrounding ISM regions -- nothing inside ISM regions
+            disk_edges = disk_mask_expanded & ~disk_mask
+            x_edges = x[disk_edges].flatten()
+            y_edges = y[disk_edges].flatten()
+            z_edges = z[disk_edges].flatten()
+
         thermal_pressure = box['pressure'].in_units('erg/cm**3').v
-        pres_grad = np.gradient(thermal_pressure, dx_cm)
+        if (args.cgm_only):
+            pres_edges = thermal_pressure[disk_edges]
+            pres_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges)
+            pres_masked = np.copy(thermal_pressure)
+            pres_masked[disk_mask] = pres_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+        else:
+            pres_masked = thermal_pressure
+        pres_grad = np.gradient(pres_masked, dx_cm)
         dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-        thermal_force = (-1./density * dPdr).flatten()
-        # Turbulent force:
+        thermal_force = -1./density * dPdr
         vx = box['vx_corrected'].in_units('cm/s').v
         vy = box['vy_corrected'].in_units('cm/s').v
         vz = box['vz_corrected'].in_units('cm/s').v
-        smooth_vx = uniform_filter(vx, size=smooth_scale)
-        smooth_vy = uniform_filter(vy, size=smooth_scale)
-        smooth_vz = uniform_filter(vz, size=smooth_scale)
-        sig_x = (vx - smooth_vx)**2.
-        sig_y = (vy - smooth_vy)**2.
-        sig_z = (vz - smooth_vz)**2.
+        if (args.cgm_only):
+            vx_edges = vx[disk_edges]
+            vy_edges = vy[disk_edges]
+            vz_edges = vz[disk_edges]
+            vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges)
+            vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges)
+            vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges)
+            vx_masked = np.copy(vx)
+            vy_masked = np.copy(vy)
+            vz_masked = np.copy(vz)
+            vx_masked[disk_mask] = vx_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+            vy_masked[disk_mask] = vy_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+            vz_masked[disk_mask] = vz_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+        else:
+            vx_masked = vx
+            vy_masked = vy
+            vz_masked = vz
+        smooth_vx = gaussian_filter(vx_masked, smooth_scale)
+        smooth_vy = gaussian_filter(vy_masked, smooth_scale)
+        smooth_vz = gaussian_filter(vz_masked, smooth_scale)
+        sig_x = (vx_masked - smooth_vx)**2.
+        sig_y = (vy_masked - smooth_vy)**2.
+        sig_z = (vz_masked - smooth_vz)**2.
         vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
         turb_pressure = density*vdisp**2.
         pres_grad = np.gradient(turb_pressure, dx_cm)
         dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-        turb_force = (-1./density * dPdr).flatten()
-        # Ram force:
+        turb_force = -1./density * dPdr
         vr = box['radial_velocity_corrected'].in_units('cm/s').v
-        dvr = np.gradient(vr, dx_cm)
+        if (args.cgm_only):
+            vr_edges = vr[disk_edges]
+            vr_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges)
+            vr_masked = np.copy(vr)
+            vr_masked[disk_mask] = vr_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+        else:
+            vr_masked = vr
+        vr_masked = gaussian_filter(vr_masked, smooth_scale)
+        dvr = np.gradient(vr_masked, dx_cm)
         delta_vr = dvr[0]*dx_cm*x_hat + dvr[1]*dx_cm*y_hat + dvr[2]*dx_cm*z_hat
-        smooth_delta_vr = uniform_filter(delta_vr, size=smooth_scale)
         ram_pressure = density*(delta_vr)**2.
         pres_grad = np.gradient(ram_pressure, dx_cm)
         dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-        ram_force = (-1./density * dPdr).flatten()
-        # Rotational force:
+        ram_force = -1./density * dPdr
         vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
         vphi = box['phi_velocity_corrected'].in_units('cm/s').v
-        smooth_vtheta = uniform_filter(vtheta, size=smooth_scale)
-        smooth_vphi = uniform_filter(vphi, size=smooth_scale)
-        rot_force = ((smooth_vtheta**2. + smooth_vphi**2.)/r).flatten()
-        # Gravitational force:
-        grav_force = (-G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.).flatten()
-        # Total force:
+        if (args.cgm_only):
+            vtheta_edges = vtheta[disk_edges]
+            vphi_edges = vphi[disk_edges]
+            vtheta_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges)
+            vtheta_masked = np.copy(vtheta)
+            vphi_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges)
+            vphi_masked = np.copy(vphi)
+            vtheta_masked[disk_mask] = vtheta_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+            vphi_masked[disk_mask] = vphi_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+        else:
+            vtheta_masked = vtheta
+            vphi_masked = vphi
+        smooth_vtheta = gaussian_filter(vtheta_masked, smooth_scale)
+        smooth_vphi = gaussian_filter(vphi_masked, smooth_scale)
+        rot_force = (smooth_vtheta**2. + smooth_vphi**2.)/r
+        grav_force = -G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.
+        if (args.cgm_only):
+            grav_edges = grav_force[disk_edges]
+            grav_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), grav_edges)
+            grav_masked = np.copy(grav_force)
+            grav_masked[disk_mask] = grav_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+        else:
+            grav_masked = grav_force
+        grav_force = grav_masked
         tot_force = thermal_force + turb_force + rot_force + ram_force + grav_force
+        forces = [thermal_force, turb_force, ram_force, rot_force, grav_force, tot_force]
 
         density = density.flatten()
+        temperature = temperature.flatten()
+        radius = radius.flatten()
+        for i in range(len(forces)):
+            forces[i] = forces[i].flatten()
+
         if (args.cgm_only): radius = radius[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
         if (args.weight=='mass'):
             weights = box['cell_mass'].in_units('g').v.flatten()
@@ -1070,14 +1135,13 @@ def forces_vs_radius(snap):
             if (args.cgm_only): metallicity = metallicity[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
         if (args.region_filter=='velocity'):
             rv = box['radial_velocity_corrected'].in_units('km/s').v.flatten()
-            rv = rv[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
             vff = box['vff'].in_units('km/s').v.flatten()
             vesc = box['vesc'].in_units('km/s').v.flatten()
             if (args.cgm_only):
+                rv = rv[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
                 vff = vff[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
                 vesc = vesc[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
 
-        forces = [thermal_force, turb_force, ram_force, rot_force, grav_force, tot_force]
         if (args.cgm_only):
             for i in range(len(forces)):
                 forces[i] = forces[i][(density < cgm_density_max) & (temperature > cgm_temperature_min)]
@@ -1099,16 +1163,16 @@ def forces_vs_radius(snap):
             radius_regions = []
         if (args.region_filter=='temperature'):
             regions = ['_low-T', '_mid-T', '_high-T']
-            weights_regions.append(weights[temperature < 10**5])
-            weights_regions.append(weights[(temperature > 10**5) & (temperature < 10**6)])
-            weights_regions.append(weights[temperature > 10**6])
-            radius_regions.append(radius[temperature < 10**5])
-            radius_regions.append(radius[(temperature > 10**5) & (temperature < 10**6)])
-            radius_regions.append(radius[temperature > 10**6])
+            weights_regions.append(weights[temperature < 10**4.8])
+            weights_regions.append(weights[(temperature > 10**4.8) & (temperature < 10**6.3)])
+            weights_regions.append(weights[temperature > 10**6.3])
+            radius_regions.append(radius[temperature < 10**4.8])
+            radius_regions.append(radius[(temperature > 10**4.8) & (temperature < 10**6.3)])
+            radius_regions.append(radius[temperature > 10**6.3])
             for i in range(len(forces)):
-                force_regions[i].append(forces[i][temperature < 10**5])
-                force_regions[i].append(forces[i][(temperature > 10**5) & (temperature < 10**6)])
-                force_regions[i].append(forces[i][temperature > 10**6])
+                force_regions[i].append(forces[i][temperature < 10**4.8])
+                force_regions[i].append(forces[i][(temperature > 10**4.8) & (temperature < 10**6.3)])
+                force_regions[i].append(forces[i][temperature > 10**6.3])
         elif (args.region_filter=='metallicity'):
             regions = ['_low-Z', '_mid-Z', '_high-Z']
             weights_regions.append(weights[metallicity < 0.01])
@@ -1232,7 +1296,7 @@ def forces_vs_radius(snap):
         stats = table
         print("Stats have been calculated and saved to file for snapshot " + snap + "!")
         # Delete output from temp directory if on pleiades
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
             print('Deleting directory from /tmp')
             shutil.rmtree(snap_dir)
 
@@ -2799,7 +2863,7 @@ def pressure_slice(snap):
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -2900,13 +2964,12 @@ def pressure_slice(snap):
         pressure = np.ma.masked_where((density > cgm_density_max) & (temperature < cgm_temperature_min), pressure)
         fig = plt.figure(figsize=(12,10),dpi=500)
         ax = fig.add_subplot(1,1,1)
-        #p_cmap = copy.copy(mpl.cm.get_cmap(pressure_color_map))
-        #p_cmap.set_over(color='w', alpha=1.)
-        p_cmap = sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True)
+        p_cmap = copy.copy(mpl.cm.get_cmap(pressure_color_map))
+        p_cmap.set_over(color='w', alpha=1.)
         # Need to rotate to match up with how yt plots it
-        im = ax.imshow(rotate(np.log10(pressure[len(pressure)//2,:,:]),90), cmap=p_cmap, norm=colors.Normalize(vmin=4, vmax=7))#, \
-                  #extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
-        #ax.axis([-250,250,-250,250])
+        im = ax.imshow(rotate(np.log10(pressure[len(pressure)//2,:,:]),90), cmap=p_cmap, norm=colors.Normalize(vmin=-18, vmax=-12), \
+                  extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
+        ax.axis([-250,250,-250,250])
         ax.set_xlabel('y [kpc]', fontsize=20)
         ax.set_ylabel('z [kpc]', fontsize=20)
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
@@ -2917,10 +2980,10 @@ def pressure_slice(snap):
         fig.colorbar(im, cax=cax, orientation='vertical')
         ax.text(1.15, 0.5, 'log ' + pressure_label + ' Pressure [erg/cm$^3$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
         plt.subplots_adjust(bottom=0.08, top=0.98, left=0.08, right=0.88)
-        plt.savefig(save_dir + snap + '_' + ptypes[i] + '_temperature_slice_x' + save_suffix + '.png')
+        plt.savefig(save_dir + snap + '_' + ptypes[i] + '_pressure_slice_x' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
-    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -2933,7 +2996,7 @@ def force_slice(snap):
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (args.system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
@@ -2955,8 +3018,8 @@ def force_slice(snap):
     dx = lvl1_res/(2.**level)
     smooth_scale = (25./dx)/6.
     dx_cm = dx*1000*cmtopc
-    refine_res = int(ds.refine_width/dx)
-    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([0.5*ds.refine_width,0.5*ds.refine_width,0.5*ds.refine_width],'kpc'), dims=[refine_res, refine_res, refine_res])
+    refine_res = int(3.*Rvir/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
     temperature = box['temperature'].v
     mass = box['cell_mass'].in_units('g').v
@@ -2981,10 +3044,6 @@ def force_slice(snap):
     y_edges = y[disk_edges].flatten()
     z_edges = z[disk_edges].flatten()
 
-    mass_smooth = gaussian_filter(mass, smooth_scale)
-    density_smooth = gaussian_filter(density, smooth_scale)
-    temperature_smooth = gaussian_filter(temperature, smooth_scale)
-
     for i in range(len(ftypes)):
         if (ftypes[i]=='thermal') or ((ftypes[i]=='total') and (args.force_type!='all')):
             thermal_pressure = box['pressure'].in_units('erg/cm**3').v
@@ -2995,10 +3054,9 @@ def force_slice(snap):
             pres_masked = np.copy(thermal_pressure)
             # Replace removed ISM regions with interpolated values
             pres_masked[disk_mask] = pres_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
-            pres_masked = gaussian_filter(pres_masked, smooth_scale*3.)
             pres_grad = np.gradient(pres_masked, dx_cm)
             dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-            thermal_force = -1./density_smooth * dPdr
+            thermal_force = -1./density * dPdr
             if (ftypes[i]=='thermal'):
                 force = thermal_force
                 force_label = 'Thermal Pressure'
@@ -3025,17 +3083,14 @@ def force_slice(snap):
             smooth_vx = gaussian_filter(vx_masked, smooth_scale)
             smooth_vy = gaussian_filter(vy_masked, smooth_scale)
             smooth_vz = gaussian_filter(vz_masked, smooth_scale)
-            smoother_vx = gaussian_filter(vx_masked, smooth_scale*3.)
-            smoother_vy = gaussian_filter(vy_masked, smooth_scale*3.)
-            smoother_vz = gaussian_filter(vz_masked, smooth_scale*3.)
-            sig_x = (smooth_vx - smoother_vx)**2.
-            sig_y = (smooth_vy - smoother_vy)**2.
-            sig_z = (smooth_vz - smoother_vz)**2.
+            sig_x = (vx - smooth_vx)**2.
+            sig_y = (vy - smooth_vy)**2.
+            sig_z = (vz - smooth_vz)**2.
             vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
-            turb_pressure = density_smooth*vdisp**2.
+            turb_pressure = density*vdisp**2.
             pres_grad = np.gradient(turb_pressure, dx_cm)
             dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-            turb_force = -1./density_smooth * dPdr
+            turb_force = -1./density * dPdr
             if (ftypes[i]=='turbulent'):
                 force = turb_force
                 force_label = 'Turbulent Pressure'
@@ -3048,14 +3103,13 @@ def force_slice(snap):
             vr_masked = np.copy(vr)
             # Replace removed ISM regions with interpolated values
             vr_masked[disk_mask] = vr_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
-            vr_masked = gaussian_filter(vr_masked, smooth_scale)
             dvr = np.gradient(vr_masked, dx_cm)
             delta_vr = dvr[0]*dx_cm*x_hat + dvr[1]*dx_cm*y_hat + dvr[2]*dx_cm*z_hat
-            smooth_delta_vr = gaussian_filter(delta_vr, smooth_scale*3.)
-            ram_pressure = density_smooth*(smooth_delta_vr)**2.
+            smooth_delta_vr = gaussian_filter(delta_vr, smooth_scale)
+            ram_pressure = density*(smooth_delta_vr)**2.
             pres_grad = np.gradient(ram_pressure, dx_cm)
             dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
-            ram_force = -1./density_smooth * dPdr
+            ram_force = -1./density * dPdr
             if (ftypes[i]=='ram'):
                 force = ram_force
                 force_label = 'Ram Pressure'
@@ -3073,8 +3127,8 @@ def force_slice(snap):
             # Replace removed ISM regions with interpolated values
             vtheta_masked[disk_mask] = vtheta_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
             vphi_masked[disk_mask] = vphi_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
-            smooth_vtheta = gaussian_filter(vtheta_masked, smooth_scale*3.)
-            smooth_vphi = gaussian_filter(vphi_masked, smooth_scale*3.)
+            smooth_vtheta = gaussian_filter(vtheta_masked, smooth_scale)
+            smooth_vphi = gaussian_filter(vphi_masked, smooth_scale)
             rot_force = (smooth_vtheta**2. + smooth_vphi**2.)/r
             if (ftypes[i]=='rotation'):
                 force = rot_force
@@ -3088,7 +3142,6 @@ def force_slice(snap):
             grav_masked = np.copy(grav_force)
             # Replace removed ISM regions with interpolated values
             grav_masked[disk_mask] = grav_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
-            grav_masked = gaussian_filter(grav_masked, smooth_scale*3.)
             grav_force = grav_masked
             if (ftypes[i]=='gravity'):
                 force = grav_force
@@ -3098,17 +3151,15 @@ def force_slice(snap):
             force = tot_force
             force_label = 'Total'
 
-        force = force*mass_smooth
-        #force = gaussian_filter(force, smooth_scale/2.)
         force = np.ma.masked_where((density > cgm_density_max) & (temperature < cgm_temperature_min), force)
         fig = plt.figure(figsize=(12,10),dpi=500)
         ax = fig.add_subplot(1,1,1)
         f_cmap = copy.copy(mpl.cm.get_cmap('BrBG'))
         f_cmap.set_over(color='w', alpha=1.)
         # Need to rotate to match up with how yt plots it
-        im = ax.imshow(rotate(force[:,:,len(force)//2+9],90), cmap=f_cmap, norm=colors.SymLogNorm(vmin=-1e30, vmax=1e30, linthresh=1e26, base=10), \
-                  extent=[-0.5*ds.refine_width,0.5*ds.refine_width,-0.5*ds.refine_width,0.5*ds.refine_width])
-        ax.axis([-0.5*ds.refine_width,0.5*ds.refine_width,-0.5*ds.refine_width,0.5*ds.refine_width])
+        im = ax.imshow(rotate(force[len(force)//2,:,:],90), cmap=f_cmap, norm=colors.SymLogNorm(vmin=-1e-5, vmax=1e-5, linthresh=1e-9, base=10), \
+                  extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
+        ax.axis([-250,250,-250,250])
         ax.set_xlabel('y [kpc]', fontsize=20)
         ax.set_ylabel('z [kpc]', fontsize=20)
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
@@ -3117,12 +3168,12 @@ def force_slice(snap):
         cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
           top=True, right=True)
         fig.colorbar(im, cax=cax, orientation='vertical')
-        ax.text(1.2, 0.5, force_label + ' Force [g cm/s$^2$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
+        ax.text(1.2, 0.5, force_label + ' Force [cm/s$^2$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
         plt.subplots_adjust(bottom=0.08, top=0.98, left=0.12, right=0.82)
-        plt.savefig(save_dir + snap + '_' + ftypes[i] + '_force_slice_z' + save_suffix + '.png')
+        plt.savefig(save_dir + snap + '_' + ftypes[i] + '_force_slice_x' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
-    if (args.system=='pleiades_cassi'):
+    if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -3660,22 +3711,61 @@ if __name__ == "__main__":
         # and run one process per processor
         for i in range(len(outs)//args.nproc):
             threads = []
+            snaps = []
             for j in range(args.nproc):
                 snap = outs[args.nproc*i+j]
+                snaps.append(snap)
                 threads.append(multi.Process(target=target, args=[snap]))
             for t in threads:
                 t.start()
             for t in threads:
                 t.join()
+            # Delete leftover outputs from failed processes from tmp directory if on pleiades
+            if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+                for s in range(len(snaps)):
+                    if (os.path.exists('/tmp/' + snaps[s])):
+                        print('Deleting failed %s from /tmp' % (snaps[s]))
+                        shutil.rmtree('/tmp/' + snaps[s])
         # For any leftover snapshots, run one per processor
         threads = []
+        snaps = []
         for j in range(len(outs)%args.nproc):
             snap = outs[-(j+1)]
+            snaps.append(snap)
             threads.append(multi.Process(target=target, args=[snap]))
         for t in threads:
             t.start()
         for t in threads:
             t.join()
+        # Delete leftover outputs from failed processes from tmp directory if on pleiades
+        if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+            for s in range(len(snaps)):
+                if (os.path.exists('/tmp/' + snaps[s])):
+                    print('Deleting failed %s from /tmp' % (snaps[s]))
+                    shutil.rmtree('/tmp/' + snaps[s])
+
+    '''if (args.nproc!=1):
+        # Split into a number of groupings equal to the number of processors
+        # and run one process per processor
+        for i in range(len(outs)//args.nproc):
+            snaps = []
+            for j in range(args.nproc):
+                snaps.append(outs[args.nproc*i+j])
+            print('Running', snaps)
+            pool = multi.Pool(processes=args.nproc)
+            pool.map(target, snaps)
+            pool.close()
+        # For any leftover snapshots, run one per processor
+        snaps = []
+        for j in range(len(outs)%args.nproc):
+            snaps.append(outs[-(j+1)])
+        print('Running', snaps)
+        pool = multi.Pool(processes=args.nproc)
+        pool.map(target, snaps)
+        pool.close()
+        #pool = multi.Pool(processes=args.nproc)
+        #pool.map(target, outs)
+        #pool.close()'''
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")
