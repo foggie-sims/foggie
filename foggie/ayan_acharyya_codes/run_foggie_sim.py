@@ -7,7 +7,7 @@
     Output :     submitted PBS jobs
     Author :     JT; modified by Ayan Acharyya
     Started :    Jan 2022
-    Example :    run run_foggie_sim.py --halo 2430 --level 1
+    Example :    run run_foggie_sim.py --halo 2430 --level 1 --queue devel --dryrun
 
 """
 from header import *
@@ -88,6 +88,8 @@ def run_music(target_conf_file, args):
     Function to run MUSIC, to generate the initial conditions for a given level
     '''
     os.chdir(args.halo_dir)
+    print('Starting MUSIC..\n')
+
     if args.gas: # run MUSIC directly for gas runs
         command = '/nobackup/aachary2/ayan_codes/music/MUSIC ' + target_conf_file
         execute_command(command, args.dryrun)
@@ -98,7 +100,8 @@ def run_music(target_conf_file, args):
         # --------need to move the recently made directory, in case of L1 runs---------
         if args.level == 1:
             command = 'mv ../25Mpc_DM_256-L1 .'
-            execute_command(command)
+            execute_command(command, args.dryrun)
+
     print('Finished running MUSIC')
 
 # ------------------------------------------------------
@@ -109,7 +112,7 @@ def setup_enzoparam_file(args):
     # --------get conf file names-----------
     gas_or_dm = '-gas' if args.gas else ''
     template_param_file = args.template_dir + '/25Mpc_DM_256-LX' + gas_or_dm + '.enzo'
-    target_param_file = args.halo_dir + args.sim_name + '-L' + str(args.level) + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '.enzo'
+    target_param_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '.enzo'
 
     # ---------getting correct grid parameters-----------------
     param_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '/parameter_file.txt'
@@ -129,7 +132,6 @@ def setup_enzoparam_file(args):
             outfile.write(line)  # replacing and creating new file
 
     print('Written', target_param_file)
-    return target_param_file
 
 # ------------------------------------------------------
 def run_enzo(nnodes, ncores, nhours, args):
@@ -138,7 +140,7 @@ def run_enzo(nnodes, ncores, nhours, args):
     '''
     # --------get runscript file names-----------
     template_runscript = args.template_dir + '/RunScript_LX.sh'
-    target_runscript = args.halo_dir + args.sim_name + '-L' + str(args.level) + '/RunScript.sh'
+    target_runscript = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '/RunScript.sh'
 
     # ---------make substitutions in conf file-----------------
     if args.gas:
@@ -162,16 +164,16 @@ def run_enzo(nnodes, ncores, nhours, args):
     os.chdir(args.halo_dir + '/' + args.sim_name + '-L' + str(args.level))
     command = 'qsub ' + target_runscript
     execute_command(command, args.dryrun)
-    return target_runscript
+
+    print('Submitted enzo job:', jobname)
 
 # ------------------------------------------------------
 def execute_command(command, is_dry_run):
     '''
     Function to decide whether to execute a command or simply print it out (for dry run)
     '''
-    if is_dry_run: print(command)
-    else: os.system(command)
-
+    print('\nExecuting command:', command, '\n')
+    if not is_dry_run: os.system(command)
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -191,6 +193,7 @@ if __name__ == '__main__':
     parser.add_argument('--level', metavar='level', type=int, action='store', default=1, help='which refinement level? default 1')
     parser.add_argument('--gas', dest='gas', action='store_true', default=False, help='run DM+gas?, default is no, only DM')
     parser.add_argument('--final_z', metavar='final_z', type=float, action='store', default=2, help='final redshift till which the simulation should run; default is 2')
+    parser.add_argument('--nomusic', dest='nomusic', action='store_true', default=False, help='skip MUSIC (if ICs already exist)?, default is no')
     parser.add_argument('--dryrun', dest='dryrun', action='store_true', default=False)
 
     args = parser.parse_args()
@@ -203,7 +206,6 @@ if __name__ == '__main__':
     args.template_dir = args.sim_dir + '/' + 'halo_template'
 
     Path(args.halo_dir).mkdir(parents=True, exist_ok=True) # creating the directory structure, if doesn't exist already
-    os.chdir(args.halo_dir)
 
     #----------special settings for ldan queue--------
     if args.queue == 'ldan':
@@ -232,37 +234,14 @@ if __name__ == '__main__':
     thishalo = halos[index]
     args.center = np.array([thishalo['X'][0]/25., thishalo['Y'][0]/25., thishalo['Z'][0]/25.]) # divided by 25 to convert Mpc units to code units
     rvir = np.max([thishalo['Rvir'][0], 200.])
-    print('Starting halo ', thishalo['ID'], 'centered at =', args.center, 'with Rvir =', rvir, 'kpc')
+    print('Starting halo', thishalo['ID'][0], 'centered at =', args.center, 'with Rvir =', rvir, 'kpc')
 
     # -----------run MUSIC and Enzo -------------------
-    if args.gas:
-        print("calculating with gas")
-        convert_to_gas(args.level)
-        os.system("/u/jtumlins/installs/music/MUSIC 25Mpc_DM_256-L"+args.level+"-gas.conf")
-        os.chdir('25Mpc_DM_256-L'+args.level+'-gas')
-        copy_gas_template_files(args.level)
-        mod_gas_param_file(args.level)
-        os.system('rm *temp')
-        os.system('qsub -koed RunScript.sh')
-    else:
-        set_conf(args.level - 1, args.level)
-        if ('1' in args.level):
-            set_0to1_conf()
+    if args.gas:conf_file_name = write_gas_conf_file(args)
+    else: conf_file_name = setup_conf_file(args)
 
-        if ('2' in args.level):
-            set_1to2_conf()
+    if not args.nomusic: run_music(conf_file_name, args)
+    setup_enzoparam_file(args)
+    run_enzo(args.nnodes, ncores, nhours, args)
 
-        if ('3' in args.level):
-            set_2to3_conf()
-
-        run_music(args.level)
-        os.system('rm *temp')
-        if ('1' in args.level):
-            os.system('mv ../25Mpc_DM_256-L'+args.level+' .')
-        os.chdir('25Mpc_DM_256-L'+args.level)
-        copy_template_files(args.level)
-        mod_param_file(args.level)
-        os.system('rm *temp')
-        os.system('qsub -koed RunScript.sh')
-
-
+    print('Completed in %s minutes' % datetime.timedelta(seconds=(time.time() - start_time)))
