@@ -150,7 +150,7 @@ def run_enzo(nnodes, ncores, nhours, args):
         enzo_param_file = args.sim_name + '-L' + str(args.level) + '.enzo'
 
     path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
-    calls_to_script = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + '/u/scicon/tools/bin/mbind.x -cs \" -wall 432000 -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"'
+    calls_to_script = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + ' /u/scicon/tools/bin/mbind.x -cs \" -wall 432000 -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"'
 
     replacements = {'halo_H_DM_LX': jobname, 'NNODES': nnodes, 'NCORES': ncores, 'PROC': args.proc, 'NHOURS': nhours, 'QNAME': args.queue, \
                     'CALLS_TO_SCRIPT': calls_to_script}  # keywords to be replaced in template jobscript
@@ -171,7 +171,8 @@ def run_enzo(nnodes, ncores, nhours, args):
     # -----------if asked to automate, figure out if previous job has finished----------------
     if args.automate and args.level < args.final_level:
         args.nomusic, foundfile = False, False
-        delay = 10 # minutes
+        delay = 5 # minutes
+        print('\nThis is automatic mode. Will keep checking for the output of the job just submitted every', delay, 'minutes..' )
 
         while not foundfile:
             time.sleep(delay * 60) # seconds
@@ -211,7 +212,7 @@ def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
         argslist = {key: val for key, val in vars(dummy_args).items() if val is not None}
         call_to_pyscript = 'python ' + path_to_script + 'run_foggie_sim.py ' + ' '.join(['--' + key + ' ' + str(val) for key,val in argslist.items()]) # this runs the setup required BEFORE the enzo job (including running MUSIC) for a given refinement level
         call_to_cd = 'cd ' + dummy_args.halo_dir + '/' + dummy_args.sim_name + '-L' + str(dummy_args.level)
-        call_to_simrun = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + '/u/scicon/tools/bin/mbind.x -cs \" -wall 432000 -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"' # this runs the enzo job for a given refinement level
+        call_to_simrun = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + ' /u/scicon/tools/bin/mbind.x -cs \" -wall 432000 -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"' # this runs the enzo job for a given refinement level
         calls_to_script += call_to_pyscript + '\n\n' + call_to_cd + '\n\n' + call_to_simrun + '\n\n'
 
     # ---------make substitutions in conf file-----------------
