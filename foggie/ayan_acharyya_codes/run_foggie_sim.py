@@ -8,6 +8,7 @@
     Author :     JT; modified by Ayan Acharyya
     Started :    Jan 2022
     Example :    run run_foggie_sim.py --halo 2430 --level 1 --queue devel --dryrun
+                 run run_foggie_sim.py --halo 2139 --level 1 --queue devel --automate --final_level 3 --dryrun
 
 """
 from header import *
@@ -90,7 +91,7 @@ def run_music(target_conf_file, args):
     os.chdir(args.halo_dir)
     print('Starting MUSIC..\n')
 
-    if args.gas: # run MUSIC directly for gas runs
+    if do_gas(args): # run MUSIC directly for gas runs
         command = '/nobackup/aachary2/ayan_codes/music/MUSIC ' + target_conf_file
         execute_command(command, args.dryrun)
     else: # run using enzo-mrp-music for DM only runs
@@ -98,9 +99,7 @@ def run_music(target_conf_file, args):
         execute_command(command, args.dryrun)
 
         # --------need to move the recently made directory, in case of L1 runs---------
-        if args.level == 1:
-            command = 'mv ../25Mpc_DM_256-L1 .'
-            execute_command(command, args.dryrun)
+        if args.level == 1: execute_command('mv ../25Mpc_DM_256-L1 .', args.dryrun)
 
     print('Finished running MUSIC')
 
@@ -143,15 +142,18 @@ def run_enzo(nnodes, ncores, nhours, args):
     target_runscript = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '/RunScript.sh'
 
     # ---------make substitutions in conf file-----------------
-    if args.gas:
+    if do_gas(args):
         jobname = args.halo_name + '_gas_' + 'L' + str(args.level)
         enzo_param_file = args.sim_name + '-L' + str(args.level) + '-gas.enzo'
     else:
         jobname = args.halo_name + '_DM_' + 'L' + str(args.level)
         enzo_param_file = args.sim_name + '-L' + str(args.level) + '.enzo'
 
-    replacements = {'halo_H_DM_LX': jobname, 'NNODES': nnodes, 'NCORES': ncores, \
-                    'PROC': args.proc, 'NHOURS': nhours, 'QNAME': args.queue, 'NCPUS': nnodes * ncores, 'ENZO_PARAM_FILE': enzo_param_file}  # keywords to be replaced in template jobscript
+    path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
+    calls_to_script = path_to_simrun + ' - mpi \"mpiexec -np ' + str(nnodes * ncores) + '/u/scicon/tools/bin/mbind.x -cs \" - wall 432000 - pf \"' + enzo_param_file + '\" - jf \"' + os.path.split(target_runscript)[1] + '\"'
+
+    replacements = {'halo_H_DM_LX': jobname, 'NNODES': nnodes, 'NCORES': ncores, 'PROC': args.proc, 'NHOURS': nhours, 'QNAME': args.queue, \
+                    'CALLS_TO_SCRIPT': calls_to_script}  # keywords to be replaced in template jobscript
 
     with open(template_runscript) as infile, open(target_runscript, 'w') as outfile:
         for line in infile:
@@ -162,8 +164,51 @@ def run_enzo(nnodes, ncores, nhours, args):
     print('Written', target_runscript)
 
     os.chdir(args.halo_dir + '/' + args.sim_name + '-L' + str(args.level))
-    command = 'qsub ' + target_runscript
-    execute_command(command, args.dryrun)
+    execute_command('qsub ' + target_runscript, args.dryrun)
+
+    print('Submitted enzo job:', jobname)
+
+# ------------------------------------------------------
+def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
+    '''
+    Function to submit a single PBS job which would include multiple subsequent Enzo refinment levels
+    '''
+    # --------set file names and job names, etc.-----------
+    template_runscript = args.template_dir + '/RunScript_LX.sh'
+    target_runscript = args.halo_dir + '/RunScript-L' + str(args.level) + '-to-L' + str(args.final_level) + '.sh'
+    path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
+    path_to_script = '/nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
+
+    if do_gas(args): jobname = args.halo_name + '_gas_' + 'L' + str(args.level) + '-to-L' + str(args.final_level)
+    else: jobname = args.halo_name + '_DM_' + 'L' + str(args.level) + '-to-L' + str(args.final_level)
+    dm_or_gas = '-gas' if do_gas(args) else ''
+
+    # ---------loop over subsequent refinement levels to create separate lines in the PBS job script-----------------
+    calls_to_script = '\n'
+    for thislevel in range(args.level, args.final_level + 1):
+        dummy_args = copy.copy(args)
+        dummy_args.automate, dummy_args.dryrun = False, False  # such that only individual levels are addressed inside the loop
+        dummy_args.level = thislevel
+        enzo_param_file = dummy_args.sim_name + '-L' + str(dummy_args.level) + dm_or_gas + '.enzo'
+
+        argslist = {key: val for key, val in vars(dummy_args).items() if val is not None}
+        call_to_pyscript = 'python ' + path_to_script + 'run_foggie_sim.py ' + ' '.join(['--' + key + ' ' + str(val) for key,val in argslist.items()]) # this runs the setup required BEFORE the enzo job (including running MUSIC) for a given refinement level
+        call_to_cd = 'cd ' + dummy_args.halo_dir + '/' + dummy_args.sim_name + '-L' + str(dummy_args.level)
+        call_to_simrun = path_to_simrun + ' - mpi \"mpiexec -np ' + str(nnodes * ncores) + '/u/scicon/tools/bin/mbind.x -cs \" - wall 432000 - pf \"' + enzo_param_file + '\" - jf \"' + os.path.split(target_runscript)[1] + '\"' # this runs the enzo job for a given refinement level
+        calls_to_script += call_to_pyscript + '\n\n' + call_to_cd + '\n\n' + call_to_simrun + '\n\n'
+
+    # ---------make substitutions in conf file-----------------
+    replacements = {'halo_H_DM_LX': jobname, 'NNODES': nnodes, 'NCORES': ncores, 'PROC': args.proc, 'NHOURS': nhours,
+                    'QNAME': args.queue, 'CALLS_TO_SCRIPT': calls_to_script}  # keywords to be replaced in template jobscript
+
+    with open(template_runscript) as infile, open(target_runscript, 'w') as outfile:
+        for line in infile:
+            for src, target in replacements.items():
+                line = line.replace(str(src), str(target))
+            outfile.write(line)  # replacing and creating new file
+
+    print('Written', target_runscript)
+    execute_command('qsub ' + target_runscript, args.dryrun)
 
     print('Submitted enzo job:', jobname)
 
@@ -172,8 +217,32 @@ def execute_command(command, is_dry_run):
     '''
     Function to decide whether to execute a command or simply print it out (for dry run)
     '''
-    print('\nExecuting command:', command, '\n')
-    if not is_dry_run: os.system(command)
+    if is_dry_run:
+        print('\nNot executing command:', command, '\n')
+    else:
+        print('\nExecuting command:', command, '\n')
+        os.system(command)
+
+# ------------------------------------------------------
+def wrap_run_enzo(ncores, nhours, args):
+    '''
+    Wrapper function to execute other functions i.e. setup conf files, run MUSIC, run enzo, etc. for a given refinement level
+    '''
+    if do_gas(args):conf_file_name = write_gas_conf_file(args)
+    else: conf_file_name = setup_conf_file(args)
+
+    if not args.nomusic: run_music(conf_file_name, args)
+    setup_enzoparam_file(args)
+    run_enzo(args.nnodes, ncores, nhours, args)
+
+    print('Completed submission for L' + str(args.level))
+
+# ------------------------------------------------------
+def do_gas(args):
+    '''
+    Function to determine whether to include baryons, depending on user argument AND refinement level
+    '''
+    return (args.gas and args.level > 3) # gas is not included up to L3
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -194,7 +263,9 @@ if __name__ == '__main__':
     parser.add_argument('--gas', dest='gas', action='store_true', default=False, help='run DM+gas?, default is no, only DM')
     parser.add_argument('--final_z', metavar='final_z', type=float, action='store', default=2, help='final redshift till which the simulation should run; default is 2')
     parser.add_argument('--nomusic', dest='nomusic', action='store_true', default=False, help='skip MUSIC (if ICs already exist)?, default is no')
-    parser.add_argument('--dryrun', dest='dryrun', action='store_true', default=False)
+    parser.add_argument('--dryrun', dest='dryrun', action='store_true', default=False, help='just do a dry run i.e. print commands instead of actually executing them?, default is no')
+    parser.add_argument('--automate', dest='automate', action='store_true', default=False, help='automatically progress to the next refinement level?, default is no')
+    parser.add_argument('--final_level', metavar='final_level', type=int, action='store', default=3, help='final level of refinement till which the simulation should run; default is 3')
 
     args = parser.parse_args()
 
@@ -223,7 +294,7 @@ if __name__ == '__main__':
     workdir = '/nobackup/aachary2/foggie_outputs/pleiades_workdir'  # for pleiades
     ncores = args.ncores if args.ncores is not None else procs_dir[args.proc][0]
     memory = args.memory if args.memory is not None else str(procs_dir[args.proc][1]) + 'GB'  # minimum memory per node; by default the entire node me is allocated, therefore it is redundant to specify mem as the highest available memory per node
-    nhours = args.nhours if args.nhours is not None else '01' if args.dryrun or args.queue == 'devel' else '%02d' % (max_hours_dict[args.queue])
+    nhours = args.nhours if args.nhours is not None else '02' if args.dryrun or args.queue == 'devel' else '%02d' % (max_hours_dict[args.queue])
 
     # ----------- read halo catalogue, to get center -------------------
     halos = Table.read('/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list', format='ascii', header_start=0)
@@ -234,14 +305,10 @@ if __name__ == '__main__':
     thishalo = halos[index]
     args.center = np.array([thishalo['X'][0]/25., thishalo['Y'][0]/25., thishalo['Z'][0]/25.]) # divided by 25 to convert Mpc units to code units
     rvir = np.max([thishalo['Rvir'][0], 200.])
-    print('Starting halo', thishalo['ID'][0], 'centered at =', args.center, 'with Rvir =', rvir, 'kpc')
+    print('Starting halo', thishalo['ID'][0], 'centered at =', args.center, 'with Rvir =', rvir, 'kpc', 'at refinement level', args.level)
 
     # -----------run MUSIC and Enzo -------------------
-    if args.gas:conf_file_name = write_gas_conf_file(args)
-    else: conf_file_name = setup_conf_file(args)
-
-    if not args.nomusic: run_music(conf_file_name, args)
-    setup_enzoparam_file(args)
-    run_enzo(args.nnodes, ncores, nhours, args)
+    if args.automate: run_multiple_enzo_levels(args.nnodes, ncores, nhours, args)
+    else: wrap_run_enzo(ncores, nhours, args)
 
     print('Completed in %s minutes' % datetime.timedelta(seconds=(time.time() - start_time)))
