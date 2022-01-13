@@ -150,7 +150,7 @@ def run_enzo(nnodes, ncores, nhours, args):
         enzo_param_file = args.sim_name + '-L' + str(args.level) + '.enzo'
 
     path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
-    calls_to_script = path_to_simrun + ' - mpi \"mpiexec -np ' + str(nnodes * ncores) + '/u/scicon/tools/bin/mbind.x -cs \" - wall 432000 - pf \"' + enzo_param_file + '\" - jf \"' + os.path.split(target_runscript)[1] + '\"'
+    calls_to_script = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + '/u/scicon/tools/bin/mbind.x -cs \" -wall 432000 -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"'
 
     replacements = {'halo_H_DM_LX': jobname, 'NNODES': nnodes, 'NCORES': ncores, 'PROC': args.proc, 'NHOURS': nhours, 'QNAME': args.queue, \
                     'CALLS_TO_SCRIPT': calls_to_script}  # keywords to be replaced in template jobscript
@@ -163,10 +163,27 @@ def run_enzo(nnodes, ncores, nhours, args):
 
     print('Written', target_runscript)
 
-    os.chdir(args.halo_dir + '/' + args.sim_name + '-L' + str(args.level))
+    workdir = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level)
+    os.chdir(workdir)
     execute_command('qsub ' + target_runscript, args.dryrun)
-
     print('Submitted enzo job:', jobname)
+
+    # -----------if asked to automate, figure out if previous job has finished----------------
+    if args.automate and args.level < args.final_level:
+        args.nomusic, foundfile = False, False
+        delay = 10 # minutes
+
+        while not foundfile:
+            time.sleep(delay * 60) # seconds
+            foundfile = os.path.exists(workdir + '/pbs_output.txt')
+            if foundfile: print('Found', workdir + '/pbs_output.txt at', datetime.datetime.now().strftime("%H:%M:%S"))
+            else: print('Tried and failed to find', workdir + '/pbs_output.txt at', datetime.datetime.now().strftime("%H:%M:%S"), 'will try again after', delay, 'minutes..' )
+
+        args.level += 1
+        print('\nStarting halo', args.halo, 'at next refinement level L' + str(args.level))
+        wrap_run_enzo(ncores, nhours, args)
+
+    print('Finished submitting all enzo jobs')
 
 # ------------------------------------------------------
 def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
@@ -184,7 +201,7 @@ def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
     dm_or_gas = '-gas' if do_gas(args) else ''
 
     # ---------loop over subsequent refinement levels to create separate lines in the PBS job script-----------------
-    calls_to_script = '\n'
+    calls_to_script = '\ncd ' + args.halo_dir + '\n\n'
     for thislevel in range(args.level, args.final_level + 1):
         dummy_args = copy.copy(args)
         dummy_args.automate, dummy_args.dryrun = False, False  # such that only individual levels are addressed inside the loop
@@ -194,7 +211,7 @@ def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
         argslist = {key: val for key, val in vars(dummy_args).items() if val is not None}
         call_to_pyscript = 'python ' + path_to_script + 'run_foggie_sim.py ' + ' '.join(['--' + key + ' ' + str(val) for key,val in argslist.items()]) # this runs the setup required BEFORE the enzo job (including running MUSIC) for a given refinement level
         call_to_cd = 'cd ' + dummy_args.halo_dir + '/' + dummy_args.sim_name + '-L' + str(dummy_args.level)
-        call_to_simrun = path_to_simrun + ' - mpi \"mpiexec -np ' + str(nnodes * ncores) + '/u/scicon/tools/bin/mbind.x -cs \" - wall 432000 - pf \"' + enzo_param_file + '\" - jf \"' + os.path.split(target_runscript)[1] + '\"' # this runs the enzo job for a given refinement level
+        call_to_simrun = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + '/u/scicon/tools/bin/mbind.x -cs \" -wall 432000 -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"' # this runs the enzo job for a given refinement level
         calls_to_script += call_to_pyscript + '\n\n' + call_to_cd + '\n\n' + call_to_simrun + '\n\n'
 
     # ---------make substitutions in conf file-----------------
@@ -218,9 +235,9 @@ def execute_command(command, is_dry_run):
     Function to decide whether to execute a command or simply print it out (for dry run)
     '''
     if is_dry_run:
-        print('\nNot executing command:', command, '\n')
+        print('Not executing command:', command, '\n')
     else:
-        print('\nExecuting command:', command, '\n')
+        print('Executing command:', command, '\n')
         os.system(command)
 
 # ------------------------------------------------------
@@ -291,7 +308,6 @@ if __name__ == '__main__':
     procs_dir = {'san': (16, 32), 'ivy': (20, 64), 'has': (24, 128), 'bro': (28, 128), 'bro_ele': (28, 128),
                  'sky_ele': (40, 192), 'cas_ait': (40, 192), 'ldan': (16, 750), 'cas_end': (28, 185)}  # (nnodes, mem) for each proc, from https://www.nas.nasa.gov/hecc/support/kb/pbs-resource-request-examples_188.html
     max_hours_dict = defaultdict(lambda: 120, low=4, normal=8, long=120, e_long=72, e_normal=8, e_vlong=600, e_debug=2, debug=2, devel=2, ldan=72)  # from https://www.nas.nasa.gov/hecc/support/kb/pbs-job-queue-structure_187.html
-    workdir = '/nobackup/aachary2/foggie_outputs/pleiades_workdir'  # for pleiades
     ncores = args.ncores if args.ncores is not None else procs_dir[args.proc][0]
     memory = args.memory if args.memory is not None else str(procs_dir[args.proc][1]) + 'GB'  # minimum memory per node; by default the entire node me is allocated, therefore it is redundant to specify mem as the highest available memory per node
     nhours = args.nhours if args.nhours is not None else '02' if args.dryrun or args.queue == 'devel' else '%02d' % (max_hours_dict[args.queue])
@@ -308,7 +324,8 @@ if __name__ == '__main__':
     print('Starting halo', thishalo['ID'][0], 'centered at =', args.center, 'with Rvir =', rvir, 'kpc', 'at refinement level', args.level)
 
     # -----------run MUSIC and Enzo -------------------
-    if args.automate: run_multiple_enzo_levels(args.nnodes, ncores, nhours, args)
-    else: wrap_run_enzo(ncores, nhours, args)
+    #if args.automate: run_multiple_enzo_levels(args.nnodes, ncores, nhours, args)
+    #else:
+    wrap_run_enzo(ncores, nhours, args)
 
     print('Completed in %s minutes' % datetime.timedelta(seconds=(time.time() - start_time)))
