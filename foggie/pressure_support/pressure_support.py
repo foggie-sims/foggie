@@ -48,6 +48,7 @@ from astropy.convolution import interpolate_replace_nans
 from astropy.convolution import convolve_fft
 import copy
 import matplotlib.colors as colors
+import trident
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -135,6 +136,7 @@ def parse_args():
                         'velocity_slice         -  x-slices of the three spherical components of velocity, comparing the velocity,\n' + \
                         '                          the smoothed velocity, and the difference between the velocity and the smoothed velocity\n' + \
                         'vorticity_slice        -  x-slice of the velocity vorticity magnitude\n' + \
+                        'ion_slice              -  x-slice of the ion mass of the ion given with the --ion keyword\n' + \
                         'vorticity_direction    -  2D histograms of vorticity direction split by temperature and radius\n' + \
                         'force_rays             -  Line plots of forces along rays from the halo center to various points' + \
                         'turbulent_spectrum    -  Turbulent energy power spectrum')
@@ -174,6 +176,10 @@ def parse_args():
                         '"gravity", "total", or "all", which will make one datashader plot per force.\n' + \
                         'Default is "thermal".')
     parser.set_defaults(force_type='thermal')
+
+    parser.add_argument('--ion', metavar='ion', type=str, action='store', \
+                        help='If plotting ion_slice, what ion do you want to plot? Default is OVI.')
+    parser.set_defaults(ion='OVI')
 
     parser.add_argument('--shader_color', metavar='shader_color', type=str, action='store', \
                         help='If plotting support_vs_r_shaded, what field do you want to color-code the points by?\n' + \
@@ -1026,6 +1032,7 @@ def forces_vs_radius(snap):
             struct = ndimage.generate_binary_structure(3,3)
             disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
             disk_mask_expanded = ndimage.binary_closing(disk_mask_expanded, structure=struct, iterations=3)
+            disk_mask_expanded = disk_mask_expanded | disk_mask
             # disk_edges is a binary mask of ONLY pixels surrounding ISM regions -- nothing inside ISM regions
             disk_edges = disk_mask_expanded & ~disk_mask
             x_edges = x[disk_edges].flatten()
@@ -1035,7 +1042,7 @@ def forces_vs_radius(snap):
         thermal_pressure = box['pressure'].in_units('erg/cm**3').v
         if (args.cgm_only):
             pres_edges = thermal_pressure[disk_edges]
-            pres_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges)
+            pres_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges, fill_value=1e-16)
             pres_masked = np.copy(thermal_pressure)
             pres_masked[disk_mask] = pres_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         else:
@@ -1050,9 +1057,9 @@ def forces_vs_radius(snap):
             vx_edges = vx[disk_edges]
             vy_edges = vy[disk_edges]
             vz_edges = vz[disk_edges]
-            vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges)
-            vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges)
-            vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges)
+            vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges, fill_value=0)
+            vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges, fill_value=0)
+            vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges, fill_value=0)
             vx_masked = np.copy(vx)
             vy_masked = np.copy(vy)
             vz_masked = np.copy(vz)
@@ -1077,7 +1084,7 @@ def forces_vs_radius(snap):
         vr = box['radial_velocity_corrected'].in_units('cm/s').v
         if (args.cgm_only):
             vr_edges = vr[disk_edges]
-            vr_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges)
+            vr_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges, fill_value=0)
             vr_masked = np.copy(vr)
             vr_masked[disk_mask] = vr_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         else:
@@ -1094,9 +1101,9 @@ def forces_vs_radius(snap):
         if (args.cgm_only):
             vtheta_edges = vtheta[disk_edges]
             vphi_edges = vphi[disk_edges]
-            vtheta_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges)
+            vtheta_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges, fill_value=0)
             vtheta_masked = np.copy(vtheta)
-            vphi_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges)
+            vphi_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges, fill_value=0)
             vphi_masked = np.copy(vphi)
             vtheta_masked[disk_mask] = vtheta_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
             vphi_masked[disk_mask] = vphi_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -1109,7 +1116,7 @@ def forces_vs_radius(snap):
         grav_force = -G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.
         if (args.cgm_only):
             grav_edges = grav_force[disk_edges]
-            grav_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), grav_edges)
+            grav_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), grav_edges, fill_value=0)
             grav_masked = np.copy(grav_force)
             grav_masked[disk_mask] = grav_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         else:
@@ -1892,6 +1899,7 @@ def force_rays(snap):
     struct = ndimage.generate_binary_structure(3,3)
     disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
     disk_mask_expanded = ndimage.binary_closing(disk_mask_expanded, structure=struct, iterations=3)
+    disk_mask_expanded = disk_mask_expanded | disk_mask
     # disk_edges is a binary mask of ONLY pixels surrounding ISM regions -- nothing inside ISM regions
     disk_edges = disk_mask_expanded & ~disk_mask
     x_edges = x[disk_edges].flatten()
@@ -1900,7 +1908,7 @@ def force_rays(snap):
 
     thermal_pressure = box['pressure'].in_units('erg/cm**3').v
     pres_edges = thermal_pressure[disk_edges]
-    pres_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges)
+    pres_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges, fill_value=1e-16)
     pres_masked = np.copy(thermal_pressure)
     pres_masked[disk_mask] = pres_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
     pres_grad = np.gradient(pres_masked, dx_cm)
@@ -1912,9 +1920,9 @@ def force_rays(snap):
     vx_edges = vx[disk_edges]
     vy_edges = vy[disk_edges]
     vz_edges = vz[disk_edges]
-    vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges)
-    vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges)
-    vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges)
+    vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges, fill_value=0)
+    vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges, fill_value=0)
+    vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges, fill_value=0)
     vx_masked = np.copy(vx)
     vy_masked = np.copy(vy)
     vz_masked = np.copy(vz)
@@ -1934,7 +1942,7 @@ def force_rays(snap):
     turb_force = -1./density * dPdr
     vr = box['radial_velocity_corrected'].in_units('cm/s').v
     vr_edges = vr[disk_edges]
-    vr_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges)
+    vr_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges, fill_value=0)
     vr_masked = np.copy(vr)
     vr_masked[disk_mask] = vr_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
     vr_masked = gaussian_filter(vr_masked, smooth_scale)
@@ -1948,9 +1956,9 @@ def force_rays(snap):
     vphi = box['phi_velocity_corrected'].in_units('cm/s').v
     vtheta_edges = vtheta[disk_edges]
     vphi_edges = vphi[disk_edges]
-    vtheta_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges)
+    vtheta_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges), fill_value=0
     vtheta_masked = np.copy(vtheta)
-    vphi_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges)
+    vphi_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges, fill_value=0)
     vphi_masked = np.copy(vphi)
     vtheta_masked[disk_mask] = vtheta_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
     vphi_masked[disk_mask] = vphi_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -1959,7 +1967,7 @@ def force_rays(snap):
     rot_force = (smooth_vtheta**2. + smooth_vphi**2.)/r
     grav_force = -G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.
     grav_edges = grav_force[disk_edges]
-    grav_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), grav_edges)
+    grav_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), grav_edges, fill_value=0)
     grav_masked = np.copy(grav_force)
     grav_masked[disk_mask] = grav_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
     grav_force = grav_masked
@@ -2900,6 +2908,7 @@ def pressure_slice(snap):
     struct = ndimage.generate_binary_structure(3,3)
     disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
     disk_mask_expanded = ndimage.binary_closing(disk_mask_expanded, structure=struct, iterations=3)
+    disk_mask_expanded = disk_mask_expanded | disk_mask
     # disk_edges is a binary mask of ONLY pixels surrounding ISM regions -- nothing inside ISM regions
     disk_edges = disk_mask_expanded & ~disk_mask
     x_edges = x[disk_edges].flatten()
@@ -2909,7 +2918,15 @@ def pressure_slice(snap):
     for i in range(len(ptypes)):
         if (ptypes[i]=='thermal'):
             thermal_pressure = box['pressure'].in_units('erg/cm**3').v
-            pressure = thermal_pressure
+            # Cut to only those values closest to removed ISM regions
+            pres_edges = thermal_pressure[disk_edges]
+            # Interpolate across removed ISM regions
+            pres_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges, fill_value=1e-15)
+            pres_masked = np.copy(thermal_pressure)
+            # Replace removed ISM regions with interpolated values
+            interp_values = pres_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+            pres_masked[disk_mask] = interp_values
+            pressure = pres_masked
             pressure_label = 'Thermal'
         if (ptypes[i]=='turbulent'):
             vx = box['vx_corrected'].in_units('cm/s').v
@@ -2920,9 +2937,9 @@ def pressure_slice(snap):
             vy_edges = vy[disk_edges]
             vz_edges = vz[disk_edges]
             # Interpolate across removed ISM regions
-            vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges)
-            vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges)
-            vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges)
+            vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges, fill_value=0)
+            vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges, fill_value=0)
+            vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges, fill_value=0)
             vx_masked = np.copy(vx)
             vy_masked = np.copy(vy)
             vz_masked = np.copy(vz)
@@ -2950,7 +2967,7 @@ def pressure_slice(snap):
             # Cut to only those values closest to removed ISM regions
             vr_edges = vr[disk_edges]
             # Interpolate across removed ISM regions
-            vr_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges)
+            vr_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges, fill_value=0)
             vr_masked = np.copy(vr)
             # Replace removed ISM regions with interpolated values
             vr_masked[disk_mask] = vr_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -3038,6 +3055,7 @@ def force_slice(snap):
     struct = ndimage.generate_binary_structure(3,3)
     disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
     disk_mask_expanded = ndimage.binary_closing(disk_mask_expanded, structure=struct, iterations=3)
+    disk_mask_expanded = disk_mask_expanded | disk_mask
     # disk_edges is a binary mask of ONLY pixels surrounding ISM regions -- nothing inside ISM regions
     disk_edges = disk_mask_expanded & ~disk_mask
     x_edges = x[disk_edges].flatten()
@@ -3050,11 +3068,11 @@ def force_slice(snap):
             # Cut to only those values closest to removed ISM regions
             pres_edges = thermal_pressure[disk_edges]
             # Interpolate across removed ISM regions
-            pres_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges)
+            pres_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges, fill_value=1e-16)
             pres_masked = np.copy(thermal_pressure)
             # Replace removed ISM regions with interpolated values
             pres_masked[disk_mask] = pres_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
-            pres_grad = np.gradient(pres_masked, dx_cm)
+            pres_grad = np.gradient(thermal_pressure, dx_cm)
             dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
             thermal_force = -1./density * dPdr
             if (ftypes[i]=='thermal'):
@@ -3069,9 +3087,9 @@ def force_slice(snap):
             vy_edges = vy[disk_edges]
             vz_edges = vz[disk_edges]
             # Interpolate across removed ISM regions
-            vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges)
-            vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges)
-            vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges)
+            vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges, fill_value=0)
+            vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges, fill_value=0)
+            vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges, fill_value=0)
             vx_masked = np.copy(vx)
             vy_masked = np.copy(vy)
             vz_masked = np.copy(vz)
@@ -3099,7 +3117,7 @@ def force_slice(snap):
             # Cut to only those values closest to removed ISM regions
             vr_edges = vr[disk_edges]
             # Interpolate across removed ISM regions
-            vr_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges)
+            vr_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges, fill_value=0)
             vr_masked = np.copy(vr)
             # Replace removed ISM regions with interpolated values
             vr_masked[disk_mask] = vr_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -3120,9 +3138,9 @@ def force_slice(snap):
             vtheta_edges = vtheta[disk_edges]
             vphi_edges = vphi[disk_edges]
             # Interpolate across removed ISM regions
-            vtheta_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges)
+            vtheta_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges, fill_value=0)
             vtheta_masked = np.copy(vtheta)
-            vphi_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges)
+            vphi_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges, fill_value=0)
             vphi_masked = np.copy(vphi)
             # Replace removed ISM regions with interpolated values
             vtheta_masked[disk_mask] = vtheta_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -3138,7 +3156,7 @@ def force_slice(snap):
             # Cut to only those values closest to removed ISM regions
             grav_edges = grav_force[disk_edges]
             # Interpolate across removed ISM regions
-            grav_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), grav_edges)
+            grav_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), grav_edges, fill_value=0)
             grav_masked = np.copy(grav_force)
             # Replace removed ISM regions with interpolated values
             grav_masked[disk_mask] = grav_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -3176,6 +3194,60 @@ def force_slice(snap):
     if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
+
+def ion_slice(snap):
+    '''Plots a slice of an ion mass given by --ion.'''
+
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + snap
+        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+        snap_name = snap_dir + '/' + snap
+    else:
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
+
+    abundances = trident.ion_balance.solar_abundance
+    trident.add_ion_fields(ds, ions='all', ftype='gas')
+
+    pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))  # at level 11
+    lvl1_res = pix_res*2.**11.
+    level = 9
+    dx = lvl1_res/(2.**level)
+    smooth_scale = (25./dx)/6.
+    dx_cm = dx*1000*cmtopc
+    refine_res = int(3.*Rvir/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
+    OVI_mass = box['O_p5_mass'].in_units('g').v
+
+    fig = plt.figure(figsize=(12,10),dpi=500)
+    ax = fig.add_subplot(1,1,1)
+    f_cmap = copy.copy(mpl.cm.get_cmap('magma'))
+    f_cmap.set_over(color='w', alpha=1.)
+    # Need to rotate to match up with how yt plots it
+    im = ax.imshow(rotate(OVI_mass[len(OVI_mass)//2,:,:],90), cmap=f_cmap, norm=colors.LogNorm(vmin=1e21, vmax=1e33), \
+              extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
+    ax.axis([-250,250,-250,250])
+    ax.set_xlabel('y [kpc]', fontsize=20)
+    ax.set_ylabel('z [kpc]', fontsize=20)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+      top=True, right=True)
+    cax = fig.add_axes([0.82, 0.11, 0.03, 0.84])
+    cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+      top=True, right=True)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    ax.text(1.2, 0.5, 'O VI Mass [g]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
+    plt.subplots_adjust(bottom=0.08, top=0.98, left=0.12, right=0.82)
+    plt.savefig(save_dir + snap + '_OVI_mass_slice_x' + save_suffix + '.png')
+
+    '''slc = yt.SlicePlot(ds, 'x', 'O_p5_mass', center=ds.halo_center_kpc, width=ds.quan(3.*Rvir, 'kpc'))
+    #slc.set_zlim('O_p5_mass', o6_min, o6_max)
+    slc.set_cmap('O_p5_mass', o6_color_map)
+    #slc.set_unit('O_p5_mass', 'Msun')
+    #slc.set_log('O_p5_mass', True)
+    slc.save(save_dir + snap + '_OVI_mass_slice_x' + save_suffix + '.png')'''
 
 def support_slice(snap):
     '''Plots a slice of the ratio of supporting forces to gravity through the center of the halo,
@@ -3685,6 +3757,12 @@ if __name__ == "__main__":
                 force_slice(outs[i])
         else:
             target = force_slice
+    elif (args.plot=='ion_slice'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                ion_slice(outs[i])
+        else:
+            target = ion_slice
     elif (args.plot=='vorticity_direction'):
         if (args.nproc==1):
             for i in range(len(outs)):
