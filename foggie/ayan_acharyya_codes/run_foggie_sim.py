@@ -14,6 +14,8 @@
 from header import *
 from util import *
 from astropy.table import Table
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 start_time = time.time()
 
 # ------------------------------------------------------
@@ -39,11 +41,11 @@ def setup_conf_file(args):
                         this_shift = int(line[line.find(pattern)+len(pattern) : line.find('\n')])
             shifts.append(this_shift)
 
-        args.center += np.array(shifts) / 255. # to convert shifts into code units
+        args.centerL = args.center0 + np.array(shifts) / 255. # to convert shifts into code units
         print('center offsets = ', shifts, ' ',)
 
-    print('halo center = ', args.center)
-    halo_cen = ', '.join([str(item) for item in args.center])
+    print('adjusted halo center = ', args.centerL)
+    halo_cen = ', '.join([str(item) for item in args.centerL])
 
     # ---------make substitutions in conf file-----------------
     if args.level > 1: sim_dir = args.halo_dir
@@ -166,25 +168,66 @@ def run_enzo(nnodes, ncores, nhours, args):
     workdir = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level)
     os.chdir(workdir)
     execute_command('qsub ' + target_runscript, args.dryrun)
-    print('Submitted enzo job:', jobname)
+    print('Submitted enzo job:', jobname, 'at', datetime.datetime.now().strftime("%H:%M:%S"))
 
     # -----------if asked to automate, figure out if previous job has finished----------------
     if args.automate and args.level < args.final_level:
-        args.nomusic, foundfile = False, False
-        delay = 5 # minutes
-        print('\nThis is automatic mode. Will keep checking for the output of the job just submitted every', delay, 'minutes..' )
+        args.nomusic = False
+        file_to_monitor = workdir + '/pbs_output.txt'
 
-        while not foundfile:
-            time.sleep(delay * 60) # seconds
-            foundfile = os.path.exists(workdir + '/pbs_output.txt')
-            if foundfile: print('Found', workdir + '/pbs_output.txt at', datetime.datetime.now().strftime("%H:%M:%S"))
-            else: print('Tried and failed to find', workdir + '/pbs_output.txt at', datetime.datetime.now().strftime("%H:%M:%S"), 'will try again after', delay, 'minutes..' )
+        monitor_for_file_watchdog(file_to_monitor)
+        monitor_for_file_ospath(file_to_monitor) # just as a backup check
 
         args.level += 1
         print('\nStarting halo', args.halo, 'at next refinement level L' + str(args.level))
         wrap_run_enzo(ncores, nhours, args)
 
     print('Finished submitting all enzo jobs')
+
+# ------------------------------------------------------
+def monitor_for_file_ospath(file_to_monitor):
+    '''
+    Function to monitor if a certain file is being created, using repeated, timed checks with os.path.exists()
+    '''
+    delay = 5 # minutes
+    print('\nThis is automatic mode. Will keep checking for', file_to_monitor, 'every', delay, 'minutes..')
+    foundfile = os.path.exists(file_to_monitor)
+
+    while not foundfile:
+        time.sleep(delay * 60)  # seconds
+        foundfile = os.path.exists(file_to_monitor)
+        if not foundfile: print('Tried and failed to find', file_to_monitor, ' at', datetime.datetime.now().strftime("%H:%M:%S"),'will try again after', delay, 'minutes..')
+
+    print('Found', file_to_monitor, 'at', datetime.datetime.now().strftime("%H:%M:%S"))
+
+# ------------------------------------------------------
+def monitor_for_file_watchdog(file_to_monitor):
+    '''
+    Function to monitor if a certain file is being created using watchdog
+    '''
+    print('\nThis is automatic mode. Will keep monitoring for', file_to_monitor)
+
+    class ExampleHandler(FileSystemEventHandler):
+        def on_created(self, event): # when file is created
+            print('Deb:', event.src_path)
+            if event.src_path == file_to_monitor:
+                observer.stop()
+                print('Found', file_to_monitor, 'at', datetime.datetime.now().strftime("%H:%M:%S"))
+            elif event.is_directory:
+                print(event.src_path, 'created at', datetime.datetime.now().strftime("%H:%M:%S"))
+
+    observer = Observer()
+    event_handler = ExampleHandler()
+    observer.schedule(event_handler, path=os.path.split(file_to_monitor)[0]+'/', recursive=True)
+    observer.start()
+
+    # sleep until keyboard interrupt, then stop + rejoin the observer
+    try:
+        while observer.isAlive():
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+        observer.join()
 
 # ------------------------------------------------------
 def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
@@ -239,7 +282,7 @@ def execute_command(command, is_dry_run):
         print('Not executing command:', command, '\n')
     else:
         print('Executing command:', command, '\n')
-        os.system(command)
+        ret = subprocess.call(command, shell=True)
 
 # ------------------------------------------------------
 def wrap_run_enzo(ncores, nhours, args):
@@ -320,9 +363,9 @@ if __name__ == '__main__':
 
     index = [halos['ID'] == int(args.halo[:4])]
     thishalo = halos[index]
-    args.center = np.array([thishalo['X'][0]/25., thishalo['Y'][0]/25., thishalo['Z'][0]/25.]) # divided by 25 to convert Mpc units to code units
+    args.center0 = np.array([thishalo['X'][0]/25., thishalo['Y'][0]/25., thishalo['Z'][0]/25.]) # divided by 25 to convert Mpc units to code units
     rvir = np.max([thishalo['Rvir'][0], 200.])
-    print('Starting halo', thishalo['ID'][0], 'centered at =', args.center, 'with Rvir =', rvir, 'kpc', 'at refinement level', args.level)
+    print('Starting halo', thishalo['ID'][0], 'L0-centered at =', args.center0, 'with Rvir =', rvir, 'kpc', 'at refinement level', args.level)
 
     # -----------run MUSIC and Enzo -------------------
     #if args.automate: run_multiple_enzo_levels(args.nnodes, ncores, nhours, args)
