@@ -18,15 +18,53 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 start_time = time.time()
 
-# ------------------------------------------------------
-def setup_conf_file(args):
+# -----------------------------------------------------
+def replace_keywords_in_file(replacements, template_file, target_file):
     '''
-    Function to set up the .conf file: populate it with corresponding simulation directory, halo center, etc.
+    Function to replace certain keywords (based on the dictionary replacements) in source_file and create a new target_file
+    '''
+    with open(template_file) as infile, open(target_file, 'w') as outfile:
+        for line in infile:
+            for src, target in replacements.items():
+                line = line.replace(str(src), str(target))
+            outfile.write(line)  # replacing and creating new file
+
+    print('Written', target_file)
+
+# -----------------------------------------------------
+def modify_lines_in_file(replacements, template_file, target_file):
+    '''
+    Function to modify certain lines with new values (based on the dictionary replacements) in template_file and create a new target_file
+    '''
+    in_situ_change = False
+    if template_file == target_file: # modify the same file in situ
+        target_file = 'temp_' + template_file
+        in_situ_change = True
+
+    with open(template_file) as infile, open(target_file, 'w') as outfile:
+        for line in infile:
+            for pattern, target in replacements.items():
+                if re.search(pattern, line):
+                    line = pattern + ' = ' + target
+            outfile.write(line)  # replacing and creating new file
+
+    if in_situ_change:
+        ret = subprocess.call('rm ' + template_file, shell=True)
+        ret = subprocess.call('mv ' + target_file + ' ' + template_file, shell=True)
+        target_file = template_file
+
+    print('Written', target_file)
+
+
+# ------------------------------------------------------
+def setup_DM_conf_file(args):
+    '''
+    Function to set up the .conf file to run enzo-mrp-music on: populate it with corresponding simulation directory, halo center, etc.
+    This step is only required for DM only runs, because for gas runs we run MUSIC directly (without using enzo-mrp-music.py)
     '''
     # --------get conf file names-----------
-    gas_or_dm = 'gas' if args.gas else 'DM'
-    template_conf_file = args.template_dir + '/halo_H_' + gas_or_dm + '_XtoY.conf'
-    target_conf_file = args.halo_dir + '/halo_' + args.halo + '_' + gas_or_dm + '_' + str(args.level - 1) + 'to' + str(args.level) + '.conf'
+    template_conf_file = args.template_dir + '/halo_H_DM_XtoY.conf'
+    target_conf_file = args.halo_dir + '/halo_' + args.halo + '_DM_' + str(args.level - 1) + 'to' + str(args.level) + '.conf'
 
     # ---------getting correct halo center based on the refinement level-----------------
     print('Before starting L-' + str(args.level) + ',',)
@@ -51,19 +89,13 @@ def setup_conf_file(args):
     if args.level > 1: sim_dir = args.halo_dir
     else: sim_dir = args.sim_dir
 
-    replacements = {'SIM_NAME': args.sim_name, 'SIM_DIR': sim_dir, 'FINAL_Z': args.final_z, 'HALO_CEN': halo_cen}  # keywords to be replaced in template jobscript
+    replacements = {'SIM_NAME': args.sim_name, 'SIM_DIR': sim_dir, 'FINAL_Z': args.final_z, 'HALO_CEN': halo_cen}  # keywords to be replaced in template file
+    replace_keywords_in_file(replacements, template_conf_file, target_conf_file)
 
-    with open(template_conf_file) as infile, open(target_conf_file, 'w') as outfile:
-        for line in infile:
-            for src, target in replacements.items():
-                line = line.replace(str(src), str(target))
-            outfile.write(line)  # replacing and creating new file
-
-    print('Written', target_conf_file)
     return target_conf_file
 
 # ------------------------------------------------------
-def write_gas_conf_file(args):
+def setup_gas_conf_file(args):
     '''
     Function to write .conf file for the gas run, based on that of DM only runs
     '''
@@ -72,17 +104,8 @@ def write_gas_conf_file(args):
     target_conf_file = os.path.splitext(source_conf_file)[0] + '-gas.conf'
 
     # ---------make substitutions in conf file-----------------
-    replacements = {'baryons': 'no', 'Omega_b': 0.0461, 'filename': args.sim_name + '-L' + str(args.level) + '-gas'}  # keywords to be replaced in template jobscript
-
-    with open(source_conf_file) as infile, open(target_conf_file, 'w') as outfile:
-        for line in infile:
-            for pattern, target in replacements.items():
-                if re.search(pattern, line):
-                    line = pattern + ' = ' + target
-            outfile.write(line)  # replacing and creating new file
-
-    Path(args.halo_dir + args.sim_name + '-L' + str(args.level) + '-gas').mkdir(parents=True, exist_ok=True) # creating the directory structure, if doesn't exist already
-    print('Written', target_conf_file)
+    replacements = {'baryons': 'yes', 'Omega_b': 0.0461, 'filename': args.sim_name + '-L' + str(args.level) + '-gas'}  # values to be changed in template file
+    modify_lines_in_file(replacements, source_conf_file, target_conf_file)
     return target_conf_file
 
 # ------------------------------------------------------
@@ -111,9 +134,9 @@ def setup_enzoparam_file(args):
     Function to set up the .enzo parameter file: populate it with corresponding refinement level, grid properties, etc.
     '''
     # --------get conf file names-----------
-    gas_or_dm = '-gas' if args.gas else ''
+    gas_or_dm = '-gas' if do_gas(args) else ''
     template_param_file = args.template_dir + '/25Mpc_DM_256-LX' + gas_or_dm + '.enzo'
-    target_param_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '.enzo'
+    target_param_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '.enzo'
 
     # ---------getting correct grid parameters-----------------
     param_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '/parameter_file.txt'
@@ -124,13 +147,9 @@ def setup_enzoparam_file(args):
                 stuff_from_paramfile += line
 
     # ---------make substitutions in conf file-----------------
-    replacements = {'CFR': args.final_z, 'MODFR': 8/(8 ** args.level), 'CSNOI': args.level + 1, 'MRPRTL': args.level, 'COPYHERE': stuff_from_paramfile}  # keywords to be replaced in template jobscript
-
-    with open(template_param_file) as infile, open(target_param_file, 'w') as outfile:
-        for line in infile:
-            for src, target in replacements.items():
-                line = line.replace(str(src), str(target))
-            outfile.write(line)  # replacing and creating new file
+    z_to_replace = 15 if do_gas(args) else args.final_z
+    replacements = {'CFR': z_to_replace, 'MODFR': 8/(8 ** args.level), 'CSNOI': args.level + 1, 'MRPRTL': args.level, 'COPYHERE': stuff_from_paramfile}  # keywords to be replaced in template file
+    replace_keywords_in_file(replacements, template_param_file, target_param_file)
 
     print('Written', target_param_file)
 
@@ -139,33 +158,24 @@ def run_enzo(nnodes, ncores, nhours, args):
     '''
     Function to submit the Enzo simulation job
     '''
-    # --------get runscript file names-----------
+    # --------get file names-----------
+    gas_or_dm = '-gas' if do_gas(args) else ''
     template_runscript = args.template_dir + '/RunScript_LX.sh'
-    target_runscript = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '/RunScript.sh'
+    target_runscript = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '/RunScript.sh'
+    enzo_param_file = args.sim_name + '-L' + str(args.level) + gas_or_dm + '.enzo'
 
     # ---------make substitutions in conf file-----------------
-    if do_gas(args):
-        jobname = args.halo_name + '_gas_' + 'L' + str(args.level)
-        enzo_param_file = args.sim_name + '-L' + str(args.level) + '-gas.enzo'
-    else:
-        jobname = args.halo_name + '_DM_' + 'L' + str(args.level)
-        enzo_param_file = args.sim_name + '-L' + str(args.level) + '.enzo'
+    if do_gas(args): jobname = args.halo_name + '_gas_' + 'L' + str(args.level)
+    else: jobname = args.halo_name + '_DM_' + 'L' + str(args.level)
 
     path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
     calls_to_script = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + ' /u/scicon/tools/bin/mbind.x -cs \" -wall 432000 -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"'
 
     replacements = {'halo_H_DM_LX': jobname, 'NNODES': nnodes, 'NCORES': ncores, 'PROC': args.proc, 'NHOURS': nhours, 'QNAME': args.queue, \
-                    'CALLS_TO_SCRIPT': calls_to_script}  # keywords to be replaced in template jobscript
+                    'CALLS_TO_SCRIPT': calls_to_script}  # keywords to be replaced in template file
+    replace_keywords_in_file(replacements, template_runscript, target_runscript)
 
-    with open(template_runscript) as infile, open(target_runscript, 'w') as outfile:
-        for line in infile:
-            for src, target in replacements.items():
-                line = line.replace(str(src), str(target))
-            outfile.write(line)  # replacing and creating new file
-
-    print('Written', target_runscript)
-
-    workdir = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level)
+    workdir = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm
     os.chdir(workdir)
     execute_command('qsub ' + target_runscript, args.dryrun)
     print('Submitted enzo job:', jobname, 'at', datetime.datetime.now().strftime("%H:%M:%S"))
@@ -183,6 +193,50 @@ def run_enzo(nnodes, ncores, nhours, args):
         wrap_run_enzo(ncores, nhours, args)
 
     print('Finished submitting all enzo jobs')
+
+# ------------------------------------------------------
+def get_most_recent_dir(workdir):
+    '''
+    Function to grab the most recent Enzo output (i.e. most recently modified subdirectory) in directory workdir
+    '''
+    all_dirs = [workdir + '/' + item for item in os.listdir(workdir) if os.path.isdir(workdir + '/' + item)]
+    latest_dir_fullpath = max(all_dirs, key=os.path.getmtime)
+    latest_dir = latest_dir_fullpath[len(workdir + '/') : ]
+
+    print('Most recent directory in', workdir, 'is', latest_dir)
+    return latest_dir
+
+# ------------------------------------------------------
+def rerun_enzo_with_shielding(args):
+    '''
+    Function to turn on self-shielding and restart the Enzo job from z=15
+    '''
+    workdir = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '-gas'
+    file_to_monitor = workdir + '/pbs_output.txt'
+    os.chdir(workdir)
+
+    monitor_for_file_watchdog(file_to_monitor)
+    monitor_for_file_ospath(file_to_monitor)  # just as a backup check
+
+    # ---------when the z=15 run finishes, then make modifications to the parameter file of the latest output-----------
+    execute_command('rm RunFinished', args.dryrun)
+    output = get_most_recent_dir(workdir)
+    conf_file = workdir + '/' + output + '/' + output
+
+    replacements = {'CosmologyFinalRedshift': args.final_z, 'self_shielding_method': 3, 'grackle_data_file': '/nobackup/aachary2/ayan_codes/grackle/input/CloudyData_UVB=HM2012_shielded.h5'}  # values to be changed in template file
+    modify_lines_in_file(replacements, conf_file, conf_file)
+
+    # ----------also modify the original -gas.enzo file--------------
+    orig_conf_file = workdir + '/' + args.sim_name + '-L' + str(args.level) + '-gas.enzo'
+    replacements = {'CosmologyFinalRedshift': args.final_z}  # values to be changed in template file
+    modify_lines_in_file(replacements, orig_conf_file, orig_conf_file)
+
+    # -----submit the PBS job---------
+    jobname = args.halo_name + '_gas_' + 'L' + str(args.level)
+    target_runscript = workdir + '/RunScript.sh'
+    execute_command('qsub ' + target_runscript, args.dryrun)
+
+    print('Submitted enzo job:', jobname, 'at', datetime.datetime.now().strftime("%H:%M:%S"))
 
 # ------------------------------------------------------
 def monitor_for_file_ospath(file_to_monitor):
@@ -233,6 +287,7 @@ def monitor_for_file_watchdog(file_to_monitor):
 def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
     '''
     Function to submit a single PBS job which would include multiple subsequent Enzo refinment levels
+    *** THIS FUNCTION IS NOT USED ANYMORE ***
     '''
     # --------set file names and job names, etc.-----------
     template_runscript = args.template_dir + '/RunScript_LX.sh'
@@ -260,15 +315,9 @@ def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
 
     # ---------make substitutions in conf file-----------------
     replacements = {'halo_H_DM_LX': jobname, 'NNODES': nnodes, 'NCORES': ncores, 'PROC': args.proc, 'NHOURS': nhours,
-                    'QNAME': args.queue, 'CALLS_TO_SCRIPT': calls_to_script}  # keywords to be replaced in template jobscript
+                    'QNAME': args.queue, 'CALLS_TO_SCRIPT': calls_to_script}  # keywords to be replaced in template file
+    replace_keywords_in_file(replacements, template_runscript, target_runscript)
 
-    with open(template_runscript) as infile, open(target_runscript, 'w') as outfile:
-        for line in infile:
-            for src, target in replacements.items():
-                line = line.replace(str(src), str(target))
-            outfile.write(line)  # replacing and creating new file
-
-    print('Written', target_runscript)
     execute_command('qsub ' + target_runscript, args.dryrun)
 
     print('Submitted enzo job:', jobname)
@@ -289,12 +338,13 @@ def wrap_run_enzo(ncores, nhours, args):
     '''
     Wrapper function to execute other functions i.e. setup conf files, run MUSIC, run enzo, etc. for a given refinement level
     '''
-    if do_gas(args):conf_file_name = write_gas_conf_file(args)
-    else: conf_file_name = setup_conf_file(args)
-
+    if do_gas(args):conf_file_name = setup_gas_conf_file(args)
+    else: conf_file_name = setup_DM_conf_file(args)
     if not args.nomusic: run_music(conf_file_name, args)
+
     setup_enzoparam_file(args)
     run_enzo(args.nnodes, ncores, nhours, args)
+    if do_gas(args): rerun_enzo_with_shielding(args)
 
     print('Completed submission for L' + str(args.level))
 
