@@ -3,7 +3,7 @@
 """
 
     Title :      run_foggie_sim.py
-    Notes :      automated script to run zoom-in FOGGIE simulations (generate ICs with MUSIC, and then submit Enzo jobs); this is based on JT's /nobackup/jtumlins/CGM_bigbox/halo_template/plots.py
+    Notes :      automated script to run zoom-in FOGGIE simulations (generate ICs with MUSIC, and then submit Enzo jobs); this is based on JT's /nobackup/jtumlins/CGM_bigbox/halo_template/script.py
     Output :     submitted PBS jobs
     Author :     JT; modified by Ayan Acharyya
     Started :    Jan 2022
@@ -353,7 +353,7 @@ def do_gas(args):
     '''
     Function to determine whether to include baryons, depending on user argument AND refinement level
     '''
-    return (args.gas and args.level > 3) # gas is not included up to L3
+    return (args.gas and args.level >= 3) # gas is not included up to L3
 
 # -----main code-----------------
 if __name__ == '__main__':
