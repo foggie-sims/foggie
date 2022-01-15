@@ -1956,7 +1956,7 @@ def force_rays(snap):
     vphi = box['phi_velocity_corrected'].in_units('cm/s').v
     vtheta_edges = vtheta[disk_edges]
     vphi_edges = vphi[disk_edges]
-    vtheta_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges), fill_value=0
+    vtheta_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges, fill_value=0)
     vtheta_masked = np.copy(vtheta)
     vphi_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges, fill_value=0)
     vphi_masked = np.copy(vphi)
