@@ -50,7 +50,9 @@ if __name__ == '__main__':
     output_path = root_dir + args.foggie_dir + '/' + halo_name + '/'
     snap_name = root_dir + args.foggie_dir + '/' + halo_name + '/' + args.run + '/' + args.output + '/' + args.output
 
-    field_dict = {'dm':('deposit', 'all_density')}
+    field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density')}
+    cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat}
+    zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1)}
 
     # ----------- read halo catalogue, to get center -------------------
     try:
@@ -79,7 +81,8 @@ if __name__ == '__main__':
     # -------------annotations and limits -------------------------------
     if args.annotate_grids: p.annotate_grids(min_level=3)
     p.annotate_text((0.06, 0.12), args.halo, coord_system="axis")
-    p.set_zlim('all_density', 1e-4, 0.1)
+    if not args.do == 'dm': p.set_cmap(field_dict[args.do], cmap_dict[args.do])
+    p.set_zlim(field_dict[args.do], zmin=zlim_dict[args.do][0], zmax=zlim_dict[args.do][1])
 
     # -------------optional annotations (if Rvir and M info exists) -------------------------------
     try:
