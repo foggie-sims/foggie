@@ -79,6 +79,18 @@ LOCAL_GRACKLE_INSTALL = /nobackup/mpeeples/grackle_install/install
 ---> this is now not used as the LOCAL_INCLUDES_GRACKLE and
 LOCAL_LIBS_GRACKLE are explicitly given further down!
 
+If you are going to be doing zooms, you will likely want the "MRP
+fix". In Grid_SetFlaggingField.C, line 324 has a "TRUE" you want to
+change to "FALSE":
+ 323   if (RestrictFlaggingToMustRefineParticles && pmethod != INT_UNDEFINED) {
+ 324     NumberOfFlaggedCells = this->FlagCellsToBeRefinedByMass(level, pmethod, FALSE);
+ 325     if (NumberOfFlaggedCells < 0) {
+ 326       ENZO_FAIL("Error in grid->FlagCellsToBeRefinedByMass (4).");
+ 327     }
+ 328   }
+
+
+
 Then:
 make machine-nasa-pleiades
 make grackle-yes
