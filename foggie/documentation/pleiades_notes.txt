@@ -1,0 +1,212 @@
+Notes for installing grackle and enzo etc on Pleiades. 
+Updated Jan 18, 2022 by Molly, with older inputs from Anna and Ayan
+
+1. These notes are for using the following modules, which may or may
+not be the latest ones, and may or may not match the paths in the repo makefiles:
+
+module load comp-intel/2020.4.304
+module load mpi-hpe/mpt.2.25
+module load hdf5/1.8.18_serial
+
+Suggest installing in your /nobackup/username/ folder, since the inode
+quota there is higher.
+
+2. BUILDING GRACKLE: 
+
+cd /nobackup/username
+mkdir grackle_install
+cd grackle_install
+git clone https://github.com/grackle-project/grackle
+git submodule update --init
+cd grackle
+./configure
+cd src/clib
+
+Edit the file Make.mach.nasa-pleiades in grackle/src/clib to change/include these lines:
+LOCAL_HDF5_INSTALL   = /nasa/hdf5/1.8.18_serial
+LOCAL_COMPILER_DIR =  /nasa/intel/Compiler/2020.4.304/compilers_and_libraries/linux/
+MACH_INSTALL_PREFIX = /nobackup/username/grackle_install/install/
+
+NOTE: currently need to edit ;
+Updated relevant lines that have "for (int i=0 ..." in rate_functions.c and initialize_rates.c to e.g., 
+	int i;
+	for (i=0; i <= 200; i++){
+This is in seven places total. PR is in the works for this change.
+
+
+Then do:
+make machine-nasa-pleiades
+make
+make install
+
+To test grackle, first do:
+cd ../example
+
+Then edit the Makefile in src/example to change/include these lines:
+GRACKLE_INCLUDE = -I/nobackup/username/grackle_install/install/include
+GRACKLE_LIB = /nobackup/username/grackle_install/grackle/src/clib/*.o
+
+Then do:
+make clean
+make
+
+Then run the example:
+./cxx_example
+
+If it succeeds, grackle is probably working right.
+If you get an error about finding data files (e.g., CloudyData_UVB=HM2012.h5),
+you likely forgot to run the submodule update.
+
+
+3. BUILDING ENZO: 
+
+To get enzo:
+cd /nobackup/username
+git clone https://github.com/enzo-project/enzo-dev
+cd enzo-dev
+./configure
+cd src/enzo
+
+Edit Make.mach.nasa-pleiades to change/include these lines:
+LOCAL_MPI_INSTALL    = /nasa/hpe/mpt/2.25_sles12
+LOCAL_HDF5_INSTALL   = /nasa/hdf5/1.8.18_serial
+LOCAL_COMPILER_DIR =  /nasa/intel/Compiler/2020.4.304/compilers_and_libraries/linux/
+LOCAL_INCLUDES_GRACKLE = -I/nobackup/mpeeples/grackle_install/install/include
+LOCAL_LIBS_GRACKLE = /nobackup/mpeeples/grackle_install/grackle/src/clib/*.o
+
+Note that there is a line near the top that is like,
+LOCAL_GRACKLE_INSTALL = /nobackup/mpeeples/grackle_install/install
+---> this is now not used as the LOCAL_INCLUDES_GRACKLE and
+LOCAL_LIBS_GRACKLE are explicitly given further down!
+
+Then:
+make machine-nasa-pleiades
+make grackle-yes
+make opt-high
+make max-subgrids-200000
+make -j16
+
+now your enzo should be built and ready to go! It can be found in
+/nobackup/username/enzo-dev/bin/enzo; I suggest copying it to the pwd
+of where you are running it so that you know you have a working
+version if you muck around with the installation later.
+
+
+#----------------------------------------------------------------#
+
+
+The grackle parameters get set in the same parameter file as we run Enzo in.
+See https://grackle.readthedocs.io/en/grackle-3.1/Parameters.html
+To turn self-shielding on, after z=15.3 (I use the z=15 output),
+stop it and set self_shielding_method = 3, and restart.
+
+
+
+#----------------------------------------------------------------#
+
+
+In your pbs script:
+export HDF5_DISABLE_VERSION_CHECK=1
+
+Molly's TCAN group # = s2358
+Molly's FOGGIE ATP group # = s1938
+JT's WFIRST group # = s1698
+
+#-------Steps for miniconda2 and the latest public version of yt (3.6)-----------------------------#
+for yt, trident, etc:
+If using ldan, then first, hdf5/1.18.18_serial is not available on lou. so i used hdf5/1.8.17/serial
+
+I have these in my pleiades home directory, but if you hit an inode quota there, just put them in /nobackup:
+wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+bash Miniconda2-latest-Linux-x86_64.sh
+miniconda2/bin/conda install numpy=1.16
+miniconda2/bin/conda install cython
+miniconda2/bin/conda install astropy
+miniconda2/bin/conda install ipython
+miniconda2/bin/conda install h5py
+miniconda2/bin/conda install yt
+miniconda2/bin/conda update -c conda-forge yt
+
+and
+miniconda2/bin/conda install seaborn
+
+#------Steps for installing miniconda3 + yt4 on pleiades home directory (by Ayan)-----------#
+- Log in to pfe
+% cd # stay in home directory
+% wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh # I installed Miniconda because Anaconda was too large for home directory and /nobackup was too slow
+% bash Miniconda3-latest-Linux-x86_64.sh
+- Add this to the PATH variable in the ~/.profile file
+    PATH=$HOME/miniconda3/condabin:$HOME/miniconda3/bin:$PATH
+# Create a new conda environment with python 3.8 (yt4 does not work with python 3.6, which is offered by the astroconda environment)
+% conda create -n py38 python=3.8
+% conda activate py38 # All the steps henceforth are within the py38 environment, so everytime you want access python 3 or yt you need to first activate the py38 environment using 'source activate py38'
+# Install a couple of packages first, before yt
+% conda install numpy
+% conda install -c conda-forge matplotlib # this installs the latest version of matplotlib, which is compatible with yt4
+% conda install ipython
+# Now, to install yt, first grab it from the repo and install it in developer mode
+% cd YOUR_CODE_DIR # YOUR_CODE_DIR = where you want the yt source code to reside
+% git clone https://github.com/yt-project/yt YOUR_CODE_DIR/yt
+% cd YOUR_CODE_DIR/yt
+% pip install -e . # This installs yt
+% conda list -f yt # If everything is fine, this should show up yt4 dev version
+# We will verify whether yt imports correctly, after we have installed all the other packages
+% cd
+% conda install cython
+% conda install astropy
+% conda install scipy
+% conda install pandas
+% conda install h5py
+% conda install datashader
+% conda install seaborn
+# Now, open a python or ipython console and 'import yt', if it does not work (it is due to different numpy versions used by yt and that in the conda environment), follow steps below
+% cd YOUR_CODE_DIR/yt # Following steps are carried out inside the yt/ directory
+- Edit line 14 of file yt/pyprojec.toml to look like: "numpy>=1.20; python_version>='3.7' and platform_system!='AIX'", # Solution by Britton
+% pip uninstall numpy # Make sure to uninstall the numpy 1.19.x
+% pip cache purge
+% ./clean.sh # clean the current yt installation
+% pip install 'numpy>=1.20' % install the developer version of numpy 1.20.x, for yt
+% pip install -e  # installing yt again
+# Now 'import yt' should work..
+# To clone and install the foggie code base:
+% cd YOUR_CODE_DIR
+% git clone https://github.com/foggie-sims/foggie
+% cd YOUR_CODE_DIR/foggie
+% python setup.py develop
+% cd
+# Henceforth, 'import foggie' should also work in python
+# NOTE: there was an issue with installing 'pyx' in this setup, so I simply commented out the line that imports pyx; if you really need to use pyx, good luck!
+#----------------------------------------------------------------------#
+
+then for trident THIS IS OUT OF DATE:
+git clone https://github.com/trident-project/trident
+cd trident
+git checkout v1.2.1
+../miniconda2/bin/python setup.py build
+../miniconda2/bin/python setup.py install
+## for trident, Yong need to do these additional steps to install trident on Pleiades:
+- mkdir ~/.trident
+- in ~/.trident, create a file called config.tri, and in the file, put these three lines in it:
+[Trident]
+ion_table_dir = /Users/Yong/.trident
+ion_table_file = hm2012_hr.h5
+- If there is no hm2012_hr.h5 file in this directory, download it somewhere.
+
+
+
+probably needs a matplotlibrc file, i think? but not sure where to put it.
+so I added:
+import matplotlib as mpl
+mpl.use('agg')
+before seaborn or pyplot are imported
+
+
+
+
+	### 
+	if yt shows up correctly in the list but you cannot load it in python, it's due to a discrepancy between yoru conda numpy and the numpy that yt grabs for installation. (you can check the latter with $ python -m pip install -ve .)
+	If yt tries to use version 1.20.x but your conda numpy is only 19.2.x go back into the yt folder, do 
+ 	$ pip install 'numpy>=1.20'
+ 	$ ./clean.sh
+ 	$ pip install -e . 
+	###
