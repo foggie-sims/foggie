@@ -50,12 +50,17 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def viz_demo(snap):
-    '''Opens a napari viewer for the FOGGIE snapshot given by 'snap'.'''
+if __name__ == "__main__":
+
+    # Read command line arguments for halo, run, snapshot, and system, then find appropriate
+    # file structure for this system
+    args = parse_args()
+    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
 
     # Load the snapshot
-    snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
+    snap_name = foggie_dir + run_dir + args.output + '/' + args.output
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name)
 
     # Define a 3D FRB to be used with napari. The first few lines here are just to define refine_res to
     # be the same as FOGGIE's level 9 forced refinement. You could just put in whatever number you want
@@ -91,20 +96,18 @@ def viz_demo(snap):
     # Note that if you want a log scale, plot the log of the field -- there doesn't appear to be a
     # way to tell napari to do log scaling on the color
 
+    # You can add a points field for particles like stars, but the positions must be passed
+    # in terms of the image coordinates
+    # Load young star positions and shift to halo-centric coordinates
+    ys_pos = refine_box[('young_stars','particle_position')].in_units('kpc') - ds.halo_center_kpc
+    # Convert halo-centric coordinates to image resolution coordinates
+    ys_pos = ys_pos.v/dx
+    ys_pos += refine_res/2.
+    # Now add the points in a new layer
+    viewer.add_points(ys_pos, size=1, face_color='white', edge_color='white', name='young stars')
+
     # Finally, open the viewer with the above-defined fields!
     napari.run()
 
     # If running in ipython or a Jupyter notebook, you can continue adding fields as new layers
     # after opening the viewer.
-
-
-if __name__ == "__main__":
-
-    # Read command line arguments for halo, run, snapshot, and system, then find appropriate
-    # file structure for this system
-    args = parse_args()
-    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
-
-    # Run the demo
-    viz_demo(args.output)
