@@ -120,6 +120,7 @@ def parse_args():
                         'force_vs_radius        -  forces (thermal, turb, ram, rotation, gravity, total) over radius\n' + \
                         'force_vs_radius_pres   -  forces (thermal, turb, ram) over radius, calculated from gradient of median pressure\n' + \
                         'force_vs_time          -  forces (thermal, turb, ram, rotation, gravity, total) over time\n' + \
+                        'work_vs_time           -  work done by different forces over time\n' + \
                         'pressure_vs_r_shaded   -  pressure over radius or radial velocity for each cell as a datashader plot\n' + \
                         '       or                 For these options, specify what type of pressure to plot with the --pressure_type keyword\n' + \
                         'pressure_vs_rv_shaded     and what you want to color-code the points by with the --shader_color keyword\n' + \
@@ -1084,11 +1085,12 @@ def forces_vs_radius(snap):
         smooth_vx = gaussian_filter(vx_masked, smooth_scale)
         smooth_vy = gaussian_filter(vy_masked, smooth_scale)
         smooth_vz = gaussian_filter(vz_masked, smooth_scale)
+        smooth_den = gaussian_filter(den_masked, smooth_scale)
         sig_x = (vx_masked - smooth_vx)**2.
         sig_y = (vy_masked - smooth_vy)**2.
         sig_z = (vz_masked - smooth_vz)**2.
         vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
-        turb_pressure = den_masked*vdisp**2.
+        turb_pressure = smooth_den*vdisp**2.
         pres_grad = np.gradient(turb_pressure, dx_cm)
         dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
         turb_force = -1./den_masked * dPdr
@@ -1103,7 +1105,7 @@ def forces_vs_radius(snap):
         vr_masked = gaussian_filter(vr_masked, smooth_scale)
         dvr = np.gradient(vr_masked, dx_cm)
         delta_vr = dvr[0]*dx_cm*x_hat + dvr[1]*dx_cm*y_hat + dvr[2]*dx_cm*z_hat
-        ram_pressure = den_masked*(delta_vr)**2.
+        ram_pressure = smooth_den*(delta_vr)**2.
         pres_grad = np.gradient(ram_pressure, dx_cm)
         dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
         ram_force = -1./den_masked * dPdr
@@ -1125,14 +1127,6 @@ def forces_vs_radius(snap):
         smooth_vphi = gaussian_filter(vphi_masked, smooth_scale)
         rot_force = (smooth_vtheta**2. + smooth_vphi**2.)/r
         grav_force = -G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.
-        if (args.cgm_only):
-            grav_edges = grav_force[disk_edges]
-            grav_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), grav_edges, fill_value=0)
-            grav_masked = np.copy(grav_force)
-            grav_masked[disk_mask] = grav_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
-        else:
-            grav_masked = grav_force
-        grav_force = grav_masked
         tot_force = thermal_force + turb_force + rot_force + ram_force + grav_force
         forces = [thermal_force, turb_force, ram_force, rot_force, grav_force, tot_force]
 
@@ -1828,6 +1822,254 @@ def forces_vs_time(snaplist):
 
             fig_regions[j].subplots_adjust(left=0.14, bottom=0.1, right=0.9, top=0.92)
             fig_regions[j].savefig(save_dir + file_labels[j] + '_vs_time_regions-' + args.region_filter + save_suffix + '.png')
+            plt.close(fig_regions[j])
+
+def work_vs_time(snaplist):
+    '''Plots the work done by different forces in the halo over time. Takes same parameters and
+    set up the same way as forces_vs_time.'''
+
+    tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+    if (args.filename != ''): filename = '_' + args.filename
+    else: filename = ''
+
+    fig = plt.figure(figsize=(8,6), dpi=500)
+    ax = fig.add_subplot(1,1,1)
+
+    plot_colors = ['r', 'g', 'm', 'b', 'gold', 'k']
+    plot_labels = ['Thermal', 'Turbulent', 'Ram', 'Rotation', 'Gravity', 'Total']
+    file_labels = ['thermal_force', 'turbulent_force', 'ram_force', 'rotation_force', 'gravity_force', 'total_force']
+    output_labels = ['thermal', 'turbulent', 'ram', 'rotation', 'gravity', 'total']
+    linestyles = ['-', '--', ':', '-.', '--', '-']
+    alphas = [0.3, 0.6, 1.]
+
+    if (args.time_avg!=0):
+        dt = 5.38*args.output_step
+        avg_window = int(np.ceil(args.time_avg/dt))
+
+    if (args.radius_range!='none'):
+        radius_range = ast.literal_eval(args.radius_range)
+    else:
+        radius_range = [0., 1.]
+
+    zlist = []
+    timelist = []
+    forces_list = []
+    if (args.region_filter!='none'):
+        forces_regions = [[],[],[]]
+        region_label = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, 'High ' + args.region_filter]
+        region_name = ['low-', 'mid-', 'high-']
+    for j in range(len(plot_labels)):
+        forces_list.append([])
+        if (args.region_filter!='none'):
+            forces_regions[0].append([])
+            forces_regions[1].append([])
+            forces_regions[2].append([])
+
+    for i in range(len(snaplist)):
+        snap = snaplist[i]
+        stats = Table.read(tablename_prefix + snap + '_stats_force-types' + filename + '.hdf5', path='all_data')
+        Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+        radius_in = radius_range[0]*Rvir
+        radius_out = radius_range[1]*Rvir
+        rad_in = np.where(stats['inner_radius']<=radius_in)[0][-1]
+        rad_out = np.where(stats['outer_radius']>=radius_out)[0][0]
+        timelist.append(time_table['time'][time_table['snap']==snap][0]/1000.)
+        zlist.append(stats['redshift'][0])
+        for j in range(len(file_labels)):
+            if (args.normalized):
+                forces_list[j].append(np.sum(stats[file_labels[j] + '_sum'][rad_in:rad_out] * \
+                                    (stats['outer_radius'][rad_in:rad_out]-stats['inner_radius'][rad_in:rad_out])*1000*cmtopc/stats[file_labels[j] + '_weight_sum'][rad_in:rad_out]))
+            else:
+                forces_list[j].append(np.sum(stats[file_labels[j] + '_sum'][rad_in:rad_out] * \
+                                    (stats['outer_radius'][rad_in:rad_out]-stats['inner_radius'][rad_in:rad_out])*1000*cmtopc))
+            if (args.region_filter!='none'):
+                if (args.normalized):
+                    forces_regions[0][j].append(np.sum(stats['low_' + args.region_filter + '_' + file_labels[j] + '_sum'][rad_in:rad_out] * \
+                                                (stats['outer_radius'][rad_in:rad_out]-stats['inner_radius'][rad_in:rad_out])*1000*cmtopc/stats[file_labels[j] + '_weight_sum'][rad_in:rad_out]))
+                    forces_regions[1][j].append(np.sum(stats['mid_' + args.region_filter + '_' + file_labels[j] + '_sum'][rad_in:rad_out] * \
+                                                (stats['outer_radius'][rad_in:rad_out]-stats['inner_radius'][rad_in:rad_out])*1000*cmtopc/stats[file_labels[j] + '_weight_sum'][rad_in:rad_out]))
+                    forces_regions[2][j].append(np.sum(stats['high_' + args.region_filter + '_' + file_labels[j] + '_sum'][rad_in:rad_out] * \
+                                                (stats['outer_radius'][rad_in:rad_out]-stats['inner_radius'][rad_in:rad_out])*1000*cmtopc/stats[file_labels[j] + '_weight_sum'][rad_in:rad_out]))
+                else:
+                    forces_regions[0][j].append(np.sum(stats['low_' + args.region_filter + '_' + file_labels[j] + '_sum'][rad_in:rad_out] * \
+                                                (stats['outer_radius'][rad_in:rad_out]-stats['inner_radius'][rad_in:rad_out])*1000*cmtopc))
+                    forces_regions[1][j].append(np.sum(stats['mid_' + args.region_filter + '_' + file_labels[j] + '_sum'][rad_in:rad_out] * \
+                                                (stats['outer_radius'][rad_in:rad_out]-stats['inner_radius'][rad_in:rad_out])*1000*cmtopc))
+                    forces_regions[2][j].append(np.sum(stats['high_' + args.region_filter + '_' + file_labels[j] + '_sum'][rad_in:rad_out] * \
+                                                (stats['outer_radius'][rad_in:rad_out]-stats['inner_radius'][rad_in:rad_out])*1000*cmtopc))
+
+    if (args.time_avg!=0):
+        forces_list_avgd = []
+        if (args.region_filter!='none'):
+            forces_regions_avgd = [[], [], []]
+        for j in range(len(plot_labels)):
+            forces_list_avgd.append(uniform_filter1d(forces_list[j], size=avg_window))
+            if (args.region_filter!='none'):
+                for k in range(3):
+                    forces_regions_avgd[k].append(uniform_filter1d(forces_regions[k][j], size=avg_window))
+        forces_list = forces_list_avgd
+        if (args.region_filter!='none'):
+            forces_regions = forces_regions_avgd
+
+    zlist.reverse()
+    timelist.reverse()
+    time_func = IUS(zlist, timelist)
+    timelist.reverse()
+    timelist = np.array(timelist).flatten()
+    zlist = np.array(zlist)
+
+    fig = plt.figure(figsize=(8,6), dpi=500)
+    ax = fig.add_subplot(1,1,1)
+
+    for j in range(len(plot_labels)):
+        ax.plot(timelist, forces_list[j], lw=2, ls=linestyles[j], color=plot_colors[j], label=plot_labels[j])
+
+    if (args.normalized):
+        ax.axis([np.min(timelist), np.max(timelist), -1e16,1e16])
+        ax.set_yscale('symlog', linthresh=1e14)
+        ax.set_ylabel('Work done per mass [ergs/g]', fontsize=14)
+    else:
+        ax.axis([np.min(timelist), np.max(timelist), -1e59,1e59])
+        ax.set_yscale('symlog', linthresh=1e56)
+        ax.set_ylabel('Work done per mass [ergs/g]', fontsize=14)
+    #ax.text(4,2e4, halo_dict[args.halo], ha='left', va='center', fontsize=14)
+    #ax.text(13,-5e3, '$r=%.2f-%.2f R_{200}$' % (radius_range[0], radius_range[1]), ha='right', va='center', fontsize=14)
+    ax.legend(loc=1, frameon=False, fontsize=14, ncol=2)
+
+    ax2 = ax.twiny()
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+      top=False, right=True)
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+      top=True)
+    x0, x1 = ax.get_xlim()
+    z_ticks = [2,1.5,1,.75,.5,.3,.2,.1,0]
+    last_z = np.where(z_ticks >= zlist[0])[0][-1]
+    first_z = np.where(z_ticks <= zlist[-1])[0][0]
+    z_ticks = z_ticks[first_z:last_z+1]
+    tick_pos = [z for z in time_func(z_ticks)]
+    tick_labels = ['%.2f' % (z) for z in z_ticks]
+    ax2.set_xlim(x0,x1)
+    ax2.set_xticks(tick_pos)
+    ax2.set_xticklabels(tick_labels)
+    ax2.set_xlabel('Redshift', fontsize=14)
+    ax.set_xlabel('Time [Gyr]', fontsize=14)
+
+    z_sfr, sfr = np.loadtxt(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', unpack=True, usecols=[1,2], skiprows=1)
+    t_sfr = time_func(z_sfr)
+
+    ax3 = ax.twinx()
+    ax3.plot(t_sfr, sfr, 'k-', lw=1)
+    ax.plot([timelist[0],timelist[-1]], [0,0], 'k-', lw=1, label='SFR (right axis)')
+    ax3.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, right=True)
+    ax3.set_ylim(-5,200)
+    ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=14)
+
+    fig.subplots_adjust(left=0.14, bottom=0.1, right=0.9, top=0.92)
+    fig.savefig(save_dir + 'work-done_vs_time' + save_suffix + '.png')
+    plt.close(fig)
+
+    if (args.region_filter!='none'):
+        fig_regions = []
+        axs_regions = []
+        for i in range(len(plot_colors)):
+            fig_regions.append(plt.figure(figsize=(8,6), dpi=500))
+            axs_regions.append(fig_regions[-1].add_subplot(1,1,1))
+        for i in range(3):
+            fig = plt.figure(figsize=(8,6), dpi=500)
+            ax = fig.add_subplot(1,1,1)
+
+            for j in range(len(plot_labels)):
+                axs_regions[j].plot(timelist, forces_regions[i][j], lw=2, ls=linestyles[j], color=plot_colors[j], alpha=alphas[i], label=region_label[i])
+                ax.plot(timelist, forces_regions[i][j], lw=2, ls=linestyles[j], color=plot_colors[j], label=plot_labels[j])
+
+            if (args.normalized):
+                ax.axis([np.min(timelist), np.max(timelist), -1e16,1e16])
+                ax.set_yscale('symlog', linthresh=1e14)
+                ax.set_ylabel('Work done per mass [ergs/g]', fontsize=14)
+            else:
+                ax.axis([np.min(timelist), np.max(timelist), -1e59,1e59])
+                ax.set_yscale('symlog', linthresh=1e56)
+                ax.set_ylabel('Work done [ergs]', fontsize=14)
+            #ax.text(13,-5e3, '$r=%.2f-%.2f R_{200}$' % (radius_range[0], radius_range[1]), ha='right', va='center', fontsize=14)
+            #ax.text(4,2e4, region_label[i], fontsize=14, ha='left', va='center')
+
+            ax.legend(loc=1, frameon=False, fontsize=14, ncol=2)
+            ax2 = ax.twiny()
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+              top=False, right=True)
+            ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+              top=True)
+            x0, x1 = ax.get_xlim()
+            z_ticks = [2,1.5,1,.75,.5,.3,.2,.1,0]
+            last_z = np.where(z_ticks >= zlist[0])[0][-1]
+            first_z = np.where(z_ticks <= zlist[-1])[0][0]
+            z_ticks = z_ticks[first_z:last_z+1]
+            tick_pos = [z for z in time_func(z_ticks)]
+            tick_labels = ['%.2f' % (z) for z in z_ticks]
+            ax2.set_xlim(x0,x1)
+            ax2.set_xticks(tick_pos)
+            ax2.set_xticklabels(tick_labels)
+            ax2.set_xlabel('Redshift', fontsize=14)
+            ax.set_xlabel('Time [Gyr]', fontsize=14)
+
+            z_sfr, sfr = np.loadtxt(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', unpack=True, usecols=[1,2], skiprows=1)
+            t_sfr = time_func(z_sfr)
+
+            ax3 = ax.twinx()
+            ax3.plot(t_sfr, sfr, 'k-', lw=1)
+            ax.plot([timelist[0],timelist[-1]], [0,0], 'k-', lw=1, label='SFR (right axis)')
+            ax3.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, right=True)
+            ax3.set_ylim(-5,200)
+            ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=14)
+
+            fig.subplots_adjust(left=0.14, bottom=0.1, right=0.9, top=0.92)
+            fig.savefig(save_dir + 'work-done_vs_time_region-' + region_name[i] + args.region_filter + save_suffix + '.png')
+            plt.close(fig)
+
+        for j in range(len(plot_labels)):
+            if (args.normalized):
+                axs_regions[j].axis([np.min(timelist), np.max(timelist), -1e16,1e16])
+                axs_regions[j].set_yscale('symlog', linthresh=1e14)
+                axs_regions[j].set_ylabel('Work done per mass [ergs/g]', fontsize=14)
+            else:
+                axs_regions[j].axis([np.min(timelist), np.max(timelist), -1e59,1e59])
+                axs_regions[j].set_yscale('symlog', linthresh=1e56)
+                axs_regions[j].set_ylabel('Work done [ergs]', fontsize=14)
+            #axs_regions[j].text(13,-5e3, '$r=%.2f-%.2f R_{200}$' % (radius_range[0], radius_range[1]), ha='right', va='center', fontsize=14)
+            #axs_regions[j].text(4,2e4, plot_labels[j] + ' Force', fontsize=14, ha='left', va='center')
+
+            axs_regions[j].legend(loc=1, frameon=False, fontsize=14)
+            ax2 = axs_regions[j].twiny()
+            axs_regions[j].tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+              top=False, right=True)
+            ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+              top=True)
+            x0, x1 = axs_regions[j].get_xlim()
+            z_ticks = [2,1.5,1,.75,.5,.3,.2,.1,0]
+            last_z = np.where(z_ticks >= zlist[0])[0][-1]
+            first_z = np.where(z_ticks <= zlist[-1])[0][0]
+            z_ticks = z_ticks[first_z:last_z+1]
+            tick_pos = [z for z in time_func(z_ticks)]
+            tick_labels = ['%.2f' % (z) for z in z_ticks]
+            ax2.set_xlim(x0,x1)
+            ax2.set_xticks(tick_pos)
+            ax2.set_xticklabels(tick_labels)
+            ax2.set_xlabel('Redshift', fontsize=14)
+            axs_regions[j].set_xlabel('Time [Gyr]', fontsize=14)
+
+            z_sfr, sfr = np.loadtxt(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', unpack=True, usecols=[1,2], skiprows=1)
+            t_sfr = time_func(z_sfr)
+
+            ax3 = axs_regions[j].twinx()
+            ax3.plot(t_sfr, sfr, 'k-', lw=1)
+            axs_regions[j].plot([timelist[0],timelist[-1]], [0,0], 'k-', lw=1, label='SFR (right axis)')
+            ax3.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, right=True)
+            ax3.set_ylim(-5,200)
+            ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=14)
+
+            fig_regions[j].subplots_adjust(left=0.14, bottom=0.1, right=0.9, top=0.92)
+            fig_regions[j].savefig(save_dir + output_labels[j] + '_work-done_vs_time_regions-' + args.region_filter + save_suffix + '.png')
             plt.close(fig_regions[j])
 
 def force_rays(snap):
@@ -3082,6 +3324,7 @@ def force_slice(snap):
     den_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), den_edges, fill_value=1e-33)
     den_masked = np.copy(density)
     den_masked[disk_mask] = den_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    smooth_den = gaussian_filter(den_masked, smooth_scale)
 
     for i in range(len(ftypes)):
         if (ftypes[i]=='thermal') or ((ftypes[i]=='total') and (args.force_type!='all')):
@@ -3126,7 +3369,7 @@ def force_slice(snap):
             sig_y = (vy - smooth_vy)**2.
             sig_z = (vz - smooth_vz)**2.
             vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
-            turb_pressure = den_masked*vdisp**2.
+            turb_pressure = smooth_den*vdisp**2.
             pres_grad = np.gradient(turb_pressure, dx_cm)
             dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
             turb_force = -1./den_masked * dPdr
@@ -3145,7 +3388,7 @@ def force_slice(snap):
             dvr = np.gradient(vr_masked, dx_cm)
             delta_vr = dvr[0]*dx_cm*x_hat + dvr[1]*dx_cm*y_hat + dvr[2]*dx_cm*z_hat
             smooth_delta_vr = gaussian_filter(delta_vr, smooth_scale)
-            ram_pressure = density*(smooth_delta_vr)**2.
+            ram_pressure = smooth_den*(smooth_delta_vr)**2.
             pres_grad = np.gradient(ram_pressure, dx_cm)
             dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
             ram_force = -1./den_masked * dPdr
@@ -3174,14 +3417,6 @@ def force_slice(snap):
                 force_label = 'Rotation'
         if (ftypes[i]=='gravity') or ((ftypes[i]=='total') and (args.force_type!='all')):
             grav_force = -G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.
-            # Cut to only those values closest to removed ISM regions
-            grav_edges = grav_force[disk_edges]
-            # Interpolate across removed ISM regions
-            grav_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), grav_edges, fill_value=0)
-            grav_masked = np.copy(grav_force)
-            # Replace removed ISM regions with interpolated values
-            grav_masked[disk_mask] = grav_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
-            grav_force = grav_masked
             if (ftypes[i]=='gravity'):
                 force = grav_force
                 force_label = 'Gravity'
@@ -3747,17 +3982,23 @@ def turbulence_compare(snap):
         vx_masked[disk_mask] = vx_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         vy_masked[disk_mask] = vy_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         vz_masked[disk_mask] = vz_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+        density_edges = density[disk_edges]
+        density_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), density_edges, fill_value=np.min(density))
+        density_masked = np.copy(density)
+        density_masked[disk_mask] = density_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
     else:
         vx_masked = vx
         vy_masked = vy
         vz_masked = vz
+        density_masked = density
     smooth_vx = gaussian_filter(vx_masked, smooth_scale)
     smooth_vy = gaussian_filter(vy_masked, smooth_scale)
     smooth_vz = gaussian_filter(vz_masked, smooth_scale)
+    smooth_den = gaussian_filter(density_masked, smooth_scale)
     sig_x = (vx_masked - smooth_vx)**2.
     sig_y = (vy_masked - smooth_vy)**2.
     sig_z = (vz_masked - smooth_vz)**2.
-    turb_pressure = density*(sig_x + sig_y + sig_z)/3.
+    turb_pressure = smooth_den*(sig_x + sig_y + sig_z)/3.
     if (args.cgm_only):
         sig_x = sig_x[(density < cgm_density_max/20.)]
         sig_y = sig_y[(density < cgm_density_max/20.)]
@@ -3767,7 +4008,7 @@ def turbulence_compare(snap):
         cs = cs[(density < cgm_density_max/20.)]
         thermal = thermal[(density < cgm_density_max/20.)]
         turb_pressure = turb_pressure[(density < cgm_density_max/20.)]
-        rv = rv[(density < cgm_density_max/20.)]
+        #rv = rv[(density < cgm_density_max/20.)]
         vx = vx[(density < cgm_density_max/20.)]
         vy = vy[(density < cgm_density_max/20.)]
         vz = vz[(density < cgm_density_max/20.)]
@@ -3832,7 +4073,7 @@ def turbulence_compare(snap):
             vz_avg, vz_disp = weighted_avg_and_std(vz_shell, weights_shell)
             v_avg = np.sqrt((vx_avg**2. + vy_avg**2. + vz_avg**2.))
             vdisp = np.sqrt((vx_disp**2. + vy_disp**2. + vz_disp**2.)/3.)
-            turb_pressure_shells.append(density_shell*vdisp**2.)
+            turb_pressure_shells.append(density_avg*vdisp**2.)
             avg_v_shells.append(v_avg)
         else:
             turb_pressure_shells.append(0.)
@@ -3893,17 +4134,20 @@ def turbulence_visualization(snap):
     lvl1_res = pix_res*2.**11.
     level = 9
     dx = lvl1_res/(2.**level)
-    smooth_scale = (25./dx)/6.
+    smooth_scale= (25./dx)/6.
     dx_cm = dx*1000*cmtopc
     refine_res = int(3.*Rvir/dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     print('Loading arrays in grid', str(datetime.datetime.now()))
     density = box['density'].in_units('g/cm**3').v
-    temperature = box['temperature'].v
     thermal = box['pressure'].in_units('erg/cm**3').v
     x = box[('gas','x')].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
     y = box[('gas','y')].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
     z = box[('gas','z')].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
+    r = box['radius_corrected'].in_units('cm').v
+    x_hat = x/r
+    y_hat = y/r
+    z_hat = z/r
 
     # This next block needed for removing any ISM regions and then interpolating over the holes left behind
     # Define ISM regions to remove
@@ -3954,34 +4198,55 @@ def turbulence_visualization(snap):
     vz_masked[disk_mask] = vz_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
     density_masked[disk_mask] = density_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
     thermal_masked[disk_mask] = thermal_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    pres_grad = np.gradient(thermal_masked, dx_cm)
+    dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+    thermal_force = -1./density_masked * dPdr
+    thermal_pos = thermal_force[thermal_force > 0.]
+    thermal_pos = np.log10(thermal_pos) + 9
+    thermal_pos[thermal_pos < 0.] = 0.
+    thermal_neg = thermal_force[thermal_force < 0.]
+    thermal_neg = np.log10(-thermal_neg) + 9
+    thermal_neg[thermal_neg < 0.] = 0.
+    thermal_neg = -thermal_neg
+    thermal_force[thermal_force > 0.] = thermal_pos
+    thermal_force[thermal_force < 0.] = thermal_neg
 
-    print('Smoothing velocity fields', str(datetime.datetime.now()))
+    print('Smoothing fields', str(datetime.datetime.now()))
     smooth_vx = gaussian_filter(vx_masked, smooth_scale)
     smooth_vy = gaussian_filter(vy_masked, smooth_scale)
     smooth_vz = gaussian_filter(vz_masked, smooth_scale)
+    smooth_den = gaussian_filter(density_masked, smooth_scale)
     print('Calculating velocity dispersions', str(datetime.datetime.now()))
     sig_x_masked = (vx_masked - smooth_vx)**2.
     sig_y_masked = (vy_masked - smooth_vy)**2.
     sig_z_masked = (vz_masked - smooth_vz)**2.
     vdisp_masked = np.sqrt((sig_x_masked + sig_y_masked + sig_z_masked)/3.)
-    turb_pressure_masked = density_masked*vdisp_masked**2.
+    turb_pressure_masked = smooth_den*vdisp_masked**2.
+    pres_grad = np.gradient(turb_pressure_masked, dx_cm)
+    dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
+    turb_force = -1./density_masked * dPdr
+    turb_pos = turb_force[turb_force > 0.]
+    turb_pos = np.log10(turb_pos) + 9
+    turb_pos[turb_pos < 0.] = 0.
+    turb_neg = turb_force[turb_force < 0.]
+    turb_neg = np.log10(-turb_neg) + 9
+    turb_neg[turb_neg < 0.] = 0.
+    turb_neg = -turb_neg
+    turb_force[turb_force > 0.] = turb_pos
+    turb_force[turb_force < 0.] = turb_neg
 
-    sig_x = (vx - smooth_vx)**2.
-    sig_y = (vy - smooth_vy)**2.
-    sig_z = (vz - smooth_vz)**2.
-    vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
-    turb_pressure = density*vdisp**2.
+    from vispy.color.colormap import MatplotlibColormap
+    force_cmap = MatplotlibColormap('BrBG')
 
     import napari
     print('Starting up viewer', str(datetime.datetime.now()))
     #viewer = napari.view_image(vdisp/1e5, name='velocity dispersion', colormap='viridis', contrast_limits=[0,400])
-    #masked_vdisp = viewer.add_image(vdisp_masked/1e5, name='masked velocity dispersion', colormap='viridis', contrast_limits=[0,400])
-    #turb_pressure_layer = viewer.add_image(np.log10(turb_pressure), name='turbulent pressure', colormap='magma', contrast_limits=[-18,-10])
-    #turb_pressure_masked_layer = viewer.add_image(np.log10(turb_pressure_masked), name='masked turbulent pressure', colormap='magma', contrast_limits=[-18,-10])
+    viewer = napari.view_image(thermal_force, name='thermal force', colormap=force_cmap, contrast_limits=[-5,5])
+    turb_force_layer = viewer.add_image(turb_force, name='turbulent force', colormap=force_cmap, contrast_limits=[-5,5])
     #thermal_pressure_layer = viewer.add_image(np.log10(thermal), name='thermal pressure', colormap='magma', contrast_limits=[-18,-10])
     #thermal_pressure_masked_layer = viewer.add_image(np.log10(thermal_masked), name='masked thermal pressure', colormap='magma', contrast_limits=[-18,-10])
-    viewer = napari.view_image(np.log10(density), name='density', colormap='viridis', contrast_limits=[-30,-20])
-    density_masked_layer = viewer.add_image(np.log10(density_masked), name='masked density', colormap='viridis', contrast_limits=[-30,-20])
+    #viewer = napari.view_image(np.log10(density), name='density', colormap='viridis', contrast_limits=[-30,-20])
+    #density_masked_layer = viewer.add_image(np.log10(smooth_den), name='masked and smoothed density', colormap='viridis', contrast_limits=[-30,-20])
     napari.run()
 
 
@@ -4045,6 +4310,8 @@ if __name__ == "__main__":
             target = forces_vs_radius_from_med_pressures
     elif (args.plot=='force_vs_time'):
         forces_vs_time(outs)
+    elif (args.plot=='work_vs_time'):
+        work_vs_time(outs)
     elif (args.plot=='support_vs_radius'):
         if (args.nproc==1):
             for i in range(len(outs)):
