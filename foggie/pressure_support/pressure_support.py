@@ -42,6 +42,7 @@ from scipy.ndimage import rotate
 from scipy.ndimage import uniform_filter1d
 import scipy.ndimage as ndimage
 from scipy.interpolate import LinearNDInterpolator
+from scipy.interpolate import NearestNDInterpolator
 from astropy.convolution import Gaussian1DKernel
 from astropy.convolution import Gaussian2DKernel
 from astropy.convolution import CustomKernel
@@ -226,6 +227,11 @@ def parse_args():
                         help='If plotting forces vs radius or time, do you want to normalize the forces\n' + \
                         'by mass (i.e., plot accelerations)? Default is not to do this.')
     parser.set_defaults(normalized=False)
+
+    parser.add_argument('--smoothed', dest='smoothed', action='store_true', \
+                        help='If plotting force slices, do you want to smooth the force field?\n' + \
+                        'Default is not to do this.')
+    parser.set_defaults(smoothed=False)
 
     parser.add_argument('--copy_to_tmp', dest='copy_to_tmp', action='store_true', \
                         help='If running on pleiades, do you want to copy simulation outputs too the\n' + \
@@ -1010,6 +1016,16 @@ def forces_vs_radius(snap):
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
+        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+        # with it being 1 at higher redshifts and 0.1 at lower redshifts
+        current_time = ds.current_time.in_units('Myr').v
+        if (current_time<=8656.88):
+            density_cut_factor = 1.
+        elif (current_time<=10787.12):
+            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+        else:
+            density_cut_factor = 0.1
+
         pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))  # at level 11
         lvl1_res = pix_res*2.**11.
         level = 9
@@ -1032,7 +1048,7 @@ def forces_vs_radius(snap):
         # This next block needed for removing any ISM regions and then interpolating over the holes left behind
         if (args.cgm_only):
             # Define ISM regions to remove
-            disk_mask = (density > cgm_density_max/20.)
+            disk_mask = (density > cgm_density_max * density_cut_factor)
             # disk_mask_expanded is a binary mask of both ISM regions AND their surrounding pixels
             struct = ndimage.generate_binary_structure(3,3)
             disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
@@ -1045,7 +1061,7 @@ def forces_vs_radius(snap):
             z_edges = z[disk_edges].flatten()
 
             den_edges = density[disk_edges]
-            den_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), den_edges, fill_value=1e-33)
+            den_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), den_edges)
             den_masked = np.copy(density)
             den_masked[disk_mask] = den_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         else:
@@ -1054,7 +1070,7 @@ def forces_vs_radius(snap):
         thermal_pressure = box['pressure'].in_units('erg/cm**3').v
         if (args.cgm_only):
             pres_edges = thermal_pressure[disk_edges]
-            pres_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges, fill_value=1e-16)
+            pres_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges)
             pres_masked = np.copy(thermal_pressure)
             pres_masked[disk_mask] = pres_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         else:
@@ -1069,9 +1085,9 @@ def forces_vs_radius(snap):
             vx_edges = vx[disk_edges]
             vy_edges = vy[disk_edges]
             vz_edges = vz[disk_edges]
-            vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges, fill_value=0)
-            vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges, fill_value=0)
-            vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges, fill_value=0)
+            vx_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges)
+            vy_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges)
+            vz_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges)
             vx_masked = np.copy(vx)
             vy_masked = np.copy(vy)
             vz_masked = np.copy(vz)
@@ -1097,7 +1113,7 @@ def forces_vs_radius(snap):
         vr = box['radial_velocity_corrected'].in_units('cm/s').v
         if (args.cgm_only):
             vr_edges = vr[disk_edges]
-            vr_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges, fill_value=0)
+            vr_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges)
             vr_masked = np.copy(vr)
             vr_masked[disk_mask] = vr_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         else:
@@ -1114,9 +1130,9 @@ def forces_vs_radius(snap):
         if (args.cgm_only):
             vtheta_edges = vtheta[disk_edges]
             vphi_edges = vphi[disk_edges]
-            vtheta_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges, fill_value=0)
+            vtheta_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges)
             vtheta_masked = np.copy(vtheta)
-            vphi_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges, fill_value=0)
+            vphi_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges)
             vphi_masked = np.copy(vphi)
             vtheta_masked[disk_mask] = vtheta_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
             vphi_masked[disk_mask] = vphi_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -1136,29 +1152,29 @@ def forces_vs_radius(snap):
         for i in range(len(forces)):
             forces[i] = forces[i].flatten()
 
-        if (args.cgm_only): radius = radius[(density < cgm_density_max/20.)]
+        if (args.cgm_only): radius = radius[(density < cgm_density_max * density_cut_factor)]
         if (args.weight=='mass'):
             weights = box['cell_mass'].in_units('g').v.flatten()
         if (args.weight=='volume'):
             weights = box['cell_volume'].in_units('kpc**3').v.flatten()
-        if (args.cgm_only): weights = weights[(density < cgm_density_max/20.)]
+        if (args.cgm_only): weights = weights[(density < cgm_density_max * density_cut_factor)]
         if (args.region_filter=='metallicity'):
             metallicity = box['metallicity'].in_units('Zsun').v.flatten()
-            if (args.cgm_only): metallicity = metallicity[(density < cgm_density_max/20.)]
+            if (args.cgm_only): metallicity = metallicity[(density < cgm_density_max * density_cut_factor)]
         if (args.region_filter=='velocity'):
             rv = box['radial_velocity_corrected'].in_units('km/s').v.flatten()
             vff = box['vff'].in_units('km/s').v.flatten()
             vesc = box['vesc'].in_units('km/s').v.flatten()
             if (args.cgm_only):
-                rv = rv[(density < cgm_density_max/20.)]
-                vff = vff[(density < cgm_density_max/20.)]
-                vesc = vesc[(density < cgm_density_max/20.)]
+                rv = rv[(density < cgm_density_max * density_cut_factor)]
+                vff = vff[(density < cgm_density_max * density_cut_factor)]
+                vesc = vesc[(density < cgm_density_max * density_cut_factor)]
 
         if (args.cgm_only):
             for i in range(len(forces)):
-                forces[i] = forces[i][(density < cgm_density_max/20.)]
-            new_density = density[(density < cgm_density_max/20.)]
-            new_temp = temperature[(density < cgm_density_max/20.)]
+                forces[i] = forces[i][(density < cgm_density_max * density_cut_factor)]
+            new_density = density[(density < cgm_density_max * density_cut_factor)]
+            new_temp = temperature[(density < cgm_density_max * density_cut_factor)]
             density = new_density
             temperature = new_temp
 
@@ -3280,6 +3296,16 @@ def force_slice(snap):
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
 
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
+
     if (args.force_type=='all'):
         ftypes = ['thermal', 'turbulent', 'ram', 'rotation', 'gravity', 'total']
     elif (',' in args.force_type):
@@ -3292,6 +3318,11 @@ def force_slice(snap):
     level = 9
     dx = lvl1_res/(2.**level)
     smooth_scale = (25./dx)/6.
+    smooth_scale1 = (5./dx)/6.
+    smooth_scale2 = (15./dx)/6.
+    smooth_scale3 = (50./dx)/6.
+    smooth_scale4 = (100./dx)/6.
+    smooth_scale5 = (200./dx)/6.
     dx_cm = dx*1000*cmtopc
     refine_res = int(3.*Rvir/dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
@@ -3308,7 +3339,7 @@ def force_slice(snap):
 
     # This next block needed for removing any ISM regions and then interpolating over the holes left behind
     # Define ISM regions to remove
-    disk_mask = (density > cgm_density_max/20.)
+    disk_mask = (density > cgm_density_max * density_cut_factor)
     # disk_mask_expanded is a binary mask of both ISM regions AND their surrounding pixels
     struct = ndimage.generate_binary_structure(3,3)
     disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
@@ -3321,7 +3352,7 @@ def force_slice(snap):
     z_edges = z[disk_edges].flatten()
 
     den_edges = density[disk_edges]
-    den_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), den_edges, fill_value=1e-33)
+    den_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), den_edges)
     den_masked = np.copy(density)
     den_masked[disk_mask] = den_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
     smooth_den = gaussian_filter(den_masked, smooth_scale)
@@ -3332,7 +3363,7 @@ def force_slice(snap):
             # Cut to only those values closest to removed ISM regions
             pres_edges = thermal_pressure[disk_edges]
             # Interpolate across removed ISM regions
-            pres_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges, fill_value=1e-16)
+            pres_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), pres_edges)
             pres_masked = np.copy(thermal_pressure)
             # Replace removed ISM regions with interpolated values
             pres_masked[disk_mask] = pres_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -3340,7 +3371,10 @@ def force_slice(snap):
             dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
             thermal_force = -1./den_masked * dPdr
             if (ftypes[i]=='thermal'):
-                force = thermal_force
+                if (args.smoothed):
+                    force = gaussian_filter(thermal_force, smooth_scale5)
+                else:
+                    force = thermal_force
                 force_label = 'Thermal Pressure'
         if (ftypes[i]=='turbulent') or ((ftypes[i]=='total') and (args.force_type!='all')):
             vx = box['vx_corrected'].in_units('cm/s').v
@@ -3351,9 +3385,9 @@ def force_slice(snap):
             vy_edges = vy[disk_edges]
             vz_edges = vz[disk_edges]
             # Interpolate across removed ISM regions
-            vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges, fill_value=0)
-            vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges, fill_value=0)
-            vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges, fill_value=0)
+            vx_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges)
+            vy_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges)
+            vz_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges)
             vx_masked = np.copy(vx)
             vy_masked = np.copy(vy)
             vz_masked = np.copy(vz)
@@ -3374,14 +3408,17 @@ def force_slice(snap):
             dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
             turb_force = -1./den_masked * dPdr
             if (ftypes[i]=='turbulent'):
-                force = turb_force
+                if (args.smoothed):
+                    force = gaussian_filter(turb_force, smooth_scale5)
+                else:
+                    force = turb_force
                 force_label = 'Turbulent Pressure'
         if (ftypes[i]=='ram') or ((ftypes[i]=='total') and (args.force_type!='all')):
             vr = box['radial_velocity_corrected'].in_units('cm/s').v
             # Cut to only those values closest to removed ISM regions
             vr_edges = vr[disk_edges]
             # Interpolate across removed ISM regions
-            vr_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges, fill_value=0)
+            vr_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges)
             vr_masked = np.copy(vr)
             # Replace removed ISM regions with interpolated values
             vr_masked[disk_mask] = vr_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -3393,7 +3430,10 @@ def force_slice(snap):
             dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
             ram_force = -1./den_masked * dPdr
             if (ftypes[i]=='ram'):
-                force = ram_force
+                if (args.smoothed):
+                    force = gaussian_filter(ram_force, smooth_scale5)
+                else:
+                    force = ram_force
                 force_label = 'Ram Pressure'
         if (ftypes[i]=='rotation') or ((ftypes[i]=='total') and (args.force_type!='all')):
             vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
@@ -3402,9 +3442,9 @@ def force_slice(snap):
             vtheta_edges = vtheta[disk_edges]
             vphi_edges = vphi[disk_edges]
             # Interpolate across removed ISM regions
-            vtheta_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges, fill_value=0)
+            vtheta_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges)
             vtheta_masked = np.copy(vtheta)
-            vphi_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges, fill_value=0)
+            vphi_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges)
             vphi_masked = np.copy(vphi)
             # Replace removed ISM regions with interpolated values
             vtheta_masked[disk_mask] = vtheta_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -3413,19 +3453,28 @@ def force_slice(snap):
             smooth_vphi = gaussian_filter(vphi_masked, smooth_scale)
             rot_force = (smooth_vtheta**2. + smooth_vphi**2.)/r
             if (ftypes[i]=='rotation'):
-                force = rot_force
+                if (args.smoothed):
+                    force = gaussian_filter(rot_force, smooth_scale5)
+                else:
+                    force = rot_force
                 force_label = 'Rotation'
         if (ftypes[i]=='gravity') or ((ftypes[i]=='total') and (args.force_type!='all')):
             grav_force = -G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.
             if (ftypes[i]=='gravity'):
-                force = grav_force
+                if (args.smoothed):
+                    force = gaussian_filter(grav_force, smooth_scale5)
+                else:
+                    force = grav_force
                 force_label = 'Gravity'
         if (ftypes[i]=='total'):
             tot_force = thermal_force + turb_force + rot_force + ram_force + grav_force
-            force = tot_force
+            if (args.smoothed):
+                force = gaussian_filter(tot_force, smooth_scale5)
+            else:
+                force = tot_force
             force_label = 'Total'
 
-        force = np.ma.masked_where((density > cgm_density_max/20.), force)
+        force = np.ma.masked_where((density > cgm_density_max * density_cut_factor), force)
         fig = plt.figure(figsize=(12,10),dpi=500)
         ax = fig.add_subplot(1,1,1)
         f_cmap = copy.copy(mpl.cm.get_cmap('BrBG'))
@@ -4128,6 +4177,16 @@ def turbulence_visualization(snap):
     Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
+    print(current_time, density_cut_factor)
 
     print('Making covering grid', str(datetime.datetime.now()))
     pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))  # at level 11
@@ -4152,7 +4211,7 @@ def turbulence_visualization(snap):
     # This next block needed for removing any ISM regions and then interpolating over the holes left behind
     # Define ISM regions to remove
     print('Making mask', str(datetime.datetime.now()))
-    disk_mask = (density > cgm_density_max/20.)
+    disk_mask = (density > density_cut_factor * cgm_density_max)
     # disk_mask_expanded is a binary mask of both ISM regions AND their surrounding pixels
     print('Generating binary structure', str(datetime.datetime.now()))
     struct = ndimage.generate_binary_structure(3,3)
@@ -4170,34 +4229,34 @@ def turbulence_visualization(snap):
     y_edges = y[disk_edges].flatten()
     z_edges = z[disk_edges].flatten()
 
-    print('Loading vx,vy,vz arrays', str(datetime.datetime.now()))
+    '''print('Loading vx,vy,vz arrays', str(datetime.datetime.now()))
     vx = box['vx_corrected'].in_units('cm/s').v
     vy = box['vy_corrected'].in_units('cm/s').v
     vz = box['vz_corrected'].in_units('cm/s').v
     print('Cutting to edges', str(datetime.datetime.now()))
     vx_edges = vx[disk_edges]
     vy_edges = vy[disk_edges]
-    vz_edges = vz[disk_edges]
+    vz_edges = vz[disk_edges]'''
     density_edges = density[disk_edges]
-    thermal_edges = thermal[disk_edges]
+    #thermal_edges = thermal[disk_edges]
     print('Making interpolators', str(datetime.datetime.now()))
-    vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges, fill_value=0)
+    '''vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges, fill_value=0)
     vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges, fill_value=0)
-    vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges, fill_value=0)
-    density_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), density_edges, fill_value=np.min(density))
-    thermal_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), thermal_edges, fill_value=np.min(thermal))
+    vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges, fill_value=0)'''
+    density_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), density_edges)
+    #thermal_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), thermal_edges, fill_value=np.min(thermal))
     print('Copying arrays', str(datetime.datetime.now()))
-    vx_masked = np.copy(vx)
+    '''vx_masked = np.copy(vx)
     vy_masked = np.copy(vy)
-    vz_masked = np.copy(vz)
+    vz_masked = np.copy(vz)'''
     density_masked = np.copy(density)
-    thermal_masked = np.copy(thermal)
+    #thermal_masked = np.copy(thermal)
     print('Using interpolator to fill in holes', str(datetime.datetime.now()))
-    vx_masked[disk_mask] = vx_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    '''vx_masked[disk_mask] = vx_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
     vy_masked[disk_mask] = vy_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
-    vz_masked[disk_mask] = vz_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    vz_masked[disk_mask] = vz_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])'''
     density_masked[disk_mask] = density_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
-    thermal_masked[disk_mask] = thermal_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    '''thermal_masked[disk_mask] = thermal_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
     pres_grad = np.gradient(thermal_masked, dx_cm)
     dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
     thermal_force = -1./density_masked * dPdr
@@ -4209,14 +4268,14 @@ def turbulence_visualization(snap):
     thermal_neg[thermal_neg < 0.] = 0.
     thermal_neg = -thermal_neg
     thermal_force[thermal_force > 0.] = thermal_pos
-    thermal_force[thermal_force < 0.] = thermal_neg
+    thermal_force[thermal_force < 0.] = thermal_neg'''
 
     print('Smoothing fields', str(datetime.datetime.now()))
-    smooth_vx = gaussian_filter(vx_masked, smooth_scale)
+    '''smooth_vx = gaussian_filter(vx_masked, smooth_scale)
     smooth_vy = gaussian_filter(vy_masked, smooth_scale)
-    smooth_vz = gaussian_filter(vz_masked, smooth_scale)
+    smooth_vz = gaussian_filter(vz_masked, smooth_scale)'''
     smooth_den = gaussian_filter(density_masked, smooth_scale)
-    print('Calculating velocity dispersions', str(datetime.datetime.now()))
+    '''print('Calculating velocity dispersions', str(datetime.datetime.now()))
     sig_x_masked = (vx_masked - smooth_vx)**2.
     sig_y_masked = (vy_masked - smooth_vy)**2.
     sig_z_masked = (vz_masked - smooth_vz)**2.
@@ -4233,7 +4292,7 @@ def turbulence_visualization(snap):
     turb_neg[turb_neg < 0.] = 0.
     turb_neg = -turb_neg
     turb_force[turb_force > 0.] = turb_pos
-    turb_force[turb_force < 0.] = turb_neg
+    turb_force[turb_force < 0.] = turb_neg'''
 
     from vispy.color.colormap import MatplotlibColormap
     force_cmap = MatplotlibColormap('BrBG')
@@ -4241,12 +4300,13 @@ def turbulence_visualization(snap):
     import napari
     print('Starting up viewer', str(datetime.datetime.now()))
     #viewer = napari.view_image(vdisp/1e5, name='velocity dispersion', colormap='viridis', contrast_limits=[0,400])
-    viewer = napari.view_image(thermal_force, name='thermal force', colormap=force_cmap, contrast_limits=[-5,5])
-    turb_force_layer = viewer.add_image(turb_force, name='turbulent force', colormap=force_cmap, contrast_limits=[-5,5])
+    #viewer = napari.view_image(thermal_force, name='thermal force', colormap=force_cmap, contrast_limits=[-5,5])
+    #turb_force_layer = viewer.add_image(turb_force, name='turbulent force', colormap=force_cmap, contrast_limits=[-5,5])
     #thermal_pressure_layer = viewer.add_image(np.log10(thermal), name='thermal pressure', colormap='magma', contrast_limits=[-18,-10])
     #thermal_pressure_masked_layer = viewer.add_image(np.log10(thermal_masked), name='masked thermal pressure', colormap='magma', contrast_limits=[-18,-10])
-    #viewer = napari.view_image(np.log10(density), name='density', colormap='viridis', contrast_limits=[-30,-20])
-    #density_masked_layer = viewer.add_image(np.log10(smooth_den), name='masked and smoothed density', colormap='viridis', contrast_limits=[-30,-20])
+    viewer = napari.view_image(np.log10(density), name='density', colormap='viridis', contrast_limits=[-30,-20])
+    density_masked_layer = viewer.add_image(np.log10(density_masked), name='masked density', colormap='viridis', contrast_limits=[-30,-20])
+    density_masked_layer = viewer.add_image(np.log10(smooth_den), name='masked and smoothed density', colormap='viridis', contrast_limits=[-30,-20])
     napari.run()
 
 
