@@ -17,32 +17,13 @@
 """
 from header import *
 from util import *
-start_time = time.time()
 
-# -----main code-----------------
-if __name__ == '__main__':
-    # ------------- arg parse -------------------------------
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='''identify satellites in FOGGIE simulations''')
-
-    parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_pleiades', help='Which system are you on? Default is ayan_pleiades')
-    parser.add_argument('--foggie_dir', metavar='foggie_dir', type=str, action='store', default='bigbox', help='Specify which directory the dataset lies in')
-    parser.add_argument('--halo', metavar='halo', type=str, action='store', default='test', help='which halo?')
-    parser.add_argument('--run', metavar='run', type=str, action='store', default='25Mpc_DM_256-L1', help='which run?')
-    parser.add_argument('--output', metavar='output', type=str, action='store', default='RD0111', help='which output?')
-    parser.add_argument('--do', metavar='do', type=str, action='store', default='dm', help='Which particles do you want to plot? Default is gas')
-    parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x')
-    parser.add_argument('--width', metavar='width', type=float, action='store', default=None, help='the extent to which plots will be rendered (each side of a square box), in kpc; default is 1000 kpc')
-    parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False, help='Use full refine box, ignoring args.width?, default is no')
-    parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
-    parser.add_argument('--center', metavar='center', type=str, action='store', default=None, help='center of projection in code units')
-    parser.add_argument('--center_offset', metavar='center_offset', type=str, action='store', default='0,0,0', help='offset from center in integer cell units')
-    parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', default=False, help='Redirect all print statements to a file?, default is no')
-    parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
-
-    args = parser.parse_args()
-    if args.center is not None: args.center = [float(item) for item in args.center.split(',')]
-    args.center_offset = [int(item) for item in args.center_offset.split(',')]
-
+# -----------------------------------------
+def projection_plot(args):
+    '''
+    Function to generate a projection plot for simulations that are NOT from the original FOGGIE halos
+    '''
+    start_time = time.time()
     # ------------- paths, dict, etc. set up -------------------------------
     if args.system == 'ayan_hd' or args.system == 'ayan_local': root_dir = '/Users/acharyya/Work/astro/'
     elif args.system == 'ayan_pleiades': root_dir = '/nobackup/aachary2/'
@@ -71,7 +52,8 @@ if __name__ == '__main__':
     # ------------- main plotting -------------------------------
     ds = yt.load(snap_name)  # last output
     if args.width is None:
-        p = yt.ProjectionPlot(ds, args.projection, field_dict[args.do], center=args.center)
+        box = ds.r[(center[0] - 0.5 * 1. / 25.): (center[0] + 0.5 * 1. / 25.), 0:1, 0:1] # slicing out 1 Mpc chunk along LoS
+        p = yt.ProjectionPlot(ds, args.projection, field_dict[args.do], center=center, data_source=box)
         width_text = ''
     else:
         box = ds.r[(center[0] - 0.5 * 1e-3 * args.width / 25.): (center[0] + 0.5 * 1e-3 * args.width / 25.), 0:1, 0:1]
@@ -93,3 +75,29 @@ if __name__ == '__main__':
 
     p.save(output_path + halo_name + '_' + args.run + '_' + args.output + '_' + args.projection + '_' + args.do + '_density' + width_text + '.png', mpl_kwargs={'dpi': 500})
     print_master('Completed in %s minutes' % ((time.time() - start_time) / 60), args)
+
+# -----main code-----------------
+if __name__ == '__main__':
+    # ------------- arg parse -------------------------------
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='''identify satellites in FOGGIE simulations''')
+
+    parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_pleiades', help='Which system are you on? Default is ayan_pleiades')
+    parser.add_argument('--foggie_dir', metavar='foggie_dir', type=str, action='store', default='bigbox', help='Specify which directory the dataset lies in')
+    parser.add_argument('--halo', metavar='halo', type=str, action='store', default='test', help='which halo?')
+    parser.add_argument('--run', metavar='run', type=str, action='store', default='25Mpc_DM_256-L1', help='which run?')
+    parser.add_argument('--output', metavar='output', type=str, action='store', default='RD0111', help='which output?')
+    parser.add_argument('--do', metavar='do', type=str, action='store', default='dm', help='Which particles do you want to plot? Default is gas')
+    parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x')
+    parser.add_argument('--width', metavar='width', type=float, action='store', default=None, help='the extent to which plots will be rendered (each side of a square box), in kpc; default is 1000 kpc')
+    parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False, help='Use full refine box, ignoring args.width?, default is no')
+    parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
+    parser.add_argument('--center', metavar='center', type=str, action='store', default=None, help='center of projection in code units')
+    parser.add_argument('--center_offset', metavar='center_offset', type=str, action='store', default='0,0,0', help='offset from center in integer cell units')
+    parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', default=False, help='Redirect all print statements to a file?, default is no')
+    parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
+
+    args = parser.parse_args()
+    if args.center is not None: args.center = [float(item) for item in args.center.split(',')]
+    args.center_offset = [int(item) for item in args.center_offset.split(',')]
+
+    projection_plot(args)
