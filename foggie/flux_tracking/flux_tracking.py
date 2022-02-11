@@ -754,7 +754,7 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_suffix, s
     print('Loading field arrays')
     sphere = ds.sphere(ds.halo_center_kpc, chunks[-1])
     if (args.cgm_filter):
-        sphere = sphere.cut_region("(obj['density'] < %.2e) & (obj['temperature'] > %.2e)" % (cgm_density_max, cgm_temperature_min))
+        sphere = sphere.cut_region("(obj['density'] < %.2e)" % (cgm_density_max/20.))
 
     radius = sphere['gas','radius_corrected'].in_units('kpc').v
     x = sphere['gas','x'].in_units('kpc').v - ds.halo_center_kpc[0].v
