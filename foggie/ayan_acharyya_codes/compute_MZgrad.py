@@ -7,7 +7,7 @@
     Output :     Z gradient plots as png files (also txt file storing all the gradients & mass plus MZgrad plot if this code is run on multiple snapshots)
     Author :     Ayan Acharyya
     Started :    Feb 2022
-    Examples :   run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_re 2 --xcol rad_re --keep
+    Examples :   run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_re 2 --xcol rad_re --keep --weight mass
                  run compute_MZgrad.py --system ayan_local --halo 8508 --upto_re 2 --xcol rad_re --do_all_sims
 
 """
@@ -15,20 +15,66 @@ from header import *
 from util import *
 from datashader_movie import *
 from uncertainties import ufloat, unumpy
+from get_mass_profile import load_and_calculate
 start_time = time.time()
 
 # --------------------------------------------------------------------------------
-def get_re(ds, args):
+def get_re(args):
     '''
     Function to determine the effective radius of stellar disk, given a dataset
     Returns the effective radius in kpc
     '''
-    #-----initially trimming the dataset approximately to a 30 kpc a side box----------
-    box_center = ds.arr(args.halo_center, kpc)
-    box_width_kpc = ds.arr(30, 'kpc')
-    box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+    re_hmr_factor = 2.0 # from the Illustris group (?)
+    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    prefix = output_dir + 'masses_halo_00' + args.halo + '/' + args.run + '/'
+    halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
+    tablename = prefix + args.output + '_masses.hdf5'
 
-    return 4.0 # temporary placeholder; in kpc
+    if os.path.exists(tablename):
+        print('Reading mass profile file', tablename)
+    else:
+        print('File not found:', tablename, '\n', 'Therefore computing mass profile now..')
+        load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, args.output, os.path.splitext(tablename)[0])
+
+    mass_profile = mass = pd.read_hdf(tablename, key='all_data')
+    mass_profile = mass_profile.sort_values('radius')
+    total_mass = mass_profile['stars_mass'].iloc[-1]
+    half_mass_radius = mass_profile[mass_profile['stars_mass'] <= total_mass/2]['radius'].iloc[-1]
+    re = re_hmr_factor * half_mass_radius
+
+    print('Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' %(args.current_redshift) + ') is %.2F kpc' %(re))
+    return re
+
+# -----------------------------------------------------------------------------
+def get_disk_stellar_mass(args):
+    '''
+    Function to get the disk stellar mass for a given output, which is defined as the stellar mass contained within args.upto_re*Re
+    '''
+    mass_filename = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/masses_z-less-2.hdf5'
+    upto_radius = args.galrad # should this be something else? 2*Re may be?
+
+    if os.path.exists(mass_filename):
+        print('Reading in', mass_filename)
+        alldata = pd.read_hdf(mass_filename, key='all_data')
+        thisdata = alldata[alldata['snapshot'] == args.output]
+
+        if len(thisdata) == 0: # snapshot not found in masses less than z=2 file, so try greater than z=2 file
+            mass_filename = mass_filename.replace('less', 'gtr')
+            print('Could not find spanshot in rpevious file, now reading in', mass_filename)
+            alldata = pd.read_hdf(mass_filename, key='all_data')
+            thisdata = alldata[alldata['snapshot'] == args.output]
+
+            if len(thisdata) == 0: # snapshot still not found in file
+                print('Snapshot not found in either file. Returning bogus mass')
+                return -999
+
+        mstar = thisdata[thisdata['radius'] <= args.galrad]['stars_mass'].values[-1] # radius is in kpc, mass in Msun
+    else:
+        print('File not found:', mass_filename)
+        mstar = -999
+
+    print('Stellar mass for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' %(args.current_redshift) + ') within ' + str(upto_radius) + ' kpc is %.2E' %(mstar))
+    return mstar
 
 # --------------------------------------------------------------------------------------
 def bin_data(array, data, bins):
@@ -48,13 +94,21 @@ def bin_data(array, data, bins):
     return bins_cen, binned_data, binned_err
 
 # ---------------------------------------------------------------------------------
-def overplot_binned(df, xcol, ycol, x_bins, ax, is_logscale=False, color='maroon'):
+def overplot_binned(df, xcol, ycol, x_bins, ax, is_logscale=False, color='maroon', weightcol=None):
     '''
     Function to overplot binned data on existing plot
     '''
     df['binned_cat'] = pd.cut(df[xcol], x_bins)
-    y_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, np.mean)])[ycol]
-    y_u_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, np.std)])[ycol]
+
+    if weightcol is not None:
+        agg_func = lambda x: np.sum(x * df.loc[x.index, weightcol]) / np.sum(df.loc[x.index, weightcol]) # function to get weighted mean
+        #agg_u_func = lambda x: np.sqrt(((np.sum(df.loc[x.index, weightcol] * x**2) / np.sum(df.loc[x.index, weightcol])) - (np.sum(x * df.loc[x.index, weightcol]) / np.sum(df.loc[x.index, weightcol]))**2) * (np.sum(df.loc[x.index, weightcol]**2)) / (np.sum(df.loc[x.index, weightcol])**2 - np.sum(df.loc[x.index, weightcol]**2))) # eq 6 of http://seismo.berkeley.edu/~kirchner/Toolkits/Toolkit_12.pdf
+        agg_u_func = np.std
+    else:
+        agg_func, agg_u_func = np.mean, np.std
+
+    y_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_func)])[ycol]
+    y_u_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_u_func)])[ycol]
     if is_logscale: y_binned, y_u_binned = np.log10(y_binned.values), np.log10(y_u_binned.values)
 
     # ----------to plot mean binned y vs x profile--------------
@@ -62,7 +116,8 @@ def overplot_binned(df, xcol, ycol, x_bins, ax, is_logscale=False, color='maroon
     ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=1)
     ax.scatter(x_bin_centers, y_binned, c=color, s=60)
 
-    linefit, linecov = np.polyfit(x_bin_centers, y_binned.flatten(), 1, cov=True)#, w=1/y_u_binned.flatten())
+    linefit, linecov = np.polyfit(x_bin_centers, y_binned.flatten(), 1, cov=True)#, w=1/(y_u_binned.flatten())**2)
+
     ax.plot(x_bin_centers, np.poly1d(linefit)(x_bin_centers), color=color, lw=1, ls='dashed')
     units = 'dex/re' if 're' in xcol else 'dex/kpc'
     ax.text(0.033, 0.25, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize)
@@ -75,7 +130,8 @@ def plot_gradient(df, args, linefit=None):
     Function to plot the metallicity profile, along with the fitted gradient if provided
     Saves plot as .png
     '''
-    outfile_rootname = 'datashader_log_metal_vs_%s_upto_%.1FRe.png' % (args.xcol, args.upto_re)
+    weightby_text = '' if args.weight is None else '_wtby_' + args.weight
+    outfile_rootname = 'datashader_log_metal_vs_%s_upto_%.1FRe%s.png' % (args.xcol, args.upto_re, weightby_text)
     if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
@@ -87,7 +143,7 @@ def plot_gradient(df, args, linefit=None):
     # --------bin the metallicity profile and plot the binned profile-----------
     if 'metal' not in df: df['metal'] = 10 ** (df['log_metal'])
     bin_edges = np.linspace(0, args.upto_re if 're' in args.xcol else args.galrad, 10)
-    ax = overplot_binned(df, args.xcol, 'metal', bin_edges, ax, is_logscale=True)
+    ax = overplot_binned(df, args.xcol, 'metal', bin_edges, ax, is_logscale=True, weightcol=args.weight)
 
     # ----------plot the fitted metallicity profile---------------
     if linefit is not None:
@@ -116,7 +172,8 @@ def fit_gradient(df, args):
     Returns the fitted gradient with uncertainty
     '''
 
-    linefit, linecov = np.polyfit(df[args.xcol], df['log_metal'], 1, cov=True)
+    if args.weight is None: linefit, linecov = np.polyfit(df[args.xcol], df['log_metal'], 1, cov=True)
+    else: linefit, linecov = np.polyfit(df[args.xcol], df['log_metal'], 1, cov=True, w=df[args.weight])
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
     Zcen = ufloat(linefit[1], np.sqrt(linecov[1][1]))
     print('Inferred slope for halo ' + args.halo + ' output ' + args.output + ' is', Zgrad, 'dex/re' if 're' in args.xcol else 'dex/kpc')
@@ -140,6 +197,7 @@ def get_df_from_ds(ds, args):
 
         df = pd.DataFrame()
         fields = ['rad', 'metal'] # only the relevant properties
+        if args.weight is not None: fields += [args.weight]
 
         for index, field in enumerate(fields):
             myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(fields)) + ' fields..', args)
@@ -153,7 +211,9 @@ def get_df_from_ds(ds, args):
 
     df['log_metal'] = np.log10(df['metal'])
     df['rad_re'] = df['rad'] / args.re  # normalise by Re
-    df = df[[args.xcol, 'log_metal']] # only keeping the columns that are needed to get Z gradient
+    cols_to_extract = [args.xcol, 'log_metal']
+    if args.weight is not None: cols_to_extract += [args.weight]
+    df = df[cols_to_extract] # only keeping the columns that are needed to get Z gradient
 
     return df
 
@@ -218,8 +278,12 @@ if __name__ == '__main__':
         args.fig_dir = args.output_dir + 'figs/' if args.do_all_sims else args.output_dir + 'figs/' + args.output + '/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
 
+        args.current_redshift = ds.current_redshift
+        args.current_time = ds.current_time.in_units('Gyr')
+        args.ylim = [-2.2, 1.2] # [-3, 1]
+
         # extract the required box
-        args.re = get_re(ds, args)
+        args.re = get_re(args)
         box_center = ds.arr(args.halo_center, kpc)
         args.galrad = args.upto_re * args.re # kpc
         box_width = args.galrad * 2  # in kpc
@@ -228,13 +292,11 @@ if __name__ == '__main__':
 
         df = get_df_from_ds(box, args) # get dataframe with metallicity profile info
 
-        args.current_redshift = ds.current_redshift
-        args.current_time = ds.current_time.in_units('Gyr')
-        args.ylim = [-2.2, 1.2] # [-3, 1]
-
         Zcen, Zgrad = fit_gradient(df, args)
         if not args.noplot: fig = plot_gradient(df, args, linefit=[Zgrad.n, Zcen.n]) # plotting the Z profile, with fit
-        print_master('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), dummy_args)
+
+        mstar = get_disk_stellar_mass(args)
+        print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), dummy_args)
 
     if ncores > 1: print_master('Parallely: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
