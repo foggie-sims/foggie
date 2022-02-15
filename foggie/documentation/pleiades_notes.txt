@@ -16,9 +16,10 @@ quota there is higher.
 cd /nobackup/username
 mkdir grackle_install
 cd grackle_install
+mkdir install
 git clone https://github.com/grackle-project/grackle
-git submodule update --init
 cd grackle
+git submodule update --init
 ./configure
 cd src/clib
 

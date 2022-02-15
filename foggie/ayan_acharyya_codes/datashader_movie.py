@@ -986,8 +986,8 @@ field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), '
 if yt_ver[0]=='3':
     field_dict['mass'] = ('gas','cell_mass')
     field_dict['volume'] = ('gas', 'cell_volume')
-unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'volume':'pc**3', 'phi_disk':'deg', 'theta_disk':'deg'}
-labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF', 'phi_disk':'Azimuthal Angle', 'theta_disk':r'$\theta_{\mathrm{diskrel}}$'}
+unit_dict = {'rad':'kpc', 'rad_re':'', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'volume':'pc**3', 'phi_disk':'deg', 'theta_disk':'deg'}
+labels_dict = {'rad':'Radius', 'rad_re':'Radius/R_e', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF', 'phi_disk':'Azimuthal Angle', 'theta_disk':r'$\theta_{\mathrm{diskrel}}$'}
 islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True)
 bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
 colormap_dict = {'temp':temperature_discrete_cmap, 'metal':metal_discrete_cmap, 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi, 'phi_disk':'viridis', 'theta_disk':angle_discrete_cmap_2pi}

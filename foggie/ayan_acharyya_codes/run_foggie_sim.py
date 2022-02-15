@@ -9,6 +9,8 @@
     Started :    Jan 2022
     Example :    run run_foggie_sim.py --halo 2430 --level 1 --queue devel --dryrun
                  run run_foggie_sim.py --halo 2139 --level 1 --queue devel --automate --final_level 3 --dryrun
+                 run run_foggie_sim.py --halo 2139 --level 1 --queue normal --automate --plot_projection --width 1000
+                 run run_foggie_sim.py --halo 2139 --level 3 --queue long --gas --plot_projection --width 1000
 
 """
 from header import *
@@ -16,6 +18,7 @@ from util import *
 from astropy.table import Table
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from projection_plot_nondefault import *
 start_time = time.time()
 
 # -----------------------------------------------------
@@ -38,14 +41,14 @@ def modify_lines_in_file(replacements, template_file, target_file):
     '''
     in_situ_change = False
     if template_file == target_file: # modify the same file in situ
-        target_file = 'temp_' + template_file
+        target_file = os.path.split(template_file)[0] + '/temp_' + os.path.split(template_file)[1]
         in_situ_change = True
 
     with open(template_file) as infile, open(target_file, 'w') as outfile:
         for line in infile:
             for pattern, target in replacements.items():
                 if re.search(pattern, line):
-                    line = pattern + ' = ' + target
+                    line = str(pattern) + ' = ' + str(target) + '\n'
             outfile.write(line)  # replacing and creating new file
 
     if in_situ_change:
@@ -55,6 +58,21 @@ def modify_lines_in_file(replacements, template_file, target_file):
 
     print('Written', target_file)
 
+# ------------------------------------------------------
+def get_shifts(conf_log_file):
+    '''
+    Function to get the integer shifts in the domain center from .conf_log.txt files
+    '''
+    patterns_to_search = ['shift_x = ', 'shift_y = ', 'shift_z = ']
+    shifts = []
+    for pattern in patterns_to_search:
+        with open(conf_log_file, 'r') as infile:
+            for line in infile:
+                if re.search(pattern, line):
+                    this_shift = int(line[line.find(pattern) + len(pattern): line.find('\n')])
+        shifts.append(this_shift)
+
+    return shifts
 
 # ------------------------------------------------------
 def setup_DM_conf_file(args):
@@ -70,17 +88,11 @@ def setup_DM_conf_file(args):
     print('Before starting L-' + str(args.level) + ',',)
     if args.level > 1:
         conf_log_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level - 1) + '.conf_log.txt'
-        patterns_to_search = ['shift_x = ', 'shift_y = ', 'shift_z = ']
-        shifts = []
-        for pattern in patterns_to_search:
-            with open(conf_log_file, 'r') as infile:
-                for line in infile:
-                    if re.search(pattern, line):
-                        this_shift = int(line[line.find(pattern)+len(pattern) : line.find('\n')])
-            shifts.append(this_shift)
-
+        shifts = get_shifts(conf_log_file)
         args.centerL = args.center0 + np.array(shifts) / 255. # to convert shifts into code units
         print('center offsets = ', shifts, ' ',)
+    else:
+        args.centerL = args.center0
 
     print('adjusted halo center = ', args.centerL)
     halo_cen = ', '.join([str(item) for item in args.centerL])
@@ -151,8 +163,6 @@ def setup_enzoparam_file(args):
     replacements = {'CFR': z_to_replace, 'MODFR': 8/(8 ** args.level), 'CSNOI': args.level + 1, 'MRPRTL': args.level, 'COPYHERE': stuff_from_paramfile}  # keywords to be replaced in template file
     replace_keywords_in_file(replacements, template_param_file, target_param_file)
 
-    print('Written', target_param_file)
-
 # ------------------------------------------------------
 def run_enzo(nnodes, ncores, nhours, args):
     '''
@@ -169,7 +179,7 @@ def run_enzo(nnodes, ncores, nhours, args):
     else: jobname = args.halo_name + '_DM_' + 'L' + str(args.level)
 
     path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
-    calls_to_script = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + ' /u/scicon/tools/bin/mbind.x -cs \" -wall 432000 -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"'
+    calls_to_script = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + ' /u/scicon/tools/bin/mbind.x -cs \" -wall ' + str(3600 * float(nhours)) + ' -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"'
 
     replacements = {'halo_H_DM_LX': jobname, 'NNODES': nnodes, 'NCORES': ncores, 'PROC': args.proc, 'NHOURS': nhours, 'QNAME': args.queue, \
                     'CALLS_TO_SCRIPT': calls_to_script}  # keywords to be replaced in template file
@@ -180,12 +190,24 @@ def run_enzo(nnodes, ncores, nhours, args):
     execute_command('qsub ' + target_runscript, args.dryrun)
     print('Submitted enzo job:', jobname, 'at', datetime.datetime.now().strftime("%H:%M:%S"))
 
+    if args.plot_projection:
+        try:
+            file_to_monitor = workdir + '/pbs_output.txt'
+            monitor_for_file_ospath(file_to_monitor)  # just as a backup check
+
+            args.run = args.sim_name + '-L' + str(args.level) + gas_or_dm
+            conf_log_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '.conf_log.txt'
+            args.center_offset = get_shifts(conf_log_file)
+            projection_plot(args)
+        except:
+            print('Failed to generate projection plot. Moving on..')
+
     # -----------if asked to automate, figure out if previous job has finished----------------
     if args.automate and args.level < args.final_level:
         args.nomusic = False
         file_to_monitor = workdir + '/pbs_output.txt'
 
-        monitor_for_file_watchdog(file_to_monitor)
+        #monitor_for_file_watchdog(file_to_monitor)
         monitor_for_file_ospath(file_to_monitor) # just as a backup check
 
         args.level += 1
@@ -215,7 +237,7 @@ def rerun_enzo_with_shielding(args):
     file_to_monitor = workdir + '/pbs_output.txt'
     os.chdir(workdir)
 
-    monitor_for_file_watchdog(file_to_monitor)
+    #monitor_for_file_watchdog(file_to_monitor)
     monitor_for_file_ospath(file_to_monitor)  # just as a backup check
 
     # ---------when the z=15 run finishes, then make modifications to the parameter file of the latest output-----------
@@ -338,13 +360,21 @@ def wrap_run_enzo(ncores, nhours, args):
     '''
     Wrapper function to execute other functions i.e. setup conf files, run MUSIC, run enzo, etc. for a given refinement level
     '''
-    if do_gas(args):conf_file_name = setup_gas_conf_file(args)
-    else: conf_file_name = setup_DM_conf_file(args)
-    if not args.nomusic: run_music(conf_file_name, args)
+    dm_or_gas = '-gas' if do_gas(args) else ''
+    workdir = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + dm_or_gas
+    pbs_output_file = workdir + '/pbs_output.txt'
 
-    setup_enzoparam_file(args)
-    run_enzo(args.nnodes, ncores, nhours, args)
-    if do_gas(args): rerun_enzo_with_shielding(args)
+    if not os.path.exists(pbs_output_file) or args.clobber: # go through with the jobs only if the job hasn't already been done and completed (in which case the pbs output file will be there)
+        if do_gas(args):conf_file_name = setup_gas_conf_file(args)
+        else: conf_file_name = setup_DM_conf_file(args)
+        if not args.nomusic: run_music(conf_file_name, args)
+
+        setup_enzoparam_file(args)
+        run_enzo(args.nnodes, ncores, nhours, args)
+    else:
+        print(pbs_output_file + ' already exists, so skipping submitting jobs')
+
+    if do_gas(args): rerun_enzo_with_shielding(args) # rerunning from z=15 should go ahead even in the PBS output file exists (for up to z=15)
 
     print('Completed submission for L' + str(args.level))
 
@@ -376,20 +406,34 @@ if __name__ == '__main__':
     parser.add_argument('--nomusic', dest='nomusic', action='store_true', default=False, help='skip MUSIC (if ICs already exist)?, default is no')
     parser.add_argument('--dryrun', dest='dryrun', action='store_true', default=False, help='just do a dry run i.e. print commands instead of actually executing them?, default is no')
     parser.add_argument('--automate', dest='automate', action='store_true', default=False, help='automatically progress to the next refinement level?, default is no')
+    parser.add_argument('--clobber', dest='clobber', action='store_true', default=False, help='clobber on existing runs?, default is no')
     parser.add_argument('--final_level', metavar='final_level', type=int, action='store', default=3, help='final level of refinement till which the simulation should run; default is 3')
+
+    parser.add_argument('--plot_projection', dest='plot_projection', action='store_true', default=False, help='automatically plot projection plots?, default is no')
+    parser.add_argument('--output', metavar='output', type=str, action='store', default='RD0111', help='which output?')
+    parser.add_argument('--do', metavar='do', type=str, action='store', default='dm', help='Which particles do you want to plot? Default is gas')
+    parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x')
+    parser.add_argument('--width', metavar='width', type=float, action='store', default=None, help='the extent to which plots will be rendered (each side of a square box), in kpc; default is 1000 kpc')
+    parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False, help='Use full refine box, ignoring args.width?, default is no')
+    parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
+    parser.add_argument('--center', metavar='center', type=str, action='store', default=None, help='center of projection in code units')
+    parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', default=False, help='Redirect all print statements to a file?, default is no')
+    parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
 
     args = parser.parse_args()
 
     # ------------- paths, dict, etc. set up -------------------------------
     root_dir = '/nobackup/aachary2/' # '/Users/acharyya/Work/astro/'
     args.halo_name = 'halo_' + args.halo
+    args.foggie_dir = args.sim_dir
     args.sim_dir = root_dir + args.sim_dir
     args.halo_dir = args.sim_dir + '/' + args.halo_name
     args.template_dir = args.sim_dir + '/' + 'halo_template'
+    code_dir = root_dir + 'ayan_codes/foggie/foggie/ayan_acharyya_codes'
 
     Path(args.halo_dir).mkdir(parents=True, exist_ok=True) # creating the directory structure, if doesn't exist already
 
-    #----------special settings for ldan queue--------
+    # ----------special settings for ldan queue--------
     if args.queue == 'ldan':
         args.proc = 'ldan'
         args.nnodes = 1
@@ -422,4 +466,5 @@ if __name__ == '__main__':
     #else:
     wrap_run_enzo(ncores, nhours, args)
 
+    os.chdir(code_dir)
     print('Completed in %s minutes' % datetime.timedelta(seconds=(time.time() - start_time)))
