@@ -4615,13 +4615,34 @@ if __name__ == "__main__":
         sys.exit("That plot type hasn't been implemented!")
 
     if (args.nproc!=1):
-        # Split into a number of groupings equal to the number of processors
-        # and run one process per processor
-        for i in range(len(outs)//args.nproc):
+        skipped_outs = outs
+        while (len(skipped_outs)>0):
+            skipped_outs = []
+            # Split into a number of groupings equal to the number of processors
+            # and run one process per processor
+            for i in range(len(outs)//args.nproc):
+                threads = []
+                snaps = []
+                for j in range(args.nproc):
+                    snap = outs[args.nproc*i+j]
+                    snaps.append(snap)
+                    threads.append(multi.Process(target=target, args=[snap]))
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+                # Delete leftover outputs from failed processes from tmp directory if on pleiades
+                if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+                    for s in range(len(snaps)):
+                        if (os.path.exists('/tmp/' + snaps[s])):
+                            print('Deleting failed %s from /tmp' % (snaps[s]))
+                            skipped_outs.append(snaps[s])
+                            shutil.rmtree('/tmp/' + snaps[s])
+            # For any leftover snapshots, run one per processor
             threads = []
             snaps = []
-            for j in range(args.nproc):
-                snap = outs[args.nproc*i+j]
+            for j in range(len(outs)%args.nproc):
+                snap = outs[-(j+1)]
                 snaps.append(snap)
                 threads.append(multi.Process(target=target, args=[snap]))
             for t in threads:
@@ -4633,24 +4654,9 @@ if __name__ == "__main__":
                 for s in range(len(snaps)):
                     if (os.path.exists('/tmp/' + snaps[s])):
                         print('Deleting failed %s from /tmp' % (snaps[s]))
+                        skipped_outs.append(snaps[s])
                         shutil.rmtree('/tmp/' + snaps[s])
-        # For any leftover snapshots, run one per processor
-        threads = []
-        snaps = []
-        for j in range(len(outs)%args.nproc):
-            snap = outs[-(j+1)]
-            snaps.append(snap)
-            threads.append(multi.Process(target=target, args=[snap]))
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-        # Delete leftover outputs from failed processes from tmp directory if on pleiades
-        if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
-            for s in range(len(snaps)):
-                if (os.path.exists('/tmp/' + snaps[s])):
-                    print('Deleting failed %s from /tmp' % (snaps[s]))
-                    shutil.rmtree('/tmp/' + snaps[s])
+            outs = skipped_outs
 
     '''if (args.nproc!=1):
         # Split into a number of groupings equal to the number of processors
