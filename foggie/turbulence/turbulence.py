@@ -586,11 +586,16 @@ def vsf_randompoints(snap):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     if (args.load_vsf=='none'):
-        if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+        if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
             snap_dir = '/tmp/' + snap
-            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-            snap_name = snap_dir + '/' + snap
+            if (args.copy_to_tmp):
+                shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+                snap_name = snap_dir + '/' + snap
+            else:
+                # Make a dummy directory with the snap name so the script later knows the process running
+                # this snapshot failed if the directory is still there
+                os.makedirs(snap_dir)
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -731,7 +736,7 @@ def vsf_randompoints(snap):
     plt.savefig(save_dir + 'Movie_frames/' + snap + '_VSF' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
-    if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+    if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -747,11 +752,16 @@ def vdisp_vs_radius(snap):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     if (not args.load_stats):
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
             snap_dir = '/tmp/' + snap
-            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-            snap_name = snap_dir + '/' + snap
+            if (args.copy_to_tmp):
+                shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+                snap_name = snap_dir + '/' + snap
+            else:
+                # Make a dummy directory with the snap name so the script later knows the process running
+                # this snapshot failed if the directory is still there
+                os.makedirs(snap_dir)
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -913,7 +923,7 @@ def vdisp_vs_radius(snap):
         stats = table
         print("Stats have been calculated and saved to file for snapshot " + snap + "!")
         # Delete output from temp directory if on pleiades
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        if (args.system=='pleiades_cassi'):
             print('Deleting directory from /tmp')
             shutil.rmtree(snap_dir)
 
@@ -979,8 +989,13 @@ def vdisp_vs_mass_res(snap):
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -1077,8 +1092,13 @@ def vdisp_vs_spatial_res(snap):
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -1324,11 +1344,16 @@ def vdisp_SFR_xcorr(snaplist):
 def vdisp_slice(snap):
     '''Plots a slice of velocity dispersion.'''
 
-    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+    if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -1445,6 +1470,11 @@ def vdisp_slice(snap):
     plt.subplots_adjust(bottom=0.08, top=0.98, left=0.12, right=0.82)
     plt.savefig(save_dir + snap + '_vx-disp_slice_x' + save_suffix + '.png')
 
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
+
 if __name__ == "__main__":
 
     gtoMsun = 1.989e33
@@ -1541,26 +1571,48 @@ if __name__ == "__main__":
         sys.exit("That plot type hasn't been implemented!")
 
     if (args.nproc!=1):
-        # Split into a number of groupings equal to the number of processors
-        # and run one process per processor
-        for i in range(len(outs)//args.nproc):
+        skipped_outs = outs
+        while (len(skipped_outs)>0):
+            skipped_outs = []
+            # Split into a number of groupings equal to the number of processors
+            # and run one process per processor
+            for i in range(len(outs)//args.nproc):
+                threads = []
+                snaps = []
+                for j in range(args.nproc):
+                    snap = outs[args.nproc*i+j]
+                    snaps.append(snap)
+                    threads.append(multi.Process(target=target, args=[snap]))
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+                # Delete leftover outputs from failed processes from tmp directory if on pleiades
+                if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+                    for s in range(len(snaps)):
+                        if (os.path.exists('/tmp/' + snaps[s])):
+                            print('Deleting failed %s from /tmp' % (snaps[s]))
+                            skipped_outs.append(snaps[s])
+                            shutil.rmtree('/tmp/' + snaps[s])
+            # For any leftover snapshots, run one per processor
             threads = []
-            for j in range(args.nproc):
-                snap = outs[args.nproc*i+j]
+            snaps = []
+            for j in range(len(outs)%args.nproc):
+                snap = outs[-(j+1)]
+                snaps.append(snap)
                 threads.append(multi.Process(target=target, args=[snap]))
             for t in threads:
                 t.start()
             for t in threads:
                 t.join()
-        # For any leftover snapshots, run one per processor
-        threads = []
-        for j in range(len(outs)%args.nproc):
-            snap = outs[-(j+1)]
-            threads.append(multi.Process(target=target, args=[snap]))
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+            # Delete leftover outputs from failed processes from tmp directory if on pleiades
+            if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+                for s in range(len(snaps)):
+                    if (os.path.exists('/tmp/' + snaps[s])):
+                        print('Deleting failed %s from /tmp' % (snaps[s]))
+                        skipped_outs.append(snaps[s])
+                        shutil.rmtree('/tmp/' + snaps[s])
+            outs = skipped_outs
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")
