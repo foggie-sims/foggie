@@ -32,11 +32,12 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
         function adds some bespoke FOGGIE fields, extracts the desired FOGGIE
         region, and applies an input Boolean filter to the dataset."""
 
+    print("Running prep_dataset for region:", region)
     dataset, refine_box = fload.foggie_load(fname, trackfile)
 
     trident.add_ion_fields(dataset, ions=ion_list)
     for ion, func in zip(['H_p0','C_p3','O_p5'], [yt_fields._nh1, yt_fields._c4, yt_fields._no6]):
-        dataset.add_field(("gas", ion+"_column_density"), function=func, units='cm**(-2)', dimensions=dimensions.length**(-2))
+        dataset.add_field(("gas", ion+"_column_density"), function=func, sampling_type='cell', units='cm**(-2)', dimensions=dimensions.length**(-2))
 
     if region == 'trackbox':
         print("prep_dataset: your region is the refine box")
@@ -90,18 +91,18 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
 
     ax2 = fig.add_axes([0.7, 0.93, 0.25, 0.06])
 
-    phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
+    #phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
 
-    if 'phase' in colorcode:
-        ax2.imshow(np.flip(phase_cmap.to_pil(), 1))
-        ax2.set_xticks([50,300,550])
-        ax2.set_xticklabels(['4','5','6',' '],fontsize=11)
-        ax2.text(230, 120, 'log T [K]',fontsize=13)
-    elif 'metal' in colorcode:
-        ax2.imshow(np.flip(metal_cmap.to_pil(), 1))
-        ax2.set_xticks([36, 161, 287, 412, 537, 663])
-        ax2.set_xticklabels(['-4', '-3', '-2', '-1', '0', '1'],fontsize=11)
-        ax2.text(230, 120, 'log Z',fontsize=13)
+    #if 'phase' in colorcode:
+    #    ax2.imshow(np.flip(phase_cmap.to_pil(), 1))
+    #    ax2.set_xticks([50,300,550])
+    #    ax2.set_xticklabels(['4','5','6',' '],fontsize=11)
+    ##    ax2.text(230, 120, 'log T [K]',fontsize=13)
+    #elif 'metal' in colorcode:
+    #    ax2.imshow(np.flip(metal_cmap.to_pil(), 1))
+    #    ax2.set_xticks([36, 161, 287, 412, 537, 663])
+    #    ax2.set_xticklabels(['-4', '-3', '-2', '-1', '0', '1'],fontsize=11)
+    #    ax2.text(230, 120, 'log Z',fontsize=13)
 
     ax2.spines["top"].set_color('white')
     ax2.spines["bottom"].set_color('white')
