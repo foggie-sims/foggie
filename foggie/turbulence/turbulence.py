@@ -588,7 +588,7 @@ def vsf_randompoints(snap):
     if (args.load_vsf=='none'):
         if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
-            snap_dir = '/tmp/' + snap
+            snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
             if (args.copy_to_tmp):
                 shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
                 snap_name = snap_dir + '/' + snap
@@ -755,7 +755,7 @@ def vdisp_vs_radius(snap):
     if (not args.load_stats):
         if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
-            snap_dir = '/tmp/' + snap
+            snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
             if (args.copy_to_tmp):
                 shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
                 snap_name = snap_dir + '/' + snap
@@ -1347,7 +1347,7 @@ def vdisp_slice(snap):
 
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap
+        snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
         if (args.copy_to_tmp):
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
             snap_name = snap_dir + '/' + snap
@@ -1522,6 +1522,7 @@ if __name__ == "__main__":
                 vdisp_slice(outs[i])
         else:
             target = vdisp_slice
+            target_dir = 'vdisp_slice'
     elif (args.plot=='vorticity_slice'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -1546,12 +1547,14 @@ if __name__ == "__main__":
                 vsf_randompoints(outs[i])
         else:
             target = vsf_randompoints
+            target_dir = 'vsf_randompoints'
     elif (args.plot=='vdisp_vs_radius'):
         if (args.nproc==1):
             for i in range(len(outs)):
                 vdisp_vs_radius(outs[i])
         else:
             target = vdisp_vs_radius
+            target_dir = 'vdisp_vs_radius'
     elif (args.plot=='vdisp_vs_mass_res'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -1591,10 +1594,10 @@ if __name__ == "__main__":
                 # Delete leftover outputs from failed processes from tmp directory if on pleiades
                 if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
                     for s in range(len(snaps)):
-                        if (os.path.exists('/tmp/' + snaps[s])):
+                        if (os.path.exists('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])):
                             print('Deleting failed %s from /tmp' % (snaps[s]))
                             skipped_outs.append(snaps[s])
-                            shutil.rmtree('/tmp/' + snaps[s])
+                            shutil.rmtree('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])
             # For any leftover snapshots, run one per processor
             threads = []
             snaps = []
@@ -1609,10 +1612,10 @@ if __name__ == "__main__":
             # Delete leftover outputs from failed processes from tmp directory if on pleiades
             if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
                 for s in range(len(snaps)):
-                    if (os.path.exists('/tmp/' + snaps[s])):
+                    if (os.path.exists('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])):
                         print('Deleting failed %s from /tmp' % (snaps[s]))
                         skipped_outs.append(snaps[s])
-                        shutil.rmtree('/tmp/' + snaps[s])
+                        shutil.rmtree('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])
             outs = skipped_outs
 
     print(str(datetime.datetime.now()))

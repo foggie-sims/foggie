@@ -553,7 +553,7 @@ def pressures_vs_radius(snap):
     if (not args.load_stats):
         if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
-            snap_dir = '/tmp/' + snap
+            snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
             if (args.copy_to_tmp):
                 shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
                 snap_name = snap_dir + '/' + snap
@@ -1079,7 +1079,7 @@ def forces_vs_radius(snap):
     if (not args.load_stats):
         if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
-            snap_dir = '/tmp/' + snap
+            snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
             if (args.copy_to_tmp):
                 shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
                 snap_name = snap_dir + '/' + snap
@@ -3300,7 +3300,7 @@ def pressure_slice(snap):
 
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap
+        snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
         if (args.copy_to_tmp):
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
             snap_name = snap_dir + '/' + snap
@@ -3465,7 +3465,7 @@ def force_slice(snap):
 
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap
+        snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
         if (args.copy_to_tmp):
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
             snap_name = snap_dir + '/' + snap
@@ -3689,7 +3689,7 @@ def ion_slice(snap):
 
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap
+        snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
         if (args.copy_to_tmp):
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
             snap_name = snap_dir + '/' + snap
@@ -3902,7 +3902,7 @@ def velocity_slice(snap):
 
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap
+        snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
         if (args.copy_to_tmp):
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
             snap_name = snap_dir + '/' + snap
@@ -4566,6 +4566,7 @@ if __name__ == "__main__":
                 pressures_vs_radius(outs[i])
         else:
             target = pressures_vs_radius
+            target_dir = 'pressures_vs_radius'
     elif (args.plot=='pressure_vs_time'):
         pressures_vs_time(outs)
     elif (args.plot=='force_vs_radius'):
@@ -4574,6 +4575,7 @@ if __name__ == "__main__":
                 forces_vs_radius(outs[i])
         else:
             target = forces_vs_radius
+            target_dir = 'forces_vs_radius'
     elif (args.plot=='force_vs_radius_pres'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -4620,6 +4622,7 @@ if __name__ == "__main__":
                 pressure_slice(outs[i])
         else:
             target = pressure_slice
+            target_dir = 'pressure_slice'
     elif (args.plot=='support_slice'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -4632,6 +4635,7 @@ if __name__ == "__main__":
                 velocity_slice(outs[i])
         else:
             target = velocity_slice
+            target_dir = 'velocity_slice'
     elif (args.plot=='vorticity_slice'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -4644,12 +4648,14 @@ if __name__ == "__main__":
                 force_slice(outs[i])
         else:
             target = force_slice
+            target_dir = 'force_slice'
     elif (args.plot=='ion_slice'):
         if (args.nproc==1):
             for i in range(len(outs)):
                 ion_slice(outs[i])
         else:
             target = ion_slice
+            target_dir = 'ion_slice'
     elif (args.plot=='vorticity_direction'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -4700,10 +4706,10 @@ if __name__ == "__main__":
                 # Delete leftover outputs from failed processes from tmp directory if on pleiades
                 if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
                     for s in range(len(snaps)):
-                        if (os.path.exists('/tmp/' + snaps[s])):
+                        if (os.path.exists('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])):
                             print('Deleting failed %s from /tmp' % (snaps[s]))
                             skipped_outs.append(snaps[s])
-                            shutil.rmtree('/tmp/' + snaps[s])
+                            shutil.rmtree('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])
             # For any leftover snapshots, run one per processor
             threads = []
             snaps = []
@@ -4718,10 +4724,10 @@ if __name__ == "__main__":
             # Delete leftover outputs from failed processes from tmp directory if on pleiades
             if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
                 for s in range(len(snaps)):
-                    if (os.path.exists('/tmp/' + snaps[s])):
+                    if (os.path.exists('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])):
                         print('Deleting failed %s from /tmp' % (snaps[s]))
                         skipped_outs.append(snaps[s])
-                        shutil.rmtree('/tmp/' + snaps[s])
+                        shutil.rmtree('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])
             outs = skipped_outs
 
     '''if (args.nproc!=1):
