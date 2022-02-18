@@ -3,7 +3,15 @@ A quickstart guide to onboarding with FOGGIE at STScI/JHU. Last updated February
 
 ****Setting up python and relevant packages:
  - Install python using conda: https://docs.anaconda.com/anaconda
- 
+
+*** Optional Virtual Environment stuff ***   Blame Greg ****
+Create a foggie virtual environment:
+conda create --name='foggie'
+conda activate foggie
+conda install pip
+***
+
+
  - Then install yt:
     - installing using conda: % conda install -c conda-forge yt (https://yt-project.org/doc/installing.html) will give you the latest *publicly* available version, which, in February 2022 is yt 4.0.2
 
@@ -35,6 +43,19 @@ A quickstart guide to onboarding with FOGGIE at STScI/JHU. Last updated February
  - Then exit the trident directory and follow the instructions for Step 3 on https://foggie-trident.readthedocs.io/en/latest/installation.html. You want the hm2012 version with selfshielding. This should  be an option to choose; if not, there is a version of the table in the foggie dropbox (hm2012_hr_sh_cr.h5) that you can copy to your ~/.trident/ folder.
 
  **********************************************************************
+
+
+   *** Optional Virtual Environment stuff ***   Blame Greg ****
+   *** Avoids having to set PYTHONPATH ***
+   cd ~/miniconda3/envs/foggie/lib/python3.9/site-packages/
+   git clone https://github.com/foggie-sims/foggie.git
+   cd foggie
+   python setup.py develop
+   ipython
+   import foggie
+
+   *** Can do the same trick for Trident instructions above ****
+   ********
 
 
 ****Group stuff:
