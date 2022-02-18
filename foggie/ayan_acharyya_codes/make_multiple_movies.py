@@ -57,6 +57,11 @@ if __name__ == '__main__':
     list_of_movies = [item for item in movies if len(item) == len(set(item))] # removing cases where x, y or color axes have same quantities
     nmovies = len(list_of_movies)
 
+    if datashader_ver <= 11 or args.use_old_dsh:
+        args.newold_text = ''  # for backward compatibility
+    else:
+        args.newold_text = '_newdsh'
+
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
     ncores = comm.size
@@ -88,8 +93,11 @@ if __name__ == '__main__':
         if islog_dict[this_colorcol]: this_colorcol = 'log_' + this_colorcol
 
         args.inpath = args.output_dir.replace(args.halo, this_halo) + 'figs/'
-        args.rootname = 'z=*_datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s.png' % (args.galrad, this_ycol, this_xcol, this_colorcol)
-        args = make_anim_imageio(args)
+        args.rootname = 'z=*_datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.png' % (args.galrad, this_ycol, this_xcol, this_colorcol, args.newold_text)
+
+        #args = make_anim_imageio(args)
+        code_path = '/'.join(args.code_path.split('/')[:-3]) + '/'
+        subprocess.call(['python ' + code_path + 'animate_png.py --inpath ' + args.inpath + ' --rootname ' + args.rootname + ' --delay ' + str(args.delay_frame) + ' --reverse'], shell=True)
 
     comm.Barrier() # wait till all cores reached here and then resume
 

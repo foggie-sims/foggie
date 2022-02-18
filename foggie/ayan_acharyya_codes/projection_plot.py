@@ -7,7 +7,7 @@
     Output :     projection plots as png files
     Author :     Ayan Acharyya
     Started :    January 2021
-    Example :    run projection_plot.py --system ayan_hd --halo 4123 --output RD0038 --do gas --proj x --fullbox --nrot 0 --iscolorlog
+    Example :    run projection_plot.py --system ayan_local --halo 4123 --output RD0038 --do gas --proj x --fullbox --nframes 1 --rot_normal_by -30 --rot_normal_about y --rot_north_by 45 --rot_north_about x --iscolorlog
 
 """
 from header import *
@@ -23,14 +23,13 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     Function to make yt projection plot
     (adopted from foggie.satellites.for_paper.central_projection_plots)
     '''
-    box_width_code = (box_width/kpc) / get_proper_box_size(ds) # converting from kpc to code units
     if noweight: weight_field = None
 
     start_time2 = time.time()
     if field[1] == 'age': # then do ParticlePlot
         prj = yt.ParticleProjectionPlot(ds, axs, field, center=center, data_source=small_box, width=box_width, weight_field=weight_field)
-    elif normal_vector is not None: # do rotated off axis ProjectionPlot
-        prj = yt.OffAxisProjectionPlot(ds, normal_vector, field, north_vector=north_vector, center=center, width=box_width_code, data_source=small_box, weight_field=weight_field)
+    elif normal_vector is not None or north_vector is not None: # do rotated off axis ProjectionPlot
+        prj = yt.OffAxisProjectionPlot(ds, normal_vector, field, north_vector=north_vector, center=center, width=(box_width.v.tolist(), 'kpc'), data_source=small_box, weight_field=weight_field)
     else: # do ProjectionPlot
         prj = yt.ProjectionPlot(ds, axs, field, center=center, data_source=small_box, width=box_width, weight_field=weight_field)
 
@@ -61,8 +60,9 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
 # --------------------------------------------------------------------------------
 def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                           fig_end='projection', do=['stars', 'gas', 'metal'], axes=['x', 'y', 'z'], annotate_positions=[], \
-                          is_central=False, add_velocity=False, add_arrow=False, start_arrow=[], end_arrow=[], rot_frame=0, \
-                          nframes=200, hide_axes=False, iscolorlog=False, noweight=False):
+                          is_central=False, add_velocity=False, add_arrow=False, start_arrow=[], end_arrow=[], total_normal_rot=0, \
+                          total_north_rot=0, rot_frame=0, nframes=200, hide_axes=False, iscolorlog=False, noweight=False, \
+                          rot_north_about='x', rot_normal_about='y'):
     '''
     Function to arrange overheads of yt projection plot
     (adopted from foggie.satellites.for_paper.central_projection_plots)
@@ -83,16 +83,26 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
     zmax_dict = defaultdict(lambda: density_proj_max, metal= 5e0, temp= temperature_max, vrad=50, ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=50)
     weight_field_dict = defaultdict(lambda: None, metal=('gas', 'density'), temp=('gas', 'density'), vrad=('gas', 'density'), vlos=('gas', 'density'))
     colorlog_dict = defaultdict(lambda: False, metal=True, gas=True, temp=True, gas_entropy=True)
-    north_vector_dict = {'x':[0,1,0], 'y':[0,0,1], 'z':[1,0,0]} # north vector = which way is up; therefore, for proj = x, i.e. LoS _along_ x-axis (with 0 rot), up direction is actually y-axis, and for proj=y, z axis is 'up' direction
-    normal_vector_dict = {'x': [np.cos(2 * np.pi * rot_frame / nframes), 0, np.sin(2 * np.pi * rot_frame / nframes)], \
-                          'y': [np.sin(2 * np.pi * rot_frame / nframes), np.cos(2 * np.pi * rot_frame / nframes), 0], \
-                          'z': [0, np.sin(2 * np.pi * rot_frame / nframes), np.cos(2 * np.pi * rot_frame / nframes)]}
 
-    rot_text = '_rot_%03d_outof_%d' % (rot_frame, nframes) if rot_frame else ''
+    # north vector = which way is up; this is set up such that the north vector rotates ABOUT the normal vector
+    rot_north_by = (total_north_rot * np.pi / 180) * rot_frame / nframes # to convert total_north_rot from deg to radian
+    north_vector_dict = {'x': [0, np.sin(rot_north_by), np.cos(rot_north_by)], \
+                         'y': [np.cos(rot_north_by), 0, np.sin(rot_north_by)], \
+                         'z': [np.sin(rot_north_by), np.cos(rot_north_by), 0]}
+
+    # normal vector = vector coming out of the plabe of image; this is set up such the normal vector rotates about the north vector
+    rot_normal_by = (total_normal_rot * np.pi / 180) * rot_frame / nframes # to convert total_normal_rot from deg to radian
+    normal_vector_dict = {'x': [0, np.sin(rot_normal_by), np.cos(rot_normal_by)], \
+                          'y': [np.cos(rot_normal_by), 0, np.sin(rot_normal_by)], \
+                          'z': [np.sin(rot_normal_by), np.cos(rot_normal_by), 0]}
+
+    rot_text = '_normrotby_%.3F_northrotby_%.3F_frame_%03d_of_%03d' % (total_normal_rot, total_north_rot, rot_frame, nframes) if (total_normal_rot + total_north_rot) != 0 else ''
 
     for ax in axes:
-        north_vector = north_vector_dict[ax] if rot_frame else None
-        normal_vector = normal_vector_dict[ax] if rot_frame else None
+        north_vector = north_vector_dict[rot_north_about] if rot_frame else None
+        normal_vector = normal_vector_dict[rot_normal_about] if rot_frame else None
+
+        print('Deb105: north_vector=', north_vector, 'normal_vector=', normal_vector) #
 
         for d in do:
             zmin = zmin_dict[d] if args.cmin is None else args.cmin
@@ -117,6 +127,7 @@ def my_young_stars(pfilter, data):
     To use: yt.add_particle_filter("young_stars8", function=_young_stars8, filtered_type='all', requires=["creation_time"])
     Based on: foggie.yt_fields._young_stars8()
     '''
+    print('Creating new particle filter for stars < ' + str(args.age_thresh) + ' Myr..')
     isstar = data[(pfilter.filtered_type, "particle_type")] == 2
     age = data.ds.current_time - data[pfilter.filtered_type, "creation_time"]
     filter = np.logical_and(isstar, age.in_units('Myr') <= args.age_thresh, age >= 0)
@@ -155,22 +166,20 @@ if __name__ == '__main__':
         center = refine_box.center.in_units(kpc) if args.do_central else ds.arr(args.halo_center, kpc)
 
         if not args.noplot:
-            if args.makerotmovie:
-                min_nrot, max_nrot = 0, args.nframes
-            else:
-                min_nrot = int(args.nrot * args.nframes) # 0 <= args.nrot <= 1
-                max_nrot = min_nrot + 1
+            start_frame = 0 if args.makerotmovie or (args.rot_normal_by == 0 and args.rot_north_by == 0) else 1
+            end_frame = args.nframes if args.makerotmovie else start_frame + 1
 
-            for nrot in range(min_nrot, max_nrot):
-                print('Plotting', nrot + 1, 'out of', max_nrot, 'frames..')
+            for nrot in range(start_frame, end_frame):
+                print('Plotting', nrot, 'out of', end_frame - 1, 'frames..')
                 prj = make_projection_plots(ds=refine_box.ds, center=center, \
                                         refine_box=refine_box, box_width=2 * args.galrad * kpc, \
                                         fig_dir=fig_dir, name=halo_dict[args.halo], \
                                         fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.projection.split(',')], \
                                         is_central=args.do_central, add_arrow=args.add_arrow, add_velocity=args.add_velocity, rot_frame=nrot, \
-                                        nframes=args.nframes, hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight) # using halo_center_kpc instead of refine_box_center
+                                        total_normal_rot=args.rot_normal_by, total_north_rot=args.rot_north_by, rot_north_about=args.rot_north_about, rot_normal_about=args.rot_normal_about, \
+                                        nframes=(end_frame - start_frame), hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight) # using halo_center_kpc instead of refine_box_center
             #prj.show(block=False)
         else:
             print('Skipping plotting step')
 
-        print('Completed in %s minutes' % ((time.time() - start_time) / 60))
+        print_master('Completed in %s minutes' % ((time.time() - start_time) / 60), args)

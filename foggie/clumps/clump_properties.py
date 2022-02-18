@@ -48,7 +48,10 @@ snap = args.output
 
 filename = foggie_dir+'halo_00'+halo+'/'+sim+'/'+snap+'/'+snap
 track_name = trackname
-ds, region = fl(filename,trackname)
+#ds, region = fl(filename,trackname) # don't use this - it gives an error - probably due to yt4? idk
+ds, region = fl(filename, trackname, \
+                        particle_type_for_angmom=False, do_filter_particles=False, \
+                        region='refine_box')
 halocenter = region.center
 [halocenter_x,halocenter_y,halocenter_z]=region.center
 
@@ -79,8 +82,12 @@ yc=[]
 zc=[]
 distancefromhalocenter=[]
 numberofcells = []
-
+metallicity=[]
+print('going through boxes for halo:')
+print(halo)
 for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box10','box11','box12','box13','box14','box15','box16','box17','box18','box19','box20','box21','box22','box23','box24','box25','box26','box27']:
+    print('starting calculations')
+    print(boxi)
     clumpmasses = []
     clumpvolumes = []
     elongations = []
@@ -98,12 +105,19 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
     radialdistances=[]
     com=[]
     clumpcenter=[]
+    coordinates=[]
+    xc=[]
+    yc=[]
+    zc=[]
+    distancefromhalocenter=[]
+    numberofcells = []
+    metallicity=[]
 
     for i in range(4000):
         i=i+1
         #clumpfile=str(i)+"_single_clump.h5"
-        clumpfile="/nobackupp13/raugust4/WORK/Outputs/plots_halo_008508/nref11c_nref9f/clumps/"+boxi+"/individual_clumps/"+str(i)+"_single_clump.h5"
-        clumptree="/nobackupp13/raugust4/WORK/Outputs/plots_halo_008508/nref11c_nref9f/clumps/"+boxi+"/halo_008508_nref11c_nref9f_RD0027_RD0027_clumps_tree.h5"
+        clumpfile="/nobackupp13/raugust4/WORK/Outputs/plots_halo_00"+halo+"/"+sim+"/clumps/"+boxi+"/individual_clumps/"+str(i)+"_single_clump.h5"
+        clumptree="/nobackupp13/raugust4/WORK/Outputs/plots_halo_00"+halo+"/"+sim+"/clumps/"+boxi+"/halo_00"+halo+"_"+sim+"_"+snap+"_"+snap+"_clumps_tree.h5"
         if (os.path.exists(clumpfile)):
             IDs.append(i)
             clump1 = yt.load(clumpfile)
@@ -117,7 +131,8 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             ad = clump1.all_data()
             clumpmass = ad["gas", "cell_mass"].sum().in_units("Msun")
             clumpvolume = ad["gas", "cell_volume"].sum().in_units("kpc**3")
-
+            clumpmetallicity = ad["gas", "metallicity"].mean().in_units("Zsun")
+            metallicity.append(clumpmetallicity)
             radvel = ad["gas", "radial_velocity_corrected"].mean().in_units('km/s')
             radialvelocities.append(radvel)
             #radvel=newclump["gas", "radial_velocity_corrected"]
@@ -180,6 +195,10 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             numberofcellsi = len(np.array(ad["grid", "x"]))
             numberofcells.append(numberofcellsi)
 
+
+    print('finished calculations - preparing output')
+    print(boxi)
+    if IDs == []: print('halo '+halo+' box '+boxi+' appears to be empty - check and rerun!')
     IDs=np.array(IDs)
     clumpmasses=np.array(clumpmasses)
     clumpvolumes=np.array(clumpvolumes)
@@ -195,6 +214,7 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
     MgIImasses=np.array(MgIImasses)
     HImasses=np.array(HImasses)
     radialdistances=np.array(radialdistances)
+    metallicity=np.array(metallicity)
     com=np.array(com)
     coordinates=np.array(coordinates)
     distancefromhalocenter=np.array(distancefromhalocenter)
@@ -226,9 +246,10 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
     col21 = fits.Column(name='centerz', format='E', unit='code_units', array=zc)
     col22 = fits.Column(name='distancefromhalocenter', format='E', unit='kpc', array=distancefromhalocenter)
     col23 = fits.Column(name='numberofcells', format='E', unit='None', array=numberofcells)
+    col24 = fits.Column(name='metallicity', format='E', unit='Zsun', array=metallicity)
 
     #coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17, col18, col19, col20, col21, col22])
-    coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col19, col20, col21, col22, col23])
+    coldefs = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col19, col20, col21, col22, col23, col24])
     hdu = fits.BinTableHDU.from_columns(coldefs)
     outfile = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements.fits'
     oldoutfile = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_'+boxi+'_clump_measurements_old.fits'
@@ -237,6 +258,9 @@ for boxi in ['box1','box2','box3','box4','box5','box6','box7','box8','box9','box
             os.remove(oldoutfile)
         os.rename(outfile, oldoutfile)
     hdu.writeto(outfile)
+    print('successfuly wrote output file for:')
+    print(boxi)
+
 """
 plt.figure()
 plt.hist(clumpvolumes,bins=50)

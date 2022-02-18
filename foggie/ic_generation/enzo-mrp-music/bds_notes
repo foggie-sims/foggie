@@ -1,0 +1,36 @@
+
+This is a code that works with both yt and MUSIC.  What you do is
+give it the center and radius of the halo you want to resimulate
+at higher resolution.  This will grab all of the particle ids within
+3 virial radii of that halo and calculate the size of the lagrangian
+region.  It will feed this directly into MUSIC and generate the new
+ICs with one additional nested level.
+
+The instructions are pretty good, but there may be a couple tricks
+for naming files correctly.  It will want your simulation with no
+initial refinement to be something like SIMULATIONNAME_L0, and will
+make the next one L1 after that runs, you’ll need to edit a few
+values in the parameter file
+
+1. Divide the values in MinimumOverDensityForRefinement by 8
+2. For the parameter CellFlaggingMethod, add a new entry 8
+      8 is the method for refining by must-refine-particles
+
+3. add these two lines:
+```MustRefineParticlesCreateParticles = 3 # this should stay three
+MustRefineParticlesRefineToLevel = 1 # increase this each time you make ICs with more levels```
+
+4. MUSIC will create a template parameter file called `parameter_file.txt`, in there, you’ll need to copy lines into your parameter file containing the geometry of the nested regions, they look like below,
+For example, this is two levels of refinement:
+```CosmologySimulationParticleTypeName          = RefinementMask
+CosmologySimulationCalculatePositions    = 1
+CosmologySimulationNumberOfInitialGrids  = 3
+CosmologySimulationGridDimension[1]      =               40               30               32
+CosmologySimulationGridLeftEdge[1]       =        0.4609375       0.47265625       0.47265625
+CosmologySimulationGridRightEdge[1]      =        0.5390625          0.53125       0.53515625
+CosmologySimulationGridLevel[1]          = 1
+CosmologySimulationGridDimension[2]      =               62               40               48
+CosmologySimulationGridLeftEdge[2]       =      0.470703125      0.482421875       0.48046875
+CosmologySimulationGridRightEdge[2]      =          0.53125      0.521484375       0.52734375
+CosmologySimulationGridLevel[2]          = 2```
+don’t add any others from the template file

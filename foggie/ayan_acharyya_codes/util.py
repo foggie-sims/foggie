@@ -826,8 +826,7 @@ def get_all_halos(args):
     if 'ayan_' in args.system:
         halos = ['8508', '5036', '5016', '4123', '2392', '2878'] # we exactly know the list of halos present in ayan's local (HD) or pleiades sytems and want them to be accessed in this specific order
     else:
-        foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-        halo_paths = glob.glob(foggie_dir + 'halo_*')
+        halo_paths = glob.glob(args.foggie_dir + 'halo_*')
         halo_paths.sort(key=os.path.getmtime)
         halos = [item.split('/')[-1][7:] for item in halo_paths]
     return halos
@@ -837,9 +836,8 @@ def get_all_sims_for_this_halo(args):
     '''
     Function assimilate the names of all snapshots available for the given halo
     '''
-    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     all_sims = []
-    snapshot_paths = glob.glob(foggie_dir + 'halo_00' + args.halo + '/nref11c_nref9f/*/')
+    snapshot_paths = glob.glob(args.foggie_dir + args.run_loc + '*/')
     snapshot_paths.sort(key=os.path.getmtime)
     snapshots = [item.split('/')[-2] for item in snapshot_paths]
     for thissnap in snapshots:
@@ -852,8 +850,7 @@ def pull_halo_redshift(args):
     '''
     Function to pull the current redshift of the halo (WITHOUT having to load the simulation), by matching with the corresponding halo_c_v file
     '''
-    _, _, _, code_path, _, haloname, _, _ = get_run_loc_etc(args)
-    halo_cat_file = code_path + 'halo_infos/00' + args.halo + '/nref11c_nref9f/halo_c_v'
+    halo_cat_file = args.code_path + 'halo_infos/00' + args.halo + '/nref11c_nref9f/halo_c_v'
     #df = pd.read_csv(halo_cat_file, comment='#', sep='\s+|')
     #try: z = df.loc[df['name']==args.output, 'redshift'].values[0]
     # shifted from pandas to astropy because pandas runs in to weird error on pleiades
@@ -871,9 +868,7 @@ def pull_halo_center(args, fast=False):
     Adapted from utils.foggie_load()
     '''
 
-    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    args.output_dir = output_dir # so that output_dir is automatically propagated henceforth as args
-    halos_df_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_c_v'
+    halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_c_v'
 
     if os.path.exists(halos_df_name):
         halos_df = pd.read_table(halos_df_name, sep='|')
@@ -914,6 +909,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--halo', metavar='halo', type=str, action='store', default=haloname, help='which halo? default is 8508 (Tempest)')
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x')
     parser.add_argument('--output', metavar='output', type=str, action='store', default=RDname, help='which output? default is RD0020')
+    parser.add_argument('--foggie_dir', metavar='foggie_dir', type=str, action='store', default=None, help='Specify which directory the dataset lies in, otherwise, by default it will use the args.system variable to determine the FOGGIE data location')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the current working directory?, default is no')
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available for a given halo?, default is no')
     parser.add_argument('--nevery', metavar='nevery', type=int, action='store', default=1, help='use every nth snapshot when do_all_sims is specified; default is 1 i.e., all snapshots will be used')
@@ -928,7 +924,10 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--noweight', dest='noweight', action='store_true', default=False, help='Skip weighting the projection?, default is no')
     parser.add_argument('--makerotmovie', dest='makerotmovie', action='store_true', default=False, help='Make a rotation projection movie?, default is no')
     parser.add_argument('--nframes', metavar='nframes', type=int, action='store', default=200, help='total number of frames in movie, i.e. number of parts to divide the full 2*pi into; default is 200')
-    parser.add_argument('--nrot', metavar='nrot', type=int, action='store', default=0, help='what fraction of rotation (0=0, 1 = 2*pi)? default is 0, i.e. first slice = no rotation')
+    parser.add_argument('--rot_normal_by', metavar='rot_normal_by', type=float, action='store', default=0, help='rotation (in degrees) for the normal vector? default is 0, i.e. first slice = no rotation')
+    parser.add_argument('--rot_normal_about', metavar='rot_normal_about', type=str, action='store', default='x', help='Which axis to rotate the normal vector about? Default is x')
+    parser.add_argument('--rot_north_by', metavar='rot_north_by', type=float, action='store', default=0, help='rotation (in degrees) for the north vector? default is 0, i.e. first slice = no rotation')
+    parser.add_argument('--rot_north_about', metavar='rot_north_about', type=str, action='store', default='y', help='Which axis to rotate the north vector about? Default is x')
     parser.add_argument('--do_central', dest='do_central', action='store_true', default=False, help='Do central refine box projection?, default is no')
     parser.add_argument('--add_arrow', dest='add_arrow', action='store_true', default=False, help='Add arrows?, default is no')
     parser.add_argument('--add_velocity', dest='add_velocity', action='store_true', default=False, help='Add velocity?, default is no')
@@ -1062,12 +1061,28 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--inflow_only', dest='inflow_only', action='store_true', default=False, help='only consider gas with negative radial velocity?, default is no')
     parser.add_argument('--outflow_only', dest='outflow_only', action='store_true', default=False, help='only consider gas with positive radial velocity?, default is no')
     parser.add_argument('--use_old_dsh', dest='use_old_dsh', action='store_true', default=False, help='use the old way of making datashader plots?, default is no')
+    parser.add_argument('--quick', dest='quick', action='store_true', default=False, help='proceed with only the relevant properties and not store all properties?, default is no')
+    parser.add_argument('--nofoggie', dest='nofoggie', action='store_true', default=False, help='skip plotting foggie data?, default is no')
 
     # ------- args added for flux_tracking_movie.py ------------------------------
     parser.add_argument('--units_kpc', dest='units_kpc', action='store_true', default=False, help='the inner and outer radii of the sphere are in kpc units?, default is no')
     parser.add_argument('--units_rvir', dest='units_rvir', action='store_true', default=False, help='the inner and outer radii of the sphere are in fraction of Rvir?, default is no')
     parser.add_argument('--temp_cut', dest='temp_cut', action='store_true', default=False, help='compute everything broken into cold, cool, warm, and hot gas?, default is no')
-    parser.add_argument('--nchunks', metavar='nchunks', type=int, action='store', default=100, help='number of chunks to break up in to; default is 100')
+    parser.add_argument('--nchunks', metavar='nchunks', type=int, action='store', default=20, help='number of chunks to break up in to; default is 100')
+    parser.add_argument('--overplot_source_sink', dest='overplot_source_sink', action='store_true', default=False, help='overplot source and sink terms on flux plots?, default is no')
+
+    # ------- args added for datashader_quickplot.py ------------------------------
+    parser.add_argument('--xmin', metavar='xmin', type=float, action='store', default=None, help='minimum xaxis limit; default is None')
+    parser.add_argument('--xmax', metavar='xmax', type=float, action='store', default=None, help='maximum xaxis limit; default is None')
+    parser.add_argument('--ymin', metavar='ymin', type=float, action='store', default=None, help='minimum yaxis limit; default is None')
+    parser.add_argument('--ymax', metavar='ymax', type=float, action='store', default=None, help='maximum yaxis limit; default is None')
+    parser.add_argument('--cmap', metavar='cmap', type=str, action='store', default=None, help='colormap to use; default is None')
+    parser.add_argument('--ncolbins', metavar='ncolbins', type=int, action='store', default=None, help='number of bins in color space the data shader categories would be split across; default is None')
+    parser.add_argument('--nodiskload', dest='nodiskload', action='store_true', default=False, help='skip loading disk-relative stuff in foggie load (saves time)?, default is no')
+    parser.add_argument('--diskload', dest='diskload', action='store_true', default=False, help='load disk-relative stuff in foggie load?, default is no')
+
+    # ------- args added for compute_MZgrad.py ------------------------------
+    parser.add_argument('--upto_re', metavar='upto_re', type=float, action='store', default=2.0, help='fit metallicity gradient out to what multiple of Re? default is 2')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
@@ -1090,11 +1105,13 @@ def parse_args(haloname, RDname, fast=False):
     args.mergeHII_text = '_mergeHII=' + str(args.mergeHII) + 'kpc' if args.mergeHII is not None else '' # to be used as filename suffix to denote whether HII regions have been merged
     args.without_outlier = '_no_outlier' if args.nooutliers else '' # to be used as filename suffix to denote whether outlier HII regions (as per D16 density criteria) have been discarded
 
+    args.foggie_dir, args.output_dir, args.run_loc, args.code_path, args.trackname, args.haloname, args.spectra_dir, args.infofile = get_run_loc_etc(args)
     try:
         args = pull_halo_center(args, fast=fast) # pull details about center of the snapshot
         if type(args) is tuple: args, ds, refine_box = args
         args.halo_center = args.halo_center + args.center_wrt_halo # kpc # offsetting center of ifu data cube wrt halo center, if any
-    except:
+    except Exception as e:
+        print('Error being overlooked in utils.parse_args():', e)
         pass
 
     instrument_dummy = telescope(args) # declare a dummy instrument; just to set proper paths

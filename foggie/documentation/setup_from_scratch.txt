@@ -1,0 +1,50 @@
+A quickstart guide to onboarding with FOGGIE at STScI/JHU. Last updated February 18, 2022 by MSP.
+
+
+****Setting up python and relevant packages:
+ - Install python using conda: https://docs.anaconda.com/anaconda
+ 
+ - Then install yt:
+    - installing using conda: % conda install -c conda-forge yt (https://yt-project.org/doc/installing.html) will give you the latest *publicly* available version, which, in February 2022 is yt 4.0.2
+ 	if yt shows up correctly in the list but you cannot load it in python, it's due to a discrepancy between yoru conda numpy and the numpy that yt grabs for installation. (you can check the latter with $ python -m pip install -ve .)
+	If yt tries to use version 1.20.x but your conda numpy is only 19.2.x go back into the yt folder, do 
+ 	$ pip install 'numpy>=1.20'
+ 	$ ./clean.sh
+ 	$ pip install -e . 
+	###
+ - conda install datashader
+ - conda install seaborn
+ - conda install bokeh
+
+- if photutils is needed (e.g. for satellite finder) install via pip, not via conda. conda will want to change your python version.
+
+ **********************************************************************
+
+
+ - You'll want to clone the FOGGIE repo https://github.com/foggie-sims/foggie locally and update your ~/.bash_profile to include this in your PYTHONPATH (e.g., export PYTHONPATH="/Users/molly/Dropbox/foggie/foggie/").
+    - To make sure python can import the foggie code from anywhere in your machine do the following:
+    % cd foggie
+    % python setup.py develop ## use 'develop' instead of 'install' to ensure that python points to the source and not egg-files; otherwise live changes won't be visible to python
+    % ipython
+    % import foggie ## import should now work from within python or ipython console
+
+ - You will also want to install the FOGGIE version of Trident from https://github.com/foggie-sims/trident:
+    % git clone https://github.com/foggie-sims/trident
+    % cd trident
+    % pip install -e .
+ - In the trident/trident/data/line_lists/ directory, there is a file called "lines.txt". You'll want to back this up (e.g., "mv lines.txt lines_orig.txt") and then copy our version in there (we use Morton+2003), also calling it lines.txt. It exists both in the foggie repo as foggie/data/atom_wave_gamma_f.dat. (This will get fixed at some point...)
+   Then exit the trident directory and follow the instructions for Step 3 on https://foggie-trident.readthedocs.io/en/latest/installation.html. You want the hm2012 version with selfshielding. This should  be an option to choose; if not, there is a version of the table in the foggie dropbox (hm2012_hr_sh_cr.h5) that you can copy to your ~/.trident/ folder.
+
+
+****Group stuff:
+ - slack: send Molly a non-STScI email to use and she will send you an invite. Molly may add you to some relevant channels but in general you should feel free to join any public ones, create your own and add people, import new emoji, etc.
+ - NASA account: Molly will start the process using your work account
+ - Dropbox: create a new account (or upgrade your existing one). STScI: Forward the isnvoice to smo_admin@stsci.edu to get reimbursed off of J1939. tell Molly what email you used so she can add you to the FOGGIE directory. JHU: Forward the invoice to Barbara Dreyfus at bdreyfu1@jhu.edu, cc Molly and Jason, and they will say which account to get the reimbursement off. Plug in your computer and wait a while with good internet for it to sync.
+ - github: get an account if you don't have one; send Molly your username and you'll be added to the FOGGIE team. You may also be added to the MISTY group (https://github.com/MISTY-pipeline/).
+  - FOGGIE calendar: create an iCloud account if you don't have one; tell Molly which email you used and she'll add you to the group calendar. (Apple's Calendar app can use this, google calendars, and the STScI exchange ones all together.)
+ - Trello: create an account if you don't have one; tell Molly your username or email and she'll add you to group. (This is rarely used.)
+ 
+****Schedules in Baltimore:
+We have a weekly FOGGIE call on slack with as many people as can make it; this is currently Tuesdays at 11am; Cassi sets the agendas for these. 
+The other main weekly events are JHU's wine and cheese talks at 3:30pm on Mondays, the STScI colloquium at 3pm on Wednesdays, and the galaxy journal club at 2pm on Thursdays (see https://sites.google.com/site/stscigalaxyclub/ for how to sign up for the mailing list for that). Generally there are more talks and events to go to than there is reasonably time, so choose wisely. There's also a "low density universe" group; the associated channel on the STScI slack is probably the best way to get info for that.
+
