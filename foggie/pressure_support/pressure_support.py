@@ -553,7 +553,7 @@ def pressures_vs_radius(snap):
     if (not args.load_stats):
         if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
-            snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
+            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
             if (args.copy_to_tmp):
                 shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
                 snap_name = snap_dir + '/' + snap
@@ -1079,7 +1079,7 @@ def forces_vs_radius(snap):
     if (not args.load_stats):
         if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
-            snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
+            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
             if (args.copy_to_tmp):
                 shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
                 snap_name = snap_dir + '/' + snap
@@ -3300,7 +3300,7 @@ def pressure_slice(snap):
 
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
+        snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
         if (args.copy_to_tmp):
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
             snap_name = snap_dir + '/' + snap
@@ -3465,7 +3465,7 @@ def force_slice(snap):
 
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
+        snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
         if (args.copy_to_tmp):
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
             snap_name = snap_dir + '/' + snap
@@ -3689,7 +3689,7 @@ def ion_slice(snap):
 
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
+        snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
         if (args.copy_to_tmp):
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
             snap_name = snap_dir + '/' + snap
@@ -3902,7 +3902,7 @@ def velocity_slice(snap):
 
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
+        snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
         if (args.copy_to_tmp):
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
             snap_name = snap_dir + '/' + snap
@@ -4706,10 +4706,10 @@ if __name__ == "__main__":
                 # Delete leftover outputs from failed processes from tmp directory if on pleiades
                 if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
                     for s in range(len(snaps)):
-                        if (os.path.exists('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])):
+                        if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
                             print('Deleting failed %s from /tmp' % (snaps[s]))
                             skipped_outs.append(snaps[s])
-                            shutil.rmtree('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])
+                            shutil.rmtree('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])
             # For any leftover snapshots, run one per processor
             threads = []
             snaps = []
@@ -4724,10 +4724,10 @@ if __name__ == "__main__":
             # Delete leftover outputs from failed processes from tmp directory if on pleiades
             if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
                 for s in range(len(snaps)):
-                    if (os.path.exists('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])):
+                    if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
                         print('Deleting failed %s from /tmp' % (snaps[s]))
                         skipped_outs.append(snaps[s])
-                        shutil.rmtree('/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snaps[s])
+                        shutil.rmtree('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])
             outs = skipped_outs
 
     '''if (args.nproc!=1):
