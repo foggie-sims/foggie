@@ -4,12 +4,12 @@ A quickstart guide to onboarding with FOGGIE at STScI/JHU. Last updated February
 ****Setting up python and relevant packages:
  - Install python using conda: https://docs.anaconda.com/anaconda
 
-*** Optional Virtual Environment stuff ***   Blame Greg ****
-Create a foggie virtual environment:
-conda create --name='foggie'
-conda activate foggie
-conda install pip
-***
+ *** Optional Virtual Environment stuff ***   Blame Greg ****
+ Create a foggie virtual environment:
+ conda create --name='foggie'
+ conda activate foggie
+ conda install pip
+ ********
 
  - Then install yt:
     - installing using conda: % conda install -c conda-forge yt (https://yt-project.org/doc/installing.html) will give you the latest *publicly* available version, which, in February 2022 is yt 4.0.2
@@ -28,7 +28,6 @@ conda install pip
  **********************************************************************
 
 
-
  - You'll want to clone the FOGGIE repo https://github.com/foggie-sims/foggie locally and update your ~/.bash_profile to include this in your PYTHONPATH (e.g., export PYTHONPATH="/Users/molly/Dropbox/foggie/foggie/").
     - To make sure python can import the foggie code from anywhere in your machine do the following:
     % cd foggie
@@ -40,22 +39,20 @@ conda install pip
     % git clone https://github.com/foggie-sims/trident
     % cd trident
     % pip install -e .
- - In the trident/trident/data/line_lists/ directory, there is a file called "lines.txt". You'll want to back this up (e.g., "mv lines.txt lines_orig.txt") and then copy our version in there (we use Morton+2003), also calling it lines.txt. It exists both in the foggie repo as foggie/data/atom_wave_gamma_f.dat. (This will get fixed at some point...)
-   Then exit the trident directory and follow the instructions for Step 3 on https://foggie-trident.readthedocs.io/en/latest/installation.html. You want the hm2012 version with selfshielding. This should  be an option to choose; if not, there is a version of the table in the foggie dropbox (hm2012_hr_sh_cr.h5) that you can copy to your ~/.trident/ folder.
+ - Then exit the trident directory and follow the instructions for Step 3 on https://foggie-trident.readthedocs.io/en/latest/installation.html. You want the hm2012 version with selfshielding. This should  be an option to choose; if not, there is a version of the table in the foggie dropbox (hm2012_hr_sh_cr.h5) that you can copy to your ~/.trident/ folder.
 
 
-   *** Optional Virtual Environment stuff ***   Blame Greg ****
-   *** Avoids having to set PYTHONPATH ***
-   cd ~/miniconda3/envs/foggie/lib/python3.9/site-packages/
-   git clone https://github.com/foggie-sims/foggie.git
-   cd foggie
-   python setup.py develop
-   ipython
-   import foggie
+ *** Optional Virtual Environment stuff ***   Blame Greg ****
+ *** Avoids having to set PYTHONPATH ***
+ cd ~/miniconda3/envs/foggie/lib/python3.9/site-packages/
+ git clone https://github.com/foggie-sims/foggie.git
+ cd foggie
+ python setup.py develop
+ ipython
+ import foggie
 
-   *** Can do the same trick for Trident instructions below ****
-   ********
-
+ *** Can do the same trick for Trident instructions below ****
+ ********
 
 
 ****Group stuff:
@@ -67,5 +64,6 @@ conda install pip
  - Trello: create an account if you don't have one; tell Molly your username or email and she'll add you to group. (This is rarely used.)
 
 ****Schedules in Baltimore:
-We have a weekly FOGGIE call on slack with as many people as can make it; this is currently Tuesdays at 11am; Cassi sets the agendas for these.
+We have a weekly FOGGIE call on slack with as many people as can make it; this is currently Tuesdays at 11am; Cassi sets the agendas for these. For Spring 2022, we are using Bloomberg 139 on Tuesdays 1-5pm and Bloomberg 259 on Fridays 1-5pm.
+
 The other main weekly events are JHU's wine and cheese talks at 3:30pm on Mondays, the STScI colloquium at 3pm on Wednesdays, and the galaxy journal club at 2pm on Thursdays (see https://sites.google.com/site/stscigalaxyclub/ for how to sign up for the mailing list for that). Generally there are more talks and events to go to than there is reasonably time, so choose wisely. There's also a "low density universe" group; the associated channel on the STScI slack is probably the best way to get info for that.
