@@ -1,20 +1,12 @@
-A quickstart guide to onboarding with FOGGIE at STScI/JHU. Last updated January 25, 2021 by AA and MSP.
+A quickstart guide to onboarding with FOGGIE at STScI/JHU. Last updated February 18, 2022 by MSP.
 
 
 ****Setting up python and relevant packages:
- - Install python using conda: https://astroconda.readthedocs.io/en/latest/ After downloading and installing anaconda (for python 3.8) you'll want the full stack, i.e., % conda config --add channels http://ssb.stsci.edu/astroconda
+ - Install python using conda: https://docs.anaconda.com/anaconda
  
  - Then install yt:
-    - installing using conda: % conda install -c conda-forge yt (https://yt-project.org/doc/installing.html) will give you the latest *publicly* available version, which, in Jan 2021 happens to be yt 3.6
-    - to install the latest yt 4 you need to download the developer version, as follows (from README of FOGGIE-trident repo)
-    % git clone https://github.com/yt-project/yt YOUR_CODE_DIR/yt
-    % cd YOUR_CODE_DIR/yt
-    % pip install -e .
-    - leave yt directory
-    % yt config migrate
-    % conda list -f yt # if everything is as it should be, you should see yt version 4.0.dev0 in the list
-	### 
-	if yt shows up correctly in the list but you cannot load it in python, it's due to a discrepancy between yoru conda numpy and the numpy that yt grabs for installation. (you can check the latter with $ python -m pip install -ve .)
+    - installing using conda: % conda install -c conda-forge yt (https://yt-project.org/doc/installing.html) will give you the latest *publicly* available version, which, in February 2022 is yt 4.0.2
+ 	if yt shows up correctly in the list but you cannot load it in python, it's due to a discrepancy between yoru conda numpy and the numpy that yt grabs for installation. (you can check the latter with $ python -m pip install -ve .)
 	If yt tries to use version 1.20.x but your conda numpy is only 19.2.x go back into the yt folder, do 
  	$ pip install 'numpy>=1.20'
  	$ ./clean.sh
@@ -23,14 +15,6 @@ A quickstart guide to onboarding with FOGGIE at STScI/JHU. Last updated January 
  - conda install datashader
  - conda install seaborn
  - conda install bokeh
- - conda install 'matplotlib<3.3.0'  (this is to get compatibility with yt=3.6.0; newest works with  yt4; if there is an issue, try % conda install -c conda-forge matplotlib)
-  **** The following was the case for Ayan, may not apply generally ****
- - After updating matplotlib, there were some issues and here's what was needed to fix everything:
-    % conda install -c anaconda ipython
-    % conda install -c anaconda more-itertools
-    % conda install -c conda-forge toml
-    % conda install seaborn
-    % conda install -c anaconda astropy
 
 - if photutils is needed (e.g. for satellite finder) install via pip, not via conda. conda will want to change your python version.
 
@@ -47,7 +31,6 @@ A quickstart guide to onboarding with FOGGIE at STScI/JHU. Last updated January 
  - You will also want to install the FOGGIE version of Trident from https://github.com/foggie-sims/trident:
     % git clone https://github.com/foggie-sims/trident
     % cd trident
-    % git checkout legacy #Experience from Ramona's laptop - don't do this line, just directly do pip install -e ., otherwise it will uninstall yt4 and install yt 3.6
     % pip install -e .
  - In the trident/trident/data/line_lists/ directory, there is a file called "lines.txt". You'll want to back this up (e.g., "mv lines.txt lines_orig.txt") and then copy our version in there (we use Morton+2003), also calling it lines.txt. It exists both in the foggie repo as foggie/data/atom_wave_gamma_f.dat. (This will get fixed at some point...)
    Then exit the trident directory and follow the instructions for Step 3 on https://foggie-trident.readthedocs.io/en/latest/installation.html. You want the hm2012 version with selfshielding. This should  be an option to choose; if not, there is a version of the table in the foggie dropbox (hm2012_hr_sh_cr.h5) that you can copy to your ~/.trident/ folder.
