@@ -6,12 +6,13 @@ A quickstart guide to onboarding with FOGGIE at STScI/JHU. Last updated February
  
  - Then install yt:
     - installing using conda: % conda install -c conda-forge yt (https://yt-project.org/doc/installing.html) will give you the latest *publicly* available version, which, in February 2022 is yt 4.0.2
- 	if yt shows up correctly in the list but you cannot load it in python, it's due to a discrepancy between yoru conda numpy and the numpy that yt grabs for installation. (you can check the latter with $ python -m pip install -ve .)
-	If yt tries to use version 1.20.x but your conda numpy is only 19.2.x go back into the yt folder, do 
- 	$ pip install 'numpy>=1.20'
- 	$ ./clean.sh
- 	$ pip install -e . 
-	###
+
+ - And yt astro-analysis:
+  git clone https://github.com/yt-project/yt_astro_analysis yt_astro_analysis
+  cd yt_astro_analysis
+  pip install -e .
+
+ - conda install -c conda-forge cmyt
  - conda install datashader
  - conda install seaborn
  - conda install bokeh
