@@ -3915,6 +3915,16 @@ def velocity_slice(snap):
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
 
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
+
     vtypes = [['vx', 'vy', 'vz'], ['radial_velocity', 'theta_velocity', 'phi_velocity']]
     vlabels = [['$x$', '$y$', '$z$'], ['Radial', '$\\theta$', '$\phi$']]
     vmins = [[-500, -500, -500], [-500, -200, -200]]
@@ -3937,7 +3947,7 @@ def velocity_slice(snap):
     y = box[('gas','y')].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
     z = box[('gas','z')].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
     # Define ISM regions to remove
-    disk_mask = (density > cgm_density_max) & (temperature < cgm_temperature_min)
+    disk_mask = (density > cgm_density_max * density_cut_factor)
     # disk_mask_expanded is a binary mask of both ISM regions AND their surrounding pixels
     struct = ndimage.generate_binary_structure(3,3)
     disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
@@ -3954,7 +3964,7 @@ def velocity_slice(snap):
             # Cut to only those values closest to removed ISM regions
             v_edges = v[disk_edges]
             # Interpolate across removed ISM regions
-            v_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), v_edges)
+            v_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), v_edges)
             v_masked = np.copy(v)
             # Replace removed ISM regions with interpolated values
             v_masked[disk_mask] = v_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -4704,7 +4714,7 @@ if __name__ == "__main__":
                 for t in threads:
                     t.join()
                 # Delete leftover outputs from failed processes from tmp directory if on pleiades
-                if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+                if (args.system=='pleiades_cassi'):
                     for s in range(len(snaps)):
                         if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
                             print('Deleting failed %s from /tmp' % (snaps[s]))
@@ -4722,7 +4732,7 @@ if __name__ == "__main__":
             for t in threads:
                 t.join()
             # Delete leftover outputs from failed processes from tmp directory if on pleiades
-            if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+            if (args.system=='pleiades_cassi'):
                 for s in range(len(snaps)):
                     if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
                         print('Deleting failed %s from /tmp' % (snaps[s]))

@@ -1592,7 +1592,7 @@ if __name__ == "__main__":
                 for t in threads:
                     t.join()
                 # Delete leftover outputs from failed processes from tmp directory if on pleiades
-                if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+                if (args.system=='pleiades_cassi'):
                     for s in range(len(snaps)):
                         if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
                             print('Deleting failed %s from /tmp' % (snaps[s]))
@@ -1610,7 +1610,7 @@ if __name__ == "__main__":
             for t in threads:
                 t.join()
             # Delete leftover outputs from failed processes from tmp directory if on pleiades
-            if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+            if (args.system=='pleiades_cassi'):
                 for s in range(len(snaps)):
                     if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
                         print('Deleting failed %s from /tmp' % (snaps[s]))
