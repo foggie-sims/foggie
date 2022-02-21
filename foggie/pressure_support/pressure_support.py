@@ -581,29 +581,20 @@ def pressures_vs_radius(snap):
         lvl1_res = pix_res*2.**11.
         level = 9
         dx = lvl1_res/(2.**level)
-        smooth_scale = int(25./dx)
+        dx_cm = dx*1000*cmtopc
+        smooth_scale = int(25./dx)/6.
         refine_res = int(3.*Rvir/dx)
         box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
-        density = box['density'].in_units('g/cm**3').v.flatten()
-        temperature = box['temperature'].v.flatten()
-        radius = box['radius_corrected'].in_units('kpc').v.flatten()
-        if (args.cgm_only): radius = radius[(density < cgm_density_max * density_cut_factor)]
-        if (args.weight=='mass'):
-            weights = box['cell_mass'].in_units('Msun').v.flatten()
-        if (args.weight=='volume'):
-            weights = box['cell_volume'].in_units('kpc**3').v.flatten()
-        if (args.cgm_only): weights = weights[(density < cgm_density_max * density_cut_factor)]
-        if (args.region_filter=='metallicity'):
-            metallicity = box['metallicity'].in_units('Zsun').v.flatten()
-            if (args.cgm_only): metallicity = metallicity[(density < cgm_density_max * density_cut_factor)]
-        if (args.region_filter=='velocity'):
-            rv = box['radial_velocity_corrected'].in_units('km/s').v.flatten()
-            rv = rv[(density < cgm_density_max * density_cut_factor)]
-            vff = box['vff'].in_units('km/s').v.flatten()
-            vesc = box['vesc'].in_units('km/s').v.flatten()
-            if (args.cgm_only):
-                vff = vff[(density < cgm_density_max * density_cut_factor)]
-                vesc = vesc[(density < cgm_density_max * density_cut_factor)]
+        density = box['density'].in_units('g/cm**3').v
+        temperature = box['temperature'].v
+        radius = box['radius_corrected'].in_units('kpc').v
+        x = box[('gas','x')].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
+        y = box[('gas','y')].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
+        z = box[('gas','z')].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
+        r = box['radius_corrected'].in_units('cm').v
+        x_hat = x/r
+        y_hat = y/r
+        z_hat = z/r
 
         # This next block needed for removing any ISM regions and then interpolating over the holes left behind
         if (args.cgm_only):
@@ -626,6 +617,24 @@ def pressures_vs_radius(snap):
             den_masked[disk_mask] = den_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         else:
             den_masked = density
+
+        if (args.cgm_only): radius = radius[(density < cgm_density_max * density_cut_factor)]
+        if (args.weight=='mass'):
+            weights = box['cell_mass'].in_units('Msun').v
+        if (args.weight=='volume'):
+            weights = box['cell_volume'].in_units('kpc**3').v
+        if (args.cgm_only): weights = weights[(density < cgm_density_max * density_cut_factor)]
+        if (args.region_filter=='metallicity'):
+            metallicity = box['metallicity'].in_units('Zsun').v
+            if (args.cgm_only): metallicity = metallicity[(density < cgm_density_max * density_cut_factor)]
+        if (args.region_filter=='velocity'):
+            rv = box['radial_velocity_corrected'].in_units('km/s').v
+            rv = rv[(density < cgm_density_max * density_cut_factor)]
+            vff = box['vff'].in_units('km/s').v
+            vesc = box['vesc'].in_units('km/s').v
+            if (args.cgm_only):
+                vff = vff[(density < cgm_density_max * density_cut_factor)]
+                vesc = vesc[(density < cgm_density_max * density_cut_factor)]
 
         thermal_pressure = box['pressure'].in_units('erg/cm**3').v
         if (args.cgm_only):
@@ -4571,21 +4580,21 @@ if __name__ == "__main__":
         save_dir += 'Movie_frames/'
 
     if (args.plot=='pressure_vs_radius'):
+        target_dir = 'pressures_vs_radius'
         if (args.nproc==1):
             for i in range(len(outs)):
                 pressures_vs_radius(outs[i])
         else:
             target = pressures_vs_radius
-            target_dir = 'pressures_vs_radius'
     elif (args.plot=='pressure_vs_time'):
         pressures_vs_time(outs)
     elif (args.plot=='force_vs_radius'):
+        target_dir = 'forces_vs_radius'
         if (args.nproc==1):
             for i in range(len(outs)):
                 forces_vs_radius(outs[i])
         else:
             target = forces_vs_radius
-            target_dir = 'forces_vs_radius'
     elif (args.plot=='force_vs_radius_pres'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -4627,12 +4636,12 @@ if __name__ == "__main__":
         else:
             target = force_vs_r_rv_shaded
     elif (args.plot=='pressure_slice'):
+        target_dir = 'pressure_slice'
         if (args.nproc==1):
             for i in range(len(outs)):
                 pressure_slice(outs[i])
         else:
             target = pressure_slice
-            target_dir = 'pressure_slice'
     elif (args.plot=='support_slice'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -4640,12 +4649,12 @@ if __name__ == "__main__":
         else:
             target = support_slice
     elif (args.plot=='velocity_slice'):
+        target_dir = 'velocity_slice'
         if (args.nproc==1):
             for i in range(len(outs)):
                 velocity_slice(outs[i])
         else:
             target = velocity_slice
-            target_dir = 'velocity_slice'
     elif (args.plot=='vorticity_slice'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -4653,19 +4662,19 @@ if __name__ == "__main__":
         else:
             target = vorticity_slice
     elif (args.plot=='force_slice'):
+        target_dir = 'force_slice'
         if (args.nproc==1):
             for i in range(len(outs)):
                 force_slice(outs[i])
         else:
             target = force_slice
-            target_dir = 'force_slice'
     elif (args.plot=='ion_slice'):
+        target_dir = 'ion_slice'
         if (args.nproc==1):
             for i in range(len(outs)):
                 ion_slice(outs[i])
         else:
             target = ion_slice
-            target_dir = 'ion_slice'
     elif (args.plot=='vorticity_direction'):
         if (args.nproc==1):
             for i in range(len(outs)):
