@@ -36,9 +36,11 @@ from scipy.interpolate import RegularGridInterpolator
 import shutil
 import ast
 import matplotlib.pyplot as plt
-from scipy.ndimage import uniform_filter
+from scipy.ndimage import gaussian_filter
 from scipy.ndimage import rotate
-from scipy.ndimage import shift
+from scipy.ndimage import uniform_filter1d
+import scipy.ndimage as ndimage
+from scipy.interpolate import LinearNDInterpolator
 import copy
 import matplotlib.colors as colors
 import random
@@ -102,6 +104,7 @@ def parse_args():
                         help='What plot do you want? Options are:\n' + \
                         'velocity_slice         -  x-slices of the three spherical components of velocity, comparing the velocity,\n' + \
                         '                          the smoothed velocity, and the difference between the velocity and the smoothed velocity\n' + \
+                        'vdisp_slice            -  x-slice of the velocity dispersion\n' + \
                         'vorticity_slice        -  x-slice of the velocity vorticity magnitude\n' + \
                         'vorticity_direction    -  2D histograms of vorticity direction split by temperature and radius\n' + \
                         'turbulent_spectrum     -  Turbulent energy power spectrum\n' + \
@@ -149,6 +152,12 @@ def parse_args():
                         help='If plotting vdisp_vs_time or vdisp_SFR_xcorr, at what radius do you\n' + \
                         'want to plot, in units of fractions of Rvir? Default is 0.3Rvir.')
     parser.set_defaults(time_radius=0.3)
+
+    parser.add_argument('--copy_to_tmp', dest='copy_to_tmp', action='store_true', \
+                        help='If running on pleiades, do you want to copy simulation outputs too the\n' + \
+                        '/tmp directory on the run node before doing calculations? This may speed up\n' + \
+                        'run time and reduce weight on IO file system. Default is no.')
+    parser.set_defaults(copy_to_tmp=False)
 
     args = parser.parse_args()
     return args
@@ -577,15 +586,32 @@ def vsf_randompoints(snap):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     if (args.load_vsf=='none'):
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
-            snap_dir = '/tmp/' + snap
-            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-            snap_name = snap_dir + '/' + snap
+            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+            if (args.copy_to_tmp):
+                shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+                snap_name = snap_dir + '/' + snap
+            else:
+                # Make a dummy directory with the snap name so the script later knows the process running
+                # this snapshot failed if the directory is still there
+                os.makedirs(snap_dir)
+                snap_name = foggie_dir + run_dir + snap + '/' + snap
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
-        cgm = refine_box.cut_region(cgm_field_filter)
+
+        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+        # with it being 1 at higher redshifts and 0.1 at lower redshifts
+        current_time = ds.current_time.in_units('Myr').v
+        if (current_time<=8656.88):
+            density_cut_factor = 1.
+        elif (current_time<=10787.12):
+            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+        else:
+            density_cut_factor = 0.1
+
+        cgm = refine_box.cut_region("obj['density'] < %.3e" % (cgm_density_max * density_cut_factor))
         if (args.region_filter=='temperature'):
             filter = cgm['temperature'].v
             low = 10**4.8
@@ -711,7 +737,7 @@ def vsf_randompoints(snap):
     plt.savefig(save_dir + 'Movie_frames/' + snap + '_VSF' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
-    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+    if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -727,11 +753,16 @@ def vdisp_vs_radius(snap):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     if (not args.load_stats):
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
-            snap_dir = '/tmp/' + snap
-            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-            snap_name = snap_dir + '/' + snap
+            snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
+            if (args.copy_to_tmp):
+                shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+                snap_name = snap_dir + '/' + snap
+            else:
+                # Make a dummy directory with the snap name so the script later knows the process running
+                # this snapshot failed if the directory is still there
+                os.makedirs(snap_dir)
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -893,7 +924,7 @@ def vdisp_vs_radius(snap):
         stats = table
         print("Stats have been calculated and saved to file for snapshot " + snap + "!")
         # Delete output from temp directory if on pleiades
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        if (args.system=='pleiades_cassi'):
             print('Deleting directory from /tmp')
             shutil.rmtree(snap_dir)
 
@@ -959,8 +990,13 @@ def vdisp_vs_mass_res(snap):
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -1057,8 +1093,13 @@ def vdisp_vs_spatial_res(snap):
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -1301,6 +1342,140 @@ def vdisp_SFR_xcorr(snaplist):
 
     print('Plot made!')
 
+def vdisp_slice(snap):
+    '''Plots a slice of velocity dispersion.'''
+
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
+    else:
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    masses_ind = np.where(masses['snapshot']==snap)[0]
+    Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
+    Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))  # at level 11
+    lvl1_res = pix_res*2.**11.
+    level = 9
+    dx = lvl1_res/(2.**level)
+    smooth_scale = (25./dx)/6.
+    dx_cm = dx*1000*cmtopc
+    refine_res = int(3.*Rvir/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
+    density = box['density'].in_units('g/cm**3').v
+    temperature = box['temperature'].v
+    mass = box['cell_mass'].in_units('Msun').v
+    metallicity = box['metallicity'].in_units('Zsun').v
+    x = box[('gas','x')].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
+    y = box[('gas','y')].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
+    z = box[('gas','z')].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
+    r = box['radius_corrected'].in_units('cm').v
+    radius = box['radius_corrected'].in_units('kpc').v
+    x_hat = x/r
+    y_hat = y/r
+    z_hat = z/r
+
+    # This next block needed for removing any ISM regions and then interpolating over the holes left behind
+    # Define ISM regions to remove
+    disk_mask = (density > cgm_density_max) & (temperature < cgm_temperature_min)
+    # disk_mask_expanded is a binary mask of both ISM regions AND their surrounding pixels
+    struct = ndimage.generate_binary_structure(3,3)
+    disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
+    disk_mask_expanded = ndimage.binary_closing(disk_mask_expanded, structure=struct, iterations=3)
+    disk_mask_expanded = disk_mask_expanded | disk_mask
+    # disk_edges is a binary mask of ONLY pixels surrounding ISM regions -- nothing inside ISM regions
+    disk_edges = disk_mask_expanded & ~disk_mask
+    x_edges = x[disk_edges].flatten()
+    y_edges = y[disk_edges].flatten()
+    z_edges = z[disk_edges].flatten()
+
+    vx = box['vx_corrected'].in_units('cm/s').v
+    vy = box['vy_corrected'].in_units('cm/s').v
+    vz = box['vz_corrected'].in_units('cm/s').v
+    vx_edges = vx[disk_edges]
+    vy_edges = vy[disk_edges]
+    vz_edges = vz[disk_edges]
+    vx_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges, fill_value=0)
+    vy_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges, fill_value=0)
+    vz_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges, fill_value=0)
+    vx_masked = np.copy(vx)
+    vy_masked = np.copy(vy)
+    vz_masked = np.copy(vz)
+    vx_masked[disk_mask] = vx_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    vy_masked[disk_mask] = vy_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    vz_masked[disk_mask] = vz_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    '''smooth_vx = gaussian_filter(vx_masked, smooth_scale)
+    smooth_vy = gaussian_filter(vy_masked, smooth_scale)
+    smooth_vz = gaussian_filter(vz_masked, smooth_scale)
+    sig_x = (vx_masked - smooth_vx)**2.
+    sig_y = (vy_masked - smooth_vy)**2.
+    sig_z = (vz_masked - smooth_vz)**2.
+    #vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)/1e5
+    #vavg = np.sqrt((smooth_vx**2. + smooth_vy**2. + smooth_vz**2.))/1e5
+    #vdisp = np.sqrt(sig_x)/1e5'''
+
+    radius_list = np.linspace(0., 1.5*Rvir, 100)
+    #vdisp = vx_masked
+    vavg = np.copy(vx_masked)
+    for i in range(len(radius_list)-1):
+        vx_shell = vx_masked[(radius >= radius_list[i]) & (radius < radius_list[i+1])]
+        vy_shell = vy_masked[(radius >= radius_list[i]) & (radius < radius_list[i+1])]
+        vz_shell = vz_masked[(radius >= radius_list[i]) & (radius < radius_list[i+1])]
+        mass_shell = mass[(radius >= radius_list[i]) & (radius < radius_list[i+1])]
+        #vx_shell = smooth_vx[(radius >= radius_list[i]) & (radius < radius_list[i+1])]
+        #vy_shell = smooth_vy[(radius >= radius_list[i]) & (radius < radius_list[i+1])]
+        #vz_shell = smooth_vz[(radius >= radius_list[i]) & (radius < radius_list[i+1])]
+
+        vx_avg = np.mean(vx_shell)
+        vx_disp = np.std(vx_shell)
+        vy_avg = np.mean(vy_shell)
+        vy_disp = np.std(vy_shell)
+        vz_avg = np.mean(vz_shell)
+        vz_disp = np.std(vz_shell)
+
+        #vdisp[(radius >= radius_list[i]) & (radius < radius_list[i+1])] = np.sqrt((vx_disp**2. + vy_disp**2. + vz_disp**2.)/3.)/1e5
+        #vavg[(radius >= radius_list[i]) & (radius < radius_list[i+1])] = np.sqrt((vx_avg**2. + vy_avg**2. + vz_avg**2.))/1e5
+
+        vavg[(radius >= radius_list[i]) & (radius < radius_list[i+1])] = vx_avg
+    vdisp = np.sqrt((vx_masked - vavg)**2.)/1e5
+
+    vdisp = np.ma.masked_where((density > cgm_density_max) & (temperature < cgm_temperature_min), vdisp)
+    fig = plt.figure(figsize=(12,10),dpi=500)
+    ax = fig.add_subplot(1,1,1)
+    f_cmap = copy.copy(mpl.cm.get_cmap('YlGnBu'))
+    #f_cmap.set_over(color='w', alpha=1.)
+    # Need to rotate to match up with how yt plots it
+    im = ax.imshow(rotate(vdisp[len(vdisp)//2,:,:],90), cmap=f_cmap, norm=colors.Normalize(vmin=0., vmax=250), \
+              extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
+    ax.axis([-250,250,-250,250])
+    ax.set_xlabel('y [kpc]', fontsize=20)
+    ax.set_ylabel('z [kpc]', fontsize=20)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+      top=True, right=True)
+    cax = fig.add_axes([0.82, 0.11, 0.03, 0.84])
+    cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+      top=True, right=True)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    ax.text(1.2, 0.5, '$v_x$ dispersion [km/s]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
+    plt.subplots_adjust(bottom=0.08, top=0.98, left=0.12, right=0.82)
+    plt.savefig(save_dir + snap + '_vx-disp_slice_x' + save_suffix + '.png')
+
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
+
 if __name__ == "__main__":
 
     gtoMsun = 1.989e33
@@ -1341,6 +1516,13 @@ if __name__ == "__main__":
                 velocity_slice(outs[i])
         else:
             target = velocity_slice
+    elif (args.plot=='vdisp_slice'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                vdisp_slice(outs[i])
+        else:
+            target = vdisp_slice
+            target_dir = 'vdisp_slice'
     elif (args.plot=='vorticity_slice'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -1365,12 +1547,14 @@ if __name__ == "__main__":
                 vsf_randompoints(outs[i])
         else:
             target = vsf_randompoints
+            target_dir = 'vsf_randompoints'
     elif (args.plot=='vdisp_vs_radius'):
         if (args.nproc==1):
             for i in range(len(outs)):
                 vdisp_vs_radius(outs[i])
         else:
             target = vdisp_vs_radius
+            target_dir = 'vdisp_vs_radius'
     elif (args.plot=='vdisp_vs_mass_res'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -1391,26 +1575,48 @@ if __name__ == "__main__":
         sys.exit("That plot type hasn't been implemented!")
 
     if (args.nproc!=1):
-        # Split into a number of groupings equal to the number of processors
-        # and run one process per processor
-        for i in range(len(outs)//args.nproc):
+        skipped_outs = outs
+        while (len(skipped_outs)>0):
+            skipped_outs = []
+            # Split into a number of groupings equal to the number of processors
+            # and run one process per processor
+            for i in range(len(outs)//args.nproc):
+                threads = []
+                snaps = []
+                for j in range(args.nproc):
+                    snap = outs[args.nproc*i+j]
+                    snaps.append(snap)
+                    threads.append(multi.Process(target=target, args=[snap]))
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+                # Delete leftover outputs from failed processes from tmp directory if on pleiades
+                if (args.system=='pleiades_cassi'):
+                    for s in range(len(snaps)):
+                        if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
+                            print('Deleting failed %s from /tmp' % (snaps[s]))
+                            skipped_outs.append(snaps[s])
+                            shutil.rmtree('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])
+            # For any leftover snapshots, run one per processor
             threads = []
-            for j in range(args.nproc):
-                snap = outs[args.nproc*i+j]
+            snaps = []
+            for j in range(len(outs)%args.nproc):
+                snap = outs[-(j+1)]
+                snaps.append(snap)
                 threads.append(multi.Process(target=target, args=[snap]))
             for t in threads:
                 t.start()
             for t in threads:
                 t.join()
-        # For any leftover snapshots, run one per processor
-        threads = []
-        for j in range(len(outs)%args.nproc):
-            snap = outs[-(j+1)]
-            threads.append(multi.Process(target=target, args=[snap]))
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+            # Delete leftover outputs from failed processes from tmp directory if on pleiades
+            if (args.system=='pleiades_cassi'):
+                for s in range(len(snaps)):
+                    if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
+                        print('Deleting failed %s from /tmp' % (snaps[s]))
+                        skipped_outs.append(snaps[s])
+                        shutil.rmtree('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])
+            outs = skipped_outs
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")

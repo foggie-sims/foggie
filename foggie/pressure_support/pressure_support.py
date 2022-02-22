@@ -551,11 +551,17 @@ def pressures_vs_radius(snap):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     if (not args.load_stats):
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
-            snap_dir = '/tmp/' + snap
-            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-            snap_name = snap_dir + '/' + snap
+            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+            if (args.copy_to_tmp):
+                shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+                snap_name = snap_dir + '/' + snap
+            else:
+                # Make a dummy directory with the snap name so the script later knows the process running
+                # this snapshot failed if the directory is still there
+                os.makedirs(snap_dir)
+                snap_name = foggie_dir + run_dir + snap + '/' + snap
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -575,29 +581,20 @@ def pressures_vs_radius(snap):
         lvl1_res = pix_res*2.**11.
         level = 9
         dx = lvl1_res/(2.**level)
-        smooth_scale = int(25./dx)
+        dx_cm = dx*1000*cmtopc
+        smooth_scale = int(25./dx)/6.
         refine_res = int(3.*Rvir/dx)
         box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
-        density = box['density'].in_units('g/cm**3').v.flatten()
-        temperature = box['temperature'].v.flatten()
-        radius = box['radius_corrected'].in_units('kpc').v.flatten()
-        if (args.cgm_only): radius = radius[(density < cgm_density_max * density_cut_factor)]
-        if (args.weight=='mass'):
-            weights = box['cell_mass'].in_units('Msun').v.flatten()
-        if (args.weight=='volume'):
-            weights = box['cell_volume'].in_units('kpc**3').v.flatten()
-        if (args.cgm_only): weights = weights[(density < cgm_density_max * density_cut_factor)]
-        if (args.region_filter=='metallicity'):
-            metallicity = box['metallicity'].in_units('Zsun').v.flatten()
-            if (args.cgm_only): metallicity = metallicity[(density < cgm_density_max * density_cut_factor)]
-        if (args.region_filter=='velocity'):
-            rv = box['radial_velocity_corrected'].in_units('km/s').v.flatten()
-            rv = rv[(density < cgm_density_max * density_cut_factor)]
-            vff = box['vff'].in_units('km/s').v.flatten()
-            vesc = box['vesc'].in_units('km/s').v.flatten()
-            if (args.cgm_only):
-                vff = vff[(density < cgm_density_max * density_cut_factor)]
-                vesc = vesc[(density < cgm_density_max * density_cut_factor)]
+        density = box['density'].in_units('g/cm**3').v
+        temperature = box['temperature'].v
+        radius = box['radius_corrected'].in_units('kpc').v
+        x = box[('gas','x')].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
+        y = box[('gas','y')].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
+        z = box[('gas','z')].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
+        r = box['radius_corrected'].in_units('cm').v
+        x_hat = x/r
+        y_hat = y/r
+        z_hat = z/r
 
         # This next block needed for removing any ISM regions and then interpolating over the holes left behind
         if (args.cgm_only):
@@ -620,6 +617,24 @@ def pressures_vs_radius(snap):
             den_masked[disk_mask] = den_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         else:
             den_masked = density
+
+        if (args.cgm_only): radius = radius[(density < cgm_density_max * density_cut_factor)]
+        if (args.weight=='mass'):
+            weights = box['cell_mass'].in_units('Msun').v
+        if (args.weight=='volume'):
+            weights = box['cell_volume'].in_units('kpc**3').v
+        if (args.cgm_only): weights = weights[(density < cgm_density_max * density_cut_factor)]
+        if (args.region_filter=='metallicity'):
+            metallicity = box['metallicity'].in_units('Zsun').v
+            if (args.cgm_only): metallicity = metallicity[(density < cgm_density_max * density_cut_factor)]
+        if (args.region_filter=='velocity'):
+            rv = box['radial_velocity_corrected'].in_units('km/s').v
+            rv = rv[(density < cgm_density_max * density_cut_factor)]
+            vff = box['vff'].in_units('km/s').v
+            vesc = box['vesc'].in_units('km/s').v
+            if (args.cgm_only):
+                vff = vff[(density < cgm_density_max * density_cut_factor)]
+                vesc = vesc[(density < cgm_density_max * density_cut_factor)]
 
         thermal_pressure = box['pressure'].in_units('erg/cm**3').v
         if (args.cgm_only):
@@ -797,7 +812,7 @@ def pressures_vs_radius(snap):
         stats = table
         print("Stats have been calculated and saved to file for snapshot " + snap + "!")
         # Delete output from temp directory if on pleiades
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/'):
+        if (args.system=='pleiades_cassi'):
             print('Deleting directory from /tmp')
             shutil.rmtree(snap_dir)
 
@@ -1071,11 +1086,17 @@ def forces_vs_radius(snap):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     if (not args.load_stats):
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
+        if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
-            snap_dir = '/tmp/' + snap
-            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-            snap_name = snap_dir + '/' + snap
+            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+            if (args.copy_to_tmp):
+                shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+                snap_name = snap_dir + '/' + snap
+            else:
+                # Make a dummy directory with the snap name so the script later knows the process running
+                # this snapshot failed if the directory is still there
+                os.makedirs(snap_dir)
+                snap_name = foggie_dir + run_dir + snap + '/' + snap
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -1388,10 +1409,11 @@ def forces_vs_radius(snap):
 
         stats = table
         print("Stats have been calculated and saved to file for snapshot " + snap + "!")
-        # Delete output from temp directory if on pleiades
-        if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
+        # Delete output or dummy directory from temp directory if on pleiades
+        if (args.system=='pleiades_cassi'):
             print('Deleting directory from /tmp')
             shutil.rmtree(snap_dir)
+
 
     plot_colors = ['r', 'g', 'm', 'b', 'gold', 'k']
     plot_labels = ['Thermal', 'Turbulent', 'Ram', 'Rotation', 'Gravity', 'Total']
@@ -2165,8 +2187,14 @@ def force_rays(snap):
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -2432,6 +2460,11 @@ def force_rays(snap):
         fig3.subplots_adjust(top=0.94,bottom=0.11,right=0.95,left=0.17)
         fig3.savefig(save_dir + snap + '_' + ftypes[i] + '_force_along_rays' + save_suffix + '.png')
         plt.close(fig3)
+
+    # Delete output or dummy directory from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
 
 def support_vs_radius(snap):
     '''Plots the ratio of different types of force (thermal, turbulent, rotational, ram)
@@ -3274,11 +3307,17 @@ def pressure_slice(snap):
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
+    if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -3420,7 +3459,7 @@ def pressure_slice(snap):
         plt.savefig(save_dir + snap + '_' + ptypes[i] + '_pressure_slice_x' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
-    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
+    if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -3433,11 +3472,17 @@ def force_slice(snap):
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+    if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -3642,7 +3687,7 @@ def force_slice(snap):
         plt.savefig(save_dir + snap + '_' + ftypes[i] + '_force_slice_x' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
-    if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+    if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -3651,11 +3696,17 @@ def ion_slice(snap):
 
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+    if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
@@ -3715,6 +3766,11 @@ def ion_slice(snap):
     #slc.set_unit('O_p5_mass', 'Msun')
     #slc.set_log('O_p5_mass', True)
     slc.save(save_dir + snap + '_OVI_mass_slice_x' + save_suffix + '.png')'''
+
+    # Delete output or dummy directory from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
 
 def support_slice(snap):
     '''Plots a slice of the ratio of supporting forces to gravity through the center of the halo,
@@ -3853,14 +3909,30 @@ def velocity_slice(snap):
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
-    if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+    if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
 
     vtypes = [['vx', 'vy', 'vz'], ['radial_velocity', 'theta_velocity', 'phi_velocity']]
     vlabels = [['$x$', '$y$', '$z$'], ['Radial', '$\\theta$', '$\phi$']]
@@ -3884,7 +3956,7 @@ def velocity_slice(snap):
     y = box[('gas','y')].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
     z = box[('gas','z')].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
     # Define ISM regions to remove
-    disk_mask = (density > cgm_density_max) & (temperature < cgm_temperature_min)
+    disk_mask = (density > cgm_density_max * density_cut_factor)
     # disk_mask_expanded is a binary mask of both ISM regions AND their surrounding pixels
     struct = ndimage.generate_binary_structure(3,3)
     disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
@@ -3901,7 +3973,7 @@ def velocity_slice(snap):
             # Cut to only those values closest to removed ISM regions
             v_edges = v[disk_edges]
             # Interpolate across removed ISM regions
-            v_interp_func = LinearNDInterpolator(list(zip(x_edges,y_edges,z_edges)), v_edges)
+            v_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), v_edges)
             v_masked = np.copy(v)
             # Replace removed ISM regions with interpolated values
             v_masked[disk_mask] = v_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
@@ -3945,7 +4017,7 @@ def velocity_slice(snap):
         plt.close(fig)
 
     # Delete output from temp directory if on pleiades
-    if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+    if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
@@ -4107,11 +4179,17 @@ def Pk_turbulence(snap):
 def turbulence_compare(snap):
     '''Computes the turbulent pressure several different ways and compares them in a single plot.'''
 
-    if (args.system=='pleiades_cassi') and (foggie_dir!='/nobackupp18/mpeeples/') and (args.copy_to_tmp):
+    if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
@@ -4312,6 +4390,11 @@ def turbulence_compare(snap):
     plt.savefig(save_dir + snap + '_turbulent-pressure-compare' + save_suffix + '.png')
     plt.close()
 
+    # Delete output or dummy directory from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
+
 def turbulence_visualization(snap):
     '''Opens a napari viewer to view turbulence in 3D.'''
 
@@ -4471,7 +4554,9 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    #foggie_dir = '/nobackupp18/mpeeples/'
+    if ('feedback' in args.run):
+        foggie_dir = '/nobackup/clochhaa/'
+        run_dir = args.run + '/'
 
     # Set directory for output location, making it if necessary
     save_dir = output_dir + 'pressures_halo_00' + args.halo + '/' + args.run + '/'
@@ -4495,6 +4580,7 @@ if __name__ == "__main__":
         save_dir += 'Movie_frames/'
 
     if (args.plot=='pressure_vs_radius'):
+        target_dir = 'pressures_vs_radius'
         if (args.nproc==1):
             for i in range(len(outs)):
                 pressures_vs_radius(outs[i])
@@ -4503,6 +4589,7 @@ if __name__ == "__main__":
     elif (args.plot=='pressure_vs_time'):
         pressures_vs_time(outs)
     elif (args.plot=='force_vs_radius'):
+        target_dir = 'forces_vs_radius'
         if (args.nproc==1):
             for i in range(len(outs)):
                 forces_vs_radius(outs[i])
@@ -4549,6 +4636,7 @@ if __name__ == "__main__":
         else:
             target = force_vs_r_rv_shaded
     elif (args.plot=='pressure_slice'):
+        target_dir = 'pressure_slice'
         if (args.nproc==1):
             for i in range(len(outs)):
                 pressure_slice(outs[i])
@@ -4561,6 +4649,7 @@ if __name__ == "__main__":
         else:
             target = support_slice
     elif (args.plot=='velocity_slice'):
+        target_dir = 'velocity_slice'
         if (args.nproc==1):
             for i in range(len(outs)):
                 velocity_slice(outs[i])
@@ -4573,12 +4662,14 @@ if __name__ == "__main__":
         else:
             target = vorticity_slice
     elif (args.plot=='force_slice'):
+        target_dir = 'force_slice'
         if (args.nproc==1):
             for i in range(len(outs)):
                 force_slice(outs[i])
         else:
             target = force_slice
     elif (args.plot=='ion_slice'):
+        target_dir = 'ion_slice'
         if (args.nproc==1):
             for i in range(len(outs)):
                 ion_slice(outs[i])
@@ -4615,13 +4706,34 @@ if __name__ == "__main__":
         sys.exit("That plot type hasn't been implemented!")
 
     if (args.nproc!=1):
-        # Split into a number of groupings equal to the number of processors
-        # and run one process per processor
-        for i in range(len(outs)//args.nproc):
+        skipped_outs = outs
+        while (len(skipped_outs)>0):
+            skipped_outs = []
+            # Split into a number of groupings equal to the number of processors
+            # and run one process per processor
+            for i in range(len(outs)//args.nproc):
+                threads = []
+                snaps = []
+                for j in range(args.nproc):
+                    snap = outs[args.nproc*i+j]
+                    snaps.append(snap)
+                    threads.append(multi.Process(target=target, args=[snap]))
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+                # Delete leftover outputs from failed processes from tmp directory if on pleiades
+                if (args.system=='pleiades_cassi'):
+                    for s in range(len(snaps)):
+                        if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
+                            print('Deleting failed %s from /tmp' % (snaps[s]))
+                            skipped_outs.append(snaps[s])
+                            shutil.rmtree('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])
+            # For any leftover snapshots, run one per processor
             threads = []
             snaps = []
-            for j in range(args.nproc):
-                snap = outs[args.nproc*i+j]
+            for j in range(len(outs)%args.nproc):
+                snap = outs[-(j+1)]
                 snaps.append(snap)
                 threads.append(multi.Process(target=target, args=[snap]))
             for t in threads:
@@ -4629,28 +4741,13 @@ if __name__ == "__main__":
             for t in threads:
                 t.join()
             # Delete leftover outputs from failed processes from tmp directory if on pleiades
-            if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
+            if (args.system=='pleiades_cassi'):
                 for s in range(len(snaps)):
-                    if (os.path.exists('/tmp/' + snaps[s])):
+                    if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
                         print('Deleting failed %s from /tmp' % (snaps[s]))
-                        shutil.rmtree('/tmp/' + snaps[s])
-        # For any leftover snapshots, run one per processor
-        threads = []
-        snaps = []
-        for j in range(len(outs)%args.nproc):
-            snap = outs[-(j+1)]
-            snaps.append(snap)
-            threads.append(multi.Process(target=target, args=[snap]))
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-        # Delete leftover outputs from failed processes from tmp directory if on pleiades
-        if (args.system=='pleiades_cassi') and (args.copy_to_tmp):
-            for s in range(len(snaps)):
-                if (os.path.exists('/tmp/' + snaps[s])):
-                    print('Deleting failed %s from /tmp' % (snaps[s]))
-                    shutil.rmtree('/tmp/' + snaps[s])
+                        skipped_outs.append(snaps[s])
+                        shutil.rmtree('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])
+            outs = skipped_outs
 
     '''if (args.nproc!=1):
         # Split into a number of groupings equal to the number of processors

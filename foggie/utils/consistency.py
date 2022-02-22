@@ -5,6 +5,7 @@ a set of consistent colormaps, label names, etc.
 import matplotlib as mpl
 import seaborn as sns
 import collections
+import cmyt
 import astropy.units as u
 from matplotlib.colors import to_hex
 import numpy as np
@@ -252,7 +253,7 @@ HSE_color_map = 'RdYlGn'
 HSE_min = 1.e-3
 HSE_max = 1.e3
 
-azimuthal_color_map = 'arbre'
+azimuthal_color_map = 'cmyt.arbre'
 azimuthal_angle_min = 0
 azimuthal_angle_max = 90
 
