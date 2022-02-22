@@ -15,7 +15,7 @@ from header import *
 from util import *
 from datashader_movie import *
 from uncertainties import ufloat, unumpy
-from get_mass_profile import load_and_calculate
+from get_mass_profile_CL import load_and_calculate
 start_time = time.time()
 
 # --------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ def get_re(args):
     '''
     re_hmr_factor = 2.0 # from the Illustris group (?)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    prefix = output_dir + 'masses_halo_00' + args.halo + '/' + args.run + '/'
+    prefix = '/'.join(output_dir.split('/')[:-2]) + '/' + 'masses_profiles/' + args.run + '/'
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
     tablename = prefix + args.output + '_masses.hdf5'
 
@@ -36,7 +36,7 @@ def get_re(args):
         print('File not found:', tablename, '\n', 'Therefore computing mass profile now..')
         load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, args.output, os.path.splitext(tablename)[0])
 
-    mass_profile = mass = pd.read_hdf(tablename, key='all_data')
+    mass_profile = pd.read_hdf(tablename, key='all_data')
     mass_profile = mass_profile.sort_values('radius')
     total_mass = mass_profile['stars_mass'].iloc[-1]
     half_mass_radius = mass_profile[mass_profile['stars_mass'] <= total_mass/2]['radius'].iloc[-1]
@@ -298,5 +298,5 @@ if __name__ == '__main__':
         mstar = get_disk_stellar_mass(args)
         print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), dummy_args)
 
-    if ncores > 1: print_master('Parallely: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
-    else: print_master('Serially: time taken for datashading ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
+    if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
+    else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)

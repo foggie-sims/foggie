@@ -813,7 +813,7 @@ def get_all_sims(args):
     all_sims = []
     for index, thishalo in enumerate(halos):
         args.halo = thishalo
-        thishalo_sims = get_all_sims_for_this_halo(args)
+        thishalo_sims = get_all_sims_for_this_halo(args.foggie_dir + args.run_loc, args)
         all_sims = np.vstack([all_sims, thishalo_sims]) if index else thishalo_sims
 
     return all_sims
@@ -832,12 +832,12 @@ def get_all_halos(args):
     return halos
 
 # --------------------------------------------------------------------------------------------
-def get_all_sims_for_this_halo(args):
+def get_all_sims_for_this_halo(given_path, args):
     '''
     Function assimilate the names of all snapshots available for the given halo
     '''
     all_sims = []
-    snapshot_paths = glob.glob(args.foggie_dir + args.run_loc + '*/')
+    snapshot_paths = glob.glob(given_path + '*/')
     snapshot_paths.sort(key=os.path.getmtime)
     snapshots = [item.split('/')[-2] for item in snapshot_paths]
     for thissnap in snapshots:
@@ -1083,6 +1083,11 @@ def parse_args(haloname, RDname, fast=False):
 
     # ------- args added for compute_MZgrad.py ------------------------------
     parser.add_argument('--upto_re', metavar='upto_re', type=float, action='store', default=2.0, help='fit metallicity gradient out to what multiple of Re? default is 2')
+
+    # ------- args added for get_halo_track.py ------------------------------
+    parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')
+    parser.add_argument('--reflevel', metavar='reflevel', type=int, action='store', default=7, help='forced refinement level to put in the halo track file; default is 7')
+    parser.add_argument('--z_interval', metavar='z_interval', type=float, action='store', default=0.005, help='redshift interval on which to interpolate the halo center track file; default is 0.005')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()

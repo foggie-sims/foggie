@@ -31,9 +31,9 @@ def projection_plot(args):
     output_path = root_dir + args.foggie_dir + '/' + halo_name + '/'
     snap_name = root_dir + args.foggie_dir + '/' + halo_name + '/' + args.run + '/' + args.output + '/' + args.output
 
-    field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density')}
-    cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat}
-    zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1)}
+    field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density'), 'cellsize':'d' + args.projection}
+    cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat, 'cellsize': discrete_cmap}
+    zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1)}
 
     # ----------- read halo catalogue, to get center -------------------
     try:
@@ -46,25 +46,32 @@ def projection_plot(args):
         pass
 
     if args.center is None: center = center_L0
+    else: center = args.center
     center = center + np.array(args.center_offset) / 255.
     print('Offset =', args.center_offset, '\nCenter for current plot =', center)
 
     # ------------- main plotting -------------------------------
     ds = yt.load(snap_name)  # last output
     if args.width is None:
-        box = ds.r[(center[0] - 0.5 * 1. / 25.): (center[0] + 0.5 * 1. / 25.), 0:1, 0:1] # slicing out 1 Mpc chunk along LoS
-        p = yt.ProjectionPlot(ds, args.projection, field_dict[args.do], center=center, data_source=box)
+        box = ds.r[(center[0] - ds.arr(0.5 * 1, 'Mpc').in_units('code_length').value.tolist()): (center[0] + ds.arr(0.5 * 1, 'Mpc').in_units('code_length').value.tolist()), 0:1, 0:1] # slicing out 1 Mpc chunk along LoS
+        if args.do == 'cellsize': p = yt.SlicePlot(ds, args.projection, field_dict[args.do], center=center, data_source=box)
+        else: p = yt.ProjectionPlot(ds, args.projection, field_dict[args.do], center=center, data_source=box)
         width_text = ''
     else:
-        box = ds.r[(center[0] - 0.5 * 1e-3 * args.width / 25.): (center[0] + 0.5 * 1e-3 * args.width / 25.), 0:1, 0:1]
-        p = yt.ProjectionPlot(ds, args.projection, field_dict[args.do], center=center, data_source=box, width=(args.width, 'kpc'))
+        box = ds.r[(center[0] - ds.arr(0.5 * args.width, 'kpc').in_units('code_length').value.tolist()): (center[0] + ds.arr(0.5 * args.width, 'kpc').in_units('code_length').value.tolist()), 0:1, 0:1]
+        if args.do == 'cellsize': p = yt.SlicePlot(ds, args.projection, field_dict[args.do], center=center, width=(args.width, 'kpc'))#, data_source=box)
+        else: p = yt.ProjectionPlot(ds, args.projection, field_dict[args.do], center=center, data_source=box, width=(args.width, 'kpc'))
         width_text = '_width' + str(args.width) + 'kpc'
 
     # -------------annotations and limits -------------------------------
-    if args.annotate_grids: p.annotate_grids(min_level=3)
+    if args.annotate_grids: p.annotate_grids(min_level=args.min_level)
     p.annotate_text((0.06, 0.12), args.halo, coord_system="axis")
     if not args.do == 'dm': p.set_cmap(field_dict[args.do], cmap_dict[args.do])
-    p.set_zlim(field_dict[args.do], zmin=zlim_dict[args.do][0], zmax=zlim_dict[args.do][1])
+
+    # if args.do == 'cellsize': p.plots[field_dict[args.do]].cb.set_label('cell size (kpc)')
+    if args.do == 'cellsize': p.set_unit(field_dict[args.do], 'kpc')
+    try: p.set_zlim(field_dict[args.do], zmin=zlim_dict[args.do][0], zmax=zlim_dict[args.do][1])
+    except: pass
 
     # -------------optional annotations (if Rvir and M info exists) -------------------------------
     try:
@@ -73,8 +80,10 @@ def projection_plot(args):
     except:
         pass
 
-    p.save(output_path + halo_name + '_' + args.run + '_' + args.output + '_' + args.projection + '_' + args.do + '_density' + width_text + '.png', mpl_kwargs={'dpi': 500})
+    p.save(output_path + halo_name + '_' + args.run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
     print_master('Completed in %s minutes' % ((time.time() - start_time) / 60), args)
+
+    return p
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -95,9 +104,10 @@ if __name__ == '__main__':
     parser.add_argument('--center_offset', metavar='center_offset', type=str, action='store', default='0,0,0', help='offset from center in integer cell units')
     parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', default=False, help='Redirect all print statements to a file?, default is no')
     parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
+    parser.add_argument('--min_level', dest='min_level', type=int, action='store', default=3, help='annotate grids min level, default is 3')
 
     args = parser.parse_args()
     if args.center is not None: args.center = [float(item) for item in args.center.split(',')]
     args.center_offset = [int(item) for item in args.center_offset.split(',')]
 
-    projection_plot(args)
+    p = projection_plot(args)
