@@ -1088,6 +1088,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')
     parser.add_argument('--reflevel', metavar='reflevel', type=int, action='store', default=7, help='forced refinement level to put in the halo track file; default is 7')
     parser.add_argument('--z_interval', metavar='z_interval', type=float, action='store', default=0.005, help='redshift interval on which to interpolate the halo center track file; default is 0.005')
+    parser.add_argument('--root_dir', metavar='root_dir', type=str, action='store', default='', help='root directory path where your foggie directory is (automatically grabs the correct path if you are on ayans system; default is empty string')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()

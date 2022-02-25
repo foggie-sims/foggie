@@ -25,11 +25,11 @@ def projection_plot(args):
     '''
     start_time = time.time()
     # ------------- paths, dict, etc. set up -------------------------------
-    if args.system == 'ayan_hd' or args.system == 'ayan_local': root_dir = '/Users/acharyya/models/simulation_output/'
-    elif args.system == 'ayan_pleiades': root_dir = '/nobackup/aachary2/'
+    if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/models/simulation_output/'
+    elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
     halo_name = 'halo_' + args.halo
-    output_path = root_dir + args.foggie_dir + '/' + halo_name + '/'
-    snap_name = root_dir + args.foggie_dir + '/' + halo_name + '/' + args.run + '/' + args.output + '/' + args.output
+    output_path = args.root_dir + args.foggie_dir + '/' + halo_name + '/'
+    snap_name = args.root_dir + args.foggie_dir + '/' + halo_name + '/' + args.run + '/' + args.output + '/' + args.output
 
     field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density'), 'cellsize':'d' + args.projection}
     cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat, 'cellsize': discrete_cmap}
