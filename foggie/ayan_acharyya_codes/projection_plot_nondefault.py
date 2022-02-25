@@ -19,6 +19,24 @@ from header import *
 from util import *
 
 # -----------------------------------------
+def get_box(ds, projection, center, width):
+    '''
+    Function to slice out box of 'width' kpc along a given LoS 'projection', around 'center' from dataset 'ds'
+    '''
+    proj_dict = {'x': [1, 0, 0], 'y': [0, 1, 0], 'z': [0, 0, 1]}
+    proj_array = np.array(proj_dict[projection])
+
+    left_limit = center[np.where(proj_array == 1)[0][0]] - ds.arr(0.5 * width, 'kpc').in_units('code_length').value.tolist()
+    right_limit = center[np.where(proj_array == 1)[0][0]] + ds.arr(0.5 * width, 'kpc').in_units('code_length').value.tolist()
+
+    left_edge = np.multiply(np.tile(left_limit, 3), proj_array)
+    right_edge = np.multiply(np.tile(right_limit, 3), proj_array) + np.array(proj_array ^ 1)
+    print('Extracting box within left and right edges as', left_edge, right_edge)
+
+    box = ds.r[left_edge[0]:right_edge[0], left_edge[1]:right_edge[1], left_edge[2]:right_edge[2]]
+    return box
+
+# -----------------------------------------
 def projection_plot(args):
     '''
     Function to generate a projection plot for simulations that are NOT from the original FOGGIE halos
@@ -53,14 +71,14 @@ def projection_plot(args):
     # ------------- main plotting -------------------------------
     ds = yt.load(snap_name)  # last output
     if args.width is None:
-        box = ds.r[(center[0] - ds.arr(0.5 * 1, 'Mpc').in_units('code_length').value.tolist()): (center[0] + ds.arr(0.5 * 1, 'Mpc').in_units('code_length').value.tolist()), 0:1, 0:1] # slicing out 1 Mpc chunk along LoS
+        box = get_box(ds, args.projection, center, 1000.) # slicing out 1 Mpc chunk along LoS anyway
         if args.do == 'cellsize': p = yt.SlicePlot(ds, args.projection, field_dict[args.do], center=center, data_source=box)
         else: p = yt.ProjectionPlot(ds, args.projection, field_dict[args.do], center=center, data_source=box)
         width_text = ''
     else:
-        box = ds.r[(center[0] - ds.arr(0.5 * args.width, 'kpc').in_units('code_length').value.tolist()): (center[0] + ds.arr(0.5 * args.width, 'kpc').in_units('code_length').value.tolist()), 0:1, 0:1]
-        if args.do == 'cellsize': p = yt.SlicePlot(ds, args.projection, field_dict[args.do], center=center, width=(args.width, 'kpc'))#, data_source=box)
-        else: p = yt.ProjectionPlot(ds, args.projection, field_dict[args.do], center=center, data_source=box, width=(args.width, 'kpc'))
+        box = get_box(ds, args.projection, center, args.width)
+        if args.do == 'cellsize': p = yt.SlicePlot(ds, args.projection, field_dict[args.do], center=center, width=(args.width, 'kpc'), data_source=box)
+        else: p = yt.ProjectionPlot(ds, args.projection, field_dict[args.do], center=center, width=(args.width, 'kpc'), data_source=box)
         width_text = '_width' + str(args.width) + 'kpc'
 
     # -------------annotations and limits -------------------------------
