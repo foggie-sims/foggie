@@ -25,7 +25,7 @@ def projection_plot(args):
     '''
     start_time = time.time()
     # ------------- paths, dict, etc. set up -------------------------------
-    if args.system == 'ayan_hd' or args.system == 'ayan_local': root_dir = '/Users/acharyya/Work/astro/'
+    if args.system == 'ayan_hd' or args.system == 'ayan_local': root_dir = '/Users/acharyya/models/simulation_output/'
     elif args.system == 'ayan_pleiades': root_dir = '/nobackup/aachary2/'
     halo_name = 'halo_' + args.halo
     output_path = root_dir + args.foggie_dir + '/' + halo_name + '/'

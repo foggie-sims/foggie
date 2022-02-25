@@ -73,6 +73,7 @@ def make_center_track_file(list_of_sims, center_track_file, args):
     print_master('Saved file ' + filename_before_interp, args)
 
     # now interpolate the track to the interval given as a parameter
+    df = df[df['redshift'] <= 15]
     n_points = int((np.max(df['redshift']) - np.min(df['redshift']))  / args.z_interval)
     newredshifts = np.min(df['redshift']) + np.arange(n_points + 2) * args.z_interval
     new_center_x = np.interp(newredshifts, df['redshift'], df['center_x'])
@@ -113,8 +114,12 @@ if __name__ == '__main__':
         print('Using existing ' + center_track_file)
 
     halo_track_file = args.output_path + 'halo_track_%dkpc_nref%d' %(args.refsize, args.reflevel)
-    offset = 0.5 * args.refsize * 1e-3 / 25. # converting refsize from kpc to physical code units, for the given 25 Mpc box
-    command = "tail -r " + center_track_file + "  | awk '{print $1, $2-" + offset + ", $3-" + offset + ", $4-" + offset + ", $2+" + offset + ", $3+" + offset + ", $4+" + offset + ", " + str(args.reflevel) + "}' > " + halo_track_file
+    offset = str(0.5 * args.refsize * 1e-3 / 25.) # converting refsize from kpc to physical code units, for the given 25 Mpc box
+
+    if 'pleiades' in args.system: command = "tail -n +2 " + center_track_file + "  | awk '{print $1, $2-" + offset + ", $3-" + offset + ", $4-" + offset + ", $2+" + offset + ", $3+" + offset + ", $4+" + offset + ", " + str(args.reflevel) + "}' | tac > " + halo_track_file
+    else: command = "tail -rn +2 " + center_track_file + "  | awk '{print $1, $2-" + offset + ", $3-" + offset + ", $4-" + offset + ", $2+" + offset + ", $3+" + offset + ", $4+" + offset + ", " + str(args.reflevel) + "}' > " + halo_track_file
+    # the -n +2 option is to skip the FIRST line of the center track file, which holds the column names, because halo track file cannot take column names
+
     print('Executing command:', command, '\n')
     ret = subprocess.call(command, shell=True)
 
