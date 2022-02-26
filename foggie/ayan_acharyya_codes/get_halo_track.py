@@ -13,6 +13,7 @@
 from header import *
 from util import *
 from foggie.utils.get_halo_center import get_halo_center
+from run_foggie_sim import get_shifts
 
 # -----------------------------------------------------------------------------
 def make_center_track_file(list_of_sims, center_track_file, args):
@@ -59,9 +60,7 @@ def make_center_track_file(list_of_sims, center_track_file, args):
 
         # extract the required quantities
         zz = ds.current_redshift
-        search_radius = 50 # comoving kpc
-        this_search_radius = np.min([search_radius / (1 + zz), 1])  ## this_search_radius is in PHYSICAL kpc, but never less than 1 kpc
-        new_center, vel_center = get_halo_center(ds, center_L0, radius=this_search_radius, vel_radius=this_search_radius)
+        new_center, vel_center = get_halo_center(ds, args.center_guess, radius=50) # searches within 50 physical kpc
         df.loc[len(df)] = [zz, new_center[0], new_center[1], new_center[2], args.output]
 
         print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
@@ -92,11 +91,17 @@ def make_center_track_file(list_of_sims, center_track_file, args):
 if __name__ == '__main__':
     args = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
 
-    # ------------------------get approximate halo center from L0 gas run halo catalogue-------------------
-    halos = Table.read('/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list', format='ascii', header_start=0)
-    index = [halos['ID'] == int(args.halo[:4])]
-    thishalo = halos[index]
-    center_L0 = np.array([thishalo['X'][0] / 25., thishalo['Y'][0] / 25., thishalo['Z'][0] / 25.])  # divided by 25 to convert Mpc units to code units
+    if args.center_guess is None:
+        # ------------------------get approximate halo center from L0 gas run halo catalogue combined with offsets-------------------
+        halos = Table.read('/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list', format='ascii', header_start=0)
+        index = [halos['ID'] == int(args.halo[:4])]
+        thishalo = halos[index]
+        center_L0 = np.array([thishalo['X'][0] / 25., thishalo['Y'][0] / 25., thishalo['Z'][0] / 25.])  # divided by 25 to convert Mpc units to code units
+
+        conf_log_file = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.run + '.conf_log.txt'
+        shifts = get_shifts(conf_log_file)
+        args.center_guess = center_L0 + np.array(shifts) / 255.  # to convert shifts into code units
+        print('Using', args.center_guess, 'as initial guess for halo center at all redshifts')
 
     # parse paths and filenames
     if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/Work/astro/'
