@@ -91,8 +91,17 @@ def make_center_track_file(list_of_sims, center_track_file, args):
 if __name__ == '__main__':
     args = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
 
+    # parse paths and filenames
+    if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/Work/astro/'
+    elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
+    args.output_path = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.run + '/'
+    Path(args.output_path).mkdir(parents=True, exist_ok=True)
+    center_track_file = args.output_path + 'center_track_interp.dat'
+
+    list_of_sims = get_all_sims_for_this_halo(args.output_path, args) # all snapshots of this particular halo
+
+    # ------------------------get approximate halo center from L0 gas run halo catalogue combined with offsets-------------------
     if args.center_guess is None:
-        # ------------------------get approximate halo center from L0 gas run halo catalogue combined with offsets-------------------
         halos = Table.read('/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list', format='ascii', header_start=0)
         index = [halos['ID'] == int(args.halo[:4])]
         thishalo = halos[index]
@@ -102,15 +111,6 @@ if __name__ == '__main__':
         shifts = get_shifts(conf_log_file)
         args.center_guess = center_L0 + np.array(shifts) / 255.  # to convert shifts into code units
         print('Using', args.center_guess, 'as initial guess for halo center at all redshifts')
-
-    # parse paths and filenames
-    if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/Work/astro/'
-    elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
-    args.output_path = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.run + '/'
-    Path(args.output_path).mkdir(parents=True, exist_ok=True)
-    center_track_file = args.output_path + 'center_track_interp.dat'
-
-    list_of_sims = get_all_sims_for_this_halo(args.output_path, args) # all snapshots of this particular halo
 
     if not os.path.exists(center_track_file) or args.clobber:
         print('File does not exist: ' + center_track_file + '; creating afresh..\n')
