@@ -49,7 +49,7 @@ def projection_plot(args):
     output_path = args.root_dir + args.foggie_dir + '/' + halo_name + '/'
     snap_name = args.root_dir + args.foggie_dir + '/' + halo_name + '/' + args.run + '/' + args.output + '/' + args.output
 
-    field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density'), 'cellsize':'d' + args.projection}
+    field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density'), 'cellsize':('gas', 'd' + args.projection)}
     cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat, 'cellsize': discrete_cmap}
     zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1)}
 
