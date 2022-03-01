@@ -45,7 +45,7 @@ def make_center_track_file(list_of_sims, center_track_file, args):
         new_center, vel_center = get_halo_center(ds, new_center, radius=50) # searches within 50 physical kpc
         df.loc[len(df)] = [zz, new_center[0], new_center[1], new_center[2], args.output]
 
-        print('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
+        print('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60))
 
     # sorting dataframe
     df = df.sort_values(by='redshift')
@@ -91,7 +91,7 @@ if __name__ == '__main__':
         conf_log_file = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.run + '.conf_log.txt'
         shifts = get_shifts(conf_log_file)
         args.last_center_guess = center_L0 + np.array(shifts) / 255.  # to convert shifts into code units
-        print('Using', args.last_center_guess, 'as initial guess for halo center at all redshifts')
+        print('Using', args.last_center_guess, 'as initial guess for halo center for the latest redshift')
 
     if not os.path.exists(center_track_file) or args.clobber:
         print('File does not exist: ' + center_track_file + '; creating afresh..\n')
