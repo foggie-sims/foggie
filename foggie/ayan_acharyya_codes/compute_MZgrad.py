@@ -7,8 +7,8 @@
     Output :     Z gradient plots as png files (also txt file storing all the gradients & mass plus MZgrad plot if this code is run on multiple snapshots)
     Author :     Ayan Acharyya
     Started :    Feb 2022
-    Examples :   run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_re 2 --xcol rad_re --keep --weight mass
-                 run compute_MZgrad.py --system ayan_local --halo 8508 --upto_re 2 --xcol rad_re --do_all_sims
+    Examples :   run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_re 3 --xcol rad_re --keep --weight mass
+                 run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --do_all_sims --weight mass --write_file --noplot
 
 """
 from header import *
@@ -16,6 +16,7 @@ from util import *
 from datashader_movie import *
 from uncertainties import ufloat, unumpy
 from get_mass_profile_CL import load_and_calculate
+from yt.utilities.physical_ratios import metallicity_sun
 start_time = time.time()
 
 # --------------------------------------------------------------------------------
@@ -26,7 +27,7 @@ def get_re(args):
     '''
     re_hmr_factor = 2.0 # from the Illustris group (?)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    prefix = '/'.join(output_dir.split('/')[:-2]) + '/' + 'masses_profiles/' + args.run + '/'
+    prefix = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + args.run + '/'
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
     tablename = prefix + args.output + '_masses.hdf5'
 
@@ -141,7 +142,6 @@ def plot_gradient(df, args, linefit=None):
     artist = dsshow(df, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.upto_re if 're' in args.xcol else args.galrad), y_range=(args.ylim[0], args.ylim[1]), aspect = 'auto', ax=ax, cmap='Blues_r')#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # --------bin the metallicity profile and plot the binned profile-----------
-    if 'metal' not in df: df['metal'] = 10 ** (df['log_metal'])
     bin_edges = np.linspace(0, args.upto_re if 're' in args.xcol else args.galrad, 10)
     ax = overplot_binned(df, args.xcol, 'metal', bin_edges, ax, is_logscale=True, weightcol=args.weight)
 
@@ -214,6 +214,7 @@ def get_df_from_ds(ds, args):
     cols_to_extract = [args.xcol, 'log_metal']
     if args.weight is not None: cols_to_extract += [args.weight]
     df = df[cols_to_extract] # only keeping the columns that are needed to get Z gradient
+    if 'metal' not in df: df['metal'] = 10 ** (df['log_metal'])
 
     return df
 
@@ -224,13 +225,15 @@ if __name__ == '__main__':
     else: dummy_args = dummy_args_tuple
     if not dummy_args.keep: plt.close('all')
 
-    if dummy_args.do_all_sims:
-        list_of_sims = get_all_sims(dummy_args) # all snapshots of this particular halo
-    else:
-        if dummy_args.do_all_halos: halos = get_all_halos(dummy_args)
-        else: halos = dummy_args.halo_arr
-        list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
+    if dummy_args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(dummy_args) # all snapshots of this particular halo
+    else: list_of_sims = list(itertools.product([dummy_args.halo], dummy_args.output_arr))
     total_snaps = len(list_of_sims)
+
+    # -------set up dataframe and filename to store/write gradients in to--------
+    df_grad = pd.DataFrame(columns=['output', 'redshift', 'mass', 're', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Ztotal'])
+    weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
+    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s_upto%.1FRe%s.txt' % (dummy_args.xcol, dummy_args.upto_re, weightby_text)
+
     if dummy_args.dryrun:
         print('List of the total ' + str(total_snaps) + ' sims =', list_of_sims)
         sys.exit('Exiting dryrun..')
@@ -283,7 +286,7 @@ if __name__ == '__main__':
         args.ylim = [-2.2, 1.2] # [-3, 1]
 
         # extract the required box
-        args.re = get_re(args)
+        args.re = get_re(args) # kpc
         box_center = ds.arr(args.halo_center, kpc)
         args.galrad = args.upto_re * args.re # kpc
         box_width = args.galrad * 2  # in kpc
@@ -295,8 +298,18 @@ if __name__ == '__main__':
         Zcen, Zgrad = fit_gradient(df, args)
         if not args.noplot: fig = plot_gradient(df, args, linefit=[Zgrad.n, Zcen.n]) # plotting the Z profile, with fit
 
-        mstar = get_disk_stellar_mass(args)
+        mstar = get_disk_stellar_mass(args) # Msun
+
+        df['metal_mass'] = df['mass'] * df['metal'] * metallicity_sun
+        Ztotal = (df['metal_mass'].sum()/df['mass'].sum())/metallicity_sun # in Zsun
+
+        df_grad.loc[len(df_grad)] = [args.output, args.current_redshift, mstar, args.re, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Ztotal]
+
         print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), dummy_args)
+
+    if args.write_file:
+        df_grad.to_csv(grad_filename, sep='\t', index=None)
+        print('Saved gradient file', grad_filename)
 
     if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)

@@ -98,7 +98,7 @@ if __name__ == '__main__':
     Path(args.output_path).mkdir(parents=True, exist_ok=True)
     center_track_file = args.output_path + 'center_track_interp.dat'
 
-    list_of_sims = get_all_sims_for_this_halo(args.output_path, args) # all snapshots of this particular halo
+    list_of_sims = get_all_sims_for_this_halo(args, given_path=args.output_path) # all snapshots of this particular halo
 
     # ------------------------get approximate halo center from L0 gas run halo catalogue combined with offsets-------------------
     if args.center_guess is None:

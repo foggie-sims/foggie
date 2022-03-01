@@ -9,8 +9,9 @@
     Example :    run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp --halo 8508 --dryrun
     OR :         run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp --do_all_halos --nhours 24 --dryrun
     OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 --do_all_sims --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has
+    OR :         run submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --do_all_sims --nnodes 50 --ncores 4 --queue normal --opt_args "--upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
 """
-import subprocess, argparse, datetime
+import subprocess, argparse, datetime, os
 from collections import defaultdict
 
 # ---------------------------------------------------------
@@ -53,6 +54,7 @@ def parse_args():
     parser.add_argument('--units_kpc', dest='units_kpc', action='store_true', default=False)
     parser.add_argument('--units_rvir', dest='units_rvir', action='store_true', default=False)
     parser.add_argument('--temp_cut', dest='temp_cut', action='store_true', default=False)
+    parser.add_argument('--opt_args', metavar='opt_args', type=str, action='store', default='')
     args, leftovers = parser.parse_known_args()
 
     return args
@@ -93,8 +95,12 @@ if __name__ == '__main__':
     tempcut_flag = ' --temp_cut ' if args.temp_cut else ''
     units_flag = ' --units_kpc ' if args.units_kpc else ' --units_rvir ' if args.units_rvir else ''
 
-    jobscript_path = '/nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
-    jobscript_template = 'jobscript_template_' + args.system + '.txt'
+    if 'pleiades' in args.system: jobscript_path = '/nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
+    elif args.system == 'ayan_local': jobscript_path = os.getenv('HOME') + '/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
+
+    if args.system == 'ayan_local': jobscript_template = 'jobscript_template_ayan_pleiades.txt'
+    else: jobscript_template = 'jobscript_template_' + args.system + '.txt'
+
     callfile = jobscript_path + args.callfunc + '.py'
 
     if args.system == 'avatar':
@@ -124,10 +130,11 @@ if __name__ == '__main__':
         else: memory = str(int(ncores)*int(sizepercore))+'GB'
         qname = 'hugemem' if args.queue == 'large' and args.nonewcube else 'normal'
 
-    elif 'pleiades' in args.system:
+    elif 'pleiades' in args.system or args.system == 'ayan_local':
         procs_dir = {'san':(16, 32), 'ivy':(20, 64), 'has':(24, 128), 'bro':(28, 128), 'bro_ele':(28, 128), 'sky_ele':(40, 192), 'cas_ait':(40, 192), 'ldan':(16, 750), 'cas_end':(28, 185)} # (nnodes, mem) for each proc, from https://www.nas.nasa.gov/hecc/support/kb/pbs-resource-request-examples_188.html
         max_hours_dict = defaultdict(lambda: 120, low=4, normal=8, long=120, e_long=72, e_normal=8, e_vlong=600, e_debug=2, debug=2, devel=2, ldan=72) # from https://www.nas.nasa.gov/hecc/support/kb/pbs-job-queue-structure_187.html
-        workdir = '/nobackup/aachary2/foggie_outputs/pleiades_workdir' # for pleiades
+        if 'pleiades' in args.system: workdir = '/nobackup/aachary2/foggie_outputs/pleiades_workdir' # for pleiades
+        elif args.system == 'ayan_local': workdir = '.'
         nnodes = args.nnodes
         ncores = args.ncores if args.ncores is not None else procs_dir[args.proc][0]
         memory = args.memory if args.memory is not None else str(procs_dir[args.proc][1]) + 'GB' # minimum memory per node; by default the entire node me is allocated, therefore it is redundant to specify mem as the highest available memory per node
@@ -172,7 +179,7 @@ if __name__ == '__main__':
                         'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
                         'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \
                         'OVERPLOT_STARS_FLAG': overplot_stars_flag, 'OVERPLOT_SOURCE_SINK_FLAG': overplot_source_sink_flag, 'CLOBBER_PLOT_FLAG': clobber_plot_flag, 'NSECONDS':str(int(nhours) * 3600), \
-                        'NEVERY_FLAG': nevery_flag, 'UNITS_FLAG': units_flag, 'TEMPCUT_FLAG': tempcut_flag, 'NCHUNKS_FLAG': nchunks_flag} # keywords to be replaced in template jobscript
+                        'NEVERY_FLAG': nevery_flag, 'UNITS_FLAG': units_flag, 'TEMPCUT_FLAG': tempcut_flag, 'NCHUNKS_FLAG': nchunks_flag, 'OPT_ARGS': args.opt_args} # keywords to be replaced in template jobscript
 
         with open(jobscript_path + jobscript_template) as infile, open(out_jobscript, 'w') as outfile:
             for line in infile:

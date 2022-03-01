@@ -813,7 +813,7 @@ def get_all_sims(args):
     all_sims = []
     for index, thishalo in enumerate(halos):
         args.halo = thishalo
-        thishalo_sims = get_all_sims_for_this_halo(args.foggie_dir + args.run_loc, args)
+        thishalo_sims = get_all_sims_for_this_halo(args, given_path = args.foggie_dir + args.run_loc)
         all_sims = np.vstack([all_sims, thishalo_sims]) if index else thishalo_sims
 
     return all_sims
@@ -832,11 +832,12 @@ def get_all_halos(args):
     return halos
 
 # --------------------------------------------------------------------------------------------
-def get_all_sims_for_this_halo(given_path, args):
+def get_all_sims_for_this_halo(args, given_path=None):
     '''
     Function assimilate the names of all snapshots available for the given halo
     '''
     all_sims = []
+    if given_path is None: given_path = args.foggie_dir + args.run_loc
     snapshot_paths = glob.glob(given_path + '*/')
     snapshot_paths.sort(key=os.path.getmtime)
     snapshots = [item.split('/')[-2] for item in snapshot_paths]
@@ -1083,6 +1084,7 @@ def parse_args(haloname, RDname, fast=False):
 
     # ------- args added for compute_MZgrad.py ------------------------------
     parser.add_argument('--upto_re', metavar='upto_re', type=float, action='store', default=2.0, help='fit metallicity gradient out to what multiple of Re? default is 2')
+    parser.add_argument('--write_file', dest='write_file', action='store_true', default=False, help='write the list of measured gradients, mass and size to file?, default is no')
 
     # ------- args added for get_halo_track.py ------------------------------
     parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')
