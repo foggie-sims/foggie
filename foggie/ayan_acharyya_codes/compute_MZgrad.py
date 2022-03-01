@@ -15,12 +15,64 @@ from header import *
 from util import *
 from datashader_movie import *
 from uncertainties import ufloat, unumpy
-from get_mass_profile_CL import load_and_calculate
 from yt.utilities.physical_ratios import metallicity_sun
 start_time = time.time()
 
+# -------------------------------------------------------------------------------
+def calc_masses(ds, snap, refine_width_kpc, tablename, get_gas_profile=False):
+    """Computes the mass enclosed in spheres centered on the halo center.
+    Takes the dataset for the snapshot 'ds', the name of the snapshot 'snap', the redshfit of the
+    snapshot 'zsnap', and the width of the refine box in kpc 'refine_width_kpc'
+    and does the calculation, then writes a hdf5 table out to 'tablename'. If 'ions' is True then it
+    computes the enclosed mass for various gas-phase ions.
+    This is mostly copied from Cassi's get_mass_profile.calc_mass(), but for a shortened set of parameters, to save runtime
+    """
+
+    halo_center_kpc = ds.halo_center_kpc
+
+    # Set up table of everything we want
+    # NOTE: Make sure table units are updated when things are added to this table!
+    if get_gas_profile: data = Table(names=('radius', 'stars_mass', 'gas_mass', 'gas_metal_mass'), dtype=('f8', 'f8', 'f8', 'f8'))
+    else: data = Table(names=('radius', 'stars_mass'), dtype=('f8', 'f8'))
+
+    # Define the radii of the spheres where we want to calculate mass enclosed
+    radii = refine_width_kpc * np.logspace(-4, 0, 250)
+
+    # Initialize first sphere
+    print('Loading field arrays for snapshot', snap)
+    sphere = ds.sphere(halo_center_kpc, radii[-1])
+
+    if get_gas_profile:
+        gas_mass = sphere['gas','cell_mass'].in_units('Msun').v
+        gas_metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
+        gas_radius = sphere['gas', 'radius_corrected'].in_units('kpc').v
+
+    stars_mass = sphere['stars','particle_mass'].in_units('Msun').v
+    stars_radius = sphere['stars','radius_corrected'].in_units('kpc').v
+
+    # Loop over radii
+    for i in range(len(radii)):
+        if (i%10==0): print('Computing radius ' + str(i) + '/' + str(len(radii)-1) + ' for snapshot ' + snap)
+
+        # Cut the data interior to this radius
+        if get_gas_profile:
+            gas_mass_enc = np.sum(gas_mass[gas_radius <= radii[i]])
+            gas_metal_mass_enc = np.sum(gas_metal_mass[gas_radius <= radii[i]])
+        stars_mass_enc = np.sum(stars_mass[stars_radius <= radii[i]])
+
+        # Add everything to the table
+        if get_gas_profile: data.add_row([radii[i], stars_mass_enc, gas_mass_enc, gas_metal_mass_enc])
+        else: data.add_row([radii[i], stars_mass_enc])
+
+    # Save to file
+    table_units = {'radius':'kpc', 'stars_mass':'Msun', 'gas_mass':'Msun', 'gas_metal_mass':'Msun'}
+    for key in data.keys(): data[key].unit = table_units[key]
+
+    data.write(tablename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    print('Masses have been calculated for snapshot' + snap)
+
 # --------------------------------------------------------------------------------
-def get_re(args):
+def get_re(ds, args):
     '''
     Function to determine the effective radius of stellar disk, given a dataset
     Returns the effective radius in kpc
@@ -28,14 +80,15 @@ def get_re(args):
     re_hmr_factor = 2.0 # from the Illustris group (?)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     prefix = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + args.run + '/'
-    halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
     tablename = prefix + args.output + '_masses.hdf5'
 
     if os.path.exists(tablename):
         print('Reading mass profile file', tablename)
     else:
         print('File not found:', tablename, '\n', 'Therefore computing mass profile now..')
-        load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, args.output, os.path.splitext(tablename)[0])
+        Path(prefix).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
+        refine_width_kpc = ds.quan(ds.refine_width, 'kpc')
+        calc_masses(ds, args.output, refine_width_kpc, os.path.splitext(tablename)[0], get_gas_profile=args.get_gasmass)
 
     mass_profile = pd.read_hdf(tablename, key='all_data')
     mass_profile = mass_profile.sort_values('radius')
@@ -286,7 +339,7 @@ if __name__ == '__main__':
         args.ylim = [-2.2, 1.2] # [-3, 1]
 
         # extract the required box
-        args.re = get_re(args) # kpc
+        args.re = get_re(ds, args) # kpc
         box_center = ds.arr(args.halo_center, kpc)
         args.galrad = args.upto_re * args.re # kpc
         box_width = args.galrad * 2  # in kpc
