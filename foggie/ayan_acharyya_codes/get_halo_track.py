@@ -28,30 +28,12 @@ def make_center_track_file(list_of_sims, center_track_file, args):
     # --------setup dataframe-----------
     df = pd.DataFrame(columns=['redshift', 'center_x', 'center_y', 'center_z', 'output'])
 
-    # --------domain decomposition; for mpi parallelisation-------------
-    comm = MPI.COMM_WORLD
-    ncores = comm.size
-    rank = comm.rank
-    print_master('Total number of MPI ranks = ' + str(ncores) + '. Starting at: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()), args)
-    comm.Barrier() # wait till all cores reached here and then resume
+    new_center = args.last_center_guess # to be used as the initial guess for center for the very first instance (lowest redshift, and then will loop to higher and higher redshifts)
 
-    split_at_cpu = total_snaps - ncores * int(total_snaps/ncores)
-    nper_cpu1 = int(total_snaps / ncores)
-    nper_cpu2 = nper_cpu1 + 1
-    if rank < split_at_cpu:
-        core_start = rank * nper_cpu2
-        core_end = (rank+1) * nper_cpu2 - 1
-    else:
-        core_start = split_at_cpu * nper_cpu2 + (rank - split_at_cpu) * nper_cpu1
-        core_end = split_at_cpu * nper_cpu2 + (rank - split_at_cpu + 1) * nper_cpu1 - 1
-
-    # --------------------------------------------------------------
-    print_mpi('Operating on snapshots ' + str(core_start + 1) + ' to ' + str(core_end + 1) + ', i.e., ' + str(core_end - core_start + 1) + ' out of ' + str(total_snaps) + ' snapshots', args)
-
-    for index in range(core_start + args.start_index, core_end + 1):
+    for index in range(total_snaps):
         start_time_this_snapshot = time.time()
-        this_sim = list_of_sims[index]
-        print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', args)
+        this_sim = list_of_sims[total_snaps - 1 - index] # loop runs backwards, from low to high-z; this assumes that list_of_sims is already arranged such that the last entry is the most recent simulation output i.e. lowest z
+        print('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1) + ' out of the total ' + str(total_snaps) + ' snapshots...')
 
         args.output = this_sim[1]
         snap_name = args.output_path + args.output + '/' + args.output
@@ -60,10 +42,10 @@ def make_center_track_file(list_of_sims, center_track_file, args):
 
         # extract the required quantities
         zz = ds.current_redshift
-        new_center, vel_center = get_halo_center(ds, args.center_guess, radius=50) # searches within 50 physical kpc
+        new_center, vel_center = get_halo_center(ds, new_center, radius=50) # searches within 50 physical kpc
         df.loc[len(df)] = [zz, new_center[0], new_center[1], new_center[2], args.output]
 
-        print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
+        print('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
 
     # sorting dataframe
     df = df.sort_values(by='redshift')
@@ -82,10 +64,9 @@ def make_center_track_file(list_of_sims, center_track_file, args):
     df_interp = pd.DataFrame({'redshift':newredshifts, 'center_x':new_center_x, 'center_y':new_center_y, 'center_z':new_center_z})
 
     df_interp.to_csv(center_track_file, sep='\t', index=None)
-    print_master('Saved file ' + center_track_file, args)
+    print('Saved file ' + center_track_file)
 
-    if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), args)
-    else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), args)
+    print('Serially: time taken for ' + str(total_snaps) + ' snapshots was %s mins' % ((time.time() - start_time) / 60))
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -100,8 +81,8 @@ if __name__ == '__main__':
 
     list_of_sims = get_all_sims_for_this_halo(args, given_path=args.output_path) # all snapshots of this particular halo
 
-    # ------------------------get approximate halo center from L0 gas run halo catalogue combined with offsets-------------------
-    if args.center_guess is None:
+    # ------------------------get approximate halo center at z=2, from L0 gas run halo catalogue combined with offsets-------------------
+    if args.last_center_guess is None:
         halos = Table.read('/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list', format='ascii', header_start=0)
         index = [halos['ID'] == int(args.halo[:4])]
         thishalo = halos[index]
@@ -109,8 +90,8 @@ if __name__ == '__main__':
 
         conf_log_file = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.run + '.conf_log.txt'
         shifts = get_shifts(conf_log_file)
-        args.center_guess = center_L0 + np.array(shifts) / 255.  # to convert shifts into code units
-        print('Using', args.center_guess, 'as initial guess for halo center at all redshifts')
+        args.last_center_guess = center_L0 + np.array(shifts) / 255.  # to convert shifts into code units
+        print('Using', args.last_center_guess, 'as initial guess for halo center at all redshifts')
 
     if not os.path.exists(center_track_file) or args.clobber:
         print('File does not exist: ' + center_track_file + '; creating afresh..\n')
