@@ -53,18 +53,21 @@ def projection_plot(args):
     cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat, 'cellsize': discrete_cmap}
     zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1)}
 
-    # ----------- read halo catalogue, to get center -------------------
-    try:
-        halos = Table.read('/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list', format='ascii', header_start=0)
-        index = [halos['ID'] == int(args.halo[:4])]
-        thishalo = halos[index]
-        center_L0 = np.array([thishalo['X'][0]/25., thishalo['Y'][0]/25., thishalo['Z'][0]/25.]) # divided by 25 to convert Mpc units to code units
-        print('Center for L0_gas =', center_L0)
-    except:
-        pass
-
-    if args.center is None: center = center_L0
-    else: center = args.center
+    # ----------- get halo center, either rough center at z=2 from halo catalogue or more accurate center from center track file-------------------
+    if args.center is None:
+        if args.get_center_track:
+            trackfile = args.root_dir + args.foggie_dir + '/' + halo_name + '/' + args.run + '/center_track.dat'
+            df_track = pd.read_table(trackfile, delim_whitespace=True)
+            center = df_track[df_track['output'] == args.output][['center_x', 'center_y', 'center_z']].values.tolist()[0]
+            print('Center from center track file =', center)
+        else:
+            halos = Table.read('/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list', format='ascii', header_start=0)
+            index = [halos['ID'] == int(args.halo[:4])]
+            thishalo = halos[index]
+            center = np.array([thishalo['X'][0] / 25., thishalo['Y'][0] / 25., thishalo['Z'][0] / 25.])  # divided by 25 to convert Mpc units to code units
+            print('Center for L0_gas =', center)
+    else:
+        center = args.center
     center = center + np.array(args.center_offset) / 255.
     print('Offset =', args.center_offset, '\nCenter for current plot =', center)
 
@@ -123,6 +126,7 @@ if __name__ == '__main__':
     parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', default=False, help='Redirect all print statements to a file?, default is no')
     parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
     parser.add_argument('--min_level', dest='min_level', type=int, action='store', default=3, help='annotate grids min level, default is 3')
+    parser.add_argument('--get_center_track', dest='get_center_track', action='store_true', default=False, help='get the halo cneter automatically from the center track file?, default is no')
 
     args = parser.parse_args()
     if args.center is not None: args.center = [float(item) for item in args.center.split(',')]
