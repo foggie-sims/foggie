@@ -194,7 +194,7 @@ if __name__ == '__main__':
         # ----------replacing keywords in jobscript template to make the actual jobscript---------
         out_jobscript = workdir + '/' + jobarray_or_jobscript + '_' + jobname + '.sh'
 
-        replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NHOURS': nhours, 'NMINS': nmins, 'CALLFILE': callfile, 'WORKDIR': workdir, \
+        replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NHOURS': nhours, 'NMINS': args.nmins, 'CALLFILE': callfile, 'WORKDIR': workdir, \
                         'JOBSCRIPT_PATH': jobscript_path, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'RESOURCES': resources, 'RUNSIMFLAG': runsimflag,\
                         'MERGEHIIFLAG': mergeHIIflag, 'SYSTEMFLAG': systemflag, \
                         'HALOFLAG': haloflag, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
