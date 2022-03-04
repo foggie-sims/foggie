@@ -9,6 +9,7 @@ This file shows a simple example of how to use the visualization tool Napari wit
 import numpy as np
 import yt
 import argparse
+import scipy.ndimage as ndimage
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -79,6 +80,25 @@ if __name__ == "__main__":
     temperature = np.log10(box['temperature'].v)
     radial_velocity = box['radial_velocity_corrected'].in_units('km/s').v
 
+    # This next block describes how to grab a disk region and then expand it to grab areas just outside the disk too
+    # Define ISM regions
+    # disk_mask is a boolean 3D array with 1's for the disk and 0's elsewhere
+    disk_mask = (density > np.log10(cgm_density_max*0.1))
+    # struct is needed just to identify how the later dilation is done geometrically (ie in 3D)
+    struct = ndimage.generate_binary_structure(3,3)
+    # disk_mask_expanded is a boolean 3D array with 1's for the disk AND the region surrounding it
+    disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
+    # Dilation expands the cells to include the region surrounding the disk, then closing fills any holes
+    disk_mask_expanded = ndimage.binary_closing(disk_mask_expanded, structure=struct, iterations=3)
+    # disk_edges is a boolean 3D array with 1's for ONLY pixels surrounding ISM regions -- nothing inside ISM regions
+    disk_edges = disk_mask_expanded & ~disk_mask
+
+    # Set the density and temperature of everything other than the disk edges to minimum value for the visualization
+    density_edges = np.copy(density)
+    density_edges[~disk_edges] = -32
+    temperature_edges = np.copy(temperature)
+    temperature_edges[~disk_edges] = 3
+
     # Define the FOGGIE-specific temperature colormap (napari requires you to use vispy to define the color map)
     from vispy.color import Colormap
     temp_cmap = Colormap(['salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'])
@@ -88,7 +108,8 @@ if __name__ == "__main__":
     viewer = napari.view_image(density, name='density', colormap='viridis', contrast_limits=[-30,-20])
     # Add additional fields with napari.add_image
     temperature_layer = viewer.add_image(temperature, name='temperature', colormap=temp_cmap, contrast_limits=[4,7])
-    radial_velocity_layer = viewer.add_image(radial_velocity, name='radial velocity', colormap='RdBu', contrast_limits=[-500,500])
+    density_edge_layer = viewer.add_image(density_edges, name='density_disk_edges', colormap='viridis', contrast_limits=[-30,-20])
+    temperature_edge_layer = viewer.add_image(temperature_edges, name='temperature_disk_edges', colormap=temp_cmap, contrast_limits=[4,7])
 
     # In the above, 'name' is the name that will show up on the layer in the viewer,
     # 'colormap' is either a string name of a standard colormap or a list of colors if you want to define your own,
@@ -99,12 +120,12 @@ if __name__ == "__main__":
     # You can add a points field for particles like stars, but the positions must be passed
     # in terms of the image coordinates
     # Load young star positions and shift to halo-centric coordinates
-    ys_pos = refine_box[('young_stars','particle_position')].in_units('kpc') - ds.halo_center_kpc
+    '''ys_pos = refine_box[('young_stars','particle_position')].in_units('kpc') - ds.halo_center_kpc
     # Convert halo-centric coordinates to image resolution coordinates
     ys_pos = ys_pos.v/dx
     ys_pos += refine_res/2.
     # Now add the points in a new layer
-    viewer.add_points(ys_pos, size=1, face_color='white', edge_color='white', name='young stars')
+    viewer.add_points(ys_pos, size=1, face_color='white', edge_color='white', name='young stars')'''
 
     # Finally, open the viewer with the above-defined fields!
     napari.run()
