@@ -10,7 +10,7 @@
     OR :         run submit_jobs.py --call filter_star_properties --nnodes 50 --ncores 4 --prefix fsp --do_all_halos --nhours 24 --dryrun  --opt_args "--do_sll_sims --do_all_halos"
     OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has --opt_args "--galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 "
     OR :         run submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --nnodes 50 --ncores 4 --queue normal --prefix cmzg --opt_args "--do_all_sims --upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
-    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --jobarray --do_all_sims --use_onlyDD --prefix cmzg --opt_args "--upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
+    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --jobarray --do_all_sims --use_onlyDD --nhours 0 --nmins 15 --prefix cmzg --opt_args "--upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
 """
 import subprocess, argparse, datetime, os
 from collections import defaultdict
@@ -41,6 +41,7 @@ def parse_args():
     parser.add_argument('--nnodes', metavar='nnodes', type=int, action='store', default=1)
     parser.add_argument('--ncores', metavar='ncores', type=int, action='store', default=None)
     parser.add_argument('--nhours', metavar='nhours', type=int, action='store', default=None)
+    parser.add_argument('--nmins', metavar='nmins', type=int, action='store', default=0)
     parser.add_argument('--proc', metavar='proc', type=str, action='store', default='has')
     parser.add_argument('--memory', metavar='memory', type=str, action='store', default=None)
     parser.add_argument('--aoe', metavar='aoe', type=str, action='store', default=None)
@@ -193,7 +194,7 @@ if __name__ == '__main__':
         # ----------replacing keywords in jobscript template to make the actual jobscript---------
         out_jobscript = workdir + '/' + jobarray_or_jobscript + '_' + jobname + '.sh'
 
-        replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NHOURS': nhours, 'CALLFILE': callfile, 'WORKDIR': workdir, \
+        replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NHOURS': nhours, 'NMINS': nmins, 'CALLFILE': callfile, 'WORKDIR': workdir, \
                         'JOBSCRIPT_PATH': jobscript_path, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'RESOURCES': resources, 'RUNSIMFLAG': runsimflag,\
                         'MERGEHIIFLAG': mergeHIIflag, 'SYSTEMFLAG': systemflag, \
                         'HALOFLAG': haloflag, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \

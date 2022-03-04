@@ -7,7 +7,7 @@
 ##### Resources #####
 #PBS -W group_list=PROJ_CODE
 #PBS -l RESOURCES
-#PBS -l walltime=NHOURS:00:00
+#PBS -l walltime=NHOURS:NMINS:00
 
 ##### Mail Options #####
 #PBS -m abe
