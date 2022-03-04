@@ -13,6 +13,7 @@
                  run projection_plot_nondefault.py --halo test --width 1000 --run 25Mpc_DM_256-L3 --center 0.54212825,0.45856575,0.50848325
                  run projection_plot_nondefault.py --halo 8894 --annotate_grid --run 25Mpc_DM_256-L3 --center 0.5442269,0.45738622,0.50917259 --output RD0021
                  run projection_plot_nondefault.py --halo 5133 --width 1000 --run 25Mpc_DM_256-L3 --center_offset " 117,93,-73"
+                 run projection_plot_nondefault.py --halo 5205 --width 200 --run 25Mpc_DM_256-L3-gas --output RD0028 --get_center_track --do cellsize
 
 """
 from header import *

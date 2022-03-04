@@ -842,7 +842,13 @@ def get_all_sims_for_this_halo(args, given_path=None):
     snapshot_paths.sort(key=os.path.getmtime)
     snapshots = [item.split('/')[-2] for item in snapshot_paths]
     for thissnap in snapshots:
-        if len(thissnap) == 6: all_sims.append([args.halo, thissnap])
+        if len(thissnap) == 6:
+            if args.use_onlyRD:
+                if thissnap[:2] == 'RD': all_sims.append([args.halo, thissnap])
+            elif args.use_onlyDD:
+                if thissnap[:2] == 'DD': all_sims.append([args.halo, thissnap])
+            else:
+                all_sims.append([args.halo, thissnap])
     all_sims = all_sims[:: args.nevery]
     return all_sims
 
@@ -913,6 +919,8 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--foggie_dir', metavar='foggie_dir', type=str, action='store', default=None, help='Specify which directory the dataset lies in, otherwise, by default it will use the args.system variable to determine the FOGGIE data location')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the current working directory?, default is no')
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available for a given halo?, default is no')
+    parser.add_argument('--use_onlyRD', dest='use_onlyRD', action='store_true', default=False, help='Use only the RD snapshots available for a given halo?, default is no')
+    parser.add_argument('--use_onlyDD', dest='use_onlyDD', action='store_true', default=False, help='Use only the DD snapshots available for a given halo?, default is no')
     parser.add_argument('--nevery', metavar='nevery', type=int, action='store', default=1, help='use every nth snapshot when do_all_sims is specified; default is 1 i.e., all snapshots will be used')
     parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False, help='loop over all available halos (and all snapshots each halo has)?, default is no')
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
@@ -1086,6 +1094,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--upto_re', metavar='upto_re', type=float, action='store', default=2.0, help='fit metallicity gradient out to what multiple of Re? default is 2')
     parser.add_argument('--write_file', dest='write_file', action='store_true', default=False, help='write the list of measured gradients, mass and size to file?, default is no')
     parser.add_argument('--get_gasmass', dest='get_gasmass', action='store_true', default=False, help='save gas mass profile, in addition to stellar mass profile, to hdf5 file?, default is no')
+    parser.add_argument('--snapnumber', metavar='snapnumber', type=int, action='store', default=None, help='identifier for the snapshot (what follows DD or RD); default is None, in which case it takes the snapshot from args.output')
 
     # ------- args added for get_halo_track.py ------------------------------
     parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')
@@ -1103,6 +1112,9 @@ def parse_args(haloname, RDname, fast=False):
     args.Om = args.Om_arr[0]
     args.halo_arr = [item for item in args.halo.split(',')]
     args.halo = args.halo_arr[0] if len(args.halo_arr) == 1 else haloname
+    if args.snapnumber is not None:
+        if args.use_onlyDD: args.output = 'DD%04d' % (args.snapnumber)
+        else: args.output = 'RD%04d' % (args.snapnumber)
     args.output_arr = [item for item in args.output.split(',')]
     args.output = args.output_arr[0] if len(args.output_arr) == 1 else RDname
     args.move_to = np.array([float(item) for item in args.move_to.split(',')])  # kpc

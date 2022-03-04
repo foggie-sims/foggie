@@ -361,8 +361,12 @@ if __name__ == '__main__':
         print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), dummy_args)
 
     if args.write_file:
-        df_grad.to_csv(grad_filename, sep='\t', index=None)
-        print('Saved gradient file', grad_filename)
+        if not os.path.isfile(grad_filename) or args.clobber:
+            df_grad.to_csv(grad_filename, sep='\t', index=None, header='column_names')
+            print('Wrote to gradient file', grad_filename)
+        else:
+            df_grad.to_csv(grad_filename, sep='\t', index=None, mode='a', header=False)
+            print('Appended to gradient file', grad_filename)
 
     if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)

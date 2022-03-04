@@ -6,13 +6,29 @@
     Notes :      Python wrapper to create and submit one or more jobs on pleiades
     Author :     Ayan Acharyya
     Started :    July 2021
-    Example :    run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp --halo 8508 --dryrun
-    OR :         run submit_jobs.py --call filter_star_properties --do_all_sims --nnodes 50 --ncores 4 --prefix fsp --do_all_halos --nhours 24 --dryrun
-    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 --do_all_sims --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has
-    OR :         run submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --do_all_sims --nnodes 50 --ncores 4 --queue normal --prefix cmzg --opt_args "--upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
+    Example :    run submit_jobs.py --call filter_star_properties --nnodes 50 --ncores 4 --prefix fsp --halo 8508 --dryrun --opt_args "--do_sll_sims"
+    OR :         run submit_jobs.py --call filter_star_properties --nnodes 50 --ncores 4 --prefix fsp --do_all_halos --nhours 24 --dryrun  --opt_args "--do_sll_sims --do_all_halos"
+    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has --opt_args "--galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 "
+    OR :         run submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --nnodes 50 --ncores 4 --queue normal --prefix cmzg --opt_args "--do_all_sims --upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
+    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --jobarray --do_all_sims --use_onlyDD --prefix cmzg --opt_args "--upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
 """
 import subprocess, argparse, datetime, os
 from collections import defaultdict
+from util import get_all_sims_for_this_halo
+import numpy as np
+
+# ------------------------------------------------------
+def execute_command(command, is_dry_run=False):
+    '''
+    Function to decide whether to execute a command or simply print it out (for dry run)
+    '''
+    if is_dry_run:
+        print('Not executing command:', command, '\n')
+        return -99
+    else:
+        print('Executing command:', command, '\n')
+        job = subprocess.check_output([command], shell=True)[:-1]
+        return job
 
 # ---------------------------------------------------------
 def parse_args():
@@ -55,6 +71,11 @@ def parse_args():
     parser.add_argument('--units_rvir', dest='units_rvir', action='store_true', default=False)
     parser.add_argument('--temp_cut', dest='temp_cut', action='store_true', default=False)
     parser.add_argument('--opt_args', metavar='opt_args', type=str, action='store', default='')
+    parser.add_argument('--jobarray', dest='jobarray', action='store_true', default=False)
+    parser.add_argument('--use_onlyRD', dest='use_onlyRD', action='store_true', default=False)
+    parser.add_argument('--use_onlyDD', dest='use_onlyDD', action='store_true', default=False)
+    parser.add_argument('--snapstart', metavar='snapstart', type=int, action='store', default=30)
+    parser.add_argument('--snapstop', metavar='snapstop', type=int, action='store', default=30)
     args, leftovers = parser.parse_known_args()
 
     return args
@@ -64,7 +85,7 @@ if __name__ == '__main__':
     time_of_begin = datetime.datetime.now()
     args = parse_args()
 
-    #----------special settings for ldan queue--------
+    # ----------special settings for ldan queue--------
     if args.queue == 'ldan':
         args.proc = 'ldan'
         args.nnodes = 1
@@ -73,12 +94,16 @@ if __name__ == '__main__':
     elif args.queue[:2] == 'e_':
         args.proc = 'cas_end'
 
+    # ----------special setting for jobarrays------------
+    if args.jobarray:
+        args.nnodes = 1
+        args.ncores = 1
+
     #----------setting different variables based on args--------
     systemflag = ' --system ' + args.system
     runsimflag = ' --run ' + args.run
     nchunks_flag = ' --nchunks ' + args.nchunks if args.nchunks is not None else ''
     dryrunflag = ' --dryrun ' if args.dryrun else ''
-    do_all_simsflag = ' --do_all_sims ' if args.do_all_sims else ''
     mergeHIIflag = ' --mergeHII ' + str(args.mergeHII) if args.mergeHII is not None else ''
     prefixtext = args.prefix + '_' if args.prefix is not None else ''
     makemovie_flag = ' --makemovie ' if args.makemovie else ''
@@ -91,15 +116,16 @@ if __name__ == '__main__':
     overplot_stars_flag = ' --overplot_stars ' if args.overplot_stars else ''
     overplot_source_sink_flag = ' --overplot_source_sink ' if args.overplot_source_sink else ''
     clobber_plot_flag = ' --clobber_plot ' if args.clobber_plot else ''
-    nevery_flag = ' --nevery ' + str(args.nevery) if args.nevery > 1 and args.do_all_sims else ''
+    nevery_flag = ' --nevery ' + str(args.nevery) if args.nevery > 1 else ''
     tempcut_flag = ' --temp_cut ' if args.temp_cut else ''
     units_flag = ' --units_kpc ' if args.units_kpc else ' --units_rvir ' if args.units_rvir else ''
 
     if 'pleiades' in args.system: jobscript_path = '/nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
     elif args.system == 'ayan_local': jobscript_path = os.getenv('HOME') + '/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
 
-    if args.system == 'ayan_local': jobscript_template = 'jobscript_template_ayan_pleiades.txt'
-    else: jobscript_template = 'jobscript_template_' + args.system + '.txt'
+    jobarray_or_jobscript = 'jobarray' if args.jobarray else 'jobscript'
+    if args.system == 'ayan_local': jobscript_template = jobarray_or_jobscript + '_template_ayan_pleiades.txt'
+    else: jobscript_template = jobarray_or_jobscript + '_template_' + args.system + '.txt'
 
     callfile = jobscript_path + args.callfunc + '.py'
 
@@ -155,28 +181,22 @@ if __name__ == '__main__':
 
     #----------looping over and creating + submitting job files--------
     halos = ['8508', '5036', '5016', '4123', '2392', '2878']
-    if args.do_all_halos:
-        args.stop = len(halos) # do all halos by submitting ..
-        do_all_halosflag = '' # ..multiple jobs one job for each halo
-        #args.stop = args.start # do all halos by submitting..
-        #do_all_halosflag = ' --do_all_halos ' # ..ONE massive job that will loop over all halos
-    else:
-        do_all_halosflag = ''
+    if args.do_all_halos: args.stop = len(halos) # do all halos by submitting ..
 
     for jobid in range(args.start, args.stop+1):
         thishalo = halos[jobid - 1] if args.halo is None else args.halo
         haloflag = ' --halo ' + thishalo
         jobname = prefixtext + thishalo
         if jobname[:3] != args.proc: jobname = args.proc + '_' + jobname
-        if args.do_all_sims and args.nevery > 1: jobname += '_ne' + str(args.nevery)
+        if args.nevery > 1: jobname += '_ne' + str(args.nevery)
 
         # ----------replacing keywords in jobscript template to make the actual jobscript---------
-        out_jobscript = workdir + '/jobscript_' + jobname + '.sh'
+        out_jobscript = workdir + '/' + jobarray_or_jobscript + '_' + jobname + '.sh'
 
         replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NHOURS': nhours, 'CALLFILE': callfile, 'WORKDIR': workdir, \
                         'JOBSCRIPT_PATH': jobscript_path, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'RESOURCES': resources, 'RUNSIMFLAG': runsimflag,\
-                        'MERGEHIIFLAG': mergeHIIflag, 'DO_ALL_SIMSFLAG': do_all_simsflag, 'DO_ALL_HALOSFLAG': do_all_halosflag, 'SYSTEMFLAG': systemflag, \
-                        'HALOFLAG': haloflag, 'NCPUS': nnodes * ncores, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
+                        'MERGEHIIFLAG': mergeHIIflag, 'SYSTEMFLAG': systemflag, \
+                        'HALOFLAG': haloflag, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
                         'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \
                         'OVERPLOT_STARS_FLAG': overplot_stars_flag, 'OVERPLOT_SOURCE_SINK_FLAG': overplot_source_sink_flag, 'CLOBBER_PLOT_FLAG': clobber_plot_flag, 'NSECONDS':str(int(nhours) * 3600), \
                         'NEVERY_FLAG': nevery_flag, 'UNITS_FLAG': units_flag, 'TEMPCUT_FLAG': tempcut_flag, 'NCHUNKS_FLAG': nchunks_flag, 'OPT_ARGS': args.opt_args} # keywords to be replaced in template jobscript
@@ -188,6 +208,18 @@ if __name__ == '__main__':
                 outfile.write(line) # replacing and creating new jobscript file
 
         print('Going to submit job ' + jobname+' at {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
-        jobid = subprocess.check_output(['qsub ' + out_jobscript], shell=True)[:-1]
+        if args.jobarray:
+            if args.do_all_sims:
+                if args.system == 'ayan_local': simpath = '/Users/acharyya/models/simulation_output/foggie/'
+                else: simpath = '/nobackup/mpeeples/'
+                list_of_sims = get_all_sims_for_this_halo(args, simpath + 'halo_00' + thishalo + '/' + args.run + '/')
+                args.snapstart = int(list_of_sims[0][1][2:])
+                args.snapstop = int(list_of_sims[-1][1][2:])
+
+            nbatches = int(np.ceil((args.snapstop - args.snapstart + 1)/500))
+            for interval in range(nbatches):
+                jobid = execute_command('qsub -J ' + str(args.snapstart) + '-' + str(args.snapstop) + ':' + str(interval) + ' ' + out_jobscript, is_dry_run=args.dryrun)
+        else:
+            jobid = execute_command('qsub ' + out_jobscript, is_dry_run=args.dryrun)
 
     print('Submitted all '+str(args.stop - args.start + 1)+' job/s from index '+str(args.start)+' to '+str(args.stop) + '\n')
