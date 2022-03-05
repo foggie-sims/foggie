@@ -283,7 +283,8 @@ if __name__ == '__main__':
     total_snaps = len(list_of_sims)
 
     # -------set up dataframe and filename to store/write gradients in to--------
-    df_grad = pd.DataFrame(columns=['output', 'redshift', 'mass', 're', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Ztotal'])
+    cols_in_df = ['output', 'redshift', 'mass', 're', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Ztotal']
+    df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s_upto%.1FRe%s.txt' % (dummy_args.xcol, dummy_args.upto_re, weightby_text)
 
@@ -315,6 +316,7 @@ if __name__ == '__main__':
     for index in range(core_start + dummy_args.start_index, core_end + 1):
         start_time_this_snapshot = time.time()
         this_sim = list_of_sims[index]
+        this_df_grad = pd.DataFrame(columns=cols_in_df)
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
         try:
             if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
@@ -356,17 +358,18 @@ if __name__ == '__main__':
         df['metal_mass'] = df['mass'] * df['metal'] * metallicity_sun
         Ztotal = (df['metal_mass'].sum()/df['mass'].sum())/metallicity_sun # in Zsun
 
-        df_grad.loc[len(df_grad)] = [args.output, args.current_redshift, mstar, args.re, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Ztotal]
+        this_df_grad.loc[len(this_df_grad)] = [args.output, args.current_redshift, mstar, args.re, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Ztotal]
+        df_grad = pd.concat([df_grad, this_df_grad])
+        if args.write_file:
+            if not os.path.isfile(grad_filename) or args.clobber:
+                this_df_grad.to_csv(grad_filename, sep='\t', index=None, header='column_names')
+                print('Wrote to gradient file', grad_filename)
+            else:
+                this_df_grad.to_csv(grad_filename, sep='\t', index=None, mode='a', header=False)
+                print('Appended to gradient file', grad_filename)
 
         print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), dummy_args)
 
-    if args.write_file:
-        if not os.path.isfile(grad_filename) or args.clobber:
-            df_grad.to_csv(grad_filename, sep='\t', index=None, header='column_names')
-            print('Wrote to gradient file', grad_filename)
-        else:
-            df_grad.to_csv(grad_filename, sep='\t', index=None, mode='a', header=False)
-            print('Appended to gradient file', grad_filename)
 
     if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
