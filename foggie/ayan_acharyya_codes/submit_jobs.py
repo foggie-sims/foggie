@@ -219,7 +219,7 @@ if __name__ == '__main__':
 
             nbatches = int(np.ceil((args.snapstop - args.snapstart + 1)/500))
             for interval in range(nbatches):
-                jobid = execute_command('qsub -J ' + str(args.snapstart) + '-' + str(args.snapstop) + ':' + str(interval) + ' ' + out_jobscript, is_dry_run=args.dryrun)
+                jobid = execute_command('qsub -J ' + str(args.snapstart + interval) + '-' + str(args.snapstop + interval) + ':' + str(nbatches) + ' ' + out_jobscript, is_dry_run=args.dryrun)
         else:
             jobid = execute_command('qsub ' + out_jobscript, is_dry_run=args.dryrun)
 
