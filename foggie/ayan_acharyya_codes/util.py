@@ -839,7 +839,8 @@ def get_all_sims_for_this_halo(args, given_path=None):
     all_sims = []
     if given_path is None: given_path = args.foggie_dir + args.run_loc
     snapshot_paths = glob.glob(given_path + '*/')
-    snapshot_paths.sort(key=os.path.getmtime)
+    if args.use_onlyDD or args.use_onlyRD: snapshot_paths.sort() # alpha-numeric sort if it is just DDs or just RDs because that ensures monotonicity in redshift
+    else: snapshot_paths.sort(key=os.path.getmtime) # sort by timestamp
     snapshots = [item.split('/')[-2] for item in snapshot_paths]
     for thissnap in snapshots:
         if len(thissnap) == 6:
