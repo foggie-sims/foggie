@@ -114,7 +114,7 @@ def get_disk_stellar_mass(args):
 
         if len(thisdata) == 0: # snapshot not found in masses less than z=2 file, so try greater than z=2 file
             mass_filename = mass_filename.replace('less', 'gtr')
-            print('Could not find spanshot in rpevious file, now reading in', mass_filename)
+            print('Could not find spanshot in previous file, now reading in', mass_filename)
             alldata = pd.read_hdf(mass_filename, key='all_data')
             thisdata = alldata[alldata['snapshot'] == args.output]
 
@@ -122,7 +122,16 @@ def get_disk_stellar_mass(args):
                 print('Snapshot not found in either file. Returning bogus mass')
                 return -999
 
-        mstar = thisdata[thisdata['radius'] <= args.galrad]['stars_mass'].values[-1] # radius is in kpc, mass in Msun
+        thisshell = thisdata[thisdata['radius'] <= args.galrad]
+        if len(thisshell) == 0: # the smallest shell available in the mass profile is larger than the necessary radius within which we need the stellar mass
+            if thisdata['radius'].iloc[0] <= 1.5*args.galrad:
+                print('Smallest shell available in the mass profile is larger than args.galrad, taking the mass in the smallest shell as galaxy stellar mass')
+                mstar = thisdata['stars_mass'].iloc[0] # assigning the mass of the smallest shell as the stellar mass
+            else:
+                print('Smallest shell avialable in mass profile is too small compared to args.galrad. Returning bogus mass')
+                return -999
+        else:
+            mstar = thisshell['stars_mass'].values[-1] # radius is in kpc, mass in Msun
     else:
         print('File not found:', mass_filename)
         mstar = -999
