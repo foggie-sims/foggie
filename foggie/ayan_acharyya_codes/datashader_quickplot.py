@@ -57,10 +57,12 @@ def get_df_from_ds(ds, args):
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
     outfilename = get_correct_tablename(args)
 
+    all_fields = [args.xcol, args.ycol, args.colorcol]
+    if args.weight is not None: all_fields += [args.weight]
+
     if not os.path.exists(outfilename) or args.clobber:
         myprint('Creating file ' + outfilename + '..', args)
         df = pd.DataFrame()
-        all_fields = [args.xcol, args.ycol, args.colorcol]
         if 'rad' not in all_fields: all_fields = ['rad'] + all_fields
 
         for index,field in enumerate(all_fields):
@@ -81,7 +83,9 @@ def get_df_from_ds(ds, args):
             if rad_picked_up == args.galrad: pass # if this file actually corresponds to the correct radius, then you're fine (even if the file itself doesn't have radius column)
             else: sys.exit('Please regenerate ' + outfilename + ', using the --clobber option') # otherwise throw error
 
+    # ------to take log, or weigh each column, as necessary (because the file just read in, only has the raw values for each column)----------
     for field in all_fields:
+        column_name = field
         if isfield_weighted_dict[field] and args.weight:
             weights = ds[field_dict[args.weight]].in_units(unit_dict[args.weight]).ndarray_view()
             arr = df[field] * weights * len(weights) / np.sum(weights)
