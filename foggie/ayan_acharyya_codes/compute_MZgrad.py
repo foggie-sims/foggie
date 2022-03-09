@@ -4,7 +4,7 @@
 
     Title :      compute_MZgrad
     Notes :      Compute mass - metallicity gradient relation for a given FOGGIE galaxy
-    Output :     Z gradient plots as png files (also txt file storing all the gradients & mass plus MZgrad plot if this code is run on multiple snapshots)
+    Output :     txt file storing all the gradients & mass plus, optionally, Z profile plots
     Author :     Ayan Acharyya
     Started :    Feb 2022
     Examples :   run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_re 3 --xcol rad_re --keep --weight mass

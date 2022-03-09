@@ -1104,6 +1104,11 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--root_dir', metavar='root_dir', type=str, action='store', default='', help='root directory path where your foggie directory is (automatically grabs the correct path if you are on ayans system; default is empty string')
     parser.add_argument('--last_center_guess', metavar='last_center_guess', type=str, action='store', default=None, help='initial guess for the center of desired halo in code units')
 
+    # ------- args added for plot_MZgrad.py ------------------------------
+    parser.add_argument('--binby', metavar='binby', type=str, action='store', default=None, help='bin the plot by either redshift or mass; default is empty string = no binning')
+    parser.add_argument('--nbins', metavar='nbins', type=int, action='store', default=20, help='no. of bins to bin the binby column in to; default is 20')
+    parser.add_argument('--overplot_obs', dest='overplot_obs', action='store_true', default=False, help='overplot observed MZGR?, default is no')
+
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 
