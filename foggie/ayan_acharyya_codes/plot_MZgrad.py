@@ -7,8 +7,8 @@
     Output :     M-Z gradient plots as png files plus, optinally, MZR plot
     Author :     Ayan Acharyya
     Started :    Mar 2022
-    Examples :   run plot_MZgrad.py --system ayan_local --halo 8508 --upto_re 3 --xcol rad_re --keep --weight mass --xmin 8.5 --ymin -0.3 --overplot_obs
-                 run plot_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --weight mass --binby mass --nbins 20 --cmap Greens_r --xmin 8.5 --xmax 11 --ymin 0.3
+    Examples :   run plot_MZgrad.py --system ayan_local --halo 8508 --upto_re 3 --xcol rad_re --keep --weight mass --xmin 8.5 --ymin -0.3 --overplot_obs --manga_diag pyqz
+                 run plot_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --weight mass --binby mass --nbins 20 --cmap Greens_r --xmin 8.5 --xmax 11 --ymin 0.3 --overplot_obs --manga_diag n2
 
 """
 from header import *
@@ -27,11 +27,12 @@ def overplot_manga(ax, args):
     df_manga = data.to_pandas()
 
     # --------trim to required columns---------------
-    diagnostic = 'n2'
-    df_manga = df_manga[['mangaid', 'redshift', 're_kpc', 'log_mass', 'alpha_oh_re_fit_' + diagnostic, 'e_alpha_oh_re_fit_' + diagnostic, 'oh_re_fit_' + diagnostic, 'e_oh_re_fit_' + diagnostic]]
+    # options for args.manga_diag are: n2, o3n2, ons, pyqz, t2, m08, t04
+    df_manga = df_manga[['mangaid', 'redshift', 're_kpc', 'log_mass', 'alpha_oh_re_fit_' + args.manga_diag, 'e_alpha_oh_re_fit_' + args.manga_diag, 'oh_re_fit_' + args.manga_diag, 'e_oh_re_fit_' + args.manga_diag]]
+    df_manga = df_manga.dropna(subset=['alpha_oh_re_fit_' + args.manga_diag])
 
-    sns.kdeplot(df_manga['log_mass'], df_manga['alpha_oh_re_fit_' + diagnostic], ax=ax, shade=True, shade_lowest=False, alpha=0.7, n_levels=10, cmap='Greys')
-    #ax.scatter(df_manga['log_mass'], df_manga['alpha_oh_re_fit_' + diagnostic], c=df_manga['redshift'], cmap='Greys_r', s=10, alpha=0.5)
+    sns.kdeplot(df_manga['log_mass'], df_manga['alpha_oh_re_fit_' + args.manga_diag], ax=ax, shade=True, shade_lowest=False, alpha=0.7, n_levels=10, cmap='Greys')
+    #ax.scatter(df_manga['log_mass'], df_manga['alpha_oh_re_fit_' + args.manga_diag], c=df_manga['redshift'], cmap='Greys_r', s=10, alpha=0.5)
 
     return ax, df_manga
 
@@ -62,8 +63,12 @@ def plot_MZGR(df, args):
     fig, ax = plt.subplots(1, figsize=(9, 5))
     fig.subplots_adjust(top=0.95, bottom=0.15, left=0.12, right=1.05)
 
-    if args.overplot_obs: ax, df_manga = overplot_manga(ax, args)
-    else: df_manga = None
+    if args.overplot_obs:
+        ax, df_manga = overplot_manga(ax, args)
+        manga_text = '_overplot_manga_' + args.manga_diag
+    else:
+        df_manga = None
+        manga_text = ''
 
     p = ax.scatter(np.log10(df['mass']), df['Zgrad'], c=df['redshift'], cmap=args.cmap)
 
@@ -81,7 +86,7 @@ def plot_MZGR(df, args):
     ax.set_ylabel(r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.xcol == 'rad_re' else r'$\Delta Z$ (dex/kpc)', fontsize=args.fontsize)
 
     binby_text = '' if args.binby is None else '_binby_' + args.binby
-    figname = args.output_dir + 'figs/' + args.halo + '_MZGR_xcol_%s_upto%.1FRe%s%s.png' % (args.xcol, args.upto_re, args.weightby_text, binby_text)
+    figname = args.output_dir + 'figs/' + args.halo + '_MZGR_xcol_%s_upto%.1FRe%s%s%s.png' % (args.xcol, args.upto_re, args.weightby_text, binby_text, manga_text)
     fig.savefig(figname)
     print('Saved plot as', figname)
     plt.show(block=False)
