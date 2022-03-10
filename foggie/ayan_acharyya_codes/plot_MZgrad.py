@@ -87,20 +87,21 @@ def plot_MZGR(args):
     if args.cmax is None: args.cmax = 6
 
     # -------declare figure object-------------
-    fig, ax = plt.subplots(1, figsize=(9, 5))
+    fig, ax = plt.subplots(1, figsize=(10, 5))
     fig.subplots_adjust(top=0.95, bottom=0.15, left=0.12, right=1.05)
 
     # ---------plot observations----------------
     if args.overplot_obs:
         ax, df_manga = overplot_manga(ax, args)
         manga_text = '_overplot_manga_' + args.manga_diag
-        fig.text(0.15, 0.2, 'MaNGA', ha='left', va='top', color='Grey', fontsize=args.fontsize)
+        fig.text(0.15, 0.9, 'MaNGA', ha='left', va='top', color='Grey', fontsize=args.fontsize)
     else:
         df_manga = None
         manga_text = ''
 
     # --------loop over different FOGGIE halos-------------
-    for index, args.halo in enumerate(args.halo_arr):
+    for index, args.halo in enumerate(args.halo_arr[::-1]):
+        thisindex = len(args.halo_arr) - index - 1
         df = load_df(args)
         df = df[(np.log10(df['mass']) >= args.xmin) & (np.log10(df['mass']) <= args.xmax)]
         #df = df[(df['Zgrad'] >= args.ymin) & (df['Zgrad'] <= args.ymax)]
@@ -117,15 +118,15 @@ def plot_MZGR(args):
         points = np.array([np.log10(df['mass']), df['Zgrad']]).T.reshape(-1, 1, 2)
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
         norm = plt.Normalize(args.cmin, args.cmax)
-        lc = LineCollection(segments, cmap=cmap_arr[index], norm=norm)
+        lc = LineCollection(segments, cmap=cmap_arr[thisindex], norm=norm)
         lc.set_array(df['redshift'])
         lc.set_linewidth(2)
         plot = ax.add_collection(lc)
 
         # -------scatter plot------------
-        #plot = ax.scatter(np.log10(df['mass']), df['Zgrad'], c=df['redshift'], cmap=cmap_arr[index])
+        #plot = ax.scatter(np.log10(df['mass']), df['Zgrad'], c=df['redshift'], cmap=cmap_arr[thisindex])
 
-        fig.text(0.15, 0.25 + index * 0.05, halo_dict[args.halo], ha='left', va='top', color=mpl_cm.get_cmap(cmap_arr[index])(0.2), fontsize=args.fontsize)
+        fig.text(0.15, 0.85 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=mpl_cm.get_cmap(cmap_arr[thisindex])(0.2), fontsize=args.fontsize)
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])
 
