@@ -72,9 +72,9 @@ def calc_masses(ds, snap, refine_width_kpc, tablename, get_gas_profile=False):
     print('Masses have been calculated for snapshot' + snap)
 
 # --------------------------------------------------------------------------------
-def get_re(ds, args):
+def get_re_from_stars(ds, args):
     '''
-    Function to determine the effective radius of stellar disk, given a dataset
+    Function to determine the effective radius of stellar disk, based on the stellar mass profile, given a dataset
     Returns the effective radius in kpc
     '''
     re_hmr_factor = 2.0 # from the Illustris group (?)
@@ -96,7 +96,30 @@ def get_re(ds, args):
     half_mass_radius = mass_profile[mass_profile['stars_mass'] <= total_mass/2]['radius'].iloc[-1]
     re = re_hmr_factor * half_mass_radius
 
-    print('Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' %(args.current_redshift) + ') is %.2F kpc' %(re))
+    print('Stellar-profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' %(args.current_redshift) + ') is %.2F kpc' %(re))
+    return re
+
+# --------------------------------------------------------------------------------
+def get_re_from_coldgas(gasprofile, args):
+    '''
+    Function to determine the effective radius of stellar disk, based on the cold gas profile, given a dataset
+    Returns the effective radius in kpc
+    '''
+    re_hmr_factor = 2.0 # from the Illustris group (?)
+
+    if args.output[:2] == 'DD' and args.output[2:] in gasprofile.keys(): # because cold gas profile is only present for all the DD outputs
+        this_gasprofile = gasprofile[args.output[2:]]
+        this_coldgas = this_gasprofile['cold']
+        mass_profile = pd.DataFrame({'radius': this_coldgas['r'], 'coldgas':np.cumsum(this_coldgas['mass'])})
+        mass_profile = mass_profile.sort_values('radius')
+        total_mass = mass_profile['coldgas'].iloc[-1]
+        half_mass_radius = mass_profile[mass_profile['coldgas'] <= total_mass/2]['radius'].iloc[-1]
+        re = re_hmr_factor * half_mass_radius
+        print('Cold gas profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' % (args.current_redshift) + ') is %.2F kpc' % (re))
+    else:
+        re = -99
+        print('Cold gas profile not found for halo ' + args.halo + ' output ' + args.output + '; therefore returning dummy re %d' % (re))
+
     return re
 
 # -----------------------------------------------------------------------------
@@ -122,7 +145,7 @@ def get_disk_stellar_mass(args):
                 print('Snapshot not found in either file. Returning bogus mass')
                 return -999
 
-        thisshell = thisdata[thisdata['radius'] <= args.galrad]
+        thisshell = thisdata[thisdata['radius'] <= upto_radius]
         if len(thisshell) == 0: # the smallest shell available in the mass profile is larger than the necessary radius within which we need the stellar mass
             if thisdata['radius'].iloc[0] <= 1.5*args.galrad:
                 print('Smallest shell available in the mass profile is larger than args.galrad, taking the mass in the smallest shell as galaxy stellar mass')
@@ -292,7 +315,7 @@ if __name__ == '__main__':
     total_snaps = len(list_of_sims)
 
     # -------set up dataframe and filename to store/write gradients in to--------
-    cols_in_df = ['output', 'redshift', 'mass', 're', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Ztotal']
+    cols_in_df = ['output', 'redshift', 'time', 're_stars', 'mass_re_stars', 'Zcen_re_stars', 'Zcen_u_re_stars', 'Zgrad_re_stars', 'Zgrad_u_re_stars', 'Ztotal_re_stars', 're_coldgas', 'mass_re_coldgas', 'Zcen_re_coldgas', 'Zcen_u_re_coldgas', 'Zgrad_re_coldgas', 'Zgrad_u_re_coldgas', 'Ztotal_re_coldgas']
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s_upto%.1FRe%s.txt' % (dummy_args.xcol, dummy_args.upto_re, weightby_text)
@@ -301,6 +324,12 @@ if __name__ == '__main__':
         print('List of the total ' + str(total_snaps) + ' sims =', list_of_sims)
         sys.exit('Exiting dryrun..')
     # parse column names, in case log
+
+    # --------------read in the cold gas profile file ONCE for a given halo-------------
+    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(dummy_args)
+    gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + dummy_args.run + '/all_rprof_' + dummy_args.halo + '.npy'
+    print('Reading in cold gas profile from', gasfilename)
+    gasprofile = np.load(gasfilename, allow_pickle=True)
 
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
@@ -349,25 +378,35 @@ if __name__ == '__main__':
         args.current_time = ds.current_time.in_units('Gyr')
         args.ylim = [-2.2, 1.2] # [-3, 1]
 
-        # extract the required box
-        args.re = get_re(ds, args) # kpc
-        box_center = ds.arr(args.halo_center, kpc)
-        args.galrad = args.upto_re * args.re # kpc
-        box_width = args.galrad * 2  # in kpc
-        box_width_kpc = ds.arr(box_width, 'kpc')
-        box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+        thisrow = [args.output, args.current_redshift, args.current_time] # row corresponding to this snapshot to append to df
 
-        df = get_df_from_ds(box, args) # get dataframe with metallicity profile info
+        for re_method in ['stars', 'coldgas']: # it is important that stars and coldgas appear in this sequence
+            if re_method == 'stars': args.re = get_re_from_stars(ds, args) # kpc
+            elif re_method == 'coldgas': args.re = get_re_from_coldgas(gasprofile, args) # kpc
 
-        Zcen, Zgrad = fit_gradient(df, args)
-        if not args.noplot: fig = plot_gradient(df, args, linefit=[Zgrad.n, Zcen.n]) # plotting the Z profile, with fit
+            if args.re > 0:
+                # extract the required box
+                box_center = ds.arr(args.halo_center, kpc)
+                args.galrad = args.upto_re * args.re # kpc
+                box_width = args.galrad * 2  # in kpc
+                box_width_kpc = ds.arr(box_width, 'kpc')
+                box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
 
-        mstar = get_disk_stellar_mass(args) # Msun
+                df = get_df_from_ds(box, args) # get dataframe with metallicity profile info
 
-        df['metal_mass'] = df['mass'] * df['metal'] * metallicity_sun
-        Ztotal = (df['metal_mass'].sum()/df['mass'].sum())/metallicity_sun # in Zsun
+                Zcen, Zgrad = fit_gradient(df, args)
+                if not args.noplot: fig = plot_gradient(df, args, linefit=[Zgrad.n, Zcen.n]) # plotting the Z profile, with fit
 
-        this_df_grad.loc[len(this_df_grad)] = [args.output, args.current_redshift, mstar, args.re, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Ztotal]
+                mstar = get_disk_stellar_mass(args) # Msun
+
+                df['metal_mass'] = df['mass'] * df['metal'] * metallicity_sun
+                Ztotal = (df['metal_mass'].sum()/df['mass'].sum())/metallicity_sun # in Zsun
+
+                thisrow += [args.re, mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Ztotal]
+            else:
+                thisrow += (np.ones(7)*np.nan).tolist()
+
+        this_df_grad.loc[len(this_df_grad)] = thisrow
         df_grad = pd.concat([df_grad, this_df_grad])
         if args.write_file:
             if not os.path.isfile(grad_filename) or args.clobber:
