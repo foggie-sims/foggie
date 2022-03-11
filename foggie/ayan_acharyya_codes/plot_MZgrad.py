@@ -7,7 +7,7 @@
     Output :     M-Z gradient plots as png files plus, optinally, MZR plot
     Author :     Ayan Acharyya
     Started :    Mar 2022
-    Examples :   run plot_MZgrad.py --system ayan_local --halo 5036,8508 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -0.5 --xmin 8.5 --overplot_obs --binby mass --nbins 200 --manga_diag pyqz
+    Examples :   run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -0.5 --xmin 8.5 --overplot_obs --binby mass --nbins 200 --zhighlight --manga_diag pyqz
                  run plot_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --weight mass --binby mass --nbins 20 --cmap plasma --xmin 8.5 --xmax 11 --ymin 0.3 --overplot_obs --manga_diag n2
 
 """
@@ -45,6 +45,9 @@ def load_df(args):
         print('Zgrad is in dex/re, will convert it to dex/kpc')
         df['Zgrad'] /= df['re']
         df['Zgrad_u'] /= df['re']
+
+    df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
+    df.sort_values(by='redshift', ascending=False, ignore_index=True, inplace=True)
 
     return df
 
@@ -106,9 +109,6 @@ def plot_MZGR(args):
         df = df[(np.log10(df['mass']) >= args.xmin) & (np.log10(df['mass']) <= args.xmax)]
         #df = df[(df['Zgrad'] >= args.ymin) & (df['Zgrad'] <= args.ymax)]
 
-        df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
-        df.sort_values(by='redshift', ascending=False, ignore_index=True, inplace=True)
-
         if args.binby is not None:
             df[args.binby + '_bins'] = pd.cut(df[args.binby], bins=np.logspace(np.min(np.log10(df[args.binby])), np.max(np.log10(df[args.binby])), args.nbins) if logbin else np.linspace(np.min(df[args.binby]), np.max(df[args.binby]), args.nbins))
             df = df[['redshift', 'mass', 'Zgrad', args.binby + '_bins']].groupby(args.binby + '_bins', as_index=False).agg(np.mean)
@@ -123,8 +123,12 @@ def plot_MZGR(args):
         lc.set_linewidth(2)
         plot = ax.add_collection(lc)
 
-        # -------scatter plot------------
-        #plot = ax.scatter(np.log10(df['mass']), df['Zgrad'], c=df['redshift'], cmap=cmap_arr[thisindex])
+        if args.zhighlight:
+            # ------- overplotting redshift-binned scatter plot------------
+            df['redshift_int'] = np.floor(df['redshift'])
+            df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
+            dummy = ax.scatter(np.log10(df_zbin['mass']), df_zbin['Zgrad'], c=df_zbin['redshift'], cmap=cmap_arr[thisindex], lw=1, edgecolor='k', s=100)
+            print('For halo', args.halo, 'highlighted z =', [float('%.1F'%item) for item in df_zbin['redshift'].values])
 
         fig.text(0.15, 0.85 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=mpl_cm.get_cmap(cmap_arr[thisindex])(0.2), fontsize=args.fontsize)
         df['halo'] = args.halo

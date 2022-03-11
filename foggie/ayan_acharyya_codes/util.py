@@ -1109,6 +1109,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--nbins', metavar='nbins', type=int, action='store', default=200, help='no. of bins to bin the binby column in to; default is 200')
     parser.add_argument('--overplot_obs', dest='overplot_obs', action='store_true', default=False, help='overplot observed MZGR?, default is no')
     parser.add_argument('--manga_diag', metavar='manga_diag', type=str, action='store', default='n2', help='which metallicity diagnostic to extract from manga? options are: n2, o3n2, ons, pyqz, t2, m08, t04; default is n2')
+    parser.add_argument('--zhighlight', dest='zhighlight', action='store_true', default=False, help='highlight a few integer-ish redshift points on the MZGR?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
