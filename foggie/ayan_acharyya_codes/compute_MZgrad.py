@@ -106,7 +106,7 @@ def get_re_from_coldgas(gasprofile, args):
     Returns the effective radius in kpc
     '''
     re_hmr_factor = 1.0
-    args.output = 'DD2427' ##
+
     if args.output[:2] == 'DD' and args.output[2:] in gasprofile.keys(): # because cold gas profile is only present for all the DD outputs
         this_gasprofile = gasprofile[args.output[2:]]
         this_coldgas = this_gasprofile['cold']
