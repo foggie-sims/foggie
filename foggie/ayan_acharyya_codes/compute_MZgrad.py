@@ -105,8 +105,8 @@ def get_re_from_coldgas(gasprofile, args):
     Function to determine the effective radius of stellar disk, based on the cold gas profile, given a dataset
     Returns the effective radius in kpc
     '''
-    re_hmr_factor = 2.0 # from the Illustris group (?)
-
+    re_hmr_factor = 1.0
+    args.output = 'DD2427' ##
     if args.output[:2] == 'DD' and args.output[2:] in gasprofile.keys(): # because cold gas profile is only present for all the DD outputs
         this_gasprofile = gasprofile[args.output[2:]]
         this_coldgas = this_gasprofile['cold']
@@ -180,7 +180,7 @@ def bin_data(array, data, bins):
     return bins_cen, binned_data, binned_err
 
 # ---------------------------------------------------------------------------------
-def overplot_binned(df, xcol, ycol, x_bins, ax, is_logscale=False, color='maroon', weightcol=None):
+def fit_binned(df, xcol, ycol, x_bins, ax=None, is_logscale=False, color='maroon', weightcol=None):
     '''
     Function to overplot binned data on existing plot
     '''
@@ -199,16 +199,21 @@ def overplot_binned(df, xcol, ycol, x_bins, ax, is_logscale=False, color='maroon
 
     # ----------to plot mean binned y vs x profile--------------
     x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
-    ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=1)
-    ax.scatter(x_bin_centers, y_binned, c=color, s=60)
-
     linefit, linecov = np.polyfit(x_bin_centers, y_binned.flatten(), 1, cov=True)#, w=1/(y_u_binned.flatten())**2)
 
-    ax.plot(x_bin_centers, np.poly1d(linefit)(x_bin_centers), color=color, lw=1, ls='dashed')
-    units = 'dex/re' if 're' in xcol else 'dex/kpc'
-    ax.text(0.033, 0.25, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize)
+    Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
+    Zcen = ufloat(linefit[1], np.sqrt(linecov[1][1]))
+    print('Upon radially binning: Inferred slope for halo ' + args.halo + ' output ' + args.output + ' is', Zgrad, 'dex/re' if 're' in args.xcol else 'dex/kpc')
 
-    return ax
+    if ax is not None:
+        ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=1)
+        ax.scatter(x_bin_centers, y_binned, c=color, s=60)
+        ax.plot(x_bin_centers, np.poly1d(linefit)(x_bin_centers), color='maroon', lw=1, ls='dashed')
+        units = 'dex/re' if 're' in xcol else 'dex/kpc'
+        ax.text(0.033, 0.25, 'Slope = %.2F ' % linefit[0] + units, color='maroon', transform=ax.transAxes, fontsize=args.fontsize)
+        return ax
+    else:
+        return Zcen, Zgrad
 
 # -----------------------------------------------------------
 def plot_gradient(df, args, linefit=None):
@@ -227,13 +232,12 @@ def plot_gradient(df, args, linefit=None):
     artist = dsshow(df, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.upto_re if 're' in args.xcol else args.galrad), y_range=(args.ylim[0], args.ylim[1]), aspect = 'auto', ax=ax, cmap='Blues_r')#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # --------bin the metallicity profile and plot the binned profile-----------
-    bin_edges = np.linspace(0, args.upto_re if 're' in args.xcol else args.galrad, 10)
-    ax = overplot_binned(df, args.xcol, 'metal', bin_edges, ax, is_logscale=True, weightcol=args.weight)
+    ax = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=ax, is_logscale=True, weightcol=args.weight)
 
     # ----------plot the fitted metallicity profile---------------
     if linefit is not None:
-        fitted_y = np.poly1d(linefit)(bin_edges)
-        ax.plot(bin_edges, fitted_y, color='darkblue', lw=2, ls='dashed')
+        fitted_y = np.poly1d(linefit)(args.bin_edges)
+        ax.plot(args.bin_edges, fitted_y, color='darkblue', lw=2, ls='dashed')
         units = 'dex/re' if 're' in args.xcol else 'dex/kpc'
         plt.text(0.033, 0.2, 'Slope = %.2F ' % linefit[0] + units, color='darkblue', transform=ax.transAxes, fontsize=args.fontsize)
 
@@ -315,7 +319,11 @@ if __name__ == '__main__':
     total_snaps = len(list_of_sims)
 
     # -------set up dataframe and filename to store/write gradients in to--------
-    cols_in_df = ['output', 'redshift', 'time', 're_stars', 'mass_re_stars', 'Zcen_re_stars', 'Zcen_u_re_stars', 'Zgrad_re_stars', 'Zgrad_u_re_stars', 'Ztotal_re_stars', 're_coldgas', 'mass_re_coldgas', 'Zcen_re_coldgas', 'Zcen_u_re_coldgas', 'Zgrad_re_coldgas', 'Zgrad_u_re_coldgas', 'Ztotal_re_coldgas']
+    cols_in_df = ['output', 'redshift', 'time', \
+                  're_stars', 'mass_re_stars', 'Zcen_re_stars', 'Zcen_u_re_stars', 'Zgrad_re_stars', 'Zgrad_u_re_stars', \
+                  'Zcen_binned_re_stars', 'Zcen_u_binned_re_stars', 'Zgrad_binned_re_stars', 'Zgrad_u_binned_re_stars', 'Ztotal_re_stars', \
+                  're_coldgas', 'mass_re_coldgas', 'Zcen_re_coldgas', 'Zcen_u_re_coldgas', 'Zgrad_re_coldgas', 'Zgrad_u_re_coldgas', \
+                  'Zcen_binned_re_coldgas', 'Zcen_u_binned_re_coldgas', 'Zgrad_binned_re_coldgas', 'Zgrad_u_binned_re_coldgas', 'Ztotal_re_coldgas']
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s_upto%.1FRe%s.txt' % (dummy_args.xcol, dummy_args.upto_re, weightby_text)
@@ -329,7 +337,7 @@ if __name__ == '__main__':
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(dummy_args)
     gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + dummy_args.run + '/all_rprof_' + dummy_args.halo + '.npy'
     print('Reading in cold gas profile from', gasfilename)
-    gasprofile = np.load(gasfilename, allow_pickle=True)
+    gasprofile = np.load(gasfilename, allow_pickle=True)[()]
 
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
@@ -395,6 +403,9 @@ if __name__ == '__main__':
                 df = get_df_from_ds(box, args) # get dataframe with metallicity profile info
 
                 Zcen, Zgrad = fit_gradient(df, args)
+                args.bin_edges = np.linspace(0, args.upto_re if 're' in args.xcol else args.galrad, 10)
+                Zcen_binned, Zgrad_binned = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=None, is_logscale=True, weightcol=args.weight)
+
                 if not args.noplot: fig = plot_gradient(df, args, linefit=[Zgrad.n, Zcen.n]) # plotting the Z profile, with fit
 
                 mstar = get_disk_stellar_mass(args) # Msun
@@ -402,7 +413,7 @@ if __name__ == '__main__':
                 df['metal_mass'] = df['mass'] * df['metal'] * metallicity_sun
                 Ztotal = (df['metal_mass'].sum()/df['mass'].sum())/metallicity_sun # in Zsun
 
-                thisrow += [args.re, mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Ztotal]
+                thisrow += [args.re, mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Zcen_binned.n, Zcen_binned.s, Zgrad_binned.n, Zgrad_binned.s, Ztotal]
             else:
                 thisrow += (np.ones(7)*np.nan).tolist()
 

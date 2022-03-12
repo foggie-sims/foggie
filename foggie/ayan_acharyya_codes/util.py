@@ -1107,9 +1107,14 @@ def parse_args(haloname, RDname, fast=False):
     # ------- args added for plot_MZgrad.py ------------------------------
     parser.add_argument('--binby', metavar='binby', type=str, action='store', default=None, help='bin the plot by either redshift or mass; default is empty string = no binning')
     parser.add_argument('--nbins', metavar='nbins', type=int, action='store', default=200, help='no. of bins to bin the binby column in to; default is 200')
-    parser.add_argument('--overplot_obs', dest='overplot_obs', action='store_true', default=False, help='overplot observed MZGR?, default is no')
+    parser.add_argument('--overplot_manga', dest='overplot_manga', action='store_true', default=False, help='overplot MaNGA observed MZGR?, default is no')
+    parser.add_argument('--overplot_clear', dest='overplot_clear', action='store_true', default=False, help='overplot CLEAR observed MZGR?, default is no')
+    parser.add_argument('--overplot_belfiore', dest='overplot_belfiore', action='store_true', default=False, help='overplot Belfiore+17 observed MZGR?, default is no')
+    parser.add_argument('--overplot_mingozzi', dest='overplot_mingozzi', action='store_true', default=False, help='overplot Mongozzi+19 observed MZGR?, default is no')
     parser.add_argument('--manga_diag', metavar='manga_diag', type=str, action='store', default='n2', help='which metallicity diagnostic to extract from manga? options are: n2, o3n2, ons, pyqz, t2, m08, t04; default is n2')
     parser.add_argument('--zhighlight', dest='zhighlight', action='store_true', default=False, help='highlight a few integer-ish redshift points on the MZGR?, default is no')
+    parser.add_argument('--use_gasre', dest='use_gasre', action='store_true', default=False, help='use measurements based on Re estimated from cold gas clumps (instead of that measured from stellar mass profile)?, default is no')
+    parser.add_argument('--use_binnedfit', dest='use_binnedfit', action='store_true', default=False, help='use gradient measurements from radially binned Z profile (as opposed to the fit to individual cells)?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
