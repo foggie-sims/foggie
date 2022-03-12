@@ -7,7 +7,7 @@
     Output :     M-Z gradient plots as png files plus, optinally, MZR plot
     Author :     Ayan Acharyya
     Started :    Mar 2022
-    Examples :   run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -0.5 --xmin 8.5 --overplot_manga --overplot_clear --binby mass --nbins 200 --zhighlight --use_gasre --use_binnedfit --manga_diag pyqz
+    Examples :   run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -0.5 --xmin 8.5 --overplot_manga --overplot_clear --overplot-belfiore --overplot_mingozi --binby mass --nbins 200 --zhighlight --use_gasre --use_binnedfit --manga_diag pyqz
                  run plot_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --weight mass --binby mass --nbins 20 --cmap plasma --xmin 8.5 --xmax 11 --ymin 0.3 --overplot_manga --manga_diag n2
 
 """
@@ -51,8 +51,11 @@ def load_df(args):
 
     binned_fit_text = '_binned' if args.use_binnedfit else ''
     which_re = 're_coldgas' if args.use_gasre else 're_stars'
-    df = df[['output', 'redshift', 'time', which_re, 'mass_' + which_re] + [item + binned_fit_text + '_' + which_re for item in ['Zcen', 'Zcen_u', 'Zgrad', 'Zgrad']] + ['Ztotal_' + which_re]]
-    df.columns = ['output', 'redshift', 'time', 're', 'mass', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Ztotal']
+    try:
+        df = df[['output', 'redshift', 'time', which_re, 'mass_' + which_re] + [item + binned_fit_text + '_' + which_re for item in ['Zcen', 'Zcen_u', 'Zgrad', 'Zgrad']] + ['Ztotal_' + which_re]]
+        df.columns = ['output', 'redshift', 'time', 're', 'mass', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Ztotal']
+    except:
+        pass
 
     return df
 
@@ -64,7 +67,7 @@ def overplot_mingozzi(ax, paper='M20', color='salmon', diag='PP04'):
     print('Overplotting Mingozzi+20 data..')
 
     input_filename = HOME + '/Desktop/bpt_contsub_contu_rms/newfit/lit_log_mass_Zgrad|r_e_bin.txt'
-    df = pd.read_table(input_filename, delim_whitespace=True) # grad is in dex/re, mass_bin is in log
+    df = pd.read_table(input_filename, delim_whitespace=True, comment='#') # grad is in dex/re, mass_bin is in log
 
     ax.scatter(df['log_mass'], df[diag + '_' + paper], c=color, s=50)
     ax.plot(df['log_mass'], df[diag + '_' + paper], c=color, lw=2)
@@ -121,7 +124,7 @@ def plot_MZGR(args):
 
     logbin = True if args.binby == 'mass' else False
     df_master = pd.DataFrame()
-    cmap_arr = ['Purples_r', 'Oranges_r', 'Greens_r', 'Blues_r', 'Blues_r']
+    cmap_arr = ['Purples_r', 'Oranges_r', 'Greens_r', 'Blues_r', 'PuRd_r', 'YlOrBr_r']
 
     # -------------get plot limits-----------------
     if args.xmin is None: args.xmin = 6
@@ -151,14 +154,14 @@ def plot_MZGR(args):
         fig.text(0.15, 0.3, 'MaNGA: Belfiore+17', ha='left', va='top', color='r', fontsize=args.fontsize)
 
     if args.overplot_belfiore:
-        ax = overplot_mingozzi(ax, paper='B17', color='darkolivegreen', diag='PP04')
+        ax = overplot_mingozzi(ax, paper='B17', color='darkolivegreen', diag='M08')
         obs_text += '_belfiore_'
-        fig.text(0.15, 0.35, 'MaNGA: Belfiore+17', ha='left', va='top', color='Grey', fontsize=args.fontsize)
+        fig.text(0.15, 0.35, 'MaNGA: Belfiore+17', ha='left', va='top', color='darkolivegreen', fontsize=args.fontsize)
 
     if args.overplot_mingozzi:
-        ax = overplot_mingozzi(ax, paper='M20', color='salmon', diag='PP04')
+        ax = overplot_mingozzi(ax, paper='M20', color='salmon', diag='M08')
         obs_text += '_mingozzi_'
-        fig.text(0.15, 0.4, 'MaNGA: Mingozzi+20', ha='left', va='top', color='Grey', fontsize=args.fontsize)
+        fig.text(0.15, 0.4, 'MaNGA: Mingozzi+20', ha='left', va='top', color='salmon', fontsize=args.fontsize)
 
     # --------loop over different FOGGIE halos-------------
     for index, args.halo in enumerate(args.halo_arr[::-1]):
