@@ -415,7 +415,7 @@ if __name__ == '__main__':
 
                 thisrow += [args.re, mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Zcen_binned.n, Zcen_binned.s, Zgrad_binned.n, Zgrad_binned.s, Ztotal]
             else:
-                thisrow += (np.ones(7)*np.nan).tolist()
+                thisrow += (np.ones(11)*np.nan).tolist()
 
         this_df_grad.loc[len(this_df_grad)] = thisrow
         df_grad = pd.concat([df_grad, this_df_grad])
