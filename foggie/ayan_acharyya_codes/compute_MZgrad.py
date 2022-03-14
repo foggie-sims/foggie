@@ -383,7 +383,7 @@ if __name__ == '__main__':
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
 
         args.current_redshift = ds.current_redshift
-        args.current_time = ds.current_time.in_units('Gyr')
+        args.current_time = ds.current_time.in_units('Gyr').v
         args.ylim = [-2.2, 1.2] # [-3, 1]
 
         thisrow = [args.output, args.current_redshift, args.current_time] # row corresponding to this snapshot to append to df

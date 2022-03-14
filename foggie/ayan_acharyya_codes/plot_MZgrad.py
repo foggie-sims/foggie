@@ -7,7 +7,8 @@
     Output :     M-Z gradient plots as png files plus, optinally, MZR plot
     Author :     Ayan Acharyya
     Started :    Mar 2022
-    Examples :   run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -0.5 --xmin 8.5 --overplot_manga --overplot_clear --overplot-belfiore --overplot_mingozi --binby mass --nbins 200 --zhighlight --use_gasre --use_binnedfit --manga_diag pyqz
+    Examples :   run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -2 --xmin 8.5 --overplot_manga --overplot_clear --binby mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -0.5 --xmin 8.5 --overplot_manga --overplot_clear --overplot_belfiore --overplot_mjngozzi --binby mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed --manga_diag pyqz
                  run plot_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --weight mass --binby mass --nbins 20 --cmap plasma --xmin 8.5 --xmax 11 --ymin 0.3 --overplot_manga --manga_diag n2
 
 """
@@ -116,6 +117,20 @@ def overplot_manga(ax, args):
 
     return ax, df_manga
 
+# ---------------------------------------------
+def get_multicolored_line(xdata, ydata, colordata, cmap, cmin, cmax, lw=2, ls='solid'):
+    '''
+    Function to take x,y and z (color) data as three 1D arrays and return a smoothly-multi-colored line object that can be added to an axis object
+    '''
+    points = np.array([xdata, ydata]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    norm = plt.Normalize(cmin, cmax)
+    lc = LineCollection(segments, cmap=cmap, norm=norm)
+    lc.set_array(colordata)
+    lc.set_linewidth(lw)
+    lc.set_linestyle(ls)
+    return lc
+
 # -----------------------------------
 def plot_MZGR(args):
     '''
@@ -128,8 +143,8 @@ def plot_MZGR(args):
 
     # -------------get plot limits-----------------
     if args.xmin is None: args.xmin = 6
-    if args.xmax is None: args.xmax = 11
-    if args.ymin is None: args.ymin = -3 if args.xcol == 'rad_re' else -0.2
+    if args.xmax is None: args.xmax = 11.5
+    if args.ymin is None: args.ymin = -2 if args.xcol == 'rad_re' else -0.2
     if args.ymax is None: args.ymax = 0.1
     if args.cmin is None: args.cmin = 0
     if args.cmax is None: args.cmax = 6
@@ -176,20 +191,26 @@ def plot_MZGR(args):
             df.dropna(inplace=True)
 
         # -----plot line with color gradient--------
-        points = np.array([np.log10(df['mass']), df['Zgrad']]).T.reshape(-1, 1, 2)
-        segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        norm = plt.Normalize(args.cmin, args.cmax)
-        lc = LineCollection(segments, cmap=cmap_arr[thisindex], norm=norm)
-        lc.set_array(df['redshift'])
-        lc.set_linewidth(2)
-        plot = ax.add_collection(lc)
+        line = get_multicolored_line(np.log10(df['mass']), df['Zgrad'], df['redshift'], cmap_arr[thisindex], args.cmin, args.cmax, lw=1 if args.overplot_smoothed else 2)
+        plot = ax.add_collection(line)
 
+        # ------- overplotting redshift-binned scatter plot------------
         if args.zhighlight:
-            # ------- overplotting redshift-binned scatter plot------------
             df['redshift_int'] = np.floor(df['redshift'])
             df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-            dummy = ax.scatter(np.log10(df_zbin['mass']), df_zbin['Zgrad'], c=df_zbin['redshift'], cmap=cmap_arr[thisindex], lw=1, edgecolor='k', s=100)
+            dummy = ax.scatter(np.log10(df_zbin['mass']), df_zbin['Zgrad'], c=df_zbin['redshift'], cmap=cmap_arr[thisindex], lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed else 1)
             print('For halo', args.halo, 'highlighted z =', [float('%.1F'%item) for item in df_zbin['redshift'].values])
+
+        # ------- overplotting a boxcar smoothed version of the MZGR------------
+        if args.overplot_smoothed:
+            line.set_alpha(0.2) # make the actual wiggly line fainter
+            npoints = int(len(df)/8)
+            if npoints % 2 == 0: npoints += 1
+            box = np.ones(npoints) / npoints
+            df['Zgrad_smoothed'] = np.convolve(df['Zgrad'], box, mode='same')
+            smoothline = get_multicolored_line(np.log10(df['mass']), df['Zgrad_smoothed'], df['redshift'], cmap_arr[thisindex], args.cmin, args.cmax, lw=2)
+            plot = ax.add_collection(smoothline)
+            print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points')
 
         fig.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=mpl_cm.get_cmap(cmap_arr[thisindex])(0.2), fontsize=args.fontsize)
         df['halo'] = args.halo
