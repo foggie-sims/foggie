@@ -25,6 +25,9 @@ def load_df(args):
     args.foggie_dir, args.output_dir, args.run_loc, args.code_path, args.trackname, args.haloname, args.spectra_dir, args.infofile = get_run_loc_etc(args)
     grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s_upto%.1FRe%s.txt' % (args.xcol, args.upto_re, args.weightby_text)
 
+    convert_Zgrad_from_dexkpc_to_dexre = False
+    convert_Zgrad_from_dexre_to_dexkpc = False
+
     if os.path.exists(grad_filename):
         print('Trying to read in', grad_filename)
         df = pd.read_table(grad_filename, delim_whitespace=True)
@@ -34,18 +37,14 @@ def load_df(args):
         grad_filename = grad_filename.replace('rad_re', 'rad')
         print('Trying to read in', grad_filename, 'instead')
         df = pd.read_table(grad_filename, delim_whitespace=True)
-        print('Zgrad is in dex/kpc, will convert it to dex/re')
-        df['Zgrad'] *= df['re']
-        df['Zgrad_u'] *= df['re']
+        convert_Zgrad_from_dexkpc_to_dexre = True
 
     elif not os.path.exists(grad_filename) and args.xcol == 'rad':
         print('Could not find', grad_filename)
         grad_filename = grad_filename.replace('rad', 'rad_re')
         print('Trying to read in', grad_filename, 'instead')
         df = pd.read_table(grad_filename, delim_whitespace=True)
-        print('Zgrad is in dex/re, will convert it to dex/kpc')
-        df['Zgrad'] /= df['re']
-        df['Zgrad_u'] /= df['re']
+        convert_Zgrad_from_dexre_to_dexkpc = True
 
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
     df.sort_values(by='redshift', ascending=False, ignore_index=True, inplace=True)
@@ -57,6 +56,16 @@ def load_df(args):
         df.columns = ['output', 'redshift', 'time', 're', 'mass', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Ztotal']
     except:
         pass
+
+    if convert_Zgrad_from_dexkpc_to_dexre:
+        print('Zgrad is in dex/kpc, converting it to dex/re')
+        df['Zgrad'] *= df['re']
+        df['Zgrad_u'] *= df['re']
+
+    elif convert_Zgrad_from_dexre_to_dexkpc:
+        print('Zgrad is in dex/re, converting it to dex/kpc')
+        df['Zgrad'] /= df['re']
+        df['Zgrad_u'] /= df['re']
 
     return df
 
