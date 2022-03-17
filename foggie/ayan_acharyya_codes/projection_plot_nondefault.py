@@ -14,13 +14,13 @@
                  run projection_plot_nondefault.py --halo 8894 --annotate_grid --run 25Mpc_DM_256-L3 --center 0.5442269,0.45738622,0.50917259 --output RD0021
                  run projection_plot_nondefault.py --halo 5133 --width 1000 --run 25Mpc_DM_256-L3 --center_offset " 117,93,-73"
                  run projection_plot_nondefault.py --halo 5205 --width 200 --run 25Mpc_DM_256-L3-gas --output RD0028 --get_center_track --do cellsize
-                 run projection_plot_nondefault.py --halo 5205 --width 200 --run nref7c_nref7n --do_all_sims --use_onlyRD --get_center_track --do gas
+                 run projection_plot_nondefault.py --halo 5205 --width 200 --run nref7c_nref7f --do_all_sims --use_onlyDD --nevery 5 --get_center_track --do gas
 
 """
 from header import *
 from util import *
 start_time = time.time()
-
+sns.set_style('ticks') # instead of darkgrid, so that there are no grids overlaid on the projections
 
 # -----------------------------------------
 def get_box(ds, projection, center, width):
@@ -52,6 +52,12 @@ def projection_plot(args):
     zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1)}
 
     # ----------- get halo center, either rough center at z=2 from halo catalogue or more accurate center from center track file-------------------
+    if 'pleiades' in args.system: halos_filename = '/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list'
+    elif args.system == 'ayan_local': halos_filename = '/Users/acharyya/Downloads/out_0.list'
+
+    halos = Table.read(halos_filename, format='ascii', header_start=0)
+    thishalo = halos[halos['ID'] == int(args.halo[:4])]
+
     if args.center is None:
         if args.get_center_track:
             trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track.dat'
@@ -59,9 +65,6 @@ def projection_plot(args):
             center = df_track[df_track['output'] == args.output][['center_x', 'center_y', 'center_z']].values.tolist()[0]
             print('Center from center track file =', center)
         else:
-            halos = Table.read('/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list', format='ascii', header_start=0)
-            index = [halos['ID'] == int(args.halo[:4])]
-            thishalo = halos[index]
             center = np.array([thishalo['X'][0] / 25., thishalo['Y'][0] / 25., thishalo['Z'][0] / 25.])  # divided by 25 to convert Mpc units to code units
             print('Center for L0_gas =', center)
     else:
@@ -85,6 +88,7 @@ def projection_plot(args):
     # -------------annotations and limits -------------------------------
     if args.annotate_grids: p.annotate_grids(min_level=args.min_level)
     p.annotate_text((0.06, 0.12), args.halo, coord_system="axis")
+    p.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
     if not args.do == 'dm': p.set_cmap(field_dict[args.do], cmap_dict[args.do])
 
     # if args.do == 'cellsize': p.plots[field_dict[args.do]].cb.set_label('cell size (kpc)')
@@ -93,11 +97,9 @@ def projection_plot(args):
     except: pass
 
     # -------------optional annotations (if Rvir and M info exists) -------------------------------
-    try:
+    if len(thishalo) > 0:
         p.annotate_sphere(center, radius=(thishalo['Rvir'], "kpc"), circle_args={"color": "white"})
         p.annotate_text((0.06, 0.08), "M = "+"{0:.2e}".format(thishalo['Mvir'][0]), coord_system="axis")
-    except:
-        pass
 
     p.save(args.output_path + args.halo_name + '_' + args.run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
     print('This snapshot completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
@@ -139,13 +141,13 @@ if __name__ == '__main__':
     if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/models/simulation_output/'
     elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
     args.halo_name = 'halo_' + args.halo
-    args.output_path = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/'
-    if args.do_all_sims: args.output_arr = get_all_sims_for_this_halo(args, given_path=args.output_path) # all snapshots of this particular halo
+    args.output_path = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/'
+    if args.do_all_sims: args.output_arr = np.array(get_all_sims_for_this_halo(args, given_path=args.output_path))[:, 1] # all snapshots of this particular halo
 
     for index, thisoutput in enumerate(args.output_arr):
         print('Starting snapshot', args.output, 'i.e.,', index+1, 'out of', len(args.output_arr), 'snapshots..')
         args.output = thisoutput
-        args.snap_name = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/' + args.output + '/' + args.output
+        args.snap_name = args.output_path + args.output + '/' + args.output
         p = projection_plot(args)
 
     print('All snapshots completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
