@@ -14,10 +14,13 @@
                  run projection_plot_nondefault.py --halo 8894 --annotate_grid --run 25Mpc_DM_256-L3 --center 0.5442269,0.45738622,0.50917259 --output RD0021
                  run projection_plot_nondefault.py --halo 5133 --width 1000 --run 25Mpc_DM_256-L3 --center_offset " 117,93,-73"
                  run projection_plot_nondefault.py --halo 5205 --width 200 --run 25Mpc_DM_256-L3-gas --output RD0028 --get_center_track --do cellsize
+                 run projection_plot_nondefault.py --halo 5205 --width 200 --run nref7c_nref7n --do_all_sims --use_onlyRD --get_center_track --do gas
 
 """
 from header import *
 from util import *
+start_time = time.time()
+
 
 # -----------------------------------------
 def get_box(ds, projection, center, width):
@@ -43,12 +46,6 @@ def projection_plot(args):
     Function to generate a projection plot for simulations that are NOT from the original FOGGIE halos
     '''
     start_time = time.time()
-    # ------------- paths, dict, etc. set up -------------------------------
-    if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/models/simulation_output/'
-    elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
-    halo_name = 'halo_' + args.halo
-    output_path = args.root_dir + args.foggie_dir + '/' + halo_name + '/'
-    snap_name = args.root_dir + args.foggie_dir + '/' + halo_name + '/' + args.run + '/' + args.output + '/' + args.output
 
     field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density'), 'cellsize':('gas', 'd' + args.projection)}
     cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat, 'cellsize': discrete_cmap}
@@ -57,7 +54,7 @@ def projection_plot(args):
     # ----------- get halo center, either rough center at z=2 from halo catalogue or more accurate center from center track file-------------------
     if args.center is None:
         if args.get_center_track:
-            trackfile = args.root_dir + args.foggie_dir + '/' + halo_name + '/' + args.run + '/center_track.dat'
+            trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track.dat'
             df_track = pd.read_table(trackfile, delim_whitespace=True)
             center = df_track[df_track['output'] == args.output][['center_x', 'center_y', 'center_z']].values.tolist()[0]
             print('Center from center track file =', center)
@@ -73,7 +70,7 @@ def projection_plot(args):
     print('Offset =', args.center_offset, '\nCenter for current plot =', center)
 
     # ------------- main plotting -------------------------------
-    ds = yt.load(snap_name)  # last output
+    ds = yt.load(args.snap_name)  # last output
     if args.width is None:
         box = get_box(ds, args.projection, center, 1000.) # slicing out 1 Mpc chunk along LoS anyway
         if args.do == 'cellsize': p = yt.SlicePlot(ds, args.projection, field_dict[args.do], center=center, data_source=box)
@@ -102,8 +99,8 @@ def projection_plot(args):
     except:
         pass
 
-    p.save(output_path + halo_name + '_' + args.run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
-    print_master('Completed in %s minutes' % ((time.time() - start_time) / 60), args)
+    p.save(args.output_path + args.halo_name + '_' + args.run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
+    print('This snapshot completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
 
     return p
 
@@ -128,9 +125,27 @@ if __name__ == '__main__':
     parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
     parser.add_argument('--min_level', dest='min_level', type=int, action='store', default=3, help='annotate grids min level, default is 3')
     parser.add_argument('--get_center_track', dest='get_center_track', action='store_true', default=False, help='get the halo cneter automatically from the center track file?, default is no')
+    parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available for a given halo?, default is no')
+    parser.add_argument('--use_onlyRD', dest='use_onlyRD', action='store_true', default=False, help='Use only the RD snapshots available for a given halo?, default is no')
+    parser.add_argument('--use_onlyDD', dest='use_onlyDD', action='store_true', default=False, help='Use only the DD snapshots available for a given halo?, default is no')
+    parser.add_argument('--nevery', metavar='nevery', type=int, action='store', default=1, help='use every nth snapshot when do_all_sims is specified; default is 1 i.e., all snapshots will be used')
 
     args = parser.parse_args()
     if args.center is not None: args.center = [float(item) for item in args.center.split(',')]
     args.center_offset = [int(item) for item in args.center_offset.split(',')]
+    args.output_arr = [item for item in args.output.split(',')]
 
-    p = projection_plot(args)
+    # ------------- paths, dict, etc. set up -------------------------------
+    if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/models/simulation_output/'
+    elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
+    args.halo_name = 'halo_' + args.halo
+    args.output_path = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/'
+    if args.do_all_sims: args.output_arr = get_all_sims_for_this_halo(args, given_path=args.output_path) # all snapshots of this particular halo
+
+    for index, thisoutput in enumerate(args.output_arr):
+        print('Starting snapshot', args.output, 'i.e.,', index+1, 'out of', len(args.output_arr), 'snapshots..')
+        args.output = thisoutput
+        args.snap_name = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/' + args.output + '/' + args.output
+        p = projection_plot(args)
+
+    print('All snapshots completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))

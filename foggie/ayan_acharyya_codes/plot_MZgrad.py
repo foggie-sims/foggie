@@ -4,7 +4,7 @@
 
     Title :      plot_MZgrad
     Notes :      Plot mass - metallicity gradient relation for a given FOGGIE galaxy
-    Output :     M-Z gradient plots as png files plus, optinally, MZR plot
+    Output :     M-Z gradient plots as png files plus, optionally, MZR plot
     Author :     Ayan Acharyya
     Started :    Mar 2022
     Examples :   run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -2 --xmin 8.5 --overplot_manga --overplot_clear --binby mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
@@ -164,25 +164,25 @@ def plot_MZGR(args):
 
     # ---------plot observations----------------
     obs_text = ''
-    if args.overplot_manga:
+    if args.overplot_manga and args.xcol == 'rad_re':
         ax, df_manga = overplot_manga(ax, args)
         obs_text += '_manga_' + args.manga_diag
         fig.text(0.15, 0.2, 'MaNGA: Pipe3D', ha='left', va='top', color='Grey', fontsize=args.fontsize)
     else:
         df_manga = -99 # bogus value
 
-    if args.overplot_clear:
+    if args.overplot_clear and args.xcol == 'rad_re':
         ax = overplot_clear(ax)
         obs_text += '_clear'
         fig.text(0.15, 0.25, 'CLEAR: Simons+21', ha='left', va='top', color='k', fontsize=args.fontsize)
         fig.text(0.15, 0.3, 'MaNGA: Belfiore+17', ha='left', va='top', color='r', fontsize=args.fontsize)
 
-    if args.overplot_belfiore:
+    if args.overplot_belfiore and args.xcol == 'rad_re':
         ax = overplot_mingozzi(ax, paper='B17', color='darkolivegreen', diag='M08')
         obs_text += '_belfiore_'
         fig.text(0.15, 0.35, 'MaNGA: Belfiore+17', ha='left', va='top', color='darkolivegreen', fontsize=args.fontsize)
 
-    if args.overplot_mingozzi:
+    if args.overplot_mingozzi and args.xcol == 'rad_re':
         ax = overplot_mingozzi(ax, paper='M20', color='salmon', diag='M08')
         obs_text += '_mingozzi_'
         fig.text(0.15, 0.4, 'MaNGA: Mingozzi+20', ha='left', va='top', color='salmon', fontsize=args.fontsize)
