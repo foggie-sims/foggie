@@ -52,6 +52,7 @@ def projection_plot(args):
     zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1)}
 
     # ----------- get halo center, either rough center at z=2 from halo catalogue or more accurate center from center track file-------------------
+    ds = yt.load(args.snap_name)  # last output
     if 'pleiades' in args.system: halos_filename = '/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list'
     elif args.system == 'ayan_local': halos_filename = '/Users/acharyya/Downloads/out_0.list'
 
@@ -60,9 +61,9 @@ def projection_plot(args):
 
     if args.center is None:
         if args.get_center_track:
-            trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track.dat'
-            df_track = pd.read_table(trackfile, delim_whitespace=True)
-            center = df_track[df_track['output'] == args.output][['center_x', 'center_y', 'center_z']].values.tolist()[0]
+            trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_interp.dat'
+            df_track_int = pd.read_table(trackfile, delim_whitespace=True)
+            center = interp1d(df_track_int['redshift'], df_track_int[['center_x', 'center_y', 'center_z']], axis=0)(ds.current_redshift)
             print('Center from center track file =', center)
         else:
             center = np.array([thishalo['X'][0] / 25., thishalo['Y'][0] / 25., thishalo['Z'][0] / 25.])  # divided by 25 to convert Mpc units to code units
@@ -73,7 +74,6 @@ def projection_plot(args):
     print('Offset =', args.center_offset, '\nCenter for current plot =', center)
 
     # ------------- main plotting -------------------------------
-    ds = yt.load(args.snap_name)  # last output
     if args.width is None:
         box = get_box(ds, args.projection, center, 1000.) # slicing out 1 Mpc chunk along LoS anyway
         if args.do == 'cellsize': p = yt.SlicePlot(ds, args.projection, field_dict[args.do], center=center, data_source=box)
@@ -145,8 +145,8 @@ if __name__ == '__main__':
     if args.do_all_sims: args.output_arr = np.array(get_all_sims_for_this_halo(args, given_path=args.output_path))[:, 1] # all snapshots of this particular halo
 
     for index, thisoutput in enumerate(args.output_arr):
-        print('Starting snapshot', args.output, 'i.e.,', index+1, 'out of', len(args.output_arr), 'snapshots..')
         args.output = thisoutput
+        print('Starting snapshot', args.output, 'i.e.,', index+1, 'out of', len(args.output_arr), 'snapshots..')
         args.snap_name = args.output_path + args.output + '/' + args.output
         p = projection_plot(args)
 
