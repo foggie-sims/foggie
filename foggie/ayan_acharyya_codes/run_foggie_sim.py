@@ -11,7 +11,7 @@
                  run run_foggie_sim.py --halo 2139 --level 1 --queue devel --automate --final_level 3 --dryrun
                  run run_foggie_sim.py --halo 2139 --level 1 --queue normal --automate --plot_projection --width 1000
                  run run_foggie_sim.py --halo 2139 --level 3 --queue long --gas --plot_projection --width 1000
-                 run run_foggie_sim.py --halo 8892 --level 3 --queue long --forcedref --refsize 200 --reflevel 7
+                 run run_foggie_sim.py --halo 8892 --queue long --forcedref --refsize 200 --reflevel 7
 
 """
 from header import *
@@ -20,7 +20,7 @@ from astropy.table import Table
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from projection_plot_nondefault import *
-from get_halo_track import wrap_get_halo_track
+from get_halo_track import wrap_get_halo_track, get_shifts
 start_time = time.time()
 
 # -----------------------------------------------------
@@ -93,22 +93,6 @@ def add_lines_in_file(replacements, template_file, target_file):
         target_file = template_file
 
     print('Written', target_file)
-
-# ------------------------------------------------------
-def get_shifts(conf_log_file):
-    '''
-    Function to get the integer shifts in the domain center from .conf_log.txt files
-    '''
-    patterns_to_search = ['shift_x = ', 'shift_y = ', 'shift_z = ']
-    shifts = []
-    for pattern in patterns_to_search:
-        with open(conf_log_file, 'r') as infile:
-            for line in infile:
-                if re.search(pattern, line):
-                    this_shift = int(line[line.find(pattern) + len(pattern): line.find('\n')])
-        shifts.append(this_shift)
-
-    return shifts
 
 # ------------------------------------------------------
 def setup_DM_conf_file(args):

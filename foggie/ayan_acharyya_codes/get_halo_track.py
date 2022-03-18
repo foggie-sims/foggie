@@ -13,7 +13,22 @@
 from header import *
 from util import *
 from foggie.utils.get_halo_center import get_halo_center
-from run_foggie_sim import get_shifts
+
+# ------------------------------------------------------
+def get_shifts(conf_log_file):
+    '''
+    Function to get the integer shifts in the domain center from .conf_log.txt files
+    '''
+    patterns_to_search = ['shift_x = ', 'shift_y = ', 'shift_z = ']
+    shifts = []
+    for pattern in patterns_to_search:
+        with open(conf_log_file, 'r') as infile:
+            for line in infile:
+                if re.search(pattern, line):
+                    this_shift = int(line[line.find(pattern) + len(pattern): line.find('\n')])
+        shifts.append(this_shift)
+
+    return shifts
 
 # -----------------------------------------------------------------------------
 def make_center_track_file(list_of_sims, center_track_file, args):
