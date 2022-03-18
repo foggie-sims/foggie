@@ -192,7 +192,7 @@ def run_enzo(nnodes, ncores, nhours, args):
 
     if args.plot_projection:
         try:
-            file_to_monitor = workdir + '/pbs_output.txt'
+            file_to_monitor = workdir + '/RunFinished'
             monitor_for_file_ospath(file_to_monitor)  # just as a backup check
 
             args.run = args.sim_name + '-L' + str(args.level) + gas_or_dm
@@ -205,7 +205,7 @@ def run_enzo(nnodes, ncores, nhours, args):
     # -----------if asked to automate, figure out if previous job has finished----------------
     if args.automate and args.level < args.final_level:
         args.nomusic = False
-        file_to_monitor = workdir + '/pbs_output.txt'
+        file_to_monitor = workdir + '/RunFinished'
 
         #monitor_for_file_watchdog(file_to_monitor)
         monitor_for_file_ospath(file_to_monitor) # just as a backup check
@@ -234,7 +234,7 @@ def rerun_enzo_with_shielding(args):
     Function to turn on self-shielding and restart the Enzo job from z=15
     '''
     workdir = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '-gas'
-    file_to_monitor = workdir + '/pbs_output.txt'
+    file_to_monitor = workdir + '/RunFinished'
     os.chdir(workdir)
 
     #monitor_for_file_watchdog(file_to_monitor)
@@ -374,7 +374,7 @@ def wrap_run_enzo(ncores, nhours, args):
     else:
         print(run_finished_file + ' already exists, so skipping submitting jobs')
 
-    if do_gas(args): rerun_enzo_with_shielding(args) # rerunning from z=15 should go ahead even in the PBS output file exists (for up to z=15)
+    if do_gas(args): rerun_enzo_with_shielding(args) # rerunning from z=15 should go ahead even in the RunFinished file exists (for up to z=15)
 
     print('Completed submission for L' + str(args.level))
 
