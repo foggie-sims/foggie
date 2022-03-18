@@ -362,9 +362,9 @@ def wrap_run_enzo(ncores, nhours, args):
     '''
     dm_or_gas = '-gas' if do_gas(args) else ''
     workdir = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + dm_or_gas
-    pbs_output_file = workdir + '/pbs_output.txt'
+    run_finished_file = workdir + '/RunFinished'
 
-    if not os.path.exists(pbs_output_file) or args.clobber: # go through with the jobs only if the job hasn't already been done and completed (in which case the pbs output file will be there)
+    if not os.path.exists(run_finished_file) or args.clobber: # go through with the jobs only if the job hasn't already been done and completed (in which case the pbs output file will be there)
         if do_gas(args):conf_file_name = setup_gas_conf_file(args)
         else: conf_file_name = setup_DM_conf_file(args)
         if not args.nomusic: run_music(conf_file_name, args)
@@ -372,7 +372,7 @@ def wrap_run_enzo(ncores, nhours, args):
         setup_enzoparam_file(args)
         run_enzo(args.nnodes, ncores, nhours, args)
     else:
-        print(pbs_output_file + ' already exists, so skipping submitting jobs')
+        print(run_finished_file + ' already exists, so skipping submitting jobs')
 
     if do_gas(args): rerun_enzo_with_shielding(args) # rerunning from z=15 should go ahead even in the PBS output file exists (for up to z=15)
 
