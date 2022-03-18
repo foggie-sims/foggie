@@ -561,7 +561,7 @@ if __name__ == '__main__':
     rvir = np.max([thishalo['Rvir'][0], 200.])
     print('Starting halo', thishalo['ID'][0], 'L0-centered at =', args.center0, 'with Rvir =', rvir, 'kpc', 'at refinement level', args.level)
 
-    if args.focredref: run_forcedref(ncores, nhours, args) # run forced refinement runs
+    if args.forcedref: run_forcedref(ncores, nhours, args) # run forced refinement runs
     else: wrap_run_enzo(ncores, nhours, args) # run MUSIC and Enzo
 
     os.chdir(code_dir)
