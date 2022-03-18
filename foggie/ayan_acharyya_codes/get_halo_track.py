@@ -68,10 +68,11 @@ def make_center_track_file(list_of_sims, center_track_file, args):
 
     print('Serially: time taken for ' + str(total_snaps) + ' snapshots was %s mins' % ((time.time() - start_time) / 60))
 
-# -----main code-----------------
-if __name__ == '__main__':
-    args = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
-
+# -----------------------------------------------------------------------------------------------
+def wrap_get_halo_track(args):
+    '''
+    Function used a wrapper to compute the center track of a given halo
+    '''
     # parse paths and filenames
     if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/Work/astro/'
     elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
@@ -110,3 +111,8 @@ if __name__ == '__main__':
     ret = subprocess.call(command, shell=True)
 
     print('Saved ' + halo_track_file)
+
+# -----main code-----------------
+if __name__ == '__main__':
+    args = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
+    wrap_get_halo_track(args)

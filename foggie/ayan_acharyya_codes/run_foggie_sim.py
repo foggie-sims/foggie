@@ -11,6 +11,7 @@
                  run run_foggie_sim.py --halo 2139 --level 1 --queue devel --automate --final_level 3 --dryrun
                  run run_foggie_sim.py --halo 2139 --level 1 --queue normal --automate --plot_projection --width 1000
                  run run_foggie_sim.py --halo 2139 --level 3 --queue long --gas --plot_projection --width 1000
+                 run run_foggie_sim.py --halo 8892 --level 3 --queue long --forcedref --refsize 200 --reflevel 7
 
 """
 from header import *
@@ -19,6 +20,7 @@ from astropy.table import Table
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from projection_plot_nondefault import *
+from get_halo_track import wrap_get_halo_track
 start_time = time.time()
 
 # -----------------------------------------------------
@@ -26,11 +28,21 @@ def replace_keywords_in_file(replacements, template_file, target_file):
     '''
     Function to replace certain keywords (based on the dictionary replacements) in source_file and create a new target_file
     '''
+    in_situ_change = False
+    if template_file == target_file: # modify the same file in situ
+        target_file = os.path.split(template_file)[0] + '/temp_' + os.path.split(template_file)[1]
+        in_situ_change = True
+
     with open(template_file) as infile, open(target_file, 'w') as outfile:
         for line in infile:
             for src, target in replacements.items():
                 line = line.replace(str(src), str(target))
             outfile.write(line)  # replacing and creating new file
+
+    if in_situ_change:
+        ret = subprocess.call('rm ' + template_file, shell=True)
+        ret = subprocess.call('mv ' + target_file + ' ' + template_file, shell=True)
+        target_file = template_file
 
     print('Written', target_file)
 
@@ -49,6 +61,30 @@ def modify_lines_in_file(replacements, template_file, target_file):
             for pattern, target in replacements.items():
                 if re.search(pattern, line):
                     line = str(pattern) + ' = ' + str(target) + '\n'
+            outfile.write(line)  # replacing and creating new file
+
+    if in_situ_change:
+        ret = subprocess.call('rm ' + template_file, shell=True)
+        ret = subprocess.call('mv ' + target_file + ' ' + template_file, shell=True)
+        target_file = template_file
+
+    print('Written', target_file)
+
+# -----------------------------------------------------
+def add_lines_in_file(replacements, template_file, target_file):
+    '''
+    Function to add certain lines with new values (based on the dictionary replacements) in template_file and create a new target_file
+    '''
+    in_situ_change = False
+    if template_file == target_file: # modify the same file in situ
+        target_file = os.path.split(template_file)[0] + '/temp_' + os.path.split(template_file)[1]
+        in_situ_change = True
+
+    with open(template_file) as infile, open(target_file, 'w') as outfile:
+        for line in infile:
+            for pattern, target in replacements.items():
+                if re.search(pattern, line):
+                    line += '\n' + str(target) + '\n'
             outfile.write(line)  # replacing and creating new file
 
     if in_situ_change:
@@ -379,6 +415,81 @@ def wrap_run_enzo(ncores, nhours, args):
     print('Completed submission for L' + str(args.level))
 
 # ------------------------------------------------------
+def run_forcedref(ncores, nhours, args):
+    '''
+    Function to submit the Enzo simulation job with forced refinement turned on, from a given output onwards
+    '''
+    # --------get file names-----------
+    new_sim_name = 'nref' + str(args.reflevel) + 'c_nref' + str(args.reflevel) + 'f'
+    args.sim_name += '-L3-gas'
+
+    # ------create new directory copy over required output-----------
+    execute_command('mkdir -p ' + args.halo_dir + '/' + new_sim_name, args.dryrun)
+    execute_command('cp -r ' + args.halo_dir + '/' + args.sim_name + '/' + args.start_output + ' ' + args.halo_dir + '/' + new_sim_name + '/.', args.dryrun)
+
+    # ---------make substitutions in RunScript file-----------------
+    template_runscript = args.template_dir + '/RunScript_LX.sh'
+    target_runscript = args.halo_dir + '/' + new_sim_name + '/RunScript.sh'
+
+    jobname = args.halo_name + '_' + new_sim_name
+    enzo_param_file = './' + args.start_output + '/' + args.start_output
+    path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
+    calls_to_script = path_to_simrun + ' -mpi \"mpiexec -np ' + str(args.nnodes * ncores) + ' /u/scicon/tools/bin/mbind.x -cs \" -wall ' + str(3600 * float(nhours)) + ' -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"'
+
+    replacements = {'halo_H_DM_LX': jobname, 'NNODES': args.nnodes, 'NCORES': ncores, 'PROC': args.proc, 'NHOURS': nhours, 'QNAME': args.queue, \
+                    'CALLS_TO_SCRIPT': calls_to_script}  # keywords to be replaced in template file
+    replace_keywords_in_file(replacements, template_runscript, target_runscript)
+
+    # ---------make substitutions in conf file-----------------
+    source_conf_file = args.halo_dir + '/' + new_sim_name + '/' + args.start_output + '/' + args.start_output
+    track_filename = 'halo_track_' + str(args.refsize) + 'kpc_nref' + str(args.reflevel)
+
+    replacements = {'dtDataDump': 0.25, 'CellFlaggingMethod': '2 4 7 8 12 -99999 -99999 -99999 -99999 -99999 -99999', \
+                    'MustRefineRegionMinRefinementLevel': args.reflevel, 'MustRefineRegionTimeType': 1, 'UseCoolingRefineRegion': 1, \
+                    'EvolveCoolingRefineRegion': 1, 'CoolingRefineRegionTimeType': 1}  # values to be changed in template file
+    modify_lines_in_file(replacements, source_conf_file, source_conf_file)
+
+    replacements = {'MustRefineParticlesLeftEdge': '#MustRefineParticlesLeftEdge', 'MustRefineParticlesRightEdge': '#MustRefineParticlesRightEdge', \
+                    'CoolingRefineRegionLeftEdge': '#CoolingRefineRegionLeftEdge', 'CoolingRefineRegionRightEdge': '#CoolingRefineRegionRightEdge'}  # keywords to be commented out
+    replace_keywords_in_file(replacements, source_conf_file, source_conf_file)
+
+    replacements = {'MustRefineRegionTimeType': 'MustRefineRegionFile  = ' + track_filename, 'CoolingRefineRegionTimeType': 'CoolingRefineRegionFile = ' + track_filename}
+    add_lines_in_file(replacements, source_conf_file, source_conf_file)
+
+    # ---------make output log file-----------------
+    source_outputlog_file = args.halo_dir + '/' + args.sim_name + '/OutputLog'
+    target_outputlog_file = args.halo_dir + '/' +new_sim_name + '/OutputLog'
+
+    with open(source_outputlog_file, 'r') as fin: lines = fin.readlines()
+
+    for line in lines:
+        if args.start_output in line:
+            line_to_take = line
+            break
+
+    with open(target_outputlog_file, 'w') as fout: fout.write(line_to_take + '\n')
+
+    # ---------make track file-----------------
+    if not os.path.exists(args.halo_dir + '/' + args.sim_name + '/' + track_filename) or args.clobber:
+        print(track_filename, 'not found in', args.halo_dir + '/' + args.sim_name + '/', '; so calling get_halo_track to prepare trackfile..')
+        args.last_center_guess = None
+        args.foggie_dir = args.sim_dir
+        args.run = args.sim_name
+        wrap_get_halo_track(args)
+    else:
+        print('Copying existing', args.halo_dir + '/' + args.sim_name + '/' + track_filename)
+
+    execute_command('cp ' + args.halo_dir + '/' + args.sim_name + '/*track* ' + args.halo_dir + '/' + new_sim_name + '/.', args.dryrun)
+
+    # ---------submitting job-----------------
+    workdir = args.halo_dir + '/' + new_sim_name
+    os.chdir(workdir)
+    execute_command('qsub ' + target_runscript, args.dryrun)
+    print('Submitted enzo job:', jobname, 'at', datetime.datetime.now().strftime("%H:%M:%S"))
+
+    print('Finished submitting all enzo jobs')
+
+# ------------------------------------------------------
 def do_gas(args):
     '''
     Function to determine whether to include baryons, depending on user argument AND refinement level
@@ -419,6 +530,11 @@ if __name__ == '__main__':
     parser.add_argument('--center', metavar='center', type=str, action='store', default=None, help='center of projection in code units')
     parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', default=False, help='Redirect all print statements to a file?, default is no')
     parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
+
+    parser.add_argument('--forcedref', dest='forcedref', action='store_true', default=False, help='run forced refinment runs?, default is no, only DM')
+    parser.add_argument('--start_output', metavar='start_output', type=str, action='store', default='RD0008', help='which output to start forced refinment runs at? default is RD0008 i.e. z=10')
+    parser.add_argument('--reflevel', metavar='reflevel', type=int, action='store', default=7, help='which forced refinement level? default 7')
+    parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='forced refinement boxsize, in kpc? default 200 kpc')
 
     args = parser.parse_args()
 
@@ -461,10 +577,8 @@ if __name__ == '__main__':
     rvir = np.max([thishalo['Rvir'][0], 200.])
     print('Starting halo', thishalo['ID'][0], 'L0-centered at =', args.center0, 'with Rvir =', rvir, 'kpc', 'at refinement level', args.level)
 
-    # -----------run MUSIC and Enzo -------------------
-    #if args.automate: run_multiple_enzo_levels(args.nnodes, ncores, nhours, args)
-    #else:
-    wrap_run_enzo(ncores, nhours, args)
+    if args.focredref: run_forcedref(ncores, nhours, args) # run forced refinement runs
+    else: wrap_run_enzo(ncores, nhours, args) # run MUSIC and Enzo
 
     os.chdir(code_dir)
     print('Completed in %s minutes' % datetime.timedelta(seconds=(time.time() - start_time)))
