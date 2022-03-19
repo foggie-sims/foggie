@@ -11,7 +11,7 @@
                  run run_foggie_sim.py --halo 2139 --level 1 --queue devel --automate --final_level 3 --dryrun
                  run run_foggie_sim.py --halo 2139 --level 1 --queue normal --automate --plot_projection --width 1000
                  run run_foggie_sim.py --halo 2139 --level 3 --queue long --gas --plot_projection --width 1000
-                 run run_foggie_sim.py --halo 8892 --queue long --forcedref --refsize 200 --reflevel 7 --start_output RD0008
+                 run run_foggie_sim.py --halo 8892 --queue long --nnodes 32 --forcedref --refsize 200 --reflevel 7 --start_output RD0008
 
 """
 from header import *
@@ -84,7 +84,7 @@ def add_lines_in_file(replacements, template_file, target_file):
         for line in infile:
             for pattern, target in replacements.items():
                 if re.search(pattern, line):
-                    line += '\n' + str(target) + '\n'
+                    line += str(target) + '\n'
             outfile.write(line)  # replacing and creating new file
 
     if in_situ_change:
@@ -411,6 +411,8 @@ def run_forcedref(ncores, nhours, args):
     execute_command('mkdir -p ' + args.halo_dir + '/' + new_sim_name, args.dryrun)
     if not os.path.exists(args.halo_dir + '/' + new_sim_name + '/' + args.start_output):
         execute_command('cp -r ' + args.halo_dir + '/' + args.sim_name + '/' + args.start_output + ' ' + args.halo_dir + '/' + new_sim_name + '/.', args.dryrun)
+    else:
+        print(args.halo_dir + '/' + new_sim_name + '/' + args.start_output + ' already present')
 
     # ---------make substitutions in RunScript file-----------------
     template_runscript = args.template_dir + '/RunScript_LX.sh'
