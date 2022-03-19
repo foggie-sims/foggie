@@ -459,6 +459,7 @@ def run_forcedref(ncores, nhours, args):
         args.last_center_guess = None
         args.foggie_dir = args.sim_dir
         args.run = args.sim_name
+        args.use_onlyDD, args.use_onlyRD = False, False
         wrap_get_halo_track(args)
     else:
         print('Copying existing', args.halo_dir + '/' + args.sim_name + '/' + track_filename)
@@ -518,7 +519,7 @@ if __name__ == '__main__':
     parser.add_argument('--forcedref', dest='forcedref', action='store_true', default=False, help='run forced refinment runs?, default is no, only DM')
     parser.add_argument('--start_output', metavar='start_output', type=str, action='store', default='RD0008', help='which output to start forced refinment runs at? default is RD0008 i.e. z=10')
     parser.add_argument('--reflevel', metavar='reflevel', type=int, action='store', default=7, help='which forced refinement level? default 7')
-    parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='forced refinement boxsize, in kpc? default 200 kpc')
+    parser.add_argument('--refsize', metavar='refsize', type=int, action='store', default=200, help='forced refinement boxsize, in kpc? default 200 kpc')
 
     args = parser.parse_args()
 
