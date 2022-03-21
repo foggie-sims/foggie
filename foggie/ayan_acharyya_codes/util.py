@@ -813,7 +813,7 @@ def get_all_sims(args):
     all_sims = []
     for index, thishalo in enumerate(halos):
         args.halo = thishalo
-        thishalo_sims = get_all_sims_for_this_halo(args)
+        thishalo_sims = get_all_sims_for_this_halo(args, given_path = args.foggie_dir + args.run_loc)
         all_sims = np.vstack([all_sims, thishalo_sims]) if index else thishalo_sims
 
     return all_sims
@@ -832,16 +832,24 @@ def get_all_halos(args):
     return halos
 
 # --------------------------------------------------------------------------------------------
-def get_all_sims_for_this_halo(args):
+def get_all_sims_for_this_halo(args, given_path=None):
     '''
     Function assimilate the names of all snapshots available for the given halo
     '''
     all_sims = []
-    snapshot_paths = glob.glob(args.foggie_dir + args.run_loc + '*/')
-    snapshot_paths.sort(key=os.path.getmtime)
+    if given_path is None: given_path = args.foggie_dir + args.run_loc
+    snapshot_paths = glob.glob(given_path + '*/')
+    if args.use_onlyDD or args.use_onlyRD: snapshot_paths.sort() # alpha-numeric sort if it is just DDs or just RDs because that ensures monotonicity in redshift
+    else: snapshot_paths.sort(key=os.path.getmtime) # sort by timestamp
     snapshots = [item.split('/')[-2] for item in snapshot_paths]
     for thissnap in snapshots:
-        if len(thissnap) == 6: all_sims.append([args.halo, thissnap])
+        if len(thissnap) == 6:
+            if args.use_onlyRD:
+                if thissnap[:2] == 'RD': all_sims.append([args.halo, thissnap])
+            elif args.use_onlyDD:
+                if thissnap[:2] == 'DD': all_sims.append([args.halo, thissnap])
+            else:
+                all_sims.append([args.halo, thissnap])
     all_sims = all_sims[:: args.nevery]
     return all_sims
 
@@ -912,6 +920,8 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--foggie_dir', metavar='foggie_dir', type=str, action='store', default=None, help='Specify which directory the dataset lies in, otherwise, by default it will use the args.system variable to determine the FOGGIE data location')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the current working directory?, default is no')
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available for a given halo?, default is no')
+    parser.add_argument('--use_onlyRD', dest='use_onlyRD', action='store_true', default=False, help='Use only the RD snapshots available for a given halo?, default is no')
+    parser.add_argument('--use_onlyDD', dest='use_onlyDD', action='store_true', default=False, help='Use only the DD snapshots available for a given halo?, default is no')
     parser.add_argument('--nevery', metavar='nevery', type=int, action='store', default=1, help='use every nth snapshot when do_all_sims is specified; default is 1 i.e., all snapshots will be used')
     parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False, help='loop over all available halos (and all snapshots each halo has)?, default is no')
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
@@ -1083,6 +1093,29 @@ def parse_args(haloname, RDname, fast=False):
 
     # ------- args added for compute_MZgrad.py ------------------------------
     parser.add_argument('--upto_re', metavar='upto_re', type=float, action='store', default=2.0, help='fit metallicity gradient out to what multiple of Re? default is 2')
+    parser.add_argument('--write_file', dest='write_file', action='store_true', default=False, help='write the list of measured gradients, mass and size to file?, default is no')
+    parser.add_argument('--get_gasmass', dest='get_gasmass', action='store_true', default=False, help='save gas mass profile, in addition to stellar mass profile, to hdf5 file?, default is no')
+    parser.add_argument('--snapnumber', metavar='snapnumber', type=int, action='store', default=None, help='identifier for the snapshot (what follows DD or RD); default is None, in which case it takes the snapshot from args.output')
+
+    # ------- args added for get_halo_track.py ------------------------------
+    parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')
+    parser.add_argument('--reflevel', metavar='reflevel', type=int, action='store', default=7, help='forced refinement level to put in the halo track file; default is 7')
+    parser.add_argument('--z_interval', metavar='z_interval', type=float, action='store', default=0.005, help='redshift interval on which to interpolate the halo center track file; default is 0.005')
+    parser.add_argument('--root_dir', metavar='root_dir', type=str, action='store', default='', help='root directory path where your foggie directory is (automatically grabs the correct path if you are on ayans system; default is empty string')
+    parser.add_argument('--last_center_guess', metavar='last_center_guess', type=str, action='store', default=None, help='initial guess for the center of desired halo in code units')
+
+    # ------- args added for plot_MZgrad.py ------------------------------
+    parser.add_argument('--binby', metavar='binby', type=str, action='store', default=None, help='bin the plot by either redshift or mass; default is empty string = no binning')
+    parser.add_argument('--nbins', metavar='nbins', type=int, action='store', default=200, help='no. of bins to bin the binby column in to; default is 200')
+    parser.add_argument('--overplot_manga', dest='overplot_manga', action='store_true', default=False, help='overplot MaNGA observed MZGR?, default is no')
+    parser.add_argument('--overplot_clear', dest='overplot_clear', action='store_true', default=False, help='overplot CLEAR observed MZGR?, default is no')
+    parser.add_argument('--overplot_belfiore', dest='overplot_belfiore', action='store_true', default=False, help='overplot Belfiore+17 observed MZGR?, default is no')
+    parser.add_argument('--overplot_mingozzi', dest='overplot_mingozzi', action='store_true', default=False, help='overplot Mongozzi+19 observed MZGR?, default is no')
+    parser.add_argument('--overplot_smoothed', dest='overplot_smoothed', action='store_true', default=False, help='overplot smoothed FOGGIE MZGR?, default is no')
+    parser.add_argument('--manga_diag', metavar='manga_diag', type=str, action='store', default='n2', help='which metallicity diagnostic to extract from manga? options are: n2, o3n2, ons, pyqz, t2, m08, t04; default is n2')
+    parser.add_argument('--zhighlight', dest='zhighlight', action='store_true', default=False, help='highlight a few integer-ish redshift points on the MZGR?, default is no')
+    parser.add_argument('--use_gasre', dest='use_gasre', action='store_true', default=False, help='use measurements based on Re estimated from cold gas clumps (instead of that measured from stellar mass profile)?, default is no')
+    parser.add_argument('--use_binnedfit', dest='use_binnedfit', action='store_true', default=False, help='use gradient measurements from radially binned Z profile (as opposed to the fit to individual cells)?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
@@ -1093,6 +1126,9 @@ def parse_args(haloname, RDname, fast=False):
     args.Om = args.Om_arr[0]
     args.halo_arr = [item for item in args.halo.split(',')]
     args.halo = args.halo_arr[0] if len(args.halo_arr) == 1 else haloname
+    if args.snapnumber is not None:
+        if args.use_onlyDD: args.output = 'DD%04d' % (args.snapnumber)
+        else: args.output = 'RD%04d' % (args.snapnumber)
     args.output_arr = [item for item in args.output.split(',')]
     args.output = args.output_arr[0] if len(args.output_arr) == 1 else RDname
     args.move_to = np.array([float(item) for item in args.move_to.split(',')])  # kpc

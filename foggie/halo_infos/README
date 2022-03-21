@@ -36,8 +36,8 @@ Exists for:
 
 8508/high_feedback_restart snapshots DD1728-DD1882, RD0036-RD0037
 8508/feedback_return snapshots DD1747-DD2250, RD0036-RD0040
-8508/low_feedback_06 snapshots DD1621-DD2425, RD0034-RD0041
-8508/low_feedback_07 snapshots DD1621-DD2417, RD0034-RD0041
+8508/low_feedback_06 snapshots DD1621-DD2427, RD0034-RD0042
+8508/low_feedback_07 snapshots DD1621-DD2427, RD0034-RD0042
 
 Created by:
 utils/get_halo_c_v_parallel.py
@@ -85,8 +85,8 @@ Exists for:
 
 8508/high_feedback_restart snapshots DD1728-DD1882, RD0036-RD0037
 8508/feedback_return snapshots DD1747-DD2250, RD0036-RD0040
-8508/low_feedback_06 snapshots DD1621-DD2425, RD0034-RD0041
-8508/low_feedback_07 snapshots DD1621-DD2417, RD0034-RD0041
+8508/low_feedback_06 snapshots DD1621-DD2427, RD0034-RD0042
+8508/low_feedback_07 snapshots DD1621-DD2427, RD0034-RD0042
 
 Created by:
 utils/get_mass_profile.py, which will output one "snapshot_masses.hdf5" per snapshot that can
@@ -125,8 +125,8 @@ Exists for:
 
 8508/high_feedback_restart snapshots DD1728-DD1882, RD0036-RD0037
 8508/feedback_return snapshots DD1747-DD2250, RD0036-RD0040
-8508/low_feedback_06 snapshots DD1621-DD2425, RD0034-RD0041
-8508/low_feedback_07 snapshots DD1621-DD2417, RD0034-RD0041
+8508/low_feedback_06 snapshots DD1621-DD2427, RD0034-RD0042
+8508/low_feedback_07 snapshots DD1621-DD2427, RD0034-RD0042
 
 Created by:
 utils/get_mass_profile.py, which will output one "snapshot_masses.hdf5" per snapshot that can later
@@ -207,8 +207,8 @@ Exists for:
 
 8508/high_feedback_restart snapshots DD1728-DD1882, RD0036-RD0037
 8508/feedback_return snapshots DD1747-DD2250, RD0036-RD0040
-8508/low_feedback_06 snapshots DD1621-DD2425, RD0034-RD0041
-8508/low_feedback_07 snapshots DD1621-DD2417, RD0034-RD0041
+8508/low_feedback_06 snapshots DD1621-DD2427, RD0034-RD0042
+8508/low_feedback_07 snapshots DD1621-DD2427, RD0034-RD0042
 
 Created by:
 utils/get_rvir.py
