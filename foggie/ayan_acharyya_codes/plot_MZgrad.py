@@ -8,6 +8,7 @@
     Author :     Ayan Acharyya
     Started :    Mar 2022
     Examples :   run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -2 --xmin 8.5 --overplot_manga --overplot_clear --binby mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
+                 run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_kpc 10 --xcol rad_re --keep --weight mass --ymin -2 --xmin 8.5 --overplot_manga --overplot_clear --binby mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
                  run plot_MZgrad.py --system ayan_local --halo 8508 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -0.5 --xmin 8.5 --overplot_manga --overplot_clear --overplot_belfiore --overplot_mjngozzi --binby mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed --manga_diag pyqz
                  run plot_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --weight mass --binby mass --nbins 20 --cmap plasma --xmin 8.5 --xmax 11 --ymin 0.3 --overplot_manga --manga_diag n2
 
@@ -23,7 +24,8 @@ def load_df(args):
     Function to load and return the dataframe containing MZGR
     '''
     args.foggie_dir, args.output_dir, args.run_loc, args.code_path, args.trackname, args.haloname, args.spectra_dir, args.infofile = get_run_loc_etc(args)
-    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s_upto%.1FRe%s.txt' % (args.xcol, args.upto_re, args.weightby_text)
+    upto_text = '_upto%.1Fkpc' % args.upto_kpc if args.upto_kpc is not None else '_upto%.1FRe' % args.upto_re
+    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s.txt' % (args.xcol, upto_text, args.weightby_text)
 
     convert_Zgrad_from_dexkpc_to_dexre = False
     convert_Zgrad_from_dexre_to_dexkpc = False
@@ -239,7 +241,8 @@ def plot_MZGR(args):
     ax.set_ylabel(r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.xcol == 'rad_re' else r'$\Delta Z$ (dex/kpc)', fontsize=args.fontsize)
 
     binby_text = '' if args.binby is None else '_binby_' + args.binby
-    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_MZGR_xcol_%s_upto%.1FRe%s%s%s.png' % (args.xcol, args.upto_re, args.weightby_text, binby_text, obs_text)
+    upto_text = '_upto%.1Fkpc' % args.upto_kpc if args.upto_kpc is not None else '_upto%.1FRe' % args.upto_re
+    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_MZGR_xcol_%s%s%s%s%s.png' % (args.xcol, upto_text, args.weightby_text, binby_text, obs_text)
     fig.savefig(figname)
     print('Saved plot as', figname)
     plt.show(block=False)

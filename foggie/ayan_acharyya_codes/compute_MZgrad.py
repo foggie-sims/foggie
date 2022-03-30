@@ -8,6 +8,7 @@
     Author :     Ayan Acharyya
     Started :    Feb 2022
     Examples :   run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_re 3 --xcol rad_re --keep --weight mass
+                 run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad_re --keep --weight mass
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --do_all_sims --weight mass --write_file --noplot
 
 """
@@ -125,7 +126,7 @@ def get_re_from_coldgas(gasprofile, args):
 # -----------------------------------------------------------------------------
 def get_disk_stellar_mass(args):
     '''
-    Function to get the disk stellar mass for a given output, which is defined as the stellar mass contained within args.upto_re*Re
+    Function to get the disk stellar mass for a given output, which is defined as the stellar mass contained within args.galrad, which can either be a fixed absolute size in kpc OR = args.upto_re*Re
     '''
     mass_filename = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/masses_z-less-2.hdf5'
     upto_radius = args.galrad # should this be something else? 2*Re may be?
@@ -222,14 +223,15 @@ def plot_gradient(df, args, linefit=None):
     Saves plot as .png
     '''
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
-    outfile_rootname = 'datashader_log_metal_vs_%s_upto_%.1FRe%s.png' % (args.xcol, args.upto_re, weightby_text)
+    upto_text = '_upto%.1Fkpc' % dummy_args.upto_kpc if dummy_args.upto_kpc is not None else '_upto%.1FRe' % dummy_args.upto_re
+    outfile_rootname = 'datashader_log_metal_vs_%s%s%s.png' % (args.xcol,upto_text, weightby_text)
     if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
     # ---------first, plot both cell-by-cell profile first, using datashader---------
     fig, ax = plt.subplots(figsize=(8,8))
     fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.1)
-    artist = dsshow(df, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.upto_re if 're' in args.xcol else args.galrad), y_range=(args.ylim[0], args.ylim[1]), aspect = 'auto', ax=ax, cmap='Blues_r')#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
+    artist = dsshow(df, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ylim[0], args.ylim[1]), aspect = 'auto', ax=ax, cmap='Blues_r')#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # --------bin the metallicity profile and plot the binned profile-----------
     ax = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=ax, is_logscale=True, weightcol=args.weight)
@@ -242,7 +244,7 @@ def plot_gradient(df, args, linefit=None):
         plt.text(0.033, 0.2, 'Slope = %.2F ' % linefit[0] + units, color='darkblue', transform=ax.transAxes, fontsize=args.fontsize)
 
     # ----------tidy up figure-------------
-    ax.xaxis = make_coordinate_axis(args.xcol, 0, args.upto_re if 're' in args.xcol else args.galrad, ax.xaxis, args.fontsize, dsh=False, log_scale=False)
+    ax.xaxis = make_coordinate_axis(args.xcol, 0, args.galrad / args.re if 're' in args.xcol else args.galrad, ax.xaxis, args.fontsize, dsh=False, log_scale=False)
     ax.yaxis = make_coordinate_axis('metal', args.ylim[0], args.ylim[1], ax.yaxis, args.fontsize, dsh=False, log_scale=False)
 
     # ---------annotate and save the figure----------------------
@@ -326,7 +328,8 @@ if __name__ == '__main__':
                   'Zcen_binned_re_coldgas', 'Zcen_u_binned_re_coldgas', 'Zgrad_binned_re_coldgas', 'Zgrad_u_binned_re_coldgas', 'Ztotal_re_coldgas']
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
-    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s_upto%.1FRe%s.txt' % (dummy_args.xcol, dummy_args.upto_re, weightby_text)
+    upto_text = '_upto%.1Fkpc' % dummy_args.upto_kpc if dummy_args.upto_kpc is not None else '_upto%.1FRe' % dummy_args.upto_re
+    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s%s%s.txt' % (dummy_args.xcol, upto_text, weightby_text)
 
     if dummy_args.dryrun:
         print('List of the total ' + str(total_snaps) + ' sims =', list_of_sims)
@@ -395,7 +398,7 @@ if __name__ == '__main__':
             if args.re > 0:
                 # extract the required box
                 box_center = ds.arr(args.halo_center, kpc)
-                args.galrad = args.upto_re * args.re # kpc
+                args.galrad = args.upto_kpc if args.upto_kpc is not None else args.upto_re * args.re # kpc
                 box_width = args.galrad * 2  # in kpc
                 box_width_kpc = ds.arr(box_width, 'kpc')
                 box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
@@ -403,7 +406,7 @@ if __name__ == '__main__':
                 df = get_df_from_ds(box, args) # get dataframe with metallicity profile info
 
                 Zcen, Zgrad = fit_gradient(df, args)
-                args.bin_edges = np.linspace(0, args.upto_re if 're' in args.xcol else args.galrad, 10)
+                args.bin_edges = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
                 Zcen_binned, Zgrad_binned = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=None, is_logscale=True, weightcol=args.weight)
 
                 if not args.noplot: fig = plot_gradient(df, args, linefit=[Zgrad.n, Zcen.n]) # plotting the Z profile, with fit
