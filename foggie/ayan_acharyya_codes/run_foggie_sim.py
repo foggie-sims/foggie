@@ -11,6 +11,7 @@
                  run run_foggie_sim.py --halo 2139 --level 1 --queue devel --automate --final_level 3 --dryrun
                  run run_foggie_sim.py --halo 2139 --level 1 --queue normal --automate --plot_projection --width 1000
                  run run_foggie_sim.py --halo 2139 --level 3 --queue long --gas --plot_projection --width 1000
+                 run run_foggie_sim.py --halo 5205 --level 1 --queue devel --nnodes 8 --automate --nref 9
                  run run_foggie_sim.py --halo 8892 --queue long --nnodes 32 --forcedref --refsize 200 --reflevel 7 --start_output RD0008
 
 """
@@ -180,7 +181,7 @@ def setup_enzoparam_file(args):
 
     # ---------make substitutions in conf file-----------------
     z_to_replace = 15 if do_gas(args) else args.final_z
-    replacements = {'CFR': z_to_replace, 'MODFR': 8/(8 ** args.level), 'CSNOI': args.level + 1, 'MRPRTL': args.level, 'COPYHERE': stuff_from_paramfile}  # keywords to be replaced in template file
+    replacements = {'MRL':args.nref, 'CFR': z_to_replace, 'MODFR': 8/(8 ** args.level), 'CSNOI': args.level + 1, 'MRPRTL': args.level, 'COPYHERE': stuff_from_paramfile}  # keywords to be replaced in template file
     replace_keywords_in_file(replacements, template_param_file, target_param_file)
 
 # ------------------------------------------------------
@@ -500,6 +501,7 @@ if __name__ == '__main__':
     parser.add_argument('--sim_name', metavar='sim_name', type=str, action='store', default='25Mpc_DM_256', help='Specify simulation name')
     parser.add_argument('--halo', metavar='halo', type=str, action='store', default='test', help='which halo?')
     parser.add_argument('--level', metavar='level', type=int, action='store', default=1, help='which refinement level? default 1')
+    parser.add_argument('--nref', metavar='nref', type=int, action='store', default=7, help='maximum refinement level? default 7')
     parser.add_argument('--gas', dest='gas', action='store_true', default=False, help='run DM+gas?, default is no, only DM')
     parser.add_argument('--final_z', metavar='final_z', type=float, action='store', default=2, help='final redshift till which the simulation should run; default is 2')
     parser.add_argument('--nomusic', dest='nomusic', action='store_true', default=False, help='skip MUSIC (if ICs already exist)?, default is no')
