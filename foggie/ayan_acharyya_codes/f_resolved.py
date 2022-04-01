@@ -77,6 +77,7 @@ if __name__ == '__main__':
         else:
             df_track_int = pd.read_table(output_path + 'center_track_interp.dat', delim_whitespace=True)
             center = interp1d(df_track_int['redshift'], df_track_int[['center_x', 'center_y', 'center_z']], axis=0)(ds.current_redshift)
+        center = ds.arr(center, 'code_length')
 
     # -------cut out a box around the center of width either given args.width or refine box width--------------
     halfbox = ds.arr(0.5 * args.width, 'kpc').in_units('code_length')
