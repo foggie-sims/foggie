@@ -25,12 +25,14 @@ def plotbar(df, args):
     bar_width = 0.25
 
     fracs_to_plot = [item for item in df.columns if 'f_' in item]
-    for index, thisfrac in enumerate(fracs_to_plot): ax.bar(np.arange(len(df)) + index * bar_width, df[thisfrac], width=bar_width, label=thisfrac)
+    for index, thisfrac in enumerate(fracs_to_plot):
+        bars = ax.bar(np.arange(len(df)) + index * bar_width, df[thisfrac], width=bar_width, label=thisfrac)
+        for i, val in enumerate(df[thisfrac]): ax.text(i + index * bar_width, val + 0.05, '%.2F' % val, ha='center', va='top', color=bars.patches[i].get_facecolor(), fontsize=args.fontsize/1.5) # to insert text = value of bar, on top of bar
 
     plt.ylim(0, 1)
     plt.ylabel('Fraction', fontsize=args.fontsize)
     plt.xlabel('Refinement level', fontsize=args.fontsize)
-    plt.xticks([r + bar_width for r in range(len(df))], df['level'])
+    plt.xticks([item + bar_width for item in range(len(df))], ['%d'%item for item in df['level']])
     plt.legend(fontsize=args.fontsize)
 
     Path(args.output_path + 'figs/').mkdir(parents=True, exist_ok=True)
