@@ -16,8 +16,11 @@ from header import *
 from util import *
 start_time = time.time()
 
-# ---------plotting the fractions-----------
-def plothist(df, args):
+# ---------------------------------------
+def plotbar(df, args):
+    '''
+    Function for bar-plotting the fractions
+    '''
     fig, ax = plt.subplots()
     bar_width = 0.25
 
@@ -36,6 +39,71 @@ def plothist(df, args):
     plt.show(block=False)
     print('\nSaved figure at', figname)
     return fig
+
+# ---------------------------------------
+def get_fracs(args, box=None):
+    '''
+    Function for computing the fractions
+    Saves the results as pandas dataframe to txt file
+    '''
+    Path(args.output_path + 'txtfiles/').mkdir(parents=True, exist_ok=True)
+    filename = args.output_path + 'txtfiles/halo_' + args.halo + '_output_' + args.output + '_width_%.2Fkpc_fresolved.txt' % args.width
+
+    if not os.path.exists(filename) or args.clobber:
+        print('Creating', filename, '...')
+        if box is None: box = load_box(args)
+
+        df = pd.DataFrame(columns=('level', 'f_cells', 'f_volume', 'f_mass'))
+        grid_level = box['index', 'grid_level']
+        cell_volume = box['index', 'cell_volume'].in_units('pc**3')
+        cell_mass = box['gas', 'cell_mass'].in_units('Msun')
+
+        for thislevel in np.unique(grid_level):
+            atthislevel = np.where(grid_level == thislevel)
+            f_cells = len(grid_level[atthislevel]) / len(grid_level)
+            f_volume = np.sum(cell_volume[atthislevel]) / np.sum(cell_volume)
+            f_mass = np.sum(cell_mass[atthislevel]) / np.sum(cell_mass)
+
+            df.loc[len(df)] = [thislevel.value, f_cells, f_volume.value, f_mass.value]
+
+        df.to_csv(filename,  sep='\t', index=None)
+        print('Saved', filename)
+    else:
+        print('Reading existing', filename)
+
+    df = pd.read_table(filename, delim_whitespace=True)
+    print('\nHalo:', args.halo, '; Output:', args.output, '; Redshift:', box.ds.current_redshift, '; Fractions:\n', df)
+    return df
+
+# -----------------------------------------------------------
+def load_box(args):
+    '''
+    Function to read in correct halo and output at appropriate paths
+    Returns box (dataset object)
+    '''
+    if args.halo in args.original_halos:
+        ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=False)
+        center = refine_box.center
+        if args.fullbox: args.width = ds.refine_width # in kpc
+    else:
+        snap_name = args.output_path + args.output + '/' + args.output
+        ds = yt.load(snap_name)
+
+        if args.fullbox: args.width = 200 / (1 + ds.current_redshift) # converting 200 kpc comoving width to physical width at given z
+        if args.center is not None:
+            center = [float(item) for item in args.center.split(',')]
+        else:
+            df_track_int = pd.read_table(args.output_path + 'center_track_interp.dat', delim_whitespace=True)
+            center = interp1d(df_track_int['redshift'], df_track_int[['center_x', 'center_y', 'center_z']], axis=0)(ds.current_redshift)
+        center = ds.arr(center, 'code_length')
+
+    # -------cut out a box around the center of width either given args.width or refine box width--------------
+    halfbox = ds.arr(0.5 * args.width, 'kpc').in_units('code_length')
+    left_edge = center - halfbox
+    right_edge = center + halfbox
+    box = ds.r[left_edge[0]:right_edge[0], left_edge[1]:right_edge[1], left_edge[2]:right_edge[2]]
+
+    return box
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -57,49 +125,15 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # -------read in correct halo and output at appropriate paths--------------
-    original_halos = ['8508', '5036', '5016', '4123', '2878', '2392']
-    if args.halo in original_halos:
-        ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=False)
-        _, output_path, _, _, _, _, _, _ = get_run_loc_etc(args)
-        center = refine_box.center
-        if args.fullbox: args.width = ds.refine_width # in kpc
+    args.original_halos = ['8508', '5036', '5016', '4123', '2878', '2392']
+    if args.halo in args.original_halos:
+        _, args.output_path, _, _, _, _, _, _ = get_run_loc_etc(args)
     else:
-        if args.system == 'ayan_hd' or args.system == 'ayan_local': root_dir = '/Users/acharyya/models/simulation_output/'
-        elif args.system == 'ayan_pleiades': root_dir = '/nobackup/aachary2/'
-        output_path = root_dir + args.foggie_dir + '/halo_' + args.halo + '/' + args.run + '/'
-        snap_name = output_path + args.output + '/' + args.output
-        ds = yt.load(snap_name)
-
-        if args.fullbox: args.width = 200 / (1 + ds.current_redshift) # converting 200 kpc comoving width to physical width at given z
-        if args.center is not None:
-            center = [float(item) for item in args.center.split(',')]
-        else:
-            df_track_int = pd.read_table(output_path + 'center_track_interp.dat', delim_whitespace=True)
-            center = interp1d(df_track_int['redshift'], df_track_int[['center_x', 'center_y', 'center_z']], axis=0)(ds.current_redshift)
-        center = ds.arr(center, 'code_length')
-
-    # -------cut out a box around the center of width either given args.width or refine box width--------------
-    halfbox = ds.arr(0.5 * args.width, 'kpc').in_units('code_length')
-    left_edge = center - halfbox
-    right_edge = center + halfbox
-    box = ds.r[left_edge[0]:right_edge[0], left_edge[1]:right_edge[1], left_edge[2]:right_edge[2]]
+        if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/models/simulation_output/'
+        elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
+        args.output_path = args.root_dir + args.foggie_dir + '/halo_' + args.halo + '/' + args.run + '/'
 
     # ---------resolved fraction calculations-----------
-    df = pd.DataFrame(columns=('level', 'f_cells', 'f_volume', 'f_mass'))
-    grid_level = box['index', 'grid_level']
-    cell_volume = box['index', 'cell_volume'].in_units('pc**3')
-    cell_mass = box['gas', 'cell_mass'].in_units('Msun')
-
-    for thislevel in np.unique(grid_level):
-        atthislevel = np.where(grid_level == thislevel)
-        f_cells = len(grid_level[atthislevel]) / len(grid_level)
-        f_volume = np.sum(cell_volume[atthislevel]) / np.sum(cell_volume)
-        f_mass = np.sum(cell_mass[atthislevel]) / np.sum(cell_mass)
-
-        df.loc[len(df)] = [thislevel.value, f_cells, f_volume.value, f_mass.value]
-
-    print('\nHalo:', args.halo, '; Output:', args.output, '; Redshift:', ds.current_redshift, '; Fractions:\n', df)
-
-    fig = plothist(df, args)
+    df = get_fracs(args)
+    fig = plotbar(df, args)
     print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
