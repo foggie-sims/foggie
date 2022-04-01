@@ -135,7 +135,7 @@ if __name__ == '__main__':
         if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/models/simulation_output/'
         elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
         args.output_path = args.root_dir + args.foggie_dir + '/halo_' + args.halo + '/' + args.run + '/'
-    args.width_text = 'fullbox' if args.fullbox else 'width_%.2F' % args.width
+    args.width_text = 'fullbox' if args.fullbox else 'width_%.2Fkpc' % args.width
 
     # ---------resolved fraction calculations-----------
     df = get_fracs(args)
