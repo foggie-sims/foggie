@@ -90,7 +90,7 @@ def load_box(args):
         snap_name = args.output_path + args.output + '/' + args.output
         ds = yt.load(snap_name)
 
-        if args.fullbox: args.width = 200 / (1 + ds.current_redshift) # converting 200 kpc comoving width to physical width at given z
+        if args.fullbox: args.width = 200 / (1 + ds.current_redshift) / ds.hubble_constant # converting 200 kpc comoving width to physical width at given z
         if args.center is not None:
             center = [float(item) for item in args.center.split(',')]
         else:
