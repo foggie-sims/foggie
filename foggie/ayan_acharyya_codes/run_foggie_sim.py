@@ -12,7 +12,7 @@
                  run run_foggie_sim.py --halo 2139 --level 1 --queue normal --automate --plot_projection --width 1000
                  run run_foggie_sim.py --halo 2139 --level 3 --queue long --gas --plot_projection --width 1000
                  run run_foggie_sim.py --halo 5205 --level 1 --queue devel --nnodes 8 --automate --nref 9
-                 run run_foggie_sim.py --halo 8892 --queue long --nnodes 32 --forcedref --refsize 200 --reflevel 7 --start_output RD0008
+                 run run_foggie_sim.py --halo 8892 --queue long --nnodes 32 --forcedref --refsize 200 --creflevel 9 --freflevel 7 --start_output RD0008
 
 """
 from header import *
@@ -405,7 +405,7 @@ def run_forcedref(ncores, nhours, args):
     Function to submit the Enzo simulation job with forced refinement turned on, from a given output onwards
     '''
     # --------get file names-----------
-    new_sim_name = 'nref' + str(args.reflevel) + 'c_nref' + str(args.reflevel) + 'f'
+    new_sim_name = 'nref' + str(args.creflevel) + 'c_nref' + str(args.freflevel) + 'f'
     args.sim_name += '-L3-gas'
 
     # ------create new directory copy over required output-----------
@@ -430,10 +430,11 @@ def run_forcedref(ncores, nhours, args):
 
     # ---------make substitutions in conf file-----------------
     source_conf_file = args.halo_dir + '/' + new_sim_name + '/' + args.start_output + '/' + args.start_output
-    track_filename = 'halo_track_' + str(args.refsize) + 'kpc_nref' + str(args.reflevel)
+    track_filename = 'halo_track_' + str(args.refsize) + 'kpc_nref' + str(args.freflevel)
 
     replacements = {'dtDataDump': 0.25, 'CellFlaggingMethod': '2 4 7 8 12 -99999 -99999 -99999 -99999 -99999 -99999', \
-                    'MustRefineRegionMinRefinementLevel': args.reflevel, 'MustRefineRegionTimeType': 1, 'UseCoolingRefineRegion': 1, \
+                    'MaximumRefinementLevel': args.creflevel, 'MaximumGravityRefinementLevel': args.creflevel, 'MaximumParticleRefinementLevel': args.creflevel, \
+                    'MustRefineRegionMinRefinementLevel': args.freflevel, 'MustRefineRegionTimeType': 1, 'UseCoolingRefineRegion': 1, \
                     'EvolveCoolingRefineRegion': 1, 'CoolingRefineRegionTimeType': 1}  # values to be changed in template file
     modify_lines_in_file(replacements, source_conf_file, source_conf_file)
 
@@ -523,7 +524,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--forcedref', dest='forcedref', action='store_true', default=False, help='run forced refinment runs?, default is no, only DM')
     parser.add_argument('--start_output', metavar='start_output', type=str, action='store', default='RD0008', help='which output to start forced refinment runs at? default is RD0008 i.e. z=10')
-    parser.add_argument('--reflevel', metavar='reflevel', type=int, action='store', default=7, help='which forced refinement level? default 7')
+    parser.add_argument('--creflevel', metavar='creflevel', type=int, action='store', default=9, help='which cooling refinement level? default 9')
+    parser.add_argument('--freflevel', metavar='freflevel', type=int, action='store', default=7, help='which forced refinement level? default 7')
     parser.add_argument('--refsize', metavar='refsize', type=int, action='store', default=200, help='forced refinement boxsize, in kpc? default 200 kpc')
 
     args = parser.parse_args()
