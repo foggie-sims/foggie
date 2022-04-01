@@ -33,8 +33,8 @@ def plotbar(df, args):
     plt.xticks([r + bar_width for r in range(len(df))], df['level'])
     plt.legend(fontsize=args.fontsize)
 
-    Path(output_path + 'figs/').mkdir(parents=True, exist_ok=True)
-    figname = output_path + 'figs/halo_' + args.halo + '_output_' + args.output + '_width_%.2Fkpc_fresolved.png' % args.width
+    Path(args.output_path + 'figs/').mkdir(parents=True, exist_ok=True)
+    figname = args.output_path + 'figs/halo_' + args.halo + '_output_' + args.output + '_fresolved.png'
     fig.savefig(figname)
     plt.show(block=False)
     print('\nSaved figure at', figname)
@@ -47,7 +47,7 @@ def get_fracs(args, box=None):
     Saves the results as pandas dataframe to txt file
     '''
     Path(args.output_path + 'txtfiles/').mkdir(parents=True, exist_ok=True)
-    filename = args.output_path + 'txtfiles/halo_' + args.halo + '_output_' + args.output + '_width_%.2Fkpc_fresolved.txt' % args.width
+    filename = args.output_path + 'txtfiles/halo_' + args.halo + '_output_' + args.output + '_fresolved.txt'
 
     if not os.path.exists(filename) or args.clobber:
         print('Creating', filename, '...')
