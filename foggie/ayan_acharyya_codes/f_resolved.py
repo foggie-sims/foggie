@@ -43,7 +43,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='''identify satellites in FOGGIE simulations''')
 
     parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_pleiades', help='Which system are you on? Default is ayan_pleiades')
-    parser.add_argument('--foggie_dir', metavar='foggie_dir', type=str, action='store', default='bigbox', help='Specify which directory the dataset lies in')
+    parser.add_argument('--foggie_dir', metavar='foggie_dir', type=str, action='store', default=None, help='Specify which directory the dataset lies in')
     parser.add_argument('--halo', metavar='halo', type=str, action='store', default='test', help='which halo?')
     parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f', help='which run?')
     parser.add_argument('--output', metavar='output', type=str, action='store', default='RD0111', help='which output?')
