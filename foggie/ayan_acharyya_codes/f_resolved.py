@@ -74,7 +74,6 @@ def get_fracs(args, box=None):
         print('Reading existing', filename)
 
     df = pd.read_table(filename, delim_whitespace=True)
-    print('\nHalo:', args.halo, '; Output:', args.output, '; Fractions:\n', df)
     return df
 
 # -----------------------------------------------------------
