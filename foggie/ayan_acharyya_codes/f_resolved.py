@@ -72,7 +72,7 @@ def get_fracs(args, box=None):
         print('Reading existing', filename)
 
     df = pd.read_table(filename, delim_whitespace=True)
-    print('\nHalo:', args.halo, '; Output:', args.output, '; Redshift:', box.ds.current_redshift, '; Fractions:\n', df)
+    print('\nHalo:', args.halo, '; Output:', args.output, '; Fractions:\n', df)
     return df
 
 # -----------------------------------------------------------
@@ -121,6 +121,7 @@ if __name__ == '__main__':
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the current working directory?, default is no')
     parser.add_argument('--center', metavar='center', type=str, action='store', default=None, help='center of projection in code units')
     parser.add_argument('--get_center_track', dest='get_center_track', action='store_true', default=False, help='get the halo cneter automatically from the center track file?, default is no')
+    parser.add_argument('--clobber', dest='clobber', action='store_true', default=False, help='clobber/overwrite existing file?, default is no')
     parser.add_argument('--fontsize', metavar='fontsize', type=int, action='store', default=15, help='fontsize of plot labels, etc.; default is 15')
 
     args = parser.parse_args()
