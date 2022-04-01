@@ -27,7 +27,7 @@ def plotbar(df, args):
     fracs_to_plot = [item for item in df.columns if 'f_' in item]
     for index, thisfrac in enumerate(fracs_to_plot):
         bars = ax.bar(np.arange(len(df)) + index * bar_width, df[thisfrac], width=bar_width, label=thisfrac)
-        for i, val in enumerate(df[thisfrac]): ax.text(i + index * bar_width, val + 0.05, '%.2F' % val, ha='center', va='top', color=bars.patches[i].get_facecolor(), fontsize=args.fontsize/1.5) # to insert text = value of bar, on top of bar
+        for i, val in enumerate(df[thisfrac]): ax.text(i + index * bar_width, val + 0.05, '%.2F' % val, ha='center', va='top', color=bars.patches[i].get_facecolor(), fontsize=args.fontsize/1.5, fontweight='bold') # to insert text = value of bar, on top of bar
 
     plt.ylim(0, 1)
     plt.ylabel('Fraction', fontsize=args.fontsize)
@@ -36,7 +36,7 @@ def plotbar(df, args):
     plt.legend(fontsize=args.fontsize)
 
     Path(args.output_path + 'figs/').mkdir(parents=True, exist_ok=True)
-    figname = args.output_path + 'figs/halo_' + args.halo + '_output_' + args.output + '_fresolved.png'
+    figname = args.output_path + 'figs/halo_' + args.halo + '_output_' + args.output + '_%s_fresolved.png' % args.width_text
     fig.savefig(figname)
     plt.show(block=False)
     print('\nSaved figure at', figname)
@@ -49,7 +49,7 @@ def get_fracs(args, box=None):
     Saves the results as pandas dataframe to txt file
     '''
     Path(args.output_path + 'txtfiles/').mkdir(parents=True, exist_ok=True)
-    filename = args.output_path + 'txtfiles/halo_' + args.halo + '_output_' + args.output + '_fresolved.txt'
+    filename = args.output_path + 'txtfiles/halo_' + args.halo + '_output_' + args.output + '_%s_fresolved.txt' % args.width_text
 
     if not os.path.exists(filename) or args.clobber:
         print('Creating', filename, '...')
@@ -135,6 +135,7 @@ if __name__ == '__main__':
         if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/models/simulation_output/'
         elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
         args.output_path = args.root_dir + args.foggie_dir + '/halo_' + args.halo + '/' + args.run + '/'
+    args.width_text = 'fullbox' if args.fullbox else 'width_%.2F' % args.width
 
     # ---------resolved fraction calculations-----------
     df = get_fracs(args)
