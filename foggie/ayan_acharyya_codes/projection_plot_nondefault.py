@@ -6,7 +6,7 @@
     Notes :      make projection plots for new bigbox runs
     Output :     projection plots as png files
     Author :     Ayan Acharyya
-    Started :    January 2021
+    Started :    January 2022
     Example :    run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/projection_plot_nondefault.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L1 --halo test --output RD0111 --width 1000 --do dm --proj x --width 500 --center 0.54212825,0.45856575,0.504577
                  run projection_plot_nondefault.py --halo test --width 1000 --run 25Mpc_DM_256-L1 --center 0.54212825,0.45856575,0.5045
                  run projection_plot_nondefault.py --halo test --width 1000 --run 25Mpc_DM_256-L2 --center 0.54212825,0.462472,0.50848325
