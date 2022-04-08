@@ -34,6 +34,7 @@ def plotbar(df, args):
     plt.xlabel('Refinement level', fontsize=args.fontsize)
     plt.xticks([item + bar_width for item in range(len(df))], ['%d'%item for item in df['level']])
     plt.legend(fontsize=args.fontsize)
+    plt.title('Halo: ' + args.halo + '; Run: ' + args.run + '; Output: ' + args.output)
 
     Path(args.output_path + 'figs/').mkdir(parents=True, exist_ok=True)
     figname = args.output_path + 'figs/halo_' + args.halo + '_output_' + args.output + '_%s_fresolved.png' % args.width_text
