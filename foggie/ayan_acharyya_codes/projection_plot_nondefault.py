@@ -15,12 +15,34 @@
                  run projection_plot_nondefault.py --halo 5133 --width 1000 --run 25Mpc_DM_256-L3 --center_offset " 117,93,-73"
                  run projection_plot_nondefault.py --halo 5205 --width 200 --run 25Mpc_DM_256-L3-gas --output RD0028 --get_center_track --do cellsize
                  run projection_plot_nondefault.py --halo 5205 --width 200 --run nref7c_nref7f --do_all_sims --use_onlyDD --nevery 5 --get_center_track --do gas
+                 run projection_plot_nondefault.py --halo 5205 --width 2000 --run nref7c_nref7f --output RD0111 --get_center_track --do mrp --annotate_grids --annotate_box
 
 """
 from header import *
 from util import *
 start_time = time.time()
 sns.set_style('ticks') # instead of darkgrid, so that there are no grids overlaid on the projections
+
+# -----------------------------------------------------------
+def ptype4(pfilter, data):
+    filter = data[(pfilter.filtered_type, "particle_type")] == 4
+    return filter
+
+# ---------------------------------------------------------
+def annotate_box(p, width, ds, unit='kpc', center=[0.5, 0.5, 0.5]):
+    '''
+    Function to annotate a given yt plot with a box of a given size (width) centered on a given center
+    '''
+    color, linewidth = 'red', 3
+    width_code = ds.arr(width, unit).in_units('code_length')
+    center = ds.arr(center, 'code_length')
+
+    p.annotate_line([center[0] - width_code/2, center[1] - width_code/2, 0.5], [center[0] - width_code/2, center[1] + width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
+    p.annotate_line([center[0] - width_code/2, center[1] + width_code/2, 0.5], [center[0] + width_code/2, center[1] + width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
+    p.annotate_line([center[0] + width_code/2, center[1] + width_code/2, 0.5], [center[0] + width_code/2, center[1] - width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
+    p.annotate_line([center[0] + width_code/2, center[1] - width_code/2, 0.5], [center[0] - width_code/2, center[1] - width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
+
+    return p
 
 # -----------------------------------------
 def get_box(ds, projection, center, width):
@@ -47,14 +69,18 @@ def projection_plot(args):
     '''
     start_time = time.time()
 
-    field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density'), 'cellsize':('gas', 'd' + args.projection)}
-    cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat, 'cellsize': discrete_cmap}
-    zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1)}
+    field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density'), 'cellsize': ('gas', 'd' + args.projection), 'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass')}
+    cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat, 'cellsize': discrete_cmap, 'grid':'viridis', 'mrp':'viridis'}
+    zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1), 'grid': (1, 11), 'mrp': (1e57, 5e63)}
 
     # ----------- get halo center, either rough center at z=2 from halo catalogue or more accurate center from center track file-------------------
     ds = yt.load(args.snap_name)  # last output
     if 'pleiades' in args.system: halos_filename = '/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list'
     elif args.system == 'ayan_local': halos_filename = '/Users/acharyya/Downloads/out_0.list'
+
+    if 'mrp' in args.do:
+        yt.add_particle_filter("ptype4", function=ptype4, requires=["particle_type"])
+        ds.add_particle_filter('ptype4')
 
     halos = Table.read(halos_filename, format='ascii', header_start=0)
     thishalo = halos[halos['ID'] == int(args.halo[:4])]
@@ -86,7 +112,14 @@ def projection_plot(args):
         width_text = '_width' + str(args.width) + 'kpc'
 
     # -------------annotations and limits -------------------------------
-    if args.annotate_grids: p.annotate_grids(min_level=args.min_level)
+    if args.annotate_grids:
+        p.annotate_grids(min_level=args.min_level)
+
+    if args.annotate_box:
+        for thisbox in [200., 400.]: # comoving size at z=0 in kpc
+            thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
+            p = annotate_box(p, thisphys, ds, unit='kpc', center=center)
+
     p.annotate_text((0.06, 0.12), args.halo, coord_system="axis")
     p.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
     if not args.do == 'dm': p.set_cmap(field_dict[args.do], cmap_dict[args.do])
@@ -125,6 +158,7 @@ if __name__ == '__main__':
     parser.add_argument('--center_offset', metavar='center_offset', type=str, action='store', default='0,0,0', help='offset from center in integer cell units')
     parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', default=False, help='Redirect all print statements to a file?, default is no')
     parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
+    parser.add_argument('--annotate_box', dest='annotate_box', action='store_true', default=False, help='annotate box?, default is no')
     parser.add_argument('--min_level', dest='min_level', type=int, action='store', default=3, help='annotate grids min level, default is 3')
     parser.add_argument('--get_center_track', dest='get_center_track', action='store_true', default=False, help='get the halo cneter automatically from the center track file?, default is no')
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available for a given halo?, default is no')

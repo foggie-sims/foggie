@@ -8,12 +8,34 @@
     Author :     Ayan Acharyya
     Started :    January 2021
     Example :    run projection_plot.py --system ayan_local --halo 4123 --output RD0038 --do gas --proj x --fullbox --nframes 1 --rot_normal_by -30 --rot_normal_about y --rot_north_by 45 --rot_north_about x --iscolorlog
+                 run projection_plot.py --system ayan_local --halo 8508 --galrad 1000 --output RD0042 --do mrp --annotate_grids --annotate_box
 
 """
 from header import *
 from util import *
 from foggie.utils.get_proper_box_size import get_proper_box_size
 start_time = time.time()
+
+# -----------------------------------------------------------
+def ptype4(pfilter, data):
+    filter = data[(pfilter.filtered_type, "particle_type")] == 4
+    return filter
+
+# ---------------------------------------------------------
+def annotate_box(p, width, ds, unit='kpc', center=[0.5, 0.5, 0.5]):
+    '''
+    Function to annotate a given yt plot with a box of a given size (width) centered on a given center
+    '''
+    color, linewidth = 'red', 3
+    width_code = ds.arr(width, unit).in_units('code_length')
+    center = ds.arr(center, 'code_length')
+
+    p.annotate_line([center[0] - width_code/2, center[1] - width_code/2, 0.5], [center[0] - width_code/2, center[1] + width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
+    p.annotate_line([center[0] - width_code/2, center[1] + width_code/2, 0.5], [center[0] + width_code/2, center[1] + width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
+    p.annotate_line([center[0] + width_code/2, center[1] + width_code/2, 0.5], [center[0] + width_code/2, center[1] - width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
+    p.annotate_line([center[0] + width_code/2, center[1] - width_code/2, 0.5], [center[0] - width_code/2, center[1] - width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
+
+    return p
 
 # --------------------------------------------------------------------------------
 def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cmap, name, unit='Msun/pc**2', \
@@ -43,6 +65,14 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     try: cmap.set_bad('k')
     except: pass
     prj.set_cmap(field, cmap)
+
+    if args.annotate_grids:
+        prj.annotate_grids(min_level=args.min_level)
+
+    if args.annotate_box:
+        for thisbox in [200., 400.]: # comoving size at z=0 in kpc
+            thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
+            prj = annotate_box(prj, thisphys, ds, unit='kpc', center=center)
 
     prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
     prj.annotate_text((0.05, 0.9), name, coord_system='axis', text_args = {'fontsize': 500, 'color': 'white'})#, inset_box_args = {})
@@ -76,13 +106,13 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                     center[2] - box_width / 2.: center[2] + box_width / 2., ]
 
     # The variables used below come from foggie.utils.consistency.py
-    field_dict = {'gas':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), 'stars':('deposit', 'stars_density'),'ys_density':('deposit', 'young_stars_density'), 'ys_age':('my_young_stars', 'age'), 'ys_mass':('deposit', 'young_stars_mass'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected'), 'vlos':('gas', 'v_corrected')}
-    cmap_dict = {'gas':density_color_map, 'gas_entropy':entropy_color_map, 'stars':plt.cm.Greys_r, 'ys_density':density_color_map, 'ys_age':density_color_map, 'ys_mass':density_color_map, 'metal':metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap, 'vlos':velocity_discrete_cmap}
-    unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', temp='K', vrad='km/s', ys_age='Myr', ys_mass='pc*Msun', gas_entropy='keV*cm**3', vlos='km/s')
-    zmin_dict = defaultdict(lambda: density_proj_min, metal=2e-2, temp=1.e3, vrad=-50, ys_age=0.1, ys_mass=1, ys_density=1e-3, gas_entropy=1.6e25, vlos=-50)
-    zmax_dict = defaultdict(lambda: density_proj_max, metal= 5e0, temp= temperature_max, vrad=50, ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=50)
+    field_dict = {'gas':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), 'stars':('deposit', 'stars_density'),'ys_density':('deposit', 'young_stars_density'), 'ys_age':('my_young_stars', 'age'), 'ys_mass':('deposit', 'young_stars_mass'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected'), 'vlos':('gas', 'v_corrected'), 'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass')}
+    cmap_dict = {'gas':density_color_map, 'gas_entropy':entropy_color_map, 'stars':plt.cm.Greys_r, 'ys_density':density_color_map, 'ys_age':density_color_map, 'ys_mass':density_color_map, 'metal':metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap, 'vlos':velocity_discrete_cmap, 'grid':'viridis', 'mrp':'viridis'}
+    unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', temp='K', vrad='km/s', ys_age='Myr', ys_mass='pc*Msun', gas_entropy='keV*cm**3', vlos='km/s', grid='', mrp='cm*g')
+    zmin_dict = defaultdict(lambda: density_proj_min, metal=2e-2, temp=1.e3, vrad=-50, ys_age=0.1, ys_mass=1, ys_density=1e-3, gas_entropy=1.6e25, vlos=-50, grid=1, mrp=1e57)
+    zmax_dict = defaultdict(lambda: density_proj_max, metal= 5e0, temp= temperature_max, vrad=50, ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=50, grid=11, mrp=5e63)
     weight_field_dict = defaultdict(lambda: None, metal=('gas', 'density'), temp=('gas', 'density'), vrad=('gas', 'density'), vlos=('gas', 'density'))
-    colorlog_dict = defaultdict(lambda: False, metal=True, gas=True, temp=True, gas_entropy=True)
+    colorlog_dict = defaultdict(lambda: False, metal=True, gas=True, temp=True, gas_entropy=True, mrp=True)
 
     # north vector = which way is up; this is set up such that the north vector rotates ABOUT the normal vector
     rot_north_by = (total_north_rot * np.pi / 180) * rot_frame / nframes # to convert total_north_rot from deg to radian
@@ -161,6 +191,10 @@ if __name__ == '__main__':
 
         yt.add_particle_filter('my_young_stars', function=my_young_stars, filtered_type='all', requires=['creation_time', 'particle_type'])
         ds.add_particle_filter('my_young_stars')
+
+        if 'mrp' in args.do:
+            yt.add_particle_filter('ptype4', function=ptype4, requires=['particle_type'])
+            ds.add_particle_filter('ptype4')
 
         if args.fullbox: args.galrad = ds.refine_width / 2 # kpc
         center = refine_box.center.in_units(kpc) if args.do_central else ds.arr(args.halo_center, kpc)
