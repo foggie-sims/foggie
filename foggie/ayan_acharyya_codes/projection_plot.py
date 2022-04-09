@@ -30,7 +30,6 @@ def annotate_box(p, width, ds, center, unit='kpc', projection='x'):
     width_code = ds.arr(width, unit).in_units('code_length').value.tolist()
     center = ds.arr(center, 'kpc').in_units('code_length').value.tolist() # because input center is in kpc
     proj_dict = {'x': 1, 'y': 2, 'z': 0}
-    print('Deb33: wc=', width_code, 'c=', center) ##
 
     for left_array, right_array in [[np.array([-1, -1, 0]), np.array([-1, +1, 0])], \
                                     [np.array([-1, +1, 0]), np.array([+1, +1, 0])], \
