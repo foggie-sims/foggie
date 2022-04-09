@@ -29,18 +29,19 @@ def ptype4(pfilter, data):
     return filter
 
 # ---------------------------------------------------------
-def annotate_box(p, width, ds, unit='kpc', center=[0.5, 0.5, 0.5]):
+def annotate_box(p, width, ds, unit='kpc', projection='x', center=[0.5, 0.5, 0.5]):
     '''
     Function to annotate a given yt plot with a box of a given size (width) centered on a given center
     '''
     color, linewidth = 'red', 3
-    width_code = ds.arr(width, unit).in_units('code_length')
-    center = ds.arr(center, 'code_length')
+    width_code = ds.arr(width, unit).in_units('code_length').value.tolist()
+    proj_dict = {'x': 1, 'y': 2, 'z': 0}
 
-    p.annotate_line([center[0] - width_code/2, center[1] - width_code/2, 0.5], [center[0] - width_code/2, center[1] + width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
-    p.annotate_line([center[0] - width_code/2, center[1] + width_code/2, 0.5], [center[0] + width_code/2, center[1] + width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
-    p.annotate_line([center[0] + width_code/2, center[1] + width_code/2, 0.5], [center[0] + width_code/2, center[1] - width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
-    p.annotate_line([center[0] + width_code/2, center[1] - width_code/2, 0.5], [center[0] - width_code/2, center[1] - width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
+    for left_array, right_array in [[np.array([-1, -1, 0]), np.array([-1, +1, 0])], \
+                                    [np.array([-1, +1, 0]), np.array([+1, +1, 0])], \
+                                    [np.array([+1, +1, 0]), np.array([+1, -1, 0])], \
+                                    [np.array([+1, -1, 0]), np.array([-1, -1, 0])]]:
+        p.annotate_line(center + np.roll(left_array, proj_dict[projection]) * width_code/2, center + np.roll(right_array, proj_dict[projection]) * width_code/2, coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
 
     return p
 
@@ -71,7 +72,7 @@ def projection_plot(args):
 
     field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density'), 'cellsize': ('gas', 'd' + args.projection), 'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass')}
     cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat, 'cellsize': discrete_cmap, 'grid':'viridis', 'mrp':'viridis'}
-    zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1), 'grid': (1, 11), 'mrp': (1e57, 5e63)}
+    zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1), 'grid': (1, 11), 'mrp': (1e57, 1e65)}
 
     # ----------- get halo center, either rough center at z=2 from halo catalogue or more accurate center from center track file-------------------
     ds = yt.load(args.snap_name)  # last output
@@ -118,7 +119,7 @@ def projection_plot(args):
     if args.annotate_box:
         for thisbox in [200., 400.]: # comoving size at z=0 in kpc
             thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
-            p = annotate_box(p, thisphys, ds, unit='kpc', center=center)
+            p = annotate_box(p, thisphys, ds, unit='kpc', projection=args.projection, center=center)
 
     p.annotate_text((0.06, 0.12), args.halo, coord_system="axis")
     p.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)

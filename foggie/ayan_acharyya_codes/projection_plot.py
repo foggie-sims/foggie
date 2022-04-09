@@ -22,18 +22,19 @@ def ptype4(pfilter, data):
     return filter
 
 # ---------------------------------------------------------
-def annotate_box(p, width, ds, unit='kpc', center=[0.5, 0.5, 0.5]):
+def annotate_box(p, width, ds, unit='kpc', projection='x', center=[0.5, 0.5, 0.5]):
     '''
     Function to annotate a given yt plot with a box of a given size (width) centered on a given center
     '''
     color, linewidth = 'red', 3
-    width_code = ds.arr(width, unit).in_units('code_length')
-    center = ds.arr(center, 'code_length')
+    width_code = ds.arr(width, unit).in_units('code_length').value.tolist()
+    proj_dict = {'x': 1, 'y': 2, 'z': 0}
 
-    p.annotate_line([center[0] - width_code/2, center[1] - width_code/2, 0.5], [center[0] - width_code/2, center[1] + width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
-    p.annotate_line([center[0] - width_code/2, center[1] + width_code/2, 0.5], [center[0] + width_code/2, center[1] + width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
-    p.annotate_line([center[0] + width_code/2, center[1] + width_code/2, 0.5], [center[0] + width_code/2, center[1] - width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
-    p.annotate_line([center[0] + width_code/2, center[1] - width_code/2, 0.5], [center[0] - width_code/2, center[1] - width_code/2, 0.5], coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
+    for left_array, right_array in [[np.array([-1, -1, 0]), np.array([-1, +1, 0])], \
+                                    [np.array([-1, +1, 0]), np.array([+1, +1, 0])], \
+                                    [np.array([+1, +1, 0]), np.array([+1, -1, 0])], \
+                                    [np.array([+1, -1, 0]), np.array([-1, -1, 0])]]:
+        p.annotate_line(center + np.roll(left_array, proj_dict[projection]) * width_code/2, center + np.roll(right_array, proj_dict[projection]) * width_code/2, coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
 
     return p
 
@@ -72,7 +73,7 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     if args.annotate_box:
         for thisbox in [200., 400.]: # comoving size at z=0 in kpc
             thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
-            prj = annotate_box(prj, thisphys, ds, unit='kpc', center=center)
+            prj = annotate_box(prj, thisphys, ds, unit='kpc', projection=axs, center=center)
 
     prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
     prj.annotate_text((0.05, 0.9), name, coord_system='axis', text_args = {'fontsize': 500, 'color': 'white'})#, inset_box_args = {})
@@ -110,7 +111,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
     cmap_dict = {'gas':density_color_map, 'gas_entropy':entropy_color_map, 'stars':plt.cm.Greys_r, 'ys_density':density_color_map, 'ys_age':density_color_map, 'ys_mass':density_color_map, 'metal':metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap, 'vlos':velocity_discrete_cmap, 'grid':'viridis', 'mrp':'viridis'}
     unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', temp='K', vrad='km/s', ys_age='Myr', ys_mass='pc*Msun', gas_entropy='keV*cm**3', vlos='km/s', grid='', mrp='cm*g')
     zmin_dict = defaultdict(lambda: density_proj_min, metal=2e-2, temp=1.e3, vrad=-50, ys_age=0.1, ys_mass=1, ys_density=1e-3, gas_entropy=1.6e25, vlos=-50, grid=1, mrp=1e57)
-    zmax_dict = defaultdict(lambda: density_proj_max, metal= 5e0, temp= temperature_max, vrad=50, ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=50, grid=11, mrp=5e63)
+    zmax_dict = defaultdict(lambda: density_proj_max, metal= 5e0, temp= temperature_max, vrad=50, ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=50, grid=11, mrp=1e65)
     weight_field_dict = defaultdict(lambda: None, metal=('gas', 'density'), temp=('gas', 'density'), vrad=('gas', 'density'), vlos=('gas', 'density'))
     colorlog_dict = defaultdict(lambda: False, metal=True, gas=True, temp=True, gas_entropy=True, mrp=True)
 
