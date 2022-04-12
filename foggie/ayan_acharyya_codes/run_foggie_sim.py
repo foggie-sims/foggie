@@ -469,7 +469,8 @@ def run_forcedref(ncores, nhours, args):
     else:
         print('Copying existing', args.halo_dir + '/' + args.sim_name + '/' + track_filename)
 
-    execute_command('cp ' + args.halo_dir + '/' + args.sim_name + '/*track* ' + args.halo_dir + '/' + new_sim_name + '/.', args.dryrun)
+    execute_command('cp ' + args.halo_dir + '/' + args.sim_name + '/center_track*.dat ' + args.halo_dir + '/' + new_sim_name + '/.', args.dryrun)
+    execute_command('cp ' + args.halo_dir + '/' + args.sim_name + '/*track*' + str(args.refsize) + '* ' + args.halo_dir + '/' + new_sim_name + '/.', args.dryrun)
 
     # ---------submitting job-----------------
     workdir = args.halo_dir + '/' + new_sim_name
