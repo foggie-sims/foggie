@@ -2,7 +2,7 @@
 # CL and JT 2022 
 
 
-import napari, numpy as np, pandas as pd, scipy.ndimage as ndimage, yt, cmyt 
+import numpy as np, pandas as pd, scipy.ndimage as ndimage, yt, cmyt 
 yt.set_log_level(40)
 from foggie.utils.consistency import axes_label_dict, logfields, categorize_by_temp, \
     categorize_by_metals, categorize_by_fraction
