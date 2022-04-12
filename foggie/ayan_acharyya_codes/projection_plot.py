@@ -22,12 +22,13 @@ def ptype4(pfilter, data):
     return filter
 
 # ---------------------------------------------------------
-def annotate_box(p, width, ds, unit='kpc', projection='x', center=[0.5, 0.5, 0.5]):
+def annotate_box(p, width, ds, center, unit='kpc', projection='x'):
     '''
     Function to annotate a given yt plot with a box of a given size (width) centered on a given center
     '''
-    color, linewidth = 'red', 3
+    color, linewidth = 'red', 2
     width_code = ds.arr(width, unit).in_units('code_length').value.tolist()
+    center = ds.arr(center, 'kpc').in_units('code_length').value.tolist() # because input center is in kpc
     proj_dict = {'x': 1, 'y': 2, 'z': 0}
 
     for left_array, right_array in [[np.array([-1, -1, 0]), np.array([-1, +1, 0])], \
@@ -73,7 +74,7 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     if args.annotate_box:
         for thisbox in [200., 400.]: # comoving size at z=0 in kpc
             thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
-            prj = annotate_box(prj, thisphys, ds, unit='kpc', projection=axs, center=center)
+            prj = annotate_box(prj, thisphys, ds, center, unit='kpc', projection=axs)
 
     prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
     prj.annotate_text((0.05, 0.9), name, coord_system='axis', text_args = {'fontsize': 500, 'color': 'white'})#, inset_box_args = {})
