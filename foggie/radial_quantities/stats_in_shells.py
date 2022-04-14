@@ -493,7 +493,16 @@ def calc_stats(ds, snap, zsnap, refine_width_kpc, tablename, save_suffix, shape_
     print('Loading field arrays')
     sphere = ds.sphere(ds.halo_center_kpc, chunks[-1])
     if (args.cgm_filter):
-        sphere = sphere.cut_region("(obj['density'] < %.2e) & (obj['temperature'] > %.2e)" % (cgm_density_max, cgm_temperature_min))
+        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+        # with it being 1 at higher redshifts and 0.1 at lower redshifts
+        current_time = ds.current_time.in_units('Myr').v
+        if (current_time<=8656.88):
+            density_cut_factor = 1.
+        elif (current_time<=10787.12):
+            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+        else:
+            density_cut_factor = 0.1
+        sphere = sphere.cut_region("(obj['density'] < %.2e)" % (cgm_density_max * density_cut_factor))
     if (args.refined_only):
         sphere = sphere.cut_region("(obj['grid_level'] > 8)")
 
