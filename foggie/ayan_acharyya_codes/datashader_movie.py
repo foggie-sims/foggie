@@ -298,6 +298,8 @@ def overplot_stars(paramlist, axes, args, type='stars', npix_datashader=1000):
             axes.ax_marg_y = plot_1D_histogram(y_on_plot, y_min_on_plot, y_max_on_plot, axes.ax_marg_y, vertical=True, type=type)
 
         print_mpi('Overplotted ' + str(len(paramlist)) + ' of ' + str(init_len) + ', i.e., ' + '%.2F' % (len(paramlist) * 100 / init_len) + '% of ' + type + ' inside this box..', args)
+    else:
+        overplotted = -999 # dummy value
 
     return overplotted, axes
 
@@ -341,7 +343,6 @@ def plot_1D_histogram(data, data_min, data_max, ax, vertical=False, type='gas'):
     ax.tick_params(axis='x', which='both', top=False)
     if vertical: ax.set_ylim(data_min, data_max)
     else: ax.set_xlim(data_min, data_max)
-
     return ax
 
 # ---------------------------------------------------------------------------------
@@ -492,8 +493,9 @@ def wrap_axes(df, filename, npix_datashader, args, paramlist=None, abslist=None)
     ax1 = overplot_binned(df, ax1, args, npix_datashader=npix_datashader)
 
     # ----------to plot 1D histogram on the top and right axes--------------
-    axes.ax_marg_x = plot_1D_histogram(df[args.xcolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_x, vertical=False)
-    axes.ax_marg_y = plot_1D_histogram(df[args.ycolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_y, vertical=True)
+    axes.plot_marginals(sns.kdeplot, lw=1, linestyle='solid', color='black')
+    #axes.ax_marg_x = plot_1D_histogram(df[args.xcolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_x, vertical=False)
+    #axes.ax_marg_y = plot_1D_histogram(df[args.ycolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_y, vertical=True)
 
     # ------to make the axes-------------
     ax1.xaxis = make_coordinate_axis(args.xcol, args.xmin, args.xmax, ax1.xaxis, args.fontsize, npix_datashader=npix_datashader, dsh=True, log_scale=islog_dict[args.xcol] and args.use_cvs_log)
@@ -548,7 +550,8 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
 
     # -----------------to initialise figure---------------------
     shift_right = 'phi' in args.ycol or 'theta' in args.ycol
-    axes = sns.JointGrid(args.xcolname, args.ycolname, df, height=8)
+    show_marginal_ticks = True
+    axes = sns.JointGrid(args.xcolname, args.ycolname, df, height=8, marginal_ticks=show_marginal_ticks)
     extra_space = 0.03 if shift_right else 0
     plt.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95 + extra_space, top=0.95, bottom=0.1, left=0.1 + extra_space)
     fig, ax1 = plt.gcf(), axes.ax_joint
@@ -566,12 +569,13 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
     if args.overplot_absorbers: overplotted, axes = overplot_stars(abslist, axes, args, type='absorbers')
 
     if len(df) > 0:
-        # ----------to overplot binned profile----------------
-        ax1 = overplot_binned(df, ax1, args)
-
-        # ----------to plot 1D histogram on the top and right axes--------------
-        axes.ax_marg_x = plot_1D_histogram(df[args.xcolname], args.xmin, args.xmax, axes.ax_marg_x, vertical=False)
-        axes.ax_marg_y = plot_1D_histogram(df[args.ycolname], args.ymin, args.ymax, axes.ax_marg_y, vertical=True)
+        ax1 = overplot_binned(df, ax1, args) # to overplot binned profile
+        axes.plot_marginals(sns.kdeplot, lw=1, linestyle='solid', color='black') # to plot marginal 1D histograms
+        if show_marginal_ticks:
+            axes.ax_marg_x.set_yticklabels(axes.ax_marg_x.get_yticks(), fontsize=args.fontsize/1.5)
+            plt.setp(axes.ax_marg_x.get_yticklabels()[0], visible=False)
+            axes.ax_marg_y.set_xticklabels(axes.ax_marg_y.get_xticks(), fontsize=args.fontsize/1.5)
+            plt.setp(axes.ax_marg_y.get_xticklabels()[0], visible=False)
 
     # ------to make the axes-------------
     #ax1.set_xlim(20, 0) #
