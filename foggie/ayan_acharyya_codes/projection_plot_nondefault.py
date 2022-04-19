@@ -121,8 +121,9 @@ def projection_plot(args):
             thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
             p = annotate_box(p, thisphys, ds, unit='kpc', projection=args.projection, center=center)
 
-    p.annotate_text((0.06, 0.12), args.halo, coord_system="axis")
+    p.annotate_text((0.06, 0.12), args.halo, coord_system='axis')
     p.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
+    p.annotate_marker(center, coord_system='data')
     if not args.do == 'dm': p.set_cmap(field_dict[args.do], cmap_dict[args.do])
 
     # if args.do == 'cellsize': p.plots[field_dict[args.do]].cb.set_label('cell size (kpc)')

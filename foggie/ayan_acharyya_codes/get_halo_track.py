@@ -7,7 +7,8 @@
     Output :     Two ASCII files: one with the halo centers and one with the halo corners (i.e. track) depending upon the specified refine box size
     Author :     Ayan Acharyya
     Started :    Feb 2022
-    Examples :   run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L3-gas --halo 5205 --refsize 200 --reflevel 7
+    Examples :   run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L3-gas --halo 5205 --refsize 200 --reflevel 7 --compare_tracks
+                 run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --halo 5205 --run 25Mpc_DM_256-L3-gas_7n,25Mpc_DM_256-L3-gas_9n --compare_tracks
 
 """
 from header import *
@@ -127,7 +128,48 @@ def wrap_get_halo_track(args):
 
     print('Saved ' + halo_track_file)
 
+# ----------------------------------------------
+def plot_track(args):
+    '''
+    Function to plot tracks vs redshift
+    '''
+    args.run = [item for item in args.run.split(',')]
+    print('Comparing tracks from runs..', args.run)
+
+    if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/Work/astro/'
+    elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
+
+    fig, ax = plt.subplots(1)
+    linestyle_arr = ['solid', 'dashed', 'dotted']
+
+    for index, thisrun in enumerate(args.run):
+        # parse paths and filenames
+        args.output_path = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + thisrun + '/'
+        Path(args.output_path).mkdir(parents=True, exist_ok=True)
+        center_track_file = args.output_path + 'center_track.dat'
+        df = pd.read_table(center_track_file, delim_whitespace=True)
+
+        ax.plot(df['redshift'], df['center_x'], c='salmon', ls=linestyle_arr[index], label='x; ' + thisrun)
+        ax.plot(df['redshift'], df['center_y'], c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun)
+        ax.plot(df['redshift'], df['center_z'], c='cornflowerblue', ls=linestyle_arr[index], label='y; ' + thisrun)
+
+    plt.xlim(15, 2)
+    plt.xlabel('Redshift', fontsize=args.fontsize)
+    plt.ylabel('Center x,y,z (code units)', fontsize=args.fontsize)
+    plt.legend()
+    plt.show(block=False)
+
+    outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.halo + '_trackcompare_' + ','.join(args.run) + '.png'
+    fig.savefig(outfile)
+    print('Saved', outfile)
+
 # -----main code-----------------
 if __name__ == '__main__':
+    start_time = time.time()
     args = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
-    wrap_get_halo_track(args)
+    if args.last_center_guess is not None: args.last_center_guess = [item for item in args.last_center_guess.split(',')]
+
+    if args.compare_tracks: plot_track(args)
+    else: wrap_get_halo_track(args)
+
+    print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
