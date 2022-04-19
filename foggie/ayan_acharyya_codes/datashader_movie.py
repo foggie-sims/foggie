@@ -494,6 +494,8 @@ def wrap_axes(df, filename, npix_datashader, args, paramlist=None, abslist=None)
 
     # ----------to plot 1D histogram on the top and right axes--------------
     axes.plot_marginals(sns.kdeplot, lw=1, linestyle='solid', color='black')
+    axes.ax_marg_x.set_xlim(0, npix_datashader)
+    axes.ax_marg_y.set_ylim(0, npix_datashader)
     #axes.ax_marg_x = plot_1D_histogram(df[args.xcolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_x, vertical=False)
     #axes.ax_marg_y = plot_1D_histogram(df[args.ycolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_y, vertical=True)
 
@@ -571,6 +573,9 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
     if len(df) > 0:
         ax1 = overplot_binned(df, ax1, args) # to overplot binned profile
         axes.plot_marginals(sns.kdeplot, lw=1, linestyle='solid', color='black') # to plot marginal 1D histograms
+        axes.ax_marg_x.set_xlim(args.xmin, args.xmax)
+        axes.ax_marg_y.set_ylim(args.ymin, args.ymax)
+
         if show_marginal_ticks:
             axes.ax_marg_x.set_yticklabels(axes.ax_marg_x.get_yticks(), fontsize=args.fontsize/1.5)
             plt.setp(axes.ax_marg_x.get_yticklabels()[0], visible=False)
