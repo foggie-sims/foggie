@@ -198,7 +198,7 @@ if __name__ == '__main__':
     show_marginal_ticks = True
     nticks, nrow, ncol = 4, 2, 2
     fig = plt.figure(figsize=(10, 8))
-    gs = gridspec.GridSpec(nrow, ncol, figure=fig, hspace=0.05, wspace=0.05, right=0.98, top=0.83, bottom=0.08, left=0.1)
+    gs = gridspec.GridSpec(nrow, ncol, figure=fig, hspace=0.05, wspace=0.08, right=0.98, top=0.83, bottom=0.08, left=0.1)
 
     for index in range(nrow * ncol):
         print_mpi('Doing panel ' + str(index + 1) + ' out of ' + str(nrow * ncol) + '..', args)
@@ -228,9 +228,9 @@ if __name__ == '__main__':
         axes.plot_marginals(sns.kdeplot, lw=1, linestyle='solid', color='black')  # to plot marginal 1D histograms
 
         if show_marginal_ticks:
-            axes.ax_marg_x.set_yticklabels(['%.2F' % item for item in axes.ax_marg_x.get_yticks()], fontsize=args.fontsize / 1.8)
+            axes.ax_marg_x.set_yticklabels(['%.2F' % item for item in axes.ax_marg_x.get_yticks()], fontsize=args.fontsize / 1.5)
             plt.setp(axes.ax_marg_x.get_yticklabels()[0], visible=False)
-            axes.ax_marg_y.set_xticklabels(['%.2F' % item for item in axes.ax_marg_y.get_xticks()], fontsize=args.fontsize / 1.8)
+            axes.ax_marg_y.set_xticklabels(['%.2F' % item for item in axes.ax_marg_y.get_xticks()], fontsize=args.fontsize / 1.5)
             plt.setp(axes.ax_marg_y.get_xticklabels()[0], visible=False)
             axes.ax_marg_x.yaxis.set_label_text('')
             axes.ax_marg_y.xaxis.set_label_text('')
@@ -245,8 +245,11 @@ if __name__ == '__main__':
 
         if index % ncol == 0: ax.yaxis.set_ticklabels(['%.1F' % item for item in yticks], fontsize=args.fontsize)
         else: ax.yaxis.set_ticklabels([])
-        if int(index / ncol) + 1 == nrow: ax.xaxis.set_ticklabels(['%.1F' % item for item in xticks], fontsize=args.fontsize)
-        else: ax.xaxis.set_ticklabels([])
+        if int(index / ncol) + 1 == nrow:
+            ax.xaxis.set_ticklabels(['%.1F' % item for item in xticks], fontsize=args.fontsize)
+            if show_marginal_ticks: plt.setp(ax.get_xticklabels()[-1], visible=False)
+        else:
+            ax.xaxis.set_ticklabels([])
 
     # ---------to annotate colorbar----------------------
     cax_xpos, cax_ypos, cax_width, cax_height = 0.1, 0.93, 0.81, 0.03
