@@ -552,7 +552,7 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
 
     # -----------------to initialise figure---------------------
     shift_right = 'phi' in args.ycol or 'theta' in args.ycol
-    show_marginal_ticks = True
+    show_marginal_ticks = False #True
     axes = sns.JointGrid(args.xcolname, args.ycolname, df, height=8, marginal_ticks=show_marginal_ticks)
     extra_space = 0.03 if shift_right else 0
     plt.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95 + extra_space, top=0.95, bottom=0.1, left=0.1 + extra_space)
