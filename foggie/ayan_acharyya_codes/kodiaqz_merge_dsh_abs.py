@@ -226,6 +226,8 @@ if __name__ == '__main__':
             ax = overplot_binned(df, ax, args)
 
         axes.plot_marginals(sns.kdeplot, lw=1, linestyle='solid', color='black')  # to plot marginal 1D histograms
+        axes.ax_marg_x.set_xlim(args.xmin, args.xmax)
+        axes.ax_marg_y.set_ylim(args.ymin, args.ymax)
 
         if show_marginal_ticks:
             axes.ax_marg_x.set_yticklabels(['%.2F' % item for item in axes.ax_marg_x.get_yticks()], fontsize=args.fontsize / 1.5)
