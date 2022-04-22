@@ -1,15 +1,14 @@
 # region and edge analysis functions 
 # CL and JT 2022 
 
-
 import numpy as np, pandas as pd, scipy.ndimage as ndimage, yt, cmyt 
+import copy 
 yt.set_log_level(40)
 from foggie.utils.consistency import axes_label_dict, logfields, categorize_by_temp, \
     categorize_by_metals, categorize_by_fraction
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
 import seaborn as sns
-
 
 def function_for_edges(ds, trackfile, refine_box, box_size = 400., sampling_level = 9): 
     
@@ -39,10 +38,9 @@ def function_for_edges(ds, trackfile, refine_box, box_size = 400., sampling_leve
     z_cut_string = "(abs(obj[('stream','z')]) < 2.* 3.086e21)"
 
     region_dict = {'trackfile':trackfile, 'refine_box':refine_box, 'box_size':box_size, 'box':box, 'sampling_level':sampling_level,  
-                  'x_cut_string':x_cut_string, 'y_cut_string':y_cut_string, 'z_cut_string':z_cut_string}
+                  'x_cut_string':x_cut_string, 'y_cut_string':y_cut_string, 'z_cut_string':z_cut_string, 'refine_res':refine_res}
     
     return region_dict 
-
 
 
 def apply_region_cuts_to_dict(region_dict, number_of_edge_iterations = 1, region = 'inflow'): 
@@ -61,11 +59,13 @@ def apply_region_cuts_to_dict(region_dict, number_of_edge_iterations = 1, region
         x_cut_string = "(obj['temperature'] < 20000.) & " + region_dict["x_cut_string"]
         y_cut_string = "(obj['temperature'] < 20000.) & " + region_dict["y_cut_string"]
         z_cut_string = "(obj['temperature'] < 20000.) & " + region_dict["z_cut_string"]
+        region_name = 'disk'
     if ('inflow' in region):
         print('Will produce analysis for region = ', region_dict['region'])
         radial_velocity = box['radial_velocity_corrected'].in_units('km/s').v
         vff = box['vff'].in_units('km/s').v
         region_mask = (radial_velocity < vff)
+        region_name = 'inflow'
         x_cut_string = "(obj[('stream', 'radial_velocity')] < obj['vff']) & " + region_dict["x_cut_string"]
         y_cut_string = "(obj[('stream', 'radial_velocity')] < obj['vff']) & " + region_dict["y_cut_string"]
         z_cut_string = "(obj[('stream', 'radial_velocity')] < obj['vff']) & " + region_dict["z_cut_string"]
@@ -115,8 +115,10 @@ def apply_region_cuts_to_dict(region_dict, number_of_edge_iterations = 1, region
     region_dict['temperature_region'] = temperature_region
     region_dict['density_edges'] = density_edges
     region_dict['temperature_edges'] = temperature_edges
+    region_dict['region_name'] = region_name
 
     return region_dict
+
 
 
 def merge_two_regions(region1, region2): 
@@ -125,7 +127,9 @@ def merge_two_regions(region1, region2):
 
     #copy one of the dictionaries so we can manipulate its content 
     
+    #new_dict = copy.deepcopy(region1)
     new_dict = region1.copy()
+
     new_dict["region"] = 'overlap'
     
     new_dict['x_cut_string'] = "(obj['temperature_region'] > 20.) & (abs(obj[('stream','x')]) < 2.* 3.086e21)"
@@ -138,6 +142,8 @@ def merge_two_regions(region1, region2):
 
     new_dict['density_region'][~overlap_mask] = 1e-40
     new_dict['temperature_region'][~overlap_mask] = 10. 
+
+    new_dict['region_mask'] = overlap_mask
 
     return new_dict
 
@@ -155,6 +161,8 @@ def convert_to_new_dataset(region_dict, box_size):
             radial_velocity = (box['radial_velocity_corrected'].in_units('km/s').v, 'km/s'), 
             tangential_velocity = (box['tangential_velocity_corrected'].in_units('km/s').v, 'km/s'), \
             cooling_time = (box['cooling_time'].in_units('yr').v, 'yr'), \
+            metallicity = box['cooling_time'], \
+            tcool_tff = (box['tcool_tff'].v, 'dimensionless'), \
             radius = (box['radius_corrected'].in_units('kpc').v, 'kpc'), \
             vff = (box['vff'].in_units('km/s').v, 'km/s')) 
 
@@ -278,39 +286,50 @@ def plot_five(grid, region_dict, dataset_name):
     proj.save(dataset_name+'_'+region_dict["region"]+'_edges')
 
 
-def datashades(): 
+
+
+
+# THESE FUNCTIONS ARE CURRENTLY NOT OPERATIVE 
+
+def datashades( region_grid, region, dataset_name ): 
+    
+    # take in region dictionary and its recreated dataset 
+
     import foggie.render.shade_maps as sm 
 
     import datashader as dshader
     from datashader.utils import export_image
     import datashader.transfer_functions as tf
 
+    refine_res = region['refine_res']
+    #ad = region_grid.all_data() 
+
     #first we create a dataframe
-    d = {'temperature': np.log10(np.reshape(temperature, refine_res**3)), 
-         'density': np.log10(np.reshape(density, refine_res**3)),
-        'density_region': np.log10(np.reshape(density_disk, refine_res**3)),
-        'temperature_region': np.log10(np.reshape(temperature_disk, refine_res**3)),
-         'temperature_edges': np.log10(np.reshape(temperature_edges, refine_res**3)),
-         'density_edges': np.log10(np.reshape(density_edges, refine_res**3)),
-         'radial_velocity': np.reshape(radial_velocity, refine_res**3), 
-         'tangential_velocity':np.reshape(tangential_velocity, refine_res**3),
-         'cell_mass':np.log10(np.reshape(cell_mass, refine_res**3)), 
-         'metallicity':np.reshape(metallicity, refine_res**3),
-         'cooling_time':np.log10(np.reshape(cooling_time, refine_res**3)),
-         'radius':np.reshape(radius, refine_res**3), 
-         'vff':np.reshape(vff, refine_res**3)} 
+    d = {'temperature': np.log10(np.reshape(region_grid[("gas", "temperature")], refine_res**3)), 
+         'density': np.log10(np.reshape(region_grid[("gas", "density")], refine_res**3)),
+        'density_region': np.log10(np.reshape(region_grid['density_region'], refine_res**3)),
+        'temperature_region': np.log10(np.reshape(region_grid['temperature_region'], refine_res**3)),
+         'temperature_edges': np.log10(np.reshape(region_grid['temperature_edges'], refine_res**3)),
+         'density_edges': np.log10(np.reshape(region_grid['density_edges'], refine_res**3)),
+         'radial_velocity': np.reshape(region_grid[('stream','radial_velocity')], refine_res**3), 
+         'tangential_velocity':np.reshape(region_grid[('stream','tangential_velocity')], refine_res**3),
+         'cell_mass':np.log10(np.reshape(region_grid['cell_mass'], refine_res**3)), 
+         'metallicity':np.reshape(region_grid['metallicity'], refine_res**3),
+         'cooling_time':np.log10(np.reshape(region_grid['cooling_time'], refine_res**3)),
+         'radius':np.reshape(region_grid['radius'], refine_res**3), 
+         'vff':np.reshape(region_grid['vff'], refine_res**3)} 
     df = pd.DataFrame(data=d)
     df['phase'] = categorize_by_temp(df['temperature'])
     df.phase = df.phase.astype('category')
     df['metal'] = categorize_by_metals(df['metallicity'])
     df.metal = df.metal.astype('category')
 
+
     #full phase diagram 
     cvs = dshader.Canvas(plot_width=600, plot_height=600, x_range=[-32,-22], y_range=[1,8])
     agg = cvs.points(df, 'density', 'temperature', dshader.count_cat('phase'))
     img = tf.spread(tf.shade(agg, how='eq_hist', color_key=colormap_dict['phase'], min_alpha=40), shape='square', px=0)
     export_image(img,dataset_name+'_full_phase')
-
 
     #full velocities plot 
     cvs = dshader.Canvas(plot_width=600, plot_height=600, x_range=[-500,500], y_range=[-50,550])
@@ -342,33 +361,33 @@ def datashades():
     cvs = dshader.Canvas(plot_width=600, plot_height=600, x_range=[-32,-22], y_range=[1,8])
     agg = cvs.points(df[df.temperature_edges > 1.5], 'density', 'temperature', dshader.count_cat('phase'))
     img = tf.spread(tf.shade(agg, how='eq_hist', color_key=colormap_dict['phase'], min_alpha=40), shape='square', px=0)
-    export_image(img,dataset_name+'_'+region+'_edge_phase')
+    export_image(img,dataset_name+'_'+region['region_name']+'_edge_phase')
 
     # disk edge velocity plot 
     cvs = dshader.Canvas(plot_width=600, plot_height=600, x_range=[-500.,500.], y_range=[-50,550])
     agg = cvs.points(df[df.temperature_edges > 1.5], 'radial_velocity', 'tangential_velocity', dshader.count_cat('phase'))
     img = tf.spread(tf.shade(agg, how='eq_hist', color_key=colormap_dict['phase'], min_alpha=40), shape='square', px=0)
-    export_image(img,dataset_name+'_'+region+'_edge_velocities')
+    export_image(img,dataset_name+'_'+region['region_name']+'_edge_velocities')
 
 
     #full velocities plot 
     cvs = dshader.Canvas(plot_width=600, plot_height=600, x_range=[0,400], y_range=[-500,500])
     agg = cvs.points(df[df.temperature_edges > 1.5], 'radius', 'radial_velocity', dshader.count_cat('phase'))
     img = tf.spread(tf.shade(agg, how='eq_hist', color_key=colormap_dict['phase'], min_alpha=40), shape='square', px=0)
-    export_image(img,dataset_name+'_'+region+'_edge_rv')
+    export_image(img,dataset_name+'_'+region['region_name']+'_edge_rv')
 
 
     # disk edge cell_mass plot 
     cvs = dshader.Canvas(plot_width=600, plot_height=600, x_range=[1,8], y_range=[0,6])
     agg = cvs.points(df[df.temperature_edges > 1.5], 'temperature', 'cell_mass', dshader.count_cat('phase'))
     img = tf.spread(tf.shade(agg, how='eq_hist', color_key=colormap_dict['phase'], min_alpha=40), shape='square', px=0)
-    export_image(img,dataset_name+'_'+region+'_edge_cell_mass')
+    export_image(img,dataset_name+'_'+region['region_name']+'_edge_cell_mass')
 
     # disk edge cooling_time plot 
     cvs = dshader.Canvas(plot_width=600, plot_height=600, x_range=[1,8], y_range=[4,12])
     agg = cvs.points(df[df.temperature_edges > 1.5], 'temperature', 'cooling_time', dshader.count_cat('phase'))
     img = tf.spread(tf.shade(agg, how='eq_hist', color_key=colormap_dict['phase'], min_alpha=40), shape='square', px=0)
-    export_image(img,dataset_name+'_'+region+'_edge_cooling_time')
+    export_image(img,dataset_name+'_'+region['region_name']+'_edge_cooling_time')
 
 
     #disk only phase diagram 
