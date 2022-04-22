@@ -29,11 +29,10 @@ def ptype4(pfilter, data):
     return filter
 
 # ---------------------------------------------------------
-def annotate_box(p, width, ds, unit='kpc', projection='x', center=[0.5, 0.5, 0.5]):
+def annotate_box(p, width, ds, unit='kpc', projection='x', center=[0.5, 0.5, 0.5], linewidth=2, color='red'):
     '''
     Function to annotate a given yt plot with a box of a given size (width) centered on a given center
     '''
-    color, linewidth = 'red', 2
     width_code = ds.arr(width, unit).in_units('code_length').value.tolist()
     proj_dict = {'x': 1, 'y': 2, 'z': 0}
 

@@ -14,7 +14,7 @@
 from header import *
 from util import *
 from foggie.utils.get_halo_center import get_halo_center
-from projection_plot_nondefault import get_box
+from projection_plot_nondefault import get_box, annotate_box
 
 # -----------------------------------------------------
 def projection_plot(ds, center, radius, projection, args):
@@ -27,8 +27,12 @@ def projection_plot(ds, center, radius, projection, args):
     p.annotate_text((0.06, 0.12), args.halo, coord_system='axis')
     p.annotate_text((0.06, 0.08), args.run, coord_system='axis')
     p.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
+
     p.annotate_marker(center, coord_system='data')
     p.annotate_sphere(center, radius=(radius, 'kpc'), circle_args={'color': 'r'})
+
+    p = annotate_box(p, 50, ds, unit='kpc', projection='x', center=center, linewidth=1, color='white') # 50 physical kpc
+    p = annotate_box(p, 400 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection='x', center=center, linewidth=1, color='red') # 400 comoving kpc
 
     p.set_cmap('density', density_color_map)
     p.set_zlim('density', zmin=1e-5, zmax=5e-2)
@@ -80,6 +84,7 @@ def make_center_track_file(list_of_sims, center_track_file, args):
         # extract the required quantities
         zz = ds.current_redshift
         search_radius_physical = args.search_radius / (1 + zz) # comoving to physical conversion
+        print('Deb83: searching for DM peak within %.3F physical kpc of guessed center = '%search_radius_physical, new_center )
         new_center, vel_center = get_halo_center(ds, new_center, radius=search_radius_physical) # 'radius' requires physical kpc
         df.loc[len(df)] = [zz, new_center[0], new_center[1], new_center[2], args.output]
 
@@ -178,17 +183,18 @@ def plot_track(args):
         ax.plot(df['redshift'], df['center_x'], c='salmon', ls=linestyle_arr[index], label='x; ' + thisrun)
         ax.plot(df['redshift'], df['center_y'], c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun)
         ax.plot(df['redshift'], df['center_z'], c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun)
+        print('Deb 181:', df) #
 
-    plt.xlim(15, 2)
+    #plt.xlim(15, 2)
     plt.xlabel('Redshift', fontsize=args.fontsize)
     plt.ylabel('Center x,y,z (code units)', fontsize=args.fontsize)
     plt.legend()
     plt.show(block=False)
 
-    outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/' + args.halo + '_trackcompare_' + ','.join(args.run) + '.png'
+    outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/' + args.halo + '_trackcompare_' + ','.join(args.run).replace('/', '-') + '.png'
     fig.savefig(outfile)
     print('Saved', outfile)
-
+    '''
     if len(args.run) == 2:
         fig, ax = plt.subplots(1)
         linestyle_arr = ['solid', 'dashed', 'dotted']
@@ -213,7 +219,7 @@ def plot_track(args):
         outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/' + args.halo + '_trackcompare_' + ','.join(args.run) + '.png'
         fig.savefig(outfile)
         print('Saved', outfile)
-
+    '''
 # -----main code-----------------
 if __name__ == '__main__':
     start_time = time.time()
