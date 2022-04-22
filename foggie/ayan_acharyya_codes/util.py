@@ -1108,6 +1108,8 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--root_dir', metavar='root_dir', type=str, action='store', default='', help='root directory path where your foggie directory is (automatically grabs the correct path if you are on ayans system; default is empty string')
     parser.add_argument('--last_center_guess', metavar='last_center_guess', type=str, action='store', default=None, help='initial guess for the center of desired halo in code units')
     parser.add_argument('--compare_tracks', dest='compare_tracks', action='store_true', default=False, help='compare (plot) multiple existing center track files?, default is no')
+    parser.add_argument('--width', metavar='width', type=float, action='store', default=500, help='the width of projection plots, in kpc; default is 500 kpc')
+    parser.add_argument('--search_radius', metavar='search_radius', type=float, action='store', default=50, help='the radius within which to search for density peak, in comoving kpc; default is 50 ckpc')
 
     # ------- args added for plot_MZgrad.py ------------------------------
     parser.add_argument('--binby', metavar='binby', type=str, action='store', default=None, help='bin the plot by either redshift or mass; default is empty string = no binning')
