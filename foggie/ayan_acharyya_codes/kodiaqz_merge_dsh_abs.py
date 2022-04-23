@@ -195,34 +195,47 @@ if __name__ == '__main__':
 
     # -----------creating four-panel datashader plot with merged dataframe-------------------------------------------
     npix_datashader = 50
+    show_marginal_ticks = True
     nticks, nrow, ncol = 4, 2, 2
     fig = plt.figure(figsize=(10, 8))
-    gs = gridspec.GridSpec(nrow, ncol, figure=fig, hspace=0.05, wspace=0.05, right=0.98, top=0.83, bottom=0.08, left=0.1)
+    gs = gridspec.GridSpec(nrow, ncol, figure=fig, hspace=0.05, wspace=0.08, right=0.98, top=0.83, bottom=0.08, left=0.1)
 
     for index in range(nrow * ncol):
         print_mpi('Doing panel ' + str(index + 1) + ' out of ' + str(nrow * ncol) + '..', args)
         df, abs = df_arr[index], abs_arr[index]
 
-        axes = sns.JointGrid(args.xcolname, args.ycolname, df, height=8)
-        ax, margx, margy = axes.ax_joint, axes.ax_marg_x, axes.ax_marg_y
-        dummy = SeabornFig2Grid(axes, fig, gs[index]) # move this entire set of jointplot axes to the index-th panel of the gridspec figure
-
         if len(abs) > 0:
+            axes = sns.JointGrid(args.xcolname, args.ycolname, abs, height=8, marginal_ticks=show_marginal_ticks)
+            ax, margx, margy = axes.ax_joint, axes.ax_marg_x, axes.ax_marg_y
+            dummy = SeabornFig2Grid(axes, fig, gs[index])  # move this entire set of jointplot axes to the index-th panel of the gridspec figure
+
             artist = dsshow(abs, dsh.Point(args.xcolname, args.ycolname), dsh.mean(args.colorcolname), norm='linear',
                             cmap=list(color_key.values()), x_range=(args.xmin, args.xmax),
                             y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect='auto', ax=ax,
                             plot_width=npix_datashader, plot_height=npix_datashader) # same datashader plot with absorbers too, except in this case the pixel/bin sizes are larger than in case of FOGGIE plots
-            margx = plot_1D_histogram(abs[args.xcolname], args.xmin, args.xmax, margx, vertical=False)
-            margy = plot_1D_histogram(abs[args.ycolname], args.ymin, args.ymax, margy, vertical=True)
 
         if len(df) > 0:
+            axes = sns.JointGrid(args.xcolname, args.ycolname, df, height=8, marginal_ticks=show_marginal_ticks)
+            ax, margx, margy = axes.ax_joint, axes.ax_marg_x, axes.ax_marg_y
+            dummy = SeabornFig2Grid(axes, fig, gs[index])  # move this entire set of jointplot axes to the index-th panel of the gridspec figure
+
             artist = dsshow(df, dsh.Point(args.xcolname, args.ycolname), dsh.mean(args.colorcolname), norm='linear',
                             cmap=list(color_key.values()), x_range=(args.xmin, args.xmax),
                             y_range=(args.ymin, args.ymax), vmin=args.cmin, vmax=args.cmax, aspect='auto',
                             ax=ax)  # , shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
             ax = overplot_binned(df, ax, args)
-            margx = plot_1D_histogram(df[args.xcolname], args.xmin, args.xmax, margx, vertical=False)
-            margy = plot_1D_histogram(df[args.ycolname], args.ymin, args.ymax, margy, vertical=True)
+
+        axes.plot_marginals(sns.kdeplot, lw=1, linestyle='solid', color='black')  # to plot marginal 1D histograms
+        axes.ax_marg_x.set_xlim(args.xmin, args.xmax)
+        axes.ax_marg_y.set_ylim(args.ymin, args.ymax)
+
+        if show_marginal_ticks:
+            axes.ax_marg_x.set_yticklabels(['%.2F' % item for item in axes.ax_marg_x.get_yticks()], fontsize=args.fontsize / 1.5)
+            plt.setp(axes.ax_marg_x.get_yticklabels()[0], visible=False)
+            axes.ax_marg_y.set_xticklabels(['%.2F' % item for item in axes.ax_marg_y.get_xticks()], fontsize=args.fontsize / 1.5)
+            plt.setp(axes.ax_marg_y.get_xticklabels()[0], visible=False)
+            axes.ax_marg_x.yaxis.set_label_text('')
+            axes.ax_marg_y.xaxis.set_label_text('')
 
         ax.axhline(0, c='black', linestyle='dashed', linewidth=1)
         xticks = np.linspace(args.xmin, args.xmax, nticks)
@@ -234,8 +247,11 @@ if __name__ == '__main__':
 
         if index % ncol == 0: ax.yaxis.set_ticklabels(['%.1F' % item for item in yticks], fontsize=args.fontsize)
         else: ax.yaxis.set_ticklabels([])
-        if int(index / ncol) + 1 == nrow: ax.xaxis.set_ticklabels(['%.1F' % item for item in xticks], fontsize=args.fontsize)
-        else: ax.xaxis.set_ticklabels([])
+        if int(index / ncol) + 1 == nrow:
+            ax.xaxis.set_ticklabels(['%.1F' % item for item in xticks], fontsize=args.fontsize)
+            if show_marginal_ticks: plt.setp(ax.get_xticklabels()[-1], visible=False)
+        else:
+            ax.xaxis.set_ticklabels([])
 
     # ---------to annotate colorbar----------------------
     cax_xpos, cax_ypos, cax_width, cax_height = 0.1, 0.93, 0.81, 0.03

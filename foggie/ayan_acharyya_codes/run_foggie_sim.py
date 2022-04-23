@@ -103,12 +103,12 @@ def setup_DM_conf_file(args):
     '''
     # --------get conf file names-----------
     template_conf_file = args.template_dir + '/halo_H_DM_XtoY.conf'
-    target_conf_file = args.halo_dir + '/halo_' + args.halo + '_DM_' + str(args.level - 1) + 'to' + str(args.level) + '.conf'
+    target_conf_file = args.working_dir + '/halo_' + args.halo + '_DM_' + str(args.level - 1) + 'to' + str(args.level) + '.conf'
 
     # ---------getting correct halo center based on the refinement level-----------------
     print('Before starting L-' + str(args.level) + ',',)
     if args.level > 1:
-        conf_log_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level - 1) + '.conf_log.txt'
+        conf_log_file = args.working_dir + '/' + args.sim_name + '-L' + str(args.level - 1) + '.conf_log.txt'
         shifts = get_shifts(conf_log_file)
         args.centerL = args.center0 + np.array(shifts) / 255. # to convert shifts into code units
         print('center offsets = ', shifts, ' ',)
@@ -119,7 +119,7 @@ def setup_DM_conf_file(args):
     halo_cen = ', '.join([str(item) for item in args.centerL])
 
     # ---------make substitutions in conf file-----------------
-    if args.level > 1: sim_dir = args.halo_dir
+    if args.level > 1: sim_dir = args.working_dir
     else: sim_dir = args.sim_dir
 
     replacements = {'SIM_NAME': args.sim_name, 'SIM_DIR': sim_dir, 'FINAL_Z': args.final_z, 'HALO_CEN': halo_cen}  # keywords to be replaced in template file
@@ -133,7 +133,7 @@ def setup_gas_conf_file(args):
     Function to write .conf file for the gas run, based on that of DM only runs
     '''
     # --------get conf file names-----------
-    source_conf_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '.conf'
+    source_conf_file = args.working_dir + '/' + args.sim_name + '-L' + str(args.level) + '.conf'
     target_conf_file = os.path.splitext(source_conf_file)[0] + '-gas.conf'
 
     # ---------make substitutions in conf file-----------------
@@ -146,7 +146,7 @@ def run_music(target_conf_file, args):
     '''
     Function to run MUSIC, to generate the initial conditions for a given level
     '''
-    os.chdir(args.halo_dir)
+    os.chdir(args.working_dir)
     print('Starting MUSIC..\n')
 
     if do_gas(args): # run MUSIC directly for gas runs
@@ -169,10 +169,10 @@ def setup_enzoparam_file(args):
     # --------get conf file names-----------
     gas_or_dm = '-gas' if do_gas(args) else ''
     template_param_file = args.template_dir + '/25Mpc_DM_256-LX' + gas_or_dm + '.enzo'
-    target_param_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '.enzo'
+    target_param_file = args.working_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '.enzo'
 
     # ---------getting correct grid parameters-----------------
-    param_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '/parameter_file.txt'
+    param_file = args.working_dir + '/' + args.sim_name + '-L' + str(args.level) + '/parameter_file.txt'
     stuff_from_paramfile = ''
     with open(param_file, 'r') as infile:
         for line in infile:
@@ -192,12 +192,12 @@ def run_enzo(nnodes, ncores, nhours, args):
     # --------get file names-----------
     gas_or_dm = '-gas' if do_gas(args) else ''
     template_runscript = args.template_dir + '/RunScript_LX.sh'
-    target_runscript = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '/RunScript.sh'
+    target_runscript = args.working_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '/RunScript.sh'
     enzo_param_file = args.sim_name + '-L' + str(args.level) + gas_or_dm + '.enzo'
 
     # ---------make substitutions in conf file-----------------
-    if do_gas(args): jobname = args.halo_name + '_gas_' + 'L' + str(args.level)
-    else: jobname = args.halo_name + '_DM_' + 'L' + str(args.level)
+    if do_gas(args): jobname = args.halo_name + '_gas_' + 'L' + str(args.level) + '_' + str(args.nreflevel) + 'n'
+    else: jobname = args.halo_name + '_DM_' + 'L' + str(args.level) + '_' + str(args.nreflevel) + 'n'
 
     path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
     calls_to_script = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + ' /u/scicon/tools/bin/mbind.x -cs \" -wall ' + str(3600 * float(nhours)) + ' -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"'
@@ -206,7 +206,7 @@ def run_enzo(nnodes, ncores, nhours, args):
                     'CALLS_TO_SCRIPT': calls_to_script}  # keywords to be replaced in template file
     replace_keywords_in_file(replacements, template_runscript, target_runscript)
 
-    workdir = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm
+    workdir = args.working_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm
     os.chdir(workdir)
     execute_command('qsub ' + target_runscript, args.dryrun)
     print('Submitted enzo job:', jobname, 'at', datetime.datetime.now().strftime("%H:%M:%S"))
@@ -217,7 +217,7 @@ def run_enzo(nnodes, ncores, nhours, args):
             monitor_for_file_ospath(file_to_monitor)  # just as a backup check
 
             args.run = args.sim_name + '-L' + str(args.level) + gas_or_dm
-            conf_log_file = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '.conf_log.txt'
+            conf_log_file = args.working_dir + '/' + args.sim_name + '-L' + str(args.level) + gas_or_dm + '.conf_log.txt'
             args.center_offset = get_shifts(conf_log_file)
             projection_plot(args)
         except:
@@ -254,7 +254,7 @@ def rerun_enzo_with_shielding(args):
     '''
     Function to turn on self-shielding and restart the Enzo job from z=15
     '''
-    workdir = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + '-gas'
+    workdir = args.working_dir + '/' + args.sim_name + '-L' + str(args.level) + '-gas'
     file_to_monitor = workdir + '/RunFinished'
     os.chdir(workdir)
 
@@ -334,7 +334,7 @@ def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
     '''
     # --------set file names and job names, etc.-----------
     template_runscript = args.template_dir + '/RunScript_LX.sh'
-    target_runscript = args.halo_dir + '/RunScript-L' + str(args.level) + '-to-L' + str(args.final_level) + '.sh'
+    target_runscript = args.working_dir + '/RunScript-L' + str(args.level) + '-to-L' + str(args.final_level) + '.sh'
     path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
     path_to_script = '/nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
 
@@ -343,7 +343,7 @@ def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
     dm_or_gas = '-gas' if do_gas(args) else ''
 
     # ---------loop over subsequent refinement levels to create separate lines in the PBS job script-----------------
-    calls_to_script = '\ncd ' + args.halo_dir + '\n\n'
+    calls_to_script = '\ncd ' + args.working_dir + '\n\n'
     for thislevel in range(args.level, args.final_level + 1):
         dummy_args = copy.copy(args)
         dummy_args.automate, dummy_args.dryrun = False, False  # such that only individual levels are addressed inside the loop
@@ -352,7 +352,7 @@ def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
 
         argslist = {key: val for key, val in vars(dummy_args).items() if val is not None}
         call_to_pyscript = 'python ' + path_to_script + 'run_foggie_sim.py ' + ' '.join(['--' + key + ' ' + str(val) for key,val in argslist.items()]) # this runs the setup required BEFORE the enzo job (including running MUSIC) for a given refinement level
-        call_to_cd = 'cd ' + dummy_args.halo_dir + '/' + dummy_args.sim_name + '-L' + str(dummy_args.level)
+        call_to_cd = 'cd ' + dummy_args.working_dir + '/' + dummy_args.sim_name + '-L' + str(dummy_args.level)
         call_to_simrun = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + ' /u/scicon/tools/bin/mbind.x -cs \" -wall 432000 -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"' # this runs the enzo job for a given refinement level
         calls_to_script += call_to_pyscript + '\n\n' + call_to_cd + '\n\n' + call_to_simrun + '\n\n'
 
@@ -382,7 +382,7 @@ def wrap_run_enzo(ncores, nhours, args):
     Wrapper function to execute other functions i.e. setup conf files, run MUSIC, run enzo, etc. for a given refinement level
     '''
     dm_or_gas = '-gas' if do_gas(args) else ''
-    workdir = args.halo_dir + '/' + args.sim_name + '-L' + str(args.level) + dm_or_gas
+    workdir = args.working_dir + '/' + args.sim_name + '-L' + str(args.level) + dm_or_gas
     run_finished_file = workdir + '/RunFinished'
 
     if not os.path.exists(run_finished_file) or args.clobber: # go through with the jobs only if the job hasn't already been done and completed (in which case the pbs output file will be there)
@@ -405,21 +405,19 @@ def run_forcedref(ncores, nhours, args):
     Function to submit the Enzo simulation job with forced refinement turned on, from a given output onwards
     '''
     # --------get file names-----------
-    new_sim_name = 'nref' + str(args.creflevel) + 'c_nref' + str(args.freflevel) + 'f'
-    args.sim_name += '-L3-gas'
+    args.sim_name = 'natural_' + str(args.nreflevel) + 'n/' + args.sim_name + '-L3-gas'
 
     # ------create new directory copy over required output-----------
-    execute_command('mkdir -p ' + args.halo_dir + '/' + new_sim_name, args.dryrun)
-    if not os.path.exists(args.halo_dir + '/' + new_sim_name + '/' + args.start_output):
-        execute_command('cp -r ' + args.halo_dir + '/' + args.sim_name + '/' + args.start_output + ' ' + args.halo_dir + '/' + new_sim_name + '/.', args.dryrun)
+    if not os.path.exists(args.working_dir + '/' + args.start_output):
+        execute_command('cp -r ' + args.halo_dir + '/' + args.sim_name + '/' + args.start_output + ' ' + args.working_dir + '/.', args.dryrun)
     else:
-        print(args.halo_dir + '/' + new_sim_name + '/' + args.start_output + ' already present')
+        print(args.working_dir + '/' + args.start_output + ' already present')
 
     # ---------make substitutions in RunScript file-----------------
     template_runscript = args.template_dir + '/RunScript_LX.sh'
-    target_runscript = args.halo_dir + '/' + new_sim_name + '/RunScript.sh'
+    target_runscript = args.working_dir + '/RunScript.sh'
 
-    jobname = args.halo_name + '_' + new_sim_name
+    jobname = args.halo_name + '_' + os.path.split(args.working_dir)[-1]
     enzo_param_file = './' + args.start_output + '/' + args.start_output
     path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
     calls_to_script = path_to_simrun + ' -mpi \"mpiexec -np ' + str(args.nnodes * ncores) + ' /u/scicon/tools/bin/mbind.x -cs \" -wall ' + str(3600 * float(nhours)) + ' -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"'
@@ -429,7 +427,7 @@ def run_forcedref(ncores, nhours, args):
     replace_keywords_in_file(replacements, template_runscript, target_runscript)
 
     # ---------make substitutions in conf file-----------------
-    source_conf_file = args.halo_dir + '/' + new_sim_name + '/' + args.start_output + '/' + args.start_output
+    source_conf_file = args.working_dir + '/' + args.start_output + '/' + args.start_output
     track_filename = 'halo_track_' + str(args.refsize) + 'kpc_nref' + str(args.freflevel)
 
     replacements = {'dtDataDump': 0.25, 'CellFlaggingMethod': '2 4 7 8 12 -99999 -99999 -99999 -99999 -99999 -99999', \
@@ -447,7 +445,7 @@ def run_forcedref(ncores, nhours, args):
 
     # ---------make output log file-----------------
     source_outputlog_file = args.halo_dir + '/' + args.sim_name + '/OutputLog'
-    target_outputlog_file = args.halo_dir + '/' +new_sim_name + '/OutputLog'
+    target_outputlog_file = args.working_dir + '/OutputLog'
 
     with open(source_outputlog_file, 'r') as fin: lines = fin.readlines()
 
@@ -469,11 +467,11 @@ def run_forcedref(ncores, nhours, args):
     else:
         print('Copying existing', args.halo_dir + '/' + args.sim_name + '/' + track_filename)
 
-    execute_command('cp ' + args.halo_dir + '/' + args.sim_name + '/*track* ' + args.halo_dir + '/' + new_sim_name + '/.', args.dryrun)
+    execute_command('cp ' + args.halo_dir + '/' + args.sim_name + '/center_track*.dat ' + args.working_dir + '/.', args.dryrun)
+    execute_command('cp ' + args.halo_dir + '/' + args.sim_name + '/*track*' + str(args.refsize) + '* ' + args.working_dir + '/.', args.dryrun)
 
     # ---------submitting job-----------------
-    workdir = args.halo_dir + '/' + new_sim_name
-    os.chdir(workdir)
+    os.chdir(args.workdir)
     execute_command('qsub ' + target_runscript, args.dryrun)
     print('Submitted enzo job:', jobname, 'at', datetime.datetime.now().strftime("%H:%M:%S"))
 
@@ -524,7 +522,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--forcedref', dest='forcedref', action='store_true', default=False, help='run forced refinment runs?, default is no, only DM')
     parser.add_argument('--start_output', metavar='start_output', type=str, action='store', default='RD0008', help='which output to start forced refinment runs at? default is RD0008 i.e. z=10')
-    parser.add_argument('--creflevel', metavar='creflevel', type=int, action='store', default=9, help='which cooling refinement level? default 9')
+    parser.add_argument('--creflevel', metavar='creflevel', type=int, action='store', default=None, help='which cooling refinement level? default = nreflevel')
     parser.add_argument('--freflevel', metavar='freflevel', type=int, action='store', default=7, help='which forced refinement level? default 7')
     parser.add_argument('--refsize', metavar='refsize', type=int, action='store', default=200, help='forced refinement boxsize, in kpc? default 200 kpc')
 
@@ -536,10 +534,13 @@ if __name__ == '__main__':
     args.foggie_dir = args.sim_dir
     args.sim_dir = root_dir + args.sim_dir
     args.halo_dir = args.sim_dir + '/' + args.halo_name
+    if args.creflevel is None: args.creflevel = args.nreflevel
+    if args.forcedref: args.working_dir = args.halo_dir + '/nref' + str(args.creflevel) + 'c_nref' + str(args.freflevel) + 'f'
+    else: args.working_dir = args.halo_dir + '/natural_' + str(args.nreflevel) + 'n'
     args.template_dir = args.sim_dir + '/' + 'halo_template'
     code_dir = root_dir + 'ayan_codes/foggie/foggie/ayan_acharyya_codes'
 
-    Path(args.halo_dir).mkdir(parents=True, exist_ok=True) # creating the directory structure, if doesn't exist already
+    Path(args.working_dir).mkdir(parents=True, exist_ok=True) # creating the directory structure, if doesn't exist already
 
     # ----------special settings for ldan queue--------
     if args.queue == 'ldan':

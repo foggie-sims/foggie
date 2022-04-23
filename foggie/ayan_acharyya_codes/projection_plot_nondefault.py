@@ -29,11 +29,10 @@ def ptype4(pfilter, data):
     return filter
 
 # ---------------------------------------------------------
-def annotate_box(p, width, ds, unit='kpc', projection='x', center=[0.5, 0.5, 0.5]):
+def annotate_box(p, width, ds, unit='kpc', projection='x', center=[0.5, 0.5, 0.5], linewidth=2, color='red'):
     '''
     Function to annotate a given yt plot with a box of a given size (width) centered on a given center
     '''
-    color, linewidth = 'red', 2
     width_code = ds.arr(width, unit).in_units('code_length').value.tolist()
     proj_dict = {'x': 1, 'y': 2, 'z': 0}
 
@@ -121,8 +120,9 @@ def projection_plot(args):
             thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
             p = annotate_box(p, thisphys, ds, unit='kpc', projection=args.projection, center=center)
 
-    p.annotate_text((0.06, 0.12), args.halo, coord_system="axis")
+    p.annotate_text((0.06, 0.12), args.halo, coord_system='axis')
     p.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
+    p.annotate_marker(center, coord_system='data')
     if not args.do == 'dm': p.set_cmap(field_dict[args.do], cmap_dict[args.do])
 
     # if args.do == 'cellsize': p.plots[field_dict[args.do]].cb.set_label('cell size (kpc)')
@@ -135,7 +135,9 @@ def projection_plot(args):
         p.annotate_sphere(center, radius=(thishalo['Rvir'], "kpc"), circle_args={"color": "white"})
         p.annotate_text((0.06, 0.08), "M = "+"{0:.2e}".format(thishalo['Mvir'][0]), coord_system="axis")
 
-    p.save(args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.halo_name + '_' + args.run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
+    target_dir = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/figs/'
+    Path(target_dir).mkdir(parents=True, exist_ok=True)
+    p.save(target_dir + args.halo_name + '_' + args.run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
     print('This snapshot completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
 
     return p
@@ -152,7 +154,7 @@ if __name__ == '__main__':
     parser.add_argument('--output', metavar='output', type=str, action='store', default='RD0111', help='which output?')
     parser.add_argument('--do', metavar='do', type=str, action='store', default='dm', help='Which particles do you want to plot? Default is gas')
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x')
-    parser.add_argument('--width', metavar='width', type=float, action='store', default=None, help='the extent to which plots will be rendered (each side of a square box), in kpc; default is 1000 kpc')
+    parser.add_argument('--width', metavar='width', type=float, action='store', default=None, help='the extent to which plots will be rendered (each side of a square box), in kpc; default is None, which corresponds to the whole domain')
     parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False, help='Use full refine box, ignoring args.width?, default is no')
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
     parser.add_argument('--center', metavar='center', type=str, action='store', default=None, help='center of projection in code units')
