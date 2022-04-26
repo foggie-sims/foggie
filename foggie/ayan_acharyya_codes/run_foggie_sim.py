@@ -566,7 +566,7 @@ if __name__ == '__main__':
 
     index = [halos['ID'] == int(args.halo[:4])]
     thishalo = halos[index]
-    args.center0 = np.array([thishalo['X'][0]/25., thishalo['Y'][0]/25., thishalo['Z'][0]/25.]) # divided by 25 comoving Mpc^-1 to convert comoving Mpc h^-1 units to code units
+    args.center0 = np.array([thishalo['X'][0], thishalo['Y'][0], thishalo['Z'][0]])/25 # divided by 25 comoving Mpc^-1 to convert comoving Mpc h^-1 units to code units
     rvir = np.max([thishalo['Rvir'][0], 200.])
     print('Starting halo', thishalo['ID'][0], 'L0-centered at =', args.center0, 'with Rvir =', rvir, 'comoving kpc h^-1', 'at refinement level', args.level)
 

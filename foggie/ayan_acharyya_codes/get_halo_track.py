@@ -138,7 +138,7 @@ def wrap_get_halo_track(args):
         halos = Table.read('/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list', format='ascii', header_start=0)
         index = [halos['ID'] == int(args.halo[:4])]
         thishalo = halos[index]
-        center_L0 = np.array([thishalo['X'][0] / 25., thishalo['Y'][0] / 25., thishalo['Z'][0] / 25.])  # divided by 25 comoving Mpc^-1 to convert comoving Mpc h^-1 units to code units
+        center_L0 = np.array([thishalo['X'][0], thishalo['Y'][0], thishalo['Z'][0]])/25  # divided by 25 comoving Mpc^-1 to convert comoving Mpc h^-1 units to code units
 
         conf_log_file = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.run + '.conf_log.txt'
         shifts = get_shifts(conf_log_file)

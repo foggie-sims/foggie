@@ -92,7 +92,7 @@ def projection_plot(args):
             center = interp1d(df_track_int['redshift'], df_track_int[['center_x', 'center_y', 'center_z']], axis=0)(ds.current_redshift)
             print('Center from center track file =', center)
         else:
-            center = np.array([thishalo['X'][0] / 25., thishalo['Y'][0] / 25., thishalo['Z'][0] / 25.])  # divided by 25 to convert Mpc units to code units
+            center = np.array([thishalo['X'][0], thishalo['Y'][0], thishalo['Z'][0]])/25 # divided by 25 comoving Mpc^-1 to convert comoving Mpc h^-1 units to code units
             print('Center for L0_gas =', center)
     else:
         center = args.center
