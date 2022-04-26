@@ -7,7 +7,8 @@
     Output :     Two ASCII files: one with the halo centers and one with the halo corners (i.e. track) depending upon the specified refine box size
     Author :     Ayan Acharyya
     Started :    Feb 2022
-    Examples :   run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L3-gas --halo 5205 --refsize 200 --reflevel 7 --search_radius 50 --width 200
+    Examples :   run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L3-gas --halo 5205 --refsize 200 --reflevel 7 --search_radius 20 --width 200 --last_center_guess 0.560013,0.505539,0.538864
+                 run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L3-gas --halo 5205 --refsize 200 --reflevel 9 --search_radius 20 --width 200 --last_center_guess 0.524715,0.503910,0.519596
                  run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --halo 5205 --run natural_7n/25Mpc_DM_256-L3-gas,natural_9n/25Mpc_DM_256-L3-gas --compare_tracks
 
 """
@@ -31,8 +32,9 @@ def projection_plot(ds, center, radius, projection, args):
     p.annotate_marker(center, coord_system='data')
     p.annotate_sphere(center, radius=(radius, 'kpc'), circle_args={'color': 'r'})
 
-    p = annotate_box(p, 50, ds, unit='kpc', projection='x', center=center, linewidth=1, color='white') # 50 physical kpc
-    p = annotate_box(p, 400 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection='x', center=center, linewidth=1, color='red') # 400 comoving kpc
+    p = annotate_box(p, 50, ds, unit='kpc', projection=projection, center=center, linewidth=1, color='white') # 50 physical kpc
+    p = annotate_box(p, 250 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection=projection, center=center, linewidth=1, color='green') # 250 comoving kpc
+    p = annotate_box(p, 400 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection=projection, center=center, linewidth=1, color='red') # 400 comoving kpc
 
     p.set_cmap('density', density_color_map)
     p.set_zlim('density', zmin=1e-5, zmax=5e-2)
@@ -67,7 +69,7 @@ def make_center_track_file(list_of_sims, center_track_file, args):
     print('List of the total ' + str(total_snaps) + ' sims =', np.array(list_of_sims)[:,1])
 
     # --------setup dataframe-----------
-    df = pd.DataFrame(columns=['redshift', 'center_x', 'center_y', 'center_z', 'output'])
+    df = pd.DataFrame(columns=['redshift', 'center_x', 'center_y', 'center_z', 'box_size_mpc', 'output'])
 
     new_center = args.last_center_guess # to be used as the initial guess for center for the very first instance (lowest redshift, and then will loop to higher and higher redshifts)
 
@@ -83,10 +85,11 @@ def make_center_track_file(list_of_sims, center_track_file, args):
 
         # extract the required quantities
         zz = ds.current_redshift
-        search_radius_physical = args.search_radius / (1 + zz) # comoving to physical conversion
-        print('Deb83: searching for DM peak within %.3F physical kpc of guessed center = '%search_radius_physical, new_center )
+        box_size_mpc = ds.arr(1, 'code_length').in_units('Mpc')
+        search_radius_physical = args.search_radius / (1 + zz) / ds.hubble_constant # comoving to physical conversion
+        print('Searching for DM peak within %.3F physical kpc of guessed center = '%search_radius_physical, new_center )
         new_center, vel_center = get_halo_center(ds, new_center, radius=search_radius_physical) # 'radius' requires physical kpc
-        df.loc[len(df)] = [zz, new_center[0], new_center[1], new_center[2], args.output]
+        df.loc[len(df)] = [zz, new_center[0], new_center[1], new_center[2], box_size_mpc, args.output]
 
         if not args.noplot: projection_plot(ds, new_center, search_radius_physical, args.projection, args)
         print('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60))
@@ -172,6 +175,7 @@ def plot_track(args):
     elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
 
     fig, ax = plt.subplots(1)
+    ax2 = ax.twinx()
     linestyle_arr = ['solid', 'dashed', 'dotted']
 
     for index, thisrun in enumerate(args.run):
@@ -183,11 +187,13 @@ def plot_track(args):
         ax.plot(df['redshift'], df['center_x'], c='salmon', ls=linestyle_arr[index], label='x; ' + thisrun)
         ax.plot(df['redshift'], df['center_y'], c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun)
         ax.plot(df['redshift'], df['center_z'], c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun)
+        ax2.plot(df['redshift'], df['box_size_mpc'], c='saddlebrown', ls=linestyle_arr[index], label='box; ' + thisrun)
         print('Deb 181:', df) #
 
-    #plt.xlim(15, 2)
-    plt.xlabel('Redshift', fontsize=args.fontsize)
-    plt.ylabel('Center x,y,z (code units)', fontsize=args.fontsize)
+    ax.set_xlim(15, 2)
+    ax.set_xlabel('Redshift', fontsize=args.fontsize)
+    ax.set_ylabel('Center x,y,z (code units)', fontsize=args.fontsize)
+    ax2.set_ylabel('Physical box size (Mpc)', fontsize=args.fontsize)
     plt.legend()
     plt.show(block=False)
 

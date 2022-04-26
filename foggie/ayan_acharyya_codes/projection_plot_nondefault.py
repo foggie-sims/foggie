@@ -137,7 +137,8 @@ def projection_plot(args):
 
     target_dir = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/figs/'
     Path(target_dir).mkdir(parents=True, exist_ok=True)
-    p.save(target_dir + args.halo_name + '_' + args.run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
+    run = args.run.replace('/', '_')
+    p.save(target_dir + args.halo_name + '_' + run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
     print('This snapshot completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
 
     return p
