@@ -491,7 +491,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_pleiades')
     parser.add_argument('--queue', metavar='queue', type=str, action='store', default='long')
-    parser.add_argument('--nnodes', metavar='nnodes', type=int, action='store', default=4)
+    parser.add_argument('--nnodes', metavar='nnodes', type=int, action='store', default=1)
     parser.add_argument('--ncores', metavar='ncores', type=int, action='store', default=16)
     parser.add_argument('--nhours', metavar='nhours', type=int, action='store', default=None)
     parser.add_argument('--proc', metavar='proc', type=str, action='store', default='has')
@@ -566,9 +566,9 @@ if __name__ == '__main__':
 
     index = [halos['ID'] == int(args.halo[:4])]
     thishalo = halos[index]
-    args.center0 = np.array([thishalo['X'][0]/25., thishalo['Y'][0]/25., thishalo['Z'][0]/25.]) # divided by 25 to convert Mpc units to code units
+    args.center0 = np.array([thishalo['X'][0]/25., thishalo['Y'][0]/25., thishalo['Z'][0]/25.]) # divided by 25 comoving Mpc^-1 to convert comoving Mpc h^-1 units to code units
     rvir = np.max([thishalo['Rvir'][0], 200.])
-    print('Starting halo', thishalo['ID'][0], 'L0-centered at =', args.center0, 'with Rvir =', rvir, 'kpc', 'at refinement level', args.level)
+    print('Starting halo', thishalo['ID'][0], 'L0-centered at =', args.center0, 'with Rvir =', rvir, 'comoving kpc h^-1', 'at refinement level', args.level)
 
     if args.forcedref: run_forcedref(ncores, nhours, args) # run forced refinement runs
     else: wrap_run_enzo(ncores, nhours, args) # run MUSIC and Enzo

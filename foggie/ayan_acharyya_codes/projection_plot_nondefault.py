@@ -116,8 +116,8 @@ def projection_plot(args):
         p.annotate_grids(min_level=args.min_level)
 
     if args.annotate_box:
-        for thisbox in [200., 400.]: # comoving size at z=0 in kpc
-            thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
+        for thisbox in [200., 400.]: # comoving kpc h^-1
+            thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical kpc
             p = annotate_box(p, thisphys, ds, unit='kpc', projection=args.projection, center=center)
 
     p.annotate_text((0.06, 0.12), args.halo, coord_system='axis')
@@ -130,10 +130,10 @@ def projection_plot(args):
     try: p.set_zlim(field_dict[args.do], zmin=zlim_dict[args.do][0], zmax=zlim_dict[args.do][1])
     except: pass
 
-    # -------------optional annotations (if Rvir and M info exists) -------------------------------
+    # -------------optional annotations (if Rvir and Mvir info exists) -------------------------------
     if len(thishalo) > 0:
-        p.annotate_sphere(center, radius=(thishalo['Rvir'], "kpc"), circle_args={"color": "white"})
-        p.annotate_text((0.06, 0.08), "M = "+"{0:.2e}".format(thishalo['Mvir'][0]), coord_system="axis")
+        p.annotate_sphere(center, radius=(thishalo['Rvir'][0] / (1 + ds.current_redshift) / ds.hubble_constant, 'kpc'), circle_args={'color': 'white'}) # comoving kpc h^-1 to physical kpc
+        p.annotate_text((0.06, 0.08), 'M = '+'{0:.2e}'.format(thishalo['Mvir'][0] / ds.hubble_constant), coord_system='axis') # Msun h^-1 to Msun
 
     target_dir = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/figs/'
     Path(target_dir).mkdir(parents=True, exist_ok=True)

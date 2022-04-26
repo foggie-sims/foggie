@@ -33,8 +33,8 @@ def projection_plot(ds, center, radius, projection, args):
     p.annotate_sphere(center, radius=(radius, 'kpc'), circle_args={'color': 'r'})
 
     p = annotate_box(p, 50, ds, unit='kpc', projection=projection, center=center, linewidth=1, color='white') # 50 physical kpc
-    p = annotate_box(p, 250 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection=projection, center=center, linewidth=1, color='green') # 250 comoving kpc
-    p = annotate_box(p, 400 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection=projection, center=center, linewidth=1, color='red') # 400 comoving kpc
+    p = annotate_box(p, 250 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection=projection, center=center, linewidth=1, color='green') # 250 comoving kpc h^-1
+    p = annotate_box(p, 400 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection=projection, center=center, linewidth=1, color='red') # 400 comoving kpc h^-1
 
     p.set_cmap('density', density_color_map)
     p.set_zlim('density', zmin=1e-5, zmax=5e-2)
@@ -86,7 +86,7 @@ def make_center_track_file(list_of_sims, center_track_file, args):
         # extract the required quantities
         zz = ds.current_redshift
         box_size_mpc = ds.arr(1, 'code_length').in_units('Mpc')
-        search_radius_physical = args.search_radius / (1 + zz) / ds.hubble_constant # comoving to physical conversion
+        search_radius_physical = args.search_radius / (1 + zz) / ds.hubble_constant # comoving kpc h^-1 to physical kpc
         print('Searching for DM peak within %.3F physical kpc of guessed center = '%search_radius_physical, new_center )
         new_center, vel_center = get_halo_center(ds, new_center, radius=search_radius_physical) # 'radius' requires physical kpc
         df.loc[len(df)] = [zz, new_center[0], new_center[1], new_center[2], box_size_mpc, args.output]
@@ -138,7 +138,7 @@ def wrap_get_halo_track(args):
         halos = Table.read('/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list', format='ascii', header_start=0)
         index = [halos['ID'] == int(args.halo[:4])]
         thishalo = halos[index]
-        center_L0 = np.array([thishalo['X'][0] / 25., thishalo['Y'][0] / 25., thishalo['Z'][0] / 25.])  # divided by 25 to convert Mpc units to code units
+        center_L0 = np.array([thishalo['X'][0] / 25., thishalo['Y'][0] / 25., thishalo['Z'][0] / 25.])  # divided by 25 comoving Mpc^-1 to convert comoving Mpc h^-1 units to code units
 
         conf_log_file = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.run + '.conf_log.txt'
         shifts = get_shifts(conf_log_file)
@@ -152,7 +152,7 @@ def wrap_get_halo_track(args):
         print('Using existing ' + center_track_file)
 
     halo_track_file = args.output_path + 'halo_track_%dkpc_nref%d' %(args.refsize, args.reflevel)
-    offset = str(0.5 * args.refsize * 1e-3 / 25.) # converting refsize from kpc to physical code units, for the given 25 Mpc box
+    offset = str(0.5 * args.refsize * 1e-3 / 25.) # converting refsize from comoving kpc h^-1 to physical code units, by dividing by 25 comoving Mpc h^-1 box size (therefore the 1+z and H parameters cancel each other out)
 
     if 'pleiades' in args.system: command = "tail -n +2 " + center_track_file + "  | awk '{print $1, $2-" + offset + ", $3-" + offset + ", $4-" + offset + ", $2+" + offset + ", $3+" + offset + ", $4+" + offset + ", " + str(args.reflevel) + "}' | tac > " + halo_track_file
     else: command = "tail -rn +2 " + center_track_file + "  | awk '{print $1, $2-" + offset + ", $3-" + offset + ", $4-" + offset + ", $2+" + offset + ", $3+" + offset + ", $4+" + offset + ", " + str(args.reflevel) + "}' > " + halo_track_file
