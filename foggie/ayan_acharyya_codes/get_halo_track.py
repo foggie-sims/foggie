@@ -193,8 +193,10 @@ def plot_track(args):
     ax.set_xlim(15, 2)
     ax.set_xlabel('Redshift', fontsize=args.fontsize)
     ax.set_ylabel('Center x,y,z (code units)', fontsize=args.fontsize)
+    ax.legend()
+
     ax2.set_ylabel('Physical box size (Mpc)', fontsize=args.fontsize)
-    plt.legend()
+    ax2.legend()
     plt.show(block=False)
 
     outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/' + args.halo + '_trackcompare_' + ','.join(args.run).replace('/', '-') + '.png'
