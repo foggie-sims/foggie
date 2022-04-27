@@ -9,13 +9,14 @@
     Started :    Feb 2022
     Examples :   run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L3-gas --halo 5205 --refsize 200 --reflevel 7 --search_radius 20 --width 200 --last_center_guess 0.560013,0.505539,0.538864
                  run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L3-gas --halo 5205 --refsize 200 --reflevel 9 --search_radius 20 --width 200 --last_center_guess 0.524715,0.503910,0.519596
-                 run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --halo 5205 --run natural_7n/25Mpc_DM_256-L3-gas,natural_9n/25Mpc_DM_256-L3-gas --compare_tracks
+                 run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --halo 5205 --run natural_7n/25Mpc_DM_256-L3-gas,natural_9n/25Mpc_DM_256-L3-gas --compare_tracks --search_radius 20
 
 """
 from header import *
 from util import *
 from foggie.utils.get_halo_center import get_halo_center
 from projection_plot_nondefault import get_box, annotate_box
+plt.style.use('seaborn')
 
 # -----------------------------------------------------
 def projection_plot(ds, center, radius, projection, args):
@@ -125,7 +126,7 @@ def wrap_get_halo_track(args):
     elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
     args.output_path = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.run + '/'
     Path(args.output_path).mkdir(parents=True, exist_ok=True)
-    center_track_file = args.output_path + 'center_track_interp.dat'
+    center_track_file = args.output_path + 'center_track_sr' + str(args.search_radius) + 'kpc_interp.dat'
 
     args.fig_dir = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/'
     Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
@@ -169,69 +170,90 @@ def plot_track(args):
     '''
     H0 = 0.695 # Hubble constant
     box_size = 25 # comoving Mpc h^-1
+    xlim = [15, 2] # axis limits for redshift
+
     args.run = [item for item in args.run.split(',')]
     print('Comparing tracks from runs..', args.run)
 
     if args.system == 'ayan_hd' or args.system == 'ayan_local': args.root_dir = '/Users/acharyya/Work/astro/'
     elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
 
-    fig, ax = plt.subplots(1)
+    fig1, ax = plt.subplots(1)
+    ax2 = ax.twinx()
     linestyle_arr = ['solid', 'dashed', 'dotted']
 
     for index, thisrun in enumerate(args.run):
         # parse paths and filenames
         args.output_path = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + thisrun + '/'
-        center_track_file = args.output_path + 'center_track.dat'
+        center_track_file = args.output_path + 'center_track_sr' + str(args.search_radius) + 'kpc.dat'
         df = pd.read_table(center_track_file, delim_whitespace=True)
-
-        ax.plot(df['redshift'], box_size * df['center_x'] / (1 + df['redshift']) / H0, c='salmon', ls=linestyle_arr[index], label='x; ' + thisrun) # to convert code units to physical Mpc
-        ax.plot(df['redshift'], box_size * df['center_y'] / (1 + df['redshift']) / H0, c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun) # to convert code units to physical Mpc
-        ax.plot(df['redshift'], box_size * df['center_z'] / (1 + df['redshift']) / H0, c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun) # to convert code units to physical Mpc
-        ax.plot(df['redshift'], box_size * 1 / (1 + df['redshift']) / H0, c='saddlebrown', ls=linestyle_arr[index], label='box; ' + thisrun) # to convert code units to physical Mpc
-        print('Deb 181:', df) #
-
-    ax.set_xlim(15, 2)
-    ax.set_xlabel('Redshift', fontsize=args.fontsize)
-    ax.set_ylabel('Physical size (Mpc)', fontsize=args.fontsize)
-    ax.legend()
-    plt.show(block=False)
-
-    outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/' + args.halo + '_trackcompare_' + ','.join(args.run).replace('/', '-') + '.png'
-    fig.savefig(outfile)
-    print('Saved', outfile)
-    '''
-    if len(args.run) == 2:
-        fig, ax = plt.subplots(1)
-        linestyle_arr = ['solid', 'dashed', 'dotted']
-        df_arr = []
-
-        for index, thisrun in enumerate(args.run):
-            # parse paths and filenames
-            args.output_path = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + thisrun + '/'
-            center_track_file = args.output_path + 'center_track.dat'
-            df_arr[index] = pd.read_table(center_track_file, delim_whitespace=True)
 
         ax.plot(df['redshift'], df['center_x'], c='salmon', ls=linestyle_arr[index], label='x; ' + thisrun)
         ax.plot(df['redshift'], df['center_y'], c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun)
         ax.plot(df['redshift'], df['center_z'], c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun)
 
-        plt.xlim(15, 2)
-        plt.xlabel('Redshift', fontsize=args.fontsize)
-        plt.ylabel('Center x,y,z (code units)', fontsize=args.fontsize)
-        plt.legend()
+        ax2.plot(df['redshift'], np.ones(len(df)) * box_size / (1 + df['redshift']) / H0, c='saddlebrown', ls=linestyle_arr[index], label='box; ' + thisrun) # to convert comoving code units to physical Mpc
+        print('Deb 194:', df) #
+
+    ax.set_xlim(xlim[0], xlim[1])
+    ax.set_xlabel('Redshift', fontsize=args.fontsize)
+    ax.set_ylabel('Comoving position (code units)', fontsize=args.fontsize)
+    ax.legend(loc=0)
+
+    ax2.set_ylabel('Physical size (Mpc)', fontsize=args.fontsize)
+    ax2.legend(loc=1)
+    plt.show(block=False)
+
+    outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/' + args.halo + '_trackcompare_' + ','.join(args.run).replace('/', '-') + '_sr' + str(args.search_radius) + 'kpc.png'
+    fig1.savefig(outfile)
+    print('Saved', outfile)
+
+    if len(args.run) == 2:
+        fig2, ax = plt.subplots(1)
+        ax2 = ax.twinx()
+
+        args.output_path = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.run[0] + '/'
+        center_track_file = args.output_path + 'center_track_sr' + str(args.search_radius) + 'kpc.dat'
+        df1 = pd.read_table(center_track_file, delim_whitespace=True)
+
+        args.output_path = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.run[1] + '/'
+        center_track_file = args.output_path + 'center_track_sr' + str(args.search_radius) + 'kpc.dat'
+        df2 = pd.read_table(center_track_file, delim_whitespace=True)
+
+        df = df1.merge(df2, on='output')
+        factor = box_size * 1e3 / (1 + df['redshift_x']) / H0  # to convert comoving code units to physical kpc
+        col_arr = ['salmon', 'darkolivegreen', 'cornflowerblue']
+
+        for index, thiscol in enumerate(['center_x', 'center_y', 'center_z']):
+            df['delta_' + thiscol] = df[thiscol + '_x'] - df[thiscol + '_y']
+            ax.plot(df['redshift_x'], df['delta_' + thiscol] * factor, c=col_arr[index], label='delta_' + thiscol)
+
+        ax2.plot(df['redshift_x'], np.ones(len(df)) * factor / 1e3, c='saddlebrown', label='box size') # to convert comoving code units to physical Mpc
+
+        ax.set_xlim(xlim[0], np.min(df['redshift_x']))
+        ax.set_xlabel('Redshift', fontsize=args.fontsize)
+        ax.set_ylabel('Physical separation (kpc)', fontsize=args.fontsize)
+        ax.legend(loc=0)
+
+        ax2.set_ylabel('Physical size (Mpc)', fontsize=args.fontsize)
+        ax2.legend(loc=1)
         plt.show(block=False)
 
-        outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/' + args.halo + '_trackcompare_' + ','.join(args.run) + '.png'
-        fig.savefig(outfile)
+        outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/' + args.halo + '_trackdiff_' + ','.join(args.run).replace('/', '-') + '_sr' + str(args.search_radius) + 'kpc.png'
+        fig2.savefig(outfile)
         print('Saved', outfile)
-    '''
+    else:
+        fig2 = 0
+
+    return fig1, fig2
+
 # -----main code-----------------
 if __name__ == '__main__':
     start_time = time.time()
     args = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
     if args.last_center_guess is not None: args.last_center_guess = [item for item in args.last_center_guess.split(',')]
 
-    if args.compare_tracks: plot_track(args)
+    if args.compare_tracks: fig1, fig2 = plot_track(args)
     else: wrap_get_halo_track(args)
 
     print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
