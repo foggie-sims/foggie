@@ -69,7 +69,7 @@ def make_center_track_file(list_of_sims, center_track_file, args):
     print('List of the total ' + str(total_snaps) + ' sims =', np.array(list_of_sims)[:,1])
 
     # --------setup dataframe-----------
-    df = pd.DataFrame(columns=['redshift', 'center_x', 'center_y', 'center_z', 'box_size_mpc', 'output'])
+    df = pd.DataFrame(columns=['redshift', 'center_x', 'center_y', 'center_z', 'output'])
 
     new_center = args.last_center_guess # to be used as the initial guess for center for the very first instance (lowest redshift, and then will loop to higher and higher redshifts)
 
@@ -85,11 +85,10 @@ def make_center_track_file(list_of_sims, center_track_file, args):
 
         # extract the required quantities
         zz = ds.current_redshift
-        box_size_mpc = np.round(ds.arr(1, 'code_length').in_units('Mpc').value, decimals=3)
         search_radius_physical = args.search_radius / (1 + zz) / ds.hubble_constant # comoving kpc h^-1 to physical kpc
         print('Searching for DM peak within %.3F physical kpc of guessed center = '%search_radius_physical, new_center )
         new_center, vel_center = get_halo_center(ds, new_center, radius=search_radius_physical) # 'radius' requires physical kpc
-        df.loc[len(df)] = [zz, new_center[0], new_center[1], new_center[2], box_size_mpc, args.output]
+        df.loc[len(df)] = [zz, new_center[0], new_center[1], new_center[2], args.output]
 
         if not args.noplot: projection_plot(ds, new_center, search_radius_physical, args.projection, args)
         print('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60))
@@ -168,6 +167,8 @@ def plot_track(args):
     '''
     Function to plot tracks vs redshift
     '''
+    H0 = 0.695 # Hubble constant
+    box_size = 25 # comoving Mpc h^-1
     args.run = [item for item in args.run.split(',')]
     print('Comparing tracks from runs..', args.run)
 
@@ -175,7 +176,6 @@ def plot_track(args):
     elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
 
     fig, ax = plt.subplots(1)
-    ax2 = ax.twinx()
     linestyle_arr = ['solid', 'dashed', 'dotted']
 
     for index, thisrun in enumerate(args.run):
@@ -184,19 +184,16 @@ def plot_track(args):
         center_track_file = args.output_path + 'center_track.dat'
         df = pd.read_table(center_track_file, delim_whitespace=True)
 
-        ax.plot(df['redshift'], df['center_x'], c='salmon', ls=linestyle_arr[index], label='x; ' + thisrun)
-        ax.plot(df['redshift'], df['center_y'], c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun)
-        ax.plot(df['redshift'], df['center_z'], c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun)
-        ax2.plot(df['redshift'], df['box_size_mpc'], c='saddlebrown', ls=linestyle_arr[index], label='box; ' + thisrun)
+        ax.plot(df['redshift'], df['center_x'] / (1 + df['redshift']) / H0, c='salmon', ls=linestyle_arr[index], label='x; ' + thisrun) # to convert code units to physical Mpc
+        ax.plot(df['redshift'], df['center_y'] / (1 + df['redshift']) / H0, c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun) # to convert code units to physical Mpc
+        ax.plot(df['redshift'], df['center_z'] / (1 + df['redshift']) / H0, c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun) # to convert code units to physical Mpc
+        ax.plot(df['redshift'], box_size / (1 + df['redshift']) / H0, c='saddlebrown', ls=linestyle_arr[index], label='box; ' + thisrun) # to convert code units to physical Mpc
         print('Deb 181:', df) #
 
     ax.set_xlim(15, 2)
     ax.set_xlabel('Redshift', fontsize=args.fontsize)
-    ax.set_ylabel('Center x,y,z (code units)', fontsize=args.fontsize)
+    ax.set_ylabel('Physical size (Mpc)', fontsize=args.fontsize)
     ax.legend()
-
-    ax2.set_ylabel('Physical box size (Mpc)', fontsize=args.fontsize)
-    ax2.legend()
     plt.show(block=False)
 
     outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/' + args.halo + '_trackcompare_' + ','.join(args.run).replace('/', '-') + '.png'
