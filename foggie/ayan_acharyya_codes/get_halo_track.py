@@ -85,7 +85,7 @@ def make_center_track_file(list_of_sims, center_track_file, args):
 
         # extract the required quantities
         zz = ds.current_redshift
-        box_size_mpc = ds.arr(1, 'code_length').in_units('Mpc')
+        box_size_mpc = np.round(ds.arr(1, 'code_length').in_units('Mpc').value, decimals=3)
         search_radius_physical = args.search_radius / (1 + zz) / ds.hubble_constant # comoving kpc h^-1 to physical kpc
         print('Searching for DM peak within %.3F physical kpc of guessed center = '%search_radius_physical, new_center )
         new_center, vel_center = get_halo_center(ds, new_center, radius=search_radius_physical) # 'radius' requires physical kpc
