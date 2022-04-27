@@ -184,10 +184,10 @@ def plot_track(args):
         center_track_file = args.output_path + 'center_track.dat'
         df = pd.read_table(center_track_file, delim_whitespace=True)
 
-        ax.plot(df['redshift'], df['center_x'] / (1 + df['redshift']) / H0, c='salmon', ls=linestyle_arr[index], label='x; ' + thisrun) # to convert code units to physical Mpc
-        ax.plot(df['redshift'], df['center_y'] / (1 + df['redshift']) / H0, c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun) # to convert code units to physical Mpc
-        ax.plot(df['redshift'], df['center_z'] / (1 + df['redshift']) / H0, c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun) # to convert code units to physical Mpc
-        ax.plot(df['redshift'], box_size / (1 + df['redshift']) / H0, c='saddlebrown', ls=linestyle_arr[index], label='box; ' + thisrun) # to convert code units to physical Mpc
+        ax.plot(df['redshift'], box_size * df['center_x'] / (1 + df['redshift']) / H0, c='salmon', ls=linestyle_arr[index], label='x; ' + thisrun) # to convert code units to physical Mpc
+        ax.plot(df['redshift'], box_size * df['center_y'] / (1 + df['redshift']) / H0, c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun) # to convert code units to physical Mpc
+        ax.plot(df['redshift'], box_size * df['center_z'] / (1 + df['redshift']) / H0, c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun) # to convert code units to physical Mpc
+        ax.plot(df['redshift'], box_size * 1 / (1 + df['redshift']) / H0, c='saddlebrown', ls=linestyle_arr[index], label='box; ' + thisrun) # to convert code units to physical Mpc
         print('Deb 181:', df) #
 
     ax.set_xlim(15, 2)
