@@ -262,6 +262,11 @@ def make_profile_plot(snap):
             f.write('%.2f            %.3e\n' % (radius_bin_centers[i], median_profile[i]))
         f.close()
 
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
+
 if __name__ == "__main__":
     args = parse_args()
     print(args.halo)
