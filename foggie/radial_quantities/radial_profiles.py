@@ -135,7 +135,7 @@ def make_profile_plot(snap):
 
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snap
         # Make a dummy directory with the snap name so the script later knows the process running
         # this snapshot failed if the directory is still there
         os.makedirs(snap_dir)
@@ -333,23 +333,45 @@ if __name__ == "__main__":
             snap = outs[i]
             make_profile_plot(snap)
     else:
-        # Split into a number of groupings equal to the number of processors
-        # and run one process per processor
-        for i in range(len(outs)//args.nproc):
+        skipped_outs = outs
+        while (len(skipped_outs)>0):
+            skipped_outs = []
+            # Split into a number of groupings equal to the number of processors
+            # and run one process per processor
+            for i in range(len(outs)//args.nproc):
+                threads = []
+                snaps = []
+                for j in range(args.nproc):
+                    snap = outs[args.nproc*i+j]
+                    snaps.append(snap)
+                    threads.append(multi.Process(target=make_profile_plot, args=[snap]))
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+                # Delete leftover outputs from failed processes from tmp directory if on pleiades
+                if (args.system=='pleiades_cassi'):
+                    for s in range(len(snaps)):
+                        if (os.path.exists('/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snaps[s])):
+                            print('Deleting failed %s from /tmp' % (snaps[s]))
+                            skipped_outs.append(snaps[s])
+                            shutil.rmtree('/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snaps[s])
+            # For any leftover snapshots, run one per processor
             threads = []
-            for j in range(args.nproc):
-                snap = outs[args.nproc*i+j]
+            snaps = []
+            for j in range(len(outs)%args.nproc):
+                snap = outs[-(j+1)]
+                snaps.append(snap)
                 threads.append(multi.Process(target=make_profile_plot, args=[snap]))
             for t in threads:
                 t.start()
             for t in threads:
                 t.join()
-        # For any leftover snapshots, run one per processor
-        threads = []
-        for j in range(len(outs)%args.nproc):
-            snap = outs[-(j+1)]
-            threads.append(multi.Process(target=make_profile_plot, args=[snap]))
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+            # Delete leftover outputs from failed processes from tmp directory if on pleiades
+            if (args.system=='pleiades_cassi'):
+                for s in range(len(snaps)):
+                    if (os.path.exists('/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snaps[s])):
+                        print('Deleting failed %s from /tmp' % (snaps[s]))
+                        skipped_outs.append(snaps[s])
+                        shutil.rmtree('/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snaps[s])
+            outs = skipped_outs
