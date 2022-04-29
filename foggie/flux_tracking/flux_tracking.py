@@ -198,6 +198,12 @@ def parse_args():
                         help='Do you want to append a string onto the names of the saved files? Default is no.')
     parser.set_defaults(save_suffix="")
 
+    parser.add_argument('--copy_to_tmp', dest='copy_to_tmp', action='store_true', \
+                        help="If running on pleiades, do you want to copy the snapshot to the node's /tmp/\n" + \
+                        "directory? This may speed up analysis somewhat, but also requires a large-memory node.\n" + \
+                        "Default is not to do this.")
+    parser.set_defaults(copy_to_tmp=False)
+
 
     args = parser.parse_args()
     return args
