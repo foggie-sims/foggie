@@ -1327,8 +1327,10 @@ if __name__ == "__main__":
             # and run one process per processor
             for i in range(len(outs)//args.nproc):
                 threads = []
+                snaps = []
                 for j in range(args.nproc):
                     snap = outs[args.nproc*i+j]
+                    snaps.append(snap)
                     tablename = prefix + snap + '_fluxes'
                     threads.append(multi.Process(target=load_and_calculate, \
     			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
@@ -1350,8 +1352,10 @@ if __name__ == "__main__":
                             shutil.rmtree(snap_dir + snaps[s])
             # For any leftover snapshots, run one per processor
             threads = []
+            snaps = []
             for j in range(len(outs)%args.nproc):
                 snap = outs[-(j+1)]
+                snaps.append(snap)
                 tablename = prefix + snap + '_fluxes'
                 threads.append(multi.Process(target=load_and_calculate, \
     			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
