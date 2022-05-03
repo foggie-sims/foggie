@@ -10,7 +10,7 @@
     Example :    run run_foggie_sim.py --halo 2430 --level 1 --queue devel --dryrun
                  run run_foggie_sim.py --halo 2139 --level 1 --queue devel --automate --final_level 3 --dryrun
                  run run_foggie_sim.py --halo 2139 --level 1 --queue normal --automate --plot_projection --width 1000
-                 run run_foggie_sim.py --halo 2139 --level 3 --queue long --gas --plot_projection --width 1000
+                 run run_foggie_sim.py --halo 2139 --level 3 --queue long --gas --plot_projection --width 1000 --nreflevel 9
                  run run_foggie_sim.py --halo 5205 --level 1 --queue devel --nnodes 8 --automate --nreflevel 9
                  run run_foggie_sim.py --halo 8892 --queue long --nnodes 32 --forcedref --refsize 200 --creflevel 9 --freflevel 7 --start_output RD0008
 

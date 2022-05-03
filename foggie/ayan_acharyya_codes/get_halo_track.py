@@ -16,7 +16,6 @@ from header import *
 from util import *
 from foggie.utils.get_halo_center import get_halo_center
 from projection_plot_nondefault import get_box, annotate_box
-plt.style.use('seaborn')
 
 # -----------------------------------------------------
 def projection_plot(ds, center, radius, projection, args):
