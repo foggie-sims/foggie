@@ -198,6 +198,12 @@ def parse_args():
                         help='Do you want to append a string onto the names of the saved files? Default is no.')
     parser.set_defaults(save_suffix="")
 
+    parser.add_argument('--copy_to_tmp', dest='copy_to_tmp', action='store_true', \
+                        help="If running on pleiades, do you want to copy the snapshot to the node's /tmp/\n" + \
+                        "directory? This may speed up analysis somewhat, but also requires a large-memory node.\n" + \
+                        "Default is not to do this.")
+    parser.set_defaults(copy_to_tmp=False)
+
 
     args = parser.parse_args()
     return args
@@ -251,7 +257,8 @@ def make_table(flux_types, surface_type, edge=False):
                 types_list = ['f8', 'f8']
 
     dir_name = ['net_', '_in', '_out']
-    if (args.temp_cut): temp_name = ['', 'cold_', 'cool_', 'warm_', 'hot_']
+    #if (args.temp_cut): temp_name = ['', 'cold_', 'cool_', 'warm_', 'hot_']
+    if (args.temp_cut): temp_name = ['','cold_','hot_']
     else: temp_name = ['']
     for i in range(len(flux_types)):
         for k in range(len(temp_name)):
@@ -1055,7 +1062,8 @@ def calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_suffix, s
             fields_in_sat.append(field[(bool_fromsat) & ((bool_inshapes_entire) | (bool_toshapes))])
             fields_out_sat.append(field[(bool_tosat) & ((bool_inshapes_entire) | (bool_fromshapes))])
 
-    if (args.temp_cut): temps = [0.,4.,5.,6.,12.]
+    #if (args.temp_cut): temps = [0.,4.,5.,6.,12.]
+    if (args.temp_cut): temps = [0.,5.,12.]
     else: temps = [0.]
 
     # Loop over chunks and compute fluxes to add to tables
@@ -1172,9 +1180,15 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
     if (system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        if (args.copy_to_tmp):
+            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/fluxes/' + snap
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/fluxes/' + snap
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
 
     # Load the snapshot depending on if disk minor axis is needed
     disk = False
@@ -1259,7 +1273,7 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    foggie_dir = '/nobackupp2/MOVING.rvrollin/mpeeples/'
+    #foggie_dir = '/nobackupp2/MOVING.rvrollin/mpeeples/'
 
     # Set directory for output location, making it if necessary
     prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
@@ -1306,32 +1320,62 @@ if __name__ == "__main__":
             load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
               tablename, save_suffix, surfaces, flux_types, sat_dir, sat_radius, masses_dir)
     else:
-        # Split into a number of groupings equal to the number of processors
-        # and run one process per processor
-        for i in range(len(outs)//args.nproc):
+        skipped_outs = outs
+        while (len(skipped_outs)>0):
+            skipped_outs = []
+            # Split into a number of groupings equal to the number of processors
+            # and run one process per processor
+            for i in range(len(outs)//args.nproc):
+                threads = []
+                snaps = []
+                for j in range(args.nproc):
+                    snap = outs[args.nproc*i+j]
+                    snaps.append(snap)
+                    tablename = prefix + snap + '_fluxes'
+                    threads.append(multi.Process(target=load_and_calculate, \
+    			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
+                         tablename, save_suffix, surfaces, flux_types, sat_dir, sat_radius, masses_dir)))
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+                # Delete leftover outputs from failed processes from tmp directory if on pleiades
+                if (args.system=='pleiades_cassi'):
+                    if (args.copy_to_tmp):
+                        snap_dir = '/tmp/' + args.halo + '/' + args.run + '/fluxes/'
+                    else:
+                        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/fluxes/'
+                    for s in range(len(snaps)):
+                        if (os.path.exists(snap_dir + snaps[s])):
+                            print('Deleting failed %s from /tmp' % (snaps[s]))
+                            skipped_outs.append(snaps[s])
+                            shutil.rmtree(snap_dir + snaps[s])
+            # For any leftover snapshots, run one per processor
             threads = []
-            for j in range(args.nproc):
-                snap = outs[args.nproc*i+j]
+            snaps = []
+            for j in range(len(outs)%args.nproc):
+                snap = outs[-(j+1)]
+                snaps.append(snap)
                 tablename = prefix + snap + '_fluxes'
                 threads.append(multi.Process(target=load_and_calculate, \
-			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
+    			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
                      tablename, save_suffix, surfaces, flux_types, sat_dir, sat_radius, masses_dir)))
             for t in threads:
                 t.start()
             for t in threads:
                 t.join()
-        # For any leftover snapshots, run one per processor
-        threads = []
-        for j in range(len(outs)%args.nproc):
-            snap = outs[-(j+1)]
-            tablename = prefix + snap + '_fluxes'
-            threads.append(multi.Process(target=load_and_calculate, \
-			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, \
-                 tablename, save_suffix, surfaces, flux_types, sat_dir, sat_radius, masses_dir)))
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+            # Delete leftover outputs from failed processes from tmp directory if on pleiades
+            if (args.system=='pleiades_cassi'):
+                if (args.copy_to_tmp):
+                    snap_dir = '/tmp/' + args.halo + '/' + args.run + '/fluxes/'
+                else:
+                    snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/fluxes/'
+                for s in range(len(snaps)):
+                    if (os.path.exists(snap_dir + snaps[s])):
+                        print('Deleting failed %s from /tmp' % (snaps[s]))
+                        skipped_outs.append(snaps[s])
+                        shutil.rmtree(snap_dir + snaps[s])
+            outs = skipped_outs
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")
