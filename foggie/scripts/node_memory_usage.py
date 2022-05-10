@@ -12,13 +12,17 @@ def get_memory_by_node():
     list_of_memory_tables = [] 
     #read each memory table separately 
     for file in list_of_memory_trace_files: 
-        print('opening memory trace file: ', file) 
-        os.system('grep time ' + file + ' | grep -v out | cut -b 8-1000000 | awk "NF > 1{print}" > trace_'+file) # quickly preprocess the memory trace files 
-        this_memory_table = Table.read('trace_'+file, format='ascii')
-        list_of_memory_tables.append(this_memory_table) 
-        print(this_memory_table) 
+        print('opening memory trace file: ', file)
+        try:
+            os.system('grep time ' + file + ' | grep -v out | cut -b 8-1000000 | awk "NF > 1{print}" > trace_'+file) # quickly preprocess the memory trace files
+            this_memory_table = Table.read('trace_'+file, format='ascii')
+            list_of_memory_tables.append(this_memory_table)
+            print(this_memory_table)
+        except Exception as e:
+            print(file, 'cannot be processed because', e)
+            pass
 
-    all_memory_table = vstack(list_of_memory_tables) 
+    all_memory_table = vstack(list_of_memory_tables)
     all_memory_table.rename_column('col1', 'timestamp')
     for k in all_memory_table.keys()[1:]: 
         all_memory_table.rename_column(k, 'node'+str(int(k[3:])-1)) 
