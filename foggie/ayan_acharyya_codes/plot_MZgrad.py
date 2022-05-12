@@ -194,22 +194,22 @@ def plot_MZGR(args):
         thisindex = len(args.halo_arr) - index - 1
         df = load_df(args)
         df = df[(np.log10(df['mass']) >= args.xmin) & (np.log10(df['mass']) <= args.xmax)]
-        #df = df[(df['Zgrad'] >= args.ymin) & (df['Zgrad'] <= args.ymax)]
+        #df = df[(df[args.ycol] >= args.ymin) & (df[args.ycol] <= args.ymax)]
 
         if args.binby is not None:
             df[args.binby + '_bins'] = pd.cut(df[args.binby], bins=np.logspace(np.min(np.log10(df[args.binby])), np.max(np.log10(df[args.binby])), args.nbins) if logbin else np.linspace(np.min(df[args.binby]), np.max(df[args.binby]), args.nbins))
-            df = df[['redshift', 'mass', 'Zgrad', args.binby + '_bins']].groupby(args.binby + '_bins', as_index=False).agg(np.mean)
+            df = df[['redshift', 'mass', args.ycol, args.binby + '_bins']].groupby(args.binby + '_bins', as_index=False).agg(np.mean)
             df.dropna(inplace=True)
 
         # -----plot line with color gradient--------
-        line = get_multicolored_line(np.log10(df['mass']), df['Zgrad'], df['redshift'], cmap_arr[thisindex], args.cmin, args.cmax, lw=1 if args.overplot_smoothed else 2)
+        line = get_multicolored_line(np.log10(df['mass']), df[args.ycol], df['redshift'], cmap_arr[thisindex], args.cmin, args.cmax, lw=1 if args.overplot_smoothed else 2)
         plot = ax.add_collection(line)
 
         # ------- overplotting redshift-binned scatter plot------------
         if args.zhighlight:
             df['redshift_int'] = np.floor(df['redshift'])
             df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-            dummy = ax.scatter(np.log10(df_zbin['mass']), df_zbin['Zgrad'], c=df_zbin['redshift'], cmap=cmap_arr[thisindex], lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed else 1)
+            dummy = ax.scatter(np.log10(df_zbin['mass']), df_zbin[args.ycol], c=df_zbin['redshift'], cmap=cmap_arr[thisindex], lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed else 1)
             print('For halo', args.halo, 'highlighted z =', [float('%.1F'%item) for item in df_zbin['redshift'].values])
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
@@ -218,8 +218,8 @@ def plot_MZGR(args):
             npoints = int(len(df)/8)
             if npoints % 2 == 0: npoints += 1
             box = np.ones(npoints) / npoints
-            df['Zgrad_smoothed'] = np.convolve(df['Zgrad'], box, mode='same')
-            smoothline = get_multicolored_line(np.log10(df['mass']), df['Zgrad_smoothed'], df['redshift'], cmap_arr[thisindex], args.cmin, args.cmax, lw=2)
+            df[args.ycol + '_smoothed'] = np.convolve(df[args.ycol], box, mode='same')
+            smoothline = get_multicolored_line(np.log10(df['mass']), df[args.ycol + '_smoothed'], df['redshift'], cmap_arr[thisindex], args.cmin, args.cmax, lw=2)
             plot = ax.add_collection(smoothline)
             print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points')
 
@@ -237,8 +237,9 @@ def plot_MZGR(args):
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 
+    label_dict = {'Zgrad': r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.xcol == 'rad_re' else r'$\Delta Z$ (dex/kpc)', 're': 'Scale length (kpc)'}
     ax.set_xlabel(r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', fontsize=args.fontsize)
-    ax.set_ylabel(r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.xcol == 'rad_re' else r'$\Delta Z$ (dex/kpc)', fontsize=args.fontsize)
+    ax.set_ylabel(label_dict[args.ycol], fontsize=args.fontsize)
 
     binby_text = '' if args.binby is None else '_binby_' + args.binby
     upto_text = '_upto%.1Fkpc' % args.upto_kpc if args.upto_kpc is not None else '_upto%.1FRe' % args.upto_re
@@ -259,6 +260,7 @@ if __name__ == '__main__':
 
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight
+    if args.ycol == 'metal': args.ycol = 'Zgrad'
 
     fig, df_binned, df_manga = plot_MZGR(args)
 
