@@ -10,6 +10,7 @@
     Examples :   run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_re 3 --xcol rad_re --keep --weight mass
                  run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad_re --keep --weight mass
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --do_all_sims --weight mass --write_file --noplot
+                 run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --xcol rad_re --do_all_sims --weight mass --write_file --noplot
 
 """
 from header import *

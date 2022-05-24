@@ -16,7 +16,7 @@
                  run projection_plot_nondefault.py --halo 5205 --width 200 --run 25Mpc_DM_256-L3-gas --output RD0028 --get_center_track --do cellsize
                  run projection_plot_nondefault.py --halo 5205 --width 200 --run nref7c_nref7f --do_all_sims --use_onlyDD --nevery 5 --get_center_track --do gas
                  run projection_plot_nondefault.py --halo 5205 --width 2000 --run nref7c_nref7f --output RD0111 --get_center_track --do mrp --annotate_grids --annotate_box 200,400
-
+                 run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/projection_plot_nondefault.py --halo 4348 --width 1000 --run natural_9n/25Mpc_DM_256-L3-gas --output RD0052 --center_offset " -12,80,-23" --do gas --annotate_grids --min_level 6
 """
 from header import *
 from util import *
@@ -87,7 +87,14 @@ def projection_plot(args):
 
     if args.center is None:
         if args.get_center_track:
-            trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track__sr' + str(args.search_radius) + 'kpcinterp.dat'
+            trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_sr' + str(float(args.search_radius)) + 'kpc_interp.dat'
+            if not os.path.exists(trackfile):
+                print(trackfile + ' not found..')
+                trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_interp.dat'
+                print('Reading from ' + trackfile + ' instead..')
+            else:
+                print('Reading from ' + trackfile)
+
             df_track_int = pd.read_table(trackfile, delim_whitespace=True)
             center = interp1d(df_track_int['redshift'], df_track_int[['center_x', 'center_y', 'center_z']], axis=0)(ds.current_redshift)
             print('Center from center track file =', center)
