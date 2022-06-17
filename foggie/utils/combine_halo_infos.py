@@ -108,8 +108,11 @@ if __name__ == "__main__":
         for filename in catalog_files:
             sat_id, sat_x, sat_y, sat_z = np.loadtxt(table_loc + '/' + filename, \
               unpack=True, usecols=[0,1,2,3])
-            for j in range(len(sat_id)):
-                big_table.add_row([filename[:6], sat_id[j], sat_x[j], sat_y[j], sat_z[j]])
+            if (isinstance(sat_id, float)):
+                big_table.add_row([filename[:6], sat_id, sat_x, sat_y, sat_z])
+            else:
+                for j in range(len(sat_id)):
+                    big_table.add_row([filename[:6], sat_id[j], sat_x[j], sat_y[j], sat_z[j]])
         table_units = {'snap':None,'sat_id':None,'sat_x':'kpc','sat_y':'kpc','sat_z':'kpc'}
         for key in big_table.keys():
             big_table[key].unit = table_units[key]
