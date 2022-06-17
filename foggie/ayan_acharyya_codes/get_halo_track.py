@@ -191,7 +191,8 @@ def plot_track(args):
         ax.plot(df['redshift'], df['center_y'], c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun)
         ax.plot(df['redshift'], df['center_z'], c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun)
 
-        ax2.plot(df['redshift'], np.ones(len(df)) * box_size / (1 + df['redshift']) / H0, c='saddlebrown', ls=linestyle_arr[index], label='box; ' + thisrun) # to convert comoving code units to physical Mpc
+        ax2.plot(df['redshift'], np.ones(len(df)) * box_size / (1 + df['redshift']) / H0, c='saddlebrown', ls=linestyle_arr[index], label='box; ' + thisrun) # to convert comoving code units to physical Mpc, box_size in Mpc
+        ax2.plot(df['redshift'], np.ones(len(df)) * (args.refsize * 1e-3) * 100 / (1 + df['redshift']) / H0, c='black', ls=linestyle_arr[index], label='ref x 100; ' + thisrun) # to convert comoving code units to physical Mpc x 100 (for better visualisation), args.refsize in kpc
         print('Deb 194:', df) #
 
     ax.set_xlim(xlim[0], xlim[1])
@@ -228,6 +229,7 @@ def plot_track(args):
             ax.plot(df['redshift_x'], df['delta_' + thiscol] * factor, c=col_arr[index], label='delta_' + thiscol)
 
         ax2.plot(df['redshift_x'], np.ones(len(df)) * factor / 1e3, c='saddlebrown', label='box size') # to convert comoving code units to physical Mpc
+        ax2.plot(df['redshift_x'], np.ones(len(df)) * (args.refsize * 1e-3) * 100 / (1 + df['redshift_x']) / H0, c='black', label='refbox size x 100') # to convert comoving code units to physical Mpc x 100 (for better visualisation), args.refsize in kpc
 
         ax.set_xlim(xlim[0], np.min(df['redshift_x']))
         ax.set_xlabel('Redshift', fontsize=args.fontsize)
