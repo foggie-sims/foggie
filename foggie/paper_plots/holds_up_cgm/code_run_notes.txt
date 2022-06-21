@@ -1,0 +1,112 @@
+Runs and files used for FOGGIE VI paper analysis
+
+Main code used:
+-foggie/pressure_support/pressure_support.py
+-foggie/turbulence/turbulence.py
+
+For making velocity structure functions for finding the smoothing scale:
+-----------------------------------------------------------------------
+
+> /home5/clochhaa/miniconda3/bin/python3 /nobackup/clochhaa/foggie/foggie/turbulence/turbulence.py --system pleiades_cassi --nproc 6 --halo 8508 --run nref11c_nref9f --output DD0497-DD2427 --output_step 10 --plot vel_struc_func --region_filter temperature --save_suffix T-split
+
+> /home5/clochhaa/miniconda3/bin/python3 /nobackup/clochhaa/foggie/foggie/turbulence/turbulence.py --system pleiades_cassi --nproc 6 --halo 8508 --run nref11c_nref9f --output DD0497-DD2427 --output_step 10 --plot vel_struc_func --region_filter metallicity --save_suffix Z-split
+
+> /home5/clochhaa/miniconda3/bin/python3 /nobackup/clochhaa/foggie/foggie/turbulence/turbulence.py --system pleiades_cassi --nproc 6 --halo 8508 --run nref11c_nref9f --output DD0497-DD2427 --output_step 10 --plot vel_struc_func --region_filter velocity --save_suffix v-split
+
+Run on:
+-8508/nref11c_nref9f DD0497-DD2427 every 10th
+-5016/nref11c_nref9f DD0590-DD2520 every 10th
+-5036/nref11c_nref9f DD0590-DD2520 every 10th
+-4123/nref11c_nref9f DD0590-DD2520 every 10th
+-8508/high_feedback_restart DD1737-DD1877 every 10th
+-8508/feedback_return DD1747-DD2237 every 10th
+-8508/low_feedback_06 DD1627-DD2427 every 10th
+-8508/low_feedback_07 DD1627-DD2427 every 10th
+
+
+For making slices of velocities, smoothed velocities, and difference from smoothed velocities:
+---------------------------------------------------------------------------------------------
+
+> /home5/clochhaa/miniconda3/bin/python3 /nobackup/clochhaa/foggie/foggie/pressure_support/pressure_support.py --system pleiades_cassi --nproc 6 --halo 8508 --run nref11c_nref9f --output DD0497-DD2427 --output_step 10 --plot velocity_slice
+
+Run on:
+-8508/nref11c_nref9f DD0497-DD2427 every 10th
+-5016/nref11c_nref9f DD0590-DD2520 every 10th
+-5036/nref11c_nref9f DD0590-DD2520 every 10th
+-4123/nref11c_nref9f DD0590-DD2520 every 10th
+-8508/high_feedback_restart DD1737-DD1877 every 10th
+-8508/feedback_return DD1747-DD2237 every 10th
+-8508/low_feedback_06 DD1627-DD2427 every 10th
+-8508/low_feedback_07 DD1627-DD2427 every 10th
+
+For making slices of pressures:
+------------------------------
+
+> /home5/clochhaa/miniconda3/bin/python3 /nobackup/clochhaa/foggie/foggie/pressure_support/pressure_support.py --system pleiades_cassi --nproc 6 --halo 8508 --run nref11c_nref9f --output DD0497-DD2427 --output_step 10 --plot pressure_slice --pressure_type all
+
+Run on:
+-8508/nref11c_nref9f DD0497-DD2427 every 10th
+-5016/nref11c_nref9f DD0590-DD2520 every 10th
+-5036/nref11c_nref9f DD0590-DD2520 every 10th
+-4123/nref11c_nref9f DD0590-DD2520 every 10th
+-8508/high_feedback_restart DD1737-DD1877 every 10th
+-8508/feedback_return DD1747-DD2237 every 10th
+-8508/low_feedback_06 DD1627-DD2427 every 10th
+-8508/low_feedback_07 DD1627-DD2427 every 10th
+
+For making slices of forces:
+---------------------------
+
+> /home5/clochhaa/miniconda3/bin/python3 /nobackup/clochhaa/foggie/foggie/pressure_support/pressure_support.py --system pleiades_cassi --nproc 6 --halo 8508 --run nref11c_nref9f --output DD0497-DD2427 --output_step 10 --plot force_slice --force_type all
+
+Run on:
+-8508/nref11c_nref9f DD0497-DD2427 every 10th
+-5016/nref11c_nref9f DD0590-DD2520 every 10th
+-5036/nref11c_nref9f DD0590-DD2520 every 10th
+-4123/nref11c_nref9f DD0590-DD2520 every 10th
+-8508/high_feedback_restart DD1737-DD1877 every 10th
+-8508/feedback_return DD1747-DD2237 every 10th
+-8508/low_feedback_06 DD1627-DD2427 every 10th
+-8508/low_feedback_07 DD1627-DD2427 every 10th
+
+For all plots of forces or support vs. radius or time:
+-----------------------------------------------------
+
+> /home5/clochhaa/miniconda3/bin/python3 /nobackup/clochhaa/foggie/foggie/pressure_support/pressure_support.py --system pleiades_cassi --nproc 6 --halo 8508 --run nref11c_nref9f --output DD0497-DD2427 --output_step 10 --plot force_vs_radius --region_filter temperature --save_suffix T-split_cgm-only --normalized --cgm_only
+
+> /home5/clochhaa/miniconda3/bin/python3 /nobackup/clochhaa/foggie/foggie/pressure_support/pressure_support.py --system pleiades_cassi --nproc 6 --halo 8508 --run nref11c_nref9f --output DD0497-DD2427 --output_step 10 --plot force_vs_radius --region_filter metallicity --save_suffix Z-split_cgm-only --normalized --cgm_only
+
+> /home5/clochhaa/miniconda3/bin/python3 /nobackup/clochhaa/foggie/foggie/pressure_support/pressure_support.py --system pleiades_cassi --nproc 6 --halo 8508 --run nref11c_nref9f --output DD0497-DD2427 --output_step 10 --plot force_vs_radius --region_filter velocity --save_suffix v-split_cgm-only --normalized --cgm_only
+
+Run on:
+-8508/nref11c_nref9f DD0497-DD2427 every 10th
+-5016/nref11c_nref9f DD0590-DD2520 every 10th
+-5036/nref11c_nref9f DD0590-DD2520 every 10th
+-4123/nref11c_nref9f DD0590-DD2520 every 10th
+-8508/high_feedback_restart DD1737-DD1877 every 10th
+-8508/feedback_return DD1747-DD2237 every 10th
+-8508/low_feedback_06 DD1627-DD2427 every 10th
+-8508/low_feedback_07 DD1627-DD2427 every 10th
+
+For the 2D time-radius plots with Edot_out in the bottom panels:
+---------------------------------------------------------------
+
+> home5/clochhaa/miniconda3/bin/python /nobackup/clochhaa/foggie/foggie/flux_tracking/flux_tracking.py --system pleiades_cassi --nproc 8 --halo 8508 --run nref11c_nref9f --output DD0497-DD2427 --output_step 10 --flux_type mass,energy --surface "['sphere', 0., 2., 100]" --Rvir --cgm_filter --save_suffix cgm-only
+
+-8508/nref11c_nref9f DD0497-DD2427 every 10th
+-5016/nref11c_nref9f DD0590-DD2520 every 10th
+-5036/nref11c_nref9f DD0590-DD2520 every 10th
+-4123/nref11c_nref9f DD0590-DD2520 every 10th
+-8508/high_feedback_restart DD1737-DD1877 every 10th
+-8508/feedback_return DD1747-DD2237 every 10th
+-8508/low_feedback_06 DD1627-DD2427 every 10th
+-8508/low_feedback_07 DD1627-DD2427 every 10th
+
+
+
+
+Once all the data tables and movie frames from the above runs are made, the file paper_plots.sh in this directory lists all the command calls for making each plot in the paper, as well as some extras.
+
+The command scripts to make all the extra movies and plots that are not in the paper are located in make_videos.sh and make_time_plots.sh within each halo and run's pressures_ directory in FOGGIE/Outputs.
+
+All plots and movies are gathered into Powerpoint files, one for each halo and run. These are located in FOGGIE/Plots_documents and called pressure_support_plots_XXX.pptx, where XXX is the halo and run name.

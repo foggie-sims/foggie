@@ -635,97 +635,134 @@ def vsf_randompoints(snap):
         vx = cgm['vx_corrected'].in_units('km/s').v
         vy = cgm['vy_corrected'].in_units('km/s').v
         vz = cgm['vz_corrected'].in_units('km/s').v
+        radius = cgm['radius_corrected'].in_units('kpc').v
         print('Fields loaded')
 
-        # Select random pairs of pixels
-        npairs = int(len(x)/2)
-        ind_A = random.sample(range(len(x)), npairs)
-        ind_B = random.sample(range(len(x)), npairs)
-
-        # Calculate separations and velocity differences
-        sep = np.sqrt((x[ind_A] - x[ind_B])**2. + (y[ind_A] - y[ind_B])**2. + (z[ind_A] - z[ind_B])**2.)
-        vdiff = np.sqrt((vx[ind_A] - vx[ind_B])**2. + (vy[ind_A] - vy[ind_B])**2. + (vz[ind_A] - vz[ind_B])**2.)
-
+        # Loop through bins of radius
+        radius_bins = np.linspace(0., 200., 3)
+        npairs_bins_list = []
+        vsf_list = []
         if (args.region_filter!='none'):
-            seps_fil = []
-            vdiffs_fil = []
-            for i in range(3):
-                if (i==0): bool = (filter < low)
-                if (i==1): bool = (filter > low) & (filter < high)
-                if (i==2): bool = (filter > high)
-                x_fil = x[bool]
-                y_fil = y[bool]
-                z_fil = z[bool]
-                vx_fil = vx[bool]
-                vy_fil = vy[bool]
-                vz_fil = vz[bool]
-                npairs_fil = int(len(x_fil)/2)
-                ind_A_fil = random.sample(range(len(x_fil)), npairs_fil)
-                ind_B_fil = random.sample(range(len(x_fil)), npairs_fil)
-                sep_fil = np.sqrt((x_fil[ind_A_fil] - x_fil[ind_B_fil])**2. + (y_fil[ind_A_fil] - y_fil[ind_B_fil])**2. + (z_fil[ind_A_fil] - z_fil[ind_B_fil])**2.)
-                vdiff_fil = np.sqrt((vx_fil[ind_A_fil] - vx_fil[ind_B_fil])**2. + (vy_fil[ind_A_fil] - vy_fil[ind_B_fil])**2. + (vz_fil[ind_A_fil] - vz_fil[ind_B_fil])**2.)
-                seps_fil.append(sep_fil)
-                vdiffs_fil.append(vdiff_fil)
+            vsf_low_list = []
+            vsf_mid_list = []
+            vsf_high_list = []
+            npairs_bins_low = []
+            npairs_bins_mid = []
+            npairs_bins_high = []
+        for r in range(len(radius_bins)-1):
+            r_inner = radius_bins[r]
+            r_outer = radius_bins[r+1]
 
-        # Find average vdiff in bins of pixel separation and save to file
-        f = open(save_dir + snap + '_VSF' + save_suffix + '.dat', 'w')
-        f.write('# Separation [kpc]   VSF [km/s]')
-        if (args.region_filter=='temperature'):
-            f.write('   low-T VSF [km/s]   mid-T VSF[km/s]   high-T VSF [km/s]\n')
-        elif (args.region_filter=='metallicity'):
-            f.write('   low-Z VSF [km/s]   mid-Z VSF[km/s]   high-Z VSF [km/s]\n')
-        elif (args.region_filter=='velocity'):
-            f.write('   low-v VSF [km/s]   mid-v VSF[km/s]   high-v VSF [km/s]\n')
-        else: f.write('\n')
-        sep_bins = np.arange(0.,2.*Rvir+1,1)
-        vsf = np.zeros(len(sep_bins)-1)
-        if (args.region_filter!='none'):
-            vsf_low = np.zeros(len(sep_bins)-1)
-            vsf_mid = np.zeros(len(sep_bins)-1)
-            vsf_high = np.zeros(len(sep_bins)-1)
-            npairs_bins_low = np.zeros(len(sep_bins))
-            npairs_bins_mid = np.zeros(len(sep_bins))
-            npairs_bins_high = np.zeros(len(sep_bins))
-        npairs_bins = np.zeros(len(sep_bins))
-        for i in range(len(sep_bins)-1):
-            npairs_bins[i] += len(sep[(sep > sep_bins[i]) & (sep < sep_bins[i+1])])
-            vsf[i] += np.mean(vdiff[(sep > sep_bins[i]) & (sep < sep_bins[i+1])])
-            f.write('%.5f              %.5f' % (sep_bins[i], vsf[i]))
+            x_bin = x[(radius >= r_inner) & (radius < r_outer)]
+            y_bin = y[(radius >= r_inner) & (radius < r_outer)]
+            z_bin = z[(radius >= r_inner) & (radius < r_outer)]
+            vx_bin = vx[(radius >= r_inner) & (radius < r_outer)]
+            vy_bin = vy[(radius >= r_inner) & (radius < r_outer)]
+            vz_bin = vz[(radius >= r_inner) & (radius < r_outer)]
+
+            # Select random pairs of pixels
+            npairs = int(len(x_bin)/2)
+            ind_A = random.sample(range(len(x_bin)), npairs)
+            ind_B = random.sample(range(len(x_bin)), npairs)
+
+            # Calculate separations and velocity differences
+            sep = np.sqrt((x_bin[ind_A] - x_bin[ind_B])**2. + (y_bin[ind_A] - y_bin[ind_B])**2. + (z_bin[ind_A] - z_bin[ind_B])**2.)
+            vdiff = np.sqrt((vx_bin[ind_A] - vx_bin[ind_B])**2. + (vy_bin[ind_A] - vy_bin[ind_B])**2. + (vz_bin[ind_A] - vz_bin[ind_B])**2.)
+
             if (args.region_filter!='none'):
-                npairs_bins_low[i] += len(seps_fil[0][(seps_fil[0] > sep_bins[i]) & (seps_fil[0] < sep_bins[i+1])])
-                vsf_low[i] += np.mean(vdiffs_fil[0][(seps_fil[0] > sep_bins[i]) & (seps_fil[0] < sep_bins[i+1])])
-                npairs_bins_mid[i] += len(seps_fil[1][(seps_fil[1] > sep_bins[i]) & (seps_fil[1] < sep_bins[i+1])])
-                vsf_mid[i] += np.mean(vdiffs_fil[1][(seps_fil[1] > sep_bins[i]) & (seps_fil[1] < sep_bins[i+1])])
-                npairs_bins_high[i] += len(seps_fil[2][(seps_fil[2] > sep_bins[i]) & (seps_fil[2] < sep_bins[i+1])])
-                vsf_high[i] += np.mean(vdiffs_fil[2][(seps_fil[2] > sep_bins[i]) & (seps_fil[2] < sep_bins[i+1])])
-                f.write('     %.5f           %.5f          %.5f\n' % (vsf_low[i], vsf_mid[i], vsf_high[i]))
-            else:
-                f.write('\n')
-        f.close()
-        bin_centers = sep_bins[:-1] + np.diff(sep_bins)
+                seps_fil = []
+                vdiffs_fil = []
+                for i in range(3):
+                    if (i==0): bool = (filter < low)
+                    if (i==1): bool = (filter > low) & (filter < high)
+                    if (i==2): bool = (filter > high)
+                    x_fil = x_bin[bool]
+                    y_fil = y_bin[bool]
+                    z_fil = z_bin[bool]
+                    vx_fil = vx_bin[bool]
+                    vy_fil = vy_bin[bool]
+                    vz_fil = vz_bin[bool]
+                    npairs_fil = int(len(x_fil)/2)
+                    ind_A_fil = random.sample(range(len(x_fil)), npairs_fil)
+                    ind_B_fil = random.sample(range(len(x_fil)), npairs_fil)
+                    sep_fil = np.sqrt((x_fil[ind_A_fil] - x_fil[ind_B_fil])**2. + (y_fil[ind_A_fil] - y_fil[ind_B_fil])**2. + (z_fil[ind_A_fil] - z_fil[ind_B_fil])**2.)
+                    vdiff_fil = np.sqrt((vx_fil[ind_A_fil] - vx_fil[ind_B_fil])**2. + (vy_fil[ind_A_fil] - vy_fil[ind_B_fil])**2. + (vz_fil[ind_A_fil] - vz_fil[ind_B_fil])**2.)
+                    seps_fil.append(sep_fil)
+                    vdiffs_fil.append(vdiff_fil)
+
+            # Find average vdiff in bins of pixel separation and save to file
+            f = open(save_dir + snap + '_VSF_rbin' + str(r) + save_suffix + '.dat', 'w')
+            f.write('# Inner radius [kpc] Outer radius [kpc] Separation [kpc]   VSF [km/s]')
+            if (args.region_filter=='temperature'):
+                f.write('   low-T VSF [km/s]   mid-T VSF[km/s]   high-T VSF [km/s]\n')
+            elif (args.region_filter=='metallicity'):
+                f.write('   low-Z VSF [km/s]   mid-Z VSF[km/s]   high-Z VSF [km/s]\n')
+            elif (args.region_filter=='velocity'):
+                f.write('   low-v VSF [km/s]   mid-v VSF[km/s]   high-v VSF [km/s]\n')
+            else: f.write('\n')
+            sep_bins = np.arange(0.,2.*Rvir+1,1)
+            vsf_list.append(np.zeros(len(sep_bins)-1))
+            if (args.region_filter!='none'):
+                vsf_low = np.zeros(len(sep_bins)-1)
+                vsf_mid = np.zeros(len(sep_bins)-1)
+                vsf_high = np.zeros(len(sep_bins)-1)
+                npairs_bins_low = np.zeros(len(sep_bins))
+                npairs_bins_mid = np.zeros(len(sep_bins))
+                npairs_bins_high = np.zeros(len(sep_bins))
+            npairs_bins_list.append(np.zeros(len(sep_bins)))
+            for i in range(len(sep_bins)-1):
+                npairs_bins_list[r][i] += len(sep[(sep > sep_bins[i]) & (sep < sep_bins[i+1])])
+                vsf_list[r][i] += np.mean(vdiff[(sep > sep_bins[i]) & (sep < sep_bins[i+1])])
+                f.write('  %.2f              %.2f              %.5f              %.5f' % (r_inner, r_outer, sep_bins[i], vsf_list[r][i]))
+                if (args.region_filter!='none'):
+                    npairs_bins_low[r][i] += len(seps_fil[0][(seps_fil[0] > sep_bins[i]) & (seps_fil[0] < sep_bins[i+1])])
+                    vsf_low[r][i] += np.mean(vdiffs_fil[0][(seps_fil[0] > sep_bins[i]) & (seps_fil[0] < sep_bins[i+1])])
+                    npairs_bins_mid[r][i] += len(seps_fil[1][(seps_fil[1] > sep_bins[i]) & (seps_fil[1] < sep_bins[i+1])])
+                    vsf_mid[r][i] += np.mean(vdiffs_fil[1][(seps_fil[1] > sep_bins[i]) & (seps_fil[1] < sep_bins[i+1])])
+                    npairs_bins_high[r][i] += len(seps_fil[2][(seps_fil[2] > sep_bins[i]) & (seps_fil[2] < sep_bins[i+1])])
+                    vsf_high[r][i] += np.mean(vdiffs_fil[2][(seps_fil[2] > sep_bins[i]) & (seps_fil[2] < sep_bins[i+1])])
+                    f.write('     %.5f           %.5f          %.5f\n' % (vsf_low[r][i], vsf_mid[r][i], vsf_high[r][i]))
+                else:
+                    f.write('\n')
+            f.close()
+            bin_centers = sep_bins[:-1] + np.diff(sep_bins)
     else:
+        radius_bins = np.linspace(0., 200., 3)
         if (args.region_filter!='none'):
-            sep_bins, vsf, vsf_low, vsf_mid, vsf_high = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF' + args.load_vsf + '.dat', unpack=True, usecols=[0,1,2,3,4])
+            vsf_list = []
+            vsf_low_list = []
+            vsf_mid_list = []
+            vsf_high_list = []
+            for r in range(len(radius_bins)-1):
+                inner_r, outer_r, sep_bins, vsf, vsf_low, vsf_mid, vsf_high = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF_rbin' + str(r) + args.load_vsf + '.dat', unpack=True, usecols=[0,1,2,3,4,5,6])
+                vsf_list.append(vsf)
+                vsf_low_list.append(vsf_low)
+                vsf_mid_list.append(vsf_mid)
+                vsf_high_list.append(vsf_high)
         else:
-            sep_bins, vsf = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF' + args.load_vsf + '.dat', unpack=True, usecols=[0,1])
+            vsf_list = []
+            for r in range(len(radius_bins-1)):
+                inner_r, outer_r, sep_bins, vsf = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF_rbin' + str(r) + args.load_vsf + '.dat', unpack=True, usecols=[0,1,2,3])
+                vsf_list.append(vsf)
         sep_bins = np.append(sep_bins, sep_bins[-1]+np.diff(sep_bins)[-1])
         bin_centers = sep_bins[:-1] + np.diff(sep_bins)
 
-    # Calculate expected VSF from subsonic Kolmogorov turbulence
-    Kolmogorov_slope = []
-    for i in range(len(bin_centers)):
-        Kolmogorov_slope.append(vsf[10]*(bin_centers[i]/bin_centers[10])**(1./3.))
-
     # Plot
-    fig = plt.figure(figsize=(8,6),dpi=500)
+    fig = plt.figure(figsize=(8,6),dpi=200)
     ax = fig.add_subplot(1,1,1)
 
-    ax.plot(bin_centers, vsf, 'k-', lw=2)
-    ax.plot(bin_centers, Kolmogorov_slope, 'k--', lw=2)
-    if (args.region_filter!='none'):
-        ax.plot(bin_centers, vsf_low, 'b--', lw=2)
-        ax.plot(bin_centers, vsf_mid, 'g--', lw=2)
-        ax.plot(bin_centers, vsf_high, 'r--', lw=2)
+    alphas = np.linspace(0.5,1.,2)
+    for r in range(len(radius_bins)-1):
+        # Calculate expected VSF from subsonic Kolmogorov turbulence
+        Kolmogorov_slope = []
+        for i in range(len(bin_centers)):
+            Kolmogorov_slope.append(vsf_list[r][10]*(bin_centers[i]/bin_centers[10])**(1./3.))
+        ax.plot(bin_centers, vsf_list[r], 'k-', lw=2, alpha=alphas[r])
+        #ax.plot(bin_centers, Kolmogorov_slope, 'k--', lw=2, alpha=alphas[r])
+        if (args.region_filter!='none'):
+            ax.plot(bin_centers, vsf_low[r], 'b--', lw=2, alpha=alphas[r])
+            ax.plot(bin_centers, vsf_mid[r], 'g--', lw=2, alpha=alphas[r])
+            ax.plot(bin_centers, vsf_high[r], 'r--', lw=2, alpha=alphas[r])
 
     time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
     zsnap = time_table['redshift'][time_table['snap']==snap]
@@ -1110,10 +1147,10 @@ def vdisp_vs_mass_res(snap):
     data_frame['vdisp'] = vdisp.flatten()
     data_frame['mass'] = np.log10(mass).flatten()
     x_range = [0., 6.]
-    y_range = [0, 200]
+    y_range = [0, 250]
     cvs = dshader.Canvas(plot_width=1000, plot_height=800, x_range=x_range, y_range=y_range)
     agg = cvs.points(data_frame, 'mass', 'vdisp', dshader.count_cat(cat))
-    img = tf.spread(tf.shade(agg, color_key=color_key, how='eq_hist',min_alpha=40), shape='square', px=0)
+    img = tf.spread(tf.shade(agg, color_key=color_key, how='eq_hist',min_alpha=40), shape='square', px=1)
     export_image(img, save_dir + snap + '_vdisp_vs_cell-mass_metallicity-colored' + save_suffix + '_intermediate')
     fig = plt.figure(figsize=(10,8),dpi=500)
     ax = fig.add_subplot(1,1,1)
@@ -1122,9 +1159,10 @@ def vdisp_vs_mass_res(snap):
     ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_range[1]-y_range[0])))
     ax.set_xlabel('log Mass Resolution [$M_\odot$]', fontsize=20)
     ax.set_ylabel('Velocity Dispersion [km/s]', fontsize=20)
+    #ax.set_facecolor('0.8')
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
       top=True, right=True)
-    ax.text(5.75, 180, '$z=%.2f$' % (zsnap), fontsize=20, ha='right', va='center')
+    ax.text(5.75, 225, '$z=%.2f$' % (zsnap), fontsize=20, ha='right', va='center')
     #ax.text(5.75, 165, halo_dict[args.halo],ha='right',va='center',fontsize=20)
     #ax.plot([FIRE_res, FIRE_res],[0,200], 'k-', lw=1)
     #ax.text(FIRE_res+0.05, 25, 'FIRE', ha='left', va='center', fontsize=20)
@@ -1258,7 +1296,7 @@ def vdisp_vs_spatial_res(snap):
 
     ax.set_xlabel('Spatial Resolution [kpc]', fontsize=24)
     ax.set_ylabel('Velocity dispersion [km/s]', fontsize=24)
-    ax.axis([0.3,20,-5,250])
+    ax.axis([1.,20,-5,250])
     ax.set_xscale('log')
     ax.text(19, 235, '$z=%.2f$' % (zsnap), fontsize=24, ha='right', va='center')
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=24, \

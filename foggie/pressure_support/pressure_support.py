@@ -37,6 +37,8 @@ from scipy.interpolate import RegularGridInterpolator
 import shutil
 import ast
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from numpy.lib.stride_tricks import sliding_window_view
 from scipy.ndimage import gaussian_filter
 from scipy.ndimage import rotate
 from scipy.ndimage import uniform_filter1d
@@ -123,7 +125,7 @@ def parse_args():
                         'force_vs_radius_time_averaged  -  forces over radius with shading showing time variation\n' + \
                         'force_vs_radius_pres   -  forces (thermal, turb, ram) over radius, calculated from gradient of median pressure\n' + \
                         'force_vs_time          -  forces (thermal, turb, ram, rotation, gravity, total) over time\n' + \
-                        'force_vs_energy_output -  2D plot of forces vs energy output from galaxy and radius\n' + \
+                        'support_vs_energy_output -  2D plot of support vs energy output from galaxy and radius\n' + \
                         'work_vs_time           -  work done by different forces over time\n' + \
                         'pressure_vs_r_shaded   -  pressure over radius or radial velocity for each cell as a datashader plot\n' + \
                         '       or                 For these options, specify what type of pressure to plot with the --pressure_type keyword\n' + \
@@ -134,6 +136,8 @@ def parse_args():
                         'shader_force_colored   -  Datashader plot of --shader_y vs. --shader_x colored by forces or force ratios\n' + \
                         'support_vs_time        -  pressure support (thermal, turb, ram) relative to gravity at a specified radius over time\n' + \
                         'support_vs_radius      -  pressure support (thermal, turb, ram) relative to gravity over radius\n' + \
+                        'support_vs_time_radius -  pressure support relative to gravity in a 2D plot of time and radius\n' + \
+                        'support_vs_mass_flux   -  pressure support relative to gravity in a 2D plot of radius and mass flux from galaxy\n' + \
                         'support_vs_radius_time_averaged  -  support (forces/gravity) over radius with shading showing time variation\n' + \
                         'support_vs_r_shaded    -  pressure support relative to gravity over radius or radial velocity for each cell as a datashader plot\n' + \
                         '       or                 For these options, specify what type of support to plot with the --pressure_type keyword\n' + \
@@ -151,7 +155,10 @@ def parse_args():
                         'force_rays             -  Line plots of forces along rays from the halo center to various points\n' + \
                         'turbulent_spectrum     -  Turbulent energy power spectrum\n' + \
                         'turbulence_compare     -  Compares different ways of computing turbulent pressure\n' + \
-                        'visualization          -  3D viewer of pressure fields using napari')
+                        'visualization          -  3D viewer of pressure fields using napari\n' + \
+                        'support_vs_radius_dencut_compare - Compares different density cut thresholds between ISM and CGM\n' + \
+                        'support_vs_radius_turb_compare - Compares computing turbulence using Cartesian and spherical coordinates\n' +\
+                        'support_vs_radius_refine_compare - Compares restricting to only refine box pixels and not')
 
     parser.add_argument('--region_filter', metavar='region_filter', type=str, action='store', \
                         help='Do you want to show pressures in different regions? Options are:\n' + \
@@ -250,10 +257,10 @@ def parse_args():
                         'by mass (i.e., plot accelerations)? Default is not to do this.')
     parser.set_defaults(normalized=False)
 
-    parser.add_argument('--smoothed', dest='smoothed', action='store_true', \
-                        help='If plotting force slices, do you want to smooth the force field?\n' + \
-                        'Default is not to do this.')
-    parser.set_defaults(smoothed=False)
+    parser.add_argument('--smoothed', metavar='smoothed', type=float, action='store', \
+                        help='If plotting force slices, what size in kpc do you want to smooth over?\n' + \
+                        'Default is no smoothing.')
+    parser.set_defaults(smoothed=0.)
 
     parser.add_argument('--copy_to_tmp', dest='copy_to_tmp', action='store_true', \
                         help='If running on pleiades, do you want to copy simulation outputs too the\n' + \
@@ -578,17 +585,16 @@ def metallicity_PDF(snaplist):
     ax1 = fig.add_subplot(1,2,1)
     ax2 = fig.add_subplot(1,2,2)
 
-    linecolors = plt.cm.YlGnBu(np.linspace(0.2,1,4))
+    linecolors = plt.cm.plasma(np.linspace(0,0.9,4))
     snap_z = [2.,1.,0.5,0.]
 
     for i in range(len(snaplist)):
         snap = snaplist[i]
+        print(snap)
         inner_pdf = Table.read(stats_dir + '/Tables/' + snap + '_stats_metallicity_pdf_sphere_mass-weighted_inner-cgm-only.hdf5', path='all_data')
         outer_pdf = Table.read(stats_dir + '/Tables/' + snap + '_stats_metallicity_pdf_sphere_mass-weighted_outer-cgm-only.hdf5', path='all_data')
         met_dist = 0.5*(inner_pdf['lower_log_metallicity'] + inner_pdf['upper_log_metallicity'])
 
-        print(i, inner_pdf['inner_radius'][0], inner_pdf['outer_radius'][0])
-        print(i, outer_pdf['inner_radius'][0], outer_pdf['outer_radius'][0])
         ax1.plot(met_dist, inner_pdf['net_log_metallicity_pdf'][:200], ls='-', lw=2, color=linecolors[i], label='$z=%.1f$' % snap_z[i])
         ax2.plot(met_dist, outer_pdf['net_log_metallicity_pdf'][:200], ls='-', lw=2, color=linecolors[i])
 
@@ -1199,6 +1205,8 @@ def forces_vs_radius(snap):
         dx_cm = dx*1000*cmtopc
         refine_res = int(3.*Rvir/dx)
         box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
+        #refine_res = int(ds.refine_width/dx)
+        #box = ds.covering_grid(level=level, left_edge = ds.halo_center_kpc-ds.arr([0.5*ds.refine_width,0.5*ds.refine_width,0.5*ds.refine_width], 'kpc'), dims=[refine_res,refine_res,refine_res])
         density = box['density'].in_units('g/cm**3').v
         temperature = box['temperature'].v
         x = box[('gas','x')].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
@@ -1243,6 +1251,34 @@ def forces_vs_radius(snap):
         pres_grad = np.gradient(pres_masked, dx_cm)
         dPdr = pres_grad[0]*x_hat + pres_grad[1]*y_hat + pres_grad[2]*z_hat
         thermal_force = -1./den_masked * dPdr
+        '''vr = box['radial_velocity_corrected'].in_units('cm/s').v
+        vtheta = box['theta_velocity_corrected'].in_units('cm/s').v
+        vphi = box['phi_velocity_corrected'].in_units('cm/s').v
+        if (args.cgm_only):
+            vr_edges = vr[disk_edges]
+            vr_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vr_edges)
+            vr_masked = np.copy(vr)
+            vr_masked[disk_mask] = vr_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+            vtheta_edges = vtheta[disk_edges]
+            vphi_edges = vphi[disk_edges]
+            vtheta_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges)
+            vtheta_masked = np.copy(vtheta)
+            vphi_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges)
+            vphi_masked = np.copy(vphi)
+            vtheta_masked[disk_mask] = vtheta_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+            vphi_masked[disk_mask] = vphi_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+        else:
+            vr_masked = vr
+            vtheta_masked = vtheta
+            vphi_masked = vphi
+        smooth_vr = gaussian_filter(vr_masked, smooth_scale)
+        smooth_vtheta = gaussian_filter(vtheta_masked, smooth_scale)
+        smooth_vphi = gaussian_filter(vphi_masked, smooth_scale)
+        smooth_den = gaussian_filter(den_masked, smooth_scale)
+        sig_r = (vr_masked - smooth_vr)**2.
+        sig_theta = (vtheta_masked - smooth_vtheta)**2.
+        sig_phi = (vphi_masked - smooth_vphi)**2.
+        vdisp = np.sqrt((sig_r + sig_theta + sig_phi)/3.)'''
         vx = box['vx_corrected'].in_units('cm/s').v
         vy = box['vy_corrected'].in_units('cm/s').v
         vz = box['vz_corrected'].in_units('cm/s').v
@@ -1502,7 +1538,7 @@ def forces_vs_radius(snap):
     radius_list = 0.5*(stats['inner_radius'] + stats['outer_radius'])
     zsnap = stats['redshift'][0]
 
-    fig = plt.figure(figsize=(8,6), dpi=500)
+    fig = plt.figure(figsize=(8,6), dpi=200)
     ax = fig.add_subplot(1,1,1)
 
     for i in range(len(plot_colors)):
@@ -1548,12 +1584,12 @@ def forces_vs_radius(snap):
         figs2 = []
         axs2 = []
         for r in range(len(regions)):
-            figs2.append(plt.figure(figsize=(8,6), dpi=500))
+            figs2.append(plt.figure(figsize=(8,6), dpi=200))
             axs2.append(figs2[-1].add_subplot(1,1,1))
 
         for i in range(len(plot_colors)):
             # Fig3 is plots of all regions for each force type, one per force type
-            fig3 = plt.figure(figsize=(8,6), dpi=500)
+            fig3 = plt.figure(figsize=(8,6), dpi=200)
             ax3 = fig3.add_subplot(1,1,1)
             label = plot_labels[i]
             label_regions = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, '$0.1\\times$ High ' + args.region_filter]
@@ -2183,8 +2219,8 @@ def forces_vs_time(snaplist):
             fig_regions[j].savefig(save_dir + file_labels[j] + '_vs_time_regions-' + args.region_filter + save_suffix + '.png')
             plt.close(fig_regions[j])
 
-def forces_vs_energy_output(snaplist):
-    '''Makes a 2D plot of each force type vs. energy output from the central 0.1Rvir of the halo and
+def support_vs_energy_output(snaplist):
+    '''Makes a 2D plot of each support type vs. energy output from the central 0.1Rvir of the halo and
     galactocentric radius. Requires saved files of both forces vs. radius and energy fluxes for each
     snapshot in 'snaplist'.'''
 
@@ -2226,6 +2262,9 @@ def forces_vs_energy_output(snaplist):
 
     thermal_energy_bins = np.linspace(46., 49., 7)
     thermal_bin_indices = np.digitize(thermal_energy_fluxes, thermal_energy_bins)
+    print(thermal_energy_bins)
+    print(np.min(thermal_bin_indices), np.max(thermal_bin_indices))
+    print(np.bincount(thermal_bin_indices))
     thermal_support_thermal_bins = []
     turbulent_support_thermal_bins = []
     rotation_support_thermal_bins = []
@@ -2246,6 +2285,9 @@ def forces_vs_energy_output(snaplist):
 
     kinetic_energy_bins = np.linspace(46., 49., 7)
     kinetic_bin_indices = np.digitize(kinetic_energy_fluxes, kinetic_energy_bins)
+    print(kinetic_energy_bins)
+    print(np.min(kinetic_bin_indices), np.max(kinetic_bin_indices))
+    print(np.bincount(kinetic_bin_indices))
     thermal_support_kinetic_bins = []
     turbulent_support_kinetic_bins = []
     rotation_support_kinetic_bins = []
@@ -2266,6 +2308,9 @@ def forces_vs_energy_output(snaplist):
 
     tot_energy_bins = np.linspace(46.5, 49.5, 7)
     tot_bin_indices = np.digitize(tot_energy_fluxes, tot_energy_bins)
+    print(tot_energy_bins)
+    print(np.min(tot_bin_indices), np.max(tot_bin_indices))
+    print(np.bincount(tot_bin_indices))
     thermal_support_tot_bins = []
     turbulent_support_tot_bins = []
     rotation_support_tot_bins = []
@@ -2286,7 +2331,7 @@ def forces_vs_energy_output(snaplist):
 
     cmap = sns.blend_palette(('#ffffff', '#b482ff', "#6600ff", "#8cf4ff", "#8cf4ff", "#8cffb4", "#8cffb4", '#c7ff8c', '#c7ff8c'), as_cmap=True)
 
-    fig = plt.figure(figsize=(15,12), dpi=500)
+    fig = plt.figure(figsize=(15,12), dpi=200)
     ax1 = fig.add_subplot(2,2,1)
     ax2 = fig.add_subplot(2,2,2)
     ax3 = fig.add_subplot(2,2,3)
@@ -2345,7 +2390,7 @@ def forces_vs_energy_output(snaplist):
     fig.savefig(save_dir + 'support_vs_radius_thermal-energy-output' + save_suffix + '.png')
 
 
-    fig = plt.figure(figsize=(15,12), dpi=500)
+    fig = plt.figure(figsize=(15,12), dpi=200)
     ax1 = fig.add_subplot(2,2,1)
     ax2 = fig.add_subplot(2,2,2)
     ax3 = fig.add_subplot(2,2,3)
@@ -2404,7 +2449,7 @@ def forces_vs_energy_output(snaplist):
     fig.subplots_adjust(left=0.08,right=0.88, top=0.97, bottom=0.07, wspace=0.25, hspace=0.25)
     fig.savefig(save_dir + 'support_vs_radius_kinetic-energy-output' + save_suffix + '.png')
 
-    fig = plt.figure(figsize=(15,12), dpi=500)
+    fig = plt.figure(figsize=(15,12), dpi=200)
     ax1 = fig.add_subplot(2,2,1)
     ax2 = fig.add_subplot(2,2,2)
     ax3 = fig.add_subplot(2,2,3)
@@ -2462,6 +2507,291 @@ def forces_vs_energy_output(snaplist):
 
     fig.subplots_adjust(left=0.08,right=0.88, top=0.97, bottom=0.07, wspace=0.25, hspace=0.25)
     fig.savefig(save_dir + 'support_vs_radius_energy-output' + save_suffix + '.png')
+
+def support_vs_mass_flux(snaplist):
+    '''Makes a 2D plot of each support type vs. mass flux through the central 0.1Rvir of the halo and
+    galactocentric radius. Requires saved files of both forces vs. radius and mass fluxes for each
+    snapshot in 'snaplist'.'''
+
+    tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    if (args.filename == ''):
+        filename = ''
+    else:
+        filename = '_' + args.filename
+
+    inward_mass_fluxes = []
+    outward_mass_fluxes = []
+    net_mass_fluxes = []
+    thermal_support = []
+    turbulent_support = []
+    rotation_support = []
+    total_support = []
+    for i in range(len(snaplist)):
+        snap = snaplist[i]
+        Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+        forces = Table.read(tablename_prefix + snap + '_stats_force-types' + filename + '.hdf5', path='all_data')
+        radius_list = 0.5*(forces['inner_radius'] + forces['outer_radius'])/Rvir
+        fluxes = Table.read(output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/Tables/' + \
+                            snap + '_fluxes_mass_energy_cgm-only.hdf5', path='all_data')
+        inward_mass_fluxes.append(fluxes['mass_flux_in'][np.where(fluxes['radius']<=0.1*Rvir)[0][-1]])
+        outward_mass_fluxes.append(fluxes['mass_flux_out'][np.where(fluxes['radius']<=0.1*Rvir)[0][-1]])
+        net_mass_fluxes.append(fluxes['net_mass_flux'][np.where(fluxes['radius']<=0.1*Rvir)[0][-1]])
+        thermal_support.append(forces['thermal_force_sum']/-forces['gravity_force_sum'])
+        turbulent_support.append(forces['turbulent_force_sum']/-forces['gravity_force_sum'])
+        rotation_support.append(forces['rotation_force_sum']/-forces['gravity_force_sum'])
+        total_support.append((forces['thermal_force_sum']+forces['turbulent_force_sum']+forces['rotation_force_sum']+forces['ram_force_sum'])/-forces['gravity_force_sum'])
+    inward_mass_fluxes = np.array(inward_mass_fluxes)
+    outward_mass_fluxes = np.array(outward_mass_fluxes)
+    net_mass_fluxes = np.array(net_mass_fluxes)
+    thermal_support = np.array(thermal_support)
+    turbulent_support = np.array(turbulent_support)
+    rotation_support = np.array(rotation_support)
+    total_support = np.array(total_support)
+
+    mass_flux_bins = np.linspace(-10., 10., 21)
+    inward_mass_indices = np.digitize(inward_mass_fluxes, mass_flux_bins)
+    thermal_support_inward_bins = []
+    turbulent_support_inward_bins = []
+    rotation_support_inward_bins = []
+    total_support_inward_bins = []
+    for i in range(1,len(mass_flux_bins)):
+        values = thermal_support[np.where(inward_mass_indices==i)[0]]
+        thermal_support_inward_bins.append(np.nanmean(values, axis=0))
+        values = turbulent_support[np.where(inward_mass_indices==i)[0]]
+        turbulent_support_inward_bins.append(np.nanmean(values, axis=0))
+        values = rotation_support[np.where(inward_mass_indices==i)[0]]
+        rotation_support_inward_bins.append(np.nanmean(values, axis=0))
+        values = total_support[np.where(inward_mass_indices==i)[0]]
+        total_support_inward_bins.append(np.nanmean(values, axis=0))
+    thermal_support_inward_bins = np.array(thermal_support_inward_bins)
+    turbulent_support_inward_bins = np.array(turbulent_support_inward_bins)
+    rotation_support_inward_bins = np.array(rotation_support_inward_bins)
+    total_support_inward_bins = np.array(total_support_inward_bins)
+
+    mass_flux_bins = np.linspace(-10., 10., 21)
+    outward_mass_indices = np.digitize(outward_mass_fluxes, mass_flux_bins)
+    thermal_support_outward_bins = []
+    turbulent_support_outward_bins = []
+    rotation_support_outward_bins = []
+    total_support_outward_bins = []
+    for i in range(1,len(mass_flux_bins)):
+        values = thermal_support[np.where(outward_mass_indices==i)[0]]
+        thermal_support_outward_bins.append(np.nanmean(values, axis=0))
+        values = turbulent_support[np.where(outward_mass_indices==i)[0]]
+        turbulent_support_outward_bins.append(np.nanmean(values, axis=0))
+        values = rotation_support[np.where(outward_mass_indices==i)[0]]
+        rotation_support_outward_bins.append(np.nanmean(values, axis=0))
+        values = total_support[np.where(outward_mass_indices==i)[0]]
+        total_support_outward_bins.append(np.nanmean(values, axis=0))
+    thermal_support_outward_bins = np.array(thermal_support_outward_bins)
+    turbulent_support_outward_bins = np.array(turbulent_support_outward_bins)
+    rotation_support_outward_bins = np.array(rotation_support_outward_bins)
+    total_support_outward_bins = np.array(total_support_outward_bins)
+
+    mass_flux_bins = np.linspace(-10., 10., 21)
+    net_mass_indices = np.digitize(net_mass_fluxes, mass_flux_bins)
+    thermal_support_net_bins = []
+    turbulent_support_net_bins = []
+    rotation_support_net_bins = []
+    total_support_net_bins = []
+    for i in range(1,len(mass_flux_bins)):
+        values = thermal_support[np.where(net_mass_indices==i)[0]]
+        thermal_support_net_bins.append(np.nanmean(values, axis=0))
+        values = turbulent_support[np.where(net_mass_indices==i)[0]]
+        turbulent_support_net_bins.append(np.nanmean(values, axis=0))
+        values = rotation_support[np.where(net_mass_indices==i)[0]]
+        rotation_support_net_bins.append(np.nanmean(values, axis=0))
+        values = total_support[np.where(net_mass_indices==i)[0]]
+        total_support_net_bins.append(np.nanmean(values, axis=0))
+    thermal_support_net_bins = np.array(thermal_support_net_bins)
+    turbulent_support_net_bins = np.array(turbulent_support_net_bins)
+    rotation_support_net_bins = np.array(rotation_support_net_bins)
+    total_support_net_bins = np.array(total_support_net_bins)
+
+    cmap1 = sns.blend_palette(('#ffffff', '#b482ff', "#6600ff", "#e66e8c"), as_cmap=True)
+    cmap2 = sns.blend_palette(("#e66e8c", '#e86e56', '#c72918'), as_cmap=True)
+
+    colors1 = cmap1(np.linspace(0, 1, 150))
+    colors2 = cmap2(np.linspace(0, 1, 250))
+    combined = np.vstack((colors1, colors2))
+    support_cmap = colors.LinearSegmentedColormap.from_list('support_cmap', combined)
+
+    fig = plt.figure(figsize=(15,12), dpi=200)
+    ax1 = fig.add_subplot(2,2,1)
+    ax2 = fig.add_subplot(2,2,2)
+    ax3 = fig.add_subplot(2,2,3)
+    ax4 = fig.add_subplot(2,2,4)
+
+    im = ax1.pcolormesh(thermal_support_inward_bins, cmap=support_cmap, vmin=0, vmax=4)
+    ax2.pcolormesh(turbulent_support_inward_bins, cmap=support_cmap, vmin=0, vmax=4)
+    ax3.pcolormesh(rotation_support_inward_bins, cmap=support_cmap, vmin=0, vmax=4)
+    ax4.pcolormesh(total_support_inward_bins, cmap=support_cmap, vmin=0, vmax=4)
+
+    ax1.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax1.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax1.set_yticks([0,5,10,15,20])
+    ax1.set_yticklabels([-10,-5,0,5,10])
+    ax2.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax2.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax2.set_yticks([0,5,10,15,20])
+    ax2.set_yticklabels([-10,-5,0,5,10])
+    ax3.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax3.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax3.set_yticks([0,5,10,15,20])
+    ax3.set_yticklabels([-10,-5,0,5,10])
+    ax4.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax4.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax4.set_yticks([0,5,10,15,20])
+    ax4.set_yticklabels([-10,-5,0,5,10])
+    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+
+    ax1.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax1.set_ylabel('$\dot{M}_\mathrm{in}$ [erg/s]', fontsize=20)
+    ax2.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax2.set_ylabel('$\dot{M}_\mathrm{in}$ [erg/s]', fontsize=20)
+    ax3.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax3.set_ylabel('$\dot{M}_\mathrm{in}$ [erg/s]', fontsize=20)
+    ax4.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax4.set_ylabel('$\dot{M}_\mathrm{in}$ [erg/s]', fontsize=20)
+
+    ax1.set_title('Thermal Support', fontsize=20)
+    ax2.set_title('Turbulent Support', fontsize=20)
+    ax3.set_title('Rotation Support', fontsize=20)
+    ax4.set_title('Sum Support', fontsize=20)
+
+    cax = fig.add_axes([0.9, 0.07, 0.03, 0.9])
+    cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.text(2.75, 0.5, 'Support', fontsize=20, rotation='vertical', ha='center', va='center', transform=cax.transAxes)
+    fig.subplots_adjust(left=0.08,right=0.88, top=0.97, bottom=0.07, wspace=0.25, hspace=0.25)
+    fig.savefig(save_dir + 'support_vs_radius_inward-mass-flux' + save_suffix + '.png')
+
+
+    fig = plt.figure(figsize=(15,12), dpi=200)
+    ax1 = fig.add_subplot(2,2,1)
+    ax2 = fig.add_subplot(2,2,2)
+    ax3 = fig.add_subplot(2,2,3)
+    ax4 = fig.add_subplot(2,2,4)
+
+    im = ax1.pcolormesh(thermal_support_outward_bins, cmap=support_cmap, vmin=0, vmax=4)
+    ax2.pcolormesh(turbulent_support_outward_bins, cmap=support_cmap, vmin=0, vmax=4)
+    ax3.pcolormesh(rotation_support_outward_bins, cmap=support_cmap, vmin=0, vmax=4)
+    ax4.pcolormesh(total_support_outward_bins, cmap=support_cmap, vmin=0, vmax=4)
+
+    ax1.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax1.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax1.set_yticks([0,5,10,15,20])
+    ax1.set_yticklabels([-10,-5,0,5,10])
+    ax2.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax2.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax2.set_yticks([0,5,10,15,20])
+    ax2.set_yticklabels([-10,-5,0,5,10])
+    ax3.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax3.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax3.set_yticks([0,5,10,15,20])
+    ax3.set_yticklabels([-10,-5,0,5,10])
+    ax4.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax4.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax4.set_yticks([0,5,10,15,20])
+    ax4.set_yticklabels([-10,-5,0,5,10])
+    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+
+    ax1.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax1.set_ylabel('$\dot{M}_\mathrm{out}$ [erg/s]', fontsize=20)
+    ax2.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax2.set_ylabel('$\dot{M}_\mathrm{out}$ [erg/s]', fontsize=20)
+    ax3.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax3.set_ylabel('$\dot{M}_\mathrm{out}$ [erg/s]', fontsize=20)
+    ax4.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax4.set_ylabel('$\dot{M}_\mathrm{out}$ [erg/s]', fontsize=20)
+
+    ax1.set_title('Thermal Support', fontsize=20)
+    ax2.set_title('Turbulent Support', fontsize=20)
+    ax3.set_title('Rotation Support', fontsize=20)
+    ax4.set_title('Sum Support', fontsize=20)
+
+    cax = fig.add_axes([0.9, 0.07, 0.03, 0.9])
+    cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.text(2.75, 0.5, 'Support', fontsize=20, rotation='vertical', ha='center', va='center', transform=cax.transAxes)
+
+    fig.subplots_adjust(left=0.08,right=0.88, top=0.97, bottom=0.07, wspace=0.25, hspace=0.25)
+    fig.savefig(save_dir + 'support_vs_radius_outward-mass-flux' + save_suffix + '.png')
+
+    fig = plt.figure(figsize=(15,12), dpi=200)
+    ax1 = fig.add_subplot(2,2,1)
+    ax2 = fig.add_subplot(2,2,2)
+    ax3 = fig.add_subplot(2,2,3)
+    ax4 = fig.add_subplot(2,2,4)
+
+    im = ax1.pcolormesh(thermal_support_net_bins, cmap=support_cmap, vmin=0, vmax=4)
+    ax2.pcolormesh(turbulent_support_net_bins, cmap=support_cmap, vmin=0, vmax=4)
+    ax3.pcolormesh(rotation_support_net_bins, cmap=support_cmap, vmin=0, vmax=4)
+    ax4.pcolormesh(total_support_net_bins, cmap=support_cmap, vmin=0, vmax=4)
+
+    ax1.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax1.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax1.set_yticks([0,5,10,15,20])
+    ax1.set_yticklabels([-10,-5,0,5,10])
+    ax2.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax2.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax2.set_yticks([0,5,10,15,20])
+    ax2.set_yticklabels([-10,-5,0,5,10])
+    ax3.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax3.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax3.set_yticks([0,5,10,15,20])
+    ax3.set_yticklabels([-10,-5,0,5,10])
+    ax4.set_xticks([0,16.667,33.333,50.,66.667,83.333,100.])
+    ax4.set_xticklabels([0,0.25,0.5,0.75,1.,1.25,1.5])
+    ax4.set_yticks([0,5,10,15,20])
+    ax4.set_yticklabels([-10,-5,0,5,10])
+    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+
+    ax1.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax1.set_ylabel('$\dot{M}_\mathrm{net}$ [erg/s]', fontsize=20)
+    ax2.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax2.set_ylabel('$\dot{M}_\mathrm{net}$ [erg/s]', fontsize=20)
+    ax3.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax3.set_ylabel('$\dot{M}_\mathrm{net}$ [erg/s]', fontsize=20)
+    ax4.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+    ax4.set_ylabel('$\dot{M}_\mathrm{net}$ [erg/s]', fontsize=20)
+
+    ax1.set_title('Thermal Support', fontsize=20)
+    ax2.set_title('Turbulent Support', fontsize=20)
+    ax3.set_title('Rotation Support', fontsize=20)
+    ax4.set_title('Sum Support', fontsize=20)
+
+    cax = fig.add_axes([0.9, 0.07, 0.03, 0.9])
+    cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.text(2.75, 0.5, 'Support', fontsize=20, rotation='vertical', ha='center', va='center', transform=cax.transAxes)
+
+    fig.subplots_adjust(left=0.08,right=0.88, top=0.97, bottom=0.07, wspace=0.25, hspace=0.25)
+    fig.savefig(save_dir + 'support_vs_radius_net-mass-flux' + save_suffix + '.png')
 
 def work_vs_time(snaplist):
     '''Plots the work done by different forces in the halo over time. Takes same parameters and
@@ -2867,7 +3197,8 @@ def force_rays(snap):
     # of major axis on both sides, 2 close to halfway between major and minor axis in all 4 quadrants
     # = 6 + 6 + 8 = 20 total rays
     #ray_ends = [[0, -100, -150], [0, 150, -150], [0, 100, 150], [0, -150, 150]]
-    ray_ends = [[0, -75, -100], [0, -50, 100]]
+    #ray_ends = [[0, -75, -100], [0, -50, 100]]
+    ray_ends = [[0,-50,50],[0,60,-30]]
     rays = ray_ends
 
     plot_colors = ['r', 'g', 'm', 'b', 'gold', 'k']
@@ -2998,7 +3329,7 @@ def force_rays(snap):
         ax2.set_xlabel('y [kpc]', fontsize=20)
         ax2.set_ylabel('z [kpc]', fontsize=20)
         if (i<len(ftypes)-1): ax2.text(-125,125,labels[i],fontsize=20,ha='left',va='center')
-        else: ax2.text(-125,125,'$F_\mathrm{net}$',fontsize=20,ha='left',va='center')
+        else: ax2.text(-125,125,'Net radial force',fontsize=20,ha='left',va='center')
         ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
           top=True, right=True)
         cax = fig2.add_axes([0.85, 0.08, 0.03, 0.9])
@@ -3048,7 +3379,7 @@ def support_vs_radius(snap):
 
     grav_force = -stats['gravity_force_sum']
 
-    fig = plt.figure(figsize=(8,6), dpi=500)
+    fig = plt.figure(figsize=(8,6), dpi=200)
     ax = fig.add_subplot(1,1,1)
 
     sum_list = np.zeros(len(radius_list))
@@ -3061,19 +3392,35 @@ def support_vs_radius(snap):
         else:
             ax.plot(radius_list, sum_list/grav_force, ls=linestyles[i], color=plot_colors[i], lw=2, label=label)
 
-    ax.set_ylabel('Force / Gravitational Force', fontsize=22)
-    ax.set_xlabel('Radius [kpc]', fontsize=22)
+    if (halo_dict[args.halo]=='Tempest'):
+        fontsize = 16
+        labelsize = 14
+        ax.set_ylabel('Support = Force / Gravitational Force', fontsize=fontsize)
+    else:
+        fontsize = 22
+        labelsize = 20
+        ax.set_ylabel('Force / Gravitational Force', fontsize=fontsize)
+    ax.set_xlabel('Radius [kpc]', fontsize=fontsize)
     ax.axis([0,250,-2,4])
-    ax.text(15, -1., '$z=%.2f$' % (zsnap), fontsize=22, ha='left', va='center')
-    ax.text(15,-1.5,halo_dict[args.halo],ha='left',va='center',fontsize=22)
-    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=22, \
+    ax.text(15, -1., '$z=%.2f$' % (zsnap), fontsize=fontsize, ha='left', va='center')
+    ax.text(15,-1.5,halo_dict[args.halo],ha='left',va='center',fontsize=fontsize)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=labelsize, \
       top=True, right=True)
     ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
-    ax.text(Rvir-3., -1.5, '$R_{200}$', fontsize=22, ha='right', va='center')
-    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], 'k-', lw=1)
-    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], 'k--', lw=1)
-    if (halo_dict[args.halo]=='Tempest'): ax.legend(loc=1, frameon=False, fontsize=22, ncol=2)
-    plt.subplots_adjust(top=0.96,bottom=0.13,right=0.95,left=0.12)
+    ax.text(Rvir-3., -1.5, '$R_{200}$', fontsize=fontsize, ha='right', va='center')
+    ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], [ax.get_ylim()[0], ax.get_ylim()[0]], color='#ae7121', alpha=0.1)
+    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], color='#ae7121', lw=2, zorder=1)
+    ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], [ax.get_ylim()[1], ax.get_ylim()[1]], color='#24877f', alpha=0.1)
+    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], color='#24877f', lw=2, zorder=1)
+    if (halo_dict[args.halo]=='Tempest'):
+        ax.legend(loc=1, frameon=False, fontsize=fontsize, ncol=1)
+        ax.text(248,1.05, 'Exactly balancing gravity', fontsize=fontsize, ha='right', va='bottom')
+        ax.text(100,2.5, 'Forces stronger than gravity', fontsize=fontsize, ha='center', va='center', color='#24877f')
+        ax.text(100,-0.5, 'Inward forces', fontsize=fontsize, ha='center', va='center', color='#ae7121')
+        plt.subplots_adjust(top=0.97,bottom=0.1,right=0.97,left=0.1)
+    else:
+        if (halo_dict[args.halo]=='Squall'): ax.legend(loc=2, frameon=False, fontsize=fontsize, ncol=2)
+        plt.subplots_adjust(top=0.95,bottom=0.13,right=0.95,left=0.13)
     plt.savefig(save_dir + snap + '_support_vs_r' + save_suffix + '.png')
     plt.close(fig)
 
@@ -3081,13 +3428,13 @@ def support_vs_radius(snap):
         regions = ['low_', 'mid_', 'high_']
         alphas = [0.25,0.6,1.]
         # Fig1 is a plot of all force types for all regions on one plot
-        fig1 = plt.figure(figsize=(8,6), dpi=500)
+        fig1 = plt.figure(figsize=(8,6), dpi=200)
         ax1 = fig1.add_subplot(1,1,1)
         # Fig2 is plots of all force types for each region, one per region
         figs2 = []
         axs2 = []
         for r in range(len(regions)):
-            figs2.append(plt.figure(figsize=(8,6), dpi=500))
+            figs2.append(plt.figure(figsize=(8,6), dpi=200))
             axs2.append(figs2[-1].add_subplot(1,1,1))
 
         sums_list_regions = []
@@ -3096,7 +3443,7 @@ def support_vs_radius(snap):
 
         for i in range(len(plot_colors)):
             # Fig3 is plots of all regions for each force type, one per force type
-            fig3 = plt.figure(figsize=(8,6), dpi=500)
+            fig3 = plt.figure(figsize=(8,6), dpi=200)
             ax3 = fig3.add_subplot(1,1,1)
             label = plot_labels[i]
             label_regions = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, '$0.1\\times$ High ' + args.region_filter]
@@ -3208,9 +3555,6 @@ def support_vs_radius_time_averaged(snaplist):
     save_labels = ['thermal', 'turbulent', 'ram', 'rotation', 'sum']
     linestyles = ['-', '--', ':', '-.', '-']
 
-    fig = plt.figure(figsize=(8,6), dpi=500)
-    ax = fig.add_subplot(1,1,1)
-
     zlist = []
     timelist = []
     forces_list = []
@@ -3268,34 +3612,66 @@ def support_vs_radius_time_averaged(snaplist):
         std_forces_regions[1] = np.nanstd(forces_regions[1], axis=1)
         std_forces_regions[2] = np.nanstd(forces_regions[2], axis=1)
 
-    for i in range(len(plot_colors)):
-        label = plot_labels[i]
-        ax.plot(radius_list, avg_forces_list[i], ls=linestyles[i], color=plot_colors[i], \
-                lw=2, label=label)
-        ax.fill_between(radius_list, avg_forces_list[i]-std_forces_list[i], \
-                        avg_forces_list[i]+std_forces_list[i], alpha=0.1, color=plot_colors[i])
+    if (halo_dict[args.halo]!='Tempest'):
+        fig = plt.figure(figsize=(8,6), dpi=200)
+        ax = fig.add_subplot(1,1,1)
+        for i in range(len(plot_colors)):
+            label = plot_labels[i]
+            ax.plot(radius_list, avg_forces_list[i], ls=linestyles[i], color=plot_colors[i], \
+                    lw=2, label=label)
+            ax.fill_between(radius_list, avg_forces_list[i]-std_forces_list[i], \
+                            avg_forces_list[i]+std_forces_list[i], alpha=0.1, color=plot_colors[i])
 
-    ax.set_ylabel('Force / Gravitational Force ', fontsize=20)
-    ax.axis([0,1.5,-2,4])
-    ax.text(1.4, -1.5, halo_dict[args.halo], ha='right', va='center', fontsize=20)
-    ax.set_xlabel('Radius [$R_{200}$]', fontsize=20)
-    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
-      top=True, right=True)
-    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], 'k-', lw=1)
-    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], 'k--', lw=1)
-    if (halo_dict[args.halo]=='Tempest'): ax.legend(loc=1, frameon=False, fontsize=20, ncol=2)
-    fig.subplots_adjust(top=0.96,bottom=0.12,right=0.98,left=0.11)
-    fig.savefig(save_dir + 'support_vs_r_time-avg' + save_suffix + '.png')
-    plt.close(fig)
+        ax.set_ylabel('Force / Gravitational Force ', fontsize=20)
+        ax.axis([0,1.5,-2,4])
+        ax.text(1.4, -1.5, halo_dict[args.halo], ha='right', va='center', fontsize=20)
+        ax.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+          top=True, right=True)
+        ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], color='#ae7121', lw=2, zorder=1)
+        ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], color='#24877f', lw=2, zorder=1)
+        if (halo_dict[args.halo]=='Squall'): ax.legend(loc=1, frameon=False, fontsize=20, ncol=2)
+        fig.subplots_adjust(top=0.96,bottom=0.12,right=0.98,left=0.11)
+        fig.savefig(save_dir + 'support_vs_r_time-avg' + save_suffix + '.png')
+        plt.close(fig)
+    else:
+        fig = plt.figure(figsize=(12,9), dpi=200)
+        for i in [0,1,3,4]:
+            label = plot_labels[i]
+            if (i<2): ax = fig.add_subplot(2,2,i+1)
+            else: ax = fig.add_subplot(2,2,i)
+            ax.plot(radius_list, avg_forces_list[i], ls=linestyles[i], color=plot_colors[i], \
+                    lw=2, label=label)
+            ax.fill_between(radius_list, avg_forces_list[i]-std_forces_list[i], \
+                            avg_forces_list[i]+std_forces_list[i], alpha=0.25, color=plot_colors[i])
+            ax.set_ylabel('Force / Gravitational Force ', fontsize=20)
+            ax.axis([0,1.5,-2,4])
+            if (i==0):
+                ax.text(1.4, -1.5, halo_dict[args.halo], ha='right', va='center', fontsize=20)
+                ax.text(1.48,1.05, 'Exactly balancing gravity', fontsize=14, ha='right', va='bottom')
+                ax.text(0.75,2.5, 'Forces stronger than gravity', fontsize=14, ha='center', va='center', color='#24877f')
+                ax.text(0.75,-0.5, 'Inward forces', fontsize=14, ha='center', va='center', color='#ae7121')
+            ax.set_xlabel('Radius [$R_{200}$]', fontsize=20)
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+              top=True, right=True)
+            ax.legend(loc=1, frameon=False, fontsize=20, ncol=1)
+            ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], [ax.get_ylim()[0], ax.get_ylim()[0]], color='#ae7121', alpha=0.1)
+            ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], color='#ae7121', lw=2, zorder=1)
+            ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], [ax.get_ylim()[1], ax.get_ylim()[1]], color='#24877f', alpha=0.1)
+            ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], color='#24877f', lw=2, zorder=1)
+        fig.subplots_adjust(top=0.97,bottom=0.09,right=0.97,left=0.08, hspace=0.22, wspace=0.22)
+        fig.savefig(save_dir + 'support_vs_r_time-avg' + save_suffix + '.png')
+        plt.close(fig)
 
     if (args.region_filter!='none'):
         regions = ['low_', 'mid_', 'high_']
-        label_regions = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, 'High ' + args.region_filter]
+        #label_regions = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, 'High ' + args.region_filter]
+        label_regions = ['Inflow', 'No Strong Flow', 'Outflow']
         # Fig2 is plots of all force types for each region, one per region
         figs2 = []
         axs2 = []
         for r in range(len(regions)):
-            figs2.append(plt.figure(figsize=(8,6), dpi=500))
+            figs2.append(plt.figure(figsize=(8,6), dpi=200))
             axs2.append(figs2[-1].add_subplot(1,1,1))
 
         for i in range(len(plot_colors)):
@@ -3310,15 +3686,18 @@ def support_vs_radius_time_averaged(snaplist):
             axs2[r].set_ylabel('Force / Gravitational Force ', fontsize=24)
             if (r<2): axs2[r].axis([0,1.5,-2,4])
             else: axs2[r].axis([0,1.5,-10,15])
-            if (halo_dict[args.halo]=='Tempest'): axs2[r].text(0.5, 0.96, label_regions[r], fontsize=36, ha='center', va='center', transform=ax.transAxes)
-            if (r==0): axs2[r].text(0.9,0.1,halo_dict[args.halo],ha='right',va='center',fontsize=24, transform=ax.transAxes)
-            axs2[r].plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], 'k-', lw=1)
-            axs2[r].plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], 'k--', lw=1)
+            if ((halo_dict[args.halo]=='Tempest') or (halo_dict[args.halo]=='Squall')):
+                axs2[r].text(0.5, 1.1, label_regions[r], fontsize=36, ha='center', va='center', transform=axs2[r].transAxes, color='k')
+            if (r==0):
+                axs2[r].text(0.9,0.1,halo_dict[args.halo],ha='right',va='center',fontsize=24, transform=axs2[r].transAxes, color='k')
+            axs2[r].plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], color='#ae7121', lw=2, zorder=1)
+            axs2[r].plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], color='#24877f', lw=2, zorder=1)
             axs2[r].set_xlabel('Radius [$R_{200}$]', fontsize=24)
             axs2[r].tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=24, \
               top=True, right=True)
-            if (halo_dict[args.halo]=='Tempest') and (r==0): axs2[r].legend(loc=1, frameon=False, fontsize=24, ncol=2)
-            if (halo_dict[args.halo]=='Tempest'):
+            if ((halo_dict[args.halo]=='Tempest') or (halo_dict[args.halo]=='Squall')) and (r==0):
+                axs2[r].legend(loc=1, frameon=False, fontsize=24, ncol=2)
+            if ((halo_dict[args.halo]=='Tempest') or (halo_dict[args.halo]=='Squall')):
                 if (r<2): figs2[r].subplots_adjust(top=0.87,bottom=0.14,right=0.95,left=0.13)
                 else: figs2[r].subplots_adjust(top=0.87,bottom=0.14,right=0.95,left=0.17)
             else:
@@ -3337,7 +3716,7 @@ def support_vs_time(snaplist):
         masses_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
         rvir_masses = Table.read(masses_dir + 'rvir_masses.hdf5', path='all_data')
 
-    fig = plt.figure(figsize=(8,6), dpi=500)
+    fig = plt.figure(figsize=(8,6), dpi=200)
     ax = fig.add_subplot(1,1,1)
 
     plot_colors = ['r', 'g', 'm', 'b', 'k']
@@ -3460,7 +3839,7 @@ def support_vs_time(snaplist):
     timelist = np.array(timelist).flatten()
     zlist = np.array(zlist)
 
-    fig = plt.figure(figsize=(8,6), dpi=500)
+    fig = plt.figure(figsize=(8,6), dpi=200)
     ax = fig.add_subplot(1,1,1)
 
     for j in range(len(plot_labels)):
@@ -3529,7 +3908,7 @@ def support_vs_time(snaplist):
         fig_regions = []
         axs_regions = []
         for i in range(len(plot_colors)):
-            fig_regions.append(plt.figure(figsize=(8,6), dpi=500))
+            fig_regions.append(plt.figure(figsize=(8,6), dpi=200))
             axs_regions.append(fig_regions[-1].add_subplot(1,1,1))
         for i in range(3):
             fig = plt.figure(figsize=(8,6), dpi=500)
@@ -3625,6 +4004,168 @@ def support_vs_time(snaplist):
             fig_regions[j].subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.92)
             fig_regions[j].savefig(save_dir + save_labels[j] + '_support_vs_time_regions-' + args.region_filter + save_suffix + '.png')
             plt.close(fig_regions[j])
+
+def support_vs_time_radius(snaplist):
+    '''Makes a 2D plot of each type of support relative to gravity (thermal, turbulent, rotation, total)
+    as functions of time and radius, using the list of snapshots given in 'snaplist'.'''
+
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+    tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    if (args.filename == ''):
+        filename = ''
+    else:
+        filename = '_' + args.filename
+    if (args.run != 'feedback_return'):
+        masses_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+        rvir_masses = Table.read(masses_dir + 'rvir_masses.hdf5', path='all_data')
+
+    thermal_support = []
+    turbulent_support = []
+    rotation_support = []
+    total_support = []
+    thermal_energy_fluxes = []
+    kinetic_energy_fluxes = []
+    tot_energy_fluxes = []
+    zlist = []
+    timelist = []
+    for i in range(len(snaplist)):
+        snap = snaplist[i]
+        if (args.run=='feedback_return'):
+            if (int(snap[2:])<1737):
+                tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/nref11c_nref9f/Tables/'
+                masses_dir = code_path + 'halo_infos/00' + args.halo + '/nref11c_nref9f/'
+                rvir_masses = Table.read(masses_dir + 'rvir_masses.hdf5', path='all_data')
+                fluxes = Table.read(output_dir + 'fluxes_halo_00' + args.halo + '/nref11c_nref9f/Tables/' + \
+                                    snap + '_fluxes_mass_energy_cgm-only.hdf5', path='all_data')
+            elif (int(snap[2:])<1747):
+                tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/high_feedback_restart/Tables/'
+                masses_dir = code_path + 'halo_infos/00' + args.halo + '/high_feedback_restart/'
+                rvir_masses = Table.read(masses_dir + 'rvir_masses.hdf5', path='all_data')
+                fluxes = Table.read(output_dir + 'fluxes_halo_00' + args.halo + '/high_feedback_restart/Tables/' + \
+                                    snap + '_fluxes_mass_energy_cgm-only.hdf5', path='all_data')
+            else:
+                tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/feedback_return/Tables/'
+                masses_dir = code_path + 'halo_infos/00' + args.halo + '/feedback_return/'
+                rvir_masses = Table.read(masses_dir + 'rvir_masses.hdf5', path='all_data')
+                fluxes = Table.read(output_dir + 'fluxes_halo_00' + args.halo + '/feedback_return/Tables/' + \
+                                    snap + '_fluxes_mass_energy_cgm-only.hdf5', path='all_data')
+        else:
+            fluxes = Table.read(output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/Tables/' + \
+                                snap + '_fluxes_mass_energy_cgm-only.hdf5', path='all_data')
+        Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+        forces = Table.read(tablename_prefix + snap + '_stats_force-types' + filename + '.hdf5', path='all_data')
+        radius_list = 0.5*(forces['inner_radius'] + forces['outer_radius'])/Rvir
+        thermal_support.append(forces['thermal_force_sum']/-forces['gravity_force_sum'])
+        turbulent_support.append(forces['turbulent_force_sum']/-forces['gravity_force_sum'])
+        rotation_support.append(forces['rotation_force_sum']/-forces['gravity_force_sum'])
+        total_support.append((forces['thermal_force_sum']+forces['turbulent_force_sum']+forces['rotation_force_sum']+forces['ram_force_sum'])/-forces['gravity_force_sum'])
+        zlist.append(forces['redshift'][0])
+        timelist.append(time_table['time'][time_table['snap']==snap][0]/1000.)
+        thermal_energy_fluxes.append(np.log10(fluxes['net_thermal_energy_flux'][np.where(fluxes['radius']<=0.1*Rvir)[0][-1]]))
+        kinetic_energy_fluxes.append(np.log10(fluxes['net_kinetic_energy_flux'][np.where(fluxes['radius']<=0.1*Rvir)[0][-1]]))
+        tot_energy_fluxes.append(np.log10(fluxes['net_thermal_energy_flux'][np.where(fluxes['radius']<=0.1*Rvir)[0][-1]] + \
+          fluxes['net_kinetic_energy_flux'][np.where(fluxes['radius']<=0.1*Rvir)[0][-1]]))
+    thermal_support = np.transpose(np.array(thermal_support))
+    turbulent_support = np.transpose(np.array(turbulent_support))
+    rotation_support = np.transpose(np.array(rotation_support))
+    total_support = np.transpose(np.array(total_support))
+    thermal_energy_fluxes = np.array(thermal_energy_fluxes)
+    kinetic_energy_fluxes = np.array(kinetic_energy_fluxes)
+    tot_energy_fluxes = np.array(tot_energy_fluxes)
+
+    zlist.reverse()
+    timelist.reverse()
+    time_func = IUS(zlist, timelist)
+    z_sfr, sfr = np.loadtxt(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', unpack=True, usecols=[1,2], skiprows=1)
+    t_sfr = time_func(z_sfr)
+
+    #cmap = sns.blend_palette(('#ffffff', '#b482ff', "#6600ff", "#8cf4ff", "#8cf4ff", "#8cffb4", "#8cffb4", '#c7ff8c', '#c7ff8c'), as_cmap=True)
+    #cmap = sns.blend_palette(('#ffffff', '#b482ff', "#6600ff", "#e999f0", "#e999f0", "#e66e8c", "#e66e8c", '#e86e56', '#e86e56'), as_cmap=True)
+
+    cmap1 = sns.blend_palette(('#ffffff', '#b482ff', "#6600ff", "#e66e8c"), as_cmap=True)
+    cmap2 = sns.blend_palette(("#e66e8c", '#e86e56', '#c72918'), as_cmap=True)
+
+    colors1 = cmap1(np.linspace(0, 1, 150))
+    colors2 = cmap2(np.linspace(0, 1, 250))
+    combined = np.vstack((colors1, colors2))
+    support_cmap = colors.LinearSegmentedColormap.from_list('support_cmap', combined)
+
+    fig = plt.figure(figsize=(17,13.5), dpi=200)
+    gs0 = gridspec.GridSpec(2, 2, wspace=0.25, hspace=0.25)
+    for i in range(4):
+        gs00 = gridspec.GridSpecFromSubplotSpec(4, 1, subplot_spec=gs0[i], hspace=0.)
+        ax = fig.add_subplot(gs00[:-1,:])
+        if (i==0):
+            im = ax.pcolormesh(thermal_support, cmap=support_cmap, vmin=0, vmax=4)
+            ax.text(0.5,0.9,'Thermal Support', fontsize=18, ha='center', va='center', color='r', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
+        if (i==1):
+            im = ax.pcolormesh(turbulent_support, cmap=support_cmap, vmin=0, vmax=4)
+            ax.text(0.5,0.9,'Turbulent Support', fontsize=18, ha='center', va='center', color='g', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
+            if (args.feedback_diff):
+                if (args.run=='low_feedback_06'): feedback_label = 'Weak feedback'
+                if (args.run=='feedback_return'): feedback_label = 'Strong burst of feedback'
+                ax.text(-0.1,1.15,feedback_label, fontsize=22, ha='center', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':3})
+            else:
+                ax.text(-0.1,1.15,halo_dict[args.halo], fontsize=22, ha='center', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':3})
+        if (i==2):
+            im = ax.pcolormesh(rotation_support, cmap=support_cmap, vmin=0, vmax=4)
+            ax.text(0.5,0.9,'Rotation Support', fontsize=18, ha='center', va='center', color='b', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
+        if (i==3):
+            im = ax.pcolormesh(total_support, cmap=support_cmap, vmin=0, vmax=4)
+            ax.text(0.5,0.9,'Sum Support', fontsize=18, ha='center', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
+
+        ax.set_yticks([16.667,33.333,50.,66.667,83.333,100.])
+        ax.set_yticklabels([0.25,0.5,0.75,1.,1.25,1.5])
+        if (args.feedback_diff):
+            ax.set_xticks([10.2,29.05,47.8,66.7])
+            ax.set_xticklabels([10,11,12,13])
+        else:
+            ax.set_xticks([11.5,48.9,86.3,123.7,161.1])
+            ax.set_xticklabels([4,6,8,10,12])
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+          top=False, right=True)
+
+        ax2 = ax.twiny()
+        ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+          top=True)
+        x0, x1 = ax.get_xlim()
+        if (args.feedback_diff):
+            z_ticks = [0.3,0.2,0.1,0.]
+            tick_pos = [15.8,34.4,55.6,80.]
+        else:
+            z_ticks = [1.5,1,.75,.5,.3,.2,.1,0]
+            tick_pos = [17.7,47.4,69.1,98.2,128.8,147.4,168.6,193]
+        ax2.set_xlim(x0,x1)
+        ax2.set_xticks(tick_pos)
+        ax2.set_xticklabels(z_ticks)
+        ax2.set_xlabel('Redshift', fontsize=16)
+        ax.set_ylabel('Radius [$R_{200}$]', fontsize=16)
+
+        ax3 = fig.add_subplot(gs00[-1,:])
+        ax3.plot(t_sfr, sfr, 'k-', lw=1)
+        if (args.feedback_diff):
+            ax3.axis([np.min(timelist), np.max(timelist), 0, 20])
+        else:
+            ax3.axis([np.min(timelist), np.max(timelist), 0, 50])
+            ax3.set_yticks([0,20,40])
+        ax3.set_xlabel('Time [Gyr]', fontsize=16)
+        ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=16)
+        ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+          top=True, right=False)
+        ax4 = ax3.twinx()
+        ax4.plot(timelist, tot_energy_fluxes, 'r--', lw=1)
+        ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+          right=True, left=False)
+        ax4.set_ylabel('$\log\ \dot{E}_\mathrm{out}$ [erg/s]', fontsize=16, color='r')
+        ax4.set_ylim([46.,52.])
+
+    cax = fig.add_axes([0.905, 0.05, 0.03, 0.87])
+    cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+      top=True, right=True)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.text(2.5, 0.5, 'Support', fontsize=20, rotation='vertical', ha='center', va='center', transform=cax.transAxes)
+    fig.subplots_adjust(left=0.06,right=0.85, top=0.92, bottom=0.05, wspace=0.15, hspace=0.3)
+    fig.savefig(save_dir + 'support_vs_time_radius' + save_suffix + '.png')
 
 def pressure_vs_r_rv_shaded(snap):
     '''Plots a datashader plot of pressure vs radius or radial velocity, color-coded by the field specified
@@ -4658,7 +5199,7 @@ def pressure_slice(snap):
             pressure_label = 'Ram'
 
         pressure = np.ma.masked_where((density > cgm_density_max * density_cut_factor), pressure)
-        fig = plt.figure(figsize=(13,10),dpi=500)
+        fig = plt.figure(figsize=(13,10),dpi=200)
         ax = fig.add_subplot(1,1,1)
         p_cmap = copy.copy(mpl.cm.get_cmap(pressure_color_map))
         p_cmap.set_over(color='w', alpha=1.)
@@ -4731,11 +5272,6 @@ def force_slice(snap):
     level = 9
     dx = lvl1_res/(2.**level)
     smooth_scale = (25./dx)/6.
-    smooth_scale1 = (5./dx)/6.
-    smooth_scale2 = (15./dx)/6.
-    smooth_scale3 = (50./dx)/6.
-    smooth_scale4 = (100./dx)/6.
-    smooth_scale5 = (200./dx)/6.
     dx_cm = dx*1000*cmtopc
     refine_res = int(3.*Rvir/dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
@@ -4770,6 +5306,14 @@ def force_slice(snap):
     den_masked[disk_mask] = den_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
     smooth_den = gaussian_filter(den_masked, smooth_scale)
 
+    if (args.smoothed > 0.):
+        window_size = int((args.smoothed/dx)/6.)
+        mass_edges = mass[disk_edges]
+        mass_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), mass_edges)
+        mass_masked = np.copy(mass)
+        mass_masked[disk_mask] = mass_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+        smooth_mass = gaussian_filter(mass_masked, window_size)
+
     for i in range(len(ftypes)):
         if (ftypes[i]=='thermal') or ((ftypes[i]=='total') and (args.force_type!='all')):
             thermal_pressure = box['pressure'].in_units('erg/cm**3').v
@@ -4785,8 +5329,10 @@ def force_slice(snap):
             thermal_force = -1./den_masked * dPdr
             #thermal_force = -dPdr
             if (ftypes[i]=='thermal'):
-                if (args.smoothed):
-                    force = gaussian_filter(thermal_force, smooth_scale5)
+                if (args.smoothed > 0.):
+                    force_mass = thermal_force * mass_masked
+                    smooth_force = gaussian_filter(force_mass, window_size)
+                    force = smooth_force / smooth_mass
                 else:
                     force = thermal_force
                 force_label = 'Thermal Pressure'
@@ -4824,8 +5370,10 @@ def force_slice(snap):
             turb_force = -1./den_masked * dPdr
             #turb_force = -dPdr
             if (ftypes[i]=='turbulent'):
-                if (args.smoothed):
-                    force = gaussian_filter(turb_force, smooth_scale5)
+                if (args.smoothed > 0.):
+                    force_mass = turb_force * mass_masked
+                    smooth_force = gaussian_filter(force_mass, window_size)
+                    force = smooth_force / smooth_mass
                 else:
                     force = turb_force
                 force_label = 'Turbulent Pressure'
@@ -4848,8 +5396,10 @@ def force_slice(snap):
             ram_force = -1./den_masked * dPdr
             #ram_force = -dPdr
             if (ftypes[i]=='ram'):
-                if (args.smoothed):
-                    force = gaussian_filter(ram_force, smooth_scale5)
+                if (args.smoothed > 0.):
+                    force_mass = ram_force * mass_masked
+                    smooth_force = gaussian_filter(force_mass, window_size)
+                    force = smooth_force / smooth_mass
                 else:
                     force = ram_force
                 force_label = 'Ram Pressure'
@@ -4872,8 +5422,10 @@ def force_slice(snap):
             smooth_vphi = gaussian_filter(vphi_masked, smooth_scale)
             rot_force = (smooth_vtheta**2. + smooth_vphi**2.)/r
             if (ftypes[i]=='rotation'):
-                if (args.smoothed):
-                    force = gaussian_filter(rot_force, smooth_scale5)
+                if (args.smoothed > 0.):
+                    force_mass = rot_force * mass_masked
+                    smooth_force = gaussian_filter(force_mass, window_size)
+                    force = smooth_force / smooth_mass
                 else:
                     force = rot_force
                 force_label = 'Rotation'
@@ -4881,44 +5433,48 @@ def force_slice(snap):
         if (ftypes[i]=='gravity') or ((ftypes[i]=='total') and (args.force_type!='all')):
             grav_force = -G*Menc_profile(r/(1000*cmtopc))*gtoMsun/r**2.
             if (ftypes[i]=='gravity'):
-                if (args.smoothed):
-                    force = gaussian_filter(grav_force, smooth_scale5)
+                if (args.smoothed > 0.):
+                    force_mass = grav_force * mass_masked
+                    smooth_force = gaussian_filter(force_mass, window_size)
+                    force = smooth_force / smooth_mass
                 else:
                     force = grav_force
                 force_label = 'Gravity'
                 slice_label = 'Gravity'
         if (ftypes[i]=='total'):
             tot_force = thermal_force + turb_force + rot_force + ram_force + grav_force
-            if (args.smoothed):
-                force = gaussian_filter(tot_force, smooth_scale5)
+            if (args.smoothed > 0.):
+                force_mass = tot_force * mass_masked
+                smooth_force = gaussian_filter(force_mass, window_size)
+                force = smooth_force / smooth_mass
             else:
                 force = tot_force
             force_label = 'Total'
-            slice_label = '$F_\mathrm{net}$'
+            slice_label = 'Net radial force'
 
         force = np.ma.masked_where((density > cgm_density_max * density_cut_factor), force)
-        fig = plt.figure(figsize=(12,10),dpi=500)
+        fig = plt.figure(figsize=(13.5,10), dpi=200)
         ax = fig.add_subplot(1,1,1)
         f_cmap = copy.copy(mpl.cm.get_cmap('BrBG'))
         f_cmap.set_over(color='w', alpha=1.)
         # Need to rotate to match up with how yt plots it
         im = ax.imshow(rotate(force[len(force)//2,:,:],90), cmap=f_cmap, norm=colors.SymLogNorm(vmin=-1e-5, vmax=1e-5, linthresh=1e-9, base=10), \
                   extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
-        #im = ax.imshow(rotate(force[len(force)//2,:,:],90), cmap=f_cmap, norm=colors.SymLogNorm(vmin=-1e-33, vmax=1e-33, linthresh=1e-37, base=10), \
-                  #extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
         ax.axis([-250,250,-250,250])
-        ax.set_xlabel('y [kpc]', fontsize=24)
-        ax.set_ylabel('z [kpc]', fontsize=24)
-        ax.text(-200,200,slice_label, fontsize=24, ha='left', va='center')
-        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=24, \
+        ax.set_xlabel('y [kpc]', fontsize=30)
+        ax.set_ylabel('z [kpc]', fontsize=30)
+        if (args.smoothed):
+            ax.text(-200, 200, '%d kpc' % (args.smoothed), fontsize=34, ha='left', va='center')
+        else:
+            ax.text(-200,200, slice_label, fontsize=34, ha='left', va='center')
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=28, \
           top=True, right=True)
-        cax = fig.add_axes([0.82, 0.11, 0.03, 0.84])
-        cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=24, \
+        cax = fig.add_axes([0.775, 0.1, 0.04, 0.87])
+        cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=28, \
           top=True, right=True)
         fig.colorbar(im, cax=cax, orientation='vertical')
-        ax.text(1.2, 0.5, force_label + ' Force [cm/s$^2$]', fontsize=24, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
-        #ax.text(1.2, 0.5, force_label + ' Pressure Gradient [erg/cm$^4$]', fontsize=20, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
-        plt.subplots_adjust(bottom=0.08, top=0.98, left=0.12, right=0.82)
+        ax.text(1.27, 0.5, force_label + ' Force [cm/s$^2$]', fontsize=30, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
+        plt.subplots_adjust(bottom=0.1, top=0.97, left=0.03, right=0.88)
         plt.savefig(save_dir + snap + '_' + ftypes[i] + '_force_slice_x' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
@@ -5533,7 +6089,7 @@ def velocity_slice(snap):
     z_edges = z[disk_edges].flatten()
 
     for j in range(len(vtypes)):
-        fig = plt.figure(num=j+1,figsize=(24,18),dpi=500)
+        fig = plt.figure(num=j+1,figsize=(24,18),dpi=200)
         for i in range(len(vtypes[j])):
             v = box[vtypes[j][i] + '_corrected'].in_units('km/s').v
             # Cut to only those values closest to removed ISM regions
@@ -6107,6 +6663,404 @@ def turbulence_visualization(snap):
     density_masked_layer = viewer.add_image(np.log10(smooth_den), name='masked and smoothed density', colormap='viridis', contrast_limits=[-30,-20])
     napari.run()
 
+def support_vs_radius_dencut_compare(snap):
+    '''Plots the ratio of different types of force (thermal, turbulent, rotational, ram)
+    to gravity as functions of radius for the simulation output given by 'snap' and compares the fiducial
+    density cut between ISM and CGM to factors of 2 higher and lower density cuts. Requires files
+    already created by force_vs_radius to exist for the snapshot desired for all three density cuts.'''
+
+    tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    stats = Table.read(tablename_prefix + snap + '_stats_force-types' + args.filename + '.hdf5', path='all_data')
+    stats_low = Table.read(tablename_prefix + snap + '_stats_force-types' + args.filename + '_low-den-cut.hdf5', path='all_data')
+    stats_high = Table.read(tablename_prefix + snap + '_stats_force-types' + args.filename + '_high-den-cut.hdf5', path='all_data')
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap]
+
+    plot_colors = ['r', 'g', 'm', 'b', 'k']
+    #plot_colors = ['r', 'g', 'm', 'b']
+    plot_labels = ['Thermal', 'Turbulent', 'Ram', 'Rotation', 'Sum']
+    file_labels = ['thermal_force', 'turbulent_force', 'ram_force', 'rotation_force']
+    save_labels = ['thermal', 'turbulent', 'ram', 'rotation', 'sum']
+    linestyles = ['-', '--', ':', '-.', '-']
+
+    radius_list = 0.5*(stats['inner_radius'] + stats['outer_radius'])
+    zsnap = stats['redshift'][0]
+
+    grav_force = -stats['gravity_force_sum']
+    grav_force_low = -stats_low['gravity_force_sum']
+    grav_force_high = -stats_high['gravity_force_sum']
+
+    fig = plt.figure(figsize=(8,6), dpi=200)
+    ax = fig.add_subplot(1,1,1)
+
+    sum_list = np.zeros(len(radius_list))
+    sum_list_low = np.zeros(len(radius_list))
+    sum_list_high = np.zeros(len(radius_list))
+
+    for i in range(len(plot_colors)):
+        label = plot_labels[i]
+        if (i==0):
+            cutlabel_low = 'Low density cut'
+            cutlabel_high = 'High density cut'
+        else:
+            cutlabel_low = '_nolegend_'
+            cutlabel_high = '_nolegend_'
+        if (plot_labels[i]!='Sum'):
+            sum_list += stats[file_labels[i] + '_sum']
+            sum_list_low += stats_low[file_labels[i] + '_sum']
+            sum_list_high += stats_high[file_labels[i] + '_sum']
+            ax.plot(radius_list, stats[file_labels[i] + '_sum']/grav_force, ls=linestyles[i], color=plot_colors[i], lw=2, label=label, alpha=0.5)
+            ax.plot(radius_list, stats_low[file_labels[i] + '_sum']/grav_force_low, ls=linestyles[i], color=plot_colors[i], lw=2, label=cutlabel_low, alpha=0.1)
+            ax.plot(radius_list, stats_high[file_labels[i] + '_sum']/grav_force_high, ls=linestyles[i], color=plot_colors[i], lw=2, label=cutlabel_high, alpha=1.)
+        else:
+            ax.plot(radius_list, sum_list/grav_force, ls=linestyles[i], color=plot_colors[i], lw=2, label=label, alpha=0.5)
+            ax.plot(radius_list, sum_list_low/grav_force_low, ls=linestyles[i], color=plot_colors[i], lw=2, label=cutlabel_low, alpha=0.1)
+            ax.plot(radius_list, sum_list_high/grav_force_high, ls=linestyles[i], color=plot_colors[i], lw=2, label=cutlabel_high, alpha=1.)
+
+    fontsize = 16
+    labelsize = 14
+    ax.set_ylabel('Force / Gravitational Force', fontsize=fontsize)
+    ax.set_xlabel('Radius [kpc]', fontsize=fontsize)
+    ax.axis([0,250,-2,4])
+    ax.text(15, -1., '$z=%.2f$' % (zsnap), fontsize=fontsize, ha='left', va='center')
+    ax.text(15,-1.5,halo_dict[args.halo],ha='left',va='center',fontsize=fontsize)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=labelsize, \
+      top=True, right=True)
+    ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+    ax.text(Rvir-3., -1.5, '$R_{200}$', fontsize=fontsize, ha='right', va='center')
+    ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], [ax.get_ylim()[0], ax.get_ylim()[0]], color='#ae7121', alpha=0.1)
+    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], color='#ae7121', lw=2, zorder=1)
+    ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], [ax.get_ylim()[1], ax.get_ylim()[1]], color='#24877f', alpha=0.1)
+    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], color='#24877f', lw=2, zorder=1)
+    ax.legend(loc=1, frameon=False, fontsize=fontsize, ncol=2)
+    plt.subplots_adjust(left=0.1, right=0.96, bottom=0.1, top=0.97)
+    plt.savefig(save_dir + snap + '_support_vs_r_dencut-compare' + save_suffix + '.png')
+    plt.close(fig)
+
+    if (args.region_filter!='none'):
+        regions = ['low_', 'mid_', 'high_']
+        # Fig1 is a plot of all force types, one panel per region
+        fig1 = plt.figure(figsize=(12,4), dpi=200)
+        fontsize = 10
+        labelsize = 8
+
+        sums_list_regions = []
+        sums_list_regions_low = []
+        sums_list_regions_high = []
+        for j in range(len(regions)):
+            sums_list_regions.append(np.zeros(len(radius_list)))
+            sums_list_regions_low.append(np.zeros(len(radius_list)))
+            sums_list_regions_high.append(np.zeros(len(radius_list)))
+
+        label_regions = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, 'High ' + args.region_filter]
+        for j in range(len(regions)):
+            ax = fig1.add_subplot(1,3,j+1)
+            for i in range(len(plot_colors)):
+                label = plot_labels[i]
+                if (i==0):
+                    cutlabel_low = 'Low density cut'
+                    cutlabel_high = 'High density cut'
+                else:
+                    cutlabel_low = '_nolegend_'
+                    cutlabel_high = '_nolegend_'
+                if (plot_labels[i]!='Sum'):
+                    ax.plot(radius_list, stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum'] / \
+                      -stats[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=0.5, label=label)
+                    ax.plot(radius_list, stats_low[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum'] / \
+                      -stats_low[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=0.1, label=cutlabel_low)
+                    ax.plot(radius_list, stats_high[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum'] / \
+                      -stats_high[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=1., label=cutlabel_high)
+                    sums_list_regions[j] += stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum']
+                    sums_list_regions_low[j] += stats_low[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum']
+                    sums_list_regions_high[j] += stats_high[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum']
+                else:
+                    ax.plot(radius_list, sums_list_regions[j]/ \
+                      -stats[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=0.5, label=label)
+                    ax.plot(radius_list, sums_list_regions_low[j]/ \
+                      -stats_low[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=0.1, label=cutlabel_low)
+                    ax.plot(radius_list, sums_list_regions_high[j]/ \
+                      -stats_high[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=1., label=cutlabel_high)
+
+            ax.set_ylabel('Force / Gravitational Force', fontsize=fontsize)
+            ax.set_xlabel('Radius [kpc]', fontsize=fontsize)
+            ax.set_title(label_regions[j], fontsize=fontsize)
+            if (j<2): ax.axis([0,250,-2,4])
+            else: ax.axis([0,250,-12,24])
+            if (j==0):
+                ax.text(15, -1., '$z=%.2f$' % (zsnap), fontsize=fontsize, ha='left', va='center')
+                ax.text(15,-1.5,halo_dict[args.halo],ha='left',va='center',fontsize=fontsize)
+                ax.legend(loc=2, ncol=2, frameon=False, fontsize=fontsize)
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=labelsize, \
+              top=True, right=True)
+            ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+            ax.text(Rvir-3., -1.5, '$R_{200}$', fontsize=fontsize, ha='right', va='center')
+            ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], [ax.get_ylim()[0], ax.get_ylim()[0]], color='#ae7121', alpha=0.1)
+            ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], color='#ae7121', lw=2, zorder=1)
+            ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], [ax.get_ylim()[1], ax.get_ylim()[1]], color='#24877f', alpha=0.1)
+            ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], color='#24877f', lw=2, zorder=1)
+
+        plt.subplots_adjust(left=0.04,right=0.98,top=0.93,bottom=0.1,wspace=0.2)
+        plt.savefig(save_dir + snap + '_support_vs_r_dencut-compare_' + args.region_filter + '-regions' + save_suffix + '.png')
+        plt.close(fig)
+
+def support_vs_radius_turb_compare(snap):
+    '''Plots the ratio of different types of force (thermal, turbulent, rotational, ram)
+    to gravity as functions of radius for the simulation output given by 'snap' and compares using
+    Cartesian or spherical coordinates to calculate the turbulent velocity dispersion. Requires files
+    already created by force_vs_radius to exist for the snapshot desired for both forms of computing
+    turbulence.'''
+
+    tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    stats = Table.read(tablename_prefix + snap + '_stats_force-types' + args.filename + '.hdf5', path='all_data')
+    stats_sph = Table.read(tablename_prefix + snap + '_stats_force-types' + args.filename + '_spherical-turb.hdf5', path='all_data')
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap]
+
+    plot_colors = ['r', 'g', 'm', 'b', 'k']
+    #plot_colors = ['r', 'g', 'm', 'b']
+    plot_labels = ['Thermal', 'Turbulent', 'Ram', 'Rotation', 'Sum']
+    file_labels = ['thermal_force', 'turbulent_force', 'ram_force', 'rotation_force']
+    save_labels = ['thermal', 'turbulent', 'ram', 'rotation', 'sum']
+    linestyles = ['-', '--', ':', '-.', '-']
+
+    radius_list = 0.5*(stats['inner_radius'] + stats['outer_radius'])
+    zsnap = stats['redshift'][0]
+
+    grav_force = -stats['gravity_force_sum']
+    grav_force_sph = -stats_sph['gravity_force_sum']
+
+    fig = plt.figure(figsize=(8,6), dpi=200)
+    ax = fig.add_subplot(1,1,1)
+
+    sum_list = np.zeros(len(radius_list))
+    sum_list_sph = np.zeros(len(radius_list))
+
+    for i in range(len(plot_colors)):
+        label = plot_labels[i]
+        if (i==0):
+            label_sph = 'Spherical velocities'
+        else:
+            label_sph = '_nolegend_'
+        if (plot_labels[i]!='Sum'):
+            sum_list += stats[file_labels[i] + '_sum']
+            sum_list_sph += stats_sph[file_labels[i] + '_sum']
+            ax.plot(radius_list, stats[file_labels[i] + '_sum']/grav_force, ls=linestyles[i], color=plot_colors[i], lw=2, label=label, alpha=1.)
+            ax.plot(radius_list, stats_sph[file_labels[i] + '_sum']/grav_force_sph, ls=linestyles[i], color=plot_colors[i], lw=2, label=label_sph, alpha=0.2)
+        else:
+            ax.plot(radius_list, sum_list/grav_force, ls=linestyles[i], color=plot_colors[i], lw=2, label=label, alpha=1)
+            ax.plot(radius_list, sum_list_sph/grav_force_sph, ls=linestyles[i], color=plot_colors[i], lw=2, label=label_sph, alpha=0.2)
+
+    fontsize = 16
+    labelsize = 14
+    ax.set_ylabel('Force / Gravitational Force', fontsize=fontsize)
+    ax.set_xlabel('Radius [kpc]', fontsize=fontsize)
+    ax.axis([0,250,-2,4])
+    ax.text(15, -1., '$z=%.2f$' % (zsnap), fontsize=fontsize, ha='left', va='center')
+    ax.text(15,-1.5,halo_dict[args.halo],ha='left',va='center',fontsize=fontsize)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=labelsize, \
+      top=True, right=True)
+    ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+    ax.text(Rvir-3., -1.5, '$R_{200}$', fontsize=fontsize, ha='right', va='center')
+    ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], [ax.get_ylim()[0], ax.get_ylim()[0]], color='#ae7121', alpha=0.1)
+    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], color='#ae7121', lw=2, zorder=1)
+    ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], [ax.get_ylim()[1], ax.get_ylim()[1]], color='#24877f', alpha=0.1)
+    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], color='#24877f', lw=2, zorder=1)
+    ax.legend(loc=1, frameon=False, fontsize=fontsize, ncol=2)
+    plt.subplots_adjust(left=0.1, right=0.96, bottom=0.1, top=0.97)
+    plt.savefig(save_dir + snap + '_support_vs_r_turb-compare' + save_suffix + '.png')
+    plt.close(fig)
+
+    if (args.region_filter!='none'):
+        regions = ['low_', 'mid_', 'high_']
+        # Fig1 is a plot of all force types, one panel per region
+        fig1 = plt.figure(figsize=(12,4), dpi=200)
+        fontsize = 10
+        labelsize = 8
+
+        sums_list_regions = []
+        sums_list_regions_sph = []
+        for j in range(len(regions)):
+            sums_list_regions.append(np.zeros(len(radius_list)))
+            sums_list_regions_sph.append(np.zeros(len(radius_list)))
+
+        label_regions = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, 'High ' + args.region_filter]
+        for j in range(len(regions)):
+            ax = fig1.add_subplot(1,3,j+1)
+            for i in range(len(plot_colors)):
+                label = plot_labels[i]
+                if (i==0):
+                    label_sph = 'Spherical velocities'
+                else:
+                    label_sph = '_nolegend_'
+                if (plot_labels[i]!='Sum'):
+                    ax.plot(radius_list, stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum'] / \
+                      -stats[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=1, label=label)
+                    ax.plot(radius_list, stats_sph[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum'] / \
+                      -stats_sph[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=0.2, label=label_sph)
+                    sums_list_regions[j] += stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum']
+                    sums_list_regions_sph[j] += stats_sph[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum']
+                else:
+                    ax.plot(radius_list, sums_list_regions[j]/ \
+                      -stats[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=1, label=label)
+                    ax.plot(radius_list, sums_list_regions_sph[j]/ \
+                      -stats_sph[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=0.2, label=label_sph)
+
+            ax.set_ylabel('Force / Gravitational Force', fontsize=fontsize)
+            ax.set_xlabel('Radius [kpc]', fontsize=fontsize)
+            ax.set_title(label_regions[j], fontsize=fontsize)
+            if (j<2): ax.axis([0,250,-2,4])
+            else: ax.axis([0,250,-12,24])
+            if (j==0):
+                ax.text(15, -1., '$z=%.2f$' % (zsnap), fontsize=fontsize, ha='left', va='center')
+                ax.text(15,-1.5,halo_dict[args.halo],ha='left',va='center',fontsize=fontsize)
+                ax.legend(loc=2, ncol=2, frameon=False, fontsize=fontsize)
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=labelsize, \
+              top=True, right=True)
+            ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+            ax.text(Rvir-3., -1.5, '$R_{200}$', fontsize=fontsize, ha='right', va='center')
+            ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], [ax.get_ylim()[0], ax.get_ylim()[0]], color='#ae7121', alpha=0.1)
+            ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], color='#ae7121', lw=2, zorder=1)
+            ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], [ax.get_ylim()[1], ax.get_ylim()[1]], color='#24877f', alpha=0.1)
+            ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], color='#24877f', lw=2, zorder=1)
+
+        plt.subplots_adjust(left=0.04,right=0.98,top=0.93,bottom=0.1,wspace=0.2)
+        plt.savefig(save_dir + snap + '_support_vs_r_turb-compare_' + args.region_filter + '-regions' + save_suffix + '.png')
+        plt.close(fig)
+
+def support_vs_radius_refine_compare(snap):
+    '''Plots the ratio of different types of force (thermal, turbulent, rotational, ram)
+    to gravity as functions of radius for the simulation output given by 'snap' and compares using
+    only pixels within the refine box to using pixels out to 1.5Rvir. Requires files
+    already created by force_vs_radius to exist for the snapshot desired for both refine-box-only and
+    not.'''
+
+    tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    stats = Table.read(tablename_prefix + snap + '_stats_force-types' + args.filename + '.hdf5', path='all_data')
+    stats_ref = Table.read(tablename_prefix + snap + '_stats_force-types' + args.filename + '_refine-box-only.hdf5', path='all_data')
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap]
+
+    plot_colors = ['r', 'g', 'm', 'b', 'k']
+    #plot_colors = ['r', 'g', 'm', 'b']
+    plot_labels = ['Thermal', 'Turbulent', 'Ram', 'Rotation', 'Sum']
+    file_labels = ['thermal_force', 'turbulent_force', 'ram_force', 'rotation_force']
+    save_labels = ['thermal', 'turbulent', 'ram', 'rotation', 'sum']
+    linestyles = ['-', '--', ':', '-.', '-']
+
+    radius_list = 0.5*(stats['inner_radius'] + stats['outer_radius'])
+    zsnap = stats['redshift'][0]
+
+    grav_force = -stats['gravity_force_sum']
+    grav_force_ref = -stats_ref['gravity_force_sum']
+
+    fig = plt.figure(figsize=(8,6), dpi=200)
+    ax = fig.add_subplot(1,1,1)
+
+    sum_list = np.zeros(len(radius_list))
+    sum_list_ref = np.zeros(len(radius_list))
+
+    for i in range(len(plot_colors)):
+        label = plot_labels[i]
+        if (i==0):
+            label_ref = 'Refine box only'
+        else:
+            label_ref = '_nolegend_'
+        if (plot_labels[i]!='Sum'):
+            sum_list += stats[file_labels[i] + '_sum']
+            sum_list_ref += stats_ref[file_labels[i] + '_sum']
+            ax.plot(radius_list, stats[file_labels[i] + '_sum']/grav_force, ls=linestyles[i], color=plot_colors[i], lw=2, label=label, alpha=1.)
+            ax.plot(radius_list, stats_ref[file_labels[i] + '_sum']/grav_force_ref, ls=linestyles[i], color=plot_colors[i], lw=2, label=label_ref, alpha=0.2)
+        else:
+            ax.plot(radius_list, sum_list/grav_force, ls=linestyles[i], color=plot_colors[i], lw=2, label=label, alpha=1)
+            ax.plot(radius_list, sum_list_ref/grav_force_ref, ls=linestyles[i], color=plot_colors[i], lw=2, label=label_ref, alpha=0.2)
+
+    fontsize = 16
+    labelsize = 14
+    ax.set_ylabel('Force / Gravitational Force', fontsize=fontsize)
+    ax.set_xlabel('Radius [kpc]', fontsize=fontsize)
+    ax.axis([0,250,-2,4])
+    ax.text(15, -1., '$z=%.2f$' % (zsnap), fontsize=fontsize, ha='left', va='center')
+    ax.text(15,-1.5,halo_dict[args.halo],ha='left',va='center',fontsize=fontsize)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=labelsize, \
+      top=True, right=True)
+    ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+    ax.text(Rvir-3., -1.5, '$R_{200}$', fontsize=fontsize, ha='right', va='center')
+    ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], [ax.get_ylim()[0], ax.get_ylim()[0]], color='#ae7121', alpha=0.1)
+    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], color='#ae7121', lw=2, zorder=1)
+    ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], [ax.get_ylim()[1], ax.get_ylim()[1]], color='#24877f', alpha=0.1)
+    ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], color='#24877f', lw=2, zorder=1)
+    ax.legend(loc=1, frameon=False, fontsize=fontsize, ncol=2)
+    plt.subplots_adjust(left=0.1, right=0.96, bottom=0.1, top=0.97)
+    plt.savefig(save_dir + snap + '_support_vs_r_refine-box-compare' + save_suffix + '.png')
+    plt.close(fig)
+
+    if (args.region_filter!='none'):
+        regions = ['low_', 'mid_', 'high_']
+        # Fig1 is a plot of all force types, one panel per region
+        fig1 = plt.figure(figsize=(12,4), dpi=200)
+        fontsize = 10
+        labelsize = 8
+
+        sums_list_regions = []
+        sums_list_regions_ref = []
+        for j in range(len(regions)):
+            sums_list_regions.append(np.zeros(len(radius_list)))
+            sums_list_regions_ref.append(np.zeros(len(radius_list)))
+
+        label_regions = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, 'High ' + args.region_filter]
+        for j in range(len(regions)):
+            ax = fig1.add_subplot(1,3,j+1)
+            for i in range(len(plot_colors)):
+                label = plot_labels[i]
+                if (i==0):
+                    label_ref = 'Refine box only'
+                else:
+                    label_ref = '_nolegend_'
+                if (plot_labels[i]!='Sum'):
+                    ax.plot(radius_list, stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum'] / \
+                      -stats[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=1, label=label)
+                    ax.plot(radius_list, stats_ref[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum'] / \
+                      -stats_ref[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=0.2, label=label_ref)
+                    sums_list_regions[j] += stats[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum']
+                    sums_list_regions_ref[j] += stats_ref[regions[j] + args.region_filter + '_' + file_labels[i] + '_sum']
+                else:
+                    ax.plot(radius_list, sums_list_regions[j]/ \
+                      -stats[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=1, label=label)
+                    ax.plot(radius_list, sums_list_regions_ref[j]/ \
+                      -stats_ref[regions[j] + args.region_filter + '_gravity_force_sum'], \
+                      ls=linestyles[i], color=plot_colors[i], lw=2, alpha=0.2, label=label_ref)
+
+            ax.set_ylabel('Force / Gravitational Force', fontsize=fontsize)
+            ax.set_xlabel('Radius [kpc]', fontsize=fontsize)
+            ax.set_title(label_regions[j], fontsize=fontsize)
+            if (j<2): ax.axis([0,250,-2,4])
+            else: ax.axis([0,250,-12,24])
+            if (j==0):
+                ax.text(15, -1., '$z=%.2f$' % (zsnap), fontsize=fontsize, ha='left', va='center')
+                ax.text(15,-1.5,halo_dict[args.halo],ha='left',va='center',fontsize=fontsize)
+                ax.legend(loc=2, ncol=2, frameon=False, fontsize=fontsize)
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=labelsize, \
+              top=True, right=True)
+            ax.plot([Rvir, Rvir], [ax.get_ylim()[0], ax.get_ylim()[1]], 'k--', lw=1)
+            ax.text(Rvir-3., -1.5, '$R_{200}$', fontsize=fontsize, ha='right', va='center')
+            ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], [ax.get_ylim()[0], ax.get_ylim()[0]], color='#ae7121', alpha=0.1)
+            ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [0,0], color='#ae7121', lw=2, zorder=1)
+            ax.fill_between([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], [ax.get_ylim()[1], ax.get_ylim()[1]], color='#24877f', alpha=0.1)
+            ax.plot([ax.get_xlim()[0], ax.get_xlim()[1]], [1,1], color='#24877f', lw=2, zorder=1)
+
+        plt.subplots_adjust(left=0.04,right=0.98,top=0.93,bottom=0.1,wspace=0.2)
+        plt.savefig(save_dir + snap + '_support_vs_r_refine-box-compare_' + args.region_filter + '-regions' + save_suffix + '.png')
+        plt.close(fig)
 
 if __name__ == "__main__":
 
@@ -6155,7 +7109,7 @@ if __name__ == "__main__":
     if (args.save_suffix): save_suffix = '_' + args.save_suffix
     else: save_suffix = ''
 
-    if (len(outs)>1) and ('time' not in args.plot) and ('energy' not in args.plot):
+    if (len(outs)>1) and ('time' not in args.plot) and ('energy' not in args.plot) and ('flux' not in args.plot) and ('metallicity_PDF' not in args.plot):
         save_dir += 'Movie_frames/'
 
     if (args.plot=='pressure_vs_radius'):
@@ -6184,8 +7138,10 @@ if __name__ == "__main__":
             target = forces_vs_radius_from_med_pressures
     elif (args.plot=='force_vs_time'):
         forces_vs_time(outs)
-    elif (args.plot=='force_vs_energy_output'):
-        forces_vs_energy_output(outs)
+    elif (args.plot=='support_vs_energy_output'):
+        support_vs_energy_output(outs)
+    elif (args.plot=='support_vs_mass_flux'):
+        support_vs_mass_flux(outs)
     elif (args.plot=='support_vs_time'):
         support_vs_time(outs)
     elif (args.plot=='work_vs_time'):
@@ -6198,6 +7154,8 @@ if __name__ == "__main__":
             target = support_vs_radius
     elif (args.plot=='support_vs_radius_time_averaged'):
         support_vs_radius_time_averaged(outs)
+    elif (args.plot=='support_vs_time_radius'):
+        support_vs_time_radius(outs)
     elif (args.plot=='velocity_PDF'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -6311,6 +7269,15 @@ if __name__ == "__main__":
     elif (args.plot=='visualization'):
         for i in range(len(outs)):
             turbulence_visualization(outs[i])
+    elif (args.plot=='support_vs_radius_dencut_compare'):
+        for i in range(len(outs)):
+            support_vs_radius_dencut_compare(outs[i])
+    elif (args.plot=='support_vs_radius_turb_compare'):
+        for i in range(len(outs)):
+            support_vs_radius_turb_compare(outs[i])
+    elif (args.plot=='support_vs_radius_refine_compare'):
+        for i in range(len(outs)):
+            support_vs_radius_refine_compare(outs[i])
     else:
         sys.exit("That plot type hasn't been implemented!")
 
