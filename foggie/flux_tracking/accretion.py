@@ -750,6 +750,10 @@ if __name__ == "__main__":
         for snap in outs:
             load_and_calculate(snap, surface)
     else:
+        if (save_suffix != ''):
+            target_dir = save_suffix
+        else:
+            target_dir = 'fluxes'
         skipped_outs = outs
         while (len(skipped_outs)>0):
             skipped_outs = []
