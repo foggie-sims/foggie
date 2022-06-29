@@ -233,7 +233,18 @@ def foggie_load(snap, trackfile, **kwargs):
         # Calculate angular momentum vector using sphere centered on halo center
         sphere = ds.sphere(ds.halo_center_kpc, (15., 'kpc'))
         print('using particle type ', particle_type_for_angmom, ' to derive angular momentum')
-        L = sphere.quantities.angular_momentum_vector(use_gas=False, use_particles=True, particle_type=particle_type_for_angmom)
+        if (particle_type_for_angmom=='gas'):
+            current_time = ds.current_time.in_units('Myr').v
+            if (current_time<=8656.88):
+                density_cut_factor = 1.
+            elif (current_time<=10787.12):
+                density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+            else:
+                density_cut_factor = 0.1
+            sphere = sphere.include_above(('gas','density'), density_cut_factor * cgm_density_max)
+            L = sphere.quantities.angular_momentum_vector(use_gas=True, use_particles=False)
+        else:
+            L = sphere.quantities.angular_momentum_vector(use_gas=False, use_particles=True, particle_type=particle_type_for_angmom)
         print('found angular momentum vector')
         norm_L = L / np.sqrt((L**2).sum())
         # Define other unit vectors orthagonal to the angular momentum vector

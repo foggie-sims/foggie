@@ -600,6 +600,10 @@ def calc_fluxes_simple(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_su
     radius_out_shapes = radius[bool_fromshapes]
     new_radius_out_shapes = new_radius[bool_fromshapes]
     temperature_out_shapes = temperature[bool_fromshapes]
+    print(np.min(radius_in_shapes), np.max(radius_in_shapes))
+    print(np.min(new_radius_in_shapes), np.max(new_radius_in_shapes))
+    print(np.min(radius_out_shapes), np.max(radius_out_shapes))
+    print(np.min(new_radius_out_shapes), np.max(new_radius_out_shapes))
     for i in range(len(fields)):
         field = fields[i]
         fields_in_shapes.append(field[bool_toshapes])
