@@ -666,13 +666,13 @@ def load_and_calculate(snap, surface):
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
         if (args.copy_to_tmp):
-            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
+            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
             shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
             snap_name = snap_dir + '/' + snap
         else:
             # Make a dummy directory with the snap name so the script later knows the process running
             # this snapshot failed if the directory is still there
-            snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
+            snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
             os.makedirs(snap_dir)
             snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
