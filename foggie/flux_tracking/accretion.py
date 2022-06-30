@@ -540,10 +540,8 @@ def find_shape(ds, surface, snap_props):
         elif (surface[0]=='sphere'):
             if (args.Rvir):
                 max_extent = surface[1]*Rvir + 2.*edge_kpc
-                R = surface[1] * Rvir
             else:
                 max_extent = surface[1] + 2.*edge_kpc
-                R = surface[1]
         elif (surface[0]=='cylinder'):
             if (args.Rvir):
                 radius = surface[1] * Rvir
@@ -607,9 +605,19 @@ def find_shape(ds, surface, snap_props):
         density = box['gas','density'].in_units('g/cm**3').v
         shape = (density > density_cut_factor * cgm_density_max)
     elif (surface[0]=='sphere'):
+        if (args.Rvir):
+            R = surface[1] * Rvir
+        else:
+            R = surface[1]
         radius = box['gas','radius_corrected'].in_units('kpc').v
         shape = (radius < R)
     elif (surface[0]=='cylinder'):
+        if (args.Rvir):
+            radius = surface[1] * Rvir
+            height = surface[2] * Rvir
+        else:
+            radius = surface[1]
+            height = surface[2]
         if (surface[3]=='minor'):
             x = box['gas','x_disk'].in_units('kpc').v - ds.halo_center_kpc[0].v
             y = box['gas','y_disk'].in_units('kpc').v - ds.halo_center_kpc[1].v
