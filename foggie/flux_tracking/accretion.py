@@ -710,6 +710,11 @@ def load_and_calculate(snap, surface):
 
     print('Fluxes calculated for snapshot', snap)
 
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
+
 if __name__ == "__main__":
 
     gtoMsun = 1.989e33
