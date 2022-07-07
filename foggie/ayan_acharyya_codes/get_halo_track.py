@@ -8,8 +8,8 @@
     Author :     Ayan Acharyya
     Started :    Feb 2022
     Examples :   run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L3-gas --halo 5205 --refsize 200 --reflevel 7 --search_radius 20 --width 200 --last_center_guess 0.560013,0.505539,0.538864
-                 run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L3-gas --halo 5205 --refsize 200 --reflevel 9 --search_radius 20 --width 200 --last_center_guess 0.524715,0.503910,0.519596
-                 run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --halo 5205 --run natural_7n/25Mpc_DM_256-L3-gas,natural_9n/25Mpc_DM_256-L3-gas --compare_tracks --search_radius 20
+                 run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L3-gas --halo 5205 --refsize 200 --reflevel 9 --search_radius 20 --width 200 --last_center_guess 0.560013,0.505539,0.538864
+                 run get_halo_track.py --system ayan_pleiades --foggie_dir bigbox --halo 5205 --run natural_7n/25Mpc_DM_256-L3-gas,natural_9n/25Mpc_DM_256-L3-gas --compare_tracks --search_radius 20 --refsize 200
 
 """
 from header import *
@@ -18,23 +18,24 @@ from foggie.utils.get_halo_center import get_halo_center
 from projection_plot_nondefault import get_box, annotate_box
 
 # -----------------------------------------------------
-def projection_plot(ds, center, radius, projection, args):
+def projection_plot(ds, new_center, center_guess, radius, projection, args):
     '''
     Function for gas projection plots for each snapshot after the center has been determined
     '''
-    box = get_box(ds, projection, center, args.width) # 500 kpc width cut ALONG LoS
+    box = get_box(ds, projection, new_center, args.width) # 500 kpc width cut ALONG LoS
 
-    p = yt.ProjectionPlot(ds, args.projection, 'density', center=center, width=(args.width, 'kpc'), data_source=box)
+    p = yt.ProjectionPlot(ds, args.projection, 'density', center=new_center, width=(args.width, 'kpc'), data_source=box)
     p.annotate_text((0.06, 0.12), args.halo, coord_system='axis')
     p.annotate_text((0.06, 0.08), args.run, coord_system='axis')
     p.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
 
-    p.annotate_marker(center, coord_system='data')
-    p.annotate_sphere(center, radius=(radius, 'kpc'), circle_args={'color': 'r'})
+    p.annotate_marker(center_guess, coord_system='data', plot_args={'color': 'r'})
+    p.annotate_sphere(center_guess, radius=(radius, 'kpc'), circle_args={'color': 'r'})
+    p.annotate_marker(new_center, coord_system='data', plot_args={'color': 'w'})
 
-    p = annotate_box(p, 50, ds, unit='kpc', projection=projection, center=center, linewidth=1, color='white') # 50 physical kpc
-    p = annotate_box(p, 250 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection=projection, center=center, linewidth=1, color='green') # 250 comoving kpc h^-1
-    p = annotate_box(p, 400 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection=projection, center=center, linewidth=1, color='red') # 400 comoving kpc h^-1
+    p = annotate_box(p, 50, ds, unit='kpc', projection=projection, center=new_center, linewidth=1, color='white') # 50 physical kpc
+    p = annotate_box(p, 250 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection=projection, center=new_center, linewidth=1, color='green') # 250 comoving kpc h^-1
+    p = annotate_box(p, 400 / (1 + ds.current_redshift) / ds.hubble_constant, ds, unit='kpc', projection=projection, center=new_center, linewidth=1, color='red') # 400 comoving kpc h^-1
 
     p.set_cmap('density', density_color_map)
     p.set_zlim('density', zmin=1e-5, zmax=5e-2)
@@ -47,14 +48,12 @@ def get_shifts(conf_log_file):
     '''
     Function to get the integer shifts in the domain center from .conf_log.txt files
     '''
-    patterns_to_search = ['shift_x = ', 'shift_y = ', 'shift_z = ']
-    shifts = []
-    for pattern in patterns_to_search:
-        with open(conf_log_file, 'r') as infile:
-            for line in infile:
-                if re.search(pattern, line):
-                    this_shift = int(line[line.find(pattern) + len(pattern): line.find('\n')])
-        shifts.append(this_shift)
+    pattern = 'Domain shifted by'
+    with open(conf_log_file, 'r') as infile:
+        for line in infile:
+            if re.search(pattern, line):
+                break
+    shifts = [float(item) for item in line[line.find('(')+1:line.find(')')].split(',')]
 
     return shifts
 
@@ -71,7 +70,7 @@ def make_center_track_file(list_of_sims, center_track_file, args):
     # --------setup dataframe-----------
     df = pd.DataFrame(columns=['redshift', 'center_x', 'center_y', 'center_z', 'output'])
 
-    new_center = args.last_center_guess # to be used as the initial guess for center for the very first instance (lowest redshift, and then will loop to higher and higher redshifts)
+    center_guess = args.last_center_guess # to be used as the initial guess for center for the very first instance (lowest redshift, and then will loop to higher and higher redshifts)
 
     for index in range(total_snaps):
         start_time_this_snapshot = time.time()
@@ -87,10 +86,11 @@ def make_center_track_file(list_of_sims, center_track_file, args):
         zz = ds.current_redshift
         search_radius_physical = args.search_radius / (1 + zz) / ds.hubble_constant # comoving kpc h^-1 to physical kpc
         print('Searching for DM peak within %.3F physical kpc of guessed center = '%search_radius_physical, new_center )
-        new_center, vel_center = get_halo_center(ds, new_center, radius=search_radius_physical) # 'radius' requires physical kpc
+        new_center, vel_center = get_halo_center(ds, center_guess, radius=search_radius_physical) # 'radius' requires physical kpc
         df.loc[len(df)] = [zz, new_center[0], new_center[1], new_center[2], args.output]
 
-        if not args.noplot: projection_plot(ds, new_center, search_radius_physical, args.projection, args)
+        if not args.noplot: projection_plot(ds, new_center, center_guess, search_radius_physical, args.projection, args)
+        center_guess = new_center
         print('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60))
 
     # sorting dataframe
@@ -187,12 +187,11 @@ def plot_track(args):
         center_track_file = args.output_path + 'center_track_sr' + str(args.search_radius) + 'kpc.dat'
         df = pd.read_table(center_track_file, delim_whitespace=True)
 
-        ax.plot(df['redshift'], df['center_x'], c='salmon', ls=linestyle_arr[index], label='x; ' + thisrun)
-        ax.plot(df['redshift'], df['center_y'], c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun)
-        ax.plot(df['redshift'], df['center_z'], c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun)
+        ax.plot(df['redshift'], df['center_x'], c='salmon', ls=linestyle_arr[index], label='x; ' + thisrun.split('/')[0])
+        ax.plot(df['redshift'], df['center_y'], c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun.split('/')[0])
+        ax.plot(df['redshift'], df['center_z'], c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun.split('/')[0])
 
-        ax2.plot(df['redshift'], np.ones(len(df)) * box_size / (1 + df['redshift']) / H0, c='saddlebrown', ls=linestyle_arr[index], label='box; ' + thisrun) # to convert comoving code units to physical Mpc, box_size in Mpc
-        ax2.plot(df['redshift'], np.ones(len(df)) * (args.refsize * 1e-3) * 100 / (1 + df['redshift']) / H0, c='black', ls=linestyle_arr[index], label='ref x 100; ' + thisrun) # to convert comoving code units to physical Mpc x 100 (for better visualisation), args.refsize in kpc
+        ax2.plot(df['redshift'], np.ones(len(df)) * args.refsize/ (1 + df['redshift']) / H0, c='saddlebrown', ls=linestyle_arr[index], label='refbox; ' + thisrun.split('/')[0]) # to convert comoving code units to physical kpc
         print('Deb 194:', df) #
 
     ax.set_xlim(xlim[0], xlim[1])
@@ -200,7 +199,7 @@ def plot_track(args):
     ax.set_ylabel('Comoving position (code units)', fontsize=args.fontsize)
     ax.legend(loc=0)
 
-    ax2.set_ylabel('Physical size (Mpc)', fontsize=args.fontsize)
+    ax2.set_ylabel('Ref box size (physical kpc)', fontsize=args.fontsize)
     ax2.legend(loc=1)
     plt.show(block=False)
 
@@ -228,15 +227,14 @@ def plot_track(args):
             df['delta_' + thiscol] = df[thiscol + '_x'] - df[thiscol + '_y']
             ax.plot(df['redshift_x'], df['delta_' + thiscol] * factor, c=col_arr[index], label='delta_' + thiscol)
 
-        ax2.plot(df['redshift_x'], np.ones(len(df)) * factor / 1e3, c='saddlebrown', label='box size') # to convert comoving code units to physical Mpc
-        ax2.plot(df['redshift_x'], np.ones(len(df)) * (args.refsize * 1e-3) * 100 / (1 + df['redshift_x']) / H0, c='black', label='refbox size x 100') # to convert comoving code units to physical Mpc x 100 (for better visualisation), args.refsize in kpc
+        ax2.plot(df['redshift_x'], np.ones(len(df)) * args.refsize / (1 + df['redshift_x']) / H0, c='saddlebrown', label='refbox size') # to convert comoving code units to physical kpc
 
         ax.set_xlim(xlim[0], np.min(df['redshift_x']))
         ax.set_xlabel('Redshift', fontsize=args.fontsize)
         ax.set_ylabel('Physical separation (kpc)', fontsize=args.fontsize)
         ax.legend(loc=0)
 
-        ax2.set_ylabel('Physical size (Mpc)', fontsize=args.fontsize)
+        ax2.set_ylabel('Ref box size (physical kpc)', fontsize=args.fontsize)
         ax2.legend(loc=1)
         plt.show(block=False)
 
