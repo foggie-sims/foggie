@@ -178,7 +178,6 @@ def plot_track(args):
     elif args.system == 'ayan_pleiades': args.root_dir = '/nobackup/aachary2/'
 
     fig1, ax = plt.subplots(1)
-    ax2 = ax.twinx()
     linestyle_arr = ['solid', 'dashed', 'dotted']
 
     for index, thisrun in enumerate(args.run):
@@ -191,7 +190,6 @@ def plot_track(args):
         ax.plot(df['redshift'], df['center_y'], c='darkolivegreen', ls=linestyle_arr[index], label='y; ' + thisrun.split('/')[0])
         ax.plot(df['redshift'], df['center_z'], c='cornflowerblue', ls=linestyle_arr[index], label='z; ' + thisrun.split('/')[0])
 
-        ax2.plot(df['redshift'], np.ones(len(df)) * args.refsize/ (1 + df['redshift']) / H0, c='saddlebrown', ls=linestyle_arr[index], label='refbox; ' + thisrun.split('/')[0]) # to convert comoving code units to physical kpc
         print('Deb 194:', df) #
 
     ax.set_xlim(xlim[0], xlim[1])
@@ -199,8 +197,6 @@ def plot_track(args):
     ax.set_ylabel('Comoving position (code units)', fontsize=args.fontsize)
     ax.legend(loc=0)
 
-    ax2.set_ylabel('Ref box size (physical kpc)', fontsize=args.fontsize)
-    ax2.legend(loc=1)
     plt.show(block=False)
 
     outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/' + args.halo + '_trackcompare_' + ','.join(args.run).replace('/', '-') + '_sr' + str(args.search_radius) + 'kpc.png'
@@ -209,7 +205,6 @@ def plot_track(args):
 
     if len(args.run) == 2:
         fig2, ax = plt.subplots(1)
-        ax2 = ax.twinx()
 
         args.output_path = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/' + args.run[0] + '/'
         center_track_file = args.output_path + 'center_track_sr' + str(args.search_radius) + 'kpc.dat'
@@ -227,15 +222,13 @@ def plot_track(args):
             df['delta_' + thiscol] = df[thiscol + '_x'] - df[thiscol + '_y']
             ax.plot(df['redshift_x'], df['delta_' + thiscol] * factor, c=col_arr[index], label='delta_' + thiscol)
 
-        ax2.plot(df['redshift_x'], np.ones(len(df)) * args.refsize / (1 + df['redshift_x']) / H0, c='saddlebrown', label='refbox size') # to convert comoving code units to physical kpc
+        ax.plot(df['redshift_x'], np.ones(len(df)) * args.refsize / (1 + df['redshift_x']) / H0, c='saddlebrown', label='refbox size') # to convert comoving code units to physical kpc
 
         ax.set_xlim(xlim[0], np.min(df['redshift_x']))
         ax.set_xlabel('Redshift', fontsize=args.fontsize)
         ax.set_ylabel('Physical separation (kpc)', fontsize=args.fontsize)
         ax.legend(loc=0)
 
-        ax2.set_ylabel('Ref box size (physical kpc)', fontsize=args.fontsize)
-        ax2.legend(loc=1)
         plt.show(block=False)
 
         outfile = args.root_dir + args.foggie_dir + '/' + 'halo_' + args.halo + '/figs/' + args.halo + '_trackdiff_' + ','.join(args.run).replace('/', '-') + '_sr' + str(args.search_radius) + 'kpc.png'
