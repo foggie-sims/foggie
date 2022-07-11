@@ -11,6 +11,7 @@
     OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has --opt_args "--galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 "
     OR :         run submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --nnodes 50 --ncores 4 --queue normal --prefix cmzg --opt_args "--do_all_sims --upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
     OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --jobarray --do_all_sims --use_onlyDD --nhours 0 --nmins 15 --prefix cmzg --opt_args "--upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
+    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --do_all_halos --start 2 --queue ldan --mem 1500GB --prefix cmzg --opt_args "--do_all_sims --use_onlyDD --upto_kpc 10 --xcol rad --weight mass --write_file --noplot"
 """
 import subprocess, argparse, datetime, os
 from collections import defaultdict
@@ -196,7 +197,7 @@ if __name__ == '__main__':
 
         replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NHOURS': nhours, 'NMINS': args.nmins, 'CALLFILE': callfile, 'WORKDIR': workdir, \
                         'JOBSCRIPT_PATH': jobscript_path, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'RESOURCES': resources, 'RUNSIMFLAG': runsimflag,\
-                        'MERGEHIIFLAG': mergeHIIflag, 'SYSTEMFLAG': systemflag, \
+                        'MERGEHIIFLAG': mergeHIIflag, 'SYSTEMFLAG': systemflag, 'NCPUS': str(nnodes * ncores),\
                         'HALOFLAG': haloflag, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
                         'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \
                         'OVERPLOT_STARS_FLAG': overplot_stars_flag, 'OVERPLOT_SOURCE_SINK_FLAG': overplot_source_sink_flag, 'CLOBBER_PLOT_FLAG': clobber_plot_flag, 'NSECONDS':str(int(nhours) * 3600), \
