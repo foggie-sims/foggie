@@ -10,7 +10,7 @@
     Examples :   run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_re 3 --xcol rad_re --keep --weight mass
                  run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad_re --keep --weight mass
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --do_all_sims --weight mass --write_file --noplot
-                 run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --xcol rad_re --do_all_sims --weight mass --write_file --noplot
+                 run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --xcol rad --do_all_sims --weight mass --write_file --noplot
 
 """
 from header import *
@@ -331,6 +331,7 @@ if __name__ == '__main__':
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
     upto_text = '_upto%.1Fkpc' % dummy_args.upto_kpc if dummy_args.upto_kpc is not None else '_upto%.1FRe' % dummy_args.upto_re
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s%s%s.txt' % (dummy_args.xcol, upto_text, weightby_text)
+    if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
     if dummy_args.dryrun:
         print('List of the total ' + str(total_snaps) + ' sims =', list_of_sims)
@@ -424,7 +425,7 @@ if __name__ == '__main__':
         this_df_grad.loc[len(this_df_grad)] = thisrow
         df_grad = pd.concat([df_grad, this_df_grad])
         if args.write_file:
-            if not os.path.isfile(grad_filename) or args.clobber:
+            if not os.path.isfile(grad_filename):
                 this_df_grad.to_csv(grad_filename, sep='\t', index=None, header='column_names')
                 print('Wrote to gradient file', grad_filename)
             else:
