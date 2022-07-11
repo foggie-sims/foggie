@@ -7,11 +7,12 @@
     Output :     M-Z gradient plots as png files plus, optionally, MZR plot
     Author :     Ayan Acharyya
     Started :    Mar 2022
-    Examples :   run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -2 --xmin 8.5 --overplot_manga --overplot_clear --binby mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
-                 run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_kpc 10 --xcol rad_re --keep --weight mass --ymin -2 --xmin 8.5 --overplot_manga --overplot_clear --binby mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
-                 run plot_MZgrad.py --system ayan_local --halo 8508 --upto_re 3 --xcol rad_re --keep --weight mass --ymin -0.5 --xmin 8.5 --overplot_manga --overplot_clear --overplot_belfiore --overplot_mjngozzi --binby mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed --manga_diag pyqz
-                 run plot_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --weight mass --binby mass --nbins 20 --cmap plasma --xmin 8.5 --xmax 11 --ymin 0.3 --overplot_manga --manga_diag n2
-
+    Examples :   run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --Zgrad_den rad_re --keep --weight mass --overplot_manga --overplot_clear --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
+                 run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_kpc 10 --Zgrad_den rad_re --keep --weight mass --overplot_manga --overplot_clear --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --upto_re 3 --Zgrad_den rad_re --keep --weight mass --overplot_manga --overplot_clear --overplot_belfiore --overplot_mjngozzi --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed --manga_diag pyqz
+                 run plot_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --Zgrad_den rad_re --weight mass --binby log_mass --nbins 20 --cmap plasma --xmax 11 --ymin 0.3 --overplot_manga --manga_diag n2
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --colorcol log_mass --overplot_smoothed --zhighlight
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --colorcol re --cmax 3 --zhighlight
 """
 from header import *
 from util import *
@@ -25,7 +26,8 @@ def load_df(args):
     '''
     args.foggie_dir, args.output_dir, args.run_loc, args.code_path, args.trackname, args.haloname, args.spectra_dir, args.infofile = get_run_loc_etc(args)
     upto_text = '_upto%.1Fkpc' % args.upto_kpc if args.upto_kpc is not None else '_upto%.1FRe' % args.upto_re
-    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s.txt' % (args.xcol, upto_text, args.weightby_text)
+    Zgrad_den_text = 'rad' if args.Zgrad_den == 'kpc' else 'rad_re'
+    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text)
 
     convert_Zgrad_from_dexkpc_to_dexre = False
     convert_Zgrad_from_dexre_to_dexkpc = False
@@ -34,16 +36,16 @@ def load_df(args):
         print('Trying to read in', grad_filename)
         df = pd.read_table(grad_filename, delim_whitespace=True)
 
-    elif not os.path.exists(grad_filename) and args.xcol == 'rad_re':
+    elif not os.path.exists(grad_filename) and args.Zgrad_den == 're':
         print('Could not find', grad_filename)
-        grad_filename = grad_filename.replace('rad_re', 'rad')
+        grad_filename = grad_filename.replace('re', 'kpc')
         print('Trying to read in', grad_filename, 'instead')
         df = pd.read_table(grad_filename, delim_whitespace=True)
         convert_Zgrad_from_dexkpc_to_dexre = True
 
-    elif not os.path.exists(grad_filename) and args.xcol == 'rad':
+    elif not os.path.exists(grad_filename) and args.Zgrad_den == 'kpc':
         print('Could not find', grad_filename)
-        grad_filename = grad_filename.replace('rad', 'rad_re')
+        grad_filename = grad_filename.replace('kpc', 're')
         print('Trying to read in', grad_filename, 'instead')
         df = pd.read_table(grad_filename, delim_whitespace=True)
         convert_Zgrad_from_dexre_to_dexkpc = True
@@ -58,6 +60,9 @@ def load_df(args):
         df.columns = ['output', 'redshift', 'time', 're', 'mass', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Ztotal']
     except:
         pass
+
+    df['log_mass'] = np.log10(df['mass'])
+    df = df.drop('mass', axis=1)
 
     if convert_Zgrad_from_dexkpc_to_dexre:
         print('Zgrad is in dex/kpc, converting it to dex/re')
@@ -142,23 +147,34 @@ def get_multicolored_line(xdata, ydata, colordata, cmap, cmin, cmax, lw=2, ls='s
     lc.set_linestyle(ls)
     return lc
 
+# ----------------------------------
+class MyDefaultDict(dict):
+    '''
+    subclass to modify dict to return the missing key itself
+    '''
+    __missing__ = lambda self, key: key
+
 # -----------------------------------
 def plot_MZGR(args):
     '''
     Function to plot the mass-metallicity gradient relation, based on an input dataframe
     '''
 
-    logbin = True if args.binby == 'mass' else False
     df_master = pd.DataFrame()
-    cmap_arr = ['Purples_r', 'Oranges_r', 'Greens_r', 'Blues_r', 'PuRd_r', 'YlOrBr_r']
+    cmap_arr = ['Purples', 'Oranges', 'Greens', 'Blues', 'PuRd', 'YlOrBr']
+    things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
 
     # -------------get plot limits-----------------
-    if args.xmin is None: args.xmin = 6
-    if args.xmax is None: args.xmax = 11.5
-    if args.ymin is None: args.ymin = -2 if args.xcol == 'rad_re' else -0.2
-    if args.ymax is None: args.ymax = 0.1
-    if args.cmin is None: args.cmin = 0
-    if args.cmax is None: args.cmax = 6
+    lim_dict = {'Zgrad': (-0.5, 0.1)  if args.Zgrad_den == 'kpc' else (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14)}
+    label_dict = MyDefaultDict(Zgrad=r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.Zgrad_den == 're' else r'$\Delta Z$ (dex/kpc)', \
+        re='Scale length (kpc)', log_mass=r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', redshift='Redshift', time='Time (Gyr)')
+
+    if args.xmin is None: args.xmin = lim_dict[args.xcol][0]
+    if args.xmax is None: args.xmax = lim_dict[args.xcol][1]
+    if args.ymin is None: args.ymin = lim_dict[args.ycol][0]
+    if args.ymax is None: args.ymax = lim_dict[args.ycol][1]
+    if args.cmin is None: args.cmin = lim_dict[args.colorcol][0]
+    if args.cmax is None: args.cmax = lim_dict[args.colorcol][1]
 
     # -------declare figure object-------------
     fig, ax = plt.subplots(1, figsize=(10, 5))
@@ -166,25 +182,25 @@ def plot_MZGR(args):
 
     # ---------plot observations----------------
     obs_text = ''
-    if args.overplot_manga and args.xcol == 'rad_re':
+    if args.overplot_manga and args.Zgrad_den == 're':
         ax, df_manga = overplot_manga(ax, args)
         obs_text += '_manga_' + args.manga_diag
         fig.text(0.15, 0.2, 'MaNGA: Pipe3D', ha='left', va='top', color='Grey', fontsize=args.fontsize)
     else:
         df_manga = -99 # bogus value
 
-    if args.overplot_clear and args.xcol == 'rad_re':
+    if args.overplot_clear and args.Zgrad_den == 're':
         ax = overplot_clear(ax)
         obs_text += '_clear'
         fig.text(0.15, 0.25, 'CLEAR: Simons+21', ha='left', va='top', color='k', fontsize=args.fontsize)
         fig.text(0.15, 0.3, 'MaNGA: Belfiore+17', ha='left', va='top', color='r', fontsize=args.fontsize)
 
-    if args.overplot_belfiore and args.xcol == 'rad_re':
+    if args.overplot_belfiore and args.Zgrad_den == 're':
         ax = overplot_mingozzi(ax, paper='B17', color='darkolivegreen', diag='M08')
         obs_text += '_belfiore_'
         fig.text(0.15, 0.35, 'MaNGA: Belfiore+17', ha='left', va='top', color='darkolivegreen', fontsize=args.fontsize)
 
-    if args.overplot_mingozzi and args.xcol == 'rad_re':
+    if args.overplot_mingozzi and args.Zgrad_den == 're':
         ax = overplot_mingozzi(ax, paper='M20', color='salmon', diag='M08')
         obs_text += '_mingozzi_'
         fig.text(0.15, 0.4, 'MaNGA: Mingozzi+20', ha='left', va='top', color='salmon', fontsize=args.fontsize)
@@ -193,23 +209,24 @@ def plot_MZGR(args):
     for index, args.halo in enumerate(args.halo_arr[::-1]):
         thisindex = len(args.halo_arr) - index - 1
         df = load_df(args)
-        df = df[(np.log10(df['mass']) >= args.xmin) & (np.log10(df['mass']) <= args.xmax)]
+        df = df[(df[args.xcol] >= args.xmin) & (df[args.xcol] <= args.xmax)]
         #df = df[(df[args.ycol] >= args.ymin) & (df[args.ycol] <= args.ymax)]
 
         if args.binby is not None:
-            df[args.binby + '_bins'] = pd.cut(df[args.binby], bins=np.logspace(np.min(np.log10(df[args.binby])), np.max(np.log10(df[args.binby])), args.nbins) if logbin else np.linspace(np.min(df[args.binby]), np.max(df[args.binby]), args.nbins))
-            df = df[['redshift', 'mass', args.ycol, args.binby + '_bins']].groupby(args.binby + '_bins', as_index=False).agg(np.mean)
+            df[args.binby + '_bins'] = pd.cut(df[args.binby], bins=np.linspace(np.min(df[args.binby]), np.max(df[args.binby]), args.nbins))
+            df = df[[args.colorcol, args.xcol, args.ycol, args.binby + '_bins']].groupby(args.binby + '_bins', as_index=False).agg(np.mean)
             df.dropna(inplace=True)
 
         # -----plot line with color gradient--------
-        line = get_multicolored_line(np.log10(df['mass']), df[args.ycol], df['redshift'], cmap_arr[thisindex], args.cmin, args.cmax, lw=1 if args.overplot_smoothed else 2)
+        this_cmap = cmap_arr[thisindex] + '_r' if args.colorcol in things_that_reduce_with_time else cmap_arr[thisindex] # reverse colromap for redshift
+        line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_smoothed else 2)
         plot = ax.add_collection(line)
 
         # ------- overplotting redshift-binned scatter plot------------
         if args.zhighlight:
             df['redshift_int'] = np.floor(df['redshift'])
             df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-            dummy = ax.scatter(np.log10(df_zbin['mass']), df_zbin[args.ycol], c=df_zbin['redshift'], cmap=cmap_arr[thisindex], lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed else 1)
+            dummy = ax.scatter(df_zbin[args.xcol], df_zbin[args.ycol], c=df_zbin[args.colorcol], cmap=this_cmap, lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed else 1)
             print('For halo', args.halo, 'highlighted z =', [float('%.1F'%item) for item in df_zbin['redshift'].values])
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
@@ -219,31 +236,31 @@ def plot_MZGR(args):
             if npoints % 2 == 0: npoints += 1
             box = np.ones(npoints) / npoints
             df[args.ycol + '_smoothed'] = np.convolve(df[args.ycol], box, mode='same')
-            smoothline = get_multicolored_line(np.log10(df['mass']), df[args.ycol + '_smoothed'], df['redshift'], cmap_arr[thisindex], args.cmin, args.cmax, lw=2)
+            smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=2)
             plot = ax.add_collection(smoothline)
             print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points')
 
-        fig.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=mpl_cm.get_cmap(cmap_arr[thisindex])(0.2), fontsize=args.fontsize)
+        fig.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.8), fontsize=args.fontsize)
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])
 
     cax = plt.colorbar(plot)
     cax.ax.tick_params(labelsize=args.fontsize)
-    cax.set_label('Redshift', fontsize=args.fontsize)
+    cax.set_label(label_dict[args.colorcol], fontsize=args.fontsize)
 
-    ax.set_xlim(args.xmin, args.xmax)
+    if args.xcol == 'redshift':  ax.set_xlim(args.xmax, args.xmin)
+    else: ax.set_xlim(args.xmin, args.xmax)
     ax.set_ylim(args.ymin, args.ymax)
 
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 
-    label_dict = {'Zgrad': r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.xcol == 'rad_re' else r'$\Delta Z$ (dex/kpc)', 're': 'Scale length (kpc)'}
-    ax.set_xlabel(r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', fontsize=args.fontsize)
+    ax.set_xlabel(label_dict[args.xcol], fontsize=args.fontsize)
     ax.set_ylabel(label_dict[args.ycol], fontsize=args.fontsize)
 
     binby_text = '' if args.binby is None else '_binby_' + args.binby
     upto_text = '_upto%.1Fkpc' % args.upto_kpc if args.upto_kpc is not None else '_upto%.1FRe' % args.upto_re
-    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_MZGR_xcol_%s%s%s%s%s.png' % (args.xcol, upto_text, args.weightby_text, binby_text, obs_text)
+    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_vs%s_colorby_%s_Zgrad_den_%s%s%s%s%s.png' % (args.ycol, args.xcol, args.colorcol, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text)
     fig.savefig(figname)
     print('Saved plot as', figname)
     plt.show(block=False)
@@ -260,7 +277,10 @@ if __name__ == '__main__':
 
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight
-    if args.ycol == 'metal': args.ycol = 'Zgrad'
+    if args.ycol == 'metal': args.ycol = 'Zgrad' # changing the default ycol to metallicity gradient
+    if args.xcol == 'rad': args.xcol = 'log_mass' # changing the default xcol to mass, to make a MZGR plot by default when xcol and ycol aren't specified
+    if args.colorcol == ['vrad']: args.colorcol = 'redshift'
+    else: args.colorcol = args.colorcol[0]
 
     fig, df_binned, df_manga = plot_MZGR(args)
 
