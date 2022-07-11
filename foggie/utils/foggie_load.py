@@ -277,6 +277,12 @@ def foggie_load(snap, trackfile, **kwargs):
                      force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'z_disk'), function=z_diskrel, units='kpc', take_log=False, \
                      force_override=True, sampling_type='cell')
+        ds.add_field(('dm', 'x_disk'), function=x_diskrel_dm, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('dm', 'y_disk'), function=y_diskrel_dm, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('dm', 'z_disk'), function=z_diskrel_dm, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
         ds.add_field(('gas', 'vx_disk'), function=vx_diskrel, units='km/s', take_log=False, \
                      force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'vy_disk'), function=vy_diskrel, units='km/s', take_log=False, \
@@ -287,6 +293,10 @@ def foggie_load(snap, trackfile, **kwargs):
                      force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'theta_pos_disk'), function=theta_pos_diskrel, units=None, take_log=False, \
                      force_override=True, sampling_type='cell')
+        ds.add_field(('dm', 'phi_pos_disk'), function=phi_pos_diskrel_dm, units=None, take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('dm', 'theta_pos_disk'), function=theta_pos_diskrel_dm, units=None, take_log=False, \
+                     force_override=True, sampling_type='particle')
         ds.add_field(('gas', 'vphi_disk'), function=phi_velocity_diskrel, units='km/s', take_log=False, \
                      force_override=True, sampling_type='cell')
         ds.add_field(('gas', 'vtheta_disk'), function=theta_velocity_diskrel, units='km/s', take_log=False, \

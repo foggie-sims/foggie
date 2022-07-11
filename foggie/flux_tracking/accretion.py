@@ -166,6 +166,11 @@ def parse_args():
                         'Default is not to do any plotting. Specify multiple plots by listing separated with commas, no spaces.')
     parser.set_defaults(plot='none')
 
+    parser.add_argument('--dark_matter', dest='dark_matter', action='store_true', \
+                        help='Do you want to calculate fluxes and/or make plots for dark matter too?\n' + \
+                        'This is very slow, so the default is not to do this.')
+    parser.set_defaults(dark_matter=False)
+
     parser.add_argument('--load_from_file', metavar='load_from_file', type=str, action='store', \
                         help='If plotting something, do you want to read in from file rather than re-calculating\n' + \
                         "everything? Note this doesn't work for any datashader plots; those need the full simulation\n" + \
@@ -194,9 +199,10 @@ def make_table(flux_types):
         types_list = []
 
     dir_name = ['net_', '_in', '_out']
-    if (args.region_filter != 'none'): region_name = ['', 'lowest_', 'low-mid_', 'high-mid_', 'highest_']
-    else: region_name = ['']
     for i in range(len(flux_types)):
+        if (args.region_filter != 'none') and ('dm' not in flux_types[i]):
+            region_name = ['', 'lowest_', 'low-mid_', 'high-mid_', 'highest_']
+        else: region_name = ['']
         for k in range(len(region_name)):
             for j in range(len(dir_name)):
                 if (j==0): name = dir_name[j]
@@ -238,6 +244,7 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
     if ('mass' in flux_types):
         fluxes.append('mass_flux')
         fluxes.append('metal_flux')
+        if (args.dark_matter): fluxes.append('dm_mass_flux')
         flux_filename += '_mass'
     if ('energy' in flux_types):
         fluxes.append('thermal_energy_flux')
@@ -274,12 +281,31 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
     vy = grid['gas','vy_corrected'].in_units('kpc/yr').v
     vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
     radius = grid['gas','radius_corrected'].in_units('kpc').v
+    # Load dark matter velocities and positions and digitize onto grid
+    if (args.dark_matter):
+        left_edge = grid.LeftEdge.in_units('kpc')
+        right_edge = grid.RightEdge.in_units('kpc')
+        box_dm = ds.box(left_edge, right_edge)
+        x_dm = box_dm['dm','particle_position_x'].in_units('kpc').v - ds.halo_center_kpc[0].v
+        y_dm = box_dm['dm','particle_position_y'].in_units('kpc').v - ds.halo_center_kpc[1].v
+        z_dm = box_dm['dm','particle_position_z'].in_units('kpc').v - ds.halo_center_kpc[2].v
+        vx_dm = box_dm['dm','particle_velocity_x'].in_units('kpc/yr').v - ds.halo_velocity_kms[0].in_units('kpc/yr').v
+        vy_dm = box_dm['dm','particle_velocity_y'].in_units('kpc/yr').v - ds.halo_velocity_kms[1].in_units('kpc/yr').v
+        vz_dm = box_dm['dm','particle_velocity_z'].in_units('kpc/yr').v - ds.halo_velocity_kms[2].in_units('kpc/yr').v
+        inds_x = np.digitize(x_dm, xbins)-1      # indices of x positions
+        inds_y = np.digitize(y_dm, ybins)-1      # indices of y positions
+        inds_z = np.digitize(z_dm, zbins)-1      # indices of z positions
+        inds_dm = np.array([inds_x, inds_y, inds_z])
+        in_shape_dm = shape[tuple(inds_dm)]
     properties = []
     if ('mass' in flux_types):
         mass = grid['gas', 'cell_mass'].in_units('Msun').v
         metals = grid['gas', 'metal_mass'].in_units('Msun').v
         properties.append(mass)
         properties.append(metals)
+        if (args.dark_matter):
+            mass_dm = box_dm[('dm','particle_mass')].in_units('Msun').v
+            properties.append(mass_dm)
     if ('energy' in flux_types):
         kinetic_energy = grid['gas','kinetic_energy_corrected'].in_units('erg').v
         thermal_energy = (grid['gas','cell_mass']*grid['gas','thermal_energy']).in_units('erg').v
@@ -303,6 +329,23 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
     new_in_shape = shape[tuple(new_inds)]
     from_shape = shape & ~new_in_shape
     to_shape = ~shape & new_in_shape
+    if (surface[0]=='sphere'):
+        rv = grid['radial_velocity_corrected'].in_units('km/s').v
+        to_shape = (rv < 0.) & (to_shape)
+        from_shape = (rv > 0.) & from_shape
+
+    # Define which cells are entering and leaving shape for dark matter
+    if (args.dark_matter):
+        new_x_dm = vx_dm*dt + x_dm
+        new_y_dm = vy_dm*dt + y_dm
+        new_z_dm = vz_dm*dt + z_dm
+        inds_x = np.digitize(new_x_dm, xbins)-1      # indices of new x positions
+        inds_y = np.digitize(new_y_dm, ybins)-1      # indices of new y positions
+        inds_z = np.digitize(new_z_dm, zbins)-1      # indices of new z positions
+        new_inds_dm = np.array([inds_x, inds_y, inds_z])
+        new_in_shape_dm = shape[tuple(new_inds_dm)]
+        from_shape_dm = in_shape_dm & ~new_in_shape_dm
+        to_shape_dm = ~in_shape_dm & new_in_shape_dm
 
     if ('accretion_viz' in plots):
         # Set all values outside of the shapes of interest to zero
@@ -352,45 +395,65 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
             filter = grid['gas','radial_velocity_corrected'].in_units('km/s').v
 
     if (args.direction):
-        theta_bins = np.arange(-1., 1.25, 0.25)*np.pi
-        phi_bins = np.arange(0., 1.25, 0.25)*np.pi
-        theta = grid['gas','theta_pos_disk'].v
-        phi = grid['gas','phi_pos_disk'].v
+        theta_bins = np.arange(-180., 210., 30.)
+        phi_bins = np.arange(0.,210.,30.)
+        theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
+        phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
+        if (args.dark_matter):
+            theta_dm = box_dm['dm','theta_pos_disk'].v*(180./np.pi)
+            phi_dm = box_dm['dm','phi_pos_disk'].v*(180./np.pi)
+            theta_to_dm = theta_dm[to_shape_dm]
+            phi_to_dm = phi_dm[to_shape_dm]
+            theta_from_dm = theta_dm[from_shape_dm]
+            phi_from_dm = phi_dm[from_shape_dm]
         theta_to = theta[to_shape]
         phi_to = phi[to_shape]
         theta_from = theta[from_shape]
         phi_from = phi[from_shape]
     else:
-        theta_bins = np.array([-1.,1.])*np.pi
-        phi_bins = np.array([0.,1.])*np.pi
+        theta_bins = np.array([-180.,180.])
+        phi_bins = np.array([0.,180.])
 
     for t in range(len(theta_bins)-1):
         for p in range(len(phi_bins)-1):
             angle_bin_to = (theta_to >= theta_bins[t]) & (theta_to < theta_bins[t+1]) & (phi_to >= phi_bins[p]) & (phi_to < phi_bins[p+1])
             angle_bin_from = (theta_from >= theta_bins[t]) & (theta_from < theta_bins[t+1]) & (phi_from >= phi_bins[p]) & (phi_from < phi_bins[p+1])
+            if (args.dark_matter):
+                angle_bin_to_dm = (theta_to_dm >= theta_bins[t]) & (theta_to_dm < theta_bins[t+1]) & (phi_to_dm >= phi_bins[p]) & (phi_to_dm < phi_bins[p+1])
+                angle_bin_from_dm = (theta_from_dm >= theta_bins[t]) & (theta_from_dm < theta_bins[t+1]) & (phi_from_dm >= phi_bins[p]) & (phi_from_dm < phi_bins[p+1])
             if (args.direction): results = [theta_bins[t], phi_bins[p]]
             else: results = []
             for i in range(len(fluxes)):
-                prop_to = properties[i][to_shape][angle_bin_to]
-                prop_from = properties[i][from_shape][angle_bin_from]
-                flux_in = np.sum(prop_to)/dt
-                flux_out = np.sum(prop_from)/dt
-                flux_net = flux_in - flux_out
-                results.append(flux_net)
-                results.append(flux_in)
-                results.append(flux_out)
-                if (args.region_filter!='none'):
-                    region_to = filter[to_shape][angle_bin_to]
-                    region_from = filter[from_shape][angle_bin_from]
-                    for j in range(len(regions)-1):
-                        prop_to_region = prop_to[(region_to > regions[j]) & (region_to < regions[j+1])]
-                        prop_from_region = prop_from[(region_from > regions[j]) & (region_from < regions[j+1])]
-                        flux_in = np.sum(prop_to_region)/dt
-                        flux_out = np.sum(prop_from_region)/dt
-                        flux_net = flux_in - flux_out
-                        results.append(flux_net)
-                        results.append(flux_in)
-                        results.append(flux_out)
+                if ('dm' in fluxes[i]):
+                    prop_to_dm = properties[i][to_shape_dm][angle_bin_to_dm]
+                    prop_from_dm = properties[i][from_shape_dm][angle_bin_from_dm]
+                    flux_in = np.sum(prop_to_dm)/dt
+                    flux_out = np.sum(prop_from_dm)/dt
+                    flux_net = flux_in - flux_out
+                    results.append(flux_net)
+                    results.append(flux_in)
+                    results.append(flux_out)
+                else:
+                    prop_to = properties[i][to_shape][angle_bin_to]
+                    prop_from = properties[i][from_shape][angle_bin_from]
+                    flux_in = np.sum(prop_to)/dt
+                    flux_out = np.sum(prop_from)/dt
+                    flux_net = flux_in - flux_out
+                    results.append(flux_net)
+                    results.append(flux_in)
+                    results.append(flux_out)
+                    if (args.region_filter!='none'):
+                        region_to = filter[to_shape][angle_bin_to]
+                        region_from = filter[from_shape][angle_bin_from]
+                        for j in range(len(regions)-1):
+                            prop_to_region = prop_to[(region_to > regions[j]) & (region_to < regions[j+1])]
+                            prop_from_region = prop_from[(region_from > regions[j]) & (region_from < regions[j+1])]
+                            flux_in = np.sum(prop_to_region)/dt
+                            flux_out = np.sum(prop_from_region)/dt
+                            flux_net = flux_in - flux_out
+                            results.append(flux_net)
+                            results.append(flux_in)
+                            results.append(flux_out)
             table.add_row(results)
 
     table = set_table_units(table)
@@ -399,7 +462,7 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
     if ('accretion_direction' in plots):
         tsnap = ds.current_time.in_units('Gyr').v
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-        for c in ['temperature','metallicity']:
+        for c in ['temperature','metallicity','cooling_time','radial_velocity']:
             if (c=='temperature'):
                 color_field = 'temperature'
                 color_val = np.log10(grid['gas','temperature'].in_units('K').v)[to_shape]
@@ -424,14 +487,39 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
                 color_ticklabels = ['0.01','0.1','0.5','1','2']
                 field_label = 'Metallicity [$Z_\odot$]'
                 color_log = False
+            elif (c=='cooling_time'):
+                color_field = 'cooling_time'
+                color_val = np.log10(grid['gas','cooling_time'].in_units('Myr').v)[to_shape]
+                color_func = categorize_by_tcool
+                color_key = tcool_color_key
+                cmin = tcool_min
+                cmax = tcool_max
+                rng = (np.log10(tcool_max)-np.log10(tcool_min))/750.
+                start = np.log10(tcool_min)
+                color_ticks = [(1-start)/rng,(3-start)/rng,(6-start)/rng]
+                color_ticklabels = ['1','3','6']
+                field_label = 'log Cooling Time [Myr]'
+                color_log = True
+            elif (c=='radial_velocity'):
+                color_field = 'radial_velocity'
+                color_val = grid['gas','radial_velocity_corrected'].in_units('km/s').v[to_shape]
+                color_func = categorize_by_outflow_inflow
+                color_key = outflow_inflow_color_key
+                cmin = -200.
+                cmax = 200.
+                step = 750./np.size(list(color_key))
+                color_ticks = [step,step*3.,step*5.,step*7.,step*9.]
+                color_ticklabels = ['-200','-100','0','100','200']
+                field_label = 'Radial velocity [km/s]'
+                color_log = False
             data_frame = pd.DataFrame({})
             data_frame['theta'] = theta_to
             data_frame['phi'] = phi_to
             data_frame[color_field] = color_val
             data_frame['color'] = color_func(data_frame[color_field])
             data_frame.color = data_frame.color.astype('category')
-            x_range = [-np.pi, np.pi]
-            y_range = [0., np.pi]
+            x_range = [-180., 180]
+            y_range = [0., 180.]
             cvs = dshader.Canvas(plot_width=1200, plot_height=600, x_range=x_range, y_range=y_range)
             agg = cvs.points(data_frame, 'theta', 'phi', dshader.count_cat('color'))
             img = tf.spread(tf.shade(agg, color_key=color_key, how='eq_hist',min_alpha=100), shape='circle', px=2)
@@ -440,7 +528,7 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
             ax = fig.add_subplot(1,1,1)
             image = plt.imread(prefix + 'Plots/' + snap + '_accretion-direction_' + color_field + '-colored' + save_suffix + '.png')
             ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
-            ax.plot([-np.pi, np.pi], [np.pi/2., np.pi/2.], 'k-', lw=1)
+            ax.plot([-180., 180.], [90., 90.], 'k-', lw=1)
             ax.text(0., 1.15, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
             ax.set_xlabel('Angle around disk ($\\theta$)', fontsize=24)
             ax.set_ylabel('Angle from minor axis ($\\phi$)', fontsize=24)
@@ -468,8 +556,8 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
         data_frame['theta'] = theta_to
         data_frame['phi'] = phi_to
         data_frame['mass'] = mass[to_shape]/dt
-        x_range = [-np.pi, np.pi]
-        y_range = [0., np.pi]
+        x_range = [-180., 180]
+        y_range = [0., 180.]
         cvs = dshader.Canvas(plot_width=1200, plot_height=600, x_range=x_range, y_range=y_range)
         agg = cvs.points(data_frame, 'theta', 'phi', dshader.sum('mass'))
         img = tf.spread(tf.shade(agg, cmap=mpl.cm.get_cmap('PuBuGn')), shape='circle', px=2)
@@ -478,7 +566,7 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
         ax = fig.add_subplot(1,1,1)
         image = plt.imread(prefix + 'Plots/' + snap + '_accretion-direction_mass-colored' + save_suffix + '.png')
         im = ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
-        ax.plot([-np.pi, np.pi], [np.pi/2., np.pi/2.], 'k-', lw=1)
+        ax.plot([-180., 180.], [90., 90.], 'k-', lw=1)
         ax.text(0., 1.15, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
         ax.set_xlabel('Angle around disk ($\\theta$)', fontsize=24)
         ax.set_ylabel('Angle from minor axis ($\\phi$)', fontsize=24)
@@ -493,12 +581,42 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
         plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_mass-colored' + save_suffix + '.png')
         plt.close()
 
+        if (args.dark_matter):
+            data_frame = pd.DataFrame({})
+            data_frame['theta'] = theta_to_dm
+            data_frame['phi'] = phi_to_dm
+            data_frame['mass'] = mass_dm[to_shape_dm]/dt
+            x_range = [-180., 180]
+            y_range = [0., 180.]
+            cvs = dshader.Canvas(plot_width=1200, plot_height=600, x_range=x_range, y_range=y_range)
+            agg = cvs.points(data_frame, 'theta', 'phi', dshader.sum('mass'))
+            img = tf.dynspread(tf.shade(agg, cmap=mpl.cm.get_cmap('PuBuGn')), shape='circle', max_px=10)
+            export_image(img, prefix + 'Plots/' + snap + '_accretion-direction_dm-mass-colored' + save_suffix)
+            fig = plt.figure(figsize=(11,7),dpi=300)
+            ax = fig.add_subplot(1,1,1)
+            image = plt.imread(prefix + 'Plots/' + snap + '_accretion-direction_dm-mass-colored' + save_suffix + '.png')
+            im = ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
+            ax.plot([-180., 180.], [90., 90.], 'k-', lw=1)
+            ax.text(0., 1.15, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
+            ax.set_xlabel('Angle around disk ($\\theta$)', fontsize=24)
+            ax.set_ylabel('Angle from minor axis ($\\phi$)', fontsize=24)
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+              top=True, right=True)
+            ax2 = fig.add_axes([0.52, 0.87, 0.4, 0.05])
+            fig.colorbar(plt.cm.ScalarMappable(cmap=mpl.cm.get_cmap('PuBuGn')), cax=ax2, orientation='horizontal', ticks=[])
+            ax2.text(0.5, 1.1, 'Accreting mass flux', fontsize=20, ha='center', va='bottom', transform=ax2.transAxes)
+            ax2.text(0., -0.1, 'Less mass', fontsize=18, ha='left', va='top', transform=ax2.transAxes)
+            ax2.text(1., -0.1, 'More mass', fontsize=18, ha='right', va='top', transform=ax2.transAxes)
+            plt.subplots_adjust(left=0.09, bottom=0.05, top=0.87, right=0.98)
+            plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_dm-mass-colored' + save_suffix + '.png')
+            plt.close()
+
         data_frame = pd.DataFrame({})
         data_frame['theta'] = theta_to
         data_frame['phi'] = phi_to
         data_frame['mass'] = metals[to_shape]/dt
-        x_range = [-np.pi, np.pi]
-        y_range = [0., np.pi]
+        x_range = [-180., 180]
+        y_range = [0., 180.]
         cvs = dshader.Canvas(plot_width=1200, plot_height=600, x_range=x_range, y_range=y_range)
         agg = cvs.points(data_frame, 'theta', 'phi', dshader.sum('mass'))
         img = tf.spread(tf.shade(agg, cmap=mpl.cm.get_cmap('PuBuGn')), shape='circle', px=2)
@@ -507,7 +625,7 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
         ax = fig.add_subplot(1,1,1)
         image = plt.imread(prefix + 'Plots/' + snap + '_accretion-direction_metal-mass-colored' + save_suffix + '.png')
         im = ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
-        ax.plot([-np.pi, np.pi], [np.pi/2., np.pi/2.], 'k-', lw=1)
+        ax.plot([-180., 180.], [90., 90.], 'k-', lw=1)
         ax.text(0., 1.15, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
         ax.set_xlabel('Angle around disk ($\\theta$)', fontsize=24)
         ax.set_ylabel('Angle from minor axis ($\\phi$)', fontsize=24)
@@ -686,9 +804,9 @@ def load_and_calculate(snap, surface):
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     if ((surface[0]=='cylinder') and (surface[3]=='minor')) or (args.direction):
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir, disk_relative=True, particle_type_for_angmom='gas')
+        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir, disk_relative=True, particle_type_for_angmom='gas')
     else:
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     # Load the mass enclosed profile
@@ -714,6 +832,110 @@ def load_and_calculate(snap, surface):
     if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
+
+def accretion_vs_time(snaplist):
+    '''Plots accretion over time and redshift, broken into CGM sections if --region_filter is specified
+    and broken into angle of accretion if --direction is specified.'''
+
+    tablename_prefix = prefix + 'Tables/'
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+
+    fig = plt.figure(figsize=(13,6), dpi=200)
+    ax = fig.add_subplot(1,1,1)
+
+    if (args.region_filter=='temperature'):
+        plot_colors = ['salmon', "#984ea3", "#4daf4a", 'darkorange']
+        region_label = ['$<10^4$ K', '$10^4-10^5$ K', '$10^5-10^6$ K', '$>10^6$ K']
+        region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
+    elif (args.region_filter=='metallicity'):
+        plot_colors = ["#4575b4", "#984ea3", "#d73027", "darkorange"]
+        region_label = ['$<0.1Z_\odot$', '$0.1-0.5Z_\odot$', '$0.5-1Z_\odot$', '$>Z_\odot$']
+        region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
+    else:
+        plot_colors = ['k']
+        region_label = ['All accreting gas']
+        region_name = ['']
+
+    if (args.direction):
+        linestyles = ['-', '--']
+        angle_labels = ['major axis', 'minor axis']
+    else:
+        linestyles = ['-']
+
+    zlist = []
+    timelist = []
+    accretion_list = []
+    for i in range(len(plot_colors)):
+        accretion_list.append([])
+        for j in range(len(linestyles)):
+            accretion_list[i].append([])
+
+    for i in range(len(snaplist)):
+        snap = snaplist[i]
+        fluxes = Table.read(tablename_prefix + snap + '_fluxes' + args.load_from_file + '.hdf5', path='all_data')
+        timelist.append(time_table['time'][time_table['snap']==snap][0]/1000.)
+        zlist.append(time_table['redshift'][time_table['snap']==snap][0])
+        for j in range(len(plot_colors)):
+            for k in range(len(linestyles)):
+                if (args.direction):
+                    if (k==0):
+                        accretion_list[j][k].append(np.sum(fluxes[region_name[j] + 'mass_flux_in'][(fluxes['phi_bin']>=60.) & (fluxes['phi_bin']<120.)]))
+                    if (k==1):
+                        accretion_list[j][k].append(np.sum(fluxes[region_name[j] + 'mass_flux_in'][(fluxes['phi_bin']<60.) | (fluxes['phi_bin']>=120.)]))
+                else:
+                    accretion_list[j][k].append(np.sum(fluxes[region_name[j] + 'mass_flux_in']))
+
+    for j in range(len(plot_colors)):
+        for k in range(len(linestyles)):
+            if (k==0): label = region_label[j]
+            else: label = '_nolegend_'
+            ax.plot(timelist, accretion_list[j][k], color=plot_colors[j], ls=linestyles[k], lw=2, label=label)
+            if (args.direction) and (j==len(plot_colors)-1):
+                ax.plot([-100,-100], [-100,-100], color='k', ls=linestyles[k], lw=2, label=angle_labels[k])
+
+    ax.axis([np.min(timelist), np.max(timelist), 0.0001, 100])
+    ax.set_ylabel('Accretion Rate [$M_\odot$/yr]', fontsize=24)
+    ax.set_yscale('log')
+
+    zlist.reverse()
+    timelist.reverse()
+    time_func = IUS(zlist, timelist)
+    timelist.reverse()
+    timelist = np.array(timelist).flatten()
+    zlist = np.array(zlist)
+
+    ax2 = ax.twiny()
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+      top=False, right=True)
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+      top=True)
+    x0, x1 = ax.get_xlim()
+    z_ticks = [2,1.5,1,.75,.5,.3,.2,.1,0]
+    last_z = np.where(z_ticks >= zlist[0])[0][-1]
+    first_z = np.where(z_ticks <= zlist[-1])[0][0]
+    z_ticks = z_ticks[first_z:last_z+1]
+    tick_pos = [z for z in time_func(z_ticks)]
+    tick_labels = ['%.2f' % (z) for z in z_ticks]
+    ax2.set_xlim(x0,x1)
+    ax2.set_xticks(tick_pos)
+    ax2.set_xticklabels(tick_labels)
+    ax2.set_xlabel('Redshift', fontsize=20)
+    ax.set_xlabel('Time [Gyr]', fontsize=20)
+
+    z_sfr, sfr = np.loadtxt(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', unpack=True, usecols=[1,2], skiprows=1)
+    t_sfr = time_func(z_sfr)
+
+    ax3 = ax.twinx()
+    ax3.plot(t_sfr, sfr, 'k:', lw=1)
+    ax.plot([timelist[0],timelist[-1]], [0,0], 'k:', lw=1, label='SFR (right axis)')
+    ax3.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, right=True)
+    ax3.set_ylim(-5,200)
+    ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=20)
+
+    ax.legend(loc=2, fontsize=20, bbox_to_anchor=(1.15,1))
+    fig.subplots_adjust(left=0.1, bottom=0.12, right=0.65, top=0.89)
+    fig.savefig(prefix + 'accretion_vs_time' + save_suffix + '.png')
+    plt.close(fig)
 
 if __name__ == "__main__":
 
@@ -760,24 +982,51 @@ if __name__ == "__main__":
     surface = ast.literal_eval(args.surface)
     outs = make_output_list(args.output, output_step=args.output_step)
 
-    if (args.nproc==1):
-        for snap in outs:
-            load_and_calculate(snap, surface)
+    if (args.load_from_file!='none'):
+        if ('accretion_vs_time' in plots):
+            accretion_vs_time(outs)
+
     else:
-        if (save_suffix != ''):
-            target_dir = save_suffix
+        if (args.nproc==1):
+            for snap in outs:
+                load_and_calculate(snap, surface)
         else:
-            target_dir = 'fluxes'
-        skipped_outs = outs
-        while (len(skipped_outs)>0):
-            skipped_outs = []
-            # Split into a number of groupings equal to the number of processors
-            # and run one process per processor
-            for i in range(len(outs)//args.nproc):
+            if (save_suffix != ''):
+                target_dir = save_suffix
+            else:
+                target_dir = 'fluxes'
+            skipped_outs = outs
+            while (len(skipped_outs)>0):
+                skipped_outs = []
+                # Split into a number of groupings equal to the number of processors
+                # and run one process per processor
+                for i in range(len(outs)//args.nproc):
+                    threads = []
+                    snaps = []
+                    for j in range(args.nproc):
+                        snap = outs[args.nproc*i+j]
+                        snaps.append(snap)
+                        threads.append(multi.Process(target=load_and_calculate, args=[snap, surface]))
+                    for t in threads:
+                        t.start()
+                    for t in threads:
+                        t.join()
+                    # Delete leftover outputs from failed processes from tmp directory if on pleiades
+                    if (args.system=='pleiades_cassi'):
+                        if (args.copy_to_tmp):
+                            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
+                        else:
+                            snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
+                        for s in range(len(snaps)):
+                            if (os.path.exists(snap_dir + snaps[s])):
+                                print('Deleting failed %s from /tmp' % (snaps[s]))
+                                skipped_outs.append(snaps[s])
+                                shutil.rmtree(snap_dir + snaps[s])
+                # For any leftover snapshots, run one per processor
                 threads = []
                 snaps = []
-                for j in range(args.nproc):
-                    snap = outs[args.nproc*i+j]
+                for j in range(len(outs)%args.nproc):
+                    snap = outs[-(j+1)]
                     snaps.append(snap)
                     threads.append(multi.Process(target=load_and_calculate, args=[snap, surface]))
                 for t in threads:
@@ -795,29 +1044,7 @@ if __name__ == "__main__":
                             print('Deleting failed %s from /tmp' % (snaps[s]))
                             skipped_outs.append(snaps[s])
                             shutil.rmtree(snap_dir + snaps[s])
-            # For any leftover snapshots, run one per processor
-            threads = []
-            snaps = []
-            for j in range(len(outs)%args.nproc):
-                snap = outs[-(j+1)]
-                snaps.append(snap)
-                threads.append(multi.Process(target=load_and_calculate, args=[snap, surface]))
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
-            # Delete leftover outputs from failed processes from tmp directory if on pleiades
-            if (args.system=='pleiades_cassi'):
-                if (args.copy_to_tmp):
-                    snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
-                else:
-                    snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
-                for s in range(len(snaps)):
-                    if (os.path.exists(snap_dir + snaps[s])):
-                        print('Deleting failed %s from /tmp' % (snaps[s]))
-                        skipped_outs.append(snaps[s])
-                        shutil.rmtree(snap_dir + snaps[s])
-            outs = skipped_outs
+                outs = skipped_outs
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")

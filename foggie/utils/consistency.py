@@ -249,6 +249,10 @@ pressure_max_old = 1.e-9
 pressure_min = 1.e-2
 pressure_max = 1.e3
 
+tcool_color_map = 'YlGnBu_r'
+tcool_min = 1e0
+tcool_max = 1e6
+
 HSE_color_map = 'RdYlGn'
 HSE_min = 1.e-3
 HSE_max = 1.e3
@@ -858,6 +862,25 @@ def categorize_by_pres(pressure):
         val = np.log10(pressure_max) - (np.log10(pressure_max)-np.log10(pressure_min))/(np.size(pressure_color_labels)-1.)*i
         pres[pressure < val] = pressure_color_labels[-1 - i]
     return pres
+
+############# cooling time (Cassi)
+tcool_discrete_cmap = mpl.cm.get_cmap(tcool_color_map, 11)
+tcool_color_key = collections.OrderedDict()
+
+tcool_color_labels = [b'low1', b'low2', b'med', b'med1', b'med2',
+                      b'high1', b'high2', b'high3',
+                      b'vhi1', b'vhi2', b'vhi3']
+for i in np.arange(np.size(tcool_color_labels)):
+    tcool_color_key[tcool_color_labels[i]] = to_hex(tcool_discrete_cmap(i))
+
+def categorize_by_tcool(tcool):
+    """ define the cooling time category strings"""
+    tc = np.chararray(np.size(tcool), 5)
+    tc[tcool > np.log10(tcool_max)] = tcool_color_labels[-1]
+    for i in range(len(tcool_color_labels)):
+        val = np.log10(tcool_max) - (np.log10(tcool_max)-np.log10(tcool_min))/(np.size(tcool_color_labels)-1.)*i
+        tc[tcool < val] = tcool_color_labels[-1 - i]
+    return tc
 
 ############# azimuthal angle (Cassi)
 azimuthal_discrete_cmap = mpl.cm.get_cmap(azimuthal_color_map, 9)
