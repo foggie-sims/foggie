@@ -98,7 +98,7 @@ def get_re_from_stars(ds, args):
     half_mass_radius = mass_profile[mass_profile['stars_mass'] <= total_mass/2]['radius'].iloc[-1]
     re = re_hmr_factor * half_mass_radius
 
-    print('Stellar-profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' %(args.current_redshift) + ') is %.2F kpc' %(re))
+    print('\nStellar-profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' %(args.current_redshift) + ') is %.2F kpc' %(re))
     return re
 
 # --------------------------------------------------------------------------------
@@ -117,10 +117,10 @@ def get_re_from_coldgas(gasprofile, args):
         total_mass = mass_profile['coldgas'].iloc[-1]
         half_mass_radius = mass_profile[mass_profile['coldgas'] <= total_mass/2]['radius'].iloc[-1]
         re = re_hmr_factor * half_mass_radius
-        print('Cold gas profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' % (args.current_redshift) + ') is %.2F kpc' % (re))
+        print('\nCold gas profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' % (args.current_redshift) + ') is %.2F kpc' % (re))
     else:
         re = -99
-        print('Cold gas profile not found for halo ' + args.halo + ' output ' + args.output + '; therefore returning dummy re %d' % (re))
+        print('\nCold gas profile not found for halo ' + args.halo + ' output ' + args.output + '; therefore returning dummy re %d' % (re))
 
     return re
 
@@ -284,7 +284,7 @@ def get_df_from_ds(ds, args):
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
     outfilename = get_correct_tablename(args)
 
-    if not os.path.exists(outfilename) or args.clobber:
+    if not os.path.exists(outfilename):
         myprint(outfilename + ' does not exist. Creating afresh..', args)
 
         df = pd.DataFrame()
@@ -322,11 +322,11 @@ if __name__ == '__main__':
     total_snaps = len(list_of_sims)
 
     # -------set up dataframe and filename to store/write gradients in to--------
-    cols_in_df = ['output', 'redshift', 'time', \
-                  're_stars', 'mass_re_stars', 'Zcen_re_stars', 'Zcen_u_re_stars', 'Zgrad_re_stars', 'Zgrad_u_re_stars', \
-                  'Zcen_binned_re_stars', 'Zcen_u_binned_re_stars', 'Zgrad_binned_re_stars', 'Zgrad_u_binned_re_stars', 'Ztotal_re_stars', \
-                  're_coldgas', 'mass_re_coldgas', 'Zcen_re_coldgas', 'Zcen_u_re_coldgas', 'Zgrad_re_coldgas', 'Zgrad_u_re_coldgas', \
-                  'Zcen_binned_re_coldgas', 'Zcen_u_binned_re_coldgas', 'Zgrad_binned_re_coldgas', 'Zgrad_u_binned_re_coldgas', 'Ztotal_re_coldgas']
+    cols_in_df = ['output', 'redshift', 'time']
+    cols_to_add = ['mass', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Zcen_binned', 'Zcen_u_binned', 'Zgrad_binned', 'Zgrad_u_binned', 'Ztotal']
+    if dummy_args.upto_kpc is not None: cols_in_df = np.hstack([cols_in_df, ['re_stars', 're_coldgas'], [item + '_fixedr' for item in cols_to_add]])
+    else: cols_in_df = np.hstack([cols_in_df, ['re_stars', 're_coldgas'], [item + '_re_stars' for item in cols_to_add], [item + '_re_coldgas' for item in cols_to_add]])
+
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
     upto_text = '_upto%.1Fkpc' % dummy_args.upto_kpc if dummy_args.upto_kpc is not None else '_upto%.1FRe' % dummy_args.upto_re
@@ -391,16 +391,28 @@ if __name__ == '__main__':
         args.current_time = ds.current_time.in_units('Gyr').v
         args.ylim = [-2.2, 1.2] # [-3, 1]
 
-        thisrow = [args.output, args.current_redshift, args.current_time] # row corresponding to this snapshot to append to df
+        re_from_stars = get_re_from_stars(ds, args)  # kpc
+        re_from_coldgas = get_re_from_coldgas(gasprofile, args)  # kpc
+        thisrow = [args.output, args.current_redshift, args.current_time, re_from_stars, re_from_coldgas] # row corresponding to this snapshot to append to df
 
-        for re_method in ['stars', 'coldgas']: # it is important that stars and coldgas appear in this sequence
-            if re_method == 'stars': args.re = get_re_from_stars(ds, args) # kpc
-            elif re_method == 'coldgas': args.re = get_re_from_coldgas(gasprofile, args) # kpc
+        if args.upto_kpc is not None:
+            method_arr = ['']
+            upto_radius_arr = [args.upto_kpc]
+        else:
+            method_arr = ['stars', 'coldgas'] # it is important that stars and coldgas appear in this sequence
+            upto_radius_arr = np.array([re_from_stars, re_from_coldgas])
 
-            if args.re > 0:
+        for this_upto_radius in upto_radius_arr:
+            if this_upto_radius > 0:
+                if args.upto_kpc is not None:
+                    args.re = np.nan
+                    args.galrad = this_upto_radius
+                else:
+                    args.re = this_upto_radius
+                    args.galrad = args.re * args.upto_re  # kpc
+
                 # extract the required box
                 box_center = ds.arr(args.halo_center, kpc)
-                args.galrad = args.upto_kpc if args.upto_kpc is not None else args.upto_re * args.re # kpc
                 box_width = args.galrad * 2  # in kpc
                 box_width_kpc = ds.arr(box_width, 'kpc')
                 box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
@@ -418,7 +430,7 @@ if __name__ == '__main__':
                 df['metal_mass'] = df['mass'] * df['metal'] * metallicity_sun
                 Ztotal = (df['metal_mass'].sum()/df['mass'].sum())/metallicity_sun # in Zsun
 
-                thisrow += [args.re, mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Zcen_binned.n, Zcen_binned.s, Zgrad_binned.n, Zgrad_binned.s, Ztotal]
+                thisrow += [mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Zcen_binned.n, Zcen_binned.s, Zgrad_binned.n, Zgrad_binned.s, Ztotal]
             else:
                 thisrow += (np.ones(11)*np.nan).tolist()
 

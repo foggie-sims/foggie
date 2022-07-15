@@ -38,14 +38,14 @@ def load_df(args):
 
     elif not os.path.exists(grad_filename) and args.Zgrad_den == 're':
         print('Could not find', grad_filename)
-        grad_filename = grad_filename.replace('re', 'kpc')
+        grad_filename = grad_filename.replace('rad_re', 'rad')
         print('Trying to read in', grad_filename, 'instead')
         df = pd.read_table(grad_filename, delim_whitespace=True)
         convert_Zgrad_from_dexkpc_to_dexre = True
 
     elif not os.path.exists(grad_filename) and args.Zgrad_den == 'kpc':
         print('Could not find', grad_filename)
-        grad_filename = grad_filename.replace('kpc', 're')
+        grad_filename = grad_filename.replace('rad', 'rad_re')
         print('Trying to read in', grad_filename, 'instead')
         df = pd.read_table(grad_filename, delim_whitespace=True)
         convert_Zgrad_from_dexre_to_dexkpc = True
@@ -55,12 +55,18 @@ def load_df(args):
 
     binned_fit_text = '_binned' if args.use_binnedfit else ''
     which_re = 're_coldgas' if args.use_gasre else 're_stars'
+    re_text = 'fixedr' if args.upto_kpc is not None else which_re
+
     try:
-        df = df[['output', 'redshift', 'time', which_re, 'mass_' + which_re] + [item + binned_fit_text + '_' + which_re for item in ['Zcen', 'Zcen_u', 'Zgrad', 'Zgrad']] + ['Ztotal_' + which_re]]
-        df.columns = ['output', 'redshift', 'time', 're', 'mass', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Ztotal']
-    except:
+        df = df[['output', 'redshift', 'time', which_re, 'mass_' + re_text] + [item + binned_fit_text + '_' + re_text for item in ['Zcen', 'Zcen_u', 'Zgrad', 'Zgrad']] + ['Ztotal_' + re_text]]
+    except KeyError as e:
+        if args.upto_kpc is not None:
+            print('This is probably an old version of the file, with different column nomenclature. Adjusting accordingly..')
+            re_text = which_re
+            df = df[['output', 'redshift', 'time', which_re, 'mass_' + re_text] + [item + binned_fit_text + '_' + re_text for item in ['Zcen', 'Zcen_u', 'Zgrad', 'Zgrad']] + ['Ztotal_' + re_text]]
         pass
 
+    df.columns = ['output', 'redshift', 'time', 're', 'mass', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Ztotal']
     df['log_mass'] = np.log10(df['mass'])
     df = df.drop('mass', axis=1)
 
@@ -177,7 +183,7 @@ def plot_MZGR(args):
     if args.cmax is None: args.cmax = lim_dict[args.colorcol][1]
 
     # -------declare figure object-------------
-    fig, ax = plt.subplots(1, figsize=(10, 5))
+    fig, ax = plt.subplots(1, figsize=(12, 6))
     fig.subplots_adjust(top=0.95, bottom=0.15, left=0.12, right=1.05)
 
     # ---------plot observations----------------
@@ -240,7 +246,7 @@ def plot_MZGR(args):
             plot = ax.add_collection(smoothline)
             print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points')
 
-        fig.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.8), fontsize=args.fontsize)
+        fig.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8), fontsize=args.fontsize)
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])
 
