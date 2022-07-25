@@ -361,7 +361,7 @@ if __name__ == "__main__":
 
     if (args.smoothed):
         velocity_table.sort('time')
-        ascii.write(velocity_table, output_dir + 'smoothed_halo_c_v_' + outs[0] + '_' + outs[-1], format='fixed_width', overwrite=True)
+        ascii.write(velocity_table, output_dir + 'halo_centers/halo_' + args.halo + '/' + args.run + '/smoothed_halo_c_v_' + outs[0] + '_' + outs[-1], format='fixed_width', overwrite=True)
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")
