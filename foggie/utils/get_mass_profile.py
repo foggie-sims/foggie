@@ -84,6 +84,12 @@ def parse_args():
                         help='Use this option to skip computing the ion gas masses.')
     parser.set_defaults(simple=False)
 
+    parser.add_argument('--smoothed', dest='smoothed', action='store_true', \
+                        help='Calculate mass profiles using the smoothed halo center catalogs?\n' + \
+                        'Default is not to do this. If using this option, halo center velocities will\n' + \
+                        'also be calculated.')
+    parser.set_defaults(smoothed=False)
+
 
     args = parser.parse_args()
     return args
@@ -228,6 +234,12 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
     if (ions):
         trident.add_ion_fields(ds, ions=['O VI', 'O VII', 'Mg II', 'Si II', 'C II', 'C III', 'C IV',  'Si III', 'Si IV', 'Ne VIII'], ftype='gas')
 
+    if (args.smoothed):
+        row = [ds.parameter_filename[-6:], zsnap, ds.current_time.in_units('Myr').v,
+                ds.halo_center_kpc.v[0], ds.halo_center_kpc.v[1], ds.halo_center_kpc.v[2],
+                ds.halo_velocity_kms.v[0], ds.halo_velocity_kms.v[1], ds.halo_velocity_kms.v[2]]
+        velocity_table.add_row(row)
+
     # Do the actual calculation
     message = calc_masses(ds, snap, zsnap, refine_width_kpc, tablename, ions=ions)
     if (system=='pleiades_cassi'):
@@ -249,6 +261,10 @@ if __name__ == "__main__":
 
     print('foggie_dir: ', foggie_dir)
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
+    if (args.smoothed):
+        halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_cen_smoothed'
+        velocity_table = Table(dtype=('S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'),
+                names=('name', 'redshift', 'time', 'xc', 'yc', 'zc', 'xv', 'yv', 'zv'))
 
     # Build output list
     if (',' in args.output):
@@ -305,7 +321,10 @@ if __name__ == "__main__":
         for i in range(len(outs)):
             snap = outs[i]
             # Make the output table name for this snapshot
-            tablename = prefix + snap + '_masses'
+            if (args.smoothed):
+                tablename = prefix + snap + '_masses_smoothed'
+            else:
+                tablename = prefix + snap + '_masses'
             # Do the actual calculation
             load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions=ions)
     else:
@@ -315,7 +334,10 @@ if __name__ == "__main__":
             threads = []
             for j in range(args.nproc):
                 snap = outs[args.nproc*i+j]
-                tablename = prefix + snap + '_masses'
+                if (args.smoothed):
+                    tablename = prefix + snap + '_masses_smoothed'
+                else:
+                    tablename = prefix + snap + '_masses'
                 threads.append(multi.Process(target=load_and_calculate, \
 			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))
             for t in threads:
@@ -326,13 +348,20 @@ if __name__ == "__main__":
         threads = []
         for j in range(len(outs)%args.nproc):
             snap = outs[-(j+1)]
-            tablename = prefix + snap + '_masses'
+            if (args.smoothed):
+                tablename = prefix + snap + '_masses_smoothed'
+            else:
+                tablename = prefix + snap + '_masses'
             threads.append(multi.Process(target=load_and_calculate, \
 			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))
         for t in threads:
             t.start()
         for t in threads:
             t.join()
+
+    if (args.smoothed):
+        velocity_table.sort('time')
+        ascii.write(velocity_table, output_dir + 'smoothed_halo_c_v_' + outs[0] + '_' + outs[-1], format='fixed_width', overwrite=True)
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")

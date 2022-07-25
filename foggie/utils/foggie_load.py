@@ -77,15 +77,15 @@ def foggie_load(snap, trackfile, **kwargs):
         if (os.path.exists(halo_c_v_name)):
             halo_c_v = Table.read(halo_c_v_name, format='ascii')
             if ('smoothed' in halo_c_v_name):
-                if (snap[-6:] in halo_c_v['col1']):
+                if (snap[-6:] in halo_c_v['col2']):
                     print('Pulling halo center from smoothed path catalog file')
-                    halo_ind = np.where(halo_c_v['col1']==snap[-6:])[0][0]
-                    halo_center_kpc = ds.arr([float(halo_c_v['col4'][halo_ind]), \
-                                              float(halo_c_v['col5'][halo_ind]), \
-                                              float(halo_c_v['col6'][halo_ind])], 'kpc')
+                    halo_ind = np.where(halo_c_v['col2']==snap[-6:])[0][0]
+                    halo_center_kpc = ds.arr([float(halo_c_v['col5'][halo_ind]), \
+                                              float(halo_c_v['col6'][halo_ind]), \
+                                              float(halo_c_v['col7'][halo_ind])], 'kpc')
                     ds.halo_center_kpc = halo_center_kpc
                     ds.halo_center_code = halo_center_kpc.in_units('code_length')
-                    sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
+                    sp = ds.sphere(ds.halo_center_kpc, (5., 'kpc'))
                     bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
                     ds.halo_velocity_kms = bulk_vel
                     calc_hc = False
