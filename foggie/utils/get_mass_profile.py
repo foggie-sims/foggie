@@ -216,7 +216,7 @@ def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename, ions=True):
 
     return "Masses have been calculated for snapshot" + snap + "!"
 
-def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, ions=True):
+def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, queue, ions=True):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the halo center file 'halo_c_v_name', and the name
     of the table to output 'tablename', then does the calculation on the loaded snapshot.
@@ -238,7 +238,9 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
         row = [ds.parameter_filename[-6:], zsnap, ds.current_time.in_units('Myr').v,
                 ds.halo_center_kpc.v[0], ds.halo_center_kpc.v[1], ds.halo_center_kpc.v[2],
                 ds.halo_velocity_kms.v[0], ds.halo_velocity_kms.v[1], ds.halo_velocity_kms.v[2]]
-        velocity_table.add_row(row)
+    else:
+        row = []
+    queue.put(row)
 
     # Do the actual calculation
     message = calc_masses(ds, snap, zsnap, refine_width_kpc, tablename, ions=ions)
@@ -317,51 +319,51 @@ if __name__ == "__main__":
     else: ions = True
 
     # Loop over outputs, for either single-processor or parallel processor computing
-    if (args.nproc==1):
-        for i in range(len(outs)):
-            snap = outs[i]
-            # Make the output table name for this snapshot
-            if (args.smoothed):
-                tablename = prefix + snap + '_masses_smoothed'
-            else:
-                tablename = prefix + snap + '_masses'
-            # Do the actual calculation
-            load_and_calculate(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions=ions)
-    else:
-        # Split into a number of groupings equal to the number of processors
-        # and run one process per processor
-        for i in range(len(outs)//args.nproc):
-            threads = []
-            for j in range(args.nproc):
-                snap = outs[args.nproc*i+j]
-                if (args.smoothed):
-                    tablename = prefix + snap + '_masses_smoothed'
-                else:
-                    tablename = prefix + snap + '_masses'
-                threads.append(multi.Process(target=load_and_calculate, \
-			       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
-        # For any leftover snapshots, run one per processor
+    # Split into a number of groupings equal to the number of processors
+    # and run one process per processor
+    rows = []
+    for i in range(len(outs)//args.nproc):
         threads = []
-        for j in range(len(outs)%args.nproc):
-            snap = outs[-(j+1)]
+        queue = multi.Queue()
+        for j in range(args.nproc):
+            snap = outs[args.nproc*i+j]
             if (args.smoothed):
                 tablename = prefix + snap + '_masses_smoothed'
             else:
                 tablename = prefix + snap + '_masses'
             threads.append(multi.Process(target=load_and_calculate, \
-			   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))
+		       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, queue, ions)))
         for t in threads:
             t.start()
         for t in threads:
+            row = queue.get()
+            rows.append(row)
+        for t in threads:
             t.join()
+    # For any leftover snapshots, run one per processor
+    threads = []
+    queue = multi.Queue()
+    for j in range(len(outs)%args.nproc):
+        snap = outs[-(j+1)]
+        if (args.smoothed):
+            tablename = prefix + snap + '_masses_smoothed'
+        else:
+            tablename = prefix + snap + '_masses'
+        threads.append(multi.Process(target=load_and_calculate, \
+		   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, queue, ions)))
+    for t in threads:
+        t.start()
+    for t in threads:
+        row = queue.get()
+        rows.append(row)
+    for t in threads:
+        t.join()
 
     if (args.smoothed):
+        for row in rows:
+            velocity_table.add_row(row)
         velocity_table.sort('time')
-        ascii.write(velocity_table, output_dir + 'halo_centers/halo_' + args.halo + '/' + args.run + '/smoothed_halo_c_v_' + outs[0] + '_' + outs[-1], format='fixed_width', overwrite=True)
+        ascii.write(velocity_table, output_dir + 'halo_centers/halo_00' + args.halo + '/' + args.run + '/smoothed_halo_c_v_' + outs[0] + '_' + outs[-1], format='fixed_width', overwrite=True)
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")
