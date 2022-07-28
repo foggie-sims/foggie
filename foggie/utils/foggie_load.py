@@ -169,11 +169,13 @@ def foggie_load(snap, trackfile, **kwargs):
     # filter particles into star and dm
     # JT moved this to before "disk_relative" so that the if statement can use the filtered particle fields
     if (do_filter_particles):
-        filter_particles(refine_box, filter_particle_types = ['young_stars', 'old_stars', 'stars', 'dm'])
+        filter_particles(refine_box, filter_particle_types = ['young_stars', 'young_stars8', 'old_stars', 'stars', 'dm'])
 
         ds.add_field(('stars', 'radius_corrected'), function=radius_corrected_stars, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('young_stars', 'radius_corrected'), function=radius_corrected_young_stars, units='kpc', \
+                     take_log=False, force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars8', 'radius_corrected'), function=radius_corrected_young_stars8, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('old_stars', 'radius_corrected'), function=radius_corrected_old_stars, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
@@ -298,6 +300,18 @@ def foggie_load(snap, trackfile, **kwargs):
         ds.add_field(('dm', 'y_disk'), function=y_diskrel_dm, units='kpc', take_log=False, \
                      force_override=True, sampling_type='particle')
         ds.add_field(('dm', 'z_disk'), function=z_diskrel_dm, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('stars', 'x_disk'), function=x_diskrel_stars, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('stars', 'y_disk'), function=y_diskrel_stars, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('stars', 'z_disk'), function=z_diskrel_stars, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars8', 'x_disk'), function=x_diskrel_young_stars8, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars8', 'y_disk'), function=y_diskrel_young_stars8, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars8', 'z_disk'), function=z_diskrel_young_stars8, units='kpc', take_log=False, \
                      force_override=True, sampling_type='particle')
         ds.add_field(('gas', 'vx_disk'), function=vx_diskrel, units='km/s', take_log=False, \
                      force_override=True, sampling_type='cell')

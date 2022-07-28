@@ -56,7 +56,7 @@ def _young_stars7(pfilter, data):
     return filter
 
 def _young_stars8(pfilter, data):
-    """Filter star particles with creation time < 10 Myr ago
+    """Filter star particles with creation time < 100 Myr ago
     To use: yt.add_particle_filter("young_stars8", function=_young_stars8, filtered_type='all', requires=["creation_time"])"""
 
     age = data.ds.current_time - data[pfilter.filtered_type, "creation_time"]
@@ -284,6 +284,16 @@ def radius_corrected_young_stars(field, data):
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     return r
 
+def radius_corrected_young_stars8(field, data):
+    """Corrects the radius for star particles for the center of the halo. Requires 'halo_center_kpc', which is the halo
+    center with yt units of kpc, to be defined. -Cassi"""
+    halo_center_kpc = data.ds.halo_center_kpc
+    x_hat = data['young_stars8','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    y_hat = data['young_stars8','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    z_hat = data['young_stars8','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
+    return r
+
 def radius_corrected_old_stars(field, data):
     """Corrects the radius for star particles for the center of the halo. Requires 'halo_center_kpc', which is the halo
     center with yt units of kpc, to be defined. -Cassi"""
@@ -435,6 +445,90 @@ def z_diskrel_dm(field, data):
     oldx = data['dm','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
     oldy = data['dm','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
     oldz = data['dm','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newz = data.ds.disk_rot_arr[2][0]*oldx+data.ds.disk_rot_arr[2][1]*oldy+data.ds.disk_rot_arr[2][2]*oldz
+
+    return newz.in_units('kpc')
+
+def x_diskrel_stars(field, data):
+    '''Returns the x-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['stars','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['stars','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['stars','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newx = data.ds.disk_rot_arr[0][0]*oldx+data.ds.disk_rot_arr[0][1]*oldy+data.ds.disk_rot_arr[0][2]*oldz
+
+    return newx.in_units('kpc')
+
+def y_diskrel_stars(field, data):
+    '''Returns the y-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['stars','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['stars','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['stars','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newy = data.ds.disk_rot_arr[1][0]*oldx+data.ds.disk_rot_arr[1][1]*oldy+data.ds.disk_rot_arr[1][2]*oldz
+
+    return newy.in_units('kpc')
+
+def z_diskrel_stars(field, data):
+    '''Returns the z-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['stars','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['stars','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['stars','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newz = data.ds.disk_rot_arr[2][0]*oldx+data.ds.disk_rot_arr[2][1]*oldy+data.ds.disk_rot_arr[2][2]*oldz
+
+    return newz.in_units('kpc')
+
+def x_diskrel_young_stars8(field, data):
+    '''Returns the x-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['young_stars8','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['young_stars8','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['young_stars8','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newx = data.ds.disk_rot_arr[0][0]*oldx+data.ds.disk_rot_arr[0][1]*oldy+data.ds.disk_rot_arr[0][2]*oldz
+
+    return newx.in_units('kpc')
+
+def y_diskrel_young_stars8(field, data):
+    '''Returns the y-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['young_stars8','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['young_stars8','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['young_stars8','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newy = data.ds.disk_rot_arr[1][0]*oldx+data.ds.disk_rot_arr[1][1]*oldy+data.ds.disk_rot_arr[1][2]*oldz
+
+    return newy.in_units('kpc')
+
+def z_diskrel_young_stars8(field, data):
+    '''Returns the z-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['young_stars8','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['young_stars8','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['young_stars8','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
     newz = data.ds.disk_rot_arr[2][0]*oldx+data.ds.disk_rot_arr[2][1]*oldy+data.ds.disk_rot_arr[2][2]*oldz
 
     return newz.in_units('kpc')
