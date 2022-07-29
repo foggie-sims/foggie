@@ -12,6 +12,7 @@
     OR :         run submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --nnodes 50 --ncores 4 --queue normal --prefix cmzg --opt_args "--do_all_sims --upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
     OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --jobarray --do_all_sims --use_onlyDD --nhours 0 --nmins 15 --prefix cmzg --opt_args "--upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
     OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --do_all_halos --start 2 --queue ldan --mem 1500GB --prefix cmzg --opt_args "--do_all_sims --use_onlyDD --upto_kpc 10 --xcol rad --weight mass --write_file --noplot"
+    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --do_all_halos --queue ldan --mem 1500GB --prefix cmzg --opt_args "--do_all_sims --use_onlyDD --upto_kpc 10 --docomoving --xcol rad --weight mass --write_file --noplot"
 """
 import subprocess, argparse, datetime, os
 from collections import defaultdict

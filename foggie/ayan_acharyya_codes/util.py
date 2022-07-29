@@ -1097,6 +1097,7 @@ def parse_args(haloname, RDname, fast=False):
     # ------- args added for compute_MZgrad.py ------------------------------
     parser.add_argument('--upto_re', metavar='upto_re', type=float, action='store', default=2.0, help='fit metallicity gradient out to what multiple of Re? default is 2')
     parser.add_argument('--upto_kpc', metavar='upto_kpc', type=float, action='store', default=None, help='fit metallicity gradient out to what absolute kpc? default is None')
+    parser.add_argument('--docomoving', dest='docomoving', action='store_true', default=False, help='consider the input upto_kpc as a comoving quantity?, default is no')
     parser.add_argument('--write_file', dest='write_file', action='store_true', default=False, help='write the list of measured gradients, mass and size to file?, default is no')
     parser.add_argument('--get_gasmass', dest='get_gasmass', action='store_true', default=False, help='save gas mass profile, in addition to stellar mass profile, to hdf5 file?, default is no')
     parser.add_argument('--snapnumber', metavar='snapnumber', type=int, action='store', default=None, help='identifier for the snapshot (what follows DD or RD); default is None, in which case it takes the snapshot from args.output')
@@ -1124,6 +1125,10 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--use_gasre', dest='use_gasre', action='store_true', default=False, help='use measurements based on Re estimated from cold gas clumps (instead of that measured from stellar mass profile)?, default is no')
     parser.add_argument('--use_binnedfit', dest='use_binnedfit', action='store_true', default=False, help='use gradient measurements from radially binned Z profile (as opposed to the fit to individual cells)?, default is no')
     parser.add_argument('--Zgrad_den', metavar='Zgrad_den', type=str, action='store', default='kpc', help='normaliser of Zgrad, either kpc or re; default is kpc')
+    parser.add_argument('--plot_deviation', dest='plot_deviation', action='store_true', default=False, help='make additional plot of deviation in gradient vs things like SFR?, default is no')
+    parser.add_argument('--zcol', metavar='zcol', type=str, action='store', default='sfr', help='x axis quantity for plotting against deviation in MZGR; default is sfr')
+    parser.add_argument('--zmin', metavar='zmin', type=float, action='store', default=None, help='minimum xaxis limit; default is None')
+    parser.add_argument('--zmax', metavar='zmax', type=float, action='store', default=None, help='maximum xaxis limit; default is None')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()

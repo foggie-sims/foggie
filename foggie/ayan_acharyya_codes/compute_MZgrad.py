@@ -329,7 +329,10 @@ if __name__ == '__main__':
 
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
-    upto_text = '_upto%.1Fkpc' % dummy_args.upto_kpc if dummy_args.upto_kpc is not None else '_upto%.1FRe' % dummy_args.upto_re
+    if dummy_args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % dummy_args.upto_kpc if dummy_args.docomoving else '_upto%.1Fkpc' % dummy_args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % dummy_args.upto_re
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s%s%s.txt' % (dummy_args.xcol, upto_text, weightby_text)
     if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
@@ -406,7 +409,8 @@ if __name__ == '__main__':
             if this_upto_radius > 0:
                 if args.upto_kpc is not None:
                     args.re = np.nan
-                    args.galrad = this_upto_radius
+                    if args.docomoving: args.galrad = this_upto_radius / (1 + args.current_redshift) / 0.695 # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+                    else: args.galrad = this_upto_radius # fit within a fixed physical kpc
                 else:
                     args.re = this_upto_radius
                     args.galrad = args.re * args.upto_re  # kpc
