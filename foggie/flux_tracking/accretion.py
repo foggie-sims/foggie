@@ -165,7 +165,8 @@ def parse_args():
                         'accretion_viz          - Projection plots of the shape use for calculation and cells that will accrete to it\n' + \
                         'accretion_direction    - 2D plots in theta and phi bins showing location of inflow cells, colored by mass, temperature, and metallicity\n' + \
                         'accretion_vs_time      - line plot of inward mass flux vs time and redshift\n' + \
-                        'accretion_vs_radius    - line plot of various properties of accreting gas vs radius' + \
+                        'accretion_vs_radius    - line plot of various properties of accreting gas vs radius\n' + \
+                        'flux_vs_radius         - line plot of accreting mass and metal fluxes vs radius\n' + \
                         'Default is not to do any plotting. Specify multiple plots by listing separated with commas, no spaces.')
     parser.set_defaults(plot='none')
 
@@ -215,6 +216,9 @@ def make_flux_table(flux_types):
     if (args.radial_stepping > 0):
         names_list = ['radius']
         types_list = ['f8']
+    elif ('disk' in surface[0]):
+        names_list = ['disk_radius']
+        types_list = ['f8']
     else:
         names_list = []
         types_list = []
@@ -261,6 +265,9 @@ def make_props_table(prop_types):
 
     if (args.radial_stepping > 0):
         names_list = ['radius']
+        types_list = ['f8']
+    elif ('disk' in surface[0]):
+        names_list = ['disk_radius']
         types_list = ['f8']
     else:
         names_list = []
@@ -601,6 +608,9 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
     vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
     radius = grid['gas','radius_corrected'].in_units('kpc').v
     rv = grid['radial_velocity_corrected'].in_units('km/s').v
+    if (args.direction) or ('disk' in surface[0]) or ('accretion_direction' in plots):
+        theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
+        phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
     if ('accretion_viz' in plots) or ('accretion_direction' in plots):
         temperature = grid['gas','temperature'].in_units('K').v
         density = grid['gas','density'].in_units('g/cm**3').v
@@ -665,8 +675,6 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
     # If calculating direction of accretion, set up theta and phi and bins
     if (args.direction):
         phi_bins = ['all','major','minor']
-        theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
-        phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
         if (args.dark_matter):
             theta_dm = box_dm['dm','theta_pos_disk'].v*(180./np.pi)
             phi_dm = box_dm['dm','phi_pos_disk'].v*(180./np.pi)
@@ -700,6 +708,8 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
         # If stepping through radii, define the shape for this radius value
         if (surface[0]=='sphere') and (args.radial_stepping>0):
             shape = (radius < radii[r])
+            shape_expanded = ndimage.binary_dilation(shape, structure=struct, iterations=3)
+            shape_edge = shape_expanded & ~shape
             save_r = '_r%d' % (r)
         else:
             save_r = ''
@@ -765,17 +775,20 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
             theta_out = theta[from_shape_fast]
             phi_out = phi[from_shape_fast]
 
-        for p in range(len(phi_bins)-1):
-            if (surface[0]=='sphere') and (args.radial_stepping>0): results = [radii[r]]
+        for p in range(len(phi_bins)):
+            if (surface[0]=='sphere') and (args.radial_stepping>0):
+                results = [radii[r]]
+            elif ('disk' in surface[0]):
+                results = [np.mean(radius[shape_edge][(phi[shape_edge]>=60.)&(phi[shape_edge]<=120.)])]
             else: results = []
             if (args.direction):
                 results.append(phi_bins[p])
             if (phi_bins[p]=='all'):
-                angle_bin_to = np.ones(len(np.count_nonzero(to_shape)), dtype=bool)
-                angle_bin_from = np.ones(len(np.count_nonzero(from_shape)), dtype=bool)
+                angle_bin_to = np.ones(np.count_nonzero(to_shape), dtype=bool)
+                angle_bin_from = np.ones(np.count_nonzero(from_shape), dtype=bool)
                 if (args.dark_matter):
-                    angle_bin_to_dm = np.ones(len(np.count_nonzero(to_shape_dm)), dtype=bool)
-                    angle_bin_from_dm = np.ones(len(np.count_nonzero(from_shape_dm)), dtype=bool)
+                    angle_bin_to_dm = np.ones(np.count_nonzero(to_shape_dm), dtype=bool)
+                    angle_bin_from_dm = np.ones(np.count_nonzero(from_shape_dm), dtype=bool)
             elif (phi_bins[p]=='major'):
                 angle_bin_to = (phi_to >= 60.) & (phi_to <= 120.)
                 angle_bin_from = (phi_from >= 60.) & (phi_from <= 120.)
@@ -860,6 +873,8 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     vy = grid['gas','vy_corrected'].in_units('kpc/yr').v
     vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
     radius = grid['gas','radius_corrected'].in_units('kpc').v
+    theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
+    phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
     rv = grid['radial_velocity_corrected'].in_units('km/s').v
     temperature = grid['gas','temperature'].in_units('K').v
     metallicity = grid['gas','metallicity'].in_units('Zsun').v
@@ -924,8 +939,6 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
         if (surface[0]=='sphere'):
             to_shape = (rv < 0.) & (to_shape)
 
-        theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
-        phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
         theta_to = theta[to_shape]
         phi_to = phi[to_shape]
         theta_edge = theta[shape_edge]
@@ -935,7 +948,10 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
         pix_area = healpy.nside2pixarea(nside)
 
         for p in range(len(phi_bins)):
-            if (surface[0]=='sphere') and (args.radial_stepping>0): results = [radii[r]]
+            if (surface[0]=='sphere') and (args.radial_stepping>0):
+                results = [radii[r]]
+            elif ('disk' in surface[0]):
+                results = [np.mean(radius[shape_edge][(phi_edge>=60.)&(phi_edge<=120.)])]
             else: results = []
             if (args.direction):
                 results.append(phi_bins[p])
@@ -1222,8 +1238,8 @@ def load_and_calculate(snap, surface):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
-def accretion_vs_time(snaplist):
-    '''Plots accretion over time and redshift, broken into CGM sections if --region_filter is specified
+def accretion_flux_vs_time(snaplist):
+    '''Plots fluxes of accretion over time and redshift, broken into CGM sections if --region_filter is specified
     and broken into angle of accretion if --direction is specified.'''
 
     tablename_prefix = prefix + 'Tables/'
@@ -1233,16 +1249,16 @@ def accretion_vs_time(snaplist):
     ax = fig.add_subplot(1,1,1)
 
     if (args.region_filter=='temperature'):
-        plot_colors = ['salmon', "#984ea3", "#4daf4a", 'darkorange']
-        region_label = ['$<10^4$ K', '$10^4-10^5$ K', '$10^5-10^6$ K', '$>10^6$ K']
+        plot_colors = ['salmon', "#984ea3", "#4daf4a", 'darkorange', 'k']
+        region_label = ['$<10^4$ K', '$10^4-10^5$ K', '$10^5-10^6$ K', '$>10^6$ K', 'All']
         region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
     elif (args.region_filter=='metallicity'):
-        plot_colors = ["#4575b4", "#984ea3", "#d73027", "darkorange"]
-        region_label = ['$<0.1Z_\odot$', '$0.1-0.5Z_\odot$', '$0.5-1Z_\odot$', '$>Z_\odot$']
+        plot_colors = ["#4575b4", "#984ea3", "#d73027", "darkorange", 'k']
+        region_label = ['$<0.1Z_\odot$', '$0.1-0.5Z_\odot$', '$0.5-1Z_\odot$', '$>Z_\odot$', 'All']
         region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
     else:
         plot_colors = ['k']
-        region_label = ['All accreting gas']
+        region_label = ['_nolegend_']
         region_name = ['']
 
     if (args.direction):
@@ -1326,10 +1342,11 @@ def accretion_vs_time(snaplist):
     fig.savefig(prefix + 'accretion_vs_time' + save_suffix + '.png')
     plt.close(fig)
 
-def accretion_vs_radius(snap):
+def accretion_compare_vs_radius(snap):
     '''Plots various properties of accretion as a function of radius at the snapshot given by 'snap'.'''
 
     tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    save_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Plots/'
     time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
     zsnap = time_table['redshift'][time_table['snap']==snap][0]
     tsnap = time_table['time'][time_table['snap']==snap][0]
@@ -1407,6 +1424,79 @@ def accretion_vs_radius(snap):
             ax.text(0.05, 0.1, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
 
         fig.subplots_adjust(left=0.15,bottom=0.14,top=0.95,right=0.95)
+        plt.savefig(save_prefix + snap + '_accretion-compare_vs_radius_' + props[i] + '.png')
+
+def accretion_flux_vs_radius(snap):
+    '''Plots accretion flux as a function of radius at the snapshot given by 'snap'.'''
+
+    tablename_prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    save_prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/Plots/'
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+    zsnap = time_table['redshift'][time_table['snap']==snap][0]
+    tsnap = time_table['time'][time_table['snap']==snap][0]
+
+    data = Table.read(tablename_prefix + snap + '_' + args.load_from_file + '.hdf5', path='all_data')
+    if ('phi_bin' in data.columns):
+        radii = data['radius'][data['phi_bin']=='all']
+    else:
+        radii = data['radius']
+
+    if (args.region_filter=='temperature'):
+        plot_colors = ['salmon', "#984ea3", "#4daf4a", 'darkorange', 'k']
+        region_label = ['$<10^4$ K', '$10^4-10^5$ K', '$10^5-10^6$ K', '$>10^6$ K', 'All']
+        region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
+    elif (args.region_filter=='metallicity'):
+        plot_colors = ["#4575b4", "#984ea3", "#d73027", "darkorange", 'k']
+        region_label = ['$<0.1Z_\odot$', '$0.1-0.5Z_\odot$', '$0.5-1Z_\odot$', '$>Z_\odot$', 'All']
+        region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
+    else:
+        plot_colors = ['k']
+        region_label = ['_nolegend_']
+        region_name = ['']
+
+    fluxes = ['mass','metal']
+    ranges = [[1e-3,5e1],[1e-5,1]]
+    ylabels = ['Mass Flux [$M_\odot$/yr]', 'Metal Mass Flux [$M_\odot$/yr]']
+
+    if ('phi_bin' in data.columns):
+        all = (data['phi_bin']=='all')
+        major = (data['phi_bin']=='major')
+        minor = (data['phi_bin']=='minor')
+        directions = [all, major, minor]
+        dir_labels = ['All directions', 'Major axis', 'Minor axis']
+        dir_ls = ['-','--',':']
+    else:
+        all = np.ones(len(radii), dtype=bool)
+        directions = [all]
+        dir_labels = ['_nolegend_']
+        dir_ls = ['-']
+
+    for i in range(len(fluxes)):
+        fig = plt.figure(figsize=(7,5), dpi=200)
+        ax = fig.add_subplot(1,1,1)
+        for j in range(len(directions)):
+            flux_sum = np.zeros(len(radii))
+            for k in range(len(region_label)):
+                if (k==0): label=region_label[k]
+                else: label='_nolegend_'
+                if (region_label[k]!='All'):
+                    plot_flux = data[region_name[k]+fluxes[i]+'_flux_in'][directions[j]]
+                    flux_sum += plot_flux
+                else:
+                    plot_flux = flux_sum
+                ax.plot(radii, plot_flux, color=plot_colors[k], ls=dir_ls[j], lw=2, label=label)
+            ax.plot([-100,-100],[-100,-100], color='k', ls=dir_ls[j], lw=2, label=dir_labels[j])
+
+        ax.axis([0,250,ranges[i][0],ranges[i][1]])
+        ax.set_xlabel('Galactocentric Radius [kpc]', fontsize=16)
+        ax.set_ylabel(ylabels[i], fontsize=16)
+        ax.set_yscale('log')
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14)
+        ax.legend(frameon=False, loc=1, fontsize=14, ncol=2)
+        ax.text(0.05, 0.1, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
+
+        fig.subplots_adjust(left=0.15,bottom=0.14,top=0.95,right=0.95)
+        #plt.savefig(save_prefix + snap + '_accretion-flux_vs_radius_' + fluxes[i] + '.png')
         plt.show()
 
 
@@ -1461,7 +1551,10 @@ if __name__ == "__main__":
             accretion_vs_time(outs)
         if ('accretion_vs_radius' in plots):
             for i in range(len(outs)):
-                accretion_vs_radius(outs[i])
+                accretion_compare_vs_radius(outs[i])
+        if ('flux_vs_radius' in plots):
+            for i in range(len(outs)):
+                accretion_flux_vs_radius(outs[i])
 
     else:
         if (save_suffix != ''):
