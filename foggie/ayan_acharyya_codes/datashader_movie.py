@@ -1065,9 +1065,9 @@ if __name__ == '__main__':
             else: args = parse_args(this_sim[0], this_sim[1])
 
             # ---------to determine if disk parameters need to be loaded in---------------------
-            all_fields = [args.xcol, args.ycol, args.colorcol] if args.quick else field_dict.keys()  # only the relevant properties if in a hurry
+            all_fields = [dummy_args.xcol, dummy_args.ycol, dummy_args.colorcol] if dummy_args.quick else field_dict.keys()  # only the relevant properties if in a hurry
             isdisk_required = np.array(['disk' in item for item in all_fields]).any()
-            should_load_disk = (isdisk_required or args.diskload) and not args.nodiskload
+            should_load_disk = (isdisk_required or dummy_args.diskload) and not dummy_args.nodiskload
 
             if type(args) is tuple and not should_load_disk:
                 args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
