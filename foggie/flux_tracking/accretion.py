@@ -215,6 +215,9 @@ def make_flux_table(flux_types):
     if (args.radial_stepping > 0):
         names_list = ['radius']
         types_list = ['f8']
+    elif ('disk' in surface[0]):
+        names_list = ['disk_radius']
+        types_list = ['f8']
     else:
         names_list = []
         types_list = []
@@ -261,6 +264,9 @@ def make_props_table(prop_types):
 
     if (args.radial_stepping > 0):
         names_list = ['radius']
+        types_list = ['f8']
+    elif ('disk' in surface[0]):
+        names_list = ['disk_radius']
         types_list = ['f8']
     else:
         names_list = []
@@ -601,6 +607,9 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
     vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
     radius = grid['gas','radius_corrected'].in_units('kpc').v
     rv = grid['radial_velocity_corrected'].in_units('km/s').v
+    if (args.direction) or ('disk' in surface[0]) or ('accretion_direction' in plots):
+        theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
+        phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
     if ('accretion_viz' in plots) or ('accretion_direction' in plots):
         temperature = grid['gas','temperature'].in_units('K').v
         density = grid['gas','density'].in_units('g/cm**3').v
@@ -665,8 +674,6 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
     # If calculating direction of accretion, set up theta and phi and bins
     if (args.direction):
         phi_bins = ['all','major','minor']
-        theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
-        phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
         if (args.dark_matter):
             theta_dm = box_dm['dm','theta_pos_disk'].v*(180./np.pi)
             phi_dm = box_dm['dm','phi_pos_disk'].v*(180./np.pi)
@@ -765,8 +772,11 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
             theta_out = theta[from_shape_fast]
             phi_out = phi[from_shape_fast]
 
-        for p in range(len(phi_bins)-1):
-            if (surface[0]=='sphere') and (args.radial_stepping>0): results = [radii[r]]
+        for p in range(len(phi_bins)):
+            if (surface[0]=='sphere') and (args.radial_stepping>0):
+                results = [radii[r]]
+            elif ('disk' in surface[0]):
+                results = [np.mean(radius[shape_edge][(phi[shape_edge]>=60.)&(phi[shape_edge]<=120.)])]
             else: results = []
             if (args.direction):
                 results.append(phi_bins[p])
@@ -860,6 +870,8 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     vy = grid['gas','vy_corrected'].in_units('kpc/yr').v
     vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
     radius = grid['gas','radius_corrected'].in_units('kpc').v
+    theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
+    phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
     rv = grid['radial_velocity_corrected'].in_units('km/s').v
     temperature = grid['gas','temperature'].in_units('K').v
     metallicity = grid['gas','metallicity'].in_units('Zsun').v
@@ -924,8 +936,6 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
         if (surface[0]=='sphere'):
             to_shape = (rv < 0.) & (to_shape)
 
-        theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
-        phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
         theta_to = theta[to_shape]
         phi_to = phi[to_shape]
         theta_edge = theta[shape_edge]
@@ -935,7 +945,10 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
         pix_area = healpy.nside2pixarea(nside)
 
         for p in range(len(phi_bins)):
-            if (surface[0]=='sphere') and (args.radial_stepping>0): results = [radii[r]]
+            if (surface[0]=='sphere') and (args.radial_stepping>0):
+                results = [radii[r]]
+            elif ('disk' in surface[0]):
+                results = [np.mean(radius[shape_edge][(phi_edge>=60.)&(phi_edge<=120.)])]
             else: results = []
             if (args.direction):
                 results.append(phi_bins[p])
