@@ -110,6 +110,9 @@ def get_df_from_ds(ds, args):
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
     outfilename = get_correct_tablename(args)
 
+    all_fields = [args.xcol, args.ycol, args.colorcol] if args.quick else field_dict.keys()  # only the relevant properties if in a hurry
+    if 'rad' not in all_fields: all_fields = ['rad'] + all_fields
+
     if not os.path.exists(outfilename) or args.clobber:
         if not os.path.exists(outfilename):
             myprint(outfilename + ' does not exist. Creating afresh..', args)
@@ -118,9 +121,6 @@ def get_df_from_ds(ds, args):
 
         if not args.quick: myprint('Extracting all gas, once and for all, and putting them into dataframe, so that this step is not required for subsequently plotting other parameters and therefore subsequent plotting is faster; this may take a while..', args)
         df_allprop = pd.DataFrame()
-
-        all_fields = [args.xcol, args.ycol, args.colorcol] if args.quick else field_dict.keys() # only the relevant properties if in a hurry
-        if 'rad' not in all_fields: all_fields = ['rad'] + all_fields
 
         for index,field in enumerate(all_fields):
             myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(all_fields)) + ' fields..', args)
@@ -132,12 +132,14 @@ def get_df_from_ds(ds, args):
     else:
         myprint('Reading from existing file ' + outfilename, args)
         df_allprop = pd.read_table(outfilename, delim_whitespace=True, comment='#')
-        try:
-            df_allprop = df_allprop[df_allprop['rad'].between(0, args.galrad)] # curtailing in radius space, in case this dataframe has been read in from a file corresponding to a larger chunk of the box
-        except KeyError: # for files produced previously and therefore may not have a 'rad' column
-            rad_picked_up = float(get_text_between_strings(outfilename, 'boxrad_', 'kpc'))
-            if rad_picked_up == args.galrad: pass # if this file actually corresponds to the correct radius, then you're fine (even if the file itself doesn't have radius column)
-            else: sys.exit('Please regenerate ' + outfilename + ', using the --clobber option') # otherwise throw error
+
+        if not set(all_fields).issubset(set(df_allprop.columns)): # if existing file was old, it might not have all the required columns, in which case clobber to make new file now
+            dummy_args = copy.deepcopy(args)
+            dummy_args.clobber = True
+            myprint(outfilename + ' exists but does not have all the required fields..', dummy_args)
+            df_allprop = get_df_from_ds(ds, dummy_args)
+
+        df_allprop = df_allprop[df_allprop['rad'].between(0, args.galrad)] # curtailing in radius space, in case this dataframe has been read in from a file corresponding to a larger chunk of the box
 
     df = extract_columns_from_df(df_allprop, args)
     return df
@@ -1062,12 +1064,16 @@ if __name__ == '__main__':
             if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
 
-            if type(args) is tuple:
+            # ---------to determine if disk parameters need to be loaded in---------------------
+            all_fields = [args.xcol, args.ycol, args.colorcol] if args.quick else field_dict.keys()  # only the relevant properties if in a hurry
+            isdisk_required = np.array(['disk' in item for item in all_fields]).any()
+            should_load_disk = (isdisk_required or args.diskload) and not args.nodiskload
+
+            if type(args) is tuple and not should_load_disk:
                 args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
                 print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
             else:
-                isdisk_required = np.array(['disk' in item for item in [args.xcol, args.ycol] + args.colorcol]).any()
-                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=(isdisk_required or args.diskload) and not args.nodiskload)
+                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=should_load_disk)
 
             # -------create new fields for angular momentum vectors-----------
             ds.add_field(('gas', 'angular_momentum_phi'), function=phi_angular_momentum, sampling_type='cell', units='degree')
