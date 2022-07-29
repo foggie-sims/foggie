@@ -1072,9 +1072,10 @@ if __name__ == '__main__':
             isdisk_required = np.array(['disk' in item for item in all_fields]).any()
             should_load_disk = (isdisk_required or dummy_args.diskload) and not dummy_args.nodiskload
 
-            if type(args) is tuple and not should_load_disk:
+            if type(args) is tuple:
                 args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
-                print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
+                if should_load_disk: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=True)
+                else: print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
             else:
                 ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=should_load_disk)
 
