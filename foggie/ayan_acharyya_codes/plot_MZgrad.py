@@ -13,6 +13,7 @@
                  run plot_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --Zgrad_den rad_re --weight mass --binby log_mass --nbins 20 --cmap plasma --xmax 11 --ymin 0.3 --overplot_manga --manga_diag n2
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --colorcol log_mass --overplot_smoothed --zhighlight
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --colorcol re --cmax 3 --zhighlight
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Ztotal --xcol time --colorcol rlog_mass --zhighlight --docomoving
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_deviation --zcol log_ssfr
 """
 from header import *
@@ -248,6 +249,7 @@ def plot_MZGR(args):
             if 'redshift' not in cols_to_bin: cols_to_bin += ['redshift']
             df = df[cols_to_bin].groupby(args.binby + '_bins', as_index=False).agg(np.mean)
             df.dropna(axis=0, inplace=True)
+            df = df.sort_values(args.xcol)
 
         # -----plot line with color gradient--------
         this_cmap = cmap_arr[thisindex] + '_r' if args.colorcol in things_that_reduce_with_time else cmap_arr[thisindex] # reverse colromap for redshift
@@ -317,7 +319,11 @@ def plot_MZGR(args):
     ax.set_ylabel(label_dict[args.ycol], fontsize=args.fontsize)
 
     binby_text = '' if args.binby is None else '_binby_' + args.binby
-    upto_text = '_upto%.1Fkpc' % args.upto_kpc if args.upto_kpc is not None else '_upto%.1FRe' % args.upto_re
+    if args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % args.upto_re
+
     figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_vs_%s_colorby_%s_Zgrad_den_%s%s%s%s%s.png' % (args.ycol, args.xcol, args.colorcol, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text)
     fig.savefig(figname)
     print('Saved plot as', figname)
