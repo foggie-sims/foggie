@@ -771,11 +771,11 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
             if (args.direction):
                 results.append(phi_bins[p])
             if (phi_bins[p]=='all'):
-                angle_bin_to = np.ones(len(np.count_nonzero(to_shape)), dtype=bool)
-                angle_bin_from = np.ones(len(np.count_nonzero(from_shape)), dtype=bool)
+                angle_bin_to = np.ones(np.count_nonzero(to_shape), dtype=bool)
+                angle_bin_from = np.ones(np.count_nonzero(from_shape), dtype=bool)
                 if (args.dark_matter):
-                    angle_bin_to_dm = np.ones(len(np.count_nonzero(to_shape_dm)), dtype=bool)
-                    angle_bin_from_dm = np.ones(len(np.count_nonzero(from_shape_dm)), dtype=bool)
+                    angle_bin_to_dm = np.ones(np.count_nonzero(to_shape_dm), dtype=bool)
+                    angle_bin_from_dm = np.ones(np.count_nonzero(from_shape_dm), dtype=bool)
             elif (phi_bins[p]=='major'):
                 angle_bin_to = (phi_to >= 60.) & (phi_to <= 120.)
                 angle_bin_from = (phi_from >= 60.) & (phi_from <= 120.)
