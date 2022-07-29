@@ -31,12 +31,14 @@ from astropy.table import Table
 from astropy.io import ascii
 import multiprocessing as multi
 import scipy.ndimage as ndimage
+from scipy.ndimage import gaussian_filter
 import datetime
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 import shutil
 import ast
 import trident
 import matplotlib.pyplot as plt
+import healpy
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -163,6 +165,7 @@ def parse_args():
                         'accretion_viz          - Projection plots of the shape use for calculation and cells that will accrete to it\n' + \
                         'accretion_direction    - 2D plots in theta and phi bins showing location of inflow cells, colored by mass, temperature, and metallicity\n' + \
                         'accretion_vs_time      - line plot of inward mass flux vs time and redshift\n' + \
+                        'accretion_vs_radius    - line plot of various properties of accreting gas vs radius' + \
                         'Default is not to do any plotting. Specify multiple plots by listing separated with commas, no spaces.')
     parser.set_defaults(plot='none')
 
@@ -173,7 +176,7 @@ def parse_args():
 
     parser.add_argument('--load_from_file', metavar='load_from_file', type=str, action='store', \
                         help='If plotting something, do you want to read in from file rather than re-calculating\n' + \
-                        "everything? Note this doesn't work for any datashader plots; those need the full simulation\n" + \
+                        "everything? Note this doesn't work for any visualization plots; those need the full simulation\n" + \
                         'output to make. Pass the name of the file after the snapshot name with this option. Default is not to do this.')
     parser.set_defaults(load_from_file='none')
 
@@ -190,11 +193,23 @@ def parse_args():
                         'how many steps of radius you want. Default is not to do this.')
     parser.set_defaults(radial_stepping=0)
 
+    parser.add_argument('--calculate', metavar='calculate', type=str, action='store', \
+                        help='What do you want to calculate and save to file? Options are:\n' + \
+                        'fluxes (default)    -  will calculate fluxes onto shape\n' + \
+                        'accretion_compare   -  will calculate statistics (mean, median, etc) of gas properties\n' + \
+                        '                       comparing accreting cells to non-accreting cells in edge around shape')
+    parser.set_defaults(calculate='fluxes')
+
+    parser.add_argument('--weight', metavar='weight', type=str, action='store', \
+                        help='If calculating statistics of gas properties comparing accretion and non-accretion,\n' + \
+                        'what weight do you want to use? Options are volume and mass, and default is mass.')
+    parser.set_defaults(weight='mass')
+
 
     args = parser.parse_args()
     return args
 
-def make_table(flux_types):
+def make_flux_table(flux_types):
     '''Makes the giant table that will be saved to file.'''
 
     if (args.radial_stepping > 0):
@@ -202,23 +217,23 @@ def make_table(flux_types):
         types_list = ['f8']
     else:
         names_list = []
+        types_list = []
 
     if (args.direction):
-        names_list += ['theta_bin', 'phi_bin']
-        types_list += ['f8', 'f8']
+        names_list += ['phi_bin']
+        types_list += ['S5']
 
-    dir_name = ['net_', '_in', '_out']
+    dir_name = ['_in', '_out']
     for i in range(len(flux_types)):
         if (args.region_filter != 'none') and ('dm' not in flux_types[i]):
             region_name = ['', 'lowest_', 'low-mid_', 'high-mid_', 'highest_']
         else: region_name = ['']
         for k in range(len(region_name)):
             for j in range(len(dir_name)):
-                if (j==0): name = dir_name[j]
-                else: name = ''
+                name = ''
                 name += region_name[k]
                 name += flux_types[i]
-                if (j>0): name += dir_name[j]
+                name += dir_name[j]
                 names_list += [name]
                 types_list += ['f8']
 
@@ -226,7 +241,7 @@ def make_table(flux_types):
 
     return table
 
-def set_table_units(table):
+def set_flux_table_units(table):
     '''Sets the units for the table. Note this needs to be updated whenever something is added to
     the table. Returns the table.'''
 
@@ -241,7 +256,295 @@ def set_table_units(table):
             table[key].unit = 'none'
     return table
 
-def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
+def make_props_table(prop_types):
+    '''Makes the giant table that will be saved to file.'''
+
+    if (args.radial_stepping > 0):
+        names_list = ['radius']
+        types_list = ['f8']
+    else:
+        names_list = []
+        types_list = []
+
+    if (args.direction):
+        names_list += ['phi_bin']
+        types_list += ['S5']
+
+    dir_name = ['_all', '_acc']
+    stat_names = ['_med', '_iqr', '_avg', '_std']
+    for i in range(len(prop_types)):
+        for j in range(len(dir_name)):
+            for l in range(len(stat_names)):
+                name = ''
+                name += prop_types[i]
+                if ('mass' not in prop_types[i]) and ('covering' not in prop_types[i]):
+                    name += stat_names[l]
+                name += dir_name[j]
+                if ('mass' in prop_types[i]):
+                    if (l==0):
+                        names_list += [name]
+                        types_list += ['f8']
+                elif ('covering' in prop_types[i]):
+                    if (l==0) and (j==0):
+                        names_list += ['covering_fraction_acc']
+                        types_list += ['f8']
+                else:
+                    names_list += [name]
+                    types_list += ['f8']
+
+    table = Table(names=names_list, dtype=types_list)
+
+    return table
+
+def set_props_table_units(table):
+    '''Sets the units for the table. Note this needs to be updated whenever something is added to
+    the table. Returns the table.'''
+
+    for key in table.keys():
+        if ('mass' in key) or ('metal' in key):
+            table[key].unit = 'Msun'
+        elif ('radius' in key):
+            table[key].unit = 'kpc'
+        elif ('entropy' in key):
+            table[key].unit = 'cm**2*keV'
+        elif ('temperature' in key):
+            table[key].unit = 'K'
+        elif ('density' in key):
+            table[key].unit = 'g/cm**3'
+        elif ('pressure' in key):
+            table[key].unit = 'erg/cm**3'
+        elif ('metallicity' in key):
+            table[key].unit = 'Zsun'
+        elif ('velocity' in key) or ('speed' in key):
+            table[key].unit == 'km/s'
+        elif ('tcool' in key):
+            table[key].unit == 'Myr'
+        else:
+            table[key].unit = 'none'
+    return table
+
+def weighted_quantile(values, weights, quantiles):
+    """ Very close to numpy.percentile, but supports weights.
+    NOTE: quantiles should be in [0, 1]!
+    :param values: numpy.array with data
+    :param weights: array-like of the same length as `array`
+    :param quantiles: array-like with many quantiles needed
+    :return: numpy.array with computed quantiles.
+    """
+
+    sorter = np.argsort(values)
+    values = values[sorter]
+    weights = weights[sorter]
+    weighted_quantiles = np.cumsum(weights) - 0.5 * weights
+    weighted_quantiles /= np.sum(weights)
+
+    return np.interp(quantiles, weighted_quantiles, values)
+
+def weighted_avg_and_std(values, weights):
+    """
+    Return the weighted average and standard deviation.
+    values, weights -- Numpy ndarrays with the same shape.
+    """
+    average = np.average(values, weights=weights)
+    variance = np.average((values-average)**2, weights=weights)
+    return average, np.sqrt(variance)
+
+def plot_accretion_direction(theta_acc, phi_acc, temperature, metallicity, radial_velocity, cooling_time, mass, metal_mass, theta_out, phi_out, tsnap, zsnap, prefix, snap, radius, save_r, theta_acc_dm='', phi_acc_dm='', mass_dm=''):
+    '''Plots the temperature, metallicity, radial velocity, cooling time, mass, and metal mass of only those cells
+    identified as accreting, while over-plotting contours showing the location of fast outflows.'''
+
+    for c in ['temperature','metallicity','cooling_time','radial_velocity']:
+        if (c=='temperature'):
+            color_field = 'temperature'
+            color_val = np.log10(temperature)
+            cmap = sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True)
+            cmin = 4.
+            cmax = 7.
+            field_label = 'log Temperature [K]'
+        elif (c=='metallicity'):
+            color_field = 'metallicity'
+            color_val = np.log10(metallicity)
+            cmap = metal_color_map
+            cmin = -2.
+            cmax = 0.5
+            field_label = 'log Metallicity [$Z_\odot$]'
+        elif (c=='cooling_time'):
+            color_field = 'cooling-time'
+            color_val = np.log10(cooling_time)
+            cmap = tcool_color_map
+            cmin = np.log10(tcool_min)
+            cmax = np.log10(tcool_max)
+            field_label = 'log Cooling Time [Myr]'
+        elif (c=='radial_velocity'):
+            color_field = 'radial-velocity'
+            color_val = radial_velocity
+            cmap = 'coolwarm'
+            cmin = -200.
+            cmax = 200.
+            field_label = 'Radial velocity [km/s]'
+
+        fig1 = plt.figure(num=1, figsize=(10,6), dpi=300)
+        contour_fig = plt.figure(num=2)
+        nside = 32
+        pixel_acc = healpy.ang2pix(nside, phi_acc, theta_acc)
+        u, dup_ind = np.unique(pixel_acc, return_index=True)
+        for d in dup_ind:
+            val_dup = color_val[np.where(pixel_acc==pixel_acc[d])[0]]
+            if (color_field=='temperature') or (color_field=='cooling_time'):
+                val_to_set = np.log10(np.mean(10**val_dup))
+            else:
+                val_to_set = np.mean(val_dup)
+            color_val[np.where(pixel_acc==pixel_acc[d])[0]] = val_to_set
+        m = np.zeros(healpy.nside2npix(nside))              # make empty array of map pixels
+        m[pixel_acc] = color_val           # assign pixels of map to data values
+        m[m==0.] = np.nan
+        # Make contours of outflow gas
+        hist_out, xedges, yedges = np.histogram2d(theta_out, phi_out, bins=[100,50], range=[[0., 2.*np.pi], [0., np.pi]])
+        ax = contour_fig.add_subplot(1,1,1)
+        contours = ax.contour(hist_out.transpose(),extent=[xedges[0],xedges[-1],yedges[0],yedges[-1]],levels = [5,10])
+        plt.close(2)
+        segs = contours.allsegs
+        if (len(segs)>0):
+            contour1_segs = contours.allsegs[0]
+        else:
+            contour1_segs = []
+        if (len(segs)>1):
+            contour2_segs = contours.allsegs[1]
+        else:
+            contour2_segs = []
+        if (surface[0]=='sphere') and (args.radial_stepping>0):
+            title = '$r=%.2f$ kpc' % (radius)
+        else:
+            title = ''
+        healpy.mollview(m, fig=1, cmap=cmap, min=cmin, max=cmax, title=title, unit=field_label, badcolor='white')
+        healpy.graticule()
+        for i in range(len(contour1_segs)):
+            healpy.projplot(contour1_segs[i][:,1], contour1_segs[i][:,0], color='#d4d4d4', ls='-', lw=2)
+        for i in range(len(contour2_segs)):
+            healpy.projplot(contour2_segs[i][:,1], contour2_segs[i][:,0], color='#969595', ls='-', lw=2)
+        plt.text(0., 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
+        plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_' + color_field + '-colored' + save_r + save_suffix + '.png')
+        plt.close()
+
+    fig1 = plt.figure(num=1, figsize=(10,6), dpi=300)
+    contour_fig = plt.figure(num=2)
+    pixel_acc = healpy.ang2pix(nside, phi_acc, theta_acc)
+    u, dup_ind = np.unique(pixel_acc, return_index=True)
+    for d in dup_ind:
+        val_dup = mass[np.where(pixel_acc==pixel_acc[d])[0]]
+        val_to_set = np.sum(val_dup)
+        mass[np.where(pixel_acc==pixel_acc[d])[0]] = val_to_set
+    m = np.zeros(healpy.nside2npix(nside))              # make empty array of map pixels
+    m[pixel_acc] = mass           # assign pixels of map to data values
+    m[m==0.] = np.nan
+    # Make contours of outflow gas
+    hist_out, xedges, yedges = np.histogram2d(theta_out, phi_out, bins=[100,50], range=[[0., 2.*np.pi], [0., np.pi]])
+    ax = contour_fig.add_subplot(1,1,1)
+    contours = ax.contour(hist_out.transpose(),extent=[xedges[0],xedges[-1],yedges[0],yedges[-1]],levels = [5,10])
+    plt.close(2)
+    segs = contours.allsegs
+    if (len(segs)>0):
+        contour1_segs = contours.allsegs[0]
+    else:
+        contour1_segs = []
+    if (len(segs)>1):
+        contour2_segs = contours.allsegs[1]
+    else:
+        contour2_segs = []
+    if (surface[0]=='sphere') and (args.radial_stepping>0):
+        title = '$r=%.2f$ kpc' % (radius)
+    else:
+        title = ''
+    healpy.mollview(m, fig=1, cmap='winter_r', title=title, unit='Mass', badcolor='white', format='')
+    healpy.graticule()
+    for i in range(len(contour1_segs)):
+        healpy.projplot(contour1_segs[i][:,1], contour1_segs[i][:,0], color='#d4d4d4', ls='-', lw=2)
+    for i in range(len(contour2_segs)):
+        healpy.projplot(contour2_segs[i][:,1], contour2_segs[i][:,0], color='#969595', ls='-', lw=2)
+    plt.text(0., 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
+    plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_mass-colored' + save_r + save_suffix + '.png')
+    plt.close()
+
+    if (args.dark_matter):
+        fig1 = plt.figure(num=1, figsize=(10,6), dpi=300)
+        contour_fig = plt.figure(num=2)
+        pixel_acc = healpy.ang2pix(nside, phi_acc_dm, theta_acc_dm)
+        u, dup_ind = np.unique(pixel_acc, return_index=True)
+        for d in dup_ind:
+            val_dup = mass_dm[np.where(pixel_acc==pixel_acc[d])[0]]
+            val_to_set = np.sum(val_dup)
+            mass_dm[np.where(pixel_acc==pixel_acc[d])[0]] = val_to_set
+        m = np.zeros(healpy.nside2npix(nside))              # make empty array of map pixels
+        m[pixel_acc] = mass_dm           # assign pixels of map to data values
+        m[m==0.] = np.nan
+        # Make contours of outflow gas
+        hist_out, xedges, yedges = np.histogram2d(theta_out, phi_out, bins=[100,50], range=[[0., 2.*np.pi], [0., np.pi]])
+        ax = contour_fig.add_subplot(1,1,1)
+        contours = ax.contour(hist_out.transpose(),extent=[xedges[0],xedges[-1],yedges[0],yedges[-1]],levels = [5,10])
+        plt.close(2)
+        segs = contours.allsegs
+        if (len(segs)>0):
+            contour1_segs = contours.allsegs[0]
+        else:
+            contour1_segs = []
+        if (len(segs)>1):
+            contour2_segs = contours.allsegs[1]
+        else:
+            contour2_segs = []
+        if (surface[0]=='sphere') and (args.radial_stepping>0):
+            title = '$r=%.2f$ kpc' % (radius)
+        else:
+            title = ''
+        healpy.mollview(m, fig=1, cmap='winter_r', title=title, unit='Dark matter mass', badcolor='white', format='')
+        healpy.graticule()
+        for i in range(len(contour1_segs)):
+            healpy.projplot(contour1_segs[i][:,1], contour1_segs[i][:,0], color='#d4d4d4', ls='-', lw=2)
+        for i in range(len(contour2_segs)):
+            healpy.projplot(contour2_segs[i][:,1], contour2_segs[i][:,0], color='#969595', ls='-', lw=2)
+        plt.text(0., 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
+        plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_dm-mass-colored' + save_r + save_suffix + '.png')
+        plt.close()
+
+    fig1 = plt.figure(num=1, figsize=(10,6), dpi=300)
+    contour_fig = plt.figure(num=2)
+    pixel_acc = healpy.ang2pix(nside, phi_acc, theta_acc)
+    u, dup_ind = np.unique(pixel_acc, return_index=True)
+    for d in dup_ind:
+        val_dup = metal_mass[np.where(pixel_acc==pixel_acc[d])[0]]
+        val_to_set = np.sum(val_dup)
+        metal_mass[np.where(pixel_acc==pixel_acc[d])[0]] = val_to_set
+    m = np.zeros(healpy.nside2npix(nside))              # make empty array of map pixels
+    m[pixel_acc] = metal_mass           # assign pixels of map to data values
+    m[m==0.] = np.nan
+    # Make contours of outflow gas
+    hist_out, xedges, yedges = np.histogram2d(theta_out, phi_out, bins=[100,50], range=[[0., 2.*np.pi], [0., np.pi]])
+    ax = contour_fig.add_subplot(1,1,1)
+    contours = ax.contour(hist_out.transpose(),extent=[xedges[0],xedges[-1],yedges[0],yedges[-1]],levels = [5,10])
+    plt.close(2)
+    segs = contours.allsegs
+    if (len(segs)>0):
+        contour1_segs = contours.allsegs[0]
+    else:
+        contour1_segs = []
+    if (len(segs)>1):
+        contour2_segs = contours.allsegs[1]
+    else:
+        contour2_segs = []
+    if (surface[0]=='sphere') and (args.radial_stepping>0):
+        title = '$r=%.2f$ kpc' % (radius)
+    else:
+        title = ''
+    healpy.mollview(m, fig=1, cmap='winter_r', title=title, unit='Metal mass', badcolor='white', format='')
+    healpy.graticule()
+    for i in range(len(contour1_segs)):
+        healpy.projplot(contour1_segs[i][:,1], contour1_segs[i][:,0], color='#d4d4d4', ls='-', lw=2)
+    for i in range(len(contour2_segs)):
+        healpy.projplot(contour2_segs[i][:,1], contour2_segs[i][:,0], color='#969595', ls='-', lw=2)
+    plt.text(0., 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
+    plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_metal-mass-colored' + save_r + save_suffix + '.png')
+    plt.close()
+
+def calculate_flux(ds, grid, shape, snap, snap_props):
     '''Calculates the flux into and out of the specified shape at the snapshot 'snap' and saves to file.'''
 
     tablename = prefix + 'Tables/' + snap + '_fluxes'
@@ -264,7 +567,7 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
         fluxes.append('bernoulli_energy_flux')
         fluxes.append('cooling_energy_flux')
         flux_filename += '_energy'
-    table = make_table(fluxes)
+    table = make_flux_table(fluxes)
 
     if (args.cgm_only):
         # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
@@ -281,6 +584,11 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
         cgm_bool = (grid['gas','density'].in_units('g/cm**3').v > 0.)
     shape = shape & cgm_bool
 
+    # Define shape edge
+    struct = ndimage.generate_binary_structure(3,3)
+    shape_expanded = ndimage.binary_dilation(shape, structure=struct, iterations=3)
+    shape_edge = shape_expanded & ~shape
+
     # Load grid properties
     x = grid['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
     y = grid['gas', 'y'].in_units('kpc').v - ds.halo_center_kpc[1].v
@@ -293,9 +601,11 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
     vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
     radius = grid['gas','radius_corrected'].in_units('kpc').v
     rv = grid['radial_velocity_corrected'].in_units('km/s').v
-    if ('accretion_viz' in plots):
+    if ('accretion_viz' in plots) or ('accretion_direction' in plots):
         temperature = grid['gas','temperature'].in_units('K').v
         density = grid['gas','density'].in_units('g/cm**3').v
+        tcool = grid['gas','cooling_time'].in_units('Myr').v
+        metallicity = grid['gas', 'metallicity'].in_units('Zsun').v
     # Load dark matter velocities and positions and digitize onto grid
     if (args.dark_matter):
         left_edge = grid.LeftEdge.in_units('kpc')
@@ -354,16 +664,14 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
 
     # If calculating direction of accretion, set up theta and phi and bins
     if (args.direction):
-        theta_bins = np.arange(-180., 210., 30.)
-        phi_bins = np.arange(0.,210.,30.)
+        phi_bins = ['all','major','minor']
         theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
         phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
         if (args.dark_matter):
             theta_dm = box_dm['dm','theta_pos_disk'].v*(180./np.pi)
             phi_dm = box_dm['dm','phi_pos_disk'].v*(180./np.pi)
     else:
-        theta_bins = np.array([-180.,180.])
-        phi_bins = np.array([0.,180.])
+        phi_bins = ['all']
 
     # If stepping through radius, set up radii list
     if (surface[0]=='sphere') and (args.radial_stepping>0):
@@ -397,8 +705,9 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
             save_r = ''
         # Define which cells are entering and leaving shape
         new_in_shape = shape[tuple(new_inds)]
+        new_in_edge = shape_edge[tuple(new_inds)]
         from_shape = shape & ~new_in_shape
-        to_shape = ~shape & new_in_shape
+        to_shape = shape_edge & new_in_shape & (rv < 100.)
         from_shape_fast = from_shape & (rv > 100.)
         if (surface[0]=='sphere'):
             to_shape = (rv < 0.) & (to_shape)
@@ -453,253 +762,239 @@ def calculate_flux(ds, grid, shape, edge_width, snap, snap_props):
             phi_to = phi[to_shape]
             theta_from = theta[from_shape]
             phi_from = phi[from_shape]
+            theta_out = theta[from_shape_fast]
+            phi_out = phi[from_shape_fast]
 
-        for t in range(len(theta_bins)-1):
-            for p in range(len(phi_bins)-1):
-                if (surface[0]=='sphere') and (args.radial_stepping>0): results = [radii[r]]
-                else: results = []
-                if (args.direction):
-                    results.append(theta_bins[t])
-                    results.append(phi_bins[p])
-                angle_bin_to = (theta_to >= theta_bins[t]) & (theta_to < theta_bins[t+1]) & (phi_to >= phi_bins[p]) & (phi_to < phi_bins[p+1])
-                angle_bin_from = (theta_from >= theta_bins[t]) & (theta_from < theta_bins[t+1]) & (phi_from >= phi_bins[p]) & (phi_from < phi_bins[p+1])
+        for p in range(len(phi_bins)-1):
+            if (surface[0]=='sphere') and (args.radial_stepping>0): results = [radii[r]]
+            else: results = []
+            if (args.direction):
+                results.append(phi_bins[p])
+            if (phi_bins[p]=='all'):
+                angle_bin_to = np.ones(len(np.count_nonzero(to_shape)), dtype=bool)
+                angle_bin_from = np.ones(len(np.count_nonzero(from_shape)), dtype=bool)
                 if (args.dark_matter):
-                    angle_bin_to_dm = (theta_to_dm >= theta_bins[t]) & (theta_to_dm < theta_bins[t+1]) & (phi_to_dm >= phi_bins[p]) & (phi_to_dm < phi_bins[p+1])
-                    angle_bin_from_dm = (theta_from_dm >= theta_bins[t]) & (theta_from_dm < theta_bins[t+1]) & (phi_from_dm >= phi_bins[p]) & (phi_from_dm < phi_bins[p+1])
-                for i in range(len(fluxes)):
-                    if ('dm' in fluxes[i]):
-                        prop_to_dm = properties[i][to_shape_dm][angle_bin_to_dm]
-                        prop_from_dm = properties[i][from_shape_dm][angle_bin_from_dm]
-                        flux_in = np.sum(prop_to_dm)/dt
-                        flux_out = np.sum(prop_from_dm)/dt
-                        flux_net = flux_in - flux_out
-                        results.append(flux_net)
-                        results.append(flux_in)
-                        results.append(flux_out)
-                    else:
-                        prop_to = properties[i][to_shape][angle_bin_to]
-                        prop_from = properties[i][from_shape][angle_bin_from]
-                        flux_in = np.sum(prop_to)/dt
-                        flux_out = np.sum(prop_from)/dt
-                        flux_net = flux_in - flux_out
-                        results.append(flux_net)
-                        results.append(flux_in)
-                        results.append(flux_out)
-                        if (args.region_filter!='none'):
-                            region_to = filter[to_shape][angle_bin_to]
-                            region_from = filter[from_shape][angle_bin_from]
-                            for j in range(len(regions)-1):
-                                prop_to_region = prop_to[(region_to > regions[j]) & (region_to < regions[j+1])]
-                                prop_from_region = prop_from[(region_from > regions[j]) & (region_from < regions[j+1])]
-                                flux_in = np.sum(prop_to_region)/dt
-                                flux_out = np.sum(prop_from_region)/dt
-                                flux_net = flux_in - flux_out
-                                results.append(flux_net)
-                                results.append(flux_in)
-                                results.append(flux_out)
-                table.add_row(results)
+                    angle_bin_to_dm = np.ones(len(np.count_nonzero(to_shape_dm)), dtype=bool)
+                    angle_bin_from_dm = np.ones(len(np.count_nonzero(from_shape_dm)), dtype=bool)
+            elif (phi_bins[p]=='major'):
+                angle_bin_to = (phi_to >= 60.) & (phi_to <= 120.)
+                angle_bin_from = (phi_from >= 60.) & (phi_from <= 120.)
+                if (args.dark_matter):
+                    angle_bin_to_dm = (phi_to_dm >= 60.) & (phi_to_dm <= 120.)
+                    angle_bin_from_dm = (phi_from_dm >= 60.) & (phi_from_dm <= 120.)
+            elif (phi_bins[p]=='minor'):
+                angle_bin_to = (phi_to < 60.) | (phi_to > 120.)
+                angle_bin_from = (phi_from < 60.) | (phi_from > 120.)
+                if (args.dark_matter):
+                    angle_bin_to_dm = (phi_to_dm < 60.) | (phi_to_dm > 120.)
+                    angle_bin_from_dm = (phi_from_dm < 60.) | (phi_from_dm > 120.)
+            for i in range(len(fluxes)):
+                if ('dm' in fluxes[i]):
+                    prop_to_dm = properties[i][to_shape_dm][angle_bin_to_dm]
+                    prop_from_dm = properties[i][from_shape_dm][angle_bin_from_dm]
+                    flux_in = np.sum(prop_to_dm)/dt
+                    flux_out = np.sum(prop_from_dm)/dt
+                    results.append(flux_in)
+                    results.append(flux_out)
+                else:
+                    prop_to = properties[i][to_shape][angle_bin_to]
+                    prop_from = properties[i][from_shape][angle_bin_from]
+                    flux_in = np.sum(prop_to)/dt
+                    flux_out = np.sum(prop_from)/dt
+                    results.append(flux_in)
+                    results.append(flux_out)
+                    if (args.region_filter!='none'):
+                        region_to = filter[to_shape][angle_bin_to]
+                        region_from = filter[from_shape][angle_bin_from]
+                        for j in range(len(regions)-1):
+                            prop_to_region = prop_to[(region_to > regions[j]) & (region_to < regions[j+1])]
+                            prop_from_region = prop_from[(region_from > regions[j]) & (region_from < regions[j+1])]
+                            flux_in = np.sum(prop_to_region)/dt
+                            flux_out = np.sum(prop_from_region)/dt
+                            results.append(flux_in)
+                            results.append(flux_out)
+            table.add_row(results)
 
         if ('accretion_direction' in plots):
-            # Make histogram of outflow cells for later plotting contours
-            outflow_theta = theta[from_shape_fast]
-            outflow_phi = phi[from_shape_fast]
-            hist_outflow, xedges, yedges, hist_img = plt.hist2d(outflow_theta, outflow_phi, bins=[100,50], range=[[-180., 180.], [0., 180.]])
-            tsnap = ds.current_time.in_units('Gyr').v
-            zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-            for c in ['temperature','metallicity','cooling_time','radial_velocity']:
-                if (c=='temperature'):
-                    color_field = 'temperature'
-                    color_val = np.log10(grid['gas','temperature'].in_units('K').v)[to_shape]
-                    color_func = categorize_by_temp
-                    color_key = new_phase_color_key
-                    cmin = temperature_min_datashader
-                    cmax = temperature_max_datashader
-                    color_ticks = [50,300,550]
-                    color_ticklabels = ['4','5','6']
-                    field_label = 'log T [K]'
-                    color_log = True
-                elif (c=='metallicity'):
-                    color_field = 'metallicity'
-                    color_val = (grid['gas','metallicity'].in_units('Zsun').v)[to_shape]
-                    color_func = categorize_by_metals
-                    color_key = new_metals_color_key
-                    cmin = metal_min
-                    cmax = metal_max
-                    rng = (np.log10(metal_max)-np.log10(metal_min))/750.
-                    start = np.log10(metal_min)
-                    color_ticks = [(np.log10(0.01)-start)/rng,(np.log10(0.1)-start)/rng,(np.log10(0.5)-start)/rng,(np.log10(1.)-start)/rng,(np.log10(2.)-start)/rng]
-                    color_ticklabels = ['0.01','0.1','0.5','1','2']
-                    field_label = 'Metallicity [$Z_\odot$]'
-                    color_log = False
-                elif (c=='cooling_time'):
-                    color_field = 'cooling_time'
-                    color_val = np.log10(grid['gas','cooling_time'].in_units('Myr').v)[to_shape]
-                    color_func = categorize_by_tcool
-                    color_key = tcool_color_key
-                    cmin = tcool_min
-                    cmax = tcool_max
-                    rng = (np.log10(tcool_max)-np.log10(tcool_min))/750.
-                    start = np.log10(tcool_min)
-                    color_ticks = [(1-start)/rng,(3-start)/rng,(6-start)/rng]
-                    color_ticklabels = ['1','3','6']
-                    field_label = 'log Cooling Time [Myr]'
-                    color_log = True
-                elif (c=='radial_velocity'):
-                    color_field = 'radial_velocity'
-                    color_val = grid['gas','radial_velocity_corrected'].in_units('km/s').v[to_shape]
-                    color_func = categorize_by_outflow_inflow
-                    color_key = outflow_inflow_color_key
-                    cmin = -200.
-                    cmax = 200.
-                    step = 750./np.size(list(color_key))
-                    color_ticks = [step,step*3.,step*5.,step*7.,step*9.]
-                    color_ticklabels = ['-200','-100','0','100','200']
-                    field_label = 'Radial velocity [km/s]'
-                    color_log = False
-                data_frame = pd.DataFrame({})
-                data_frame['theta'] = theta_to
-                data_frame['phi'] = phi_to
-                data_frame[color_field] = color_val
-                data_frame['color'] = color_func(data_frame[color_field])
-                data_frame.color = data_frame.color.astype('category')
-                x_range = [-180., 180]
-                y_range = [0., 180.]
-                cvs = dshader.Canvas(plot_width=1200, plot_height=600, x_range=x_range, y_range=y_range)
-                agg = cvs.points(data_frame, 'theta', 'phi', dshader.count_cat('color'))
-                img = tf.spread(tf.shade(agg, color_key=color_key, how='eq_hist',min_alpha=100), shape='circle', px=2)
-                export_image(img, prefix + 'Plots/' + snap + '_accretion-direction_' + color_field + '-colored' + save_r + save_suffix)
-                fig = plt.figure(figsize=(11,7),dpi=300)
-                ax = fig.add_subplot(1,1,1)
-                image = plt.imread(prefix + 'Plots/' + snap + '_accretion-direction_' + color_field + '-colored' + save_r + save_suffix + '.png')
-                ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
-                ax.contour(hist_outflow.transpose(),extent=[xedges[0],xedges[-1],yedges[0],yedges[-1]],
-                  linewidths=1, colors=['#d4d4d4','#969595'], levels = [5,10])
-                ax.plot([-180., 180.], [90., 90.], 'k-', lw=1)
-                ax.text(0., 1.15, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
-                if (surface[0]=='sphere') and (args.radial_stepping>0):
-                    ax.text(0.2, 1.15, '$r=%.2f$ kpc' % (radii[r]), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
-                ax.set_xlabel('Angle around disk ($\\theta$)', fontsize=24)
-                ax.set_ylabel('Angle from minor axis ($\\phi$)', fontsize=24)
-                ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
-                  top=True, right=True)
-                ax2 = fig.add_axes([0.52, 0.89, 0.4, 0.1])
-                cmap = create_foggie_cmap(cmin, cmax, color_func, color_key, color_log)
-                ax2.imshow(np.flip(cmap.to_pil(), 1))
-                ax2.set_xticks(color_ticks)
-                ax2.set_xticklabels(color_ticklabels, fontsize=18)
-                ax2.text(400, 150, field_label, fontsize=24, ha='center', va='center')
-                ax2.spines["top"].set_color('white')
-                ax2.spines["bottom"].set_color('white')
-                ax2.spines["left"].set_color('white')
-                ax2.spines["right"].set_color('white')
-                ax2.set_ylim(60, 180)
-                ax2.set_xlim(-10, 750)
-                ax2.set_yticklabels([])
-                ax2.set_yticks([])
-                plt.subplots_adjust(left=0.09, bottom=0.05, top=0.87, right=0.98)
-                plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_' + color_field + '-colored' + save_r + save_suffix + '.png')
-                plt.close()
-
-            data_frame = pd.DataFrame({})
-            data_frame['theta'] = theta_to
-            data_frame['phi'] = phi_to
-            data_frame['mass'] = mass[to_shape]/dt
-            x_range = [-180., 180]
-            y_range = [0., 180.]
-            cvs = dshader.Canvas(plot_width=1200, plot_height=600, x_range=x_range, y_range=y_range)
-            agg = cvs.points(data_frame, 'theta', 'phi', dshader.sum('mass'))
-            img = tf.spread(tf.shade(agg, cmap=mpl.cm.get_cmap('PuBuGn')), shape='circle', px=2)
-            export_image(img, prefix + 'Plots/' + snap + '_accretion-direction_mass-colored' + save_r + save_suffix)
-            fig = plt.figure(figsize=(11,7),dpi=300)
-            ax = fig.add_subplot(1,1,1)
-            image = plt.imread(prefix + 'Plots/' + snap + '_accretion-direction_mass-colored' + save_r + save_suffix + '.png')
-            im = ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
-            ax.contour(hist_outflow.transpose(),extent=[xedges[0],xedges[-1],yedges[0],yedges[-1]],
-              linewidths=1, colors=['#bdbdbd','#696969'], levels = [5,10])
-            ax.plot([-180., 180.], [90., 90.], 'k-', lw=1)
-            ax.text(0., 1.15, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
-            if (surface[0]=='sphere') and (args.radial_stepping>0):
-                ax.text(0.2, 1.15, '$r=%.2f$ kpc' % (radii[r]), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
-            ax.set_xlabel('Angle around disk ($\\theta$)', fontsize=24)
-            ax.set_ylabel('Angle from minor axis ($\\phi$)', fontsize=24)
-            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
-              top=True, right=True)
-            ax2 = fig.add_axes([0.52, 0.87, 0.4, 0.05])
-            fig.colorbar(plt.cm.ScalarMappable(cmap=mpl.cm.get_cmap('PuBuGn')), cax=ax2, orientation='horizontal', ticks=[])
-            ax2.text(0.5, 1.1, 'Accreting mass flux', fontsize=20, ha='center', va='bottom', transform=ax2.transAxes)
-            ax2.text(0., -0.1, 'Less mass', fontsize=18, ha='left', va='top', transform=ax2.transAxes)
-            ax2.text(1., -0.1, 'More mass', fontsize=18, ha='right', va='top', transform=ax2.transAxes)
-            plt.subplots_adjust(left=0.09, bottom=0.05, top=0.87, right=0.98)
-            plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_mass-colored' + save_r + save_suffix + '.png')
-            plt.close()
-
             if (args.dark_matter):
-                data_frame = pd.DataFrame({})
-                data_frame['theta'] = theta_to_dm
-                data_frame['phi'] = phi_to_dm
-                data_frame['mass'] = mass_dm[to_shape_dm]/dt
-                x_range = [-180., 180]
-                y_range = [0., 180.]
-                cvs = dshader.Canvas(plot_width=1200, plot_height=600, x_range=x_range, y_range=y_range)
-                agg = cvs.points(data_frame, 'theta', 'phi', dshader.sum('mass'))
-                img = tf.dynspread(tf.shade(agg, cmap=mpl.cm.get_cmap('PuBuGn')), shape='circle', max_px=10)
-                export_image(img, prefix + 'Plots/' + snap + '_accretion-direction_dm-mass-colored' + save_r + save_suffix)
-                fig = plt.figure(figsize=(11,7),dpi=300)
-                ax = fig.add_subplot(1,1,1)
-                image = plt.imread(prefix + 'Plots/' + snap + '_accretion-direction_dm-mass-colored' + save_r + save_suffix + '.png')
-                im = ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
-                ax.plot([-180., 180.], [90., 90.], 'k-', lw=1)
-                ax.text(0., 1.15, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
-                if (surface[0]=='sphere') and (args.radial_stepping>0):
-                    ax.text(0.2, 1.15, '$r=%.2f$ kpc' % (radii[r]), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
-                ax.set_xlabel('Angle around disk ($\\theta$)', fontsize=24)
-                ax.set_ylabel('Angle from minor axis ($\\phi$)', fontsize=24)
-                ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
-                  top=True, right=True)
-                ax2 = fig.add_axes([0.52, 0.87, 0.4, 0.05])
-                fig.colorbar(plt.cm.ScalarMappable(cmap=mpl.cm.get_cmap('PuBuGn')), cax=ax2, orientation='horizontal', ticks=[])
-                ax2.text(0.5, 1.1, 'Accreting mass flux', fontsize=20, ha='center', va='bottom', transform=ax2.transAxes)
-                ax2.text(0., -0.1, 'Less mass', fontsize=18, ha='left', va='top', transform=ax2.transAxes)
-                ax2.text(1., -0.1, 'More mass', fontsize=18, ha='right', va='top', transform=ax2.transAxes)
-                plt.subplots_adjust(left=0.09, bottom=0.05, top=0.87, right=0.98)
-                plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_dm-mass-colored' + save_r + save_suffix + '.png')
-                plt.close()
+                plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], mass[to_shape], metals[to_shape], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, theta_acc_dm=theta_to_dm*(np.pi/180.)+np.pi, phi_acc_dm=phi_to_dm*(np.pi/180.), mass_dm=mass_dm[to_shape_dm])
+            else:
+                plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], mass[to_shape], metals[to_shape], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r)
 
-            data_frame = pd.DataFrame({})
-            data_frame['theta'] = theta_to
-            data_frame['phi'] = phi_to
-            data_frame['mass'] = metals[to_shape]/dt
-            x_range = [-180., 180]
-            y_range = [0., 180.]
-            cvs = dshader.Canvas(plot_width=1200, plot_height=600, x_range=x_range, y_range=y_range)
-            agg = cvs.points(data_frame, 'theta', 'phi', dshader.sum('mass'))
-            img = tf.spread(tf.shade(agg, cmap=mpl.cm.get_cmap('PuBuGn')), shape='circle', px=2)
-            export_image(img, prefix + 'Plots/' + snap + '_accretion-direction_metal-mass-colored' + save_r + save_suffix)
-            fig = plt.figure(figsize=(11,7),dpi=300)
-            ax = fig.add_subplot(1,1,1)
-            image = plt.imread(prefix + 'Plots/' + snap + '_accretion-direction_metal-mass-colored' + save_r + save_suffix + '.png')
-            im = ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
-            ax.contour(hist_outflow.transpose(),extent=[xedges[0],xedges[-1],yedges[0],yedges[-1]],
-              linewidths=1, colors=['#bdbdbd','#696969'], levels = [5,10])
-            ax.plot([-180., 180.], [90., 90.], 'k-', lw=1)
-            ax.text(0., 1.15, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
-            if (surface[0]=='sphere') and (args.radial_stepping>0):
-                ax.text(0.2, 1.15, '$r=%.2f$ kpc' % (radii[r]), fontsize=20, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
-            ax.set_xlabel('Angle around disk ($\\theta$)', fontsize=24)
-            ax.set_ylabel('Angle from minor axis ($\\phi$)', fontsize=24)
-            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
-              top=True, right=True)
-            ax2 = fig.add_axes([0.52, 0.87, 0.4, 0.05])
-            fig.colorbar(plt.cm.ScalarMappable(cmap=mpl.cm.get_cmap('PuBuGn')), cax=ax2, orientation='horizontal', ticks=[])
-            ax2.text(0.5, 1.1, 'Accreting metal mass flux', fontsize=20, ha='center', va='bottom', transform=ax2.transAxes)
-            ax2.text(0., -0.1, 'Less mass', fontsize=18, ha='left', va='top', transform=ax2.transAxes)
-            ax2.text(1., -0.1, 'More mass', fontsize=18, ha='right', va='top', transform=ax2.transAxes)
-            plt.subplots_adjust(left=0.09, bottom=0.05, top=0.87, right=0.98)
-            plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_metal-mass-colored' + save_r + save_suffix + '.png')
-            plt.close()
-
-    table = set_table_units(table)
+    table = set_flux_table_units(table)
     table.write(tablename + flux_filename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
+def compare_accreting_cells(ds, grid, shape, snap, snap_props):
+    '''Calculates properties of cells that are identified as accreting compared to cells in a thin
+    boundary layer that are not accreting.'''
+
+    prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/'
+    plot_prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
+    tablename = prefix + 'Tables/' + snap + '_accretion-compare'
+    Menc_profile, Mvir, Rvir = snap_props
+    tsnap = ds.current_time.in_units('Gyr').v
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    # Set up table of everything we want
+    props = []
+    props.append('covering_fraction')
+    props.append('mass')
+    props.append('metal_mass')
+    props.append('temperature')
+    props.append('metallicity')
+    props.append('cooling_time')
+    props.append('entropy')
+    props.append('pressure')
+    props.append('radial_velocity')
+    props.append('sound_speed')
+    table = make_props_table(props)
+
+    # Load grid properties
+    x = grid['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
+    y = grid['gas', 'y'].in_units('kpc').v - ds.halo_center_kpc[1].v
+    z = grid['gas', 'z'].in_units('kpc').v - ds.halo_center_kpc[2].v
+    xbins = x[:,0,0][:-1] - 0.5*np.diff(x[:,0,0])
+    ybins = y[0,:,0][:-1] - 0.5*np.diff(y[0,:,0])
+    zbins = z[0,0,:][:-1] - 0.5*np.diff(z[0,0,:])
+    vx = grid['gas','vx_corrected'].in_units('kpc/yr').v
+    vy = grid['gas','vy_corrected'].in_units('kpc/yr').v
+    vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
+    radius = grid['gas','radius_corrected'].in_units('kpc').v
+    rv = grid['radial_velocity_corrected'].in_units('km/s').v
+    temperature = grid['gas','temperature'].in_units('K').v
+    metallicity = grid['gas','metallicity'].in_units('Zsun').v
+    tcool = grid['gas','cooling_time'].in_units('Myr').v
+    entropy = grid['gas','entropy'].in_units('cm**2*keV').v
+    pressure = grid['gas','pressure'].in_units('erg/cm**3').v
+    mass = grid['gas', 'cell_mass'].in_units('Msun').v
+    metals = grid['gas', 'metal_mass'].in_units('Msun').v
+    sound_speed = grid['gas','sound_speed'].in_units('km/s').v
+    if (args.weight=='mass'): weights = np.copy(mass)
+    if (args.weight=='volume'): weights = grid['gas','cell_volume'].in_units('kpc**3').v
+    # Load dark matter velocities and positions and digitize onto grid
+    properties = [mass, metals, temperature, metallicity, tcool, entropy, pressure, rv, sound_speed]
+
+    # Calculate new positions of gas cells
+    new_x = vx*dt + x
+    new_y = vy*dt + y
+    new_z = vz*dt + z
+    inds_x = np.digitize(new_x, xbins)-1      # indices of new x positions
+    inds_y = np.digitize(new_y, ybins)-1      # indices of new y positions
+    inds_z = np.digitize(new_z, zbins)-1      # indices of new z positions
+    new_inds = np.array([inds_x, inds_y, inds_z])
+
+    # Define shape edge
+    struct = ndimage.generate_binary_structure(3,3)
+    shape_expanded = ndimage.binary_dilation(shape, structure=struct, iterations=3)
+    shape_edge = shape_expanded & ~shape
+
+    # If calculating direction of accretion, set up bins
+    if (args.direction):
+        phi_bins = ['all','major','minor']
+    else:
+        phi_bins = ['all']
+
+    # If stepping through radius, set up radii list
+    if (surface[0]=='sphere') and (args.radial_stepping>0):
+        if (args.Rvir):
+            max_R = surface[1]*Rvir
+        else:
+            max_R = surface[1]
+        min_R = 0.25*Rvir
+        radii = np.linspace(min_R, max_R, args.radial_stepping+1)[1:]
+    else:
+        radii = [0]
+
+    # Step through radii (if chosen) and calculate properties for each radius
+    for r in range(len(radii)):
+        # If stepping through radii, define the shape and edge for this radius value
+        if (surface[0]=='sphere') and (args.radial_stepping>0):
+            shape = (radius < radii[r])
+            shape_expanded = ndimage.binary_dilation(shape, structure=struct, iterations=3)
+            shape_edge = shape_expanded & ~shape
+            save_r = '_r%d' % (r)
+        else:
+            save_r = ''
+        # Define which cells are entering shape
+        new_in_shape = shape[tuple(new_inds)]
+        to_shape = shape_edge & new_in_shape & (rv < 100.)
+        from_shape = shape & ~new_in_shape
+        from_shape_fast = from_shape & (rv > 100.)
+
+        if (surface[0]=='sphere'):
+            to_shape = (rv < 0.) & (to_shape)
+
+        theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
+        phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
+        theta_to = theta[to_shape]
+        phi_to = phi[to_shape]
+        theta_edge = theta[shape_edge]
+        phi_edge = phi[shape_edge]
+        # Calculate covering fraction of accretion
+        nside = 32
+        pix_area = healpy.nside2pixarea(nside)
+
+        for p in range(len(phi_bins)):
+            if (surface[0]=='sphere') and (args.radial_stepping>0): results = [radii[r]]
+            else: results = []
+            if (args.direction):
+                results.append(phi_bins[p])
+            if (phi_bins[p]=='all'):
+                angle_bin_to = np.ones(len(phi_to), dtype=bool)
+                angle_bin_edge = np.ones(len(phi_edge), dtype=bool)
+            elif (phi_bins[p]=='major'):
+                angle_bin_to = (phi_to >= 60.) & (phi_to <= 120.)
+                angle_bin_edge = (phi_edge >= 60.) & (phi_edge <= 120.)
+            elif (phi_bins[p]=='minor'):
+                angle_bin_to = (phi_to < 60.) | (phi_to > 120.)
+                angle_bin_edge = (phi_edge < 60.) | (phi_edge > 120.)
+            pixel_acc = healpy.ang2pix(nside, phi_to[angle_bin_to]*(np.pi/180.), theta_to[angle_bin_to]*(np.pi/180.)+np.pi)
+            u, dup_ind = np.unique(pixel_acc, return_index=True)
+            covering_acc = len(u)*pix_area
+            pixel_edge = healpy.ang2pix(nside, phi_edge[angle_bin_edge]*(np.pi/180.), theta_edge[angle_bin_edge]*(np.pi/180.)+np.pi)
+            u, dup_ind = np.unique(pixel_edge, return_index=True)
+            covering_edge = len(u)*pix_area
+            results.append(covering_acc/covering_edge)
+            weights_to = weights[to_shape][angle_bin_to]
+            weights_edge = weights[shape_edge][angle_bin_edge]
+            for i in range(len(properties)):
+                prop_to = properties[i][to_shape][angle_bin_to]
+                prop_edge = properties[i][shape_edge][angle_bin_edge]
+                if ('mass' in props[i+1]):
+                    results.append(np.sum(prop_edge))
+                    results.append(np.sum(prop_to))
+                else:
+                    if (len(prop_edge)>0):
+                        quantiles = weighted_quantile(prop_edge, weights_edge, np.array([0.25,0.5,0.75]))
+                        results.append(quantiles[1])
+                        results.append(quantiles[2]-quantiles[0])
+                        avg, std = weighted_avg_and_std(prop_edge, weights_edge)
+                        results.append(avg)
+                        results.append(std)
+                    else:
+                        results.append(np.nan)
+                        results.append(np.nan)
+                        results.append(np.nan)
+                        results.append(np.nan)
+                    if (len(prop_to)>0):
+                        quantiles = weighted_quantile(prop_to, weights_to, np.array([0.25,0.5,0.75]))
+                        results.append(quantiles[1])
+                        results.append(quantiles[2]-quantiles[0])
+                        avg, std = weighted_avg_and_std(prop_to, weights_to)
+                        results.append(avg)
+                        results.append(std)
+                    else:
+                        results.append(np.nan)
+                        results.append(np.nan)
+                        results.append(np.nan)
+                        results.append(np.nan)
+            table.add_row(results)
+
+        if ('accretion_direction' in plots):
+            plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], mass[to_shape], metals[to_shape], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r)
+
+    table = set_props_table_units(table)
+    table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
 def find_shape(ds, surface, snap_props):
     '''Defines the grid within the data set, identifies the specified shape,
@@ -716,6 +1011,8 @@ def find_shape(ds, surface, snap_props):
     else:
         if (surface[0]=='disk'):
             max_extent = edge_kpc * 3.
+        elif (surface[0]=='stellar_disk'):
+            max_extent = edge_kpc * 2.
         elif (surface[0]=='sphere'):
             if (args.Rvir):
                 max_extent = surface[1]*Rvir + 2.*edge_kpc
@@ -734,7 +1031,6 @@ def find_shape(ds, surface, snap_props):
     pix_res = float(np.min(data[('gas','dx')].in_units('kpc')))  # at level 11
     lvl1_res = pix_res*2.**11.
     dx = lvl1_res/(2.**args.level)
-    edge_width = int(edge_kpc/dx)
 
     if (args.constant_box!=0.):
         left_edge = ds.halo_center_kpc - ds.arr([max_extent, max_extent, max_extent], 'kpc')
@@ -762,6 +1058,20 @@ def find_shape(ds, surface, snap_props):
             left_edge = ds.halo_center_kpc - ds.arr([x_extent, y_extent, z_extent], 'kpc')
             box_width = np.array([int(2.*x_extent/dx), int(2.*y_extent/dx), int(2.*z_extent/dx)])
             box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width)
+        elif (surface[0]=='stellar_disk'):
+            x_stars = data['young_stars8','x_disk'].v
+            y_stars = data['young_stars8','y_disk'].v
+            z_stars = data['young_stars8','z_disk'].v
+            r_stars = data['young_stars8','radius_corrected'].v
+            x_stars = x_stars[r_stars < 20.]
+            y_stars = y_stars[r_stars < 20.]
+            z_stars = z_stars[r_stars < 20.]
+            x_extent = max([np.max(x_stars)+2.*edge_kpc,np.abs(np.min(x_stars)-2.*edge_kpc)])
+            y_extent = max([np.max(y_stars)+2.*edge_kpc,np.abs(np.min(y_stars)-2.*edge_kpc)])
+            z_extent = max([np.max(z_stars)+2.*edge_kpc,np.abs(np.min(z_stars)-2.*edge_kpc)])
+            left_edge = ds.halo_center_kpc - ds.arr([x_extent, y_extent, z_extent], 'kpc')
+            box_width = np.array([int(2.*x_extent/dx), int(2.*y_extent/dx), int(2.*z_extent/dx)])
+            box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width)
         elif (surface[0]=='sphere'):
             left_edge = ds.halo_center_kpc - ds.arr([max_extent, max_extent, max_extent], 'kpc')
             box_width = ds.arr([int(max_extent*2./dx), int(max_extent*2./dx), int(max_extent*2./dx)], 'kpc')
@@ -782,7 +1092,22 @@ def find_shape(ds, surface, snap_props):
         else:
             density_cut_factor = 0.1
         density = box['gas','density'].in_units('g/cm**3').v
-        shape = (density > density_cut_factor * cgm_density_max)
+        smooth_density = gaussian_filter(density, (5./dx)/6.)
+        shape = (smooth_density > density_cut_factor * cgm_density_max)
+    elif (surface[0]=='stellar_disk'):
+        x_stars = data['young_stars8','x_disk'].v
+        y_stars = data['young_stars8','y_disk'].v
+        z_stars = data['young_stars8','z_disk'].v
+        r_stars = data['young_stars8','radius_corrected'].v
+        x_stars = x_stars[r_stars < 20.]
+        y_stars = y_stars[r_stars < 20.]
+        z_stars = z_stars[r_stars < 20.]
+        stars_radius = np.max(np.sqrt(x_stars**2. + y_stars**2.))
+        stars_height = np.max(np.abs(z_stars))
+        x = box['gas','x_disk'].in_units('kpc').v
+        y = box['gas','y_disk'].in_units('kpc').v
+        z = box['gas','z_disk'].in_units('kpc').v
+        shape = (z >= -stars_height) & (z <= stars_height) & (np.sqrt(x**2.+y**2.) <= stars_radius)
     elif (surface[0]=='sphere'):
         if (args.Rvir):
             R = surface[1] * Rvir
@@ -798,9 +1123,9 @@ def find_shape(ds, surface, snap_props):
             radius = surface[1]
             height = surface[2]
         if (surface[3]=='minor'):
-            x = box['gas','x_disk'].in_units('kpc').v - ds.halo_center_kpc[0].v
-            y = box['gas','y_disk'].in_units('kpc').v - ds.halo_center_kpc[1].v
-            z = box['gas','z_disk'].in_units('kpc').v - ds.halo_center_kpc[2].v
+            x = box['gas','x_disk'].in_units('kpc').v
+            y = box['gas','y_disk'].in_units('kpc').v
+            z = box['gas','z_disk'].in_units('kpc').v
         else:
             x = box['gas','x'].in_units('kpc').v - ds.halo_center_kpc[0].v
             y = box['gas','y'].in_units('kpc').v - ds.halo_center_kpc[1].v
@@ -843,7 +1168,7 @@ def find_shape(ds, surface, snap_props):
 
         shape = (norm_coord >= -height/2.) & (norm_coord <= height/2.) & (rad_coord <= radius)
 
-    return box, shape, edge_width
+    return box, shape
 
 def load_and_calculate(snap, surface):
     '''Loads the simulation output given by 'snap' and calls the functions to define the surface
@@ -864,10 +1189,10 @@ def load_and_calculate(snap, surface):
             snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
-    if ((surface[0]=='cylinder') and (surface[3]=='minor')) or (args.direction):
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir, disk_relative=True)
+    if ((surface[0]=='cylinder') and (surface[3]=='minor')) or (args.direction) or ('disk' in surface[0]):
+        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir, disk_relative=True, correct_bulk_velocity=True, particle_type_for_angmom='young_stars8')
     else:
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir, correct_bulk_velocity=True)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     # Load the mass enclosed profile
@@ -883,9 +1208,12 @@ def load_and_calculate(snap, surface):
     snap_props = [Menc_profile, Mvir, Rvir]
 
     # Find the covering grid and the shape specified by 'surface'
-    grid, shape, edge_width = find_shape(ds, surface, snap_props)
+    grid, shape = find_shape(ds, surface, snap_props)
     # Calculate fluxes and save to file
-    calculate_flux(ds, grid, shape, edge_width, snap, snap_props)
+    if ('fluxes' in args.calculate):
+        calculate_flux(ds, grid, shape, snap, snap_props)
+    if ('accretion_compare' in args.calculate):
+        compare_accreting_cells(ds, grid, shape, snap, snap_props)
 
     print('Fluxes calculated for snapshot', snap)
 
@@ -998,6 +1326,90 @@ def accretion_vs_time(snaplist):
     fig.savefig(prefix + 'accretion_vs_time' + save_suffix + '.png')
     plt.close(fig)
 
+def accretion_vs_radius(snap):
+    '''Plots various properties of accretion as a function of radius at the snapshot given by 'snap'.'''
+
+    tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+    zsnap = time_table['redshift'][time_table['snap']==snap][0]
+    tsnap = time_table['time'][time_table['snap']==snap][0]
+
+    data = Table.read(tablename_prefix + snap + '_' + args.load_from_file + '.hdf5', path='all_data')
+    if ('phi_bin' in data.columns):
+        radii = data['radius'][data['phi_bin']=='all']
+    else:
+        radii = data['radius']
+
+    props = ['covering_fraction','mass','metal_mass','temperature','metallicity',
+            'cooling_time','entropy','pressure','radial_velocity']
+    ranges = [[0,1],[0,0.5],[0,0.25],[1e4,1e7], [5e-3,1], [1e2,1e6], [1,1e2], [1e-17,1e-14], [-300, 200]]
+    logs = [False, False, False, True, True, True, True, True, False]
+    ylabels = ['Accretion Covering Fraction', 'Accretion Mass Fraction', 'Accretion Metal Mass Fraction',
+              'Temperature [K]', 'Metallicity [$Z_\odot$]', 'Cooling Time [Myr]', 'Entropy [keV cm$^2$]',
+              'Pressure [erg/cm$^3$]', 'Radial Velocity [km/s]']
+
+    if ('phi_bin' in data.columns):
+        all = (data['phi_bin']=='all')
+        major = (data['phi_bin']=='major')
+        minor = (data['phi_bin']=='minor')
+        directions = [all, major, minor]
+        dir_labels = ['All directions', 'Major axis', 'Minor axis']
+        dir_colors = ['k','b','r']
+    else:
+        all = np.ones(len(radii), dtype=bool)
+        directions = [all]
+        dir_labels = ['_nolegend_']
+        dir_colors = ['k']
+
+    for i in range(len(props)):
+        fig = plt.figure(figsize=(7,5), dpi=200)
+        ax = fig.add_subplot(1,1,1)
+        for j in range(len(directions)):
+            if (props[i]=='covering_fraction'):
+                labels = ['_nolegend_', '_nolegend_']
+                mults = [1,0.5,0.5]
+                acc_plot = mults[j]*data['covering_fraction_acc'][directions[j]]
+            elif ('mass' in props[i]):
+                labels = ['_nolegend_', '_nolegend_']
+                acc_plot = data[props[i] + '_acc'][directions[j]]/data[props[i] + '_all'][directions[j]]
+            else:
+                labels = ['Accreting gas', 'All gas']
+                acc_plot = data[props[i] + '_med_acc'][directions[j]]
+            ax.plot(radii, acc_plot, color=dir_colors[j], ls='-', lw=2, label=dir_labels[j])
+            if ('fraction' not in props[i]) and ('mass' not in props[i]):
+                #ax.fill_between(radii, data[props[i] + '_med_acc'][directions[j]]-0.5*data[props[i] + '_iqr_acc'][directions[j]],
+                                #data[props[i] + '_med_acc'][directions[j]]+0.5*data[props[i] + '_iqr_acc'][directions[j]],
+                                #color=dir_colors[j], alpha=0.3)
+                ax.plot(radii, data[props[i] + '_med_all'][directions[j]], color=dir_colors[j], ls=':', lw=2, label='_nolegend_')
+                #ax.fill_between(radii, data[props[i] + '_med_all'][directions[j]]-0.5*data[props[i] + '_iqr_all'][directions[j]],
+                                #data[props[i] + '_med_all'][directions[j]]+0.5*data[props[i] + '_iqr_all'][directions[j]],
+                                #color=dir_colors[j], alpha=0.3)
+            if (j==len(directions)-1):
+                ax.plot([-100,-100],[-100,-100], color='k', ls='-', lw=2, label=labels[0])
+                ax.plot([-100,-100],[-100,-100], color='k', ls=':', lw=2, label=labels[1])
+
+        ax.axis([0,250,ranges[i][0],ranges[i][1]])
+        ax.set_xlabel('Galactocentric Radius [kpc]', fontsize=16)
+        ax.set_ylabel(ylabels[i], fontsize=16)
+        if (logs[i]): ax.set_yscale('log')
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14)
+        if (props[i]=='entropy') or (props[i]=='pressure'):
+            ax.legend(frameon=False, loc=3, fontsize=14, ncol=2)
+            if (props[i]=='entropy'):
+                ax.text(0.05, 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
+            if (props[i]=='pressure'):
+                ax.text(0.95, 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='right', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
+        elif ('mass' in props[i]) or ('fraction' in props[i]):
+            ax.legend(frameon=False, loc=2, fontsize=14)
+            ax.text(0.95, 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='right', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
+        else:
+            ax.legend(frameon=False, loc=2, fontsize=14, ncol=2)
+            ax.text(0.05, 0.1, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
+
+        fig.subplots_adjust(left=0.15,bottom=0.14,top=0.95,right=0.95)
+        plt.show()
+
+
 if __name__ == "__main__":
 
     gtoMsun = 1.989e33
@@ -1014,6 +1426,7 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    #foggie_dir = '/Volumes/Data/Simulation_Data/'
 
     # Set directory for output location, making it if necessary
     prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
@@ -1046,16 +1459,19 @@ if __name__ == "__main__":
     if (args.load_from_file!='none'):
         if ('accretion_vs_time' in plots):
             accretion_vs_time(outs)
+        if ('accretion_vs_radius' in plots):
+            for i in range(len(outs)):
+                accretion_vs_radius(outs[i])
 
     else:
+        if (save_suffix != ''):
+            target_dir = save_suffix
+        else:
+            target_dir = 'fluxes'
         if (args.nproc==1):
             for snap in outs:
                 load_and_calculate(snap, surface)
         else:
-            if (save_suffix != ''):
-                target_dir = save_suffix
-            else:
-                target_dir = 'fluxes'
             skipped_outs = outs
             while (len(skipped_outs)>0):
                 skipped_outs = []

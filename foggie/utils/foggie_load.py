@@ -57,6 +57,7 @@ def foggie_load(snap, trackfile, **kwargs):
     region = kwargs.get('region', 'refine_box')
     gravity = kwargs.get('gravity', False)
     masses_dir = kwargs.get('masses_dir', '')
+    correct_bulk_velocity = kwargs.get('correct_bulk_velocity', False)
 
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
@@ -75,22 +76,39 @@ def foggie_load(snap, trackfile, **kwargs):
     if (find_halo_center):
         if (os.path.exists(halo_c_v_name)):
             halo_c_v = Table.read(halo_c_v_name, format='ascii')
-            if (snap[-6:] in halo_c_v['col3']):
-                print("Pulling halo center from catalog file")
-                halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
-                halo_center_kpc = ds.arr([float(halo_c_v['col4'][halo_ind]), \
-                                          float(halo_c_v['col5'][halo_ind]), \
-                                          float(halo_c_v['col6'][halo_ind])], 'kpc')
-                halo_velocity_kms = ds.arr([float(halo_c_v['col7'][halo_ind]), \
-                                            float(halo_c_v['col8'][halo_ind]), \
-                                            float(halo_c_v['col9'][halo_ind])], 'km/s')
-                ds.halo_center_kpc = halo_center_kpc
-                ds.halo_center_code = halo_center_kpc.in_units('code_length')
-                ds.halo_velocity_kms = halo_velocity_kms
-                calc_hc = False
+            if ('smoothed' in halo_c_v_name):
+                if (snap[-6:] in halo_c_v['col2']):
+                    print('Pulling halo center from smoothed path catalog file')
+                    halo_ind = np.where(halo_c_v['col2']==snap[-6:])[0][0]
+                    halo_center_kpc = ds.arr([float(halo_c_v['col5'][halo_ind]), \
+                                              float(halo_c_v['col6'][halo_ind]), \
+                                              float(halo_c_v['col7'][halo_ind])], 'kpc')
+                    ds.halo_center_kpc = halo_center_kpc
+                    ds.halo_center_code = halo_center_kpc.in_units('code_length')
+                    sp = ds.sphere(ds.halo_center_kpc, (5., 'kpc'))
+                    bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+                    ds.halo_velocity_kms = bulk_vel
+                    calc_hc = False
+                else:
+                    print('This snapshot is not in the halo_cen_smoothed file, calculating halo center (which will NOT be smoothed)...')
+                    calc_hc = True
             else:
-                print('This snapshot is not in the halo_c_v file, calculating halo center...')
-                calc_hc = True
+                if (snap[-6:] in halo_c_v['col3']):
+                    print("Pulling halo center from catalog file")
+                    halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
+                    halo_center_kpc = ds.arr([float(halo_c_v['col4'][halo_ind]), \
+                                              float(halo_c_v['col5'][halo_ind]), \
+                                              float(halo_c_v['col6'][halo_ind])], 'kpc')
+                    halo_velocity_kms = ds.arr([float(halo_c_v['col7'][halo_ind]), \
+                                                float(halo_c_v['col8'][halo_ind]), \
+                                                float(halo_c_v['col9'][halo_ind])], 'km/s')
+                    ds.halo_center_kpc = halo_center_kpc
+                    ds.halo_center_code = halo_center_kpc.in_units('code_length')
+                    ds.halo_velocity_kms = halo_velocity_kms
+                    calc_hc = False
+                else:
+                    print('This snapshot is not in the halo_c_v file, calculating halo center...')
+                    calc_hc = True
         else:
             print("This halo_c_v file doesn't exist, calculating halo center...")
             calc_hc = True
@@ -103,6 +121,10 @@ def foggie_load(snap, trackfile, **kwargs):
             ds.halo_center_code = halo_center
             ds.halo_center_kpc = halo_center_kpc
             ds.halo_velocity_kms = bulk_velocity
+        if (correct_bulk_velocity):
+            sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
+            bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+            ds.halo_velocity_kms = bulk_vel
     else:
         print("Not finding halo center")
         ds.halo_center_kpc = ds.arr([np.nan, np.nan, np.nan], 'kpc')
@@ -147,11 +169,13 @@ def foggie_load(snap, trackfile, **kwargs):
     # filter particles into star and dm
     # JT moved this to before "disk_relative" so that the if statement can use the filtered particle fields
     if (do_filter_particles):
-        filter_particles(refine_box, filter_particle_types = ['young_stars', 'old_stars', 'stars', 'dm'])
+        filter_particles(refine_box, filter_particle_types = ['young_stars', 'young_stars8', 'old_stars', 'stars', 'dm'])
 
         ds.add_field(('stars', 'radius_corrected'), function=radius_corrected_stars, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('young_stars', 'radius_corrected'), function=radius_corrected_young_stars, units='kpc', \
+                     take_log=False, force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars8', 'radius_corrected'), function=radius_corrected_young_stars8, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('old_stars', 'radius_corrected'), function=radius_corrected_old_stars, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
@@ -234,14 +258,8 @@ def foggie_load(snap, trackfile, **kwargs):
         sphere = ds.sphere(ds.halo_center_kpc, (15., 'kpc'))
         print('using particle type ', particle_type_for_angmom, ' to derive angular momentum')
         if (particle_type_for_angmom=='gas'):
-            current_time = ds.current_time.in_units('Myr').v
-            if (current_time<=8656.88):
-                density_cut_factor = 1.
-            elif (current_time<=10787.12):
-                density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
-            else:
-                density_cut_factor = 0.1
-            sphere = sphere.include_above(('gas','density'), density_cut_factor * cgm_density_max)
+            sphere = sphere.include_below(('gas','temperature'), 1e4)
+            sphere.set_field_parameter('bulk_velocity', ds.halo_velocity_kms)
             L = sphere.quantities.angular_momentum_vector(use_gas=True, use_particles=False)
         else:
             L = sphere.quantities.angular_momentum_vector(use_gas=False, use_particles=True, particle_type=particle_type_for_angmom)
@@ -282,6 +300,18 @@ def foggie_load(snap, trackfile, **kwargs):
         ds.add_field(('dm', 'y_disk'), function=y_diskrel_dm, units='kpc', take_log=False, \
                      force_override=True, sampling_type='particle')
         ds.add_field(('dm', 'z_disk'), function=z_diskrel_dm, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('stars', 'x_disk'), function=x_diskrel_stars, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('stars', 'y_disk'), function=y_diskrel_stars, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('stars', 'z_disk'), function=z_diskrel_stars, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars8', 'x_disk'), function=x_diskrel_young_stars8, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars8', 'y_disk'), function=y_diskrel_young_stars8, units='kpc', take_log=False, \
+                     force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars8', 'z_disk'), function=z_diskrel_young_stars8, units='kpc', take_log=False, \
                      force_override=True, sampling_type='particle')
         ds.add_field(('gas', 'vx_disk'), function=vx_diskrel, units='km/s', take_log=False, \
                      force_override=True, sampling_type='cell')
