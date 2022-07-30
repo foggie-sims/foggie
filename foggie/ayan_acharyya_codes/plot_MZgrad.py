@@ -242,6 +242,7 @@ def plot_MZGR(args):
         #df = df[(df[args.ycol] >= args.ymin) & (df[args.ycol] <= args.ymax)]
         df = df[(df[args.colorcol] >= args.cmin) & (df[args.colorcol] <= args.cmax)]
 
+        # ------- plot only the binned plot------------
         if args.binby is not None:
             df[args.binby + '_bins'] = pd.cut(df[args.binby], bins=np.linspace(np.min(df[args.binby]), np.max(df[args.binby]), args.nbins))
             cols_to_bin = [args.colorcol, args.xcol, args.ycol, args.binby + '_bins']
@@ -258,12 +259,19 @@ def plot_MZGR(args):
         line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_smoothed else 2)
         plot = ax.add_collection(line)
 
+        # ------- overplotting specific snapshot highlights------------
+        if args.snaphighlight is not None:
+            snaps_to_highlight = [item for item in args.snaphighlight.split(',')]
+            df_snaps = df[df['output'].isin(snaps_to_highlight)]
+            dummy = ax.scatter(df_snaps[args.xcol], df_snaps[args.ycol], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=200, alpha=0.2 if args.overplot_smoothed else 1, marker='*', zorder=10)
+            print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, 'with stars')
+
         # ------- overplotting redshift-binned scatter plot------------
         if args.zhighlight:
             df['redshift_int'] = np.floor(df['redshift'])
             df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-            dummy = ax.scatter(df_zbin[args.xcol], df_zbin[args.ycol], c=df_zbin[args.colorcol], cmap=this_cmap, lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed else 1)
-            print('For halo', args.halo, 'highlighted z =', [float('%.1F'%item) for item in df_zbin['redshift'].values])
+            dummy = ax.scatter(df_zbin[args.xcol], df_zbin[args.ycol], c=df_zbin[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed else 1, zorder=20)
+            print('For halo', args.halo, 'highlighted z =', [float('%.1F'%item) for item in df_zbin['redshift'].values], 'with circles')
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
         if args.overplot_smoothed:
