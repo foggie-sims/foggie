@@ -1,0 +1,47 @@
+Notes on how to set up a new run with all the bells and whistles
+06/22/2018
+
+In the ICs be sure these are what you want them to be:
+StarMakerMinimumMass                     = 1000
+grackle_data_file                        = /nobackup/mpeeples/enzo-with-grackle-with-self-shielding/grackle/input/CloudyData_UVB=HM2012_shielded.h5
+you can't turn on self shielding until later (see below) but you'll
+want the correct UVB file here  
+
+From the ICs, stop it at z=15 and set
+self_shielding_method       = 3
+and restart. (technically, EUVB turns on at z=15.3, but close enough; this method breaks things badly if on before then!)
+Now is also not a bad time to do
+NumberOfOutputsBeforeExit = 1   ## so simrun.pl restarts every output; helps with memory leaks
+
+You need a halo_track file. This can be different for the cooling
+refinement region and the forced refinement region, but the format is
+the same.
+
+In the parameter file of the simulation you are restarting from:
+
+## 7 = cooling, 12 = forced refinement. I think you have to have forced refinement for cooling refinment to work? so set both on.
+CellFlaggingMethod             = 2 4 7 8 12 -99999 -99999 -99999 -99999 -99999 -99999 
+
+
+change / define these: 
+MustRefineRegionLeftEdge   = 0.493391 0.492903 0.497969 
+MustRefineRegionRightEdge  = 0.499391 0.498903 0.503969 
+MustRefineRegionTimeType   = 1
+MustRefineRegionFile       = halo_track
+
+UseCoolingRefineRegion    = 1
+EvolveCoolingRefineRegion = 1
+CoolingRefineRegionLeftEdge   = 0.493391 0.492903 0.497969 
+CoolingRefineRegionRightEdge  = 0.499391 0.498903 0.503969 
+CoolingRefineRegionTimeType   = 1
+CoolingRefineRegionFile     = halo_track
+
+For the edges there, take them from the halo_track files where the
+simulation will be restarting. This will make things go MUCH faster
+and possibly also not break because of memory --- it may try to refine
+EVERYTHING ALL THE WAY EVERYWHERE initially if the edges are not defined.
+
+And either now (or earlier at z=15 to keep things consistent) is a
+good time to change
+dtDataDump = 0.25 ## probably defaults to smaller; if you want DD's to match between runs, change this here
+
