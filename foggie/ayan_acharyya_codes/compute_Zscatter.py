@@ -9,7 +9,7 @@
     Started :    Aug 2022
     Examples :   run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_re 3 --res 0.1 --nbins 100 --keep --weight mass
                  run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass
-                 run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --do_all_sims --weight mass --write_file --noplot
+                 run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --do_all_sims --weight mass --write_file --use_gasre --noplot
 
 """
 from header import *
@@ -175,7 +175,7 @@ if __name__ == '__main__':
         args.current_time = ds.current_time.in_units('Gyr').v
 
         if args.write_file or args.upto_kpc is None:
-            args.re = get_re_from_coldgas(gasprofile, args) if args.use_coldgas else get_re_from_stars(ds, args)
+            args.re = get_re_from_coldgas(gasprofile, args) if args.use_gasre else get_re_from_stars(ds, args)
         else:
             args.re = np.nan
         thisrow = [args.output, args.current_redshift, args.current_time, args.re] # row corresponding to this snapshot to append to df
