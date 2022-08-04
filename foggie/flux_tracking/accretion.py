@@ -946,7 +946,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
             max_R = surface[1]*Rvir
         else:
             max_R = surface[1]
-        min_R = 0.25*Rvir
+        min_R = 0.1*Rvir
         radii = np.linspace(min_R, max_R, args.radial_stepping+1)[1:]
     else:
         radii = [0]
@@ -1125,6 +1125,8 @@ def phase_plots(temp_acc, vel_acc, tcool_acc, vdisp_acc, met_acc, mass_acc, temp
             cbaxes.text(1, -0.1, 'More mass', fontsize=16, ha='center', va='top', transform=cbaxes.transAxes)
             fig.subplots_adjust(left=0.09, bottom=0.12, right=0.97, wspace=0.26)
             ax_acc.text(0.95, 0.95, '%.2f Gyr\n$z=%.2f$' % (tsnap, zsnap), fontsize=14, ha='right', va='bottom', transform=ax_acc.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':2})
+            if (args.radial_stepping>0):
+                ax_acc.text(0.2, 1.05, '$r=%.2f$ kpc' % (radius), ha='left', va='bottom', fontsize=16, transform=ax_acc.transAxes)
             plt.savefig(prefix + 'Plots/' + snap + '_phase_' + props_save[i] + '-vs-' + props_save[j] + save_r + save_suffix + '.png')
             plt.close()
 
