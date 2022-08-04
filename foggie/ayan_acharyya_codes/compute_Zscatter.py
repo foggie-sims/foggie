@@ -9,7 +9,7 @@
     Started :    Aug 2022
     Examples :   run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_re 3 --res 0.1 --nbins 100 --keep --weight mass
                  run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass
-                 run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --do_all_sims --weight mass --write_file --use_gasre --noplot
+                 run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --xmax 4 --do_all_sims --weight mass --write_file --use_gasre --noplot
 
 """
 from header import *
@@ -29,7 +29,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     '''
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
     upto_text = '_upto%.1Fkpc' % dummy_args.upto_kpc if dummy_args.upto_kpc is not None else '_upto%.1FRe' % dummy_args.upto_re
-    outfile_rootname = 'log_metal_dsitribution_%s%s.png' % (upto_text, weightby_text)
+    outfile_rootname = 'log_metal_distribution%s%s.png' % (upto_text, weightby_text)
     if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
@@ -38,7 +38,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.1)
 
     if args.weight is None: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, ec='salmon', density=True, label='Z')
-    else: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, ec='salmon', weights=weights.flatten(), label=args.weight + ' weighted Z')
+    else: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, range=(0, args.xmax), ec='salmon', weights=weights.flatten(), label=args.weight + ' weighted Z')
 
     if fit is not None:
         xvals = p[1][:-1] + np.diff(p[1])
@@ -46,7 +46,9 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
 
     # ----------tidy up figure-------------
     plt.legend(loc='lower right', fontsize=args.fontsize)
-    ax.set_xlim(0, 6)
+    ax.set_xlim(0, args.xmax)
+    ax.set_ylim(0, 2)
+
     ax.set_xlabel(r'$\log{(\mathrm{Z/Z}_{\odot})}$', fontsize=args.fontsize)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
@@ -78,7 +80,7 @@ def fit_distribution(Zarr, args, weights=None):
     model = SkewedGaussianModel()
     params = model.make_params(amplitude=1, center=1, sigma=1, gamma=0)
 
-    y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights)
+    y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights, range=(0, args.xmax))
     x = x[:-1] + np.diff(x)/2
     result = model.fit(y, params, x=x)
 
@@ -107,7 +109,7 @@ if __name__ == '__main__':
     total_snaps = len(list_of_sims)
 
     # -------set up dataframe and filename to store/write gradients in to--------
-    cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zmean', 'Zmean_u', 'Zvar', 'Zvar_u', 'Zskew', 'Zskew_u', 'Ztotal']
+    cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zmean', 'Zmean_u', 'Zvar', 'Zvar_u', 'Zskew', 'Zskew_u', 'Ztotal']
 
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
@@ -115,7 +117,7 @@ if __name__ == '__main__':
         upto_text = '_upto%.1Fckpchinv' % dummy_args.upto_kpc if dummy_args.docomoving else '_upto%.1Fkpc' % dummy_args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % dummy_args.upto_re
-    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZscat_%s%s.txt' % (upto_text, weightby_text)
+    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZscat%s%s.txt' % (upto_text, weightby_text)
     if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
     if dummy_args.dryrun:
@@ -178,6 +180,7 @@ if __name__ == '__main__':
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').v
+        if args.xmax is None: args.xmax = 4
 
         if args.write_file or args.upto_kpc is None:
             args.re = get_re_from_coldgas(gasprofile, args) if args.use_gasre else get_re_from_stars(ds, args)
@@ -229,6 +232,7 @@ if __name__ == '__main__':
 
                 #pr = plt.hist(Zres.flatten(), bins=args.nbins, histtype='step', lw=2, ec=col_arr[index+1], density=True, label='Z res=%.2F kpc' % (res))
                 #if args.weight is not None: prw = plt.hist(Zres.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, weights=wres.flatten(), ls='--', ec=col_arr[index+1], label=args.weight + ' weighted Z res=%.2Fkpc' % (res))
+                thisrow += [mstar, res, Zpeak.n, Zpeak.s, Z25.n, Z25.s, Z50.n, Z50.s, Z75.n, Z75.s, Zmean.n, Zmean.s, Zvar.n, Zvar.s, Zskew.n, Zskew.s, Ztotal]
             '''
             ax.set_xlim(-0.5, 6)
             plt.legend(loc='lower right', fontsize=args.fontsize)
@@ -245,9 +249,8 @@ if __name__ == '__main__':
 
             plt.show(block=False)
             '''
-            thisrow += [mstar, Zpeak.n, Zpeak.s, Z25.n, Z25.s, Z50.n, Z50.s, Z75.n, Z75.s, Zmean.n, Zmean.s, Zvar.n, Zvar.s, Zskew.n, Zskew.s, Ztotal]
         else:
-            thisrow += (np.ones(16)*np.nan).tolist()
+            thisrow += (np.ones(17)*np.nan).tolist()
 
         this_df_grad.loc[len(this_df_grad)] = thisrow
         df_grad = pd.concat([df_grad, this_df_grad])

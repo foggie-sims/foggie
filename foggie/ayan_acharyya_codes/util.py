@@ -1131,8 +1131,8 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--zmax', metavar='zmax', type=float, action='store', default=None, help='maximum xaxis limit; default is None')
     parser.add_argument('--snaphighlight', metavar='snaphighlight', type=str, action='store', default=None, help='highlight any given array of snapshots? default is None')
 
-    # ------- args added for compute_Zscatterd.py ------------------------------
-    parser.add_argument('--res', metavar='res', type=str, action='store', default=0.1, help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')
+    # ------- args added for compute_Zscatter.py ------------------------------
+    parser.add_argument('--res', metavar='res', type=str, action='store', default='0.1', help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
