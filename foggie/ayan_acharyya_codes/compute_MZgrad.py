@@ -201,7 +201,7 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, is_logscale=False, color='maroon
 
     # ----------to plot mean binned y vs x profile--------------
     x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
-    linefit, linecov = np.polyfit(x_bin_centers, y_binned.flatten(), 1, cov=True)#, w=1/(y_u_binned.flatten())**2)
+    linefit, linecov = np.polyfit(x_bin_centers, y_binned.flatten(), 1, cov=True, w=1/(y_u_binned.flatten())**2)
 
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
     Zcen = ufloat(linefit[1], np.sqrt(linecov[1][1]))
@@ -342,10 +342,14 @@ if __name__ == '__main__':
     # parse column names, in case log
 
     # --------------read in the cold gas profile file ONCE for a given halo-------------
-    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(dummy_args)
-    gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + dummy_args.run + '/all_rprof_' + dummy_args.halo + '.npy'
-    print('Reading in cold gas profile from', gasfilename)
-    gasprofile = np.load(gasfilename, allow_pickle=True)[()]
+    if dummy_args.write_file or dummy_args.upto_kpc is None:
+        foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(dummy_args)
+        gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + dummy_args.run + '/all_rprof_' + dummy_args.halo + '.npy'
+        print('Reading in cold gas profile from', gasfilename)
+        gasprofile = np.load(gasfilename, allow_pickle=True)[()]
+    else:
+        print('Not reading in cold gas profile because any re calculation is not needed')
+        gasprofile = None
 
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
@@ -394,8 +398,8 @@ if __name__ == '__main__':
         args.current_time = ds.current_time.in_units('Gyr').v
         args.ylim = [-2.2, 1.2] # [-3, 1]
 
-        re_from_stars = get_re_from_stars(ds, args)  # kpc
-        re_from_coldgas = get_re_from_coldgas(gasprofile, args)  # kpc
+        re_from_stars = get_re_from_stars(ds, args) if args.write_file or args.upto_kpc is None else None # kpc
+        re_from_coldgas = get_re_from_coldgas(gasprofile, args)  if args.write_file or args.upto_kpc is None else None # kpc
         thisrow = [args.output, args.current_redshift, args.current_time, re_from_stars, re_from_coldgas] # row corresponding to this snapshot to append to df
 
         if args.upto_kpc is not None:
