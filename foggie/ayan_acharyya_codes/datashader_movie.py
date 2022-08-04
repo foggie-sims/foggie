@@ -99,7 +99,7 @@ def extract_columns_from_df(df_allprop, args):
     return df
 
 # -------------------------------------------------------------------------------
-def get_df_from_ds(ds, args):
+def get_df_from_ds(ds, args, outfilename=None):
     '''
     Function to make a pandas dataframe from the yt dataset based on the given field list and color category,
     then writes dataframe to file for faster access in future
@@ -108,7 +108,10 @@ def get_df_from_ds(ds, args):
     '''
     # -------------read/write pandas df file with ALL fields-------------------
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
-    outfilename = get_correct_tablename(args)
+    if outfilename is None: outfilename = get_correct_tablename(args)
+
+    all_fields = [args.xcol, args.ycol, args.colorcol] if args.quick else field_dict.keys()  # only the relevant properties if in a hurry
+    if 'rad' not in all_fields: all_fields = ['rad'] + all_fields
 
     if not os.path.exists(outfilename) or args.clobber:
         if not os.path.exists(outfilename):
@@ -118,9 +121,6 @@ def get_df_from_ds(ds, args):
 
         if not args.quick: myprint('Extracting all gas, once and for all, and putting them into dataframe, so that this step is not required for subsequently plotting other parameters and therefore subsequent plotting is faster; this may take a while..', args)
         df_allprop = pd.DataFrame()
-
-        all_fields = [args.xcol, args.ycol, args.colorcol] if args.quick else field_dict.keys() # only the relevant properties if in a hurry
-        if 'rad' not in all_fields: all_fields = ['rad'] + all_fields
 
         for index,field in enumerate(all_fields):
             myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(all_fields)) + ' fields..', args)
@@ -132,12 +132,17 @@ def get_df_from_ds(ds, args):
     else:
         myprint('Reading from existing file ' + outfilename, args)
         df_allprop = pd.read_table(outfilename, delim_whitespace=True, comment='#')
-        try:
-            df_allprop = df_allprop[df_allprop['rad'].between(0, args.galrad)] # curtailing in radius space, in case this dataframe has been read in from a file corresponding to a larger chunk of the box
-        except KeyError: # for files produced previously and therefore may not have a 'rad' column
-            rad_picked_up = float(get_text_between_strings(outfilename, 'boxrad_', 'kpc'))
-            if rad_picked_up == args.galrad: pass # if this file actually corresponds to the correct radius, then you're fine (even if the file itself doesn't have radius column)
-            else: sys.exit('Please regenerate ' + outfilename + ', using the --clobber option') # otherwise throw error
+
+        if not set(all_fields).issubset(set(df_allprop.columns)): # if existing file was old, it might not have all the required columns, in which case clobber to make new file now
+            dummy_args = copy.deepcopy(args)
+            if dummy_args.quick: outfilename = dummy_args.output_dir + 'txtfiles/' + dummy_args.output + '_df_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.txt' % (dummy_args.galrad, dummy_args.ycol, dummy_args.xcol, dummy_args.colorcol, inflow_outflow_text)
+            else: outfilename = dummy_args.output_dir + 'txtfiles/' + dummy_args.output + '_df_boxrad_%.2Fkpc.txt' % (dummy_args.galrad)
+
+            dummy_args.clobber = True
+            myprint(outfilename + ' exists but does not have all the required fields..', dummy_args)
+            df_allprop = get_df_from_ds(ds, dummy_args, outfilename=outfilename)
+
+        df_allprop = df_allprop[df_allprop['rad'].between(0, args.galrad)] # curtailing in radius space, in case this dataframe has been read in from a file corresponding to a larger chunk of the box
 
     df = extract_columns_from_df(df_allprop, args)
     return df
@@ -298,6 +303,8 @@ def overplot_stars(paramlist, axes, args, type='stars', npix_datashader=1000):
             axes.ax_marg_y = plot_1D_histogram(y_on_plot, y_min_on_plot, y_max_on_plot, axes.ax_marg_y, vertical=True, type=type)
 
         print_mpi('Overplotted ' + str(len(paramlist)) + ' of ' + str(init_len) + ', i.e., ' + '%.2F' % (len(paramlist) * 100 / init_len) + '% of ' + type + ' inside this box..', args)
+    else:
+        overplotted = -999 # dummy value
 
     return overplotted, axes
 
@@ -341,7 +348,6 @@ def plot_1D_histogram(data, data_min, data_max, ax, vertical=False, type='gas'):
     ax.tick_params(axis='x', which='both', top=False)
     if vertical: ax.set_ylim(data_min, data_max)
     else: ax.set_xlim(data_min, data_max)
-
     return ax
 
 # ---------------------------------------------------------------------------------
@@ -492,8 +498,11 @@ def wrap_axes(df, filename, npix_datashader, args, paramlist=None, abslist=None)
     ax1 = overplot_binned(df, ax1, args, npix_datashader=npix_datashader)
 
     # ----------to plot 1D histogram on the top and right axes--------------
-    axes.ax_marg_x = plot_1D_histogram(df[args.xcolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_x, vertical=False)
-    axes.ax_marg_y = plot_1D_histogram(df[args.ycolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_y, vertical=True)
+    axes.plot_marginals(sns.kdeplot, lw=1, linestyle='solid', color='black')
+    axes.ax_marg_x.set_xlim(0, npix_datashader)
+    axes.ax_marg_y.set_ylim(0, npix_datashader)
+    #axes.ax_marg_x = plot_1D_histogram(df[args.xcolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_x, vertical=False)
+    #axes.ax_marg_y = plot_1D_histogram(df[args.ycolname + '_in_pix'], 0, npix_datashader, axes.ax_marg_y, vertical=True)
 
     # ------to make the axes-------------
     ax1.xaxis = make_coordinate_axis(args.xcol, args.xmin, args.xmax, ax1.xaxis, args.fontsize, npix_datashader=npix_datashader, dsh=True, log_scale=islog_dict[args.xcol] and args.use_cvs_log)
@@ -548,7 +557,8 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
 
     # -----------------to initialise figure---------------------
     shift_right = 'phi' in args.ycol or 'theta' in args.ycol
-    axes = sns.JointGrid(args.xcolname, args.ycolname, df, height=8)
+    show_marginal_ticks = False #True
+    axes = sns.JointGrid(args.xcolname, args.ycolname, df, height=8, marginal_ticks=show_marginal_ticks)
     extra_space = 0.03 if shift_right else 0
     plt.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95 + extra_space, top=0.95, bottom=0.1, left=0.1 + extra_space)
     fig, ax1 = plt.gcf(), axes.ax_joint
@@ -566,12 +576,16 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
     if args.overplot_absorbers: overplotted, axes = overplot_stars(abslist, axes, args, type='absorbers')
 
     if len(df) > 0:
-        # ----------to overplot binned profile----------------
-        ax1 = overplot_binned(df, ax1, args)
+        ax1 = overplot_binned(df, ax1, args) # to overplot binned profile
+        axes.plot_marginals(sns.kdeplot, lw=1, linestyle='solid', color='black') # to plot marginal 1D histograms
+        axes.ax_marg_x.set_xlim(args.xmin, args.xmax)
+        axes.ax_marg_y.set_ylim(args.ymin, args.ymax)
 
-        # ----------to plot 1D histogram on the top and right axes--------------
-        axes.ax_marg_x = plot_1D_histogram(df[args.xcolname], args.xmin, args.xmax, axes.ax_marg_x, vertical=False)
-        axes.ax_marg_y = plot_1D_histogram(df[args.ycolname], args.ymin, args.ymax, axes.ax_marg_y, vertical=True)
+        if show_marginal_ticks:
+            axes.ax_marg_x.set_yticklabels(axes.ax_marg_x.get_yticks(), fontsize=args.fontsize/1.5)
+            plt.setp(axes.ax_marg_x.get_yticklabels()[0], visible=False)
+            axes.ax_marg_y.set_xticklabels(axes.ax_marg_y.get_xticks(), fontsize=args.fontsize/1.5)
+            plt.setp(axes.ax_marg_y.get_xticklabels()[0], visible=False)
 
     # ------to make the axes-------------
     #ax1.set_xlim(20, 0) #
@@ -1053,12 +1067,17 @@ if __name__ == '__main__':
             if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
 
+            # ---------to determine if disk parameters need to be loaded in---------------------
+            all_fields = [dummy_args.xcol, dummy_args.ycol, dummy_args.colorcol] if dummy_args.quick else field_dict.keys()  # only the relevant properties if in a hurry
+            isdisk_required = np.array(['disk' in item for item in all_fields]).any()
+            should_load_disk = (isdisk_required or dummy_args.diskload) and not dummy_args.nodiskload
+
             if type(args) is tuple:
                 args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
-                print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
+                if should_load_disk: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=True)
+                else: print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
             else:
-                isdisk_required = np.array(['disk' in item for item in [args.xcol, args.ycol] + args.colorcol]).any()
-                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=(isdisk_required or args.diskload) and not args.nodiskload)
+                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=should_load_disk)
 
             # -------create new fields for angular momentum vectors-----------
             ds.add_field(('gas', 'angular_momentum_phi'), function=phi_angular_momentum, sampling_type='cell', units='degree')

@@ -28,19 +28,48 @@ xc, yc, zc are given in physical kpc. xv, yv, zv are given in km/s.
 Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
 8508/nref11n_nref10f snapshots DD0044-DD1630
-5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
-5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
+5016/nref11c_nref9f snapshots DD0150-DD2520, RD0020-RD0042
+5036/nref11c_nref9f snapshots DD0139-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
-2392/nref11c_nref9f snapshots DD0511-DD1999, RD0019-RD0037
-2878/nref11c_nref9f snapshots DD0398-DD1099, RD0016-RD0024
+2392/nref11c_nref9f snapshots DD0138-DD2199, RD0019-RD0038
+2878/nref11c_nref9f snapshots DD0398-DD1199, RD0016-RD0024
 
 8508/high_feedback_restart snapshots DD1728-DD1882, RD0036-RD0037
-8508/feedback_return snapshots DD1747-DD2250, RD0036-RD0040
+8508/feedback_return snapshots DD1747-DD2427, RD0036-RD0040
 8508/low_feedback_06 snapshots DD1621-DD2427, RD0034-RD0042
 8508/low_feedback_07 snapshots DD1621-DD2427, RD0034-RD0042
 
 Created by:
 utils/get_halo_c_v_parallel.py
+
+Author:
+Cassi
+
+halo_cen_smoothed
+--------
+Description:
+These files are ASCII data files where the columns are:
+snap       redshift       time      xc      yc      zc
+where "snap" is the file name of the snapshot (e.g., RD0036, DD1534), "redshift" gives the redshift
+of the snapshot, "time" is the time of the snapshot, and "xc, yc, zc" gives the x, y, z
+coordinates of the center of a smoothed path of the halo. This smoothed path is created by removing
+sudden jumps from the path that occur when there is a merger and the halo center finder jumps between
+the two galaxies back and forth, and then smoothing the result.
+
+Units:
+time is given in Myr, xc, yc, zc are given in physical kpc
+
+Exists for:
+8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
+8508/nref11n_nref10f snapshots DD0044-DD1630
+5016/nref11c_nref9f snapshots DD0150-DD2520, RD0020-RD0042
+5036/nref11c_nref9f snapshots DD0139-DD2520, RD0015-RD0042
+4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
+2392/nref11c_nref9f snapshots DD0138-DD2199, RD0019-RD0038
+2878/nref11c_nref9f snapshots DD0398-DD1199, RD0016-RD0024
+
+Created by:
+utils/smooth_halo_center.py
 
 Author:
 Cassi
@@ -77,14 +106,14 @@ Units:
 
 Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
-5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
-5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
+5016/nref11c_nref9f snapshots DD0150-DD2520, RD0020-RD0042
+5036/nref11c_nref9f snapshots DD0139-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
-2392/nref11c_nref9f snapshots DD0511-DD1999, RD0019-RD0037
-2878/nref11c_nref9f snapshots DD0398-DD1099, RD0016-RD0024
+2392/nref11c_nref9f snapshots DD0138-DD2199, RD0019-RD0038
+2878/nref11c_nref9f snapshots DD0398-DD1199, RD0016-RD0024
 
 8508/high_feedback_restart snapshots DD1728-DD1882, RD0036-RD0037
-8508/feedback_return snapshots DD1747-DD2250, RD0036-RD0040
+8508/feedback_return snapshots DD1747-DD2427, RD0036-RD0040
 8508/low_feedback_06 snapshots DD1621-DD2427, RD0034-RD0042
 8508/low_feedback_07 snapshots DD1621-DD2427, RD0034-RD0042
 
@@ -117,14 +146,14 @@ SFR is given in Msun/yr
 
 Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
-5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
-5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
+5016/nref11c_nref9f snapshots DD0150-DD2520, RD0020-RD0042
+5036/nref11c_nref9f snapshots DD0139-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
-2392/nref11c_nref9f snapshots DD0511-DD1999, RD0019-RD0037
-2878/nref11c_nref9f snapshots DD0398-DD1099, RD0016-RD0024
+2392/nref11c_nref9f snapshots DD0138-DD2199, RD0019-RD0038
+2878/nref11c_nref9f snapshots DD0398-DD1199, RD0016-RD0024
 
 8508/high_feedback_restart snapshots DD1728-DD1882, RD0036-RD0037
-8508/feedback_return snapshots DD1747-DD2250, RD0036-RD0040
+8508/feedback_return snapshots DD1747-DD2427, RD0036-RD0040
 8508/low_feedback_06 snapshots DD1621-DD2427, RD0034-RD0042
 8508/low_feedback_07 snapshots DD1621-DD2427, RD0034-RD0042
 
@@ -164,11 +193,11 @@ Units:
 
 Exists for:
 8508/nref11c_nref9f snapshots DD0046-DD2427, RD0013-RD0042
-5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
-5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
+5016/nref11c_nref9f snapshots DD0169-DD2520, RD0020-RD0042
+5036/nref11c_nref9f snapshots DD0139-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
-2392/nref11c_nref9f snapshots DD0511-DD1999, RD0019-RD0037
-2878/nref11c_nref9f snapshots DD0398-DD1099, RD0016-RD0024
+2392/nref11c_nref9f snapshots DD0138-DD2199, RD0019-RD0038
+2878/nref11c_nref9f snapshots DD0398-DD1199, RD0016-RD0024
 
 Created by:
 utils/get_satellite_positions.py, which will output one "snapshot_satellites.dat" ASCII file per
@@ -199,14 +228,14 @@ Units:
 
 Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
-5016/nref11c_nref9f snapshots DD0250-DD2520, RD0020-RD0042
-5036/nref11c_nref9f snapshots DD0272-DD2520, RD0015-RD0042
+5016/nref11c_nref9f snapshots DD0150-DD2520, RD0020-RD0042
+5036/nref11c_nref9f snapshots DD0139-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
-2392/nref11c_nref9f snapshots DD0511-DD1999, RD0019-RD0037
-2878/nref11c_nref9f snapshots DD0398-DD1099, RD0016-RD0024
+2392/nref11c_nref9f snapshots DD0138-DD2199, RD0019-RD0038
+2878/nref11c_nref9f snapshots DD0398-DD1199, RD0016-RD0024
 
 8508/high_feedback_restart snapshots DD1728-DD1882, RD0036-RD0037
-8508/feedback_return snapshots DD1747-DD2250, RD0036-RD0040
+8508/feedback_return snapshots DD1747-DD2427, RD0036-RD0040
 8508/low_feedback_06 snapshots DD1621-DD2427, RD0034-RD0042
 8508/low_feedback_07 snapshots DD1621-DD2427, RD0034-RD0042
 

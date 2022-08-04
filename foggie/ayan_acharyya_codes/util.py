@@ -942,6 +942,9 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--add_arrow', dest='add_arrow', action='store_true', default=False, help='Add arrows?, default is no')
     parser.add_argument('--add_velocity', dest='add_velocity', action='store_true', default=False, help='Add velocity?, default is no')
     parser.add_argument('--hide_axes', dest='hide_axes', action='store_true', default=False, help='Hide all axes?, default is no')
+    parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
+    parser.add_argument('--annotate_box', dest='annotate_box', action='store_true', default=False, help='annotate box?, default is no')
+    parser.add_argument('--min_level', dest='min_level', type=int, action='store', default=3, help='annotate grids min level, default is 3')
 
     # ------- args added for filter_star_properties.py ------------------------------
     parser.add_argument('--plot_proj', dest='plot_proj', action='store_true', default=False, help='plot projection map? default is no')
@@ -1093,6 +1096,8 @@ def parse_args(haloname, RDname, fast=False):
 
     # ------- args added for compute_MZgrad.py ------------------------------
     parser.add_argument('--upto_re', metavar='upto_re', type=float, action='store', default=2.0, help='fit metallicity gradient out to what multiple of Re? default is 2')
+    parser.add_argument('--upto_kpc', metavar='upto_kpc', type=float, action='store', default=None, help='fit metallicity gradient out to what absolute kpc? default is None')
+    parser.add_argument('--docomoving', dest='docomoving', action='store_true', default=False, help='consider the input upto_kpc as a comoving quantity?, default is no')
     parser.add_argument('--write_file', dest='write_file', action='store_true', default=False, help='write the list of measured gradients, mass and size to file?, default is no')
     parser.add_argument('--get_gasmass', dest='get_gasmass', action='store_true', default=False, help='save gas mass profile, in addition to stellar mass profile, to hdf5 file?, default is no')
     parser.add_argument('--snapnumber', metavar='snapnumber', type=int, action='store', default=None, help='identifier for the snapshot (what follows DD or RD); default is None, in which case it takes the snapshot from args.output')
@@ -1101,8 +1106,11 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')
     parser.add_argument('--reflevel', metavar='reflevel', type=int, action='store', default=7, help='forced refinement level to put in the halo track file; default is 7')
     parser.add_argument('--z_interval', metavar='z_interval', type=float, action='store', default=0.005, help='redshift interval on which to interpolate the halo center track file; default is 0.005')
-    parser.add_argument('--root_dir', metavar='root_dir', type=str, action='store', default='', help='root directory path where your foggie directory is (automatically grabs the correct path if you are on ayans system; default is empty string')
+    parser.add_argument('--root_dir', metavar='root_dir', type=str, action='store', default='', help='root directory path where your foggie directory is (automatically grabs the correct path if you are on ayans system); default is empty string')
     parser.add_argument('--last_center_guess', metavar='last_center_guess', type=str, action='store', default=None, help='initial guess for the center of desired halo in code units')
+    parser.add_argument('--compare_tracks', dest='compare_tracks', action='store_true', default=False, help='compare (plot) multiple existing center track files?, default is no')
+    parser.add_argument('--width', metavar='width', type=float, action='store', default=500, help='the width of projection plots, in kpc; default is 500 kpc')
+    parser.add_argument('--search_radius', metavar='search_radius', type=float, action='store', default=50, help='the radius within which to search for density peak, in comoving kpc; default is 50 ckpc')
 
     # ------- args added for plot_MZgrad.py ------------------------------
     parser.add_argument('--binby', metavar='binby', type=str, action='store', default=None, help='bin the plot by either redshift or mass; default is empty string = no binning')
@@ -1116,6 +1124,15 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--zhighlight', dest='zhighlight', action='store_true', default=False, help='highlight a few integer-ish redshift points on the MZGR?, default is no')
     parser.add_argument('--use_gasre', dest='use_gasre', action='store_true', default=False, help='use measurements based on Re estimated from cold gas clumps (instead of that measured from stellar mass profile)?, default is no')
     parser.add_argument('--use_binnedfit', dest='use_binnedfit', action='store_true', default=False, help='use gradient measurements from radially binned Z profile (as opposed to the fit to individual cells)?, default is no')
+    parser.add_argument('--Zgrad_den', metavar='Zgrad_den', type=str, action='store', default='kpc', help='normaliser of Zgrad, either kpc or re; default is kpc')
+    parser.add_argument('--plot_deviation', dest='plot_deviation', action='store_true', default=False, help='make additional plot of deviation in gradient vs things like SFR?, default is no')
+    parser.add_argument('--zcol', metavar='zcol', type=str, action='store', default='sfr', help='x axis quantity for plotting against deviation in MZGR; default is sfr')
+    parser.add_argument('--zmin', metavar='zmin', type=float, action='store', default=None, help='minimum xaxis limit; default is None')
+    parser.add_argument('--zmax', metavar='zmax', type=float, action='store', default=None, help='maximum xaxis limit; default is None')
+    parser.add_argument('--snaphighlight', metavar='snaphighlight', type=str, action='store', default=None, help='highlight any given array of snapshots? default is None')
+
+    # ------- args added for compute_Zscatterd.py ------------------------------
+    parser.add_argument('--res', metavar='res', type=str, action='store', default=0.1, help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
@@ -1130,6 +1147,7 @@ def parse_args(haloname, RDname, fast=False):
         if args.use_onlyDD: args.output = 'DD%04d' % (args.snapnumber)
         else: args.output = 'RD%04d' % (args.snapnumber)
     args.output_arr = [item for item in args.output.split(',')]
+    args.res_arr = [float(item) for item in args.res.split(',')]
     args.output = args.output_arr[0] if len(args.output_arr) == 1 else RDname
     args.move_to = np.array([float(item) for item in args.move_to.split(',')])  # kpc
     args.center_wrt_halo = np.array([float(item) for item in args.center_wrt_halo.split(',')])  # kpc

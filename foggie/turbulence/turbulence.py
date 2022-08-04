@@ -33,6 +33,7 @@ import multiprocessing as multi
 import datetime
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import NearestNDInterpolator
 import shutil
 import ast
 import matplotlib.pyplot as plt
@@ -43,6 +44,7 @@ import scipy.ndimage as ndimage
 from scipy.interpolate import LinearNDInterpolator
 import copy
 import matplotlib.colors as colors
+from matplotlib.collections import LineCollection
 import random
 
 # These imports are FOGGIE-specific files
@@ -113,7 +115,8 @@ def parse_args():
                         'vdisp_vs_mass_res      -  Datashader plot of cell-by-cell velocity dispersion vs. cell mass\n' + \
                         'vdisp_vs_spatial_res   -  Plot of average velocity dispersion vs. spatial resolution\n' + \
                         'vdisp_vs_time          -  Plot of velocity dispersion vs cosmic time\n' + \
-                        'vdisp_SFR_xcorr        -  Time-delay cross-correlation between velocity dispersion and SFR')
+                        'vdisp_SFR_xcorr        -  Time-delay cross-correlation between velocity dispersion and SFR\n' + \
+                        'outflow_projection     -  Temperature projections of the outflow region selection and its edges')
 
     parser.add_argument('--region_filter', metavar='region_filter', type=str, action='store', \
                         help='Do you want to calculate turbulence statistics in different regions? Options are:\n' + \
@@ -593,6 +596,7 @@ def vsf_randompoints(snap):
                 shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
                 snap_name = snap_dir + '/' + snap
             else:
+                snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
                 # Make a dummy directory with the snap name so the script later knows the process running
                 # this snapshot failed if the directory is still there
                 os.makedirs(snap_dir)
@@ -631,97 +635,134 @@ def vsf_randompoints(snap):
         vx = cgm['vx_corrected'].in_units('km/s').v
         vy = cgm['vy_corrected'].in_units('km/s').v
         vz = cgm['vz_corrected'].in_units('km/s').v
+        radius = cgm['radius_corrected'].in_units('kpc').v
         print('Fields loaded')
 
-        # Select random pairs of pixels
-        npairs = int(len(x)/2)
-        ind_A = random.sample(range(len(x)), npairs)
-        ind_B = random.sample(range(len(x)), npairs)
-
-        # Calculate separations and velocity differences
-        sep = np.sqrt((x[ind_A] - x[ind_B])**2. + (y[ind_A] - y[ind_B])**2. + (z[ind_A] - z[ind_B])**2.)
-        vdiff = np.sqrt((vx[ind_A] - vx[ind_B])**2. + (vy[ind_A] - vy[ind_B])**2. + (vz[ind_A] - vz[ind_B])**2.)
-
+        # Loop through bins of radius
+        radius_bins = np.linspace(0., 200., 3)
+        npairs_bins_list = []
+        vsf_list = []
         if (args.region_filter!='none'):
-            seps_fil = []
-            vdiffs_fil = []
-            for i in range(3):
-                if (i==0): bool = (filter < low)
-                if (i==1): bool = (filter > low) & (filter < high)
-                if (i==2): bool = (filter > high)
-                x_fil = x[bool]
-                y_fil = y[bool]
-                z_fil = z[bool]
-                vx_fil = vx[bool]
-                vy_fil = vy[bool]
-                vz_fil = vz[bool]
-                npairs_fil = int(len(x_fil)/2)
-                ind_A_fil = random.sample(range(len(x_fil)), npairs_fil)
-                ind_B_fil = random.sample(range(len(x_fil)), npairs_fil)
-                sep_fil = np.sqrt((x_fil[ind_A_fil] - x_fil[ind_B_fil])**2. + (y_fil[ind_A_fil] - y_fil[ind_B_fil])**2. + (z_fil[ind_A_fil] - z_fil[ind_B_fil])**2.)
-                vdiff_fil = np.sqrt((vx_fil[ind_A_fil] - vx_fil[ind_B_fil])**2. + (vy_fil[ind_A_fil] - vy_fil[ind_B_fil])**2. + (vz_fil[ind_A_fil] - vz_fil[ind_B_fil])**2.)
-                seps_fil.append(sep_fil)
-                vdiffs_fil.append(vdiff_fil)
+            vsf_low_list = []
+            vsf_mid_list = []
+            vsf_high_list = []
+            npairs_bins_low = []
+            npairs_bins_mid = []
+            npairs_bins_high = []
+        for r in range(len(radius_bins)-1):
+            r_inner = radius_bins[r]
+            r_outer = radius_bins[r+1]
 
-        # Find average vdiff in bins of pixel separation and save to file
-        f = open(save_dir + snap + '_VSF' + save_suffix + '.dat', 'w')
-        f.write('# Separation [kpc]   VSF [km/s]')
-        if (args.region_filter=='temperature'):
-            f.write('   low-T VSF [km/s]   mid-T VSF[km/s]   high-T VSF [km/s]\n')
-        elif (args.region_filter=='metallicity'):
-            f.write('   low-Z VSF [km/s]   mid-Z VSF[km/s]   high-Z VSF [km/s]\n')
-        elif (args.region_filter=='velocity'):
-            f.write('   low-v VSF [km/s]   mid-v VSF[km/s]   high-v VSF [km/s]\n')
-        else: f.write('\n')
-        sep_bins = np.arange(0.,2.*Rvir+1,1)
-        vsf = np.zeros(len(sep_bins)-1)
-        if (args.region_filter!='none'):
-            vsf_low = np.zeros(len(sep_bins)-1)
-            vsf_mid = np.zeros(len(sep_bins)-1)
-            vsf_high = np.zeros(len(sep_bins)-1)
-            npairs_bins_low = np.zeros(len(sep_bins))
-            npairs_bins_mid = np.zeros(len(sep_bins))
-            npairs_bins_high = np.zeros(len(sep_bins))
-        npairs_bins = np.zeros(len(sep_bins))
-        for i in range(len(sep_bins)-1):
-            npairs_bins[i] += len(sep[(sep > sep_bins[i]) & (sep < sep_bins[i+1])])
-            vsf[i] += np.mean(vdiff[(sep > sep_bins[i]) & (sep < sep_bins[i+1])])
-            f.write('%.5f              %.5f' % (sep_bins[i], vsf[i]))
+            x_bin = x[(radius >= r_inner) & (radius < r_outer)]
+            y_bin = y[(radius >= r_inner) & (radius < r_outer)]
+            z_bin = z[(radius >= r_inner) & (radius < r_outer)]
+            vx_bin = vx[(radius >= r_inner) & (radius < r_outer)]
+            vy_bin = vy[(radius >= r_inner) & (radius < r_outer)]
+            vz_bin = vz[(radius >= r_inner) & (radius < r_outer)]
+
+            # Select random pairs of pixels
+            npairs = int(len(x_bin)/2)
+            ind_A = random.sample(range(len(x_bin)), npairs)
+            ind_B = random.sample(range(len(x_bin)), npairs)
+
+            # Calculate separations and velocity differences
+            sep = np.sqrt((x_bin[ind_A] - x_bin[ind_B])**2. + (y_bin[ind_A] - y_bin[ind_B])**2. + (z_bin[ind_A] - z_bin[ind_B])**2.)
+            vdiff = np.sqrt((vx_bin[ind_A] - vx_bin[ind_B])**2. + (vy_bin[ind_A] - vy_bin[ind_B])**2. + (vz_bin[ind_A] - vz_bin[ind_B])**2.)
+
             if (args.region_filter!='none'):
-                npairs_bins_low[i] += len(seps_fil[0][(seps_fil[0] > sep_bins[i]) & (seps_fil[0] < sep_bins[i+1])])
-                vsf_low[i] += np.mean(vdiffs_fil[0][(seps_fil[0] > sep_bins[i]) & (seps_fil[0] < sep_bins[i+1])])
-                npairs_bins_mid[i] += len(seps_fil[1][(seps_fil[1] > sep_bins[i]) & (seps_fil[1] < sep_bins[i+1])])
-                vsf_mid[i] += np.mean(vdiffs_fil[1][(seps_fil[1] > sep_bins[i]) & (seps_fil[1] < sep_bins[i+1])])
-                npairs_bins_high[i] += len(seps_fil[2][(seps_fil[2] > sep_bins[i]) & (seps_fil[2] < sep_bins[i+1])])
-                vsf_high[i] += np.mean(vdiffs_fil[2][(seps_fil[2] > sep_bins[i]) & (seps_fil[2] < sep_bins[i+1])])
-                f.write('     %.5f           %.5f          %.5f\n' % (vsf_low[i], vsf_mid[i], vsf_high[i]))
-            else:
-                f.write('\n')
-        f.close()
-        bin_centers = sep_bins[:-1] + np.diff(sep_bins)
+                seps_fil = []
+                vdiffs_fil = []
+                for i in range(3):
+                    if (i==0): bool = (filter < low)
+                    if (i==1): bool = (filter > low) & (filter < high)
+                    if (i==2): bool = (filter > high)
+                    x_fil = x_bin[bool]
+                    y_fil = y_bin[bool]
+                    z_fil = z_bin[bool]
+                    vx_fil = vx_bin[bool]
+                    vy_fil = vy_bin[bool]
+                    vz_fil = vz_bin[bool]
+                    npairs_fil = int(len(x_fil)/2)
+                    ind_A_fil = random.sample(range(len(x_fil)), npairs_fil)
+                    ind_B_fil = random.sample(range(len(x_fil)), npairs_fil)
+                    sep_fil = np.sqrt((x_fil[ind_A_fil] - x_fil[ind_B_fil])**2. + (y_fil[ind_A_fil] - y_fil[ind_B_fil])**2. + (z_fil[ind_A_fil] - z_fil[ind_B_fil])**2.)
+                    vdiff_fil = np.sqrt((vx_fil[ind_A_fil] - vx_fil[ind_B_fil])**2. + (vy_fil[ind_A_fil] - vy_fil[ind_B_fil])**2. + (vz_fil[ind_A_fil] - vz_fil[ind_B_fil])**2.)
+                    seps_fil.append(sep_fil)
+                    vdiffs_fil.append(vdiff_fil)
+
+            # Find average vdiff in bins of pixel separation and save to file
+            f = open(save_dir + snap + '_VSF_rbin' + str(r) + save_suffix + '.dat', 'w')
+            f.write('# Inner radius [kpc] Outer radius [kpc] Separation [kpc]   VSF [km/s]')
+            if (args.region_filter=='temperature'):
+                f.write('   low-T VSF [km/s]   mid-T VSF[km/s]   high-T VSF [km/s]\n')
+            elif (args.region_filter=='metallicity'):
+                f.write('   low-Z VSF [km/s]   mid-Z VSF[km/s]   high-Z VSF [km/s]\n')
+            elif (args.region_filter=='velocity'):
+                f.write('   low-v VSF [km/s]   mid-v VSF[km/s]   high-v VSF [km/s]\n')
+            else: f.write('\n')
+            sep_bins = np.arange(0.,2.*Rvir+1,1)
+            vsf_list.append(np.zeros(len(sep_bins)-1))
+            if (args.region_filter!='none'):
+                vsf_low = np.zeros(len(sep_bins)-1)
+                vsf_mid = np.zeros(len(sep_bins)-1)
+                vsf_high = np.zeros(len(sep_bins)-1)
+                npairs_bins_low = np.zeros(len(sep_bins))
+                npairs_bins_mid = np.zeros(len(sep_bins))
+                npairs_bins_high = np.zeros(len(sep_bins))
+            npairs_bins_list.append(np.zeros(len(sep_bins)))
+            for i in range(len(sep_bins)-1):
+                npairs_bins_list[r][i] += len(sep[(sep > sep_bins[i]) & (sep < sep_bins[i+1])])
+                vsf_list[r][i] += np.mean(vdiff[(sep > sep_bins[i]) & (sep < sep_bins[i+1])])
+                f.write('  %.2f              %.2f              %.5f              %.5f' % (r_inner, r_outer, sep_bins[i], vsf_list[r][i]))
+                if (args.region_filter!='none'):
+                    npairs_bins_low[r][i] += len(seps_fil[0][(seps_fil[0] > sep_bins[i]) & (seps_fil[0] < sep_bins[i+1])])
+                    vsf_low[r][i] += np.mean(vdiffs_fil[0][(seps_fil[0] > sep_bins[i]) & (seps_fil[0] < sep_bins[i+1])])
+                    npairs_bins_mid[r][i] += len(seps_fil[1][(seps_fil[1] > sep_bins[i]) & (seps_fil[1] < sep_bins[i+1])])
+                    vsf_mid[r][i] += np.mean(vdiffs_fil[1][(seps_fil[1] > sep_bins[i]) & (seps_fil[1] < sep_bins[i+1])])
+                    npairs_bins_high[r][i] += len(seps_fil[2][(seps_fil[2] > sep_bins[i]) & (seps_fil[2] < sep_bins[i+1])])
+                    vsf_high[r][i] += np.mean(vdiffs_fil[2][(seps_fil[2] > sep_bins[i]) & (seps_fil[2] < sep_bins[i+1])])
+                    f.write('     %.5f           %.5f          %.5f\n' % (vsf_low[r][i], vsf_mid[r][i], vsf_high[r][i]))
+                else:
+                    f.write('\n')
+            f.close()
+            bin_centers = sep_bins[:-1] + np.diff(sep_bins)
     else:
+        radius_bins = np.linspace(0., 200., 3)
         if (args.region_filter!='none'):
-            sep_bins, vsf, vsf_low, vsf_mid, vsf_high = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF' + args.load_vsf + '.dat', unpack=True, usecols=[0,1,2,3,4])
+            vsf_list = []
+            vsf_low_list = []
+            vsf_mid_list = []
+            vsf_high_list = []
+            for r in range(len(radius_bins)-1):
+                inner_r, outer_r, sep_bins, vsf, vsf_low, vsf_mid, vsf_high = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF_rbin' + str(r) + args.load_vsf + '.dat', unpack=True, usecols=[0,1,2,3,4,5,6])
+                vsf_list.append(vsf)
+                vsf_low_list.append(vsf_low)
+                vsf_mid_list.append(vsf_mid)
+                vsf_high_list.append(vsf_high)
         else:
-            sep_bins, vsf = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF' + args.load_vsf + '.dat', unpack=True, usecols=[0,1])
+            vsf_list = []
+            for r in range(len(radius_bins-1)):
+                inner_r, outer_r, sep_bins, vsf = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF_rbin' + str(r) + args.load_vsf + '.dat', unpack=True, usecols=[0,1,2,3])
+                vsf_list.append(vsf)
         sep_bins = np.append(sep_bins, sep_bins[-1]+np.diff(sep_bins)[-1])
         bin_centers = sep_bins[:-1] + np.diff(sep_bins)
 
-    # Calculate expected VSF from subsonic Kolmogorov turbulence
-    Kolmogorov_slope = []
-    for i in range(len(bin_centers)):
-        Kolmogorov_slope.append(vsf[10]*(bin_centers[i]/bin_centers[10])**(1./3.))
-
     # Plot
-    fig = plt.figure(figsize=(8,6),dpi=500)
+    fig = plt.figure(figsize=(8,6),dpi=200)
     ax = fig.add_subplot(1,1,1)
 
-    ax.plot(bin_centers, vsf, 'k-', lw=2)
-    ax.plot(bin_centers, Kolmogorov_slope, 'k--', lw=2)
-    if (args.region_filter!='none'):
-        ax.plot(bin_centers, vsf_low, 'b--', lw=2)
-        ax.plot(bin_centers, vsf_mid, 'g--', lw=2)
-        ax.plot(bin_centers, vsf_high, 'r--', lw=2)
+    alphas = np.linspace(0.5,1.,2)
+    for r in range(len(radius_bins)-1):
+        # Calculate expected VSF from subsonic Kolmogorov turbulence
+        Kolmogorov_slope = []
+        for i in range(len(bin_centers)):
+            Kolmogorov_slope.append(vsf_list[r][10]*(bin_centers[i]/bin_centers[10])**(1./3.))
+        ax.plot(bin_centers, vsf_list[r], 'k-', lw=2, alpha=alphas[r])
+        #ax.plot(bin_centers, Kolmogorov_slope, 'k--', lw=2, alpha=alphas[r])
+        if (args.region_filter!='none'):
+            ax.plot(bin_centers, vsf_low[r], 'b--', lw=2, alpha=alphas[r])
+            ax.plot(bin_centers, vsf_mid[r], 'g--', lw=2, alpha=alphas[r])
+            ax.plot(bin_centers, vsf_high[r], 'r--', lw=2, alpha=alphas[r])
 
     time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
     zsnap = time_table['redshift'][time_table['snap']==snap]
@@ -768,49 +809,91 @@ def vdisp_vs_radius(snap):
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
+        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+        # with it being 1 at higher redshifts and 0.1 at lower redshifts
+        current_time = ds.current_time.in_units('Myr').v
+        if (current_time<=8656.88):
+            density_cut_factor = 1.
+        elif (current_time<=10787.12):
+            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+        else:
+            density_cut_factor = 0.1
+
         pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
         lvl1_res = pix_res*2.**11.
         level = 9
         dx = lvl1_res/(2.**level)
-        smooth_scale = int(25./dx)
+        smooth_scale = int(25./dx)/6.
         refine_res = int(3.*Rvir/dx)
         box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
-        density = box['density'].in_units('g/cm**3').v.flatten()
-        temperature = box['temperature'].v.flatten()
-        radius = box['radius_corrected'].in_units('kpc').v.flatten()
-        radius = radius[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+        density = box['density'].in_units('g/cm**3').v
+        temperature = box['temperature'].v
+        radius = box['radius_corrected'].in_units('kpc').v
+        x = box[('gas','x')].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
+        y = box[('gas','y')].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
+        z = box[('gas','z')].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
+        #radius = radius[(density < cgm_density_max * density_cut_factor)]
         if (args.weight=='mass'):
-            weights = box['cell_mass'].in_units('Msun').v.flatten()
+            weights = box['cell_mass'].in_units('Msun').v
         if (args.weight=='volume'):
-            weights = box['cell_volume'].in_units('kpc**3').v.flatten()
-        weights = weights[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+            weights = box['cell_volume'].in_units('kpc**3').v
+        #weights = weights[(density < cgm_density_max * density_cut_factor)]
         if (args.region_filter=='metallicity'):
-            metallicity = box['metallicity'].in_units('Zsun').v.flatten()
-            metallicity = metallicity[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+            metallicity = box['metallicity'].in_units('Zsun').v
+            #metallicity = metallicity[(density < cgm_density_max * density_cut_factor)]
         if (args.region_filter=='velocity'):
-            rv = box['radial_velocity_corrected'].in_units('km/s').v.flatten()
-            rv = rv[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
-            vff = box['vff'].in_units('km/s').v.flatten()
-            vesc = box['vesc'].in_units('km/s').v.flatten()
-            vff = vff[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
-            vesc = vesc[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
+            rv = box['radial_velocity_corrected'].in_units('km/s').v
+            rv = rv[(density < cgm_density_max * density_cut_factor)]
+            vff = box['vff'].in_units('km/s').v
+            vesc = box['vesc'].in_units('km/s').v
+            vff = vff[(density < cgm_density_max * density_cut_factor)]
+            vesc = vesc[(density < cgm_density_max * density_cut_factor)]
+
+        # Define ISM regions to remove
+        disk_mask = (density > cgm_density_max * density_cut_factor)
+        # disk_mask_expanded is a binary mask of both ISM regions AND their surrounding pixels
+        struct = ndimage.generate_binary_structure(3,3)
+        disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
+        disk_mask_expanded = ndimage.binary_closing(disk_mask_expanded, structure=struct, iterations=3)
+        disk_mask_expanded = disk_mask_expanded | disk_mask
+        # disk_edges is a binary mask of ONLY pixels surrounding ISM regions -- nothing inside ISM regions
+        disk_edges = disk_mask_expanded & ~disk_mask
+        x_edges = x[disk_edges].flatten()
+        y_edges = y[disk_edges].flatten()
+        z_edges = z[disk_edges].flatten()
+        den_edges = density[disk_edges]
+        den_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), den_edges)
+        den_masked = np.copy(density)
+        den_masked[disk_mask] = den_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
 
         vx = box['vx_corrected'].in_units('km/s').v
         vy = box['vy_corrected'].in_units('km/s').v
         vz = box['vz_corrected'].in_units('km/s').v
-        smooth_vx = uniform_filter(vx, size=smooth_scale)
-        smooth_vy = uniform_filter(vy, size=smooth_scale)
-        smooth_vz = uniform_filter(vz, size=smooth_scale)
-        sig_x = (vx - smooth_vx)**2.
-        sig_y = (vy - smooth_vy)**2.
-        sig_z = (vz - smooth_vz)**2.
-        vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.).flatten()
+        vx_edges = vx[disk_edges]
+        vy_edges = vy[disk_edges]
+        vz_edges = vz[disk_edges]
+        vx_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges)
+        vy_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges)
+        vz_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges)
+        vx_masked = np.copy(vx)
+        vy_masked = np.copy(vy)
+        vz_masked = np.copy(vz)
+        vx_masked[disk_mask] = vx_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+        vy_masked[disk_mask] = vy_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+        vz_masked[disk_mask] = vz_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+        smooth_vx = gaussian_filter(vx_masked, smooth_scale)
+        smooth_vy = gaussian_filter(vy_masked, smooth_scale)
+        smooth_vz = gaussian_filter(vz_masked, smooth_scale)
+        sig_x = (vx_masked - smooth_vx)**2.
+        sig_y = (vy_masked - smooth_vy)**2.
+        sig_z = (vz_masked - smooth_vz)**2.
+        vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
 
-        vdisp = vdisp[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
-        new_density = density[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
-        new_temp = temperature[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
-        density = new_density
-        temperature = new_temp
+        #vdisp = vdisp[(density < cgm_density_max * density_cut_factor)]
+        #new_density = density[(density < cgm_density_max * density_cut_factor)]
+        #new_temp = temperature[(density < cgm_density_max * density_cut_factor)]
+        #density = new_density
+        #temperature = new_temp
 
         stats = ['vdisp']
         table = make_table(stats)
@@ -834,6 +917,19 @@ def vdisp_vs_radius(snap):
             vdisp_regions.append(vdisp[temperature > 10**6])
         elif (args.region_filter=='metallicity'):
             regions = ['_low-Z', '_mid-Z', '_high-Z']
+            '''bools = [(metallicity < 0.01), (metallicity > 0.01) & (metallicity < 1.), (metallicity > 1.)]
+            for r in range(len(regions)):
+                vx_r = vx[bools[r]]
+                vy_r = vy[bools[r]]
+                vz_r = vz[bools[r]]
+                smooth_vx_r = gaussian_filter(vx_r, smooth_scale)
+                smooth_vy_r = gaussian_filter(vy_r, smooth_scale)
+                smooth_vz_r = gaussian_filter(vz_r, smooth_scale)
+                sig_x_r = (vx_r - smooth_vx_r)**2.
+                sig_y_r = (vy_r - smooth_vy_r)**2.
+                sig_z_r = (vz_r - smooth_vz_r)**2.
+                vdisp_r = np.sqrt((sig_x_r + sig_y_r + sig_z_r)/3.)
+                vdisp_regions.append(vdisp_r)'''
             weights_regions.append(weights[metallicity < 0.01])
             weights_regions.append(weights[(metallicity > 0.01) & (metallicity < 1)])
             weights_regions.append(weights[metallicity > 1])
@@ -979,7 +1075,7 @@ def vdisp_vs_radius(snap):
 
 def vdisp_vs_mass_res(snap):
     '''Plots the velocity dispersion as a function of cell mass, for all cells in a datashader plot,
-    color-coded by temperature.'''
+    color-coded by metallicity.'''
 
     masses_ind = np.where(masses['snapshot']==snap)[0]
     Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
@@ -1002,67 +1098,86 @@ def vdisp_vs_mass_res(snap):
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
+
     FIRE_res = np.log10(7100.)        # Pandya et al. (2021)
     Illustris_res = np.log10(8.5e4)   # IllustrisTNG website https://www.tng-project.org/about/
 
-    colorparam = 'temperature'
+    colorparam = 'metallicity'
     data_frame = pd.DataFrame({})
     pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
     lvl1_res = pix_res*2.**11.
     level = 9
     dx = lvl1_res/(2.**level)
-    smooth_scale = int(25./dx)
+    smooth_scale = int(25./dx)/6.
     refine_res = int(3.*Rvir/dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
     mass = box['cell_mass'].in_units('Msun').v
     temperature = box['temperature'].v
+    metallicity = box['metallicity'].in_units('Zsun').v
     density = box['density'].in_units('g/cm**3').v
     vx = box['vx_corrected'].in_units('km/s').v
     vy = box['vy_corrected'].in_units('km/s').v
     vz = box['vz_corrected'].in_units('km/s').v
-    smooth_vx = uniform_filter(vx, size=smooth_scale)
-    smooth_vy = uniform_filter(vy, size=smooth_scale)
-    smooth_vz = uniform_filter(vz, size=smooth_scale)
+    smooth_vx = gaussian_filter(vx, smooth_scale)
+    smooth_vy = gaussian_filter(vy, smooth_scale)
+    smooth_vz = gaussian_filter(vz, smooth_scale)
     sig_x = (vx - smooth_vx)**2.
     sig_y = (vy - smooth_vy)**2.
     sig_z = (vz - smooth_vz)**2.
     vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
-    data_frame['temperature'] = np.log10(temperature).flatten()
-    data_frame['temp_cat'] = categorize_by_temp(data_frame['temperature'])
-    data_frame.temp_cat = data_frame.temp_cat.astype('category')
-    color_key = new_phase_color_key
-    cat = 'temp_cat'
-    vdisp_filtered = 1.0*vdisp
-    vdisp_filtered[(density > cgm_density_max) & (temperature < cgm_temperature_min)] = 0.
-    data_frame['vdisp'] = vdisp_filtered.flatten()
+    vdisp = vdisp[(density < cgm_density_max * density_cut_factor)]
+    metallicity = metallicity[(density < cgm_density_max * density_cut_factor)]
+    mass = mass[(density < cgm_density_max * density_cut_factor)]
+    print(np.min(mass), np.max(mass), np.mean(mass), np.median(mass))
+    print(np.min(vdisp), np.max(vdisp), np.mean(vdisp), np.median(vdisp))
+    data_frame['metallicity'] = np.log10(metallicity).flatten()
+    data_frame['met_cat'] = categorize_by_metals(metallicity.flatten())
+    data_frame.met_cat = data_frame.met_cat.astype('category')
+    color_key = new_metals_color_key
+    cat = 'met_cat'
+    data_frame['vdisp'] = vdisp.flatten()
     data_frame['mass'] = np.log10(mass).flatten()
     x_range = [0., 6.]
-    y_range = [0, 200]
+    y_range = [0, 250]
     cvs = dshader.Canvas(plot_width=1000, plot_height=800, x_range=x_range, y_range=y_range)
     agg = cvs.points(data_frame, 'mass', 'vdisp', dshader.count_cat(cat))
-    img = tf.spread(tf.shade(agg, color_key=color_key, how='eq_hist',min_alpha=40), shape='square', px=0)
-    export_image(img, save_dir + snap + '_vdisp_vs_cell-mass_temperature-colored' + save_suffix + '_intermediate')
+    img = tf.spread(tf.shade(agg, color_key=color_key, how='eq_hist',min_alpha=40), shape='square', px=1)
+    export_image(img, save_dir + snap + '_vdisp_vs_cell-mass_metallicity-colored' + save_suffix + '_intermediate')
     fig = plt.figure(figsize=(10,8),dpi=500)
     ax = fig.add_subplot(1,1,1)
-    image = plt.imread(save_dir + snap + '_vdisp_vs_cell-mass_temperature-colored' + save_suffix + '_intermediate.png')
+    image = plt.imread(save_dir + snap + '_vdisp_vs_cell-mass_metallicity-colored' + save_suffix + '_intermediate.png')
     ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
     ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_range[1]-y_range[0])))
     ax.set_xlabel('log Mass Resolution [$M_\odot$]', fontsize=20)
     ax.set_ylabel('Velocity Dispersion [km/s]', fontsize=20)
+    #ax.set_facecolor('0.8')
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
       top=True, right=True)
-    ax.text(5.75, 180, '$z=%.2f$' % (zsnap), fontsize=20, ha='right', va='center')
+    ax.text(5.75, 225, '$z=%.2f$' % (zsnap), fontsize=20, ha='right', va='center')
     #ax.text(5.75, 165, halo_dict[args.halo],ha='right',va='center',fontsize=20)
-    ax.plot([FIRE_res, FIRE_res],[0,200], 'k-', lw=1)
-    ax.text(FIRE_res+0.05, 25, 'FIRE', ha='left', va='center', fontsize=20)
-    ax.plot([Illustris_res,Illustris_res],[0,200], 'k-', lw=1)
-    ax.text(Illustris_res+0.05, 25, 'Illustris\nTNG50', ha='left', va='center', fontsize=20)
+    #ax.plot([FIRE_res, FIRE_res],[0,200], 'k-', lw=1)
+    #ax.text(FIRE_res+0.05, 25, 'FIRE', ha='left', va='center', fontsize=20)
+    #ax.plot([Illustris_res,Illustris_res],[0,200], 'k-', lw=1)
+    #ax.text(Illustris_res+0.05, 25, 'Illustris\nTNG50', ha='left', va='center', fontsize=20)
     ax2 = fig.add_axes([0.7, 0.93, 0.25, 0.06])
-    cmap = create_foggie_cmap(temperature_min_datashader, temperature_max_datashader, categorize_by_temp, new_phase_color_key, log=True)
+    cmap = create_foggie_cmap(metal_min, metal_max, categorize_by_metals, new_metals_color_key, log=True)
+    rng = (np.log10(metal_max)-np.log10(metal_min))/750.
+    start = np.log10(metal_min)
+    color_ticks = [(np.log10(0.01)-start)/rng,(np.log10(0.1)-start)/rng,(np.log10(0.5)-start)/rng,(np.log10(1.)-start)/rng,(np.log10(2.)-start)/rng]
+    color_ticklabels = ['0.01','0.1','0.5','1','2']
     ax2.imshow(np.flip(cmap.to_pil(), 1))
-    ax2.set_xticks([50,300,550])
-    ax2.set_xticklabels(['4','5','6'],fontsize=16)
-    ax2.text(400, 150, 'log T [K]',fontsize=20, ha='center', va='center')
+    ax2.set_xticks(color_ticks)
+    ax2.set_xticklabels(color_ticklabels,fontsize=16)
+    ax2.text(400, 150, 'log Metallicity [$Z_\odot$]',fontsize=20, ha='center', va='center')
     ax2.spines["top"].set_color('white')
     ax2.spines["bottom"].set_color('white')
     ax2.spines["left"].set_color('white')
@@ -1071,8 +1186,8 @@ def vdisp_vs_mass_res(snap):
     ax2.set_xlim(-10, 750)
     ax2.set_yticklabels([])
     ax2.set_yticks([])
-    plt.savefig(save_dir + snap + '_vdisp_vs_cell-mass_temperature-colored' + save_suffix + '.png')
-    os.system('rm ' + save_dir + snap + '_vdisp_vs_cell-mass_temperature-colored' + save_suffix + '_intermediate.png')
+    plt.savefig(save_dir + snap + '_vdisp_vs_cell-mass_metallicity-colored' + save_suffix + '.png')
+    os.system('rm ' + save_dir + snap + '_vdisp_vs_cell-mass_metallicity-colored' + save_suffix + '_intermediate.png')
     plt.close()
 
     # Delete output from temp directory if on pleiades
@@ -1081,8 +1196,8 @@ def vdisp_vs_mass_res(snap):
         shutil.rmtree(snap_dir)
 
 def vdisp_vs_spatial_res(snap):
-    '''Plots the velocity dispersion as a function of simulation spatial resolution in hot, warm,
-    and cold gas regions.'''
+    '''Plots the velocity dispersion as a function of simulation spatial resolution in high metallicity,
+    intermediate metallicity, and low metallicity regions.'''
 
     masses_ind = np.where(masses['snapshot']==snap)[0]
     Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
@@ -1104,6 +1219,16 @@ def vdisp_vs_spatial_res(snap):
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
 
     Fielding_res = 1.4
     Li_res = 0.39
@@ -1127,55 +1252,58 @@ def vdisp_vs_spatial_res(snap):
         temperature = box['temperature'].v
         density = box['density'].in_units('g/cm**3').v
         mass = box['cell_mass'].in_units('Msun').v
+        metallicity = box['metallicity'].in_units('Zsun').v
         vx = box['vx_corrected'].in_units('km/s').v
         vy = box['vy_corrected'].in_units('km/s').v
         vz = box['vz_corrected'].in_units('km/s').v
-        smooth_vx = uniform_filter(vx, size=smooth_scale)
-        smooth_vy = uniform_filter(vy, size=smooth_scale)
-        smooth_vz = uniform_filter(vz, size=smooth_scale)
+        smooth_vx = gaussian_filter(vx, smooth_scale)
+        smooth_vy = gaussian_filter(vy, smooth_scale)
+        smooth_vz = gaussian_filter(vz, smooth_scale)
         sig_x = (vx - smooth_vx)**2.
         sig_y = (vy - smooth_vy)**2.
         sig_z = (vz - smooth_vz)**2.
         vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
-        vdisp_filtered = vdisp[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
-        mass_filtered = mass[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
-        temperature_filtered = temperature[(density < cgm_density_max) & (temperature > cgm_temperature_min)]
-        vdisp_all = weighted_avg_and_std(vdisp_filtered, mass_filtered)[0]
-        vdisp_high = weighted_avg_and_std(vdisp_filtered[(temperature_filtered > 10**6)], \
-          mass_filtered[(temperature_filtered > 10**6)])[0]
-        vdisp_med = weighted_avg_and_std(vdisp_filtered[(temperature_filtered > 10**5) & (temperature_filtered < 10**6)], \
-          mass_filtered[(temperature_filtered > 10**5) & (temperature_filtered < 10**6)])[0]
-        vdisp_low = weighted_avg_and_std(vdisp_filtered[(temperature_filtered < 10**5)], \
-          mass_filtered[(temperature_filtered < 10**5)])[0]
+        vdisp = vdisp[(density < cgm_density_max * density_cut_factor)]
+        mass = mass[(density < cgm_density_max * density_cut_factor)]
+        metallicity = metallicity[(density < cgm_density_max * density_cut_factor)]
+        vdisp_all = weighted_avg_and_std(vdisp, mass)[0]
+        vdisp_high = weighted_avg_and_std(vdisp[(metallicity > 1.)], \
+          mass[(metallicity > 1.)])[0]
+        vdisp_med = weighted_avg_and_std(vdisp[(metallicity > 0.01) & (metallicity < 1.)], \
+          mass[(metallicity > 0.01) & (metallicity < 1.)])[0]
+        vdisp_low = weighted_avg_and_std(vdisp[(metallicity < 0.01)], \
+          mass[(metallicity < 0.01)])[0]
         vdisp_all_list.append(vdisp_all)
         vdisp_high_list.append(vdisp_high)
         vdisp_med_list.append(vdisp_med)
         vdisp_low_list.append(vdisp_low)
+    print(vdisp_high_list)
 
-    fig = plt.figure(figsize=(10,8),dpi=500)
+    fig = plt.figure(figsize=(10,8), dpi=500)
     ax = fig.add_subplot(1,1,1)
 
-    #ax.plot(dxs, vdisp_all_list, marker='o', ls='-', color='k', markersize=8, label='All gas')
-    ax.plot(dxs, vdisp_high_list, marker='o', ls='-', color='darkorange', markersize=8, label='High temperature')
-    ax.plot(dxs, vdisp_med_list, marker='o', ls='-', color="#4daf4a", markersize=8, label='Mid temperature')
-    ax.plot(dxs, vdisp_low_list, marker='o', ls='-', color="#984ea3", markersize=8, label='Low temperature')
+    #ax.plot(dxs, vdisp_all_list, marker='o', ls='--', color='k', markersize=8, label='All gas')
+    ax.plot(dxs, vdisp_high_list, marker='o', ls='-', color='darkorange', markersize=8, label='High metallicity')
+    ax.plot(dxs, vdisp_med_list, marker='o', ls='-', color="#984ea3", markersize=8, label='Mid metallicity')
+    ax.plot(dxs, vdisp_low_list, marker='o', ls='-', color="black", markersize=8, label='Low metallicity')
 
-    ax.plot([Illustris_res,Illustris_res],[-5,70], 'k-', lw=1)
-    ax.text(Illustris_res-0.5, 2, 'Illustris\nTNG50', ha='right', va='center', fontsize=20)
-    ax.plot([Fielding_res,Fielding_res],[-5,70], 'k-', lw=1)
-    ax.text(Fielding_res-0.1, 2, 'Fielding+\n2017', ha='right', va='center', fontsize=20)
-    ax.plot([Li_res,Li_res],[-5,70], 'k-', lw=1)
-    ax.text(Li_res+0.03, 18, 'Li+\n2020', ha='left', va='center', fontsize=20)
+    #ax.plot([Illustris_res,Illustris_res],[-5,70], 'k-', lw=1)
+    #ax.text(Illustris_res-0.5, 2, 'Illustris\nTNG50', ha='right', va='center', fontsize=20)
+    #ax.plot([Fielding_res,Fielding_res],[-5,70], 'k-', lw=1)
+    #ax.text(Fielding_res-0.1, 2, 'Fielding+\n2017', ha='right', va='center', fontsize=20)
+    #ax.plot([Li_res,Li_res],[-5,70], 'k-', lw=1)
+    #ax.text(Li_res+0.03, 18, 'Li+\n2020', ha='left', va='center', fontsize=20)
 
-    ax.set_xlabel('Spatial Resolution [kpc]', fontsize=20)
-    ax.set_ylabel('Velocity dispersion [km/s]', fontsize=20)
-    ax.axis([0.3,20,-5,70])
+    ax.set_xlabel('Spatial Resolution [kpc]', fontsize=24)
+    ax.set_ylabel('Velocity dispersion [km/s]', fontsize=24)
+    ax.axis([1.,20,-5,250])
     ax.set_xscale('log')
-    ax.text(19, 65, '$z=%.2f$' % (zsnap), fontsize=18, ha='right', va='center')
-    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+    ax.text(19, 235, '$z=%.2f$' % (zsnap), fontsize=24, ha='right', va='center')
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=24, \
       top=True, right=True)
-    ax.legend(loc=2, fontsize=18, bbox_to_anchor=(0.06,0.9))
-    plt.savefig(save_dir + snap + '_vdisp_vs_spatial-res_temperature-colored' + save_suffix + '.png')
+    ax.legend(loc=6, fontsize=24, frameon=False)
+    plt.subplots_adjust(left=0.12,bottom=0.11,right=0.97,top=0.96)
+    plt.savefig(save_dir + snap + '_vdisp_vs_spatial-res_metallicity-colored' + save_suffix + '.png')
     plt.close()
 
     # Delete output from temp directory if on pleiades
@@ -1190,10 +1318,10 @@ def vdisp_vs_time(snaplist):
     tablename_prefix = output_dir + 'turbulence_halo_00' + args.halo + '/' + args.run + '/Tables/'
     time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
 
-    plot_colors = ['darkorange', "#4daf4a", "#984ea3"]
-    plot_labels = ['High temperature', 'Mid temperature', 'Low temperature']
-    table_labels = ['high_temperature_', 'mid_temperature_', 'low_temperature_']
-    linestyles = ['-', '-', '-']
+    plot_colors = ['darkorange', "#4daf4a", "#984ea3", 'k']
+    plot_labels = ['$T>10^6$ K', '$10^5 < T < 10^6$ K', '$T < 10^5$ K', 'All gas']
+    table_labels = ['high_temperature_', 'mid_temperature_', 'low_temperature_', '']
+    linestyles = ['--', ':', '-.', '-']
 
     zlist = []
     timelist = []
@@ -1202,7 +1330,7 @@ def vdisp_vs_time(snaplist):
         data_list.append([])
 
     for i in range(len(snaplist)):
-        data = Table.read(tablename_prefix + snaplist[i] + '_' + args.filename + '.hdf5', path='all_data', format='hdf5')
+        data = Table.read(tablename_prefix + snaplist[i] + '_' + args.filename + '.hdf5', path='all_data')
         rvir = rvir_masses['radius'][rvir_masses['snapshot']==snaplist[i]]
         pos_ind = np.where(data['outer_radius']>=args.time_radius*rvir)[0][0]
 
@@ -1257,7 +1385,7 @@ def vdisp_vs_time(snaplist):
         ax.legend(loc=1, frameon=False, fontsize=18)
     #ax.text(4,9,halo_dict[args.halo],ha='left',va='center',fontsize=18)
     plt.subplots_adjust(top=0.9, bottom=0.12, right=0.88, left=0.15)
-    plt.savefig(save_dir + 'vdisp_vs_t' + save_suffix + '.pdf')
+    plt.savefig(save_dir + 'vdisp_vs_t' + save_suffix + '.png')
     plt.close()
 
     print('Plot made!')
@@ -1268,10 +1396,10 @@ def vdisp_SFR_xcorr(snaplist):
     tablename_prefix = output_dir + 'turbulence_halo_00' + args.halo + '/' + args.run + '/Tables/'
     time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
 
-    plot_colors = ['darkorange', "#4daf4a", "#984ea3"]
-    plot_labels = ['High temperature', 'Mid temperature', 'Low temperature']
-    table_labels = ['high_temperature_', 'mid_temperature_', 'low_temperature_']
-    linestyles = ['-', '-', '-']
+    plot_colors = ['darkorange', "#4daf4a", "#984ea3", 'k']
+    plot_labels = ['$T>10^6$ K', '$10^5 < T < 10^6$ K', '$T < 10^5$ K', 'All gas']
+    table_labels = ['high_temperature_', 'mid_temperature_', 'low_temperature_', '']
+    linestyles = ['--', ':', '-.', '-']
 
     zlist = []
     timelist = []
@@ -1337,7 +1465,7 @@ def vdisp_SFR_xcorr(snaplist):
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18)
     ax.grid(which='both',axis='both',alpha=0.25,color='k',lw=1,ls='-')
     plt.subplots_adjust(top=0.97, bottom=0.12, right=0.95, left=0.15)
-    plt.savefig(save_dir + 'xcorr_vdisp-SFR_vs_delay-t' + save_suffix + '.pdf')
+    plt.savefig(save_dir + 'xcorr_vdisp-SFR_vs_delay-t' + save_suffix + '.png')
     plt.close()
 
     print('Plot made!')
@@ -1476,6 +1604,393 @@ def vdisp_slice(snap):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
+def outflow_projection(snap):
+    '''Plots a projection of the outflow region, and then the outflow region + a successively larger
+    region around it.'''
+
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
+        if (args.copy_to_tmp):
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            os.makedirs(snap_dir)
+    else:
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
+
+    masses_ind = np.where(masses['snapshot']==snap)[0]
+    Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
+    Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap]
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))  # at level 11
+    lvl1_res = pix_res*2.**11.
+    level = 10
+    dx = lvl1_res/(2.**level)
+    smooth_scale = (25./dx)/6.
+    dx_cm = dx*1000*cmtopc
+    refine_res = int(300./dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([150.,150.,150.],'kpc'), dims=[refine_res, refine_res, refine_res])
+    density = box['density'].in_units('g/cm**3').v
+    temperature = box['temperature'].v
+    mass = box['cell_mass'].in_units('Msun').v
+    metallicity = box['metallicity'].in_units('Zsun').v
+    pressure = box['pressure'].in_units('erg/cm**3').v
+    cs = box['sound_speed'].in_units('km/s').v
+    vx = box['vx_corrected'].in_units('km/s').v
+    vy = box['vy_corrected'].in_units('km/s').v
+    vz = box['vz_corrected'].in_units('km/s').v
+    x = box[('gas','x')].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
+    y = box[('gas','y')].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
+    z = box[('gas','z')].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
+    r = box['radius_corrected'].in_units('cm').v
+    radius = box['radius_corrected'].in_units('kpc').v
+    x_hat = x/r
+    y_hat = y/r
+    z_hat = z/r
+
+    # This next block needed for removing any ISM regions and then interpolating over the holes left behind
+    # Define ISM regions to remove
+    disk_mask = (density > cgm_density_max * density_cut_factor)
+    # disk_mask_expanded is a binary mask of both ISM regions AND their surrounding pixels
+    struct = ndimage.generate_binary_structure(3,3)
+    disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
+    disk_mask_expanded = ndimage.binary_closing(disk_mask_expanded, structure=struct, iterations=3)
+    disk_mask_expanded = disk_mask_expanded | disk_mask
+    # disk_edges is a binary mask of ONLY pixels surrounding ISM regions -- nothing inside ISM regions
+    disk_edges = disk_mask_expanded & ~disk_mask
+    x_edges = x[disk_edges].flatten()
+    y_edges = y[disk_edges].flatten()
+    z_edges = z[disk_edges].flatten()
+
+    # Cut to only those values closest to removed ISM regions
+    vx_edges = vx[disk_edges]
+    vy_edges = vy[disk_edges]
+    vz_edges = vz[disk_edges]
+    # Interpolate across removed ISM regions
+    vx_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vx_edges)
+    vy_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vy_edges)
+    vz_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vz_edges)
+    vx_masked = np.copy(vx)
+    vy_masked = np.copy(vy)
+    vz_masked = np.copy(vz)
+    # Replace removed ISM regions with interpolated values
+    vx_masked[disk_mask] = vx_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    vy_masked[disk_mask] = vy_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    vz_masked[disk_mask] = vz_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    # Smooth resulting velocity field -- without contamination from ISM regions
+    smooth_vx = gaussian_filter(vx_masked, smooth_scale)
+    smooth_vy = gaussian_filter(vy_masked, smooth_scale)
+    smooth_vz = gaussian_filter(vz_masked, smooth_scale)
+    sig_x = (vx - smooth_vx)**2.
+    sig_y = (vy - smooth_vy)**2.
+    sig_z = (vz - smooth_vz)**2.
+    vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
+
+    # Select the outflow based on temperature
+    #outflow = (temperature > 2e6)
+    # Select the outflow based on metallicity
+    outflow = (metallicity > 1.)
+    outflow = outflow & ~disk_mask
+    # outflow_expanded is a binary mask of both outflow regions AND their surrounding pixels
+    struct = ndimage.generate_binary_structure(3,3)
+    outflow_expanded_2 = ndimage.binary_dilation(outflow, structure=struct, iterations=4)
+    outflow_expanded_2 = outflow_expanded_2 & ~disk_mask
+    outflow_expanded_4 = ndimage.binary_dilation(outflow, structure=struct, iterations=8)
+    outflow_expanded_4 = outflow_expanded_4 & ~disk_mask
+    outflow_expanded_6 = ndimage.binary_dilation(outflow, structure=struct, iterations=12)
+    outflow_expanded_6 = outflow_expanded_6 & ~disk_mask
+    outflow_expanded_8 = ndimage.binary_dilation(outflow, structure=struct, iterations=16)
+    outflow_expanded_8 = outflow_expanded_8 & ~disk_mask
+    outflow_expanded_10 = ndimage.binary_dilation(outflow, structure=struct, iterations=20)
+    outflow_expanded_10 = outflow_expanded_10 & ~disk_mask
+    # outflow_edges is a binary mask of ONLY pixels surrounding outflow regions -- nothing inside outflow regions
+    outflow_edges_2 = outflow_expanded_2 & ~outflow & ~disk_mask
+    outflow_edges_4 = outflow_expanded_4 & ~outflow_expanded_2 & ~disk_mask
+    outflow_edges_6 = outflow_expanded_6 & ~outflow_expanded_4 & ~disk_mask
+    outflow_edges_8 = outflow_expanded_8 & ~outflow_expanded_6 & ~disk_mask
+    outflow_edges_10 = outflow_expanded_10 & ~outflow_expanded_8 & ~disk_mask
+
+    # Make temperature arrays with the outflow and outflow edges masks
+    # Set all cells outside of the regions of interest to a very low value to basically mark it as null
+    '''temperature_outflow = np.copy(temperature)
+    temperature_outflow[~outflow] = 1.
+    temperature_outflow_edges = np.copy(temperature)
+    temperature_outflow_edges[~outflow_edges] = 1.
+    temperature_outflow_expanded = np.copy(temperature)
+    temperature_outflow_expanded[~outflow_expanded] = 1.'''
+    metallicity_outflow = np.copy(metallicity)
+    metallicity_outflow[~outflow] = 0.
+    metallicity_outflow_edges_2 = np.copy(metallicity)
+    metallicity_outflow_edges_2[~outflow_edges_2] = 0.
+    metallicity_outflow_edges_4 = np.copy(metallicity)
+    metallicity_outflow_edges_4[~outflow_edges_4] = 0.
+    metallicity_outflow_edges_6 = np.copy(metallicity)
+    metallicity_outflow_edges_6[~outflow_edges_6] = 0.
+    metallicity_outflow_edges_8 = np.copy(metallicity)
+    metallicity_outflow_edges_8[~outflow_edges_8] = 0.
+    metallicity_outflow_edges_10 = np.copy(metallicity)
+    metallicity_outflow_edges_10[~outflow_edges_10] = 0.
+
+    # Load these back into yt so we can make projections
+    data = dict(temperature = (temperature, "K"), #temperature_outflow = (temperature_outflow, 'K'), \
+                #temperature_outflow_edges = (temperature_outflow_edges, 'K'), \
+                #temperature_outflow_expanded = (temperature_outflow_expanded, 'K'), \
+                density = (density, 'g/cm**3'), pressure = (pressure, 'erg/cm**3'), sound_speed = (cs, 'km/s'), \
+                metallicity = (metallicity, 'Zsun'), metallicity_outflow = (metallicity_outflow, 'Zsun'), \
+                metallicity_outflow_edges_2 = (metallicity_outflow_edges_2, 'Zsun'), \
+                metallicity_outflow_edges_4 = (metallicity_outflow_edges_4, 'Zsun'), \
+                metallicity_outflow_edges_6 = (metallicity_outflow_edges_6, 'Zsun'), \
+                metallicity_outflow_edges_8 = (metallicity_outflow_edges_8, 'Zsun'), \
+                metallicity_outflow_edges_10 = (metallicity_outflow_edges_10, 'Zsun'), \
+                vdisp = (vdisp, 'km/s'))
+    bbox = np.array([[-1.5*Rvir, 1.5*Rvir], [-1.5*Rvir, 1.5*Rvir], [-1.5*Rvir, 1.5*Rvir]])
+    ds = yt.load_uniform_grid(data, temperature.shape, length_unit="kpc", bbox=bbox)
+    ad = ds.all_data()
+
+    # Make cut regions to remove the "null values" from before
+    outflow_region = ad.cut_region("obj['metallicity_outflow'] > 0")
+    no_outflow_region = ad.cut_region("obj['metallicity_outflow'] == 0")
+    outflow_edges_region_2 = ad.cut_region("obj['metallicity_outflow_edges_2'] > 0")
+    outflow_edges_region_4 = ad.cut_region("obj['metallicity_outflow_edges_4'] > 0")
+    outflow_edges_region_6 = ad.cut_region("obj['metallicity_outflow_edges_6'] > 0")
+    outflow_edges_region_8 = ad.cut_region("obj['metallicity_outflow_edges_8'] > 0")
+    outflow_edges_region_10 = ad.cut_region("obj['metallicity_outflow_edges_10'] > 0")
+
+    # Make projection plots
+    '''proj = yt.ProjectionPlot(ds, 'x', 'temperature', data_source=ad, weight_field='density')
+    proj.set_log('temperature', True)
+    proj.set_cmap('temperature', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+    proj.set_zlim('temperature', 1e4,1e7)
+    proj.save(save_dir + snap + '_temperature-projection_x' + save_suffix + '.png')
+
+    proj = yt.ProjectionPlot(ds, 'x', 'temperature_outflow', data_source=outflow_region, weight_field='density')
+    proj.set_log('temperature_outflow', True)
+    proj.set_cmap('temperature_outflow', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+    proj.set_zlim('temperature_outflow', 1e4,1e7)
+    proj.save(save_dir + snap + '_temperature-projection_outflow_x' + save_suffix + '.png')
+
+    proj = yt.ProjectionPlot(ds, 'x', 'temperature_outflow_edges', data_source=outflow_edges_region, weight_field='density')
+    proj.set_log('temperature_outflow_edges', True)
+    proj.set_cmap('temperature_outflow_edges', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+    proj.set_zlim('temperature_outflow_edges', 1e4,1e7)
+    proj.save(save_dir + snap + '_temperature-projection_outflow-edges_x' + save_suffix + '.png')
+
+    proj = yt.ProjectionPlot(ds, 'x', 'temperature_outflow_expanded', data_source=outflow_expanded_region, weight_field='density')
+    proj.set_log('temperature_outflow_expanded', True)
+    proj.set_cmap('temperature_outflow_expanded', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+    proj.set_zlim('temperature_outflow_expanded', 1e4,1e7)
+    proj.save(save_dir + snap + '_temperature-projection_outflow-expanded_x' + save_suffix + '.png')'''
+
+    # Make slice plots
+    '''slc = yt.SlicePlot(ds, 'x', 'temperature', data_source=ad)
+    slc.set_log('temperature', True)
+    slc.set_cmap('temperature', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+    slc.set_zlim('temperature', 1e4,1e7)
+    slc.save(save_dir + snap + '_temperature-slice_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'temperature', data_source=outflow_region)
+    slc.set_log('temperature', True)
+    slc.set_cmap('temperature', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+    slc.set_zlim('temperature', 1e4,1e7)
+    slc.save(save_dir + snap + '_temperature-slice_outflow_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'temperature', data_source=outflow_edges_region)
+    slc.set_log('temperature', True)
+    slc.set_cmap('temperature', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+    slc.set_zlim('temperature', 1e4,1e7)
+    slc.save(save_dir + snap + '_temperature-slice_outflow-edges_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'temperature', data_source=outflow_expanded_region)
+    slc.set_log('temperature', True)
+    slc.set_cmap('temperature', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+    slc.set_zlim('temperature', 1e4,1e7)
+    slc.save(save_dir + snap + '_temperature-slice_outflow-expanded_x' + save_suffix + '.png')'''
+
+    '''slc = yt.SlicePlot(ds, 'x', 'metallicity', data_source=ad)
+    slc.set_cmap('metallicity', metal_color_map)
+    slc.set_zlim('metallicity', metal_min, metal_max)
+    slc.save(save_dir + snap + '_metallicity-slice_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'metallicity', data_source=outflow_region)
+    slc.set_cmap('metallicity', metal_color_map)
+    slc.set_zlim('metallicity', metal_min, metal_max)
+    slc.save(save_dir + snap + '_metallicity-slice_outflow_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'metallicity', data_source=outflow_edges_region)
+    slc.set_cmap('metallicity', metal_color_map)
+    slc.set_zlim('metallicity', metal_min, metal_max)
+    slc.save(save_dir + snap + '_metallicity-slice_outflow-edges_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'metallicity', data_source=outflow_expanded_region)
+    slc.set_cmap('metallicity', metal_color_map)
+    slc.set_zlim('metallicity', metal_min, metal_max)
+    slc.save(save_dir + snap + '_metallicity-slice_outflow-expanded_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'pressure', data_source=outflow_region)
+    slc.set_log('pressure', True)
+    slc.set_cmap('pressure', pressure_color_map)
+    slc.set_zlim('pressure', 1e-18, 1e-12)
+    slc.save(save_dir + snap + '_pressure-slice_outflow_x' + save_suffix + '.png')'''
+
+    '''slc = yt.SlicePlot(ds, 'x', 'vdisp', data_source=ad)
+    cmap = copy.copy(mpl.cm.get_cmap('plasma'))
+    cmap.set_bad(color='w', alpha=1.)
+    slc.set_cmap('vdisp', cmap)
+    slc.set_log('vdisp', False)
+    slc.set_zlim('vdisp', 0, 200)
+    slc.save(save_dir + snap + '_vdisp-slice_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'vdisp', data_source=outflow_region)
+    cmap = copy.copy(mpl.cm.get_cmap('plasma'))
+    cmap.set_under(color='w', alpha=1.)
+    slc.set_cmap('vdisp', cmap)
+    slc.set_log('vdisp', False)
+    slc.set_zlim('vdisp', 0.01, 200)
+    slc.save(save_dir + snap + '_vdisp-slice_outflow_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'vdisp', data_source=outflow_edges_region_2)
+    cmap = copy.copy(mpl.cm.get_cmap('plasma'))
+    cmap.set_under(color='w', alpha=1.)
+    slc.set_cmap('vdisp', cmap)
+    slc.set_log('vdisp', False)
+    slc.set_zlim('vdisp', 0.01, 200)
+    slc.save(save_dir + snap + '_vdisp-slice_outflow-edges-2_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'vdisp', data_source=outflow_edges_region_4)
+    cmap = copy.copy(mpl.cm.get_cmap('plasma'))
+    cmap.set_under(color='w', alpha=1.)
+    slc.set_cmap('vdisp', cmap)
+    slc.set_log('vdisp', False)
+    slc.set_zlim('vdisp', 0.01, 200)
+    slc.save(save_dir + snap + '_vdisp-slice_outflow-edges-4_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'vdisp', data_source=outflow_edges_region_6)
+    cmap = copy.copy(mpl.cm.get_cmap('plasma'))
+    cmap.set_under(color='w', alpha=1.)
+    slc.set_cmap('vdisp', cmap)
+    slc.set_log('vdisp', False)
+    slc.set_zlim('vdisp', 0.01, 200)
+    slc.save(save_dir + snap + '_vdisp-slice_outflow-edges-6_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'vdisp', data_source=outflow_edges_region_8)
+    cmap = copy.copy(mpl.cm.get_cmap('plasma'))
+    cmap.set_under(color='w', alpha=1.)
+    slc.set_cmap('vdisp', cmap)
+    slc.set_log('vdisp', False)
+    slc.set_zlim('vdisp', 0.01, 200)
+    slc.save(save_dir + snap + '_vdisp-slice_outflow-edges-8_x' + save_suffix + '.png')
+
+    slc = yt.SlicePlot(ds, 'x', 'vdisp', data_source=outflow_edges_region_10)
+    cmap = copy.copy(mpl.cm.get_cmap('plasma'))
+    cmap.set_under(color='w', alpha=1.)
+    slc.set_cmap('vdisp', cmap)
+    slc.set_log('vdisp', False)
+    slc.set_zlim('vdisp', 0.01, 200)
+    slc.save(save_dir + snap + '_vdisp-slice_outflow-edges-10_x' + save_suffix + '.png')'''
+
+    # Plot average vdisp, temperature, and metallicity as function of distance from outflow edges
+    dists = np.array([0., 4.*dx, 8.*dx, 12.*dx, 16.*dx, 20.*dx])
+    avg_vdisp = np.array([np.mean(outflow_region['vdisp']), np.mean(outflow_edges_region_2['vdisp']), \
+                np.mean(outflow_edges_region_4['vdisp']), np.mean(outflow_edges_region_6['vdisp']), \
+                np.mean(outflow_edges_region_8['vdisp']), np.mean(outflow_edges_region_10['vdisp'])])
+    avg_vdisp_no_outflow = np.mean(no_outflow_region['vdisp']).v
+    avg_temp = np.log10(np.array([np.mean(outflow_region['temperature']), np.mean(outflow_edges_region_2['temperature']), \
+                np.mean(outflow_edges_region_4['temperature']), np.mean(outflow_edges_region_6['temperature']), \
+                np.mean(outflow_edges_region_8['temperature']), np.mean(outflow_edges_region_10['temperature'])]))
+    avg_temp_no_outflow = np.log10(np.mean(no_outflow_region['temperature']).v)
+    avg_metallicity = np.log10(np.array([np.mean(outflow_region['metallicity']), np.mean(outflow_edges_region_2['metallicity']), \
+                np.mean(outflow_edges_region_4['metallicity']), np.mean(outflow_edges_region_6['metallicity']), \
+                np.mean(outflow_edges_region_8['metallicity']), np.mean(outflow_edges_region_10['metallicity'])]))
+    avg_met_no_outflow = np.log10(np.mean(no_outflow_region['metallicity']).v)
+    print(np.mean(outflow_region['vdisp']), np.median(outflow_region['vdisp']), np.max(outflow_region['vdisp']), np.min(outflow_region['vdisp']))
+    print(np.mean(outflow_region['temperature']), np.median(outflow_region['temperature']), np.max(outflow_region['temperature']), np.min(outflow_region['temperature']))
+    print(np.mean(outflow_region['metallicity']), np.median(outflow_region['metallicity']), np.max(outflow_region['metallicity']), np.min(outflow_region['metallicity']))
+    print('Outflow sound speed:', np.mean(outflow_region['sound_speed']), 'Outflow turbulence Mach number:', np.mean(outflow_region['vdisp']/outflow_region['sound_speed']))
+
+    # Make a collection of line segments for plotting color gradient along line
+    x = np.linspace(0, 20.*dx, 100)
+    avg_vdisp_func = IUS(dists, avg_vdisp)
+    y = avg_vdisp_func(x)
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    # Create a continuous norm to map from data points to colors
+    norm_vdisp = plt.Normalize(0., 200.)
+    lc_vdisp = LineCollection(segments, cmap='plasma', norm=norm_vdisp)
+    # Set the values used for colormapping
+    lc_vdisp.set_array(y)
+    lc_vdisp.set_linewidth(2)
+
+    fig = plt.figure(figsize=(9,6), dpi=500)
+    ax = fig.add_subplot(1,1,1)
+    ax.scatter(dists, avg_vdisp, marker='o', c=avg_vdisp, s=40, cmap='plasma', norm=norm_vdisp)
+    line = ax.add_collection(lc_vdisp)
+    ax.set_xlabel('Distance from edge of outflow [kpc]', fontsize=18)
+    ax.set_ylabel('Mean velocity dispersion [km/s]', fontsize=18)
+    ax.axis([-1,12,0,100])
+    ax.plot([-1,15],[avg_vdisp_no_outflow, avg_vdisp_no_outflow], 'k--', lw=2)
+    ax.text(0, avg_vdisp_no_outflow+1, 'Mean properties outside outflow region', fontsize=18, ha='left', va='bottom')
+    ax.text(0.3, avg_vdisp[0], 'Inside outflow region', fontsize=18, ha='left', va='center')
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+      top=True, right=True)
+
+    ax2 = ax.twinx()
+    temp_cmap = sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True)
+    norm_temp = plt.Normalize(4,7)
+    ax2.scatter(dists, avg_temp, marker='^', c=avg_temp, s=40, cmap=temp_cmap, norm=norm_temp)
+    avg_temp_func = IUS(dists, avg_temp)
+    y = avg_temp_func(x)
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    # Create a continuous norm to map from data points to colors
+    lc_temp = LineCollection(segments, cmap=temp_cmap, norm=norm_temp)
+    # Set the values used for colormapping
+    lc_temp.set_array(y)
+    lc_temp.set_linewidth(2)
+    line = ax2.add_collection(lc_temp)
+    ax2.set_ylabel('log Temperature [K]', fontsize=18)
+    ax2.axis([-1,12,5.3,6.6])
+    #ax2.plot([-1,15],[avg_temp_no_outflow, avg_temp_no_outflow], 'r--', lw=2)
+    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+      top=True, right=True)
+
+    ax3 = ax.twinx()
+    ax3.spines["right"].set_position(("axes", 1.18))
+    norm_met = plt.Normalize(np.log10(5e-3),np.log10(3.))
+    ax3.scatter(dists, avg_metallicity, marker='s', c=avg_metallicity, s=40, cmap=metal_color_map, norm=norm_met)
+    avg_met_func = IUS(dists, avg_metallicity)
+    y = avg_met_func(x)
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    # Create a continuous norm to map from data points to colors
+    lc_met = LineCollection(segments, cmap=metal_color_map, norm=norm_met)
+    # Set the values used for colormapping
+    lc_met.set_array(y)
+    lc_met.set_linewidth(2)
+    line = ax3.add_collection(lc_met)
+    ax3.set_ylabel('log Metallicity [$Z_\odot$]', fontsize=18)
+    ax3.axis([-1,12,-1.25,0.4])
+    #ax3.plot([-1,15],[avg_met_no_outflow, avg_met_no_outflow], 'b--', lw=2)
+    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+      top=True, right=True)
+
+    fig.subplots_adjust(top=0.96,bottom=0.11,right=0.76,left=0.1)
+    fig.savefig(save_dir + snap + '_avg-vdisp-temp-met_vs_dist-from-outflow' + save_suffix + '.png')
+
+
 if __name__ == "__main__":
 
     gtoMsun = 1.989e33
@@ -1523,6 +2038,13 @@ if __name__ == "__main__":
         else:
             target = vdisp_slice
             target_dir = 'vdisp_slice'
+    elif (args.plot=='outflow_projection'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                outflow_projection(outs[i])
+        else:
+            target = outflow_projection
+            target_dir = 'outflow_projection'
     elif (args.plot=='vorticity_slice'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -1593,11 +2115,15 @@ if __name__ == "__main__":
                     t.join()
                 # Delete leftover outputs from failed processes from tmp directory if on pleiades
                 if (args.system=='pleiades_cassi'):
+                    if (args.copy_to_tmp):
+                        snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
+                    else:
+                        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
                     for s in range(len(snaps)):
-                        if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
+                        if (os.path.exists(snap_dir + snaps[s])):
                             print('Deleting failed %s from /tmp' % (snaps[s]))
                             skipped_outs.append(snaps[s])
-                            shutil.rmtree('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])
+                            shutil.rmtree(snap_dir + snaps[s])
             # For any leftover snapshots, run one per processor
             threads = []
             snaps = []
@@ -1611,11 +2137,15 @@ if __name__ == "__main__":
                 t.join()
             # Delete leftover outputs from failed processes from tmp directory if on pleiades
             if (args.system=='pleiades_cassi'):
+                if (args.copy_to_tmp):
+                    snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
+                else:
+                    snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
                 for s in range(len(snaps)):
-                    if (os.path.exists('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])):
+                    if (os.path.exists(snap_dir + snaps[s])):
                         print('Deleting failed %s from /tmp' % (snaps[s]))
                         skipped_outs.append(snaps[s])
-                        shutil.rmtree('/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snaps[s])
+                        shutil.rmtree(snap_dir + snaps[s])
             outs = skipped_outs
 
     print(str(datetime.datetime.now()))

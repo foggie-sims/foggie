@@ -6,7 +6,7 @@
     Notes :      make projection plots for new bigbox runs
     Output :     projection plots as png files
     Author :     Ayan Acharyya
-    Started :    January 2021
+    Started :    January 2022
     Example :    run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/projection_plot_nondefault.py --system ayan_pleiades --foggie_dir bigbox --run 25Mpc_DM_256-L1 --halo test --output RD0111 --width 1000 --do dm --proj x --width 500 --center 0.54212825,0.45856575,0.504577
                  run projection_plot_nondefault.py --halo test --width 1000 --run 25Mpc_DM_256-L1 --center 0.54212825,0.45856575,0.5045
                  run projection_plot_nondefault.py --halo test --width 1000 --run 25Mpc_DM_256-L2 --center 0.54212825,0.462472,0.50848325
@@ -15,12 +15,34 @@
                  run projection_plot_nondefault.py --halo 5133 --width 1000 --run 25Mpc_DM_256-L3 --center_offset " 117,93,-73"
                  run projection_plot_nondefault.py --halo 5205 --width 200 --run 25Mpc_DM_256-L3-gas --output RD0028 --get_center_track --do cellsize
                  run projection_plot_nondefault.py --halo 5205 --width 200 --run nref7c_nref7f --do_all_sims --use_onlyDD --nevery 5 --get_center_track --do gas
-
+                 run projection_plot_nondefault.py --halo 5205 --width 2000 --run nref7c_nref7f --output RD0111 --get_center_track --do mrp --annotate_grids --annotate_box 200,400
+                 run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/projection_plot_nondefault.py --halo 4348 --width 1000 --run natural_9n/25Mpc_DM_256-L3-gas --output RD0052 --center_offset " -12,80,-23" --do gas --annotate_grids --min_level 6
 """
 from header import *
 from util import *
 start_time = time.time()
 sns.set_style('ticks') # instead of darkgrid, so that there are no grids overlaid on the projections
+
+# -----------------------------------------------------------
+def ptype4(pfilter, data):
+    filter = data[(pfilter.filtered_type, "particle_type")] == 4
+    return filter
+
+# ---------------------------------------------------------
+def annotate_box(p, width, ds, unit='kpc', projection='x', center=[0.5, 0.5, 0.5], linewidth=2, color='red'):
+    '''
+    Function to annotate a given yt plot with a box of a given size (width) centered on a given center
+    '''
+    width_code = ds.arr(width, unit).in_units('code_length').value.tolist()
+    proj_dict = {'x': 1, 'y': 2, 'z': 0}
+
+    for left_array, right_array in [[np.array([-1, -1, 0]), np.array([-1, +1, 0])], \
+                                    [np.array([-1, +1, 0]), np.array([+1, +1, 0])], \
+                                    [np.array([+1, +1, 0]), np.array([+1, -1, 0])], \
+                                    [np.array([+1, -1, 0]), np.array([-1, -1, 0])]]:
+        p.annotate_line(center + np.roll(left_array, proj_dict[projection]) * width_code/2, center + np.roll(right_array, proj_dict[projection]) * width_code/2, coord_system='data', plot_args={'color': color, 'linewidth': linewidth},)
+
+    return p
 
 # -----------------------------------------
 def get_box(ds, projection, center, width):
@@ -47,26 +69,37 @@ def projection_plot(args):
     '''
     start_time = time.time()
 
-    field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density'), 'cellsize':('gas', 'd' + args.projection)}
-    cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat, 'cellsize': discrete_cmap}
-    zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1)}
+    field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density'), 'cellsize': ('gas', 'd' + args.projection), 'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass')}
+    cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat, 'cellsize': discrete_cmap, 'grid':'viridis', 'mrp':'viridis'}
+    zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1), 'grid': (1, 11), 'mrp': (1e57, 1e65)}
 
     # ----------- get halo center, either rough center at z=2 from halo catalogue or more accurate center from center track file-------------------
     ds = yt.load(args.snap_name)  # last output
     if 'pleiades' in args.system: halos_filename = '/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list'
     elif args.system == 'ayan_local': halos_filename = '/Users/acharyya/Downloads/out_0.list'
 
+    if 'mrp' in args.do:
+        yt.add_particle_filter("ptype4", function=ptype4, requires=["particle_type"])
+        ds.add_particle_filter('ptype4')
+
     halos = Table.read(halos_filename, format='ascii', header_start=0)
     thishalo = halos[halos['ID'] == int(args.halo[:4])]
 
     if args.center is None:
         if args.get_center_track:
-            trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_interp.dat'
+            trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_sr' + str(float(args.search_radius)) + 'kpc_interp.dat'
+            if not os.path.exists(trackfile):
+                print(trackfile + ' not found..')
+                trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_interp.dat'
+                print('Reading from ' + trackfile + ' instead..')
+            else:
+                print('Reading from ' + trackfile)
+
             df_track_int = pd.read_table(trackfile, delim_whitespace=True)
             center = interp1d(df_track_int['redshift'], df_track_int[['center_x', 'center_y', 'center_z']], axis=0)(ds.current_redshift)
             print('Center from center track file =', center)
         else:
-            center = np.array([thishalo['X'][0] / 25., thishalo['Y'][0] / 25., thishalo['Z'][0] / 25.])  # divided by 25 to convert Mpc units to code units
+            center = np.array([thishalo['X'][0], thishalo['Y'][0], thishalo['Z'][0]])/25 # divided by 25 comoving Mpc^-1 to convert comoving Mpc h^-1 units to code units
             print('Center for L0_gas =', center)
     else:
         center = args.center
@@ -86,9 +119,18 @@ def projection_plot(args):
         width_text = '_width' + str(args.width) + 'kpc'
 
     # -------------annotations and limits -------------------------------
-    if args.annotate_grids: p.annotate_grids(min_level=args.min_level)
-    p.annotate_text((0.06, 0.12), args.halo, coord_system="axis")
+    if args.annotate_grids:
+        p.annotate_grids(min_level=args.min_level)
+
+    if args.annotate_box is not None:
+        box_sizes = [float(item) for item in args.annotate_box.split(',')]
+        for thisbox in box_sizes: # comoving kpc h^-1
+            thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical kpc
+            p = annotate_box(p, thisphys, ds, unit='kpc', projection=args.projection, center=center)
+
+    p.annotate_text((0.06, 0.12), args.halo, coord_system='axis')
     p.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
+    p.annotate_marker(center, coord_system='data')
     if not args.do == 'dm': p.set_cmap(field_dict[args.do], cmap_dict[args.do])
 
     # if args.do == 'cellsize': p.plots[field_dict[args.do]].cb.set_label('cell size (kpc)')
@@ -96,12 +138,15 @@ def projection_plot(args):
     try: p.set_zlim(field_dict[args.do], zmin=zlim_dict[args.do][0], zmax=zlim_dict[args.do][1])
     except: pass
 
-    # -------------optional annotations (if Rvir and M info exists) -------------------------------
+    # -------------optional annotations (if Rvir and Mvir info exists) -------------------------------
     if len(thishalo) > 0:
-        p.annotate_sphere(center, radius=(thishalo['Rvir'], "kpc"), circle_args={"color": "white"})
-        p.annotate_text((0.06, 0.08), "M = "+"{0:.2e}".format(thishalo['Mvir'][0]), coord_system="axis")
+        p.annotate_sphere(center, radius=(thishalo['Rvir'][0] / (1 + ds.current_redshift) / ds.hubble_constant, 'kpc'), circle_args={'color': 'white'}) # comoving kpc h^-1 to physical kpc
+        p.annotate_text((0.06, 0.08), 'M = '+'{0:.2e}'.format(thishalo['Mvir'][0] / ds.hubble_constant), coord_system='axis') # Msun h^-1 to Msun
 
-    p.save(args.output_path + args.halo_name + '_' + args.run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
+    target_dir = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/figs/'
+    Path(target_dir).mkdir(parents=True, exist_ok=True)
+    run = args.run.replace('/', '_')
+    p.save(target_dir + args.halo_name + '_' + run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
     print('This snapshot completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
 
     return p
@@ -118,19 +163,21 @@ if __name__ == '__main__':
     parser.add_argument('--output', metavar='output', type=str, action='store', default='RD0111', help='which output?')
     parser.add_argument('--do', metavar='do', type=str, action='store', default='dm', help='Which particles do you want to plot? Default is gas')
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x')
-    parser.add_argument('--width', metavar='width', type=float, action='store', default=None, help='the extent to which plots will be rendered (each side of a square box), in kpc; default is 1000 kpc')
+    parser.add_argument('--width', metavar='width', type=float, action='store', default=None, help='the extent to which plots will be rendered (each side of a square box), in kpc; default is None, which corresponds to the whole domain')
     parser.add_argument('--fullbox', dest='fullbox', action='store_true', default=False, help='Use full refine box, ignoring args.width?, default is no')
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
     parser.add_argument('--center', metavar='center', type=str, action='store', default=None, help='center of projection in code units')
     parser.add_argument('--center_offset', metavar='center_offset', type=str, action='store', default='0,0,0', help='offset from center in integer cell units')
     parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', default=False, help='Redirect all print statements to a file?, default is no')
     parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
+    parser.add_argument('--annotate_box', metavar='annotate_box', type=str, action='store', default=None, help='comma separated list of comoving box sizes to annotate, default is None')
     parser.add_argument('--min_level', dest='min_level', type=int, action='store', default=3, help='annotate grids min level, default is 3')
     parser.add_argument('--get_center_track', dest='get_center_track', action='store_true', default=False, help='get the halo cneter automatically from the center track file?, default is no')
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available for a given halo?, default is no')
     parser.add_argument('--use_onlyRD', dest='use_onlyRD', action='store_true', default=False, help='Use only the RD snapshots available for a given halo?, default is no')
     parser.add_argument('--use_onlyDD', dest='use_onlyDD', action='store_true', default=False, help='Use only the DD snapshots available for a given halo?, default is no')
     parser.add_argument('--nevery', metavar='nevery', type=int, action='store', default=1, help='use every nth snapshot when do_all_sims is specified; default is 1 i.e., all snapshots will be used')
+    parser.add_argument('--search_radius', metavar='search_radius', type=float, action='store', default=50, help='the radius within which to search for density peak, in comoving kpc; default is 50 ckpc')
 
     args = parser.parse_args()
     if args.center is not None: args.center = [float(item) for item in args.center.split(',')]
