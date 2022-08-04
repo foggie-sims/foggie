@@ -67,7 +67,7 @@ def fit_distribution(Zarr, args, weights=None):
     Function to fit the (log) metallicity distribution out to certain Re, given a dataframe containing metallicity
     Returns the fitted parameters for a skewed Gaussian
     '''
-    print('Inferring stats...')
+    print('Computing stats...')
     Zarr = Zarr.flatten()
     if weights is not None: weights = weights.flatten()
 
@@ -83,10 +83,15 @@ def fit_distribution(Zarr, args, weights=None):
     result = model.fit(y, params, x=x)
 
     Zpeak = ufloat(y[x >= result.params['center'].value][0], 0)
-    Zmean = ufloat(result.params['center'].value, result.params['center'].stderr)
-    Zvar = ufloat(result.params['sigma'].value, result.params['sigma'].stderr)
-    Zskew = ufloat(result.params['gamma'].value, result.params['gamma'].stderr)
-    #Zkurt = ufloat(result.params['amplitude'].value, result.params['amplitude'].stderr)
+    try:
+        Zmean = ufloat(result.params['center'].value, result.params['center'].stderr)
+        Zvar = ufloat(result.params['sigma'].value, result.params['sigma'].stderr)
+        Zskew = ufloat(result.params['gamma'].value, result.params['gamma'].stderr)
+        # Zkurt = ufloat(result.params['amplitude'].value, result.params['amplitude'].stderr)
+    except AttributeError as e:
+        print('The fit went wrong, returning NaNs')
+        Zmean, Zvar, Zskew = ufloat(np.nan, np.nan) * np.ones(3)
+        pass
 
     return result, Zpeak, Z25, Z50, Z75, Zmean, Zvar, Zskew
 
