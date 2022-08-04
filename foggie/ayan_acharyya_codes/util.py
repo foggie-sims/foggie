@@ -1131,6 +1131,9 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--zmax', metavar='zmax', type=float, action='store', default=None, help='maximum xaxis limit; default is None')
     parser.add_argument('--snaphighlight', metavar='snaphighlight', type=str, action='store', default=None, help='highlight any given array of snapshots? default is None')
 
+    # ------- args added for compute_Zscatterd.py ------------------------------
+    parser.add_argument('--res', metavar='res', type=str, action='store', default=0.1, help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')
+
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 
@@ -1144,6 +1147,7 @@ def parse_args(haloname, RDname, fast=False):
         if args.use_onlyDD: args.output = 'DD%04d' % (args.snapnumber)
         else: args.output = 'RD%04d' % (args.snapnumber)
     args.output_arr = [item for item in args.output.split(',')]
+    args.res_arr = [float(item) for item in args.res.split(',')]
     args.output = args.output_arr[0] if len(args.output_arr) == 1 else RDname
     args.move_to = np.array([float(item) for item in args.move_to.split(',')])  # kpc
     args.center_wrt_halo = np.array([float(item) for item in args.center_wrt_halo.split(',')])  # kpc
