@@ -278,7 +278,7 @@ def make_props_table(prop_types):
         names_list += ['phi_bin']
         types_list += ['S5']
 
-    dir_name = ['_all', '_acc']
+    dir_name = ['_all', '_acc', '_non']
     stat_names = ['_med', '_iqr', '_avg', '_std']
     for i in range(len(prop_types)):
         if (args.region_filter != 'none'):
@@ -299,7 +299,8 @@ def make_props_table(prop_types):
                     elif ('covering' in prop_types[i]):
                         if (l==0) and (j==0):
                             names_list += [region_name[k] + 'covering_fraction_acc']
-                            types_list += ['f8']
+                            names_list += [region_name[k] + 'covering_fraction_non']
+                            types_list += ['f8', 'f8']
                     else:
                         names_list += [name]
                         types_list += ['f8']
@@ -966,6 +967,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
         to_shape = shape_edge & new_in_shape & (rv < 100.)
         from_shape = shape & ~new_in_shape
         from_shape_fast = from_shape & (rv > 100.)
+        shape_non = shape_edge & ~to_shape
 
         if (surface[0]=='sphere'):
             to_shape = (rv < 0.) & (to_shape)
@@ -974,6 +976,8 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
         phi_to = phi[to_shape]
         theta_edge = theta[shape_edge]
         phi_edge = phi[shape_edge]
+        theta_non = theta[shape_non]
+        phi_non = phi[shape_non]
         # Calculate covering fraction of accretion
         nside = 32
         pix_area = healpy.nside2pixarea(nside)
@@ -989,24 +993,33 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
             if (phi_bins[p]=='all'):
                 angle_bin_to = np.ones(len(phi_to), dtype=bool)
                 angle_bin_edge = np.ones(len(phi_edge), dtype=bool)
+                angle_bin_non = np.ones(len(phi_non), dtype=bool)
             elif (phi_bins[p]=='major'):
                 angle_bin_to = (phi_to >= 60.) & (phi_to <= 120.)
                 angle_bin_edge = (phi_edge >= 60.) & (phi_edge <= 120.)
+                angle_bin_non = (phi_non >= 60.) & (phi_non <= 120.)
             elif (phi_bins[p]=='minor'):
                 angle_bin_to = (phi_to < 60.) | (phi_to > 120.)
                 angle_bin_edge = (phi_edge < 60.) | (phi_edge > 120.)
+                angle_bin_non = (phi_non < 60.) | (phi_non > 120.)
             pixel_acc = healpy.ang2pix(nside, phi_to[angle_bin_to]*(np.pi/180.), theta_to[angle_bin_to]*(np.pi/180.)+np.pi)
             u, dup_ind = np.unique(pixel_acc, return_index=True)
             covering_acc = len(u)*pix_area
+            pixel_non = healpy.ang2pix(nside, phi_non[angle_bin_non]*(np.pi/180.), theta_non[angle_bin_non]*(np.pi/180.)+np.pi)
+            u, dup_ind = np.unique(pixel_non, return_index=True)
+            covering_non = len(u)*pix_area
             pixel_edge = healpy.ang2pix(nside, phi_edge[angle_bin_edge]*(np.pi/180.), theta_edge[angle_bin_edge]*(np.pi/180.)+np.pi)
             u, dup_ind = np.unique(pixel_edge, return_index=True)
             covering_edge = len(u)*pix_area
             results.append(covering_acc/covering_edge)
+            results.append(covering_non/covering_edge)
             weights_to = weights[to_shape][angle_bin_to]
             weights_edge = weights[shape_edge][angle_bin_edge]
+            weights_non = weights[shape_non][angle_bin_non]
             if (args.region_filter!='none'):
                 region_to = filter[to_shape][angle_bin_to]
                 region_edge = filter[shape_edge][angle_bin_edge]
+                region_non = filter[shape_non][angle_bin_non]
                 for f in range(len(regions)-1):
                     phi_to_f = phi_to[angle_bin_to][(region_to>=regions[f]) & (region_to<regions[f+1])]
                     theta_to_f = theta_to[angle_bin_to][(region_to>=regions[f]) & (region_to<regions[f+1])]
@@ -1014,16 +1027,25 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                     u, dup_ind = np.unique(pixel_f, return_index=True)
                     covering_f = len(u)*pix_area
                     results.append(covering_f/covering_edge)
+                    phi_non_f = phi_non[angle_bin_non][(region_non>=regions[f]) & (region_non<regions[f+1])]
+                    theta_non_f = theta_non[angle_bin_non][(region_non>=regions[f]) & (region_non<regions[f+1])]
+                    pixel_f = healpy.ang2pix(nside, phi_non_f*(np.pi/180.), theta_non_f*(np.pi/180.)+np.pi)
+                    u, dup_ind = np.unique(pixel_f, return_index=True)
+                    covering_f = len(u)*pix_area
+                    results.append(covering_f/covering_edge)
             for i in range(len(properties)):
                 prop_to = properties[i][to_shape][angle_bin_to]
                 prop_edge = properties[i][shape_edge][angle_bin_edge]
+                prop_non = properties[i][shape_non][angle_bin_non]
                 if ('mass' in props[i+1]):
                     results.append(np.sum(prop_edge))
                     results.append(np.sum(prop_to))
+                    results.append(np.sum(prop_non))
                     if (args.region_filter!='none'):
                         for f in range(len(regions)-1):
                             results.append(np.sum(prop_edge[(region_edge>=regions[f]) & (region_edge<regions[f+1])]))
                             results.append(np.sum(prop_to[(region_to>=regions[f]) & (region_to<regions[f+1])]))
+                            results.append(np.sum(prop_non[(region_non>=regions[f]) & (region_non<regions[f+1])]))
                 else:
                     if (len(prop_edge)>0):
                         quantiles = weighted_quantile(prop_edge, weights_edge, np.array([0.25,0.5,0.75]))
@@ -1042,6 +1064,18 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                         results.append(quantiles[1])
                         results.append(quantiles[2]-quantiles[0])
                         avg, std = weighted_avg_and_std(prop_to, weights_to)
+                        results.append(avg)
+                        results.append(std)
+                    else:
+                        results.append(np.nan)
+                        results.append(np.nan)
+                        results.append(np.nan)
+                        results.append(np.nan)
+                    if (len(prop_non)>0):
+                        quantiles = weighted_quantile(prop_non, weights_non, np.array([0.25,0.5,0.75]))
+                        results.append(quantiles[1])
+                        results.append(quantiles[2]-quantiles[0])
+                        avg, std = weighted_avg_and_std(prop_non, weights_non)
                         results.append(avg)
                         results.append(std)
                     else:
@@ -1079,13 +1113,27 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                                 results.append(np.nan)
                                 results.append(np.nan)
                                 results.append(np.nan)
+                            prop_non_f = prop_non[(region_non>=regions[f]) & (region_non<regions[f+1])]
+                            weights_non_f = weights_non[(region_non>=regions[f]) & (region_non<regions[f+1])]
+                            if (len(prop_non_f)>0):
+                                quantiles = weighted_quantile(prop_non_f, weights_non_f, np.array([0.25,0.5,0.75]))
+                                results.append(quantiles[1])
+                                results.append(quantiles[2]-quantiles[0])
+                                avg, std = weighted_avg_and_std(prop_non_f, weights_non_f)
+                                results.append(avg)
+                                results.append(std)
+                            else:
+                                results.append(np.nan)
+                                results.append(np.nan)
+                                results.append(np.nan)
+                                results.append(np.nan)
 
             table.add_row(results)
 
         if ('accretion_direction' in plots):
             plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], vdisp[to_shape], mass[to_shape], metals[to_shape], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r)
         if ('phase_plot' in plots):
-            phase_plots(temperature[to_shape], rv[to_shape], tcool[to_shape], vdisp[to_shape], metallicity[to_shape], mass[to_shape], temperature[shape_edge], rv[shape_edge], tcool[shape_edge], vdisp[shape_edge], metallicity[shape_edge], mass[shape_edge], tsnap, zsnap, prefix, snap, radii[r], save_r)
+            phase_plots(temperature[to_shape], rv[to_shape], tcool[to_shape], vdisp[to_shape], metallicity[to_shape], mass[to_shape], temperature[shape_non], rv[shape_non], tcool[shape_non], vdisp[shape_non], metallicity[shape_non], mass[shape_non], tsnap, zsnap, prefix, snap, radii[r], save_r)
 
     table = set_props_table_units(table)
     table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
@@ -1476,12 +1524,12 @@ def accretion_compare_vs_radius(snap):
         radii = data['radius']
 
     props = ['covering_fraction','mass','metal_mass','temperature','metallicity',
-            'cooling_time','entropy','pressure','radial_velocity','Mach']
-    ranges = [[0,1],[0,0.5],[0,0.25],[1e4,1e7], [5e-3,1], [1e2,1e6], [1,1e2], [1e-17,1e-14], [-300, 200], [0, 15]]
-    logs = [False, False, False, True, True, True, True, True, False, False]
+            'cooling_time','entropy','pressure','radial_velocity','Mach','velocity_dispersion']
+    ranges = [[0,1],[0,0.5],[0,0.25],[1e4,1e7], [5e-3,1], [1e2,1e6], [1,1e2], [1e-17,1e-14], [-300, 200], [0, 15], [0,100]]
+    logs = [False, False, False, True, True, True, True, True, False, False, False]
     ylabels = ['Accretion Covering Fraction', 'Accretion Mass Fraction', 'Accretion Metal Mass Fraction',
               'Temperature [K]', 'Metallicity [$Z_\odot$]', 'Cooling Time [Myr]', 'Entropy [keV cm$^2$]',
-              'Pressure [erg/cm$^3$]', 'Radial Velocity [km/s]', 'Accretion Mach number']
+              'Pressure [erg/cm$^3$]', 'Radial Velocity [km/s]', 'Accretion Mach number', 'Velocity dispersion [km/s]']
 
     if ('phi_bin' in data.columns):
         all = (data['phi_bin']=='all')
@@ -1498,40 +1546,57 @@ def accretion_compare_vs_radius(snap):
         dir_labels = ['_nolegend_']
         dir_colors = ['k']
 
+    if (args.region_filter!='none'):
+        region_file = ['', 'low_', 'mid_']
+        region_colors = ['k', "#984ea3", "#4daf4a", "#ffe34d"]
+        if (args.region_filter=='temperature'):
+            region_labels = ['All temperatures', '$T<10^{4.9}$ K', '$10^{4.9}$ K $<T<10^{5.5}$ K', '$T>10^{5.5}$ K']
+        if (args.region_filter=='metallicity'):
+            region_labels = ['All metallicities', '$Z<10^{-1.5}Z_\odot$', '$10^{-1.5}Z_\odot < Z < 10^{-1}Z_\odot$', '$Z>10^{-1}Z_\odot$']
+    else:
+        region_file = ['']
+
     for i in range(len(props)):
         fig = plt.figure(figsize=(7,5), dpi=200)
         ax = fig.add_subplot(1,1,1)
         for j in range(len(directions)):
-            if (props[i]=='covering_fraction'):
-                labels = ['_nolegend_', '_nolegend_']
-                mults = [1,0.5,0.5]
-                acc_plot = mults[j]*data['covering_fraction_acc'][directions[j]]
-            elif ('mass' in props[i]):
-                labels = ['_nolegend_', '_nolegend_']
-                mults = [1,0.5,0.5]
-                acc_plot = mults[j]*data[props[i] + '_acc'][directions[j]]/data[props[i] + '_all'][directions[j]]
-            elif (props[i]=='Mach'):
-                labels = ['_nolegend_', '_nolegend_']
-                acc_plot = -data['radial_velocity_med_acc'][directions[j]]/data['sound_speed_med_acc'][directions[j]]
-            else:
-                labels = ['Accreting gas', 'All gas']
-                acc_plot = data[props[i] + '_med_acc'][directions[j]]
-            ax.plot(radii, acc_plot, color=dir_colors[j], ls='-', lw=2, label=dir_labels[j])
-            if ('fraction' not in props[i]) and ('mass' not in props[i]) and (props[i]!='Mach'):
-                ax.fill_between(radii, data[props[i] + '_med_acc'][directions[j]]-0.5*data[props[i] + '_iqr_acc'][directions[j]],
-                                data[props[i] + '_med_acc'][directions[j]]+0.5*data[props[i] + '_iqr_acc'][directions[j]],
-                                color=dir_colors[j], alpha=0.3)
-                ax.plot(radii, data[props[i] + '_med_all'][directions[j]], color=dir_colors[j], ls=':', lw=2, label='_nolegend_')
-                ax.fill_between(radii, data[props[i] + '_med_all'][directions[j]]-0.5*data[props[i] + '_iqr_all'][directions[j]],
-                                data[props[i] + '_med_all'][directions[j]]+0.5*data[props[i] + '_iqr_all'][directions[j]],
-                                color=dir_colors[j], alpha=0.3)
-                if (props[i]=='radial_velocity'):
-                    masses = Table.read(masses_dir + 'masses_z-less-2.hdf5', path='all_data')
-                    masses_ind = np.where(masses['snapshot']==snap)[0]
-                    Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
-                    rho = Menc_profile(radii)*gtoMsun/((radii*1000.*cmtopc)**3.) * 3./(4.*np.pi)
-                    vff = -(radii*1000.*cmtopc)/np.sqrt(3.*np.pi/(32.*G*rho))/1e5
-                    if (j==2): ax.plot(radii, vff, 'k--', lw=2, label='Free fall velocity')
+            for k in range(len(region_file)):
+                if (args.direction):
+                    color = dir_colors[j]
+                    label = dir_labels[j]
+                elif (args.region_filter!='none'):
+                    color = region_colors[k]
+                    label = region_labels[k]
+                if (props[i]=='covering_fraction'):
+                    labels = ['_nolegend_', '_nolegend_']
+                    mults = [1,0.5,0.5]
+                    acc_plot = mults[j]*data[region_file[k] + 'covering_fraction_acc'][directions[j]]
+                elif ('mass' in props[i]):
+                    labels = ['_nolegend_', '_nolegend_']
+                    mults = [1,0.5,0.5]
+                    acc_plot = mults[j]*data[region_file[k] + props[i] + '_acc'][directions[j]]/data[region_file[k] + props[i] + '_all'][directions[j]]
+                elif (props[i]=='Mach'):
+                    labels = ['_nolegend_', '_nolegend_']
+                    acc_plot = -data[region_file[k] + 'radial_velocity_med_acc'][directions[j]]/data[region_file[k] + 'sound_speed_med_acc'][directions[j]]
+                else:
+                    labels = ['Accreting gas', 'All gas']
+                    acc_plot = data[region_file[k] + props[i] + '_med_acc'][directions[j]]
+                ax.plot(radii, acc_plot, color=color, ls='-', lw=2, label=label)
+                if ('fraction' not in props[i]) and ('mass' not in props[i]) and (props[i]!='Mach'):
+                    #ax.fill_between(radii, data[props[i] + '_med_acc'][directions[j]]-0.5*data[props[i] + '_iqr_acc'][directions[j]],
+                                    #data[props[i] + '_med_acc'][directions[j]]+0.5*data[props[i] + '_iqr_acc'][directions[j]],
+                                    #color=dir_colors[j], alpha=0.3)
+                    ax.plot(radii, data[region_file[k] + props[i] + '_med_all'][directions[j]], color=color, ls=':', lw=2, label='_nolegend_')
+                    #ax.fill_between(radii, data[props[i] + '_med_all'][directions[j]]-0.5*data[props[i] + '_iqr_all'][directions[j]],
+                                    #data[props[i] + '_med_all'][directions[j]]+0.5*data[props[i] + '_iqr_all'][directions[j]],
+                                    #color=dir_colors[j], alpha=0.3)
+                    if (props[i]=='radial_velocity'):
+                        masses = Table.read(masses_dir + 'masses_z-less-2.hdf5', path='all_data')
+                        masses_ind = np.where(masses['snapshot']==snap)[0]
+                        Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
+                        rho = Menc_profile(radii)*gtoMsun/((radii*1000.*cmtopc)**3.) * 3./(4.*np.pi)
+                        vff = -(radii*1000.*cmtopc)/np.sqrt(3.*np.pi/(32.*G*rho))/1e5
+                        if (j==2) or (k==2): ax.plot(radii, vff, 'k--', lw=2, label='Free fall velocity')
             if (j==len(directions)-1):
                 ax.plot([-100,-100],[-100,-100], color='k', ls='-', lw=2, label=labels[0])
                 ax.plot([-100,-100],[-100,-100], color='k', ls=':', lw=2, label=labels[1])
