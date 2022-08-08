@@ -932,7 +932,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
             regions = [0., 10**4.9, 10**5.5, np.inf]
             filter = np.copy(temperature)
         elif (args.region_filter=='metallicity'):
-            regions = [0., 10**(-1.5), 1e-1, np.inf]
+            regions = [0., 1e-2, 1e-1, np.inf]
             filter = np.copy(metallicity)
 
     # If calculating direction of accretion, set up bins
@@ -1525,7 +1525,7 @@ def accretion_compare_vs_radius(snap):
 
     props = ['covering_fraction','mass','metal_mass','temperature','metallicity',
             'cooling_time','entropy','pressure','radial_velocity','Mach','velocity_dispersion']
-    ranges = [[0,1],[0,0.5],[0,0.25],[1e4,1e7], [5e-3,1], [1e2,1e6], [1,1e2], [1e-17,1e-14], [-300, 200], [0, 15], [0,100]]
+    ranges = [[0,1],[0,0.5],[0,0.25],[1e4,1e7], [5e-3,1], [1e2,1e6], [1,1e3], [1e-17,5e-12], [-300, 200], [0, 15], [0,100]]
     logs = [False, False, False, True, True, True, True, True, False, False, False]
     ylabels = ['Accretion Covering Fraction', 'Accretion Mass Fraction', 'Accretion Metal Mass Fraction',
               'Temperature [K]', 'Metallicity [$Z_\odot$]', 'Cooling Time [Myr]', 'Entropy [keV cm$^2$]',
@@ -1548,16 +1548,17 @@ def accretion_compare_vs_radius(snap):
 
     if (args.region_filter!='none'):
         region_file = ['', 'low_', 'mid_']
-        region_colors = ['k', "#984ea3", "#4daf4a", "#ffe34d"]
         if (args.region_filter=='temperature'):
             region_labels = ['All temperatures', '$T<10^{4.9}$ K', '$10^{4.9}$ K $<T<10^{5.5}$ K', '$T>10^{5.5}$ K']
+            region_colors = ['k', "#984ea3", "#4daf4a", "#ffe34d"]
         if (args.region_filter=='metallicity'):
             region_labels = ['All metallicities', '$Z<10^{-1.5}Z_\odot$', '$10^{-1.5}Z_\odot < Z < 10^{-1}Z_\odot$', '$Z>10^{-1}Z_\odot$']
+            region_colors = ['k',"#4575b4", "#984ea3", "#d73027"]
     else:
         region_file = ['']
 
     for i in range(len(props)):
-        fig = plt.figure(figsize=(7,5), dpi=200)
+        fig = plt.figure(figsize=(7.5,5), dpi=200)
         ax = fig.add_subplot(1,1,1)
         for j in range(len(directions)):
             for k in range(len(region_file)):
@@ -1579,14 +1580,14 @@ def accretion_compare_vs_radius(snap):
                     labels = ['_nolegend_', '_nolegend_']
                     acc_plot = -data[region_file[k] + 'radial_velocity_med_acc'][directions[j]]/data[region_file[k] + 'sound_speed_med_acc'][directions[j]]
                 else:
-                    labels = ['Accreting gas', 'All gas']
+                    labels = ['Accreting gas', 'Non-accreting gas']
                     acc_plot = data[region_file[k] + props[i] + '_med_acc'][directions[j]]
                 ax.plot(radii, acc_plot, color=color, ls='-', lw=2, label=label)
                 if ('fraction' not in props[i]) and ('mass' not in props[i]) and (props[i]!='Mach'):
                     #ax.fill_between(radii, data[props[i] + '_med_acc'][directions[j]]-0.5*data[props[i] + '_iqr_acc'][directions[j]],
                                     #data[props[i] + '_med_acc'][directions[j]]+0.5*data[props[i] + '_iqr_acc'][directions[j]],
                                     #color=dir_colors[j], alpha=0.3)
-                    ax.plot(radii, data[region_file[k] + props[i] + '_med_all'][directions[j]], color=color, ls=':', lw=2, label='_nolegend_')
+                    ax.plot(radii, data[region_file[k] + props[i] + '_med_non'][directions[j]], color=color, ls=':', lw=2, label='_nolegend_')
                     #ax.fill_between(radii, data[props[i] + '_med_all'][directions[j]]-0.5*data[props[i] + '_iqr_all'][directions[j]],
                                     #data[props[i] + '_med_all'][directions[j]]+0.5*data[props[i] + '_iqr_all'][directions[j]],
                                     #color=dir_colors[j], alpha=0.3)
@@ -1597,6 +1598,16 @@ def accretion_compare_vs_radius(snap):
                         rho = Menc_profile(radii)*gtoMsun/((radii*1000.*cmtopc)**3.) * 3./(4.*np.pi)
                         vff = -(radii*1000.*cmtopc)/np.sqrt(3.*np.pi/(32.*G*rho))/1e5
                         if (j==2) or (k==2): ax.plot(radii, vff, 'k--', lw=2, label='Free fall velocity')
+                    if (props[i]=='temperature'):
+                        start_T = data[region_file[k] + 'temperature_med_acc'][directions[j]][-1]
+                        #volume = data[region_file[k] + 'covering_fraction_acc'][directions[j]][1:]*(4.*np.pi*(radii[1:]*1000.*cmtopc)**2.)*np.diff(radii*1000*cmtopc)
+                        pressure = data[region_file[k] + 'pressure_med_acc'][directions[j]]
+                        #PdV = pressure[2:]*np.diff(volume)
+                        #compression_T = PdV/kB + start_T
+                        compression_T = start_T*(pressure/pressure[-1])**(2./5.)
+                        if (j==2) or (k==2): comp_label = '$P\mathrm{d}V$ heating'
+                        else: comp_label = '_nolegend_'
+                        ax.plot(radii, compression_T, color=region_colors[k], ls='--', lw=2, label=comp_label)
             if (j==len(directions)-1):
                 ax.plot([-100,-100],[-100,-100], color='k', ls='-', lw=2, label=labels[0])
                 ax.plot([-100,-100],[-100,-100], color='k', ls=':', lw=2, label=labels[1])
@@ -1606,20 +1617,18 @@ def accretion_compare_vs_radius(snap):
         ax.set_ylabel(ylabels[i], fontsize=16)
         if (logs[i]): ax.set_yscale('log')
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14)
-        if (props[i]=='entropy') or (props[i]=='pressure'):
-            ax.legend(frameon=False, loc=3, fontsize=14, ncol=2)
-            if (props[i]=='entropy'):
-                ax.text(0.05, 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
-            if (props[i]=='pressure'):
-                ax.text(0.95, 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='right', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
-        elif ('mass' in props[i]) or ('fraction' in props[i]) or (props[i]=='Mach'):
+        if ('mass' in props[i]) or ('fraction' in props[i]) or (props[i]=='Mach'):
             ax.legend(frameon=False, loc=2, fontsize=14)
             ax.text(0.95, 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='right', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
+        elif ('velocity_dispersion' in props[i]) or ('metallicity' in props[i]) or \
+          ('temperature' in props[i]) or ('pressure' in props[i]):
+            ax.legend(frameon=False, loc=2, fontsize=14, ncol=2)
+            ax.text(0.95, 0.65, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='right', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
         else:
             ax.legend(frameon=False, loc=2, fontsize=14, ncol=2)
-            ax.text(0.05, 0.1, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='left', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
+            ax.text(0.95, 0.1, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='right', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
 
-        fig.subplots_adjust(left=0.15,bottom=0.14,top=0.95,right=0.95)
+        fig.subplots_adjust(left=0.13,bottom=0.14,top=0.95,right=0.97)
         plt.savefig(save_prefix + snap + '_accretion-compare_vs_radius_' + props[i] + save_suffix + '.png')
         plt.close()
 
