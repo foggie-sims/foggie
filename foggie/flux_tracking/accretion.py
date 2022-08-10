@@ -32,6 +32,7 @@ from astropy.io import ascii
 import multiprocessing as multi
 import scipy.ndimage as ndimage
 from scipy.ndimage import gaussian_filter
+from scipy.ndimage import uniform_filter1d
 import datetime
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 import shutil
@@ -207,6 +208,16 @@ def parse_args():
                         'what weight do you want to use? Options are volume and mass, and default is mass.')
     parser.set_defaults(weight='mass')
 
+    parser.add_argument('--location_compare', dest='location_compare', action='store_true', \
+                        help='If plotting accretion vs time, do you want to plot the accretion at\n' + \
+                        'many different locations in the halo on the same plot? Default is not to do this.')
+    parser.set_defaults(location_compare=False)
+
+    parser.add_argument('--time_avg', metavar='radius', type=float, action='store', \
+                        help='If plotting anything over time and you want to time-average, how long to average over?\n' + \
+                        'Give in units of Myr. Default is not to time-average.')
+    parser.set_defaults(time_avg=0)
+
 
     args = parser.parse_args()
     return args
@@ -289,10 +300,10 @@ def make_props_table(prop_types):
                 for l in range(len(stat_names)):
                     name = region_name[k]
                     name += prop_types[i]
-                    if ('mass' not in prop_types[i]) and ('covering' not in prop_types[i]):
+                    if ('mass' not in prop_types[i]) and ('covering' not in prop_types[i]) and ('energy' not in prop_types[i]):
                         name += stat_names[l]
                     name += dir_name[j]
-                    if ('mass' in prop_types[i]):
+                    if ('mass' in prop_types[i]) or ('energy' in prop_types[i]):
                         if (l==0):
                             names_list += [name]
                             types_list += ['f8']
@@ -320,6 +331,11 @@ def set_props_table_units(table):
             table[key].unit = 'kpc'
         elif ('entropy' in key):
             table[key].unit = 'cm**2*keV'
+        elif ('energy' in key):
+            if ('cooling' in key):
+                table[key].unit = 'erg/s'
+            else:
+                table[key].unit = 'erg'
         elif ('temperature' in key):
             table[key].unit = 'K'
         elif ('density' in key):
@@ -866,6 +882,10 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     props.append('covering_fraction')
     props.append('mass')
     props.append('metal_mass')
+    props.append('thermal_energy')
+    props.append('radial_kinetic_energy')
+    props.append('tangential_kinetic_energy')
+    props.append('cooling_energy')
     props.append('temperature')
     props.append('metallicity')
     props.append('cooling_time')
@@ -898,6 +918,10 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     mass = grid['gas', 'cell_mass'].in_units('Msun').v
     metals = grid['gas', 'metal_mass'].in_units('Msun').v
     sound_speed = grid['gas','sound_speed'].in_units('km/s').v
+    thermal = grid['gas','thermal_energy'].in_units('erg/g').v*grid['gas','cell_mass'].in_units('g').v
+    radial_kinetic = grid['gas','radial_kinetic_energy'].in_units('erg').v
+    tangential_kinetic = grid['gas','tangential_kinetic_energy'].in_units('erg').v
+    cooling_energy = thermal/(tcool*1e6)*dt
     dx = grid['gas','dx'].in_units('kpc').v[0,0,0]
     smooth_scale = (25./dx)/6.
     smooth_vx = gaussian_filter(vx, smooth_scale)
@@ -910,7 +934,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     if (args.weight=='mass'): weights = np.copy(mass)
     if (args.weight=='volume'): weights = grid['gas','cell_volume'].in_units('kpc**3').v
     # Load dark matter velocities and positions and digitize onto grid
-    properties = [mass, metals, temperature, metallicity, tcool, entropy, pressure, rv, sound_speed, vdisp]
+    properties = [mass, metals, thermal, radial_kinetic, tangential_kinetic, cooling_energy, temperature, metallicity, tcool, entropy, pressure, rv, sound_speed, vdisp]
 
     # Calculate new positions of gas cells
     new_x = vx*dt + x
@@ -1037,7 +1061,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                 prop_to = properties[i][to_shape][angle_bin_to]
                 prop_edge = properties[i][shape_edge][angle_bin_edge]
                 prop_non = properties[i][shape_non][angle_bin_non]
-                if ('mass' in props[i+1]):
+                if ('mass' in props[i+1]) or ('energy' in props[i+1]):
                     results.append(np.sum(prop_edge))
                     results.append(np.sum(prop_to))
                     results.append(np.sum(prop_non))
@@ -1167,6 +1191,7 @@ def phase_plots(temp_acc, vel_acc, tcool_acc, vdisp_acc, met_acc, mass_acc, temp
             ax_else.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14)
             ax_acc.text(0.05, 0.9, 'Accreting gas', ha='left', va='center', fontsize=14, transform=ax_acc.transAxes)
             ax_else.text(0.05, 0.9, 'Non-accreting gas', ha='left', va='center', fontsize=14, transform=ax_else.transAxes)
+            if (props_save[j]=='met'): ax_acc.plot([ranges[i][0],ranges[i][1]], [1e-2, 1e-2], 'k-', lw=1)
             cbaxes = fig.add_axes([0.65, 0.95, 0.25, 0.03])
             cbar = plt.colorbar(hist[3], cax=cbaxes, orientation='horizontal', ticks=[])
             cbaxes.text(0, -0.1, 'Less mass', fontsize=16, ha='center', va='top', transform=cbaxes.transAxes)
@@ -1422,9 +1447,10 @@ def accretion_flux_vs_time(snaplist):
         plot_colors = ["#4575b4", "#984ea3", "#d73027", "darkorange", 'k']
         region_label = ['$<0.1Z_\odot$', '$0.1-0.5Z_\odot$', '$0.5-1Z_\odot$', '$>Z_\odot$', 'All']
         region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
-    else:
-        plot_colors = ['k']
-        region_label = ['_nolegend_']
+    elif (args.location_compare):
+        plot_colors = ['m', 'c', 'g', 'b', 'k']
+        region_label = ['Stellar disk', 'Gas disk', '$0.25R_\mathrm{vir}$', '$0.5R_\mathrm{vir}$', '$R_\mathrm{vir}$']
+        filenames = ['_stellar-disk', '_gas-disk', '_0p25Rvir', '_0p5Rvir', '_Rvir']
         region_name = ['']
 
     if (args.direction):
@@ -1432,6 +1458,10 @@ def accretion_flux_vs_time(snaplist):
         angle_labels = ['major axis', 'minor axis']
     else:
         linestyles = ['-']
+
+    if (args.time_avg!=0):
+        dt_step = 5.38*args.output_step
+        avg_window = int(np.ceil(args.time_avg/dt_step))
 
     zlist = []
     timelist = []
@@ -1443,18 +1473,34 @@ def accretion_flux_vs_time(snaplist):
 
     for i in range(len(snaplist)):
         snap = snaplist[i]
-        fluxes = Table.read(tablename_prefix + snap + '_fluxes' + args.load_from_file + '.hdf5', path='all_data')
+        if (args.location_compare):
+            fluxes = Table.read(tablename_prefix + snap + '_fluxes_' + args.load_from_file + filenames[0] + '.hdf5', path='all_data')
+        else:
+            fluxes = Table.read(tablename_prefix + snap + '_fluxes' + args.load_from_file + '.hdf5', path='all_data')
         timelist.append(time_table['time'][time_table['snap']==snap][0]/1000.)
         zlist.append(time_table['redshift'][time_table['snap']==snap][0])
         for j in range(len(plot_colors)):
+            if (args.location_compare):
+                fluxes = Table.read(tablename_prefix + snap + '_fluxes_' + args.load_from_file + filenames[j] + '.hdf5', path='all_data')
             for k in range(len(linestyles)):
                 if (args.direction):
                     if (k==0):
-                        accretion_list[j][k].append(np.sum(fluxes[region_name[j] + 'mass_flux_in'][(fluxes['phi_bin']>=60.) & (fluxes['phi_bin']<120.)]))
+                        accretion_list[j][k].append(np.sum(fluxes[region_name[j] + 'mass_flux_in'][(fluxes['phi_bin']>=60.) & (fluxes['phi_bin']<120.)])-np.sum(fluxes[region_name[j] + 'mass_flux_out'][(fluxes['phi_bin']>=60.) & (fluxes['phi_bin']<120.)]))
                     if (k==1):
-                        accretion_list[j][k].append(np.sum(fluxes[region_name[j] + 'mass_flux_in'][(fluxes['phi_bin']<60.) | (fluxes['phi_bin']>=120.)]))
+                        accretion_list[j][k].append(np.sum(fluxes[region_name[j] + 'mass_flux_in'][(fluxes['phi_bin']<60.) | (fluxes['phi_bin']>=120.)])-np.sum(fluxes[region_name[j] + 'mass_flux_out'][(fluxes['phi_bin']<60.) | (fluxes['phi_bin']>=120.)]))
+                elif (args.location_compare):
+                    accretion_list[j][k].append(fluxes['mass_flux_in'][fluxes['phi_bin']=='all'][0] -fluxes['mass_flux_out'][fluxes['phi_bin']=='all'][0])
                 else:
-                    accretion_list[j][k].append(np.sum(fluxes[region_name[j] + 'mass_flux_in']))
+                    accretion_list[j][k].append(fluxes[region_name[j] + 'mass_flux_in'][fluxes['phi_bin']=='all'][0]-fluxes[region_name[j] + 'mass_flux_out'][fluxes['phi_bin']=='all'][0])
+
+    if (args.time_avg!=0):
+        accretion_list_avgd = []
+        for j in range(len(plot_colors)):
+            accretion_list_avgd.append([])
+            for k in range(len(linestyles)):
+                avg = uniform_filter1d(accretion_list[j][k], size=avg_window)
+                accretion_list_avgd[j].append(avg)
+        accretion_list = accretion_list_avgd
 
     for j in range(len(plot_colors)):
         for k in range(len(linestyles)):
@@ -1464,8 +1510,8 @@ def accretion_flux_vs_time(snaplist):
             if (args.direction) and (j==len(plot_colors)-1):
                 ax.plot([-100,-100], [-100,-100], color='k', ls=linestyles[k], lw=2, label=angle_labels[k])
 
-    ax.axis([np.min(timelist), np.max(timelist), 0.0001, 100])
-    ax.set_ylabel('Accretion Rate [$M_\odot$/yr]', fontsize=24)
+    ax.axis([np.min(timelist), np.max(timelist), 1e-1, 100])
+    ax.set_ylabel('Accretion Rate [$M_\odot$/yr]', fontsize=18)
     ax.set_yscale('log')
 
     zlist.reverse()
@@ -1476,9 +1522,9 @@ def accretion_flux_vs_time(snaplist):
     zlist = np.array(zlist)
 
     ax2 = ax.twiny()
-    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
       top=False, right=True)
-    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
       top=True)
     x0, x1 = ax.get_xlim()
     z_ticks = [2,1.5,1,.75,.5,.3,.2,.1,0]
@@ -1490,21 +1536,22 @@ def accretion_flux_vs_time(snaplist):
     ax2.set_xlim(x0,x1)
     ax2.set_xticks(tick_pos)
     ax2.set_xticklabels(tick_labels)
-    ax2.set_xlabel('Redshift', fontsize=20)
-    ax.set_xlabel('Time [Gyr]', fontsize=20)
+    ax2.set_xlabel('Redshift', fontsize=18)
+    ax.set_xlabel('Time [Gyr]', fontsize=18)
 
     z_sfr, sfr = np.loadtxt(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', unpack=True, usecols=[1,2], skiprows=1)
     t_sfr = time_func(z_sfr)
 
-    ax3 = ax.twinx()
+    '''ax3 = ax.twinx()
     ax3.plot(t_sfr, sfr, 'k:', lw=1)
     ax.plot([timelist[0],timelist[-1]], [0,0], 'k:', lw=1, label='SFR (right axis)')
     ax3.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, right=True)
     ax3.set_ylim(-5,200)
-    ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=20)
+    ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=20)'''
+    ax.plot(t_sfr, sfr, 'k--', lw=1, label='SFR')
 
-    ax.legend(loc=2, fontsize=20, bbox_to_anchor=(1.15,1))
-    fig.subplots_adjust(left=0.1, bottom=0.12, right=0.65, top=0.89)
+    ax.legend(loc='upper center', fontsize=14, bbox_to_anchor=(0.5,-0.15), ncol=6)
+    fig.subplots_adjust(left=0.08, bottom=0.2, right=0.98, top=0.89)
     fig.savefig(prefix + 'accretion_vs_time' + save_suffix + '.png')
     plt.close(fig)
 
@@ -1552,7 +1599,7 @@ def accretion_compare_vs_radius(snap):
             region_labels = ['All temperatures', '$T<10^{4.9}$ K', '$10^{4.9}$ K $<T<10^{5.5}$ K', '$T>10^{5.5}$ K']
             region_colors = ['k', "#984ea3", "#4daf4a", "#ffe34d"]
         if (args.region_filter=='metallicity'):
-            region_labels = ['All metallicities', '$Z<10^{-1.5}Z_\odot$', '$10^{-1.5}Z_\odot < Z < 10^{-1}Z_\odot$', '$Z>10^{-1}Z_\odot$']
+            region_labels = ['All metallicities', '$Z<10^{-2}Z_\odot$', '$10^{-2}Z_\odot < Z < 10^{-1}Z_\odot$', '$Z>10^{-1}Z_\odot$']
             region_colors = ['k',"#4575b4", "#984ea3", "#d73027"]
     else:
         region_file = ['']
@@ -1753,7 +1800,7 @@ if __name__ == "__main__":
 
     if (args.load_from_file!='none'):
         if ('accretion_vs_time' in plots):
-            accretion_vs_time(outs)
+            accretion_flux_vs_time(outs)
         if ('accretion_vs_radius' in plots):
             for i in range(len(outs)):
                 accretion_compare_vs_radius(outs[i])
