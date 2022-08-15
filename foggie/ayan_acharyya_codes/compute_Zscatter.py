@@ -28,7 +28,10 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     Saves plot as .png
     '''
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
-    upto_text = '_upto%.1Fkpc' % dummy_args.upto_kpc if dummy_args.upto_kpc is not None else '_upto%.1FRe' % dummy_args.upto_re
+    if args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % args.upto_re
     outfile_rootname = 'log_metal_distribution%s%s.png' % (upto_text, weightby_text)
     if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
@@ -47,9 +50,9 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     # ----------tidy up figure-------------
     plt.legend(loc='lower right', fontsize=args.fontsize)
     ax.set_xlim(0, args.xmax)
-    ax.set_ylim(0, 2)
+    ax.set_ylim(0, 2.5)
 
-    ax.set_xlabel(r'$\log{(\mathrm{Z/Z}_{\odot})}$', fontsize=args.fontsize)
+    ax.set_xlabel(r'Z/Z$_{\odot}$', fontsize=args.fontsize)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
@@ -57,6 +60,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     # ---------annotate and save the figure----------------------
     plt.text(0.95, 0.95, 'z = %.4F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.text(0.95, 0.9, 't = %.3F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.95, 0.85, args.output, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=False)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)

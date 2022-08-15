@@ -40,6 +40,38 @@ def load_df(args):
     return df
 
 # -----------------------------------
+def plot_all_stats(df, args):
+    '''
+    Function to plot the time evolution of Z distribution statistics, based on an input dataframe
+    '''
+    fig, ax = plt.subplots(1, figsize=(12, 6))
+    fig.subplots_adjust(top=0.95, bottom=0.15, left=0.1, right=0.95)
+    col_arr = ['saddlebrown', 'crimson', 'darkolivegreen', 'salmon', 'cornflowerblue', 'burlywood', 'darkturquoise']
+
+    for i, ycol in enumerate(['Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zvar', 'Zskew']):
+        plt.plot(df['time'], np.log10(df[ycol]), c=col_arr[i], lw=2, label=ycol)
+
+    plt.legend(loc='upper left', fontsize=args.fontsize)
+    ax.set_xlabel('Time (Gyr)', fontsize=args.fontsize)
+    ax.set_ylabel(r'$\log{(\mathrm{Z}/\mathrm{Z}_\odot)}$', fontsize=args.fontsize)
+
+    ax.set_ylim(-2, 2)
+
+    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
+    ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
+
+    if args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % args.upto_re
+
+    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_allstats_vs_time_res%.2Fkpc%s%s.png' % (float(args.res), upto_text, args.weightby_text)
+    fig.savefig(figname)
+    print('Saved', figname)
+
+    return fig
+
+# -----------------------------------
 def plot_MZscatter(args):
     '''
     Function to plot the mass-metallicity scatter relation, based on an input dataframe
@@ -85,6 +117,8 @@ def plot_MZscatter(args):
         df['log_ssfr'] = np.log10(df['ssfr'])
         df['log_sfr'] = np.log10(df['sfr'])
         df = df.sort_values(args.xcol)
+
+        fig3 = plot_all_stats(df, args) #
 
         #df = df[(df[args.xcol] >= args.xmin) & (df[args.xcol] <= args.xmax)]
         #df = df[(df[args.ycol] >= args.ymin) & (df[args.ycol] <= args.ymax)]
