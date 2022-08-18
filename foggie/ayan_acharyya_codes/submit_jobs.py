@@ -51,7 +51,7 @@ def parse_args():
     parser.add_argument('--start', metavar='start', type=int, action='store', default=1)
     parser.add_argument('--stop', metavar='stop', type=int, action='store', default=1)
     parser.add_argument('--mergeHII', metavar='mergeHII', type=float, action='store', default=None)
-    parser.add_argument('--proj', metavar='proj', type=str, action='store', default='s1698')
+    parser.add_argument('--proj', metavar='proj', type=str, action='store', default='s2358')
     parser.add_argument('--halo', metavar='halo', type=str, action='store', default=None)
     parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f')
     parser.add_argument('--prefix', metavar='prefix', type=str, action='store', default=None)
