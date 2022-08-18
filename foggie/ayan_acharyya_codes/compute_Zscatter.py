@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    Aug 2022
     Examples :   run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_re 3 --res 0.1 --nbins 100 --keep --weight mass
-                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass
+                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass --docomoving --fit_multiple
                  run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --xmax 4 --do_all_sims --weight mass --write_file --use_gasre --noplot
 
 """
@@ -28,16 +28,17 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     Saves plot as .png
     '''
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
+    fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
-    outfile_rootname = 'log_metal_distribution%s%s.png' % (upto_text, weightby_text)
+    outfile_rootname = 'log_metal_distribution%s%s%s.png' % (upto_text, weightby_text, fitmultiple_text)
     if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
     # ---------plotting histogram, and if provided, the fit---------
-    fig, ax = plt.subplots(figsize=(8,8))
+    fig, ax = plt.subplots(figsize=(8,6))
     fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.1)
 
     if args.weight is None: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, ec='salmon', density=True, label='Z')
@@ -45,7 +46,12 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
 
     if fit is not None:
         xvals = p[1][:-1] + np.diff(p[1])
-        ax.plot(xvals, fit.best_fit, c='k', lw=2, label='fit')
+        if args.fit_multiple:
+            ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=1, label='total fit')
+            ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label='regular gaussian')
+            ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label='skewed gaussian')
+        else:
+            ax.plot(xvals, fit.best_fit, c='k', lw=2, label='fit')
 
     # ----------tidy up figure-------------
     plt.legend(loc='lower right', fontsize=args.fontsize)
@@ -67,36 +73,74 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
 
     return fig
 
+# ----------------------------------------------------------------
+def skewed_gauss(x, p):
+    '''
+    Equation for skewed gaussian function (to be used by scipy curve_fit)
+    '''
+    y = gauss(x, p[:3]) * (1 + erf((p[3] * x) / np.sqrt(2)))
+    return y
+
+# ----------------------------------------------------------------
+def gauss(x, p):
+    '''
+    Equation for gaussian function (to be used by scipy curve_fit)
+    '''
+    y = p[0] * exp(-((x - p[1]) ** 2) / (2 * p[2] ** 2))
+    return y
+
+# ----------------------------------------------------------------
+def multiple_gauss(x, *p):
+    '''
+    Equation for multiple gaussian functions (to be used by scipy curve_fit)
+    '''
+    y = gauss(x, p[:3]) + skewed_gauss(x, p[3:])
+    return y
+
 # -------------------------------
 def fit_distribution(Zarr, args, weights=None):
     '''
     Function to fit the (log) metallicity distribution out to certain Re, given a dataframe containing metallicity
     Returns the fitted parameters for a skewed Gaussian
     '''
-    print('Computing stats...')
     Zarr = Zarr.flatten()
     if weights is not None: weights = weights.flatten()
 
+    print('Computing stats...')
     Z25 = ufloat(np.percentile(Zarr, 25), 0)
     Z50 = ufloat(np.percentile(Zarr, 50), 0)
     Z75 = ufloat(np.percentile(Zarr, 75), 0)
 
-    model = SkewedGaussianModel()
-    params = model.make_params(amplitude=1, center=1, sigma=1, gamma=0)
 
     y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights, range=(0, args.xmax))
     x = x[:-1] + np.diff(x)/2
-    result = model.fit(y, params, x=x)
 
-    Zpeak = ufloat(y[x >= result.params['center'].value][0], 0)
     try:
-        Zmean = ufloat(result.params['center'].value, result.params['center'].stderr)
-        Zvar = ufloat(result.params['sigma'].value, result.params['sigma'].stderr)
-        Zskew = ufloat(result.params['gamma'].value, result.params['gamma'].stderr)
-        # Zkurt = ufloat(result.params['amplitude'].value, result.params['amplitude'].stderr)
+        if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
+            print('Fitting with one skewed gaussian + one regular guassian...')
+            p0 = [2, 0.1, 0.1, 0.5, 0.5, 0.5, 0]  # initial guess for parameters; [gaussian amplitude, gaussian mean, gaussian sigma, skewed gaussian amplitude, skewed gaussian mean, skewed gaussian sigma, skewed gaussian gamma]
+            lower_bounds = np.zeros(len(p0))
+            upper_bounds = [np.inf, 0.4, 0.1, np.inf, np.inf, np.inf, np.inf]
+            result, cov = curve_fit(multiple_gauss, x, y, p0=p0, bounds=[lower_bounds, upper_bounds], maxfev=int(1e4))
+
+            Zpeak = ufloat(result[3], np.sqrt(cov[3][3]))
+            Zmean = ufloat(result[4], np.sqrt(cov[4][4]))
+            Zvar = ufloat(result[5], np.sqrt(cov[5][5]))
+            Zskew = ufloat(result[6], np.sqrt(cov[6][6]))
+        else: # fitting a single skewed gaussian with SkewedGaussianModel()
+            print('Fitting with one skewed gaussian...')
+            model = SkewedGaussianModel()
+            params = model.make_params(amplitude=0.5, center=0.5, sigma=0.5, gamma=0)
+            result = model.fit(y, params, x=x)
+
+            Zpeak = ufloat(result.params['amplitude'].value, result.params['amplitude'].stderr)
+            Zmean = ufloat(result.params['center'].value, result.params['center'].stderr)
+            Zvar = ufloat(result.params['sigma'].value, result.params['sigma'].stderr)
+            Zskew = ufloat(result.params['gamma'].value, result.params['gamma'].stderr)
+            # Zkurt = ufloat(result.params['amplitude'].value, result.params['amplitude'].stderr)
     except AttributeError as e:
         print('The fit went wrong, returning NaNs')
-        Zmean, Zvar, Zskew = ufloat(np.nan, np.nan) * np.ones(3)
+        Zpeak, Zmean, Zvar, Zskew = ufloat(np.nan, np.nan) * np.ones(4)
         pass
 
     return result, Zpeak, Z25, Z50, Z75, Zmean, Zvar, Zskew
@@ -117,11 +161,12 @@ if __name__ == '__main__':
 
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
+    fitmultiple_text = '_fitmultiple' if dummy_args.fit_multiple else ''
     if dummy_args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % dummy_args.upto_kpc if dummy_args.docomoving else '_upto%.1Fkpc' % dummy_args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % dummy_args.upto_re
-    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZscat%s%s.txt' % (upto_text, weightby_text)
+    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZscat%s%s%s.txt' % (upto_text, weightby_text, fitmultiple_text)
     if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
     if dummy_args.dryrun:
@@ -210,14 +255,6 @@ if __name__ == '__main__':
             mnative = box[('gas', 'mass')].in_units('Msun').ndarray_view()
             mstar = get_disk_stellar_mass(args)  # Msun
             print('native no. of cells =', np.shape(Znative)) #
-            '''
-            fig, ax = plt.subplots(figsize=(8, 8))
-            fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.12)
-            col_arr = ['saddlebrown', 'crimson', 'darkolivegreen', 'salmon', 'cornflowerblue', 'burlywood', 'darkturquoise']
-            
-            pn = plt.hist(Znative, bins=args.nbins, histtype='step', lw=2, density=True, ec=col_arr[index], label='native')
-            if args.weight is not None: pnw = plt.hist(Znative, bins=args.nbins, histtype='step', lw=2, density=True, ec=col_arr[index], ls='--', weights=mnative, label='native mass weighted')
-            '''
             for index, res in enumerate(args.res_arr):
                 ncells = int(box_width / res)
                 box = ds.arbitrary_grid(left_edge=[box_center[0] - box_width_kpc / 2., box_center[1] - box_width_kpc / 2., box_center[2] - box_width_kpc / 2.], \
@@ -232,27 +269,10 @@ if __name__ == '__main__':
                 Ztotal = Zres.sum() / mres.sum() / metallicity_sun # in Zsun
 
                 result, Zpeak, Z25, Z50, Z75, Zmean, Zvar, Zskew = fit_distribution(Zres, args, weights=wres)
+                print('Fitted parameters:\n', result) #
                 if not args.noplot: fig = plot_distribution(Zres, args, weights=wres, fit=result) # plotting the Z profile, with fit
 
-                #pr = plt.hist(Zres.flatten(), bins=args.nbins, histtype='step', lw=2, ec=col_arr[index+1], density=True, label='Z res=%.2F kpc' % (res))
-                #if args.weight is not None: prw = plt.hist(Zres.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, weights=wres.flatten(), ls='--', ec=col_arr[index+1], label=args.weight + ' weighted Z res=%.2Fkpc' % (res))
                 thisrow += [mstar, res, Zpeak.n, Zpeak.s, Z25.n, Z25.s, Z50.n, Z50.s, Z75.n, Z75.s, Zmean.n, Zmean.s, Zvar.n, Zvar.s, Zskew.n, Zskew.s, Ztotal]
-            '''
-            ax.set_xlim(-0.5, 6)
-            plt.legend(loc='lower right', fontsize=args.fontsize)
-            ax.set_xlabel(r'$\log{(\mathrm{Z/Z}_{\odot})}$', fontsize=args.fontsize)
-            ax.set_ylabel('Normalised distribution', fontsize=args.fontsize)
-            ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
-            ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
-
-            filename = args.fig_dir + 'log_metal_dsitribution_%s%s.png' % (upto_text, weightby_text)
-            plt.text(0.95, 0.95, 'z = %.4F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-            plt.text(0.95, 0.9, 't = %.3F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-            plt.savefig(filename, transparent=False)
-            myprint('Saved figure ' + filename, args)
-
-            plt.show(block=False)
-            '''
         else:
             thisrow += (np.ones(17)*np.nan).tolist()
 

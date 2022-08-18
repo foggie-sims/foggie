@@ -26,7 +26,7 @@ def load_df(args):
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
-    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZscat%s%s.txt' % (upto_text, args.weightby_text)
+    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZscat%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text)
 
     df = pd.read_table(grad_filename, delim_whitespace=True)
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
@@ -253,6 +253,7 @@ if __name__ == '__main__':
 
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight
+    args.fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
     if args.ycol == 'metal': args.ycol = 'Zvar' # changing the default ycol to metallicity gradient
     if args.xcol == 'rad': args.xcol = 'log_mass' # changing the default xcol to mass, to make a MZGR plot by default when xcol and ycol aren't specified
     if args.colorcol == ['vrad']: args.colorcol = 'time'
