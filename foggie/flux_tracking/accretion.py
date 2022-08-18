@@ -378,11 +378,11 @@ def weighted_avg_and_std(values, weights):
     variance = np.average((values-average)**2, weights=weights)
     return average, np.sqrt(variance)
 
-def plot_accretion_direction(theta_acc, phi_acc, temperature, metallicity, radial_velocity, cooling_time, vdisp, mass, metal_mass, theta_out, phi_out, tsnap, zsnap, prefix, snap, radius, save_r, theta_acc_dm='', phi_acc_dm='', mass_dm=''):
+def plot_accretion_direction(theta_acc, phi_acc, temperature, metallicity, radial_velocity, cooling_time, vdiv, mass, metal_mass, theta_out, phi_out, tsnap, zsnap, prefix, snap, radius, save_r, theta_acc_dm='', phi_acc_dm='', mass_dm=''):
     '''Plots the temperature, metallicity, radial velocity, cooling time, mass, and metal mass of only those cells
     identified as accreting, while over-plotting contours showing the location of fast outflows.'''
 
-    for c in ['temperature','metallicity','cooling_time','radial_velocity','velocity_dispersion']:
+    for c in ['temperature','metallicity','cooling_time','radial_velocity','velocity_divergence']:
         if (c=='temperature'):
             color_field = 'temperature'
             color_val = np.log10(temperature)
@@ -411,13 +411,13 @@ def plot_accretion_direction(theta_acc, phi_acc, temperature, metallicity, radia
             cmin = -200.
             cmax = 200.
             field_label = 'Radial velocity [km/s]'
-        elif (c=='velocity_dispersion'):
-            color_field = 'vdisp'
-            color_val = vdisp
+        elif (c=='velocity_divergence'):
+            color_field = 'vdiv'
+            color_val = vdiv
             cmap = 'plasma'
-            cmin = 0.
-            cmax = 100.
-            field_label = 'Velocity dispersion [km/s]'
+            cmin = -2e-10
+            cmax = 2e-10
+            field_label = 'Velocity divergence [s$^{-1}$]'
 
         fig1 = plt.figure(num=1, figsize=(10,6), dpi=300)
         contour_fig = plt.figure(num=2)
@@ -893,7 +893,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     props.append('pressure')
     props.append('radial_velocity')
     props.append('sound_speed')
-    props.append('velocity_dispersion')
+    props.append('velocity_divergence')
     table = make_props_table(props)
 
     # Load grid properties
@@ -922,19 +922,16 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     radial_kinetic = grid['gas','radial_kinetic_energy'].in_units('erg').v
     tangential_kinetic = grid['gas','tangential_kinetic_energy'].in_units('erg').v
     cooling_energy = thermal/(tcool*1e6)*dt
-    dx = grid['gas','dx'].in_units('kpc').v[0,0,0]
-    smooth_scale = (25./dx)/6.
-    smooth_vx = gaussian_filter(vx, smooth_scale)
-    smooth_vy = gaussian_filter(vy, smooth_scale)
-    smooth_vz = gaussian_filter(vz, smooth_scale)
-    sig_x = (vx - smooth_vx)**2.
-    sig_y = (vy - smooth_vy)**2.
-    sig_z = (vz - smooth_vz)**2.
-    vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)*(1000.*cmtopc/1e5/stoyr)
+    grad_vel_fields = ds.add_gradient_fields(('gas','vx_corrected'))
+    grad_vel_fields = ds.add_gradient_fields(('gas','vy_corrected'))
+    grad_vel_fields = ds.add_gradient_fields(('gas','vz_corrected'))
+    vdiv = grid['gas','vx_corrected_gradient_x'].in_units('1/s').v + \
+           grid['gas','vy_corrected_gradient_y'].in_units('1/s').v + \
+           grid['gas','vz_corrected_gradient_z'].in_units('1/s').v
     if (args.weight=='mass'): weights = np.copy(mass)
     if (args.weight=='volume'): weights = grid['gas','cell_volume'].in_units('kpc**3').v
     # Load dark matter velocities and positions and digitize onto grid
-    properties = [mass, metals, thermal, radial_kinetic, tangential_kinetic, cooling_energy, temperature, metallicity, tcool, entropy, pressure, rv, sound_speed, vdisp]
+    properties = [mass, metals, thermal, radial_kinetic, tangential_kinetic, cooling_energy, temperature, metallicity, tcool, entropy, pressure, rv, sound_speed, vdiv]
 
     # Calculate new positions of gas cells
     new_x = vx*dt + x
@@ -1155,24 +1152,24 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
             table.add_row(results)
 
         if ('accretion_direction' in plots):
-            plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], vdisp[to_shape], mass[to_shape], metals[to_shape], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r)
+            plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], vdiv[to_shape], mass[to_shape], metals[to_shape], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r)
         if ('phase_plot' in plots):
-            phase_plots(temperature[to_shape], rv[to_shape], tcool[to_shape], vdisp[to_shape], metallicity[to_shape], mass[to_shape], temperature[shape_non], rv[shape_non], tcool[shape_non], vdisp[shape_non], metallicity[shape_non], mass[shape_non], tsnap, zsnap, prefix, snap, radii[r], save_r)
+            phase_plots(temperature[to_shape], rv[to_shape], tcool[to_shape], vdiv[to_shape], metallicity[to_shape], entropy[to_shape], pressure[to_shape], mass[to_shape], temperature[shape_non], rv[shape_non], tcool[shape_non], vdiv[shape_non], metallicity[shape_non], entropy[shape_non], pressure[shape_non], mass[shape_non], tsnap, zsnap, prefix, snap, radii[r], save_r)
 
     table = set_props_table_units(table)
     table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
-def phase_plots(temp_acc, vel_acc, tcool_acc, vdisp_acc, met_acc, mass_acc, temp_else, vel_else, tcool_else, vdisp_else, met_else, mass_else, tsnap, zsnap, prefix, snap, radius, save_r):
+def phase_plots(temp_acc, vel_acc, tcool_acc, vdiv_acc, met_acc, entropy_acc, pressure_acc, mass_acc, temp_else, vel_else, tcool_else, vdiv_else, met_else, entropy_else, pressure_else, mass_else, tsnap, zsnap, prefix, snap, radius, save_r):
     '''Makes 2D phase plots of temperature vs radial velocity, temperature vs cooling time, temperature
     vs velocity dispersion, radial velocity vs velocity dispersion, radial velocity vs cooling time,
     and cooling time vs velocity dispersion for only that gas that is accreting and for the gas that is not
     accreting in the same shell, for a given radius at a given snapshot in time.'''
 
-    props_acc = [np.log10(temp_acc), vel_acc, np.log10(tcool_acc), vdisp_acc, np.log10(met_acc)]
-    props_else = [np.log10(temp_else), vel_else, np.log10(tcool_else), vdisp_else, np.log10(met_else)]
-    props_labels = ['log Temperature [K]', 'Radial velocity [km/s]', 'log Cooling time [Myr]', 'Velocity dispersion [km/s]', 'log Metallicity [$Z_\odot$]']
-    props_save = ['temp', 'rv', 'tcool', 'vdisp', 'met']
-    ranges = [[3,7], [-300,300], [0,6], [0,100], [-4,0.5]]
+    props_acc = [np.log10(temp_acc), vel_acc, np.log10(tcool_acc), vdiv_acc, np.log10(entropy_acc), np.log10(pressure_acc), np.log10(met_acc)]
+    props_else = [np.log10(temp_else), vel_else, np.log10(tcool_else), vdiv_else, np.log10(entropy_else), np.log10(pressure_else), np.log10(met_else)]
+    props_labels = ['log Temperature [K]', 'Radial velocity [km/s]', 'log Cooling time [Myr]', 'Velocity divergence [s$^{-1}$]', 'log Entropy [keV cm$^2$]', 'log Pressure [erg/cm$^3$]', 'log Metallicity [$Z_\odot$]']
+    props_save = ['temp', 'rv', 'tcool', 'vdiv', 'entropy', 'pressure', 'met']
+    ranges = [[3,7], [-300,300], [0,6], [-2e-10,2e-10], [0,3], [-17,-13], [-4,0.5]]
     for i in range(len(props_acc)):
         for j in range(i+1, len(props_acc)):
             fig = plt.figure(figsize=(12,5), dpi=300)
@@ -1191,7 +1188,7 @@ def phase_plots(temp_acc, vel_acc, tcool_acc, vdisp_acc, met_acc, mass_acc, temp
             ax_else.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14)
             ax_acc.text(0.05, 0.9, 'Accreting gas', ha='left', va='center', fontsize=14, transform=ax_acc.transAxes)
             ax_else.text(0.05, 0.9, 'Non-accreting gas', ha='left', va='center', fontsize=14, transform=ax_else.transAxes)
-            if (props_save[j]=='met'): ax_acc.plot([ranges[i][0],ranges[i][1]], [1e-2, 1e-2], 'k-', lw=1)
+            if (props_save[j]=='met'): ax_acc.plot([ranges[i][0],ranges[i][1]], [-2, -2], 'k-', lw=1)
             cbaxes = fig.add_axes([0.65, 0.95, 0.25, 0.03])
             cbar = plt.colorbar(hist[3], cax=cbaxes, orientation='horizontal', ticks=[])
             cbaxes.text(0, -0.1, 'Less mass', fontsize=16, ha='center', va='top', transform=cbaxes.transAxes)
@@ -1242,7 +1239,7 @@ def find_shape(ds, surface, snap_props):
     if (args.constant_box!=0.):
         left_edge = ds.halo_center_kpc - ds.arr([max_extent, max_extent, max_extent], 'kpc')
         box_width = ds.arr([int(2.*max_extent/dx), int(2.*max_extent/dx), int(2.*max_extent/dx)])
-        box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width)
+        box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width, num_ghost_zones=1)
     else:
         if (surface[0]=='disk'):
             # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
@@ -1264,7 +1261,7 @@ def find_shape(ds, surface, snap_props):
             z_extent = max([np.max(z)+2.*edge_kpc,np.abs(np.min(z)-2.*edge_kpc)])
             left_edge = ds.halo_center_kpc - ds.arr([x_extent, y_extent, z_extent], 'kpc')
             box_width = np.array([int(2.*x_extent/dx), int(2.*y_extent/dx), int(2.*z_extent/dx)])
-            box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width)
+            box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width, num_ghost_zones=1)
         elif (surface[0]=='stellar_disk'):
             x_stars = data['young_stars8','x_disk'].v
             y_stars = data['young_stars8','y_disk'].v
@@ -1278,15 +1275,15 @@ def find_shape(ds, surface, snap_props):
             z_extent = max([np.max(z_stars)+2.*edge_kpc,np.abs(np.min(z_stars)-2.*edge_kpc)])
             left_edge = ds.halo_center_kpc - ds.arr([x_extent, y_extent, z_extent], 'kpc')
             box_width = np.array([int(2.*x_extent/dx), int(2.*y_extent/dx), int(2.*z_extent/dx)])
-            box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width)
+            box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width, num_ghost_zones=1)
         elif (surface[0]=='sphere'):
             left_edge = ds.halo_center_kpc - ds.arr([max_extent, max_extent, max_extent], 'kpc')
             box_width = ds.arr([int(max_extent*2./dx), int(max_extent*2./dx), int(max_extent*2./dx)], 'kpc')
-            box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width)
+            box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width, num_ghost_zones=1)
         elif (surface[0]=='cylinder'):
             left_edge = ds.halo_center_kpc - ds.arr([max_extent, max_extent, max_extent], 'kpc')
             box_width = ds.arr([int(max_extent*2./dx), int(max_extent*2./dx), int(max_extent*2./dx)])
-            box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width)
+            box = ds.covering_grid(level=args.level, left_edge=left_edge, dims=box_width, num_ghost_zones=1)
 
     if (surface[0]=='disk'):
         # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
@@ -1510,9 +1507,9 @@ def accretion_flux_vs_time(snaplist):
             if (args.direction) and (j==len(plot_colors)-1):
                 ax.plot([-100,-100], [-100,-100], color='k', ls=linestyles[k], lw=2, label=angle_labels[k])
 
-    ax.axis([np.min(timelist), np.max(timelist), 1e-1, 100])
+    ax.axis([np.min(timelist), np.max(timelist), -30, 30])
     ax.set_ylabel('Accretion Rate [$M_\odot$/yr]', fontsize=18)
-    ax.set_yscale('log')
+    #ax.set_yscale('log')
 
     zlist.reverse()
     timelist.reverse()
@@ -1550,8 +1547,10 @@ def accretion_flux_vs_time(snaplist):
     ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=20)'''
     ax.plot(t_sfr, sfr, 'k--', lw=1, label='SFR')
 
+    ax.plot([np.min(timelist), np.max(timelist)], [0,0], 'k-', lw=1)
+
     ax.legend(loc='upper center', fontsize=14, bbox_to_anchor=(0.5,-0.15), ncol=6)
-    fig.subplots_adjust(left=0.08, bottom=0.2, right=0.98, top=0.89)
+    fig.subplots_adjust(left=0.11, bottom=0.2, right=0.98, top=0.89)
     fig.savefig(prefix + 'accretion_vs_time' + save_suffix + '.png')
     plt.close(fig)
 
