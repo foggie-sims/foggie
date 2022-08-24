@@ -266,7 +266,7 @@ if __name__ == '__main__':
                 mres = box['gas', 'mass'].in_units('Msun').ndarray_view()
                 if args.weight is not None: wres = box['gas', args.weight].in_units(unit_dict[args.weight]).ndarray_view()
                 else: wres = None
-                Ztotal = Zres.sum() / mres.sum() / metallicity_sun # in Zsun
+                Ztotal = np.sum(Zres * mres) / np.sum(mres) # in Zsun
 
                 result, Zpeak, Z25, Z50, Z75, Zmean, Zvar, Zskew = fit_distribution(Zres, args, weights=wres)
                 print('Fitted parameters:\n', result) #
