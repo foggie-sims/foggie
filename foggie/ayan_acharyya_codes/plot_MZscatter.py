@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    Aug 2022
     Examples :   run plot_MZscatter.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --keep --weight mass --res 0.1 --xcol log_mass --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
-                 run plot_MZscatter.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --res 0.1 --ycol Zvar --xcol log_mass --colorcol time --zhighlight
+                 run plot_MZscatter.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --res 0.1 --ycol log_Zvar --xcol log_mass --colorcol time --zhighlight --docomoving --fit_multiple
 """
 from header import *
 from util import *
@@ -30,12 +30,21 @@ def load_df(args):
 
     df = pd.read_table(grad_filename, delim_whitespace=True)
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
+
+    Zgrad_den_text = 'rad' if args.upto_kpc is not None else 'rad_re'
+    df2 = pd.read_table(args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text), comment='#', delim_whitespace=True)
+    df = df.merge(df2[['output', 'Zcen_fixedr', 'Zgrad_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr', 'Ztotal_fixedr']], on='output')
+    cols_to_rename = ['Zcen_fixedr', 'Zgrad_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr']
+    df = df.rename(columns=dict(zip(cols_to_rename, [item[:-7] for item in cols_to_rename])))
+
     df.sort_values(by='redshift', ascending=False, ignore_index=True, inplace=True)
 
     if 'res' in df: df = df[df['res'] == float(args.res)]
-    df['log_mass'] = np.log10(df['mass'])
-    df = df.drop('mass', axis=1)
-    df['Ztotal'] = np.log10(df['Ztotal']) + 8.69
+
+    cols_to_log = ['Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zvar', 'Zskew', 'mass', 'Zcen', 'Zcen_binned', 'Ztotal_fixedr']
+    for thiscol in cols_to_log:
+        df['log_' + thiscol] = np.log10(df[thiscol])
+        df = df.drop(thiscol, axis=1)
 
     return df
 
@@ -44,21 +53,69 @@ def plot_all_stats(df, args):
     '''
     Function to plot the time evolution of Z distribution statistics, based on an input dataframe
     '''
-    fig, ax = plt.subplots(1, figsize=(12, 6))
-    fig.subplots_adjust(top=0.95, bottom=0.15, left=0.1, right=0.95)
+    fig, axes = plt.subplots(3, figsize=(12, 10), sharex=True)
+    fig.subplots_adjust(top=0.95, bottom=0.1, left=0.07, right=0.92, hspace=0.05)
+    df = df.sort_values(by='time')
+
+    # -----------for first plot: Z distribution statistics-------------------
     col_arr = ['saddlebrown', 'crimson', 'darkolivegreen', 'salmon', 'cornflowerblue', 'burlywood', 'darkturquoise']
+    for i, ycol in enumerate(['Zskew', 'Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zvar']):
+        axes[0].plot(df['time'], df['log_' + ycol], c=col_arr[i], lw=0.5 if args.overplot_smoothed else 1, alpha = 0.3 if args.overplot_smoothed or ycol == 'Zskew' else 1, label=None if args.overplot_smoothed else ycol)
 
-    for i, ycol in enumerate(['Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zvar', 'Zskew']):
-        plt.plot(df['time'], np.log10(df[ycol]), c=col_arr[i], lw=2, label=ycol)
+        if args.overplot_smoothed:
+            npoints = int(len(df)/8)
+            if npoints % 2 == 0: npoints += 1
+            box = np.ones(npoints) / npoints
+            df['log_' + ycol + '_smoothed'] = np.convolve(df['log_' + ycol], box, mode='same')
+            axes[0].plot(df['time'], df['log_' + ycol + '_smoothed'], c=col_arr[i], lw=2, label=ycol)
+    axes[0].legend(loc='upper left', fontsize=args.fontsize/1.5)
+    axes[0].set_ylabel(r'$\log{(\mathrm{Z}/\mathrm{Z}_\odot)}$', fontsize=args.fontsize)
+    axes[0].set_ylim(-2, 1)
+    axes[0].tick_params(axis='y', labelsize=args.fontsize)
 
-    plt.legend(loc='upper left', fontsize=args.fontsize)
-    ax.set_xlabel('Time (Gyr)', fontsize=args.fontsize)
-    ax.set_ylabel(r'$\log{(\mathrm{Z}/\mathrm{Z}_\odot)}$', fontsize=args.fontsize)
+    # -----------for second plot: Z gradient fitting properties-------------------
+    col_arr = ['saddlebrown', 'crimson', 'darkolivegreen', 'salmon', 'cornflowerblue', 'burlywood', 'darkturquoise']
+    ax1 = axes[1].twinx()
+    for i, ycol in enumerate(['Zgrad', 'Zgrad_binned', 'log_Zcen', 'log_Zcen_binned', 'log_Ztotal_fixedr']):
+        ax_to_plot = axes[1] if i >= 2 else ax1
+        ax_to_plot.plot(df['time'], df[ycol], c=col_arr[i], lw=0.5 if args.overplot_smoothed else 1, alpha = 0.3 if args.overplot_smoothed else 1, label=None if args.overplot_smoothed else ycol[4:] if i >= 2 else ycol)
 
-    ax.set_ylim(-2, 2)
+        if args.overplot_smoothed:
+            npoints = int(len(df)/8)
+            if npoints % 2 == 0: npoints += 1
+            box = np.ones(npoints) / npoints
+            df[ycol + '_smoothed'] = np.convolve(df[ycol], box, mode='same')
+            ax_to_plot.plot(df['time'], df[ycol + '_smoothed'], c=col_arr[i], lw=2, label=ycol)
 
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
-    ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
+    axes[1].legend(loc='upper left', fontsize=args.fontsize/1.5)
+    axes[1].set_ylabel(r'$\log{(\mathrm{Z}/\mathrm{Z}_\odot)}$', fontsize=args.fontsize)
+    axes[1].set_ylim(-2, 1)
+    axes[1].tick_params(axis='y', labelsize=args.fontsize)
+
+    ax1.legend(loc='lower right', fontsize=args.fontsize)
+    ax1.set_ylabel(r'$\Delta Z$ (dex/kpc)', fontsize=args.fontsize)
+    ax1.set_ylim(-0.6, 0)
+    ax1.tick_params(axis='y', labelsize=args.fontsize)
+
+    # -----------for third plot first part: SFR properties-------------------
+    col_arr = ['black', 'brown']
+    axes[2].plot(df['time'], df['sfr'], c=col_arr[0], lw=1)
+
+    axes[2].set_ylabel(label_dict['sfr'], fontsize=args.fontsize, color=col_arr[0])
+    axes[2].set_ylim(0, 50)
+    axes[2].tick_params(axis='y', colors=col_arr[0], labelsize=args.fontsize)
+
+    axes[2].set_xlabel('Time (Gyr)', fontsize=args.fontsize)
+    axes[2].set_xlim(0, 14)
+    axes[2].tick_params(axis='x', labelsize=args.fontsize)
+
+    # -----------for third plot second part: SFR properties-------------------
+    ax2 = axes[2].twinx()
+    ax2.plot(df['time'], df['log_ssfr'], c=col_arr[1], lw=1)
+
+    ax2.set_ylabel(label_dict['log_ssfr'], fontsize=args.fontsize, color=col_arr[1])
+    ax2.set_ylim(-12, -7)
+    ax2.tick_params(axis='y', colors=col_arr[1], labelsize=args.fontsize)
 
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
@@ -68,6 +125,7 @@ def plot_all_stats(df, args):
     figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_allstats_vs_time_res%.2Fkpc%s%s.png' % (float(args.res), upto_text, args.weightby_text)
     fig.savefig(figname)
     print('Saved', figname)
+    plt.show(block=False)
 
     return fig
 
@@ -80,12 +138,6 @@ def plot_MZscatter(args):
     df_master = pd.DataFrame()
     cmap_arr = ['Purples', 'Oranges', 'Greens', 'Blues', 'PuRd', 'YlOrBr']
     things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
-
-    # -------------get plot limits-----------------
-    lim_dict = {'Zpeak': (-2, 0.1), 'Z50': (-2, 0.1), 'Zmean': (-2, 0.1), 'Zvar': (-2, 0.1), 'Zskew': (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (8, 9), 'log_sfr': (-1, 3)}
-    label_dict = MyDefaultDict(Zgrad=r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.Zgrad_den == 're' else r'$\Delta Z$ (dex/kpc)', \
-        re='Scale length (kpc)', log_mass=r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', redshift='Redshift', time='Time (Gyr)', sfr=r'SFR (M$_{\odot}$/yr)', \
-        log_ssfr=r'$\log{\, \mathrm{sSFR} (\mathrm{yr}^{-1})}$', Ztotal=r'$\log{(\mathrm{O/H})}$ + 12', log_sfr=r'$\log{(\mathrm{SFR} (\mathrm{M}_{\odot}/yr))}$')
 
     if args.xmin is None: args.xmin = lim_dict[args.xcol][0]
     if args.xmax is None: args.xmax = lim_dict[args.xcol][1]
@@ -118,7 +170,7 @@ def plot_MZscatter(args):
         df['log_sfr'] = np.log10(df['sfr'])
         df = df.sort_values(args.xcol)
 
-        fig3 = plot_all_stats(df, args) #
+        fig3 = plot_all_stats(df, args)
 
         #df = df[(df[args.xcol] >= args.xmin) & (df[args.xcol] <= args.xmax)]
         #df = df[(df[args.ycol] >= args.ymin) & (df[args.ycol] <= args.ymax)]
@@ -241,8 +293,15 @@ def plot_MZscatter(args):
         fig2 = None
 
     plt.show(block=False)
-    return fig, fig2, df_master
+    return fig, fig2, fig3, df_master
 
+
+# -------------get plot limits-----------------
+lim_dict = {'log_Zpeak': (-2, 0.1), 'log_Z50': (-2, 0.1), 'log_Zmean': (-2, 0.1), 'log_Zvar': (-2, 0.1),
+            'Zskew': (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14),
+            'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (8, 9), 'log_sfr': (-1, 3)}
+label_dict = MyDefaultDict(re='Scale length (kpc)', log_mass=r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', redshift='Redshift', time='Time (Gyr)', sfr=r'SFR (M$_{\odot}$/yr)', \
+    log_ssfr=r'$\log{\, \mathrm{sSFR} (\mathrm{yr}^{-1})}$', Ztotal=r'$\log{(\mathrm{O/H})}$ + 12', log_sfr=r'$\log{(\mathrm{SFR} (\mathrm{M}_{\odot}/yr))}$')
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -254,12 +313,12 @@ if __name__ == '__main__':
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight
     args.fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
-    if args.ycol == 'metal': args.ycol = 'Zvar' # changing the default ycol to metallicity gradient
+    if args.ycol == 'metal': args.ycol = 'log_Zvar' # changing the default ycol to metallicity gradient
     if args.xcol == 'rad': args.xcol = 'log_mass' # changing the default xcol to mass, to make a MZGR plot by default when xcol and ycol aren't specified
     if args.colorcol == ['vrad']: args.colorcol = 'time'
     else: args.colorcol = args.colorcol[0]
 
-    fig, fig2, df_binned = plot_MZscatter(args)
+    fig, fig2, fig3, df_binned = plot_MZscatter(args)
 
     print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
 
