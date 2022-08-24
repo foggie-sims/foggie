@@ -41,10 +41,14 @@ def load_df(args):
 
     if 'res' in df: df = df[df['res'] == float(args.res)]
 
-    cols_to_log = ['Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zvar', 'Zskew', 'mass', 'Zcen', 'Zcen_binned', 'Ztotal_fixedr']
+    cols_to_log = ['Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zvar', 'Zskew', 'mass', 'Zcen', 'Zcen_binned', 'Ztotal_fixedr', 'gauss_mean', 'gauss_sigma']
     for thiscol in cols_to_log:
-        df['log_' + thiscol] = np.log10(df[thiscol])
-        df = df.drop(thiscol, axis=1)
+        if thiscol in df:
+            df['log_' + thiscol] = np.log10(df[thiscol])
+            df = df.drop(thiscol, axis=1)
+        else:
+            print(thiscol, 'column not found in dataframe, putting dummy values')
+            df['log_' + thiscol] = -99
 
     return df
 
@@ -58,8 +62,8 @@ def plot_all_stats(df, args):
     df = df.sort_values(by='time')
 
     # -----------for first plot: Z distribution statistics-------------------
-    col_arr = ['saddlebrown', 'crimson', 'darkolivegreen', 'salmon', 'cornflowerblue', 'burlywood', 'darkturquoise']
-    for i, ycol in enumerate(['Zskew', 'Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zvar']):
+    col_arr = ['saddlebrown', 'crimson', 'darkolivegreen', 'salmon', 'cornflowerblue', 'black', 'darkturquoise', 'gold', 'lawngreen']
+    for i, ycol in enumerate(['Zskew', 'Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zvar', 'gauss_mean', 'gauss_sigma']):
         axes[0].plot(df['time'], df['log_' + ycol], c=col_arr[i], lw=0.5 if args.overplot_smoothed else 1, alpha = 0.3 if args.overplot_smoothed or ycol == 'Zskew' else 1, label=None if args.overplot_smoothed else ycol)
 
         if args.overplot_smoothed:
@@ -68,7 +72,7 @@ def plot_all_stats(df, args):
             box = np.ones(npoints) / npoints
             df['log_' + ycol + '_smoothed'] = np.convolve(df['log_' + ycol], box, mode='same')
             axes[0].plot(df['time'], df['log_' + ycol + '_smoothed'], c=col_arr[i], lw=2, label=ycol)
-    axes[0].legend(loc='upper left', fontsize=args.fontsize/1.5)
+    axes[0].legend(loc='upper left', fontsize=args.fontsize/1.8)
     axes[0].set_ylabel(r'$\log{(\mathrm{Z}/\mathrm{Z}_\odot)}$', fontsize=args.fontsize)
     axes[0].set_ylim(-2, 1)
     axes[0].tick_params(axis='y', labelsize=args.fontsize)

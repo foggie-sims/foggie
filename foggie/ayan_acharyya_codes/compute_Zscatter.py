@@ -123,6 +123,10 @@ def fit_distribution(Zarr, args, weights=None):
             upper_bounds = [np.inf, 0.4, 0.1, np.inf, np.inf, np.inf, np.inf]
             result, cov = curve_fit(multiple_gauss, x, y, p0=p0, bounds=[lower_bounds, upper_bounds], maxfev=int(1e4))
 
+            gauss_amp = ufloat(result[0], np.sqrt(cov[0][0]))
+            gauss_mean = ufloat(result[1], np.sqrt(cov[1][1]))
+            gauss_sigma = ufloat(result[2], np.sqrt(cov[2][2]))
+
             Zpeak = ufloat(result[3], np.sqrt(cov[3][3]))
             Zmean = ufloat(result[4], np.sqrt(cov[4][4]))
             Zvar = ufloat(result[5], np.sqrt(cov[5][5]))
@@ -138,12 +142,17 @@ def fit_distribution(Zarr, args, weights=None):
             Zvar = ufloat(result.params['sigma'].value, result.params['sigma'].stderr)
             Zskew = ufloat(result.params['gamma'].value, result.params['gamma'].stderr)
             # Zkurt = ufloat(result.params['amplitude'].value, result.params['amplitude'].stderr)
+
+            gauss_amp = ufloat(np.nan, np.nan)
+            gauss_mean = ufloat(np.nan, np.nan)
+            gauss_sigma = ufloat(np.nan, np.nan)
+
     except AttributeError as e:
         print('The fit went wrong, returning NaNs')
         Zpeak, Zmean, Zvar, Zskew = ufloat(np.nan, np.nan) * np.ones(4)
         pass
 
-    return result, Zpeak, Z25, Z50, Z75, Zmean, Zvar, Zskew
+    return result, Zpeak, Z25, Z50, Z75, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -157,7 +166,7 @@ if __name__ == '__main__':
     total_snaps = len(list_of_sims)
 
     # -------set up dataframe and filename to store/write gradients in to--------
-    cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zmean', 'Zmean_u', 'Zvar', 'Zvar_u', 'Zskew', 'Zskew_u', 'Ztotal']
+    cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zmean', 'Zmean_u', 'Zvar', 'Zvar_u', 'Zskew', 'Zskew_u', 'Ztotal', 'gauss_amp', 'gauss_amp_u', 'gauss_mean', 'gauss_mean_u', 'gauss_sigma', 'gauss_sigma_u']
 
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
@@ -268,13 +277,13 @@ if __name__ == '__main__':
                 else: wres = None
                 Ztotal = np.sum(Zres * mres) / np.sum(mres) # in Zsun
 
-                result, Zpeak, Z25, Z50, Z75, Zmean, Zvar, Zskew = fit_distribution(Zres, args, weights=wres)
+                result, Zpeak, Z25, Z50, Z75, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma = fit_distribution(Zres, args, weights=wres)
                 print('Fitted parameters:\n', result) #
                 if not args.noplot: fig = plot_distribution(Zres, args, weights=wres, fit=result) # plotting the Z profile, with fit
 
-                thisrow += [mstar, res, Zpeak.n, Zpeak.s, Z25.n, Z25.s, Z50.n, Z50.s, Z75.n, Z75.s, Zmean.n, Zmean.s, Zvar.n, Zvar.s, Zskew.n, Zskew.s, Ztotal]
+                thisrow += [mstar, res, Zpeak.n, Zpeak.s, Z25.n, Z25.s, Z50.n, Z50.s, Z75.n, Z75.s, Zmean.n, Zmean.s, Zvar.n, Zvar.s, Zskew.n, Zskew.s, Ztotal, gauss_amp.n, gauss_amp.s, gauss_mean.n, gauss_mean.s, gauss_sigma.n, gauss_sigma.s]
         else:
-            thisrow += (np.ones(17)*np.nan).tolist()
+            thisrow += (np.ones(23)*np.nan).tolist()
 
         this_df_grad.loc[len(this_df_grad)] = thisrow
         df_grad = pd.concat([df_grad, this_df_grad])
