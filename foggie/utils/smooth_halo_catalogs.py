@@ -96,6 +96,35 @@ def plot_center():
     plt.savefig(args.halo + '_halo_center_vs_time_clipped-and-smoothed.png')
     plt.show()
 
+def plot_AM():
+    '''Plots the time evolution of the x, y, and z components of
+    the angular momentum vector saved in the catalog.'''
+
+    fig = plt.figure(figsize=(20,15))
+    ax_x = fig.add_subplot(3,1,1)
+    ax_y = fig.add_subplot(3,1,2)
+    ax_z = fig.add_subplot(3,1,3)
+
+    ax_x.plot(times, Lx, 'ko-', lw=1, markersize=2)
+    ax_y.plot(times, Ly, 'ko-', lw=1, markersize=2)
+    ax_z.plot(times, Lz, 'ko-', lw=1, markersize=2)
+
+    ax_x.plot(times, smooth_Lx, 'b-', lw=2)
+    ax_y.plot(times, smooth_Ly, 'b-', lw=2)
+    ax_z.plot(times, smooth_Lz, 'b-', lw=2)
+
+    axs = [ax_x, ax_y, ax_z]
+    labels = ['$L_x$', '$L_y$', '$L_z$']
+    for i in range(len(axs)):
+        ax = axs[i]
+        ax.set_xlabel('Time [Myr]', fontsize=14)
+        ax.set_ylabel(labels[i], fontsize=14)
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, \
+          labelsize=12, top=True, right=True)
+    plt.subplots_adjust(bottom=0.05, top=0.98, left=0.05, right=0.97, hspace=0.15)
+    plt.savefig(args.halo + '_AM_vs_time_smoothed.png')
+    plt.show()
+
 if __name__ == "__main__":
 
     args = parse_args()
@@ -109,7 +138,9 @@ if __name__ == "__main__":
     catalog_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
     time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
 
-    # Read in halo center catalog
+    # Smooth halo center position
+
+    '''# Read in halo center catalog
     halo_center = Table.read(halo_c_v_name, format='ascii')
     DD_col = halo_center['col3'][1:]
     x_col = halo_center['col4'][1:]
@@ -209,4 +240,78 @@ if __name__ == "__main__":
         row = [DD_col[i], time_table['redshift'][time_table['snap']==DD_col[i]][0], time_table['time'][time_table['snap']==DD_col[i]][0], \
                smoothed_x_cen[i], smoothed_y_cen[i], smoothed_z_cen[i]]
         f_cen.add_row(row)
-    ascii.write(f_cen, catalog_dir + 'halo_cen_smoothed', format='fixed_width', overwrite=True)
+    ascii.write(f_cen, catalog_dir + 'halo_cen_smoothed', format='fixed_width', overwrite=True)'''
+
+
+
+    # Smooth AM vector
+
+    # Read in AM vector catalog
+    am_table = Table.read(catalog_dir + 'angmom_table.hdf5', path='all_data')
+    times = np.array(am_table['time'])
+    Lx = np.array(am_table['Lx'])
+    Ly = np.array(am_table['Ly'])
+    Lz = np.array(am_table['Lz'])
+    Lx = np.nan_to_num(Lx)
+    Ly = np.nan_to_num(Ly)
+    Lz = np.nan_to_num(Lz)
+
+    # Clip outliers in a moving window and then fit a polynomial to the path in the window
+    clipped_Lx = [[] for _ in range(len(Lx))]
+    clipped_Ly = [[] for _ in range(len(Ly))]
+    clipped_Lz = [[] for _ in range(len(Lz))]
+    window = 50
+    sig = 1
+    small_degree = 2
+    for i in range(0, len(Lx)-window+1):
+        win_Lx = Lx[i:i+window]
+        win_Ly = Ly[i:i+window]
+        win_Lz = Lz[i:i+window]
+        indices = np.array(range(window))
+        outliers_Lx = np.where((win_Lx > np.median(win_Lx) + sig*np.std(win_Lx)) | (win_Lx < np.median(win_Lx) - sig*np.std(win_Lx)))[0]
+        outliers_Ly = np.where((win_Ly > np.median(win_Ly) + sig*np.std(win_Ly)) | (win_Ly < np.median(win_Ly) - sig*np.std(win_Ly)))[0]
+        outliers_Lz = np.where((win_Lz > np.median(win_Lz) + sig*np.std(win_Lz)) | (win_Lz < np.median(win_Lz) - sig*np.std(win_Lz)))[0]
+        Lx_no_outliers = np.delete(win_Lx, outliers_Lx)
+        indices_Lx = np.delete(indices, outliers_Lx)
+        coeff_Lx = np.polyfit(indices_Lx, Lx_no_outliers, small_degree)
+        fixed_Lx = np.zeros(len(indices))+coeff_Lx[-1]
+        Ly_no_outliers = np.delete(win_Ly, outliers_Ly)
+        indices_Ly = np.delete(indices, outliers_Ly)
+        coeff_Ly = np.polyfit(indices_Ly, Ly_no_outliers, small_degree)
+        fixed_Ly = np.zeros(len(indices))+coeff_Ly[-1]
+        Lz_no_outliers = np.delete(win_Lz, outliers_Lz)
+        indices_Lz = np.delete(indices, outliers_Lz)
+        coeff_Lz = np.polyfit(indices_Lz, Lz_no_outliers, small_degree)
+        fixed_Lz = np.zeros(len(indices))+coeff_Lz[-1]
+        for j in range(small_degree):
+            fixed_Lx += coeff_Lx[j]*indices**(small_degree-j)
+            fixed_Ly += coeff_Ly[j]*indices**(small_degree-j)
+            fixed_Lz += coeff_Lz[j]*indices**(small_degree-j)
+        for j in range(window):
+            clipped_Lx[i+j].append(fixed_Lx[j])
+            clipped_Ly[i+j].append(fixed_Ly[j])
+            clipped_Lz[i+j].append(fixed_Lz[j])
+    # For each point in the halo path, take the median of all fitted polynomials from all windows this point was in
+    # If window=50, each point falls into 50 windows so this is a median of 50 fitted polynomials to this point and
+    # the points around it
+    for i in range(len(clipped_Lx)):
+        clipped_Lx[i] = np.median(clipped_Lx[i])
+        clipped_Ly[i] = np.median(clipped_Ly[i])
+        clipped_Lz[i] = np.median(clipped_Lz[i])
+
+    # Finally, smooth the clipped-and-fitted halo paths
+    smooth_Lx = gaussian_filter(clipped_Lx, 5)
+    smooth_Ly = gaussian_filter(clipped_Ly, 5)
+    smooth_Lz = gaussian_filter(clipped_Lz, 5)
+
+    if (args.plot):
+        plot_AM()
+
+    # Save to file smoothed version of AM direction
+    f_cen = Table(dtype=('S6', 'f8', 'f8', 'f8', 'f8', 'f8'),
+            names=('snap', 'redshift', 'time', 'Lx', 'Ly', 'Lz'))
+    for i in range(len(times)):
+        row = [am_table['snap'][i], am_table['redshift'][i], times[i], \
+               smooth_Lx[i], smooth_Ly[i], smooth_Lz[i]]
+        f_cen.add_row(row)
+    ascii.write(f_cen, catalog_dir + 'AM_direction_smoothed', format='fixed_width', overwrite=True)

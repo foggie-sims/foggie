@@ -58,6 +58,7 @@ def foggie_load(snap, trackfile, **kwargs):
     gravity = kwargs.get('gravity', False)
     masses_dir = kwargs.get('masses_dir', '')
     correct_bulk_velocity = kwargs.get('correct_bulk_velocity', False)
+    smooth_AM_name = kwargs.get('smooth_AM_name', False)
 
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
@@ -254,16 +255,21 @@ def foggie_load(snap, trackfile, **kwargs):
 
     # Option to define velocities and coordinates relative to the angular momentum vector of the disk
     if (disk_relative):
-        # Calculate angular momentum vector using sphere centered on halo center
-        sphere = ds.sphere(ds.halo_center_kpc, (15., 'kpc'))
-        print('using particle type ', particle_type_for_angmom, ' to derive angular momentum')
-        if (particle_type_for_angmom=='gas'):
-            sphere = sphere.include_below(('gas','temperature'), 1e4)
-            sphere.set_field_parameter('bulk_velocity', ds.halo_velocity_kms)
-            L = sphere.quantities.angular_momentum_vector(use_gas=True, use_particles=False)
+        if (smooth_AM_name):
+            smooth_am = Table.read(smooth_AM_name, format='ascii')
+            ind = np.where(smooth_am['col2']==snap[-6:])[0][0]
+            L = np.array([float(smooth_am['col5'][ind]), float(smooth_am['col6'][ind]), float(smooth_am['col7'][ind])])
         else:
-            L = sphere.quantities.angular_momentum_vector(use_gas=False, use_particles=True, particle_type=particle_type_for_angmom)
-        print('found angular momentum vector')
+            # Calculate angular momentum vector using sphere centered on halo center
+            sphere = ds.sphere(ds.halo_center_kpc, (15., 'kpc'))
+            print('using particle type ', particle_type_for_angmom, ' to derive angular momentum')
+            if (particle_type_for_angmom=='gas'):
+                sphere = sphere.include_below(('gas','temperature'), 1e4)
+                sphere.set_field_parameter('bulk_velocity', ds.halo_velocity_kms)
+                L = sphere.quantities.angular_momentum_vector(use_gas=True, use_particles=False)
+            else:
+                L = sphere.quantities.angular_momentum_vector(use_gas=False, use_particles=True, particle_type=particle_type_for_angmom)
+            print('found angular momentum vector')
         norm_L = L / np.sqrt((L**2).sum())
         # Define other unit vectors orthagonal to the angular momentum vector
         np.random.seed(99)

@@ -61,12 +61,67 @@ time is given in Myr, xc, yc, zc are given in physical kpc
 
 Exists for:
 8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
-8508/nref11n_nref10f snapshots DD0044-DD1630
 5016/nref11c_nref9f snapshots DD0150-DD2520, RD0020-RD0042
 5036/nref11c_nref9f snapshots DD0139-DD2520, RD0015-RD0042
 4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
 2392/nref11c_nref9f snapshots DD0138-DD2199, RD0019-RD0038
 2878/nref11c_nref9f snapshots DD0398-DD1199, RD0016-RD0024
+
+Created by:
+utils/smooth_halo_center.py
+
+Author:
+Cassi
+
+
+angmom_table.hdf5
+--------
+Description:
+These files are data files where the columns are:
+snap       redshift       time      Lx      Ly      Lz
+where "snap" is the file name of the snapshot (e.g., RD0036, DD1534), "redshift" gives the redshift
+of the snapshot, "time" is the time of the snapshot, and "Lx, Ly, Lz" gives the (normalized) x, y, z
+components of the disk's angular momentum. The angular momentum vector direction is
+calculated from stars with ages < 100 Myr within 15 kpc of the (true, not smoothed) center of the halo.
+
+Units:
+time is given in Myr, everything else is dimensionless
+
+Exists for:
+8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
+8508/low_feedback_06 snapshots DD1621-DD2427
+5016/nref11c_nref9f snapshots DD0150-DD2520, RD0020-RD0042
+5036/nref11c_nref9f snapshots DD0139-DD2520, RD0015-RD0042
+4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
+
+Created by:
+utils/save_ang_mom.py
+
+Author:
+Cassi
+
+
+
+AM_direction_smoothed
+--------
+Description:
+These files are ASCII data files where the columns are:
+snap       redshift       time      Lx      Ly      Lz
+where "snap" is the file name of the snapshot (e.g., RD0036, DD1534), "redshift" gives the redshift
+of the snapshot, "time" is the time of the snapshot, and "Lx, Ly, Lz" gives the (normalized) x, y, z
+components of the disk's angular momentum smoothed over time. This smoothed path is created by removing
+sudden jumps from the path (saved in angmom_table.hdf5), and then smoothing the result. The angular momentum vector direction is
+calculated from stars with ages < 100 Myr within 15 kpc of the (true, not smoothed) center of the halo.
+
+Units:
+time is given in Myr, everything else is dimensionless
+
+Exists for:
+8508/nref11c_nref9f snapshots DD0044-DD2427, RD0012-RD0042
+8508/low_feedback_06 snapshots DD1621-DD2427
+5016/nref11c_nref9f snapshots DD0150-DD2520, RD0020-RD0042
+5036/nref11c_nref9f snapshots DD0139-DD2520, RD0015-RD0042
+4123/nref11c_nref9f snapshots DD0169-DD2520, RD0016-RD0042
 
 Created by:
 utils/smooth_halo_center.py

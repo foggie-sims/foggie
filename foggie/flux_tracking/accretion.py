@@ -1394,17 +1394,17 @@ def load_and_calculate(snap, surface):
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     if ((surface[0]=='cylinder') and (surface[3]=='minor')) or (args.direction) or ('disk' in surface[0]):
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir, disk_relative=True, correct_bulk_velocity=True, particle_type_for_angmom='young_stars8')
+        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=catalog_dir, disk_relative=True, correct_bulk_velocity=True, smooth_AM_name=smooth_AM_name)
     else:
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir, correct_bulk_velocity=True)
+        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=catalog_dir, correct_bulk_velocity=True)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     # Load the mass enclosed profile
     if (zsnap > 2.):
-        masses = Table.read(masses_dir + 'masses_z-gtr-2.hdf5', path='all_data')
+        masses = Table.read(catalog_dir + 'masses_z-gtr-2.hdf5', path='all_data')
     else:
-        masses = Table.read(masses_dir + 'masses_z-less-2.hdf5', path='all_data')
-    rvir_masses = Table.read(masses_dir + 'rvir_masses.hdf5', path='all_data')
+        masses = Table.read(catalog_dir + 'masses_z-less-2.hdf5', path='all_data')
+    rvir_masses = Table.read(catalog_dir + 'rvir_masses.hdf5', path='all_data')
     masses_ind = np.where(masses['snapshot']==snap)[0]
     Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
     Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap][0]
@@ -1570,12 +1570,17 @@ def accretion_compare_vs_radius(snap):
         radii = data['radius']
 
     props = ['covering_fraction','mass','metal_mass','temperature','metallicity',
-            'cooling_time','entropy','pressure','radial_velocity','Mach','velocity_dispersion']
-    ranges = [[0,1],[0,0.5],[0,0.25],[1e4,1e7], [5e-3,1], [1e2,1e6], [1,1e3], [1e-17,5e-12], [-300, 200], [0, 15], [0,100]]
-    logs = [False, False, False, True, True, True, True, True, False, False, False]
+            'cooling_time','entropy','pressure','radial_velocity','Mach',#'velocity_dispersion',
+            'energy']
+    ranges = [[0,1], [0,0.5], [0,0.25], [1e4,1e7], [5e-3,1],
+             [1e2,1e6], [1,1e3], [1e-17,5e-12], [-300, 200], [0, 15], #[0,100],
+             [5e12,5e15]]
+    logs = [False, False, False, True, True, True, True, True, False, False, #False,
+            True]
     ylabels = ['Accretion Covering Fraction', 'Accretion Mass Fraction', 'Accretion Metal Mass Fraction',
               'Temperature [K]', 'Metallicity [$Z_\odot$]', 'Cooling Time [Myr]', 'Entropy [keV cm$^2$]',
-              'Pressure [erg/cm$^3$]', 'Radial Velocity [km/s]', 'Accretion Mach number', 'Velocity dispersion [km/s]']
+              'Pressure [erg/cm$^3$]', 'Radial Velocity [km/s]', 'Accretion Mach number', #'Velocity dispersion [km/s]',
+              'Energy [erg/g]']
 
     if ('phi_bin' in data.columns):
         all = (data['phi_bin']=='all')
@@ -1622,14 +1627,25 @@ def accretion_compare_vs_radius(snap):
                     labels = ['_nolegend_', '_nolegend_']
                     mults = [1,0.5,0.5]
                     acc_plot = mults[j]*data[region_file[k] + props[i] + '_acc'][directions[j]]/data[region_file[k] + props[i] + '_all'][directions[j]]
+                elif (props[i]=='energy'):
+                    if (k==1): labels = ['Thermal energy', 'Radial kinetic energy', 'Tangential kinetic energy']
+                    else: labels = ['_nolegend_','_nolegend_','_nolegend_']
+                    e_props = ['thermal_energy', 'radial_kinetic_energy', 'tangential_kinetic_energy']
+                    linestyles = ['--','-',':']
+                    if (k>0):
+                        for l in range(len(e_props)):
+                            ax.plot(radii, data[region_file[k] + e_props[l] + '_acc'][directions[j]]/data[region_file[k] + 'mass_acc'][directions[j]]/gtoMsun,
+                                    color=color, ls=linestyles[l], lw=2, label=labels[l])
+                        ax.plot([-100,-100],[-100,-100], color=color, ls='-', lw=2, label=region_labels[k])
                 elif (props[i]=='Mach'):
                     labels = ['_nolegend_', '_nolegend_']
                     acc_plot = -data[region_file[k] + 'radial_velocity_med_acc'][directions[j]]/data[region_file[k] + 'sound_speed_med_acc'][directions[j]]
                 else:
                     labels = ['Accreting gas', 'Non-accreting gas']
                     acc_plot = data[region_file[k] + props[i] + '_med_acc'][directions[j]]
-                ax.plot(radii, acc_plot, color=color, ls='-', lw=2, label=label)
-                if ('fraction' not in props[i]) and ('mass' not in props[i]) and (props[i]!='Mach'):
+                if (props[i]!='energy'):
+                    ax.plot(radii, acc_plot, color=color, ls='-', lw=2, label=label)
+                if ('fraction' not in props[i]) and ('mass' not in props[i]) and (props[i]!='Mach') and ('energy' not in props[i]):
                     #ax.fill_between(radii, data[props[i] + '_med_acc'][directions[j]]-0.5*data[props[i] + '_iqr_acc'][directions[j]],
                                     #data[props[i] + '_med_acc'][directions[j]]+0.5*data[props[i] + '_iqr_acc'][directions[j]],
                                     #color=dir_colors[j], alpha=0.3)
@@ -1638,7 +1654,7 @@ def accretion_compare_vs_radius(snap):
                                     #data[props[i] + '_med_all'][directions[j]]+0.5*data[props[i] + '_iqr_all'][directions[j]],
                                     #color=dir_colors[j], alpha=0.3)
                     if (props[i]=='radial_velocity'):
-                        masses = Table.read(masses_dir + 'masses_z-less-2.hdf5', path='all_data')
+                        masses = Table.read(catalog_dir + 'masses_z-less-2.hdf5', path='all_data')
                         masses_ind = np.where(masses['snapshot']==snap)[0]
                         Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
                         rho = Menc_profile(radii)*gtoMsun/((radii*1000.*cmtopc)**3.) * 3./(4.*np.pi)
@@ -1667,7 +1683,7 @@ def accretion_compare_vs_radius(snap):
             ax.legend(frameon=False, loc=2, fontsize=14)
             ax.text(0.95, 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='right', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
         elif ('velocity_dispersion' in props[i]) or ('metallicity' in props[i]) or \
-          ('temperature' in props[i]) or ('pressure' in props[i]):
+          ('temperature' in props[i]) or ('pressure' in props[i]) or ('energy' in props[i]):
             ax.legend(frameon=False, loc=2, fontsize=14, ncol=2)
             ax.text(0.95, 0.65, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='right', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
         else:
@@ -1774,8 +1790,9 @@ if __name__ == "__main__":
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
 
     print('foggie_dir: ', foggie_dir)
-    halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
-    masses_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+    catalog_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+    halo_c_v_name = catalog_dir + 'halo_c_v'
+    smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
 
     if (args.save_suffix!=''):
         save_suffix = '_' + args.save_suffix
