@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    Feb 2022
     Examples :   run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_re 3 --xcol rad_re --keep --weight mass
-                 run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad_re --keep --weight mass
+                 run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --do_all_sims --weight mass --write_file --noplot
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --xcol rad --do_all_sims --weight mass --write_file --noplot
 
@@ -284,7 +284,7 @@ def get_df_from_ds(ds, args):
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
     outfilename = get_correct_tablename(args)
 
-    if not os.path.exists(outfilename):
+    if not os.path.exists(outfilename) or args.clobber:
         myprint(outfilename + ' does not exist. Creating afresh..', args)
 
         df = pd.DataFrame()
@@ -342,8 +342,8 @@ if __name__ == '__main__':
     # parse column names, in case log
 
     # --------------read in the cold gas profile file ONCE for a given halo-------------
+    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(dummy_args)
     if dummy_args.write_file or dummy_args.upto_kpc is None:
-        foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(dummy_args)
         gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + dummy_args.run + '/all_rprof_' + dummy_args.halo + '.npy'
         print('Reading in cold gas profile from', gasfilename)
         gasprofile = np.load(gasfilename, allow_pickle=True)[()]
@@ -376,6 +376,7 @@ if __name__ == '__main__':
         this_sim = list_of_sims[index]
         this_df_grad = pd.DataFrame(columns=cols_in_df)
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
+        halos_df_name = code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_cen_smoothed'
         try:
             if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
@@ -385,7 +386,7 @@ if __name__ == '__main__':
                 print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
             else:
                 isdisk_required = np.array(['disk' in item for item in [args.xcol, args.ycol] + args.colorcol]).any()
-                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False)
+                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
         except Exception as e:
             print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), dummy_args)
             continue

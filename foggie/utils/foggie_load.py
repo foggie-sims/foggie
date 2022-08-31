@@ -39,7 +39,9 @@ def load_sim(args, **kwargs):
     foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     snap_name = foggie_dir + run_loc + args.output + '/' + args.output
     catalog_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-    halo_c_v_name = catalog_dir + 'halo_c_v'
+    default_halo_c_v_name = catalog_dir + 'halo_c_v'
+    halo_c_v_name = kwargs.get('halo_c_v_name', default_halo_c_v_name) # added by Ayan, so that halo_c_v_name can be flexibly passed on to load_sim()
+
     ds, region = foggie_load(snap_name, trackname, find_halo_center=find_halo_center, halo_c_v_name=halo_c_v_name, disk_relative=disk_relative, \
                             particle_type_for_angmom=particle_type_for_angmom, do_filter_particles=do_filter_particles, \
                             region=region)

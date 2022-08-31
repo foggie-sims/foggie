@@ -876,18 +876,23 @@ def pull_halo_center(args, fast=False):
     Adapted from utils.foggie_load()
     '''
 
-    halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_c_v'
+    #halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_c_v'
+    halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_cen_smoothed' # changed on Aug 30, after Cassi updated smoothed halo centers
 
     if os.path.exists(halos_df_name):
         halos_df = pd.read_table(halos_df_name, sep='|')
         halos_df.columns = halos_df.columns.str.strip() # trimming column names of extra whitespace
-        halos_df['name'] = halos_df['name'].str.strip() # trimming column 'name' of extra whitespace
+        try:
+            halos_df['name'] = halos_df['name'].str.strip() # trimming column 'name' of extra whitespace
+        except:
+            halos_df['name'] = halos_df['snap'].str.strip() # trimming column 'name' of extra whitespace
 
         if halos_df['name'].str.contains(args.output).any():
             myprint('Pulling halo center from catalog file', args)
             halo_ind = halos_df.index[halos_df['name'] == args.output][0]
             args.halo_center = halos_df.loc[halo_ind, ['xc', 'yc', 'zc']].values # in kpc units
-            args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
+            try: args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
+            except: pass
             calc_hc = False
         elif not fast:
             myprint('This snapshot is not in the halos_df file, calculating halo center...', args)
@@ -896,7 +901,7 @@ def pull_halo_center(args, fast=False):
         myprint("This halos_df file doesn't exist, calculating halo center...", args)
         calc_hc = True
     if calc_hc:
-        ds, refine_box = load_sim(args, region='refine_box')
+        ds, refine_box = load_sim(args, region='refine_box', halo_c_v_name=halos_df_name)
         args.halo_center = ds.halo_center_kpc
         args.halo_velocity = ds.halo_velocity_kms
         return args, ds, refine_box
@@ -1134,6 +1139,9 @@ def parse_args(haloname, RDname, fast=False):
     # ------- args added for compute_Zscatter.py ------------------------------
     parser.add_argument('--res', metavar='res', type=str, action='store', default='0.1', help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')
     parser.add_argument('--fit_multiple', dest='fit_multiple', action='store_true', default=False, help='fit one gaussian + one skewed guassian?, default is no')
+
+    # ------- args added for plot_Zevolution.py ------------------------------
+    #parser.add_argument('--plot_all_stats', dest='plot_all_stats', action='store_true', default=False, help='plot all Z distribution stats as a function of time?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
