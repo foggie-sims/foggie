@@ -14,6 +14,7 @@ from header import *
 from util import *
 from matplotlib.collections import LineCollection
 from plot_MZscatter import *
+import h5py
 start_time = time.time()
 
 # -----------------------------------
@@ -21,7 +22,7 @@ def plot_all_stats(df, args):
     '''
     Function to plot the time evolution of Z distribution statistics, based on an input dataframe
     '''
-    fig, axes = plt.subplots(6 + 1, figsize=(14, 10), sharex=True)
+    fig, axes = plt.subplots(6 + 1, figsize=(12, 10), sharex=True)
     fig.subplots_adjust(top=0.98, bottom=0.07, left=0.07, right=0.92, hspace=0.05)
 
     df = df.sort_values(by='time')
@@ -101,6 +102,91 @@ def plot_all_stats(df, args):
 
     return fig
 
+# -----------------------------------
+def plot_time_series(df, args):
+    '''
+    Function to plot the time evolution of Z distribution statistics, based on an input dataframe
+    '''
+    fig, axes = plt.subplots(6, figsize=(12, 10), sharex=True)
+    fig.subplots_adjust(top=0.98, bottom=0.07, left=0.07, right=0.98, hspace=0.05)
+
+    df = df.sort_values(by='time')
+    col_arr = ['darkolivegreen', 'brown', 'black', 'cornflowerblue', 'salmon', 'gold', 'saddlebrown', 'crimson',
+               'black', 'darkturquoise', 'lawngreen']
+    sfr_col_arr = ['black']
+
+    groups = pd.DataFrame({'quantities': [['Z50', 'ZIQR'], ['Zmean', 'Zvar']], \
+                           'label': np.hstack([np.tile([r'Z/Z$_\odot$'], 2)]), \
+                           'limits': [(1e-3, 7), (1e-4, 3)], \
+                           'isalreadylog': np.hstack([np.tile([False], 2)])})
+
+    # -----------for first few panels: Z distribution statistics-------------------
+    for j in range(len(groups)):
+        thisgroup = groups.iloc[j]
+        ax = axes[j]
+        log_text = 'log_' if thisgroup.isalreadylog else ''
+        for i, ycol in enumerate(thisgroup.quantities):
+            ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=0.5 if args.overplot_smoothed else 1,
+                    alpha=0.3 if args.overplot_smoothed or ycol == 'Zskew' else 1,
+                    label=None if args.overplot_smoothed else ycol)
+
+        ax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
+        ax.set_ylabel(thisgroup.label, fontsize=args.fontsize)
+        ax.set_ylim(thisgroup.limits)
+        ax.tick_params(axis='y', labelsize=args.fontsize)
+
+    # -----------for SFR panel-------------------
+    axes[-4].plot(df['time'], df['sfr'], c=sfr_col_arr[0], lw=1, label='SFR')
+
+    axes[-4].set_ylabel(label_dict['sfr'], fontsize=args.fontsize, color=sfr_col_arr[0])
+    axes[-4].set_ylim(0, 50)
+    axes[-4].tick_params(axis='y', colors=sfr_col_arr[0], labelsize=args.fontsize)
+    axes[-4].legend(loc='upper left', fontsize=args.fontsize / 1.5)
+
+    # -----------for metal production panel-------------------
+    #axes[-3].plot(df['time'], df['sfr'], c=sfr_col_arr[0], lw=1, label='Metal mass produced')
+
+    axes[-3].set_ylabel(label_dict['log_mass'], fontsize=args.fontsize, color=sfr_col_arr[0])
+    #axes[-3].set_ylim(0, 50)
+    axes[-3].tick_params(axis='y', colors=sfr_col_arr[0], labelsize=args.fontsize)
+    axes[-3].legend(loc='upper left', fontsize=args.fontsize / 1.5)
+
+    # -----------for metal ejection panel-------------------
+    #axes[-2].plot(df['time'], df['sfr'], c=sfr_col_arr[0], lw=1, label='Metal mass ejected')
+
+    axes[-2].set_ylabel(label_dict['log_mass'], fontsize=args.fontsize, color=sfr_col_arr[0])
+    #axes[-2].set_ylim(0, 50)
+    axes[-2].tick_params(axis='y', colors=sfr_col_arr[0], labelsize=args.fontsize)
+    axes[-2].legend(loc='upper left', fontsize=args.fontsize / 1.5)
+
+    # -----------for merger history panel-------------------
+    filename = args.code_path + 'satellites/Tempest_satorbits.hdf5'
+    f = h5py.File(filename, 'r')
+    for thissat in f.keys():
+        axes[-1].plot(f[thissat]['Time(Gyr)'][()], f[thissat]['Dist(R200)'][()], lw=1)
+
+    axes[-1].set_ylabel(r'Distance (kpc)', fontsize=args.fontsize, color=sfr_col_arr[0])
+    #axes[-1].set_ylim(0, 50)
+    axes[-1].tick_params(axis='y', colors=sfr_col_arr[0], labelsize=args.fontsize)
+
+    # -----------for x axis-------------------
+    axes[-1].set_xlabel('Time (Gyr)', fontsize=args.fontsize)
+    axes[-1].set_xlim(0, 14)
+    axes[-1].tick_params(axis='x', labelsize=args.fontsize)
+
+    if args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % args.upto_re
+
+    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_timeseries_res%.2Fkpc%s%s.png' % (
+    float(args.res), upto_text, args.weightby_text)
+    fig.savefig(figname)
+    print('Saved', figname)
+    plt.show(block=False)
+
+    return fig
+
 # -----main code-----------------
 if __name__ == '__main__':
     args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
@@ -133,6 +219,7 @@ if __name__ == '__main__':
 
     df = df.sort_values('time')
 
-    fig = plot_all_stats(df, args)
+    fig1 = plot_all_stats(df, args)
+    fig2 = plot_time_series(df, args)
 
     print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))

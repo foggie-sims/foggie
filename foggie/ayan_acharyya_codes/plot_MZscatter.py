@@ -40,12 +40,12 @@ def load_df(args):
     df.sort_values(by='redshift', ascending=False, ignore_index=True, inplace=True)
 
     if 'res' in df: df = df[df['res'] == float(args.res)]
+    df['ZIQR'] = df['Z75'] - df['Z25']
 
-    cols_to_log = ['Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zvar', 'Zskew', 'Ztotal', 'mass', 'Zcen', 'Zcen_binned', 'Ztotal_fixedr', 'gauss_mean', 'gauss_sigma']
+    cols_to_log = ['Zpeak', 'Z25', 'Z50', 'Z75', 'ZIQR', 'Zmean', 'Zvar', 'Zskew', 'Ztotal', 'mass', 'Zcen', 'Zcen_binned', 'Ztotal_fixedr', 'gauss_mean', 'gauss_sigma']
     for thiscol in cols_to_log:
         if thiscol in df:
             df['log_' + thiscol] = np.log10(df[thiscol])
-            df = df.drop(thiscol, axis=1)
         else:
             print(thiscol, 'column not found in dataframe, putting dummy values')
             df['log_' + thiscol] = -99
