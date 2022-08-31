@@ -116,8 +116,9 @@ def plot_time_series(df, args):
     sfr_col_arr = ['black']
 
     groups = pd.DataFrame({'quantities': [['Z50', 'ZIQR'], ['Zmean', 'Zvar']], \
+                           'legend': [['Median Z', 'IQR'], ['Mean Z (fit)', 'Variance (fit)']], \
                            'label': np.hstack([np.tile([r'Z/Z$_\odot$'], 2)]), \
-                           'limits': [(1e-3, 7), (1e-4, 3)], \
+                           'limits': [(1e-3, 7), (1e-4, 2)], \
                            'isalreadylog': np.hstack([np.tile([False], 2)])})
 
     # -----------for first few panels: Z distribution statistics-------------------
@@ -126,9 +127,7 @@ def plot_time_series(df, args):
         ax = axes[j]
         log_text = 'log_' if thisgroup.isalreadylog else ''
         for i, ycol in enumerate(thisgroup.quantities):
-            ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=0.5 if args.overplot_smoothed else 1,
-                    alpha=0.3 if args.overplot_smoothed or ycol == 'Zskew' else 1,
-                    label=None if args.overplot_smoothed else ycol)
+            ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=1, label=thisgroup.legend[i])
 
         ax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
         ax.set_ylabel(thisgroup.label, fontsize=args.fontsize)
@@ -164,6 +163,7 @@ def plot_time_series(df, args):
     f = h5py.File(filename, 'r')
     for thissat in f.keys():
         axes[-1].plot(f[thissat]['Time(Gyr)'][()], f[thissat]['Dist(R200)'][()], lw=1)
+    f.close()
 
     axes[-1].set_ylabel(r'Distance (kpc)', fontsize=args.fontsize, color=sfr_col_arr[0])
     #axes[-1].set_ylim(0, 50)
@@ -213,10 +213,18 @@ if __name__ == '__main__':
     df['log_ssfr'] = np.log10(df['ssfr'])
     df['log_sfr'] = np.log10(df['sfr'])
 
-    # -------- reading in and merging dataframe with merger info-------
-    m_df = pd.read_table(args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
-    #df = df.merge(m_df[['output', 'sfr']], on='output')
+    # -------- reading in and merging dataframe with metal flux info-------
+    flux_df = pd.DataFrame(columns=('output', 'metal_flux'))
+    flux_file_path = args.output_dir + 'txtfiles/'
+    flux_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_fluxes_mass.hdf5'%(args.galrad, args.nchunks))
 
+    for thisfile in flux_files:
+        output = os.path.split(thisfile)[-1][:6]
+        thisdf = pd.read_hdf(thisfile, 'all_data')
+        net_metal_flux = thisdf['net_metal_flux'][np.where(thisdf['radius'] >= args.upto_kpc)[0][0]] # msun
+        flux_df.loc[len(flux_df)] = [output, net_metal_flux]
+
+    df = df.merge(flux_df[['output', 'metal_flux']], on='output')
     df = df.sort_values('time')
 
     fig1 = plot_all_stats(df, args)
