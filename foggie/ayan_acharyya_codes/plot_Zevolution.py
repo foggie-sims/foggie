@@ -9,6 +9,7 @@
     Started :    Aug 2022
     Examples :   run plot_Zevolution.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --keep --weight mass --res 0.1 --zhighlight --use_gasre --overplot_smoothed
                  run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --res 0.1 --zhighlight --docomoving --fit_multiple
+                 run plot_Zevolution.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --keep --weight mass --res 0.1 --zhighlight --docomoving --fit_multiple
 """
 from header import *
 from util import *
@@ -222,7 +223,8 @@ if __name__ == '__main__':
     flux_file_path = args.output_dir + 'txtfiles/'
     flux_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_fluxes_mass.hdf5'%(args.galrad, args.nchunks))
 
-    for thisfile in flux_files:
+    for i, thisfile in enumerate(flux_files):
+        print('Extracting metal flux from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
         output = os.path.split(thisfile)[-1][:6]
         thisdf = pd.read_hdf(thisfile, 'all_data')
         net_metal_flux = thisdf['net_metal_flux'][np.where(thisdf['radius'] >= args.upto_kpc)[0][0]] # msun
@@ -234,7 +236,8 @@ if __name__ == '__main__':
     production_df = pd.DataFrame(columns=('output', 'metal_production'))
     prdouction_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_metal_sink_source.txt'%(args.galrad, args.nchunks))
 
-    for thisfile in flux_files:
+    for i, thisfile in enumerate(flux_files):
+        print('Extracting metal production from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
         output = os.path.split(thisfile)[-1][:6]
         thisdf = pd.read_table(thisfile, delim_whitespace=True, comment='#')
         metal_produced = thisdf['metal_produced'][:np.where(thisdf['radius'] >= args.upto_kpc)[0][0]+1].sum() # msun
