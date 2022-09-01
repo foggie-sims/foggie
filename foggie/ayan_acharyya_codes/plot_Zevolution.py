@@ -202,52 +202,58 @@ if __name__ == '__main__':
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
+    output_filename = args.output_dir + 'txtfiles/' + args.halo + '_timeseries%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text)
 
-    # -----------loading in dataframe------------------------
-    df_master = pd.DataFrame()
-    cmap_arr = ['Purples', 'Oranges', 'Greens', 'Blues', 'PuRd', 'YlOrBr']
-    things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
+    if not os.path.exists(output_filename) or args.clobber:
+        print(output_filename, 'does not exist, merging dataframes to create it..')
+        # -----------loading in dataframe------------------------
+        df_master = pd.DataFrame()
+        cmap_arr = ['Purples', 'Oranges', 'Greens', 'Blues', 'PuRd', 'YlOrBr']
+        things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
 
-    df = load_df(args)
+        df = load_df(args)
 
-    # -------- reading in and merging dataframe with SFR info-------
-    sfr_df = pd.read_table(args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
-    df = df.merge(sfr_df[['output', 'sfr']], on='output')
-    df['ssfr'] = df['sfr'] / 10**df['log_mass']
-    df = df.replace([np.inf, -np.inf], np.nan).dropna(axis=0)
-    df['log_ssfr'] = np.log10(df['ssfr'])
-    df['log_sfr'] = np.log10(df['sfr'])
+        # -------- reading in and merging dataframe with SFR info-------
+        sfr_df = pd.read_table(args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
+        df = df.merge(sfr_df[['output', 'sfr']], on='output')
+        df['ssfr'] = df['sfr'] / 10**df['log_mass']
+        df = df.replace([np.inf, -np.inf], np.nan).dropna(axis=0)
+        df['log_ssfr'] = np.log10(df['ssfr'])
+        df['log_sfr'] = np.log10(df['sfr'])
 
-    # -------- reading in and merging dataframe with metal flux info-------
-    flux_df = pd.DataFrame(columns=('output', 'metal_flux'))
-    flux_file_path = args.output_dir + 'txtfiles/'
-    flux_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_fluxes_mass.hdf5'%(args.galrad, args.nchunks))
+        # -------- reading in and merging dataframe with metal flux info-------
+        flux_df = pd.DataFrame(columns=('output', 'metal_flux'))
+        flux_file_path = args.output_dir + 'txtfiles/'
+        flux_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_fluxes_mass.hdf5'%(args.galrad, args.nchunks))
 
-    for i, thisfile in enumerate(flux_files):
-        print('Extracting metal flux from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
-        output = os.path.split(thisfile)[-1][:6]
-        thisdf = pd.read_hdf(thisfile, 'all_data')
-        net_metal_flux = thisdf['net_metal_flux'][np.where(thisdf['radius'] >= args.upto_kpc)[0][0]] # msun
-        flux_df.loc[len(flux_df)] = [output, net_metal_flux]
+        for i, thisfile in enumerate(flux_files):
+            print('Extracting metal flux from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
+            output = os.path.split(thisfile)[-1][:6]
+            thisdf = pd.read_hdf(thisfile, 'all_data')
+            net_metal_flux = thisdf['net_metal_flux'][np.where(thisdf['radius'] >= args.upto_kpc)[0][0]] # msun
+            flux_df.loc[len(flux_df)] = [output, net_metal_flux]
 
-    df = df.merge(flux_df[['output', 'metal_flux']], on='output')
+        df = df.merge(flux_df[['output', 'metal_flux']], on='output')
 
-    # -------- reading in and merging dataframe with SFR info-------
-    production_df = pd.DataFrame(columns=('output', 'metal_production'))
-    prdouction_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_metal_sink_source.txt'%(args.galrad, args.nchunks))
+        # -------- reading in and merging dataframe with SFR info-------
+        production_df = pd.DataFrame(columns=('output', 'metal_production'))
+        prdouction_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_metal_sink_source.txt'%(args.galrad, args.nchunks))
 
-    for i, thisfile in enumerate(flux_files):
-        print('Extracting metal production from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
-        output = os.path.split(thisfile)[-1][:6]
-        thisdf = pd.read_table(thisfile, delim_whitespace=True, comment='#')
-        metal_produced = thisdf['metal_produced'][:np.where(thisdf['radius'] >= args.upto_kpc)[0][0]+1].sum() # msun
-        production_df.loc[len(flux_df)] = [output, metal_produced]
+        for i, thisfile in enumerate(flux_files):
+            print('Extracting metal production from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
+            output = os.path.split(thisfile)[-1][:6]
+            thisdf = pd.read_table(thisfile, delim_whitespace=True, comment='#')
+            metal_produced = thisdf['metal_produced'][:np.where(thisdf['radius'] >= args.upto_kpc)[0][0]+1].sum() # msun
+            production_df.loc[len(flux_df)] = [output, metal_produced]
 
-    df = df.merge(production_df[['output', 'metal_produced']], on='output')
+        df = df.merge(production_df[['output', 'metal_produced']], on='output')
 
 
-    df = df.sort_values('time')
-    df.to_csv(args.output_dir + 'txtfiles/' + args.halo + '_timeseries%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text))
+        df = df.sort_values('time')
+        df.to_csv(output_filename)
+        print('Saved merged dataframe as', output_filename)
+    else:
+        df = pd.read_table(output_filename, delim_whitespace=True, comment='#')
 
     fig1 = plot_all_stats(df, args)
     fig2 = plot_time_series(df, args)
