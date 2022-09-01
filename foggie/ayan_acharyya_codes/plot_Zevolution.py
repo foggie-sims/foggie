@@ -143,7 +143,7 @@ def plot_time_series(df, args):
     axes[-4].legend(loc='upper left', fontsize=args.fontsize / 1.5)
 
     # -----------for metal production panel-------------------
-    #axes[-3].plot(df['time'], df['sfr'], c=sfr_col_arr[0], lw=1, label='Metal mass produced')
+    axes[-3].plot(df['time'], df['metal_produced'], c=sfr_col_arr[0], lw=1, label='Metal mass produced')
 
     axes[-3].set_ylabel(label_dict['log_mass'], fontsize=args.fontsize, color=sfr_col_arr[0])
     #axes[-3].set_ylim(0, 50)
@@ -151,7 +151,7 @@ def plot_time_series(df, args):
     axes[-3].legend(loc='upper left', fontsize=args.fontsize / 1.5)
 
     # -----------for metal ejection panel-------------------
-    #axes[-2].plot(df['time'], df['sfr'], c=sfr_col_arr[0], lw=1, label='Metal mass ejected')
+    axes[-2].plot(df['time'], df['metal_flix'], c=sfr_col_arr[0], lw=1, label='Metal mass ejected')
 
     axes[-2].set_ylabel(label_dict['log_mass'], fontsize=args.fontsize, color=sfr_col_arr[0])
     #axes[-2].set_ylim(0, 50)
@@ -197,6 +197,10 @@ if __name__ == '__main__':
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight
     args.fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
+    if args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % args.upto_re
 
     # -----------loading in dataframe------------------------
     df_master = pd.DataFrame()
@@ -225,7 +229,22 @@ if __name__ == '__main__':
         flux_df.loc[len(flux_df)] = [output, net_metal_flux]
 
     df = df.merge(flux_df[['output', 'metal_flux']], on='output')
+
+    # -------- reading in and merging dataframe with SFR info-------
+    production_df = pd.DataFrame(columns=('output', 'metal_production'))
+    prdouction_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_metal_sink_source.txt'%(args.galrad, args.nchunks))
+
+    for thisfile in flux_files:
+        output = os.path.split(thisfile)[-1][:6]
+        thisdf = pd.read_table(thisfile, delim_whitespace=True, comment='#')
+        metal_produced = thisdf['metal_produced'][:np.where(thisdf['radius'] >= args.upto_kpc)[0][0]+1].sum() # msun
+        production_df.loc[len(flux_df)] = [output, metal_produced]
+
+    df = df.merge(production_df[['output', 'metal_produced']], on='output')
+
+
     df = df.sort_values('time')
+    df.to_csv(args.output_dir + 'txtfiles/' + args.halo + '_timeseries%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text))
 
     fig1 = plot_all_stats(df, args)
     fig2 = plot_time_series(df, args)
