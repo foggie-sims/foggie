@@ -95,8 +95,7 @@ def plot_all_stats(df, args):
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
 
-    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_allstats_vs_time_res%.2Fkpc%s%s.png' % (
-    float(args.res), upto_text, args.weightby_text)
+    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_allstats_vs_time_res%.2Fkpc%s%s.pdf' % (float(args.res), upto_text, args.weightby_text)
     fig.savefig(figname)
     print('Saved', figname)
     plt.show(block=False)
@@ -112,7 +111,7 @@ def plot_time_series(df, args):
     fig.subplots_adjust(top=0.98, bottom=0.07, left=0.07, right=0.98, hspace=0.05)
 
     df = df.sort_values(by='time')
-    col_arr = ['darkolivegreen', 'brown', 'black', 'cornflowerblue', 'salmon', 'gold', 'saddlebrown', 'crimson',
+    col_arr = ['brown', 'darkolivegreen', 'black', 'cornflowerblue', 'salmon', 'gold', 'saddlebrown', 'crimson',
                'black', 'darkturquoise', 'lawngreen']
     sfr_col_arr = ['black']
 
@@ -136,27 +135,27 @@ def plot_time_series(df, args):
         ax.tick_params(axis='y', labelsize=args.fontsize)
 
     # -----------for SFR panel-------------------
-    axes[-4].plot(df['time'], df['sfr'], c=sfr_col_arr[0], lw=1, label='SFR')
+    axes[-4].plot(df['time'], df['sfr'], c=col_arr[0], lw=1, label='SFR')
 
-    axes[-4].set_ylabel(label_dict['sfr'], fontsize=args.fontsize, color=sfr_col_arr[0])
+    axes[-4].set_ylabel(label_dict['sfr'], fontsize=args.fontsize)
     axes[-4].set_ylim(0, 50)
-    axes[-4].tick_params(axis='y', colors=sfr_col_arr[0], labelsize=args.fontsize)
+    axes[-4].tick_params(axis='y', labelsize=args.fontsize)
     axes[-4].legend(loc='upper left', fontsize=args.fontsize / 1.5)
 
     # -----------for metal production panel-------------------
-    axes[-3].plot(df['time'], df['metal_produced'], c=sfr_col_arr[0], lw=1, label='Metal mass produced')
+    axes[-3].plot(df['time'], df['log_metal_produced'], c=col_arr[0], lw=1, label='Metal mass produced')
 
-    axes[-3].set_ylabel(label_dict['log_mass'], fontsize=args.fontsize, color=sfr_col_arr[0])
-    #axes[-3].set_ylim(0, 50)
-    axes[-3].tick_params(axis='y', colors=sfr_col_arr[0], labelsize=args.fontsize)
+    axes[-3].set_ylabel(label_dict['log_mass'], fontsize=args.fontsize)
+    axes[-3].set_ylim(4, 7.2)
+    axes[-3].tick_params(axis='y', labelsize=args.fontsize)
     axes[-3].legend(loc='upper left', fontsize=args.fontsize / 1.5)
 
     # -----------for metal ejection panel-------------------
-    axes[-2].plot(df['time'], df['metal_flix'], c=sfr_col_arr[0], lw=1, label='Metal mass ejected')
+    axes[-2].plot(df['time'], df['log_metal_flux'], c=col_arr[0], lw=1, label='Metal flux ejected')
 
-    axes[-2].set_ylabel(label_dict['log_mass'], fontsize=args.fontsize, color=sfr_col_arr[0])
-    #axes[-2].set_ylim(0, 50)
-    axes[-2].tick_params(axis='y', colors=sfr_col_arr[0], labelsize=args.fontsize)
+    axes[-2].set_ylabel(r'$\log{(\mathrm{M}_{\odot}/\mathrm{yr})}$', fontsize=args.fontsize)
+    axes[-2].set_ylim(-5, 7)
+    axes[-2].tick_params(axis='y', labelsize=args.fontsize)
     axes[-2].legend(loc='upper left', fontsize=args.fontsize / 1.5)
 
     # -----------for merger history panel-------------------
@@ -166,9 +165,9 @@ def plot_time_series(df, args):
         axes[-1].plot(f[thissat]['Time(Gyr)'][()], f[thissat]['Dist(R200)'][()], lw=1)
     f.close()
 
-    axes[-1].set_ylabel(r'Distance (kpc)', fontsize=args.fontsize, color=sfr_col_arr[0])
-    #axes[-1].set_ylim(0, 50)
-    axes[-1].tick_params(axis='y', colors=sfr_col_arr[0], labelsize=args.fontsize)
+    axes[-1].set_ylabel(r'Distance (kpc)', fontsize=args.fontsize)
+    axes[-1].set_ylim(0, 2)
+    axes[-1].tick_params(axis='y', labelsize=args.fontsize)
 
     # -----------for x axis-------------------
     axes[-1].set_xlabel('Time (Gyr)', fontsize=args.fontsize)
@@ -180,8 +179,7 @@ def plot_time_series(df, args):
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
 
-    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_timeseries_res%.2Fkpc%s%s.png' % (
-    float(args.res), upto_text, args.weightby_text)
+    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_timeseries_res%.2Fkpc%s%s.pdf' % (float(args.res), upto_text, args.weightby_text)
     fig.savefig(figname)
     print('Saved', figname)
     plt.show(block=False)
@@ -222,7 +220,7 @@ if __name__ == '__main__':
         df['log_sfr'] = np.log10(df['sfr'])
 
         # -------- reading in and merging dataframe with metal flux info-------
-        flux_df = pd.DataFrame(columns=('output', 'metal_flux'))
+        flux_df = pd.DataFrame(columns=('output', 'log_metal_flux'))
         flux_file_path = args.output_dir + 'txtfiles/'
         flux_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_fluxes_mass.hdf5'%(args.galrad, args.nchunks))
 
@@ -230,29 +228,30 @@ if __name__ == '__main__':
             print('Extracting metal flux from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
             output = os.path.split(thisfile)[-1][:6]
             thisdf = pd.read_hdf(thisfile, 'all_data')
-            net_metal_flux = thisdf['net_metal_flux'][np.where(thisdf['radius'] >= args.upto_kpc)[0][0]] # msun
-            flux_df.loc[len(flux_df)] = [output, net_metal_flux]
+            net_metal_flux = thisdf['net_metal_flux'][np.where(thisdf['radius'] >= args.upto_kpc)[0][0]] # msun/yr
+            flux_df.loc[len(flux_df)] = [output, np.log10(net_metal_flux)] # log(msun/yr)
 
-        df = df.merge(flux_df[['output', 'metal_flux']], on='output')
+        df = df.merge(flux_df[['output', 'log_metal_flux']], on='output')
 
         # -------- reading in and merging dataframe with SFR info-------
-        production_df = pd.DataFrame(columns=('output', 'metal_production'))
-        prdouction_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_metal_sink_source.txt'%(args.galrad, args.nchunks))
+        production_df = pd.DataFrame(columns=('output', 'log_metal_produced'))
+        production_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_metal_sink_source.txt'%(args.galrad, args.nchunks))
 
-        for i, thisfile in enumerate(flux_files):
+        for i, thisfile in enumerate(production_files):
             print('Extracting metal production from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
             output = os.path.split(thisfile)[-1][:6]
             thisdf = pd.read_table(thisfile, delim_whitespace=True, comment='#')
             metal_produced = thisdf['metal_produced'][:np.where(thisdf['radius'] >= args.upto_kpc)[0][0]+1].sum() # msun
-            production_df.loc[len(flux_df)] = [output, metal_produced]
+            production_df.loc[len(production_df)] = [output, np.log10(metal_produced)] # log(msun)
 
-        df = df.merge(production_df[['output', 'metal_produced']], on='output')
+        df = df.merge(production_df[['output', 'log_metal_produced']], on='output')
 
 
         df = df.sort_values('time')
-        df.to_csv(output_filename)
+        df.to_csv(output_filename, sep='\t', index=None)
         print('Saved merged dataframe as', output_filename)
     else:
+        print('Reading from existing file', output_filename)
         df = pd.read_table(output_filename, delim_whitespace=True, comment='#')
 
     fig1 = plot_all_stats(df, args)
