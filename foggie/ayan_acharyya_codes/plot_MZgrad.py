@@ -15,6 +15,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --colorcol re --cmax 3 --zhighlight
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Ztotal --xcol time --colorcol rlog_mass --zhighlight --docomoving
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_deviation --zcol log_ssfr
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05
 """
 from header import *
 from util import *
@@ -194,11 +195,11 @@ def plot_MZGR(args):
 
     # -------declare figure object-------------
     fig, ax = plt.subplots(1, figsize=(12, 6))
-    fig.subplots_adjust(top=0.95, bottom=0.15, left=0.1, right=1.05)
+    fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=1.05)
 
-    if args.plot_deviation:
+    if args.plot_deviation or args.plot_timefraction:
         fig2, ax2 = plt.subplots(1, figsize=(12, 6))
-        fig2.subplots_adjust(top=0.95, bottom=0.15, left=0.1, right=1.05)
+        fig2.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=1.05 if args.plot_deviation else 0.97)
         args.overplot_smoothed = True
 
     # ---------plot observations----------------
@@ -280,11 +281,11 @@ def plot_MZGR(args):
             if npoints % 2 == 0: npoints += 1
             box = np.ones(npoints) / npoints
             df[args.ycol + '_smoothed'] = np.convolve(df[args.ycol], box, mode='same')
+            print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points')
 
             line.set_alpha(0.2) # make the actual wiggly line fainter
             smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=2)
             plot = ax.add_collection(smoothline)
-            print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points')
 
         # ------- making additional plot of deviation in gradient vs other quantities, like SFR------------
         if args.plot_deviation:
@@ -306,9 +307,39 @@ def plot_MZGR(args):
             smoothline2 = get_multicolored_line(df[args.zcol], df[args.ycol + '_deviation_smoothed'], df[args.colorcol], reversed_thiscmap, args.cmin, args.cmax, lw=2)
             plot2 = ax2.add_collection(smoothline2)
 
+        # ------- making additional plot of deviation in gradient vs other quantities, like SFR------------
+        elif args.plot_timefraction:
+            print('Plotting time fraction vs', args.colorcol, 'halo', args.halo)
+            df[args.ycol + '_deviation'] = df[args.ycol] - df[args.ycol + '_smoothed']
+            df = df.sort_values(args.xcol)
+            args.zcol = 'time'
+
+            # --------- mono-color line plot------------
+            plot2 = ax2.plot(df[args.zcol], df[args.ycol + '_deviation'], lw=1, color=thistextcolor)
+
+            if args.zhighlight:
+                df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
+                ax2.scatter(df_zbin[args.zcol], df_zbin[args.ycol + '_deviation'], color=thistextcolor, lw=1, edgecolor='k', s=100, alpha=0.5, zorder=20)
+
+            # ---------horizontal lines for cut-off-----
+            ax2.axhline(args.Zgrad_allowance, lw=0.5, ls='dashed', color='k')
+            ax2.axhline(- args.Zgrad_allowance, lw=0.5, ls='dashed', color='k')
+
+            ax2.text(lim_dict[args.zcol][1] * 0.95, args.Zgrad_allowance * 1.1, '%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='bottom', fontsize=args.fontsize)
+            ax2.text(lim_dict[args.zcol][1] * 0.95, -args.Zgrad_allowance * 1.1, '%.2F dex/%s' % (-args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='top', fontsize=args.fontsize)
+
+            # ---------filled area plot for deviation outside allowance-----
+            ax2.fill_between(df[args.zcol], df[args.ycol + '_deviation'], args.Zgrad_allowance, where=(df[args.ycol + '_deviation'] > args.Zgrad_allowance), color=thistextcolor, alpha=0.3)
+            ax2.fill_between(df[args.zcol],  df[args.ycol + '_deviation'], -args.Zgrad_allowance, where=(df[args.ycol + '_deviation'] < -args.Zgrad_allowance), color=thistextcolor, alpha=0.3)
+
+            # ---------calculating fration of time spent in filled area-----
+            snaps_outside_allowance = len(df[(df['Zgrad_deviation'] > args.Zgrad_allowance) | (df['Zgrad_deviation'] < -args.Zgrad_allowance)])
+            total_snaps = len(df)
+            timefraction_outside = snaps_outside_allowance * 100 / total_snaps
+            print('Halo', args.halo, 'spends %.2F %%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation')
 
         fig.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
-        if args.plot_deviation: fig2.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
+        if args.plot_deviation or args.plot_timefraction: fig2.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])
 
@@ -350,17 +381,31 @@ def plot_MZGR(args):
         ax2.set_yticklabels(['%.2F' % item for item in ax2.get_yticks()], fontsize=args.fontsize)
 
         ax2.set_xlabel(label_dict[args.zcol], fontsize=args.fontsize)
-        ax2.set_ylabel('Deviation in ' + label_dict[args.ycol], fontsize=args.fontsize)
+        ax2.set_ylabel('Residual ' + label_dict[args.ycol], fontsize=args.fontsize)
 
         figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_dev_in_%s_vs_%s_colorby_%s_Zgrad_den_%s%s%s%s%s.png' % (args.ycol, args.zcol, args.colorcol, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text)
+        fig2.savefig(figname)
+        print('Saved plot as', figname)
+    elif args.plot_timefraction:
+        ax2.set_xlim(lim_dict[args.zcol][0], lim_dict[args.zcol][1])
+        ax2.set_ylim(-0.5, 0.5)
+
+        ax2.set_xticklabels(['%.1F' % item for item in ax2.get_xticks()], fontsize=args.fontsize)
+        ax2.set_yticklabels(['%.2F' % item for item in ax2.get_yticks()], fontsize=args.fontsize)
+
+        ax2.set_xlabel(label_dict[args.zcol], fontsize=args.fontsize)
+        ax2.set_ylabel('Residual ' + label_dict[args.ycol], fontsize=args.fontsize)
+
+        figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_timefrac_outside_%.2F_Zgrad_den_%s%s%s%s%s.png' % (args.Zgrad_allowance, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text)
         fig2.savefig(figname)
         print('Saved plot as', figname)
     else:
         fig2 = None
 
     plt.show(block=False)
-    return fig, fig2, df_master, df_manga
+    if 'timefraction_outside' not in locals(): timefraction_outside = -99 # dummy value
 
+    return fig, fig2, df_master, df_manga, timefraction_outside
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -376,7 +421,7 @@ if __name__ == '__main__':
     if args.colorcol == ['vrad']: args.colorcol = 'time'
     else: args.colorcol = args.colorcol[0]
 
-    fig, fig2, df_binned, df_manga = plot_MZGR(args)
+    fig, fig2, df_binned, df_manga, tfrac = plot_MZGR(args)
 
     print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
 
