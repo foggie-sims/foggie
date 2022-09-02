@@ -1,4 +1,4 @@
-# Filename: save_ang_mom.py
+# Filename: save_halo_v_corrected.py
 
 from __future__ import print_function
 
@@ -68,9 +68,9 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def find_angmom(snap_name, t):
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, disk_relative=True, correct_bulk_velocity=True, particle_type_for_angmom='young_stars8')
-    row = [snap_name[-6:], ds.get_parameter('CosmologyCurrentRedshift'), ds.current_time.in_units('Myr').v, ds.z_unit_disk[0], ds.z_unit_disk[1], ds.z_unit_disk[2]]
+def find_bulk_velocity(snap_name, t):
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, correct_bulk_velocity=True)
+    row = [snap_name[-6:], ds.get_parameter('CosmologyCurrentRedshift'), ds.current_time.in_units('Myr').v, ds.halo_velocity_kms[0], ds.halo_velocity_kms[1], ds.halo_velocity_kms[2]]
     t.put(row)
 
 if __name__ == "__main__":
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     prefix = output_dir + 'halo_centers/' + 'halo_00' + args.halo + '/' + args.run + '/'
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
-    angmom_table = Table(names=('snap','redshift','time','Lx','Ly','Lz'), dtype=('S6','f8','f8','f8','f8','f8'))
+    v_table = Table(names=('snap','redshift','time','vx','vy','vz'), dtype=('S6','f8','f8','f8','f8','f8'))
     # Split into a number of groupings equal to the number of processors
     # and run one process per processor
     rows = []
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         queue = multi.Queue()
         for j in range(args.nproc):
             snap = foggie_dir + run_dir + outs[args.nproc*i+j] + '/' + outs[args.nproc*i+j]
-            thr = multi.Process(target=find_angmom, args=(snap, queue))
+            thr = multi.Process(target=find_bulk_velocity, args=(snap, queue))
             threads.append(thr)
             thr.start()
         for thr in threads:
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     queue = multi.Queue()
     for j in range(len(outs)%args.nproc):
         snap = foggie_dir + run_dir + outs[-(j+1)] + '/' + outs[-(j+1)]
-        thr = multi.Process(target=find_angmom, args=(snap, queue))
+        thr = multi.Process(target=find_bulk_velocity, args=(snap, queue))
         threads.append(thr)
         thr.start()
     for thr in threads:
@@ -118,13 +118,13 @@ if __name__ == "__main__":
         thr.join()
 
     for row in rows:
-        angmom_table.add_row(row)
+        v_table.add_row(row)
 
-    angmom_table.sort('time')
-    angmom_table['snap'].unit = 'dimensionless'
-    angmom_table['redshift'].unit = 'dimensionless'
-    angmom_table['time'].unit = 'Myr'
-    angmom_table['Lx'].unit = 'dimensionless'
-    angmom_table['Ly'].unit = 'dimensionless'
-    angmom_table['Lz'].unit = 'dimensionless'
-    angmom_table.write(prefix + 'angmom_table.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    v_table.sort('time')
+    v_table['snap'].unit = 'dimensionless'
+    v_table['redshift'].unit = 'dimensionless'
+    v_table['time'].unit = 'Myr'
+    v_table['vx'].unit = 'km/s'
+    v_table['vy'].unit = 'km/s'
+    v_table['vz'].unit = 'km/s'
+    ascii.write(v_table, prefix + 'bulk-v_table.dat', format='fixed_width', overwrite=True)
