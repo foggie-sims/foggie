@@ -350,7 +350,7 @@ if __name__ == '__main__':
             gasprofile = np.load(gasfilename, allow_pickle=True)[()]
         except OSError as e:
             print('Did not find', gasfilename)
-            gasfilename.replace(dummy_args.run, dummy_args.run[:14]) # if the modified run does not have a cold gas profile, get the profile from the base nrefXc_nrefYf run
+            gasfilename = gasfilename.replace(dummy_args.run, dummy_args.run[:14]) # if the modified run does not have a cold gas profile, get the profile from the base nrefXc_nrefYf run
             print('Instead, reading in cold gas profile from', gasfilename)
             gasprofile = np.load(gasfilename, allow_pickle=True)[()]
     else:
