@@ -154,7 +154,7 @@ def plot_time_series(df, args):
     axes[-2].plot(df['time'], df['log_metal_flux'], c=col_arr[0], lw=1, label='Metal flux ejected')
 
     axes[-2].set_ylabel(r'$\log{(\mathrm{M}_{\odot}/\mathrm{yr})}$', fontsize=args.fontsize)
-    axes[-2].set_ylim(-5, 7)
+    axes[-2].set_ylim(-5, 0)
     axes[-2].tick_params(axis='y', labelsize=args.fontsize)
     axes[-2].legend(loc='upper left', fontsize=args.fontsize / 1.5)
 
