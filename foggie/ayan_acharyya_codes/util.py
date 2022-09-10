@@ -1132,6 +1132,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--Zgrad_den', metavar='Zgrad_den', type=str, action='store', default='kpc', help='normaliser of Zgrad, either kpc or re; default is kpc')
     parser.add_argument('--plot_deviation', dest='plot_deviation', action='store_true', default=False, help='make additional plot of deviation in gradient vs things like SFR?, default is no')
     parser.add_argument('--plot_timefraction', dest='plot_timefraction', action='store_true', default=False, help='make additional plot of deviation in gradient vs things like SFR?, default is no')
+    parser.add_argument('--upto_z', metavar='upto_z', type=float, action='store', default=0, help='calculation of the fraction of time spent outside range will made only up to this lower limit redshift; default is 0')
     parser.add_argument('--Zgrad_allowance', metavar='Zgrad_allowance', type=float, action='store', default=0.05, help='allowance for Zgrad (in dex/kpc) outside the smoothed behaviour; default is +/- 0.05 dex/kpc')
     parser.add_argument('--zcol', metavar='zcol', type=str, action='store', default='sfr', help='x axis quantity for plotting against deviation in MZGR; default is sfr')
     parser.add_argument('--zmin', metavar='zmin', type=float, action='store', default=None, help='minimum xaxis limit; default is None')

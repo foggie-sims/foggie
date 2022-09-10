@@ -15,7 +15,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --colorcol re --cmax 3 --zhighlight
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Ztotal --xcol time --colorcol rlog_mass --zhighlight --docomoving
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_deviation --zcol log_ssfr
-                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2
 """
 from header import *
 from util import *
@@ -311,7 +311,7 @@ def plot_MZGR(args):
         elif args.plot_timefraction:
             print('Plotting time fraction vs', args.colorcol, 'halo', args.halo)
             df[args.ycol + '_deviation'] = df[args.ycol] - df[args.ycol + '_smoothed']
-            df = df.sort_values(args.xcol)
+            df = df.sort_values('time')
             args.zcol = 'time'
 
             # --------- mono-color line plot------------
@@ -324,6 +324,7 @@ def plot_MZGR(args):
             # ---------horizontal lines for cut-off-----
             ax2.axhline(args.Zgrad_allowance, lw=0.5, ls='dashed', color='k')
             ax2.axhline(- args.Zgrad_allowance, lw=0.5, ls='dashed', color='k')
+            ax2.axvline(df[df['redshift'] >= args.upto_z]['time'].values[-1], lw=0.5, ls='dashed', color='k')
 
             ax2.text(lim_dict[args.zcol][1] * 0.95, args.Zgrad_allowance * 1.1, '%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='bottom', fontsize=args.fontsize)
             ax2.text(lim_dict[args.zcol][1] * 0.95, -args.Zgrad_allowance * 1.1, '%.2F dex/%s' % (-args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='top', fontsize=args.fontsize)
@@ -333,10 +334,11 @@ def plot_MZGR(args):
             ax2.fill_between(df[args.zcol],  df[args.ycol + '_deviation'], -args.Zgrad_allowance, where=(df[args.ycol + '_deviation'] < -args.Zgrad_allowance), color=thistextcolor, alpha=0.3)
 
             # ---------calculating fration of time spent in filled area-----
-            snaps_outside_allowance = len(df[(df['Zgrad_deviation'] > args.Zgrad_allowance) | (df['Zgrad_deviation'] < -args.Zgrad_allowance)])
-            total_snaps = len(df)
+            dfsub = df[df['redshift'] >= args.upto_z]
+            snaps_outside_allowance = len(dfsub[(dfsub['Zgrad_deviation'] > args.Zgrad_allowance) | (dfsub['Zgrad_deviation'] < -args.Zgrad_allowance)])
+            total_snaps = len(dfsub)
             timefraction_outside = snaps_outside_allowance * 100 / total_snaps
-            print('Halo', args.halo, 'spends %.2F %%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation')
+            print('Halo', args.halo, 'spends %.2F %%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation upto redshift %.1F' % args.upto_z)
 
         fig.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
         if args.plot_deviation or args.plot_timefraction: fig2.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
