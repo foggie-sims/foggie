@@ -53,6 +53,14 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
         else:
             ax.plot(xvals, fit.best_fit, c='k', lw=2, label='fit')
 
+    # ----------adding vertical lines-------------
+    if fit is not None:
+        ax.axvline(fit[1], lw=1, ls='dashed', color='k')
+        ax.axvline(fit[4], lw=1, ls='dotted', color='k')
+    ax.axvline(np.percentile(Zarr, 25), lw=1, ls='solid', color='salmon')
+    ax.axvline(np.percentile(Zarr, 50), lw=1, ls='solid', color='crimson')
+    ax.axvline(np.percentile(Zarr, 75), lw=1, ls='solid', color='salmon')
+
     # ----------tidy up figure-------------
     plt.legend(loc='lower right', fontsize=args.fontsize)
     ax.set_xlim(0, args.xmax)
