@@ -195,14 +195,14 @@ if __name__ == '__main__':
     if dummy_args.write_file or dummy_args.upto_kpc is None:
         foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(dummy_args)
         gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + dummy_args.run + '/all_rprof_' + dummy_args.halo + '.npy'
-        print('Reading in cold gas profile from', gasfilename)
-        try:
-            gasprofile = np.load(gasfilename, allow_pickle=True)[()]
-        except OSError as e:
+
+        if os.path.exists(gasfilename):
+            print('Reading in cold gas profile from', gasfilename)
+        else:
             print('Did not find', gasfilename)
-            gasfilename = gasfilename.replace(dummy_args.run, dummy_args.run[:14]) # if the modified run does not have a cold gas profile, get the profile from the base nrefXc_nrefYf run
+            gasfilename = gasfilename.replace(dummy_args.run, dummy_args.run[:14])
             print('Instead, reading in cold gas profile from', gasfilename)
-            gasprofile = np.load(gasfilename, allow_pickle=True)[()]
+        gasprofile = np.load(gasfilename, allow_pickle=True)[()]
     else:
         print('Not reading in cold gas profile because any re calculation is not needed')
         gasprofile = None

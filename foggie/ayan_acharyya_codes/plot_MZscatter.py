@@ -85,7 +85,14 @@ def plot_MZscatter(args):
         thisindex = len(args.halo_arr) - index - 1
         df = load_df(args)
         # -------- reading in additional dataframes-------
-        addn_df = pd.read_table(args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
+        sfr_filename = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr'
+        if os.path.exists(sfr_filename):
+            print('Reading SFR history from', sfr_filename)
+        else:
+            print(sfr_filename, 'not found')
+            sfr_filename = sfr_filename.replace(args.run, args.run[:14])
+            print('Instead, reading SFR history from', sfr_filename)
+        addn_df = pd.read_table(sfr_filename, names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
         df = df.merge(addn_df[['output', 'sfr']], on='output')
         df['ssfr'] = df['sfr'] / 10**df['log_mass']
         df = df.replace([np.inf, -np.inf], np.nan).dropna(axis=0)

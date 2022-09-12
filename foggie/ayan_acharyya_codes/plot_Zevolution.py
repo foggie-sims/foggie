@@ -62,29 +62,30 @@ def plot_all_stats(df, args):
         ax.tick_params(axis='y', labelsize=args.fontsize)
 
         ax2 = ax.twinx()
-        ax2.plot(df['time'], df['sfr'], c=sfr_col_arr[0], lw=1, alpha=0.2)
+        if 'sfr' in df: ax2.plot(df['time'], df['sfr'], c=sfr_col_arr[0], lw=1, alpha=0.2)
         ax2.set_ylim(0, 50)
         ax2.set_yticks([])
 
         ax3 = ax.twinx()
-        ax3.plot(df['time'], df['log_ssfr'], c=sfr_col_arr[1], lw=1, alpha=0.2)
+        if 'log_ssfr' in df: ax3.plot(df['time'], df['log_ssfr'], c=sfr_col_arr[1], lw=1, alpha=0.2)
         ax3.set_ylim(-12, -7)
         ax3.set_yticks([])
 
     # -----------for last panel first part: SFR-------------------
-    axes[-1].plot(df['time'], df['sfr'], c=sfr_col_arr[0], lw=1)
+    if 'sfr' in df: axes[-1].plot(df['time'], df['sfr'], c=sfr_col_arr[0], lw=1)
 
     axes[-1].set_ylabel(label_dict['sfr'], fontsize=args.fontsize, color=sfr_col_arr[0])
     axes[-1].set_ylim(0, 50)
     axes[-1].tick_params(axis='y', colors=sfr_col_arr[0], labelsize=args.fontsize)
 
     axes[-1].set_xlabel('Time (Gyr)', fontsize=args.fontsize)
-    axes[-1].set_xlim(0, 14)
+    #axes[-1].set_xlim(0, 14)
+    axes[-1].set_xlim(1.5, 2)
     axes[-1].tick_params(axis='x', labelsize=args.fontsize)
 
     # -----------for last panel second part: sSFR-------------------
     ax2 = axes[-1].twinx()
-    ax2.plot(df['time'], df['log_ssfr'], c=sfr_col_arr[1], lw=1)
+    if 'log_ssfr' in df: ax2.plot(df['time'], df['log_ssfr'], c=sfr_col_arr[1], lw=1)
 
     ax2.set_ylabel(label_dict['log_ssfr'], fontsize=args.fontsize, color=sfr_col_arr[1])
     ax2.set_ylim(-12, -7)
@@ -135,7 +136,7 @@ def plot_time_series(df, args):
         ax.tick_params(axis='y', labelsize=args.fontsize)
 
     # -----------for SFR panel-------------------
-    axes[-4].plot(df['time'], df['sfr'], c=col_arr[0], lw=1, label='SFR')
+    if 'sfr' in df: axes[-4].plot(df['time'], df['sfr'], c=col_arr[0], lw=1, label='SFR')
 
     axes[-4].set_ylabel(label_dict['sfr'], fontsize=args.fontsize)
     axes[-4].set_ylim(0, 50)
@@ -143,7 +144,7 @@ def plot_time_series(df, args):
     axes[-4].legend(loc='upper left', fontsize=args.fontsize / 1.5)
 
     # -----------for metal production panel-------------------
-    axes[-3].plot(df['time'], df['log_metal_produced'], c=col_arr[0], lw=1, label='Metal mass produced')
+    if 'log_metal_produced' in df: axes[-3].plot(df['time'], df['log_metal_produced'], c=col_arr[0], lw=1, label='Metal mass produced')
 
     axes[-3].set_ylabel(label_dict['log_mass'], fontsize=args.fontsize)
     axes[-3].set_ylim(4, 7.2)
@@ -151,7 +152,7 @@ def plot_time_series(df, args):
     axes[-3].legend(loc='upper left', fontsize=args.fontsize / 1.5)
 
     # -----------for metal ejection panel-------------------
-    axes[-2].plot(df['time'], df['log_metal_flux'], c=col_arr[0], lw=1, label='Metal flux ejected')
+    if 'log_meal_flux' in df: axes[-2].plot(df['time'], df['log_metal_flux'], c=col_arr[0], lw=1, label='Metal flux ejected')
 
     axes[-2].set_ylabel(r'$\log{(\mathrm{M}_{\odot}/\mathrm{yr})}$', fontsize=args.fontsize)
     axes[-2].set_ylim(-5, 0)
@@ -171,7 +172,8 @@ def plot_time_series(df, args):
 
     # -----------for x axis-------------------
     axes[-1].set_xlabel('Time (Gyr)', fontsize=args.fontsize)
-    axes[-1].set_xlim(0, 14)
+    #axes[-1].set_xlim(0, 14)
+    axes[-1].set_xlim(1.5, 2)
     axes[-1].tick_params(axis='x', labelsize=args.fontsize)
 
     if args.upto_kpc is not None:
@@ -212,40 +214,50 @@ if __name__ == '__main__':
         df = load_df(args)
 
         # -------- reading in and merging dataframe with SFR info-------
-        sfr_df = pd.read_table(args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr', names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
-        df = df.merge(sfr_df[['output', 'sfr']], on='output')
-        df['ssfr'] = df['sfr'] / 10**df['log_mass']
-        df = df.replace([np.inf, -np.inf], np.nan).dropna(axis=0)
-        df['log_ssfr'] = np.log10(df['ssfr'])
-        df['log_sfr'] = np.log10(df['sfr'])
+        sfr_filename = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr'
+        if os.path.exists(sfr_filename):
+            print('Reading SFR history from', sfr_filename)
+            sfr_df = pd.read_table(sfr_filename, names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
+            df = df.merge(sfr_df[['output', 'sfr']], on='output')
+            df['ssfr'] = df['sfr'] / 10 ** df['log_mass']
+            df = df.replace([np.inf, -np.inf], np.nan).dropna(axis=0)
+            df['log_ssfr'] = np.log10(df['ssfr'])
+            df['log_sfr'] = np.log10(df['sfr'])
+        else:
+            print('Did not find', sfr_filename, ', therefore will not plot the SFR-related panels')
 
         # -------- reading in and merging dataframe with metal flux info-------
         flux_df = pd.DataFrame(columns=('output', 'log_metal_flux'))
         flux_file_path = args.output_dir + 'txtfiles/'
         flux_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_fluxes_mass.hdf5'%(args.galrad, args.nchunks))
 
-        for i, thisfile in enumerate(flux_files):
-            print('Extracting metal flux from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
-            output = os.path.split(thisfile)[-1][:6]
-            thisdf = pd.read_hdf(thisfile, 'all_data')
-            net_metal_flux = thisdf['net_metal_flux'][np.where(thisdf['radius'] >= args.upto_kpc)[0][0]] # msun/yr
-            flux_df.loc[len(flux_df)] = [output, np.log10(net_metal_flux)] # log(msun/yr)
+        if len(flux_files) > 0:
+            for i, thisfile in enumerate(flux_files):
+                print('Extracting metal flux from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
+                output = os.path.split(thisfile)[-1][:6]
+                thisdf = pd.read_hdf(thisfile, 'all_data')
+                net_metal_flux = thisdf['net_metal_flux'][np.where(thisdf['radius'] >= args.upto_kpc)[0][0]] # msun/yr
+                flux_df.loc[len(flux_df)] = [output, np.log10(net_metal_flux)] # log(msun/yr)
 
-        df = df.merge(flux_df[['output', 'log_metal_flux']], on='output')
+            df = df.merge(flux_df[['output', 'log_metal_flux']], on='output')
+        else:
+            print('Did not find any metal flux file, therefore will not plot the metal flux panels')
 
         # -------- reading in and merging dataframe with SFR info-------
         production_df = pd.DataFrame(columns=('output', 'log_metal_produced'))
         production_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_metal_sink_source.txt'%(args.galrad, args.nchunks))
 
-        for i, thisfile in enumerate(production_files):
-            print('Extracting metal production from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
-            output = os.path.split(thisfile)[-1][:6]
-            thisdf = pd.read_table(thisfile, delim_whitespace=True, comment='#')
-            metal_produced = thisdf['metal_produced'][:np.where(thisdf['radius'] >= args.upto_kpc)[0][0]+1].sum() # msun
-            production_df.loc[len(production_df)] = [output, np.log10(metal_produced)] # log(msun)
+        if len(production_files) > 0:
+            for i, thisfile in enumerate(production_files):
+                print('Extracting metal production from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
+                output = os.path.split(thisfile)[-1][:6]
+                thisdf = pd.read_table(thisfile, delim_whitespace=True, comment='#')
+                metal_produced = thisdf['metal_produced'][:np.where(thisdf['radius'] >= args.upto_kpc)[0][0]+1].sum() # msun
+                production_df.loc[len(production_df)] = [output, np.log10(metal_produced)] # log(msun)
 
-        df = df.merge(production_df[['output', 'log_metal_produced']], on='output')
-
+            df = df.merge(production_df[['output', 'log_metal_produced']], on='output')
+        else:
+            print('Did not find any metal production file, therefore will not plot the metal production panels')
 
         df = df.sort_values('time')
         df.to_csv(output_filename, sep='\t', index=None)
