@@ -845,12 +845,13 @@ def get_all_sims_for_this_halo(args, given_path=None):
     for thissnap in snapshots:
         if len(thissnap) == 6:
             if args.use_onlyRD:
-                if thissnap[:2] == 'RD': all_sims.append([args.halo, thissnap])
+                if thissnap[:2] == 'RD' and float(thissnap[2:]) >= args.snap_start and float(thissnap[2:]) <= args.snap_stop: all_sims.append([args.halo, thissnap])
             elif args.use_onlyDD:
-                if thissnap[:2] == 'DD': all_sims.append([args.halo, thissnap])
+                if thissnap[:2] == 'DD' and float(thissnap[2:]) >= args.snap_start and float(thissnap[2:]) <= args.snap_stop: all_sims.append([args.halo, thissnap])
             else:
                 all_sims.append([args.halo, thissnap])
     all_sims = all_sims[:: args.nevery]
+    print_master('Found total %s sims to work upon'%(len(all_sims)), args)
     return all_sims
 
 # ---------------------------------------------------------------------------------------------
@@ -928,6 +929,8 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--use_onlyRD', dest='use_onlyRD', action='store_true', default=False, help='Use only the RD snapshots available for a given halo?, default is no')
     parser.add_argument('--use_onlyDD', dest='use_onlyDD', action='store_true', default=False, help='Use only the DD snapshots available for a given halo?, default is no')
     parser.add_argument('--nevery', metavar='nevery', type=int, action='store', default=1, help='use every nth snapshot when do_all_sims is specified; default is 1 i.e., all snapshots will be used')
+    parser.add_argument('--snap_start', metavar='snap_start', type=int, action='store', default=0, help='index of the DD or RD snapshots to start from, when using --do_all_sims; default is 0')
+    parser.add_argument('--snap_stop', metavar='snap_stop', type=int, action='store', default=10000, help='index of the DD or RD snapshots to stop at, when using --do_all_sims; default is 10000')
     parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False, help='loop over all available halos (and all snapshots each halo has)?, default is no')
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
     parser.add_argument('--galrad', metavar='galrad', type=float, action='store', default=20., help='the radial extent (in each spatial dimension) to which computations will be done, in kpc; default is 20')
@@ -948,7 +951,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--add_velocity', dest='add_velocity', action='store_true', default=False, help='Add velocity?, default is no')
     parser.add_argument('--hide_axes', dest='hide_axes', action='store_true', default=False, help='Hide all axes?, default is no')
     parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
-    parser.add_argument('--annotate_box', dest='annotate_box', action='store_true', default=False, help='annotate box?, default is no')
+    parser.add_argument('--annotate_box', metavar='annotate_box', type=str, action='store', default=None, help='comma separated comoving kpc values for annotate boxes, default is None')
     parser.add_argument('--min_level', dest='min_level', type=int, action='store', default=3, help='annotate grids min level, default is 3')
 
     # ------- args added for filter_star_properties.py ------------------------------
@@ -1071,7 +1074,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--clobber_plot', dest='clobber_plot', action='store_true', default=False, help='overwrite existing plots with same name?, default is no')
     parser.add_argument('--overplot_stars', dest='overplot_stars', action='store_true', default=False, help='overplot young stars?, default is no')
     parser.add_argument('--overplot_absorbers', dest='overplot_absorbers', action='store_true', default=False, help='overplot HI absorbers (from Claire)?, default is no')
-    parser.add_argument('--start_index', metavar='start_index', type=int, action='store', default=0, help='index of the list of snapshots to start from; default is 8')
+    parser.add_argument('--start_index', metavar='start_index', type=int, action='store', default=0, help='index of the list of snapshots to start from; default is 0')
     parser.add_argument('--interactive', dest='interactive', action='store_true', default=False, help='interactive mode?, default is no')
     parser.add_argument('--combine', dest='combine', action='store_true', default=False, help='combine all outputs from lasso selection?, default is no')
     parser.add_argument('--selcol', dest='selcol', action='store_true', default=False, help='make a selection in the color space too?, default is no')

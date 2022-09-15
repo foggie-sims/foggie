@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    January 2021
     Example :    run projection_plot.py --system ayan_local --halo 4123 --output RD0038 --do gas --proj x --fullbox --nframes 1 --rot_normal_by -30 --rot_normal_about y --rot_north_by 45 --rot_north_about x --iscolorlog
-                 run projection_plot.py --system ayan_local --halo 8508 --galrad 1000 --output RD0042 --do mrp --annotate_grids --annotate_box
+                 run projection_plot.py --system ayan_local --halo 8508 --galrad 1000 --output RD0042 --do mrp --annotate_grids --annotate_box 200,400
 
 """
 from header import *
@@ -71,8 +71,8 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     if args.annotate_grids:
         prj.annotate_grids(min_level=args.min_level)
 
-    if args.annotate_box:
-        for thisbox in [200., 400.]: # comoving size at z=0 in kpc
+    if args.annotate_box is not None:
+        for thisbox in [float(item) for item in args.annotate_box.split(',')]: # comoving size at z=0 in kpc
             thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
             prj = annotate_box(prj, thisphys, ds, center, unit='kpc', projection=axs)
 
