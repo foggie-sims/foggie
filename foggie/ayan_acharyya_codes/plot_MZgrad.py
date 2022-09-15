@@ -13,7 +13,7 @@
                  run plot_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --Zgrad_den rad_re --weight mass --binby log_mass --nbins 20 --cmap plasma --xmax 11 --ymin 0.3 --overplot_manga --manga_diag n2
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --colorcol log_mass --overplot_smoothed --zhighlight
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --colorcol re --cmax 3 --zhighlight
-                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Ztotal --xcol time --colorcol rlog_mass --zhighlight --docomoving
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Ztotal --xcol time --colorcol log_mass --zhighlight --docomoving
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_deviation --zcol log_ssfr
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2
 """
@@ -161,6 +161,17 @@ def get_multicolored_line(xdata, ydata, colordata, cmap, cmin, cmax, lw=2, ls='s
     lc.set_linestyle(ls)
     return lc
 
+# -----------------------------------------------
+def plot_zhighlight(df, ax, cmap, args):
+    '''
+    Function to overplot circles at integer-ish redshifts and return the ax
+    '''
+    df['redshift_int'] = np.floor(df['redshift'])
+    df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
+    dummy = ax.scatter(df_zbin[args.xcol], df_zbin[args.ycol], c=df_zbin[args.colorcol], cmap=cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed else 1, zorder=20)
+    print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
+    return ax
+
 # ----------------------------------
 class MyDefaultDict(dict):
     '''
@@ -277,10 +288,7 @@ def plot_MZGR(args):
 
         # ------- overplotting redshift-binned scatter plot------------
         if args.zhighlight:
-            df['redshift_int'] = np.floor(df['redshift'])
-            df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-            dummy = ax.scatter(df_zbin[args.xcol], df_zbin[args.ycol], c=df_zbin[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed else 1, zorder=20)
-            print('For halo', args.halo, 'highlighted z =', [float('%.1F'%item) for item in df_zbin['redshift'].values], 'with circles')
+            ax = plot_zhighlight(df, ax, this_cmap, args)
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
         if args.overplot_smoothed:

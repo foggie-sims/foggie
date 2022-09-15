@@ -79,8 +79,8 @@ def plot_all_stats(df, args):
     axes[-1].tick_params(axis='y', colors=sfr_col_arr[0], labelsize=args.fontsize)
 
     axes[-1].set_xlabel('Time (Gyr)', fontsize=args.fontsize)
-    #axes[-1].set_xlim(0, 14)
-    axes[-1].set_xlim(1.5, 2)
+    axes[-1].set_xlim(0, 14)
+    #axes[-1].set_xlim(1.5, 2)
     axes[-1].tick_params(axis='x', labelsize=args.fontsize)
 
     # -----------for last panel second part: sSFR-------------------
@@ -103,6 +103,17 @@ def plot_all_stats(df, args):
 
     return fig
 
+# -----------------------------------------------
+def plot_zhighlight(df, ycol, color, ax, args):
+    '''
+    Function to overplot circles at integer-ish redshifts and return the ax
+    '''
+    df['redshift_int'] = np.floor(df['redshift'])
+    df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
+    dummy = ax.scatter(df_zbin['time'], df_zbin[ycol], c=color, lw=1, edgecolor='k', s=100, alpha=0.5, zorder=20)
+    print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
+    return ax
+
 # -----------------------------------
 def plot_time_series(df, args):
     '''
@@ -112,14 +123,16 @@ def plot_time_series(df, args):
     fig.subplots_adjust(top=0.98, bottom=0.07, left=0.07, right=0.98, hspace=0.05)
 
     df = df.sort_values(by='time')
+    df['ZIQR_rel'] = df['ZIQR'] / df['Z50'] # IQR relative to the median Z
+
     col_arr = ['brown', 'darkolivegreen', 'black', 'cornflowerblue', 'salmon', 'gold', 'saddlebrown', 'crimson',
                'black', 'darkturquoise', 'lawngreen']
     sfr_col_arr = ['black']
 
-    groups = pd.DataFrame({'quantities': [['Z50', 'ZIQR'], ['Zmean', 'Zvar']], \
-                           'legend': [['Median Z', 'IQR'], ['Mean Z (fit)', 'Variance (fit)']], \
+    groups = pd.DataFrame({'quantities': [['Z50', 'ZIQR', 'ZIQR_rel'], ['Zmean', 'Zvar']], \
+                           'legend': [['Median Z', 'IQR', 'IQR/Median'], ['Mean Z (fit)', 'Variance (fit)']], \
                            'label': np.hstack([np.tile([r'Z/Z$_\odot$'], 2)]), \
-                           'limits': [(1e-3, 7), (1e-4, 2)], \
+                           'limits': [(1e-3, 15), (1e-4, 2)], \
                            'isalreadylog': np.hstack([np.tile([False], 2)])})
 
     # -----------for first few panels: Z distribution statistics-------------------
@@ -129,6 +142,7 @@ def plot_time_series(df, args):
         log_text = 'log_' if thisgroup.isalreadylog else ''
         for i, ycol in enumerate(thisgroup.quantities):
             ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=1, label=thisgroup.legend[i])
+            if args.zhighlight: ax = plot_zhighlight(df,log_text + ycol, col_arr[i], ax, args)
 
         ax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
         ax.set_ylabel(thisgroup.label, fontsize=args.fontsize)
@@ -136,7 +150,9 @@ def plot_time_series(df, args):
         ax.tick_params(axis='y', labelsize=args.fontsize)
 
     # -----------for SFR panel-------------------
-    if 'sfr' in df: axes[-4].plot(df['time'], df['sfr'], c=col_arr[0], lw=1, label='SFR')
+    if 'sfr' in df:
+        axes[-4].plot(df['time'], df['sfr'], c=col_arr[0], lw=1, label='SFR')
+        if args.zhighlight: axes[-4] = plot_zhighlight(df, 'sfr', col_arr[0], axes[-4], args)
 
     axes[-4].set_ylabel(label_dict['sfr'], fontsize=args.fontsize)
     axes[-4].set_ylim(0, 50)
@@ -144,7 +160,9 @@ def plot_time_series(df, args):
     axes[-4].legend(loc='upper left', fontsize=args.fontsize / 1.5)
 
     # -----------for metal production panel-------------------
-    if 'log_metal_produced' in df: axes[-3].plot(df['time'], df['log_metal_produced'], c=col_arr[0], lw=1, label='Metal mass produced')
+    if 'log_metal_produced' in df:
+        axes[-3].plot(df['time'], df['log_metal_produced'], c=col_arr[0], lw=1, label='Metal mass produced')
+        if args.zhighlight: axes[-3] = plot_zhighlight(df, 'log_metal_produced', col_arr[0], axes[-3], args)
 
     axes[-3].set_ylabel(label_dict['log_mass'], fontsize=args.fontsize)
     axes[-3].set_ylim(4, 7.2)
@@ -152,7 +170,9 @@ def plot_time_series(df, args):
     axes[-3].legend(loc='upper left', fontsize=args.fontsize / 1.5)
 
     # -----------for metal ejection panel-------------------
-    if 'log_meal_flux' in df: axes[-2].plot(df['time'], df['log_metal_flux'], c=col_arr[0], lw=1, label='Metal flux ejected')
+    if 'log_metal_flux' in df:
+        axes[-2].plot(df['time'], df['log_metal_flux'], c=col_arr[0], lw=1, label='Metal flux ejected')
+        if args.zhighlight: axes[-2] = plot_zhighlight(df, 'log_metal_flux', col_arr[0], axes[-2], args)
 
     axes[-2].set_ylabel(r'$\log{(\mathrm{M}_{\odot}/\mathrm{yr})}$', fontsize=args.fontsize)
     axes[-2].set_ylim(-5, 0)
@@ -160,20 +180,27 @@ def plot_time_series(df, args):
     axes[-2].legend(loc='upper left', fontsize=args.fontsize / 1.5)
 
     # -----------for merger history panel-------------------
+    rvir_df = pd.read_hdf(args.code_path + '/halo_infos/00' + args.halo + '/nref11c_nref9f/rvir_masses.hdf5', key='all_data') ## args.run is hard-coded here, for noe
+    df2 = df[['output', 'redshift', 'time']].merge(rvir_df[['redshift', 'radius']], on='redshift')
+
     filename = args.code_path + 'satellites/Tempest_satorbits.hdf5'
     f = h5py.File(filename, 'r')
-    for thissat in f.keys():
-        axes[-1].plot(f[thissat]['Time(Gyr)'][()], f[thissat]['Dist(R200)'][()], lw=1)
+    for index, thissat in enumerate(f.keys()):
+        #print('Doing', thissat, 'which is', index+1, 'out of', len(f.keys()), 'satellites..')
+        thisdf = pd.DataFrame({'time':np.array(f[thissat]['Time(Gyr)'][()]).flatten(), 'dist':np.array(f[thissat]['Dist(R200)'][()]).flatten()})
+        thisdf = df2.merge(thisdf, on='time', how='inner')
+        thisdf['dist'] = thisdf['dist'] * thisdf['radius'] # converting Distance from R200 units to kpc units
+        axes[-1].plot(thisdf['time'], thisdf['dist'], lw=1)
     f.close()
 
     axes[-1].set_ylabel(r'Distance (kpc)', fontsize=args.fontsize)
-    axes[-1].set_ylim(0, 2)
+    axes[-1].set_ylim(0, 100)
     axes[-1].tick_params(axis='y', labelsize=args.fontsize)
 
     # -----------for x axis-------------------
     axes[-1].set_xlabel('Time (Gyr)', fontsize=args.fontsize)
-    #axes[-1].set_xlim(0, 14)
-    axes[-1].set_xlim(1.5, 2)
+    axes[-1].set_xlim(0, 14)
+    #axes[-1].set_xlim(1.5, 2)
     axes[-1].tick_params(axis='x', labelsize=args.fontsize)
 
     if args.upto_kpc is not None:

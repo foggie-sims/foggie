@@ -131,10 +131,7 @@ def plot_MZscatter(args):
 
         # ------- overplotting redshift-binned scatter plot------------
         if args.zhighlight:
-            df['redshift_int'] = np.floor(df['redshift'])
-            df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-            dummy = ax.scatter(df_zbin[args.xcol], df_zbin[args.ycol], c=df_zbin[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed else 1, zorder=20)
-            print('For halo', args.halo, 'highlighted z =', [float('%.1F'%item) for item in df_zbin['redshift'].values], 'with circles')
+            ax = plot_zhighlight(df, ax, this_cmap, args)
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
         if args.overplot_smoothed:
