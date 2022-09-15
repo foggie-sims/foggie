@@ -178,7 +178,8 @@ if __name__ == '__main__':
         else: halos = dummy_args.halo_arr
         list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
 
-    for this_sim in list_of_sims:
+    for index, this_sim in enumerate(list_of_sims):
+        print('Doing', index + 1, 'out of the total %s sims..' % (len(list_of_sims)))
         if len(list_of_sims) == 1: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
         else: args = parse_args(this_sim[0], this_sim[1])
 

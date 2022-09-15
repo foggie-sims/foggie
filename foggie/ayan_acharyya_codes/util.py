@@ -851,7 +851,6 @@ def get_all_sims_for_this_halo(args, given_path=None):
             else:
                 all_sims.append([args.halo, thissnap])
     all_sims = all_sims[:: args.nevery]
-    print_master('Found total %s sims to work upon'%(len(all_sims)), args)
     return all_sims
 
 # ---------------------------------------------------------------------------------------------
