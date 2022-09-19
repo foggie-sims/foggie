@@ -73,6 +73,6 @@ plt.ylim(0,125)
 plt.xlabel('Redshift') 
 plt.text(mm['redshift'][-1]-0.05, number_of_particles, str(number_of_particles)[0:4]+' million', color='red', horizontalalignment='right') 
 plt.ylabel('Free Memory Per Node (GB)') 
-plt.savefig('node_memory_trace.png')
+plt.savefig('ee_memory_trace.png')
 
 print('Total Number Of Particles So Far: ', (tz['nparticles'][-1]-tz['nparticles'][0])/1e6, ' million') 
