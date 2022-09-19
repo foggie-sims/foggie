@@ -28,19 +28,24 @@ def get_times_and_redshifts():
     os.system("grep 'comoving_expansion redshift ' pbs_output.txt | awk '{print $2, $6}' > times_and_zs")
     os.system("grep 'simulation num-particles total' pbs_output.txt | awk '{print $7}' > nparticles") 
     os.system("grep 'Simulation cycle' pbs_output.txt | awk '{print $5}' > cycles ")  
+    os.system("grep num-total-blocks pbs_output.txt | awk '{print $6}' > blocks") 
 
     times = Table.read('times_and_zs', format='ascii') 
     npart = Table.read('nparticles', format='ascii') 
     cycle = Table.read('cycles', format='ascii')  
-    table = hstack([cycle, times, npart])
+    blocks = Table.read('blocks', format='ascii') 
+    table = hstack([cycle, times, npart, blocks])
 
     names = table.keys() 
     table.rename_column(names[0], 'cycle')
     table.rename_column(names[1], 'timestamp')
     table.rename_column(names[2], 'redshift')
     table.rename_column(names[3], 'nparticles')
+    table.rename_column(names[4], 'blocks')
 
-    #os.system('rm times_and_zs nparticles cycles') 
+    os.system('rm times_and_zs nparticles cycles blocks') 
+
+    table['dt'] = np.gradient(table['timestamp']) 
 
     return table 
 
@@ -67,7 +72,6 @@ for i in range(number_of_nodes):
 
 plt.plot(tz['redshift'], (tz['nparticles'])/1e6, color='red', alpha=0.8) 
 number_of_particles = (tz['nparticles'][-1])/1e6 
-
 plt.xlim(25,0)
 plt.title(os.getcwd().split('/')[-1]) 
 plt.ylim(0,125)
@@ -76,4 +80,21 @@ plt.text(mm['redshift'][-1]-0.05, number_of_particles, str(number_of_particles)[
 plt.ylabel('Free Memory Per Node (GB)') 
 plt.savefig('ee_memory_trace.png')
 
-print('Total Number Of Particles So Far: ', (tz['nparticles'][-1]-tz['nparticles'][0])/1e6, ' million') 
+
+
+plt.figure(figsize=(12,4))
+plt.plot(tz['redshift'], tz['dt'] / tz['blocks'], alpha=0.5) 
+
+plt.xlim(25,0)
+plt.title(os.getcwd().split('/')[-1]) 
+plt.xlabel('Redshift') 
+plt.text(mm['redshift'][-1]-0.05, number_of_particles, str(number_of_particles)[0:4]+' million', color='red', horizontalalignment='right') 
+plt.ylabel('Seconds per block') 
+plt.savefig('ee_block_trace.png')
+
+
+print('Total Number Of Particles So Far: ', (tz['nparticles'][-1])/1e6, ' million') 
+
+
+
+
