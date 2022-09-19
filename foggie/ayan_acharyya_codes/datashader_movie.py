@@ -99,7 +99,7 @@ def extract_columns_from_df(df_allprop, args):
     return df
 
 # -------------------------------------------------------------------------------
-def get_df_from_ds(ds, args):
+def get_df_from_ds(ds, args, outfilename=None):
     '''
     Function to make a pandas dataframe from the yt dataset based on the given field list and color category,
     then writes dataframe to file for faster access in future
@@ -108,7 +108,10 @@ def get_df_from_ds(ds, args):
     '''
     # -------------read/write pandas df file with ALL fields-------------------
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
-    outfilename = get_correct_tablename(args)
+    if outfilename is None: outfilename = get_correct_tablename(args)
+
+    all_fields = [args.xcol, args.ycol, args.colorcol] if args.quick else field_dict.keys()  # only the relevant properties if in a hurry
+    if 'rad' not in all_fields: all_fields = ['rad'] + all_fields
 
     if not os.path.exists(outfilename) or args.clobber:
         if not os.path.exists(outfilename):
@@ -118,9 +121,6 @@ def get_df_from_ds(ds, args):
 
         if not args.quick: myprint('Extracting all gas, once and for all, and putting them into dataframe, so that this step is not required for subsequently plotting other parameters and therefore subsequent plotting is faster; this may take a while..', args)
         df_allprop = pd.DataFrame()
-
-        all_fields = [args.xcol, args.ycol, args.colorcol] if args.quick else field_dict.keys() # only the relevant properties if in a hurry
-        if 'rad' not in all_fields: all_fields = ['rad'] + all_fields
 
         for index,field in enumerate(all_fields):
             myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(all_fields)) + ' fields..', args)
@@ -132,12 +132,17 @@ def get_df_from_ds(ds, args):
     else:
         myprint('Reading from existing file ' + outfilename, args)
         df_allprop = pd.read_table(outfilename, delim_whitespace=True, comment='#')
-        try:
-            df_allprop = df_allprop[df_allprop['rad'].between(0, args.galrad)] # curtailing in radius space, in case this dataframe has been read in from a file corresponding to a larger chunk of the box
-        except KeyError: # for files produced previously and therefore may not have a 'rad' column
-            rad_picked_up = float(get_text_between_strings(outfilename, 'boxrad_', 'kpc'))
-            if rad_picked_up == args.galrad: pass # if this file actually corresponds to the correct radius, then you're fine (even if the file itself doesn't have radius column)
-            else: sys.exit('Please regenerate ' + outfilename + ', using the --clobber option') # otherwise throw error
+
+        if not set(all_fields).issubset(set(df_allprop.columns)): # if existing file was old, it might not have all the required columns, in which case clobber to make new file now
+            dummy_args = copy.deepcopy(args)
+            if dummy_args.quick: outfilename = dummy_args.output_dir + 'txtfiles/' + dummy_args.output + '_df_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.txt' % (dummy_args.galrad, dummy_args.ycol, dummy_args.xcol, dummy_args.colorcol, inflow_outflow_text)
+            else: outfilename = dummy_args.output_dir + 'txtfiles/' + dummy_args.output + '_df_boxrad_%.2Fkpc.txt' % (dummy_args.galrad)
+
+            dummy_args.clobber = True
+            myprint(outfilename + ' exists but does not have all the required fields..', dummy_args)
+            df_allprop = get_df_from_ds(ds, dummy_args, outfilename=outfilename)
+
+        df_allprop = df_allprop[df_allprop['rad'].between(0, args.galrad)] # curtailing in radius space, in case this dataframe has been read in from a file corresponding to a larger chunk of the box
 
     df = extract_columns_from_df(df_allprop, args)
     return df
@@ -1062,12 +1067,18 @@ if __name__ == '__main__':
             if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
 
+            # ---------to determine if disk parameters need to be loaded in---------------------
+            all_fields = [dummy_args.xcol, dummy_args.ycol, dummy_args.colorcol] if dummy_args.quick else field_dict.keys()  # only the relevant properties if in a hurry
+            isdisk_required = np.array(['disk' in item for item in all_fields]).any()
+            should_load_disk = (isdisk_required or dummy_args.diskload) and not dummy_args.nodiskload
+
+            halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_cen_smoothed'
             if type(args) is tuple:
                 args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
-                print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
+                if should_load_disk: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=True, particle_type_for_angmom='gas', halo_c_v_name=halos_df_name)
+                else: print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
             else:
-                isdisk_required = np.array(['disk' in item for item in [args.xcol, args.ycol] + args.colorcol]).any()
-                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=(isdisk_required or args.diskload) and not args.nodiskload)
+                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=should_load_disk, particle_type_for_angmom='gas', halo_c_v_name=halos_df_name)
 
             # -------create new fields for angular momentum vectors-----------
             ds.add_field(('gas', 'angular_momentum_phi'), function=phi_angular_momentum, sampling_type='cell', units='degree')

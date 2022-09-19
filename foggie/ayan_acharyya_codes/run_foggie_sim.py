@@ -10,7 +10,7 @@
     Example :    run run_foggie_sim.py --halo 2430 --level 1 --queue devel --dryrun
                  run run_foggie_sim.py --halo 2139 --level 1 --queue devel --automate --final_level 3 --dryrun
                  run run_foggie_sim.py --halo 2139 --level 1 --queue normal --automate --plot_projection --width 1000
-                 run run_foggie_sim.py --halo 2139 --level 3 --queue long --gas --plot_projection --width 1000
+                 run run_foggie_sim.py --halo 2139 --level 3 --queue long --gas --plot_projection --width 1000 --nreflevel 9
                  run run_foggie_sim.py --halo 5205 --level 1 --queue devel --nnodes 8 --automate --nreflevel 9
                  run run_foggie_sim.py --halo 8892 --queue long --nnodes 32 --forcedref --refsize 200 --creflevel 9 --freflevel 7 --start_output RD0008
 
@@ -157,7 +157,7 @@ def run_music(target_conf_file, args):
         execute_command(command, args.dryrun)
 
         # --------need to move the recently made directory, in case of L1 runs---------
-        if args.level == 1: execute_command('mv ../25Mpc_DM_256-L1 .', args.dryrun)
+        if args.level == 1: execute_command('mv ' + args.sim_dir + '/25Mpc_DM_256-L1 .', args.dryrun)
 
     print('Finished running MUSIC')
 
@@ -196,8 +196,8 @@ def run_enzo(nnodes, ncores, nhours, args):
     enzo_param_file = args.sim_name + '-L' + str(args.level) + gas_or_dm + '.enzo'
 
     # ---------make substitutions in conf file-----------------
-    if do_gas(args): jobname = args.halo_name + '_gas_' + 'L' + str(args.level) + '_' + str(args.nreflevel) + 'n'
-    else: jobname = args.halo_name + '_DM_' + 'L' + str(args.level) + '_' + str(args.nreflevel) + 'n'
+    if do_gas(args): jobname = args.halo + '_gas_' + 'L' + str(args.level) + '_' + str(args.nreflevel) + 'n'
+    else: jobname = args.halo + '_DM_' + 'L' + str(args.level) + '_' + str(args.nreflevel) + 'n'
 
     path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
     calls_to_script = path_to_simrun + ' -mpi \"mpiexec -np ' + str(nnodes * ncores) + ' /u/scicon/tools/bin/mbind.x -cs \" -wall ' + str(3600 * float(nhours)) + ' -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"'
@@ -275,7 +275,7 @@ def rerun_enzo_with_shielding(args):
     modify_lines_in_file(replacements, orig_conf_file, orig_conf_file)
 
     # -----submit the PBS job---------
-    jobname = args.halo_name + '_gas_' + 'L' + str(args.level)
+    jobname = args.halo + '_gas_' + 'L' + str(args.level)
     target_runscript = workdir + '/RunScript.sh'
     execute_command('qsub ' + target_runscript, args.dryrun)
 
@@ -338,8 +338,8 @@ def run_multiple_enzo_levels(nnodes, ncores, nhours, args):
     path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
     path_to_script = '/nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
 
-    if do_gas(args): jobname = args.halo_name + '_gas_' + 'L' + str(args.level) + '-to-L' + str(args.final_level)
-    else: jobname = args.halo_name + '_DM_' + 'L' + str(args.level) + '-to-L' + str(args.final_level)
+    if do_gas(args): jobname = args.halo + '_gas_' + 'L' + str(args.level) + '-to-L' + str(args.final_level)
+    else: jobname = args.halo + '_DM_' + 'L' + str(args.level) + '-to-L' + str(args.final_level)
     dm_or_gas = '-gas' if do_gas(args) else ''
 
     # ---------loop over subsequent refinement levels to create separate lines in the PBS job script-----------------
@@ -417,7 +417,7 @@ def run_forcedref(ncores, nhours, args):
     template_runscript = args.template_dir + '/RunScript_LX.sh'
     target_runscript = args.working_dir + '/RunScript.sh'
 
-    jobname = args.halo_name + '_' + os.path.split(args.working_dir)[-1]
+    jobname = args.halo + '_' + os.path.split(args.working_dir)[-1]
     enzo_param_file = './' + args.start_output + '/' + args.start_output
     path_to_simrun = '/nobackup/aachary2/bigbox/halo_template/simrun.pl'
     calls_to_script = path_to_simrun + ' -mpi \"mpiexec -np ' + str(args.nnodes * ncores) + ' /u/scicon/tools/bin/mbind.x -cs \" -wall ' + str(3600 * float(nhours)) + ' -pf \"' + enzo_param_file + '\" -jf \"' + os.path.split(target_runscript)[1] + '\"'
@@ -491,7 +491,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_pleiades')
     parser.add_argument('--queue', metavar='queue', type=str, action='store', default='long')
-    parser.add_argument('--nnodes', metavar='nnodes', type=int, action='store', default=4)
+    parser.add_argument('--nnodes', metavar='nnodes', type=int, action='store', default=1)
     parser.add_argument('--ncores', metavar='ncores', type=int, action='store', default=16)
     parser.add_argument('--nhours', metavar='nhours', type=int, action='store', default=None)
     parser.add_argument('--proc', metavar='proc', type=str, action='store', default='has')
@@ -566,9 +566,9 @@ if __name__ == '__main__':
 
     index = [halos['ID'] == int(args.halo[:4])]
     thishalo = halos[index]
-    args.center0 = np.array([thishalo['X'][0]/25., thishalo['Y'][0]/25., thishalo['Z'][0]/25.]) # divided by 25 to convert Mpc units to code units
+    args.center0 = np.array([thishalo['X'][0], thishalo['Y'][0], thishalo['Z'][0]])/25 # divided by 25 comoving Mpc^-1 to convert comoving Mpc h^-1 units to code units
     rvir = np.max([thishalo['Rvir'][0], 200.])
-    print('Starting halo', thishalo['ID'][0], 'L0-centered at =', args.center0, 'with Rvir =', rvir, 'kpc', 'at refinement level', args.level)
+    print('Starting halo', thishalo['ID'][0], 'L0-centered at =', args.center0, 'with Rvir =', rvir, 'comoving kpc h^-1', 'at refinement level', args.level)
 
     if args.forcedref: run_forcedref(ncores, nhours, args) # run forced refinement runs
     else: wrap_run_enzo(ncores, nhours, args) # run MUSIC and Enzo

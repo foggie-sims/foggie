@@ -15,8 +15,8 @@
                  run projection_plot_nondefault.py --halo 5133 --width 1000 --run 25Mpc_DM_256-L3 --center_offset " 117,93,-73"
                  run projection_plot_nondefault.py --halo 5205 --width 200 --run 25Mpc_DM_256-L3-gas --output RD0028 --get_center_track --do cellsize
                  run projection_plot_nondefault.py --halo 5205 --width 200 --run nref7c_nref7f --do_all_sims --use_onlyDD --nevery 5 --get_center_track --do gas
-                 run projection_plot_nondefault.py --halo 5205 --width 2000 --run nref7c_nref7f --output RD0111 --get_center_track --do mrp --annotate_grids --annotate_box
-
+                 run projection_plot_nondefault.py --halo 5205 --width 2000 --run nref7c_nref7f --output RD0111 --get_center_track --do mrp --annotate_grids --annotate_box 200,400
+                 run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/projection_plot_nondefault.py --halo 4348 --width 1000 --run natural_9n/25Mpc_DM_256-L3-gas --output RD0052 --center_offset " -12,80,-23" --do gas --annotate_grids --min_level 6
 """
 from header import *
 from util import *
@@ -87,12 +87,19 @@ def projection_plot(args):
 
     if args.center is None:
         if args.get_center_track:
-            trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_interp.dat'
+            trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_sr' + str(float(args.search_radius)) + 'kpc_interp.dat'
+            if not os.path.exists(trackfile):
+                print(trackfile + ' not found..')
+                trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_interp.dat'
+                print('Reading from ' + trackfile + ' instead..')
+            else:
+                print('Reading from ' + trackfile)
+
             df_track_int = pd.read_table(trackfile, delim_whitespace=True)
             center = interp1d(df_track_int['redshift'], df_track_int[['center_x', 'center_y', 'center_z']], axis=0)(ds.current_redshift)
             print('Center from center track file =', center)
         else:
-            center = np.array([thishalo['X'][0] / 25., thishalo['Y'][0] / 25., thishalo['Z'][0] / 25.])  # divided by 25 to convert Mpc units to code units
+            center = np.array([thishalo['X'][0], thishalo['Y'][0], thishalo['Z'][0]])/25 # divided by 25 comoving Mpc^-1 to convert comoving Mpc h^-1 units to code units
             print('Center for L0_gas =', center)
     else:
         center = args.center
@@ -115,9 +122,10 @@ def projection_plot(args):
     if args.annotate_grids:
         p.annotate_grids(min_level=args.min_level)
 
-    if args.annotate_box:
-        for thisbox in [200., 400.]: # comoving size at z=0 in kpc
-            thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
+    if args.annotate_box is not None:
+        box_sizes = [float(item) for item in args.annotate_box.split(',')]
+        for thisbox in box_sizes: # comoving kpc h^-1
+            thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical kpc
             p = annotate_box(p, thisphys, ds, unit='kpc', projection=args.projection, center=center)
 
     p.annotate_text((0.06, 0.12), args.halo, coord_system='axis')
@@ -130,14 +138,15 @@ def projection_plot(args):
     try: p.set_zlim(field_dict[args.do], zmin=zlim_dict[args.do][0], zmax=zlim_dict[args.do][1])
     except: pass
 
-    # -------------optional annotations (if Rvir and M info exists) -------------------------------
+    # -------------optional annotations (if Rvir and Mvir info exists) -------------------------------
     if len(thishalo) > 0:
-        p.annotate_sphere(center, radius=(thishalo['Rvir'], "kpc"), circle_args={"color": "white"})
-        p.annotate_text((0.06, 0.08), "M = "+"{0:.2e}".format(thishalo['Mvir'][0]), coord_system="axis")
+        p.annotate_sphere(center, radius=(thishalo['Rvir'][0] / (1 + ds.current_redshift) / ds.hubble_constant, 'kpc'), circle_args={'color': 'white'}) # comoving kpc h^-1 to physical kpc
+        p.annotate_text((0.06, 0.08), 'M = '+'{0:.2e}'.format(thishalo['Mvir'][0] / ds.hubble_constant), coord_system='axis') # Msun h^-1 to Msun
 
     target_dir = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/figs/'
     Path(target_dir).mkdir(parents=True, exist_ok=True)
-    p.save(target_dir + args.halo_name + '_' + args.run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
+    run = args.run.replace('/', '_')
+    p.save(target_dir + args.halo_name + '_' + run + '_' + args.output + '_' + args.projection + '_' + args.do + width_text + '.png', mpl_kwargs={'dpi': 500})
     print('This snapshot completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
 
     return p
@@ -161,13 +170,14 @@ if __name__ == '__main__':
     parser.add_argument('--center_offset', metavar='center_offset', type=str, action='store', default='0,0,0', help='offset from center in integer cell units')
     parser.add_argument('--print_to_file', dest='print_to_file', action='store_true', default=False, help='Redirect all print statements to a file?, default is no')
     parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
-    parser.add_argument('--annotate_box', dest='annotate_box', action='store_true', default=False, help='annotate box?, default is no')
+    parser.add_argument('--annotate_box', metavar='annotate_box', type=str, action='store', default=None, help='comma separated list of comoving box sizes to annotate, default is None')
     parser.add_argument('--min_level', dest='min_level', type=int, action='store', default=3, help='annotate grids min level, default is 3')
     parser.add_argument('--get_center_track', dest='get_center_track', action='store_true', default=False, help='get the halo cneter automatically from the center track file?, default is no')
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available for a given halo?, default is no')
     parser.add_argument('--use_onlyRD', dest='use_onlyRD', action='store_true', default=False, help='Use only the RD snapshots available for a given halo?, default is no')
     parser.add_argument('--use_onlyDD', dest='use_onlyDD', action='store_true', default=False, help='Use only the DD snapshots available for a given halo?, default is no')
     parser.add_argument('--nevery', metavar='nevery', type=int, action='store', default=1, help='use every nth snapshot when do_all_sims is specified; default is 1 i.e., all snapshots will be used')
+    parser.add_argument('--search_radius', metavar='search_radius', type=float, action='store', default=50, help='the radius within which to search for density peak, in comoving kpc; default is 50 ckpc')
 
     args = parser.parse_args()
     if args.center is not None: args.center = [float(item) for item in args.center.split(',')]

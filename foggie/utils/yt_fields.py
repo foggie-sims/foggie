@@ -21,14 +21,14 @@ def _static_average_rampressure(field, data):
 def _static_radial_rampressure(field, data):
     vel = data['gas', 'radial_velocity']
     vel[vel<0] = 0.
-    rp = data['density'] * vel**2.
+    rp = data['gas','density'] * vel**2.
     return np.log10(rp.in_units('dyne/cm**2').value)
 
 def _radial_rampressure(field, data):
 
     vel = data['gas', 'circular_velocity'] + data['gas', 'radial_velocity']
     vel[vel<0] = 0.
-    rp = data['density'] * vel**2.
+    rp = data['gas','density'] * vel**2.
     return np.log10(rp.in_units('dyne/cm**2').value)
 
 
@@ -56,7 +56,7 @@ def _young_stars7(pfilter, data):
     return filter
 
 def _young_stars8(pfilter, data):
-    """Filter star particles with creation time < 10 Myr ago
+    """Filter star particles with creation time < 100 Myr ago
     To use: yt.add_particle_filter("young_stars8", function=_young_stars8, filtered_type='all', requires=["creation_time"])"""
 
     age = data.ds.current_time - data[pfilter.filtered_type, "creation_time"]
@@ -78,7 +78,7 @@ def _dm(pfilter, data):
 def _cooling_criteria(field,data):
     """adds cooling criteria field
     to use: yt.add_field(("gas","cooling_criteria"),function=_cooling_criteria,units=None)"""
-    return -1*data['cooling_time'] / ((data['dx']/data['sound_speed']).in_units('s'))
+    return -1*data['gas','cooling_time'] / ((data['gas','dx']/data['gas','sound_speed']).in_units('s'))
 
 
 
@@ -195,7 +195,7 @@ def vel_mag_corrected(field, data):
     """Corrects the velocity magnitude for bulk motion of the halo. Requires 'halo_velocity_kms',
     which is the halo velocity with yt units of km/s, to be defined. -Cassi"""
 
-    return np.sqrt(data['vx_corrected']**2. + data['vy_corrected']**2. + data['vz_corrected']**2.)
+    return np.sqrt(data['gas','vx_corrected']**2. + data['gas','vy_corrected']**2. + data['gas','vz_corrected']**2.)
 
 def radial_velocity_corrected(field, data):
     """Corrects the radial velocity for bulk motion of the halo and the halo center.
@@ -209,7 +209,7 @@ def radial_velocity_corrected(field, data):
     x_hat /= r
     y_hat /= r
     z_hat /= r
-    vr = data['vx_corrected']*x_hat + data['vy_corrected']*y_hat + data['vz_corrected']*z_hat
+    vr = data['gas','vx_corrected']*x_hat + data['gas','vy_corrected']*y_hat + data['gas','vz_corrected']*z_hat
     vr[np.isnan(vr)] = 0.
     return vr
 
@@ -218,9 +218,9 @@ def theta_velocity_corrected(field, data):
     halo and the halo center. Requires 'halo_center_kpc', which is the halo center with yt units
     of kpc, to be defined. Requires the other fields of vx_corrected, vy_corrected, and vz_corrected.
     -Cassi"""
-    xv = data['vx_corrected']
-    yv = data['vy_corrected']
-    zv = data['vz_corrected']
+    xv = data['gas','vx_corrected']
+    yv = data['gas','vy_corrected']
+    zv = data['gas','vz_corrected']
     center = data.ds.halo_center_kpc
     x_hat = data['gas','x'].in_units('kpc') - center[0]
     y_hat = data['gas','y'].in_units('kpc') - center[1]
@@ -236,9 +236,9 @@ def phi_velocity_corrected(field, data):
     halo and the halo center. Requires 'halo_center_kpc', which is the halo center with yt units
     of kpc, to be defined. Requires the other fields of vx_corrected, vy_corrected, and vz_corrected.
     -Cassi"""
-    xv = data['vx_corrected']
-    yv = data['vy_corrected']
-    zv = data['vz_corrected']
+    xv = data['gas','vx_corrected']
+    yv = data['gas','vy_corrected']
+    zv = data['gas','vz_corrected']
     center = data.ds.halo_center_kpc
     x_hat = data['gas','x'].in_units('kpc') - center[0]
     y_hat = data['gas','y'].in_units('kpc') - center[1]
@@ -281,6 +281,16 @@ def radius_corrected_young_stars(field, data):
     x_hat = data['young_stars','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
     y_hat = data['young_stars','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
     z_hat = data['young_stars','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
+    return r
+
+def radius_corrected_young_stars8(field, data):
+    """Corrects the radius for star particles for the center of the halo. Requires 'halo_center_kpc', which is the halo
+    center with yt units of kpc, to be defined. -Cassi"""
+    halo_center_kpc = data.ds.halo_center_kpc
+    x_hat = data['young_stars8','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    y_hat = data['young_stars8','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    z_hat = data['young_stars8','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     return r
 
@@ -328,19 +338,19 @@ def kinetic_energy_corrected(field, data):
     """Calculates the kinetic energy of cells corrected
     for the halo velocity. Requires 'halo_velociy_kms', which is the halo velocity with yt
     units of km/s, to be defined. -Cassi"""
-    return 0.5 * data['cell_mass'] * data['vel_mag_corrected']**2.
+    return 0.5 * data['gas','cell_mass'] * data['gas','vel_mag_corrected']**2.
 
 def radial_kinetic_energy(field, data):
     """Calculates the radial kinetic energy of cells corrected
     for the halo velocity. Requires 'halo_velociy_kms', which is the halo velocity with yt
     units of km/s, to be defined. -Cassi"""
-    return 0.5 * data['cell_mass'] * data['radial_velocity_corrected']**2.
+    return 0.5 * data['gas','cell_mass'] * data['gas','radial_velocity_corrected']**2.
 
 def tangential_kinetic_energy(field, data):
     """Calculates the tangential kinetic energy of cells corrected
     for the halo velocity. Requires 'halo_velociy_kms', which is the halo velocity with yt
     units of km/s, to be defined. -Cassi"""
-    return 0.5 * data['cell_mass'] * data['tangential_velocity_corrected']**2.
+    return 0.5 * data['gas','cell_mass'] * data['gas','tangential_velocity_corrected']**2.
 
 def _no6(field,data):
     return data["dx"] * data['O_p5_number_density']
@@ -397,13 +407,139 @@ def z_diskrel(field, data):
 
     return newz.in_units('kpc')
 
+def x_diskrel_dm(field, data):
+    '''Returns the x-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['dm','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['dm','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['dm','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newx = data.ds.disk_rot_arr[0][0]*oldx+data.ds.disk_rot_arr[0][1]*oldy+data.ds.disk_rot_arr[0][2]*oldz
+
+    return newx.in_units('kpc')
+
+def y_diskrel_dm(field, data):
+    '''Returns the y-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['dm','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['dm','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['dm','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newy = data.ds.disk_rot_arr[1][0]*oldx+data.ds.disk_rot_arr[1][1]*oldy+data.ds.disk_rot_arr[1][2]*oldz
+
+    return newy.in_units('kpc')
+
+def z_diskrel_dm(field, data):
+    '''Returns the z-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['dm','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['dm','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['dm','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newz = data.ds.disk_rot_arr[2][0]*oldx+data.ds.disk_rot_arr[2][1]*oldy+data.ds.disk_rot_arr[2][2]*oldz
+
+    return newz.in_units('kpc')
+
+def x_diskrel_stars(field, data):
+    '''Returns the x-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['stars','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['stars','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['stars','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newx = data.ds.disk_rot_arr[0][0]*oldx+data.ds.disk_rot_arr[0][1]*oldy+data.ds.disk_rot_arr[0][2]*oldz
+
+    return newx.in_units('kpc')
+
+def y_diskrel_stars(field, data):
+    '''Returns the y-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['stars','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['stars','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['stars','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newy = data.ds.disk_rot_arr[1][0]*oldx+data.ds.disk_rot_arr[1][1]*oldy+data.ds.disk_rot_arr[1][2]*oldz
+
+    return newy.in_units('kpc')
+
+def z_diskrel_stars(field, data):
+    '''Returns the z-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['stars','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['stars','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['stars','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newz = data.ds.disk_rot_arr[2][0]*oldx+data.ds.disk_rot_arr[2][1]*oldy+data.ds.disk_rot_arr[2][2]*oldz
+
+    return newz.in_units('kpc')
+
+def x_diskrel_young_stars8(field, data):
+    '''Returns the x-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['young_stars8','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['young_stars8','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['young_stars8','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newx = data.ds.disk_rot_arr[0][0]*oldx+data.ds.disk_rot_arr[0][1]*oldy+data.ds.disk_rot_arr[0][2]*oldz
+
+    return newx.in_units('kpc')
+
+def y_diskrel_young_stars8(field, data):
+    '''Returns the y-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['young_stars8','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['young_stars8','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['young_stars8','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newy = data.ds.disk_rot_arr[1][0]*oldx+data.ds.disk_rot_arr[1][1]*oldy+data.ds.disk_rot_arr[1][2]*oldz
+
+    return newy.in_units('kpc')
+
+def z_diskrel_young_stars8(field, data):
+    '''Returns the z-position (in kpc) in a new coordinate system aligned with the disk.
+    Requires ds.disk_rot_arr to be defined as the rotation array into a coordinate system
+    defined by the disk.
+    Requires ds.halo_center_kpc to be defined as the center of the halo in kpc. -Cassi'''
+
+    halo_center_kpc = data.ds.halo_center_kpc
+    oldx = data['young_stars8','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    oldy = data['young_stars8','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    oldz = data['young_stars8','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    newz = data.ds.disk_rot_arr[2][0]*oldx+data.ds.disk_rot_arr[2][1]*oldy+data.ds.disk_rot_arr[2][2]*oldz
+
+    return newz.in_units('kpc')
+
 def vx_diskrel(field, data):
     """Converts the x-velocity into a coordinate system defined by the disk. Requires ds.disk_rot_arr,
     which is the rotation array for the coordinate system shift, to be defined. -Cassi"""
 
-    old_vx = data['vx_corrected']
-    old_vy = data['vy_corrected']
-    old_vz = data['vz_corrected']
+    old_vx = data['gas','vx_corrected']
+    old_vy = data['gas','vy_corrected']
+    old_vz = data['gas','vz_corrected']
     new_vx = data.ds.disk_rot_arr[0][0]*old_vx+data.ds.disk_rot_arr[0][1]*old_vy+data.ds.disk_rot_arr[0][2]*old_vz
 
     return new_vx.in_units('km/s')
@@ -412,9 +548,9 @@ def vy_diskrel(field, data):
     """Converts the y-velocity into a coordinate system defined by the disk. Requires ds.disk_rot_arr,
     which is the rotation array for the coordinate system shift, to be defined. -Cassi"""
 
-    old_vx = data['vx_corrected']
-    old_vy = data['vy_corrected']
-    old_vz = data['vz_corrected']
+    old_vx = data['gas','vx_corrected']
+    old_vy = data['gas','vy_corrected']
+    old_vz = data['gas','vz_corrected']
     new_vy = data.ds.disk_rot_arr[1][0]*old_vx+data.ds.disk_rot_arr[1][1]*old_vy+data.ds.disk_rot_arr[1][2]*old_vz
 
     return new_vy.in_units('km/s')
@@ -423,9 +559,9 @@ def vz_diskrel(field, data):
     """Converts the z-velocity into a coordinate system defined by the disk. Requires ds.disk_rot_arr,
     which is the rotation array for the coordinate system shift, to be defined. -Cassi"""
 
-    old_vx = data['vx_corrected']
-    old_vy = data['vy_corrected']
-    old_vz = data['vz_corrected']
+    old_vx = data['gas','vx_corrected']
+    old_vy = data['gas','vy_corrected']
+    old_vz = data['gas','vz_corrected']
     new_vz = data.ds.disk_rot_arr[2][0]*old_vx+data.ds.disk_rot_arr[2][1]*old_vy+data.ds.disk_rot_arr[2][2]*old_vz
 
     return new_vz.in_units('km/s')
@@ -434,9 +570,9 @@ def phi_pos_diskrel(field, data):
     """Calculates the azimuthal position of cells for conversions to spherical coordinates, in a
     coordinate system defined by the angular momentum vector of the disk. -Cassi"""
 
-    x_hat = data['x_disk']
-    y_hat = data['y_disk']
-    z_hat = data['z_disk']
+    x_hat = data['gas','x_disk']
+    y_hat = data['gas','y_disk']
+    z_hat = data['gas','z_disk']
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
 
     return np.arccos(z_hat/r)
@@ -445,9 +581,31 @@ def theta_pos_diskrel(field, data):
     """Calculates the angular position of cells for conversions to spherical coordinates, in a
     coordinate system defined by the angular momentum vector of the disk. -Cassi"""
 
-    x_hat = data['x_disk']
-    y_hat = data['y_disk']
-    z_hat = data['z_disk']
+    x_hat = data['gas','x_disk']
+    y_hat = data['gas','y_disk']
+    z_hat = data['gas','z_disk']
+    r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
+
+    return np.arctan2(y_hat, x_hat)
+
+def phi_pos_diskrel_dm(field, data):
+    """Calculates the azimuthal position of cells for conversions to spherical coordinates, in a
+    coordinate system defined by the angular momentum vector of the disk. -Cassi"""
+
+    x_hat = data['dm','x_disk']
+    y_hat = data['dm','y_disk']
+    z_hat = data['dm','z_disk']
+    r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
+
+    return np.arccos(z_hat/r)
+
+def theta_pos_diskrel_dm(field, data):
+    """Calculates the angular position of cells for conversions to spherical coordinates, in a
+    coordinate system defined by the angular momentum vector of the disk. -Cassi"""
+
+    x_hat = data['dm','x_disk']
+    y_hat = data['dm','y_disk']
+    z_hat = data['dm','z_disk']
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
 
     return np.arctan2(y_hat, x_hat)
@@ -455,12 +613,12 @@ def theta_pos_diskrel(field, data):
 def theta_velocity_diskrel(field, data):
     """Converts disk-relative velocities into spherical velocities. theta is the direction around
     in the plane of the disk. -Cassi"""
-    xv = data['vx_disk']
-    yv = data['vy_disk']
-    zv = data['vz_disk']
-    x_hat = data['x_disk']
-    y_hat = data['y_disk']
-    z_hat = data['z_disk']
+    xv = data['gas','vx_disk']
+    yv = data['gas','vy_disk']
+    zv = data['gas','vz_disk']
+    x_hat = data['gas','x_disk']
+    y_hat = data['gas','y_disk']
+    z_hat = data['gas','z_disk']
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     rxy = np.sqrt(x_hat*x_hat + y_hat*y_hat)
     theta_v = (xv*y_hat - x_hat*yv)/(x_hat*x_hat + y_hat*y_hat)*rxy
@@ -470,12 +628,12 @@ def theta_velocity_diskrel(field, data):
 def phi_velocity_diskrel(field, data):
     """Converts disk-relative velocities into spherical velocities. phi is the direction above and
     below the disk. -Cassi"""
-    xv = data['vx_disk']
-    yv = data['vy_disk']
-    zv = data['vz_disk']
-    x_hat = data['x_disk']
-    y_hat = data['y_disk']
-    z_hat = data['z_disk']
+    xv = data['gas','vx_disk']
+    yv = data['gas','vy_disk']
+    zv = data['gas','vz_disk']
+    x_hat = data['gas','x_disk']
+    y_hat = data['gas','y_disk']
+    z_hat = data['gas','z_disk']
     r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
     rxy = np.sqrt(x_hat*x_hat + y_hat*y_hat)
     phi_v = (z_hat*(x_hat*xv + y_hat*yv)-zv*(x_hat*x_hat + y_hat*y_hat))/(r*r*rxy)*r
@@ -485,49 +643,49 @@ def phi_velocity_diskrel(field, data):
 def tangential_velocity_diskrel(field, data):
     """Returns sqrt(v_theta^2 + v_phi^2), where v_theta and v_phi are oriented with the disk. -Cassi"""
 
-    return np.sqrt(data['vtheta_disk']**2. + data['vphi_disk']**2.)
+    return np.sqrt(data['gas','vtheta_disk']**2. + data['gas','vphi_disk']**2.)
 
 def tangential_kinetic_energy_diskrel(field, data):
     """Calculates the tangential kinetic energy of cells corrected
     for the halo velocity, relative to the disk. Requires 'halo_velociy_kms', which is the halo velocity with yt
     units of km/s, to be defined. -Cassi"""
-    return 0.5 * data['cell_mass'] * data['vtan_disk']**2.
+    return 0.5 * data['gas','cell_mass'] * data['gas','vtan_disk']**2.
 
 def t_ff(field, data):
     """Returns the free-fall time of the gas. Note tff is an interpolated function of radius so
     this value will be the same for all cells with the same radius."""
 
-    rho = data.ds.Menc_profile(data['radius_corrected'])*Msun/(data['radius_corrected']**3.) * 3./(4.*np.pi)
+    rho = data.ds.Menc_profile(data['gas','radius_corrected'])*Msun/(data['gas','radius_corrected']**3.) * 3./(4.*np.pi)
     return np.sqrt(3.*np.pi/(32.*G*rho))
 
 def v_ff(field, data):
     """Returns the free-fall velocity of the gas. Note vff is an interpolated function of radius so
     this value will be the same for all cells with the same radius."""
 
-    rho = data.ds.Menc_profile(data['radius_corrected'])*Msun/(data['radius_corrected']**3.) * 3./(4.*np.pi)
-    return -data['radius_corrected']/np.sqrt(3.*np.pi/(32.*G*rho))
+    rho = data.ds.Menc_profile(data['gas','radius_corrected'])*Msun/(data['gas','radius_corrected']**3.) * 3./(4.*np.pi)
+    return -data['gas','radius_corrected']/np.sqrt(3.*np.pi/(32.*G*rho))
 
 def v_esc(field, data):
     """Returns the escape velocity of the gas. Note vesc is an interpolated function of radius so this
     value will be the same for all cells with the same radius."""
 
-    vesc = np.sqrt(2.*G*data.ds.Menc_profile(data['radius_corrected'])*Msun/(data['radius_corrected']))
+    vesc = np.sqrt(2.*G*data.ds.Menc_profile(data['gas','radius_corrected'])*Msun/(data['gas','radius_corrected']))
     return vesc
 
 def tcool_tff_ratio(field, data):
     """Returns the ratio of cooling time to free-fall time of the gas. Note tff is an interpolated
     function of radius based on the enclosed mass profiles."""
 
-    return data['cooling_time']/data['tff']
+    return data['gas','cooling_time']/data['tff']
 
 def cell_mass_msun(field, data):
     """Returns the cell mass in units of Msun rather than the default of grams."""
 
-    return data['cell_mass'].in_units('Msun')
+    return data['gas','cell_mass'].in_units('Msun')
 
 def grav_pot(field, data):
-    Menc = data.ds.Menc_profile(data['radius_corrected'])*Msun
-    return G.in_units('cm**3/g/s**2')*Menc.in_units('g')/data['radius_corrected'].in_units('cm')
+    Menc = data.ds.Menc_profile(data['gas','radius_corrected'])*Msun
+    return G.in_units('cm**3/g/s**2')*Menc.in_units('g')/data['gas','radius_corrected'].in_units('cm')
 
 def hse_ratio(field, data):
     center = data.ds.halo_center_kpc

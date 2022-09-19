@@ -8,8 +8,9 @@
     Author :     Ayan Acharyya
     Started :    Feb 2022
     Examples :   run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_re 3 --xcol rad_re --keep --weight mass
-                 run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad_re --keep --weight mass
+                 run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --do_all_sims --weight mass --write_file --noplot
+                 run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --xcol rad --do_all_sims --weight mass --write_file --noplot
 
 """
 from header import *
@@ -97,7 +98,7 @@ def get_re_from_stars(ds, args):
     half_mass_radius = mass_profile[mass_profile['stars_mass'] <= total_mass/2]['radius'].iloc[-1]
     re = re_hmr_factor * half_mass_radius
 
-    print('Stellar-profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' %(args.current_redshift) + ') is %.2F kpc' %(re))
+    print('\nStellar-profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' %(args.current_redshift) + ') is %.2F kpc' %(re))
     return re
 
 # --------------------------------------------------------------------------------
@@ -116,10 +117,10 @@ def get_re_from_coldgas(gasprofile, args):
         total_mass = mass_profile['coldgas'].iloc[-1]
         half_mass_radius = mass_profile[mass_profile['coldgas'] <= total_mass/2]['radius'].iloc[-1]
         re = re_hmr_factor * half_mass_radius
-        print('Cold gas profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' % (args.current_redshift) + ') is %.2F kpc' % (re))
+        print('\nCold gas profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' % (args.current_redshift) + ') is %.2F kpc' % (re))
     else:
         re = -99
-        print('Cold gas profile not found for halo ' + args.halo + ' output ' + args.output + '; therefore returning dummy re %d' % (re))
+        print('\nCold gas profile not found for halo ' + args.halo + ' output ' + args.output + '; therefore returning dummy re %d' % (re))
 
     return re
 
@@ -200,7 +201,7 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, is_logscale=False, color='maroon
 
     # ----------to plot mean binned y vs x profile--------------
     x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
-    linefit, linecov = np.polyfit(x_bin_centers, y_binned.flatten(), 1, cov=True)#, w=1/(y_u_binned.flatten())**2)
+    linefit, linecov = np.polyfit(x_bin_centers, y_binned.flatten(), 1, cov=True, w=1/(y_u_binned.flatten())**2)
 
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
     Zcen = ufloat(linefit[1], np.sqrt(linecov[1][1]))
@@ -321,15 +322,19 @@ if __name__ == '__main__':
     total_snaps = len(list_of_sims)
 
     # -------set up dataframe and filename to store/write gradients in to--------
-    cols_in_df = ['output', 'redshift', 'time', \
-                  're_stars', 'mass_re_stars', 'Zcen_re_stars', 'Zcen_u_re_stars', 'Zgrad_re_stars', 'Zgrad_u_re_stars', \
-                  'Zcen_binned_re_stars', 'Zcen_u_binned_re_stars', 'Zgrad_binned_re_stars', 'Zgrad_u_binned_re_stars', 'Ztotal_re_stars', \
-                  're_coldgas', 'mass_re_coldgas', 'Zcen_re_coldgas', 'Zcen_u_re_coldgas', 'Zgrad_re_coldgas', 'Zgrad_u_re_coldgas', \
-                  'Zcen_binned_re_coldgas', 'Zcen_u_binned_re_coldgas', 'Zgrad_binned_re_coldgas', 'Zgrad_u_binned_re_coldgas', 'Ztotal_re_coldgas']
+    cols_in_df = ['output', 'redshift', 'time']
+    cols_to_add = ['mass', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Zcen_binned', 'Zcen_u_binned', 'Zgrad_binned', 'Zgrad_u_binned', 'Ztotal']
+    if dummy_args.upto_kpc is not None: cols_in_df = np.hstack([cols_in_df, ['re_stars', 're_coldgas'], [item + '_fixedr' for item in cols_to_add]])
+    else: cols_in_df = np.hstack([cols_in_df, ['re_stars', 're_coldgas'], [item + '_re_stars' for item in cols_to_add], [item + '_re_coldgas' for item in cols_to_add]])
+
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
-    upto_text = '_upto%.1Fkpc' % dummy_args.upto_kpc if dummy_args.upto_kpc is not None else '_upto%.1FRe' % dummy_args.upto_re
+    if dummy_args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % dummy_args.upto_kpc if dummy_args.docomoving else '_upto%.1Fkpc' % dummy_args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % dummy_args.upto_re
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s%s%s.txt' % (dummy_args.xcol, upto_text, weightby_text)
+    if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
     if dummy_args.dryrun:
         print('List of the total ' + str(total_snaps) + ' sims =', list_of_sims)
@@ -337,10 +342,20 @@ if __name__ == '__main__':
     # parse column names, in case log
 
     # --------------read in the cold gas profile file ONCE for a given halo-------------
-    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(dummy_args)
-    gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + dummy_args.run + '/all_rprof_' + dummy_args.halo + '.npy'
-    print('Reading in cold gas profile from', gasfilename)
-    gasprofile = np.load(gasfilename, allow_pickle=True)[()]
+    if dummy_args.write_file or dummy_args.upto_kpc is None:
+        foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(dummy_args)
+        gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + dummy_args.run + '/all_rprof_' + dummy_args.halo + '.npy'
+
+        if os.path.exists(gasfilename):
+            print('Reading in cold gas profile from', gasfilename)
+        else:
+            print('Did not find', gasfilename)
+            gasfilename = gasfilename.replace(dummy_args.run, dummy_args.run[:14])
+            print('Instead, reading in cold gas profile from', gasfilename)
+        gasprofile = np.load(gasfilename, allow_pickle=True)[()]
+    else:
+        print('Not reading in cold gas profile because any re calculation is not needed')
+        gasprofile = None
 
     # --------domain decomposition; for mpi parallelisation-------------
     comm = MPI.COMM_WORLD
@@ -367,6 +382,7 @@ if __name__ == '__main__':
         this_sim = list_of_sims[index]
         this_df_grad = pd.DataFrame(columns=cols_in_df)
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
+        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_cen_smoothed'
         try:
             if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
@@ -376,7 +392,7 @@ if __name__ == '__main__':
                 print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
             else:
                 isdisk_required = np.array(['disk' in item for item in [args.xcol, args.ycol] + args.colorcol]).any()
-                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False)
+                ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
         except Exception as e:
             print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), dummy_args)
             continue
@@ -389,16 +405,29 @@ if __name__ == '__main__':
         args.current_time = ds.current_time.in_units('Gyr').v
         args.ylim = [-2.2, 1.2] # [-3, 1]
 
-        thisrow = [args.output, args.current_redshift, args.current_time] # row corresponding to this snapshot to append to df
+        re_from_stars = get_re_from_stars(ds, args) if args.write_file or args.upto_kpc is None else None # kpc
+        re_from_coldgas = get_re_from_coldgas(gasprofile, args)  if args.write_file or args.upto_kpc is None else None # kpc
+        thisrow = [args.output, args.current_redshift, args.current_time, re_from_stars, re_from_coldgas] # row corresponding to this snapshot to append to df
 
-        for re_method in ['stars', 'coldgas']: # it is important that stars and coldgas appear in this sequence
-            if re_method == 'stars': args.re = get_re_from_stars(ds, args) # kpc
-            elif re_method == 'coldgas': args.re = get_re_from_coldgas(gasprofile, args) # kpc
+        if args.upto_kpc is not None:
+            method_arr = ['']
+            upto_radius_arr = [args.upto_kpc]
+        else:
+            method_arr = ['stars', 'coldgas'] # it is important that stars and coldgas appear in this sequence
+            upto_radius_arr = np.array([re_from_stars, re_from_coldgas])
 
-            if args.re > 0:
+        for this_upto_radius in upto_radius_arr:
+            if this_upto_radius > 0:
+                if args.upto_kpc is not None:
+                    args.re = np.nan
+                    if args.docomoving: args.galrad = this_upto_radius / (1 + args.current_redshift) / 0.695 # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+                    else: args.galrad = this_upto_radius # fit within a fixed physical kpc
+                else:
+                    args.re = this_upto_radius
+                    args.galrad = args.re * args.upto_re  # kpc
+
                 # extract the required box
                 box_center = ds.arr(args.halo_center, kpc)
-                args.galrad = args.upto_kpc if args.upto_kpc is not None else args.upto_re * args.re # kpc
                 box_width = args.galrad * 2  # in kpc
                 box_width_kpc = ds.arr(box_width, 'kpc')
                 box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
@@ -416,14 +445,14 @@ if __name__ == '__main__':
                 df['metal_mass'] = df['mass'] * df['metal'] * metallicity_sun
                 Ztotal = (df['metal_mass'].sum()/df['mass'].sum())/metallicity_sun # in Zsun
 
-                thisrow += [args.re, mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Zcen_binned.n, Zcen_binned.s, Zgrad_binned.n, Zgrad_binned.s, Ztotal]
+                thisrow += [mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Zcen_binned.n, Zcen_binned.s, Zgrad_binned.n, Zgrad_binned.s, Ztotal]
             else:
                 thisrow += (np.ones(11)*np.nan).tolist()
 
         this_df_grad.loc[len(this_df_grad)] = thisrow
         df_grad = pd.concat([df_grad, this_df_grad])
         if args.write_file:
-            if not os.path.isfile(grad_filename) or args.clobber:
+            if not os.path.isfile(grad_filename):
                 this_df_grad.to_csv(grad_filename, sep='\t', index=None, header='column_names')
                 print('Wrote to gradient file', grad_filename)
             else:

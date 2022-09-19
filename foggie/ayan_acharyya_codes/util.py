@@ -845,9 +845,9 @@ def get_all_sims_for_this_halo(args, given_path=None):
     for thissnap in snapshots:
         if len(thissnap) == 6:
             if args.use_onlyRD:
-                if thissnap[:2] == 'RD': all_sims.append([args.halo, thissnap])
+                if thissnap[:2] == 'RD' and float(thissnap[2:]) >= args.snap_start and float(thissnap[2:]) <= args.snap_stop: all_sims.append([args.halo, thissnap])
             elif args.use_onlyDD:
-                if thissnap[:2] == 'DD': all_sims.append([args.halo, thissnap])
+                if thissnap[:2] == 'DD' and float(thissnap[2:]) >= args.snap_start and float(thissnap[2:]) <= args.snap_stop: all_sims.append([args.halo, thissnap])
             else:
                 all_sims.append([args.halo, thissnap])
     all_sims = all_sims[:: args.nevery]
@@ -876,18 +876,23 @@ def pull_halo_center(args, fast=False):
     Adapted from utils.foggie_load()
     '''
 
-    halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_c_v'
+    #halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_c_v'
+    halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_cen_smoothed' # changed on Aug 30, after Cassi updated smoothed halo centers
 
     if os.path.exists(halos_df_name):
         halos_df = pd.read_table(halos_df_name, sep='|')
         halos_df.columns = halos_df.columns.str.strip() # trimming column names of extra whitespace
-        halos_df['name'] = halos_df['name'].str.strip() # trimming column 'name' of extra whitespace
+        try:
+            halos_df['name'] = halos_df['name'].str.strip() # trimming column 'name' of extra whitespace
+        except:
+            halos_df['name'] = halos_df['snap'].str.strip() # trimming column 'name' of extra whitespace
 
         if halos_df['name'].str.contains(args.output).any():
             myprint('Pulling halo center from catalog file', args)
             halo_ind = halos_df.index[halos_df['name'] == args.output][0]
             args.halo_center = halos_df.loc[halo_ind, ['xc', 'yc', 'zc']].values # in kpc units
-            args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
+            try: args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
+            except: pass
             calc_hc = False
         elif not fast:
             myprint('This snapshot is not in the halos_df file, calculating halo center...', args)
@@ -896,7 +901,7 @@ def pull_halo_center(args, fast=False):
         myprint("This halos_df file doesn't exist, calculating halo center...", args)
         calc_hc = True
     if calc_hc:
-        ds, refine_box = load_sim(args, region='refine_box')
+        ds, refine_box = load_sim(args, region='refine_box', halo_c_v_name=halos_df_name)
         args.halo_center = ds.halo_center_kpc
         args.halo_velocity = ds.halo_velocity_kms
         return args, ds, refine_box
@@ -923,6 +928,8 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--use_onlyRD', dest='use_onlyRD', action='store_true', default=False, help='Use only the RD snapshots available for a given halo?, default is no')
     parser.add_argument('--use_onlyDD', dest='use_onlyDD', action='store_true', default=False, help='Use only the DD snapshots available for a given halo?, default is no')
     parser.add_argument('--nevery', metavar='nevery', type=int, action='store', default=1, help='use every nth snapshot when do_all_sims is specified; default is 1 i.e., all snapshots will be used')
+    parser.add_argument('--snap_start', metavar='snap_start', type=int, action='store', default=0, help='index of the DD or RD snapshots to start from, when using --do_all_sims; default is 0')
+    parser.add_argument('--snap_stop', metavar='snap_stop', type=int, action='store', default=10000, help='index of the DD or RD snapshots to stop at, when using --do_all_sims; default is 10000')
     parser.add_argument('--do_all_halos', dest='do_all_halos', action='store_true', default=False, help='loop over all available halos (and all snapshots each halo has)?, default is no')
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress all print statements?, default is no')
     parser.add_argument('--galrad', metavar='galrad', type=float, action='store', default=20., help='the radial extent (in each spatial dimension) to which computations will be done, in kpc; default is 20')
@@ -943,7 +950,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--add_velocity', dest='add_velocity', action='store_true', default=False, help='Add velocity?, default is no')
     parser.add_argument('--hide_axes', dest='hide_axes', action='store_true', default=False, help='Hide all axes?, default is no')
     parser.add_argument('--annotate_grids', dest='annotate_grids', action='store_true', default=False, help='annotate grids?, default is no')
-    parser.add_argument('--annotate_box', dest='annotate_box', action='store_true', default=False, help='annotate box?, default is no')
+    parser.add_argument('--annotate_box', metavar='annotate_box', type=str, action='store', default=None, help='comma separated comoving kpc values for annotate boxes, default is None')
     parser.add_argument('--min_level', dest='min_level', type=int, action='store', default=3, help='annotate grids min level, default is 3')
 
     # ------- args added for filter_star_properties.py ------------------------------
@@ -1066,7 +1073,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--clobber_plot', dest='clobber_plot', action='store_true', default=False, help='overwrite existing plots with same name?, default is no')
     parser.add_argument('--overplot_stars', dest='overplot_stars', action='store_true', default=False, help='overplot young stars?, default is no')
     parser.add_argument('--overplot_absorbers', dest='overplot_absorbers', action='store_true', default=False, help='overplot HI absorbers (from Claire)?, default is no')
-    parser.add_argument('--start_index', metavar='start_index', type=int, action='store', default=0, help='index of the list of snapshots to start from; default is 8')
+    parser.add_argument('--start_index', metavar='start_index', type=int, action='store', default=0, help='index of the list of snapshots to start from; default is 0')
     parser.add_argument('--interactive', dest='interactive', action='store_true', default=False, help='interactive mode?, default is no')
     parser.add_argument('--combine', dest='combine', action='store_true', default=False, help='combine all outputs from lasso selection?, default is no')
     parser.add_argument('--selcol', dest='selcol', action='store_true', default=False, help='make a selection in the color space too?, default is no')
@@ -1097,6 +1104,7 @@ def parse_args(haloname, RDname, fast=False):
     # ------- args added for compute_MZgrad.py ------------------------------
     parser.add_argument('--upto_re', metavar='upto_re', type=float, action='store', default=2.0, help='fit metallicity gradient out to what multiple of Re? default is 2')
     parser.add_argument('--upto_kpc', metavar='upto_kpc', type=float, action='store', default=None, help='fit metallicity gradient out to what absolute kpc? default is None')
+    parser.add_argument('--docomoving', dest='docomoving', action='store_true', default=False, help='consider the input upto_kpc as a comoving quantity?, default is no')
     parser.add_argument('--write_file', dest='write_file', action='store_true', default=False, help='write the list of measured gradients, mass and size to file?, default is no')
     parser.add_argument('--get_gasmass', dest='get_gasmass', action='store_true', default=False, help='save gas mass profile, in addition to stellar mass profile, to hdf5 file?, default is no')
     parser.add_argument('--snapnumber', metavar='snapnumber', type=int, action='store', default=None, help='identifier for the snapshot (what follows DD or RD); default is None, in which case it takes the snapshot from args.output')
@@ -1105,7 +1113,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')
     parser.add_argument('--reflevel', metavar='reflevel', type=int, action='store', default=7, help='forced refinement level to put in the halo track file; default is 7')
     parser.add_argument('--z_interval', metavar='z_interval', type=float, action='store', default=0.005, help='redshift interval on which to interpolate the halo center track file; default is 0.005')
-    parser.add_argument('--root_dir', metavar='root_dir', type=str, action='store', default='', help='root directory path where your foggie directory is (automatically grabs the correct path if you are on ayans system; default is empty string')
+    parser.add_argument('--root_dir', metavar='root_dir', type=str, action='store', default='', help='root directory path where your foggie directory is (automatically grabs the correct path if you are on ayans system); default is empty string')
     parser.add_argument('--last_center_guess', metavar='last_center_guess', type=str, action='store', default=None, help='initial guess for the center of desired halo in code units')
     parser.add_argument('--compare_tracks', dest='compare_tracks', action='store_true', default=False, help='compare (plot) multiple existing center track files?, default is no')
     parser.add_argument('--width', metavar='width', type=float, action='store', default=500, help='the width of projection plots, in kpc; default is 500 kpc')
@@ -1123,6 +1131,22 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--zhighlight', dest='zhighlight', action='store_true', default=False, help='highlight a few integer-ish redshift points on the MZGR?, default is no')
     parser.add_argument('--use_gasre', dest='use_gasre', action='store_true', default=False, help='use measurements based on Re estimated from cold gas clumps (instead of that measured from stellar mass profile)?, default is no')
     parser.add_argument('--use_binnedfit', dest='use_binnedfit', action='store_true', default=False, help='use gradient measurements from radially binned Z profile (as opposed to the fit to individual cells)?, default is no')
+    parser.add_argument('--Zgrad_den', metavar='Zgrad_den', type=str, action='store', default='kpc', help='normaliser of Zgrad, either kpc or re; default is kpc')
+    parser.add_argument('--plot_deviation', dest='plot_deviation', action='store_true', default=False, help='make additional plot of deviation in gradient vs things like SFR?, default is no')
+    parser.add_argument('--plot_timefraction', dest='plot_timefraction', action='store_true', default=False, help='make additional plot of deviation in gradient vs things like SFR?, default is no')
+    parser.add_argument('--upto_z', metavar='upto_z', type=float, action='store', default=0, help='calculation of the fraction of time spent outside range will made only up to this lower limit redshift; default is 0')
+    parser.add_argument('--Zgrad_allowance', metavar='Zgrad_allowance', type=float, action='store', default=0.05, help='allowance for Zgrad (in dex/kpc) outside the smoothed behaviour; default is +/- 0.05 dex/kpc')
+    parser.add_argument('--zcol', metavar='zcol', type=str, action='store', default='sfr', help='x axis quantity for plotting against deviation in MZGR; default is sfr')
+    parser.add_argument('--zmin', metavar='zmin', type=float, action='store', default=None, help='minimum xaxis limit; default is None')
+    parser.add_argument('--zmax', metavar='zmax', type=float, action='store', default=None, help='maximum xaxis limit; default is None')
+    parser.add_argument('--snaphighlight', metavar='snaphighlight', type=str, action='store', default=None, help='highlight any given array of snapshots? default is None')
+
+    # ------- args added for compute_Zscatter.py ------------------------------
+    parser.add_argument('--res', metavar='res', type=str, action='store', default='0.1', help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')
+    parser.add_argument('--fit_multiple', dest='fit_multiple', action='store_true', default=False, help='fit one gaussian + one skewed guassian?, default is no')
+
+    # ------- args added for plot_Zevolution.py ------------------------------
+    #parser.add_argument('--plot_all_stats', dest='plot_all_stats', action='store_true', default=False, help='plot all Z distribution stats as a function of time?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
@@ -1137,6 +1161,7 @@ def parse_args(haloname, RDname, fast=False):
         if args.use_onlyDD: args.output = 'DD%04d' % (args.snapnumber)
         else: args.output = 'RD%04d' % (args.snapnumber)
     args.output_arr = [item for item in args.output.split(',')]
+    args.res_arr = [float(item) for item in args.res.split(',')]
     args.output = args.output_arr[0] if len(args.output_arr) == 1 else RDname
     args.move_to = np.array([float(item) for item in args.move_to.split(',')])  # kpc
     args.center_wrt_halo = np.array([float(item) for item in args.center_wrt_halo.split(',')])  # kpc

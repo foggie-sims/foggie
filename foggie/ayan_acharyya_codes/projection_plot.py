@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    January 2021
     Example :    run projection_plot.py --system ayan_local --halo 4123 --output RD0038 --do gas --proj x --fullbox --nframes 1 --rot_normal_by -30 --rot_normal_about y --rot_north_by 45 --rot_north_about x --iscolorlog
-                 run projection_plot.py --system ayan_local --halo 8508 --galrad 1000 --output RD0042 --do mrp --annotate_grids --annotate_box
+                 run projection_plot.py --system ayan_local --halo 8508 --galrad 1000 --output RD0042 --do mrp --annotate_grids --annotate_box 200,400
 
 """
 from header import *
@@ -71,8 +71,8 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     if args.annotate_grids:
         prj.annotate_grids(min_level=args.min_level)
 
-    if args.annotate_box:
-        for thisbox in [200., 400.]: # comoving size at z=0 in kpc
+    if args.annotate_box is not None:
+        for thisbox in [float(item) for item in args.annotate_box.split(',')]: # comoving size at z=0 in kpc
             thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
             prj = annotate_box(prj, thisphys, ds, center, unit='kpc', projection=axs)
 
@@ -178,15 +178,17 @@ if __name__ == '__main__':
         else: halos = dummy_args.halo_arr
         list_of_sims = list(itertools.product(halos, dummy_args.output_arr))
 
-    for this_sim in list_of_sims:
+    for index, this_sim in enumerate(list_of_sims):
+        print('Doing', index + 1, 'out of the total %s sims..' % (len(list_of_sims)))
         if len(list_of_sims) == 1: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
         else: args = parse_args(this_sim[0], this_sim[1])
 
+        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_cen_smoothed'
         if type(args) is tuple:
             args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
             myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
         else:
-            ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=False)
+            ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=False, halo_c_v_name=halos_df_name)
 
         fig_dir = args.output_dir + 'figs/' + args.output + '/'
         Path(fig_dir).mkdir(parents=True, exist_ok=True)
