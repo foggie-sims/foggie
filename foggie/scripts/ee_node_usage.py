@@ -40,18 +40,20 @@ def get_times_and_redshifts():
     table.rename_column(names[2], 'redshift')
     table.rename_column(names[3], 'nparticles')
 
-    os.system('rm times_and_zs nparticles cycles') 
+    #os.system('rm times_and_zs nparticles cycles') 
 
     return table 
 
 
 
 mm = get_memory_by_node() # this returns a table with the memory traces in it, by node
+mm['timestamp'] = 1.0 * (mm['timestamp'] - mm['timestamp'][0])  
 mm.sort('timestamp') 
-mm['timestamp'] = mm['timestamp'] - mm['timestamp'][0] 
+print(mm) 
 
 tz = get_times_and_redshifts()
 tz.sort('timestamp') 
+tz = tz[:-2] 
 print(tz) 
 
 number_of_nodes = len(mm.keys()) - 1 
@@ -64,7 +66,6 @@ for i in range(number_of_nodes):
     plt.plot(mm['redshift'], mm['node'+str(i+1)], alpha=0.5)
 
 plt.plot(tz['redshift'], (tz['nparticles'])/1e6, color='red', alpha=0.8) 
-
 number_of_particles = (tz['nparticles'][-1])/1e6 
 
 plt.xlim(25,0)
