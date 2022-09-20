@@ -1140,6 +1140,8 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--zmin', metavar='zmin', type=float, action='store', default=None, help='minimum xaxis limit; default is None')
     parser.add_argument('--zmax', metavar='zmax', type=float, action='store', default=None, help='maximum xaxis limit; default is None')
     parser.add_argument('--snaphighlight', metavar='snaphighlight', type=str, action='store', default=None, help='highlight any given array of snapshots? default is None')
+    parser.add_argument('--nocolorcoding', dest='nocolorcoding', action='store_true', default=False, help='Make the plots without any colorcoding (this ignores even if --colorcol <> is passed)?, default is no')
+    parser.add_argument('--hiderawdata', dest='hiderawdata', action='store_true', default=False, help='Hide the main relation (so that only the overplotted or z-highlighted lines remain)?, default is no')
 
     # ------- args added for compute_Zscatter.py ------------------------------
     parser.add_argument('--res', metavar='res', type=str, action='store', default='0.1', help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')

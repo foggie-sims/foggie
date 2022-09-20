@@ -233,8 +233,7 @@ if __name__ == '__main__':
 
     if not os.path.exists(output_filename) or args.clobber:
         print(output_filename, 'does not exist, merging dataframes to create it..')
-        # -----------loading in dataframe------------------------
-        df_master = pd.DataFrame()
+
         cmap_arr = ['Purples', 'Oranges', 'Greens', 'Blues', 'PuRd', 'YlOrBr']
         things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
 

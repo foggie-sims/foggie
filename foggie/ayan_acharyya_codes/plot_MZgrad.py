@@ -16,6 +16,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Ztotal --xcol time --colorcol log_mass --zhighlight --docomoving
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_deviation --zcol log_ssfr
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2
+                 run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --nocolorcoding --zhighlight --overplot_smoothed --hiderawdata [FOR MOLLY]
 """
 from header import *
 from util import *
@@ -162,13 +163,14 @@ def get_multicolored_line(xdata, ydata, colordata, cmap, cmin, cmax, lw=2, ls='s
     return lc
 
 # -----------------------------------------------
-def plot_zhighlight(df, ax, cmap, args):
+def plot_zhighlight(df, ax, cmap, args, ycol=None):
     '''
     Function to overplot circles at integer-ish redshifts and return the ax
     '''
+    if ycol is None: ycol = args.ycol
     df['redshift_int'] = np.floor(df['redshift'])
     df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-    dummy = ax.scatter(df_zbin[args.xcol], df_zbin[args.ycol], c=df_zbin[args.colorcol], cmap=cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed else 1, zorder=20)
+    dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=df_zbin[args.colorcol], cmap=cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed and 'smoothed' not in ycol else 1, zorder=20)
     print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
     return ax
 
@@ -206,7 +208,7 @@ def plot_MZGR(args):
 
     # -------declare figure object-------------
     fig, ax = plt.subplots(1, figsize=(12, 6))
-    fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=1.05)
+    fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.97 if args.nocolorcoding else 1.05)
 
     if args.plot_deviation or args.plot_timefraction:
         fig2, ax2 = plt.subplots(1, figsize=(12, 6))
@@ -258,6 +260,10 @@ def plot_MZGR(args):
         df['log_sfr'] = np.log10(df['sfr'])
         df = df.sort_values(args.xcol)
 
+        if args.nocolorcoding:
+            args.colorcol, args.cmin, args.cmax = 'dummy', 0, 1
+            df['dummy'] = 0.8
+
         #df = df[(df[args.xcol] >= args.xmin) & (df[args.xcol] <= args.xmax)]
         #df = df[(df[args.ycol] >= args.ymin) & (df[args.ycol] <= args.ymax)]
         df = df[(df[args.colorcol] >= args.cmin) & (df[args.colorcol] <= args.cmax)]
@@ -276,8 +282,9 @@ def plot_MZGR(args):
         this_cmap = cmap_arr[thisindex] + '_r' if args.colorcol in things_that_reduce_with_time else cmap_arr[thisindex] # reverse colromap for redshift
         reversed_thiscmap = this_cmap + '_r' if '_r' not in this_cmap else this_cmap[:-2]
         thistextcolor = mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
-        line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_smoothed else 2)
-        plot = ax.add_collection(line)
+        if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
+            line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_smoothed else 2)
+            plot = ax.add_collection(line)
 
         # ------- overplotting specific snapshot highlights------------
         if args.snaphighlight is not None:
@@ -287,7 +294,7 @@ def plot_MZGR(args):
             print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, 'with stars')
 
         # ------- overplotting redshift-binned scatter plot------------
-        if args.zhighlight:
+        if args.zhighlight and not args.overplot_smoothed:
             ax = plot_zhighlight(df, ax, this_cmap, args)
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
@@ -298,9 +305,12 @@ def plot_MZGR(args):
             df[args.ycol + '_smoothed'] = np.convolve(df[args.ycol], box, mode='same')
             print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points')
 
-            line.set_alpha(0.2) # make the actual wiggly line fainter
+            if 'line' in locals() and not args.nocolorcoding: line.set_alpha(0.2) # make the actual wiggly line fainter (unless making plots for Molly's talk)
             smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=2)
-            plot = ax.add_collection(smoothline)
+            plot = ax.add_collection(smoothline) ## keep this commented out for making plots for Molly's talk
+            if args.nocolorcoding: # for making plots for Molly's talk
+                ax = plot_zhighlight(df, ax, this_cmap, args, ycol=args.ycol + '_smoothed')
+                smoothline.set_alpha(0.2)
 
         # ------- making additional plot of deviation in gradient vs other quantities, like SFR------------
         if args.plot_deviation:
@@ -361,9 +371,10 @@ def plot_MZGR(args):
         df_master = pd.concat([df_master, df])
 
     # ------- tidying up fig1------------
-    cax = fig.colorbar(plot)
-    cax.ax.tick_params(labelsize=args.fontsize)
-    cax.set_label(label_dict[args.colorcol], fontsize=args.fontsize)
+    if not args.nocolorcoding:
+        cax = fig.colorbar(plot)
+        cax.ax.tick_params(labelsize=args.fontsize)
+        cax.set_label(label_dict[args.colorcol], fontsize=args.fontsize)
 
     if args.xcol == 'redshift':  ax.set_xlim(args.xmax, args.xmin)
     else: ax.set_xlim(args.xmin, args.xmax)
