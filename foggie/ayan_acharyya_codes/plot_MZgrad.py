@@ -17,6 +17,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_deviation --zcol log_ssfr
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2
                  run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --nocolorcoding --zhighlight --overplot_smoothed --hiderawdata [FOR MOLLY]
+                 run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --glasspaper [FOR MATCHING GLASS PAPER]
 """
 from header import *
 from util import *
@@ -193,7 +194,7 @@ def plot_MZGR(args):
 
     # -------------get plot limits-----------------
     lim_dict = {'Zgrad': (-0.5, 0.1)  if args.Zgrad_den == 'kpc' else (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (8, 9), 'log_sfr': (-1, 3)}
-    label_dict = MyDefaultDict(Zgrad=r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.Zgrad_den == 're' else r'$\Delta Z$ (dex/kpc)', \
+    label_dict = MyDefaultDict(Zgrad=r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.Zgrad_den == 're' else r'$\Delta Z$ (dex/kpc)' if not args.glasspaper else 'Metallicity gradient (dex/kpc)', \
         re='Scale length (kpc)', log_mass=r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', redshift='Redshift', time='Time (Gyr)', sfr=r'SFR (M$_{\odot}$/yr)', \
         log_ssfr=r'$\log{\, \mathrm{sSFR} (\mathrm{yr}^{-1})}$', Ztotal=r'$\log{(\mathrm{O/H})}$ + 12', log_sfr=r'$\log{(\mathrm{SFR} (\mathrm{M}_{\odot}/yr))}$')
 
@@ -205,6 +206,17 @@ def plot_MZGR(args):
     if args.cmax is None: args.cmax = lim_dict[args.colorcol][1]
     if args.zmin is None: args.zmin = lim_dict[args.zcol][0]
     if args.zmax is None: args.zmax = lim_dict[args.zcol][1]
+
+    # --------------pre-set values to match the GLASS paper plot--------------
+    if args.glasspaper:
+        args.ycol, args.ymin, args.ymax = 'Zgrad', -0.35, 0.3
+        args.xcol, args.xmin, args.xmax = 'redshift', 0, 3.2
+        args.colorcol = 'log_ssfr'
+        args.nocolorcoding = True
+        args.zhighlight = True
+        args.overplot_smoothed = False
+        args.hiderawdata = False
+        args.fontsize = 20
 
     # -------declare figure object-------------
     fig, ax = plt.subplots(1, figsize=(12, 6))
@@ -239,6 +251,10 @@ def plot_MZGR(args):
         ax = overplot_mingozzi(ax, paper='M20', color='salmon', diag='M08')
         obs_text += '_mingozzi_'
         fig.text(0.15, 0.4, 'MaNGA: Mingozzi+20', ha='left', va='top', color='salmon', fontsize=args.fontsize)
+
+    if args.glasspaper: # overplot GLASS dtaa point
+        ax.plot(3.06, 0.165, marker='*', ms=30, mfc='yellow', mec='red', mew=1)
+        fig.text(0.85, 0.94, 'GLASS', ha='left', va='top', color='gold', fontsize=args.fontsize)
 
     # --------loop over different FOGGIE halos-------------
     for index, args.halo in enumerate(args.halo_arr[::-1]):
@@ -283,7 +299,7 @@ def plot_MZGR(args):
         reversed_thiscmap = this_cmap + '_r' if '_r' not in this_cmap else this_cmap[:-2]
         thistextcolor = mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
-            line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_smoothed else 2)
+            line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_smoothed or args.glasspaper else 2)
             plot = ax.add_collection(line)
 
         # ------- overplotting specific snapshot highlights------------
@@ -365,7 +381,7 @@ def plot_MZGR(args):
             timefraction_outside = snaps_outside_allowance * 100 / total_snaps
             print('Halo', args.halo, 'spends %.2F %%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation upto redshift %.1F' % args.upto_z)
 
-        fig.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
+        fig.text(0.85 if args.glasspaper else 0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
         if args.plot_deviation or args.plot_timefraction: fig2.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])

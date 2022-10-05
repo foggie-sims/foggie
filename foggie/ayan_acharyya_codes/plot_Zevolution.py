@@ -10,12 +10,14 @@
     Examples :   run plot_Zevolution.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --keep --weight mass --res 0.1 --zhighlight --use_gasre --overplot_smoothed
                  run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --res 0.1 --zhighlight --docomoving --fit_multiple
                  run plot_Zevolution.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --keep --weight mass --res 0.1 --zhighlight --docomoving --fit_multiple
+                 run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --weight mass --forpaper [FOR THE PAPER]
 """
 from header import *
 from util import *
 from matplotlib.collections import LineCollection
 from plot_MZscatter import *
 import h5py
+from scipy.signal import argrelextrema
 start_time = time.time()
 
 # -----------------------------------
@@ -119,8 +121,8 @@ def plot_time_series(df, args):
     '''
     Function to plot the time evolution of Z distribution statistics, based on an input dataframe
     '''
-    fig, axes = plt.subplots(6, figsize=(12, 10), sharex=True)
-    fig.subplots_adjust(top=0.98, bottom=0.07, left=0.07, right=0.98, hspace=0.05)
+    fig, axes = plt.subplots(5 if args.forpaper else 7, figsize=(8, 10), sharex=True)
+    fig.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
 
     df = df.sort_values(by='time')
     df['ZIQR_rel'] = df['ZIQR'] / df['Z50'] # IQR relative to the median Z
@@ -129,11 +131,11 @@ def plot_time_series(df, args):
                'black', 'darkturquoise', 'lawngreen']
     sfr_col_arr = ['black']
 
-    groups = pd.DataFrame({'quantities': [['Z50', 'ZIQR', 'ZIQR_rel'], ['Zmean', 'Zvar']], \
-                           'legend': [['Median Z', 'IQR', 'IQR/Median'], ['Mean Z (fit)', 'Variance (fit)']], \
-                           'label': np.hstack([np.tile([r'Z/Z$_\odot$'], 2)]), \
-                           'limits': [(1e-3, 15), (1e-4, 2)], \
-                           'isalreadylog': np.hstack([np.tile([False], 2)])})
+    groups = pd.DataFrame({'quantities': [['Z50', 'ZIQR'], ['Zmean', 'Zvar'], ['Zgrad', 'Zgrad_binned']], \
+                           'legend': [['Median Z', 'IQR'], ['Mean Z (fit)', 'Variance (fit)'], ['All cells fitted', 'Radial bins fitted']], \
+                           'label': np.hstack([np.tile([r'Z/Z$_\odot$'], 2), r'$\Delta Z$ (dex/kpc)']), \
+                           'limits': [(1e-3, 8), (1e-4, 2), (-0.5, 0.1)], \
+                           'isalreadylog': np.hstack([np.tile([False], 3)])})
 
     # -----------for first few panels: Z distribution statistics-------------------
     for j in range(len(groups)):
@@ -148,60 +150,80 @@ def plot_time_series(df, args):
         ax.set_ylabel(thisgroup.label, fontsize=args.fontsize)
         ax.set_ylim(thisgroup.limits)
         ax.tick_params(axis='y', labelsize=args.fontsize)
-
+    axiscount = len(groups)
+    
     # -----------for SFR panel-------------------
+    thisax = axes[axiscount]
     if 'sfr' in df:
-        axes[-4].plot(df['time'], df['sfr'], c=col_arr[0], lw=1, label='SFR')
-        if args.zhighlight: axes[-4] = plot_zhighlight(df, 'sfr', col_arr[0], axes[-4], args)
+        thisax.plot(df['time'], df['sfr'], c=col_arr[0], lw=1, label='SFR')
+        if args.zhighlight: thisax = plot_zhighlight(df, 'sfr', col_arr[0], thisax, args)
 
-    axes[-4].set_ylabel(label_dict['sfr'], fontsize=args.fontsize)
-    axes[-4].set_ylim(0, 50)
-    axes[-4].tick_params(axis='y', labelsize=args.fontsize)
-    axes[-4].legend(loc='upper left', fontsize=args.fontsize / 1.5)
+    thisax.set_ylabel(label_dict['sfr'], fontsize=args.fontsize)
+    thisax.set_ylim(0, 50)
+    thisax.tick_params(axis='y', labelsize=args.fontsize)
+    thisax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
+    axiscount += 1 
 
-    # -----------for metal production panel-------------------
-    if 'log_metal_produced' in df:
-        axes[-3].plot(df['time'], df['log_metal_produced'], c=col_arr[0], lw=1, label='Metal mass produced')
-        if args.zhighlight: axes[-3] = plot_zhighlight(df, 'log_metal_produced', col_arr[0], axes[-3], args)
+    if not args.forpaper:
+        # -----------for metal production panel-------------------
+        thisax = axes[axiscount]
+        if 'log_metal_produced' in df:
+            thisax.plot(df['time'], df['log_metal_produced'], c=col_arr[0], lw=1, label='Metal mass produced')
+            if args.zhighlight: thisax = plot_zhighlight(df, 'log_metal_produced', col_arr[0], thisax, args)
 
-    axes[-3].set_ylabel(label_dict['log_mass'], fontsize=args.fontsize)
-    axes[-3].set_ylim(4, 7.2)
-    axes[-3].tick_params(axis='y', labelsize=args.fontsize)
-    axes[-3].legend(loc='upper left', fontsize=args.fontsize / 1.5)
+        thisax.set_ylabel(label_dict['log_mass'], fontsize=args.fontsize)
+        thisax.set_ylim(4, 7.2)
+        thisax.tick_params(axis='y', labelsize=args.fontsize)
+        thisax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
+        axiscount += 1
 
-    # -----------for metal ejection panel-------------------
-    if 'log_metal_flux' in df:
-        axes[-2].plot(df['time'], df['log_metal_flux'], c=col_arr[0], lw=1, label='Metal flux ejected')
-        if args.zhighlight: axes[-2] = plot_zhighlight(df, 'log_metal_flux', col_arr[0], axes[-2], args)
+        # -----------for metal ejection panel-------------------
+        thisax = axes[axiscount]
+        if 'log_metal_flux' in df:
+            thisax.plot(df['time'], df['log_metal_flux'], c=col_arr[0], lw=1, label='Metal flux ejected')
+            if args.zhighlight: thisax = plot_zhighlight(df, 'log_metal_flux', col_arr[0], thisax, args)
 
-    axes[-2].set_ylabel(r'$\log{(\mathrm{M}_{\odot}/\mathrm{yr})}$', fontsize=args.fontsize)
-    axes[-2].set_ylim(-5, 0)
-    axes[-2].tick_params(axis='y', labelsize=args.fontsize)
-    axes[-2].legend(loc='upper left', fontsize=args.fontsize / 1.5)
+        thisax.set_ylabel(r'$\log{(\mathrm{M}_{\odot}/\mathrm{yr})}$', fontsize=args.fontsize)
+        thisax.set_ylim(-5, 0)
+        thisax.tick_params(axis='y', labelsize=args.fontsize)
+        thisax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
+        axiscount += 1
 
     # -----------for merger history panel-------------------
+    thisax = axes[axiscount]
     rvir_df = pd.read_hdf(args.code_path + '/halo_infos/00' + args.halo + '/nref11c_nref9f/rvir_masses.hdf5', key='all_data') ## args.run is hard-coded here, for noe
-    df2 = df[['output', 'redshift', 'time']].merge(rvir_df[['redshift', 'radius']], on='redshift')
+    df2 = df[['output', 'redshift', 'time']].merge(rvir_df[['redshift', 'radius', 'stars_mass']], on='redshift')
 
     filename = args.code_path + 'satellites/Tempest_satorbits.hdf5'
     f = h5py.File(filename, 'r')
+    np.random.seed(3) # to make sure that the random colors are still reproducable
     for index, thissat in enumerate(f.keys()):
         #print('Doing', thissat, 'which is', index+1, 'out of', len(f.keys()), 'satellites..')
         thisdf = pd.DataFrame({'time':np.array(f[thissat]['Time(Gyr)'][()]).flatten(), 'dist':np.array(f[thissat]['Dist(R200)'][()]).flatten()})
-        thisdf = df2.merge(thisdf, on='time', how='inner')
+        thisdf = df2.merge(thisdf, on='time', how='inner') # need to merge with main df in order to get rvir info corresponding to each DD output
         thisdf['dist'] = thisdf['dist'] * thisdf['radius'] # converting Distance from R200 units to kpc units
-        axes[-1].plot(thisdf['time'], thisdf['dist'], lw=1)
+
+        this_log_mass = f[thissat]['log10(MaxMass)'][()]
+        this_tpeak = f[thissat]['Tpeak(Gyr)'][()]
+
+        host_tpeak = df2.iloc[(df2['time']-this_tpeak).abs().argsort()]['time'].values[0] # find tpeak in host df that is closest to this_tpeak
+        host_mass_tpeak = df2[df2['time'] == host_tpeak]['stars_mass'].values[0] # find host mass at closest time stamp to this_tpeak
+        thisdf['log_rel_mass'] = this_log_mass - np.log10(host_mass_tpeak) # log(A/B) = log(A) - log(B)
+
+        minima_indices = argrelextrema(thisdf['dist'].values, np.less)[0]
+        thisdf = thisdf[thisdf.index.isin(minima_indices)]
+        if len(thisdf) > 0: thisax.scatter(thisdf['time'], thisdf['log_rel_mass'], s=2e3/thisdf['dist'], color=np.random.rand(3,), lw=0.5, edgecolor='k')
     f.close()
 
-    axes[-1].set_ylabel(r'Distance (kpc)', fontsize=args.fontsize)
-    axes[-1].set_ylim(0, 100)
-    axes[-1].tick_params(axis='y', labelsize=args.fontsize)
+    thisax.set_ylabel(r'$\log{(\mathrm{M}_{\mathrm{sat,t}_{\mathrm{peak}}}/\mathrm{M}_{\mathrm{host,t}_{\mathrm{peak}}})}$', fontsize=args.fontsize)
+    thisax.set_ylim(-2, 0.5)
+    thisax.tick_params(axis='y', labelsize=args.fontsize)
+    thisax.text(14, 0, 'Larger markers indicate closer passes', color='k', ha='right', va='bottom', fontsize=args.fontsize / 1.5)
 
     # -----------for x axis-------------------
-    axes[-1].set_xlabel('Time (Gyr)', fontsize=args.fontsize)
-    axes[-1].set_xlim(0, 14)
-    #axes[-1].set_xlim(1.5, 2)
-    axes[-1].tick_params(axis='x', labelsize=args.fontsize)
+    thisax.set_xlabel('Time (Gyr)', fontsize=args.fontsize)
+    thisax.set_xlim(0, 14)
+    thisax.tick_params(axis='x', labelsize=args.fontsize)
 
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
@@ -221,6 +243,13 @@ if __name__ == '__main__':
     if type(args_tuple) is tuple: args = args_tuple[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     else: args = args_tuple
     if not args.keep: plt.close('all')
+
+    # ---------preset values for plotting for paper-------------
+    if args.forpaper:
+        args.res = 0.1 # kpc
+        args.zhighlight = True
+        args.docomoving = True
+        args.fit_multiple = True
 
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight
@@ -292,7 +321,7 @@ if __name__ == '__main__':
         print('Reading from existing file', output_filename)
         df = pd.read_table(output_filename, delim_whitespace=True, comment='#')
 
-    fig1 = plot_all_stats(df, args)
+    if not args.forpaper: fig1 = plot_all_stats(df, args)
     fig2 = plot_time_series(df, args)
 
     print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
