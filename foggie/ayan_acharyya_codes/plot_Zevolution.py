@@ -196,7 +196,12 @@ def plot_time_series(df, args):
 
     filename = args.code_path + 'satellites/Tempest_satorbits.hdf5'
     f = h5py.File(filename, 'r')
-    np.random.seed(3) # to make sure that the random colors are still reproducable
+
+    ## ----set up the colorbar parameters------
+    cmap_name, log_mass_min, log_mass_max = 'plasma', 9, 10
+    norm = mplcolors.Normalize(vmin=log_mass_min, vmax=log_mass_max)
+    cmap = mpl.cm.ScalarMappable(norm=norm, cmap=cmap_name)
+
     for index, thissat in enumerate(f.keys()):
         #print('Doing', thissat, 'which is', index+1, 'out of', len(f.keys()), 'satellites..')
         thisdf = pd.DataFrame({'time':np.array(f[thissat]['Time(Gyr)'][()]).flatten(), 'dist':np.array(f[thissat]['Dist(R200)'][()]).flatten()})
@@ -212,13 +217,23 @@ def plot_time_series(df, args):
 
         minima_indices = argrelextrema(thisdf['dist'].values, np.less)[0]
         thisdf = thisdf[thisdf.index.isin(minima_indices)]
-        if len(thisdf) > 0: thisax.scatter(thisdf['time'], thisdf['log_rel_mass'], s=2e3/thisdf['dist'], color=np.random.rand(3,), lw=0.5, edgecolor='k')
+
+        if len(thisdf) > 0:
+            thisax.scatter(thisdf['time'], thisdf['log_rel_mass'], s=2e3/thisdf['dist'], color=cmap.to_rgba(this_log_mass), lw=0.5, edgecolor='k')
     f.close()
 
     thisax.set_ylabel(r'$\log{(\mathrm{M}_{\mathrm{sat,t}_{\mathrm{peak}}}/\mathrm{M}_{\mathrm{host,t}_{\mathrm{peak}}})}$', fontsize=args.fontsize)
     thisax.set_ylim(-2, 0.5)
     thisax.tick_params(axis='y', labelsize=args.fontsize)
-    thisax.text(14, 0, 'Larger markers indicate closer passes', color='k', ha='right', va='bottom', fontsize=args.fontsize / 1.5)
+    thisax.text(13.8, 0, 'Larger markers indicate closer passes', color='k', ha='right', va='bottom', fontsize=args.fontsize / 1.5)
+
+    ## ------set up the colorbar axis--------------
+    dummy_ax = fig.add_axes([0.2, 0.2, 0.5, 0.5]) # dummy axis, dimensions do not matter
+    img = dummy_ax.imshow(np.array([[log_mass_min, log_mass_max]]), cmap=cmap_name, vmin=log_mass_min, vmax=log_mass_max)
+    dummy_ax.set_visible(False)
+    cax = fig.add_axes([0.13, 0.08, 0.01, 0.15]) # this is the dimension of the cbar axis [left, bottom, width, height]
+    plt.colorbar(img, orientation='vertical', cax=cax)
+    cax.set_ylabel(r'$\log{(\mathrm{M/M}_\odot)}$', fontsize=args.fontsize / 1.5)
 
     # -----------for x axis-------------------
     thisax.set_xlabel('Time (Gyr)', fontsize=args.fontsize)
