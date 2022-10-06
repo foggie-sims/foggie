@@ -1016,9 +1016,9 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     smooth_vy = gaussian_filter(vy, smooth_scale)
     smooth_vz = gaussian_filter(vz, smooth_scale)
     smooth_vr = gaussian_filter(rv, smooth_scale)*1e5
-    sig_x = (vx - smooth_vx)**2.*(pctocm*1000/stoyr)**2.
-    sig_y = (vy - smooth_vy)**2.*(pctocm*1000/stoyr)**2.
-    sig_z = (vz - smooth_vz)**2.*(pctocm*1000/stoyr)**2.
+    sig_x = (vx - smooth_vx)**2.*(cmtopc*1000/stoyr)**2.
+    sig_y = (vy - smooth_vy)**2.*(cmtopc*1000/stoyr)**2.
+    sig_z = (vz - smooth_vz)**2.*(cmtopc*1000/stoyr)**2.
     turbulent_kinetic = 1./2.*(sig_x + sig_y + sig_z)*grid['gas','cell_mass'].in_units('g').v
     radial_kinetic = 1./2.*smooth_vr**2.*grid['gas','cell_mass'].in_units('g').v
     # Load dark matter velocities and positions and digitize onto grid
@@ -1760,8 +1760,7 @@ def accretion_compare_vs_radius(snap):
                         masses = Table.read(catalog_dir + 'masses_z-less-2.hdf5', path='all_data')
                         masses_ind = np.where(masses['snapshot']==snap)[0]
                         Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
-                        rho = Menc_profile(radii)*gtoMsun/((radii*1000.*cmtopc)**3.) * 3./(4.*np.pi)
-                        vff = -(radii*1000.*cmtopc)/np.sqrt(3.*np.pi/(32.*G*rho))/1e5
+                        vff = -np.sqrt((2.*G*Menc_profile(radii)*gtoMsun)/(radii*1000.*cmtopc))/1e5
                         if (j==2) or (k==2): ax.plot(radii, vff, 'k--', lw=2, label='Free fall velocity')
                     if (props[i]=='temperature'):
                         start_T = data[region_file[k] + 'temperature_med_acc'][directions[j]][-1]
