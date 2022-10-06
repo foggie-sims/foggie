@@ -1111,7 +1111,7 @@ def vdisp_vs_mass_res(snap):
     FIRE_res = np.log10(7100.)        # Pandya et al. (2021)
     Illustris_res = np.log10(8.5e4)   # IllustrisTNG website https://www.tng-project.org/about/
 
-    colorparam = 'metallicity'
+    colorparam = 'temperature'
     data_frame = pd.DataFrame({})
     pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
     lvl1_res = pix_res*2.**11.
@@ -1137,47 +1137,56 @@ def vdisp_vs_mass_res(snap):
     vdisp = vdisp[(density < cgm_density_max * density_cut_factor)]
     metallicity = metallicity[(density < cgm_density_max * density_cut_factor)]
     mass = mass[(density < cgm_density_max * density_cut_factor)]
-    print(np.min(mass), np.max(mass), np.mean(mass), np.median(mass))
-    print(np.min(vdisp), np.max(vdisp), np.mean(vdisp), np.median(vdisp))
-    data_frame['metallicity'] = np.log10(metallicity).flatten()
-    data_frame['met_cat'] = categorize_by_metals(metallicity.flatten())
-    data_frame.met_cat = data_frame.met_cat.astype('category')
-    color_key = new_metals_color_key
-    cat = 'met_cat'
+    temperature = temperature[(density < cgm_density_max * density_cut_factor)]
+    data_frame['temperature'] = np.log10(temperature).flatten()
+    data_frame['temp_cat'] = categorize_by_temp(np.log10(temperature).flatten())
+    data_frame.temp_cat = data_frame.temp_cat.astype('category')
+    color_key = new_phase_color_key
+    cat = 'temp_cat'
     data_frame['vdisp'] = vdisp.flatten()
     data_frame['mass'] = np.log10(mass).flatten()
-    x_range = [0., 6.]
-    y_range = [0, 250]
+    y_range = [0., 5.]
+    x_range = [0, 250]
     cvs = dshader.Canvas(plot_width=1000, plot_height=800, x_range=x_range, y_range=y_range)
-    agg = cvs.points(data_frame, 'mass', 'vdisp', dshader.count_cat(cat))
+    agg = cvs.points(data_frame, 'vdisp', 'mass', dshader.count_cat(cat))
     img = tf.spread(tf.shade(agg, color_key=color_key, how='eq_hist',min_alpha=40), shape='square', px=1)
-    export_image(img, save_dir + snap + '_vdisp_vs_cell-mass_metallicity-colored' + save_suffix + '_intermediate')
+    export_image(img, save_dir + snap + '_cell-mass_vs_vdisp_temperature-colored' + save_suffix + '_intermediate')
     fig = plt.figure(figsize=(10,8),dpi=500)
     ax = fig.add_subplot(1,1,1)
-    image = plt.imread(save_dir + snap + '_vdisp_vs_cell-mass_metallicity-colored' + save_suffix + '_intermediate.png')
+    image = plt.imread(save_dir + snap + '_cell-mass_vs_vdisp_temperature-colored' + save_suffix + '_intermediate.png')
     ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
     ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_range[1]-y_range[0])))
-    ax.set_xlabel('log Mass Resolution [$M_\odot$]', fontsize=20)
-    ax.set_ylabel('Velocity Dispersion [km/s]', fontsize=20)
+    ax.set_ylabel('Mass Resolution [$M_\odot$]', fontsize=20)
+    ax.set_yticks([0,1,2,3,4,5])
+    ax.set_yticklabels(['1','10','100','1000','$10^4$','$10^5$'])
+    ax.set_xlabel('Velocity Dispersion [km/s]', fontsize=20)
     #ax.set_facecolor('0.8')
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
       top=True, right=True)
-    ax.text(5.75, 225, '$z=%.2f$' % (zsnap), fontsize=20, ha='right', va='center')
+    #ax.text(5.75, 225, '$z=%.2f$' % (zsnap), fontsize=20, ha='right', va='center')
     #ax.text(5.75, 165, halo_dict[args.halo],ha='right',va='center',fontsize=20)
     #ax.plot([FIRE_res, FIRE_res],[0,200], 'k-', lw=1)
     #ax.text(FIRE_res+0.05, 25, 'FIRE', ha='left', va='center', fontsize=20)
     #ax.plot([Illustris_res,Illustris_res],[0,200], 'k-', lw=1)
     #ax.text(Illustris_res+0.05, 25, 'Illustris\nTNG50', ha='left', va='center', fontsize=20)
     ax2 = fig.add_axes([0.7, 0.93, 0.25, 0.06])
-    cmap = create_foggie_cmap(metal_min, metal_max, categorize_by_metals, new_metals_color_key, log=True)
-    rng = (np.log10(metal_max)-np.log10(metal_min))/750.
-    start = np.log10(metal_min)
-    color_ticks = [(np.log10(0.01)-start)/rng,(np.log10(0.1)-start)/rng,(np.log10(0.5)-start)/rng,(np.log10(1.)-start)/rng,(np.log10(2.)-start)/rng]
-    color_ticklabels = ['0.01','0.1','0.5','1','2']
+    color_func = categorize_by_temp
+    color_key = new_phase_color_key
+    cmin = temperature_min_datashader
+    cmax = temperature_max_datashader
+    color_ticks = [50,300,550]
+    color_ticklabels = ['4','5','6']
+    field_label = 'log T [K]'
+    color_log = True
+    cmap = create_foggie_cmap(temperature_min_datashader, temperature_max_datashader, categorize_by_temp, new_phase_color_key, log=True)
+    #rng = (np.log10(metal_max)-np.log10(metal_min))/750.
+    #start = np.log10(metal_min)
+    #color_ticks = [(np.log10(0.01)-start)/rng,(np.log10(0.1)-start)/rng,(np.log10(0.5)-start)/rng,(np.log10(1.)-start)/rng,(np.log10(2.)-start)/rng]
+    #color_ticklabels = ['0.01','0.1','0.5','1','2']
     ax2.imshow(np.flip(cmap.to_pil(), 1))
     ax2.set_xticks(color_ticks)
     ax2.set_xticklabels(color_ticklabels,fontsize=16)
-    ax2.text(400, 150, 'log Metallicity [$Z_\odot$]',fontsize=20, ha='center', va='center')
+    ax2.text(400, 150, 'log Temperature [K]',fontsize=20, ha='center', va='center')
     ax2.spines["top"].set_color('white')
     ax2.spines["bottom"].set_color('white')
     ax2.spines["left"].set_color('white')
@@ -1186,8 +1195,8 @@ def vdisp_vs_mass_res(snap):
     ax2.set_xlim(-10, 750)
     ax2.set_yticklabels([])
     ax2.set_yticks([])
-    plt.savefig(save_dir + snap + '_vdisp_vs_cell-mass_metallicity-colored' + save_suffix + '.png')
-    os.system('rm ' + save_dir + snap + '_vdisp_vs_cell-mass_metallicity-colored' + save_suffix + '_intermediate.png')
+    plt.savefig(save_dir + snap + '_cell-mass_vs_vdisp_temperature-colored' + save_suffix + '.png')
+    os.system('rm ' + save_dir + snap + '_cell-mass_vs_vdisp_temperature-colored' + save_suffix + '_intermediate.png')
     plt.close()
 
     # Delete output from temp directory if on pleiades
@@ -1397,7 +1406,8 @@ def vdisp_SFR_xcorr(snaplist):
     time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
 
     plot_colors = ['darkorange', "#4daf4a", "#984ea3", 'k']
-    plot_labels = ['$T>10^6$ K', '$10^5 < T < 10^6$ K', '$T < 10^5$ K', 'All gas']
+    #plot_labels = ['$T>10^6$ K', '$10^5 < T < 10^6$ K', '$T < 10^5$ K', 'All gas']
+    plot_labels = ['Hot gas', 'Warm gas', 'Cool gas', 'All gas']
     table_labels = ['high_temperature_', 'mid_temperature_', 'low_temperature_', '']
     linestyles = ['--', ':', '-.', '-']
 
@@ -1408,7 +1418,7 @@ def vdisp_SFR_xcorr(snaplist):
         data_list.append([])
 
     for i in range(len(snaplist)):
-        data = Table.read(tablename_prefix + snaplist[i] + '_' + args.filename + '.hdf5', path='all_data')
+        data = Table.read(tablename_prefix + snaplist[i] + '_' + args.filename + '.hdf5', path='all_data', format='hdf5')
         rvir = rvir_masses['radius'][rvir_masses['snapshot']==snaplist[i]]
         pos_ind = np.where(data['outer_radius']>=args.time_radius*rvir)[0][0]
 
@@ -1447,8 +1457,8 @@ def vdisp_SFR_xcorr(snaplist):
         ax.plot(delay_list*dt, np.array(xcorr_list[i]), \
                 color=plot_colors[i], ls=linestyles[i], lw=2, label=label)
 
-    ax.set_ylabel('Velocity dispersion x-corr with SFR', fontsize=18)
-    ax.set_xlabel('Time delay [Myr]', fontsize=18)
+    ax.set_ylabel('Turbulence-SFR Correlation Strength', fontsize=18)
+    ax.set_xlabel('Time Since Last Starburst [Myr]', fontsize=18)
     ax.set_xlim(0., 2000.)
     ax.set_ylim(-0.25, 1)
     xticks = np.arange(0,2100,100)
@@ -1458,7 +1468,7 @@ def vdisp_SFR_xcorr(snaplist):
         if (xticks[i]%500!=0): xticklabels.append('')
         else: xticklabels.append(str(xticks[i]))
     ax.set_xticklabels(xticklabels)
-    ax.text(1900, 0.9, '$%.2f R_{200}$' % (args.time_radius), fontsize=20, ha='right', va='center')
+    #ax.text(1900, 0.9, '$%.2f R_{200}$' % (args.time_radius), fontsize=20, ha='right', va='center')
     if (args.halo=='8508'): ax.legend(loc=3, fontsize=18)
     #ax.text(200.,-.8,halo_dict[args.halo],ha='left',va='center',fontsize=18)
     ax.plot([0,2000],[0,0],'k-',lw=1)
