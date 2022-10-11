@@ -963,6 +963,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     props.append('thermal_energy')
     props.append('radial_kinetic_energy')
     props.append('turbulent_kinetic_energy')
+    props.append('rotational_kinetic_energy')
     props.append('cooling_energy')
     props.append('temperature')
     props.append('metallicity')
@@ -974,10 +975,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     props.append('velocity_divergence')
     table = make_props_table(props)
 
-    pix_res = float(np.min(grid[('gas','dx')].in_units('kpc')))  # at level 11
-    lvl1_res = pix_res*2.**11.
-    level = args.level
-    dx = lvl1_res/(2.**level)
+    dx = float(np.min(grid[('gas','dx')].in_units('kpc')))
     smooth_scale = (25./dx)/6.
 
     # Load grid properties
@@ -1021,8 +1019,9 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     sig_z = (vz - smooth_vz)**2.*(cmtopc*1000/stoyr)**2.
     turbulent_kinetic = 1./2.*(sig_x + sig_y + sig_z)*grid['gas','cell_mass'].in_units('g').v
     radial_kinetic = 1./2.*smooth_vr**2.*grid['gas','cell_mass'].in_units('g').v
+    rotational_kinetic = 1./2.*(smooth_vx**2. + smooth_vy**2. + smooth_vz**2.)*(cmtopc*1000/stoyr)**2.*grid['gas','cell_mass'].in_units('g').v
     # Load dark matter velocities and positions and digitize onto grid
-    properties = [mass, metals, thermal, radial_kinetic, turbulent_kinetic, cooling_energy, temperature, metallicity, tcool, entropy, pressure, rv, sound_speed, vdiv]
+    properties = [mass, metals, thermal, radial_kinetic, turbulent_kinetic, rotational_kinetic, cooling_energy, temperature, metallicity, tcool, entropy, pressure, rv, sound_speed, vdiv]
 
     # Calculate new positions of gas cells
     new_x = vx*dt + x
@@ -1729,16 +1728,16 @@ def accretion_compare_vs_radius(snap):
                 elif (props[i]=='energy'):
                     if (k==0): labels = ['Radial kinetic energy', 'Turbulent kinetic energy', 'Thermal energy']
                     else: labels = ['_nolegend_','_nolegend_','_nolegend_']
-                    e_props = ['radial_kinetic_energy', 'tangential_kinetic_energy','thermal_energy']
+                    e_props = ['radial_kinetic_energy', 'turbulent_kinetic_energy','thermal_energy']
                     linestyles = ['-','--',':']
                     if (k>-1):
                         for l in range(len(e_props)):
                             ax.plot(radii, data[region_file[k] + e_props[l] + '_acc'][directions[j]]/data[region_file[k] + 'mass_acc'][directions[j]]/gtoMsun,
                                     color=color, ls=linestyles[l], lw=2, label=labels[l])
-                            #if (k==0) and (l==1): ax.plot(radii[1:], data[e_props[l] + '_non'][directions[j]][1:]/data['mass_non'][directions[j]][1:]/gtoMsun,
-                                    #color='darkorange', ls=linestyles[l], lw=2, label='Rest of CGM')
+                            if (k==0): ax.plot(radii[1:], data[e_props[l] + '_non'][directions[j]][1:]/data['mass_non'][directions[j]][1:]/gtoMsun,
+                                    color='darkorange', ls=linestyles[l], lw=2, label='_nolabel_')
                         ax.plot([-100,-100],[-100,-100], color=color, ls='-', lw=2, label=region_labels[k])
-                        #if (k==1): ax.plot([-100,-100],[-100,-100], color='darkorange', ls='-', lw=2, label='rest of CGM')
+                        if (k==1): ax.plot([-100,-100],[-100,-100], color='darkorange', ls='-', lw=2, label='rest of CGM')
                 elif (props[i]=='Mach'):
                     labels = ['_nolegend_', '_nolegend_']
                     acc_plot = -data[region_file[k] + 'radial_velocity_med_acc'][directions[j]]/data[region_file[k] + 'sound_speed_med_acc'][directions[j]]
