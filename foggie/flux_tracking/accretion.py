@@ -169,6 +169,7 @@ def parse_args():
                         'accretion_vs_radius    - line plot of various properties of accreting gas vs radius\n' + \
                         'flux_vs_radius         - line plot of accreting mass and metal fluxes vs radius\n' + \
                         'phase_plot             - 2D phase plots of various properties of accreting gas and non-accreting gas in same shell\n' + \
+                        'sky_map                - column density maps of all gas and only accreting gas\n' + \
                         'Default is not to do any plotting. Specify multiple plots by listing separated with commas, no spaces.')
     parser.set_defaults(plot='none')
 
@@ -201,7 +202,7 @@ def parse_args():
                         'fluxes (default)    -  will calculate fluxes onto shape\n' + \
                         'accretion_compare   -  will calculate statistics (mean, median, etc) of gas properties\n' + \
                         '                       comparing accreting cells to non-accreting cells in edge around shape')
-    parser.set_defaults(calculate='fluxes')
+    parser.set_defaults(calculate='none')
 
     parser.add_argument('--weight', metavar='weight', type=str, action='store', \
                         help='If calculating statistics of gas properties comparing accretion and non-accretion,\n' + \
@@ -580,6 +581,83 @@ def plot_accretion_direction(theta_acc, phi_acc, temperature, metallicity, radia
     plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_metal-mass-colored' + save_r + save_suffix + '.png')
     plt.close()
 
+def sky_map(ds, sp, snap, snap_props):
+    '''Makes a sky map of column densities as viewed from the center of the galaxy for all gas and
+    only accreting gas.'''
+
+    prefix = output_dir + 'projections_halo_00' + args.halo + '/' + args.run + '/'
+    Menc_profile, Mvir, Rvir = snap_props
+    tsnap = ds.current_time.in_units('Gyr').v
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    abundances = trident.ion_balance.solar_abundance
+    trident.add_ion_fields(ds, ions='all', ftype='gas')
+
+    # Load grid properties
+    radius = sp['gas','radius_corrected'].in_units('cm').v
+    theta = sp['gas','theta_pos_disk'].v*(180./np.pi)
+    phi = sp['gas','phi_pos_disk'].v*(180./np.pi)
+    mass = sp['gas','cell_mass'].in_units('g').v
+    rv = sp['gas','radial_velocity_corrected'].in_units('km/s').v
+    vff = sp['gas','vff'].in_units('km/s').v
+    density = sp['gas','density'].in_units('g/cm**3').v
+    dx = sp['gas','dx'].in_units('cm').v
+    NHI = sp['gas','H_p0_number_density'].in_units('cm**-3').v
+
+    for i in ['all','acc']:
+        if (i=='acc'):
+            accreting = (rv < 1.2*vff)
+        else:
+            accreting = np.ones(np.shape(theta), dtype=bool)
+
+        radius_plot = radius[accreting]
+        theta_plot = theta[accreting]
+        phi_plot = phi[accreting]
+        density_plot = density[accreting]
+        dx_plot = dx[accreting]
+        NHI_plot = NHI[accreting]
+
+        fig1 = plt.figure(num=1, figsize=(10,6), dpi=300)
+        nside = 2**6
+        npix = healpy.nside2npix(nside)
+        pix_area = healpy.nside2pixarea(nside)
+        pixels = healpy.ang2pix(nside, phi_plot*(np.pi/180.), theta_plot*(np.pi/180.)+np.pi)
+        uniq, dup_ind = np.unique(pixels, return_index=True)
+        #col_den = density_plot*dx_plot/mp
+        col_den = NHI_plot*dx_plot
+        m = np.zeros(healpy.nside2npix(nside))              # make empty array of map pixels
+        npix = np.zeros(healpy.nside2npix(nside))
+        for u in uniq:
+            pix_col_den = np.sum(col_den[(pixels==u)])
+            m[u] = np.log10(pix_col_den)
+            npix[u] = len(col_den[(pixels==u)])
+
+        # If a pixel is an outlier from its neighbors, set it to the median value of the neighbors
+        for pix in range(len(m)):
+            neighbors = healpy.get_all_neighbours(nside, pix)
+            std = np.std(10**m[neighbors])
+            med = np.median(10**m[neighbors])
+            if (10**m[pix]>(med+3.*std)) or (10**m[pix]<(med-3.*std)):
+                m[pix] = np.log10(med)
+
+        # Smooth over neighbors
+        for pix in range(len(m)):
+            neighbors = healpy.get_all_neighbours(nside, pix)
+            m[pix] = np.log10(np.mean(10**m[neighbors]))
+
+        #cmap = density_color_map
+        cmap = sns.blend_palette(("black","#4575b4", "#984ea3", "#d73027","darkorange", "#ffe34d"), as_cmap=True)
+        cmin = 12
+        cmax = 22
+        if (i=='all'):
+            title = 'All gas'
+        else:
+            title = 'Only accreting gas'
+        healpy.mollview(m, fig=1, cmap=cmap, min=cmin, max=cmax, title=title, unit='log H I Column Density [cm$^{-2}$]')
+        healpy.graticule()
+        plt.savefig(prefix + snap + '_col-den-map_' + i + save_suffix + '.png')
+        plt.close()
+
 def calculate_flux(ds, grid, shape, snap, snap_props):
     '''Calculates the flux into and out of the specified shape at the snapshot 'snap' and saves to file.'''
 
@@ -884,7 +962,8 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     props.append('metal_mass')
     props.append('thermal_energy')
     props.append('radial_kinetic_energy')
-    props.append('tangential_kinetic_energy')
+    props.append('turbulent_kinetic_energy')
+    props.append('rotational_kinetic_energy')
     props.append('cooling_energy')
     props.append('temperature')
     props.append('metallicity')
@@ -895,6 +974,9 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     props.append('sound_speed')
     props.append('velocity_divergence')
     table = make_props_table(props)
+
+    dx = float(np.min(grid[('gas','dx')].in_units('kpc')))
+    smooth_scale = (25./dx)/6.
 
     # Load grid properties
     x = grid['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
@@ -919,8 +1001,6 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     metals = grid['gas', 'metal_mass'].in_units('Msun').v
     sound_speed = grid['gas','sound_speed'].in_units('km/s').v
     thermal = grid['gas','thermal_energy'].in_units('erg/g').v*grid['gas','cell_mass'].in_units('g').v
-    radial_kinetic = grid['gas','radial_kinetic_energy'].in_units('erg').v
-    tangential_kinetic = grid['gas','tangential_kinetic_energy'].in_units('erg').v
     cooling_energy = thermal/(tcool*1e6)*dt
     grad_vel_fields = ds.add_gradient_fields(('gas','vx_corrected'))
     grad_vel_fields = ds.add_gradient_fields(('gas','vy_corrected'))
@@ -930,8 +1010,18 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
            grid['gas','vz_corrected_gradient_z'].in_units('1/s').v
     if (args.weight=='mass'): weights = np.copy(mass)
     if (args.weight=='volume'): weights = grid['gas','cell_volume'].in_units('kpc**3').v
+    smooth_vx = gaussian_filter(vx, smooth_scale)
+    smooth_vy = gaussian_filter(vy, smooth_scale)
+    smooth_vz = gaussian_filter(vz, smooth_scale)
+    smooth_vr = gaussian_filter(rv, smooth_scale)*1e5
+    sig_x = (vx - smooth_vx)**2.*(cmtopc*1000/stoyr)**2.
+    sig_y = (vy - smooth_vy)**2.*(cmtopc*1000/stoyr)**2.
+    sig_z = (vz - smooth_vz)**2.*(cmtopc*1000/stoyr)**2.
+    turbulent_kinetic = 1./2.*(sig_x + sig_y + sig_z)*grid['gas','cell_mass'].in_units('g').v
+    radial_kinetic = 1./2.*smooth_vr**2.*grid['gas','cell_mass'].in_units('g').v
+    rotational_kinetic = 1./2.*(smooth_vx**2. + smooth_vy**2. + smooth_vz**2.)*(cmtopc*1000/stoyr)**2.*grid['gas','cell_mass'].in_units('g').v
     # Load dark matter velocities and positions and digitize onto grid
-    properties = [mass, metals, thermal, radial_kinetic, tangential_kinetic, cooling_energy, temperature, metallicity, tcool, entropy, pressure, rv, sound_speed, vdiv]
+    properties = [mass, metals, thermal, radial_kinetic, turbulent_kinetic, rotational_kinetic, cooling_energy, temperature, metallicity, tcool, entropy, pressure, rv, sound_speed, vdiv]
 
     # Calculate new positions of gas cells
     new_x = vx*dt + x
@@ -1411,13 +1501,17 @@ def load_and_calculate(snap, surface):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
     snap_props = [Menc_profile, Mvir, Rvir]
 
-    # Find the covering grid and the shape specified by 'surface'
-    grid, shape = find_shape(ds, surface, snap_props)
-    # Calculate fluxes and save to file
-    if ('fluxes' in args.calculate):
-        calculate_flux(ds, grid, shape, snap, snap_props)
-    if ('accretion_compare' in args.calculate):
-        compare_accreting_cells(ds, grid, shape, snap, snap_props)
+    if (args.plot=='sky_map'):
+        sp = ds.sphere(ds.halo_center_kpc, (Rvir, 'kpc'))
+        sky_map(ds, sp, snap, snap_props)
+    else:
+        # Find the covering grid and the shape specified by 'surface'
+        grid, shape = find_shape(ds, surface, snap_props)
+        # Calculate fluxes and save to file
+        if ('fluxes' in args.calculate):
+            calculate_flux(ds, grid, shape, snap, snap_props)
+        if ('accretion_compare' in args.calculate):
+            compare_accreting_cells(ds, grid, shape, snap, snap_props)
 
     print('Fluxes calculated for snapshot', snap)
 
@@ -1572,12 +1666,12 @@ def accretion_compare_vs_radius(snap):
     props = ['covering_fraction','mass','metal_mass','temperature','metallicity',
             'cooling_time','entropy','pressure','radial_velocity','Mach',#'velocity_dispersion',
             'energy']
-    ranges = [[0,1], [0,0.5], [0,0.25], [1e4,1e7], [5e-3,1],
+    ranges = [[0,1], [2e5,3e7], [0,0.25], [1e4,3e6], [5e-3,1],
              [1e2,1e6], [1,1e3], [1e-17,5e-12], [-300, 200], [0, 15], #[0,100],
              [5e12,5e15]]
-    logs = [False, False, False, True, True, True, True, True, False, False, #False,
+    logs = [False, True, False, True, True, True, True, True, False, False, #False,
             True]
-    ylabels = ['Accretion Covering Fraction', 'Accretion Mass Fraction', 'Accretion Metal Mass Fraction',
+    ylabels = ['Accretion Covering Fraction', 'Filament Mass [$M_\odot$]', 'Accretion Metal Mass Fraction',
               'Temperature [K]', 'Metallicity [$Z_\odot$]', 'Cooling Time [Myr]', 'Entropy [keV cm$^2$]',
               'Pressure [erg/cm$^3$]', 'Radial Velocity [km/s]', 'Accretion Mach number', #'Velocity dispersion [km/s]',
               'Energy [erg/g]']
@@ -1599,12 +1693,15 @@ def accretion_compare_vs_radius(snap):
 
     if (args.region_filter!='none'):
         region_file = ['', 'low_', 'mid_']
+        #region_file = ['low_']
         if (args.region_filter=='temperature'):
             region_labels = ['All temperatures', '$T<10^{4.9}$ K', '$10^{4.9}$ K $<T<10^{5.5}$ K', '$T>10^{5.5}$ K']
             region_colors = ['k', "#984ea3", "#4daf4a", "#ffe34d"]
         if (args.region_filter=='metallicity'):
             region_labels = ['All metallicities', '$Z<10^{-2}Z_\odot$', '$10^{-2}Z_\odot < Z < 10^{-1}Z_\odot$', '$Z>10^{-1}Z_\odot$']
             region_colors = ['k',"#4575b4", "#984ea3", "#d73027"]
+            #region_labels = ['Filaments']
+            #region_colors = ['k']
     else:
         region_file = ['']
 
@@ -1624,19 +1721,23 @@ def accretion_compare_vs_radius(snap):
                     mults = [1,0.5,0.5]
                     acc_plot = mults[j]*data[region_file[k] + 'covering_fraction_acc'][directions[j]]
                 elif ('mass' in props[i]):
-                    labels = ['_nolegend_', '_nolegend_']
-                    mults = [1,0.5,0.5]
-                    acc_plot = mults[j]*data[region_file[k] + props[i] + '_acc'][directions[j]]/data[region_file[k] + props[i] + '_all'][directions[j]]
+                    #labels = ['_nolegend_', '_nolegend_']
+                    label = '_nolegend_'
+                    #mults = [1,0.5,0.5]
+                    acc_plot = data[region_file[k] + props[i] + '_acc'][directions[j]]
                 elif (props[i]=='energy'):
-                    if (k==1): labels = ['Thermal energy', 'Radial kinetic energy', 'Tangential kinetic energy']
+                    if (k==0): labels = ['Radial kinetic energy', 'Turbulent kinetic energy', 'Thermal energy']
                     else: labels = ['_nolegend_','_nolegend_','_nolegend_']
-                    e_props = ['thermal_energy', 'radial_kinetic_energy', 'tangential_kinetic_energy']
-                    linestyles = ['--','-',':']
-                    if (k>0):
+                    e_props = ['radial_kinetic_energy', 'turbulent_kinetic_energy','thermal_energy']
+                    linestyles = ['-','--',':']
+                    if (k>-1):
                         for l in range(len(e_props)):
                             ax.plot(radii, data[region_file[k] + e_props[l] + '_acc'][directions[j]]/data[region_file[k] + 'mass_acc'][directions[j]]/gtoMsun,
                                     color=color, ls=linestyles[l], lw=2, label=labels[l])
+                            if (k==0): ax.plot(radii[1:], data[e_props[l] + '_non'][directions[j]][1:]/data['mass_non'][directions[j]][1:]/gtoMsun,
+                                    color='darkorange', ls=linestyles[l], lw=2, label='_nolabel_')
                         ax.plot([-100,-100],[-100,-100], color=color, ls='-', lw=2, label=region_labels[k])
+                        if (k==1): ax.plot([-100,-100],[-100,-100], color='darkorange', ls='-', lw=2, label='rest of CGM')
                 elif (props[i]=='Mach'):
                     labels = ['_nolegend_', '_nolegend_']
                     acc_plot = -data[region_file[k] + 'radial_velocity_med_acc'][directions[j]]/data[region_file[k] + 'sound_speed_med_acc'][directions[j]]
@@ -1650,6 +1751,7 @@ def accretion_compare_vs_radius(snap):
                                     #data[props[i] + '_med_acc'][directions[j]]+0.5*data[props[i] + '_iqr_acc'][directions[j]],
                                     #color=dir_colors[j], alpha=0.3)
                     ax.plot(radii, data[region_file[k] + props[i] + '_med_non'][directions[j]], color=color, ls=':', lw=2, label='_nolegend_')
+                    #if (k==0): ax.plot(radii, data[props[i] + '_med_non'][directions[j]], color="darkorange", ls=':', lw=2, label='Rest of CGM')
                     #ax.fill_between(radii, data[props[i] + '_med_all'][directions[j]]-0.5*data[props[i] + '_iqr_all'][directions[j]],
                                     #data[props[i] + '_med_all'][directions[j]]+0.5*data[props[i] + '_iqr_all'][directions[j]],
                                     #color=dir_colors[j], alpha=0.3)
@@ -1657,8 +1759,7 @@ def accretion_compare_vs_radius(snap):
                         masses = Table.read(catalog_dir + 'masses_z-less-2.hdf5', path='all_data')
                         masses_ind = np.where(masses['snapshot']==snap)[0]
                         Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
-                        rho = Menc_profile(radii)*gtoMsun/((radii*1000.*cmtopc)**3.) * 3./(4.*np.pi)
-                        vff = -(radii*1000.*cmtopc)/np.sqrt(3.*np.pi/(32.*G*rho))/1e5
+                        vff = -np.sqrt((2.*G*Menc_profile(radii)*gtoMsun)/(radii*1000.*cmtopc))/1e5
                         if (j==2) or (k==2): ax.plot(radii, vff, 'k--', lw=2, label='Free fall velocity')
                     if (props[i]=='temperature'):
                         start_T = data[region_file[k] + 'temperature_med_acc'][directions[j]][-1]
@@ -1667,12 +1768,14 @@ def accretion_compare_vs_radius(snap):
                         #PdV = pressure[2:]*np.diff(volume)
                         #compression_T = PdV/kB + start_T
                         compression_T = start_T*(pressure/pressure[-1])**(2./5.)
-                        if (j==2) or (k==2): comp_label = '$P\mathrm{d}V$ heating'
+                        if (j==2) or (k==0): comp_label = 'Adiabatic compression'
                         else: comp_label = '_nolegend_'
                         ax.plot(radii, compression_T, color=region_colors[k], ls='--', lw=2, label=comp_label)
-            if (j==len(directions)-1):
-                ax.plot([-100,-100],[-100,-100], color='k', ls='-', lw=2, label=labels[0])
-                ax.plot([-100,-100],[-100,-100], color='k', ls=':', lw=2, label=labels[1])
+                    if (props[i]=='cooling_time'):
+                        ax.plot([0,250], [13.76e3,13.76e3], 'k--', lw=1)
+            #if (j==len(directions)-1):
+                #ax.plot([-100,-100],[-100,-100], color='k', ls='-', lw=2, label=labels[0])
+                #ax.plot([-100,-100],[-100,-100], color='k', ls=':', lw=2, label=labels[1])
 
         ax.axis([0,250,ranges[i][0],ranges[i][1]])
         ax.set_xlabel('Galactocentric Radius [kpc]', fontsize=16)
