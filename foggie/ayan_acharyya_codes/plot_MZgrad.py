@@ -22,6 +22,7 @@
 from header import *
 from util import *
 from matplotlib.collections import LineCollection
+from matplotlib.colors import is_color_like
 start_time = time.time()
 
 # ---------------------------------
@@ -171,7 +172,8 @@ def plot_zhighlight(df, ax, cmap, args, ycol=None):
     if ycol is None: ycol = args.ycol
     df['redshift_int'] = np.floor(df['redshift'])
     df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-    dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=df_zbin[args.colorcol], cmap=cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed and 'smoothed' not in ycol else 1, zorder=20)
+    if is_color_like(cmap): dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=cmap, lw=1, edgecolor='k', s=100, alpha=0.5, zorder=20)
+    else: dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=df_zbin[args.colorcol], cmap=cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed and 'smoothed' not in ycol else 1, zorder=20)
     print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
     return ax
 
@@ -359,8 +361,9 @@ def plot_MZGR(args):
             plot2 = ax2.plot(df[args.zcol], df[args.ycol + '_deviation'], lw=1, color=thistextcolor)
 
             if args.zhighlight:
-                df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-                ax2.scatter(df_zbin[args.zcol], df_zbin[args.ycol + '_deviation'], color=thistextcolor, lw=1, edgecolor='k', s=100, alpha=0.5, zorder=20)
+                ax2 = plot_zhighlight(df, ax2, thistextcolor, args, ycol=args.ycol + '_deviation')
+                #df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
+                #ax2.scatter(df_zbin[args.zcol], df_zbin[args.ycol + '_deviation'], color=thistextcolor, lw=1, edgecolor='k', s=100, alpha=0.5, zorder=20)
 
             # ---------horizontal lines for cut-off-----
             ax2.axhline(args.Zgrad_allowance, lw=0.5, ls='dashed', color='k')

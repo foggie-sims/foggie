@@ -124,6 +124,11 @@ def plot_time_series(df, args):
     fig, axes = plt.subplots(5 if args.forpaper else 7, figsize=(8, 10), sharex=True)
     fig.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
 
+    if args.doft:
+        fig2, axes2 = plt.subplots(5 if args.forpaper else 7, figsize=(8, 10), sharex=True)
+        fig2.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
+        df['freq'] = 1. / df['time'] # Gyr^-1
+
     df = df.sort_values(by='time')
     df['ZIQR_rel'] = df['ZIQR'] / df['Z50'] # IQR relative to the median Z
 
@@ -141,24 +146,36 @@ def plot_time_series(df, args):
     for j in range(len(groups)):
         thisgroup = groups.iloc[j]
         ax = axes[j]
+        if args.doft: ax2 = axes2[j]
         log_text = 'log_' if thisgroup.isalreadylog else ''
         for i, ycol in enumerate(thisgroup.quantities):
             ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=1, label=thisgroup.legend[i])
             if args.zhighlight: ax = plot_zhighlight(df,log_text + ycol, col_arr[i], ax, args)
+            # -------for the FT plot--------------
+            if args.doft:
+                df[ycol + '_ft'] = np.abs(np.fft.fft(df[ycol]))
+                ax2.plot(df['freq'], np.log10(df[ycol + '_ft']), c=col_arr[i], lw=1, label=thisgroup.legend[i])
 
         ax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
         ax.set_ylabel(thisgroup.label, fontsize=args.fontsize)
         ax.set_ylim(thisgroup.limits)
         ax.tick_params(axis='y', labelsize=args.fontsize)
+
     axiscount = len(groups)
     
     # -----------for SFR panel-------------------
+    ycol = 'sfr'
     thisax = axes[axiscount]
-    if 'sfr' in df:
-        thisax.plot(df['time'], df['sfr'], c=col_arr[0], lw=1, label='SFR')
-        if args.zhighlight: thisax = plot_zhighlight(df, 'sfr', col_arr[0], thisax, args)
+    if args.do: thisax2 = axes2[axiscount]
+    if ycol in df:
+        thisax.plot(df['time'], df[ycol], c=col_arr[0], lw=1, label='SFR')
+        if args.zhighlight: thisax = plot_zhighlight(df, ycol, col_arr[0], thisax, args)
+        # -------for the FT plot--------------
+        if args.doft:
+            df[ycol + '_ft'] = np.abs(np.fft.fft(df[ycol]))
+            thisax2.plot(df['freq'], np.log10(df[ycol + '_ft']), c=col_arr[0], lw=1, label='SFR')
 
-    thisax.set_ylabel(label_dict['sfr'], fontsize=args.fontsize)
+    thisax.set_ylabel(label_dict[ycol], fontsize=args.fontsize)
     thisax.set_ylim(0, 50)
     thisax.tick_params(axis='y', labelsize=args.fontsize)
     thisax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
@@ -239,6 +256,19 @@ def plot_time_series(df, args):
     thisax.set_xlabel('Time (Gyr)', fontsize=args.fontsize)
     thisax.set_xlim(0, 14)
     thisax.tick_params(axis='x', labelsize=args.fontsize)
+
+    # -----------for all y axes of the FT plot-----------
+    if args.doft:
+        for fax in axes2:
+            fax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
+            fax.set_ylabel('log(power spec)', fontsize=args.fontsize)
+            # fax.set_ylim(thisgroup.limits)
+            fax.tick_params(axis='y', labelsize=args.fontsize)
+        thisax = axes2[4]
+        thisax.set_xlabel(r'Frequency (Gyr$^{-1}$)', fontsize=args.fontsize)
+        thisax.set_xlim(0.08, 0.67)
+        thisax.tick_params(axis='x', labelsize=args.fontsize)
+
 
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc

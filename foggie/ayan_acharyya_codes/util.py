@@ -1150,6 +1150,7 @@ def parse_args(haloname, RDname, fast=False):
 
     # ------- args added for plot_Zevolution.py ------------------------------
     parser.add_argument('--forpaper', dest='forpaper', action='store_true', default=False, help='make plot with certain set panels, specifically for the paper?, default is no')
+    parser.add_argument('--doft', dest='doft', action='store_true', default=False, help='make new plot for Fourier Transform?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()

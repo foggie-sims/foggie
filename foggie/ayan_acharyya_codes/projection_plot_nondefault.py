@@ -71,11 +71,11 @@ def projection_plot(args):
 
     field_dict = {'dm':('deposit', 'all_density'), 'gas': ('gas', 'density'), 'cellsize': ('gas', 'd' + args.projection), 'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass')}
     cmap_dict = {'gas': density_color_map, 'dm': plt.cm.gist_heat, 'cellsize': discrete_cmap, 'grid':'viridis', 'mrp':'viridis'}
-    zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-4, 1e-1), 'cellsize': (1e-1, 1e1), 'grid': (1, 11), 'mrp': (1e57, 1e65)}
+    zlim_dict = {'gas': (1e-5, 5e-2), 'dm': (1e-2, 1e0), 'cellsize': (1e-1, 1e1), 'grid': (1, 11), 'mrp': (1e57, 1e65)}
 
     # ----------- get halo center, either rough center at z=2 from halo catalogue or more accurate center from center track file-------------------
     ds = yt.load(args.snap_name)  # last output
-    if 'pleiades' in args.system: halos_filename = '/nobackup/jtumlins/CGM_bigbox/25Mpc_256_shielded-L0/BigBox_z2_rockstar/out_0.list'
+    if 'pleiades' in args.system: halos_filename = '/nobackup/aachary2/bigbox/out_list.1'
     elif args.system == 'ayan_local': halos_filename = '/Users/acharyya/Downloads/out_0.list'
 
     if 'mrp' in args.do:
@@ -87,7 +87,8 @@ def projection_plot(args):
 
     if args.center is None:
         if args.get_center_track:
-            trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_sr' + str(float(args.search_radius)) + 'kpc_interp.dat'
+            if args.trackfile is None: trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_sr' + str(float(args.search_radius)) + 'kpc_interp.dat'
+            else: trackfile = args.trackfile
             if not os.path.exists(trackfile):
                 print(trackfile + ' not found..')
                 trackfile = args.root_dir + args.foggie_dir + '/' + args.halo_name + '/' + args.run + '/center_track_interp.dat'
@@ -135,8 +136,11 @@ def projection_plot(args):
 
     # if args.do == 'cellsize': p.plots[field_dict[args.do]].cb.set_label('cell size (kpc)')
     if args.do == 'cellsize': p.set_unit(field_dict[args.do], 'kpc')
-    try: p.set_zlim(field_dict[args.do], zmin=zlim_dict[args.do][0], zmax=zlim_dict[args.do][1])
-    except: pass
+    try:
+        if args.do == 'dm' and args.output[2:] == '0000': p.set_zlim(field_dict[args.do], zmin=2e0, zmax=3e0) # special limits for z=99
+        else: p.set_zlim(field_dict[args.do], zmin=zlim_dict[args.do][0], zmax=zlim_dict[args.do][1])
+    except:
+        pass
 
     # -------------optional annotations (if Rvir and Mvir info exists) -------------------------------
     if len(thishalo) > 0:
@@ -178,6 +182,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_onlyDD', dest='use_onlyDD', action='store_true', default=False, help='Use only the DD snapshots available for a given halo?, default is no')
     parser.add_argument('--nevery', metavar='nevery', type=int, action='store', default=1, help='use every nth snapshot when do_all_sims is specified; default is 1 i.e., all snapshots will be used')
     parser.add_argument('--search_radius', metavar='search_radius', type=float, action='store', default=50, help='the radius within which to search for density peak, in comoving kpc; default is 50 ckpc')
+    parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, help='full path of trackfile to grab, default is None')
 
     args = parser.parse_args()
     if args.center is not None: args.center = [float(item) for item in args.center.split(',')]
