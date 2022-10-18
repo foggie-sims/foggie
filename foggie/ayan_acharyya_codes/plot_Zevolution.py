@@ -278,6 +278,11 @@ def plot_time_series(df, args):
     figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_timeseries_res%.2Fkpc%s%s.pdf' % (float(args.res), upto_text, args.weightby_text)
     fig.savefig(figname)
     print('Saved', figname)
+    if args.doft:
+        figname2 = figname.replace('timeseries', 'fourier')
+        fig2.savefig(figname2)
+        print('Saved', figname2)
+
     plt.show(block=False)
 
     return fig

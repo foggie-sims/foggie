@@ -15,7 +15,7 @@ import seaborn as sns
 import os, sys, argparse, re, subprocess, time, datetime, math, shutil, copy, glob, random, collections, itertools
 
 from matplotlib import pyplot as plt
-plt.style.use('seaborn')
+plt.style.use('seaborn-whitegrid')
 from matplotlib import colors as mplcolors
 from matplotlib import patheffects as fx
 from matplotlib.colors import LogNorm
