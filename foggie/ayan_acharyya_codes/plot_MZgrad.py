@@ -312,7 +312,7 @@ def plot_MZGR(args):
             print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, 'with stars')
 
         # ------- overplotting redshift-binned scatter plot------------
-        if args.zhighlight and not args.overplot_smoothed:
+        if args.zhighlight:
             ax = plot_zhighlight(df, ax, this_cmap, args)
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
@@ -412,7 +412,7 @@ def plot_MZGR(args):
         upto_text = '_upto%.1FRe' % args.upto_re
 
     figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_vs_%s_colorby_%s_Zgrad_den_%s%s%s%s%s.png' % (args.ycol, args.xcol, args.colorcol, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text)
-    fig.savefig(figname)
+    fig.savefig(figname, transparent=args.glasspaper)
     print('Saved plot as', figname)
 
     # ------- tidying up fig2 if any------------
@@ -422,7 +422,7 @@ def plot_MZGR(args):
         cax.set_label(label_dict[args.colorcol], fontsize=args.fontsize)
 
         ax2.set_xlim(args.zmin, args.zmax)
-        ax2.set_ylim(-0.01, 0.15)
+        ax2.set_ylim(-0.02, 0.12)
 
         ax2.set_xticklabels(['%.1F' % item for item in ax2.get_xticks()], fontsize=args.fontsize)
         ax2.set_yticklabels(['%.2F' % item for item in ax2.get_yticks()], fontsize=args.fontsize)

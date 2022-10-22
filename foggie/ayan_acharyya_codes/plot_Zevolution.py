@@ -14,10 +14,10 @@
 """
 from header import *
 from util import *
-from matplotlib.collections import LineCollection
 from plot_MZscatter import *
 import h5py
 from scipy.signal import argrelextrema
+from scipy.fft import rfft, rfftfreq
 start_time = time.time()
 
 # -----------------------------------
@@ -103,7 +103,7 @@ def plot_all_stats(df, args):
     print('Saved', figname)
     plt.show(block=False)
 
-    return fig
+    return df, fig
 
 # -----------------------------------------------
 def plot_zhighlight(df, ycol, color, ax, args):
@@ -127,7 +127,7 @@ def plot_time_series(df, args):
     if args.doft:
         fig2, axes2 = plt.subplots(5 if args.forpaper else 7, figsize=(8, 10), sharex=True)
         fig2.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
-        df['freq'] = 1. / df['time'] # Gyr^-1
+        freq_arr = rfftfreq(len(df), np.median(np.diff(df['time'].values))) # Gyr^-1
 
     df = df.sort_values(by='time')
     df['ZIQR_rel'] = df['ZIQR'] / df['Z50'] # IQR relative to the median Z
@@ -136,10 +136,10 @@ def plot_time_series(df, args):
                'black', 'darkturquoise', 'lawngreen']
     sfr_col_arr = ['black']
 
-    groups = pd.DataFrame({'quantities': [['Z50', 'ZIQR'], ['Zmean', 'Zvar'], ['Zgrad', 'Zgrad_binned']], \
-                           'legend': [['Median Z', 'IQR'], ['Mean Z (fit)', 'Variance (fit)'], ['All cells fitted', 'Radial bins fitted']], \
-                           'label': np.hstack([np.tile([r'Z/Z$_\odot$'], 2), r'$\Delta Z$ (dex/kpc)']), \
-                           'limits': [(1e-3, 8), (1e-4, 2), (-0.5, 0.1)], \
+    groups = pd.DataFrame({'quantities': [['Zgrad', 'Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zvar']], \
+                           'legend': [['All cells fitted', 'Radial bins fitted'], ['Median Z', 'IQR'], ['Mean Z (fit)', 'Variance (fit)']], \
+                           'label': np.hstack([r'$\Delta Z$ (dex/kpc)', np.tile([r'Z/Z$_\odot$'], 2)]), \
+                           'limits': [(-0.5, 0.1), (1e-3, 8), (1e-4, 2)], \
                            'isalreadylog': np.hstack([np.tile([False], 3)])})
 
     # -----------for first few panels: Z distribution statistics-------------------
@@ -153,8 +153,16 @@ def plot_time_series(df, args):
             if args.zhighlight: ax = plot_zhighlight(df,log_text + ycol, col_arr[i], ax, args)
             # -------for the FT plot--------------
             if args.doft:
-                df[ycol + '_ft'] = np.abs(np.fft.fft(df[ycol]))
-                ax2.plot(df['freq'], np.log10(df[ycol + '_ft']), c=col_arr[i], lw=1, label=thisgroup.legend[i])
+                yft_arr = np.abs(rfft(df[ycol].values))
+                ax2.plot(freq_arr, np.log10(yft_arr), c=col_arr[i], lw=0.5 if args.overplot_smoothed else 1, label=thisgroup.legend[i], alpha=0.3 if args.overplot_smoothed else 1)
+
+                if args.overplot_smoothed:
+                    npoints = int(len(df) / 100)
+                    if npoints % 2 == 0: npoints += 1
+                    box = np.ones(npoints) / npoints
+                    yft_arr_smoothed = np.convolve(yft_arr, box, mode='same')
+                    ax2.plot(freq_arr, np.log10(yft_arr_smoothed), c=col_arr[i], lw=2)
+
 
         ax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
         ax.set_ylabel(thisgroup.label, fontsize=args.fontsize)
@@ -166,14 +174,14 @@ def plot_time_series(df, args):
     # -----------for SFR panel-------------------
     ycol = 'sfr'
     thisax = axes[axiscount]
-    if args.do: thisax2 = axes2[axiscount]
+    if args.doft: thisax2 = axes2[axiscount]
     if ycol in df:
         thisax.plot(df['time'], df[ycol], c=col_arr[0], lw=1, label='SFR')
         if args.zhighlight: thisax = plot_zhighlight(df, ycol, col_arr[0], thisax, args)
         # -------for the FT plot--------------
         if args.doft:
-            df[ycol + '_ft'] = np.abs(np.fft.fft(df[ycol]))
-            thisax2.plot(df['freq'], np.log10(df[ycol + '_ft']), c=col_arr[0], lw=1, label='SFR')
+            yft_arr = np.abs(rfft(df[ycol].values))
+            thisax2.plot(freq_arr, np.log10(yft_arr), c=col_arr[0], lw=1, label='SFR')
 
     thisax.set_ylabel(label_dict[ycol], fontsize=args.fontsize)
     thisax.set_ylim(0, 50)
@@ -266,7 +274,7 @@ def plot_time_series(df, args):
             fax.tick_params(axis='y', labelsize=args.fontsize)
         thisax = axes2[4]
         thisax.set_xlabel(r'Frequency (Gyr$^{-1}$)', fontsize=args.fontsize)
-        thisax.set_xlim(0.08, 0.67)
+        thisax.set_xlim(0.08/2, 190/2)
         thisax.tick_params(axis='x', labelsize=args.fontsize)
 
 
@@ -285,7 +293,7 @@ def plot_time_series(df, args):
 
     plt.show(block=False)
 
-    return fig
+    return df, fig
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -371,7 +379,7 @@ if __name__ == '__main__':
         print('Reading from existing file', output_filename)
         df = pd.read_table(output_filename, delim_whitespace=True, comment='#')
 
-    if not args.forpaper: fig1 = plot_all_stats(df, args)
-    fig2 = plot_time_series(df, args)
+    if not args.forpaper: df, fig1 = plot_all_stats(df, args)
+    df, fig2 = plot_time_series(df, args)
 
     print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
