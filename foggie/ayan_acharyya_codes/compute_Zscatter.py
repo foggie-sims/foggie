@@ -38,7 +38,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
     # ---------plotting histogram, and if provided, the fit---------
-    fig, ax = plt.subplots(figsize=(8,6))
+    fig, ax = plt.subplots(figsize=(8,8))
     fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.1)
 
     if args.weight is None: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, ec='salmon', density=True, label='Z')
@@ -75,6 +75,9 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     plt.text(0.95, 0.95, 'z = %.4F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.text(0.95, 0.9, 't = %.3F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.text(0.95, 0.85, args.output, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+
+    plt.text(0.95, 0.75, r'Mean = %.2F Z/Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.95, 0.7, r'Sigma = %.2F Z/Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=False)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
