@@ -7,16 +7,17 @@
     Output :     M-Z gradient plots as png files plus, optionally, MZR plot
     Author :     Ayan Acharyya
     Started :    Mar 2022
-    Examples :   run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --Zgrad_den rad_re --keep --weight mass --overplot_manga --overplot_clear --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
-                 run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_kpc 10 --Zgrad_den rad_re --keep --weight mass --overplot_manga --overplot_clear --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
-                 run plot_MZgrad.py --system ayan_local --halo 8508 --upto_re 3 --Zgrad_den rad_re --keep --weight mass --overplot_manga --overplot_clear --overplot_belfiore --overplot_mjngozzi --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed --manga_diag pyqz
+    Examples :   run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --Zgrad_den rad_re --keep --weight mass --overplot_manga --overplot_clear --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed 1500
+                 run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123 --upto_kpc 10 --Zgrad_den rad_re --keep --weight mass --overplot_manga --overplot_clear --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed 1500
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --upto_re 3 --Zgrad_den rad_re --keep --weight mass --overplot_manga --overplot_clear --overplot_belfiore --overplot_mjngozzi --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed 1500 --manga_diag pyqz
                  run plot_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --Zgrad_den rad_re --weight mass --binby log_mass --nbins 20 --cmap plasma --xmax 11 --ymin 0.3 --overplot_manga --manga_diag n2
-                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --colorcol log_mass --overplot_smoothed --zhighlight
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --colorcol log_mass --overplot_smoothed 1500 --zhighlight
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --colorcol re --cmax 3 --zhighlight
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Ztotal --xcol time --colorcol log_mass --zhighlight --docomoving
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_deviation --zcol log_ssfr
-                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2
-                 run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --nocolorcoding --zhighlight --overplot_smoothed --hiderawdata [FOR MOLLY]
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1500
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_cadence 50
+                 run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --nocolorcoding --zhighlight --overplot_smoothed 1500 --hiderawdata [FOR MOLLY]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --glasspaper [FOR MATCHING GLASS PAPER]
 """
 from header import *
@@ -173,7 +174,7 @@ def plot_zhighlight(df, ax, cmap, args, ycol=None):
     df['redshift_int'] = np.floor(df['redshift'])
     df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
     if is_color_like(cmap): dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=cmap, lw=1, edgecolor='k', s=100, alpha=0.5, zorder=20)
-    else: dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=df_zbin[args.colorcol], cmap=cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.2 if args.overplot_smoothed and 'smoothed' not in ycol else 1, zorder=20)
+    else: dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=df_zbin[args.colorcol], cmap=cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.2 if (args.overplot_smoothed and 'smoothed' not in ycol) or args.overplot_cadence else 1, zorder=20)
     print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
     return ax
 
@@ -216,7 +217,7 @@ def plot_MZGR(args):
         args.colorcol = 'log_ssfr'
         args.nocolorcoding = True
         args.zhighlight = True
-        args.overplot_smoothed = False
+        args.overplot_smoothed = None
         args.hiderawdata = False
         args.fontsize = 20
 
@@ -227,7 +228,6 @@ def plot_MZGR(args):
     if args.plot_deviation or args.plot_timefraction:
         fig2, ax2 = plt.subplots(1, figsize=(12, 6))
         fig2.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=1.05 if args.plot_deviation else 0.97)
-        args.overplot_smoothed = True
 
     # ---------plot observations----------------
     obs_text = ''
@@ -301,7 +301,7 @@ def plot_MZGR(args):
         reversed_thiscmap = this_cmap + '_r' if '_r' not in this_cmap else this_cmap[:-2]
         thistextcolor = mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
-            line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_smoothed or args.glasspaper else 2)
+            line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_smoothed or args.overplot_cadence or args.glasspaper else 2)
             plot = ax.add_collection(line)
 
         # ------- overplotting specific snapshot highlights------------
@@ -317,11 +317,12 @@ def plot_MZGR(args):
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
         if args.overplot_smoothed:
-            npoints = int(len(df)/8)
+            mean_dt = (df['time'].max() - df['time'].min())*1000/len(df) # Myr
+            npoints = int(np.round(args.overplot_smoothed/mean_dt))
             if npoints % 2 == 0: npoints += 1
             box = np.ones(npoints) / npoints
             df[args.ycol + '_smoothed'] = np.convolve(df[args.ycol], box, mode='same')
-            print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points')
+            print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points, =', npoints * mean_dt, 'Myr')
 
             if 'line' in locals() and not args.nocolorcoding: line.set_alpha(0.2) # make the actual wiggly line fainter (unless making plots for Molly's talk)
             smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=2)
@@ -330,10 +331,28 @@ def plot_MZGR(args):
                 ax = plot_zhighlight(df, ax, this_cmap, args, ycol=args.ycol + '_smoothed')
                 smoothline.set_alpha(0.2)
 
+        # ------- overplotting a lower cadence version of the MZGR------------
+        if args.overplot_cadence:
+            mean_dt = (df['time'].max() - df['time'].min())*1000/len(df) # Myr
+            npoints = int(np.round(args.overplot_cadence/mean_dt))
+            df_short = df.iloc[::npoints, :]
+            print('Overplot for halo', args.halo, 'only every', npoints, 'th data point, i.e. cadence of', npoints * mean_dt, 'Myr')
+            if 'line' in locals() and not args.nocolorcoding: line.set_alpha(0.2) # make the actual wiggly line fainter (unless making plots for Molly's talk)
+
+            yfunc = interp1d(df_short[args.xcol], df_short[args.ycol], fill_value='extrapolate') # interpolating the low-cadence data
+            cfunc = interp1d(df_short[args.xcol], df_short[args.colorcol], fill_value='extrapolate')
+            df[args.ycol + '_interp'] = yfunc(df[args.xcol])
+            df[args.colorcol + '_interp'] = cfunc(df[args.xcol])
+            interpline = get_multicolored_line(df[args.xcol], df[args.ycol + '_interp'], df[args.colorcol + '_interp'], this_cmap, args.cmin, args.cmax, lw=2)
+            plot = ax.add_collection(interpline)
+
         # ------- making additional plot of deviation in gradient vs other quantities, like SFR------------
         if args.plot_deviation:
             print('Plotting deviation vs', args.colorcol, 'halo', args.halo)
-            df[args.ycol + '_deviation'] = df[args.ycol] - df[args.ycol + '_smoothed']
+            if args.overplot_smoothed: col_to_subtract = args.ycol + '_smoothed'
+            elif args.overplot_cadence: col_to_subtract = args.ycol + '_interp'
+
+            df[args.ycol + '_deviation'] = df[args.ycol] - df[col_to_subtract]
             df = df.sort_values(args.zcol)
 
             # --------- scatter plot------------
@@ -353,7 +372,10 @@ def plot_MZGR(args):
         # ------- making additional plot of deviation in gradient vs other quantities, like SFR------------
         elif args.plot_timefraction:
             print('Plotting time fraction vs', args.colorcol, 'halo', args.halo)
-            df[args.ycol + '_deviation'] = df[args.ycol] - df[args.ycol + '_smoothed']
+            if args.overplot_smoothed: col_to_subtract = args.ycol + '_smoothed'
+            elif args.overplot_cadence: col_to_subtract = args.ycol + '_interp'
+
+            df[args.ycol + '_deviation'] = df[args.ycol] - df[col_to_subtract]
             df = df.sort_values('time')
             args.zcol = 'time'
 

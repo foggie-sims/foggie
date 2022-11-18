@@ -7,7 +7,7 @@
     Output :     M-Z scatter plots as png files
     Author :     Ayan Acharyya
     Started :    Aug 2022
-    Examples :   run plot_MZscatter.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --keep --weight mass --res 0.1 --xcol log_mass --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed
+    Examples :   run plot_MZscatter.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --keep --weight mass --res 0.1 --xcol log_mass --binby log_mass --nbins 200 --zhighlight --use_gasre --overplot_smoothed 1500
                  run plot_MZscatter.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --res 0.1 --ycol log_Zvar --xcol log_mass --colorcol time --zhighlight --docomoving --fit_multiple
 """
 from header import *
@@ -135,7 +135,8 @@ def plot_MZscatter(args):
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
         if args.overplot_smoothed:
-            npoints = int(len(df)/8)
+            mean_dt = (df['time'].max() - df['time'].min())*1000/len(df) # Myr
+            npoints = int(np.round(args.overplot_smoothed/mean_dt))
             if npoints % 2 == 0: npoints += 1
             box = np.ones(npoints) / npoints
             df[args.ycol + '_smoothed'] = np.convolve(df[args.ycol], box, mode='same')
@@ -143,7 +144,16 @@ def plot_MZscatter(args):
             line.set_alpha(0.2) # make the actual wiggly line fainter
             smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=2)
             plot = ax.add_collection(smoothline)
-            print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points')
+            print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points, =', npoints * mean_dt, 'Myr')
+
+        # ------- overplotting a lower cadence version of the MZGR------------
+        if args.overplot_cadence:
+            mean_dt = (df['time'].max() - df['time'].min())*1000/len(df) # Myr
+            npoints = int(np.round(args.overplot_cadence/mean_dt))
+            df_short = df.iloc[::npoints, :]
+            print('Overplot for halo', args.halo, 'only every', npoints, 'th data point, i.e. cadence of', npoints * mean_dt, 'Myr')
+            newline = get_multicolored_line(df_short[args.xcol], df_short[args.ycol], df_short[args.colorcol], this_cmap, args.cmin, args.cmax, lw=2)
+            plot = ax.add_collection(newline)
 
         # ------- making additional plot of deviation in gradient vs other quantities, like SFR------------
         if args.plot_deviation:

@@ -7,10 +7,13 @@
     Output :     Various Z statistics vs time plots as png files
     Author :     Ayan Acharyya
     Started :    Aug 2022
-    Examples :   run plot_Zevolution.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --keep --weight mass --res 0.1 --zhighlight --use_gasre --overplot_smoothed
+    Examples :   run plot_Zevolution.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --keep --weight mass --res 0.1 --zhighlight --use_gasre --overplot_smoothed 1500
+                 run plot_Zevolution.py --system ayan_local --halo 8508,5036,5016,4123 --upto_re 3 --keep --weight mass --res 0.1 --zhighlight --use_gasre --overplot_cadence 50
                  run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --res 0.1 --zhighlight --docomoving --fit_multiple
                  run plot_Zevolution.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --keep --weight mass --res 0.1 --zhighlight --docomoving --fit_multiple
                  run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --weight mass --forpaper [FOR THE PAPER]
+                 run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --forpaper --docorr sfr --doft
+
 """
 from header import *
 from util import *
@@ -52,11 +55,20 @@ def plot_all_stats(df, args):
                     label=None if args.overplot_smoothed else ycol)
 
             if args.overplot_smoothed:
-                npoints = int(len(df) / 8)
+                mean_dt = (df['time'].max() - df['time'].min()) * 1000 / len(df)  # Myr
+                npoints = int(np.round(args.overplot_smoothed / mean_dt))
                 if npoints % 2 == 0: npoints += 1
                 box = np.ones(npoints) / npoints
                 df[log_text + ycol + '_smoothed'] = np.convolve(df[log_text + ycol], box, mode='same')
                 ax.plot(df['time'], df[log_text + ycol + '_smoothed'], c=col_arr[i], lw=2, label=ycol)
+                print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points, =', npoints * mean_dt, 'Myr')
+
+            if args.overplot_cadence:
+                mean_dt = (df['time'].max() - df['time'].min())*1000/len(df) # Myr
+                npoints = int(np.round(args.overplot_cadence/mean_dt))
+                df_short = df.iloc[::npoints, :]
+                print('Overplot for halo', args.halo, 'only every', npoints, 'th data point, i.e. cadence of', npoints * mean_dt, 'Myr')
+                ax.plot(df_short['time'], df_short[log_text + ycol], c=col_arr[i], lw=2, label=ycol)
 
         ax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
         ax.set_ylabel(thisgroup.label, fontsize=args.fontsize)
@@ -116,6 +128,26 @@ def plot_zhighlight(df, ycol, color, ax, args):
     print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
     return ax
 
+# -----------------------------------------------
+def correlate(xdata, ydata):
+    '''
+    Function to compute time delay cross-correlation between xdata and ydata
+    Based on Cassi's code in energy_SFR_xcorr() from foggie/paper_plots/mod_vir_temp/mod_vir_temp_paper-plots.py
+    '''
+    nth = 2 # to consider delay times of zero all the way up to a 1/nth fraction of the full time evolution; needs to be experimented with
+    delay_list = np.array(range(int(len(xdata) / nth)))
+
+    xmean = np.mean(xdata)
+    xstd = np.std(xdata)
+    ymean = np.mean(ydata)
+    ystd = np.std(ydata)
+
+    xcorr_list = []
+    for item in delay_list:
+        xcorr_list.append(np.sum((xdata - xmean) * (np.roll(ydata, -item) - ymean)) / (xstd * ystd * len(xdata)))
+
+    return delay_list, xcorr_list
+
 # -----------------------------------
 def plot_time_series(df, args):
     '''
@@ -124,13 +156,19 @@ def plot_time_series(df, args):
     fig, axes = plt.subplots(5 if args.forpaper else 7, figsize=(8, 10), sharex=True)
     fig.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
 
+    df = df.sort_values(by='time')
+    df['ZIQR_rel'] = df['ZIQR'] / df['Z50']  # IQR relative to the median Z
+
     if args.doft:
-        fig2, axes2 = plt.subplots(5 if args.forpaper else 7, figsize=(8, 10), sharex=True)
+        fig2, axes2 = plt.subplots(4 if args.forpaper else 6, figsize=(8, 10), sharex=True)
         fig2.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
         freq_arr = rfftfreq(len(df), np.median(np.diff(df['time'].values))) # Gyr^-1
 
-    df = df.sort_values(by='time')
-    df['ZIQR_rel'] = df['ZIQR'] / df['Z50'] # IQR relative to the median Z
+    if args.docorr is not None:
+        fig3, axes3 = plt.subplots(4 if args.forpaper else 6, figsize=(8, 10), sharex=True)
+        fig3.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
+
+        dt = np.median(np.diff(df['time'])) # Gyr
 
     col_arr = ['brown', 'darkolivegreen', 'black', 'cornflowerblue', 'salmon', 'gold', 'saddlebrown', 'crimson',
                'black', 'darkturquoise', 'lawngreen']
@@ -146,23 +184,30 @@ def plot_time_series(df, args):
     for j in range(len(groups)):
         thisgroup = groups.iloc[j]
         ax = axes[j]
-        if args.doft: ax2 = axes2[j]
         log_text = 'log_' if thisgroup.isalreadylog else ''
         for i, ycol in enumerate(thisgroup.quantities):
             ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=1, label=thisgroup.legend[i])
             if args.zhighlight: ax = plot_zhighlight(df,log_text + ycol, col_arr[i], ax, args)
             # -------for the FT plot--------------
             if args.doft:
+                ax2 = axes2[j]
                 yft_arr = np.abs(rfft(df[ycol].values))
                 ax2.plot(freq_arr, np.log10(yft_arr), c=col_arr[i], lw=0.5 if args.overplot_smoothed else 1, label=thisgroup.legend[i], alpha=0.3 if args.overplot_smoothed else 1)
 
                 if args.overplot_smoothed:
-                    npoints = int(len(df) / 100)
+                    mean_dt = (df['time'].max() - df['time'].min()) * 1000 / len(df)  # Myr
+                    npoints = int(np.round(args.overplot_smoothed / mean_dt))
                     if npoints % 2 == 0: npoints += 1
                     box = np.ones(npoints) / npoints
                     yft_arr_smoothed = np.convolve(yft_arr, box, mode='same')
                     ax2.plot(freq_arr, np.log10(yft_arr_smoothed), c=col_arr[i], lw=2)
+                    print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points, =', npoints * mean_dt, 'Myr')
 
+            # ---------for the correlation plot---------
+            if args.docorr is not None:
+                ax3 = axes3[j]
+                delay_list, xcorr_list = correlate(df[args.docorr], df[ycol])
+                ax3.plot(delay_list * dt, xcorr_list, c=col_arr[i], lw=1, label=thisgroup.legend[i], alpha=1)
 
         ax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
         ax.set_ylabel(thisgroup.label, fontsize=args.fontsize)
@@ -174,14 +219,20 @@ def plot_time_series(df, args):
     # -----------for SFR panel-------------------
     ycol = 'sfr'
     thisax = axes[axiscount]
-    if args.doft: thisax2 = axes2[axiscount]
     if ycol in df:
         thisax.plot(df['time'], df[ycol], c=col_arr[0], lw=1, label='SFR')
         if args.zhighlight: thisax = plot_zhighlight(df, ycol, col_arr[0], thisax, args)
         # -------for the FT plot--------------
         if args.doft:
+            thisax2 = axes2[axiscount]
             yft_arr = np.abs(rfft(df[ycol].values))
             thisax2.plot(freq_arr, np.log10(yft_arr), c=col_arr[0], lw=1, label='SFR')
+
+        # ---------for the correlation plot---------
+        if args.docorr is not None:
+            ax3 = axes3[axiscount]
+            delay_list, xcorr_list = correlate(df[args.docorr], df[ycol])
+            ax3.plot(delay_list * dt, xcorr_list, c=col_arr[0], lw=1, label='SFR')
 
     thisax.set_ylabel(label_dict[ycol], fontsize=args.fontsize)
     thisax.set_ylim(0, 50)
@@ -192,9 +243,16 @@ def plot_time_series(df, args):
     if not args.forpaper:
         # -----------for metal production panel-------------------
         thisax = axes[axiscount]
-        if 'log_metal_produced' in df:
-            thisax.plot(df['time'], df['log_metal_produced'], c=col_arr[0], lw=1, label='Metal mass produced')
-            if args.zhighlight: thisax = plot_zhighlight(df, 'log_metal_produced', col_arr[0], thisax, args)
+        ycol = 'log_metal_produced'
+        if ycol in df:
+            thisax.plot(df['time'], df[ycol], c=col_arr[0], lw=1, label='Metal mass produced')
+            if args.zhighlight: thisax = plot_zhighlight(df, ycol, col_arr[0], thisax, args)
+
+            # ---------for the correlation plot---------
+            if args.docorr is not None:
+                ax3 = axes3[axiscount]
+                delay_list, xcorr_list = correlate(df[args.docorr], df[ycol])
+                ax3.plot(delay_list * dt, xcorr_list, c=col_arr[0], lw=1, label='Metal mass produced')
 
         thisax.set_ylabel(label_dict['log_mass'], fontsize=args.fontsize)
         thisax.set_ylim(4, 7.2)
@@ -204,9 +262,16 @@ def plot_time_series(df, args):
 
         # -----------for metal ejection panel-------------------
         thisax = axes[axiscount]
-        if 'log_metal_flux' in df:
-            thisax.plot(df['time'], df['log_metal_flux'], c=col_arr[0], lw=1, label='Metal flux ejected')
-            if args.zhighlight: thisax = plot_zhighlight(df, 'log_metal_flux', col_arr[0], thisax, args)
+        ycol = 'log_metal_flux'
+        if ycol in df:
+            thisax.plot(df['time'], df[ycol], c=col_arr[0], lw=1, label='Metal flux ejected')
+            if args.zhighlight: thisax = plot_zhighlight(df, ycol, col_arr[0], thisax, args)
+
+            # ---------for the correlation plot---------
+            if args.docorr is not None:
+                ax3 = axes3[axiscount]
+                delay_list, xcorr_list = correlate(df[args.docorr], df[ycol])
+                ax3.plot(delay_list * dt, xcorr_list, c=col_arr[0], lw=1, label='Metal mass produced')
 
         thisax.set_ylabel(r'$\log{(\mathrm{M}_{\odot}/\mathrm{yr})}$', fontsize=args.fontsize)
         thisax.set_ylim(-5, 0)
@@ -272,11 +337,22 @@ def plot_time_series(df, args):
             fax.set_ylabel('log(power spec)', fontsize=args.fontsize)
             # fax.set_ylim(thisgroup.limits)
             fax.tick_params(axis='y', labelsize=args.fontsize)
-        thisax = axes2[4]
+        thisax = axes2[-1]
         thisax.set_xlabel(r'Frequency (Gyr$^{-1}$)', fontsize=args.fontsize)
         thisax.set_xlim(0.08/2, 190/2)
         thisax.tick_params(axis='x', labelsize=args.fontsize)
 
+    # -----------for all y axes of the correlation plot-----------
+    if args.docorr is not None:
+        for fax in axes3:
+            fax.legend(loc='upper left', fontsize=args.fontsize / 1.5)
+            fax.set_ylabel('Corr. coeff.', fontsize=args.fontsize)
+            fax.set_ylim(-0.5, 1)
+            fax.tick_params(axis='y', labelsize=args.fontsize)
+        thisax = axes3[-1]
+        thisax.set_xlabel('Time delay for response (Gyr)', fontsize=args.fontsize)
+        #thisax.set_xlim(0.08/2, 190/2)
+        thisax.tick_params(axis='x', labelsize=args.fontsize)
 
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
@@ -291,9 +367,61 @@ def plot_time_series(df, args):
         fig2.savefig(figname2)
         print('Saved', figname2)
 
+    if args.docorr is not None:
+        figname3 = figname.replace('timeseries', '%s_correlation'%args.docorr)
+        fig3.savefig(figname3)
+        print('Saved', figname3)
+
     plt.show(block=False)
 
     return df, fig
+
+# -----------------------------------
+def plot_correlation(df, args):
+    '''
+    Function to plot the correlaton between one time series quantity like SFR with other quantities like Z gradients
+    '''
+    nth = 3 # needs to be experimented with
+    quantities_to_correlate = ['Zgrad', 'Zgrad_binned', 'Z50', 'ZIQR', 'Zmean', 'Zvar', 'sfr']
+
+    fig, ax = plt.subplots(figsize=(8, 10))
+    fig.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
+
+    corr_list = df[args.docorr]
+    cmean = np.mean(corr_list)
+    cstd = np.std(corr_list)
+    delay_list = np.array(range(int(len(df) / nth))) # Consider delay times of zero all the way up to a nth of the full time evolution
+
+    for thisquant in quantities_to_correlate:
+        data = df[thisquant]
+        data_mean = np.mean(data)
+        data_std = np.std(data)
+        xcorr_list = []
+        for item in delay_list:
+            xcorr_list.append(np.sum((corr_list - cmean) * (np.roll(data, -item) - data_mean)) / (cstd * data_std * len(df)))
+
+        ax.plot(delay_list * np.median(np.diff(df['time'])), xcorr_list, lw=2, label=thisquant)
+
+    ax.legend(fontsize=args.fontsize)
+    ax.set_xlabel('Time delay for response (Gyr)', fontsize=args.fontsize)
+    #ax.set_xlim(0.08 / 2, 190 / 2)
+    ax.tick_params(axis='x', labelsize=args.fontsize)
+
+    ax.set_ylabel('Correlation coefficient?', fontsize=args.fontsize)
+    #ax.set_ylim(-1, 1)
+    ax.tick_params(axis='y', labelsize=args.fontsize)
+
+    if args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % args.upto_re
+
+    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_correlation_res%.2Fkpc%s%s.pdf' % (args.docorr, float(args.res), upto_text, args.weightby_text)
+    fig.savefig(figname)
+    print('Saved', figname)
+    plt.show(block=False)
+
+    return fig
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -379,7 +507,8 @@ if __name__ == '__main__':
         print('Reading from existing file', output_filename)
         df = pd.read_table(output_filename, delim_whitespace=True, comment='#')
 
-    if not args.forpaper: df, fig1 = plot_all_stats(df, args)
+    if not args.forpaper: df2, fig1 = plot_all_stats(df, args)
     df, fig2 = plot_time_series(df, args)
+    #if args.docorr is not None: fig3 = plot_correlation(df, args)
 
     print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
