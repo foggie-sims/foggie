@@ -1020,6 +1020,9 @@ if __name__ == '__main__':
     if type(dummy_args_tuple) is tuple: dummy_args = dummy_args_tuple[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     else: dummy_args = dummy_args_tuple
     if dummy_args.xcol == 'radius': dummy_args.xcol == 'rad'
+    userinput_cmap = dummy_args.cmap # userinput_cmap to be used later
+    userinput_cmin = dummy_args.cmin
+    userinput_cmax = dummy_args.cmax
     if not dummy_args.keep: plt.close('all')
 
     if dummy_args.do_all_sims:
@@ -1079,6 +1082,8 @@ if __name__ == '__main__':
                 else: print_mpi('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
             else:
                 ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=should_load_disk, particle_type_for_angmom='gas', halo_c_v_name=halos_df_name)
+                if 'halo_center' not in args: args.halo_center = ds.halo_center_kpc
+                if 'halo_velocity' not in args: args.halo_velocity = ds.halo_velocity_kms
 
             # -------create new fields for angular momentum vectors-----------
             ds.add_field(('gas', 'angular_momentum_phi'), function=phi_angular_momentum, sampling_type='cell', units='degree')
@@ -1146,15 +1151,15 @@ if __name__ == '__main__':
             if args.colorcol not in field_dict: update_dicts(args.colorcol, ds)
 
             # ----------to determine axes limits--------------
-            if args.cmin is None:
+            if userinput_cmin is None:
                 args.cmin = np.log10(bounds_dict[args.colorcol][0]) if islog_dict[args.colorcol] else bounds_dict[args.colorcol][0]
-            if args.cmax is None:
+            if userinput_cmin is None:
                 args.cmax = np.log10(bounds_dict[args.colorcol][1]) if islog_dict[args.colorcol] else bounds_dict[args.colorcol][1]
 
             if isfield_weighted_dict[args.colorcol] and args.weight: args.colorcolname += '_wtby_' + args.weight
 
             # ----------to determine colorbar parameters--------------
-            if args.cmap is None: args.cmap = colormap_dict[args.colorcol]
+            if userinput_cmap is None: args.cmap = colormap_dict[args.colorcol]
             else: args.cmap = plt.get_cmap(args.cmap)
             color_list = args.cmap.colors
             ncolbins = args.ncolbins if args.ncolbins is not None else len(color_list) if len(color_list) <= 10 else 7
@@ -1180,9 +1185,9 @@ if __name__ == '__main__':
                 paramlist = load_stars_file(args) if args.overplot_stars else None
                 abslist = load_absorbers_file(args) if args.overplot_absorbers else None
                 if datashader_ver <= 11 or args.use_old_dsh:
-                    df, fig = make_datashader_plot(df, thisfilename, args, npix_datashader=npix_datashader, paramlist=paramlist, abslist=abslist)
+                    df2, fig = make_datashader_plot(df, thisfilename, args, npix_datashader=npix_datashader, paramlist=paramlist, abslist=abslist)
                 else:
-                    df, fig = make_datashader_plot_mpl(df, thisfilename, args, paramlist=paramlist, abslist=abslist)
+                    df2, fig = make_datashader_plot_mpl(df, thisfilename, args, paramlist=paramlist, abslist=abslist)
                 if args.interactive:
                     myprint('This plot is now in interactive mode..', args)
                     if not (datashader_ver <= 11 or args.use_old_dsh): npix_datashader = None # so that the functions that use datashader's native mpl support are invoked
