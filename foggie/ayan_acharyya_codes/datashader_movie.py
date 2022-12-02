@@ -495,7 +495,7 @@ def wrap_axes(df, filename, npix_datashader, args, paramlist=None, abslist=None)
     if args.overplot_absorbers: axes = overplot_stars(abslist, axes, args, type='absorbers', npix_datashader=npix_datashader)
 
     # ----------to overplot binned profile----------------
-    ax1 = overplot_binned(df, ax1, args, npix_datashader=npix_datashader)
+    if not args.nooverplot_binned: ax1 = overplot_binned(df, ax1, args, npix_datashader=npix_datashader)
 
     # ----------to plot 1D histogram on the top and right axes--------------
     axes.plot_marginals(sns.kdeplot, lw=1, linestyle='solid', color='black')
@@ -576,7 +576,7 @@ def make_datashader_plot_mpl(df, outfilename, args, paramlist=None, abslist=None
     if args.overplot_absorbers: overplotted, axes = overplot_stars(abslist, axes, args, type='absorbers')
 
     if len(df) > 0:
-        ax1 = overplot_binned(df, ax1, args) # to overplot binned profile
+        if not args.nooverplot_binned: ax1 = overplot_binned(df, ax1, args) # to overplot binned profile
         axes.plot_marginals(sns.kdeplot, lw=1, linestyle='solid', color='black') # to plot marginal 1D histograms
         axes.ax_marg_x.set_xlim(args.xmin, args.xmax)
         axes.ax_marg_y.set_ylim(args.ymin, args.ymax)
@@ -1004,7 +1004,7 @@ unit_dict = {'rad':'kpc', 'rad_re':'', 'density':'g/cm**3', 'metal':r'Zsun', 'te
 labels_dict = {'rad':'Radius', 'rad_re':'Radius/R_e', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF', 'phi_disk':'Azimuthal Angle', 'theta_disk':r'$\theta_{\mathrm{diskrel}}$'}
 islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True)
 bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
-colormap_dict = {'temp':temperature_discrete_cmap, 'metal':metal_discrete_cmap, 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi, 'phi_disk':'viridis', 'theta_disk':angle_discrete_cmap_2pi}
+colormap_dict = {'temp':temperature_discrete_cmap, 'metal':'viridis', 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi, 'phi_disk':'viridis', 'theta_disk':angle_discrete_cmap_2pi}
 isfield_weighted_dict = defaultdict(lambda: False, metal=True, temp=True, vrad=True, phi_L=True, theta_L=True, phi_disk=True, theta_disk=True)
 bounds_dict = defaultdict(lambda: None, density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-3, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180), phi_disk=(0, 90), theta_disk=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
 
@@ -1023,6 +1023,7 @@ if __name__ == '__main__':
     userinput_cmap = dummy_args.cmap # userinput_cmap to be used later
     userinput_cmin = dummy_args.cmin
     userinput_cmax = dummy_args.cmax
+    userinput_ncolbins = dummy_args.ncolbins
     if not dummy_args.keep: plt.close('all')
 
     if dummy_args.do_all_sims:
@@ -1161,8 +1162,10 @@ if __name__ == '__main__':
             # ----------to determine colorbar parameters--------------
             if userinput_cmap is None: args.cmap = colormap_dict[args.colorcol]
             else: args.cmap = plt.get_cmap(args.cmap)
+            if type(args.cmap) == str: args.cmap = mpl_cm.get_cmap(args.cmap)
             color_list = args.cmap.colors
-            ncolbins = args.ncolbins if args.ncolbins is not None else len(color_list) if len(color_list) <= 10 else 7
+            if userinput_ncolbins is None: ncolbins = len(color_list) if len(color_list) <= 10 else 7
+            else: ncolbins = userinput_ncolbins
             args.color_list = color_list[::int(len(color_list) / ncolbins)]  # truncating color_list in to a length of rougly ncolbins
             args.ncolbins = len(args.color_list)
 

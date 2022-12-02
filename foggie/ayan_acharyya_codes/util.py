@@ -1033,7 +1033,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--cmin', metavar='cmin', type=float, action='store', default=None, help='minimum value for plotting imshow colorbar; default is None')
     parser.add_argument('--cmax', metavar='cmax', type=float, action='store', default=None, help='maximum value for plotting imshow colorbar; default is None')
 
-    # ------- args added for investigate)metallicity.py ------------------------------
+    # ------- args added for investigate_metallicity.py ------------------------------
     parser.add_argument('--lookup_metallicity', metavar='lookup_metallicity', type=int, action='store', default=None, help='index of HII region (in the dataframe) to lookup metallicity values for; default is None')
     parser.add_argument('--Zout', metavar='Zout', type=str, action='store', default='D16', help='which metallicity diagnostic to be plotted as Zout; default is D16')
     parser.add_argument('--islog', dest='islog', action='store_true', default=False, help='set x- and y- scale as log?, default is no')
@@ -1073,6 +1073,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--clobber_plot', dest='clobber_plot', action='store_true', default=False, help='overwrite existing plots with same name?, default is no')
     parser.add_argument('--overplot_stars', dest='overplot_stars', action='store_true', default=False, help='overplot young stars?, default is no')
     parser.add_argument('--overplot_absorbers', dest='overplot_absorbers', action='store_true', default=False, help='overplot HI absorbers (from Claire)?, default is no')
+    parser.add_argument('--nooverplot_binned', dest='nooverplot_binned', action='store_true', default=False, help='do not overplot binned profile?, default is no (i.e., default is to overplot binned profile)')
     parser.add_argument('--start_index', metavar='start_index', type=int, action='store', default=0, help='index of the list of snapshots to start from; default is 0')
     parser.add_argument('--interactive', dest='interactive', action='store_true', default=False, help='interactive mode?, default is no')
     parser.add_argument('--combine', dest='combine', action='store_true', default=False, help='combine all outputs from lasso selection?, default is no')
