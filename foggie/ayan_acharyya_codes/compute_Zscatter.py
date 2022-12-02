@@ -19,6 +19,7 @@ from compute_MZgrad import *
 from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
 from lmfit.models import SkewedGaussianModel
+from pygini import gini
 start_time = time.time()
 
 # -----------------------------------------------------------
@@ -121,6 +122,7 @@ def fit_distribution(Zarr, args, weights=None):
     Z25 = ufloat(np.percentile(Zarr, 25), 0)
     Z50 = ufloat(np.percentile(Zarr, 50), 0)
     Z75 = ufloat(np.percentile(Zarr, 75), 0)
+    Zgini = gini(Zarr)
 
 
     y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights, range=(0, args.xmax))
@@ -163,7 +165,7 @@ def fit_distribution(Zarr, args, weights=None):
         Zpeak, Zmean, Zvar, Zskew = ufloat(np.nan, np.nan) * np.ones(4)
         pass
 
-    return result, Zpeak, Z25, Z50, Z75, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma
+    return result, Zpeak, Z25, Z50, Z75, Zgini, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -177,7 +179,7 @@ if __name__ == '__main__':
     total_snaps = len(list_of_sims)
 
     # -------set up dataframe and filename to store/write gradients in to--------
-    cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zmean', 'Zmean_u', 'Zvar', 'Zvar_u', 'Zskew', 'Zskew_u', 'Ztotal', 'gauss_amp', 'gauss_amp_u', 'gauss_mean', 'gauss_mean_u', 'gauss_sigma', 'gauss_sigma_u']
+    cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zgini', 'Zmean', 'Zmean_u', 'Zvar', 'Zvar_u', 'Zskew', 'Zskew_u', 'Ztotal', 'gauss_amp', 'gauss_amp_u', 'gauss_mean', 'gauss_mean_u', 'gauss_sigma', 'gauss_sigma_u']
 
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
@@ -295,11 +297,11 @@ if __name__ == '__main__':
                 else: wres = None
                 Ztotal = np.sum(Zres * mres) / np.sum(mres) # in Zsun
 
-                result, Zpeak, Z25, Z50, Z75, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma = fit_distribution(Zres, args, weights=wres)
+                result, Zpeak, Z25, Z50, Z75, Zgini, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma = fit_distribution(Zres, args, weights=wres)
                 print('Fitted parameters:\n', result) #
                 if not args.noplot: fig = plot_distribution(Zres, args, weights=wres, fit=result) # plotting the Z profile, with fit
 
-                thisrow += [mstar, res, Zpeak.n, Zpeak.s, Z25.n, Z25.s, Z50.n, Z50.s, Z75.n, Z75.s, Zmean.n, Zmean.s, Zvar.n, Zvar.s, Zskew.n, Zskew.s, Ztotal, gauss_amp.n, gauss_amp.s, gauss_mean.n, gauss_mean.s, gauss_sigma.n, gauss_sigma.s]
+                thisrow += [mstar, res, Zpeak.n, Zpeak.s, Z25.n, Z25.s, Z50.n, Z50.s, Z75.n, Z75.s, Zgini, Zmean.n, Zmean.s, Zvar.n, Zvar.s, Zskew.n, Zskew.s, Ztotal, gauss_amp.n, gauss_amp.s, gauss_mean.n, gauss_mean.s, gauss_sigma.n, gauss_sigma.s]
         else:
             thisrow += (np.ones(23)*np.nan).tolist()
 
