@@ -337,7 +337,7 @@ def plot_MZGR(args):
             npoints = int(np.round(args.overplot_cadence/mean_dt))
             df_short = df.iloc[::npoints, :]
             print('Overplot for halo', args.halo, 'only every', npoints, 'th data point, i.e. cadence of', npoints * mean_dt, 'Myr')
-            if 'line' in locals() and not args.nocolorcoding: line.set_alpha(0.2) # make the actual wiggly line fainter (unless making plots for Molly's talk)
+            if 'line' in locals(): line.set_alpha(0.2) # make the actual wiggly line fainter (unless making plots for Molly's talk)
 
             yfunc = interp1d(df_short[args.xcol], df_short[args.ycol], fill_value='extrapolate') # interpolating the low-cadence data
             cfunc = interp1d(df_short[args.xcol], df_short[args.colorcol], fill_value='extrapolate')
