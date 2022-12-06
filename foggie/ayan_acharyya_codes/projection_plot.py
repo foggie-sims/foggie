@@ -42,7 +42,7 @@ def annotate_box(p, width, ds, center, unit='kpc', projection='x'):
 # --------------------------------------------------------------------------------
 def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cmap, name, unit='Msun/pc**2', \
             zmin=density_proj_min, zmax=density_proj_max, ann_sphere_rad=(1, 'kpc'), weight_field=None, \
-            normal_vector=None, north_vector=None, hide_axes=False, iscolorlog=False, noweight=False):
+            normal_vector=None, north_vector=None, hide_axes=False, iscolorlog=False, noweight=False, fontsize=20):
     '''
     Function to make yt projection plot
     (adopted from foggie.satellites.for_paper.central_projection_plots)
@@ -55,7 +55,7 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     elif normal_vector is not None or north_vector is not None: # do rotated off axis ProjectionPlot
         prj = yt.OffAxisProjectionPlot(ds, normal_vector, field, north_vector=north_vector, center=center, width=(box_width.v.tolist(), 'kpc'), data_source=small_box, weight_field=weight_field)
     else: # do ProjectionPlot
-        prj = yt.ProjectionPlot(ds, axs, field, center=center, data_source=small_box, width=box_width, weight_field=weight_field)
+        prj = yt.ProjectionPlot(ds, axs, field, center=center, data_source=small_box, width=box_width, weight_field=weight_field, fontsize=fontsize)
 
     print('Just the plotting took %s minutes' % ((time.time() - start_time2) / 60))
 
@@ -86,7 +86,6 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     for cen in annotate_positions:
         prj.annotate_sphere(cen, radius=ann_sphere_rad, coord_system='data', circle_args={'color': 'white'})
 
-    prj.set_figure_size(5)
     return prj
 
 # --------------------------------------------------------------------------------
@@ -94,7 +93,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                           fig_end='projection', do=['stars', 'gas', 'metal'], axes=['x', 'y', 'z'], annotate_positions=[], \
                           is_central=False, add_velocity=False, add_arrow=False, start_arrow=[], end_arrow=[], total_normal_rot=0, \
                           total_north_rot=0, rot_frame=0, nframes=200, hide_axes=False, iscolorlog=False, noweight=False, \
-                          rot_north_about='x', rot_normal_about='y'):
+                          rot_north_about='x', rot_normal_about='y', output='', fontsize=20):
     '''
     Function to arrange overheads of yt projection plot
     (adopted from foggie.satellites.for_paper.central_projection_plots)
@@ -139,7 +138,9 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
         for d in do:
             zmin = zmin_dict[d] if args.cmin is None else args.cmin
             zmax = zmax_dict[d] if args.cmax is None else args.cmax
-            prj = do_plot(ds, 'v' + ax + '_corrected' if d == 'vlos' else field_dict[d], ax, annotate_positions, small_box, center, box_width, cmap_dict[d], name, unit=unit_dict[d], zmin=zmin, zmax=zmax, weight_field=weight_field_dict[d], normal_vector=normal_vector, north_vector=north_vector, hide_axes=hide_axes, iscolorlog=iscolorlog if iscolorlog else colorlog_dict[d], noweight=noweight)
+
+            thisfield = 'v' + ax + '_corrected' if d == 'vlos' else field_dict[d]
+            prj = do_plot(ds, thisfield, ax, annotate_positions, small_box, center, box_width, cmap_dict[d], name, unit=unit_dict[d], zmin=zmin, zmax=zmax, weight_field=weight_field_dict[d], normal_vector=normal_vector, north_vector=north_vector, hide_axes=hide_axes, iscolorlog=iscolorlog if iscolorlog else colorlog_dict[d], noweight=noweight, fontsize=fontsize)
 
             if add_velocity: prj.annotate_velocity(factor=20)
             if add_arrow:
@@ -149,8 +150,31 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                     for s_arrow, e_arrow in zip(start_arrow, end_arrow):
                         prj.annotate_arrow(pos=e_arrow, starting_pos=s_arrow, coord_system='data')
 
-            prj.save(fig_dir + '%s' % (d) + '_box=%.2Fkpc' % (box_width) + '_proj_' + ax + rot_text + '_' + fig_end + '.png', mpl_kwargs={'dpi': 500})
-    return prj
+            # ------plotting onto a matplotlib figure--------------
+            fig, axes = plt.subplots(figsize=(8, 8))
+            cax = fig.add_axes([1, 1, 1, 1]) # this is the dimension of the cbar axis [left, bottom, width, height], but the numbers here do not matter
+
+            prj.plots[thisfield].figure = fig
+            prj.plots[thisfield].axes = axes
+            prj.plots[thisfield].cax = cax
+            prj._setup_plots()
+
+            fig.subplots_adjust(right=0.9, top=0.95, bottom=0.12, left=0.05)
+            cax.set_position([0.83, 0.12, 0.03, 0.83]) # [left, bottom, width, height]
+            axes.xaxis.set_major_locator(plt.MaxNLocator(5))
+            axes.yaxis.set_major_locator(plt.MaxNLocator(5))
+            axes.set_xticklabels(['%.1F' % item for item in axes.get_xticks()], fontsize=fontsize)
+            axes.set_yticklabels(['%.1F' % item for item in axes.get_yticks()], fontsize=fontsize)
+            cax.set_yticklabels(['%.1F' % item for item in cax.get_yticks()], fontsize=fontsize)
+            axes.set_xlabel(axes.get_xlabel(), fontsize=fontsize)
+            axes.set_ylabel(axes.get_ylabel(), fontsize=fontsize)
+            cax.set_ylabel(cax.get_ylabel(), fontsize=fontsize)
+
+            filename = fig_dir + '%s_%s' % (output, d) + '_box=%.2Fkpc' % (box_width) + '_proj_' + ax + rot_text + '_' + fig_end + '.png'
+            plt.savefig(filename, transparent=False)
+            myprint('Saved figure ' + filename, args)
+
+    return fig
 
 # -------------------------------------------------------------------
 def my_young_stars(pfilter, data):
@@ -209,14 +233,13 @@ if __name__ == '__main__':
 
             for nrot in range(start_frame, end_frame):
                 print('Plotting', nrot, 'out of', end_frame - 1, 'frames..')
-                prj = make_projection_plots(ds=refine_box.ds, center=center, \
+                fig = make_projection_plots(ds=refine_box.ds, center=center, \
                                         refine_box=refine_box, box_width=2 * args.galrad * kpc, \
-                                        fig_dir=fig_dir, name=halo_dict[args.halo], \
+                                        fig_dir=fig_dir, name=halo_dict[args.halo], output=this_sim[1], fontsize=args.fontsize*1.5, \
                                         fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.projection.split(',')], \
                                         is_central=args.do_central, add_arrow=args.add_arrow, add_velocity=args.add_velocity, rot_frame=nrot, \
                                         total_normal_rot=args.rot_normal_by, total_north_rot=args.rot_north_by, rot_north_about=args.rot_north_about, rot_normal_about=args.rot_normal_about, \
                                         nframes=(end_frame - start_frame), hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight) # using halo_center_kpc instead of refine_box_center
-            #prj.show(block=False)
         else:
             print('Skipping plotting step')
 

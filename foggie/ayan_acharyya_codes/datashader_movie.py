@@ -351,13 +351,16 @@ def plot_1D_histogram(data, data_min, data_max, ax, vertical=False, type='gas'):
     return ax
 
 # ---------------------------------------------------------------------------------
-def make_coordinate_axis(colname, data_min, data_max, ax, fontsize, npix_datashader=1000, dsh=True, log_scale=False):
+def make_coordinate_axis(colname, data_min, data_max, ax, fontsize, npix_datashader=1000, dsh=True, log_scale=False, label=None):
     '''
     Function to make the coordinate axis
     Uses globally defined islog_dict and unit_dict
     '''
-    log_text = 'Log ' if islog_dict[colname] and not log_scale else ''
-    ax.set_label_text(log_text + labels_dict[colname] + ' (' + unit_dict[colname] + ')', fontsize=fontsize)
+    if label is None:
+        log_text = 'Log ' if islog_dict[colname] and not log_scale else ''
+        ax.set_label_text(log_text + labels_dict[colname] + ' (' + unit_dict[colname] + ')', fontsize=fontsize)
+    else:
+        ax.set_label_text(label, fontsize=fontsize)
 
     nticks = 50 if log_scale else 5
     ticks = np.linspace(data_min, data_max, nticks)

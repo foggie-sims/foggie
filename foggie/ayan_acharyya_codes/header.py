@@ -16,6 +16,8 @@ import os, sys, argparse, re, subprocess, time, datetime, math, shutil, copy, gl
 
 from matplotlib import pyplot as plt
 plt.style.use('seaborn-whitegrid')
+plt.rcParams["axes.edgecolor"] = "black"
+plt.rcParams["axes.linewidth"] = 2
 from matplotlib import colors as mplcolors
 from matplotlib import patheffects as fx
 from matplotlib.colors import LogNorm
@@ -122,8 +124,8 @@ temperature_color_list = ("darkred", "#d73027", "darkorange", "#ffe34d")
 temperature_color_map = sns.blend_palette(temperature_color_list, as_cmap=True)
 
 metal_color_list = ("#4575b4", "#984ea3", "#984ea3", "#d73027", "darkorange", "#ffe34d")
-#metal_color_map = sns.blend_palette(metal_color_list, as_cmap=True)
-metal_color_map = 'viridis'
+metal_color_map = sns.blend_palette(metal_color_list, as_cmap=True)
+#metal_color_map = 'viridis'
 
 metal_colors_mw = sns.blend_palette(metal_color_list, n_colors=6)
 metal_discrete_cmap_mw = mplcolors.ListedColormap(metal_colors_mw)

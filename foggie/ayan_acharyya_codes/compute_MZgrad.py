@@ -182,7 +182,7 @@ def bin_data(array, data, bins):
     return bins_cen, binned_data, binned_err
 
 # ---------------------------------------------------------------------------------
-def fit_binned(df, xcol, ycol, x_bins, ax=None, is_logscale=False, color='maroon', weightcol=None):
+def fit_binned(df, xcol, ycol, x_bins, ax=None, is_logscale=False, color='darkorange', weightcol=None):
     '''
     Function to overplot binned data on existing plot
     '''
@@ -208,11 +208,11 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, is_logscale=False, color='maroon
     print('Upon radially binning: Inferred slope for halo ' + args.halo + ' output ' + args.output + ' is', Zgrad, 'dex/re' if 're' in args.xcol else 'dex/kpc')
 
     if ax is not None:
-        ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=1)
-        ax.scatter(x_bin_centers, y_binned, c=color, s=60)
-        ax.plot(x_bin_centers, np.poly1d(linefit)(x_bin_centers), color='maroon', lw=1, ls='dashed')
+        ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none')
+        ax.scatter(x_bin_centers, y_binned, c=color, s=150, lw=1, ec='black')
+        ax.plot(x_bin_centers, np.poly1d(linefit)(x_bin_centers), color=color, lw=2.5, ls='dashed')
         units = 'dex/re' if 're' in xcol else 'dex/kpc'
-        ax.text(0.033, 0.25, 'Slope = %.2F ' % linefit[0] + units, color='maroon', transform=ax.transAxes, fontsize=args.fontsize)
+        ax.text(0.033, 0.3, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize, va='center', bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
         return ax
     else:
         return Zcen, Zgrad
@@ -225,28 +225,29 @@ def plot_gradient(df, args, linefit=None):
     '''
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
     upto_text = '_upto%.1Fkpc' % dummy_args.upto_kpc if dummy_args.upto_kpc is not None else '_upto%.1FRe' % dummy_args.upto_re
-    outfile_rootname = 'datashader_log_metal_vs_%s%s%s.png' % (args.xcol,upto_text, weightby_text)
-    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
+    outfile_rootname = '%s_datashader_log_metal_vs_%s%s%s.png' % (args.output, args.xcol,upto_text, weightby_text)
+    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output)+1:]
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
     # ---------first, plot both cell-by-cell profile first, using datashader---------
     fig, ax = plt.subplots(figsize=(8,8))
-    fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.1)
+    fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.15)
     artist = dsshow(df, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ylim[0], args.ylim[1]), aspect = 'auto', ax=ax, cmap='Blues_r')#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # --------bin the metallicity profile and plot the binned profile-----------
     ax = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=ax, is_logscale=True, weightcol=args.weight)
 
     # ----------plot the fitted metallicity profile---------------
+    color = 'limegreen'
     if linefit is not None:
         fitted_y = np.poly1d(linefit)(args.bin_edges)
-        ax.plot(args.bin_edges, fitted_y, color='darkblue', lw=2, ls='dashed')
+        ax.plot(args.bin_edges, fitted_y, color=color, lw=3, ls='solid')
         units = 'dex/re' if 're' in args.xcol else 'dex/kpc'
-        plt.text(0.033, 0.2, 'Slope = %.2F ' % linefit[0] + units, color='darkblue', transform=ax.transAxes, fontsize=args.fontsize)
+        plt.text(0.033, 0.2, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, va='center', fontsize=args.fontsize, bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
 
     # ----------tidy up figure-------------
     ax.xaxis = make_coordinate_axis(args.xcol, 0, args.galrad / args.re if 're' in args.xcol else args.galrad, ax.xaxis, args.fontsize, dsh=False, log_scale=False)
-    ax.yaxis = make_coordinate_axis('metal', args.ylim[0], args.ylim[1], ax.yaxis, args.fontsize, dsh=False, log_scale=False)
+    ax.yaxis = make_coordinate_axis('metal', args.ylim[0], args.ylim[1], ax.yaxis, args.fontsize, dsh=False, log_scale=False, label=r'Log Metallicity (Z/Z$_\odot}$)')
 
     # ---------annotate and save the figure----------------------
     plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize)

@@ -34,51 +34,55 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
-    outfile_rootname = 'log_metal_distribution%s%s%s.png' % (upto_text, weightby_text, fitmultiple_text)
-    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname
+    outfile_rootname = '%s_log_metal_distribution%s%s%s.png' % (args.output, upto_text, weightby_text, fitmultiple_text)
+    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output)+1:]
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
     # ---------plotting histogram, and if provided, the fit---------
     fig, ax = plt.subplots(figsize=(8,8))
-    fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.1)
+    fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.15)
 
-    if args.weight is None: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, ec='salmon', density=True, label='Z')
-    else: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, range=(0, args.xmax), ec='salmon', weights=weights.flatten(), label=args.weight + ' weighted Z')
+    if args.weight is None: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, ec='salmon', density=True)
+    else: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, range=(0, args.xmax), ec='salmon', weights=weights.flatten())
 
     if fit is not None:
         xvals = p[1][:-1] + np.diff(p[1])
         if args.fit_multiple:
-            ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=1, label='total fit')
-            ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label='regular gaussian')
-            ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label='skewed gaussian')
+            ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=2, label='Total fit')
+            ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label=None if args.annotate_profile else 'Regular Gaussian')
+            ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label=None if args.annotate_profile else 'Skewed Gaussian')
         else:
-            ax.plot(xvals, fit.best_fit, c='k', lw=2, label='fit')
+            ax.plot(xvals, fit.best_fit, c='k', lw=2, label='Fit')
 
     # ----------adding vertical lines-------------
     if fit is not None:
-        ax.axvline(fit[1], lw=1, ls='dashed', color='k')
-        ax.axvline(fit[4], lw=1, ls='dotted', color='k')
-    ax.axvline(np.percentile(Zarr, 25), lw=1, ls='solid', color='salmon')
-    ax.axvline(np.percentile(Zarr, 50), lw=1, ls='solid', color='crimson')
-    ax.axvline(np.percentile(Zarr, 75), lw=1, ls='solid', color='salmon')
+        ax.axvline(fit[1], lw=2, ls='dashed', color='k')
+        ax.axvline(fit[4], lw=2, ls='dotted', color='k')
+    ax.axvline(np.percentile(Zarr, 25), lw=2.5, ls='solid', color='salmon')
+    ax.axvline(np.percentile(Zarr, 50), lw=2.5, ls='solid', color='salmon')
+    ax.axvline(np.percentile(Zarr, 75), lw=2.5, ls='solid', color='salmon')
+
+    # ----------adding arrows--------------
+    if args.annotate_profile:
+        ax.annotate('Low metallicity outer disk,\nfitted with a regular Gaussian', xy=(0.2, 1.5), xytext=(0.8, 1.2), arrowprops=dict(color='gray', lw=2, arrowstyle='->'), ha='left', fontsize=args.fontsize/1.2, bbox=dict(facecolor='gray', alpha=0.3, edgecolor='k'))
+        ax.annotate('Higher metallicity inner disk,\nfitted with a skewed Gaussian', xy=(1.7, 0.5), xytext=(1.5, 0.75), arrowprops=dict(color='gray', lw=2, arrowstyle='->'), ha='left', fontsize=args.fontsize/1.2, bbox=dict(facecolor='gray', alpha=0.3, edgecolor='k'))
 
     # ----------tidy up figure-------------
-    plt.legend(loc='lower right', fontsize=args.fontsize)
+    plt.legend(loc='upper right', bbox_to_anchor=(1, 0.75), fontsize=args.fontsize)
     ax.set_xlim(0, args.xmax)
     ax.set_ylim(0, 2.5)
 
-    ax.set_xlabel(r'Z/Z$_{\odot}$', fontsize=args.fontsize)
+    ax.set_xlabel(r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 
     # ---------annotate and save the figure----------------------
-    plt.text(0.95, 0.95, 'z = %.4F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.95, 0.9, 't = %.3F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.95, 0.85, args.output, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.95, 'z = %.4F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.9, 't = %.3F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
-    plt.text(0.95, 0.75, r'Mean = %.2F Z/Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.95, 0.7, r'Sigma = %.2F Z/Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.8, r'Mean = %.2F Z/Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.75, r'Sigma = %.2F Z/Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=False)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
