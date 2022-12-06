@@ -78,8 +78,8 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 
     # ---------annotate and save the figure----------------------
-    plt.text(0.97, 0.95, 'z = %.4F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.97, 0.9, 't = %.3F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.9, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
     plt.text(0.97, 0.8, r'Mean = %.2F Z/Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.text(0.97, 0.75, r'Sigma = %.2F Z/Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)

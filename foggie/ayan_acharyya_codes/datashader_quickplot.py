@@ -185,8 +185,8 @@ def make_datashader_plot_mpl(df, outfilename, args):
     fig, ax2 = make_colorbar_axis_mpl(args.colorcol, artist, fig, args.fontsize)
 
     # ---------to annotate and save the figure----------------------
-    if args.current_redshift is not None: plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift, transform=ax1.transAxes, fontsize=args.fontsize)
-    if args.current_time is not None: plt.text(0.033, 0.1, 't = %.3F Gyr' % args.current_time, transform=ax1.transAxes, fontsize=args.fontsize)
+    if args.current_redshift is not None: plt.text(0.033, 0.05, 'z = %.2F' % args.current_redshift, transform=ax1.transAxes, fontsize=args.fontsize)
+    if args.current_time is not None: plt.text(0.033, 0.1, 't = %.1F Gyr' % args.current_time, transform=ax1.transAxes, fontsize=args.fontsize)
     filename = os.path.splitext(outfilename)[0] + '.png'
     plt.savefig(filename, transparent=False)
     myprint('Saved figure ' + filename, args)

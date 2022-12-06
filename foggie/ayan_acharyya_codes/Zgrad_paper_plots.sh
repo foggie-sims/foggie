@@ -18,8 +18,8 @@
 # For single snapshot Z projection, Z profile gradient and Z histogram:
 
 #python projection_plot.py --system ayan_local --halo 8508 --galrad 10 --output RD0030 --do metal
-#python compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass
-#python compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass --docomoving --fit_multiple --annotate_profile
+#python compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass --notextonplot
+#python compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass --docomoving --fit_multiple
 
 # For 3x3 panel plots (projections, radial profiles, histograms) for multiple halos at redshifts 0, 1, 2 (run on pleiades):
 # For Tempest

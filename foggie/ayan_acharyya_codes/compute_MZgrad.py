@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    Feb 2022
     Examples :   run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_re 3 --xcol rad_re --keep --weight mass
-                 run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass
+                 run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass --notextonplot
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --do_all_sims --weight mass --write_file --noplot
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --xcol rad --do_all_sims --weight mass --write_file --noplot
 
@@ -212,7 +212,7 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, is_logscale=False, color='darkor
         ax.scatter(x_bin_centers, y_binned, c=color, s=150, lw=1, ec='black')
         ax.plot(x_bin_centers, np.poly1d(linefit)(x_bin_centers), color=color, lw=2.5, ls='dashed')
         units = 'dex/re' if 're' in xcol else 'dex/kpc'
-        ax.text(0.033, 0.3, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize, va='center', bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
+        if not args.notextonplot: ax.text(0.033, 0.3, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize, va='center', bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
         return ax
     else:
         return Zcen, Zgrad
@@ -243,15 +243,15 @@ def plot_gradient(df, args, linefit=None):
         fitted_y = np.poly1d(linefit)(args.bin_edges)
         ax.plot(args.bin_edges, fitted_y, color=color, lw=3, ls='solid')
         units = 'dex/re' if 're' in args.xcol else 'dex/kpc'
-        plt.text(0.033, 0.2, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, va='center', fontsize=args.fontsize, bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
+        if not args.notextonplot: plt.text(0.033, 0.2, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, va='center', fontsize=args.fontsize, bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
 
     # ----------tidy up figure-------------
     ax.xaxis = make_coordinate_axis(args.xcol, 0, args.galrad / args.re if 're' in args.xcol else args.galrad, ax.xaxis, args.fontsize, dsh=False, log_scale=False)
     ax.yaxis = make_coordinate_axis('metal', args.ylim[0], args.ylim[1], ax.yaxis, args.fontsize, dsh=False, log_scale=False, label=r'Log Metallicity (Z/Z$_\odot}$)')
 
     # ---------annotate and save the figure----------------------
-    plt.text(0.033, 0.05, 'z = %.4F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.033, 0.1, 't = %.3F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.033, 0.05, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.033, 0.1, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=False)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)

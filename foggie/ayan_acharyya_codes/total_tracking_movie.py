@@ -422,8 +422,8 @@ def make_total_plot(table_name, fig_name, args):
     # ----------to overplot young stars----------------
     if args.overplot_stars: axes = overplot_stars(axes, args, colorcol=args.colorcol[0])
 
-    ax.text(0.95, 0.97, 'z = %.4F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize, ha='right', va='top')
-    ax.text(0.95, 0.9, 't = %.3F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize, ha='right', va='top')
+    ax.text(0.95, 0.97, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize, ha='right', va='top')
+    ax.text(0.95, 0.9, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize, ha='right', va='top')
 
     plt.savefig(fig_name, transparent=False)
     myprint('Saved figure ' + fig_name, args)

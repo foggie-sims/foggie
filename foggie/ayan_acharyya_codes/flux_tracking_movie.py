@@ -230,8 +230,8 @@ def make_flux_plot(table_name, fig_name, args):
         ax.set_ylabel(ylabel_arr[index], fontsize=args.fontsize)
         ax.set_yticklabels(['%.2F'%item if quant_arr[index] == 'Z' else '%.0E'%item for item in ax.get_yticks()], fontsize=args.fontsize * 0.75)
 
-    ax.text(0.95, 0.97, 'z = %.4F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize, ha='right', va='top')
-    ax.text(0.95, 0.9, 't = %.3F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize, ha='right', va='top')
+    ax.text(0.95, 0.97, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize, ha='right', va='top')
+    ax.text(0.95, 0.9, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize, ha='right', va='top')
 
     plt.savefig(fig_name, transparent=False)
     myprint('Saved figure ' + fig_name, args)
