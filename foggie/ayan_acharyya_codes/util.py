@@ -1155,6 +1155,8 @@ def parse_args(haloname, RDname, fast=False):
 
     # ------- args added for plot_Zevolution.py ------------------------------
     parser.add_argument('--forpaper', dest='forpaper', action='store_true', default=False, help='make plot with certain set panels, specifically for the paper?, default is no')
+    parser.add_argument('--forappendix', dest='forappendix', action='store_true', default=False, help='make plot with certain set panels, specifically for the appendix?, default is no')
+    parser.add_argument('--includemerger', dest='includemerger', action='store_true', default=False, help='include merger history panel, even if forpaper?, default is no')
     parser.add_argument('--doft', dest='doft', action='store_true', default=False, help='make new plot for Fourier Transform?, default is no')
     parser.add_argument('--docorr', metavar='docorr', type=str, action='store', default=None, help='make new plot for time delay cross-correlation with respect to a column?, default is no')
 

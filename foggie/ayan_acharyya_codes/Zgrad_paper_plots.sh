@@ -6,14 +6,19 @@
 # For time series:
 
 #python plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --weight mass --forpaper
+#python plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --weight mass --forappendix
+#python plot_Zevolution.py --system ayan_local --halo 5016,5036 --upto_kpc 10 --weight mass --forpaper --includemerger
+
 
 # For time fraction plot pair:
 
-#python plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --colorcol log_mass --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_cadence 500 --nocolorcoding
+#python plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --colorcol log_mass --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1000 --nocolorcoding
+#python plot_MZgrad.py --system ayan_local --halo 5036 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --colorcol log_mass --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1000 --nocolorcoding
+#python plot_MZgrad.py --system ayan_local --halo 5016 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --colorcol log_mass --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1000 --nocolorcoding
 
-# For *all halos* metallicity gradient vs redshift plot (with GLASS data):
+# For *all halos* metallicity gradient vs redshift plot (with literature data):
 
-#python plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --glasspaper
+#python plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol redshift --nocolorcoding --overplot_literature
 
 # For single snapshot Z projection, Z profile gradient and Z histogram:
 

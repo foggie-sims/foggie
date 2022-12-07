@@ -20,7 +20,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --nocolorcoding --zhighlight --overplot_smoothed 1500 --hiderawdata [FOR MOLLY]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --glasspaper [FOR MATCHING GLASS PAPER]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol redshift --nocolorcoding --overplot_literature
-                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --colorcol log_mass --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_cadence 500 --nocolorcoding
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --colorcol log_mass --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1000 --nocolorcoding
 """
 from header import *
 from util import *
@@ -158,17 +158,16 @@ def overplot_literature(ax, args):
     '''
     Function to overplot the observed Z gradient vs redshift from several papers
     '''
-    color = 'gray'
-    size = 50
     literature_path = HOME + '/Documents/writings/papers/FOGGIE_Zgrad/Literature/'
-    '''
-    # ------Swinbank et al. 2012 (Table 2) ---------
-    filename = literature_path + 'Swinbank_2012_Table2.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=28, names=['field', 'id', 'ra', 'dec', 'redshift', 'log_mass', 'Zgrad', 'Zgrad_u', 'Zcen', 'Zcen_u'])
+    master_df = pd.DataFrame()
 
-    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
-    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
-    '''
+    # ------Swinbank et al. 2012 (from Raymond) ---------
+    filename = literature_path + 'swinbank12.cat'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=10, names=['id', 'redshift', 'col1', 'Zgrad', 'Zgrad_u1', 'Zgrad_u2'])
+    df['Zgrad_u'] = np.mean([df['Zgrad_u1'], df['Zgrad_u2']], axis=0)
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df[['id', 'redshift', 'Zgrad', 'Zgrad_u', 'source']]])
+
     # ------Jones et al. 2013 (Table 1 & 5) ------------
     filename = literature_path + 'Jones_2013_Table1.txt'
     df1 = pd.read_table(filename, skiprows=18, delim_whitespace=True)
@@ -176,16 +175,14 @@ def overplot_literature(ax, args):
     filename = literature_path + 'Jones_2013_Table5.txt'
     df = pd.read_table(filename, delim_whitespace=True, skiprows=6, names=['col1', 'id', 'col3', 'col4', 'col5', 'Zgrad', 'col7', 'Zgrad_u', 'col9', 'col10', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16', 'col17', 'col18', 'col19', 'col20'])
     df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
-
-    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
-    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
 
     # ------Jones et al. 2015 (Table 1) --------
     filename = literature_path + 'Jones_2015_Table1.txt'
     df = pd.read_table(filename, delim_whitespace=True, skiprows=15)
-
-    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
-    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
 
     # ------Leethochawalit et al. 2016 (Table 1 & 4) -------
     filename = literature_path + 'Leethochawalit_2016_Table1.txt'
@@ -194,9 +191,8 @@ def overplot_literature(ax, args):
     filename = literature_path + 'Leethochawalit_2016_Table4.txt'
     df = pd.read_table(filename, delim_whitespace=True, skiprows=35)
     df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
-
-    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
-    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
 
     # ------Wang et al. 2017 (Table 2 & 5) --------
     filename = literature_path + 'Wang_2017_Table2.txt'
@@ -205,10 +201,16 @@ def overplot_literature(ax, args):
     filename = literature_path + 'Wang_2017_Table5.txt'
     df = pd.read_table(filename, delim_whitespace=True, skiprows=6, names=['id', 'Zgrad', 'col3', 'Zgrad_u', 'col5', 'col6', 'col7'])
     df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
-
-    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
-    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
-
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
+    '''
+    # ------Ma et al. 2017 SIMULATIONS (from Raymond) ---------
+    filename = literature_path + 'ma17.cat'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=26, names=['redshift', 'col2', 'col3', 'col4', 'col5', 'col6', 'col7', 'Zgrad', 'Zgrad_u'], usecols=['redshift', 'Zgrad', 'Zgrad_u'])
+    df['source'] = os.path.split(filename)[1][:-4]
+    df['id'] = [item[1:] for item in pd.read_table(filename, delim_whitespace=True, skiprows=14, nrows=9, names=['id'])['id']]
+    master_df = pd.concat([master_df, df])
+    '''
     # ------Schreiber et al. 2018 (Table 1 & 7) --------
     filename = literature_path + 'Schreiber_2018_Table1.txt'
     df1 = pd.read_table(filename, skiprows=6, delim_whitespace=True, names=['id', 'col2', 'col3', 'col4', 'redshift', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'col12', 'col13'], skipfooter=7)
@@ -219,57 +221,63 @@ def overplot_literature(ax, args):
     df['Zgrad'] = 0.57 * df['N2Ha']
     df['Zgrad_u'] = 0.57 * df['N2Ha_u']
     df = df1[['id', 'redshift']].merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
 
-    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
-    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
-    '''
-    # ------Curti et al. 2019 (Table 4) ------------
-    filename = literature_path + 'Curti_2019_Table4.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=28, names=['field', 'id', 'ra', 'dec', 'redshift', 'log_mass', 'Zgrad', 'Zgrad_u', 'Zcen', 'Zcen_u'])
+    # ------Curti et al. 2019 (from Raymond) ------------
+    filename = literature_path + 'curti20.cat'
+    df = pd.read_table(filename, delim_whitespace=True)
+    df = df.rename(columns={'#id': 'id', 'z':'redshift', 'zgrad':'Zgrad'})
+    df['Zgrad_u'] = np.mean([df['uezgrad'], df['lezgrad']], axis=0)
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df[['id', 'redshift', 'Zgrad', 'Zgrad_u', 'source']]])
 
-    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
-    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
-    '''
     # ------Wang et al. 2019 (Table 3) ------------
     filename = literature_path + 'Wang_2019_Table3.txt'
     df = pd.read_table(filename, delim_whitespace=True, skiprows=24)
-
-    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
-    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
 
     # ------Wang et al. 2020 (Table A1) ------------
     filename = literature_path + 'Wang_2020_TableA1.txt'
     df = pd.read_table(filename, skiprows=11, nrows=47, delim_whitespace=True, names=['col1', 'col2', 'col3', 'labels', 'col5'])
     df = pd.read_table(filename, delim_whitespace=True, skiprows=59, names=df['labels'])
     df = df.rename(columns={'ID':'id', 'zspec':'redshift', 'dZ/dr':'Zgrad', 'e_dZ/dr':'Zgrad_u'})[['id', 'redshift', 'Zgrad', 'Zgrad_u']]
-
-    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
-    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
 
     # ------Simons et al. 2021 (Table 1) ----------
     filename = literature_path + 'Simons_2021_Table1.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=28, names=['field', 'id', 'ra', 'dec', 'redshift', 'log_mass', 'Zgrad', 'Zgrad_u', 'Zcen', 'Zcen_u'])
-
-    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
-    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=28, names=['field', 'id', 'ra', 'dec', 'redshift', 'log_mass', 'Zgrad', 'Zgrad_u', 'Zcen', 'Zcen_u'], usecols=['id', 'redshift', 'Zgrad', 'Zgrad_u'])
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
 
     # ------Li et al. 2022 (Table 1) --------
     filename = literature_path + 'Li_2022_Table1.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=7, skipfooter=3, names=['id', 'col2', 'col3', 'redshift', 'col5', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16', 'col17', 'Zgrad', 'col19', 'Zgrad_u'])
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=7, skipfooter=3, names=['id', 'col2', 'col3', 'redshift', 'col5', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16', 'col17', 'Zgrad', 'col19', 'Zgrad_u'], usecols=['id', 'redshift', 'Zgrad', 'Zgrad_u'])
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
 
-    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
-    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+    # ------Wang et al. 2022 (GLASS) -------------
+    df = pd.DataFrame({'id':'GLASS', 'redshift':3.06, 'Zgrad':0.165, 'Zgrad_u':0.023, 'source':'Wang_2022'}, index=[0])
+    master_df = pd.concat([master_df, df])
 
     # ------MANGA --------------
     filename = HOME + '/models/manga/manga.Pipe3D-v2_4_3_downloaded.fits'
     data = Table.read(filename, format='fits')
     df = data.to_pandas()
-    df = df[['redshift', 'alpha_oh_re_fit_' + args.manga_diag, 'e_alpha_oh_re_fit_' + args.manga_diag]] # options for args.manga_diag are: n2, o3n2, ons, pyqz, t2, m08, t04
+    df = df.rename(columns={'mangaid':'id', 'alpha_oh_re_fit_' + args.manga_diag:'Zgrad', 'e_alpha_oh_re_fit_' + args.manga_diag:'Zgrad_u'})[['id', 'redshift', 'Zgrad', 'Zgrad_u']] # options for args.manga_diag are: n2, o3n2, ons, pyqz, t2, m08, t04
+    df['source'] = 'MaNGA_Pipe3D'
+    master_df = pd.concat([master_df, df])
 
-    ax.scatter(df['redshift'], df['alpha_oh_re_fit_' + args.manga_diag], c=color, s=size)
-    #ax.errorbar(df['redshift'], df['alpha_oh_re_fit_' + args.manga_diag], yerr=df['e_alpha_oh_re_fit_' + args.manga_diag], ls='none', lw=0.5, c='k')
+    # -----actual plotting --------------
+    master_df = master_df.dropna(subset=['Zgrad']).reset_index(drop=True)
+    ax.scatter(master_df['redshift'], master_df['Zgrad'], c='khaki', s=50, lw=0.5, ec='k', zorder=10) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
+    #ax.errorbar(master_df['redshift'], master_df['Zgrad'], yerr=master_df['Zgrad_u'], ls='none', lw=0.5, c='k')
+    ax.errorbar(0.9, -0.35, yerr=master_df['Zgrad_u'].mean(), capsize=5, capthick=2, lw=2, c='k')
+    ax.text(1.5, -0.4, 'Typical uncertainty', va='top', ha='left', color='k', fontsize=args.fontsize)
 
-    return ax
+    return ax, master_df
 
 # ---------------------------------------------
 def get_multicolored_line(xdata, ydata, colordata, cmap, cmin, cmax, lw=2, ls='solid'):
@@ -381,11 +389,10 @@ def plot_MZGR(args):
     if args.overplot_literature and args.xcol == 'redshift' and args.ycol == 'Zgrad':
         args.ymax = 0.4
         args.xmax = 4
-        ax = overplot_literature(ax, args)
-
-        ax.scatter(3.06, 0.165, marker='*', s=500, color='yellow', ec='red', lw=1)
-        fig.text(0.15, 0.9, 'GLASS', ha='left', va='bottom', color='gold', fontsize=args.fontsize/1.2)
+        ax, df_lit = overplot_literature(ax, args)
         obs_text += '_lit'
+    else:
+        df_lit = None
 
     # --------loop over different FOGGIE halos-------------
     for index, args.halo in enumerate(args.halo_arr[::-1]):
@@ -430,7 +437,7 @@ def plot_MZGR(args):
         reversed_thiscmap = this_cmap + '_r' if '_r' not in this_cmap else this_cmap[:-2]
         thistextcolor = mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
-            line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_smoothed or args.overplot_cadence or args.glasspaper else 2)
+            line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_literature else 2)
             plot = ax.add_collection(line)
 
         # ------- overplotting specific snapshot highlights------------
@@ -466,13 +473,13 @@ def plot_MZGR(args):
             npoints = int(np.round(args.overplot_cadence/mean_dt))
             df_short = df.iloc[::npoints, :]
             print('Overplot for halo', args.halo, 'only every', npoints, 'th data point, i.e. cadence of', npoints * mean_dt, 'Myr')
-            if 'line' in locals(): line.set_alpha(0.2) # make the actual wiggly line fainter (unless making plots for Molly's talk)
+            #if 'line' in locals(): line.set_alpha(0.7) # make the actual wiggly line fainter
 
             yfunc = interp1d(df_short[args.xcol], df_short[args.ycol], fill_value='extrapolate') # interpolating the low-cadence data
             cfunc = interp1d(df_short[args.xcol], df_short[args.colorcol], fill_value='extrapolate')
             df[args.ycol + '_interp'] = yfunc(df[args.xcol])
             df[args.colorcol + '_interp'] = cfunc(df[args.xcol])
-            interpline = get_multicolored_line(df[args.xcol], df[args.ycol + '_interp'], df[args.colorcol + '_interp'], this_cmap, args.cmin, args.cmax, lw=2)
+            interpline = get_multicolored_line(df[args.xcol], df[args.ycol + '_interp'], df[args.colorcol + '_interp'], this_cmap, args.cmin, args.cmax, lw=0.5)
             plot = ax.add_collection(interpline)
 
         # ------- making additional plot of deviation in gradient vs other quantities, like SFR------------
@@ -507,17 +514,17 @@ def plot_MZGR(args):
             df[args.ycol + '_deviation'] = df[args.ycol] - df[overplotted_column]
             df = df.sort_values('time')
 
-            # ---------horizontal lines for cut-off-----
-            ax.plot(df[args.xcol], df[overplotted_column] + args.Zgrad_allowance, lw=0.5, color=thistextcolor)
-            ax.plot(df[args.xcol], df[overplotted_column] - args.Zgrad_allowance, lw=0.5, color=thistextcolor)
+            # ---------vertical line for time-cut-off-----
+            ax.plot(df[args.xcol], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, lw=0.5)
+            ax.plot(df[args.xcol], df[overplotted_column] - args.Zgrad_allowance, color=thistextcolor, lw=0.5)
             ax.axvline(df[df['redshift'] >= args.upto_z]['time'].values[-1], lw=2, ls='dashed', color='k')
 
             # ---------filled area plot for deviation outside allowance-----
-            ax.fill_between(df[args.xcol], df[args.ycol], df[overplotted_column] + args.Zgrad_allowance, where=(df[args.ycol] > df[overplotted_column] + args.Zgrad_allowance), color=thistextcolor, alpha=0.3)
-            ax.fill_between(df[args.xcol],  df[args.ycol], df[overplotted_column] - args.Zgrad_allowance, where=(df[args.ycol] < df[overplotted_column] - args.Zgrad_allowance), color=thistextcolor, alpha=0.3)
+            ax.fill_between(df[args.xcol], df[overplotted_column], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, alpha=0.1)
+            ax.fill_between(df[args.xcol],  df[overplotted_column], df[overplotted_column] - args.Zgrad_allowance, color=thistextcolor, alpha=0.1)
 
-            ax.text(lim_dict[args.xcol][1] * 0.98, (df[overplotted_column].values[-1] + args.Zgrad_allowance) * 1.1, '+%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='bottom', fontsize=args.fontsize)
-            ax.text(lim_dict[args.xcol][1] * 0.98, (df[overplotted_column].values[-1] - args.Zgrad_allowance) * 1.2, '-%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='top', fontsize=args.fontsize)
+            ax.text(lim_dict[args.xcol][1] * 0.98, (df[overplotted_column].values[-1] + args.Zgrad_allowance) * 1.0, '+%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='bottom', fontsize=args.fontsize)
+            ax.text(lim_dict[args.xcol][1] * 0.98, (df[overplotted_column].values[-1] - args.Zgrad_allowance) * 1.6, '-%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='top', fontsize=args.fontsize)
 
             # ---------calculating fration of time spent in filled area-----
             dfsub = df[df['redshift'] >= args.upto_z]
@@ -583,7 +590,7 @@ def plot_MZGR(args):
     plt.show(block=False)
     if 'timefraction_outside' not in locals(): timefraction_outside = -99 # dummy value
 
-    return fig, fig2, df_master, df_manga, timefraction_outside
+    return fig, fig2, df_master, df_manga, timefraction_outside, df_lit
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -599,7 +606,7 @@ if __name__ == '__main__':
     if args.colorcol == ['vrad']: args.colorcol = 'time'
     else: args.colorcol = args.colorcol[0]
 
-    fig, fig2, df_binned, df_manga, tfrac = plot_MZGR(args)
+    fig, fig2, df_binned, df_manga, tfrac, df_lit = plot_MZGR(args)
 
     print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
 
