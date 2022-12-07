@@ -1154,6 +1154,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--annotate_profile', dest='annotate_profile', action='store_true', default=False, help='annotate the multi-component gaussian with text and arrows?, default is no')
 
     # ------- args added for plot_Zevolution.py ------------------------------
+    parser.add_argument('--forposter', dest='forposter', action='store_true', default=False, help='make plot with certain set panels, specifically for the poster?, default is no')
     parser.add_argument('--forpaper', dest='forpaper', action='store_true', default=False, help='make plot with certain set panels, specifically for the paper?, default is no')
     parser.add_argument('--forappendix', dest='forappendix', action='store_true', default=False, help='make plot with certain set panels, specifically for the appendix?, default is no')
     parser.add_argument('--includemerger', dest='includemerger', action='store_true', default=False, help='include merger history panel, even if forpaper?, default is no')

@@ -272,10 +272,13 @@ def overplot_literature(ax, args):
 
     # -----actual plotting --------------
     master_df = master_df.dropna(subset=['Zgrad']).reset_index(drop=True)
-    ax.scatter(master_df['redshift'], master_df['Zgrad'], c='khaki', s=50, lw=0.5, ec='k', zorder=10) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
-    #ax.errorbar(master_df['redshift'], master_df['Zgrad'], yerr=master_df['Zgrad_u'], ls='none', lw=0.5, c='k')
-    ax.errorbar(0.9, -0.35, yerr=master_df['Zgrad_u'].mean(), capsize=5, capthick=2, lw=2, c='k')
-    ax.text(1.5, -0.4, 'Typical uncertainty', va='top', ha='left', color='k', fontsize=args.fontsize)
+    color, legendcolor = 'palegoldenrod', 'goldenrod'
+    ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=50, lw=0.5, ec='k', zorder=10, alpha=0.8) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
+    #ax.errorbar(master_df['redshift'], master_df['Zgrad'], yerr=master_df['Zgrad_u'], ls='none', lw=0.5, c=color)
+    ax.text(3.86, 0.36, 'Observations', ha='left', va='center', color=legendcolor, fontsize=args.fontsize)
+    ax.text(3.0, 0.36, '(Typical uncertainty   )', ha='left', va='center', color=legendcolor, fontsize=args.fontsize/1.2)
+    ax.scatter(1.965, 0.363, s=50, c=legendcolor, lw=0.5, ec='k')
+    ax.errorbar(1.965, 0.363, yerr=master_df['Zgrad_u'].mean(), capsize=5, capthick=2, lw=2, c=legendcolor)
 
     return ax, master_df
 
@@ -461,9 +464,9 @@ def plot_MZGR(args):
             print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points, =', npoints * mean_dt, 'Myr')
 
             if 'line' in locals() and not args.nocolorcoding: line.set_alpha(0.5) # make the actual wiggly line fainter (unless making plots for Molly's talk)
-            smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=2)
+            smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=0.5 if args.plot_timefraction else 2)
             plot = ax.add_collection(smoothline) ## keep this commented out for making plots for Molly's talk
-            if args.nocolorcoding: # for making plots for Molly's talk
+            if args.hiderawdata: # for making plots for Molly's talk
                 ax = plot_zhighlight(df, ax, this_cmap, args, ycol=args.ycol + '_smoothed')
                 smoothline.set_alpha(0.2)
 
@@ -515,8 +518,8 @@ def plot_MZGR(args):
             df = df.sort_values('time')
 
             # ---------vertical line for time-cut-off-----
-            ax.plot(df[args.xcol], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, lw=0.5)
-            ax.plot(df[args.xcol], df[overplotted_column] - args.Zgrad_allowance, color=thistextcolor, lw=0.5)
+            ax.plot(df[args.xcol], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, lw=0.3)
+            ax.plot(df[args.xcol], df[overplotted_column] - args.Zgrad_allowance, color=thistextcolor, lw=0.3)
             ax.axvline(df[df['redshift'] >= args.upto_z]['time'].values[-1], lw=2, ls='dashed', color='k')
 
             # ---------filled area plot for deviation outside allowance-----
@@ -531,10 +534,10 @@ def plot_MZGR(args):
             snaps_outside_allowance = len(dfsub[(dfsub['Zgrad_deviation'] > args.Zgrad_allowance) | (dfsub['Zgrad_deviation'] < -args.Zgrad_allowance)])
             total_snaps = len(dfsub)
             timefraction_outside = snaps_outside_allowance * 100 / total_snaps
-            ax.text(lim_dict[args.xcol][0] * 1.1 + 0.1, lim_dict[args.ycol][1] * 0.9 - thisindex * 0.05, '%s spends %.2F%% time outside' % (halo_dict[args.halo], timefraction_outside), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
+            ax.text(lim_dict[args.xcol][0] * 1.1 + 0.1, lim_dict[args.ycol][1] * 0.88 - thisindex * 0.05, '%s spends %0d%% time outside' % (halo_dict[args.halo], timefraction_outside), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
             print('Halo', args.halo, 'spends %.2F%%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation upto redshift %.1F' % args.upto_z)
 
-        if not args.plot_timefraction: fig.text(0.85 if args.glasspaper else 0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
+        if not args.plot_timefraction: fig.text(0.85 if args.glasspaper else 0.15, 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
         if args.plot_deviation: fig2.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])

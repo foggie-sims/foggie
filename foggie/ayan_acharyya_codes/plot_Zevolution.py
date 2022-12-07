@@ -14,6 +14,7 @@
                  run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --weight mass --forpaper [FOR THE PAPER]
                  run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --forpaper --docorr sfr --doft
                  run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --forappendix
+                 run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --forposter
 
 """
 from header import *
@@ -154,7 +155,7 @@ def plot_time_series(df, args):
     '''
     Function to plot the time evolution of Z distribution statistics, based on an input dataframe
     '''
-    if args.forappendix:
+    if args.forappendix or args.forposter:
         fig, axes = plt.subplots(3, figsize=(8, 7.5), sharex=True)
     else:
         fig, axes = plt.subplots(5 if args.includemerger else 4 if args.forpaper else 7, figsize=(8, 10), sharex=True)
@@ -184,6 +185,7 @@ def plot_time_series(df, args):
                            'limits': [(-0.5, 0.1), (1e-3, 8), (1e-4, 2)], \
                            'isalreadylog': np.hstack([np.tile([False], 3)])})
     if args.forappendix: groups = groups[groups.index.isin([2])]
+    if args.forposter: groups = groups[groups.index.isin([0, 2])]
 
     # -----------for first few panels: Z distribution statistics-------------------
     for j in range(len(groups)):
@@ -245,7 +247,7 @@ def plot_time_series(df, args):
     thisax.legend(loc='upper left', fontsize=args.fontsize)
     axiscount += 1 
 
-    if not (args.forpaper or args.forappendix):
+    if not (args.forpaper or args.forappendix or args.forposter):
         # -----------for metal production panel-------------------
         thisax = axes[axiscount]
         ycol = 'log_metal_produced'
@@ -284,7 +286,7 @@ def plot_time_series(df, args):
         thisax.legend(loc='upper left', fontsize=args.fontsize)
         axiscount += 1
 
-    if not args.forpaper or args.includemerger:
+    if not (args.forpaper or args.forposter) or args.includemerger:
         # -----------for merger history panel-------------------
         thisax = axes[axiscount]
         rvir_df = pd.read_hdf(args.code_path + '/halo_infos/00' + args.halo + '/nref11c_nref9f/rvir_masses.hdf5', key='all_data') ## args.run is hard-coded here, for noe
@@ -366,8 +368,9 @@ def plot_time_series(df, args):
         upto_text = '_upto%.1FRe' % args.upto_re
 
     appendix_text = '_app' if args.forappendix else ''
+    poster_text = '_poster' if args.forposter else ''
 
-    figname = args.output_dir + 'figs/' + args.halo + '_timeseries_res%.2Fkpc%s%s%s.pdf' % (float(args.res), upto_text, args.weightby_text, appendix_text)
+    figname = args.output_dir + 'figs/' + args.halo + '_timeseries_res%.2Fkpc%s%s%s%s.pdf' % (float(args.res), upto_text, args.weightby_text, appendix_text, poster_text)
     fig.savefig(figname)
     print('Saved', figname)
     if args.doft:
@@ -439,7 +442,7 @@ if __name__ == '__main__':
     if not args.keep: plt.close('all')
 
     # ---------preset values for plotting for paper-------------
-    if args.forpaper or args.forappendix:
+    if args.forpaper or args.forappendix or args.forposter:
         args.res = 0.1 # kpc
         args.zhighlight = True
         args.docomoving = True
@@ -519,7 +522,7 @@ if __name__ == '__main__':
             print('\nReading from existing file', output_filename)
             df = pd.read_table(output_filename, delim_whitespace=True, comment='#')
 
-        if not (args.forpaper or args.forappendix): df2, fig1 = plot_all_stats(df, args)
+        if not (args.forpaper or args.forappendix or args.forposter): df2, fig1 = plot_all_stats(df, args)
         df, fig2 = plot_time_series(df, args)
         #if args.docorr is not None: fig3 = plot_correlation(df, args)
 
