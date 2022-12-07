@@ -20,6 +20,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --nocolorcoding --zhighlight --overplot_smoothed 1500 --hiderawdata [FOR MOLLY]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --glasspaper [FOR MATCHING GLASS PAPER]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol redshift --nocolorcoding --overplot_literature
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --colorcol log_mass --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_cadence 500 --nocolorcoding
 """
 from header import *
 from util import *

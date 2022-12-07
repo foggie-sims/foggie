@@ -9,7 +9,7 @@
 
 # For time fraction plot pair:
 
-#python plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --colorcol log_mass --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2
+#python plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --colorcol log_mass --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_cadence 500 --nocolorcoding
 
 # For *all halos* metallicity gradient vs redshift plot (with GLASS data):
 
