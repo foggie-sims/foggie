@@ -1128,6 +1128,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--overplot_clear', dest='overplot_clear', action='store_true', default=False, help='overplot CLEAR observed MZGR?, default is no')
     parser.add_argument('--overplot_belfiore', dest='overplot_belfiore', action='store_true', default=False, help='overplot Belfiore+17 observed MZGR?, default is no')
     parser.add_argument('--overplot_mingozzi', dest='overplot_mingozzi', action='store_true', default=False, help='overplot Mongozzi+19 observed MZGR?, default is no')
+    parser.add_argument('--overplot_literature', dest='overplot_literature', action='store_true', default=False, help='overplot all literature observed Zgrad vs z?, default is no')
     parser.add_argument('--overplot_smoothed', metavar='overplot_smoothed', type=float, action='store', default=None, help='overplot temporally smoothed data with <X> Myr smoothing scale, default is None')
     parser.add_argument('--overplot_cadence', metavar='overplot_cadence', type=float, action='store', default=None, help='overplot with only the outputs after every <X> Myr, default is None')
     parser.add_argument('--manga_diag', metavar='manga_diag', type=str, action='store', default='n2', help='which metallicity diagnostic to extract from manga? options are: n2, o3n2, ons, pyqz, t2, m08, t04; default is n2')

@@ -19,6 +19,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_cadence 50
                  run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --nocolorcoding --zhighlight --overplot_smoothed 1500 --hiderawdata [FOR MOLLY]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --glasspaper [FOR MATCHING GLASS PAPER]
+                 run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol redshift --nocolorcoding --overplot_literature
 """
 from header import *
 from util import *
@@ -105,7 +106,7 @@ def overplot_mingozzi(ax, paper='M20', color='salmon', diag='PP04'):
     df = pd.read_table(input_filename, delim_whitespace=True, comment='#') # grad is in dex/re, mass_bin is in log
 
     ax.scatter(df['log_mass'], df[diag + '_' + paper], c=color, s=50)
-    ax.plot(df['log_mass'], df[diag + '_' + paper], c=color, lw=2)
+    ax.scatter(df['log_mass'], df[diag + '_' + paper], c=color, lw=2)
 
     return ax
 
@@ -125,7 +126,7 @@ def overplot_clear(ax):
 
         ax.errorbar(df_sub['mass_bin'], df_sub['grad'], yerr=df_sub['egrad'], c=col_arr[index], ls='none')
         ax.scatter(df_sub['mass_bin'], df_sub['grad'], c=col_arr[index], s=50)
-        ax.plot(df_sub['mass_bin'], df_sub['grad'], c=col_arr[index], lw=2)
+        ax.scatter(df_sub['mass_bin'], df_sub['grad'], c=col_arr[index], lw=2)
 
     return ax
 
@@ -150,6 +151,124 @@ def overplot_manga(ax, args):
     #ax.scatter(df_manga['log_mass'], df_manga['alpha_oh_re_fit_' + args.manga_diag], c=df_manga['redshift'], cmap='Greys_r', s=10, alpha=0.5)
 
     return ax, df_manga
+
+# -----------------------------------
+def overplot_literature(ax, args):
+    '''
+    Function to overplot the observed Z gradient vs redshift from several papers
+    '''
+    color = 'gray'
+    size = 50
+    literature_path = HOME + '/Documents/writings/papers/FOGGIE_Zgrad/Literature/'
+    '''
+    # ------Swinbank et al. 2012 (Table 2) ---------
+    filename = literature_path + 'Swinbank_2012_Table2.txt'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=28, names=['field', 'id', 'ra', 'dec', 'redshift', 'log_mass', 'Zgrad', 'Zgrad_u', 'Zcen', 'Zcen_u'])
+
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+    '''
+    # ------Jones et al. 2013 (Table 1 & 5) ------------
+    filename = literature_path + 'Jones_2013_Table1.txt'
+    df1 = pd.read_table(filename, skiprows=18, delim_whitespace=True)
+
+    filename = literature_path + 'Jones_2013_Table5.txt'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=6, names=['col1', 'id', 'col3', 'col4', 'col5', 'Zgrad', 'col7', 'Zgrad_u', 'col9', 'col10', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16', 'col17', 'col18', 'col19', 'col20'])
+    df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
+
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+
+    # ------Jones et al. 2015 (Table 1) --------
+    filename = literature_path + 'Jones_2015_Table1.txt'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=15)
+
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+
+    # ------Leethochawalit et al. 2016 (Table 1 & 4) -------
+    filename = literature_path + 'Leethochawalit_2016_Table1.txt'
+    df1 = pd.read_table(filename, skiprows=43, delim_whitespace=True)
+
+    filename = literature_path + 'Leethochawalit_2016_Table4.txt'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=35)
+    df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
+
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+
+    # ------Wang et al. 2017 (Table 2 & 5) --------
+    filename = literature_path + 'Wang_2017_Table2.txt'
+    df1 = pd.read_table(filename, skiprows=27, delim_whitespace=True)
+
+    filename = literature_path + 'Wang_2017_Table5.txt'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=6, names=['id', 'Zgrad', 'col3', 'Zgrad_u', 'col5', 'col6', 'col7'])
+    df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
+
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+
+    # ------Schreiber et al. 2018 (Table 1 & 7) --------
+    filename = literature_path + 'Schreiber_2018_Table1.txt'
+    df1 = pd.read_table(filename, skiprows=6, delim_whitespace=True, names=['id', 'col2', 'col3', 'col4', 'redshift', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'col12', 'col13'], skipfooter=7)
+
+    filename = literature_path + 'Schreiber_2018_Table7.txt'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=33)
+    df['N2Ha_u'] = np.mean([df['N2Ha_u1'], df['N2Ha_u2']], axis=0)
+    df['Zgrad'] = 0.57 * df['N2Ha']
+    df['Zgrad_u'] = 0.57 * df['N2Ha_u']
+    df = df1[['id', 'redshift']].merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
+
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+    '''
+    # ------Curti et al. 2019 (Table 4) ------------
+    filename = literature_path + 'Curti_2019_Table4.txt'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=28, names=['field', 'id', 'ra', 'dec', 'redshift', 'log_mass', 'Zgrad', 'Zgrad_u', 'Zcen', 'Zcen_u'])
+
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+    '''
+    # ------Wang et al. 2019 (Table 3) ------------
+    filename = literature_path + 'Wang_2019_Table3.txt'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=24)
+
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+
+    # ------Wang et al. 2020 (Table A1) ------------
+    filename = literature_path + 'Wang_2020_TableA1.txt'
+    df = pd.read_table(filename, skiprows=11, nrows=47, delim_whitespace=True, names=['col1', 'col2', 'col3', 'labels', 'col5'])
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=59, names=df['labels'])
+    df = df.rename(columns={'ID':'id', 'zspec':'redshift', 'dZ/dr':'Zgrad', 'e_dZ/dr':'Zgrad_u'})[['id', 'redshift', 'Zgrad', 'Zgrad_u']]
+
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+
+    # ------Simons et al. 2021 (Table 1) ----------
+    filename = literature_path + 'Simons_2021_Table1.txt'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=28, names=['field', 'id', 'ra', 'dec', 'redshift', 'log_mass', 'Zgrad', 'Zgrad_u', 'Zcen', 'Zcen_u'])
+
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+
+    # ------Li et al. 2022 (Table 1) --------
+    filename = literature_path + 'Li_2022_Table1.txt'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=7, skipfooter=3, names=['id', 'col2', 'col3', 'redshift', 'col5', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16', 'col17', 'Zgrad', 'col19', 'Zgrad_u'])
+
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, s=size)
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], ls='none', lw=0.5, c='k')
+
+    # ------MANGA --------------
+    filename = HOME + '/models/manga/manga.Pipe3D-v2_4_3_downloaded.fits'
+    data = Table.read(filename, format='fits')
+    df = data.to_pandas()
+    df = df[['redshift', 'alpha_oh_re_fit_' + args.manga_diag, 'e_alpha_oh_re_fit_' + args.manga_diag]] # options for args.manga_diag are: n2, o3n2, ons, pyqz, t2, m08, t04
+
+    ax.scatter(df['redshift'], df['alpha_oh_re_fit_' + args.manga_diag], c=color, s=size)
+    #ax.errorbar(df['redshift'], df['alpha_oh_re_fit_' + args.manga_diag], yerr=df['e_alpha_oh_re_fit_' + args.manga_diag], ls='none', lw=0.5, c='k')
+
+    return ax
 
 # ---------------------------------------------
 def get_multicolored_line(xdata, ydata, colordata, cmap, cmin, cmax, lw=2, ls='solid'):
@@ -192,7 +311,7 @@ def plot_MZGR(args):
     '''
 
     df_master = pd.DataFrame()
-    cmap_arr = ['Purples', 'Oranges', 'Greens', 'Blues', 'PuRd', 'YlOrBr']
+    cmap_arr = ['Purples', 'Oranges', 'Greens', 'Blues', 'PuRd', 'Greys']
     things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
 
     # -------------get plot limits-----------------
@@ -223,7 +342,7 @@ def plot_MZGR(args):
 
     # -------declare figure object-------------
     fig, ax = plt.subplots(1, figsize=(12, 6))
-    fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.97 if args.nocolorcoding else 1.05)
+    fig.subplots_adjust(top=0.95, bottom=0.12, left=0.12, right=0.97 if args.nocolorcoding else 1.05)
 
     if args.plot_deviation or args.plot_timefraction:
         fig2, ax2 = plt.subplots(1, figsize=(12, 6))
@@ -255,8 +374,17 @@ def plot_MZGR(args):
         fig.text(0.15, 0.4, 'MaNGA: Mingozzi+20', ha='left', va='top', color='salmon', fontsize=args.fontsize)
 
     if args.glasspaper: # overplot GLASS dtaa point
-        ax.plot(3.06, 0.165, marker='*', ms=30, mfc='yellow', mec='red', mew=1)
+        ax.scatter(3.06, 0.165, marker='*', ms=100, mfc='yellow', mec='red', mew=1)
         fig.text(0.85, 0.94, 'GLASS', ha='left', va='top', color='gold', fontsize=args.fontsize)
+
+    if args.overplot_literature and args.xcol == 'redshift' and args.ycol == 'Zgrad':
+        args.ymax = 0.4
+        args.xmax = 4
+        ax = overplot_literature(ax, args)
+
+        ax.scatter(3.06, 0.165, marker='*', s=500, color='yellow', ec='red', lw=1)
+        fig.text(0.15, 0.9, 'GLASS', ha='left', va='bottom', color='gold', fontsize=args.fontsize/1.2)
+        obs_text += '_lit'
 
     # --------loop over different FOGGIE halos-------------
     for index, args.halo in enumerate(args.halo_arr[::-1]):
