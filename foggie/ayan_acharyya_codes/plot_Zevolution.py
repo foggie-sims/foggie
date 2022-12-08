@@ -150,6 +150,17 @@ def correlate(xdata, ydata):
 
     return delay_list, xcorr_list
 
+# -----------------------------------------------
+def omit_bad_spikes(df, colname):
+    '''
+    Function to clean up data by omitting bad/spurious spikes in df[colname]
+    Returns cleaned, curtailed df
+    Based on https://www.appsloveworld.com/pandas/100/18/how-can-i-remove-sharp-jumps-in-data
+    '''
+    df['derivative'] = 0.5 * (df[colname].diff() + df[colname].diff(periods=-1)).abs() # tocalculate the absolute value of a second order finite difference (derivative)
+    df = df[df['derivative'] < 0.05].drop('derivative', axis=1) # the lesser the value (0.05) the stricter the cut for "spikes"
+    return df
+
 # -----------------------------------
 def plot_time_series(df, args):
     '''
@@ -193,6 +204,8 @@ def plot_time_series(df, args):
         ax = axes[j]
         log_text = 'log_' if thisgroup.isalreadylog else ''
         for i, ycol in enumerate(thisgroup.quantities):
+            if args.forposter or args.forpaper or args.forappendix:
+                df = omit_bad_spikes(df, log_text + ycol)
             ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=1, label=thisgroup.legend[i])
             if args.zhighlight: ax = plot_zhighlight(df,log_text + ycol, col_arr[i], ax, args)
             # -------for the FT plot--------------

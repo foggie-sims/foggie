@@ -526,8 +526,8 @@ def plot_MZGR(args):
             ax.fill_between(df[args.xcol], df[overplotted_column], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, alpha=0.1)
             ax.fill_between(df[args.xcol],  df[overplotted_column], df[overplotted_column] - args.Zgrad_allowance, color=thistextcolor, alpha=0.1)
 
-            ax.text(lim_dict[args.xcol][1] * 0.98, (df[overplotted_column].values[-1] + args.Zgrad_allowance) * 1.0, '+%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='bottom', fontsize=args.fontsize)
-            ax.text(lim_dict[args.xcol][1] * 0.98, (df[overplotted_column].values[-1] - args.Zgrad_allowance) * 1.6, '-%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='top', fontsize=args.fontsize)
+            ax.text(lim_dict[args.xcol][1] * 0.98, (df[overplotted_column].values[-1] + args.Zgrad_allowance) * 0.9, '+%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='bottom', fontsize=args.fontsize)
+            ax.text(lim_dict[args.xcol][1] * 0.98, (df[overplotted_column].values[-1] - args.Zgrad_allowance) * 2.0, '-%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='top', fontsize=args.fontsize)
 
             # ---------calculating fration of time spent in filled area-----
             dfsub = df[df['redshift'] >= args.upto_z]
