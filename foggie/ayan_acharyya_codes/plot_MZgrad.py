@@ -447,8 +447,8 @@ def plot_MZGR(args):
         if args.snaphighlight is not None:
             snaps_to_highlight = [item for item in args.snaphighlight.split(',')]
             df_snaps = df[df['output'].isin(snaps_to_highlight)]
-            dummy = ax.scatter(df_snaps[args.xcol], df_snaps[args.ycol], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=200, alpha=0.2 if args.overplot_smoothed else 1, marker='*', zorder=10)
-            print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, 'with stars')
+            dummy = ax.scatter(df_snaps[args.xcol], df_snaps[args.ycol], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=300, alpha=1, marker='*', zorder=10)
+            print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, ' with star-markers\nThese snapshots correspond to times', df_snaps['time'].values, 'Gyr respectively, i.e.,', np.diff(df_snaps['time'].values) * 1000, 'Myr apart')
 
         # ------- overplotting redshift-binned scatter plot------------
         if args.zhighlight:
@@ -464,7 +464,7 @@ def plot_MZGR(args):
             print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points, =', npoints * mean_dt, 'Myr')
 
             if 'line' in locals() and not args.nocolorcoding: line.set_alpha(0.5) # make the actual wiggly line fainter (unless making plots for Molly's talk)
-            smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=0.5 if args.plot_timefraction else 2)
+            smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=0.5)
             plot = ax.add_collection(smoothline) ## keep this commented out for making plots for Molly's talk
             if args.hiderawdata: # for making plots for Molly's talk
                 ax = plot_zhighlight(df, ax, this_cmap, args, ycol=args.ycol + '_smoothed')

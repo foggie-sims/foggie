@@ -190,10 +190,10 @@ def plot_time_series(df, args):
                'black', 'darkturquoise', 'lawngreen']
     sfr_col_arr = ['black']
 
-    groups = pd.DataFrame({'quantities': [['Zgrad', 'Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zvar']], \
-                           'legend': [['Fit to all cells', 'Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Variance (fit)']], \
+    groups = pd.DataFrame({'quantities': [['Zgrad', 'Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zvar', 'Zgini']], \
+                           'legend': [['Fit to all cells', 'Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Variance (fit)', 'Gini coefficient']], \
                            'label': np.hstack([r'$\Delta Z$ (dex/kpc)', np.tile([r'Z/Z$_\odot$'], 2)]), \
-                           'limits': [(-0.5, 0.1), (1e-3, 8), (1e-4, 2)], \
+                           'limits': [(-0.5, 0.1), (1e-3, 8), (1e-4, 1)], \
                            'isalreadylog': np.hstack([np.tile([False], 3)])})
     if args.forappendix: groups = groups[groups.index.isin([2])]
     if args.forposter: groups = groups[groups.index.isin([0, 2])]
@@ -204,7 +204,7 @@ def plot_time_series(df, args):
         ax = axes[j]
         log_text = 'log_' if thisgroup.isalreadylog else ''
         for i, ycol in enumerate(thisgroup.quantities):
-            if args.forposter or args.forpaper or args.forappendix:
+            if args.forposter:# or args.forpaper or args.forappendix:
                 df = omit_bad_spikes(df, log_text + ycol)
             ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=1, label=thisgroup.legend[i])
             if args.zhighlight: ax = plot_zhighlight(df,log_text + ycol, col_arr[i], ax, args)
@@ -495,38 +495,39 @@ if __name__ == '__main__':
             else:
                 print('Did not find', sfr_filename, ', therefore will not plot the SFR-related panels')
 
-            # -------- reading in and merging dataframe with metal flux info-------
-            flux_df = pd.DataFrame(columns=('output', 'log_metal_flux'))
-            flux_file_path = args.output_dir + 'txtfiles/'
-            flux_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_fluxes_mass.hdf5'%(args.galrad, args.nchunks))
+            if not (args.forpaper or args.forappendix or args.forposter):
+                # -------- reading in and merging dataframe with metal flux info-------
+                flux_df = pd.DataFrame(columns=('output', 'log_metal_flux'))
+                flux_file_path = args.output_dir + 'txtfiles/'
+                flux_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_fluxes_mass.hdf5'%(args.galrad, args.nchunks))
 
-            if len(flux_files) > 0:
-                for i, thisfile in enumerate(flux_files):
-                    print('Extracting metal flux from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
-                    output = os.path.split(thisfile)[-1][:6]
-                    thisdf = pd.read_hdf(thisfile, 'all_data')
-                    net_metal_flux = thisdf['net_metal_flux'][np.where(thisdf['radius'] >= args.upto_kpc)[0][0]] # msun/yr
-                    flux_df.loc[len(flux_df)] = [output, np.log10(net_metal_flux)] # log(msun/yr)
+                if len(flux_files) > 0:
+                    for i, thisfile in enumerate(flux_files):
+                        print('Extracting metal flux from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
+                        output = os.path.split(thisfile)[-1][:6]
+                        thisdf = pd.read_hdf(thisfile, 'all_data')
+                        net_metal_flux = thisdf['net_metal_flux'][np.where(thisdf['radius'] >= args.upto_kpc)[0][0]] # msun/yr
+                        flux_df.loc[len(flux_df)] = [output, np.log10(net_metal_flux)] # log(msun/yr)
 
-                df = df.merge(flux_df[['output', 'log_metal_flux']], on='output')
-            else:
-                print('Did not find any metal flux file, therefore will not plot the metal flux panels')
+                    df = df.merge(flux_df[['output', 'log_metal_flux']], on='output')
+                else:
+                    print('Did not find any metal flux file, therefore will not plot the metal flux panels')
 
-            # -------- reading in and merging dataframe with SFR info-------
-            production_df = pd.DataFrame(columns=('output', 'log_metal_produced'))
-            production_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_metal_sink_source.txt'%(args.galrad, args.nchunks))
+                # -------- reading in and merging dataframe with SFR info-------
+                production_df = pd.DataFrame(columns=('output', 'log_metal_produced'))
+                production_files = glob.glob(flux_file_path + '*_rad%.1Fkpc_nchunks%d_metal_sink_source.txt'%(args.galrad, args.nchunks))
 
-            if len(production_files) > 0:
-                for i, thisfile in enumerate(production_files):
-                    print('Extracting metal production from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
-                    output = os.path.split(thisfile)[-1][:6]
-                    thisdf = pd.read_table(thisfile, delim_whitespace=True, comment='#')
-                    metal_produced = thisdf['metal_produced'][:np.where(thisdf['radius'] >= args.upto_kpc)[0][0]+1].sum() # msun
-                    production_df.loc[len(production_df)] = [output, np.log10(metal_produced)] # log(msun)
+                if len(production_files) > 0:
+                    for i, thisfile in enumerate(production_files):
+                        print('Extracting metal production from file', thisfile, 'which is', i+1, 'out of', len(flux_files), 'files..')
+                        output = os.path.split(thisfile)[-1][:6]
+                        thisdf = pd.read_table(thisfile, delim_whitespace=True, comment='#')
+                        metal_produced = thisdf['metal_produced'][:np.where(thisdf['radius'] >= args.upto_kpc)[0][0]+1].sum() # msun
+                        production_df.loc[len(production_df)] = [output, np.log10(metal_produced)] # log(msun)
 
-                df = df.merge(production_df[['output', 'log_metal_produced']], on='output')
-            else:
-                print('Did not find any metal production file, therefore will not plot the metal production panels')
+                    df = df.merge(production_df[['output', 'log_metal_produced']], on='output')
+                else:
+                    print('Did not find any metal production file, therefore will not plot the metal production panels')
 
             df = df.sort_values('time')
             df.to_csv(output_filename, sep='\t', index=None)

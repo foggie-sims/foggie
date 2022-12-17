@@ -687,7 +687,7 @@ class SelectFromSlider:
 
         mask = np.zeros((nbins, nbins))
         extent = self.data_min, self.data_max, self.ax.get_ylim()[0], self.ax.get_ylim()[1]
-        self.mask_plot = self.ax.imshow(mask, cmap=plt.cm.Greys_r, alpha=0, interpolation='bilinear', extent=extent, zorder=10, aspect='auto', vmin=0, vmax=1)
+        self.mask_plot = self.ax.imshow(mask, cmap=plt.cm.Greys_r, alpha=0, interpolation='none', extent=extent, zorder=10, aspect='auto', vmin=0, vmax=1)
 
         self.lower_limit_line = ax.axvline(self.data_min, color='k')
         self.upper_limit_line = ax.axvline(self.data_max, color='k')
@@ -704,7 +704,7 @@ class SelectFromSlider:
         # -------to highlight the selected region-------------------
         if self.val[1] - self.val[0] > 0:
             mask = np.zeros((nbins, nbins))
-            mask[:, int((self.val[0] - self.data_min) * nbins/(self.data_max - self.data_min)) : int((self.val[1] - self.data_min) * nbins/(self.data_max - self.data_min))] = 1.
+            mask[:, int((self.val[0] - self.data_min) * nbins/(self.data_max - self.data_min)) + 1: int((self.val[1] - self.data_min) * nbins/(self.data_max - self.data_min)) + 1] = 1.
             self.mask_plot.set_data(mask)
             self.mask_plot.set_alpha(self.alpha_other)
             self.helpful_text.set_text('Press ENTER to proceed with this selection or select again')
@@ -814,7 +814,7 @@ def on_second_key_press(event, box_cut, ax, args, range_selector, identifier, ou
             ax.figure.savefig(output_slidefig)  # to save the highlighted image
 
             # ------to cut out the selected region----------
-            if args.debug: myprint('Preparing to cut regions further based on highlighted selection: %s from %.2F to %.2F %s'%(args.colorcolname, x_lower_bound, x_upper_bound, unit_dict[args.colorcol]), args)
+            myprint('Preparing to cut regions further based on highlighted selection: %s from %.2F to %.2F %s'%(args.colorcolname, x_lower_bound, x_upper_bound, unit_dict[args.colorcol]), args)
 
             if islog_dict[args.colorcol]: x_lower_bound, x_upper_bound = 10 ** x_lower_bound, 10 ** x_upper_bound
 
@@ -874,10 +874,11 @@ def on_first_key_press(event, box, ax, args, nbins, selector, xgrid, ygrid, ncol
             identifier = random.randint(10, 99)
             output_selfig = fig_dir + 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s_lasso%d.png' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname, args.newold_text, identifier)
             ax.figure.savefig(output_selfig)  # to save the highlighted image
-            if args.debug: print('Selected ' + str(nselection) + ' binned pixels:', selector.xys[selector.ind])
+            print('Selected ' + str(nselection) + ' binned pixels:')
+            if args.debug: print('The pixels are:', selector.xys[selector.ind])
 
             # ------to cut out the selected region----------
-            if args.debug: myprint('Preparing to cut regions based on highlighted selection..', args)
+            myprint('Preparing to cut regions based on highlighted selection..', args)
             cut_crit = ""
             for index, item in enumerate(selector.ind):
                 if npix_datashader is None: # this plot is made using datashader's native mpl support
