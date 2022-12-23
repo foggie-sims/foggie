@@ -404,7 +404,7 @@ if __name__ == '__main__':
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').v
-        args.ylim = [-2.2, 1.2] # [-3, 1]
+        args.ylim = [-2.2 if args.ymin is None else args.ymin, 1.2 if args.ymax is None else args.ymax] # [-3, 1]
 
         re_from_stars = get_re_from_stars(ds, args) if args.write_file or args.upto_kpc is None else None # kpc
         re_from_coldgas = get_re_from_coldgas(gasprofile, args)  if args.write_file or args.upto_kpc is None else None # kpc
