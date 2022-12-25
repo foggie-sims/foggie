@@ -70,7 +70,7 @@ def load_df(args):
     re_text = 'fixedr' if args.upto_kpc is not None else which_re
 
     try:
-        df = df[['output', 'redshift', 'time', which_re, 'mass_' + re_text] + [item + binned_fit_text + '_' + re_text for item in ['Zcen', 'Zcen_u', 'Zgrad', 'Zgrad']] + ['Ztotal_' + re_text]]
+        df = df[['output', 'redshift', 'time', which_re, 'mass_' + re_text] + [item + binned_fit_text + '_' + re_text for item in ['Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u']] + ['Ztotal_' + re_text]]
     except KeyError as e:
         if args.upto_kpc is not None:
             print('This is probably an old version of the file, with different column nomenclature. Adjusting accordingly..')
@@ -327,7 +327,7 @@ def plot_MZGR(args):
     things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
 
     # -------------get plot limits-----------------
-    lim_dict = {'Zgrad': (-0.5, 0.1)  if args.Zgrad_den == 'kpc' else (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (8, 9), 'log_sfr': (-1, 3)}
+    lim_dict = {'Zgrad': (-0.25, 0.1) if (args.Zgrad_den == 'kpc' and args.use_binnedfit) else (-0.5, 0.1) if args.Zgrad_den == 'kpc' else (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (8, 9), 'log_sfr': (-1, 3)}
     label_dict = MyDefaultDict(Zgrad=r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.Zgrad_den == 're' else r'$\Delta Z$ (dex/kpc)' if not args.glasspaper else 'Metallicity gradient (dex/kpc)', \
         re='Scale length (kpc)', log_mass=r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', redshift='Redshift', time='Time (Gyr)', sfr=r'SFR (M$_{\odot}$/yr)', \
         log_ssfr=r'$\log{\, \mathrm{sSFR} (\mathrm{yr}^{-1})}$', Ztotal=r'$\log{(\mathrm{O/H})}$ + 12', log_sfr=r'$\log{(\mathrm{SFR} (\mathrm{M}_{\odot}/yr))}$')
@@ -448,6 +448,7 @@ def plot_MZGR(args):
             snaps_to_highlight = [item for item in args.snaphighlight.split(',')]
             df_snaps = df[df['output'].isin(snaps_to_highlight)]
             dummy = ax.scatter(df_snaps[args.xcol], df_snaps[args.ycol], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=300, alpha=1, marker='*', zorder=10)
+            print(df_snaps[['output', 'time', 'redshift', args.xcol, args.ycol, args.colorcol]]) #
             print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, ' with star-markers\nThese snapshots correspond to times', df_snaps['time'].values, 'Gyr respectively, i.e.,', np.diff(df_snaps['time'].values) * 1000, 'Myr apart')
 
         # ------- overplotting redshift-binned scatter plot------------
