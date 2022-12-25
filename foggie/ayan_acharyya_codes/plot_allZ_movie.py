@@ -23,11 +23,10 @@ start_time = time.time()
 plt.rcParams["axes.linewidth"] = 1
 
 # ----------------------------------------------------
-def plot_full_evolution(df, axes, args):
+def plot_full_evolution(df, axes, args, col_arr=['green', 'darkorgange']):
     '''
     Function to plot the time evolution of Zgrad
     '''
-    col_arr = ['green', 'darkorange']
     # -------------which quantities to plot in which axis-----------------
     groups = pd.DataFrame({'quantities': [['Zgrad', 'Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zvar']], \
                            'legend': [['Fit to all cells', 'Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Fitted mean', 'Fitted width']], \
@@ -115,7 +114,7 @@ def plot_full_evolution(df, axes, args):
     return axes
 
 # -----------------------------------------------------------
-def plot_profile(df, ax, args):
+def plot_profile(df, ax, args, col_arr=['green', 'darkorgange']):
     '''
     Function to plot the metallicity profile, along with the fitted gradient
     '''
@@ -128,8 +127,8 @@ def plot_profile(df, ax, args):
 
     # --------bin the metallicity profile and plot the binned profile-----------
     args.bin_edges = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
-    linefit_binned, ax = fit_binned(df, ax, args, color='darkorange')
-    linefit_cells, ax = fit_gradient(df, ax, args, color='limegreen')
+    linefit_binned, ax = fit_binned(df, ax, args, color=col_arr[1])
+    linefit_cells, ax = fit_gradient(df, ax, args, color=col_arr[0])
 
     # ----------tidy up figure-------------
     ax.xaxis = make_coordinate_axis(args.xcol, args.xlim[0], args.xlim[1], ax.xaxis, args.fontsize, dsh=False, log_scale=False)
@@ -215,15 +214,15 @@ def get_Zarr_from_box(ds, args):
     return Zres.flatten(), wres.flatten()
 
 # -----------------------------------------------------------
-def plot_distribution(Zarr, weights, ax, args):
+def plot_distribution(Zarr, weights, ax, args, col_arr=['green', 'darkorgange']):
     '''
     Function to plot the metallicity distribution, along with the fitted skewed gaussian distribution if provided
     Saves plot as .png
     '''
     args.xlim, args.ylim = [0, 4], [0, 2.5]
-    p = plt.hist(Zarr, bins=args.nbins, histtype='step', lw=2, density=True, range=args.xlim, ec='darkorange', weights=weights)
+    p = plt.hist(Zarr, bins=args.nbins, histtype='step', lw=2, density=True, range=args.xlim, ec=col_arr[1], weights=weights)
 
-    dist_stats, ax = fit_distribution(Zarr, weights, ax, args, color='green', range=args.xlim)
+    dist_stats, ax = fit_distribution(Zarr, weights, ax, args, color=col_arr[0], range=args.xlim)
 
     # ----------tidy up figure-------------
     plt.legend(loc='upper right', bbox_to_anchor=(1, 0.75), fontsize=args.fontsize)
@@ -285,6 +284,7 @@ if __name__ == '__main__':
     if type(args_tuple) is tuple: args, ds, refine_box = args_tuple # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     else: args = args_tuple
     if not args.keep: plt.close('all')
+    col_arr = ['fuchsia', 'darkturquoise']
 
     # --------domain decomposition; for mpi parallelisation-------------
     if args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(args) # all snapshots of this particular halo
@@ -345,7 +345,7 @@ if __name__ == '__main__':
         fig.subplots_adjust(top=0.95, bottom=0.08, left=0.12, right=0.95, wspace=0.5)
 
         # ------plotting full time evolution---------------
-        ax_grad_ev, ax_dist_ev = plot_full_evolution(df, [ax_grad_ev, ax_dist_ev], args)
+        ax_grad_ev, ax_dist_ev = plot_full_evolution(df, [ax_grad_ev, ax_dist_ev], args, col_arr=col_arr)
 
         # ------prepping args for individual snapshot analysis--------
         if args.upto_kpc is not None: args.re = np.nan
@@ -361,11 +361,11 @@ if __name__ == '__main__':
 
         # ------plotting individual snapshot: radial profile--------
         df_snap = get_df_from_ds(ds, args)
-        linefit_binned, linefit_cells, ax_prof_snap = plot_profile(df_snap, ax_prof_snap, args)
+        linefit_binned, linefit_cells, ax_prof_snap = plot_profile(df_snap, ax_prof_snap, args, col_arr=col_arr)
 
         # ------plotting individual snapshot: histogram--------
         Zarr, weights = get_Zarr_from_box(ds, args)
-        dist_stats, ax_dist_snap = plot_distribution(Zarr, weights, ax_dist_snap, args)
+        dist_stats, ax_dist_snap = plot_distribution(Zarr, weights, ax_dist_snap, args, col_arr=col_arr)
 
         # ------plotting individual snapshots: corresponding vertical lines on time-evolution plot------
         color = 'k'
