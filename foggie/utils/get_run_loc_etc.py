@@ -102,7 +102,7 @@ def get_run_loc_etc(args):
             runname = "nref11n_nref10f"
         elif args.run == "nref11c_nref9f" or args.run == "nref11c":
             runname = "nref11c_nref9f"
-        elif 'feedback' in args.run:
+        elif 'feedback' in args.run and not args.forcepath:
             runname = "nref11c_nref9f"
         else:
             runname = args.run
@@ -111,7 +111,7 @@ def get_run_loc_etc(args):
         infofile = code_path  + "halo_infos/00" + args.halo + "/" + runname + "/halo_info"
         haloname = "halo_00" + args.halo + "_" + runname
 
-        if 'feedback' in args.run:
+        if 'feedback' in args.run and not args.forcepath:
             run_loc = args.run + "/"
         else:
             run_loc = "halo_00" + args.halo + "/" + runname + "/"

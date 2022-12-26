@@ -924,6 +924,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--output', metavar='output', type=str, action='store', default=RDname, help='which output? default is RD0020')
     parser.add_argument('--foggie_dir', metavar='foggie_dir', type=str, action='store', default=None, help='Specify which directory the dataset lies in, otherwise, by default it will use the args.system variable to determine the FOGGIE data location')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the current working directory?, default is no')
+    parser.add_argument('--forcepath', dest='forcepath', action='store_true', default=False, help='Use given path variables regardless of "feedback" being present in them?, default is no')
     parser.add_argument('--do_all_sims', dest='do_all_sims', action='store_true', default=False, help='Run the code on all simulation snapshots available for a given halo?, default is no')
     parser.add_argument('--use_onlyRD', dest='use_onlyRD', action='store_true', default=False, help='Use only the RD snapshots available for a given halo?, default is no')
     parser.add_argument('--use_onlyDD', dest='use_onlyDD', action='store_true', default=False, help='Use only the DD snapshots available for a given halo?, default is no')
