@@ -224,7 +224,11 @@ def plot_gradient(df, args, linefit=None):
     Saves plot as .png
     '''
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
-    upto_text = '_upto%.1Fkpc' % dummy_args.upto_kpc if dummy_args.upto_kpc is not None else '_upto%.1FRe' % dummy_args.upto_re
+    if args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % args.upto_re
+
     outfile_rootname = '%s_datashader_log_metal_vs_%s%s%s.png' % (args.output, args.xcol,upto_text, weightby_text)
     if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output)+1:]
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
