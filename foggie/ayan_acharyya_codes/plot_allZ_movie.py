@@ -16,7 +16,7 @@ from compute_Zscatter import gauss, skewed_gauss, multiple_gauss
 from compute_MZgrad import get_df_from_ds
 from plot_MZgrad import plot_zhighlight
 from plot_MZscatter import load_df
-from datashader_movie import make_coordinate_axis, unit_dict
+from datashader_movie import make_coordinate_axis, unit_dict, labels_dict
 from uncertainties import ufloat
 
 start_time = time.time()
@@ -104,12 +104,9 @@ def plot_full_evolution(df, axes, args, col_arr=['green', 'darkorgange']):
         ax.tick_params(axis='y', labelsize=args.fontsize)
 
         ax.set_xlim(xlimits)
+        ax.tick_params(axis='x', labelsize=args.fontsize)
         if j == len(groups) - 1: # last panel
             ax.set_xlabel('Time (Gyr)', fontsize=args.fontsize)
-            ax.tick_params(axis='x', labelsize=args.fontsize)
-            #ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
-        else:
-            ax.set_xticklabels([])
 
     return axes
 
@@ -131,8 +128,14 @@ def plot_profile(df, ax, args, col_arr=['green', 'darkorgange']):
     linefit_cells, ax = fit_gradient(df, ax, args, color=col_arr[0])
 
     # ----------tidy up figure-------------
-    ax.xaxis = make_coordinate_axis(args.xcol, args.xlim[0], args.xlim[1], ax.xaxis, args.fontsize, dsh=False, log_scale=False)
-    ax.yaxis = make_coordinate_axis('metal', args.ylim[0], args.ylim[1], ax.yaxis, args.fontsize, dsh=False, log_scale=False, label=r'$\log{(\mathrm{Z/Z}_\odot})}$')
+    ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
+    ax.set_ylabel(r'$\log{(\mathrm{Z/Z}_\odot})}$', fontsize=args.fontsize)
+
+    ax.set_xlim(args.xlim)
+    ax.set_ylim(args.ylim)
+
+    ax.locator_params(axis='both', nbins=4)
+    ax.tick_params(axis='both', labelsize=args.fontsize)
 
     # ---------annotate and save the figure----------------------
     ax.text(0.05, 0.2, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor, color='white', bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
@@ -335,14 +338,14 @@ if __name__ == '__main__':
         df = load_df(args)  # loading dataframe (includes both gradinets and distribution measurements
 
         # -------setting up fig--------------
-        nrow, ncol, ncol2 = 2, 5, 2
-        fig = plt.figure(figsize=(10,6))
-        ax_grad_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(0, 0), colspan=ncol-ncol2)
-        ax_dist_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(1, 0), colspan=ncol-ncol2, sharex=ax_grad_ev)
-        ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(0, ncol-ncol2), colspan=ncol2)
-        ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(1, ncol-ncol2), colspan=ncol2)
+        nrow, ncol1, ncol2 = 2, 4, 2 #  the overall figure is nrow x (ncol1 + ncol2)
+        fig = plt.figure(figsize=(12,6))
+        ax_grad_ev = plt.subplot2grid(shape=(nrow, ncol1 + ncol2), loc=(0, 0), colspan=ncol1)
+        ax_dist_ev = plt.subplot2grid(shape=(nrow, ncol1 + ncol2), loc=(1, 0), colspan=ncol1, sharex=ax_grad_ev)
+        ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol1 + ncol2), loc=(0, ncol1), colspan=ncol2)
+        ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol1 + ncol2), loc=(1, ncol1), colspan=ncol2)
         fig.tight_layout()
-        fig.subplots_adjust(top=0.95, bottom=0.1, left=0.08, right=0.96, wspace=0.7, hspace=0.25)
+        fig.subplots_adjust(top=0.98, bottom=0.1, left=0.07, right=0.98, wspace=0.7, hspace=0.25)
 
         # ------plotting full time evolution---------------
         ax_grad_ev, ax_dist_ev = plot_full_evolution(df, [ax_grad_ev, ax_dist_ev], args, col_arr=col_arr)
