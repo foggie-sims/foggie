@@ -335,14 +335,14 @@ if __name__ == '__main__':
         df = load_df(args)  # loading dataframe (includes both gradinets and distribution measurements
 
         # -------setting up fig--------------
-        nrow, ncol = 3, 2
-        fig = plt.figure(figsize=(7,7))
-        ax_grad_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(0, 0), colspan=ncol)
-        ax_dist_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(1, 0), colspan=ncol, sharex=ax_grad_ev)
-        ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 0), colspan=1)
-        ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 1), colspan=1)
+        nrow, ncol, ncol2 = 2, 5, 2
+        fig = plt.figure(figsize=(10,6))
+        ax_grad_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(0, 0), colspan=ncol-ncol2)
+        ax_dist_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(1, 0), colspan=ncol-ncol2, sharex=ax_grad_ev)
+        ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(0, ncol-ncol2), colspan=ncol2)
+        ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(1, ncol-ncol2), colspan=ncol2)
         fig.tight_layout()
-        fig.subplots_adjust(top=0.95, bottom=0.08, left=0.12, right=0.95, wspace=0.5)
+        fig.subplots_adjust(top=0.95, bottom=0.1, left=0.08, right=0.96, wspace=0.7, hspace=0.25)
 
         # ------plotting full time evolution---------------
         ax_grad_ev, ax_dist_ev = plot_full_evolution(df, [ax_grad_ev, ax_dist_ev], args, col_arr=col_arr)
