@@ -20,17 +20,17 @@
 
 
 #########################  Z profile  ########################################
-# original python: plot profile 10 pkpc: done already
-#python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --prefix cmzg_10p --halo 8508 --queue ldan --opt_args "--clobber --do_all_sims --upto_kpc 10 --xcol rad --weight mass --write_file"
+# original python: plot profile 10 pkpc: submitted
+python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --prefix cmzg_10p --halo 8508 --queue ldan --opt_args "--clobber --do_all_sims --upto_kpc 10 --xcol rad --weight mass --write_file"
 
 # original python: plot profile 10 ckpc; done
-#python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --prefix cmzg_10c --halo 8508 --queue ldan --opt_args "--clobber --do_all_sims --upto_kpc 10 --docomoving --xcol rad --weight mass --write_file"
+#python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --prefix cmzg_10c --halo 8508 --queue ldan --opt_args "--do_all_sims --upto_kpc 10 --docomoving --xcol rad --weight mass --write_file"
 
 # original python: plot profile 2.5 pkpc: done already
 #python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --prefix cmzg_2.5p --halo 8508 --queue ldan --opt_args "--clobber --do_all_sims --upto_kpc 2.5 --xcol rad --weight mass --write_file"
 
 # original python: plot profile 2.5 ckpc; done
-#python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --prefix cmzg_2.5c --halo 8508 --queue ldan --opt_args "--clobber --do_all_sims --upto_kpc 2.5 --docomoving --xcol rad --weight mass --write_file"
+#python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --prefix cmzg_2.5c --halo 8508 --queue ldan --opt_args "--do_all_sims --upto_kpc 2.5 --docomoving --xcol rad --weight mass --write_file"
 
 
 #########################  Z all  ########################################
@@ -62,7 +62,7 @@ python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jo
 python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --prefix cmzg_10p_fb12 --halo 8508 --queue ldan --run feedback.12 --opt_args "--clobber --do_all_sims --upto_kpc 10 --xcol rad --weight mass --write_file --foggie_dir /nobackup/jtumlins/ --forcepath"
 
 # fdbk12 python: plot profile 10 ckpc
-python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --prefix cmzg_10c_fb12 --halo 8508 --queue ldan --run feedback.12 --opt_args "--clobber --do_all_sims --upto_kpc 10 --docomoving --xcol rad --weight mass --write_file --foggie_dir /nobackup/jtumlins/ --forcepath"
+python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --prefix cmzg_10c_fb12 --halo 8508 --queue ldan --run feedback.12 --opt_args "--do_all_sims --upto_kpc 10 --docomoving --xcol rad --weight mass --write_file --foggie_dir /nobackup/jtumlins/ --forcepath"
 
 
 #########################  Z all  ########################################

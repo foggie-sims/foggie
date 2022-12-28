@@ -304,8 +304,8 @@ def get_df_from_ds(ds, args):
     else:
         myprint('Reading from existing file ' + outfilename, args)
         df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
-        df = df[df['rad'].between(0, args.galrad)] # in case this dataframe has been read in from a file corresponding to a larger chunk of the box
 
+    df = df[df['rad'].between(0, args.galrad)]  # in case this dataframe has been read in from a file corresponding to a larger chunk of the box
     df['log_metal'] = np.log10(df['metal'])
     df['rad_re'] = df['rad'] / args.re  # normalise by Re
     cols_to_extract = [args.xcol, 'log_metal']

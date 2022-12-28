@@ -381,7 +381,7 @@ if __name__ == '__main__':
         # ------plotting individual snapshot: radial profile--------
 
         box = get_box_from_ds(ds, args)
-        df_snap = get_box_from_ds(box, args)
+        df_snap = get_df_from_ds(box, args)
         linefit_binned, linefit_cells, ax_prof_snap = plot_profile(df_snap, ax_prof_snap, args, col_arr=col_arr)
 
         # ------plotting individual snapshot: histogram--------
