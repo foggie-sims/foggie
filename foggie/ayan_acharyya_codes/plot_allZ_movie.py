@@ -16,7 +16,7 @@ from compute_Zscatter import gauss, skewed_gauss, multiple_gauss
 from compute_MZgrad import get_df_from_ds
 from plot_MZgrad import plot_zhighlight
 from plot_MZscatter import load_df
-from datashader_movie import make_coordinate_axis, unit_dict, labels_dict
+from datashader_movie import unit_dict
 from uncertainties import ufloat
 
 start_time = time.time()
@@ -109,6 +109,22 @@ def plot_full_evolution(df, axes, args, col_arr=['green', 'darkorgange']):
             ax.set_xlabel('Time (Gyr)', fontsize=args.fontsize)
 
     return axes
+
+# -----------------------------------------------------------
+def get_box_from_ds(ds, args):
+    '''
+    Function to extract a small box of given size, based on args.galrad, from the original yt dataset
+    Returns yt dataset type
+    '''
+    # extract the required box
+    box_center = ds.arr(args.halo_center, kpc)
+    box_width = args.galrad * 2  # in kpc
+    box_width_kpc = ds.arr(box_width, 'kpc')
+    box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2.,
+          box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2.,
+          box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+
+    return box
 
 # -----------------------------------------------------------
 def plot_profile(df, ax, args, col_arr=['green', 'darkorgange']):
@@ -363,7 +379,9 @@ if __name__ == '__main__':
             args.galrad = args.re * args.upto_re  # kpc
 
         # ------plotting individual snapshot: radial profile--------
-        df_snap = get_df_from_ds(ds, args)
+
+        box = get_box_from_ds(ds, args)
+        df_snap = get_box_from_ds(box, args)
         linefit_binned, linefit_cells, ax_prof_snap = plot_profile(df_snap, ax_prof_snap, args, col_arr=col_arr)
 
         # ------plotting individual snapshot: histogram--------
