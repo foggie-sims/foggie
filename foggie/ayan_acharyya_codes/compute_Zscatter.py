@@ -201,7 +201,7 @@ if __name__ == '__main__':
     # parse column names, in case log
 
     # --------------read in the cold gas profile file ONCE for a given halo-------------
-    if dummy_args.write_file or dummy_args.upto_kpc is None:
+    if (dummy_args.write_file or dummy_args.upto_kpc is None) and dummy_args.use_gasre:
         foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(dummy_args)
         gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + dummy_args.run + '/all_rprof_' + dummy_args.halo + '.npy'
 
