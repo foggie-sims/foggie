@@ -109,7 +109,7 @@ def get_re_from_coldgas(gasprofile, args):
     '''
     re_hmr_factor = 1.0
 
-    if args.output[:2] == 'DD' and args.output[2:] in gasprofile.keys(): # because cold gas profile is only present for all the DD outputs
+    if gasprofile is not None and args.output[:2] == 'DD' and args.output[2:] in gasprofile.keys(): # because cold gas profile is only present for all the DD outputs
         this_gasprofile = gasprofile[args.output[2:]]
         this_coldgas = this_gasprofile['cold']
         mass_profile = pd.DataFrame({'radius': this_coldgas['r'], 'coldgas':np.cumsum(this_coldgas['mass'])})
@@ -357,7 +357,11 @@ if __name__ == '__main__':
             print('Did not find', gasfilename)
             gasfilename = gasfilename.replace(dummy_args.run, dummy_args.run[:14])
             print('Instead, reading in cold gas profile from', gasfilename)
-        gasprofile = np.load(gasfilename, allow_pickle=True)[()]
+        try:
+            gasprofile = np.load(gasfilename, allow_pickle=True)[()]
+        except FileNotFoundError as e:
+            print('Did not find', gasfilename, 'so assigning dummy values to gas re')
+            gasprofile = None
     else:
         print('Not reading in cold gas profile because any re calculation is not needed')
         gasprofile = None
