@@ -121,6 +121,8 @@ def get_run_loc_etc(args):
 
         if args.system=='cassiopeia' or args.system=='pleiades_cassi':
             output_dir = output_path
+            runname = args.run
+            run_loc = "halo_00" + args.halo + "/" + runname + "/"
 
     if args.pwd:
         print('using pwd args')
