@@ -125,6 +125,35 @@ def plot_AM():
     plt.savefig(args.halo + '_AM_vs_time_smoothed.png')
     plt.show()
 
+def plot_vel():
+    '''Plots the time evolution of the x, y, and z components of
+    the halo bulk velocity saved in the catalog.'''
+
+    fig = plt.figure(figsize=(20,15))
+    ax_x = fig.add_subplot(3,1,1)
+    ax_y = fig.add_subplot(3,1,2)
+    ax_z = fig.add_subplot(3,1,3)
+
+    ax_x.plot(times, vx, 'ko-', lw=1, markersize=2)
+    ax_y.plot(times, vy, 'ko-', lw=1, markersize=2)
+    ax_z.plot(times, vz, 'ko-', lw=1, markersize=2)
+
+    ax_x.plot(times, smooth_vx, 'r-', lw=2)
+    ax_y.plot(times, smooth_vy, 'r-', lw=2)
+    ax_z.plot(times, smooth_vz, 'r-', lw=2)
+
+    axs = [ax_x, ax_y, ax_z]
+    labels = ['$v_x$', '$v_y$', '$v_z$']
+    for i in range(len(axs)):
+        ax = axs[i]
+        ax.set_xlabel('Time [Myr]', fontsize=14)
+        ax.set_ylabel(labels[i], fontsize=14)
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, \
+          labelsize=12, top=True, right=True)
+    plt.subplots_adjust(bottom=0.05, top=0.98, left=0.05, right=0.97, hspace=0.15)
+    plt.savefig(args.halo + '_vel_vs_time_smoothed.png')
+    plt.show()
+
 if __name__ == "__main__":
 
     args = parse_args()
@@ -147,15 +176,22 @@ if __name__ == "__main__":
     y_col = halo_center['col5'][1:]
     z_col = halo_center['col6'][1:]
     times = []
+    redshifts = []
+    snaps = []
     x_cen = []
     y_cen = []
     z_cen = []
     for i in range(len(DD_col)):
-        times.append(time_table['time'][time_table['snap']==DD_col[i]][0])
-        x_cen.append(float(x_col[i]))
-        y_cen.append(float(y_col[i]))
-        z_cen.append(float(z_col[i]))
+        if (DD_col[i]!='RD0016') and (DD_col[i]!='RD0018'):
+            times.append(time_table['time'][time_table['snap']==DD_col[i]][0])
+            redshifts.append(time_table['redshift'][time_table['snap']==DD_col[i]][0])
+            snaps.append(DD_col[i])
+            x_cen.append(float(x_col[i]))
+            y_cen.append(float(y_col[i]))
+            z_cen.append(float(z_col[i]))
     times = np.array(times)
+    redshifts = np.array(redshifts)
+    snaps = np.array(snaps)
     x_cen = np.array(x_cen)
     y_cen = np.array(y_cen)
     z_cen = np.array(z_cen)
@@ -236,8 +272,8 @@ if __name__ == "__main__":
     # Save to file smoothed versions of halo center and AM direction
     f_cen = Table(dtype=('S6', 'f8', 'f8', 'f8', 'f8', 'f8'),
             names=('snap', 'redshift', 'time', 'xc', 'yc', 'zc'))
-    for i in range(len(DD_col)):
-        row = [DD_col[i], time_table['redshift'][time_table['snap']==DD_col[i]][0], time_table['time'][time_table['snap']==DD_col[i]][0], \
+    for i in range(len(snaps)):
+        row = [snaps[i], redshifts[i], times[i], \
                smoothed_x_cen[i], smoothed_y_cen[i], smoothed_z_cen[i]]
         f_cen.add_row(row)
     ascii.write(f_cen, catalog_dir + 'halo_cen_smoothed', format='fixed_width', overwrite=True)'''
@@ -246,7 +282,7 @@ if __name__ == "__main__":
 
     # Smooth AM vector
 
-    # Read in AM vector catalog
+    '''# Read in AM vector catalog
     am_table = Table.read(catalog_dir + 'angmom_table.hdf5', path='all_data')
     times = np.array(am_table['time'])
     Lx = np.array(am_table['Lx'])
@@ -314,4 +350,91 @@ if __name__ == "__main__":
         row = [am_table['snap'][i], am_table['redshift'][i], times[i], \
                smooth_Lx[i], smooth_Ly[i], smooth_Lz[i]]
         f_cen.add_row(row)
-    ascii.write(f_cen, catalog_dir + 'AM_direction_smoothed', format='fixed_width', overwrite=True)
+    ascii.write(f_cen, catalog_dir + 'AM_direction_smoothed', format='fixed_width', overwrite=True)'''
+
+    # Smooth bulk halo velocity
+
+    # Read in velocity vector catalog
+    vel_table = Table.read(output_dir + 'halo_centers/halo_00' + args.halo + '/' + args.run + '/bulk-v_table.dat', format='ascii')
+    DD_col = vel_table['col2'][1:]
+    time_col = vel_table['col4'][1:]
+    redshift_col = vel_table['col3'][1:]
+    vx_col = vel_table['col5'][1:]
+    vy_col = vel_table['col6'][1:]
+    vz_col = vel_table['col7'][1:]
+    times = []
+    redshifts = []
+    vx = []
+    vy = []
+    vz = []
+    for i in range(len(DD_col)):
+        times.append(float(time_col[i]))
+        redshifts.append(float(redshift_col[i]))
+        vx.append(float(vx_col[i]))
+        vy.append(float(vy_col[i]))
+        vz.append(float(vz_col[i]))
+    times = np.array(times)
+    redshifts = np.array(redshifts)
+    vx = np.array(vx)
+    vy = np.array(vy)
+    vz = np.array(vz)
+
+    # Clip outliers in a moving window and then fit a polynomial to the path in the window
+    clipped_vx = [[] for _ in range(len(vx))]
+    clipped_vy = [[] for _ in range(len(vy))]
+    clipped_vz = [[] for _ in range(len(vz))]
+    window = 50
+    sig = 1
+    small_degree = 2
+    for i in range(0, len(vx)-window+1):
+        win_vx = vx[i:i+window]
+        win_vy = vy[i:i+window]
+        win_vz = vz[i:i+window]
+        indices = np.array(range(window))
+        outliers_vx = np.where((win_vx > np.median(win_vx) + sig*np.std(win_vx)) | (win_vx < np.median(win_vx) - sig*np.std(win_vx)))[0]
+        outliers_vy = np.where((win_vy > np.median(win_vy) + sig*np.std(win_vy)) | (win_vy < np.median(win_vy) - sig*np.std(win_vy)))[0]
+        outliers_vz = np.where((win_vz > np.median(win_vz) + sig*np.std(win_vz)) | (win_vz < np.median(win_vz) - sig*np.std(win_vz)))[0]
+        vx_no_outliers = np.delete(win_vx, outliers_vx)
+        indices_vx = np.delete(indices, outliers_vx)
+        coeff_vx = np.polyfit(indices_vx, vx_no_outliers, small_degree)
+        fixed_vx = np.zeros(len(indices))+coeff_vx[-1]
+        vy_no_outliers = np.delete(win_vy, outliers_vy)
+        indices_vy = np.delete(indices, outliers_vy)
+        coeff_vy = np.polyfit(indices_vy, vy_no_outliers, small_degree)
+        fixed_vy = np.zeros(len(indices))+coeff_vy[-1]
+        vz_no_outliers = np.delete(win_vz, outliers_vz)
+        indices_vz = np.delete(indices, outliers_vz)
+        coeff_vz = np.polyfit(indices_vz, vz_no_outliers, small_degree)
+        fixed_vz = np.zeros(len(indices))+coeff_vz[-1]
+        for j in range(small_degree):
+            fixed_vx += coeff_vx[j]*indices**(small_degree-j)
+            fixed_vy += coeff_vy[j]*indices**(small_degree-j)
+            fixed_vz += coeff_vz[j]*indices**(small_degree-j)
+        for j in range(window):
+            clipped_vx[i+j].append(fixed_vx[j])
+            clipped_vy[i+j].append(fixed_vy[j])
+            clipped_vz[i+j].append(fixed_vz[j])
+    # For each point in the halo path, take the median of all fitted polynomials from all windows this point was in
+    # If window=50, each point falls into 50 windows so this is a median of 50 fitted polynomials to this point and
+    # the points around it
+    for i in range(len(clipped_vx)):
+        clipped_vx[i] = np.median(clipped_vx[i])
+        clipped_vy[i] = np.median(clipped_vy[i])
+        clipped_vz[i] = np.median(clipped_vz[i])
+
+    # Finally, smooth the clipped-and-fitted halo paths
+    smooth_vx = gaussian_filter(clipped_vx, 5)
+    smooth_vy = gaussian_filter(clipped_vy, 5)
+    smooth_vz = gaussian_filter(clipped_vz, 5)
+
+    if (args.plot):
+        plot_vel()
+
+    # Save to file smoothed version of velocity
+    f_cen = Table(dtype=('S6', 'f8', 'f8', 'f8', 'f8', 'f8'),
+            names=('snap', 'redshift', 'time', 'vx', 'vy', 'vz'))
+    for i in range(len(times)):
+        row = [DD_col[i], redshifts[i], times[i], \
+               smooth_vx[i], smooth_vy[i], smooth_vz[i]]
+        f_cen.add_row(row)
+    ascii.write(f_cen, output_dir + 'halo_centers/halo_00' + args.halo + '/' + args.run + '/bulk-v_smoothed.dat', format='fixed_width', overwrite=True)

@@ -3086,6 +3086,7 @@ def force_rays(snap):
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([0.5*ds.refine_width,0.5*ds.refine_width,0.5*ds.refine_width],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
     temperature = box['temperature'].v
+    tcooltff = box['tcool_tff'].v
     mass = box['cell_mass'].in_units('g').v
     x = box[('gas','x')].in_units('cm') - ds.halo_center_kpc[0].to('cm')
     y = box[('gas','y')].in_units('cm') - ds.halo_center_kpc[1].to('cm')
@@ -3122,6 +3123,10 @@ def force_rays(snap):
     temperature_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), temperature_edges)
     temp_masked = np.copy(temperature)
     temp_masked[disk_mask] = temperature_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    tcooltff_edges = tcooltff[disk_edges]
+    tcooltff_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), tcooltff_edges)
+    tcooltff_masked = np.copy(tcooltff)
+    tcooltff_masked[disk_mask] = tcooltff_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
 
     thermal_pressure = box['pressure'].in_units('erg/cm**3').v
     pres_edges = thermal_pressure[disk_edges]
@@ -3191,14 +3196,15 @@ def force_rays(snap):
     density_func = RegularGridInterpolator(coords, den_masked)
     temperature_func = RegularGridInterpolator(coords, temp_masked)
     radial_velocity_func = RegularGridInterpolator(coords, vr)
+    tcooltff_func = RegularGridInterpolator(coords, tcooltff_masked)
     ray_start = [0, 0, 0]
     # List end points of rays
     # Want: 3 within 30 deg opening angle of minor axis on both sides, 3 within 30 deg opening angle
     # of major axis on both sides, 2 close to halfway between major and minor axis in all 4 quadrants
     # = 6 + 6 + 8 = 20 total rays
     #ray_ends = [[0, -100, -150], [0, 150, -150], [0, 100, 150], [0, -150, 150]]
-    #ray_ends = [[0, -75, -100], [0, -50, 100]]
-    ray_ends = [[0,-50,50],[0,60,-30]]
+    ray_ends = [[0, -75, -100], [0, -50, 100]]
+    #ray_ends = [[0,-50,50],[0,60,-30]]
     rays = ray_ends
 
     plot_colors = ['r', 'g', 'm', 'b', 'gold', 'k']
@@ -3257,6 +3263,7 @@ def force_rays(snap):
             radius_ray = radius_func(points)
             density_ray = density_func(points)
             temperature_ray = temperature_func(points)
+            tcooltff_ray = tcooltff_func(points)
             rv_ray = radial_velocity_func(points)
             den_ray = density_func(points)
             force_func = RegularGridInterpolator(coords, force)
@@ -3266,6 +3273,8 @@ def force_rays(snap):
             radius_ray = radius_ray[(density_ray < cgm_density_max * density_cut_factor)]
             rv_ray = rv_ray[(density_ray < cgm_density_max * density_cut_factor)]
             force_ray = force_ray[(density_ray < cgm_density_max * density_cut_factor)]
+            temperature_ray = temperature_ray[(density_ray < cgm_density_max * density_cut_factor)]
+            tcooltff_ray = tcooltff_ray[(density_ray < cgm_density_max * density_cut_factor)]
             density_ray = density_ray[(density_ray < cgm_density_max * density_cut_factor)]
             ax1.plot(radius_ray, force_ray, color=plot_colors[i], ls=force_linestyles[i], lw=2, label=labels[i])
             ax3.plot(radius_ray, force_ray, color=plot_colors[i], ls=linestyles[r], lw=2)
@@ -3294,7 +3303,7 @@ def force_rays(snap):
                 ax4.set_xlabel('Distance along ray from galaxy center [kpc]', fontsize=18)
                 ax4a = ax4.twinx()
                 ax4a.plot(radius_ray, force_ray, 'k-', lw=2)
-                ax4.plot([0,150], [0,0], 'k-', lw=1, label='Total force (right axis)')
+                ax4a.plot([0,150], [0,0], 'k-', lw=1, label='Total force (right axis)')
                 ax4a.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, right=True)
                 ax4a.set_ylim(-1e-5,1e-5)
                 ax4a.set_yscale('symlog', linthreshy=1e-9)
@@ -3308,13 +3317,13 @@ def force_rays(snap):
                 fig5 = plt.figure(figsize=(8,6), dpi=500)
                 ax5 = fig5.add_subplot(1,1,1)
                 ax5.plot(radius_ray, np.log10(density_ray), color='k', ls='--', lw=2, label='Density')
-                ax5.axis([0,150,-33,-20])
+                ax5.axis([0,150,-30,-26])
                 ax5.set_ylabel('log Density [g/cm$^3$]', fontsize=18)
                 ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, right=False)
                 ax5.set_xlabel('Distance along ray from galaxy center [kpc]', fontsize=18)
                 ax5a = ax5.twinx()
                 ax5a.plot(radius_ray, force_ray, 'k-', lw=2)
-                ax5.plot([0,150], [0,0], 'k-', lw=1, label='Total force (right axis)')
+                ax5a.plot([0,150], [0,0], 'k-', lw=1, label='Total force (right axis)')
                 ax5a.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, right=True)
                 ax5a.set_ylim(-1e-5,1e-5)
                 ax5a.set_yscale('symlog', linthreshy=1e-9)
@@ -3323,6 +3332,46 @@ def force_rays(snap):
                 fig5.subplots_adjust(top=0.94,bottom=0.11,right=0.85,left=0.15)
                 fig5.savefig(save_dir + snap + '_den-and-force_along_ray-' + str(r) + save_suffix + '.png')
                 plt.close(fig5)
+
+                # Fig 6 is a plot of temperature and total force along each ray, one per ray
+                fig6 = plt.figure(figsize=(8,6), dpi=500)
+                ax6 = fig6.add_subplot(1,1,1)
+                ax6.plot(radius_ray, np.log10(temperature_ray), color='k', ls='--', lw=2, label='Temperature')
+                ax6.axis([0,150,4,7])
+                ax6.set_ylabel('log Temperature [K]', fontsize=18)
+                ax6.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, right=False)
+                ax6.set_xlabel('Distance along ray from galaxy center [kpc]', fontsize=18)
+                ax6a = ax6.twinx()
+                ax6a.plot(radius_ray, force_ray, 'k-', lw=2)
+                ax6a.plot([0,150], [0,0], 'k-', lw=1, label='Total force (right axis)')
+                ax6a.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, right=True)
+                ax6a.set_ylim(-1e-5,1e-5)
+                ax6a.set_yscale('symlog', linthreshy=1e-9)
+                ax6a.set_ylabel('Force [cm/s$^2$]', fontsize=18)
+                ax6.legend(loc=1, frameon=False, fontsize=14)
+                fig6.subplots_adjust(top=0.94,bottom=0.11,right=0.85,left=0.15)
+                fig6.savefig(save_dir + snap + '_temp-and-force_along_ray-' + str(r) + save_suffix + '.png')
+                plt.close(fig6)
+
+                # Fig 7 is a plot of tcool/tff and total force along each ray, one per ray
+                fig7 = plt.figure(figsize=(8,6), dpi=500)
+                ax7 = fig7.add_subplot(1,1,1)
+                ax7.plot(radius_ray, np.log10(tcooltff_ray), color='k', ls='--', lw=2, label='$t_\mathrm{cool}/t_\mathrm{ff}$')
+                ax7.axis([0,150,-4,4])
+                ax7.set_ylabel('log $t_\mathrm{cool}/t_\mathrm{ff}$', fontsize=18)
+                ax7.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, right=False)
+                ax7.set_xlabel('Distance along ray from galaxy center [kpc]', fontsize=18)
+                ax7a = ax7.twinx()
+                ax7a.plot(radius_ray, force_ray, 'k-', lw=2)
+                ax7a.plot([0,150], [0,0], 'k-', lw=1, label='Total force (right axis)')
+                ax7a.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, right=True)
+                ax7a.set_ylim(-1e-5,1e-5)
+                ax7a.set_yscale('symlog', linthreshy=1e-9)
+                ax7a.set_ylabel('Force [cm/s$^2$]', fontsize=18)
+                ax7.legend(loc=1, frameon=False, fontsize=14)
+                fig7.subplots_adjust(top=0.94,bottom=0.11,right=0.85,left=0.15)
+                fig7.savefig(save_dir + snap + '_tcool-tff-and-force_along_ray-' + str(r) + save_suffix + '.png')
+                plt.close(fig7)
 
 
         ax2.axis([-150,150,-150,150])
@@ -3561,7 +3610,8 @@ def support_vs_radius_time_averaged(snaplist):
     if (args.region_filter!='none'):
         forces_regions = [[],[],[]]
         avg_forces_regions = [[],[],[]]
-        std_forces_regions = [[],[],[]]
+        low_forces_regions = [[],[],[]]
+        upp_forces_regions = [[],[],[]]
         region_label = ['Low ' + args.region_filter, 'Mid ' + args.region_filter, 'High ' + args.region_filter]
         region_name = ['low-', 'mid-', 'high-']
     for j in range(len(plot_labels)):
@@ -3602,15 +3652,19 @@ def support_vs_radius_time_averaged(snaplist):
                     forces_regions[1][j].append(sum_list_regions[1]/-stats['mid_' + args.region_filter + '_gravity_force_sum'])
                     forces_regions[2][j].append(0.1*sum_list_regions[2]/-stats['high_' + args.region_filter + '_gravity_force_sum'])
 
-    avg_forces_list = np.nanmean(forces_list, axis=1)
-    std_forces_list = np.nanstd(forces_list, axis=1)
+    avg_forces_list = np.nanquantile(forces_list, 0.5, axis=1)
+    low_forces_list = np.nanquantile(forces_list, 0.25, axis=1)
+    upp_forces_list = np.nanquantile(forces_list, 0.75, axis=1)
     if (args.region_filter!='none'):
-        avg_forces_regions[0] = np.nanmean(forces_regions[0], axis=1)
-        avg_forces_regions[1] = np.nanmean(forces_regions[1], axis=1)
-        avg_forces_regions[2] = np.nanmean(forces_regions[2], axis=1)
-        std_forces_regions[0] = np.nanstd(forces_regions[0], axis=1)
-        std_forces_regions[1] = np.nanstd(forces_regions[1], axis=1)
-        std_forces_regions[2] = np.nanstd(forces_regions[2], axis=1)
+        avg_forces_regions[0] = np.nanquantile(forces_regions[0], 0.5, axis=1)
+        avg_forces_regions[1] = np.nanquantile(forces_regions[1], 0.5, axis=1)
+        avg_forces_regions[2] = np.nanquantile(forces_regions[2], 0.5, axis=1)
+        low_forces_regions[0] = np.nanquantile(forces_regions[0], 0.25, axis=1)
+        upp_forces_regions[0] = np.nanquantile(forces_regions[0], 0.75, axis=1)
+        low_forces_regions[1] = np.nanquantile(forces_regions[1], 0.25, axis=1)
+        upp_forces_regions[1] = np.nanquantile(forces_regions[1], 0.75, axis=1)
+        low_forces_regions[2] = np.nanquantile(forces_regions[2], 0.25, axis=1)
+        upp_forces_regions[2] = np.nanquantile(forces_regions[2], 0.75, axis=1)
 
     if (halo_dict[args.halo]!='Tempest'):
         fig = plt.figure(figsize=(8,6), dpi=200)
@@ -3619,12 +3673,12 @@ def support_vs_radius_time_averaged(snaplist):
             label = plot_labels[i]
             ax.plot(radius_list, avg_forces_list[i], ls=linestyles[i], color=plot_colors[i], \
                     lw=2, label=label)
-            ax.fill_between(radius_list, avg_forces_list[i]-std_forces_list[i], \
-                            avg_forces_list[i]+std_forces_list[i], alpha=0.1, color=plot_colors[i])
+            ax.fill_between(radius_list, low_forces_list[i], \
+                            upp_forces_list[i], alpha=0.1, color=plot_colors[i])
 
         ax.set_ylabel('Force / Gravitational Force ', fontsize=20)
-        ax.axis([0,1.5,-2,4])
-        ax.text(1.4, -1.5, halo_dict[args.halo], ha='right', va='center', fontsize=20)
+        ax.axis([0,1.5,-1,4])
+        ax.text(1.4, -0.75, halo_dict[args.halo], ha='right', va='center', fontsize=20)
         ax.set_xlabel('Radius [$R_{200}$]', fontsize=20)
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, \
           top=True, right=True)
@@ -3642,12 +3696,12 @@ def support_vs_radius_time_averaged(snaplist):
             else: ax = fig.add_subplot(2,2,i)
             ax.plot(radius_list, avg_forces_list[i], ls=linestyles[i], color=plot_colors[i], \
                     lw=2, label=label)
-            ax.fill_between(radius_list, avg_forces_list[i]-std_forces_list[i], \
-                            avg_forces_list[i]+std_forces_list[i], alpha=0.25, color=plot_colors[i])
+            ax.fill_between(radius_list, low_forces_list[i], \
+                            upp_forces_list[i], alpha=0.25, color=plot_colors[i])
             ax.set_ylabel('Force / Gravitational Force ', fontsize=20)
-            ax.axis([0,1.5,-2,4])
+            ax.axis([0,1.5,-1,4])
             if (i==0):
-                ax.text(1.4, -1.5, halo_dict[args.halo], ha='right', va='center', fontsize=20)
+                ax.text(1.4, -0.75, halo_dict[args.halo], ha='right', va='center', fontsize=20)
                 ax.text(1.48,1.05, 'Exactly balancing gravity', fontsize=14, ha='right', va='bottom')
                 ax.text(0.75,2.5, 'Forces stronger than gravity', fontsize=14, ha='center', va='center', color='#24877f')
                 ax.text(0.75,-0.5, 'Inward forces', fontsize=14, ha='center', va='center', color='#ae7121')
@@ -3679,13 +3733,13 @@ def support_vs_radius_time_averaged(snaplist):
             for j in range(len(regions)):
                 axs2[j].plot(radius_list, avg_forces_regions[j][i], \
                   ls=linestyles[i], color=plot_colors[i], lw=2, label=label)
-                axs2[j].fill_between(radius_list, avg_forces_regions[j][i]-std_forces_regions[j][i], \
-                                     avg_forces_regions[j][i]+std_forces_regions[j][i], color=plot_colors[i], alpha=0.1)
+                axs2[j].fill_between(radius_list, low_forces_regions[j][i], \
+                                     upp_forces_regions[j][i], color=plot_colors[i], alpha=0.1)
 
         for r in range(len(regions)):
             axs2[r].set_ylabel('Force / Gravitational Force ', fontsize=24)
-            if (r<2): axs2[r].axis([0,1.5,-2,4])
-            else: axs2[r].axis([0,1.5,-10,15])
+            if (r<2): axs2[r].axis([0,1.5,-1,4])
+            else: axs2[r].axis([0,1.5,-2,15])
             if ((halo_dict[args.halo]=='Tempest') or (halo_dict[args.halo]=='Squall')):
                 axs2[r].text(0.5, 1.1, label_regions[r], fontsize=36, ha='center', va='center', transform=axs2[r].transAxes, color='k')
             if (r==0):
@@ -5201,14 +5255,14 @@ def pressure_slice(snap):
         pressure = np.ma.masked_where((density > cgm_density_max * density_cut_factor), pressure)
         fig = plt.figure(figsize=(13,10),dpi=200)
         ax = fig.add_subplot(1,1,1)
-        p_cmap = copy.copy(mpl.cm.get_cmap(pressure_color_map))
+        p_cmap = copy.copy(mpl.cm.get_cmap('plasma'))
         p_cmap.set_over(color='w', alpha=1.)
         # Need to rotate to match up with how yt plots it
         im = ax.imshow(rotate(np.log10(pressure[len(pressure)//2,:,:]),90), cmap=p_cmap, norm=colors.Normalize(vmin=-18, vmax=-12), \
                   extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
         ax.axis([-250,250,-250,250])
-        ax.set_xlabel('y [kpc]', fontsize=28)
-        ax.set_ylabel('z [kpc]', fontsize=28)
+        ax.set_xlabel('y [kpc]', fontsize=36)
+        ax.set_ylabel('z [kpc]', fontsize=36)
         ax.text(-200,200,pressure_label, fontsize=28, ha='left', va='center', color='w')
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=28, \
           top=True, right=True)
@@ -5216,7 +5270,7 @@ def pressure_slice(snap):
         cax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=28, \
           top=True, right=True)
         fig.colorbar(im, cax=cax, orientation='vertical')
-        ax.text(1.2, 0.5, 'log ' + pressure_label + ' Pressure [erg/cm$^3$]', fontsize=28, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
+        ax.text(1.2, 0.5, 'log ' + pressure_label + ' Pressure [erg/cm$^3$]', fontsize=36, rotation='vertical', ha='center', va='center', transform=ax.transAxes)
         plt.subplots_adjust(bottom=0.1, top=0.98, left=0.08, right=0.86)
         plt.savefig(save_dir + snap + '_' + ptypes[i] + '_pressure_slice_x' + save_suffix + '.png')
 
@@ -5274,7 +5328,10 @@ def force_slice(snap):
     smooth_scale = (25./dx)/6.
     dx_cm = dx*1000*cmtopc
     refine_res = int(3.*Rvir/dx)
+    #refine_res = int(300./dx)
+    #refine_res_x = int(100./dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
+    #box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([150.,150.,150.],'kpc'), dims=[refine_res, refine_res, refine_res])
     density = box['density'].in_units('g/cm**3').v
     temperature = box['temperature'].v
     mass = box['cell_mass'].in_units('g').v
@@ -5307,12 +5364,13 @@ def force_slice(snap):
     smooth_den = gaussian_filter(den_masked, smooth_scale)
 
     if (args.smoothed > 0.):
-        window_size = int((args.smoothed/dx)/6.)
+        window_size = int((args.smoothed/dx))
         mass_edges = mass[disk_edges]
         mass_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), mass_edges)
         mass_masked = np.copy(mass)
         mass_masked[disk_mask] = mass_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         smooth_mass = gaussian_filter(mass_masked, window_size)
+        #sum_mass = ndimage.generic_filter(mass_masked, np.sum, size=window_size)
 
     for i in range(len(ftypes)):
         if (ftypes[i]=='thermal') or ((ftypes[i]=='total') and (args.force_type!='all')):
@@ -5333,6 +5391,19 @@ def force_slice(snap):
                     force_mass = thermal_force * mass_masked
                     smooth_force = gaussian_filter(force_mass, window_size)
                     force = smooth_force / smooth_mass
+                    # This code for making overlay of different force types for job proposals:
+                    #sum_force = ndimage.generic_filter(force_mass, np.sum, size=window_size)
+                    #force = sum_force / sum_mass
+                    #thermal_force = np.copy(force)
+                    #thermal_force[thermal_force<1e-11] = 1e-11
+                    #vals = np.ones((256, 4))
+                    #vals[:, 0] = np.ones(256)*10/256
+                    #vals[:, 1] = np.ones(256)*38/256
+                    #vals[:, 2] = np.ones(256)*247/256
+                    #vals[:, 3] = np.linspace(0., 0.8, 256)
+                    #therm_cmap = colors.ListedColormap(vals)
+                    #np.save(save_dir + 'thermal_force.npy', thermal_force)
+                    #thermal_force = np.load(save_dir + 'thermal_force.npy')
                 else:
                     force = thermal_force
                 force_label = 'Thermal Pressure'
@@ -5374,6 +5445,19 @@ def force_slice(snap):
                     force_mass = turb_force * mass_masked
                     smooth_force = gaussian_filter(force_mass, window_size)
                     force = smooth_force / smooth_mass
+                    # This code for making overlay of different force types for job proposals:
+                    #sum_force = ndimage.generic_filter(force_mass, np.sum, size=window_size)
+                    #force = sum_force / sum_mass
+                    #turb_force = np.copy(force)
+                    #turb_force[turb_force<1e-11] = 1e-11vals = np.ones((256, 4))
+                    #vals = np.ones((256, 4))
+                    #vals[:, 0] = np.ones(256)*7/256
+                    #vals[:, 1] = np.ones(256)*173/256
+                    #vals[:, 2] = np.ones(256)*2/256
+                    #vals[:, 3] = np.linspace(0., 0.8, 256)
+                    #turb_cmap = colors.ListedColormap(vals)
+                    #np.save(save_dir + 'turb_force.npy', turb_force)
+                    #turb_force = np.load(save_dir + 'turb_force.npy')
                 else:
                     force = turb_force
                 force_label = 'Turbulent Pressure'
@@ -5426,6 +5510,19 @@ def force_slice(snap):
                     force_mass = rot_force * mass_masked
                     smooth_force = gaussian_filter(force_mass, window_size)
                     force = smooth_force / smooth_mass
+                    # This code for making overlay of different force types for job proposals:
+                    #sum_force = ndimage.generic_filter(force_mass, np.sum, size=window_size)
+                    #force = sum_force / sum_mass
+                    #rot_force = np.copy(force)
+                    #rot_force[rot_force<1e-11] = 1e-11vals = np.ones((256, 4))
+                    #vals = np.ones((256, 4))
+                    #vals[:, 0] = np.ones(256)*183/256
+                    #vals[:, 1] = np.ones(256)*2/256
+                    #vals[:, 2] = np.ones(256)*219/256
+                    #vals[:, 3] = np.linspace(0., 0.8, 256)
+                    #rot_cmap = colors.ListedColormap(vals)
+                    #np.save(save_dir + 'rot_force.npy', rot_force)
+                    #rot_force = np.load(save_dir + 'rot_force.npy')
                 else:
                     force = rot_force
                 force_label = 'Rotation'
@@ -5447,6 +5544,10 @@ def force_slice(snap):
                 force_mass = tot_force * mass_masked
                 smooth_force = gaussian_filter(force_mass, window_size)
                 force = smooth_force / smooth_mass
+                #sum_force = ndimage.generic_filter(force_mass, np.sum, size=window_size)
+                #force = sum_force / sum_mass
+                #tot_force = np.copy(force)
+                #tot_force[tot_force<1e-11] = 1e-11
             else:
                 force = tot_force
             force_label = 'Total'
@@ -5460,6 +5561,24 @@ def force_slice(snap):
         # Need to rotate to match up with how yt plots it
         im = ax.imshow(rotate(force[len(force)//2,:,:],90), cmap=f_cmap, norm=colors.SymLogNorm(vmin=-1e-5, vmax=1e-5, linthresh=1e-9, base=10), \
                   extent=[-1.5*Rvir,1.5*Rvir,-1.5*Rvir,1.5*Rvir])
+        # Making a plot of thermal, turbulent, and rotation forces, smoothed and overlaid on each other in different colors, for job proposals
+        '''if (ftypes[i]=='rotation'):
+            fig = plt.figure(figsize=(13.5,10), dpi=200)
+            ax = fig.add_subplot(1,1,1)
+            im = ax.imshow(rotate(thermal_force[len(thermal_force)//2,:,:],90), cmap=therm_cmap, norm=colors.LogNorm(vmin=1e-10, vmax=1e-7), \
+                      extent=[-150,150,-150,150])
+            im = ax.imshow(rotate(rot_force[len(rot_force)//2,:,:],90), cmap=rot_cmap, norm=colors.LogNorm(vmin=1e-10, vmax=1e-7), \
+                      extent=[-150,150,-150,150])
+            im = ax.imshow(rotate(turb_force[len(turb_force)//2,:,:],90), cmap=turb_cmap, norm=colors.LogNorm(vmin=1e-10, vmax=1e-7), \
+                      extent=[-150,150,-150,150])
+            ax.axis([-150,150,-150,150])
+            ax.set_xlabel('y [kpc]', fontsize=30)
+            ax.set_ylabel('z [kpc]', fontsize=30)
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=28, \
+              top=True, right=True)
+            plt.subplots_adjust(bottom=0.1, top=0.97, left=0.03, right=0.88)
+            plt.savefig(save_dir + snap + '_' + ftypes[i] + '_force_slice_x' + save_suffix + '.png')'''
+
         ax.axis([-250,250,-250,250])
         ax.set_xlabel('y [kpc]', fontsize=30)
         ax.set_ylabel('z [kpc]', fontsize=30)

@@ -662,8 +662,7 @@ def v_ff(field, data):
     """Returns the free-fall velocity of the gas. Note vff is an interpolated function of radius so
     this value will be the same for all cells with the same radius."""
 
-    rho = data.ds.Menc_profile(data['gas','radius_corrected'])*Msun/(data['gas','radius_corrected']**3.) * 3./(4.*np.pi)
-    return -data['gas','radius_corrected']/np.sqrt(3.*np.pi/(32.*G*rho))
+    return -np.sqrt((2.*G*data.ds.Menc_profile(data['gas','radius_corrected'])*Msun)/(data['gas','radius_corrected']))
 
 def v_esc(field, data):
     """Returns the escape velocity of the gas. Note vesc is an interpolated function of radius so this
