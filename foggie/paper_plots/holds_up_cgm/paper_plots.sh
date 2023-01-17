@@ -94,5 +94,20 @@
 #python ../../pressure_support/pressure_support.py --halo 8508 --run feedback_return --output DD1627-DD2427 --output_step 10 --plot support_vs_time_radius --filename T-split_cgm-only --save_suffix cgm-only_strong --feedback_diff
 
 # Make plots of velocity dispersion vs. mass and spatial resolution
-python ../../turbulence/turbulence.py --halo 8508 --output DD2427 --plot vdisp_vs_mass_res
-python ../../turbulence/turbulence.py --halo 8508 --output DD2427 --plot vdisp_vs_spatial_res
+#python ../../turbulence/turbulence.py --halo 8508 --output DD2427 --plot vdisp_vs_mass_res
+#python ../../turbulence/turbulence.py --halo 8508 --output DD2427 --plot vdisp_vs_spatial_res
+
+
+# For referee report:
+
+# Make plot of forces vs. radius for Tempest at z=0 at different resolution levels
+# NOTE: Need to change level parameter in pressure_support.py code by hand before running
+#python ../../pressure_support/pressure_support.py --output DD2427 --plot force_vs_radius --normalized --save_suffix cgm-only_Tempest_lvl8 --cgm_only
+#python ../../pressure_support/pressure_support.py --output DD2427 --plot force_vs_radius --normalized --save_suffix cgm-only_Tempest_lvl7 --cgm_only
+#python ../../pressure_support/pressure_support.py --output DD2427 --plot force_vs_radius --normalized --save_suffix cgm-only_Tempest_lvl9  --cgm_only
+
+# Make plot of support vs. radius for Tempest at z=0 at different resolution levels
+python ../../pressure_support/pressure_support.py --halo 8508 --output DD2427 --plot support_vs_radius --filename _T-split_cgm-only --save_suffix cgm-only_Tempest
+python ../../pressure_support/pressure_support.py --halo 8508 --output DD2427 --plot support_vs_radius --filename _cgm-only_Tempest_lvl9 --save_suffix cgm-only_Tempest_lvl9
+python ../../pressure_support/pressure_support.py --halo 8508 --output DD2427 --plot support_vs_radius --filename _cgm-only_Tempest_lvl8 --save_suffix cgm-only_Tempest_lvl8
+python ../../pressure_support/pressure_support.py --halo 8508 --output DD2427 --plot support_vs_radius --filename _cgm-only_Tempest_lvl7 --save_suffix cgm-only_Tempest_lvl7
