@@ -56,8 +56,12 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
 
     # ----------adding vertical lines-------------
     if fit is not None:
-        ax.axvline(fit[1], lw=2, ls='dashed', color='k')
-        ax.axvline(fit[4], lw=2, ls='dotted', color='k')
+        if args.fit_multiple:
+            ax.axvline(fit[1], lw=2, ls='dashed', color='k')
+            ax.axvline(fit[4], lw=2, ls='dotted', color='k')
+        else:
+            ax.axvline(fit.params['center'].value, lw=2, ls='dotted', color='k')
+
     ax.axvline(np.percentile(Zarr, 25), lw=2.5, ls='solid', color='salmon')
     ax.axvline(np.percentile(Zarr, 50), lw=2.5, ls='solid', color='salmon')
     ax.axvline(np.percentile(Zarr, 75), lw=2.5, ls='solid', color='salmon')
@@ -300,6 +304,12 @@ if __name__ == '__main__':
                 if args.weight is not None: wres = box['gas', args.weight].in_units(unit_dict[args.weight]).ndarray_view()
                 else: wres = None
                 Ztotal = np.sum(Zres * mres) / np.sum(mres) # in Zsun
+
+                if args.Zcut is not None: # testing if can completely chop-off low-gaussian component
+                    print('Chopping off histogram at a fixed %.1F, therefore NOT fiting multiple components' % args.Zcut)
+                    wres = np.ma.compressed(np.ma.array(wres, mask=np.ma.masked_where(wres, Zres < args.Zcut)))
+                    Zres = np.ma.compressed(np.ma.array(Zres, mask=np.ma.masked_where(Zres, Zres < args.Zcut)))
+                    args.fit_multiple = False
 
                 result, Zpeak, Z25, Z50, Z75, Zgini, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma = fit_distribution(Zres, args, weights=wres)
                 print('Fitted parameters:\n', result) #
