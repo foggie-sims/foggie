@@ -16,37 +16,57 @@ from util import *
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 start_time = time.time()
 
+# -----------------------------------------------------
+def annotate_axes(xlabel, ylabel, ax, args):
+    '''
+    Function to annotate x and y axes
+    Returns the axis handle
+    '''
+    ax.set_xlabel(xlabel, fontsize=args.fontsize)
+    ax.set_ylabel(ylabel, fontsize=args.fontsize)
+    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
+    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
+
+    return ax
+
+# -----------------------------------------------------
+def saveplot(fig, name, args):
+    '''
+    Function to save a figure given a name and print a statement
+    Returns the figure handle
+    '''
+    outfile_rootname = '%s_%s%s%s.png' % (args.output, name, args.res_text, args.upto_text)
+    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
+    figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+    plt.savefig(figname, transparent=False)
+    myprint('Saved figure ' + figname, args)
+
+    return fig
+
 # ----------------------------------------------------
-def plot_proj_from_frb(map, args, cmap='viridis', label=None, name='', clim=None):
+def plot_proj_from_frb(map, args, cmap='viridis', label=None, makelog=True, name='', clim=None):
     '''
     Function to plot projection plot from the given 2D array as input
     '''
     sns.set_style('ticks')  # instead of darkgrid, so that there are no grids overlaid on the projections
     fig, ax = plt.subplots(figsize=(8, 7))
-    fig.subplots_adjust(right=0.85, top=0.98, bottom=0.02, left=0.15)
+    fig.subplots_adjust(right=0.85, top=0.98, bottom=0.02, left=0.17)
 
-    proj = ax.imshow(map, cmap=cmap, norm=LogNorm(), extent=[-args.galrad, args.galrad, -args.galrad, args.galrad], vmin=clim[0] if clim is not None else None, vmax=clim[1] if clim is not None else None)
+    proj = ax.imshow(map, cmap=cmap, norm=LogNorm() if makelog else None, extent=[-args.galrad, args.galrad, -args.galrad, args.galrad], vmin=clim[0] if clim is not None else None, vmax=clim[1] if clim is not None else None)
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
     cbar = plt.colorbar(proj, cax=cax)
 
-    ax.set_xlabel(r'x (kpc)', fontsize=args.fontsize)
-    ax.set_ylabel(r'y (kpc)', fontsize=args.fontsize)
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
-    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
+    ax = annotate_axes(r'x (kpc)', r'y (kpc)', ax, args)
 
     cbar.ax.tick_params(labelsize=args.fontsize)
     if label is not None: cbar.set_label(label, fontsize=args.fontsize)
 
     plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.text(0.97, 0.9, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.show(block=False)
 
-    outfile_rootname = '%s_map_%s%s%s.png' % (args.output, name, args.res_text, args.upto_text)
-    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output)+1:]
-    figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
-    plt.savefig(figname, transparent=False)
-    myprint('Saved figure ' + figname, args)
+    fig = saveplot(fig, 'map_%s'%name, args)
+    plt.show(block=False)
 
     return fig
 
@@ -70,11 +90,11 @@ def plot_ks_relation(frb, args):
     # ----- plotting surface maps ----------
     if args.plot_proj:
         cmap = density_color_map
-        fig_star = plot_proj_from_frb(map_sigma_star, args, cmap=cmap, label=r'$\Sigma_{\mathrm{star}} (\mathrm{M}_{\odot}/\mathrm{pc}^2)$', name='sigma_star', clim=(10**sigma_star_lim[0], 10**sigma_star_lim[1]))
-        fig_gas = plot_proj_from_frb(map_sigma_gas, args, cmap=cmap, label=r'$\Sigma_{\mathrm{gas}} (\mathrm{M}_{\odot}/\mathrm{pc}^2)$', name='sigma_gas', clim=(10**sigma_gas_lim[0], 10**sigma_gas_lim[1]))
-        fig_sfr = plot_proj_from_frb(map_sigma_sfr, args, cmap=cmap, label=r'$\Sigma_{\mathrm{SFR}} (\mathrm{M}_{\odot}/\mathrm{yr}/\mathrm{kpc}^2)$', name='sigma_sfr', clim=(10**sigma_sfr_lim[0], 10**sigma_sfr_lim[1]))
+        fig_star_map = plot_proj_from_frb(map_sigma_star, args, cmap=cmap, label=r'$\Sigma_{\mathrm{star}} (\mathrm{M}_{\odot}/\mathrm{pc}^2)$', name='sigma_star', clim=(10**sigma_star_lim[0], 10**sigma_star_lim[1]))
+        fig_gas_map = plot_proj_from_frb(map_sigma_gas, args, cmap=cmap, label=r'$\Sigma_{\mathrm{gas}} (\mathrm{M}_{\odot}/\mathrm{pc}^2)$', name='sigma_gas', clim=(10**sigma_gas_lim[0], 10**sigma_gas_lim[1]))
+        fig_sfr_map = plot_proj_from_frb(map_sigma_sfr, args, cmap=cmap, label=r'$\Sigma_{\mathrm{SFR}} (\mathrm{M}_{\odot}/\mathrm{yr}/\mathrm{kpc}^2)$', name='sigma_sfr', clim=(10**sigma_sfr_lim[0], 10**sigma_sfr_lim[1]))
     else:
-        fig_star, fig_gas, fig_sfr = None, None, None
+        fig_star_map, fig_gas_map, fig_sfr_map = None, None, None
 
     # ----- plotting KS relation ------------
     fig, ax = plt.subplots(figsize=(8, 7))
@@ -98,22 +118,77 @@ def plot_ks_relation(frb, args):
     ax.plot(xarr, np.poly1d([1.4, -4])(xarr), color='b', lw=2, ls='dashed', label=r'KS relation') # from literature: https://ned.ipac.caltech.edu/level5/March15/Kennicutt/Kennicutt6.html
     ax.legend(loc='lower right', fontsize=args.fontsize)
 
-    ax.set_xlabel(r'$\log{\, \Sigma_{\mathrm{gas}} (\mathrm{M}_{\odot}/\mathrm{pc}^2)}$', fontsize=args.fontsize)
-    ax.set_ylabel(r'$\log{\, \Sigma_{\mathrm{SFR}} (\mathrm{M}_{\odot}/\mathrm{yr}/\mathrm{kpc}^2)}$', fontsize=args.fontsize)
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
-    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
+    ax = annotate_axes(r'$\log{\, \Sigma_{\mathrm{gas}} (\mathrm{M}_{\odot}/\mathrm{pc}^2)}$', r'$\log{\, \Sigma_{\mathrm{SFR}} (\mathrm{M}_{\odot}/\mathrm{yr}/\mathrm{kpc}^2)}$', ax, args)
 
     plt.text(0.97, 0.35, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.text(0.97, 0.3, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+
+    fig = saveplot(fig, 'KSrelation', args)
     plt.show(block=False)
 
-    outfile_rootname = '%s_KSrelation%s%s.png' % (args.output, args.res_text, args.upto_text)
-    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
-    figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
-    plt.savefig(figname, transparent=False)
-    myprint('Saved figure ' + figname, args)
+    return fig, fig_star_map, fig_gas_map, fig_sfr_map
 
-    return fig, fig_star, fig_gas, fig_sfr
+# ----------------------------------------------------
+def plot_Zprofile(frb, args):
+    '''
+    Function to plot spatially resolved Z profile at a given resolution
+    Requires FRB object as input
+    '''
+    x_lim = (0, args.galrad)
+    Z_lim = (-2.0, 1.0)
+
+    # ----- getting maps ------------
+    map_gas_mass = frb['gas', 'mass']
+    map_metal_mass = frb['gas', 'metal_mass']
+    map_Z = np.array((map_metal_mass / map_gas_mass).in_units('Zsun')) # now in Zsun units
+
+    ncells = np.shape(map_gas_mass)[0]
+    center_pix = (ncells - 1)/2.
+    kpc_per_pix = 2 * args.galrad / ncells
+    map_dist = np.array([[np.sqrt((i - center_pix)**2 + (j - center_pix)**2) for j in range(ncells)] for i in range(ncells)]) * kpc_per_pix # kpc
+
+    if args.weight is not None:
+        map_weights = np.array(frb['gas', args.weight])
+        map_Z = len(map_weights)**2 * map_Z * map_weights / np.sum(map_weights)
+
+    # ----- plotting surface maps ----------
+    if args.plot_proj:
+        fig_dist_map = plot_proj_from_frb(map_dist, args, cmap='Blues_r', label=r'Radius (kpc)', makelog=False, name='dist', clim=x_lim)
+        fig_Z_map = plot_proj_from_frb(map_Z, args, cmap=metal_color_map, label=r'Z/Z$_{\odot}$', name='metallicity', clim=(10**Z_lim[0], 10**Z_lim[1]))
+    else:
+        fig_Z_map, fig_dist_map = None, None
+
+    # ----- plotting Z profile ------------
+    fig, ax = plt.subplots(figsize=(8, 7))
+    fig.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.15)
+
+    xdata = map_dist.flatten()
+    ydata = np.log10(map_Z).flatten()
+
+    xdata = np.ma.compressed(np.ma.masked_array(xdata, ~np.isfinite(ydata)))
+    ydata = np.ma.compressed(np.ma.masked_array(ydata, ~np.isfinite(ydata)))
+    ax.scatter(xdata, ydata, s=30, lw=0)
+
+    ax.set_xlim(x_lim)
+    ax.set_ylim(Z_lim)
+
+    # ------ fittingthe relation and overplotting ---------
+    linefit, linecov = np.polyfit(xdata, ydata, 1, cov=True)
+    print('At %.1F kpc resolution, %d out of %d pixels are valid, and Z profile fit =' % (args.res, len(ydata), len(map_Z)**2), linefit)
+    xarr = np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 10)
+    ax.plot(xarr, np.poly1d(linefit)(xarr), color='b', lw=2, ls='solid', label=r'Fitted slope = %.2F $\pm$ %.2F' % (linefit[0], np.sqrt(linecov[0][0])))
+    ax.legend(loc='lower right', fontsize=args.fontsize)
+
+    ax = annotate_axes(r'Radius (kpc)', r'$\log{\, \mathrm{Z/Z}_{\odot}}$', ax, args)
+
+    plt.text(0.97, 0.35, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.3, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+
+    fig = saveplot(fig, 'Zprofile', args)
+    plt.show(block=False)
+
+    return fig, fig_Z_map, fig_dist_map
+
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -209,7 +284,8 @@ if __name__ == '__main__':
                 frb = dummy_proj.to_frb(box_width_kpc, ncells, center=box_center)
 
                 # ---------- call various plotting routines with the frb ------------
-                fig_ks, fig_star, fig_gas, fig_sfr = plot_ks_relation(frb, args)
+                #fig_ks, fig_star_map, fig_gas_map, fig_sfr_map = plot_ks_relation(frb, args)
+                fig_Zprofile, fig_Z_map, fig_dist_map = plot_Zprofile(frb, args)
 
         print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), dummy_args)
 
