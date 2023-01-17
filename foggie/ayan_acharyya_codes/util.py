@@ -1153,6 +1153,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--res', metavar='res', type=str, action='store', default='0.1', help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')
     parser.add_argument('--fit_multiple', dest='fit_multiple', action='store_true', default=False, help='fit one gaussian + one skewed guassian?, default is no')
     parser.add_argument('--annotate_profile', dest='annotate_profile', action='store_true', default=False, help='annotate the multi-component gaussian with text and arrows?, default is no')
+    parser.add_argument('--Zcut', metavar='Zcut', type=float, action='store', default=None, help='Z/Zsun value below which the metallicity histogram is to be chopped off; default is None')
 
     # ------- args added for plot_Zevolution.py ------------------------------
     parser.add_argument('--forposter', dest='forposter', action='store_true', default=False, help='make plot with certain set panels, specifically for the poster?, default is no')

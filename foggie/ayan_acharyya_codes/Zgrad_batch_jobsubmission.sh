@@ -43,7 +43,7 @@
 # original python: plot all Z movie 2.5 pkpc: not needed yet
 #python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call plot_allZ_movie --prefix pazm_2.5p --halo 8508 --queue ldan --opt_args "--Zgrad_den kpc --upto_kpc 2.5 --res 0.1 --weight mass --zhighlight --overplot_smoothed 1000 --do_all_sims"
 
-# original python: plot all Z movie 2.5 ckpc: not needed yet
+# original python: plot all Z movie 2.5 ckpc: not  needed yet
 #python /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call plot_allZ_movie --prefix pazm_2.5c --halo 8508 --queue ldan --opt_args "--Zgrad_den kpc --upto_kpc 2.5 --docomoving --res 0.1 --weight mass --zhighlight --overplot_smoothed 1000 --do_all_sims"
 
 
