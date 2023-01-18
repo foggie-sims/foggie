@@ -1163,6 +1163,13 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--doft', dest='doft', action='store_true', default=False, help='make new plot for Fourier Transform?, default is no')
     parser.add_argument('--docorr', metavar='docorr', type=str, action='store', default=None, help='make new plot for time delay cross-correlation with respect to a column?, default is no')
 
+    # ------- args added for plot_spatially_resolved.py ------------------------------
+    parser.add_argument('--plot_map', dest='plot_map', action='store_true', default=False, help='plot the corresponding 2D map?, default is no')
+    parser.add_argument('--plot_ks', dest='plot_ks', action='store_true', default=False, help='plot spatially resolved KS relation?, default is no')
+    parser.add_argument('--plot_Z', dest='plot_Z', action='store_true', default=False, help='plot spatially resolved metallicity?, default is no')
+    parser.add_argument('--plot_cm', dest='plot_cm', action='store_true', default=False, help='plot spatially resolved cell mass profiles?, default is no')
+    parser.add_argument('--plot_vel', dest='plot_vel', action='store_true', default=False, help='plot spatially resolved kinenmatics?, default is no')
+
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 

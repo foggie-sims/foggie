@@ -7,12 +7,13 @@
     Output :     spatially resolved plots as png
     Author :     Ayan Acharyya
     Started :    Jan 2023
-    Examples :   run plot_spatially_resolved.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --res 0.1 --plot_proj --weight mass --docomoving --proj x
+    Examples :   run plot_spatially_resolved.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --res 0.1 --plot_map --weight mass --docomoving --proj x --nbins 100 --fit_multiple
                  run plot_spatially_resolved.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --do_all_sims --weight mass --use_gasre
 
 """
 from header import *
 from util import *
+from compute_Zscatter import *
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 start_time = time.time()
 
@@ -29,6 +30,20 @@ def annotate_axes(xlabel, ylabel, ax, args):
 
     return ax
 
+# ---------------------------------------------------------------------------------
+def make_colorbar_axis(label, artist, fig, fontsize):
+    '''
+    Function to make the colorbar axis
+    '''
+    cax_xpos, cax_ypos, cax_width, cax_height = 0.7, 0.835, 0.25, 0.035
+    cax = fig.add_axes([cax_xpos, cax_ypos, cax_width, cax_height])
+    plt.colorbar(artist, cax=cax, orientation='horizontal')
+
+    cax.set_xticklabels(['%.0F' % index for index in cax.get_xticks()], fontsize=fontsize)
+    fig.text(cax_xpos + cax_width / 2, cax_ypos + cax_height + 0.005, label, fontsize=fontsize, ha='center', va='bottom')
+
+    return fig, cax
+
 # -----------------------------------------------------
 def saveplot(fig, name, args):
     '''
@@ -44,7 +59,7 @@ def saveplot(fig, name, args):
     return fig
 
 # ----------------------------------------------------
-def plot_proj_from_frb(map, args, cmap='viridis', label=None, makelog=True, name='', clim=None):
+def plot_map_from_frb(map, args, cmap='viridis', label=None, makelog=True, name='', clim=None):
     '''
     Function to plot projection plot from the given 2D array as input
     '''
@@ -88,11 +103,11 @@ def plot_ks_relation(frb, args):
     map_sigma_sfr = map_sigma_star_young / 10e6 # dividing young stars mass by 10 Myr to get SFR surface density in Msun/yr/kpc^2
 
     # ----- plotting surface maps ----------
-    if args.plot_proj:
+    if args.plot_map:
         cmap = density_color_map
-        fig_star_map = plot_proj_from_frb(map_sigma_star, args, cmap=cmap, label=r'$\Sigma_{\mathrm{star}} (\mathrm{M}_{\odot}/\mathrm{pc}^2)$', name='sigma_star', clim=(10**sigma_star_lim[0], 10**sigma_star_lim[1]))
-        fig_gas_map = plot_proj_from_frb(map_sigma_gas, args, cmap=cmap, label=r'$\Sigma_{\mathrm{gas}} (\mathrm{M}_{\odot}/\mathrm{pc}^2)$', name='sigma_gas', clim=(10**sigma_gas_lim[0], 10**sigma_gas_lim[1]))
-        fig_sfr_map = plot_proj_from_frb(map_sigma_sfr, args, cmap=cmap, label=r'$\Sigma_{\mathrm{SFR}} (\mathrm{M}_{\odot}/\mathrm{yr}/\mathrm{kpc}^2)$', name='sigma_sfr', clim=(10**sigma_sfr_lim[0], 10**sigma_sfr_lim[1]))
+        fig_star_map = plot_map_from_frb(map_sigma_star, args, cmap=cmap, label=r'$\Sigma_{\mathrm{star}} (\mathrm{M}_{\odot}/\mathrm{pc}^2)$', name='sigma_star', clim=(10**sigma_star_lim[0], 10**sigma_star_lim[1]))
+        fig_gas_map = plot_map_from_frb(map_sigma_gas, args, cmap=cmap, label=r'$\Sigma_{\mathrm{gas}} (\mathrm{M}_{\odot}/\mathrm{pc}^2)$', name='sigma_gas', clim=(10**sigma_gas_lim[0], 10**sigma_gas_lim[1]))
+        fig_sfr_map = plot_map_from_frb(map_sigma_sfr, args, cmap=cmap, label=r'$\Sigma_{\mathrm{SFR}} (\mathrm{M}_{\odot}/\mathrm{yr}/\mathrm{kpc}^2)$', name='sigma_sfr', clim=(10**sigma_sfr_lim[0], 10**sigma_sfr_lim[1]))
     else:
         fig_star_map, fig_gas_map, fig_sfr_map = None, None, None
 
@@ -128,10 +143,21 @@ def plot_ks_relation(frb, args):
 
     return fig, fig_star_map, fig_gas_map, fig_sfr_map
 
-# ----------------------------------------------------
-def plot_Zprofile(frb, args):
+# -----------------------------------------------------
+def get_dist_map(args):
     '''
-    Function to plot spatially resolved Z profile at a given resolution
+    Function to get a map of distance of each from the center
+    '''
+    center_pix = (args.ncells - 1)/2.
+    kpc_per_pix = 2 * args.galrad / args.ncells
+    map_dist = np.array([[np.sqrt((i - center_pix)**2 + (j - center_pix)**2) for j in range(args.ncells)] for i in range(args.ncells)]) * kpc_per_pix # kpc
+
+    return map_dist
+
+# ----------------------------------------------------
+def plot_metallicity(frb, args):
+    '''
+    Function to plot spatially resolved metallicity map, histogram and radial profile at a given resolution
     Requires FRB object as input
     '''
     x_lim = (0, args.galrad)
@@ -141,20 +167,16 @@ def plot_Zprofile(frb, args):
     map_gas_mass = frb['gas', 'mass']
     map_metal_mass = frb['gas', 'metal_mass']
     map_Z = np.array((map_metal_mass / map_gas_mass).in_units('Zsun')) # now in Zsun units
-
-    ncells = np.shape(map_gas_mass)[0]
-    center_pix = (ncells - 1)/2.
-    kpc_per_pix = 2 * args.galrad / ncells
-    map_dist = np.array([[np.sqrt((i - center_pix)**2 + (j - center_pix)**2) for j in range(ncells)] for i in range(ncells)]) * kpc_per_pix # kpc
+    map_dist = get_dist_map(args)
 
     if args.weight is not None:
         map_weights = np.array(frb['gas', args.weight])
         map_Z = len(map_weights)**2 * map_Z * map_weights / np.sum(map_weights)
 
     # ----- plotting surface maps ----------
-    if args.plot_proj:
-        fig_dist_map = plot_proj_from_frb(map_dist, args, cmap='Blues_r', label=r'Radius (kpc)', makelog=False, name='dist', clim=x_lim)
-        fig_Z_map = plot_proj_from_frb(map_Z, args, cmap=metal_color_map, label=r'Z/Z$_{\odot}$', name='metallicity', clim=(10**Z_lim[0], 10**Z_lim[1]))
+    if args.plot_map:
+        fig_dist_map = plot_map_from_frb(map_dist, args, cmap='Blues_r', label=r'Radius (kpc)', makelog=False, name='dist', clim=x_lim)
+        fig_Z_map = plot_map_from_frb(map_Z, args, cmap=metal_color_map, label=r'Z/Z$_{\odot}$', name='metallicity', clim=(10**Z_lim[0], 10**Z_lim[1]))
     else:
         fig_Z_map, fig_dist_map = None, None
 
@@ -163,10 +185,10 @@ def plot_Zprofile(frb, args):
     fig.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.15)
 
     xdata = map_dist.flatten()
-    ydata = np.log10(map_Z).flatten()
+    ydata = np.log10(map_Z).flatten() # in log(Z/Zsun) units
 
-    xdata = np.ma.compressed(np.ma.masked_array(xdata, ~np.isfinite(ydata)))
-    ydata = np.ma.compressed(np.ma.masked_array(ydata, ~np.isfinite(ydata)))
+    if args.weight is not None: wdata = map_weights.flatten()
+
     ax.scatter(xdata, ydata, s=30, lw=0)
 
     ax.set_xlim(x_lim)
@@ -174,7 +196,7 @@ def plot_Zprofile(frb, args):
 
     # ------ fittingthe relation and overplotting ---------
     linefit, linecov = np.polyfit(xdata, ydata, 1, cov=True)
-    print('At %.1F kpc resolution, %d out of %d pixels are valid, and Z profile fit =' % (args.res, len(ydata), len(map_Z)**2), linefit)
+    print('At %.1F kpc resolution, Z profile fit =' % args.res, linefit)
     xarr = np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 10)
     ax.plot(xarr, np.poly1d(linefit)(xarr), color='b', lw=2, ls='solid', label=r'Fitted slope = %.2F $\pm$ %.2F' % (linefit[0], np.sqrt(linecov[0][0])))
     ax.legend(loc='lower right', fontsize=args.fontsize)
@@ -187,8 +209,208 @@ def plot_Zprofile(frb, args):
     fig = saveplot(fig, 'Zprofile', args)
     plt.show(block=False)
 
-    return fig, fig_Z_map, fig_dist_map
+    # ------------ plotting Z distribution ------------
+    fig2, ax = plt.subplots(figsize=(8, 7))
+    fig2.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.15)
 
+    ydata = 10 ** ydata # back to Zsun units
+    args.xmax = 4 #10**Z_lim[1] # fit_distribution (which is invoked after a few lines) requires args.xmax to be = Z_max (in linear spaec)
+
+    if args.weight is None: p = plt.hist(ydata, bins=args.nbins, histtype='step', lw=2, ec='salmon', density=True)
+    else: p = plt.hist(ydata, bins=args.nbins, histtype='step', lw=2, density=True, range=(0, args.xmax), ec='salmon', weights=wdata)
+
+    ax.set_xlim(0, args.xmax)
+    ax.set_ylim(0, 2.5)
+
+    # ------ fittingthe relation and overplotting ---------
+    fit, _, Z25, Z50, Z75, _, Zmean, Zvar, _, _, gauss_mean, _ = fit_distribution(ydata, args, weights=wdata)
+    xvals = p[1][:-1] + np.diff(p[1])
+    if args.fit_multiple:
+        ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=2, label='Total fit')
+        ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label=None if args.annotate_profile else 'Regular Gaussian')
+        ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label=None if args.annotate_profile else 'Skewed Gaussian')
+    else:
+        ax.plot(xvals, fit.best_fit, c='k', lw=2, label='Fit')
+
+    # ----------adding vertical lines-------------
+    if args.fit_multiple:
+        ax.axvline(gauss_mean.n, lw=2, ls='dashed', color='k')
+        ax.axvline(Zmean.n, lw=2, ls='dotted', color='k')
+    else:
+        ax.axvline(Zmean.n, lw=2, ls='dotted', color='k')
+
+    ax.axvline(Z25.n, lw=2.5, ls='solid', color='salmon')
+    ax.axvline(Z50.n, lw=2.5, ls='solid', color='salmon')
+    ax.axvline(Z75.n, lw=2.5, ls='solid', color='salmon')
+
+    ax = annotate_axes(r'Metallicity (Z$_{\odot}$)', 'Normalised distribution', ax, args)
+
+    plt.text(0.97, 0.35, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.3, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+
+    plt.text(0.97, 0.8, r'Mean = %.2F Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.75, r'Sigma = %.2F Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+
+    fig2 = saveplot(fig2, 'Zdistribution', args)
+    plt.show(block=False)
+
+    return fig, fig2, fig_Z_map
+
+# ----------------------------------------------------
+def plot_kinematics(frb, args):
+    '''
+    Function to plot spatially resolved velocity and velocity dispersion mapa, and radial profiles at a given resolution
+    Requires FRB object as input
+    '''
+    x_lim = (0, args.galrad)
+    vel_lim = (-400, 400)
+    vdisp_lim = (0, 100)
+
+    # ----- getting maps ------------
+    map_gas_vel = np.array(frb['gas', 'velocity_los'].in_units('km/s'))
+    map_gas_vdisp = None
+    map_dist = get_dist_map(args)
+
+    # ----- plotting surface maps ----------
+    if args.plot_map:
+        fig_vel_map = plot_map_from_frb(map_gas_vel, args, cmap=velocity_discrete_cmap, label=r'LoS velocity (km/s)', makelog=False, name='vel', clim=vel_lim)
+        fig_vdisp_map = plot_map_from_frb(map_gas_vdisp, args, cmap='Blues', label=r'LoS velocity dispersion (km/s)', makelog=False, name='vel', clim=vdisp_lim)
+    else:
+        fig_vel_map, fig_vdisp_map = None, None
+
+    # ----- plotting vel profile ------------
+    fig_vel_profile, ax = plt.subplots(figsize=(8, 7))
+    fig_vel_profile.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.15)
+
+    xdata = map_dist.flatten()
+    ydata = map_gas_vel.flatten()
+
+    ax.scatter(xdata, ydata, s=30, lw=0)
+
+    ax.set_xlim(x_lim)
+    ax.set_ylim(vel_lim)
+
+    ax = annotate_axes(r'Radius (kpc)', r'LoS velocity (km/s)', ax, args)
+
+    plt.text(0.97, 0.35, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.3, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+
+    fig_vel_profile = saveplot(fig_vel_profile, 'vel_profile', args)
+    plt.show(block=False)
+
+    # ----- plotting vel dispersion profile ------------
+    fig_vdisp_profile, ax = plt.subplots(figsize=(8, 7))
+    fig_vdisp_profile.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.15)
+
+    ydata = map_gas_vdisp.flatten()
+
+    ax.scatter(xdata, ydata, s=30, lw=0)
+
+    ax.set_xlim(x_lim)
+    ax.set_ylim(vdisp_lim)
+
+    ax = annotate_axes(r'Radius (kpc)', r'LoS velocity dispersion (km/s)', ax, args)
+
+    plt.text(0.97, 0.35, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.3, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+
+    fig_vdisp_profile = saveplot(fig_vdisp_profile, 'vdisp_profile', args)
+    plt.show(block=False)
+
+    return fig_vel_profile, fig_vel_map, fig_vdisp_profile, fig_vdisp_map
+
+# --------------------------------------------------------------------
+def get_density_cut(t):
+    '''
+    Function to get density cut based on Cassi's paper. The cut is a funciton of ime.
+    if z > 0.5: rho_cut = 2e-26 g/cm**3
+    elif z < 0.25: rho_cut = 2e-27 g/cm**3
+    else: linearly from 2e-26 to 2e-27 from z = 0.5 to z = 0.25
+    Takes time in Gyr as input
+    '''
+    t1, t2 = 8.628, 10.754 # Gyr; corresponds to z1 = 0.5 and z2 = 0.25
+    rho1, rho2 = 2e-26, 2e-27 # g/cm**3
+    t = np.float64(t)
+    rho_cut = np.piecewise(t, [t < t1, (t >= t1) & (t <= t2), t > t2], [rho1, lambda t: rho1 + (t - t1) * (rho2 - rho1) / (t2 - t1), rho2])
+    return rho_cut
+
+# ----------------------------------------------------
+def plot_cellmass(box, args):
+    '''
+    Function to plot intrinsic cell mass map and profile
+    Requires YTRegion object as input
+    '''
+    sns.set_style('ticks')  # instead of darkgrid, so that there are no grids overlaid on the projections
+    proj_dict = {'x': ('y', 'z'), 'y': ('z', 'x'), 'z': ('x', 'y')}
+    cm_lim = (-1, 7) # log Msun
+
+    # ------------------- plotting 2D map with yt -----------------------
+    rho_cut = get_density_cut(args.current_time) # based on Cassi's CGM-ISM density cut-off
+    thisfield = ('gas', 'density')
+    ad = box.ds.all_data()
+    cgm = ad.cut_region(['obj["gas", "density"] < %.1E' % rho_cut])
+    ism = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+
+    prj = yt.ProjectionPlot(ds, args.projection, thisfield, center=box.center, data_source=ism, width=2 * args.galrad * kpc, fontsize=args.fontsize)
+    prj.set_cmap(thisfield, cmap='Blues')
+    prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
+    outfile_rootname = '%s_%s%s%s.png' % (args.output, 'ism_map', args.res_text, args.upto_text)
+    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
+    figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+    prj.save(figname)
+
+    prj = yt.ProjectionPlot(ds, args.projection, thisfield, center=box.center, data_source=cgm, width=2 * args.galrad * kpc, fontsize=args.fontsize)
+    prj.set_cmap(thisfield, cmap='Reds')
+    prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
+    prj.save(figname.replace('ism', 'cgm'))
+
+    # ----- making df with all relevant cells in box ------------
+    x = box['gas', 'x'].in_units('kpc') - box.center.in_units('kpc')[0]
+    y = box['gas', 'y'].in_units('kpc') - box.center.in_units('kpc')[1]
+    z = box['gas', 'z'].in_units('kpc') - box.center.in_units('kpc')[2]
+    rad = box['gas', 'radius_corrected'].in_units('kpc')
+    cm = box['gas', 'cell_mass'].in_units('Msun')
+    den = box['gas', 'density'].in_units('g/cm**3')
+    df = pd.DataFrame({'pos_x': x, 'pos_y': y, 'pos_z': z, 'radius': rad, 'cell_mass': cm, 'density': den})
+    df['log_density'] = np.log10(df['density'])
+    df['log_cell_mass'] = np.log10(df['cell_mass'])
+    df = df[df['radius'] <= np.sqrt(2) * args.galrad]
+
+    # ------ making new column to categorise ISM vs CGM -------------------
+    log_rho_cut = np.log10(rho_cut)
+    df['cat'] = df['log_density'].apply(lambda x: 'ism' if x > log_rho_cut else 'cgm')
+    df['cat'] = df['cat'].astype('category')
+    color_key = dict(ism='cornflowerblue', cgm='salmon') # 2 color-codings, one for ISM and one for CGM
+
+    # ------------------- plotting 2D map with datshader -----------------------
+    fig_den_map, ax1 = plt.subplots(figsize=(8, 8))
+    fig_den_map.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.17)
+
+    artist = dsshow(df, dsh.Point('pos_' + proj_dict[args.projection][0], 'pos_' + proj_dict[args.projection][1]), dsh.by('cat', dsh.mean('density')), norm='log', color_key=color_key, x_range=(-args.galrad, args.galrad), y_range=(-args.galrad, args.galrad), aspect = 'auto', ax=ax1, shade_hook=partial(dstf.spread, shape='square', px=6)) # to make the main datashader plot
+
+    ax1 = annotate_axes(proj_dict[args.projection][0] + ' (kpc)', proj_dict[args.projection][1] + ' (kpc)', ax1, args) # to annotate coordinate axes
+    #fig_den_map, ax2 = make_colorbar_axis(r'Log gas density (g/cm$^3$)', artist, fig_den_map, args.fontsize) # to make colorbar axis
+
+    plt.text(0.1, 0.15, 'z = %.2F' % args.current_redshift, ha='left', transform=ax1.transAxes, fontsize=args.fontsize)
+    plt.text(0.1, 0.1, 't = %.1F Gyr' % args.current_time, ha='left', transform=ax1.transAxes, fontsize=args.fontsize)
+    fig_den_map = saveplot(fig_den_map, 'map_density', args)
+    #plt.show(block=False)
+
+    # ----- plotting cell mass radial profile with datashader ------------
+    plt.style.use('seaborn-whitegrid') # instead of ticks, so that grids are overlaid on the plot
+    fig_cm_profile, ax1 = plt.subplots(figsize=(8, 8))
+    fig_cm_profile.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.17)
+
+    artist = dsshow(df, dsh.Point('radius', 'log_cell_mass'), dsh.count_cat('cat'), norm='linear', color_key=color_key, x_range=(0, args.galrad), y_range=cm_lim, aspect = 'auto', ax=ax1, shade_hook=partial(dstf.spread, shape='circle', px=2)) # to make the main datashader plot
+
+    ax1 = annotate_axes('Radius (kpc)', r'Log cell mass (M$_{\odot}$)', ax1, args) # to annotate axes
+
+    plt.text(0.1, 0.15, 'z = %.2F' % args.current_redshift, ha='left', transform=ax1.transAxes, fontsize=args.fontsize)
+    plt.text(0.1, 0.1, 't = %.1F Gyr' % args.current_time, ha='left', transform=ax1.transAxes, fontsize=args.fontsize)
+    fig_cm_profile = saveplot(fig_cm_profile, 'cm_profile', args)
+    plt.show(block=False)
+
+    return df, fig_den_map, fig_cm_profile
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -279,13 +501,15 @@ if __name__ == '__main__':
             # ---------- creating FRB from refinebox, based on desired resolution ---------------
             for args.res in args.res_arr:
                 args.res_text = '_res%.1Fkpc' % args.res
-                ncells = int(box_width_kpc / args.res)
+                args.ncells = int(box_width_kpc / args.res)
                 dummy_proj = ds.proj(dummy_field, args.projection, center=box_center, data_source=box)
-                frb = dummy_proj.to_frb(box_width_kpc, ncells, center=box_center)
+                frb = dummy_proj.to_frb(box_width_kpc, args.ncells, center=box_center)
 
                 # ---------- call various plotting routines with the frb ------------
-                #fig_ks, fig_star_map, fig_gas_map, fig_sfr_map = plot_ks_relation(frb, args)
-                fig_Zprofile, fig_Z_map, fig_dist_map = plot_Zprofile(frb, args)
+                if args.plot_ks: fig_ks, fig_star_map, fig_gas_map, fig_sfr_map = plot_ks_relation(frb, args)
+                if args.plot_Z: fig_Zprofile, fig_Zdistribution, fig_Z_map = plot_metallicity(frb, args)
+                if args.plot_vel: fig_vel_profile, fig_vel_map, fig_vdisp_profile, fig_vdisp_map = plot_kinematics(frb, args)
+                if args.plot_cm: df, fig_den_map, fig_cm_profile = plot_cellmass(box, args) # this is a intrinsic simulation quantity, not an observable, hence FRB not applicable
 
         print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), dummy_args)
 
