@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    Aug 2022
     Examples :   run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_re 3 --res 0.1 --nbins 100 --keep --weight mass
-                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass --docomoving --fit_multiple
+                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass --docomoving --fit_multiple --hide_multiplefit
                  run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --xmax 4 --do_all_sims --weight mass --write_file --use_gasre --noplot
 
 """
@@ -48,16 +48,17 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     if fit is not None:
         xvals = p[1][:-1] + np.diff(p[1])
         if args.fit_multiple:
-            ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=2, label='Total fit')
-            ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label=None if args.annotate_profile else 'Regular Gaussian')
-            ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label=None if args.annotate_profile else 'Skewed Gaussian')
+            ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=2, label='Total fit' if not args.hide_multiplefit else None)
+            if not args.hide_multiplefit:
+                ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label=None if args.annotate_profile else 'Regular Gaussian')
+                ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label=None if args.annotate_profile else 'Skewed Gaussian')
         else:
             ax.plot(xvals, fit.best_fit, c='k', lw=2, label='Fit')
 
     # ----------adding vertical lines-------------
     if fit is not None:
         if args.fit_multiple:
-            ax.axvline(fit[1], lw=2, ls='dashed', color='k')
+            if not args.hide_multiplefit: ax.axvline(fit[1], lw=2, ls='dashed', color='k')
             ax.axvline(fit[4], lw=2, ls='dotted', color='k')
         else:
             ax.axvline(fit.params['center'].value, lw=2, ls='dotted', color='k')
@@ -85,8 +86,8 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.text(0.97, 0.9, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
-    plt.text(0.97, 0.8, r'Mean = %.2F Z/Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.97, 0.75, r'Sigma = %.2F Z/Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.8, r'Mean = %.2F Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.75, r'Sigma = %.2F Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=False)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)

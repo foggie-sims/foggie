@@ -12,7 +12,20 @@
 import numpy as np
 import multiprocessing as mproc
 import seaborn as sns
-import os, sys, argparse, re, subprocess, time, datetime, math, shutil, copy, glob, random, collections, itertools
+import os
+import sys
+import argparse
+import re
+import subprocess
+import time
+import datetime
+import math
+import shutil
+import copy
+import glob
+import random
+import collections
+import itertools
 
 from matplotlib import pyplot as plt
 plt.style.use('seaborn-whitegrid')

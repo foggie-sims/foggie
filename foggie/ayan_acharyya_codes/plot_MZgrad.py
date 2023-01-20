@@ -20,7 +20,8 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --nocolorcoding --zhighlight --overplot_smoothed 1500 --hiderawdata [FOR MOLLY]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --glasspaper [FOR MATCHING GLASS PAPER]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol redshift --nocolorcoding --overplot_literature
-                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --colorcol log_mass --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1000 --nocolorcoding
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1000 --nocolorcoding
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1000 --nocolorcoding --use_binnedfit --snaphighlight DD0452,DD0466
 """
 from header import *
 from util import *
@@ -535,7 +536,7 @@ def plot_MZGR(args):
             snaps_outside_allowance = len(dfsub[(dfsub['Zgrad_deviation'] > args.Zgrad_allowance) | (dfsub['Zgrad_deviation'] < -args.Zgrad_allowance)])
             total_snaps = len(dfsub)
             timefraction_outside = snaps_outside_allowance * 100 / total_snaps
-            ax.text(lim_dict[args.xcol][0] * 1.1 + 0.1, lim_dict[args.ycol][1] * 0.88 - thisindex * 0.05, '%s spends %0d%% time outside' % (halo_dict[args.halo], timefraction_outside), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
+            ax.text(lim_dict[args.xcol][0] * 1.1 + 0.1, lim_dict[args.ycol][1] * 0.88 - thisindex * 0.05, '%0d%% time up to z=%d is spent outside' % (timefraction_outside, args.upto_z), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
             print('Halo', args.halo, 'spends %.2F%%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation upto redshift %.1F' % args.upto_z)
 
         if not args.plot_timefraction: fig.text(0.85 if args.glasspaper else 0.15, 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)

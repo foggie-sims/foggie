@@ -1111,6 +1111,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--get_gasmass', dest='get_gasmass', action='store_true', default=False, help='save gas mass profile, in addition to stellar mass profile, to hdf5 file?, default is no')
     parser.add_argument('--snapnumber', metavar='snapnumber', type=int, action='store', default=None, help='identifier for the snapshot (what follows DD or RD); default is None, in which case it takes the snapshot from args.output')
     parser.add_argument('--notextonplot', dest='notextonplot', action='store_true', default=False, help='skip putting the "Slope = ..." text on the plot?, default is no')
+    parser.add_argument('--plot_onlybinned', dest='plot_onlybinned', action='store_true', default=False, help='plot ONLY the binned plot, without individual pixels?, default is no')
 
     # ------- args added for get_halo_track.py ------------------------------
     parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')
@@ -1154,6 +1155,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--fit_multiple', dest='fit_multiple', action='store_true', default=False, help='fit one gaussian + one skewed guassian?, default is no')
     parser.add_argument('--annotate_profile', dest='annotate_profile', action='store_true', default=False, help='annotate the multi-component gaussian with text and arrows?, default is no')
     parser.add_argument('--Zcut', metavar='Zcut', type=float, action='store', default=None, help='Z/Zsun value below which the metallicity histogram is to be chopped off; default is None')
+    parser.add_argument('--hide_multiplefit', dest='hide_multiplefit', action='store_true', default=False, help='hide the multiple components of fit while plotting?, default is no')
 
     # ------- args added for plot_Zevolution.py ------------------------------
     parser.add_argument('--forposter', dest='forposter', action='store_true', default=False, help='make plot with certain set panels, specifically for the poster?, default is no')
