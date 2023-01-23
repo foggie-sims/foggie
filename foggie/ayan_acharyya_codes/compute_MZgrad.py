@@ -255,7 +255,7 @@ def plot_gradient(df, args, linefit=None):
 
     # ----------tidy up figure-------------
     ax.xaxis = make_coordinate_axis(args.xcol, 0, args.upto_re if 're' in args.xcol else args.upto_kpc, ax.xaxis, args.fontsize, dsh=False, log_scale=False)
-    ax.yaxis = make_coordinate_axis('metal', args.ylim[0], args.ylim[1], ax.yaxis, args.fontsize, dsh=False, log_scale=False, label=r'Log Metallicity (Z/Z$_\odot}$)')
+    ax.yaxis = make_coordinate_axis('metal', args.ylim[0], args.ylim[1], ax.yaxis, args.fontsize, dsh=False, log_scale=False, label=r'Log Metallicity (Z$_\odot}$)')
 
     # ---------annotate and save the figure----------------------
     plt.text(0.033, 0.05, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize)

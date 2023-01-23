@@ -171,7 +171,7 @@ def fit_distribution(Zarr, args, weights=None):
 
     except AttributeError as e:
         print('The fit went wrong, returning NaNs')
-        Zpeak, Zmean, Zvar, Zskew = ufloat(np.nan, np.nan) * np.ones(4)
+        Zpeak, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma = ufloat(np.nan, np.nan) * np.ones(7)
         pass
 
     return result, Zpeak, Z25, Z50, Z75, Zgini, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma

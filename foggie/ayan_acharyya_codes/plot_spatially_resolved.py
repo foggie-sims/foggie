@@ -80,7 +80,7 @@ def plot_map_from_frb(map, args, cmap='viridis', label=None, makelog=True, name=
     plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.text(0.97, 0.9, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
-    fig = saveplot(fig, 'map_%s'%name, args)
+    fig = saveplot(fig, 'map_%s_%s'%(name, args.projection), args)
     plt.show(block=False)
 
     return fig
@@ -138,7 +138,7 @@ def plot_ks_relation(frb, args):
     plt.text(0.97, 0.35, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.text(0.97, 0.3, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
-    fig = saveplot(fig, 'KSrelation', args)
+    fig = saveplot(fig, 'KSrelation_%s'%(args.projection), args)
     plt.show(block=False)
 
     return fig, fig_star_map, fig_gas_map, fig_sfr_map
@@ -161,7 +161,7 @@ def plot_metallicity(frb, args):
     Requires FRB object as input
     '''
     x_lim = (0, args.galrad)
-    Z_lim = (-2.0, 1.0)
+    Z_lim = (-2.0, 2.0)
 
     # ----- getting maps ------------
     map_gas_mass = frb['gas', 'mass']
@@ -198,15 +198,15 @@ def plot_metallicity(frb, args):
     linefit, linecov = np.polyfit(xdata, ydata, 1, cov=True)
     print('At %.1F kpc resolution, Z profile fit =' % args.res, linefit)
     xarr = np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 10)
-    ax.plot(xarr, np.poly1d(linefit)(xarr), color='b', lw=2, ls='solid', label=r'Fitted slope = %.2F $\pm$ %.2F' % (linefit[0], np.sqrt(linecov[0][0])))
-    ax.legend(loc='lower right', fontsize=args.fontsize)
+    ax.plot(xarr, np.poly1d(linefit)(xarr), color='b', lw=2, ls='solid')
 
     ax = annotate_axes(r'Radius (kpc)', r'$\log{\, \mathrm{Z/Z}_{\odot}}$', ax, args)
 
-    plt.text(0.97, 0.35, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.97, 0.3, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.9, r'Fitted slope = %.2F dex/kpc' % (linefit[0]), ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.03, 0.17, 'z = %.2F' % args.current_redshift, ha='left', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.03, 0.1, 't = %.1F Gyr' % args.current_time, ha='left', transform=ax.transAxes, fontsize=args.fontsize)
 
-    fig = saveplot(fig, 'Zprofile', args)
+    fig = saveplot(fig, 'Zprofile_%s'%(args.projection), args)
     plt.show(block=False)
 
     # ------------ plotting Z distribution ------------
@@ -214,13 +214,13 @@ def plot_metallicity(frb, args):
     fig2.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.15)
 
     ydata = 10 ** ydata # back to Zsun units
-    args.xmax = 4 #10**Z_lim[1] # fit_distribution (which is invoked after a few lines) requires args.xmax to be = Z_max (in linear spaec)
+    args.xmax = 2 #10**Z_lim[1] # fit_distribution (which is invoked after a few lines) requires args.xmax to be = Z_max (in linear spaec)
 
     if args.weight is None: p = plt.hist(ydata, bins=args.nbins, histtype='step', lw=2, ec='salmon', density=True)
     else: p = plt.hist(ydata, bins=args.nbins, histtype='step', lw=2, density=True, range=(0, args.xmax), ec='salmon', weights=wdata)
 
     ax.set_xlim(0, args.xmax)
-    ax.set_ylim(0, 2.5)
+    ax.set_ylim(0, 3.5)
 
     # ------ fittingthe relation and overplotting ---------
     fit, _, Z25, Z50, Z75, _, Zmean, Zvar, _, _, gauss_mean, _ = fit_distribution(ydata, args, weights=wdata)
@@ -245,13 +245,13 @@ def plot_metallicity(frb, args):
 
     ax = annotate_axes(r'Metallicity (Z$_{\odot}$)', 'Normalised distribution', ax, args)
 
-    plt.text(0.97, 0.35, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.97, 0.3, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.9, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.83, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
-    plt.text(0.97, 0.8, r'Mean = %.2F Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.97, 0.75, r'Sigma = %.2F Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.7, r'Mean = %.2F Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.text(0.97, 0.63, r'Sigma = %.2F Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
-    fig2 = saveplot(fig2, 'Zdistribution', args)
+    fig2 = saveplot(fig2, 'Zdistribution_%s'%(args.projection), args)
     plt.show(block=False)
 
     return fig, fig2, fig_Z_map
@@ -295,7 +295,7 @@ def plot_kinematics(frb, args):
     plt.text(0.97, 0.35, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.text(0.97, 0.3, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
-    fig_vel_profile = saveplot(fig_vel_profile, 'vel_profile', args)
+    fig_vel_profile = saveplot(fig_vel_profile, 'vel_profile_%s'%(args.projection), args)
     plt.show(block=False)
 
     # ----- plotting vel dispersion profile ------------
@@ -314,7 +314,7 @@ def plot_kinematics(frb, args):
     plt.text(0.97, 0.35, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.text(0.97, 0.3, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
-    fig_vdisp_profile = saveplot(fig_vdisp_profile, 'vdisp_profile', args)
+    fig_vdisp_profile = saveplot(fig_vdisp_profile, 'vdisp_profile_%s'%(args.projection), args)
     plt.show(block=False)
 
     return fig_vel_profile, fig_vel_map, fig_vdisp_profile, fig_vdisp_map
