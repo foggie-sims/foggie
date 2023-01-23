@@ -92,8 +92,8 @@ def get_run_loc_etc(args):
         code_path = "/mnt/home/kopenhaf/foggie/foggie/"
     elif args.system == "ayan_pleiades":
         foggie_dir = "/nobackup/mpeeples/" if args.foggie_dir is None else args.foggie_dir
-        output_path = "/nobackup/aachary2/foggie_outputs/"
-        code_path = "/nobackup/aachary2/ayan_codes/foggie/foggie/"
+        output_path = "/nobackupp19/aachary2/foggie_outputs/"
+        code_path = "/nobackupp19/aachary2/ayan_codes/foggie/foggie/"
 
     if not args.pwd:
         if args.run == "natural":
