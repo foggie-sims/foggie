@@ -175,15 +175,15 @@ def plot_metallicity(frb, args):
 
     # ----- plotting surface maps ----------
     if args.plot_map:
-        fig_dist_map = plot_map_from_frb(map_dist, args, cmap='Blues_r', label=r'Radius (kpc)', makelog=False, name='dist', clim=x_lim)
-        fig_Z_map = plot_map_from_frb(map_Z, args, cmap=metal_color_map, label=r'Z/Z$_{\odot}$', name='metallicity', clim=(10**Z_lim[0], 10**Z_lim[1]))
+        #fig_dist_map = plot_map_from_frb(map_dist, args, cmap='Blues_r', label=r'Radius (kpc)', makelog=False, name='dist', clim=x_lim)
+        fig_Z_map = plot_map_from_frb(map_Z, args, cmap=old_metal_color_map, label=r'Z/Z$_{\odot}$', name='metallicity', clim=(10**Z_lim[0], 10**Z_lim[1]))
     else:
         fig_Z_map, fig_dist_map = None, None
 
     # ----- plotting Z profile ------------
     fig, ax = plt.subplots(figsize=(8, 7))
     fig.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.15)
-
+    '''
     xdata = map_dist.flatten()
     ydata = np.log10(map_Z).flatten() # in log(Z/Zsun) units
 
@@ -208,11 +208,11 @@ def plot_metallicity(frb, args):
 
     fig = saveplot(fig, 'Zprofile_%s'%(args.projection), args)
     plt.show(block=False)
-
+    '''
     # ------------ plotting Z distribution ------------
     fig2, ax = plt.subplots(figsize=(8, 7))
     fig2.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.15)
-
+    '''
     ydata = 10 ** ydata # back to Zsun units
     args.xmax = 2 #10**Z_lim[1] # fit_distribution (which is invoked after a few lines) requires args.xmax to be = Z_max (in linear spaec)
 
@@ -253,7 +253,7 @@ def plot_metallicity(frb, args):
 
     fig2 = saveplot(fig2, 'Zdistribution_%s'%(args.projection), args)
     plt.show(block=False)
-
+    '''
     return fig, fig2, fig_Z_map
 
 # ----------------------------------------------------
@@ -343,26 +343,28 @@ def plot_cellmass(box, args):
     sns.set_style('ticks')  # instead of darkgrid, so that there are no grids overlaid on the projections
     proj_dict = {'x': ('y', 'z'), 'y': ('z', 'x'), 'z': ('x', 'y')}
     cm_lim = (-1, 7) # log Msun
+    Z_lim = (0.01, 4)
 
     # ------------------- plotting 2D map with yt -----------------------
-    rho_cut = get_density_cut(args.current_time) # based on Cassi's CGM-ISM density cut-off
-    thisfield = ('gas', 'density')
-    ad = box.ds.all_data()
-    cgm = ad.cut_region(['obj["gas", "density"] < %.1E' % rho_cut])
-    ism = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+    rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
+    if args.plot_map:
+        thisfield = ('gas', 'density')
+        ad = box.ds.all_data()
+        cgm = ad.cut_region(['obj["gas", "density"] < %.1E' % rho_cut])
+        ism = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
 
-    prj = yt.ProjectionPlot(ds, args.projection, thisfield, center=box.center, data_source=ism, width=2 * args.galrad * kpc, fontsize=args.fontsize)
-    prj.set_cmap(thisfield, cmap='Blues')
-    prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
-    outfile_rootname = '%s_%s%s%s.png' % (args.output, 'ism_map', args.res_text, args.upto_text)
-    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
-    figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
-    prj.save(figname)
+        prj = yt.SlicePlot(ds, args.projection, thisfield, center=box.center, data_source=ism, width=2 * args.galrad * kpc, fontsize=args.fontsize)
+        prj.set_cmap(thisfield, cmap='Blues')
+        prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
+        outfile_rootname = '%s_%s%s.png' % (args.output, 'ism_slice', args.upto_text)
+        if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
+        figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+        prj.save(figname)
 
-    prj = yt.ProjectionPlot(ds, args.projection, thisfield, center=box.center, data_source=cgm, width=2 * args.galrad * kpc, fontsize=args.fontsize)
-    prj.set_cmap(thisfield, cmap='Reds')
-    prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
-    prj.save(figname.replace('ism', 'cgm'))
+        prj = yt.SlicePlot(ds, args.projection, thisfield, center=box.center, data_source=cgm, width=2 * args.galrad * kpc, fontsize=args.fontsize)
+        prj.set_cmap(thisfield, cmap='Reds')
+        prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
+        prj.save(figname.replace('ism', 'cgm'))
 
     # ----- making df with all relevant cells in box ------------
     x = box['gas', 'x'].in_units('kpc') - box.center.in_units('kpc')[0]
@@ -371,9 +373,11 @@ def plot_cellmass(box, args):
     rad = box['gas', 'radius_corrected'].in_units('kpc')
     cm = box['gas', 'cell_mass'].in_units('Msun')
     den = box['gas', 'density'].in_units('g/cm**3')
-    df = pd.DataFrame({'pos_x': x, 'pos_y': y, 'pos_z': z, 'radius': rad, 'cell_mass': cm, 'density': den})
+    Z = box['gas', 'metallicity'].in_units('Zsun')
+    df = pd.DataFrame({'pos_x': x, 'pos_y': y, 'pos_z': z, 'radius': rad, 'cell_mass': cm, 'density': den, 'metallicity':Z})
     df['log_density'] = np.log10(df['density'])
     df['log_cell_mass'] = np.log10(df['cell_mass'])
+    df['log_metallicity'] = np.log10(df['metallicity'])
     df = df[df['radius'] <= np.sqrt(2) * args.galrad]
 
     # ------ making new column to categorise ISM vs CGM -------------------
@@ -381,21 +385,21 @@ def plot_cellmass(box, args):
     df['cat'] = df['log_density'].apply(lambda x: 'ism' if x > log_rho_cut else 'cgm')
     df['cat'] = df['cat'].astype('category')
     color_key = dict(ism='cornflowerblue', cgm='salmon') # 2 color-codings, one for ISM and one for CGM
-
+    '''
     # ------------------- plotting 2D map with datshader -----------------------
-    fig_den_map, ax1 = plt.subplots(figsize=(8, 8))
-    fig_den_map.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.17)
-
-    artist = dsshow(df, dsh.Point('pos_' + proj_dict[args.projection][0], 'pos_' + proj_dict[args.projection][1]), dsh.by('cat', dsh.mean('density')), norm='log', color_key=color_key, x_range=(-args.galrad, args.galrad), y_range=(-args.galrad, args.galrad), aspect = 'auto', ax=ax1, shade_hook=partial(dstf.spread, shape='square', px=6)) # to make the main datashader plot
-
-    ax1 = annotate_axes(proj_dict[args.projection][0] + ' (kpc)', proj_dict[args.projection][1] + ' (kpc)', ax1, args) # to annotate coordinate axes
-    #fig_den_map, ax2 = make_colorbar_axis(r'Log gas density (g/cm$^3$)', artist, fig_den_map, args.fontsize) # to make colorbar axis
-
-    plt.text(0.1, 0.15, 'z = %.2F' % args.current_redshift, ha='left', transform=ax1.transAxes, fontsize=args.fontsize)
-    plt.text(0.1, 0.1, 't = %.1F Gyr' % args.current_time, ha='left', transform=ax1.transAxes, fontsize=args.fontsize)
-    fig_den_map = saveplot(fig_den_map, 'map_density', args)
-    #plt.show(block=False)
-
+    if args.plot_map:
+        fig_den_map, ax1 = plt.subplots(figsize=(8, 8))
+        fig_den_map.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.17)
+    
+        artist = dsshow(df, dsh.Point('pos_' + proj_dict[args.projection][0], 'pos_' + proj_dict[args.projection][1]), dsh.by('cat', dsh.mean('density')), norm='log', color_key=color_key, x_range=(-args.galrad, args.galrad), y_range=(-args.galrad, args.galrad), aspect = 'auto', ax=ax1, shade_hook=partial(dstf.spread, shape='square', px=6)) # to make the main datashader plot
+    
+        ax1 = annotate_axes(proj_dict[args.projection][0] + ' (kpc)', proj_dict[args.projection][1] + ' (kpc)', ax1, args) # to annotate coordinate axes
+        #fig_den_map, ax2 = make_colorbar_axis(r'Log gas density (g/cm$^3$)', artist, fig_den_map, args.fontsize) # to make colorbar axis
+    
+        plt.text(0.1, 0.15, 'z = %.2F' % args.current_redshift, ha='left', transform=ax1.transAxes, fontsize=args.fontsize)
+        plt.text(0.1, 0.1, 't = %.1F Gyr' % args.current_time, ha='left', transform=ax1.transAxes, fontsize=args.fontsize)
+        fig_den_map = saveplot(fig_den_map, 'map_density', args)
+    '''
     # ----- plotting cell mass radial profile with datashader ------------
     plt.style.use('seaborn-whitegrid') # instead of ticks, so that grids are overlaid on the plot
     fig_cm_profile, ax1 = plt.subplots(figsize=(8, 8))
@@ -410,7 +414,30 @@ def plot_cellmass(box, args):
     fig_cm_profile = saveplot(fig_cm_profile, 'cm_profile', args)
     plt.show(block=False)
 
-    return df, fig_den_map, fig_cm_profile
+    # ----- plotting cell mass vs density color coded by metallicity with datashader ------------
+    from datashader_movie import categorize_by_quant, get_color_keys, get_color_labels
+    ncolbins = 7
+    df['cat2'] = categorize_by_quant(df['metallicity'], Z_lim[0], Z_lim[1], ncolbins)
+    df['cat2'] = df['cat2'].astype('category')
+    args.cmap = mpl_cm.get_cmap(args.cmap)
+    color_list = args.cmap.colors
+    color_list = color_list[::int(len(color_list) / ncolbins)]  # truncating color_list in to a length of rougly ncolbins
+
+    color_key = get_color_keys(Z_lim[0], Z_lim[1], color_list)
+
+    fig_cm_profile2, ax2 = plt.subplots(figsize=(8, 8))
+    fig_cm_profile2.subplots_adjust(right=0.95, top=0.9, bottom=0.12, left=0.17)
+
+    artist = dsshow(df, dsh.Point('log_density', 'log_cell_mass'), dsh.mean('metallicity'), norm='linear', cmap=args.cmap, y_range=cm_lim, vmin=Z_lim[0], vmax=Z_lim[1], aspect = 'auto', ax=ax2, shade_hook=partial(dstf.spread, shape='circle', px=2)) # to make the main datashader plot
+
+    ax2 = annotate_axes(r'Log density (gm/cm$^3$)', r'Log cell mass (M$_{\odot}$)', ax2, args) # to annotate axes
+
+    plt.text(0.1, 0.15, 'z = %.2F' % args.current_redshift, ha='left', transform=ax2.transAxes, fontsize=args.fontsize)
+    plt.text(0.1, 0.1, 't = %.1F Gyr' % args.current_time, ha='left', transform=ax2.transAxes, fontsize=args.fontsize)
+    fig_cm_profile2 = saveplot(fig_cm_profile2, 'cm_vs_density_colorby_Z', args)
+    plt.show(block=False)
+
+    return df, fig_cm_profile2, fig_cm_profile
 
 # -----main code-----------------
 if __name__ == '__main__':

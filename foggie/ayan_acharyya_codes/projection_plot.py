@@ -109,7 +109,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
 
     # The variables used below come from foggie.utils.consistency.py
     field_dict = {'gas':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), 'stars':('deposit', 'stars_density'),'ys_density':('deposit', 'young_stars_density'), 'ys_age':('my_young_stars', 'age'), 'ys_mass':('deposit', 'young_stars_mass'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected'), 'vlos':('gas', 'v_corrected'), 'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass')}
-    cmap_dict = {'gas':density_color_map, 'gas_entropy':entropy_color_map, 'stars':plt.cm.Greys_r, 'ys_density':density_color_map, 'ys_age':density_color_map, 'ys_mass':density_color_map, 'metal':metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap, 'vlos':velocity_discrete_cmap, 'grid':'viridis', 'mrp':'viridis'}
+    cmap_dict = {'gas':density_color_map, 'gas_entropy':entropy_color_map, 'stars':plt.cm.Greys_r, 'ys_density':density_color_map, 'ys_age':density_color_map, 'ys_mass':density_color_map, 'metal':old_metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap, 'vlos':velocity_discrete_cmap, 'grid':'viridis', 'mrp':'viridis'}
     unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', temp='K', vrad='km/s', ys_age='Myr', ys_mass='pc*Msun', gas_entropy='keV*cm**3', vlos='km/s', grid='', mrp='cm*g')
     zmin_dict = defaultdict(lambda: density_proj_min, metal=2e-2, temp=1.e3, vrad=-50, ys_age=0.1, ys_mass=1, ys_density=1e-3, gas_entropy=1.6e25, vlos=-500, grid=1, mrp=1e57)
     zmax_dict = defaultdict(lambda: density_proj_max, metal= 5e0, temp= temperature_max, vrad=50, ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=500, grid=11, mrp=1e65)
@@ -208,7 +208,7 @@ if __name__ == '__main__':
         if len(list_of_sims) == 1: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
         else: args = parse_args(this_sim[0], this_sim[1])
 
-        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_cen_smoothed'
+        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_c_v' # 'halo_cen_smoothed'
         if type(args) is tuple:
             args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
             myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
@@ -226,7 +226,7 @@ if __name__ == '__main__':
             ds.add_particle_filter('ptype4')
 
         if args.fullbox: args.galrad = ds.refine_width / 2 # kpc
-        center = refine_box.center.in_units(kpc) if args.do_central else ds.arr(args.halo_center, kpc)
+        center = ds.halo_center_kpc
 
         if not args.noplot:
             start_frame = 0 if args.makerotmovie or (args.rot_normal_by == 0 and args.rot_north_by == 0) else 1

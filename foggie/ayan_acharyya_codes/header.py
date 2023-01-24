@@ -24,8 +24,7 @@ import shutil
 import copy
 import glob
 import random
-import collections
-import itertools
+import collections, itertools
 
 from matplotlib import pyplot as plt
 plt.style.use('seaborn-whitegrid')
