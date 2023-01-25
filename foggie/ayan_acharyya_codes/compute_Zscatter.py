@@ -28,6 +28,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     Function to plot the metallicity distribution, along with the fitted skewed gaussian distribution if provided
     Saves plot as .png
     '''
+    if args.forproposal and args.output == 'RD0042': plt.rcParams["axes.linewidth"] = 1
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
     fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
     if args.upto_kpc is not None:
@@ -41,7 +42,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     # ---------plotting histogram, and if provided, the fit---------
     if args.forproposal:
         fig, ax = plt.subplots(figsize=(8, 4))
-        fig.subplots_adjust(right=0.95, top=0.9, bottom=0.2, left=0.15)
+        fig.subplots_adjust(right=0.95, top=0.9, bottom=0.2, left=0.2)
     else:
         fig, ax = plt.subplots(figsize=(8, 8))
         fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.15)
@@ -52,12 +53,12 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     if fit is not None:
         xvals = p[1][:-1] + np.diff(p[1])
         if args.fit_multiple:
-            ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=2, label='Total fit' if not args.hide_multiplefit else None)
+            ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=2, label='Total fit' if not (args.hide_multiplefit or args.forproposal) else None)
             if not args.hide_multiplefit:
-                ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label=None if args.annotate_profile else 'Regular Gaussian')
-                ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label=None if args.annotate_profile else 'Skewed Gaussian')
+                ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label=None if args.annotate_profile or args.forproposal else 'Regular Gaussian')
+                ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label=None if args.annotate_profile or args.forproposal else 'Skewed Gaussian')
         else:
-            ax.plot(xvals, fit.best_fit, c='k', lw=2, label='Fit')
+            ax.plot(xvals, fit.best_fit, c='k', lw=2, label=None if args.forproposal else 'Fit')
 
     # ----------adding vertical lines-------------
     if fit is not None:
@@ -79,10 +80,13 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     # ----------tidy up figure-------------
     plt.legend(loc='upper right', bbox_to_anchor=(1, 0.75), fontsize=args.fontsize)
     ax.set_xlim(0, 2 if args.forproposal else args.xmax)
-    ax.set_ylim(0, 1,5 if args.forproposal else 2.5)
+    ax.set_ylim(0, 1.5 if args.forproposal else 2.5)
+
+    ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 5))
+    ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 4 if args.forproposal else 6))
 
     ax.set_xlabel(r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
-    ax.set_ylabel('Normalised distribution', fontsize=args.fontsize)
+    ax.set_ylabel('Normalised distribution', fontsize=args.fontsize/1.2 if args.forproposal else args.fontsize)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 

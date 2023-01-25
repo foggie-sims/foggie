@@ -7,7 +7,7 @@
     Output :     spatially resolved plots as png
     Author :     Ayan Acharyya
     Started :    Jan 2023
-    Examples :   run plot_spatially_resolved.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --res 0.1 --plot_map --weight mass --docomoving --proj x --nbins 100 --fit_multiple
+    Examples :   run plot_spatially_resolved.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --res 0.1 --plot_map --weight mass --docomoving --proj x --nbins 100 --fit_multiple --forproposal
                  run plot_spatially_resolved.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --do_all_sims --weight mass --use_gasre
 
 """
@@ -23,10 +23,20 @@ def annotate_axes(xlabel, ylabel, ax, args):
     Function to annotate x and y axes
     Returns the axis handle
     '''
-    ax.set_xlabel(xlabel, fontsize=args.fontsize)
-    ax.set_ylabel(ylabel, fontsize=args.fontsize)
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
-    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
+    if args.forproposal: # scale bar inset instead of axis ticks
+        length = 5  # kpc
+        if args.plot_Z: # sufficient if only the Z panel has the scale info
+            ax.text(0.08, 0.07, '%d kpc' % length, color='white', ha='left', va='bottom', transform=ax.transAxes, fontsize=args.fontsize)
+            ax.axhline(-9, 0.05, 0.05 + length / np.diff(ax.get_xlim())[0], c='white', lw=2)  # converting length from kpc units to plot units
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+    else:
+        ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 5))
+        ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 5))
+        ax.set_xlabel(xlabel, fontsize=args.fontsize)
+        ax.set_ylabel(ylabel, fontsize=args.fontsize)
+        ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
+        ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 
     return ax
 
@@ -65,20 +75,27 @@ def plot_map_from_frb(map, args, cmap='viridis', label=None, makelog=True, name=
     '''
     sns.set_style('ticks')  # instead of darkgrid, so that there are no grids overlaid on the projections
     fig, ax = plt.subplots(figsize=(8, 7))
-    fig.subplots_adjust(right=0.85, top=0.98, bottom=0.02, left=0.17)
+    if args.forproposal: fig.subplots_adjust(right=0.98, top=0.98, bottom=0.15, left=0.02)
+    else: fig.subplots_adjust(right=0.85, top=0.98, bottom=0.02, left=0.17)
 
     proj = ax.imshow(map, cmap=cmap, norm=LogNorm() if makelog else None, extent=[-args.galrad, args.galrad, -args.galrad, args.galrad], vmin=clim[0] if clim is not None else None, vmax=clim[1] if clim is not None else None)
     divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    cbar = plt.colorbar(proj, cax=cax)
+
+    if args.forproposal:
+        cax = divider.append_axes('bottom', size='5%', pad=0.05)
+        cbar = plt.colorbar(proj, cax=cax, orientation='horizontal')
+    else:
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        cbar = plt.colorbar(proj, cax=cax, orientation='vertical')
 
     ax = annotate_axes(r'x (kpc)', r'y (kpc)', ax, args)
 
     cbar.ax.tick_params(labelsize=args.fontsize)
     if label is not None: cbar.set_label(label, fontsize=args.fontsize)
 
-    plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.97, 0.9, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    if not args.forproposal:
+        plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+        plt.text(0.97, 0.9, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
     fig = saveplot(fig, 'map_%s_%s'%(name, args.projection), args)
     plt.show(block=False)

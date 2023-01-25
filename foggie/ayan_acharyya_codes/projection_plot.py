@@ -14,6 +14,8 @@
 from header import *
 from util import *
 from foggie.utils.get_proper_box_size import get_proper_box_size
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 start_time = time.time()
 
 # -----------------------------------------------------------
@@ -50,11 +52,12 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     if noweight: weight_field = None
 
     start_time2 = time.time()
+
     if field[1] == 'age': # then do ParticlePlot
         prj = yt.ParticleProjectionPlot(ds, axs, field, center=center, data_source=small_box, width=box_width, weight_field=weight_field)
     elif normal_vector is not None or north_vector is not None: # do rotated off axis ProjectionPlot
         prj = yt.OffAxisProjectionPlot(ds, normal_vector, field, north_vector=north_vector, center=center, width=(box_width.v.tolist(), 'kpc'), data_source=small_box, weight_field=weight_field)
-    else: # do ProjectionPlot
+    else:  # do ProjectionPlot
         prj = yt.ProjectionPlot(ds, axs, field, center=center, data_source=small_box, width=box_width, weight_field=weight_field, fontsize=fontsize)
 
     print('Just the plotting took %s minutes' % ((time.time() - start_time2) / 60))
@@ -94,7 +97,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                           fig_end='projection', do=['stars', 'gas', 'metal'], axes=['x', 'y', 'z'], annotate_positions=[], \
                           is_central=False, add_velocity=False, add_arrow=False, start_arrow=[], end_arrow=[], total_normal_rot=0, \
                           total_north_rot=0, rot_frame=0, nframes=200, hide_axes=False, iscolorlog=False, noweight=False, \
-                          rot_north_about='x', rot_normal_about='y', output='', fontsize=20):
+                          rot_north_about='x', rot_normal_about='y', output='', fontsize=20, cbar_horizontal=False):
     '''
     Function to arrange overheads of yt projection plot
     (adopted from foggie.satellites.for_paper.central_projection_plots)
@@ -112,9 +115,9 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
     cmap_dict = {'gas':density_color_map, 'gas_entropy':entropy_color_map, 'stars':plt.cm.Greys_r, 'ys_density':density_color_map, 'ys_age':density_color_map, 'ys_mass':density_color_map, 'metal':old_metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap, 'vlos':velocity_discrete_cmap, 'grid':'viridis', 'mrp':'viridis'}
     unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', temp='K', vrad='km/s', ys_age='Myr', ys_mass='pc*Msun', gas_entropy='keV*cm**3', vlos='km/s', grid='', mrp='cm*g')
     zmin_dict = defaultdict(lambda: density_proj_min, metal=2e-2, temp=1.e3, vrad=-50, ys_age=0.1, ys_mass=1, ys_density=1e-3, gas_entropy=1.6e25, vlos=-500, grid=1, mrp=1e57)
-    zmax_dict = defaultdict(lambda: density_proj_max, metal= 5e0, temp= temperature_max, vrad=50, ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=500, grid=11, mrp=1e65)
+    zmax_dict = defaultdict(lambda: density_proj_max, metal= 2 if args.forproposal else 5e0, temp= temperature_max, vrad=50, ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=500, grid=11, mrp=1e65)
     weight_field_dict = defaultdict(lambda: None, metal=('gas', 'density'), temp=('gas', 'density'), vrad=('gas', 'density'), vlos=('gas', 'density'))
-    colorlog_dict = defaultdict(lambda: False, metal=True, gas=True, temp=True, gas_entropy=True, mrp=True)
+    colorlog_dict = defaultdict(lambda: False, metal=False if args.forproposal else True, gas=True, temp=True, gas_entropy=True, mrp=True)
 
     # north vector = which way is up; this is set up such that the north vector rotates ABOUT the normal vector
     rot_north_by = (total_north_rot * np.pi / 180) * rot_frame / nframes # to convert total_north_rot from deg to radian
@@ -153,29 +156,35 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
 
             # ------plotting onto a matplotlib figure--------------
             fig, axes = plt.subplots(figsize=(8, 8))
-            cax = fig.add_axes([1, 1, 1, 1]) # this is the dimension of the cbar axis [left, bottom, width, height], but the numbers here do not matter
 
             prj.plots[thisfield].figure = fig
             prj.plots[thisfield].axes = axes
-            prj.plots[thisfield].cax = cax
+            divider = make_axes_locatable(axes)
             prj._setup_plots()
 
-            fig.subplots_adjust(right=0.9, top=0.95, bottom=0.12, left=0.05)
-            cax.set_position([0.83, 0.12, 0.03, 0.83]) # [left, bottom, width, height]
+            if cbar_horizontal:
+                fig.subplots_adjust(right=0.95, top=0.95, bottom=0.12, left=0.05)
+                cax = divider.append_axes('bottom', size='5%', pad=1.3)
+                cbar = fig.colorbar(prj.plots[thisfield].cb.mappable, orientation='horizontal', cax=cax)
+            else:
+                fig.subplots_adjust(right=0.95, top=0.95, bottom=0.12, left=0.1)
+                cax = divider.append_axes('right', size='5%', pad=0.05)
+                cbar = fig.colorbar(prj.plots[thisfield].cb.mappable, orientation='vertical', cax=cax)
+            cbar.ax.tick_params(labelsize=fontsize)
+            cbar.set_label(prj.plots[thisfield].cax.get_ylabel(), fontsize=fontsize)
+
             axes.xaxis.set_major_locator(plt.MaxNLocator(5))
             axes.yaxis.set_major_locator(plt.MaxNLocator(5))
             axes.set_xticklabels(['%.1F' % item for item in axes.get_xticks()], fontsize=fontsize)
             axes.set_yticklabels(['%.1F' % item for item in axes.get_yticks()], fontsize=fontsize)
-            cax.set_yticklabels(['%.1F' % item for item in cax.get_yticks()], fontsize=fontsize)
             axes.set_xlabel(axes.get_xlabel(), fontsize=fontsize)
             axes.set_ylabel(axes.get_ylabel(), fontsize=fontsize)
-            cax.set_ylabel(cax.get_ylabel(), fontsize=fontsize)
 
             filename = fig_dir + '%s_%s' % (output, d) + '_box=%.2Fkpc' % (box_width) + '_proj_' + ax + rot_text + '_' + fig_end + '.png'
             plt.savefig(filename, transparent=False)
             myprint('Saved figure ' + filename, args)
 
-    return fig
+    return fig, prj
 
 # -------------------------------------------------------------------
 def my_young_stars(pfilter, data):
@@ -240,7 +249,7 @@ if __name__ == '__main__':
                                         fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.projection.split(',')], \
                                         is_central=args.do_central, add_arrow=args.add_arrow, add_velocity=args.add_velocity, rot_frame=nrot, \
                                         total_normal_rot=args.rot_normal_by, total_north_rot=args.rot_north_by, rot_north_about=args.rot_north_about, rot_normal_about=args.rot_normal_about, \
-                                        nframes=(end_frame - start_frame), hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight) # using halo_center_kpc instead of refine_box_center
+                                        nframes=(end_frame - start_frame), hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight, cbar_horizontal=False) # using halo_center_kpc instead of refine_box_center
         else:
             print('Skipping plotting step')
 
