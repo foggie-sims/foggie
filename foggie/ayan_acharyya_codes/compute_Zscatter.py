@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    Aug 2022
     Examples :   run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_re 3 --res 0.1 --nbins 100 --keep --weight mass
-                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass --docomoving --fit_multiple --hide_multiplefit
+                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass --docomoving --fit_multiple --hide_multiplefit --forproposal
                  run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --xmax 4 --do_all_sims --weight mass --write_file --use_gasre --noplot
 
 """
@@ -39,8 +39,12 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
     # ---------plotting histogram, and if provided, the fit---------
-    fig, ax = plt.subplots(figsize=(8,8))
-    fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.15)
+    if args.forproposal:
+        fig, ax = plt.subplots(figsize=(8, 4))
+        fig.subplots_adjust(right=0.95, top=0.9, bottom=0.2, left=0.15)
+    else:
+        fig, ax = plt.subplots(figsize=(8, 8))
+        fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.15)
 
     if args.weight is None: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, ec='salmon', density=True)
     else: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, range=(0, args.xmax), ec='salmon', weights=weights.flatten())
@@ -74,8 +78,8 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
 
     # ----------tidy up figure-------------
     plt.legend(loc='upper right', bbox_to_anchor=(1, 0.75), fontsize=args.fontsize)
-    ax.set_xlim(0, args.xmax)
-    ax.set_ylim(0, 2.5)
+    ax.set_xlim(0, 2 if args.forproposal else args.xmax)
+    ax.set_ylim(0, 1,5 if args.forproposal else 2.5)
 
     ax.set_xlabel(r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize)
@@ -83,11 +87,12 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 
     # ---------annotate and save the figure----------------------
-    plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.97, 0.9, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    if not args.forproposal:
+        plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+        plt.text(0.97, 0.9, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
-    plt.text(0.97, 0.8, r'Mean = %.2F Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.97, 0.75, r'Sigma = %.2F Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+        plt.text(0.97, 0.8, r'Mean = %.2F Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+        plt.text(0.97, 0.75, r'Sigma = %.2F Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=False)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
