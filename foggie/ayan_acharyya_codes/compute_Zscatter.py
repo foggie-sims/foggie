@@ -22,8 +22,34 @@ from lmfit.models import SkewedGaussianModel
 from pygini import gini
 start_time = time.time()
 
+# ----------------------------------------------------------------------------
+# Following function is adapted from https://stackoverflow.com/questions/21844024/weighted-percentile-using-numpy
+def weighted_quantile(values, quantiles, sample_weight=None):
+    """ Very close to numpy.percentile, but supports weights.
+    NOTE: quantiles should be in [0, 1]!
+    :param values: numpy.array with data
+    :param quantiles: array-like with many quantiles needed
+    :param sample_weight: array-like of the same length as `array`
+    :param values_sorted: bool, if True, then will avoid sorting of initial array
+    :param old_style: if True, will correct output to be consistent with numpy.percentile.
+    :return: numpy.array with computed quantiles.
+    """
+    if sample_weight is None: sample_weight = np.ones(len(values))
+    values = np.array(values)
+    quantiles = np.array(quantiles)
+    sample_weight = np.array(sample_weight)
+    assert np.all(quantiles >= 0) and np.all(quantiles <= 1), 'quantiles should be in [0, 1]'
+
+    sorter = np.argsort(values)
+    values = values[sorter]
+    sample_weight = sample_weight[sorter]
+
+    weighted_quantiles = np.cumsum(sample_weight) - 0.5 * sample_weight
+    weighted_quantiles /= np.sum(sample_weight)
+    return np.interp(quantiles, weighted_quantiles, values)
+
 # -----------------------------------------------------------
-def plot_distribution(Zarr, args, weights=None, fit=None):
+def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     '''
     Function to plot the metallicity distribution, along with the fitted skewed gaussian distribution if provided
     Saves plot as .png
@@ -50,7 +76,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
     if args.weight is None: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, ec='salmon', density=True)
     else: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, range=(0, args.xmax), ec='salmon', weights=weights.flatten())
 
-    if fit is not None:
+    if fit is not None and not (args.forproposal and args.output != 'RD0042'):
         xvals = p[1][:-1] + np.diff(p[1])
         if args.fit_multiple:
             ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=2, label='Total fit' if not (args.hide_multiplefit or args.forproposal) else None)
@@ -61,16 +87,16 @@ def plot_distribution(Zarr, args, weights=None, fit=None):
             ax.plot(xvals, fit.best_fit, c='k', lw=2, label=None if args.forproposal else 'Fit')
 
     # ----------adding vertical lines-------------
-    if fit is not None:
+    if fit is not None and not (args.forproposal and args.output != 'RD0042'):
         if args.fit_multiple:
             if not args.hide_multiplefit: ax.axvline(fit[1], lw=2, ls='dashed', color='k')
             ax.axvline(fit[4], lw=2, ls='dotted', color='k')
         else:
             ax.axvline(fit.params['center'].value, lw=2, ls='dotted', color='k')
 
-    ax.axvline(np.percentile(Zarr, 25), lw=2.5, ls='solid', color='salmon')
-    ax.axvline(np.percentile(Zarr, 50), lw=2.5, ls='solid', color='salmon')
-    ax.axvline(np.percentile(Zarr, 75), lw=2.5, ls='solid', color='salmon')
+    if percentiles is not None:
+        percentiles = np.atleast_1d(percentiles)
+        for thisper in percentiles: ax.axvline(thisper, lw=2.5, ls='solid', color='salmon')
 
     # ----------adding arrows--------------
     if args.annotate_profile:
@@ -137,11 +163,9 @@ def fit_distribution(Zarr, args, weights=None):
     if weights is not None: weights = weights.flatten()
 
     print('Computing stats...')
-    Z25 = ufloat(np.percentile(Zarr, 25), 0)
-    Z50 = ufloat(np.percentile(Zarr, 50), 0)
-    Z75 = ufloat(np.percentile(Zarr, 75), 0)
+    #Z25, Z50, Z75 = [ufloat(item, 0) for item in np.percentile(Zarr, [25, 50, 75])]
+    Z25, Z50, Z75 = [ufloat(item, 0) for item in weighted_quantile(Zarr, [0.25, 0.50, 0.75], sample_weight=weights)]
     Zgini = gini(Zarr)
-
 
     y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights, range=(0, args.xmax))
     x = x[:-1] + np.diff(x)/2
@@ -323,7 +347,7 @@ if __name__ == '__main__':
 
                 result, Zpeak, Z25, Z50, Z75, Zgini, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma = fit_distribution(Zres, args, weights=wres)
                 print('Fitted parameters:\n', result) #
-                if not args.noplot: fig = plot_distribution(Zres, args, weights=wres, fit=result) # plotting the Z profile, with fit
+                if not args.noplot: fig = plot_distribution(Zres, args, weights=wres, fit=result, percentiles=[Z25.n, Z50.n, Z75.n]) # plotting the Z profile, with fit
 
                 thisrow += [mstar, res, Zpeak.n, Zpeak.s, Z25.n, Z25.s, Z50.n, Z50.s, Z75.n, Z75.s, Zgini, Zmean.n, Zmean.s, Zvar.n, Zvar.s, Zskew.n, Zskew.s, Ztotal, gauss_amp.n, gauss_amp.s, gauss_mean.n, gauss_mean.s, gauss_sigma.n, gauss_sigma.s]
         else:

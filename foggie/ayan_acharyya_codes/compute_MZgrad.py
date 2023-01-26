@@ -183,7 +183,7 @@ def bin_data(array, data, bins):
     return bins_cen, binned_data, binned_err
 
 # ---------------------------------------------------------------------------------
-def fit_binned(df, xcol, ycol, x_bins, ax=None, is_logscale=False, color='darkorange', weightcol=None):
+def fit_binned(df, xcol, ycol, x_bins, ax=None, fit_inlog=False, color='darkorange', weightcol=None):
     '''
     Function to overplot binned data on existing plot
     '''
@@ -196,23 +196,28 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, is_logscale=False, color='darkor
     else:
         agg_func, agg_u_func = np.mean, np.std
 
-    y_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_func)])[ycol]
-    y_u_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_u_func)])[ycol]
-    if is_logscale: y_binned, y_u_binned = np.log10(y_binned.values), np.log10(y_u_binned.values)
-    w_binned = 1/(y_u_binned.flatten())**2
+    y_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_func)])[ycol].values.flatten()
+    y_u_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_u_func)])[ycol].values.flatten()
+    x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
+    w_binned = 1 / (y_u_binned) ** 2
+
+    if fit_inlog: y_binned, y_u_binned = np.log10(y_binned), np.log10(y_u_binned)
 
     # ----------to plot mean binned y vs x profile--------------
-    x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
-    linefit, linecov = np.polyfit(x_bin_centers, y_binned.flatten(), 1, cov=True)#, w=w_binned.flatten())
+    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=w_binned)
+    y_fitted = np.poly1d(linefit)(x_bin_centers)
 
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
     Zcen = ufloat(linefit[1], np.sqrt(linecov[1][1]))
+
+    if fit_inlog and args.forproposal: y_binned, y_u_binned, y_fitted = 10**y_binned, 10**y_u_binned, 10**y_fitted ##
+
     print('Upon radially binning: Inferred slope for halo ' + args.halo + ' output ' + args.output + ' is', Zgrad, 'dex/re' if 're' in args.xcol else 'dex/kpc')
 
     if ax is not None:
-        ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none')
-        ax.scatter(x_bin_centers, y_binned, c=color, s=150, lw=1, ec='black')
-        ax.plot(x_bin_centers, np.poly1d(linefit)(x_bin_centers), color=color, lw=2.5, ls='dashed')
+        if not args.forproposal: ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=1)
+        ax.scatter(x_bin_centers, y_binned, c=color, s=150, lw=1, ec='black', zorder=10)
+        ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
         units = 'dex/re' if 're' in xcol else 'dex/kpc'
         if not (args.notextonplot or args.forproposal): ax.text(0.033, 0.2, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize, va='center', bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
         return ax
@@ -237,16 +242,16 @@ def plot_gradient(df, args, linefit=None):
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
     # ---------first, plot both cell-by-cell profile first, using datashader---------
-    if args.forproposal:
+    if args.forproposal and args.output != 'RD0042':
         fig, ax = plt.subplots(figsize=(8, 4))
-        fig.subplots_adjust(right=0.95, top=0.9, bottom=0.2, left=0.2)
+        fig.subplots_adjust(right=0.95, top=0.95, bottom=0.2, left=0.17)
     else:
         fig, ax = plt.subplots(figsize=(8, 8))
         fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.17)
     if not args.plot_onlybinned: artist = dsshow(df, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ylim[0], args.ylim[1]), aspect = 'auto', ax=ax, cmap='Blues_r')#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # --------bin the metallicity profile and plot the binned profile-----------
-    ax = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=ax, is_logscale=True, weightcol=args.weight)
+    ax = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=ax, fit_inlog=True, weightcol=args.weight)
 
     # ----------plot the fitted metallicity profile---------------
     if not args.plot_onlybinned:
@@ -260,9 +265,10 @@ def plot_gradient(df, args, linefit=None):
     # ----------tidy up figure-------------
     ax.set_xlim(0, args.upto_re if 're' in args.xcol else args.upto_kpc)
     ax.set_ylim(args.ylim[0], args.ylim[1])
+    if args.forproposal: ax.set_yscale('log')
 
     ax.set_xlabel('Radius', fontsize=args.fontsize)
-    ax.set_ylabel(r'Log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
+    ax.set_ylabel(r'Metallicity (Z$_{\odot}$)' if args.forproposal else r'Log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
 
     ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 6))
     ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 3 if args.forproposal else 5))
@@ -271,8 +277,9 @@ def plot_gradient(df, args, linefit=None):
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 
     # ---------annotate and save the figure----------------------
-    plt.text(0.033, 0.05, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize)
-    plt.text(0.033, 0.15 if args.forproposal else 0.1, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize)
+    if not (args.forproposal and args.output == 'RD0042'):
+        plt.text(0.033, 0.05, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize)
+        plt.text(0.033, 0.15 if args.forproposal else 0.1, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=False)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
@@ -287,7 +294,7 @@ def fit_gradient(df, args):
     '''
 
     if args.weight is None: linefit, linecov = np.polyfit(df[args.xcol], df['log_metal'], 1, cov=True)
-    else: linefit, linecov = np.polyfit(df[args.xcol], df['log_metal'], 1, cov=True, w=df[args.weight])
+    linefit, linecov = np.polyfit(df[args.xcol], df['log_metal'], 1, cov=True, w=df[args.weight])
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
     Zcen = ufloat(linefit[1], np.sqrt(linecov[1][1]))
     print('Inferred slope for halo ' + args.halo + ' output ' + args.output + ' is', Zgrad, 'dex/re' if 're' in args.xcol else 'dex/kpc')
@@ -462,7 +469,7 @@ if __name__ == '__main__':
 
                 Zcen, Zgrad = fit_gradient(df, args)
                 args.bin_edges = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
-                Zcen_binned, Zgrad_binned = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=None, is_logscale=True, weightcol=args.weight)
+                Zcen_binned, Zgrad_binned = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=None, fit_inlog=True, weightcol=args.weight)
 
                 if not args.noplot: fig = plot_gradient(df, args, linefit=[Zgrad.n, Zcen.n]) # plotting the Z profile, with fit
 

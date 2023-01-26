@@ -80,8 +80,9 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
                 thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
                 prj = annotate_box(prj, thisphys, ds, center, unit='kpc', projection=axs)
 
-    prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
-    prj.annotate_text((0.05, 0.9), name, coord_system='axis', text_args = {'fontsize': 500, 'color': 'white'})#, inset_box_args = {})
+    if not args.forproposal:
+        prj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
+        prj.annotate_text((0.05, 0.9), name, coord_system='axis', text_args = {'fontsize': 500, 'color': 'white'})#, inset_box_args = {})
     if hide_axes:
         prj.hide_axes()
         prj.annotate_scale(size_bar_args={'color': 'white'}, corner='lower_left')
