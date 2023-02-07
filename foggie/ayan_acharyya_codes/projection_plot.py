@@ -9,12 +9,14 @@
     Started :    January 2021
     Example :    run projection_plot.py --system ayan_local --halo 4123 --output RD0038 --do gas --proj x --fullbox --nframes 1 --rot_normal_by -30 --rot_normal_about y --rot_north_by 45 --rot_north_about x --iscolorlog
                  run projection_plot.py --system ayan_local --halo 8508 --galrad 1000 --output RD0042 --do mrp --annotate_grids --annotate_box 200,400
+                 run projection_plot.py --system ayan_local --halo 8508 --galrad 10 --output RD0030 --do metal --forpaper --proj y
 
 """
 from header import *
 from util import *
 from foggie.utils.get_proper_box_size import get_proper_box_size
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from compute_MZgrad import *
 
 start_time = time.time()
 
@@ -98,7 +100,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                           fig_end='projection', do=['stars', 'gas', 'metal'], axes=['x', 'y', 'z'], annotate_positions=[], \
                           is_central=False, add_velocity=False, add_arrow=False, start_arrow=[], end_arrow=[], total_normal_rot=0, \
                           total_north_rot=0, rot_frame=0, nframes=200, hide_axes=False, iscolorlog=False, noweight=False, \
-                          rot_north_about='x', rot_normal_about='y', output='', fontsize=20, cbar_horizontal=False):
+                          rot_north_about='x', rot_normal_about='y', output='', fontsize=20, cbar_horizontal=False, use_density_cut=False):
     '''
     Function to arrange overheads of yt projection plot
     (adopted from foggie.satellites.for_paper.central_projection_plots)
@@ -111,13 +113,19 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                     center[1] - box_width / 2.: center[1] + box_width / 2.,
                     center[2] - box_width / 2.: center[2] + box_width / 2., ]
 
+    if use_density_cut:
+        rho_cut = get_density_cut(ds.current_time.in_units('Gyr'))  # based on Cassi's CGM-ISM density cut-off
+        ad = small_box.ds.all_data()
+        small_box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+        print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
+
     # The variables used below come from foggie.utils.consistency.py
     field_dict = {'gas':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), 'stars':('deposit', 'stars_density'),'ys_density':('deposit', 'young_stars_density'), 'ys_age':('my_young_stars', 'age'), 'ys_mass':('deposit', 'young_stars_mass'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected'), 'vlos':('gas', 'v_corrected'), 'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass')}
     cmap_dict = {'gas':density_color_map, 'gas_entropy':entropy_color_map, 'stars':plt.cm.Greys_r, 'ys_density':density_color_map, 'ys_age':density_color_map, 'ys_mass':density_color_map, 'metal':old_metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap, 'vlos':velocity_discrete_cmap, 'grid':'viridis', 'mrp':'viridis'}
     unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', temp='K', vrad='km/s', ys_age='Myr', ys_mass='pc*Msun', gas_entropy='keV*cm**3', vlos='km/s', grid='', mrp='cm*g')
-    zmin_dict = defaultdict(lambda: density_proj_min, metal=2e-2, temp=1.e3, vrad=-50, ys_age=0.1, ys_mass=1, ys_density=1e-3, gas_entropy=1.6e25, vlos=-500, grid=1, mrp=1e57)
-    zmax_dict = defaultdict(lambda: density_proj_max, metal= 2 if args.forproposal else 5e0, temp= temperature_max, vrad=50, ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=500, grid=11, mrp=1e65)
-    weight_field_dict = defaultdict(lambda: None, metal=('gas', 'density'), temp=('gas', 'density'), vrad=('gas', 'density'), vlos=('gas', 'density'))
+    zmin_dict = defaultdict(lambda: density_proj_min, metal=7e-2 if args.forpaper else 2e-2, temp=1.e3, vrad=-50, ys_age=0.1, ys_mass=1, ys_density=1e-3, gas_entropy=1.6e25, vlos=-500, grid=1, mrp=1e57)
+    zmax_dict = defaultdict(lambda: density_proj_max, metal= 2 if args.forproposal else 4e0 if args.forpaper else 5e0, temp= temperature_max, vrad=50, ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=500, grid=11, mrp=1e65)
+    weight_field_dict = defaultdict(lambda: None, metal=('gas', 'mass') if args.forpaper else ('gas', 'density'), temp=('gas', 'density'), vrad=('gas', 'density'), vlos=('gas', 'density'))
     colorlog_dict = defaultdict(lambda: False, metal=False if args.forproposal else True, gas=True, temp=True, gas_entropy=True, mrp=True)
 
     # north vector = which way is up; this is set up such that the north vector rotates ABOUT the normal vector
@@ -133,6 +141,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                           'z': [np.sin(rot_normal_by), np.cos(rot_normal_by), 0]}
 
     rot_text = '_normrotby_%.3F_northrotby_%.3F_frame_%03d_of_%03d' % (total_normal_rot, total_north_rot, rot_frame, nframes) if (total_normal_rot + total_north_rot) != 0 else ''
+    density_cut_text = '_wdencut' if use_density_cut else ''
 
     for ax in axes:
         north_vector = north_vector_dict[rot_north_about] if rot_frame else None
@@ -181,7 +190,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
             axes.set_xlabel(axes.get_xlabel(), fontsize=fontsize)
             axes.set_ylabel(axes.get_ylabel(), fontsize=fontsize)
 
-            filename = fig_dir + '%s_%s' % (output, d) + '_box=%.2Fkpc' % (box_width) + '_proj_' + ax + rot_text + '_' + fig_end + '.png'
+            filename = fig_dir + '%s_%s' % (output, d) + '_box=%.2Fkpc' % (box_width) + '_proj_' + ax + rot_text + '_' + fig_end + density_cut_text + '.png'
             plt.savefig(filename, transparent=False)
             myprint('Saved figure ' + filename, args)
 
@@ -227,6 +236,9 @@ if __name__ == '__main__':
 
         fig_dir = args.output_dir + 'figs/' + args.output + '/'
         Path(fig_dir).mkdir(parents=True, exist_ok=True)
+        if args.forpaper:
+            args.use_density_cut = True
+
 
         yt.add_particle_filter('my_young_stars', function=my_young_stars, filtered_type='all', requires=['creation_time', 'particle_type'])
         ds.add_particle_filter('my_young_stars')
@@ -243,14 +255,14 @@ if __name__ == '__main__':
             end_frame = args.nframes if args.makerotmovie else start_frame + 1
 
             for nrot in range(start_frame, end_frame):
-                print('Plotting', nrot, 'out of', end_frame - 1, 'frames..')
+                print('Plotting', nrot+1, 'out of', end_frame, 'frames..')
                 fig = make_projection_plots(ds=refine_box.ds, center=center, \
                                         refine_box=refine_box, box_width=2 * args.galrad * kpc, \
                                         fig_dir=fig_dir, name=halo_dict[args.halo], output=this_sim[1], fontsize=args.fontsize*1.5, \
                                         fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.projection.split(',')], \
                                         is_central=args.do_central, add_arrow=args.add_arrow, add_velocity=args.add_velocity, rot_frame=nrot, \
                                         total_normal_rot=args.rot_normal_by, total_north_rot=args.rot_north_by, rot_north_about=args.rot_north_about, rot_normal_about=args.rot_normal_about, \
-                                        nframes=(end_frame - start_frame), hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight, cbar_horizontal=False) # using halo_center_kpc instead of refine_box_center
+                                        nframes=(end_frame - start_frame), hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight, cbar_horizontal=False, use_density_cut=args.use_density_cut) # using halo_center_kpc instead of refine_box_center
         else:
             print('Skipping plotting step')
 
