@@ -9,6 +9,7 @@
     Started :    Aug 2022
     Examples :   run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_re 3 --res 0.1 --nbins 100 --keep --weight mass
                  run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass --docomoving --fit_multiple --hide_multiplefit --forproposal
+                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass --forpaper
                  run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --xmax 4 --do_all_sims --weight mass --write_file --use_gasre --noplot
 
 """
@@ -57,11 +58,12 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     if args.forproposal and args.output == 'RD0042': plt.rcParams["axes.linewidth"] = 1
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
     fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
+    density_cut_text = '_wdencut' if args.use_density_cut else ''
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
-    outfile_rootname = '%s_log_metal_distribution%s%s%s.png' % (args.output, upto_text, weightby_text, fitmultiple_text)
+    outfile_rootname = '%s_log_metal_distribution%s%s%s%s.png' % (args.output, upto_text, weightby_text, fitmultiple_text, density_cut_text)
     if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output)+1:]
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
@@ -74,12 +76,13 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
         fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.15)
 
     if args.weight is None: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, ec='salmon', density=True)
-    else: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, range=(0, args.xmax), ec='salmon', weights=weights.flatten())
+    else: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, ec='salmon', weights=weights.flatten())
 
     if fit is not None and not (args.forproposal and args.output != 'RD0042'):
         xvals = p[1][:-1] + np.diff(p[1])
         if args.fit_multiple:
             ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=2, label='Total fit' if not (args.hide_multiplefit or args.forproposal) else None)
+            ax.plot(xvals, multiple_gauss(xvals, *[2, -0.8, 0.05, 1.5, 0.2, 0.2, 0.1]), c='b', lw=1) #
             if not args.hide_multiplefit:
                 ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label=None if args.annotate_profile or args.forproposal else 'Regular Gaussian')
                 ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label=None if args.annotate_profile or args.forproposal else 'Skewed Gaussian')
@@ -96,7 +99,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
 
     if percentiles is not None:
         percentiles = np.atleast_1d(percentiles)
-        for thisper in percentiles: ax.axvline(thisper, lw=2.5, ls='solid', color='salmon')
+        #for thisper in percentiles: ax.axvline(thisper, lw=2.5, ls='solid', color='crimson')
 
     # ----------adding arrows--------------
     if args.annotate_profile:
@@ -105,13 +108,13 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
 
     # ----------tidy up figure-------------
     plt.legend(loc='upper right', bbox_to_anchor=(1, 0.75), fontsize=args.fontsize)
-    ax.set_xlim(0, 2 if args.forproposal else args.xmax)
-    ax.set_ylim(0, 1.5 if args.forproposal else 2.5)
+    ax.set_xlim(args.xmin, args.xmax)
+    ax.set_ylim(0, args.ymax)
 
     ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 5))
     ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 4 if args.forproposal else 6))
 
-    ax.set_xlabel(r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
+    ax.set_xlabel(r'Log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize/1.2 if args.forproposal else args.fontsize)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
@@ -173,10 +176,16 @@ def fit_distribution(Zarr, args, weights=None):
     try:
         if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
             print('Fitting with one skewed gaussian + one regular guassian...')
-            p0 = [2, 0.1, 0.1, 0.5, 0.5, 0.5, 0]  # initial guess for parameters; [gaussian amplitude, gaussian mean, gaussian sigma, skewed gaussian amplitude, skewed gaussian mean, skewed gaussian sigma, skewed gaussian gamma]
-            lower_bounds = np.zeros(len(p0))
-            upper_bounds = [np.inf, 0.4, 0.1, np.inf, np.inf, np.inf, np.inf]
-            result, cov = curve_fit(multiple_gauss, x, y, p0=p0, bounds=[lower_bounds, upper_bounds], maxfev=int(1e4))
+            if args.islog:
+                p0 = [2, -0.8, 0.05, 1.5, 0.2, 0.2, 0.1]  # initial guess for parameters; [gaussian amplitude, gaussian mean, gaussian sigma, skewed gaussian amplitude, skewed gaussian mean, skewed gaussian sigma, skewed gaussian gamma]
+                lower_bounds = [0, -1.5, 0, 0, -1.5, 0, 0]
+                upper_bounds = [np.inf, 0, 0.5, np.inf, 1.0, 0.5, np.inf]
+                result, cov = curve_fit(multiple_gauss, x, y, p0=p0, maxfev=int(1e4))
+            else:
+                p0 = [2, 0.1, 0.1, 0.5, 0.5, 0.5, 0]  # initial guess for parameters; [gaussian amplitude, gaussian mean, gaussian sigma, skewed gaussian amplitude, skewed gaussian mean, skewed gaussian sigma, skewed gaussian gamma]
+                lower_bounds = np.zeros(len(p0))
+                upper_bounds = [np.inf, 0.4, 0.1, np.inf, np.inf, np.inf, np.inf]
+                result, cov = curve_fit(multiple_gauss, x, y, p0=p0, bounds=[lower_bounds, upper_bounds], maxfev=int(1e4))
 
             gauss_amp = ufloat(result[0], np.sqrt(cov[0][0]))
             gauss_mean = ufloat(result[1], np.sqrt(cov[1][1]))
@@ -189,7 +198,7 @@ def fit_distribution(Zarr, args, weights=None):
         else: # fitting a single skewed gaussian with SkewedGaussianModel()
             print('Fitting with one skewed gaussian...')
             model = SkewedGaussianModel()
-            params = model.make_params(amplitude=0.5, center=0.5, sigma=0.5, gamma=0)
+            params = model.make_params(amplitude=0.5, center=0 if args.islog else 0.5, sigma=0.5, gamma=0)
             result = model.fit(y, params, x=x)
 
             Zpeak = ufloat(result.params['amplitude'].value, result.params['amplitude'].stderr)
@@ -220,17 +229,24 @@ if __name__ == '__main__':
     else: list_of_sims = list(itertools.product([dummy_args.halo], dummy_args.output_arr))
     total_snaps = len(list_of_sims)
 
+    if dummy_args.forpaper:
+        dummy_args.docomoving = True
+        dummy_args.islog = True
+        dummy_args.use_density_cut = True
+        dummy_args.fit_multiple = True
+
     # -------set up dataframe and filename to store/write gradients in to--------
     cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zgini', 'Zmean', 'Zmean_u', 'Zvar', 'Zvar_u', 'Zskew', 'Zskew_u', 'Ztotal', 'gauss_amp', 'gauss_amp_u', 'gauss_mean', 'gauss_mean_u', 'gauss_sigma', 'gauss_sigma_u']
 
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
     fitmultiple_text = '_fitmultiple' if dummy_args.fit_multiple else ''
+    density_cut_text = '_wdencut' if dummy_args.use_density_cut else ''
     if dummy_args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % dummy_args.upto_kpc if dummy_args.docomoving else '_upto%.1Fkpc' % dummy_args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % dummy_args.upto_re
-    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZscat%s%s%s.txt' % (upto_text, weightby_text, fitmultiple_text)
+    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZscat%s%s%s%s.txt' % (upto_text, weightby_text, fitmultiple_text, density_cut_text)
     if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
     if dummy_args.dryrun:
@@ -297,10 +313,20 @@ if __name__ == '__main__':
         # parse paths and filenames
         args.fig_dir = args.output_dir + 'figs/' if args.do_all_sims else args.output_dir + 'figs/' + args.output + '/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
+        if args.forpaper:
+            args.docomoving = True
+            args.islog = True
+            args.use_density_cut = True
+            args.fit_multiple = True
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').v
-        if args.xmax is None: args.xmax = 4
+        if args.xmin is None:
+            args.xmin = -1.5 if args.islog else 0
+        if args.xmax is None:
+            args.xmax = 2 if args.forproposal else 0.6 if args.islog else 4
+        if args.ymax is None:
+            args.ymax = 1.5 if args.forproposal else 2.0 if args.use_density_cut else 2.5 if args.islog else 2.5
 
         if args.write_file or args.upto_kpc is None:
             args.re = get_re_from_coldgas(gasprofile, args) if args.use_gasre else get_re_from_stars(ds, args)
@@ -319,25 +345,43 @@ if __name__ == '__main__':
             box_center = ds.arr(args.halo_center, kpc)
             box_width = args.galrad * 2  # in kpc
             box_width_kpc = ds.arr(box_width, 'kpc')
+            mstar = get_disk_stellar_mass(args)  # Msun
 
             # ----------------native res--------------------------
-            box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
-            Znative = box[('gas', 'metallicity')].in_units('Zsun').ndarray_view()
-            mnative = box[('gas', 'mass')].in_units('Msun').ndarray_view()
-            mstar = get_disk_stellar_mass(args)  # Msun
-            print('native no. of cells =', np.shape(Znative)) #
+            if args.get_native_res:
+                box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+                if args.use_density_cut:
+                    rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
+                    ad = box.ds.all_data()
+                    box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+                    print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
+
+                Znative = box[('gas', 'metallicity')].in_units('Zsun').ndarray_view()
+                mnative = box[('gas', 'mass')].in_units('Msun').ndarray_view()
+                print('native no. of cells =', np.shape(Znative))
+
+            # ----------------binned res-----------------------------
             for index, res in enumerate(args.res_arr):
                 ncells = int(box_width / res)
                 box = ds.arbitrary_grid(left_edge=[box_center[0] - box_width_kpc / 2., box_center[1] - box_width_kpc / 2., box_center[2] - box_width_kpc / 2.], \
                                         right_edge=[box_center[0] + box_width_kpc / 2., box_center[1] + box_width_kpc / 2., box_center[2] + box_width_kpc / 2.], \
                                         dims=[ncells, ncells, ncells])
                 print('res =', res, 'kpc; box shape=', np.shape(box)) #
+                if args.use_density_cut:
+                    rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
+                    ad = box.ds.all_data()
+                    box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+                    print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
                 Zres = box['gas', 'metallicity'].in_units('Zsun').ndarray_view()
                 mres = box['gas', 'mass'].in_units('Msun').ndarray_view()
                 if args.weight is not None: wres = box['gas', args.weight].in_units(unit_dict[args.weight]).ndarray_view()
                 else: wres = None
                 Ztotal = np.sum(Zres * mres) / np.sum(mres) # in Zsun
+                if args.islog:
+                    Zres = np.log10(Zres) # all operations will be done in log
+                    wres = np.ma.compressed(np.ma.array(wres, mask=np.ma.masked_where(wres, Zres < -4))) # discarding wild values of metallicity
+                    Zres = np.ma.compressed(np.ma.array(Zres, mask=np.ma.masked_where(Zres, Zres < -4)))
 
                 if args.Zcut is not None: # testing if can completely chop-off low-gaussian component
                     print('Chopping off histogram at a fixed %.1F, therefore NOT fiting multiple components' % args.Zcut)

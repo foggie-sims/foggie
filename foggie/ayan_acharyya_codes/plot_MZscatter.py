@@ -26,7 +26,7 @@ def load_df(args):
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
-    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZscat%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text)
+    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZscat%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text)
 
     df = pd.read_table(grad_filename, delim_whitespace=True)
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
@@ -202,7 +202,7 @@ def plot_MZscatter(args):
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
 
-    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_vs_%s_colorby_%s_res%.2Fkpc%s%s%s.png' % (args.ycol, args.xcol, args.colorcol, float(args.res), upto_text, args.weightby_text, binby_text)
+    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_vs_%s_colorby_%s_res%.2Fkpc%s%s%s%s.png' % (args.ycol, args.xcol, args.colorcol, float(args.res), upto_text, args.weightby_text, binby_text, args.density_cut_text)
     fig.savefig(figname)
     print('Saved plot as', figname)
 
@@ -221,7 +221,7 @@ def plot_MZscatter(args):
         ax2.set_xlabel(label_dict[args.zcol], fontsize=args.fontsize)
         ax2.set_ylabel('Deviation in ' + label_dict[args.ycol], fontsize=args.fontsize)
 
-        figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_dev_in_%s_vs_%s_colorby_%s_res%.2Fkpc%s%s%s.png' % (args.ycol, args.zcol, args.colorcol, float(args.res), upto_text, args.weightby_text, binby_text)
+        figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_dev_in_%s_vs_%s_colorby_%s_res%.2Fkpc%s%s%s%s.png' % (args.ycol, args.zcol, args.colorcol, float(args.res), upto_text, args.weightby_text, binby_text, args.density_cut_text)
         fig2.savefig(figname)
         print('Saved plot as', figname)
     else:
@@ -248,6 +248,7 @@ if __name__ == '__main__':
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight
     args.fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
+    args.density_cut_text = '_wdencut' if args.use_density_cut else ''
     if args.ycol == 'metal': args.ycol = 'log_Zvar' # changing the default ycol to metallicity gradient
     if args.xcol == 'rad': args.xcol = 'log_mass' # changing the default xcol to mass, to make a MZGR plot by default when xcol and ycol aren't specified
     if args.colorcol == ['vrad']: args.colorcol = 'time'

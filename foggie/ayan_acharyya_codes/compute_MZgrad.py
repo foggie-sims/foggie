@@ -12,6 +12,7 @@
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --do_all_sims --weight mass --write_file --noplot
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --xcol rad --do_all_sims --weight mass --write_file --noplot
                  run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass --plot_onlybinned --forproposal
+                 run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass --forpaper
 
 """
 from header import *
@@ -20,6 +21,21 @@ from datashader_movie import *
 from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
 start_time = time.time()
+
+# --------------------------------------------------------------------
+def get_density_cut(t):
+    '''
+    Function to get density cut based on Cassi's paper. The cut is a funciton of ime.
+    if z > 0.5: rho_cut = 2e-26 g/cm**3
+    elif z < 0.25: rho_cut = 2e-27 g/cm**3
+    else: linearly from 2e-26 to 2e-27 from z = 0.5 to z = 0.25
+    Takes time in Gyr as input
+    '''
+    t1, t2 = 8.628, 10.754 # Gyr; corresponds to z1 = 0.5 and z2 = 0.25
+    rho1, rho2 = 2e-26, 2e-27 # g/cm**3
+    t = np.float64(t)
+    rho_cut = np.piecewise(t, [t < t1, (t >= t1) & (t <= t2), t > t2], [rho1, lambda t: rho1 + (t - t1) * (rho2 - rho1) / (t2 - t1), rho2])
+    return rho_cut
 
 # -------------------------------------------------------------------------------
 def calc_masses(ds, snap, refine_width_kpc, tablename, get_gas_profile=False):
@@ -191,17 +207,20 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, fit_inlog=False, color='darkoran
 
     if weightcol is not None:
         agg_func = lambda x: np.sum(x * df.loc[x.index, weightcol]) / np.sum(df.loc[x.index, weightcol]) # function to get weighted mean
-        #agg_u_func = lambda x: np.sqrt(((np.sum(df.loc[x.index, weightcol] * x**2) / np.sum(df.loc[x.index, weightcol])) - (np.sum(x * df.loc[x.index, weightcol]) / np.sum(df.loc[x.index, weightcol]))**2) * (np.sum(df.loc[x.index, weightcol]**2)) / (np.sum(df.loc[x.index, weightcol])**2 - np.sum(df.loc[x.index, weightcol]**2))) # eq 6 of http://seismo.berkeley.edu/~kirchner/Toolkits/Toolkit_12.pdf
-        agg_u_func = np.std
+        agg_u_func = lambda x: np.sqrt(((np.sum(df.loc[x.index, weightcol] * x**2) / np.sum(df.loc[x.index, weightcol])) - (np.sum(x * df.loc[x.index, weightcol]) / np.sum(df.loc[x.index, weightcol]))**2) * (np.sum(df.loc[x.index, weightcol]**2)) / (np.sum(df.loc[x.index, weightcol])**2 - np.sum(df.loc[x.index, weightcol]**2))) # eq 6 of http://seismo.berkeley.edu/~kirchner/Toolkits/Toolkit_12.pdf
+        #agg_u_func = np.std
+        #agg_u_func = lambda x: np.std(x)/np.sqrt(len(x))
     else:
         agg_func, agg_u_func = np.mean, np.std
 
     y_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_func)])[ycol].values.flatten()
     y_u_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_u_func)])[ycol].values.flatten()
     x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
-    w_binned = 1 / (y_u_binned) ** 2
 
-    if fit_inlog: y_binned, y_u_binned = np.log10(y_binned), np.log10(y_u_binned)
+    if fit_inlog:
+        quant = unumpy.log10(unumpy.uarray(y_binned, y_u_binned)) # for correct propagation of errors
+        y_binned, y_u_binned = unumpy.nominal_values(quant), unumpy.std_devs(quant)
+    w_binned = 1 / (y_u_binned) ** 2
 
     # ----------to plot mean binned y vs x profile--------------
     linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=w_binned)
@@ -232,12 +251,13 @@ def plot_gradient(df, args, linefit=None):
     '''
     onlybinned_text = '_onlybinned' if args.plot_onlybinned else ''
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
+    density_cut_text = '_wdencut' if args.use_density_cut else ''
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
 
-    outfile_rootname = '%s_datashader_log_metal_vs_%s%s%s%s.png' % (args.output, args.xcol,upto_text, weightby_text, onlybinned_text)
+    outfile_rootname = '%s_datashader_log_metal_vs_%s%s%s%s%s.png' % (args.output, args.xcol,upto_text, weightby_text, onlybinned_text, density_cut_text)
     if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output)+1:]
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
@@ -254,7 +274,7 @@ def plot_gradient(df, args, linefit=None):
     ax = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=ax, fit_inlog=True, weightcol=args.weight)
 
     # ----------plot the fitted metallicity profile---------------
-    if not args.plot_onlybinned:
+    if not (args.plot_onlybinned or args.forpaper):
         color = 'limegreen'
         if linefit is not None:
             fitted_y = np.poly1d(linefit)(args.bin_edges)
@@ -267,7 +287,7 @@ def plot_gradient(df, args, linefit=None):
     ax.set_ylim(args.ylim[0], args.ylim[1])
     if args.forproposal: ax.set_yscale('log')
 
-    ax.set_xlabel('Radius', fontsize=args.fontsize)
+    ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
     ax.set_ylabel(r'Metallicity (Z$_{\odot}$)' if args.forproposal else r'Log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
 
     ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 6))
@@ -302,7 +322,7 @@ def fit_gradient(df, args):
     return Zcen, Zgrad
 
 # -------------------------------------------------------------------------------
-def get_df_from_ds(ds, args):
+def get_df_from_ds(box, args):
     '''
     Function to make a pandas dataframe from the yt dataset, including only the metallicity profile,
     then writes dataframe to file for faster access in future
@@ -316,13 +336,19 @@ def get_df_from_ds(ds, args):
     if not os.path.exists(outfilename) or args.clobber:
         myprint(outfilename + ' does not exist. Creating afresh..', args)
 
+        if args.use_density_cut:
+            rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
+            ad = box.ds.all_data()
+            box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+            print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
+
         df = pd.DataFrame()
         fields = ['rad', 'metal'] # only the relevant properties
         if args.weight is not None: fields += [args.weight]
 
         for index, field in enumerate(fields):
             myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(fields)) + ' fields..', args)
-            df[field] = ds[field_dict[field]].in_units(unit_dict[field]).ndarray_view()
+            df[field] = box[field_dict[field]].in_units(unit_dict[field]).ndarray_view()
 
         df.to_csv(outfilename, sep='\t', index=None)
     else:
@@ -350,6 +376,10 @@ if __name__ == '__main__':
     else: list_of_sims = list(itertools.product([dummy_args.halo], dummy_args.output_arr))
     total_snaps = len(list_of_sims)
 
+    if dummy_args.forpaper:
+        dummy_args.docomoving = True
+        dummy_args.use_density_cut = True
+
     # -------set up dataframe and filename to store/write gradients in to--------
     cols_in_df = ['output', 'redshift', 'time']
     cols_to_add = ['mass', 'Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u', 'Zcen_binned', 'Zcen_u_binned', 'Zgrad_binned', 'Zgrad_u_binned', 'Ztotal']
@@ -358,11 +388,12 @@ if __name__ == '__main__':
 
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
+    density_cut_text = '_wdencut' if dummy_args.use_density_cut else ''
     if dummy_args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % dummy_args.upto_kpc if dummy_args.docomoving else '_upto%.1Fkpc' % dummy_args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % dummy_args.upto_re
-    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s%s%s.txt' % (dummy_args.xcol, upto_text, weightby_text)
+    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s%s%s%s.txt' % (dummy_args.xcol, upto_text, weightby_text, density_cut_text)
     if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
     if dummy_args.dryrun:
@@ -433,6 +464,9 @@ if __name__ == '__main__':
         # parse paths and filenames
         args.fig_dir = args.output_dir + 'figs/' if args.do_all_sims else args.output_dir + 'figs/' + args.output + '/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
+        if args.forpaper:
+            args.docomoving = True
+            args.use_density_cut = True
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').v

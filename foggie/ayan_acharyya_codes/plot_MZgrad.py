@@ -36,11 +36,12 @@ def load_df(args):
     '''
     args.foggie_dir, args.output_dir, args.run_loc, args.code_path, args.trackname, args.haloname, args.spectra_dir, args.infofile = get_run_loc_etc(args)
     Zgrad_den_text = 'rad' if args.Zgrad_den == 'kpc' else 'rad_re'
+    density_cut_text = '_wdencut' if args.use_density_cut else ''
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
-    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text)
+    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text, density_cut_text)
 
     convert_Zgrad_from_dexkpc_to_dexre = False
     convert_Zgrad_from_dexre_to_dexkpc = False
@@ -523,7 +524,7 @@ def plot_MZGR(args):
             # ---------vertical line for time-cut-off-----
             ax.plot(df[args.xcol], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, lw=0.3)
             ax.plot(df[args.xcol], df[overplotted_column] - args.Zgrad_allowance, color=thistextcolor, lw=0.3)
-            ax.axvline(df[df['redshift'] >= args.upto_z]['time'].values[-1], lw=2, ls='dashed', color='k')
+            if not args.forproposal: ax.axvline(df[df['redshift'] >= args.upto_z]['time'].values[-1], lw=2, ls='dashed', color='k')
 
             # ---------filled area plot for deviation outside allowance-----
             ax.fill_between(df[args.xcol], df[overplotted_column], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, alpha=0.1)
@@ -563,13 +564,14 @@ def plot_MZGR(args):
     ax.set_ylabel(label_dict[args.ycol], fontsize=args.fontsize)
 
     binby_text = '' if args.binby is None else '_binby_' + args.binby
+    density_cut_text = '_wdencut' if args.use_density_cut else ''
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
 
-    if args.plot_timefraction: figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_timefrac_outside_%.2F_Zgrad_den_%s%s%s%s%s.png' % (args.Zgrad_allowance, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text)
-    else: figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_vs_%s_colorby_%s_Zgrad_den_%s%s%s%s%s.png' % (args.ycol, args.xcol, args.colorcol, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text)
+    if args.plot_timefraction: figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_timefrac_outside_%.2F_Zgrad_den_%s%s%s%s%s%s.png' % (args.Zgrad_allowance, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text, density_cut_text)
+    else: figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_vs_%s_colorby_%s_Zgrad_den_%s%s%s%s%s%s.png' % (args.ycol, args.xcol, args.colorcol, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text, density_cut_text)
     fig.savefig(figname, transparent=args.glasspaper or args.forproposal)
     print('Saved plot as', figname)
 

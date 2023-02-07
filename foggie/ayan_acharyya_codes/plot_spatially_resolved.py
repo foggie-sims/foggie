@@ -336,25 +336,10 @@ def plot_kinematics(frb, args):
 
     return fig_vel_profile, fig_vel_map, fig_vdisp_profile, fig_vdisp_map
 
-# --------------------------------------------------------------------
-def get_density_cut(t):
-    '''
-    Function to get density cut based on Cassi's paper. The cut is a funciton of ime.
-    if z > 0.5: rho_cut = 2e-26 g/cm**3
-    elif z < 0.25: rho_cut = 2e-27 g/cm**3
-    else: linearly from 2e-26 to 2e-27 from z = 0.5 to z = 0.25
-    Takes time in Gyr as input
-    '''
-    t1, t2 = 8.628, 10.754 # Gyr; corresponds to z1 = 0.5 and z2 = 0.25
-    rho1, rho2 = 2e-26, 2e-27 # g/cm**3
-    t = np.float64(t)
-    rho_cut = np.piecewise(t, [t < t1, (t >= t1) & (t <= t2), t > t2], [rho1, lambda t: rho1 + (t - t1) * (rho2 - rho1) / (t2 - t1), rho2])
-    return rho_cut
-
 # ----------------------------------------------------
 def plot_cellmass(box, args):
     '''
-    Function to plot intrinsic cell mass map and profile
+    Function to plot intrinsic cell mass map and profile \
     Requires YTRegion object as input
     '''
     sns.set_style('ticks')  # instead of darkgrid, so that there are no grids overlaid on the projections

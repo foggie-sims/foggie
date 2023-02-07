@@ -52,8 +52,9 @@ def get_correct_tablename(args):
     '''
     Function to determine the correct tablename for a given set of args
     '''
-    if args.quick: outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc_%s_vs_%s_colby_%s%s.txt' % (args.ycol, args.xcol, args.colorcol, inflow_outflow_text)
-    else: outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc.txt'
+    density_cut_text = '_wdencut' if args.use_density_cut else ''
+    if args.quick: outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc_%s_vs_%s_colby_%s%s%s.txt' % (args.ycol, args.xcol, args.colorcol, inflow_outflow_text, density_cut_text)
+    else: outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc' + density_cut_text + '.txt'
 
     outfile_list = glob.glob(outfileroot)
     if len(outfile_list) == 0:
