@@ -191,7 +191,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
             axes.set_ylabel(axes.get_ylabel(), fontsize=fontsize)
 
             filename = fig_dir + '%s_%s' % (output, d) + '_box=%.2Fkpc' % (box_width) + '_proj_' + ax + rot_text + '_' + fig_end + density_cut_text + '.png'
-            plt.savefig(filename, transparent=False)
+            plt.savefig(filename, transparent=args.fortalk)
             myprint('Saved figure ' + filename, args)
 
     return fig, prj
@@ -236,7 +236,10 @@ if __name__ == '__main__':
 
         fig_dir = args.output_dir + 'figs/' + args.output + '/'
         Path(fig_dir).mkdir(parents=True, exist_ok=True)
-        if args.forpaper:
+        if args.fortalk:
+            setup_plots_for_talks()
+            args.forproposal = True
+        if args.forpaper or args.forproposal:
             args.use_density_cut = True
 
 

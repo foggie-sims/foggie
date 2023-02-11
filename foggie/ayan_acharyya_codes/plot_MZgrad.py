@@ -21,7 +21,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --glasspaper [FOR MATCHING GLASS PAPER]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol redshift --nocolorcoding --overplot_literature
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1000 --nocolorcoding
-                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1000 --nocolorcoding --use_binnedfit --snaphighlight DD0452,DD0466 --forproposal
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 2 --overplot_smoothed 1000 --snaphighlight DD0452,DD0466 --forproposal
 """
 from header import *
 from util import *
@@ -307,7 +307,7 @@ def plot_zhighlight(df, ax, cmap, args, ycol=None):
     if ycol is None: ycol = args.ycol
     df['redshift_int'] = np.floor(df['redshift'])
     df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-    if is_color_like(cmap): dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=cmap, lw=1, edgecolor='k', s=100, alpha=0.5, zorder=20)
+    if is_color_like(cmap): dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=cmap, lw=1, edgecolor='gold' if args.fortalk else 'k', s=100, alpha=1 if args.fortalk else 0.5, zorder=20)
     else: dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=df_zbin[args.colorcol], cmap=cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.7 if (args.overplot_smoothed and 'smoothed' not in ycol) or args.overplot_cadence else 1, zorder=20)
     print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
     return ax
@@ -331,7 +331,7 @@ def plot_MZGR(args):
 
     # -------------get plot limits-----------------
     lim_dict = {'Zgrad': (-0.25, 0.1) if (args.Zgrad_den == 'kpc' and args.use_binnedfit) else (-0.5, 0.1) if args.Zgrad_den == 'kpc' else (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (8, 9), 'log_sfr': (-1, 3)}
-    label_dict = MyDefaultDict(Zgrad=r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.Zgrad_den == 're' else r'$\nabla Z$ (dex/kpc)' if not args.glasspaper else 'Metallicity gradient (dex/kpc)', \
+    label_dict = MyDefaultDict(Zgrad=r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.Zgrad_den == 're' else 'Metallicity gradient (dex/kpc)' if args.fortalk else r'$\nabla Z$ (dex/kpc)', \
         re='Scale length (kpc)', log_mass=r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', redshift='Redshift', time='Time (Gyr)', sfr=r'SFR (M$_{\odot}$/yr)', \
         log_ssfr=r'$\log{\, \mathrm{sSFR} (\mathrm{yr}^{-1})}$', Ztotal=r'$\log{(\mathrm{O/H})}$ + 12', log_sfr=r'$\log{(\mathrm{SFR} (\mathrm{M}_{\odot}/yr))}$')
 
@@ -443,20 +443,23 @@ def plot_MZGR(args):
         reversed_thiscmap = this_cmap + '_r' if '_r' not in this_cmap else this_cmap[:-2]
         thistextcolor = mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
-            line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_literature else 2)
-            plot = ax.add_collection(line)
+            if args.nocolorcoding:
+                ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature else 2, zorder=7 if args.fortalk else 2)
+            else:
+                line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_literature else 2)
+                plot = ax.add_collection(line)
 
         # ------- overplotting specific snapshot highlights------------
         if args.snaphighlight is not None:
             snaps_to_highlight = [item for item in args.snaphighlight.split(',')]
             df_snaps = df[df['output'].isin(snaps_to_highlight)]
-            dummy = ax.scatter(df_snaps[args.xcol], df_snaps[args.ycol], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=300, alpha=1, marker='*', zorder=10)
+            dummy = ax.scatter(df_snaps[args.xcol], df_snaps[args.ycol], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
             print(df_snaps[['output', 'time', 'redshift', args.xcol, args.ycol, args.colorcol]]) #
             print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, ' with star-markers\nThese snapshots correspond to times', df_snaps['time'].values, 'Gyr respectively, i.e.,', np.diff(df_snaps['time'].values) * 1000, 'Myr apart')
 
         # ------- overplotting redshift-binned scatter plot------------
         if args.zhighlight:
-            ax = plot_zhighlight(df, ax, this_cmap, args)
+            ax = plot_zhighlight(df, ax, thistextcolor if args.nocolorcoding else this_cmap, args)
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
         if args.overplot_smoothed:
@@ -468,8 +471,11 @@ def plot_MZGR(args):
             print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points, =', npoints * mean_dt, 'Myr')
 
             if 'line' in locals() and not args.nocolorcoding: line.set_alpha(0.5) # make the actual wiggly line fainter (unless making plots for Molly's talk)
-            smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=0.5)
-            plot = ax.add_collection(smoothline) ## keep this commented out for making plots for Molly's talk
+            if args.nocolorcoding:
+                ax.plot(df[args.xcol], df[args.ycol + '_smoothed'], c=thistextcolor, lw=0.5)
+            else:
+                smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=0.5)
+                plot = ax.add_collection(smoothline) ## keep this commented out for making plots for Molly's talk
             if args.hiderawdata: # for making plots for Molly's talk
                 ax = plot_zhighlight(df, ax, this_cmap, args, ycol=args.ycol + '_smoothed')
                 smoothline.set_alpha(0.2)
@@ -486,8 +492,11 @@ def plot_MZGR(args):
             cfunc = interp1d(df_short[args.xcol], df_short[args.colorcol], fill_value='extrapolate')
             df[args.ycol + '_interp'] = yfunc(df[args.xcol])
             df[args.colorcol + '_interp'] = cfunc(df[args.xcol])
-            interpline = get_multicolored_line(df[args.xcol], df[args.ycol + '_interp'], df[args.colorcol + '_interp'], this_cmap, args.cmin, args.cmax, lw=0.5)
-            plot = ax.add_collection(interpline)
+            if args.nocolorcoding:
+                ax.plot(df[args.xcol], df[args.ycol + '_interp'], c=thistextcolor, lw=0.5)
+            else:
+                interpline = get_multicolored_line(df[args.xcol], df[args.ycol + '_interp'], df[args.colorcol + '_interp'], this_cmap, args.cmin, args.cmax, lw=0.5)
+                plot = ax.add_collection(interpline)
 
         # ------- making additional plot of deviation in gradient vs other quantities, like SFR------------
         if args.plot_deviation:
@@ -502,15 +511,20 @@ def plot_MZGR(args):
             #ax2.scatter(df[args.zcol], df[args.ycol + '_deviation'], c=thistextcolor, edgecolor='k', lw=0.5, s=50)
 
             # --------- colored line plot------------
-            line2 = get_multicolored_line(df[args.zcol], np.abs(df[args.ycol + '_deviation']), df[args.colorcol], reversed_thiscmap, args.cmin, args.cmax, lw=1)
-            plot2 = ax2.add_collection(line2)
-
-            # --------- smoothed colored line plot------------
-            line2.set_alpha(0.2) # make the actual wiggly line fainter
+            if args.nocolorcoding:
+                ax.plot(df[args.zcol], df[args.ycol + '_deviation'], c=thistextcolor, lw=1)
+            else:
+                line2 = get_multicolored_line(df[args.zcol], np.abs(df[args.ycol + '_deviation']), df[args.colorcol], reversed_thiscmap, args.cmin, args.cmax, lw=1)
+                plot2 = ax2.add_collection(line2)
+                # --------- smoothed colored line plot------------
+                line2.set_alpha(0.2) # make the actual wiggly line fainter
 
             df[args.ycol + '_deviation_smoothed'] = np.convolve(np.abs(df[args.ycol + '_deviation']), box, mode='same')
-            smoothline2 = get_multicolored_line(df[args.zcol], df[args.ycol + '_deviation_smoothed'], df[args.colorcol], reversed_thiscmap, args.cmin, args.cmax, lw=2)
-            plot2 = ax2.add_collection(smoothline2)
+            if args.nocolorcoding:
+                ax.plot(df[args.zcol], df[args.ycol + '_deviation_smoothed'], c=thistextcolor, lw=2)
+            else:
+                smoothline2 = get_multicolored_line(df[args.zcol], df[args.ycol + '_deviation_smoothed'], df[args.colorcol], reversed_thiscmap, args.cmin, args.cmax, lw=2)
+                plot2 = ax2.add_collection(smoothline2)
 
         # ------- making additional plot of deviation in gradient vs other quantities, like SFR------------
         elif args.plot_timefraction:
@@ -524,7 +538,7 @@ def plot_MZGR(args):
             # ---------vertical line for time-cut-off-----
             ax.plot(df[args.xcol], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, lw=0.3)
             ax.plot(df[args.xcol], df[overplotted_column] - args.Zgrad_allowance, color=thistextcolor, lw=0.3)
-            if not args.forproposal: ax.axvline(df[df['redshift'] >= args.upto_z]['time'].values[-1], lw=2, ls='dashed', color='k')
+            if not (args.forproposal or args.fortalk): ax.axvline(df[df['redshift'] >= args.upto_z]['time'].values[-1], lw=2, ls='dashed', color='k')
 
             # ---------filled area plot for deviation outside allowance-----
             ax.fill_between(df[args.xcol], df[overplotted_column], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, alpha=0.1)
@@ -563,6 +577,13 @@ def plot_MZGR(args):
     ax.set_xlabel(label_dict[args.xcol], fontsize=args.fontsize)
     ax.set_ylabel(label_dict[args.ycol], fontsize=args.fontsize)
 
+    if args.fortalk:
+        #mplcyberpunk.add_glow_effects()
+        try: mplcyberpunk.make_lines_glow()
+        except: pass
+        try: mplcyberpunk.make_scatter_glow()
+        except: pass
+
     binby_text = '' if args.binby is None else '_binby_' + args.binby
     density_cut_text = '_wdencut' if args.use_density_cut else ''
     if args.upto_kpc is not None:
@@ -591,7 +612,7 @@ def plot_MZGR(args):
         ax2.set_ylabel('Residual ' + label_dict[args.ycol], fontsize=args.fontsize)
 
         figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_dev_in_%s_vs_%s_colorby_%s_Zgrad_den_%s%s%s%s%s.png' % (args.ycol, args.zcol, args.colorcol, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text)
-        fig2.savefig(figname)
+        fig2.savefig(figname, transparent=args.fortalk)
         print('Saved plot as', figname)
     else:
         fig2 = None
@@ -607,6 +628,12 @@ if __name__ == '__main__':
     if type(args_tuple) is tuple: args = args_tuple[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     else: args = args_tuple
     if not args.keep: plt.close('all')
+    if args.fortalk:
+        setup_plots_for_talks()
+        args.forproposal = True
+    if args.forproposal or args.forpaper:
+        args.nocolorcoding = True
+        args.use_binnedfit = True
 
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight

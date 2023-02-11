@@ -21,6 +21,7 @@ from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
 from lmfit.models import SkewedGaussianModel
 from pygini import gini
+from lmfit import Model
 start_time = time.time()
 
 # ----------------------------------------------------------------------------
@@ -55,7 +56,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     Function to plot the metallicity distribution, along with the fitted skewed gaussian distribution if provided
     Saves plot as .png
     '''
-    if args.forproposal and args.output == 'RD0042': plt.rcParams["axes.linewidth"] = 1
+    if args.forproposal and args.output == 'RD0042': plt.rcParams['axes.linewidth'] = 1
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
     fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
     density_cut_text = '_wdencut' if args.use_density_cut else ''
@@ -82,10 +83,10 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
         xvals = p[1][:-1] + np.diff(p[1])
         if args.fit_multiple:
             ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=2, label='Total fit' if not (args.hide_multiplefit or args.forproposal) else None)
-            ax.plot(xvals, multiple_gauss(xvals, *[2, -0.8, 0.05, 1.5, 0.2, 0.2, 0.1]), c='b', lw=1) #
+            ax.plot(xvals, multiple_gauss(xvals, *[2, -0.9, 0.05, 0.7, 0.3, 0.45, -15]), c='b', lw=1) #
             if not args.hide_multiplefit:
-                ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label=None if args.annotate_profile or args.forproposal else 'Regular Gaussian')
-                ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label=None if args.annotate_profile or args.forproposal else 'Skewed Gaussian')
+                ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label='Regular Gaussian')
+                ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label='Skewed Gaussian')
         else:
             ax.plot(xvals, fit.best_fit, c='k', lw=2, label=None if args.forproposal else 'Fit')
 
@@ -102,12 +103,12 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
         #for thisper in percentiles: ax.axvline(thisper, lw=2.5, ls='solid', color='crimson')
 
     # ----------adding arrows--------------
-    if args.annotate_profile:
+    if args.annotate_profile and not args.notextonplot:
         ax.annotate('Low metallicity outer disk,\nfitted with a regular Gaussian', xy=(0.2, 1.5), xytext=(0.8, 1.2), arrowprops=dict(color='gray', lw=2, arrowstyle='->'), ha='left', fontsize=args.fontsize/1.2, bbox=dict(facecolor='gray', alpha=0.3, edgecolor='k'))
         ax.annotate('Higher metallicity inner disk,\nfitted with a skewed Gaussian', xy=(1.7, 0.5), xytext=(1.5, 0.75), arrowprops=dict(color='gray', lw=2, arrowstyle='->'), ha='left', fontsize=args.fontsize/1.2, bbox=dict(facecolor='gray', alpha=0.3, edgecolor='k'))
 
     # ----------tidy up figure-------------
-    plt.legend(loc='upper right', bbox_to_anchor=(1, 0.75), fontsize=args.fontsize)
+    if not (args.annotate_profile or args.notextonplot): plt.legend(loc='upper right', bbox_to_anchor=(1, 0.75), fontsize=args.fontsize)
     ax.set_xlim(args.xmin, args.xmax)
     ax.set_ylim(0, args.ymax)
 
@@ -119,14 +120,21 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 
+    if args.fortalk:
+        #mplcyberpunk.add_glow_effects()
+        try: mplcyberpunk.make_lines_glow()
+        except: pass
+        try: mplcyberpunk.make_scatter_glow()
+        except: pass
+
     # ---------annotate and save the figure----------------------
-    if not args.forproposal:
+    if not args.notextonplot:
         plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
         plt.text(0.97, 0.9, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
         plt.text(0.97, 0.8, r'Mean = %.2F Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
         plt.text(0.97, 0.75, r'Sigma = %.2F Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.savefig(filename, transparent=False)
+    plt.savefig(filename, transparent=args.fortalk)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
 
@@ -137,7 +145,7 @@ def skewed_gauss(x, p):
     '''
     Equation for skewed gaussian function (to be used by scipy curve_fit)
     '''
-    y = gauss(x, p[:3]) * (1 + erf((p[3] * x) / np.sqrt(2)))
+    y = gauss(x, p[:3]) * (1 + erf((p[3] * (x - p[1])) / np.sqrt(2)))
     return y
 
 # ----------------------------------------------------------------
@@ -150,6 +158,14 @@ def gauss(x, p):
 
 # ----------------------------------------------------------------
 def multiple_gauss(x, *p):
+    '''
+    Equation for multiple gaussian functions (to be used by scipy curve_fit)
+    '''
+    y = gauss(x, p[:3]) + skewed_gauss(x, p[3:])
+    return y
+
+# ----------------------------------------------------------------
+def multiple_gauss2(x, p):
     '''
     Equation for multiple gaussian functions (to be used by scipy curve_fit)
     '''
@@ -177,10 +193,16 @@ def fit_distribution(Zarr, args, weights=None):
         if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
             print('Fitting with one skewed gaussian + one regular guassian...')
             if args.islog:
-                p0 = [2, -0.8, 0.05, 1.5, 0.2, 0.2, 0.1]  # initial guess for parameters; [gaussian amplitude, gaussian mean, gaussian sigma, skewed gaussian amplitude, skewed gaussian mean, skewed gaussian sigma, skewed gaussian gamma]
+                p0 = [2, -0.9, 0.05, 0.7, 0.3, 0.45, -15]  # initial guess for parameters; [gaussian amplitude, gaussian mean, gaussian sigma, skewed gaussian amplitude, skewed gaussian mean, skewed gaussian sigma, skewed gaussian gamma]
                 lower_bounds = [0, -1.5, 0, 0, -1.5, 0, 0]
-                upper_bounds = [np.inf, 0, 0.5, np.inf, 1.0, 0.5, np.inf]
+                upper_bounds = [5, 0, 0.5, 5, 1.0, 0.5, 10]
                 result, cov = curve_fit(multiple_gauss, x, y, p0=p0, maxfev=int(1e4))
+                '''
+                gmodel = Model(multiple_gauss2)
+                result = gmodel.fit(y, x=x, p=p0)
+                plt.plot(x, result.init_fit, '--', label='initial fit')
+                plt.plot(x, result.best_fit, '-', label='best fit')
+                '''
             else:
                 p0 = [2, 0.1, 0.1, 0.5, 0.5, 0.5, 0]  # initial guess for parameters; [gaussian amplitude, gaussian mean, gaussian sigma, skewed gaussian amplitude, skewed gaussian mean, skewed gaussian sigma, skewed gaussian gamma]
                 lower_bounds = np.zeros(len(p0))
@@ -313,11 +335,17 @@ if __name__ == '__main__':
         # parse paths and filenames
         args.fig_dir = args.output_dir + 'figs/' if args.do_all_sims else args.output_dir + 'figs/' + args.output + '/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
+        if args.fortalk:
+            setup_plots_for_talks()
+            args.forpaper = True
+            args.notextonplot = True
         if args.forpaper:
             args.docomoving = True
             args.islog = True
             args.use_density_cut = True
             args.fit_multiple = True
+        elif args.forproposal:
+            args.notextonplot = True
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').v

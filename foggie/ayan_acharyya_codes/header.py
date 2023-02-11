@@ -28,14 +28,16 @@ import collections, itertools
 
 from matplotlib import pyplot as plt
 plt.style.use('seaborn-whitegrid')
-plt.rcParams["axes.edgecolor"] = "black"
-plt.rcParams["axes.linewidth"] = 2
+plt.rcParams['axes.edgecolor'] = 'black'
+plt.rcParams['axes.linewidth'] = 2
 from matplotlib import colors as mplcolors
 from matplotlib import patheffects as fx
 from matplotlib.colors import LogNorm
 from matplotlib import image as mpimg
 from matplotlib.path import Path as mpl_Path
 from matplotlib import cm as mpl_cm
+import mplcyberpunk
+
 
 from pathlib import Path
 from importlib import reload
@@ -143,4 +145,3 @@ metal_colors_mw = sns.blend_palette(metal_color_list, n_colors=6)
 metal_discrete_cmap_mw = mplcolors.ListedColormap(metal_colors_mw)
 metal_color_key_mw = collections.OrderedDict()
 for i in np.arange(np.size(metal_color_labels_mw)): metal_color_key_mw[metal_color_labels_mw[i]] = to_hex(metal_colors_mw[i])
-

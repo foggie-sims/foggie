@@ -229,12 +229,12 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, fit_inlog=False, color='darkoran
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
     Zcen = ufloat(linefit[1], np.sqrt(linecov[1][1]))
 
-    if fit_inlog and args.forproposal: y_binned, y_u_binned, y_fitted = 10**y_binned, 10**y_u_binned, 10**y_fitted ##
+    if fit_inlog and args.plotlog: y_binned, y_u_binned, y_fitted = 10**y_binned, 10**y_u_binned, 10**y_fitted ##
 
     print('Upon radially binning: Inferred slope for halo ' + args.halo + ' output ' + args.output + ' is', Zgrad, 'dex/re' if 're' in args.xcol else 'dex/kpc')
 
     if ax is not None:
-        if not args.forproposal: ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=1)
+        ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=1)
         ax.scatter(x_bin_centers, y_binned, c=color, s=150, lw=1, ec='black', zorder=10)
         ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
         units = 'dex/re' if 're' in xcol else 'dex/kpc'
@@ -296,11 +296,18 @@ def plot_gradient(df, args, linefit=None):
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 
+    if args.fortalk:
+        #mplcyberpunk.add_glow_effects()
+        try: mplcyberpunk.make_lines_glow()
+        except: pass
+        try: mplcyberpunk.make_scatter_glow()
+        except: pass
+
     # ---------annotate and save the figure----------------------
     if not (args.forproposal and args.output == 'RD0042'):
         plt.text(0.033, 0.05, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize)
         plt.text(0.033, 0.15 if args.forproposal else 0.1, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize)
-    plt.savefig(filename, transparent=False)
+    plt.savefig(filename, transparent=args.fortalk)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
 
@@ -464,9 +471,15 @@ if __name__ == '__main__':
         # parse paths and filenames
         args.fig_dir = args.output_dir + 'figs/' if args.do_all_sims else args.output_dir + 'figs/' + args.output + '/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
+        args.plotlog = False
+        if args.fortalk:
+            setup_plots_for_talks()
+            args.forpaper = True
         if args.forpaper:
             args.docomoving = True
             args.use_density_cut = True
+        if args.forproposal:
+            args.plotlog = True
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').v

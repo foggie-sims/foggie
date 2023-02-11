@@ -908,6 +908,31 @@ def pull_halo_center(args, fast=False):
     else:
         return args
 
+# ------------------------------------------------------------------------
+def setup_plots_for_talks():
+    '''
+    Function to setup plto themes etc for talks
+    '''
+    background_for_talks = 'cyberpunk'  # 'dark_background' #'Solarize_Light2' #
+    plt.style.use(background_for_talks)
+    new_foreground_color = '#FFF1D0'
+    plt.rcParams['grid.color'] = new_foreground_color
+    plt.rcParams['text.color'] = new_foreground_color
+    plt.rcParams['xtick.color'] = new_foreground_color
+    plt.rcParams['ytick.color'] = new_foreground_color
+    plt.rcParams['xtick.color'] = new_foreground_color
+    plt.rcParams['axes.titlecolor'] = new_foreground_color
+    plt.rcParams['axes.labelcolor'] = new_foreground_color
+    plt.rcParams['axes.edgecolor'] = new_foreground_color
+    plt.rcParams['figure.edgecolor'] = new_foreground_color
+    plt.rcParams['savefig.edgecolor'] = new_foreground_color
+    plt.rcParams['axes.linewidth'] = 2
+
+    new_background_color = '#120000'
+    plt.rcParams['axes.facecolor'] = new_background_color
+    plt.rcParams['figure.facecolor'] = new_background_color
+    plt.rcParams['savefig.facecolor'] = new_background_color
+
 # --------------------------------------------------------------------------------------------------------------
 def parse_args(haloname, RDname, fast=False):
     '''
@@ -1151,6 +1176,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--hiderawdata', dest='hiderawdata', action='store_true', default=False, help='Hide the main relation (so that only the overplotted or z-highlighted lines remain)?, default is no')
     parser.add_argument('--glasspaper', dest='glasspaper', action='store_true', default=False, help='Set plot axis etc to match the GLASS paper plot?, default is no')
     parser.add_argument('--forproposal', dest='forproposal', action='store_true', default=False, help='Set plot labels, transparency etc for being used in JWST Cy2 proposal?, default is no')
+    parser.add_argument('--fortalk', dest='fortalk', action='store_true', default=False, help='Set plot labels, transparency etc for being used in a talk?, default is no')
 
     # ------- args added for compute_Zscatter.py ------------------------------
     parser.add_argument('--res', metavar='res', type=str, action='store', default='0.1', help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')

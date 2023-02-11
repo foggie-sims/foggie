@@ -190,10 +190,10 @@ def plot_time_series(df, args):
                'black', 'darkturquoise', 'lawngreen']
     sfr_col_arr = ['black']
 
-    groups = pd.DataFrame({'quantities': [['Zgrad', 'Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zvar', 'Zgini']], \
-                           'legend': [['Fit to all cells', 'Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Variance (fit)', 'Gini coefficient']], \
+    groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zvar']], \
+                           'legend': [['Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Variance (fit)']], \
                            'label': np.hstack([r'$\Delta Z$ (dex/kpc)', np.tile([r'Z/Z$_\odot$'], 2)]), \
-                           'limits': [(-0.5, 0.1), (1e-3, 8), (1e-4, 1)], \
+                           'limits': [(-0.5, 0.1), (1e-3, 8), (1e-4, 2)], \
                            'isalreadylog': np.hstack([np.tile([False], 3)])})
     if args.forappendix: groups = groups[groups.index.isin([2])]
     if args.forposter: groups = groups[groups.index.isin([0, 2])]
@@ -204,7 +204,7 @@ def plot_time_series(df, args):
         ax = axes[j]
         log_text = 'log_' if thisgroup.isalreadylog else ''
         for i, ycol in enumerate(thisgroup.quantities):
-            if args.forposter:# or args.forpaper or args.forappendix:
+            if args.forposter or args.fortalk:# or args.forpaper or args.forappendix:
                 df = omit_bad_spikes(df, log_text + ycol)
             ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=1, label=thisgroup.legend[i])
             if args.zhighlight: ax = plot_zhighlight(df,log_text + ycol, col_arr[i], ax, args)
@@ -435,13 +435,20 @@ def plot_correlation(df, args):
     #ax.set_ylim(-1, 1)
     ax.tick_params(axis='y', labelsize=args.fontsize)
 
+    if args.fortalk:
+        #mplcyberpunk.add_glow_effects()
+        try: mplcyberpunk.make_lines_glow()
+        except: pass
+        try: mplcyberpunk.make_scatter_glow()
+        except: pass
+
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
 
     figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_correlation_res%.2Fkpc%s%s.pdf' % (args.docorr, float(args.res), upto_text, args.weightby_text)
-    fig.savefig(figname)
+    fig.savefig(figname, transparent=args.fortalk)
     print('Saved', figname)
     plt.show(block=False)
 
@@ -455,6 +462,10 @@ if __name__ == '__main__':
     if not args.keep: plt.close('all')
 
     # ---------preset values for plotting for paper-------------
+    if args.fortalk:
+        setup_plots_for_talks()
+        args.forposter = True
+
     if args.forpaper or args.forappendix or args.forposter:
         args.res = 0.1 # kpc
         args.zhighlight = True
