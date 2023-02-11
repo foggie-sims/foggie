@@ -340,7 +340,7 @@ if __name__ == '__main__':
             args.forpaper = True
             args.notextonplot = True
         if args.forpaper:
-            args.docomoving = True
+            if not args.fortalk: args.docomoving = True
             args.islog = True
             args.use_density_cut = True
             args.fit_multiple = True

@@ -476,7 +476,7 @@ if __name__ == '__main__':
             setup_plots_for_talks()
             args.forpaper = True
         if args.forpaper:
-            args.docomoving = True
+            if not args.fortalk: args.docomoving = True
             args.use_density_cut = True
         if args.forproposal:
             args.plotlog = True

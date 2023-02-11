@@ -553,7 +553,7 @@ def plot_MZGR(args):
             snaps_outside_allowance = len(dfsub[(dfsub['Zgrad_deviation'] > args.Zgrad_allowance) | (dfsub['Zgrad_deviation'] < -args.Zgrad_allowance)])
             total_snaps = len(dfsub)
             timefraction_outside = snaps_outside_allowance * 100 / total_snaps
-            ax.text(lim_dict[args.xcol][0] * 1.1 + 0.1, lim_dict[args.ycol][0 if args.forproposal else 1] * 0.88 - thisindex * 0.05, '%0d%% time of z>=%d is spent outside shaded region' % (timefraction_outside, args.upto_z), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
+            ax.text(args.xmin * 1.1 + 0.1, args.ymax * 0.88 - thisindex * 0.05, '%0d%% time of z>=%d is spent outside shaded region' % (timefraction_outside, args.upto_z), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
             print('Halo', args.halo, 'spends %.2F%%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation upto redshift %.1F' % args.upto_z)
 
         if not (args.plot_timefraction or args.forproposal): fig.text(0.85 if args.glasspaper else 0.15, 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
