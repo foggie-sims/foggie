@@ -444,7 +444,7 @@ def plot_MZGR(args):
         thistextcolor = mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
-                ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature else 2, zorder=7 if args.fortalk else 2)
+                ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2)
             else:
                 line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_literature else 2)
                 plot = ax.add_collection(line)
@@ -553,7 +553,7 @@ def plot_MZGR(args):
             snaps_outside_allowance = len(dfsub[(dfsub['Zgrad_deviation'] > args.Zgrad_allowance) | (dfsub['Zgrad_deviation'] < -args.Zgrad_allowance)])
             total_snaps = len(dfsub)
             timefraction_outside = snaps_outside_allowance * 100 / total_snaps
-            ax.text(args.xmin * 1.1 + 0.1, args.ymax * 0.88 - thisindex * 0.05, '%0d%% time of z>=%d is spent outside shaded region' % (timefraction_outside, args.upto_z), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
+            ax.text(args.xmin * 1.1 + 0.1, (args.ymin if args.forproposal else args.ymax) * 0.88 - thisindex * 0.05, '%0d%% time of z>=%d is spent outside shaded region' % (timefraction_outside, args.upto_z), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
             print('Halo', args.halo, 'spends %.2F%%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation upto redshift %.1F' % args.upto_z)
 
         if not (args.plot_timefraction or args.forproposal): fig.text(0.85 if args.glasspaper else 0.15, 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
@@ -633,7 +633,7 @@ if __name__ == '__main__':
         args.forproposal = True
     if args.forproposal or args.forpaper:
         args.nocolorcoding = True
-        args.use_binnedfit = True
+        if not args.fortalk or args.plot_timefraction: args.use_binnedfit = True
 
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight

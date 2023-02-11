@@ -177,7 +177,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                 cax = divider.append_axes('bottom', size='5%', pad=1.3)
                 cbar = fig.colorbar(prj.plots[thisfield].cb.mappable, orientation='horizontal', cax=cax)
             else:
-                fig.subplots_adjust(right=0.95, top=0.95, bottom=0.12, left=0.1)
+                fig.subplots_adjust(right=0.9, top=0.95, bottom=0.12, left=0.1)
                 cax = divider.append_axes('right', size='5%', pad=0.05)
                 cbar = fig.colorbar(prj.plots[thisfield].cb.mappable, orientation='vertical', cax=cax)
             cbar.ax.tick_params(labelsize=fontsize)
@@ -238,7 +238,7 @@ if __name__ == '__main__':
         Path(fig_dir).mkdir(parents=True, exist_ok=True)
         if args.fortalk:
             setup_plots_for_talks()
-            args.forproposal = True
+            args.forpaper = True
         if args.forpaper or args.forproposal:
             args.use_density_cut = True
 

@@ -932,6 +932,8 @@ def setup_plots_for_talks():
     plt.rcParams['axes.facecolor'] = new_background_color
     plt.rcParams['figure.facecolor'] = new_background_color
     plt.rcParams['savefig.facecolor'] = new_background_color
+    plt.rcParams['grid.alpha'] = 0.5
+    plt.rcParams['grid.linewidth'] = 0.3
 
 # --------------------------------------------------------------------------------------------------------------
 def parse_args(haloname, RDname, fast=False):

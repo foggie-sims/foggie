@@ -126,7 +126,7 @@ def plot_zhighlight(df, ycol, color, ax, args):
     '''
     df['redshift_int'] = np.floor(df['redshift'])
     df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-    dummy = ax.scatter(df_zbin['time'], df_zbin[ycol], c=color, lw=1, edgecolor='k', s=100, alpha=0.5, zorder=20)
+    dummy = ax.scatter(df_zbin['time'], df_zbin[ycol], c=color, lw=1, edgecolor='gold' if args.fortalk else 'k', s=100, alpha=0.8, zorder=20)
     print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
     return ax
 
@@ -375,6 +375,13 @@ def plot_time_series(df, args):
         #thisax.set_xlim(0.08/2, 190/2)
         thisax.tick_params(axis='x', labelsize=args.fontsize)
 
+    if args.fortalk:
+        #mplcyberpunk.add_glow_effects()
+        try: mplcyberpunk.make_lines_glow()
+        except: pass
+        try: mplcyberpunk.make_scatter_glow()
+        except: pass
+
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
@@ -384,16 +391,16 @@ def plot_time_series(df, args):
     poster_text = '_poster' if args.forposter else ''
 
     figname = args.output_dir + 'figs/' + args.halo + '_timeseries_res%.2Fkpc%s%s%s%s.pdf' % (float(args.res), upto_text, args.weightby_text, appendix_text, poster_text)
-    fig.savefig(figname)
+    fig.savefig(figname, transparent=args.fortalk)
     print('Saved', figname)
     if args.doft:
         figname2 = figname.replace('timeseries', 'fourier')
-        fig2.savefig(figname2)
+        fig2.savefig(figname2, transparent=args.fortalk)
         print('Saved', figname2)
 
     if args.docorr is not None:
         figname3 = figname.replace('timeseries', '%s_correlation'%args.docorr)
-        fig3.savefig(figname3)
+        fig3.savefig(figname3, transparent=args.fortalk)
         print('Saved', figname3)
 
     plt.show(block=False)
