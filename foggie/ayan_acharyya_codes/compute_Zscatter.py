@@ -76,27 +76,29 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
         fig, ax = plt.subplots(figsize=(8, 8))
         fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.15)
 
-    if args.weight is None: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, ec='salmon', density=True)
-    else: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, ec='salmon', weights=weights.flatten())
+    color = 'cornflowerblue' if args.fortalk else 'salmon'
+    if args.weight is None: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, ec=color, density=True)
+    else: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, ec=color, weights=weights.flatten())
 
     if fit is not None and not (args.forproposal and args.output != 'RD0042'):
+        fit_color = 'darkorange' if args.fortalk else 'k'
         xvals = p[1][:-1] + np.diff(p[1])
         if args.fit_multiple:
-            ax.plot(xvals, multiple_gauss(xvals, *fit), c='k', lw=2, label='Total fit' if not (args.hide_multiplefit or args.forproposal) else None)
+            ax.plot(xvals, multiple_gauss(xvals, *fit), c=fit_color, lw=2, label='Total fit' if not (args.hide_multiplefit or args.forproposal) else None)
             ax.plot(xvals, multiple_gauss(xvals, *[2, -0.9, 0.05, 0.7, 0.3, 0.45, -15]), c='b', lw=1) #
             if not args.hide_multiplefit:
-                ax.plot(xvals, gauss(xvals, fit[:3]), c='k', lw=2, ls='--', label='Regular Gaussian')
-                ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c='k', lw=2, ls='dotted', label='Skewed Gaussian')
+                ax.plot(xvals, gauss(xvals, fit[:3]), c=fit_color, lw=2, ls='--', label='Regular Gaussian')
+                ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c=fit_color, lw=2, ls='dotted', label='Skewed Gaussian')
         else:
-            ax.plot(xvals, fit.best_fit, c='k', lw=2, label=None if args.forproposal else 'Fit')
+            ax.plot(xvals, fit.best_fit, c=fit_color, lw=2, label=None if args.forproposal else 'Fit')
 
     # ----------adding vertical lines-------------
     if fit is not None and not (args.forproposal and args.output != 'RD0042'):
         if args.fit_multiple:
-            if not args.hide_multiplefit: ax.axvline(fit[1], lw=2, ls='dashed', color='k')
-            ax.axvline(fit[4], lw=2, ls='dotted', color='k')
+            if not args.hide_multiplefit: ax.axvline(fit[1], lw=2, ls='dashed', color=fit_color)
+            ax.axvline(fit[4], lw=2, ls='dotted', color=fit_color)
         else:
-            ax.axvline(fit.params['center'].value, lw=2, ls='dotted', color='k')
+            ax.axvline(fit.params['center'].value, lw=2, ls='dotted', color=fit_color)
 
     if percentiles is not None:
         percentiles = np.atleast_1d(percentiles)

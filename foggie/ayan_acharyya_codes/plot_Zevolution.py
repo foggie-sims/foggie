@@ -112,7 +112,7 @@ def plot_all_stats(df, args):
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
 
-    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_allstats_vs_time_res%.2Fkpc%s%s.pdf' % (float(args.res), upto_text, args.weightby_text)
+    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_allstats_vs_time_res%.2Fkpc%s%s.png' % (float(args.res), upto_text, args.weightby_text)
     fig.savefig(figname)
     print('Saved', figname)
     plt.show(block=False)
@@ -390,7 +390,7 @@ def plot_time_series(df, args):
     appendix_text = '_app' if args.forappendix else ''
     poster_text = '_poster' if args.forposter else ''
 
-    figname = args.output_dir + 'figs/' + args.halo + '_timeseries_res%.2Fkpc%s%s%s%s.pdf' % (float(args.res), upto_text, args.weightby_text, appendix_text, poster_text)
+    figname = args.output_dir + 'figs/' + args.halo + '_timeseries_res%.2Fkpc%s%s%s%s.png' % (float(args.res), upto_text, args.weightby_text, appendix_text, poster_text)
     fig.savefig(figname, transparent=args.fortalk)
     print('Saved', figname)
     if args.doft:
@@ -454,7 +454,7 @@ def plot_correlation(df, args):
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
 
-    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_correlation_res%.2Fkpc%s%s.pdf' % (args.docorr, float(args.res), upto_text, args.weightby_text)
+    figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_correlation_res%.2Fkpc%s%s.png' % (args.docorr, float(args.res), upto_text, args.weightby_text)
     fig.savefig(figname, transparent=args.fortalk)
     print('Saved', figname)
     plt.show(block=False)
