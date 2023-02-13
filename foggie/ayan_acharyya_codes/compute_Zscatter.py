@@ -19,9 +19,8 @@ from datashader_movie import *
 from compute_MZgrad import *
 from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
-from lmfit.models import SkewedGaussianModel
+from lmfit.models import GaussianModel, SkewedGaussianModel
 from pygini import gini
-from lmfit import Model
 start_time = time.time()
 
 # ----------------------------------------------------------------------------
@@ -83,26 +82,20 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     if fit is not None and not (args.forproposal and args.output != 'RD0042'):
         fit_color = 'darkorange' if args.fortalk else 'k'
         xvals = p[1][:-1] + np.diff(p[1])
-        if args.fit_multiple:
-            ax.plot(xvals, multiple_gauss(xvals, *fit), c=fit_color, lw=2, label='Total fit' if not (args.hide_multiplefit or args.forproposal) else None)
-            ax.plot(xvals, multiple_gauss(xvals, *[2, -0.9, 0.05, 0.7, 0.3, 0.45, -15]), c='b', lw=1) #
-            if not args.hide_multiplefit:
-                ax.plot(xvals, gauss(xvals, fit[:3]), c=fit_color, lw=2, ls='--', label='Regular Gaussian')
-                ax.plot(xvals, skewed_gauss(xvals, fit[3:]), c=fit_color, lw=2, ls='dotted', label='Skewed Gaussian')
-        else:
-            ax.plot(xvals, fit.best_fit, c=fit_color, lw=2, label=None if args.forproposal else 'Fit')
+        ax.plot(xvals, fit.best_fit, c=fit_color, lw=2, label=None if args.forproposal else 'Best fit')
+        #ax.plot(xvals, fit.init_fit, c='b', lw=2, label='Initial guess') #
+        if not args.hide_multiplefit:
+            ax.plot(xvals, GaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma']), c=fit_color, lw=2, ls='--', label='Regular Gaussian')
+            ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=fit_color, lw=2, ls='dotted', label='Skewed Gaussian')
 
     # ----------adding vertical lines-------------
     if fit is not None and not (args.forproposal and args.output != 'RD0042'):
-        if args.fit_multiple:
-            if not args.hide_multiplefit: ax.axvline(fit[1], lw=2, ls='dashed', color=fit_color)
-            ax.axvline(fit[4], lw=2, ls='dotted', color=fit_color)
-        else:
-            ax.axvline(fit.params['center'].value, lw=2, ls='dotted', color=fit_color)
+        ax.axvline(fit.best_values['sg_center'], lw=2, ls='dotted', color=fit_color)
+        if args.fit_multiple: ax.axvline(fit.best_values['g_center'], lw=2, ls='dashed', color=fit_color)
 
     if percentiles is not None:
         percentiles = np.atleast_1d(percentiles)
-        #for thisper in percentiles: ax.axvline(thisper, lw=2.5, ls='solid', color='crimson')
+        for thisper in percentiles: ax.axvline(thisper, lw=2.5, ls='solid', color='crimson')
 
     # ----------adding arrows--------------
     if args.annotate_profile and not args.notextonplot:
@@ -134,45 +127,14 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
         plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
         plt.text(0.97, 0.9, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
 
-        plt.text(0.97, 0.8, r'Mean = %.2F Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-        plt.text(0.97, 0.75, r'Sigma = %.2F Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+        if fit is not None:
+            plt.text(0.97, 0.8, r'Mean = %.2F Z$\odot$' % fit.best_values['sg_center'], ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+            plt.text(0.97, 0.75, r'Sigma = %.2F Z$\odot$' % fit.best_values['sg_sigma'], ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=args.fortalk)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
 
     return fig
-
-# ----------------------------------------------------------------
-def skewed_gauss(x, p):
-    '''
-    Equation for skewed gaussian function (to be used by scipy curve_fit)
-    '''
-    y = gauss(x, p[:3]) * (1 + erf((p[3] * (x - p[1])) / np.sqrt(2)))
-    return y
-
-# ----------------------------------------------------------------
-def gauss(x, p):
-    '''
-    Equation for gaussian function (to be used by scipy curve_fit)
-    '''
-    y = p[0] * exp(-((x - p[1]) ** 2) / (2 * p[2] ** 2))
-    return y
-
-# ----------------------------------------------------------------
-def multiple_gauss(x, *p):
-    '''
-    Equation for multiple gaussian functions (to be used by scipy curve_fit)
-    '''
-    y = gauss(x, p[:3]) + skewed_gauss(x, p[3:])
-    return y
-
-# ----------------------------------------------------------------
-def multiple_gauss2(x, p):
-    '''
-    Equation for multiple gaussian functions (to be used by scipy curve_fit)
-    '''
-    y = gauss(x, p[:3]) + skewed_gauss(x, p[3:])
-    return y
 
 # -------------------------------
 def fit_distribution(Zarr, args, weights=None):
@@ -183,64 +145,26 @@ def fit_distribution(Zarr, args, weights=None):
     Zarr = Zarr.flatten()
     if weights is not None: weights = weights.flatten()
 
-    print('Computing stats...')
-    #Z25, Z50, Z75 = [ufloat(item, 0) for item in np.percentile(Zarr, [25, 50, 75])]
-    Z25, Z50, Z75 = [ufloat(item, 0) for item in weighted_quantile(Zarr, [0.25, 0.50, 0.75], sample_weight=weights)]
-    Zgini = gini(Zarr)
-
-    y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights, range=(0, args.xmax))
+    y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights)
     x = x[:-1] + np.diff(x)/2
 
-    try:
-        if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
-            print('Fitting with one skewed gaussian + one regular guassian...')
-            if args.islog:
-                p0 = [2, -0.9, 0.05, 0.7, 0.3, 0.45, -15]  # initial guess for parameters; [gaussian amplitude, gaussian mean, gaussian sigma, skewed gaussian amplitude, skewed gaussian mean, skewed gaussian sigma, skewed gaussian gamma]
-                lower_bounds = [0, -1.5, 0, 0, -1.5, 0, 0]
-                upper_bounds = [5, 0, 0.5, 5, 1.0, 0.5, 10]
-                result, cov = curve_fit(multiple_gauss, x, y, p0=p0, maxfev=int(1e4))
-                '''
-                gmodel = Model(multiple_gauss2)
-                result = gmodel.fit(y, x=x, p=p0)
-                plt.plot(x, result.init_fit, '--', label='initial fit')
-                plt.plot(x, result.best_fit, '-', label='best fit')
-                '''
-            else:
-                p0 = [2, 0.1, 0.1, 0.5, 0.5, 0.5, 0]  # initial guess for parameters; [gaussian amplitude, gaussian mean, gaussian sigma, skewed gaussian amplitude, skewed gaussian mean, skewed gaussian sigma, skewed gaussian gamma]
-                lower_bounds = np.zeros(len(p0))
-                upper_bounds = [np.inf, 0.4, 0.1, np.inf, np.inf, np.inf, np.inf]
-                result, cov = curve_fit(multiple_gauss, x, y, p0=p0, bounds=[lower_bounds, upper_bounds], maxfev=int(1e4))
+    model = SkewedGaussianModel(prefix='sg_')
+    if args.islog: params = model.make_params(sg_amplitude=2.0, sg_center=0.1, sg_sigma=0.5, sg_gamma=-3)
+    else: params = model.make_params(sg_amplitude=0.5, sg_center=0.5, sg_sigma=0.5, sg_gamma=0)
 
-            gauss_amp = ufloat(result[0], np.sqrt(cov[0][0]))
-            gauss_mean = ufloat(result[1], np.sqrt(cov[1][1]))
-            gauss_sigma = ufloat(result[2], np.sqrt(cov[2][2]))
+    if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
+        print('Fitting with one skewed gaussian + one regular guassian...')
+        g_model = GaussianModel(prefix='g_')
+        if args.islog: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
+        else: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
+        model = model + g_model
+    else: # fitting a single skewed gaussian with SkewedGaussianModel()
+        print('Fitting with one skewed gaussian...')
 
-            Zpeak = ufloat(result[3], np.sqrt(cov[3][3]))
-            Zmean = ufloat(result[4], np.sqrt(cov[4][4]))
-            Zvar = ufloat(result[5], np.sqrt(cov[5][5]))
-            Zskew = ufloat(result[6], np.sqrt(cov[6][6]))
-        else: # fitting a single skewed gaussian with SkewedGaussianModel()
-            print('Fitting with one skewed gaussian...')
-            model = SkewedGaussianModel()
-            params = model.make_params(amplitude=0.5, center=0 if args.islog else 0.5, sigma=0.5, gamma=0)
-            result = model.fit(y, params, x=x)
+    result = model.fit(y, params, x=x)
+    print('Fitted parameters:\n', result.best_values)
 
-            Zpeak = ufloat(result.params['amplitude'].value, result.params['amplitude'].stderr)
-            Zmean = ufloat(result.params['center'].value, result.params['center'].stderr)
-            Zvar = ufloat(result.params['sigma'].value, result.params['sigma'].stderr)
-            Zskew = ufloat(result.params['gamma'].value, result.params['gamma'].stderr)
-            # Zkurt = ufloat(result.params['amplitude'].value, result.params['amplitude'].stderr)
-
-            gauss_amp = ufloat(np.nan, np.nan)
-            gauss_mean = ufloat(np.nan, np.nan)
-            gauss_sigma = ufloat(np.nan, np.nan)
-
-    except AttributeError as e:
-        print('The fit went wrong, returning NaNs')
-        Zpeak, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma = ufloat(np.nan, np.nan) * np.ones(7)
-        pass
-
-    return result, Zpeak, Z25, Z50, Z75, Zgini, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma
+    return result
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -419,11 +343,24 @@ if __name__ == '__main__':
                     Zres = np.ma.compressed(np.ma.array(Zres, mask=np.ma.masked_where(Zres, Zres < args.Zcut)))
                     args.fit_multiple = False
 
-                result, Zpeak, Z25, Z50, Z75, Zgini, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma = fit_distribution(Zres, args, weights=wres)
-                print('Fitted parameters:\n', result) #
-                if not args.noplot: fig = plot_distribution(Zres, args, weights=wres, fit=result, percentiles=[Z25.n, Z50.n, Z75.n]) # plotting the Z profile, with fit
+                result = fit_distribution(Zres, args, weights=wres)
 
-                thisrow += [mstar, res, Zpeak.n, Zpeak.s, Z25.n, Z25.s, Z50.n, Z50.s, Z75.n, Z75.s, Zgini, Zmean.n, Zmean.s, Zvar.n, Zvar.s, Zskew.n, Zskew.s, Ztotal, gauss_amp.n, gauss_amp.s, gauss_mean.n, gauss_mean.s, gauss_sigma.n, gauss_sigma.s]
+                # -------computing quantities to save in file-------------------------
+                print('Computing stats...')
+                # percentiles = np.percentile(Zres, [25, 50, 75])
+                percentiles = weighted_quantile(Zres, [0.25, 0.50, 0.75], sample_weight=wres)
+                Zgini = gini(Zres)
+
+                thisrow += [mstar, res, result.best_values['sg_amplitude'], result.params['sg_amplitude'].stderr, \
+                            percentiles[0], 0, percentiles[1], 0, percentiles[2], 0, Zgini, \
+                            result.best_values['sg_center'], result.params['sg_center'].stderr, \
+                            result.best_values['sg_sigma'], result.params['sg_sigma'].stderr, \
+                            result.best_values['sg_gamma'], result.params['sg_gamma'].stderr, Ztotal, \
+                            result.best_values['g_amplitude'], result.params['g_amplitude'].stderr, \
+                            result.best_values['g_center'], result.params['g_center'].stderr, \
+                            result.best_values['g_sigma'], result.params['g_sigma'].stderr]
+                if not args.noplot: fig = plot_distribution(Zres, args, weights=wres, fit=result, percentiles=percentiles) # plotting the Z profile, with fit
+
         else:
             thisrow += (np.ones(23)*np.nan).tolist()
 
