@@ -8,13 +8,13 @@
     Started :    July 2021
     Example :    run submit_jobs.py --call filter_star_properties --nnodes 50 --ncores 4 --prefix fsp --halo 8508 --dryrun --opt_args "--do_sll_sims"
     OR :         run submit_jobs.py --call filter_star_properties --nnodes 50 --ncores 4 --prefix fsp --do_all_halos --nhours 24 --dryrun  --opt_args "--do_sll_sims --do_all_halos"
-    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has --opt_args "--galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 "
-    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --prefix dsm_Zprofs --halo 2392 --queue ldan --opt_args "--galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1"
+    OR :         run /nobackupp19/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --prefix rsv_dsm_Zprofs --halo 8508 --queue s1938_mpe1 --aoe sles12 --proj s1938 --nnodes 5 --ncores 4 --proc has --opt_args "--galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1 "
+    OR :         run /nobackupp19/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call datashader_movie --prefix dsm_Zprofs --halo 2392 --queue ldan --opt_args "--galrad 20 --xcol rad --ycol metal --colorcol density,vrad,temp --overplot_stars --makemovie --delay 0.1"
     OR :         run submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --nnodes 50 --ncores 4 --queue normal --prefix cmzg --opt_args "--do_all_sims --upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
-    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --jobarray --do_all_sims --use_onlyDD --nhours 0 --nmins 15 --prefix cmzg --opt_args "--upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
-    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --do_all_halos --start 2 --queue ldan --mem 1500GB --prefix cmzg --opt_args "--do_all_sims --use_onlyDD --upto_kpc 10 --xcol rad --weight mass --write_file --noplot"
-    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --do_all_halos --queue ldan --mem 1500GB --prefix cmzg --opt_args "--do_all_sims --use_onlyDD --upto_kpc 10 --xcol rad --weight mass --write_file --forpaper"
-    OR :         run /nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZscatter --system ayan_pleiades --do_all_halos --queue ldan --mem 1500GB --prefix cmzs --opt_args "--do_all_sims --use_onlyDD --upto_kpc 10 --nbins 100 --weight mass --write_file --forpaper"
+    OR :         run /nobackupp19/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --halo 8508 --jobarray --do_all_sims --use_onlyDD --nhours 0 --nmins 15 --prefix cmzg --opt_args "--upto_re 3 --xcol rad_re --weight mass --write_file --noplot"
+    OR :         run /nobackupp19/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --do_all_halos --start 2 --queue ldan --mem 1500GB --prefix cmzg --opt_args "--do_all_sims --use_onlyDD --upto_kpc 10 --xcol rad --weight mass --write_file --noplot"
+    OR :         run /nobackupp19/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZgrad --system ayan_pleiades --do_all_halos --queue ldan --mem 1500GB --prefix cmzg --opt_args "--do_all_sims --use_onlyDD --upto_kpc 10 --xcol rad --weight mass --write_file --forpaper"
+    OR :         run /nobackupp19/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/submit_jobs.py --call compute_MZscatter --system ayan_pleiades --do_all_halos --queue ldan --mem 1500GB --prefix cmzs --opt_args "--do_all_sims --use_onlyDD --upto_kpc 10 --nbins 100 --weight mass --write_file --forpaper"
 """
 import subprocess, argparse, datetime, os
 from collections import defaultdict
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     tempcut_flag = ' --temp_cut ' if args.temp_cut else ''
     units_flag = ' --units_kpc ' if args.units_kpc else ' --units_rvir ' if args.units_rvir else ''
 
-    if 'pleiades' in args.system: jobscript_path = '/nobackup/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
+    if 'pleiades' in args.system: jobscript_path = '/nobackupp19/aachary2/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
     elif args.system == 'ayan_local': jobscript_path = os.getenv('HOME') + '/Work/astro/ayan_codes/foggie/foggie/ayan_acharyya_codes/'
 
     jobarray_or_jobscript = 'jobarray' if args.jobarray else 'jobscript'
@@ -164,7 +164,7 @@ if __name__ == '__main__':
     elif 'pleiades' in args.system or args.system == 'ayan_local':
         procs_dir = {'san':(16, 32), 'ivy':(20, 64), 'has':(24, 128), 'bro':(28, 128), 'bro_ele':(28, 128), 'sky_ele':(40, 192), 'cas_ait':(40, 192), 'ldan':(16, 750), 'cas_end':(28, 185)} # (nnodes, mem) for each proc, from https://www.nas.nasa.gov/hecc/support/kb/pbs-resource-request-examples_188.html
         max_hours_dict = defaultdict(lambda: 120, low=4, normal=8, long=120, e_long=72, e_normal=8, e_vlong=600, e_debug=2, debug=2, devel=2, ldan=72) # from https://www.nas.nasa.gov/hecc/support/kb/pbs-job-queue-structure_187.html
-        if 'pleiades' in args.system: workdir = '/nobackup/aachary2/foggie_outputs/pleiades_workdir' # for pleiades
+        if 'pleiades' in args.system: workdir = '/nobackupp19/aachary2/foggie_outputs/pleiades_workdir' # for pleiades
         elif args.system == 'ayan_local': workdir = '.'
         nnodes = args.nnodes
         ncores = args.ncores if args.ncores is not None else procs_dir[args.proc][0]
@@ -216,7 +216,7 @@ if __name__ == '__main__':
         if args.jobarray:
             if args.do_all_sims:
                 if args.system == 'ayan_local': simpath = '/Users/acharyya/models/simulation_output/foggie/'
-                else: simpath = '/nobackup/mpeeples/'
+                else: simpath = '/nobackupp19/mpeeples/'
                 list_of_sims = get_all_sims_for_this_halo(args, simpath + 'halo_00' + thishalo + '/' + args.run + '/')
                 args.snapstart = int(list_of_sims[0][1][2:])
                 args.snapstop = int(list_of_sims[-1][1][2:])
