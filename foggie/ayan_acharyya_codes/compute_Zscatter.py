@@ -8,8 +8,8 @@
     Author :     Ayan Acharyya
     Started :    Aug 2022
     Examples :   run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_re 3 --res 0.1 --nbins 100 --keep --weight mass
-                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass --docomoving --fit_multiple --hide_multiplefit --forproposal
-                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --res 0.1 --nbins 100 --weight mass --forpaper
+                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --nbins 100 --weight mass --docomoving --fit_multiple --hide_multiplefit --forproposal
+                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --nbins 100 --weight mass --forpaper
                  run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --xmax 4 --do_all_sims --weight mass --write_file --use_gasre --noplot
 
 """
@@ -59,11 +59,12 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
     fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
     density_cut_text = '_wdencut' if args.use_density_cut else ''
+    islog_text = '_islog' if args.islog else ''
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
-    outfile_rootname = '%s_log_metal_distribution%s%s%s%s.png' % (args.output, upto_text, weightby_text, fitmultiple_text, density_cut_text)
+    outfile_rootname = '%s_log_metal_distribution%s%s%s%s.png' % (args.output, upto_text, weightby_text, fitmultiple_text, density_cut_text, islog_text)
     if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output)+1:]
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
@@ -177,6 +178,7 @@ if __name__ == '__main__':
     total_snaps = len(list_of_sims)
 
     if dummy_args.forpaper:
+        dummy_args.res = 0.1  # kpc
         dummy_args.docomoving = True
         dummy_args.islog = True
         dummy_args.use_density_cut = True
@@ -189,11 +191,12 @@ if __name__ == '__main__':
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
     fitmultiple_text = '_fitmultiple' if dummy_args.fit_multiple else ''
     density_cut_text = '_wdencut' if dummy_args.use_density_cut else ''
+    islog_text = '_islog' if dummy_args.islog else ''
     if dummy_args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % dummy_args.upto_kpc if dummy_args.docomoving else '_upto%.1Fkpc' % dummy_args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % dummy_args.upto_re
-    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZscat%s%s%s%s.txt' % (upto_text, weightby_text, fitmultiple_text, density_cut_text)
+    grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZscat%s%s%s%s%s.txt' % (upto_text, weightby_text, fitmultiple_text, density_cut_text, islog_text)
     if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
     if dummy_args.dryrun:
@@ -265,12 +268,15 @@ if __name__ == '__main__':
             args.forpaper = True
             args.notextonplot = True
         if args.forpaper:
+            args.res = 0.1  # kpc
             if not args.fortalk: args.docomoving = True
             args.islog = True
             args.use_density_cut = True
             args.fit_multiple = True
         elif args.forproposal:
+            args.res = 0.1  # kpc
             args.notextonplot = True
+
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').v

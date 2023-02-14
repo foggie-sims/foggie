@@ -453,8 +453,8 @@ def plot_MZGR(args):
         if args.snaphighlight is not None:
             snaps_to_highlight = [item for item in args.snaphighlight.split(',')]
             df_snaps = df[df['output'].isin(snaps_to_highlight)]
-            dummy = ax.scatter(df_snaps[args.xcol], df_snaps[args.ycol], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
-            print(df_snaps[['output', 'time', 'redshift', args.xcol, args.ycol, args.colorcol]]) #
+            if args.nocolorcoding: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[args.ycol], c=thistextcolor, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
+            else: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[args.ycol], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
             print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, ' with star-markers\nThese snapshots correspond to times', df_snaps['time'].values, 'Gyr respectively, i.e.,', np.diff(df_snaps['time'].values) * 1000, 'Myr apart')
 
         # ------- overplotting redshift-binned scatter plot------------
@@ -633,7 +633,9 @@ if __name__ == '__main__':
         args.forproposal = True
     if args.forproposal or args.forpaper:
         args.nocolorcoding = True
-        if not args.fortalk or args.plot_timefraction: args.use_binnedfit = True
+        if not args.fortalk: args.use_binnedfit = True
+    if args.forpaper:
+        args.use_density_cut = True
 
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight

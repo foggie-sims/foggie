@@ -479,18 +479,21 @@ if __name__ == '__main__':
         args.docomoving = True
         args.fit_multiple = True
         args.fontsize = 15 # 15 is fine because these will be 1-page size figures
+    if args.forpaper:
+        args.use_density_cut = True
 
     # --------loop over different FOGGIE halos-------------
     for index, args.halo in enumerate(args.halo_arr):
         # ---------reading in existing MZgrad txt file------------------
         args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight
         args.fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
+        args.density_cut_text = '_wdencut' if args.use_density_cut else ''
         if args.upto_kpc is not None:
             upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
         else:
             upto_text = '_upto%.1FRe' % args.upto_re
         _, args.output_dir, _, _ ,_, _, _, _ = get_run_loc_etc(args)
-        output_filename = args.output_dir + 'txtfiles/' + args.halo + '_timeseries%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text)
+        output_filename = args.output_dir + 'txtfiles/' + args.halo + '_timeseries%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text)
 
         if not os.path.exists(output_filename) or args.clobber:
             print('\n', output_filename, 'does not exist, merging dataframes to create it..')
