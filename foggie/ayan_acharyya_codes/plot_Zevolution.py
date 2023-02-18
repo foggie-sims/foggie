@@ -191,7 +191,7 @@ def plot_time_series(df, args):
     sfr_col_arr = ['black']
 
     groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zvar']], \
-                           'legend': [['Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Variance (fit)']], \
+                           'legend': [['Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Width (fit)']], \
                            'label': np.hstack([r'$\Delta Z$ (dex/kpc)', np.tile([r'Z/Z$_\odot$'], 2)]), \
                            'limits': [(-0.5, 0.1), (1e-3, 8), (1e-4, 2)], \
                            'isalreadylog': np.hstack([np.tile([False], 3)])})
