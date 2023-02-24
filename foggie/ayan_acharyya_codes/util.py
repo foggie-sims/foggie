@@ -1130,6 +1130,9 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--nodiskload', dest='nodiskload', action='store_true', default=False, help='skip loading disk-relative stuff in foggie load (saves time)?, default is no')
     parser.add_argument('--diskload', dest='diskload', action='store_true', default=False, help='load disk-relative stuff in foggie load?, default is no')
 
+    # ------- args added for datashader_singleplot.py ------------------------------
+    parser.add_argument('--filename', metavar='filename', type=str, action='store', default=None, help='filename with dataframe to use; default is None')
+
     # ------- args added for compute_MZgrad.py ------------------------------
     parser.add_argument('--upto_re', metavar='upto_re', type=float, action='store', default=2.0, help='fit metallicity gradient out to what multiple of Re? default is 2')
     parser.add_argument('--upto_kpc', metavar='upto_kpc', type=float, action='store', default=None, help='fit metallicity gradient out to what absolute kpc? default is None')
