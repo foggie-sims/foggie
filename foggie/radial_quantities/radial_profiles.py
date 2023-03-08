@@ -5,6 +5,8 @@ Date started: 4/28/22
 
 This script makes datashader radial profile plots of temperature, density, pressure, entropy,
 and radial velocity, color-coded by metallicity, temperature, or radial velocity.
+Alternatively, it makes 2D histogram profile plots of temperature, or plots all median
+profiles for a range of outputs on the same plot.
 '''
 
 from __future__ import print_function
@@ -65,6 +67,11 @@ def parse_args():
                         help='Just use the working directory?, Default is no')
     parser.set_defaults(pwd=False)
 
+    parser.add_argument('--plot_type', metavar='plot_type', type=str, action='store', \
+                        help='What kind of plot do you want? Options are datashader or histogram,\n' + \
+                            'and default is datashader.')
+    parser.set_defaults(plot_type='datashader')
+
     parser.add_argument('--plot_y', metavar='plot_y', type=str, action='store', \
                         help='What do you want to plot on the y-axis? Options are:\n' + \
                         "density, temperature, metallicity, pressure, entropy, radial velocity\n" + \
@@ -74,9 +81,14 @@ def parse_args():
     parser.set_defaults(plot_y='temperature')
 
     parser.add_argument('--plot_color', metavar='plot_color', type=str, action='store', \
-                        help='What field do you want to color-code the plot by?\n' + \
+                        help='If making a datashader plot, what field do you want to color-code the plot by?\n' + \
                         'Options are temperature, metallicity, or radial velocity. Default is metallicity.')
     parser.set_defaults(plot_color='metallicity')
+
+    parser.add_argument('--weight', metavar='weight', type=str, action='store', \
+                        help='For mean or median curves, and for histogram plots, what do you want to weight by?\n' + \
+                            'Options are mass or volume and default is mass.')
+    parser.set_defaults(weight='mass')
 
     parser.add_argument('--output', metavar='output', type=str, action='store', \
                         help='Which output(s)? Options: Specify a single output (this is default' \
@@ -127,7 +139,7 @@ def weighted_quantile(values, weights, quantiles):
     else:
         return np.interp(quantiles, weighted_quantiles, values)
 
-def make_profile_plot(snap):
+def make_datashader_profile_plot(snap):
     '''Makes and saves to file datashader radial profile plots of the quantities given in args.plot_y,
     colored by the quantity given in args.plot_color.'''
 
@@ -267,7 +279,152 @@ def make_profile_plot(snap):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
+def make_histogram_profile_plot(snap):
+    '''Makes and saves to file histogram radial profile plots of the quantities given in args.plot_y,
+    weighted by the quantity given in args.weight.'''
+
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+    Mvir = rvir_masses['total_mass'][rvir_masses['snapshot']==snap][0]
+    Tvir = mu*mp/(2.*kB)*(G*Mvir*gtoMsun/(Rvir*1000*cmtopc))
+
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snap
+        # Make a dummy directory with the snap name so the script later knows the process running
+        # this snapshot failed if the directory is still there
+        os.makedirs(snap_dir)
+    snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
+
+    sphere = ds.sphere(center=ds.halo_center_kpc, radius=(1.5*Rvir, 'kpc'))
+    if (args.cgm_only):
+        sph_cgm = sphere.cut_region("obj['density'] < %.3e" % (density_cut_factor * cgm_density_max))
+    else:
+        sph_cgm = sphere
+
+    if (',' in args.plot_y):
+        plots = args.plot_y.split(',')
+    else:
+        plots = [args.plot_y]
+
+    unit_dict = {'density':'g/cm**3',
+                 'temperature':'/Tvir',
+                 'metallicity':'Zsun',
+                 'pressure':'erg/cm**3',
+                 'entropy':'keV*cm**2',
+                 'radial_velocity':'km/s'}
+    if (args.cgm_only):
+        y_range_dict = {'density':[-32,-26],
+                        'temperature':[0.01,100],
+                        'metallicity':[-3,2],
+                        'pressure':[-19,-12],
+                        'entropy':[-1,5],
+                        'radial_velocity':[-500,1000]}
+    else:
+        y_range_dict = {'density':[-32,-23],
+                        'temperature':[0.01,100],
+                        'metallicity':[-3,2],
+                        'pressure':[-19,-12],
+                        'entropy':[-5,5],
+                        'radial_velocity':[-500,1000]}
+    label_dict = {'density':'log Density [g/cm$^3$]',
+                  'temperature':'$T/T_\mathrm{vir}$',
+                  'metallicity':'log Metallicity [$Z_\odot$]',
+                  'pressure':'log Pressure [erg/cm$^3$]',
+                  'entropy':'log Entropy [keV cm$^2$]',
+                  'radial_velocity':'Radial Velocity [km/s]'}
+    radius_range = [0.03*Rvir, 1.5*Rvir]/Rvir
+    radius_data = sph_cgm['gas','radius_corrected'].in_units('kpc').v/Rvir
+    radius_bins = np.logspace(np.log10(radius_range[0]), np.log10(radius_range[1]), 200)
+    if (args.weight=='mass'):
+        weight_data = sph_cgm['gas','cell_mass'].in_units('Msun').v
+        weight_label = 'Mass'
+    elif (args.weight=='volume'):
+        weight_data = sph_cgm['gas','cell_volume'].in_units('kpc**3').v
+        weight_label = 'Volume'
+    cmin = np.min(np.array(weight_data)[np.nonzero(weight_data)[0]])
+
+    for p in range(len(plots)):
+        fig = plt.figure(figsize=(10,8), dpi=200)
+        ax = fig.add_subplot(1,1,1)
+        plot_y = plots[p]
+        if (plot_y=='radial_velocity'):
+            y_data = sph_cgm['gas', 'radial_velocity_corrected'].in_units(unit_dict[plot_y]).v
+        elif (plot_y=='temperature'):
+            y_data = sph_cgm['gas','temperature'].in_units('K').v/Tvir
+            y_bins = np.logspace(np.log10(y_range_dict[plot_y][0]), np.log10(y_range_dict[plot_y][1]), 200)
+        else:
+            y_data = np.log10(sph_cgm['gas', plot_y].in_units(unit_dict[plot_y]).v)
+        hist = ax.hist2d(radius_data, y_data, weights=weight_data, bins=(radius_bins, y_bins), cmin=cmin, cmap=plt.cm.BuPu, norm=mpl.colors.LogNorm())
+        hist2d = np.transpose(hist[0])
+        #cbaxes = fig.add_axes([0.7, 0.95, 0.25, 0.03])
+        #cbar = plt.colorbar(hist[3], cax=cbaxes, orientation='horizontal', ticks=[])
+        #cbar.set_label(weight_label, fontsize=18)
+        ax.set_xlabel('$R/R_\mathrm{vir}$', fontsize=20)
+        ax.set_ylabel(label_dict[plot_y], fontsize=20)
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+          top=True, right=True)
+        bin_indices = np.digitize(radius_data, radius_bins)
+        median_profile = []
+        mean_profile = []
+        for i in range(1,len(radius_bins)):
+            if (plot_y=='radial_velocity') or (plot_y=='temperature'):
+                values = y_data[np.where(bin_indices==i)[0]]
+            else:
+                values = 10**y_data[np.where(bin_indices==i)[0]]
+            weights = weight_data[np.where(bin_indices==i)[0]]
+            mean_profile.append(10.**(np.average(np.log10(values*Tvir), weights=weights))/Tvir)
+            median_profile.append(weighted_quantile(values, weights, [0.5])[0])
+        radius_bin_centers = 0.5*np.diff(radius_bins)+radius_bins[1:]
+        if (plot_y=='radial_velocity') or (plot_y=='temperature'):
+            ax.plot(radius_bin_centers, np.array(median_profile), 'k-', lw=2, label='Median')
+            ax.plot(radius_bin_centers, np.array(mean_profile), 'k--', lw=2, label='Mean')
+        else:
+            ax.plot(radius_bin_centers, np.log10(np.array(median_profile)), 'k-', lw=2)
+        ax.axis([radius_range[0], radius_range[1], y_range_dict[plot_y][0], y_range_dict[plot_y][1]])
+        ax.plot([radius_range[0], radius_range[1]], [1,1], 'k--', lw=1)
+        ax.plot([1,1],[y_range_dict[plot_y][0], y_range_dict[plot_y][1]], 'k--', lw=1)
+        ax.legend(loc='upper center',fontsize=16, frameon=False, ncol=2)
+        ax.text(0.03, 0.03, 'z = %.2f' % (zsnap), fontsize=16, transform=ax.transAxes, ha='left', va='center')
+        plt.subplots_adjust(left=0.12, bottom=0.1, top=0.97, right=0.98)
+        plt.savefig(save_dir + snap + '_' + plot_y + '_vs_radius_' + args.weight + '-weighted' + save_suffix + '.png')
+        plt.close()
+        print('Plot of %s vs. radius, weighted by %s, made for snapshot %s.' % (plot_y, args.weight, snap))
+        f = open(save_dir + snap + '_' + plot_y + '_vs_radius_' + args.weight + '-weighted_profiles' + save_suffix + '.txt', 'w')
+        f.write('# radius (/Rvir)  Median %s (%s)  Mean %s (%s)\n' % (plot_y, unit_dict[plot_y], plot_y, unit_dict[plot_y]))
+        for i in range(len(median_profile)):
+            f.write('%.3f             %.3e                   %.3e\n' % (radius_bin_centers[i], median_profile[i], mean_profile[i]))
+        f.close()
+
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
+
+
 if __name__ == "__main__":
+
+    cmtopc = 3.086e18
+    stoyr = 3.154e7
+    gtoMsun = 1.989e33
+    G = 6.673e-8
+    kB = 1.38e-16
+    mu = 0.6
+    mp = 1.67e-24
+
     args = parse_args()
     print(args.halo)
     print(args.run)
@@ -291,52 +448,56 @@ if __name__ == "__main__":
     else:
         save_suffix = ''
 
-    if (args.plot_color=='temperature'):
-        color_func = categorize_by_temp
-        color_key = new_phase_color_key
-        cmin = temperature_min_datashader
-        cmax = temperature_max_datashader
-        color_ticks = [50,300,550]
-        color_ticklabels = ['4','5','6']
-        field_label = 'log T [K]'
-        color_log = True
-    elif (args.plot_color=='density'):
-        color_func = categorize_by_den
-        color_key = density_color_key
-        cmin = dens_phase_min
-        cmax = dens_phase_max
-        step = 750./np.size(list(color_key))
-        color_ticks = [step,step*3.,step*5.,step*7.,step*9.]
-        color_ticklabels = ['-30','-28','-26','-24','-22']
-        field_label = 'log $\\rho$ [g/cm$^3$]'
-        color_log = True
-    elif (args.plot_color=='radial_velocity'):
-        color_func = categorize_by_outflow_inflow
-        color_key = outflow_inflow_color_key
-        cmin = -200.
-        cmax = 200.
-        step = 750./np.size(list(color_key))
-        color_ticks = [step,step*3.,step*5.,step*7.,step*9.]
-        color_ticklabels = ['-200','-100','0','100','200']
-        field_label = 'Radial velocity [km/s]'
-        color_log = False
-    elif (args.plot_color=='metallicity'):
-        color_func = categorize_by_metals
-        color_key = new_metals_color_key
-        cmin = metal_min
-        cmax = metal_max
-        rng = (np.log10(metal_max)-np.log10(metal_min))/750.
-        start = np.log10(metal_min)
-        color_ticks = [(np.log10(0.01)-start)/rng,(np.log10(0.1)-start)/rng,(np.log10(0.5)-start)/rng,(np.log10(1.)-start)/rng,(np.log10(2.)-start)/rng]
-        color_ticklabels = ['0.01','0.1','0.5','1','2']
-        field_label = 'Metallicity [$Z_\odot$]'
-        color_log = False
+    if (args.plot_type=='datashader'):
+        target = make_datashader_profile_plot
+        if (args.plot_color=='temperature'):
+            color_func = categorize_by_temp
+            color_key = new_phase_color_key
+            cmin = temperature_min_datashader
+            cmax = temperature_max_datashader
+            color_ticks = [50,300,550]
+            color_ticklabels = ['4','5','6']
+            field_label = 'log T [K]'
+            color_log = True
+        elif (args.plot_color=='density'):
+            color_func = categorize_by_den
+            color_key = density_color_key
+            cmin = dens_phase_min
+            cmax = dens_phase_max
+            step = 750./np.size(list(color_key))
+            color_ticks = [step,step*3.,step*5.,step*7.,step*9.]
+            color_ticklabels = ['-30','-28','-26','-24','-22']
+            field_label = 'log $\\rho$ [g/cm$^3$]'
+            color_log = True
+        elif (args.plot_color=='radial_velocity'):
+            color_func = categorize_by_outflow_inflow
+            color_key = outflow_inflow_color_key
+            cmin = -200.
+            cmax = 200.
+            step = 750./np.size(list(color_key))
+            color_ticks = [step,step*3.,step*5.,step*7.,step*9.]
+            color_ticklabels = ['-200','-100','0','100','200']
+            field_label = 'Radial velocity [km/s]'
+            color_log = False
+        elif (args.plot_color=='metallicity'):
+            color_func = categorize_by_metals
+            color_key = new_metals_color_key
+            cmin = metal_min
+            cmax = metal_max
+            rng = (np.log10(metal_max)-np.log10(metal_min))/750.
+            start = np.log10(metal_min)
+            color_ticks = [(np.log10(0.01)-start)/rng,(np.log10(0.1)-start)/rng,(np.log10(0.5)-start)/rng,(np.log10(1.)-start)/rng,(np.log10(2.)-start)/rng]
+            color_ticklabels = ['0.01','0.1','0.5','1','2']
+            field_label = 'Metallicity [$Z_\odot$]'
+            color_log = False
+    else:
+        target = make_histogram_profile_plot
 
     # Loop over outputs, for either single-processor or parallel processor computing
     if (args.nproc==1):
         for i in range(len(outs)):
             snap = outs[i]
-            make_profile_plot(snap)
+            target(snap)
     else:
         skipped_outs = outs
         while (len(skipped_outs)>0):
@@ -349,7 +510,7 @@ if __name__ == "__main__":
                 for j in range(args.nproc):
                     snap = outs[args.nproc*i+j]
                     snaps.append(snap)
-                    threads.append(multi.Process(target=make_profile_plot, args=[snap]))
+                    threads.append(multi.Process(target=target, args=[snap]))
                 for t in threads:
                     t.start()
                 for t in threads:
@@ -367,7 +528,7 @@ if __name__ == "__main__":
             for j in range(len(outs)%args.nproc):
                 snap = outs[-(j+1)]
                 snaps.append(snap)
-                threads.append(multi.Process(target=make_profile_plot, args=[snap]))
+                threads.append(multi.Process(target=target, args=[snap]))
             for t in threads:
                 t.start()
             for t in threads:
