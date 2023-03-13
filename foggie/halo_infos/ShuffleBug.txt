@@ -1,0 +1,7 @@
+Listed below are the timesteps where the shuffle bug is known to occur. Star particles that form during these timesteps may initially receive a different ID than they will have after the impacted timesteps. Their locations etc. should therefore only be trusted AFTER the impacted timesteps.
+
+-Tempest: none
+-Maelstrom: DD1032-DD1040
+-Squall: none
+-Blizzard: DD0733-DD0734
+-Hurricane: DD0491-DD0497; DD2502-DD2505
