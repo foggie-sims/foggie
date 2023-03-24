@@ -184,6 +184,8 @@ def foggie_load(snap, trackfile, **kwargs):
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('dm', 'radius_corrected'), function=radius_corrected_dm, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
+        ds.add_field(('dm', 'radial_velocity_corrected'), function=radial_velocity_corrected_dm, units='km/s', \
+                     take_log=False, force_override=True, sampling_type='particle')
 
 
         sam_un = ds.unit_system["specific_angular_momentum"]

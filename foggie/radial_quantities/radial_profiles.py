@@ -68,7 +68,7 @@ def parse_args():
     parser.set_defaults(pwd=False)
 
     parser.add_argument('--plot_type', metavar='plot_type', type=str, action='store', \
-                        help='What kind of plot do you want? Options are datashader or histogram,\n' + \
+                        help='What kind of plot do you want? Options are datashader, histogram, or profiles_over_time\n' + \
                             'and default is datashader.')
     parser.set_defaults(plot_type='datashader')
 
@@ -109,6 +109,11 @@ def parse_args():
     parser.add_argument('--cgm_only', dest='cgm_only', action='store_true', \
                         help='Specify this if you want to filter on density to remove the disk and satellites.')
     parser.set_defaults(cgm_only=False)
+
+    parser.add_argument('--filename', metavar='filename', type=str, action='store', \
+                        help='If plotting profiles over time, what is the file name (after the snapshot name)\n' + \
+                        'that you want to plot?')
+    parser.set_defaults(filename='none')
 
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', \
                         help='How many processes do you want? Default is 1 ' + \
@@ -300,7 +305,9 @@ def make_histogram_profile_plot(snap):
     # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
     # with it being 1 at higher redshifts and 0.1 at lower redshifts
     current_time = ds.current_time.in_units('Myr').v
-    if (current_time<=8656.88):
+    if (current_time<=7091.48):
+        density_cut_factor = 20. - 19.*current_time/7091.48
+    elif (current_time<=8656.88):
         density_cut_factor = 1.
     elif (current_time<=10787.12):
         density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
@@ -414,6 +421,114 @@ def make_histogram_profile_plot(snap):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
+def make_profile_plot_over_time(snaplist):
+    '''Makes a profile plot vs. R/Rvir for the property given in args.plot_y showing curves for
+    all outputs in snaplist on the same plot, color-coded by their cosmic age.
+    Requires a args.filename to specify the name of the data file to pull the profiles from.'''
+
+    if (',' in args.plot_y):
+        plots = args.plot_y.split(',')
+    else:
+        plots = [args.plot_y]
+
+    unit_dict = {'density':'g/cm**3',
+                 'temperature':'/Tvir',
+                 'metallicity':'Zsun',
+                 'pressure':'erg/cm**3',
+                 'entropy':'keV*cm**2',
+                 'radial_velocity':'km/s'}
+    if (args.cgm_only):
+        y_range_dict = {'density':[-32,-26],
+                        'temperature':[0.1,20],
+                        'metallicity':[-3,2],
+                        'pressure':[-19,-12],
+                        'entropy':[-1,5],
+                        'radial_velocity':[-500,1000]}
+    else:
+        y_range_dict = {'density':[-32,-23],
+                        'temperature':[0.1,20],
+                        'metallicity':[-3,2],
+                        'pressure':[-19,-12],
+                        'entropy':[-5,5],
+                        'radial_velocity':[-500,1000]}
+    label_dict = {'density':'log Density [g/cm$^3$]',
+                  'temperature':'$\langle T\\rangle /T_\mathrm{vir}$',
+                  'metallicity':'log Metallicity [$Z_\odot$]',
+                  'pressure':'log Pressure [erg/cm$^3$]',
+                  'entropy':'log Entropy [keV cm$^2$]',
+                  'radial_velocity':'Radial Velocity [km/s]'}
+    
+    mass_color = False
+    time_avg = True
+
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+    
+    # For coloring lines by halo mass:
+    if (mass_color):
+        norm = mpl.colors.Normalize(vmin=np.log10(rvir_masses['total_mass'][rvir_masses['snapshot']==snaplist[0]][0]), vmax=np.log10(rvir_masses['total_mass'][rvir_masses['snapshot']==snaplist[-1]][0]))
+        cmap = mpl.cm.ScalarMappable(norm=norm, cmap=mpl.cm.magma)
+    # For coloring lines by cosmic time:
+    else:
+        norm = mpl.colors.Normalize(vmin=time_table['time'][time_table['snap']==snaplist[0]][0]/1000., vmax=time_table['time'][time_table['snap']==snaplist[-1]][0]/1000.)
+        cmap = mpl.cm.ScalarMappable(norm=norm, cmap=mpl.cm.viridis)
+
+    
+    for p in range(len(plots)):
+        fig = plt.figure(figsize=(12,6), dpi=200)
+        ax = fig.add_subplot(1,1,1)
+        plot_y = plots[p]
+    
+        profiles = []
+        masses = []
+        times = []
+        for snap in snaplist:
+            data_dir = output_dir + 'profiles_halo_00' + args.halo + '/' + args.run + '/Tables/'
+            radius, median_profile, mean_profile = np.loadtxt(data_dir + snap + '_' + args.filename + '.txt', unpack=True, usecols=[0,1,2])
+            time = time_table['time'][time_table['snap']==snap][0]/1000.
+            Mh = np.log10(rvir_masses['total_mass'][rvir_masses['snapshot']==snap][0])
+            profiles.append(median_profile)
+            times.append(time)
+            masses.append(Mh)
+            # For coloring by halo mass:
+            if (mass_color) and (not time_avg):
+                ax.plot(radius, median_profile, lw=2, ls='-', color=cmap.to_rgba(Mh))
+            # For coloring by cosmic time:
+            if (not mass_color) and (not time_avg):
+                ax.plot(radius, median_profile, lw=2, ls='-', color=cmap.to_rgba(time))
+        if (time_avg):
+            time_step = int(0.5/np.diff(times)[0])      # 0.5 Gyr time-averaging
+            profiles = np.array(profiles)
+            for t in range(0,len(times)-time_step,time_step):
+                avg_profile = np.mean(profiles[t:t+time_step], axis=0)
+                avg_time = np.mean(times[t:t+time_step])
+                avg_Mh = np.mean(masses[t:t+time_step])
+                if (mass_color): ax.plot(radius, avg_profile, lw=2, ls='-', color=cmap.to_rgba(avg_Mh))
+                else: ax.plot(radius, avg_profile, lw=2, ls='-', color=cmap.to_rgba(avg_time))
+
+        ax.set_xlabel('$R/R_\mathrm{vir}$', fontsize=20)
+        ax.set_ylabel(label_dict[plot_y], fontsize=20)
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+            top=True, right=True)
+        ax.axis([radius[0], radius[-1], y_range_dict[plot_y][0], y_range_dict[plot_y][1]])
+        ax.plot([radius[0], radius[-1]], [1,1], 'k--', lw=1)
+        ax.plot([1,1],[y_range_dict[plot_y][0], y_range_dict[plot_y][1]], 'k--', lw=1)
+        ax.text(0.03, 0.03, halo_dict[args.halo], fontsize=20, ha='left', va='bottom', transform=ax.transAxes)
+        cbaxes = fig.add_axes([0.83, 0.13, 0.03, 0.84])
+        cbar = plt.colorbar(cmap, cax=cbaxes)
+        cbar.ax.tick_params(axis='both', which='both', length=8, width=2, pad=5, labelsize=18, right=True)
+        # For coloring by cosmic time:
+        if (mass_color): cbar.set_label('$\log\ M_\mathrm{halo}$ [$M_\odot$]', fontsize=20)
+        # For coloring by halo mass:
+        else: cbar.set_label('Cosmic Time [Gyr]', fontsize=20)
+
+        plt.subplots_adjust(left=0.1, bottom=0.13, top=0.97, right=0.8)
+        if ('volume' in args.filename): weight = 'volume'
+        if ('mass' in args.filename): weight = 'mass'
+        plt.savefig(save_dir + plot_y + '_vs_radius_' + weight + '-weighted_over-time' + save_suffix + '.png')
+        plt.close()
+
 
 if __name__ == "__main__":
 
@@ -430,6 +545,10 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+
+    if ('feedback' in args.run) and ('track' in args.run):
+        foggie_dir = '/nobackup/jtumlins/halo_008508/feedback-track/'
+        run_dir = args.run + '/'
 
     # Set directory for output location, making it if necessary
     save_dir = output_dir + 'profiles_halo_00' + args.halo + '/' + args.run + '/'
@@ -490,25 +609,49 @@ if __name__ == "__main__":
             color_ticklabels = ['0.01','0.1','0.5','1','2']
             field_label = 'Metallicity [$Z_\odot$]'
             color_log = False
-    else:
+    elif (args.plot_type=='histogram'):
         target = make_histogram_profile_plot
+    elif (args.plot_type=='profiles_over_time'):
+        if (args.filename=='none'):
+            sys.exit('You need to supply a filename when plotting profiles over time!')
+        else:
+            make_profile_plot_over_time(outs)
 
     # Loop over outputs, for either single-processor or parallel processor computing
-    if (args.nproc==1):
-        for i in range(len(outs)):
-            snap = outs[i]
-            target(snap)
-    else:
-        skipped_outs = outs
-        while (len(skipped_outs)>0):
-            skipped_outs = []
-            # Split into a number of groupings equal to the number of processors
-            # and run one process per processor
-            for i in range(len(outs)//args.nproc):
+    if ('time' not in args.plot_type):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                snap = outs[i]
+                target(snap)
+        else:
+            skipped_outs = outs
+            while (len(skipped_outs)>0):
+                skipped_outs = []
+                # Split into a number of groupings equal to the number of processors
+                # and run one process per processor
+                for i in range(len(outs)//args.nproc):
+                    threads = []
+                    snaps = []
+                    for j in range(args.nproc):
+                        snap = outs[args.nproc*i+j]
+                        snaps.append(snap)
+                        threads.append(multi.Process(target=target, args=[snap]))
+                    for t in threads:
+                        t.start()
+                    for t in threads:
+                        t.join()
+                    # Delete leftover outputs from failed processes from tmp directory if on pleiades
+                    if (args.system=='pleiades_cassi'):
+                        for s in range(len(snaps)):
+                            if (os.path.exists('/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snaps[s])):
+                                print('Deleting failed %s from /tmp' % (snaps[s]))
+                                skipped_outs.append(snaps[s])
+                                shutil.rmtree('/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snaps[s])
+                # For any leftover snapshots, run one per processor
                 threads = []
                 snaps = []
-                for j in range(args.nproc):
-                    snap = outs[args.nproc*i+j]
+                for j in range(len(outs)%args.nproc):
+                    snap = outs[-(j+1)]
                     snaps.append(snap)
                     threads.append(multi.Process(target=target, args=[snap]))
                 for t in threads:
@@ -522,22 +665,4 @@ if __name__ == "__main__":
                             print('Deleting failed %s from /tmp' % (snaps[s]))
                             skipped_outs.append(snaps[s])
                             shutil.rmtree('/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snaps[s])
-            # For any leftover snapshots, run one per processor
-            threads = []
-            snaps = []
-            for j in range(len(outs)%args.nproc):
-                snap = outs[-(j+1)]
-                snaps.append(snap)
-                threads.append(multi.Process(target=target, args=[snap]))
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
-            # Delete leftover outputs from failed processes from tmp directory if on pleiades
-            if (args.system=='pleiades_cassi'):
-                for s in range(len(snaps)):
-                    if (os.path.exists('/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snaps[s])):
-                        print('Deleting failed %s from /tmp' % (snaps[s]))
-                        skipped_outs.append(snaps[s])
-                        shutil.rmtree('/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snaps[s])
-            outs = skipped_outs
+                outs = skipped_outs

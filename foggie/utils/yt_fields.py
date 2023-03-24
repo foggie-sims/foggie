@@ -213,6 +213,26 @@ def radial_velocity_corrected(field, data):
     vr[np.isnan(vr)] = 0.
     return vr
 
+def radial_velocity_corrected_dm(field, data):
+    """Corrects the radial velocity for bulk motion of the halo and the halo center.
+    Requires 'halo_center_kpc', which is the halo center with yt units of kpc, to be defined.
+    Requires the other fields of _vx_corrected, _vy_corrected, and _vz_corrected. -Cassi"""
+    halo_center_kpc = data.ds.halo_center_kpc
+    halo_velocity_kms = data.ds.halo_velocity_kms
+    x_hat = data['dm','particle_position_x'].in_units('kpc') - halo_center_kpc[0]
+    y_hat = data['dm','particle_position_y'].in_units('kpc') - halo_center_kpc[1]
+    z_hat = data['dm','particle_position_z'].in_units('kpc') - halo_center_kpc[2]
+    r = np.sqrt(x_hat*x_hat + y_hat*y_hat + z_hat*z_hat)
+    x_hat /= r
+    y_hat /= r
+    z_hat /= r
+    vx = data['dm','particle_velocity_x'].in_units('km/s') - halo_velocity_kms[0]
+    vy = data['dm','particle_velocity_y'].in_units('km/s') - halo_velocity_kms[1]
+    vz = data['dm','particle_velocity_z'].in_units('km/s') - halo_velocity_kms[2]
+    vr = vx*x_hat + vy*y_hat + vz*z_hat
+    vr[np.isnan(vr)] = 0.
+    return vr
+
 def theta_velocity_corrected(field, data):
     """Corrects the theta direction of the spherical coordinate velocity for the bulk motion of the
     halo and the halo center. Requires 'halo_center_kpc', which is the halo center with yt units
