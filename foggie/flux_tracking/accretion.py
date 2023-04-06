@@ -224,6 +224,10 @@ def parse_args():
                         'Give in units of Myr. Default is not to time-average.')
     parser.set_defaults(time_avg=0)
 
+    parser.add_argument('--streamlines', dest='streamlines', action='store_true', \
+                        help='Use this to specify the streamlines calculation. Default is not to do this.')
+    parser.set_defaults(streamlines=False)
+
 
     args = parser.parse_args()
     return args
@@ -1926,19 +1930,13 @@ def load_and_calculate(snap, surface):
         sp = ds.sphere(ds.halo_center_kpc, (Rvir, 'kpc'))
         sky_map(ds, sp, snap, snap_props)
     else:
-        if (args.spherical):
-            if ('fluxes' in args.calculate):
-                calculate_flux_spherical(ds, snap, snap_props)
-            if ('accretion_compare' in args.calculate):
-                compare_accreting_cells_spherical(ds, snap, snap_props)
-        else:
-            # Find the covering grid and the shape specified by 'surface'
-            grid, shape = find_shape(ds, surface, snap_props)
-            # Calculate fluxes and save to file
-            if ('fluxes' in args.calculate):
-                calculate_flux(ds, grid, shape, snap, snap_props)
-            if ('accretion_compare' in args.calculate):
-                compare_accreting_cells(ds, grid, shape, snap, snap_props)
+        # Find the covering grid and the shape specified by 'surface'
+        grid, shape = find_shape(ds, surface, snap_props)
+        # Calculate fluxes and save to file
+        if ('fluxes' in args.calculate):
+            calculate_flux(ds, grid, shape, snap, snap_props)
+        if ('accretion_compare' in args.calculate):
+            compare_accreting_cells(ds, grid, shape, snap, snap_props)
 
     print('Fluxes calculated for snapshot', snap)
 
@@ -2297,6 +2295,147 @@ def accretion_flux_vs_radius(snap):
         fig.subplots_adjust(left=0.13,bottom=0.14,top=0.95,right=0.97)
         plt.savefig(save_prefix + snap + '_accretion-flux_vs_radius_' + fluxes[i] + '.png')
 
+def streamlines_over_time(snaplist):
+    '''Uses yt's streamlines function to integrate paths through the velocity field at each time step, using
+    the previous snapshot's integration as input for the next snapshot's integration. Saves to file the positions
+    and properties at each position of each streamline.'''
+
+    from yt.visualization.api import Streamlines
+
+    # Make table for saving stream positions to file
+    names_list = ['stream_id','elapsed_time','z_ind','y_ind','x_ind','x_pos','y_pos','z_pos','vx','vy','vz','density','temperature','pressure']
+    types_list = ['f8']*14
+    stream_table = Table(names=names_list, dtype=types_list)
+    stream_table_units = ['none','Myr','none','none','none','kpc','kpc','kpc','km/s','km/s','km/s','g/cm**3','K','erg/cm**3']
+    for i in range(len(names_list)):
+        stream_table[names_list[i]].unit = stream_table_units[i]
+
+    # Find starting locations of streams in first snapshot
+    snap = snaplist[0]
+    snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=catalog_dir, correct_bulk_velocity=True)
+    # Set up covering grid
+    pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))
+    lvl1_res = pix_res*2.**11.
+    level = 9
+    dx = lvl1_res/(2.**level)
+    box_size = 400
+    refine_res = int(box_size/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc'), dims=[refine_res, refine_res, refine_res])
+    x = box['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
+    y = box['gas', 'y'].in_units('kpc').v - ds.halo_center_kpc[1].v
+    z = box['gas', 'z'].in_units('kpc').v - ds.halo_center_kpc[2].v
+    xbins = x[:,0,0][:-1] - 0.5*np.diff(x[:,0,0])
+    ybins = y[0,:,0][:-1] - 0.5*np.diff(y[0,:,0])
+    zbins = z[0,0,:][:-1] - 0.5*np.diff(z[0,0,:])
+    vmag = box['gas','vel_mag_corrected'].in_units('km/s').v
+    temperature = box['gas','temperature'].in_units('K').v
+    vx = box['gas','vx_corrected'].in_units('km/s').v
+    vy = box['gas','vy_corrected'].in_units('km/s').v
+    vz = box['gas','vz_corrected'].in_units('km/s').v
+    density = box['gas','density'].in_units('g/cm**3.').v
+    pressure = box['gas','pressure'].in_units('erg/cm**3').v
+
+    Nstreams = 500
+
+    start_shell = ds.sphere(ds.halo_center_kpc, (100., 'kpc')) - ds.sphere(ds.halo_center_kpc, (95., 'kpc'))
+    vff_shell = np.mean(start_shell['gas','vff'].in_units('km/s').v)
+    shell_fil = start_shell.include_below('radial_velocity_corrected', 0.75*vff_shell)
+    inds = np.random.randint(len(shell_fil['radial_velocity_corrected']), size=Nstreams)
+    x_code = shell_fil['gas','x'].in_units('code_length')
+    y_code = shell_fil['gas','y'].in_units('code_length')
+    z_code = shell_fil['gas','z'].in_units('code_length')
+    start_x = x_code[inds]
+    start_y = y_code[inds]
+    start_z = z_code[inds]
+    start_pos = np.transpose(np.array([start_x, start_y, start_z]))
+    length = ds.quan(10., 'kpc')
+
+    for s in range(len(snaplist)):
+        print('Defining streamlines for %s' % (snap), str(datetime.datetime.now()))
+        streamlines = Streamlines(ds, start_pos, ("gas", "vx_corrected"), ("gas", "vy_corrected"), ("gas", "vz_corrected"), length=length, get_magnitude=True)
+        print('Streamlines defined for %s' % (snap), str(datetime.datetime.now()))
+        streamlines.integrate_through_volume()
+        # Calculate information along each stream and save
+        next_start_pos = []
+        for i in range(len(start_x)):
+            stream = streamlines.path(i)
+            stream_path = (stream.positions.in_units('kpc') - ds.halo_center_kpc).v      # stream_path[j] is (x,y,z) position in the box of jth location along the path
+            stream_path_T = np.transpose(stream_path)
+            stream_path_x = stream_path_T[0]
+            stream_path_y = stream_path_T[1]
+            stream_path_z = stream_path_T[2]
+            displacements = np.sqrt((np.diff(stream_path_x))**2. + (np.diff(stream_path_y))**2. + (np.diff(stream_path_z))**2.)
+            # Digitize positions along stream onto covering grid
+            inds_x = np.digitize(stream_path_x, xbins)-1      # indices of new x positions
+            inds_y = np.digitize(stream_path_y, ybins)-1      # indices of new y positions
+            inds_z = np.digitize(stream_path_z, zbins)-1      # indices of new z positions
+            stream_path_x_digi = x[inds_x,inds_y,inds_z]
+            stream_path_y_digi = y[inds_x,inds_y,inds_z]
+            stream_path_z_digi = z[inds_x,inds_y,inds_z]
+            stream_path_vmag = vmag[inds_x,inds_y,inds_z]
+            elapsed_time = np.cumsum((displacements*1000*cmtopc)/(stream_path_vmag[:-1]*1e5)/(stoyr))
+            end_ind = np.where(elapsed_time>=(5.*dt))[0][0]
+            inds_x = inds_x[:end_ind]
+            inds_y = inds_y[:end_ind]
+            inds_z = inds_z[:end_ind]
+            vx_path = vx[inds_x,inds_y,inds_z]
+            vy_path = vy[inds_x,inds_y,inds_z]
+            vz_path = vz[inds_x,inds_y,inds_z]
+            den_path = density[inds_x,inds_y,inds_z]
+            temp_path = temperature[inds_x,inds_y,inds_z]
+            pres_path = pressure[inds_x,inds_y,inds_z]
+            ids = np.zeros(len(inds_x)) + i
+            track = np.array([ids, elapsed_time[:end_ind], inds_z, inds_y, inds_x, stream_path_x_digi[:end_ind], stream_path_y_digi[:end_ind], stream_path_z_digi[:end_ind], vx_path, vy_path, vz_path, den_path, temp_path, pres_path])
+            track = np.transpose(track)
+            for t in range(len(track)):
+                stream_table.add_row(track[t])
+            next_start_pos.append(np.array([stream_path_x[end_ind-1], stream_path_y[end_ind-1], stream_path_z[end_ind-1]]))
+
+        tablename = prefix + 'Tables/' + snap + '_streams'
+        stream_table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+        print('Stream properties saved for %s' % (snap), str(datetime.datetime.now()))
+        next_start_pos = np.transpose(np.array(next_start_pos))
+
+        # Load next snapshot
+        if (s<len(snaplist)-1):
+            snap = snaplist[s+1]
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
+            ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=False, masses_dir=catalog_dir, correct_bulk_velocity=True)
+            # Set up covering grid
+            pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))
+            lvl1_res = pix_res*2.**11.
+            level = 9
+            dx = lvl1_res/(2.**level)
+            box_size = 400
+            refine_res = int(box_size/dx)
+            box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc'), dims=[refine_res, refine_res, refine_res])
+            x = box['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
+            y = box['gas', 'y'].in_units('kpc').v - ds.halo_center_kpc[1].v
+            z = box['gas', 'z'].in_units('kpc').v - ds.halo_center_kpc[2].v
+            x_code = box['x'].in_units('code_length')
+            y_code = box['y'].in_units('code_length')
+            z_code = box['z'].in_units('code_length')
+            xbins = x[:,0,0][:-1] - 0.5*np.diff(x[:,0,0])
+            ybins = y[0,:,0][:-1] - 0.5*np.diff(y[0,:,0])
+            zbins = z[0,0,:][:-1] - 0.5*np.diff(z[0,0,:])
+            vmag = box['gas','vel_mag_corrected'].in_units('km/s').v
+            temperature = box['gas','temperature'].in_units('K').v
+            vx = box['gas','vx_corrected'].in_units('km/s').v
+            vy = box['gas','vy_corrected'].in_units('km/s').v
+            vz = box['gas','vz_corrected'].in_units('km/s').v
+            density = box['gas','density'].in_units('g/cm**3.').v
+            pressure = box['gas','pressure'].in_units('erg/cm**3').v
+
+            # Digitize starting position onto new grid
+            inds_x = np.digitize(next_start_pos[0], xbins)-1      # indices of new x positions
+            inds_y = np.digitize(next_start_pos[1], ybins)-1      # indices of new y positions
+            inds_z = np.digitize(next_start_pos[2], zbins)-1      # indices of new z positions
+            start_x = x_code[inds_x,inds_y,inds_z]
+            start_y = y_code[inds_x,inds_y,inds_z]
+            start_z = z_code[inds_x,inds_y,inds_z]
+            start_pos = np.transpose(np.array([start_x, start_y, start_z]))
+
 
 if __name__ == "__main__":
 
@@ -2361,8 +2500,11 @@ if __name__ == "__main__":
         else:
             target_dir = 'fluxes'
         if (args.nproc==1):
-            for snap in outs:
-                load_and_calculate(snap, surface)
+            if (args.streamlines):
+                streamlines_over_time(outs)
+            else:
+                for snap in outs:
+                    load_and_calculate(snap, surface)
         else:
             skipped_outs = outs
             while (len(skipped_outs)>0):
