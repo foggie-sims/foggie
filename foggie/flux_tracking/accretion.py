@@ -1378,10 +1378,8 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                 results = [np.mean(radius[shape_edge][(phi_edge>=60.)&(phi_edge<=120.)])]
             else:
                 results = []
-                names = []
             if (args.direction):
                 results.append(phi_bins[p])
-                names.append('phi_bin')
             if (phi_bins[p]=='all'):
                 angle_bin_to = np.ones(len(phi_to), dtype=bool)
                 angle_bin_edge = np.ones(len(phi_edge), dtype=bool)
@@ -1415,12 +1413,9 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
             u, dup_ind = np.unique(pixel_edge, return_index=True)
             covering_edge = len(u)*pix_area
             results.append(covering_non/covering_edge)
-            names.append('covering_fraction_non')
             results.append(covering_acc/covering_edge)
-            names.append('covering_fraction_acc')
             for dv in range(len(disp_vel_bins)-1):
                 results.append(covering_acc_dv[dv]/covering_edge)
-                names.append('covering_fraction_dv' + disp_vel_saves[dv])
             weights_to = weights[to_shape][angle_bin_to]
             weights_to_dv = []
             for dv in range(len(disp_vel_bins)-1):
@@ -1441,20 +1436,17 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                     u, dup_ind = np.unique(pixel_f, return_index=True)
                     covering_f = len(u)*pix_area
                     results.append(covering_f/covering_edge)
-                    names.append('covering_fraction_non_region' + str(regions[f]))
                     phi_to_f = phi_to[angle_bin_to][(region_to>=regions[f]) & (region_to<regions[f+1])]
                     theta_to_f = theta_to[angle_bin_to][(region_to>=regions[f]) & (region_to<regions[f+1])]
                     pixel_f = healpy.ang2pix(nside, phi_to_f*(np.pi/180.), theta_to_f*(np.pi/180.)+np.pi)
                     u, dup_ind = np.unique(pixel_f, return_index=True)
                     covering_f = len(u)*pix_area
                     results.append(covering_f/covering_edge)
-                    names.append('covering_fraction_region' + str(regions[f]))
                     for dv in range(len(disp_vel_bins)-1):
                         phi_to_f = phi_to_dv[dv][angle_bin_to_dv[dv]][(region_to_dv[dv]>=regions[f]) & (region_to_dv[dv]<regions[f+1])]
                         theta_to_f = theta_to_dv[dv][angle_bin_to_dv[dv]][(region_to_dv[dv]>=regions[f]) & (region_to_dv[dv]<regions[f+1])]
                         pixel_f = healpy.ang2pix(nside, phi_to_f*(np.pi/180.), theta_to_f*(np.pi/180.)+np.pi)
                         results.append(covering_f/covering_edge)
-                        names.append('covering_fraction_region' + str(regions[f]) + '_dv' + disp_vel_saves[dv])
             for i in range(len(properties)):
                 prop_to = properties[i][to_shape][angle_bin_to]
                 prop_to_dv = []
@@ -1464,46 +1456,30 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                 prop_non = properties[i][shape_non][angle_bin_non]
                 if ('mass' in props[i+1]) or ('energy' in props[i+1]):
                     results.append(np.sum(prop_edge))
-                    names.append(props[i+1] + '_edge')
                     results.append(np.sum(prop_non))
-                    names.append(props[i+1] + '_non')
                     results.append(np.sum(prop_to))
-                    names.append(props[i+1] + '_acc')
                     for dv in range(len(disp_vel_bins)-1):
                         results.append(np.sum(prop_to_dv[dv]))
-                        names.append(props[i+1] + '_acc_dv' + disp_vel_saves[dv])
                     if (args.region_filter!='none'):
                         for f in range(len(regions)-1):
                             results.append(np.sum(prop_edge[(region_edge>=regions[f]) & (region_edge<regions[f+1])]))
-                            names.append(props[i+1] + '_edge_region' + str(regions[f]))
                             results.append(np.sum(prop_non[(region_non>=regions[f]) & (region_non<regions[f+1])]))
-                            names.append(props[i+1] + '_non_region' + str(regions[f]))
                             results.append(np.sum(prop_to[(region_to>=regions[f]) & (region_to<regions[f+1])]))
-                            names.append(props[i+1] + '_acc_region' + str(regions[f]))
                             for dv in range(len(disp_vel_bins)-1):
                                 results.append(np.sum(prop_to_dv[dv][(region_to_dv[dv]>=regions[f]) & (region_to_dv[dv]<regions[f+1])]))
-                                names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_dv' + disp_vel_saves[dv])
                 else:
                     if (len(prop_edge)>0):
                         quantiles = weighted_quantile(prop_edge, weights_edge, np.array([0.25,0.5,0.75]))
                         results.append(quantiles[1])
-                        names.append(props[i+1] + '_edge_med')
                         results.append(quantiles[2]-quantiles[0])
-                        names.append(props[i+1] + '_egde_iqr')
                         avg, std = weighted_avg_and_std(prop_edge, weights_edge)
                         results.append(avg)
-                        names.append(props[i+1] + '_edge_avg')
                         results.append(std)
-                        names.append(props[i+1] + '_edge_std')
                     else:
                         results.append(np.nan)
                         results.append(np.nan)
                         results.append(np.nan)
                         results.append(np.nan)
-                        names.append(props[i+1] + '_edge_med')
-                        names.append(props[i+1] + '_egde_iqr')
-                        names.append(props[i+1] + '_edge_avg')
-                        names.append(props[i+1] + '_edge_std')
                     if (len(prop_non)>0):
                         quantiles = weighted_quantile(prop_non, weights_non, np.array([0.25,0.5,0.75]))
                         results.append(quantiles[1])
@@ -1511,19 +1487,11 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                         avg, std = weighted_avg_and_std(prop_non, weights_non)
                         results.append(avg)
                         results.append(std)
-                        names.append(props[i+1] + '_non_med')
-                        names.append(props[i+1] + '_non_iqr')
-                        names.append(props[i+1] + '_non_avg')
-                        names.append(props[i+1] + '_non_std')
                     else:
                         results.append(np.nan)
                         results.append(np.nan)
                         results.append(np.nan)
                         results.append(np.nan)
-                        names.append(props[i+1] + '_non_med')
-                        names.append(props[i+1] + '_non_iqr')
-                        names.append(props[i+1] + '_non_avg')
-                        names.append(props[i+1] + '_non_std')
                     if (len(prop_to)>0):
                         quantiles = weighted_quantile(prop_to, weights_to, np.array([0.25,0.5,0.75]))
                         results.append(quantiles[1])
@@ -1531,19 +1499,11 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                         avg, std = weighted_avg_and_std(prop_to, weights_to)
                         results.append(avg)
                         results.append(std)
-                        names.append(props[i+1] + '_acc_med')
-                        names.append(props[i+1] + '_acc_iqr')
-                        names.append(props[i+1] + '_acc_avg')
-                        names.append(props[i+1] + '_acc_std')
                     else:
                         results.append(np.nan)
                         results.append(np.nan)
                         results.append(np.nan)
                         results.append(np.nan)
-                        names.append(props[i+1] + '_acc_med')
-                        names.append(props[i+1] + '_acc_iqr')
-                        names.append(props[i+1] + '_acc_avg')
-                        names.append(props[i+1] + '_acc_std')
                     for dv in range(len(disp_vel_bins)-1):
                         if (len(prop_to_dv[dv])>0):
                             quantiles = weighted_quantile(prop_to_dv[dv], weights_to_dv[dv], np.array([0.25,0.5,0.75]))
@@ -1552,19 +1512,11 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                             avg, std = weighted_avg_and_std(prop_to_dv[dv], weights_to_dv[dv])
                             results.append(avg)
                             results.append(std)
-                            names.append(props[i+1] + '_acc_dv' + disp_vel_saves[dv] + '_med')
-                            names.append(props[i+1] + '_acc_dv' + disp_vel_saves[dv] + '_iqr')
-                            names.append(props[i+1] + '_acc_dv' + disp_vel_saves[dv] + '_avg')
-                            names.append(props[i+1] + '_acc_dv' + disp_vel_saves[dv] + '_std')
                         else:
                             results.append(np.nan)
                             results.append(np.nan)
                             results.append(np.nan)
                             results.append(np.nan)
-                            names.append(props[i+1] + '_acc_dv' + disp_vel_saves[dv] + '_med')
-                            names.append(props[i+1] + '_acc_dv' + disp_vel_saves[dv] + '_iqr')
-                            names.append(props[i+1] + '_acc_dv' + disp_vel_saves[dv] + '_avg')
-                            names.append(props[i+1] + '_acc_dv' + disp_vel_saves[dv] + '_std')
                     if (args.region_filter!='none'):
                         for f in range(len(regions)-1):
                             prop_edge_f = prop_edge[(region_edge>=regions[f]) & (region_edge<regions[f+1])]
@@ -1576,19 +1528,11 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                                 avg, std = weighted_avg_and_std(prop_edge_f, weights_edge_f)
                                 results.append(avg)
                                 results.append(std)
-                                names.append(props[i+1] + '_edge_region' + str(regions[f]) + '_med')
-                                names.append(props[i+1] + '_edge_region' + str(regions[f]) + '_iqr')
-                                names.append(props[i+1] + '_edge_region' + str(regions[f]) + '_avg')
-                                names.append(props[i+1] + '_edge_region' + str(regions[f]) + '_std')
                             else:
                                 results.append(np.nan)
                                 results.append(np.nan)
                                 results.append(np.nan)
                                 results.append(np.nan)
-                                names.append(props[i+1] + '_edge_region' + str(regions[f]) + '_med')
-                                names.append(props[i+1] + '_edge_region' + str(regions[f]) + '_iqr')
-                                names.append(props[i+1] + '_edge_region' + str(regions[f]) + '_avg')
-                                names.append(props[i+1] + '_edge_region' + str(regions[f]) + '_std')
                             prop_non_f = prop_non[(region_non>=regions[f]) & (region_non<regions[f+1])]
                             weights_non_f = weights_non[(region_non>=regions[f]) & (region_non<regions[f+1])]
                             if (len(prop_non_f)>0):
@@ -1598,19 +1542,11 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                                 avg, std = weighted_avg_and_std(prop_non_f, weights_non_f)
                                 results.append(avg)
                                 results.append(std)
-                                names.append(props[i+1] + '_non_region' + str(regions[f]) + '_med')
-                                names.append(props[i+1] + '_non_region' + str(regions[f]) + '_iqr')
-                                names.append(props[i+1] + '_non_region' + str(regions[f]) + '_avg')
-                                names.append(props[i+1] + '_non_region' + str(regions[f]) + '_std')
                             else:
                                 results.append(np.nan)
                                 results.append(np.nan)
                                 results.append(np.nan)
                                 results.append(np.nan)
-                                names.append(props[i+1] + '_non_region' + str(regions[f]) + '_med')
-                                names.append(props[i+1] + '_non_region' + str(regions[f]) + '_iqr')
-                                names.append(props[i+1] + '_non_region' + str(regions[f]) + '_avg')
-                                names.append(props[i+1] + '_non_region' + str(regions[f]) + '_std')
                             prop_to_f = prop_to[(region_to>=regions[f]) & (region_to<regions[f+1])]
                             weights_to_f = weights_to[(region_to>=regions[f]) & (region_to<regions[f+1])]
                             if (len(prop_to_f)>0):
@@ -1620,19 +1556,11 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                                 avg, std = weighted_avg_and_std(prop_to_f, weights_to_f)
                                 results.append(avg)
                                 results.append(std)
-                                names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_med')
-                                names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_iqr')
-                                names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_avg')
-                                names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_std')
                             else:
                                 results.append(np.nan)
                                 results.append(np.nan)
                                 results.append(np.nan)
                                 results.append(np.nan)
-                                names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_med')
-                                names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_iqr')
-                                names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_avg')
-                                names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_std')
                             for dv in range(len(disp_vel_bins)-1):
                                 prop_to_f = prop_to_dv[dv][(region_to_dv[dv]>=regions[f]) & (region_to_dv[dv]<regions[f+1])]
                                 weights_to_f = weights_to_dv[dv][(region_to_dv[dv]>=regions[f]) & (region_to_dv[dv]<regions[f+1])]
@@ -1643,22 +1571,13 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                                     avg, std = weighted_avg_and_std(prop_to_f, weights_to_f)
                                     results.append(avg)
                                     results.append(std)
-                                    names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_dv' + disp_vel_saves[dv] + '_med')
-                                    names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_dv' + disp_vel_saves[dv] + '_iqr')
-                                    names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_dv' + disp_vel_saves[dv] + '_avg')
-                                    names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_dv' + disp_vel_saves[dv] + '_std')
                                 else:
                                     results.append(np.nan)
                                     results.append(np.nan)
                                     results.append(np.nan)
                                     results.append(np.nan)
-                                    names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_dv' + disp_vel_saves[dv] + '_med')
-                                    names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_dv' + disp_vel_saves[dv] + '_iqr')
-                                    names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_dv' + disp_vel_saves[dv] + '_avg')
-                                    names.append(props[i+1] + '_acc_region' + str(regions[f]) + '_dv' + disp_vel_saves[dv] + '_std')
 
             table.add_row(results)
-            print(names)
 
         if ('accretion_direction' in plots):
             plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], mass[to_shape], metals[to_shape], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r, '')
@@ -2337,6 +2256,7 @@ def streamlines_over_time(snaplist):
     pressure = box['gas','pressure'].in_units('erg/cm**3').v
 
     Nstreams = 500
+    length = ds.quan(10.,'kpc')
 
     start_shell = ds.sphere(ds.halo_center_kpc, (100., 'kpc')) - ds.sphere(ds.halo_center_kpc, (95., 'kpc'))
     vff_shell = np.mean(start_shell['gas','vff'].in_units('km/s').v)
@@ -2349,7 +2269,6 @@ def streamlines_over_time(snaplist):
     start_y = y_code[inds]
     start_z = z_code[inds]
     start_pos = np.transpose(np.array([start_x, start_y, start_z]))
-    length = ds.quan(10., 'kpc')
 
     for s in range(len(snaplist)):
         print('Defining streamlines for %s' % (snap), str(datetime.datetime.now()))
