@@ -2247,39 +2247,44 @@ def streamlines_over_time(snaplist):
     xbins = x[:,0,0][:-1] - 0.5*np.diff(x[:,0,0])
     ybins = y[0,:,0][:-1] - 0.5*np.diff(y[0,:,0])
     zbins = z[0,0,:][:-1] - 0.5*np.diff(z[0,0,:])
-    vmag = box['gas','vel_mag_corrected'].in_units('km/s').v
     temperature = box['gas','temperature'].in_units('K').v
     vx = box['gas','vx_corrected'].in_units('km/s').v
     vy = box['gas','vy_corrected'].in_units('km/s').v
     vz = box['gas','vz_corrected'].in_units('km/s').v
+    vmag = box['gas','vel_mag_corrected'].in_units('km/s').v
     density = box['gas','density'].in_units('g/cm**3.').v
     pressure = box['gas','pressure'].in_units('erg/cm**3').v
+    radius = box['gas','radius_corrected'].in_units('kpc').v
+    radial_velocity = box['gas','radial_velocity_corrected'].v
+    vff = box['gas','vff'].in_units('km/s').v
 
-    Nstreams = 500
+    Nstreams = 400
     length = ds.quan(10.,'kpc')
+    dx = ds.quan(dx, 'kpc')
 
-    start_shell = ds.sphere(ds.halo_center_kpc, (100., 'kpc')) - ds.sphere(ds.halo_center_kpc, (95., 'kpc'))
-    vff_shell = np.mean(start_shell['gas','vff'].in_units('km/s').v)
-    shell_fil = start_shell.include_below('radial_velocity_corrected', 0.75*vff_shell)
-    inds = np.random.randint(len(shell_fil['radial_velocity_corrected']), size=Nstreams)
-    x_code = shell_fil['gas','x'].in_units('code_length')
-    y_code = shell_fil['gas','y'].in_units('code_length')
-    z_code = shell_fil['gas','z'].in_units('code_length')
-    start_x = x_code[inds]
-    start_y = y_code[inds]
-    start_z = z_code[inds]
-    start_pos = np.transpose(np.array([start_x, start_y, start_z]))
+    vff_shell = np.mean(vff[(radius > 95.) & (radius < 100.)])
+    x_shell = x[(radius > 95.) & (radius < 100.) & (radial_velocity < 0.75*vff_shell)]
+    y_shell = y[(radius > 95.) & (radius < 100.) & (radial_velocity < 0.75*vff_shell)]
+    z_shell = z[(radius > 95.) & (radius < 100.) & (radial_velocity < 0.75*vff_shell)]
+    inds = np.random.randint(len(x_shell), size=Nstreams)
+    start_pos = np.transpose(np.array([x_shell[inds], y_shell[inds], z_shell[inds]]))
+
+    data = dict(x = (x, 'kpc'), y = (y, 'kpc'), z = (z, 'kpc'), \
+                temperature = (temperature, "K"), density = (density, 'K'), pressure = (pressure, 'erg/cm**3'), \
+                vx = (vx, 'km/s'), vy = (vy, 'km/s'), vz = (vz, 'km/s'), vmag = (vmag, 'km/s'))
+    bbox = np.array([[np.min(x), np.max(x)], [np.min(y), np.max(y)], [np.min(z), np.max(z)]])
+    new_ds = yt.load_uniform_grid(data, x.shape, length_unit="kpc", bbox=bbox)
 
     for s in range(len(snaplist)):
         print('Defining streamlines for %s' % (snap), str(datetime.datetime.now()))
-        streamlines = Streamlines(ds, start_pos, ("gas", "vx_corrected"), ("gas", "vy_corrected"), ("gas", "vz_corrected"), length=length, get_magnitude=True)
+        streamlines = Streamlines(new_ds, start_pos, 'vx', 'vy', 'vz', length=length, dx=dx)
         print('Streamlines defined for %s' % (snap), str(datetime.datetime.now()))
         streamlines.integrate_through_volume()
         # Calculate information along each stream and save
         next_start_pos = []
-        for i in range(len(start_x)):
+        for i in range(len(start_pos)):
             stream = streamlines.path(i)
-            stream_path = (stream.positions.in_units('kpc') - ds.halo_center_kpc).v      # stream_path[j] is (x,y,z) position in the box of jth location along the path
+            stream_path = stream.positions.in_units('kpc').v      # stream_path[j] is (x,y,z) position in the box of jth location along the path
             stream_path_T = np.transpose(stream_path)
             stream_path_x = stream_path_T[0]
             stream_path_y = stream_path_T[1]
@@ -2332,9 +2337,6 @@ def streamlines_over_time(snaplist):
             x = box['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
             y = box['gas', 'y'].in_units('kpc').v - ds.halo_center_kpc[1].v
             z = box['gas', 'z'].in_units('kpc').v - ds.halo_center_kpc[2].v
-            x_code = box['x'].in_units('code_length')
-            y_code = box['y'].in_units('code_length')
-            z_code = box['z'].in_units('code_length')
             xbins = x[:,0,0][:-1] - 0.5*np.diff(x[:,0,0])
             ybins = y[0,:,0][:-1] - 0.5*np.diff(y[0,:,0])
             zbins = z[0,0,:][:-1] - 0.5*np.diff(z[0,0,:])
@@ -2346,14 +2348,23 @@ def streamlines_over_time(snaplist):
             density = box['gas','density'].in_units('g/cm**3.').v
             pressure = box['gas','pressure'].in_units('erg/cm**3').v
 
+            data = dict(x = (x, 'kpc'), y = (y, 'kpc'), z = (z, 'kpc'), \
+                        temperature = (temperature, "K"), density = (density, 'K'), pressure = (pressure, 'erg/cm**3'), \
+                        vx = (vx, 'km/s'), vy = (vy, 'km/s'), vz = (vz, 'km/s'), vmag = (vmag, 'km/s'))
+            bbox = np.array([[np.min(x), np.max(x)], [np.min(y), np.max(y)], [np.min(z), np.max(z)]])
+            new_ds = yt.load_uniform_grid(data, x.shape, length_unit="kpc", bbox=bbox)
+
             # Digitize starting position onto new grid
             inds_x = np.digitize(next_start_pos[0], xbins)-1      # indices of new x positions
             inds_y = np.digitize(next_start_pos[1], ybins)-1      # indices of new y positions
             inds_z = np.digitize(next_start_pos[2], zbins)-1      # indices of new z positions
-            start_x = x_code[inds_x,inds_y,inds_z]
-            start_y = y_code[inds_x,inds_y,inds_z]
-            start_z = z_code[inds_x,inds_y,inds_z]
+            start_x = x[inds_x,inds_y,inds_z]
+            start_y = y[inds_x,inds_y,inds_z]
+            start_z = z[inds_x,inds_y,inds_z]
             start_pos = np.transpose(np.array([start_x, start_y, start_z]))
+
+            length = ds.quan(10.,'kpc')
+            dx = ds.quan(dx, 'kpc')
 
 
 if __name__ == "__main__":
