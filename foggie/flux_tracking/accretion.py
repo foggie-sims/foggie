@@ -2259,7 +2259,7 @@ def streamlines_over_time(snaplist):
     vff = box['gas','vff'].in_units('km/s').v
 
     Nstreams = 400
-    length = ds.quan(10.,'kpc')
+    length = ds.quan(50.,'kpc')
     dx = ds.quan(dx, 'kpc')
 
     vff_shell = np.mean(vff[(radius > 95.) & (radius < 100.)])
@@ -2363,7 +2363,7 @@ def streamlines_over_time(snaplist):
             start_z = z[inds_x,inds_y,inds_z]
             start_pos = np.transpose(np.array([start_x, start_y, start_z]))
 
-            length = ds.quan(10.,'kpc')
+            length = ds.quan(50.,'kpc')
             dx = ds.quan(dx, 'kpc')
 
 
