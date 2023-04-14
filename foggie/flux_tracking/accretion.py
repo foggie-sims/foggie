@@ -2369,9 +2369,7 @@ def streamlines_over_time(snaplist):
 
 def plot_streamlines(snap):
     '''Saves x, y, and z projections of gas density with stream lines found with streamlines_over_time.
-    Streamlines must have already been found and saved to file before this function can be called to plot them.
-    
-    For each snap, make 2 frames showing streamline progress.'''
+    Streamlines must have already been found and saved to file before this function can be called to plot them.'''
 
     from yt.units import kpc
 
@@ -2444,6 +2442,10 @@ def plot_streamlines(snap):
 
         proj.save(prefix + 'Plots/' + snap + '_Projection_' + d + '_temperature_streamlines.png')
 
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
 
 
 if __name__ == "__main__":
