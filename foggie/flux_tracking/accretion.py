@@ -175,6 +175,7 @@ def parse_args():
                         'flux_vs_radius         - line plot of accreting mass and metal fluxes vs radius\n' + \
                         'phase_plot             - 2D phase plots of various properties of accreting gas and non-accreting gas in same shell\n' + \
                         'sky_map                - column density maps of all gas and only accreting gas\n' + \
+                        'streamlines            - projection plots with streamlines overplotted\n' + \
                         'Default is not to do any plotting. Specify multiple plots by listing separated with commas, no spaces.')
     parser.set_defaults(plot='none')
 
@@ -2366,6 +2367,84 @@ def streamlines_over_time(snaplist):
             length = ds.quan(50.,'kpc')
             dx = ds.quan(dx, 'kpc')
 
+def plot_streamlines(snap):
+    '''Saves x, y, and z projections of gas density with stream lines found with streamlines_over_time.
+    Streamlines must have already been found and saved to file before this function can be called to plot them.
+    
+    For each snap, make 2 frames showing streamline progress.'''
+
+    from yt.units import kpc
+
+    # Load simulation output
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        if (args.copy_to_tmp):
+            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+            snap_name = snap_dir + '/' + snap
+        else:
+            # Make a dummy directory with the snap name so the script later knows the process running
+            # this snapshot failed if the directory is still there
+            snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+            os.makedirs(snap_dir)
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
+    else:
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=False, masses_dir=catalog_dir, correct_bulk_velocity=True)
+    sph = ds.sphere(center=ds.halo_center_kpc, radius=(200., 'kpc'))
+    tablename = prefix + 'Tables/' + snap + '_streams'
+    streams = Table.read(tablename + save_suffix + '.hdf5', path='all_data')
+    Nstreams = 400
+
+    for d in ['x','y','z']:
+        # Make projection plot as usual
+        proj = yt.ProjectionPlot(ds, d, 'density', data_source=sph, center=ds.halo_center_kpc, width=(400., 'kpc'))
+        proj.set_log('density', True)
+        proj.set_unit('density','Msun/kpc**2')
+        proj.set_cmap('density', density_color_map)
+        proj.set_zlim('density', 5e3, 2e8)
+        proj.set_font_size(20)
+        proj.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
+
+        # Overplot streamlines
+        for s in range(Nstreams):
+            xpos = streams['x_pos'][streams['stream_id']==s] * kpc
+            ypos = streams['y_pos'][streams['stream_id']==s] * kpc
+            zpos = streams['z_pos'][streams['stream_id']==s] * kpc
+            for i in range(len(xpos)-1):
+                if (d=='x'):
+                    proj.annotate_line((ypos[i],zpos[i]), (ypos[i+1],zpos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                if (d=='y'):
+                    proj.annotate_line((zpos[i],xpos[i]), (zpos[i+1],xpos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                if (d=='z'):
+                    proj.annotate_line((xpos[i],ypos[i]), (xpos[i+1],ypos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+
+        proj.save(prefix + 'Plots/' + snap + '_Projection_' + d + '_density_streamlines.png')
+
+        # Make projection plot as usual
+        proj = yt.ProjectionPlot(ds, d, 'temperature', data_source=sph, center=ds.halo_center_kpc, width=(400., 'kpc'), weight_field='density')
+        proj.set_log('temperature', True)
+        proj.set_cmap('temperature', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+        proj.set_zlim('temperature', 1e4, 1e7)
+        proj.set_font_size(20)
+        proj.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
+
+        # Overplot streamlines
+        for s in range(Nstreams):
+            xpos = streams['x_pos'][streams['stream_id']==s] * kpc
+            ypos = streams['y_pos'][streams['stream_id']==s] * kpc
+            zpos = streams['z_pos'][streams['stream_id']==s] * kpc
+            for i in range(len(xpos)-1):
+                if (d=='x'):
+                    proj.annotate_line((ypos[i],zpos[i]), (ypos[i+1],zpos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                if (d=='y'):
+                    proj.annotate_line((zpos[i],xpos[i]), (zpos[i+1],xpos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                if (d=='z'):
+                    proj.annotate_line((xpos[i],ypos[i]), (xpos[i+1],ypos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+
+        proj.save(prefix + 'Plots/' + snap + '_Projection_' + d + '_temperature_streamlines.png')
+
+
 
 if __name__ == "__main__":
 
@@ -2432,6 +2511,9 @@ if __name__ == "__main__":
         if (args.nproc==1):
             if (args.streamlines):
                 streamlines_over_time(outs)
+            elif (args.plot=='streamlines'):
+                for snap in outs:
+                    plot_streamlines(snap)
             else:
                 for snap in outs:
                     load_and_calculate(snap, surface)
@@ -2447,7 +2529,10 @@ if __name__ == "__main__":
                     for j in range(args.nproc):
                         snap = outs[args.nproc*i+j]
                         snaps.append(snap)
-                        threads.append(multi.Process(target=load_and_calculate, args=[snap, surface]))
+                        if (args.plot=='streamlines'):
+                            threads.append(multi.Process(target=plot_streamlines, args=[snap]))
+                        else:
+                            threads.append(multi.Process(target=load_and_calculate, args=[snap, surface]))
                     for t in threads:
                         t.start()
                     for t in threads:
@@ -2469,7 +2554,10 @@ if __name__ == "__main__":
                 for j in range(len(outs)%args.nproc):
                     snap = outs[-(j+1)]
                     snaps.append(snap)
-                    threads.append(multi.Process(target=load_and_calculate, args=[snap, surface]))
+                    if (args.plot=='streamlines'):
+                        threads.append(multi.Process(target=plot_streamlines, args=[snap]))
+                    else:
+                        threads.append(multi.Process(target=load_and_calculate, args=[snap, surface]))
                 for t in threads:
                     t.start()
                 for t in threads:
