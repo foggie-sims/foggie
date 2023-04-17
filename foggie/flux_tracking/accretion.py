@@ -2222,14 +2222,6 @@ def streamlines_over_time(snaplist):
 
     from yt.visualization.api import Streamlines
 
-    # Make table for saving stream positions to file
-    names_list = ['stream_id','elapsed_time','z_ind','y_ind','x_ind','x_pos','y_pos','z_pos','vx','vy','vz','density','temperature','pressure']
-    types_list = ['f8']*14
-    stream_table = Table(names=names_list, dtype=types_list)
-    stream_table_units = ['none','Myr','none','none','none','kpc','kpc','kpc','km/s','km/s','km/s','g/cm**3','K','erg/cm**3']
-    for i in range(len(names_list)):
-        stream_table[names_list[i]].unit = stream_table_units[i]
-
     # Find starting locations of streams in first snapshot
     snap = snaplist[0]
     snap_name = foggie_dir + run_dir + snap + '/' + snap
@@ -2277,6 +2269,13 @@ def streamlines_over_time(snaplist):
     new_ds = yt.load_uniform_grid(data, x.shape, length_unit="kpc", bbox=bbox)
 
     for s in range(len(snaplist)):
+        # Make table for saving stream positions to file
+        names_list = ['stream_id','elapsed_time','z_ind','y_ind','x_ind','x_pos','y_pos','z_pos','vx','vy','vz','density','temperature','pressure']
+        types_list = ['f8']*14
+        stream_table = Table(names=names_list, dtype=types_list)
+        stream_table_units = ['none','Myr','none','none','none','kpc','kpc','kpc','km/s','km/s','km/s','g/cm**3','K','erg/cm**3']
+        for i in range(len(names_list)):
+            stream_table[names_list[i]].unit = stream_table_units[i]
         print('Defining streamlines for %s' % (snap), str(datetime.datetime.now()))
         streamlines = Streamlines(new_ds, start_pos, 'vx', 'vy', 'vz', length=length, dx=dx)
         print('Streamlines defined for %s' % (snap), str(datetime.datetime.now()))
@@ -2300,6 +2299,7 @@ def streamlines_over_time(snaplist):
             stream_path_z_digi = z[inds_x,inds_y,inds_z]
             stream_path_vmag = vmag[inds_x,inds_y,inds_z]
             elapsed_time = np.cumsum((displacements*1000*cmtopc)/(stream_path_vmag[:-1]*1e5)/(stoyr))
+            elapsed_time = np.insert(elapsed_time, 0, 0)
             end_ind = np.where(elapsed_time>=(5.*dt))[0][0]
             inds_x = inds_x[:end_ind]
             inds_y = inds_y[:end_ind]
