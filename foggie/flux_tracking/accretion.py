@@ -2390,9 +2390,25 @@ def plot_streamlines(snap):
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=False, masses_dir=catalog_dir, correct_bulk_velocity=True)
     sph = ds.sphere(center=ds.halo_center_kpc, radius=(200., 'kpc'))
-    tablename = prefix + 'Tables/' + snap + '_streams'
-    streams = Table.read(tablename + save_suffix + '.hdf5', path='all_data')
+
     Nstreams = 400
+    snap_ind = outs.index(snap)
+    stream_snaps = []
+    stream_x = [[] for x in range(Nstreams)]
+    stream_y = [[] for x in range(Nstreams)]
+    stream_z = [[] for x in range(Nstreams)]
+    for i in range(3):
+        if (snap_ind-i>=0):
+            stream_snaps.append(outs[snap_ind-i])
+    stream_snaps.reverse()
+    for i in range(len(stream_snaps)):
+        tablename = prefix + 'Tables/' + stream_snaps[i] + '_streams'
+        streams = Table.read(tablename + save_suffix + '.hdf5', path='all_data')
+        for s in range(Nstreams):
+            for p in range(len(streams['x_pos'][streams['stream_id']==s])):
+                stream_x[s].append(streams['x_pos'][streams['stream_id']==s][p] * kpc)
+                stream_y[s].append(streams['y_pos'][streams['stream_id']==s][p] * kpc)
+                stream_z[s].append(streams['z_pos'][streams['stream_id']==s][p] * kpc)
 
     for d in ['x','y','z']:
         # Make projection plot as usual
@@ -2406,16 +2422,13 @@ def plot_streamlines(snap):
 
         # Overplot streamlines
         for s in range(Nstreams):
-            xpos = streams['x_pos'][streams['stream_id']==s] * kpc
-            ypos = streams['y_pos'][streams['stream_id']==s] * kpc
-            zpos = streams['z_pos'][streams['stream_id']==s] * kpc
-            for i in range(len(xpos)-1):
+            for i in range(len(stream_x[s])-1):
                 if (d=='x'):
-                    proj.annotate_line((ypos[i],zpos[i]), (ypos[i+1],zpos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_y[s][i],stream_z[s][i]), (stream_y[s][i+1],stream_z[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
                 if (d=='y'):
-                    proj.annotate_line((zpos[i],xpos[i]), (zpos[i+1],xpos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_z[s][i],stream_x[s][i]), (stream_z[s][i+1],stream_x[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
                 if (d=='z'):
-                    proj.annotate_line((xpos[i],ypos[i]), (xpos[i+1],ypos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_x[s][i],stream_y[s][i]), (stream_x[s][i+1],stream_y[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
 
         proj.save(prefix + 'Plots/' + snap + '_Projection_' + d + '_density_streamlines.png')
 
@@ -2429,16 +2442,13 @@ def plot_streamlines(snap):
 
         # Overplot streamlines
         for s in range(Nstreams):
-            xpos = streams['x_pos'][streams['stream_id']==s] * kpc
-            ypos = streams['y_pos'][streams['stream_id']==s] * kpc
-            zpos = streams['z_pos'][streams['stream_id']==s] * kpc
-            for i in range(len(xpos)-1):
+            for i in range(len(stream_x[s])-1):
                 if (d=='x'):
-                    proj.annotate_line((ypos[i],zpos[i]), (ypos[i+1],zpos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_y[s][i],stream_z[s][i]), (stream_y[s][i+1],stream_z[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
                 if (d=='y'):
-                    proj.annotate_line((zpos[i],xpos[i]), (zpos[i+1],xpos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_z[s][i],stream_x[s][i]), (stream_z[s][i+1],stream_x[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
                 if (d=='z'):
-                    proj.annotate_line((xpos[i],ypos[i]), (xpos[i+1],ypos[i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_x[s][i],stream_y[s][i]), (stream_x[s][i+1],stream_y[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
 
         proj.save(prefix + 'Plots/' + snap + '_Projection_' + d + '_temperature_streamlines.png')
 
