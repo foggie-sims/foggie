@@ -2229,9 +2229,9 @@ def streamlines_over_time(snaplist):
     # Set up covering grid
     pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))
     lvl1_res = pix_res*2.**11.
-    level = 9
+    level = 10
     dx = lvl1_res/(2.**level)
-    box_size = 400
+    box_size = 300
     refine_res = int(box_size/dx)
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc'), dims=[refine_res, refine_res, refine_res])
     x = box['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
@@ -2330,9 +2330,9 @@ def streamlines_over_time(snaplist):
             # Set up covering grid
             pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))
             lvl1_res = pix_res*2.**11.
-            level = 9
+            level = 10
             dx = lvl1_res/(2.**level)
-            box_size = 400
+            box_size = 300
             refine_res = int(box_size/dx)
             box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc'), dims=[refine_res, refine_res, refine_res])
             x = box['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
@@ -2389,7 +2389,7 @@ def plot_streamlines(snap):
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=False, masses_dir=catalog_dir, correct_bulk_velocity=True)
-    sph = ds.sphere(center=ds.halo_center_kpc, radius=(200., 'kpc'))
+    sph = ds.sphere(center=ds.halo_center_kpc, radius=(150., 'kpc'))
 
     Nstreams = 400
     snap_ind = outs.index(snap)
@@ -2412,7 +2412,7 @@ def plot_streamlines(snap):
 
     for d in ['x','y','z']:
         # Make projection plot as usual
-        proj = yt.ProjectionPlot(ds, d, 'density', data_source=sph, center=ds.halo_center_kpc, width=(400., 'kpc'))
+        proj = yt.ProjectionPlot(ds, d, 'density', data_source=sph, center=ds.halo_center_kpc, width=(300., 'kpc'))
         proj.set_log('density', True)
         proj.set_unit('density','Msun/kpc**2')
         proj.set_cmap('density', density_color_map)
@@ -2424,16 +2424,16 @@ def plot_streamlines(snap):
         for s in range(Nstreams):
             for i in range(len(stream_x[s])-1):
                 if (d=='x'):
-                    proj.annotate_line((stream_y[s][i],stream_z[s][i]), (stream_y[s][i+1],stream_z[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_y[s][i],stream_z[s][i]), (stream_y[s][i+1],stream_z[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1, 'alpha':0.5})
                 if (d=='y'):
-                    proj.annotate_line((stream_z[s][i],stream_x[s][i]), (stream_z[s][i+1],stream_x[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_z[s][i],stream_x[s][i]), (stream_z[s][i+1],stream_x[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1, 'alpha':0.5})
                 if (d=='z'):
-                    proj.annotate_line((stream_x[s][i],stream_y[s][i]), (stream_x[s][i+1],stream_y[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_x[s][i],stream_y[s][i]), (stream_x[s][i+1],stream_y[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1, 'alpha':0.5})
 
         proj.save(prefix + 'Plots/' + snap + '_Projection_' + d + '_density_streamlines.png')
 
         # Make projection plot as usual
-        proj = yt.ProjectionPlot(ds, d, 'temperature', data_source=sph, center=ds.halo_center_kpc, width=(400., 'kpc'), weight_field='density')
+        proj = yt.ProjectionPlot(ds, d, 'temperature', data_source=sph, center=ds.halo_center_kpc, width=(300., 'kpc'), weight_field='density')
         proj.set_log('temperature', True)
         proj.set_cmap('temperature', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
         proj.set_zlim('temperature', 1e4, 1e7)
@@ -2444,11 +2444,11 @@ def plot_streamlines(snap):
         for s in range(Nstreams):
             for i in range(len(stream_x[s])-1):
                 if (d=='x'):
-                    proj.annotate_line((stream_y[s][i],stream_z[s][i]), (stream_y[s][i+1],stream_z[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_y[s][i],stream_z[s][i]), (stream_y[s][i+1],stream_z[s][i+1]), coord_system='plot', plot_args={'color':'black', 'linewidth':1, 'alpha':0.5})
                 if (d=='y'):
-                    proj.annotate_line((stream_z[s][i],stream_x[s][i]), (stream_z[s][i+1],stream_x[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_z[s][i],stream_x[s][i]), (stream_z[s][i+1],stream_x[s][i+1]), coord_system='plot', plot_args={'color':'black', 'linewidth':1, 'alpha':0.5})
                 if (d=='z'):
-                    proj.annotate_line((stream_x[s][i],stream_y[s][i]), (stream_x[s][i+1],stream_y[s][i+1]), coord_system='plot', plot_args={'color':'white', 'linewidth':1})
+                    proj.annotate_line((stream_x[s][i],stream_y[s][i]), (stream_x[s][i+1],stream_y[s][i+1]), coord_system='plot', plot_args={'color':'black', 'linewidth':1, 'alpha':0.5})
 
         proj.save(prefix + 'Plots/' + snap + '_Projection_' + d + '_temperature_streamlines.png')
 
