@@ -2476,6 +2476,10 @@ if __name__ == "__main__":
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     #foggie_dir = '/Volumes/Data/Simulation_Data/'
 
+    if ('feedback' in args.run) and ('track' in args.run):
+        foggie_dir = '/nobackup/jtumlins/halo_008508/feedback-track/'
+        run_dir = args.run + '/'
+
     # Set directory for output location, making it if necessary
     prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
