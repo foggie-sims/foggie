@@ -138,11 +138,6 @@ def parse_args():
                         'the minor axis of the galaxy disk. Default is not to do this.')
     parser.set_defaults(direction=False)
 
-    parser.add_argument('--spherical', dest='spherical', action='store_true',
-                        help='Do you want to use exact spherical boundaries, rather than computing flux into a shape that\n' + \
-                            'is approximately spherical? Default is not to do this.')
-    parser.set_defaults(spherical=False)
-
     parser.add_argument('--level', metavar='level', type=int, action='store', \
                         help='What refinement level do you want for the grid on which fluxes are calculated?\n' + \
                         'If using whole refine box or larger, going above level 9 will consume significant memory.\n' + \
@@ -251,7 +246,7 @@ def make_flux_table(flux_types):
         types_list += ['S5']
 
     dir_name = ['_in', '_out']
-    dv_name = ['','_0-50','_50-100','_100-150','_150-200','_200-300','_300-inf']
+    dv_name = ['','_0-0.2','_0.2-0.4','_0.4-0.6','_0.6-0.8','_0.8-1','_1-inf']
     for i in range(len(flux_types)):
         if (args.region_filter != 'none') and ('dm' not in flux_types[i]):
             region_name = ['', 'lowest_', 'low-mid_', 'high-mid_', 'highest_']
@@ -312,7 +307,7 @@ def make_props_table(prop_types):
         names_list += ['phi_bin']
         types_list += ['S5']
 
-    dir_name = ['_all', '_non', '_acc', '_acc_0-50','_acc_50-100','_acc_100-150','_acc_150-200','_acc_200-300','_acc_300-inf']
+    dir_name = ['_all', '_non', '_acc', '_acc_0-0.2','_acc_0.2-0.4','_acc_0.4-0.6','_acc_0.6-0.8','_acc_0.8-1','_acc_1-inf']
     stat_names = ['_med', '_iqr', '_avg', '_std']
     for i in range(len(prop_types)):
         if (args.region_filter != 'none'):
@@ -725,7 +720,8 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
     vy = grid['gas','vy_corrected'].in_units('kpc/yr').v
     vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
     radius = grid['gas','radius_corrected'].in_units('kpc').v
-    rv = grid['radial_velocity_corrected'].in_units('km/s').v
+    rv = grid['gas','radial_velocity_corrected'].in_units('km/s').v
+    vff = grid['gas','vff'].in_units('km/s').v
     if (args.direction) or ('disk' in surface[0]) or ('accretion_direction' in plots):
         theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
         phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
@@ -745,6 +741,7 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
         vx_dm = box_dm['dm','particle_velocity_x'].in_units('kpc/yr').v - ds.halo_velocity_kms[0].in_units('kpc/yr').v
         vy_dm = box_dm['dm','particle_velocity_y'].in_units('kpc/yr').v - ds.halo_velocity_kms[1].in_units('kpc/yr').v
         vz_dm = box_dm['dm','particle_velocity_z'].in_units('kpc/yr').v - ds.halo_velocity_kms[2].in_units('kpc/yr').v
+        vff_dm = box_dm['dm','vff'].in_units('km/s').v
         inds_x = np.digitize(x_dm, xbins)-1      # indices of x positions
         inds_y = np.digitize(y_dm, ybins)-1      # indices of y positions
         inds_z = np.digitize(z_dm, zbins)-1      # indices of z positions
@@ -777,6 +774,7 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
     new_z = vz*(5.*dt) + z
     displacement = np.sqrt((new_x-x)**2. + (new_y-y)**2. + (new_z-z)**2.)
     displacement_vel = displacement*1000.*cmtopc/(5.*dt*stoyr)/1e5
+    displacement_vel = np.abs(displacement_vel/vff)
     inds_x = np.digitize(new_x, xbins)-1      # indices of new x positions
     inds_y = np.digitize(new_y, ybins)-1      # indices of new y positions
     inds_z = np.digitize(new_z, zbins)-1      # indices of new z positions
@@ -789,6 +787,7 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
         new_y_dm = vy_dm*(5.*dt) + y_dm
         new_z_dm = vz_dm*(5.*dt) + z_dm
         displacement_vel_dm = np.sqrt((new_x_dm-x_dm)**2. + (new_y_dm-y_dm)**2. + (new_z_dm-z_dm)**2.)/(5.*dt)*(cmtopc*1000./stoyr/1e5)
+        displacement_vel_dm = np.abs(displacement_vel_dm/vff_dm)
         inds_x = np.digitize(new_x_dm, xbins)-1      # indices of new x positions
         inds_y = np.digitize(new_y_dm, ybins)-1      # indices of new y positions
         inds_z = np.digitize(new_z_dm, zbins)-1      # indices of new z positions
@@ -825,8 +824,10 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
             #regions = [-np.inf, -100., 0., 100., np.inf]
             regions = [0., -20., -50., -100., -200.]
             filter = grid['gas','radial_velocity_corrected'].in_units('km/s').v
-    disp_vel_bins = [0., 50., 100., 150., 200., 300., np.inf]
-    disp_vel_saves = ['_0-50','_50-100','_100-150','_150-200','_200-300','_300-inf']
+    #disp_vel_bins = [0., 50., 100., 150., 200., 300., np.inf]
+    #disp_vel_saves = ['_0-50','_50-100','_100-150','_150-200','_200-300','_300-inf']
+    disp_vel_bins = [0., 0.2, 0.4, 0.6, 0.8, 1.0, np.inf]
+    disp_vel_saves = ['_0-0p2', '_0p2-0p4', '_0p4-0p6', '_0p6-0p8', '_0p8-1', '_1-inf']
 
     # Step through radii (if chosen) and calculate fluxes and plot things for each radius
     for r in range(len(radii)):
@@ -1010,206 +1011,10 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
                     save_dv = disp_vel_saves[dv]
                     plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], mass[to_shape], metals[to_shape], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, save_dv, theta_acc_dm=theta_to_dm*(np.pi/180.)+np.pi, phi_acc_dm=phi_to_dm*(np.pi/180.), mass_dm=mass_dm[to_shape_dm])
             else:
-                plot_accretion_direction(theta_to[dv]*(np.pi/180.)+np.pi, phi_to[dv]*(np.pi/180.), temperature[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], mass[to_shape_dv[dv]], metals[to_shape_dv[dv]], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, '')
+                plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], mass[to_shape], metals[to_shape], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, '')
                 for dv in range(len(disp_vel_bins)-1):
                     save_dv = disp_vel_saves[dv]
-                    plot_accretion_direction(theta_to[dv]*(np.pi/180.)+np.pi, phi_to[dv]*(np.pi/180.), temperature[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], mass[to_shape_dv[dv]], metals[to_shape_dv[dv]], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, save_dv)
-
-    table = set_flux_table_units(table)
-    table.write(tablename + flux_filename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
-
-def calculate_flux_spherical(ds, snap, snap_props):
-    '''Calculates the flux into and out of the specified shape at the snapshot 'snap' and saves to file.'''
-
-    tablename = prefix + 'Tables/' + snap + '_fluxes'
-    Menc_profile, Mvir, Rvir = snap_props
-    tsnap = ds.current_time.in_units('Gyr').v
-    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-
-    # Set up table of everything we want
-    fluxes = []
-    flux_filename = ''
-    if ('mass' in flux_types):
-        fluxes.append('mass_flux')
-        fluxes.append('metal_flux')
-        if (args.dark_matter): fluxes.append('dm_mass_flux')
-        flux_filename += '_mass'
-    if ('energy' in flux_types):
-        fluxes.append('thermal_energy_flux')
-        fluxes.append('kinetic_energy_flux')
-        fluxes.append('potential_energy_flux')
-        fluxes.append('bernoulli_energy_flux')
-        fluxes.append('cooling_energy_flux')
-        flux_filename += '_energy'
-    table = make_flux_table(fluxes)
-
-    sph = ds.sphere(center=ds.halo_center_kpc, radius=(2.*Rvir, 'kpc'))
-
-    if (args.cgm_only):
-        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
-        # with it being 1 at higher redshifts and 0.1 at lower redshifts
-        current_time = ds.current_time.in_units('Myr').v
-        if (current_time<=7091.48):
-            density_cut_factor = 20. - 19.*current_time/7091.48
-        elif (current_time<=8656.88):
-            density_cut_factor = 1.
-        elif (current_time<=10787.12):
-            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
-        else:
-            density_cut_factor = 0.1
-        sph_cgm = sph.cut_region("obj['density'] < %.3e" % (density_cut_factor * cgm_density_max))
-    else:
-        sph_cgm = sph
-
-    # Load grid properties
-    radius = sph_cgm['gas','radius_corrected'].in_units('kpc').v
-    rv = sph_cgm['radial_velocity_corrected'].in_units('km/s').v
-    if (args.direction) or ('disk' in surface[0]) or ('accretion_direction' in plots):
-        theta = sph_cgm['gas','theta_pos_disk'].v*(180./np.pi)
-        phi = sph_cgm['gas','phi_pos_disk'].v*(180./np.pi)
-    if ('accretion_viz' in plots) or ('accretion_direction' in plots):
-        temperature = sph_cgm['gas','temperature'].in_units('K').v
-        density = sph_cgm['gas','density'].in_units('g/cm**3').v
-        tcool = sph_cgm['gas','cooling_time'].in_units('Myr').v
-        metallicity = sph_cgm['gas', 'metallicity'].in_units('Zsun').v
-    # Load dark matter velocities and positions and digitize onto grid
-    if (args.dark_matter):
-        radius_dm = sph_cgm['dm','radius_corrected'].in_units('kpc').v
-        rv_dm = sph_cgm['dm','radial_velocity_corrected'].in_units('km/s').v
-    properties = []
-    if ('mass' in flux_types):
-        mass = sph_cgm['gas', 'cell_mass'].in_units('Msun').v
-        metals = sph_cgm['gas', 'metal_mass'].in_units('Msun').v
-        properties.append(mass)
-        properties.append(metals)
-        if (args.dark_matter):
-            mass_dm = sph_cgm[('dm','particle_mass')].in_units('Msun').v
-            properties.append(mass_dm)
-    if ('energy' in flux_types):
-        kinetic_energy = sph_cgm['gas','kinetic_energy_corrected'].in_units('erg').v
-        thermal_energy = (sph_cgm['gas','cell_mass']*sph_cgm['gas','thermal_energy']).in_units('erg').v
-        potential_energy = -G * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)*sph_cgm['gas','cell_mass'].in_units('g').v
-        bernoulli_energy = kinetic_energy + 5./3.*thermal_energy + potential_energy
-        cooling_energy = thermal_energy/sph_cgm['gas','cooling_time'].in_units('yr').v
-        properties.append(thermal_energy)
-        properties.append(kinetic_energy)
-        properties.append(potential_energy)
-        properties.append(bernoulli_energy)
-        properties.append(cooling_energy)
-
-    # Calculate new radius of gas cells
-    new_radius = radius + ((rv*1e5)*(5.*dt*stoyr))/(1000.*cmtopc)
-
-    # Calculate new radius of dark matter
-    if (args.dark_matter):
-        new_radius_dm = radius_dm + ((rv_dm*1e5)*(5.*dt*stoyr))/(1000.*cmtopc)
-
-    # If calculating direction of accretion, set up theta and phi and bins
-    if (args.direction):
-        phi_bins = ['all','major','minor']
-        if (args.dark_matter):
-            theta_dm = sph_cgm['dm','theta_pos_disk'].v*(180./np.pi)
-            phi_dm = sph_cgm['dm','phi_pos_disk'].v*(180./np.pi)
-    else:
-        phi_bins = ['all']
-
-    # Set up radii list
-    max_R = 1.5*Rvir
-    R_step = float(np.min(sph_cgm[('gas','dx')].in_units('kpc')))*(2.**11.)/(2.**9.)  # at level 11
-    radii = np.arange(0., max_R, R_step)[1:]
-
-    # Set up filtering
-    if (args.region_filter!='none'):
-        if (args.region_filter=='temperature'):
-            regions = [0., 10**4., 10**5., 10**6., np.inf]
-            filter = sph_cgm['gas','temperature'].in_units('K').v
-        elif (args.region_filter=='metallicity'):
-            regions = [0., 0.1, 0.5, 1., np.inf]
-            filter = sph_cgm['gas','metallicity'].in_units('Zsun').v
-        elif (args.region_filter=='velocity'):
-            regions = [-np.inf, -100., 0., 100., np.inf]
-            filter = rv
-
-    # Step through radii and calculate fluxes and plot things for each radius
-    for r in range(len(radii)-1):
-        save_r = '_r%d' % (r)
-        # Define which cells are entering and leaving this radius
-        enter_r = (radius > radii[r]) & (new_radius < radii[r])
-        leave_r = (radius < radii[r]) & (new_radius > radii[r])
-        # Define which cells maintain their position just outside this radius
-        stay_r = ((radius > radii[r]) & (radius < radii[r+1])) & (new_radius > radii[r])
-
-        # Define which cells are entering and leaving shape for dark matter
-        if (args.dark_matter):
-            enter_r_dm = (radius_dm > radii[r]) & (new_radius_dm < radii[r])
-            leave_r_dm = (radius_dm < radii[r]) & (new_radius_dm > radii[r])
-            stay_r_dm = ((radius_dm > radii[r]) & (radius_dm < radii[r+1])) & (new_radius_dm > radii[r])
-
-        if (args.direction):
-            if (args.dark_matter):
-                theta_enter_dm = theta_dm[enter_r_dm]
-                phi_enter_dm = phi_dm[enter_r_dm]
-                theta_leave_dm = theta_dm[leave_r_dm]
-                phi_leave_dm = phi_dm[leave_r_dm]
-            theta_enter = theta[enter_r]
-            phi_enter = phi[enter_r]
-            theta_leave = theta[leave_r]
-            phi_leave = phi[leave_r]
-
-        for p in range(len(phi_bins)):
-            results = [radii[r]]
-            if (args.direction):
-                results.append(phi_bins[p])
-            if (phi_bins[p]=='all'):
-                angle_bin_enter = np.ones(np.count_nonzero(enter_r), dtype=bool)
-                angle_bin_leave = np.ones(np.count_nonzero(leave_r), dtype=bool)
-                if (args.dark_matter):
-                    angle_bin_enter_dm = np.ones(np.count_nonzero(enter_r_dm), dtype=bool)
-                    angle_bin_leave_dm = np.ones(np.count_nonzero(leave_r_dm), dtype=bool)
-            elif (phi_bins[p]=='major'):
-                angle_bin_enter = (phi_enter >= 60.) & (phi_enter <= 120.)
-                angle_bin_leave = (phi_leave >= 60.) & (phi_leave <= 120.)
-                if (args.dark_matter):
-                    angle_bin_enter_dm = (phi_enter_dm >= 60.) & (phi_enter_dm <= 120.)
-                    angle_bin_leave_dm = (phi_leave_dm >= 60.) & (phi_leave_dm <= 120.)
-            elif (phi_bins[p]=='minor'):
-                angle_bin_enter = (phi_enter < 60.) | (phi_enter > 120.)
-                angle_bin_leave = (phi_leave < 60.) | (phi_leave > 120.)
-                if (args.dark_matter):
-                    angle_bin_enter_dm = (phi_enter_dm < 60.) | (phi_enter_dm > 120.)
-                    angle_bin_leave_dm = (phi_leave_dm < 60.) | (phi_leave_dm > 120.)
-            for i in range(len(fluxes)):
-                if ('dm' in fluxes[i]):
-                    prop_enter_dm = properties[i][enter_r_dm][angle_bin_enter_dm]
-                    prop_leave_dm = properties[i][leave_r_dm][angle_bin_leave_dm]
-                    flux_in = np.sum(prop_enter_dm)/(5.*dt)
-                    flux_out = np.sum(prop_leave_dm)/(5.*dt)
-                    results.append(flux_in)
-                    results.append(flux_out)
-                else:
-                    prop_enter = properties[i][enter_r][angle_bin_enter]
-                    prop_leave = properties[i][leave_r][angle_bin_leave]
-                    flux_in = np.sum(prop_enter)/(5.*dt)
-                    flux_out = np.sum(prop_leave)/(5.*dt)
-                    results.append(flux_in)
-                    results.append(flux_out)
-                    if (args.region_filter!='none'):
-                        region_enter = filter[enter_r][angle_bin_enter]
-                        region_leave = filter[leave_r][angle_bin_leave]
-                        for j in range(len(regions)-1):
-                            prop_enter_region = prop_enter[(region_enter > regions[j]) & (region_enter < regions[j+1])]
-                            prop_leave_region = prop_leave[(region_leave > regions[j]) & (region_leave < regions[j+1])]
-                            flux_in = np.sum(prop_enter_region)/(5.*dt)
-                            flux_out = np.sum(prop_leave_region)/(5.*dt)
-                            results.append(flux_in)
-                            results.append(flux_out)
-            table.add_row(results)
-
-        if ('accretion_direction' in plots):
-            if (args.dark_matter):
-                plot_accretion_direction(theta_enter*(np.pi/180.)+np.pi, phi_enter*(np.pi/180.), temperature[enter_r], metallicity[enter_r], rv[enter_r], tcool[enter_r], mass[enter_r], metals[enter_r], theta_leave*(np.pi/180.)+np.pi, phi_leave*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, theta_acc_dm=theta_enter_dm*(np.pi/180.)+np.pi, phi_acc_dm=phi_enter_dm*(np.pi/180.), mass_dm=mass_dm[enter_r_dm])
-            else:
-                plot_accretion_direction(theta_enter*(np.pi/180.)+np.pi, phi_enter*(np.pi/180.), temperature[enter_r], metallicity[enter_r], rv[enter_r], tcool[enter_r], mass[enter_r], metals[enter_r], theta_leave*(np.pi/180.)+np.pi, phi_leave*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r)
+                    plot_accretion_direction(theta_to_dv[dv]*(np.pi/180.)+np.pi, phi_to_dv[dv]*(np.pi/180.), temperature[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], mass[to_shape_dv[dv]], metals[to_shape_dv[dv]], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, save_dv)
 
     table = set_flux_table_units(table)
     table.write(tablename + flux_filename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
@@ -1261,6 +1066,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
     phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
     rv = grid['radial_velocity_corrected'].in_units('km/s').v
+    vff = grid['gas','vff'].in_units('km/s').v
     temperature = grid['gas','temperature'].in_units('K').v
     metallicity = grid['gas','metallicity'].in_units('Zsun').v
     tcool = grid['gas','cooling_time'].in_units('Myr').v
@@ -1292,6 +1098,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     new_z = vz*(5.*dt) + z
     displacement = np.sqrt((new_x-x)**2. + (new_y-y)**2. + (new_z-z)**2.)
     displacement_vel = displacement*1000.*cmtopc/(5.*dt*stoyr)/1e5
+    displacement_vel = np.abs(displacement_vel/vff)
     inds_x = np.digitize(new_x, xbins)-1      # indices of new x positions
     inds_y = np.digitize(new_y, ybins)-1      # indices of new y positions
     inds_z = np.digitize(new_z, zbins)-1      # indices of new z positions
@@ -1312,8 +1119,10 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
             regions = [0., 1e-2, 1e-1, np.inf]
             filter = np.copy(metallicity)
 
-    disp_vel_bins = [0., 50., 100., 150., 200., 300., np.inf]
-    disp_vel_saves = ['_0-50','_50-100','_100-150','_150-200','_200-300','_300-inf']
+    #disp_vel_bins = [0., 50., 100., 150., 200., 300., np.inf]
+    #disp_vel_saves = ['_0-50','_50-100','_100-150','_150-200','_200-300','_300-inf']
+    disp_vel_bins = [0., 0.2, 0.4, 0.6, 0.8, 1.0, np.inf]
+    disp_vel_saves = ['_0-0p2', '_0p2-0p4', '_0p4-0p6', '_0p6-0p8', '_0p8-1', '_1-inf']
 
     # If calculating direction of accretion, set up bins
     if (args.direction):
@@ -2231,9 +2040,11 @@ def streamlines_over_time(snaplist):
     lvl1_res = pix_res*2.**11.
     level = 10
     dx = lvl1_res/(2.**level)
-    box_size = 300
+    box_size = 400
     refine_res = int(box_size/dx)
-    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc'), dims=[refine_res, refine_res, refine_res])
+    box_left = ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc')
+    box_right = ds.halo_center_kpc+ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc')
+    box = ds.covering_grid(level=level, left_edge=box_left, dims=[refine_res, refine_res, refine_res])
     x = box['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
     y = box['gas', 'y'].in_units('kpc').v - ds.halo_center_kpc[1].v
     z = box['gas', 'z'].in_units('kpc').v - ds.halo_center_kpc[2].v
@@ -2261,6 +2072,7 @@ def streamlines_over_time(snaplist):
     z_shell = z[(radius > 95.) & (radius < 100.) & (radial_velocity < 0.75*vff_shell)]
     inds = np.random.randint(len(x_shell), size=Nstreams)
     start_pos = np.transpose(np.array([x_shell[inds], y_shell[inds], z_shell[inds]]))
+    ids = np.array(range(len(start_pos)))
 
     data = dict(x = (x, 'kpc'), y = (y, 'kpc'), z = (z, 'kpc'), \
                 temperature = (temperature, "K"), density = (density, 'K'), pressure = (pressure, 'erg/cm**3'), \
@@ -2310,12 +2122,20 @@ def streamlines_over_time(snaplist):
             den_path = density[inds_x,inds_y,inds_z]
             temp_path = temperature[inds_x,inds_y,inds_z]
             pres_path = pressure[inds_x,inds_y,inds_z]
-            ids = np.zeros(len(inds_x)) + i
-            track = np.array([ids, elapsed_time[:end_ind], inds_z, inds_y, inds_x, stream_path_x_digi[:end_ind], stream_path_y_digi[:end_ind], stream_path_z_digi[:end_ind], vx_path, vy_path, vz_path, den_path, temp_path, pres_path])
+            path_id = np.zeros(len(stream_path)) + ids[i]
+            track = np.array([path_id, elapsed_time[:end_ind], inds_z, inds_y, inds_x, stream_path_x_digi[:end_ind], stream_path_y_digi[:end_ind], stream_path_z_digi[:end_ind], vx_path, vy_path, vz_path, den_path, temp_path, pres_path])
             track = np.transpose(track)
             for t in range(len(track)):
                 stream_table.add_row(track[t])
-            next_start_pos.append(np.array([stream_path_x[end_ind-1], stream_path_y[end_ind-1], stream_path_z[end_ind-1]]))
+            # Remove any streams that end too close to the edges of the box from the next set of starting positions and IDs list
+            end_x = stream_path_x[end_ind-1]
+            end_y = stream_path_y[end_ind-1]
+            end_z = stream_path_z[end_ind-1]
+            if (np.sqrt((end_x - box_left[0])**2. + (end_y - box_left[1])**2. + (end_z - box_left[2])**2.) < 50.) or \
+               (np.sqrt((end_x - box_right[0])**2. + (end_y - box_right[1])**2. + (end_z - box_right[2])**2.) < 50.):
+                ids = np.delete(ids, i)
+            else:
+                next_start_pos.append(np.array([stream_path_x[end_ind-1], stream_path_y[end_ind-1], stream_path_z[end_ind-1]]))
 
         tablename = prefix + 'Tables/' + snap + '_streams'
         stream_table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
@@ -2332,9 +2152,11 @@ def streamlines_over_time(snaplist):
             lvl1_res = pix_res*2.**11.
             level = 10
             dx = lvl1_res/(2.**level)
-            box_size = 300
+            box_size = 400
             refine_res = int(box_size/dx)
-            box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc'), dims=[refine_res, refine_res, refine_res])
+            box_left = ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc')
+            box_right = ds.halo_center_kpc+ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc')
+            box = ds.covering_grid(level=level, left_edge=box_left, dims=[refine_res, refine_res, refine_res])
             x = box['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
             y = box['gas', 'y'].in_units('kpc').v - ds.halo_center_kpc[1].v
             z = box['gas', 'z'].in_units('kpc').v - ds.halo_center_kpc[2].v
@@ -2405,10 +2227,11 @@ def plot_streamlines(snap):
         tablename = prefix + 'Tables/' + stream_snaps[i] + '_streams'
         streams = Table.read(tablename + save_suffix + '.hdf5', path='all_data')
         for s in range(Nstreams):
-            for p in range(len(streams['x_pos'][streams['stream_id']==s])):
-                stream_x[s].append(streams['x_pos'][streams['stream_id']==s][p] * kpc)
-                stream_y[s].append(streams['y_pos'][streams['stream_id']==s][p] * kpc)
-                stream_z[s].append(streams['z_pos'][streams['stream_id']==s][p] * kpc)
+            if (s in streams['stream_id']):
+                for p in range(len(streams['x_pos'][streams['stream_id']==s])):
+                    stream_x[s].append(streams['x_pos'][streams['stream_id']==s][p] * kpc)
+                    stream_y[s].append(streams['y_pos'][streams['stream_id']==s][p] * kpc)
+                    stream_z[s].append(streams['z_pos'][streams['stream_id']==s][p] * kpc)
 
     for d in ['x','y','z']:
         # Make projection plot as usual

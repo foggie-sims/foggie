@@ -684,6 +684,12 @@ def v_ff(field, data):
 
     return -np.sqrt((2.*G*data.ds.Menc_profile(data['gas','radius_corrected'])*Msun)/(data['gas','radius_corrected']))
 
+def v_ff_dm(field, data):
+    """Returns the free-fall velocity of the dark matter particles. Note vff is an interpolated function of radius so
+    this value will be the same for all cells with the same radius."""
+
+    return -np.sqrt((2.*G*data.ds.Menc_profile(data['dm','radius_corrected'])*Msun)/(data['dm','radius_corrected']))
+
 def v_esc(field, data):
     """Returns the escape velocity of the gas. Note vesc is an interpolated function of radius so this
     value will be the same for all cells with the same radius."""
