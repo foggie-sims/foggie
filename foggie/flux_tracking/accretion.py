@@ -224,6 +224,11 @@ def parse_args():
                         help='Use this to specify the streamlines calculation. Default is not to do this.')
     parser.set_defaults(streamlines=False)
 
+    parser.add_argument('--streamline_file', metavar='streamline_file', type=str, action='store', \
+                        help='If you want to re-start the streamlines calculation from a previous output, pass the filename\n' + \
+                             'of the starting output here. If no filename is passed, a new calculation will be started.')
+    parser.set_defaults(streamline_file='none')
+
 
     args = parser.parse_args()
     return args
@@ -2031,7 +2036,7 @@ def streamlines_over_time(snaplist):
 
     from yt.visualization.api import Streamlines
 
-    # Find starting locations of streams in first snapshot
+    # Load first snapshot
     snap = snaplist[0]
     snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=catalog_dir, correct_bulk_velocity=True)
@@ -2040,7 +2045,7 @@ def streamlines_over_time(snaplist):
     lvl1_res = pix_res*2.**11.
     level = 10
     dx = lvl1_res/(2.**level)
-    box_size = 400
+    box_size = 300
     refine_res = int(box_size/dx)
     box_left = ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc')
     box_right = ds.halo_center_kpc+ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc')
@@ -2062,23 +2067,39 @@ def streamlines_over_time(snaplist):
     radial_velocity = box['gas','radial_velocity_corrected'].v
     vff = box['gas','vff'].in_units('km/s').v
 
-    Nstreams = 400
-    length = ds.quan(50.,'kpc')
-    dx = ds.quan(dx, 'kpc')
-
-    vff_shell = np.mean(vff[(radius > 95.) & (radius < 100.)])
-    x_shell = x[(radius > 95.) & (radius < 100.) & (radial_velocity < 0.75*vff_shell)]
-    y_shell = y[(radius > 95.) & (radius < 100.) & (radial_velocity < 0.75*vff_shell)]
-    z_shell = z[(radius > 95.) & (radius < 100.) & (radial_velocity < 0.75*vff_shell)]
-    inds = np.random.randint(len(x_shell), size=Nstreams)
-    start_pos = np.transpose(np.array([x_shell[inds], y_shell[inds], z_shell[inds]]))
-    ids = np.array(range(len(start_pos)))
-
     data = dict(x = (x, 'kpc'), y = (y, 'kpc'), z = (z, 'kpc'), \
                 temperature = (temperature, "K"), density = (density, 'K'), pressure = (pressure, 'erg/cm**3'), \
                 vx = (vx, 'km/s'), vy = (vy, 'km/s'), vz = (vz, 'km/s'), vmag = (vmag, 'km/s'))
     bbox = np.array([[np.min(x), np.max(x)], [np.min(y), np.max(y)], [np.min(z), np.max(z)]])
     new_ds = yt.load_uniform_grid(data, x.shape, length_unit="kpc", bbox=bbox)
+
+    Nstreams = 400
+    length = ds.quan(50.,'kpc')
+    dx = ds.quan(dx, 'kpc')
+    # If file for stream start positions is not given, randomly select some in inflowing gas ~100 kpc from galaxy
+    if (args.streamline_file == 'none'):
+        vff_shell = np.mean(vff[(radius > 95.) & (radius < 100.)])
+        x_shell = x[(radius > 95.) & (radius < 100.) & (radial_velocity < 0.75*vff_shell)]
+        y_shell = y[(radius > 95.) & (radius < 100.) & (radial_velocity < 0.75*vff_shell)]
+        z_shell = z[(radius > 95.) & (radius < 100.) & (radial_velocity < 0.75*vff_shell)]
+        inds = np.random.randint(len(x_shell), size=Nstreams)
+        start_pos = np.transpose(np.array([x_shell[inds], y_shell[inds], z_shell[inds]]))
+        ids = np.array(range(len(start_pos)))
+    # If file for stream start positions is given, load it up
+    else:
+        start_streams = Table.read(prefix + 'Tables/' + args.streamline_file + '.hdf5', path='all_data')
+        ids = []
+        xpos = []
+        ypos = []
+        zpos = []
+        for i in range(Nstreams):
+            if (i in start_streams['stream_id']):
+                ids.append(i)
+                xpos.append(start_streams['x_pos'][start_streams['stream_id']==i][-1])
+                ypos.append(start_streams['y_pos'][start_streams['stream_id']==i][-1])
+                zpos.append(start_streams['z_pos'][start_streams['stream_id']==i][-1])
+        start_pos = np.transpose(np.array([xpos, ypos, zpos]))
+        ids = np.array(ids)
 
     for s in range(len(snaplist)):
         # Make table for saving stream positions to file
@@ -2122,7 +2143,7 @@ def streamlines_over_time(snaplist):
             den_path = density[inds_x,inds_y,inds_z]
             temp_path = temperature[inds_x,inds_y,inds_z]
             pres_path = pressure[inds_x,inds_y,inds_z]
-            path_id = np.zeros(len(stream_path)) + ids[i]
+            path_id = np.zeros(len(inds_x)) + ids[i]
             track = np.array([path_id, elapsed_time[:end_ind], inds_z, inds_y, inds_x, stream_path_x_digi[:end_ind], stream_path_y_digi[:end_ind], stream_path_z_digi[:end_ind], vx_path, vy_path, vz_path, den_path, temp_path, pres_path])
             track = np.transpose(track)
             for t in range(len(track)):
@@ -2131,8 +2152,9 @@ def streamlines_over_time(snaplist):
             end_x = stream_path_x[end_ind-1]
             end_y = stream_path_y[end_ind-1]
             end_z = stream_path_z[end_ind-1]
-            if (np.sqrt((end_x - box_left[0])**2. + (end_y - box_left[1])**2. + (end_z - box_left[2])**2.) < 50.) or \
-               (np.sqrt((end_x - box_right[0])**2. + (end_y - box_right[1])**2. + (end_z - box_right[2])**2.) < 50.):
+            if (np.abs(end_x - box_left[0].v) < 30.) or (np.abs(end_y - box_left[1].v) < 30.) or (np.abs(end_z - box_left[2].v) < 30.) or \
+               (np.abs(end_x - box_right[0].v) < 30.) or (np.abs(end_y - box_right[1].v) < 30.) or (np.abs(end_z - box_right[2].v) < 30.):
+                print('Deleting', ids[i], end_x, end_y, end_z)
                 ids = np.delete(ids, i)
             else:
                 next_start_pos.append(np.array([stream_path_x[end_ind-1], stream_path_y[end_ind-1], stream_path_z[end_ind-1]]))
@@ -2152,7 +2174,7 @@ def streamlines_over_time(snaplist):
             lvl1_res = pix_res*2.**11.
             level = 10
             dx = lvl1_res/(2.**level)
-            box_size = 400
+            box_size = 300
             refine_res = int(box_size/dx)
             box_left = ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc')
             box_right = ds.halo_center_kpc+ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc')
