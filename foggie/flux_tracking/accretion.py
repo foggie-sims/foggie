@@ -1825,9 +1825,9 @@ def accretion_compare_vs_radius(snap):
     props = ['covering_fraction','mass','metal_mass','temperature','metallicity',
             'cooling_time','entropy','pressure','radial_velocity','Mach',#'velocity_dispersion',
             'energy']
-    ranges = [[0,1], [2e5,3e7], [0,0.25], [1e4,3e6], [5e-3,1],
-             [1e2,1e6], [1,1e3], [1e-17,5e-12], [-300, 200], [0, 15], #[0,100],
-             [5e12,5e15]]
+    ranges = [[0,1], [1e4,1e10], [0,0.005], [1e4,1e7], [5e-3,1],
+             [1e2,2e6], [1,1e3], [1e-17,5e-12], [-300, 300], [0, 15], #[0,100],
+             [5e11,5e15]]
     logs = [False, True, False, True, True, True, True, True, False, False, #False,
             True]
     ylabels = ['Accretion Covering Fraction', 'Filament Mass [$M_\odot$]', 'Accretion Metal Mass Fraction',
@@ -1841,76 +1841,89 @@ def accretion_compare_vs_radius(snap):
         minor = (data['phi_bin']=='minor')
         directions = [all, major, minor]
         dir_labels = ['All directions', 'Major axis', 'Minor axis']
-        dir_colors = ['k','b','r']
+        dir_alphas = [1.,0.6,0.3]
         if (not args.direction):
             directions = [all]
     else:
         all = np.ones(len(radii), dtype=bool)
         directions = [all]
         dir_labels = ['_nolegend_']
-        dir_colors = ['k']
+        dir_alphas = [1.]
 
     if (args.region_filter!='none'):
         region_file = ['', 'low_', 'mid_']
-        #region_file = ['low_']
         if (args.region_filter=='temperature'):
             region_labels = ['All temperatures', '$T<10^{4.9}$ K', '$10^{4.9}$ K $<T<10^{5.5}$ K', '$T>10^{5.5}$ K']
             region_colors = ['k', "#984ea3", "#4daf4a", "#ffe34d"]
         if (args.region_filter=='metallicity'):
             region_labels = ['All metallicities', '$Z<10^{-2}Z_\odot$', '$10^{-2}Z_\odot < Z < 10^{-1}Z_\odot$', '$Z>10^{-1}Z_\odot$']
             region_colors = ['k',"#4575b4", "#984ea3", "#d73027"]
-            #region_labels = ['Filaments']
-            #region_colors = ['k']
     else:
-        region_file = ['']
+        region_colors = plt.cm.Set1(np.linspace(0, 1, 9))
+        region_colors = np.delete(region_colors, 5, axis=0)
+        region_colors = np.delete(region_colors, 5, axis=0)
+        region_colors = np.delete(region_colors, 6, axis=0)
+        region_colors = np.append(region_colors, [[0., 0., 0., 1.]], axis=0)
+        region_labels = ['$<0.2v_\mathrm{ff}$','0.2-0.4 $v_\mathrm{ff}$','0.4-0.6 $v_\mathrm{ff}$','0.6-0.8 $v_\mathrm{ff}$','0.8-1 $v_\mathrm{ff}$','$>v_\mathrm{ff}$', 'All accreting gas']
+        region_file = ['_0-0.2','_0.2-0.4','_0.4-0.6','_0.6-0.8','_0.8-1','_1-inf', '']
 
     for i in range(len(props)):
         fig = plt.figure(figsize=(7.5,5), dpi=200)
         ax = fig.add_subplot(1,1,1)
         for j in range(len(directions)):
             for k in range(len(region_file)):
-                if (args.direction):
-                    color = dir_colors[j]
-                    label = dir_labels[j]
-                elif (args.region_filter!='none'):
-                    color = region_colors[k]
-                    label = region_labels[k]
+                alpha = dir_alphas[j]
+                color = region_colors[k]
                 if (props[i]=='covering_fraction'):
-                    labels = ['_nolegend_', '_nolegend_']
                     mults = [1,0.5,0.5]
-                    acc_plot = mults[j]*data[region_file[k] + 'covering_fraction_acc'][directions[j]]
+                    if (args.region_filter!='none'):
+                        acc_plot = mults[j]*data[region_file[k] + 'covering_fraction_acc'][directions[j]]
+                    else:
+                        acc_plot = mults[j]*data['covering_fraction_acc' + region_file[k]][directions[j]]
                 elif ('mass' in props[i]):
-                    #labels = ['_nolegend_', '_nolegend_']
-                    label = '_nolegend_'
-                    #mults = [1,0.5,0.5]
-                    acc_plot = data[region_file[k] + props[i] + '_acc'][directions[j]]
-                    print(np.sum(acc_plot))
+                    if (args.region_filter!='none'):
+                        acc_plot = data[region_file[k] + props[i] + '_acc'][directions[j]]
+                        if ('metal' in props[i]): acc_plot /= data[region_file[k] + 'mass_acc'][directions[j]]
+                    else:
+                        acc_plot = data[props[i] + '_acc' + region_file[k]][directions[j]]
+                        if ('metal' in props[i]): acc_plot /= data['mass_acc' + region_file[k]][directions[j]]
                 elif (props[i]=='energy'):
-                    if (k==0): labels = ['Radial kinetic energy', 'Turbulent kinetic energy', 'Thermal energy']
-                    else: labels = ['_nolegend_','_nolegend_','_nolegend_']
                     e_props = ['radial_kinetic_energy', 'turbulent_kinetic_energy','thermal_energy']
                     linestyles = ['-','--',':']
-                    if (k>-1):
-                        for l in range(len(e_props)):
+                    e_labels = ['Radial kinetic energy', 'Turbulent kinetic energy', 'Thermal energy']
+                    if (k%2==0): ax.plot([-100,-100],[-100,-100], color=color, ls='-', lw=2, label=region_labels[k])
+                    if (k==len(region_file)-1): ax.plot([-100,-100],[-100,-100], color='k', ls='-', lw=1, label='rest of CGM')
+                    for l in range(len(e_props)):
+                        if (args.region_filter!='none'):
                             ax.plot(radii, data[region_file[k] + e_props[l] + '_acc'][directions[j]]/data[region_file[k] + 'mass_acc'][directions[j]]/gtoMsun,
-                                    color=color, ls=linestyles[l], lw=2, label=labels[l])
-                            if (k==0): ax.plot(radii[1:], data[e_props[l] + '_non'][directions[j]][1:]/data['mass_non'][directions[j]][1:]/gtoMsun,
-                                    color='darkorange', ls=linestyles[l], lw=2, label='_nolabel_')
-                        ax.plot([-100,-100],[-100,-100], color=color, ls='-', lw=2, label=region_labels[k])
-                        if (k==1): ax.plot([-100,-100],[-100,-100], color='darkorange', ls='-', lw=2, label='rest of CGM')
+                                    color=color, ls=linestyles[l], lw=2, label='_nolabel_')
+                        else:
+                            if (k%2==0): ax.plot(radii, data[e_props[l] + '_acc' + region_file[k]][directions[j]]/data['mass_acc' + region_file[k]][directions[j]]/gtoMsun,
+                                    color=color, ls=linestyles[l], lw=2, label='_nolabel_')
+                        if (k==0): ax.plot(radii[1:], data[e_props[l] + '_non'][directions[j]][1:]/data['mass_non'][directions[j]][1:]/gtoMsun,
+                                color='k', ls=linestyles[l], lw=1, label='_nolabel_')
+                        if (k==len(region_file)-1):
+                            ax.plot([-100,-100],[-100,-100], color='k', ls=linestyles[l], lw=2, label=e_labels[l])
                 elif (props[i]=='Mach'):
-                    labels = ['_nolegend_', '_nolegend_']
-                    acc_plot = -data[region_file[k] + 'radial_velocity_med_acc'][directions[j]]/data[region_file[k] + 'sound_speed_med_acc'][directions[j]]
+                    if (args.region_filter!='none'):
+                        acc_plot = -data[region_file[k] + 'radial_velocity_med_acc'][directions[j]]/data[region_file[k] + 'sound_speed_med_acc'][directions[j]]
+                    else:
+                        acc_plot = -data['radial_velocity_acc' + region_file[k] + '_med'][directions[j]]/data['sound_speed_acc' + region_file[k] + '_med'][directions[j]]
                 else:
-                    labels = ['Accreting gas', 'Non-accreting gas']
-                    acc_plot = data[region_file[k] + props[i] + '_med_acc'][directions[j]]
+                    if (args.region_filter!='none'):
+                        acc_plot = data[region_file[k] + props[i] + '_med_acc'][directions[j]]
+                    else:
+                        acc_plot = data[props[i] + '_acc' + region_file[k] + '_med'][directions[j]]
                 if (props[i]!='energy'):
-                    ax.plot(radii, acc_plot, color=color, ls='-', lw=2, label=label)
+                    ax.plot(radii, acc_plot, color=color, ls='-', lw=2, label=region_labels[k])
                 if ('fraction' not in props[i]) and ('mass' not in props[i]) and (props[i]!='Mach') and ('energy' not in props[i]):
                     #ax.fill_between(radii, data[props[i] + '_med_acc'][directions[j]]-0.5*data[props[i] + '_iqr_acc'][directions[j]],
                                     #data[props[i] + '_med_acc'][directions[j]]+0.5*data[props[i] + '_iqr_acc'][directions[j]],
                                     #color=dir_colors[j], alpha=0.3)
-                    ax.plot(radii, data[region_file[k] + props[i] + '_med_non'][directions[j]], color=color, ls=':', lw=2, label='_nolegend_')
+                    if (args.region_filter!='none'):
+                        if (k==len(region_file)-1): ax.plot(radii, data[region_file[k] + props[i] + '_med_non'][directions[j]], color=color, ls=':', lw=2, label='_nolegend_')
+                    else:
+                        if (k==len(region_file)-1): ax.plot(radii, data[props[i] + '_non_med'][directions[j]], color='k', ls='-', lw=1, label='Rest of CGM')
                     #if (k==0): ax.plot(radii, data[props[i] + '_med_non'][directions[j]], color="darkorange", ls=':', lw=2, label='Rest of CGM')
                     #ax.fill_between(radii, data[props[i] + '_med_all'][directions[j]]-0.5*data[props[i] + '_iqr_all'][directions[j]],
                                     #data[props[i] + '_med_all'][directions[j]]+0.5*data[props[i] + '_iqr_all'][directions[j]],
@@ -1920,17 +1933,22 @@ def accretion_compare_vs_radius(snap):
                         masses_ind = np.where(masses['snapshot']==snap)[0]
                         Menc_profile = IUS(np.concatenate(([0],masses['radius'][masses_ind])), np.concatenate(([0],masses['total_mass'][masses_ind])))
                         vff = -np.sqrt((2.*G*Menc_profile(radii)*gtoMsun)/(radii*1000.*cmtopc))/1e5
-                        if (j==2) or (k==2): ax.plot(radii, vff, 'k--', lw=2, label='Free fall velocity')
+                        if (j==2) or (k==len(region_file)-1): ax.plot(radii, vff, 'k--', lw=2, label='Free fall velocity')
                     if (props[i]=='temperature'):
-                        start_T = data[region_file[k] + 'temperature_med_acc'][directions[j]][-1]
-                        #volume = data[region_file[k] + 'covering_fraction_acc'][directions[j]][1:]*(4.*np.pi*(radii[1:]*1000.*cmtopc)**2.)*np.diff(radii*1000*cmtopc)
-                        pressure = data[region_file[k] + 'pressure_med_acc'][directions[j]]
+                        if (args.region_filter!='none'):
+                            start_T = data[region_file[k] + 'temperature_med_acc'][directions[j]][-1]
+                            #volume = data[region_file[k] + 'covering_fraction_acc'][directions[j]][1:]*(4.*np.pi*(radii[1:]*1000.*cmtopc)**2.)*np.diff(radii*1000*cmtopc)
+                            pressure = data[region_file[k] + 'pressure_med_acc'][directions[j]]
+                        else:
+                            start_T = data['temperature_acc' + region_file[k] + '_med'][directions[j]][-1]
+                            #volume = data['covering_fraction_acc' + region_file[k]][directions[j]][1:]*(4.*np.pi*(radii[1:]*1000.*cmtopc)**2.)*np.diff(radii*1000*cmtopc)
+                            pressure = data['pressure_acc' + region_file[k] + '_med'][directions[j]]
                         #PdV = pressure[2:]*np.diff(volume)
                         #compression_T = PdV/kB + start_T
                         compression_T = start_T*(pressure/pressure[-1])**(2./5.)
                         if (j==2) or (k==0): comp_label = 'Adiabatic compression'
                         else: comp_label = '_nolegend_'
-                        ax.plot(radii, compression_T, color=region_colors[k], ls='--', lw=2, label=comp_label)
+                        #ax.plot(radii, compression_T, color=region_colors[k], ls='--', lw=2, label=comp_label)
                     if (props[i]=='cooling_time'):
                         ax.plot([0,250], [13.76e3,13.76e3], 'k--', lw=1)
             #if (j==len(directions)-1):
@@ -1943,7 +1961,7 @@ def accretion_compare_vs_radius(snap):
         if (logs[i]): ax.set_yscale('log')
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14)
         if ('mass' in props[i]) or ('fraction' in props[i]) or (props[i]=='Mach'):
-            ax.legend(frameon=False, loc=2, fontsize=14)
+            ax.legend(frameon=False, loc=2, fontsize=14, ncol=2)
             ax.text(0.95, 0.9, '%.2f Gyr\n$z=%.2f$' % (tsnap/1e3, zsnap), fontsize=14, ha='right', va='center', transform=ax.transAxes, bbox={'fc':'white','ec':'black','boxstyle':'round','lw':1})
         elif ('velocity_dispersion' in props[i]) or ('metallicity' in props[i]) or \
           ('temperature' in props[i]) or ('pressure' in props[i]) or ('energy' in props[i]):
@@ -1981,9 +1999,13 @@ def accretion_flux_vs_radius(snap):
         region_label = ['$<0.1Z_\odot$', '$0.1-0.5Z_\odot$', '$0.5-1Z_\odot$', '$>Z_\odot$', 'All metallicities']
         region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
     else:
-        plot_colors = ['k']
-        region_label = ['_nolegend_']
-        region_name = ['']
+        plot_colors = plt.cm.Set1(np.linspace(0, 1, 9))
+        plot_colors = np.delete(plot_colors, 5, axis=0)
+        plot_colors = np.delete(plot_colors, 5, axis=0)
+        plot_colors = np.delete(plot_colors, 6, axis=0)
+        plot_colors = np.append(plot_colors, [[0., 0., 0., 1.]], axis=0)
+        region_label = ['$<0.2v_\mathrm{ff}$','0.2-0.4 $v_\mathrm{ff}$','0.4-0.6 $v_\mathrm{ff}$','0.6-0.8 $v_\mathrm{ff}$','0.8-1 $v_\mathrm{ff}$','$>v_\mathrm{ff}$', 'Total flux']
+        region_name = ['_0-0.2','_0.2-0.4','_0.4-0.6','_0.6-0.8','_0.8-1','_1-inf', '']
 
     fluxes = ['mass','metal']
     ranges = [[1e-4,1e3],[1e-6,5]]
@@ -1993,9 +2015,14 @@ def accretion_flux_vs_radius(snap):
         all = (data['phi_bin']=='all')
         major = (data['phi_bin']=='major')
         minor = (data['phi_bin']=='minor')
-        directions = [all, major, minor]
-        dir_labels = ['All directions', 'Major axis', 'Minor axis']
-        dir_ls = ['-','--',':']
+        if (args.direction):
+            directions = [all, major, minor]
+            dir_labels = ['All directions', 'Major axis', 'Minor axis']
+            dir_ls = ['-','--',':']
+        else:
+            directions = [all]
+            dir_labels = ['_nolegend_']
+            dir_ls = ['-']
     else:
         all = np.ones(len(radii), dtype=bool)
         directions = [all]
@@ -2011,10 +2038,14 @@ def accretion_flux_vs_radius(snap):
                 if (j==0): label=region_label[k]
                 else: label='_nolegend_'
                 if (region_label[k][:3]!='All'):
-                    plot_flux = data[region_name[k]+fluxes[i]+'_flux_in'][directions[j]]
-                    flux_sum += plot_flux
+                    if (args.region_filter=='none'):
+                        plot_flux = data[fluxes[i]+'_flux_in'+region_name[k]][directions[j]]
+                    else:
+                        plot_flux = data[region_name[k]+fluxes[i]+'_flux_in'][directions[j]]
+                        flux_sum += plot_flux
                 else:
-                    plot_flux = flux_sum
+                    if (args.region_filter!='none'):
+                        plot_flux = flux_sum
                 ax.plot(radii, plot_flux, color=plot_colors[k], ls=dir_ls[j], lw=2, label=label)
             ax.plot([-100,-100],[-100,-100], color='k', ls=dir_ls[j], lw=2, label=dir_labels[j])
 
@@ -2152,8 +2183,8 @@ def streamlines_over_time(snaplist):
             end_x = stream_path_x[end_ind-1]
             end_y = stream_path_y[end_ind-1]
             end_z = stream_path_z[end_ind-1]
-            if (np.abs(end_x - box_left[0].v) < 30.) or (np.abs(end_y - box_left[1].v) < 30.) or (np.abs(end_z - box_left[2].v) < 30.) or \
-               (np.abs(end_x - box_right[0].v) < 30.) or (np.abs(end_y - box_right[1].v) < 30.) or (np.abs(end_z - box_right[2].v) < 30.):
+            if (np.abs(end_x - box_size/2.) < 30.) or (np.abs(end_y - box_size/2.) < 30.) or (np.abs(end_z - box_size/2.) < 30.) or \
+               (np.abs(end_x - box_size/2.) < 30.) or (np.abs(end_y - box_size/2.) < 30.) or (np.abs(end_z - box_size/2.) < 30.):
                 print('Deleting', ids[i], end_x, end_y, end_z)
                 ids = np.delete(ids, i)
             else:
