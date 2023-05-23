@@ -251,7 +251,8 @@ def make_flux_table(flux_types):
         types_list += ['S5']
 
     dir_name = ['_in', '_out']
-    dv_name = ['','_0-0.2','_0.2-0.4','_0.4-0.6','_0.6-0.8','_0.8-1','_1-inf']
+    dv_name = ['','_0-0.25','_0.25-0.5','_0.5-0.75','_0.75-inf']
+
     for i in range(len(flux_types)):
         if (args.region_filter != 'none') and ('dm' not in flux_types[i]):
             region_name = ['', 'lowest_', 'low-mid_', 'high-mid_', 'highest_']
@@ -312,7 +313,7 @@ def make_props_table(prop_types):
         names_list += ['phi_bin']
         types_list += ['S5']
 
-    dir_name = ['_all', '_non', '_acc', '_acc_0-0.2','_acc_0.2-0.4','_acc_0.4-0.6','_acc_0.6-0.8','_acc_0.8-1','_acc_1-inf']
+    dir_name = ['_all', '_non', '_acc', '_acc_0-0.25','_acc_0.25-0.5','_acc_0.5-0.75','_acc_0.75-inf']
     stat_names = ['_med', '_iqr', '_avg', '_std']
     for i in range(len(prop_types)):
         if (args.region_filter != 'none'):
@@ -831,8 +832,10 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
             filter = grid['gas','radial_velocity_corrected'].in_units('km/s').v
     #disp_vel_bins = [0., 50., 100., 150., 200., 300., np.inf]
     #disp_vel_saves = ['_0-50','_50-100','_100-150','_150-200','_200-300','_300-inf']
-    disp_vel_bins = [0., 0.2, 0.4, 0.6, 0.8, 1.0, np.inf]
-    disp_vel_saves = ['_0-0p2', '_0p2-0p4', '_0p4-0p6', '_0p6-0p8', '_0p8-1', '_1-inf']
+    #disp_vel_bins = [0., 0.2, 0.4, 0.6, 0.8, 1.0, np.inf]
+    #disp_vel_saves = ['_0-0p2', '_0p2-0p4', '_0p4-0p6', '_0p6-0p8', '_0p8-1', '_1-inf']
+    disp_vel_bins = [0., 0.25, 0.5, 0.75, np.inf]
+    disp_vel_saves = ['_0-0p25', '_0p25-0p5', '_0p5-0p75', '_0p75-inf']
 
     # Step through radii (if chosen) and calculate fluxes and plot things for each radius
     for r in range(len(radii)):
@@ -1126,8 +1129,10 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
 
     #disp_vel_bins = [0., 50., 100., 150., 200., 300., np.inf]
     #disp_vel_saves = ['_0-50','_50-100','_100-150','_150-200','_200-300','_300-inf']
-    disp_vel_bins = [0., 0.2, 0.4, 0.6, 0.8, 1.0, np.inf]
-    disp_vel_saves = ['_0-0p2', '_0p2-0p4', '_0p4-0p6', '_0p6-0p8', '_0p8-1', '_1-inf']
+    #disp_vel_bins = [0., 0.2, 0.4, 0.6, 0.8, 1.0, np.inf]
+    #disp_vel_saves = ['_0-0p2', '_0p2-0p4', '_0p4-0p6', '_0p6-0p8', '_0p8-1', '_1-inf']
+    disp_vel_bins = [0., 0.25, 0.5, 0.75, np.inf]
+    disp_vel_saves = ['_0-0p25', '_0p25-0p5', '_0p5-0p75', '_0p75-inf']
 
     # If calculating direction of accretion, set up bins
     if (args.direction):
@@ -1859,13 +1864,14 @@ def accretion_compare_vs_radius(snap):
             region_labels = ['All metallicities', '$Z<10^{-2}Z_\odot$', '$10^{-2}Z_\odot < Z < 10^{-1}Z_\odot$', '$Z>10^{-1}Z_\odot$']
             region_colors = ['k',"#4575b4", "#984ea3", "#d73027"]
     else:
-        region_colors = plt.cm.Set1(np.linspace(0, 1, 9))
-        region_colors = np.delete(region_colors, 5, axis=0)
-        region_colors = np.delete(region_colors, 5, axis=0)
-        region_colors = np.delete(region_colors, 6, axis=0)
+        region_colors = plt.cm.Dark2(np.linspace(0, 1, 8))
+        region_colors = np.delete(region_colors, 4, axis=0)
+        region_colors = np.delete(region_colors, 4, axis=0)
+        region_colors = np.delete(region_colors, 4, axis=0)
+        region_colors = np.delete(region_colors, 4, axis=0)
         region_colors = np.append(region_colors, [[0., 0., 0., 1.]], axis=0)
-        region_labels = ['$<0.2v_\mathrm{ff}$','0.2-0.4 $v_\mathrm{ff}$','0.4-0.6 $v_\mathrm{ff}$','0.6-0.8 $v_\mathrm{ff}$','0.8-1 $v_\mathrm{ff}$','$>v_\mathrm{ff}$', 'All accreting gas']
-        region_file = ['_0-0.2','_0.2-0.4','_0.4-0.6','_0.6-0.8','_0.8-1','_1-inf', '']
+        region_labels = ['$<0.25v_\mathrm{ff}$','0.25-0.5 $v_\mathrm{ff}$','0.5-0.75 $v_\mathrm{ff}$','$>0.75v_\mathrm{ff}$', 'All accreting gas']
+        region_file = ['_0-0.25','_0.25-0.5','_0.5-0.75','_0.75-inf', '']
 
     for i in range(len(props)):
         fig = plt.figure(figsize=(7.5,5), dpi=200)
@@ -1999,13 +2005,14 @@ def accretion_flux_vs_radius(snap):
         region_label = ['$<0.1Z_\odot$', '$0.1-0.5Z_\odot$', '$0.5-1Z_\odot$', '$>Z_\odot$', 'All metallicities']
         region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
     else:
-        plot_colors = plt.cm.Set1(np.linspace(0, 1, 9))
-        plot_colors = np.delete(plot_colors, 5, axis=0)
-        plot_colors = np.delete(plot_colors, 5, axis=0)
-        plot_colors = np.delete(plot_colors, 6, axis=0)
+        plot_colors = plt.cm.Dark2(np.linspace(0, 1, 8))
+        plot_colors = np.delete(plot_colors, 4, axis=0)
+        plot_colors = np.delete(plot_colors, 4, axis=0)
+        plot_colors = np.delete(plot_colors, 4, axis=0)
+        plot_colors = np.delete(plot_colors, 4, axis=0)
         plot_colors = np.append(plot_colors, [[0., 0., 0., 1.]], axis=0)
-        region_label = ['$<0.2v_\mathrm{ff}$','0.2-0.4 $v_\mathrm{ff}$','0.4-0.6 $v_\mathrm{ff}$','0.6-0.8 $v_\mathrm{ff}$','0.8-1 $v_\mathrm{ff}$','$>v_\mathrm{ff}$', 'Total flux']
-        region_name = ['_0-0.2','_0.2-0.4','_0.4-0.6','_0.6-0.8','_0.8-1','_1-inf', '']
+        region_label = ['$<0.25v_\mathrm{ff}$','0.25-0.5 $v_\mathrm{ff}$','0.5-0.75 $v_\mathrm{ff}$','$>0.75v_\mathrm{ff}$', 'Total flux']
+        region_name = ['_0-0.25','_0.25-0.5','_0.5-0.75','_0.75-inf', '']
 
     fluxes = ['mass','metal']
     ranges = [[1e-4,1e3],[1e-6,5]]
