@@ -2153,6 +2153,7 @@ def streamlines_over_time(snaplist):
         streamlines.integrate_through_volume()
         # Calculate information along each stream and save
         next_start_pos = []
+        need_to_del = []
         for i in range(len(start_pos)):
             stream = streamlines.path(i)
             stream_path = stream.positions.in_units('kpc').v      # stream_path[j] is (x,y,z) position in the box of jth location along the path
@@ -2193,9 +2194,11 @@ def streamlines_over_time(snaplist):
             if (np.abs(end_x - box_size/2.) < 30.) or (np.abs(end_y - box_size/2.) < 30.) or (np.abs(end_z - box_size/2.) < 30.) or \
                (np.abs(end_x - box_size/2.) < 30.) or (np.abs(end_y - box_size/2.) < 30.) or (np.abs(end_z - box_size/2.) < 30.):
                 print('Deleting', ids[i], end_x, end_y, end_z)
-                ids = np.delete(ids, i)
+                need_to_del.append(ids[i])
             else:
                 next_start_pos.append(np.array([stream_path_x[end_ind-1], stream_path_y[end_ind-1], stream_path_z[end_ind-1]]))
+        for del_id in need_to_del:
+            ids = np.delete(ids, np.where(ids==del_id)[0])
 
         tablename = prefix + 'Tables/' + snap + '_streams'
         stream_table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
