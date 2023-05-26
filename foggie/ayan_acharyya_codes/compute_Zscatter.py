@@ -55,6 +55,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     Function to plot the metallicity distribution, along with the fitted skewed gaussian distribution if provided
     Saves plot as .png
     '''
+    fit, percentiles = None, None ##
     if args.forproposal and args.output == 'RD0042': plt.rcParams['axes.linewidth'] = 1
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
     fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
@@ -352,8 +353,8 @@ if __name__ == '__main__':
 
                 # -------computing quantities to save in file-------------------------
                 print('Computing stats...')
-                # percentiles = np.percentile(Zres, [25, 50, 75])
-                percentiles = weighted_quantile(Zres, [0.25, 0.50, 0.75], sample_weight=wres)
+                percentiles = np.percentile(Zres, [25, 50, 75])
+                #percentiles = weighted_quantile(Zres, [0.25, 0.50, 0.75], sample_weight=wres)
                 Zgini = gini(Zres)
 
                 thisrow += [mstar, res, result.best_values['sg_amplitude'], result.params['sg_amplitude'].stderr, \
