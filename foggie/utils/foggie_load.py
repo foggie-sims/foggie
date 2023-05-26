@@ -184,6 +184,8 @@ def foggie_load(snap, trackfile, **kwargs):
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('dm', 'radius_corrected'), function=radius_corrected_dm, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
+        ds.add_field(('dm', 'radial_velocity_corrected'), function=radial_velocity_corrected_dm, units='km/s', \
+                     take_log=False, force_override=True, sampling_type='particle')
 
 
         sam_un = ds.unit_system["specific_angular_momentum"]
@@ -365,6 +367,9 @@ def foggie_load(snap, trackfile, **kwargs):
         grad_fields_grav = ds.add_gradient_fields(('gas','grav_pot'))
         ds.add_field(('gas','HSE'), function=hse_ratio, units='', \
                      display_name='HSE Parameter', force_override=True, sampling_type='cell')
+        if (do_filter_particles):
+            ds.add_field(('dm', 'vff'), function=v_ff_dm, units='km/s', \
+                     take_log=False, force_override=True, sampling_type='particle')
 
     if (region=='refine_box'):
         region = refine_box
