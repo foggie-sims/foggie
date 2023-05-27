@@ -14,6 +14,7 @@
 """
 from header import *
 from util import *
+from compute_MZgrad import get_density_cut
 yt_ver = yt.__version__
 start_time = time.time()
 
@@ -59,6 +60,7 @@ def get_df_from_ds(ds, args):
 
     all_fields = [args.xcol, args.ycol, args.colorcol]
     if args.weight is not None: all_fields += [args.weight]
+    if args.use_density_cut and 'density' not in all_fields: all_fields += ['density']
 
     if not os.path.exists(outfilename) or args.clobber:
         myprint('Creating file ' + outfilename + '..', args)
@@ -83,18 +85,25 @@ def get_df_from_ds(ds, args):
             if rad_picked_up == args.galrad: pass # if this file actually corresponds to the correct radius, then you're fine (even if the file itself doesn't have radius column)
             else: sys.exit('Please regenerate ' + outfilename + ', using the --clobber option') # otherwise throw error
 
+    if args.use_density_cut:
+        if 'density' in df:
+            rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
+            df = df[df['density'] > rho_cut]
+            print('Imposing a density criterion to get ISM above density', rho_cut, 'g/cm^3')
+        else:
+            sys.exit('You want to use a density cut, but density is not a field in the df. Please regenerate ' + outfilename + ', using the --clobber option')
+
     # ------to take log, or weigh each column, as necessary (because the file just read in, only has the raw values for each column)----------
     for field in all_fields:
         column_name = field
         if isfield_weighted_dict[field] and args.weight:
-            weights = ds[field_dict[args.weight]].in_units(unit_dict[args.weight]).ndarray_view()
-            arr = df[field] * weights * len(weights) / np.sum(weights)
-            df[args.weight] = weights
+            arr = df[column_name] * df[args.weight] * len(df[args.weight]) / np.sum(df[args.weight])
             column_name = column_name + '_wtby_' + args.weight
+            df[column_name] = arr
         if islog_dict[field]:
-            arr = np.log10(df[field])
+            arr = np.log10(df[column_name])
             column_name = 'log_' + column_name
-        if column_name not in df: df[column_name] = arr
+            df[column_name] = arr
 
     return df
 
@@ -116,8 +125,9 @@ def make_coordinate_axis(colname, data_min, data_max, ax, fontsize):
     Function to make the coordinate axis
     Uses globally defined islog_dict and unit_dict
     '''
-    log_text = 'Log ' if islog_dict[colname]else ''
-    ax.set_label_text(log_text + labels_dict[colname] + ' (' + unit_dict[colname] + ')', fontsize=fontsize)
+    weight_text = args.weight + ' weighted ' if isfield_weighted_dict[colname] and args.weight else ''
+    log_text = 'Log ' if islog_dict[colname] else ''
+    ax.set_label_text(weight_text + log_text + labels_dict[colname] + ' (' + unit_dict[colname] + ')', fontsize=fontsize)
 
     nticks = 5
     ticks = np.linspace(data_min, data_max, nticks)
@@ -166,7 +176,7 @@ def make_datashader_plot_mpl(df, outfilename, args):
     shift_right = 'phi' in args.ycol or 'theta' in args.ycol
     axes = sns.JointGrid(args.xcolname, args.ycolname, df, height=8)
     extra_space = 0.03 if shift_right else 0
-    plt.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95 + extra_space, top=0.95, bottom=0.1, left=0.1 + extra_space)
+    plt.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95 + extra_space, top=0.95, bottom=0.1, left=0.15 + extra_space)
     fig, ax1 = plt.gcf(), axes.ax_joint
 
     # --------to make the main datashader plot--------------------------
@@ -213,12 +223,12 @@ if yt_ver[0]=='3':
     field_dict['mass'] = ('gas','cell_mass')
     field_dict['volume'] = ('gas', 'cell_volume')
 unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'volume':'pc**3', 'phi_disk':'deg', 'theta_disk':'deg'}
-labels_dict = {'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF', 'phi_disk':'Azimuthal Angle', 'theta_disk':r'$\theta_{\mathrm{diskrel}}$'}
-islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True)
+labels_dict = {'mass':'Cell mass', 'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF', 'phi_disk':'Azimuthal Angle', 'theta_disk':r'$\theta_{\mathrm{diskrel}}$'}
+islog_dict = defaultdict(lambda: False, mass=True, metal=True, density=True, temp=True)
 bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
 colormap_dict = {'temp':temperature_discrete_cmap, 'metal':metal_discrete_cmap, 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi, 'phi_disk':'viridis', 'theta_disk':angle_discrete_cmap_2pi}
 isfield_weighted_dict = defaultdict(lambda: False, metal=True, temp=True, vrad=True, phi_L=True, theta_L=True, phi_disk=True, theta_disk=True)
-bounds_dict = defaultdict(lambda: None, density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-3, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180), phi_disk=(0, 90), theta_disk=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
+bounds_dict = defaultdict(lambda: (None, None), mass=(1e-2, 1e7), density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-3, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180), phi_disk=(0, 90), theta_disk=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -252,6 +262,10 @@ if __name__ == '__main__':
     if isfield_weighted_dict[args.colorcol] and args.weight: args.colorcolname += '_wtby_' + args.weight
 
     # ----------to determine box size--------------
+    args.current_redshift = ds.current_redshift
+    args.current_time = ds.current_time.in_units('Gyr')
+    if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+
     if args.fullbox:
         box_width = ds.refine_width  # kpc
         args.galrad = box_width / 2
@@ -261,6 +275,12 @@ if __name__ == '__main__':
         box_width = args.galrad * 2  # in kpc
         box_width_kpc = ds.arr(box_width, 'kpc')
         box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+
+    if args.use_density_cut:
+        rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
+        ad = box.ds.all_data()
+        box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+        print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
     # ----------to determine axes limits--------------
     bounds_dict.update(rad=(0, args.galrad))
@@ -296,8 +316,6 @@ if __name__ == '__main__':
         inflow_outflow_text = ''
 
     # ----------to labels and paths--------------
-    args.current_redshift = ds.current_redshift
-    args.current_time = ds.current_time.in_units('Gyr')
     outfile_rootname = 'datashader_boxrad_%.2Fkpc_%s_vs_%s_colby_%s%s.png' % (args.galrad, args.ycolname, args.xcolname, args.colorcolname, inflow_outflow_text)
 
     fig_dir = args.output_dir + 'figs/' + args.output + '/'
