@@ -278,8 +278,7 @@ if __name__ == '__main__':
 
     if args.use_density_cut:
         rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
-        ad = box.ds.all_data()
-        box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+        box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
         print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
     # ----------to determine axes limits--------------

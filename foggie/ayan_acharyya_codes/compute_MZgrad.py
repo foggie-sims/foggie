@@ -25,7 +25,7 @@ start_time = time.time()
 # --------------------------------------------------------------------
 def get_density_cut(t):
     '''
-    Function to get density cut based on Cassi's paper. The cut is a funciton of ime.
+    Function to get density cut based on Cassi's paper. The cut is a function of ime.
     if z > 0.5: rho_cut = 2e-26 g/cm**3
     elif z < 0.25: rho_cut = 2e-27 g/cm**3
     else: linearly from 2e-26 to 2e-27 from z = 0.5 to z = 0.25
@@ -345,8 +345,7 @@ def get_df_from_ds(box, args):
 
         if args.use_density_cut:
             rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
-            ad = box.ds.all_data()
-            box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+            box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
             print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
         df = pd.DataFrame()

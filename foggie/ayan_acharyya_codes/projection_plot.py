@@ -115,8 +115,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
 
     if use_density_cut:
         rho_cut = get_density_cut(ds.current_time.in_units('Gyr'))  # based on Cassi's CGM-ISM density cut-off
-        ad = small_box.ds.all_data()
-        small_box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+        small_box = small_box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
         print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
     # The variables used below come from foggie.utils.consistency.py

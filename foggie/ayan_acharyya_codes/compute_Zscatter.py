@@ -312,8 +312,7 @@ if __name__ == '__main__':
                 box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
                 if args.use_density_cut:
                     rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
-                    ad = box.ds.all_data()
-                    box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+                    box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
                     print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
                 Znative = box[('gas', 'metallicity')].in_units('Zsun').ndarray_view()
@@ -329,8 +328,7 @@ if __name__ == '__main__':
                 print('res =', res, 'kpc; box shape=', np.shape(box)) #
                 if args.use_density_cut:
                     rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
-                    ad = box.ds.all_data()
-                    box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+                    box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
                     print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
                 Zres = box['gas', 'metallicity'].in_units('Zsun').ndarray_view()
