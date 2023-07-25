@@ -272,7 +272,7 @@ def phi_velocity_corrected(field, data):
 def tangential_velocity_corrected(field, data):
     """Returns sqrt(v_theta**2+v_phi**2), corrected for bulk flows. -Cassi"""
 
-    return np.sqrt(data['theta_velocity_corrected']**2. + data['phi_velocity_corrected']**2.)
+    return np.sqrt(data['gas','theta_velocity_corrected']**2. + data['gas','phi_velocity_corrected']**2.)
 
 def radius_corrected(field, data):
     """Corrects the radius for the center of the halo. Requires 'halo_center_kpc', which is the halo
@@ -373,16 +373,16 @@ def tangential_kinetic_energy(field, data):
     return 0.5 * data['gas','cell_mass'] * data['gas','tangential_velocity_corrected']**2.
 
 def _no6(field,data):
-    return data["dx"] * data['O_p5_number_density']
+    return data['gas',"dx"] * data['gas','O_p5_number_density']
 
 def _nh1(field,data):
-    return data["dx"] * data['H_p0_number_density']
+    return data['gas',"dx"] * data['gas','H_p0_number_density']
 
 def _no5(field,data):
-    return data["dx"] * data['O_p4_number_density']
+    return data['gas',"dx"] * data['gas','O_p4_number_density']
 
 def _c4(field,data):
-    return data["dx"] * data['C_p3_number_density']
+    return data['gas',"dx"] * data['gas','C_p3_number_density']
 
 
 def x_diskrel(field, data):
@@ -718,12 +718,12 @@ def hse_ratio(field, data):
     y_hat = data['gas',"y"].in_units('kpc') - center[1]
     z_hat = data['gas',"z"].in_units('kpc') - center[2]
     r = np.sqrt(x_hat*x_hat+y_hat*y_hat+z_hat*z_hat)
-    gx = -data["density"] * data["grav_pot_gradient_x"]
-    gy = -data["density"] * data["grav_pot_gradient_y"]
-    gz = -data["density"] * data["grav_pot_gradient_z"]
+    gx = -data['gas',"density"] * data['gas',"grav_pot_gradient_x"]
+    gy = -data['gas',"density"] * data['gas',"grav_pot_gradient_y"]
+    gz = -data['gas',"density"] * data['gas',"grav_pot_gradient_z"]
     x_hat /= r
     y_hat /= r
     z_hat /= r
     gr = gx*x_hat + gy*y_hat + gz*z_hat
-    pr = data['pressure_gradient_x']*x_hat + data['pressure_gradient_y']*y_hat + data['pressure_gradient_z']*z_hat
+    pr = data['gas','pressure_gradient_x']*x_hat + data['gas','pressure_gradient_y']*y_hat + data['gas','pressure_gradient_z']*z_hat
     return np.sqrt(pr**2./gr**2.)
