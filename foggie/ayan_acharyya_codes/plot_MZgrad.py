@@ -17,7 +17,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_deviation --zcol log_ssfr
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1500
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_cadence 50
-                 run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --nocolorcoding --zhighlight --overplot_smoothed 1500 --hiderawdata [FOR MOLLY]
+                 run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --overplot_smoothed 1500 --formolly --hiderawdata --hide_overplot [FOR MOLLY]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --glasspaper [FOR MATCHING GLASS PAPER]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol redshift --nocolorcoding --overplot_literature
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1000 --nocolorcoding
@@ -27,6 +27,7 @@ from header import *
 from util import *
 from matplotlib.collections import LineCollection
 from matplotlib.colors import is_color_like
+from matplotlib import animation
 start_time = time.time()
 
 # ---------------------------------
@@ -275,7 +276,7 @@ def overplot_literature(ax, args):
     # -----actual plotting --------------
     master_df = master_df.dropna(subset=['Zgrad']).reset_index(drop=True)
     color, legendcolor = 'palegoldenrod', 'goldenrod'
-    ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=50, lw=0.5, ec='k', zorder=10, alpha=0.8) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
+    ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=50, lw=0.5, ec='k', zorder=7 if args.fortalk else 10, alpha=0.8) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
     #ax.errorbar(master_df['redshift'], master_df['Zgrad'], yerr=master_df['Zgrad_u'], ls='none', lw=0.5, c=color)
     if not args.forproposal:
         ax.text(3.86, 0.36, 'Observations', ha='left', va='center', color=legendcolor, fontsize=args.fontsize)
@@ -307,7 +308,7 @@ def plot_zhighlight(df, ax, cmap, args, ycol=None):
     if ycol is None: ycol = args.ycol
     df['redshift_int'] = np.floor(df['redshift'])
     df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-    if is_color_like(cmap): dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=cmap, lw=1, edgecolor='gold' if args.fortalk else 'k', s=100, alpha=1 if args.fortalk else 0.5, zorder=20)
+    if is_color_like(cmap): dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=cmap, lw=1, edgecolor='gold' if args.fortalk else 'k', s=100, alpha=1 if args.fortalk or args.formolly else 0.5, zorder=20)
     else: dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=df_zbin[args.colorcol], cmap=cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.7 if (args.overplot_smoothed and 'smoothed' not in ycol) or args.overplot_cadence else 1, zorder=20)
     print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
     return ax
@@ -327,6 +328,7 @@ def plot_MZGR(args):
 
     df_master = pd.DataFrame()
     cmap_arr = ['Purples', 'Oranges', 'Greens', 'Blues', 'PuRd', 'Greys']
+    col_arr = ['rebeccapurple', 'chocolate', 'darkgreen', 'darkblue', 'crimson', 'darkkhaki']
     things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
 
     # -------------get plot limits-----------------
@@ -420,13 +422,11 @@ def plot_MZGR(args):
         df['log_sfr'] = np.log10(df['sfr'])
         df = df.sort_values(args.xcol)
 
-        if args.nocolorcoding:
-            args.colorcol, args.cmin, args.cmax = 'dummy', 0, 1
-            df['dummy'] = 0.8
+        if not args.nocolorcoding:
+            df = df[(df[args.colorcol] >= args.cmin) & (df[args.colorcol] <= args.cmax)]
 
         #df = df[(df[args.xcol] >= args.xmin) & (df[args.xcol] <= args.xmax)]
         #df = df[(df[args.ycol] >= args.ymin) & (df[args.ycol] <= args.ymax)]
-        df = df[(df[args.colorcol] >= args.cmin) & (df[args.colorcol] <= args.cmax)]
 
         # ------- plot only the binned plot------------
         if args.binby is not None:
@@ -441,10 +441,25 @@ def plot_MZGR(args):
         # -----plot line with color gradient--------
         this_cmap = cmap_arr[thisindex] + '_r' if args.colorcol in things_that_reduce_with_time else cmap_arr[thisindex] # reverse colromap for redshift
         reversed_thiscmap = this_cmap + '_r' if '_r' not in this_cmap else this_cmap[:-2]
-        thistextcolor = mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
+        thistextcolor = col_arr[thisindex] if args.nocolorcoding else mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
-                ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2)
+                line, = ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature or args.formolly else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2)
+                if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
+                    # ----------------------------------
+                    def update(i, x, y, line, args):
+                        print('Deb451:', i, 'out of', len(x)) #
+                        line.set_data(x[:i], y[:i])
+                        line.axes.axis([args.xmax if args.xcol == 'redshift' else args.xmin, args.xmin if args.xcol == 'redshift' else args.xmax, args.ymin, args.ymax])
+
+                        ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
+                        ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
+                        ax.set_xlabel(label_dict[args.xcol], fontsize=args.fontsize)
+                        ax.set_ylabel(label_dict[args.ycol], fontsize=args.fontsize)
+
+                        return line,
+
+                    anim = animation.FuncAnimation(fig, update, len(df), fargs=[df[args.xcol].values, df[args.ycol].values, line, args], interval=25, blit=True)
             else:
                 line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_literature else 2)
                 plot = ax.add_collection(line)
@@ -458,7 +473,7 @@ def plot_MZGR(args):
             print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, ' with star-markers\nThese snapshots correspond to times', df_snaps['time'].values, 'Gyr respectively, i.e.,', np.diff(df_snaps['time'].values) * 1000, 'Myr apart')
 
         # ------- overplotting redshift-binned scatter plot------------
-        if args.zhighlight:
+        if args.zhighlight and not args.formolly:
             ax = plot_zhighlight(df, ax, thistextcolor if args.nocolorcoding else this_cmap, args)
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
@@ -470,15 +485,14 @@ def plot_MZGR(args):
             df[args.ycol + '_smoothed'] = np.convolve(df[args.ycol], box, mode='same')
             print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points, =', npoints * mean_dt, 'Myr')
 
-            if 'line' in locals() and not args.nocolorcoding: line.set_alpha(0.5) # make the actual wiggly line fainter (unless making plots for Molly's talk)
-            if args.nocolorcoding:
-                ax.plot(df[args.xcol], df[args.ycol + '_smoothed'], c=thistextcolor, lw=0.5)
-            else:
-                smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=0.5)
-                plot = ax.add_collection(smoothline) ## keep this commented out for making plots for Molly's talk
-            if args.hiderawdata: # for making plots for Molly's talk
-                ax = plot_zhighlight(df, ax, this_cmap, args, ycol=args.ycol + '_smoothed')
-                smoothline.set_alpha(0.2)
+            if 'line' in locals() and not args.nocolorcoding: line.set_alpha(0.5) # make the actual wiggly line fainter
+            if not args.hide_overplot:
+                if args.nocolorcoding:
+                    smoothline, = ax.plot(df[args.xcol], df[args.ycol + '_smoothed'], c=thistextcolor, lw=2 if args.formolly else 0.5, alpha=0.5 if args.formolly and not args.hiderawdata else 1)
+                else:
+                    smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=2 if args.hiderawdata else 0.5)
+                    plot = ax.add_collection(smoothline)
+            if args.formolly: ax = plot_zhighlight(df, ax, thistextcolor if args.nocolorcoding else this_cmap, args, ycol=args.ycol + '_smoothed') # for making plots for Molly, the z-highlights are on the smoothed curve, not the raw curve
 
         # ------- overplotting a lower cadence version of the MZGR------------
         if args.overplot_cadence:
@@ -541,8 +555,8 @@ def plot_MZGR(args):
             if not (args.forproposal or args.fortalk): ax.axvline(df[df['redshift'] >= args.upto_z]['time'].values[-1], lw=2, ls='dashed', color='k')
 
             # ---------filled area plot for deviation outside allowance-----
-            ax.fill_between(df[args.xcol], df[overplotted_column], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, alpha=0.1)
-            ax.fill_between(df[args.xcol],  df[overplotted_column], df[overplotted_column] - args.Zgrad_allowance, color=thistextcolor, alpha=0.1)
+            ax.fill_between(df[args.xcol], df[overplotted_column], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, alpha=0.3 if args.fortalk else 0.1)
+            ax.fill_between(df[args.xcol],  df[overplotted_column], df[overplotted_column] - args.Zgrad_allowance, color=thistextcolor, alpha=0.3 if args.fortalk else 0.1)
 
             if not args.forproposal:
                 ax.text(lim_dict[args.xcol][1] * 0.98, (df[overplotted_column].values[-1] + args.Zgrad_allowance) * 0.9, '+%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='bottom', fontsize=args.fontsize)
@@ -556,7 +570,7 @@ def plot_MZGR(args):
             ax.text(args.xmin * 1.1 + 0.1, (args.ymin if args.forproposal else args.ymax) * 0.88 - thisindex * 0.05, '%0d%% time of z>=%d is spent outside shaded region' % (timefraction_outside, args.upto_z), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
             print('Halo', args.halo, 'spends %.2F%%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation upto redshift %.1F' % args.upto_z)
 
-        if not (args.plot_timefraction or args.forproposal): fig.text(0.85 if args.glasspaper else 0.15, 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
+        if not (args.plot_timefraction or args.forproposal): fig.text(0.85 if args.glasspaper or args.formolly else 0.15, 0.38 - thisindex * 0.05 if args.formolly else 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
         if args.plot_deviation: fig2.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])
@@ -577,7 +591,7 @@ def plot_MZGR(args):
     ax.set_xlabel(label_dict[args.xcol], fontsize=args.fontsize)
     ax.set_ylabel(label_dict[args.ycol], fontsize=args.fontsize)
 
-    if args.fortalk:
+    if args.fortalk and not args.plot_timefraction:
         #mplcyberpunk.add_glow_effects()
         try: mplcyberpunk.make_lines_glow()
         except: pass
@@ -591,10 +605,18 @@ def plot_MZGR(args):
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
 
-    if args.plot_timefraction: figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_timefrac_outside_%.2F_Zgrad_den_%s%s%s%s%s%s.png' % (args.Zgrad_allowance, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text, density_cut_text)
+    # --------saving animation/figure-----------------
+    if args.plot_timefraction: figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_timefrac_outside_%.2F_Zgrad_den_%s%s%s%s%s%s.png' % (args.Zgrad_allowance, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text,density_cut_text)
     else: figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_%s_vs_%s_colorby_%s_Zgrad_den_%s%s%s%s%s%s.png' % (args.ycol, args.xcol, args.colorcol, args.Zgrad_den, upto_text, args.weightby_text, binby_text, obs_text, density_cut_text)
-    fig.savefig(figname, transparent=args.glasspaper or args.forproposal)
-    print('Saved plot as', figname)
+    if args.makeanimation:
+        #animname = figname.replace('.png', '_anim.png')
+        #anim.save(animname, writer=animation.PillowWriter(fps=30))
+        animname = figname.replace('.png', '_anim.mp4')
+        anim.save(animname, writer = 'ffmpeg', codec = 'h264')
+        print('Saved animation as', animname)
+    else:
+        fig.savefig(figname, transparent=args.glasspaper or args.forproposal)
+        print('Saved plot as', figname)
 
     # ------- tidying up fig2 if any------------
     if args.plot_deviation:
@@ -631,11 +653,17 @@ if __name__ == '__main__':
     if args.fortalk:
         setup_plots_for_talks()
         args.forproposal = True
+    if args.formolly:
+        args.zhighlight = True
+        args.nocolorcoding = True
+        args.use_density_cut = True
+        args.docomoving = True
     if args.forproposal or args.forpaper:
         args.nocolorcoding = True
-        if not args.fortalk: args.use_binnedfit = True
+        if args.plot_timefraction: args.use_binnedfit = True
     if args.forpaper:
         args.use_density_cut = True
+        args.docomoving = True
 
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight

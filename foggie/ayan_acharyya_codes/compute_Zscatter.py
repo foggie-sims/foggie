@@ -55,6 +55,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     Function to plot the metallicity distribution, along with the fitted skewed gaussian distribution if provided
     Saves plot as .png
     '''
+    fit, percentiles = None, None ##
     if args.forproposal and args.output == 'RD0042': plt.rcParams['axes.linewidth'] = 1
     weightby_text = '' if args.weight is None else '_wtby_' + args.weight
     fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
@@ -64,7 +65,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
-    outfile_rootname = '%s_log_metal_distribution%s%s%s%s.png' % (args.output, upto_text, weightby_text, fitmultiple_text, density_cut_text, islog_text)
+    outfile_rootname = '%s_log_metal_distribution%s%s%s%s%s.png' % (args.output, upto_text, weightby_text, fitmultiple_text, density_cut_text, islog_text)
     if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output)+1:]
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
@@ -311,8 +312,7 @@ if __name__ == '__main__':
                 box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
                 if args.use_density_cut:
                     rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
-                    ad = box.ds.all_data()
-                    box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+                    box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
                     print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
                 Znative = box[('gas', 'metallicity')].in_units('Zsun').ndarray_view()
@@ -328,8 +328,7 @@ if __name__ == '__main__':
                 print('res =', res, 'kpc; box shape=', np.shape(box)) #
                 if args.use_density_cut:
                     rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
-                    ad = box.ds.all_data()
-                    box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+                    box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
                     print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
                 Zres = box['gas', 'metallicity'].in_units('Zsun').ndarray_view()
@@ -352,8 +351,8 @@ if __name__ == '__main__':
 
                 # -------computing quantities to save in file-------------------------
                 print('Computing stats...')
-                # percentiles = np.percentile(Zres, [25, 50, 75])
-                percentiles = weighted_quantile(Zres, [0.25, 0.50, 0.75], sample_weight=wres)
+                percentiles = np.percentile(Zres, [25, 50, 75])
+                #percentiles = weighted_quantile(Zres, [0.25, 0.50, 0.75], sample_weight=wres)
                 Zgini = gini(Zres)
 
                 thisrow += [mstar, res, result.best_values['sg_amplitude'], result.params['sg_amplitude'].stderr, \

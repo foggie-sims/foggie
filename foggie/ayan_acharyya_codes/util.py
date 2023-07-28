@@ -1130,6 +1130,9 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--nodiskload', dest='nodiskload', action='store_true', default=False, help='skip loading disk-relative stuff in foggie load (saves time)?, default is no')
     parser.add_argument('--diskload', dest='diskload', action='store_true', default=False, help='load disk-relative stuff in foggie load?, default is no')
 
+    # ------- args added for datashader_singleplot.py ------------------------------
+    parser.add_argument('--filename', metavar='filename', type=str, action='store', default=None, help='filename with dataframe to use; default is None')
+
     # ------- args added for compute_MZgrad.py ------------------------------
     parser.add_argument('--upto_re', metavar='upto_re', type=float, action='store', default=2.0, help='fit metallicity gradient out to what multiple of Re? default is 2')
     parser.add_argument('--upto_kpc', metavar='upto_kpc', type=float, action='store', default=None, help='fit metallicity gradient out to what absolute kpc? default is None')
@@ -1179,6 +1182,9 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--glasspaper', dest='glasspaper', action='store_true', default=False, help='Set plot axis etc to match the GLASS paper plot?, default is no')
     parser.add_argument('--forproposal', dest='forproposal', action='store_true', default=False, help='Set plot labels, transparency etc for being used in JWST Cy2 proposal?, default is no')
     parser.add_argument('--fortalk', dest='fortalk', action='store_true', default=False, help='Set plot labels, transparency etc for being used in a talk?, default is no')
+    parser.add_argument('--makeanimation', dest='makeanimation', action='store_true', default=False, help='Make animation of a single halo trajectory?, default is no')
+    parser.add_argument('--formolly', dest='formolly', action='store_true', default=False, help='Set plot labels, transparency etc for being used by Molly?, default is no')
+    parser.add_argument('--hide_overplot', dest='hide_overplot', action='store_true', default=False, help='Hide the overplotted curve even though all computations were done on the overplotted curve?, default is no')
 
     # ------- args added for compute_Zscatter.py ------------------------------
     parser.add_argument('--res', metavar='res', type=str, action='store', default='0.1', help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')

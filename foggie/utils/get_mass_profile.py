@@ -34,6 +34,7 @@ from foggie.utils.get_proper_box_size import get_proper_box_size
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
+from foggie.utils.analysis_utils import *
 
 
 def parse_args():
@@ -83,12 +84,6 @@ def parse_args():
     parser.add_argument('--simple', dest='simple', action='store_true', \
                         help='Use this option to skip computing the ion gas masses.')
     parser.set_defaults(simple=False)
-
-    parser.add_argument('--smoothed', dest='smoothed', action='store_true', \
-                        help='Calculate mass profiles using the smoothed halo center catalogs?\n' + \
-                        'Default is not to do this. If using this option, halo center velocities will\n' + \
-                        'also be calculated.')
-    parser.set_defaults(smoothed=False)
 
 
     args = parser.parse_args()
@@ -216,7 +211,7 @@ def calc_masses(ds, snap, zsnap, refine_width_kpc, tablename, ions=True):
 
     return "Masses have been calculated for snapshot" + snap + "!"
 
-def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, queue, ions=True):
+def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, tablename, ions=True):
     '''This function loads a specified snapshot 'snap' located in the 'run_dir' within the
     'foggie_dir', the halo track 'track', the halo center file 'halo_c_v_name', and the name
     of the table to output 'tablename', then does the calculation on the loaded snapshot.
@@ -225,7 +220,7 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
     if (system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap
+        snap_dir = '/nobackup/clochhaa/tmp/' + snap
         shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
         snap_name = snap_dir + '/' + snap
     ds, refine_box = foggie_load(snap_name, track, halo_c_v_name=halo_c_v_name)
@@ -234,13 +229,6 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
     if (ions):
         trident.add_ion_fields(ds, ions=['O VI', 'O VII', 'Mg II', 'Si II', 'C II', 'C III', 'C IV',  'Si III', 'Si IV', 'Ne VIII'], ftype='gas')
 
-    if (args.smoothed):
-        row = [ds.parameter_filename[-6:], zsnap, ds.current_time.in_units('Myr').v,
-                ds.halo_center_kpc.v[0], ds.halo_center_kpc.v[1], ds.halo_center_kpc.v[2],
-                ds.halo_velocity_kms.v[0], ds.halo_velocity_kms.v[1], ds.halo_velocity_kms.v[2]]
-    else:
-        row = []
-    queue.put(row)
 
     # Do the actual calculation
     message = calc_masses(ds, snap, zsnap, refine_width_kpc, tablename, ions=ions)
@@ -257,6 +245,10 @@ if __name__ == "__main__":
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
 
+    if ('feedback' in args.run) and ('track' in args.run):
+        foggie_dir = '/nobackup/jtumlins/halo_008508/feedback-track/'
+        run_dir = args.run + '/'
+
     # Set directory for output location, making it if necessary
     prefix = output_dir + 'masses_halo_00' + args.halo + '/' + args.run + '/'
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
@@ -269,51 +261,7 @@ if __name__ == "__main__":
                 names=('name', 'redshift', 'time', 'xc', 'yc', 'zc', 'xv', 'yv', 'zv'))
 
     # Build output list
-    if (',' in args.output):
-        outs = args.output.split(',')
-        for i in range(len(outs)):
-            if ('-' in outs[i]):
-                ind = outs[i].find('-')
-                first = outs[i][2:ind]
-                last = outs[i][ind+3:]
-                output_type = outs[i][:2]
-                outs_sub = []
-                for j in range(int(first), int(last)+1, args.output_step):
-                    if (j < 10):
-                        pad = '000'
-                    elif (j >= 10) and (j < 100):
-                        pad = '00'
-                    elif (j >= 100) and (j < 1000):
-                        pad = '0'
-                    elif (j >= 1000):
-                        pad = ''
-                    outs_sub.append(output_type + pad + str(j))
-                outs[i] = outs_sub
-        flat_outs = []
-        for i in outs:
-            if (type(i)==list):
-                for j in i:
-                    flat_outs.append(j)
-            else:
-                flat_outs.append(i)
-        outs = flat_outs
-    elif ('-' in args.output):
-        ind = args.output.find('-')
-        first = args.output[2:ind]
-        last = args.output[ind+3:]
-        output_type = args.output[:2]
-        outs = []
-        for i in range(int(first), int(last)+1, args.output_step):
-            if (i < 10):
-                pad = '000'
-            elif (i >= 10) and (i < 100):
-                pad = '00'
-            elif (i >= 100) and (i < 1000):
-                pad = '0'
-            elif (i >= 1000):
-                pad = ''
-            outs.append(output_type + pad + str(i))
-    else: outs = [args.output]
+    outs = make_output_list(args.output, output_step=args.output_step)
 
     if (args.simple): ions = False
     else: ions = True
@@ -321,49 +269,58 @@ if __name__ == "__main__":
     # Loop over outputs, for either single-processor or parallel processor computing
     # Split into a number of groupings equal to the number of processors
     # and run one process per processor
-    rows = []
-    for i in range(len(outs)//args.nproc):
+    skipped_outs = outs
+    while (len(skipped_outs)>0):
+        skipped_outs = []
+        # Split into a number of groupings equal to the number of processors
+        # and run one process per processor
+        for i in range(len(outs)//args.nproc):
+            threads = []
+            snaps = []
+            for j in range(args.nproc):
+                snap = outs[args.nproc*i+j]
+                snaps.append(snap)
+                threads.append(multi.Process(target=load_and_calculate, \
+		          args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+            # Delete leftover outputs from failed processes from tmp directory if on pleiades
+            if (args.system=='pleiades_cassi'):
+                if (args.copy_to_tmp):
+                    snap_dir = '/tmp/' + args.halo + '/' + args.run + '/masses/'
+                else:
+                    snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/masses/'
+                for s in range(len(snaps)):
+                    if (os.path.exists(snap_dir + snaps[s])):
+                        print('Deleting failed %s from /tmp' % (snaps[s]))
+                        skipped_outs.append(snaps[s])
+                        shutil.rmtree(snap_dir + snaps[s])
+        # For any leftover snapshots, run one per processor
         threads = []
-        queue = multi.Queue()
-        for j in range(args.nproc):
-            snap = outs[args.nproc*i+j]
-            if (args.smoothed):
-                tablename = prefix + snap + '_masses_smoothed'
-            else:
-                tablename = prefix + snap + '_masses'
+        snaps = []
+        for j in range(len(outs)%args.nproc):
+            snap = outs[-(j+1)]
+            snaps.append(snap)
             threads.append(multi.Process(target=load_and_calculate, \
-		       args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, queue, ions)))
+		      args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))
         for t in threads:
             t.start()
         for t in threads:
-            row = queue.get()
-            rows.append(row)
-        for t in threads:
             t.join()
-    # For any leftover snapshots, run one per processor
-    threads = []
-    queue = multi.Queue()
-    for j in range(len(outs)%args.nproc):
-        snap = outs[-(j+1)]
-        if (args.smoothed):
-            tablename = prefix + snap + '_masses_smoothed'
-        else:
-            tablename = prefix + snap + '_masses'
-        threads.append(multi.Process(target=load_and_calculate, \
-		   args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, queue, ions)))
-    for t in threads:
-        t.start()
-    for t in threads:
-        row = queue.get()
-        rows.append(row)
-    for t in threads:
-        t.join()
-
-    if (args.smoothed):
-        for row in rows:
-            velocity_table.add_row(row)
-        velocity_table.sort('time')
-        ascii.write(velocity_table, output_dir + 'halo_centers/halo_00' + args.halo + '/' + args.run + '/smoothed_halo_c_v_' + outs[0] + '_' + outs[-1], format='fixed_width', overwrite=True)
+        # Delete leftover outputs from failed processes from tmp directory if on pleiades
+        if (args.system=='pleiades_cassi'):
+            if (args.copy_to_tmp):
+                snap_dir = '/tmp/' + args.halo + '/' + args.run + '/masses/'
+            else:
+                snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/masses/'
+            for s in range(len(snaps)):
+                if (os.path.exists(snap_dir + snaps[s])):
+                    print('Deleting failed %s from /tmp' % (snaps[s]))
+                    skipped_outs.append(snaps[s])
+                    shutil.rmtree(snap_dir + snaps[s])
+        outs = skipped_outs
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")

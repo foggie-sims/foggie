@@ -24,6 +24,7 @@ from foggie.utils.get_refine_box import get_refine_box
 from foggie.utils.get_halo_center import get_halo_center
 from foggie.utils.get_proper_box_size import get_proper_box_size
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
+from foggie.utils.analysis_utils import *
 import numpy as np
 import glob
 import os
@@ -135,12 +136,6 @@ def get_halo_info(system, snap, track, t):
     and saves it to the multiprocessing queue 't'.
     '''
 
-    '''if (system=='pleiades_cassi'):
-        print('Copying directory to /tmp')
-        snap_dir = '/tmp/' + snap[-6:]
-        shutil.copytree(snap[:-7], snap_dir)
-        snap_name = snap_dir + '/' + snap[-6:]
-    else: snap_name = snap'''
     snap_name = snap
 
     print('Loading ' + snap[-6:])
@@ -151,17 +146,14 @@ def get_halo_info(system, snap, track, t):
     refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track)
     center, velocity = get_halo_center(ds, refine_box_center)
     halo_center_kpc = ds.arr(np.array(center)*proper_box_size, 'kpc')
-    sphere_region = ds.sphere(halo_center_kpc, (10., 'kpc') )
-    halo_velocity_kms = sphere_region.quantities['BulkVelocity']().in_units('km/s')
+    sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
+    halo_velocity_kms = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
 
     row = [zsnap, ds.parameter_filename[-6:],
             halo_center_kpc[0], halo_center_kpc[1], halo_center_kpc[2],
             halo_velocity_kms[0], halo_velocity_kms[1], halo_velocity_kms[2]]
     print(snap[-6:] + ' done')
     t.put(row)
-    '''if (system=='pleiades_cassi'):
-        print('Deleting directory from /tmp')
-        shutil.rmtree(snap_dir)'''
 
     ds.index.clear_all_data()
 
@@ -176,54 +168,13 @@ if __name__ == "__main__":
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     output_dir = output_dir + 'halo_centers/' + 'halo_00' + args.halo + '/' + args.run + '/'
     if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
+    if ('feedback' in args.run) and ('track' in args.run):
+        foggie_dir = '/nobackup/jtumlins/halo_008508/feedback-track/'
+        run_dir = args.run + '/'
     run_dir = foggie_dir + run_dir
 
     # Build output list
-    if (',' in args.output):
-        outs = args.output.split(',')
-        for i in range(len(outs)):
-            if ('-' in outs[i]):
-                ind = outs[i].find('-')
-                first = outs[i][2:ind]
-                last = outs[i][ind+3:]
-                output_type = outs[i][:2]
-                outs_sub = []
-                for j in range(int(first), int(last)+1):
-                    if (j < 10):
-                        pad = '000'
-                    elif (j >= 10) and (j < 100):
-                        pad = '00'
-                    elif (j >= 100) and (j < 1000):
-                        pad = '0'
-                    elif (j >= 1000):
-                        pad = ''
-                    outs_sub.append(output_type + pad + str(j))
-                outs[i] = outs_sub
-        flat_outs = []
-        for i in outs:
-            if (type(i)==list):
-                for j in i:
-                    flat_outs.append(j)
-            else:
-                flat_outs.append(i)
-        outs = flat_outs
-    elif ('-' in args.output):
-        ind = args.output.find('-')
-        first = args.output[2:ind]
-        last = args.output[ind+3:]
-        output_type = args.output[:2]
-        outs = []
-        for i in range(int(first), int(last)+1):
-            if (i < 10):
-                pad = '000'
-            elif (i >= 10) and (i < 100):
-                pad = '00'
-            elif (i >= 100) and (i < 1000):
-                pad = '0'
-            elif (i >= 1000):
-                pad = ''
-            outs.append(output_type + pad + str(i))
-    else: outs = [args.output]
+    outs = make_output_list(args.output)
 
     loop_over_halos(args.system, args.nproc, run_dir, trackname, output_dir, outs)
 
