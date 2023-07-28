@@ -11,6 +11,7 @@ from foggie.utils.consistency import proj_min_dict, proj_max_dict, \
     warm_outflow_filter
 from astropy.table import Table
 from astropy.cosmology import WMAP9 as cosmo
+import argparse 
 from astropy import units as u
 import foggie.render.shade_maps as sm
 from foggie.utils import prep_dataframe
@@ -243,6 +244,29 @@ def lum(ds_name, axis, width, prefix):
     p.set_figure_size(10.8)
     p.save(prefix+axis+'/lum/'+ds.parameter_filename[-6:]+'_lum')
 
-
 # def disk(ds_name, axis, width, prefix, region): 
    # removed - see original frame.py to bring it back 
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--snap_number', type=int, required=True)
+args = parser.parse_args()
+if (args.snap_number < 1000): snap_string='RD0'+str(args.snap_number)
+if (args.snap_number < 100): snap_string='RD00'+str(args.snap_number)
+if (args.snap_number < 10): snap_string='RD000'+str(args.snap_number)
+print('Hello your snap_number is:', args.snap_number, snap_string)
+
+ds_name = snap_string+'/'+snap_string
+TRACKFILE = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_tracks/005036/nref11n_selfshield_15/halo_track_200kpc_nref10'
+
+print(ds_name)
+
+ds, crd = get_and_prepare_dataset(ds_name)
+
+#THIS IS THE MAIN EVENT 
+for region in crd.keys(): 
+    print("region")
+    shades(ds_name) 
+    for axis in ['x']: 
+        frame(ds, axis, crd[region], region, './outputs/')
+        flows(ds, axis, crd[region], region, './outputs/')

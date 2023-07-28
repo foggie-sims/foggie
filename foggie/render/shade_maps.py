@@ -91,7 +91,7 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
 
     ax2 = fig.add_axes([0.7, 0.93, 0.25, 0.06])
 
-    phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
+    # phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
 
     #if 'phase' in colorcode:
     #    ax2.imshow(np.flip(phase_cmap.to_pil(), 1))
