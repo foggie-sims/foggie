@@ -151,7 +151,6 @@ def frame(ds, axis, region, region_name, prefix):
     p.save(prefix+axis+'/density/'+ds.parameter_filename[-6:]+'_'+region_name)
 
     field='temperature' 
-    print("Inside T frame plot width will be: ", width, " in kpc") 
     p = yt.ProjectionPlot(ds, axis, field, data_source=region, weight_field='density', center = ds.halo_center_code, width=(ds.refine_width, 'kpc')) 
     p.set_zlim(field, 3e3, 1e6) 
     p.set_cmap(field, 'magma') 
@@ -263,7 +262,6 @@ print(ds_name)
 
 ds, crd = get_and_prepare_dataset(ds_name)
 
-#THIS IS THE MAIN EVENT 
 for region in crd.keys(): 
     print("region")
     shades(ds_name) 
