@@ -58,8 +58,8 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
     fig = plt.figure(figsize=(8,8),dpi=300)
 
     ax1 = fig.add_axes([0.1, 0.1, 0.85, 0.85])
-    #ax1.imshow(np.flip(img[:,:,0:4],0), alpha=1.)
-    ax1.imshow(np.flip(img,0))
+    #ax1.imshow(np.flip(img,0))
+    ax1.imshow(img)
 
     xstep = 1
     x_max = ranges[0][1]
@@ -78,8 +78,8 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
     if (y_max > 100.): ystep = 100
     ax1.set_ylabel(axes_label_dict[field2], fontsize=30)
     ax1.set_yticks(np.arange((y_max - y_min) + 1., step=ystep) * 1000. / (y_max - y_min))
-    ax1.set_yticklabels([ str(int(s)) for s in \
-        np.arange((y_max - y_min) + 1., step=ystep) + y_min], fontsize=22)
+    yticks = np.flip([ str(int(s)) for s in np.arange((y_max - y_min) + 1., step=ystep) + y_min])
+    ax1.set_yticklabels(yticks, fontsize=22)
 
     for item in ([ax1.title, ax1.xaxis.label, ax1.yaxis.label] +
                 ax1.get_xticklabels() + ax1.get_yticklabels()):
@@ -91,7 +91,7 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
 
     ax2 = fig.add_axes([0.7, 0.93, 0.25, 0.06])
 
-    #phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
+    phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
 
     #if 'phase' in colorcode:
     #    ax2.imshow(np.flip(phase_cmap.to_pil(), 1))
@@ -126,6 +126,9 @@ def render_image(frame, field1, field2, colorcode, x_range, y_range, filename, p
     cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
     print("render_image: will spread shaded image by ", pixspread, " pixels.")
 
+    print(field1)
+    print(field2)
+    print(colorcode)
     if ('ion_frac' in colorcode):
         if ('p0' in colorcode):
             cmap = "Greys"
@@ -176,11 +179,11 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
     else:
         field_list = [field1, field2]
 
-    data_frame = prep_dataframe.prep_dataframe(dataset, all_data, field_list, colorcode, \
-                        halo_center = dataset.halo_center_code, halo_vcenter=dataset.halo_velocity_kms)
-
+    data_frame = prep_dataframe.prep_dataframe(all_data, field_list, colorcode)
     print(data_frame.head())
-    image = render_image(data_frame, field1, field2, colorcode, *ranges, outfile, pixspread=pixspread)
+
+    #these [1] are required because the inputs are tuples 
+    image = render_image(data_frame, field1[1], field2[1], colorcode, *ranges, outfile, pixspread=pixspread)
 
     # if there is to be screening of the df, it should happen here.
     print('Within simple_plot, the screen is: ', screenfield)
@@ -189,7 +192,7 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
         print(mask)
         image = render_image(data_frame[mask], field1, field2, colorcode, *ranges, outfile, pixspread=pixspread)
 
-    wrap_axes(dataset, image, outfile, field1, field2, colorcode, ranges, region, filter)
+    wrap_axes(dataset, image, outfile, field1[1], field2[1], colorcode, ranges, region, filter)
 
     return data_frame, image, dataset
 

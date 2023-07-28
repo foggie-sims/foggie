@@ -49,9 +49,12 @@ def create_foggie_cmap():
     df = pd.DataFrame({})
     df['x'] = x
     df['y'] = y
-    df['temp'] = temp
+    df['temperature'] = temp
 
-    df['phase'] = categorize_by_temp(df['temp'])
+    print("inside create_foggie_cmap")
+    df.head()
+
+    df['phase'] = categorize_by_temp(df['temperature'])
     df.phase = df.phase.astype('category')
 
     df['metallicity'] = 10.**(np.random.rand(100000) * 8. - 7.)
