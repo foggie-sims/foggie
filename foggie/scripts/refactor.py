@@ -265,6 +265,6 @@ ds, crd = get_and_prepare_dataset(ds_name)
 for region in crd.keys(): 
     print("region")
     shades(ds_name) 
-    for axis in ['x']: 
-        frame(ds, axis, crd[region], region, './outputs/')
-        flows(ds, axis, crd[region], region, './outputs/')
+    #for axis in ['x']: 
+    #    frame(ds, axis, crd[region], region, './outputs/')
+    #    flows(ds, axis, crd[region], region, './outputs/')

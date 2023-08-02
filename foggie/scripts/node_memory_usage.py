@@ -63,8 +63,7 @@ plt.plot(tz['redshift'], (tz['nparticles']-tz['nparticles'][0])/1e6, color='red'
 
 number_of_particles = (tz['nparticles'][-1]-tz['nparticles'][0])/1e6 
 
-#plt.xlim(6,0)
-plt.xlim(13, 0)
+plt.xlim(6,0)
 plt.title(os.getcwd().split('/')[-2] + ' ' + os.getcwd().split('/')[-1]) 
 plt.ylim(0,125)
 plt.xlabel('Redshift') 
