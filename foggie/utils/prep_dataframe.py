@@ -155,18 +155,6 @@ def prep_dataframe(cut_region, field_list, categories):
 
     if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg'))              
 
-    #this for loop handles all the fields that come directly from the ds with the same names     
-    print("complete list of fields = ", field_list) 
-    for thisfield in field_list:
-        if thisfield not in data_frame.columns:    #  add those two fields
-            #print("Did not find field = "+thisfield+" in the dataframe, will add it.")
-            if thisfield in logfields:
-                print("Field "+thisfield+" is a log field.")
-                data_frame[thisfield] = np.log10(all_data[thisfield])
-            else:
-                data_frame[thisfield] = all_data[thisfield]
-                if ('vel' in thisfield): data_frame[thisfield] = all_data[thisfield].in_units('km/s')
-
     if ('metal' in category):
         if ('metallicity' not in data_frame.columns):
             data_frame['metallicity'] = all_data['metallicity']
@@ -180,7 +168,6 @@ def prep_dataframe(cut_region, field_list, categories):
             data_frame[category] = all_data[category]
         print('Added frac = '+category+' category to the dataframe') 
     """
-
 
 
 def prep_dataframe_old(dataset, all_data, field_list, category, \

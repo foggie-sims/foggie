@@ -2,7 +2,6 @@ import yt
 import trident 
 import numpy as np 
 import foggie.utils.foggie_load as foggie_load
-import foggie.utils.get_halo_center as ghc 
 import foggie.utils.get_region as gr 
 from foggie.utils.consistency import proj_min_dict, proj_max_dict, \
     colormap_dict, background_color_dict, o6_min, o6_max, o6_color_map, \
@@ -19,7 +18,9 @@ from foggie.utils import prep_dataframe
 TRACKFILE = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_tracks/005036/nref11n_selfshield_15/halo_track_200kpc_nref10'
 
 def get_and_prepare_dataset(ds_name):  
-    """ This function obtains the dataset and all the usual cut_regions"""
+    """ This function obtains the dataset and all the usual cut_regions
+        It returns a dictionary, keyed by region name, containing each 
+        cut region we use. """
     
     ds, _ = foggie_load.foggie_load(ds_name, TRACKFILE)
     
@@ -42,68 +43,68 @@ def get_and_prepare_dataset(ds_name):
     
     return ds, cut_region_dict 
 
-def velocities(ds_name, axis, width, prefix, region): 
+def velocities(dataset, region, region_name, prefix): 
 
-    field_list = ['position_x', 'position_y', ('gas','radius_corrected'), 'temperature', \
- 			('gas', 'radial_velocity_corrected'), ('gas', 'tangential_velocity_corrected'), 'O_p5_ion_fraction'] 
+    print("running velocities for region ", region )
 
-    dataset, all_data = sm.prep_dataset(ds_name, TRACKFILE, \
-                            ion_list=['H I','C II','C III','C IV','Si II','Si III','Si IV',\
-                                        'O I','O II','O III','O IV','O V','O VI','O VII','O VIII'], region=region) 
+    field_list = [('gas','x'), ('gas','y'), ('gas','radius_corrected'), 'temperature', \
+ 			('gas', 'radial_velocity_corrected'), ('gas', 'tangential_velocity_corrected'), ('gas', 'O_p5_ion_fraction')] 
 
-    data_frame = prep_dataframe.prep_dataframe(dataset, all_data, field_list, 'phase', \
-                        halo_center = dataset.halo_center_code, halo_vcenter=dataset.halo_velocity_kms)
+    data_frame = prep_dataframe.prep_dataframe(region, field_list, 'phase')
+
+    print(data_frame)
 
     #first we do the 'normal' plots that are NOT O VI filtered 
-    filename = prefix+'normal/x_y/'+dataset.parameter_filename[-6:]+'_x_y_'+region+'_phase' 
-    image = sm.render_image(data_frame, 'position_x', 'position_y', 'phase', (-200,200),(-200,200), filename) 
-    sm.wrap_axes(dataset, image, filename, 'position_x', 'position_y', 'phase', ((-200,200),(-200,200)), region, filter=None)
+    filename = prefix+'normal/x_y/'+dataset.parameter_filename[-6:]+'_x_y_'+region_name+'_phase' 
+    image = sm.render_image(data_frame, 'x', 'y', 'phase', (-200,200),(-200,200), filename) 
+    sm.wrap_axes(dataset, image, filename, 'x', 'y', 'phase', ((-200,200),(-200,200)), region_name, filter=None)
 
-    filename = prefix+'normal/r_temp/'+dataset.parameter_filename[-6:]+'_radius_temperature_'+region+'_phase' 
+    filename = prefix+'normal/r_temp/'+dataset.parameter_filename[-6:]+'_radius_temperature_'+region_name+'_phase' 
     image = sm.render_image(data_frame, 'radius_corrected', 'temperature', 'phase', (0,200),(1, 8), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), region, filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), region_name, filter=None)
 
-    filename = prefix+'normal/rv_tv/'+dataset.parameter_filename[-6:]+'_rv_tv_'+region+'_phase' 
+    filename = prefix+'normal/rv_tv/'+dataset.parameter_filename[-6:]+'_rv_tv_'+region_name+'_phase' 
     image = sm.render_image(data_frame, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', (-500,500),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), region, filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), region_name, filter=None)
 
-    filename = prefix+'normal/r_tv/'+dataset.parameter_filename[-6:]+'_r_tv_'+region+'_phase' 
+    filename = prefix+'normal/r_tv/'+dataset.parameter_filename[-6:]+'_r_tv_'+region_name+'_phase' 
     image = sm.render_image(data_frame, 'radius_corrected', 'tangential_velocity_corrected', 'phase', (0,200),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), region, filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), region_name, filter=None)
 
-    filename = prefix+'normal/r_rv/'+dataset.parameter_filename[-6:]+'_r_rv_'+region+'_phase' 
+    filename = prefix+'normal/r_rv/'+dataset.parameter_filename[-6:]+'_r_rv_'+region_name+'_phase' 
     image = sm.render_image(data_frame, 'radius_corrected', 'radial_velocity_corrected', 'phase', (0,200),(-500,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), region, filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), region_name, filter=None)
+
+
 
     # now do it again but filtered by O VI this time. 
     mask = (data_frame['O_p5_ion_fraction'] > 0.1) & (data_frame['O_p5_ion_fraction'] < 1.)
 
-    filename = prefix+'fOVI/x_y/'+dataset.parameter_filename[-6:]+'_x_y_'+region+'_phase_fOVI' 
-    image = sm.render_image(data_frame[mask], 'position_x', 'position_y', 'phase', (-200,200),(-200,200), filename) 
-    sm.wrap_axes(dataset, image, filename, 'position_x', 'position_y', 'phase', ((-200,200),(-200,200)), region, filter=None)
+    filename = prefix+'fOVI/x_y/'+dataset.parameter_filename[-6:]+'_x_y_'+region_name+'_phase_fOVI' 
+    image = sm.render_image(data_frame[mask], 'x', 'y', 'phase', (-200,200),(-200,200), filename) 
+    sm.wrap_axes(dataset, image, filename, 'x', 'y', 'phase', ((-200,200),(-200,200)), region_name, filter=None)
 
-    filename = prefix+'fOVI/r_temp/'+dataset.parameter_filename[-6:]+'_radius_temperature_'+region+'_phase_fOVI' 
+    filename = prefix+'fOVI/r_temp/'+dataset.parameter_filename[-6:]+'_radius_temperature_'+region_name+'_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'temperature', 'phase', (0,200),(1, 8), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), region, filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'temperature', 'phase', ((0,200),(1,8)), region_name, filter=None)
 
-    filename = prefix+'fOVI/rv_tv/'+dataset.parameter_filename[-6:]+'_rv_tv_'+region+'_phase_fOVI' 
+    filename = prefix+'fOVI/rv_tv/'+dataset.parameter_filename[-6:]+'_rv_tv_'+region_name+'_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', (-500,500),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), region, filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radial_velocity_corrected', 'tangential_velocity_corrected', 'phase', ((-500,500),(-50,500)), region_name, filter=None)
 
-    filename = prefix+'fOVI/r_tv/'+dataset.parameter_filename[-6:]+'_r_tv_'+region+'_phase_fOVI' 
+    filename = prefix+'fOVI/r_tv/'+dataset.parameter_filename[-6:]+'_r_tv_'+region_name+'_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'tangential_velocity_corrected', 'phase', (0,200),(-50,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), region, filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'tangential_velocity_corrected', 'phase', ((0,200),(-50,500)), region_name, filter=None)
 
-    filename = prefix+'fOVI/r_rv/'+dataset.parameter_filename[-6:]+'_r_rv_'+region+'_phase_fOVI' 
+    filename = prefix+'fOVI/r_rv/'+dataset.parameter_filename[-6:]+'_r_rv_'+region_name+'_phase_fOVI' 
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'radial_velocity_corrected', 'phase', (0,200),(-500,500), filename)       
-    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), region, filter=None)
+    sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), region_name, filter=None)
 
 def zfilter(ds_name, axis, width, prefix, region): 
 
     ds, _ = foggie_load.foggie_load(ds_name, TRACKFILE)
     trident.add_ion_fields(ds, ions=['H I','C II', 'C III', 'C IV', 'O I', 'O II', 'O III', 'O IV', 'O V', 'O VI', 'O VII', 'O VIII', 'Mg II']) 
 
-    #halo_center, velocity = ghc.get_halo_center(ds, refine_box_center) 
     cut_region = gr.get_region(ds, region)
     cut_region_lowz = gr.get_region(ds, 'rvir', filter="obj['metallicity'] < 0.01")
 
@@ -212,36 +213,8 @@ def shades(ds_name):
     sm.simple_plot(ds_name,TRACKFILE,('gas', 'radius_corrected'),('gas', 'H_p0_column_density'), 'phase', ((0,250), (8,14)), 'outputs/radius/NHI/'+ds_name[-6:]+'_radius_NHI_phase_cgm_fOVI', \
 					region='cgm') 
 
-def lum(ds_name, axis, width, prefix):
-    
-    def star_particle_luminosity(field, data):
-        s99 = Table.read('s99', format='ascii')
-        star_abmag = np.interp(data[('stars', 'age')].in_units('yr'), s99['col1'], s99['col2'])
-        star_lum = 10.**(5.-star_abmag) / 1e6 * data[('stars', 'particle_mass')]
-        return yt.YTArray(star_lum, 'dimensionless') 
-    
-    ds, _ = foggie_load.foggie_load(ds_name, TRACKFILE)
-    ds.add_field(('stars', 'star_lum'), function=star_particle_luminosity, units='dimensionless', \
-                 take_log=True, force_override=True, particle_type=True)
-    
-    axis1 = {'x':'particle_position_y', 'y':'particle_position_x', 'z':'particle_position_x'} 
-    axis2 = {'x':'particle_position_z', 'y':'particle_position_z', 'z':'particle_position_y'} 
-    if (width > 0.): 
-        print("Inside lum plot width will be: ", width, " in kpc") 
-        p = yt.ParticlePlot(ds, axis1[axis], axis2[axis], ('stars','star_lum'), center=ds.halo_center_code, width=(width, 'kpc'))
-    else:
-        #if we are in this branch of the if stmnt the width given is arcmin which we convert to kpc 
-        plotwidth = (-1.*width) * (cosmo.kpc_proper_per_arcmin(ds.current_redshift)).value 
-        print("Inside lum plot width will be: ", plotwidth, " from angular size of ", width) 
-        p = yt.ParticlePlot(ds, axis1[axis], axis2[axis], ('stars','star_lum'), center=ds.halo_center_code, width=(plotwidth, 'kpc'))
-    p.annotate_timestamp(redshift=True, draw_inset_box=True, text_args={'color':'black'}) 
-    p.set_cmap(('stars','star_lum'), 'gray')
-    p.set_buff_size(1080)
-    p.set_font({'family':'sans-serif', 'style':'normal', 'weight':'bold', 'size':20})
-    p.hide_colorbar()
-    p.hide_axes()
-    p.set_figure_size(10.8)
-    p.save(prefix+axis+'/lum/'+ds.parameter_filename[-6:]+'_lum')
+#def lum(ds_name, axis, width, prefix):
+    # removed - see original frame.py to bring it back 
 
 # def disk(ds_name, axis, width, prefix, region): 
    # removed - see original frame.py to bring it back 
@@ -264,7 +237,8 @@ ds, crd = get_and_prepare_dataset(ds_name)
 
 for region in crd.keys(): 
     print("region")
+    velocities(ds, crd[region], region, 'outputs/')
     shades(ds_name) 
-    #for axis in ['x']: 
-    #    frame(ds, axis, crd[region], region, './outputs/')
-    #    flows(ds, axis, crd[region], region, './outputs/')
+    for axis in ['x']: 
+        frame(ds, axis, crd[region], region, './outputs/')
+        flows(ds, axis, crd[region], region, './outputs/')
