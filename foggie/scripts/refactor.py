@@ -100,41 +100,7 @@ def velocities(dataset, region, region_name, prefix):
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'radial_velocity_corrected', 'phase', (0,200),(-500,500), filename)       
     sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), region_name, filter=None)
 
-def zfilter(ds_name, axis, width, prefix, region): 
 
-    ds, _ = foggie_load.foggie_load(ds_name, TRACKFILE)
-    trident.add_ion_fields(ds, ions=['H I','C II', 'C III', 'C IV', 'O I', 'O II', 'O III', 'O IV', 'O V', 'O VI', 'O VII', 'O VIII', 'Mg II']) 
-
-    cut_region = gr.get_region(ds, region)
-    cut_region_lowz = gr.get_region(ds, 'rvir', filter="obj['metallicity'] < 0.01")
-
-    # all HI cells
-    p = yt.ProjectionPlot(ds, 'x', "H_p0_number_density", data_source=cut_region, center=ds.halo_center_code, width=(width, 'Mpc'))
-    p.set_cmap(field='H_p0_number_density', cmap = h1_color_map)
-    p.annotate_timestamp(redshift=True)
-    p.set_zlim('H_p0_number_density', 1e8, 1e22)
-    p.save(prefix+axis+'/zfilter/'+ds.parameter_filename[-6:]+'_h1_all')
-
-    # HI 'clouds' only
-    p = yt.ProjectionPlot(ds, 'x', "H_p0_number_density", data_source=cut_region_lowz, center=ds.halo_center_code, width=(width, 'Mpc'))
-    p.set_cmap(field='H_p0_number_density', cmap = h1_color_map)
-    p.annotate_timestamp(redshift=True)
-    p.set_zlim('H_p0_number_density', 1e8, h1_proj_max)
-    p.save(prefix+axis+'/zfilter/'+ds.parameter_filename[-6:]+'_h1_lowz2')
-
-    # all OVI cells
-    p = yt.ProjectionPlot(ds, 'x', "O_p5_number_density", data_source=cut_region, center=ds.halo_center_code, width=(width, 'Mpc'))
-    p.set_cmap(field='O_p5_number_density', cmap = o6_color_map)
-    p.annotate_timestamp(redshift=True)
-    p.set_zlim('O_p5_number_density', o6_min, o6_max)
-    p.save(prefix+axis+'/zfilter/'+ds.parameter_filename[-6:]+'_o6_all')
-
-    # OVI 'clouds' only
-    p = yt.ProjectionPlot(ds, 'x', "O_p5_number_density", data_source=cut_region_lowz, center=ds.halo_center_code, width=(width, 'Mpc'))
-    p.set_cmap(field='O_p5_number_density', cmap = o6_color_map)
-    p.annotate_timestamp(redshift=True)
-    p.set_zlim('O_p5_number_density', o6_min, o6_max)
-    p.save(prefix+axis+'/zfilter/'+ds.parameter_filename[-6:]+'_o6_lowz2')
                        
 def frame(ds, axis, region, region_name, prefix): 
 
@@ -219,6 +185,8 @@ def shades(ds_name):
 # def disk(ds_name, axis, width, prefix, region): 
    # removed - see original frame.py to bring it back 
 
+# def zfilter(ds_name, axis, width, prefix, region): 
+   # removed - see original frame.py to bring it back 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--snap_number', type=int, required=True)
@@ -242,3 +210,4 @@ for region in crd.keys():
     for axis in ['x']: 
         frame(ds, axis, crd[region], region, './outputs/')
         flows(ds, axis, crd[region], region, './outputs/')
+
