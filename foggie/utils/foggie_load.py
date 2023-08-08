@@ -176,11 +176,13 @@ def foggie_load(snap, trackfile, **kwargs):
     # filter particles into star and dm
     # JT moved this to before "disk_relative" so that the if statement can use the filtered particle fields
     if (do_filter_particles):
-        filter_particles(refine_box, filter_particle_types = ['young_stars', 'young_stars8', 'old_stars', 'stars', 'dm'])
+        filter_particles(refine_box, filter_particle_types = ['young_stars', 'young_stars3', 'young_stars8', 'old_stars', 'stars', 'dm'])
 
         ds.add_field(('stars', 'radius_corrected'), function=radius_corrected_stars, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('young_stars', 'radius_corrected'), function=radius_corrected_young_stars, units='kpc', \
+                     take_log=False, force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars3', 'radius_corrected'), function=radius_corrected_young_stars8, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('young_stars8', 'radius_corrected'), function=radius_corrected_young_stars8, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
