@@ -13,12 +13,12 @@ from astropy import units as u
 import foggie.render.shade_maps as sm
 from foggie.utils import prep_dataframe
 
-TRACKFILE = '/u/jtumlins/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10'
+TRACKFILE = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10'
 
 def velocities(ds_name, axis, width, prefix, region): 
 
-    field_list = ['position_x', 'position_y', 'radius_corrected', 'temperature', \
- 			'radial_velocity_corrected', 'tangential_velocity_corrected', 'O_p5_ion_fraction'] 
+    field_list = ['position_x', 'position_y', ('gas','radius_corrected'), 'temperature', \
+ 			('gas', 'radial_velocity_corrected'), ('gas', 'tangential_velocity_corrected'), 'O_p5_ion_fraction'] 
 
     dataset, all_data = sm.prep_dataset(ds_name, TRACKFILE, \
                             ion_list=['H I','C II','C III','C IV','Si II','Si III','Si IV',\
@@ -251,7 +251,7 @@ def shades(ds_name):
     sm.simple_plot(ds_name,TRACKFILE,'radius','H_p0_column_density', 'phase', ((0,250), (8,14)), 'outputs/radius/NHI/'+ds_name[-6:]+'_radius_NHI_phase_cgm_fOVI', \
 					region='cgm', screenfield='O_p5_ion_fraction',screenrange=(0.10,1))
 
-def flow_plots(ds, region, refine_box_center, refine_width, filetag): 
+def flow_plots(ds, region, refine_box_center, refine_width, filetag, prefix): 
 
     field = 'H_p0_number_density'
     p = yt.ProjectionPlot(ds, 'x', field, center=refine_box_center, width=(refine_width, 'kpc'), data_source=region)
@@ -259,7 +259,7 @@ def flow_plots(ds, region, refine_box_center, refine_width, filetag):
     p.set_cmap(field, colormap_dict[field])
     p.set_background_color(field, color=background_color_dict[field]) 
     p.annotate_timestamp(redshift=True, draw_inset_box=True)
-    p.save('outputs/flows/'+ds.parameter_filename[-6:]+'_HI_'+filetag)
+    p.save(prefix+'outputs/flows/'+ds.parameter_filename[-6:]+'_HI_'+filetag)
 
     field = 'O_p5_number_density'
     p = yt.ProjectionPlot(ds, 'x', field, center=refine_box_center, width=(refine_width, 'kpc'), data_source=region)
@@ -267,7 +267,7 @@ def flow_plots(ds, region, refine_box_center, refine_width, filetag):
     p.set_cmap(field, colormap_dict[field])
     p.set_background_color(field, color=background_color_dict[field]) 
     p.annotate_timestamp(redshift=True, draw_inset_box=True)
-    p.save('outputs/flows/'+ds.parameter_filename[-6:]+'_OVI_'+filetag)
+    p.save(prefix+'outputs/flows/'+ds.parameter_filename[-6:]+'_OVI_'+filetag)
 
     field = 'O_p6_number_density'
     p = yt.ProjectionPlot(ds, 'x', field, center=refine_box_center, width=(refine_width, 'kpc'), data_source=region)
@@ -275,7 +275,7 @@ def flow_plots(ds, region, refine_box_center, refine_width, filetag):
     p.set_cmap(field, 'magma') 
     p.set_background_color(field, color='black') 
     p.annotate_timestamp(redshift=True, draw_inset_box=True)
-    p.save('outputs/flows/'+ds.parameter_filename[-6:]+'_OVII_'+filetag)
+    p.save(prefix+'outputs/flows/'+ds.parameter_filename[-6:]+'_OVII_'+filetag)
 
     field = 'Mg_p1_number_density'
     p = yt.ProjectionPlot(ds, 'x', field, center=refine_box_center, width=(refine_width, 'kpc'), data_source=region)
@@ -283,23 +283,23 @@ def flow_plots(ds, region, refine_box_center, refine_width, filetag):
     p.set_cmap(field, colormap_dict[field])
     p.set_background_color(field, color=background_color_dict[field]) 
     p.annotate_timestamp(redshift=True, draw_inset_box=True)
-    p.save('outputs/flows/'+ds.parameter_filename[-6:]+'_MgII_'+filetag)
+    p.save(prefix+'outputs/flows/'+ds.parameter_filename[-6:]+'_MgII_'+filetag)
 
-def flows(ds_name): 
+def flows(ds_name, prefix): 
 
     ds, _ = foggie_load.foggie_load(ds_name, TRACKFILE)
     trident.add_ion_fields(ds, ions=['H I','C II', 'C III', 'C IV', 'O I', 'O II', 'O III', 'O IV', 'O V', 'O VI', 'O VII', 'O VIII', 'Mg II']) 
 
     cgm_outflows = gr.get_region(ds, 'cgm', filter="obj['radial_velocity_corrected'] > 150.")
-    flow_plots(ds, cgm_outflows, ds.halo_center_code, ds.refine_width, 'outflow') 
+    flow_plots(ds, cgm_outflows, ds.halo_center_code, ds.refine_width, 'outflow', prefix) 
     cool_outflows = gr.get_region(ds, 'cgm', filter="(obj['radial_velocity_corrected'] > 150.) & (obj['temperature'] < 1e5)")
-    flow_plots(ds, cool_outflows, ds.halo_center_code, ds.refine_width, 'cool_outflow') 
+    flow_plots(ds, cool_outflows, ds.halo_center_code, ds.refine_width, 'cool_outflow', prefix) 
     warm_outflows = gr.get_region(ds, 'cgm', filter="(obj['radial_velocity_corrected'] > 150.) & (obj['temperature'] > 1e5)")
-    flow_plots(ds, warm_outflows, ds.halo_center_code, ds.refine_width, 'warm_outflow') 
+    flow_plots(ds, warm_outflows, ds.halo_center_code, ds.refine_width, 'warm_outflow', prefix) 
     
     cgm_inflows = gr.get_region(ds, 'cgm', filter="obj['radial_velocity_corrected'] < -150.")
-    flow_plots(ds, cgm_inflows, ds.halo_center_code, ds.refine_width, 'inflow') 
+    flow_plots(ds, cgm_inflows, ds.halo_center_code, ds.refine_width, 'inflow', prefix) 
     cool_inflows = gr.get_region(ds, 'cgm', filter="(obj['radial_velocity_corrected'] < -150.) & (obj['temperature'] < 1e5)")
-    flow_plots(ds, cool_inflows, ds.halo_center_code, ds.refine_width, 'cool_inflow') 
+    flow_plots(ds, cool_inflows, ds.halo_center_code, ds.refine_width, 'cool_inflow', prefix) 
     warm_inflows = gr.get_region(ds, 'cgm', filter="(obj['radial_velocity_corrected'] < -150.) & (obj['temperature'] > 1e5)")
-    flow_plots(ds, warm_inflows, ds.halo_center_code, ds.refine_width, 'warm_inflow') 
+    flow_plots(ds, warm_inflows, ds.halo_center_code, ds.refine_width, 'warm_inflow', prefix) 
