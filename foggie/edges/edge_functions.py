@@ -287,10 +287,6 @@ def plot_five(grid, region_dict, dataset_name):
 
 
 
-
-
-# THESE FUNCTIONS ARE CURRENTLY NOT OPERATIVE 
-
 def datashades( region_grid, region, dataset_name ): 
     
     # take in region dictionary and its recreated dataset 

@@ -137,6 +137,10 @@ def foggie_load(snap, trackfile, **kwargs):
     ds.track = track
     ds.refine_box_center = refine_box_center
     ds.refine_width = refine_width
+    ds.omega_baryon = 0.0461
+    # Note that if you want to use the ('gas', 'baryon_overdensity') field, you must include this line after you've defined some data object from ds:
+    # > obj.set_field_parameter('omega_baryon', ds.omega_baryon)
+    # foggie_load returns a 'region' data object given by the 'region' keyword, and the 'omega_baryon' parameter is already set for that.
 
     ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
                  sampling_type='cell')
@@ -172,11 +176,13 @@ def foggie_load(snap, trackfile, **kwargs):
     # filter particles into star and dm
     # JT moved this to before "disk_relative" so that the if statement can use the filtered particle fields
     if (do_filter_particles):
-        filter_particles(refine_box, filter_particle_types = ['young_stars', 'young_stars8', 'old_stars', 'stars', 'dm'])
+        filter_particles(refine_box, filter_particle_types = ['young_stars', 'young_stars3', 'young_stars8', 'old_stars', 'stars', 'dm'])
 
         ds.add_field(('stars', 'radius_corrected'), function=radius_corrected_stars, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('young_stars', 'radius_corrected'), function=radius_corrected_young_stars, units='kpc', \
+                     take_log=False, force_override=True, sampling_type='particle')
+        ds.add_field(('young_stars3', 'radius_corrected'), function=radius_corrected_young_stars8, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('young_stars8', 'radius_corrected'), function=radius_corrected_young_stars8, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
@@ -379,5 +385,7 @@ def foggie_load(snap, trackfile, **kwargs):
         cgm = rvir_sphere - cen_sphere
         cgm_filtered = cgm.cut_region(cgm_field_filter)
         region = cgm_filtered
+
+    region.set_field_parameter('omega_baryon', ds.omega_baryon)
 
     return ds, region
