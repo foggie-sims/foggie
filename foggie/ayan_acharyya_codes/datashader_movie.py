@@ -127,7 +127,18 @@ def get_df_from_ds(ds, args, outfilename=None):
             myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(all_fields)) + ' fields..', args)
             if 'phi' in field and 'disk' in field: df_allprop[field] = np.abs(np.degrees(ds[field_dict[field]].v) - 90) # to convert from radian to degrees; and then restrict phi from 0 to 90
             elif 'theta' in field and 'disk' in field: df_allprop[field] = np.degrees(ds[field_dict[field]].v) # to convert from radian to degrees
-            else: df_allprop[field] = ds[field_dict[field]].in_units(unit_dict[field]).ndarray_view()
+            elif field == 'gas_frac':
+                for index2,field2 in enumerate(['mass', 'stars_mass']):
+                    myprint('\tDoing sub-property: ' + field2 + ', which is ' + str(index2 + 1) + ' of the 2 sub-fields required for ' + field + '..', args)
+                    df_allprop[field2] = ds[field_dict[field2]].in_units(unit_dict[field2]).ndarray_view()
+                df_allprop[field] = df_allprop['mass'] / (df_allprop['mass'] + df_allprop['stars_mass'])
+            elif field == 'gas_time':
+                for index2,field2 in enumerate(['mass', 'ystars_mass', 'ystars_age']):
+                    myprint('\tDoing sub-property: ' + field2 + ', which is ' + str(index2 + 1) + ' of the 3 sub-fields required for ' + field + '..', args)
+                    df_allprop[field2] = ds[field_dict[field2]].in_units(unit_dict[field2]).ndarray_view()
+                df_allprop[field] = df_allprop['mass'] / (df_allprop['ystars_mass'] / df_allprop['ystars_age'])
+            else:
+                df_allprop[field] = ds[field_dict[field]].in_units(unit_dict[field]).ndarray_view()
 
         df_allprop.to_csv(outfilename, sep='\t', index=None)
     else:
@@ -1005,13 +1016,13 @@ field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), '
 if yt_ver[0]=='3':
     field_dict['mass'] = ('gas','cell_mass')
     field_dict['volume'] = ('gas', 'cell_volume')
-unit_dict = {'rad':'kpc', 'rad_re':'', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'volume':'pc**3', 'phi_disk':'deg', 'theta_disk':'deg'}
-labels_dict = {'rad':'Radius', 'rad_re':'Radius/R_e', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF', 'phi_disk':'Azimuthal Angle', 'theta_disk':r'$\theta_{\mathrm{diskrel}}$'}
-islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True)
+unit_dict = {'rad':'kpc', 'rad_re':'', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'stars_mass':'Msun', 'ystars_mass':'Msun', 'ystars_age':'Gyr', 'gas_frac':'', 'gas_time':'Gyr', 'volume':'pc**3', 'phi_disk':'deg', 'theta_disk':'deg'}
+labels_dict = {'rad':'Radius', 'rad_re':'Radius/R_e', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF', 'gas_frac':'Gas fraction', 'gas_time':'Gas consumption timescale', 'phi_disk':'Azimuthal Angle', 'theta_disk':r'$\theta_{\mathrm{diskrel}}$'}
+islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True, gas_frac=True)
 bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
-colormap_dict = {'temp':temperature_discrete_cmap, 'metal':'viridis', 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi, 'phi_disk':'viridis', 'theta_disk':angle_discrete_cmap_2pi}
+colormap_dict = {'temp':temperature_discrete_cmap, 'metal':'viridis', 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi, 'phi_disk':'viridis', 'theta_disk':angle_discrete_cmap_2pi, 'gas_time':'viridis', 'gas_frac':'viridis'}
 isfield_weighted_dict = defaultdict(lambda: False, metal=True, temp=True, vrad=True, phi_L=True, theta_L=True, phi_disk=True, theta_disk=True)
-bounds_dict = defaultdict(lambda: None, density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-3, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180), phi_disk=(0, 90), theta_disk=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
+bounds_dict = defaultdict(lambda: (None, None), gas_time=(1e-3, 5), gas_frac=(1e-5, 1), volume=(1e7, 1e9), mass=(1e-2, 1e7), density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-3, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180), phi_disk=(0, 90), theta_disk=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
 
 projected_unit_dict = defaultdict(lambda x: unit_dict[x], density='Msun/pc**2')
 cmap_dict = {'density':density_color_map, 'metal':metal_color_map, 'temp':temperature_color_map, 'vrad':velocity_discrete_cmap} # for projection plots, if any
