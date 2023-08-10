@@ -46,7 +46,7 @@ def annotate_box(p, width, ds, center, unit='kpc', projection='x'):
 # --------------------------------------------------------------------------------
 def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cmap, name, unit='Msun/pc**2', \
             zmin=density_proj_min, zmax=density_proj_max, ann_sphere_rad=(1, 'kpc'), weight_field=None, \
-            normal_vector=None, north_vector=None, hide_axes=False, iscolorlog=False, noweight=False, fontsize=20):
+            normal_vector=None, north_vector=None, hide_axes=False, iscolorlog=False, noweight=False, fontsize=20, args=None):
     '''
     Function to make yt projection plot
     (adopted from foggie.satellites.for_paper.central_projection_plots)
@@ -73,12 +73,12 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     except: pass
     prj.set_cmap(field, cmap)
 
-    if 'args' in locals():
+    if args is not None:
         if args.annotate_grids:
             prj.annotate_grids(min_level=args.min_level)
 
         if args.annotate_box is not None:
-            for thisbox in [float(item) for item in args.annotate_box.split(',')]: # comoving size at z=0 in kpc
+            for thisbox in [float(item) for item in args.annotate_box.split(',')]: # comoving size in kpc
                 thisphys = thisbox / (1 + ds.current_redshift) / ds.hubble_constant # physical size at current redshift in kpc
                 prj = annotate_box(prj, thisphys, ds, center, unit='kpc', projection=axs)
 
@@ -100,7 +100,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                           fig_end='projection', do=['stars', 'gas', 'metal'], axes=['x', 'y', 'z'], annotate_positions=[], \
                           is_central=False, add_velocity=False, add_arrow=False, start_arrow=[], end_arrow=[], total_normal_rot=0, \
                           total_north_rot=0, rot_frame=0, nframes=200, hide_axes=False, iscolorlog=False, noweight=False, \
-                          rot_north_about='x', rot_normal_about='y', output='', fontsize=20, cbar_horizontal=False, use_density_cut=False):
+                          rot_north_about='x', rot_normal_about='y', output='', fontsize=20, cbar_horizontal=False, use_density_cut=False, args=None):
     '''
     Function to arrange overheads of yt projection plot
     (adopted from foggie.satellites.for_paper.central_projection_plots)
@@ -153,7 +153,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
             zmax = zmax_dict[d] if args.cmax is None else args.cmax
 
             thisfield = 'v' + ax + '_corrected' if d == 'vlos' else field_dict[d]
-            prj = do_plot(ds, thisfield, ax, annotate_positions, small_box, center, box_width, cmap_dict[d], name, unit=unit_dict[d], zmin=zmin, zmax=zmax, weight_field=weight_field_dict[d], normal_vector=normal_vector, north_vector=north_vector, hide_axes=hide_axes, iscolorlog=iscolorlog if iscolorlog else colorlog_dict[d], noweight=noweight, fontsize=fontsize)
+            prj = do_plot(ds, thisfield, ax, annotate_positions, small_box, center, box_width, cmap_dict[d], name, unit=unit_dict[d], zmin=zmin, zmax=zmax, weight_field=weight_field_dict[d], normal_vector=normal_vector, north_vector=north_vector, hide_axes=hide_axes, iscolorlog=iscolorlog if iscolorlog else colorlog_dict[d], noweight=noweight, fontsize=fontsize, args=args)
 
             if add_velocity: prj.annotate_velocity(factor=20)
             if add_arrow:
@@ -264,7 +264,7 @@ if __name__ == '__main__':
                                         fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.projection.split(',')], \
                                         is_central=args.do_central, add_arrow=args.add_arrow, add_velocity=args.add_velocity, rot_frame=nrot, \
                                         total_normal_rot=args.rot_normal_by, total_north_rot=args.rot_north_by, rot_north_about=args.rot_north_about, rot_normal_about=args.rot_normal_about, \
-                                        nframes=(end_frame - start_frame), hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight, cbar_horizontal=False, use_density_cut=args.use_density_cut) # using halo_center_kpc instead of refine_box_center
+                                        nframes=(end_frame - start_frame), hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight, cbar_horizontal=False, use_density_cut=args.use_density_cut, args=args) # using halo_center_kpc instead of refine_box_center
         else:
             print('Skipping plotting step')
 
