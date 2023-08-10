@@ -144,7 +144,13 @@ def fit_distribution(Zarr, args, weights=None):
     Returns the fitted parameters for a skewed Gaussian
     '''
     Zarr = Zarr.flatten()
-    if weights is not None: weights = weights.flatten()
+    if weights is not None:
+        weights = weights.flatten()
+        indices = np.array(np.logical_not(np.logical_or(np.isnan(Zarr), np.isnan(weights))))
+        weights = weights[indices]
+    else:
+        indices = np.array(np.logical_not(np.isnan(weights)))
+    Zarr =Zarr[indices]
 
     y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights)
     x = x[:-1] + np.diff(x)/2
