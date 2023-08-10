@@ -327,7 +327,9 @@ def plot_MZGR(args):
     '''
 
     df_master = pd.DataFrame()
-    cmap_arr = ['Purples', 'Oranges', 'Greens', 'Blues', 'PuRd', 'Greys']
+    if args.usecmasher: cmap_arr = [plt.get_cmap('cmr.' + item) for item in ['amber', 'freeze', 'flamingo', 'sunburst', 'sapphire', 'ocean']]
+    else: cmap_arr = ['Purples', 'Oranges', 'Greens', 'Blues', 'PuRd', 'Greys']
+    cmap_dict = dict(zip(['8508', '4123', '5036', '5016', '2878', '2392'], cmap_arr))
     col_arr = ['rebeccapurple', 'chocolate', 'darkgreen', 'darkblue', 'crimson', 'darkkhaki']
     things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
 
@@ -439,8 +441,8 @@ def plot_MZGR(args):
             df = df.sort_values(args.xcol)
 
         # -----plot line with color gradient--------
-        this_cmap = cmap_arr[thisindex] + '_r' if args.colorcol in things_that_reduce_with_time else cmap_arr[thisindex] # reverse colromap for redshift
-        reversed_thiscmap = this_cmap + '_r' if '_r' not in this_cmap else this_cmap[:-2]
+        this_cmap = cmap_dict[args.halo] + '_r' if args.colorcol in things_that_reduce_with_time and not args.usecmasher else cmap_dict[args.halo] # reverse colromap for redshift
+        reversed_thiscmap = this_cmap if args.usecmasher else this_cmap + '_r' if '_r' not in this_cmap else this_cmap[:-2]
         thistextcolor = col_arr[thisindex] if args.nocolorcoding else mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
