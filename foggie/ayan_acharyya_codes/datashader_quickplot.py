@@ -15,6 +15,7 @@
 from header import *
 from util import *
 from compute_MZgrad import get_density_cut
+from datashader_movie import weight_by
 yt_ver = yt.__version__
 start_time = time.time()
 
@@ -33,7 +34,7 @@ def get_correct_tablename(args):
     outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc_%s_vs_%s_colby_%s%s.txt' % (args.ycol, args.xcol, args.colorcol, inflow_outflow_text)
 
     outfile_list = glob.glob(outfileroot)
-    if len(outfile_list) == 0:
+    if len(outfile_list) == 0 or args.clobber:
         correct_rad_to_grab = args.galrad
     else:
         available_rads = np.sort([float(get_text_between_strings(item, 'boxrad_', 'kpc')) for item in outfile_list])
@@ -71,19 +72,30 @@ def get_df_from_ds(ds, args):
             myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(all_fields)) + ' fields..', args)
             if 'phi' in field and 'disk' in field: arr = np.abs(np.degrees(ds[field_dict[field]].v) - 90) # to convert from radian to degrees; and then restrict phi from 0 to 90
             elif 'theta' in field and 'disk' in field: arr = np.degrees(ds[field_dict[field]].v) # to convert from radian to degrees
-            else: arr = ds[field_dict[field]].in_units(unit_dict[field]).ndarray_view()
+            elif field == 'gas_frac':
+                for index2,field2 in enumerate(['mass', 'stars_mass']):
+                    myprint('\tDoing sub-property: ' + field2 + ', which is ' + str(index2 + 1) + ' of the 2 sub-fields required for ' + field + '..', args)
+                    df[field2] = ds[field_dict[field2]].in_units(unit_dict[field2]).ndarray_view()
+                arr = df['mass'] / (df['mass'] + df['stars_mass'])
+            elif field == 'gas_time':
+                for index2,field2 in enumerate(['mass', 'ystars_mass', 'ystars_age']):
+                    myprint('\tDoing sub-property: ' + field2 + ', which is ' + str(index2 + 1) + ' of the 3 sub-fields required for ' + field + '..', args)
+                    df[field2] = ds[field_dict[field2]].in_units(unit_dict[field2]).ndarray_view()
+                arr = df['mass'] / (df['ystars_mass'] / df['ystars_age'])
+            else:
+                arr = ds[field_dict[field]].in_units(unit_dict[field]).ndarray_view()
             df[field] = arr
 
         df.to_csv(outfilename, sep='\t', index=None)
     else:
         myprint('Reading from existing file ' + outfilename, args)
         df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
-        try:
-            df = df[df['rad'].between(0, args.galrad)] # curtailing in radius space, in case this dataframe has been read in from a file corresponding to a larger chunk of the box
-        except KeyError: # for files produced previously and therefore may not have a 'rad' column
-            rad_picked_up = float(get_text_between_strings(outfilename, 'boxrad_', 'kpc'))
-            if rad_picked_up == args.galrad: pass # if this file actually corresponds to the correct radius, then you're fine (even if the file itself doesn't have radius column)
-            else: sys.exit('Please regenerate ' + outfilename + ', using the --clobber option') # otherwise throw error
+    if 'rad' in df:
+        df = df[df['rad'].between(0, args.galrad)] # curtailing in radius space, in case this dataframe has been read in from a file corresponding to a larger chunk of the box
+    else: # for files produced previously and therefore may not have a 'rad' column
+        rad_picked_up = float(get_text_between_strings(outfilename, 'boxrad_', 'kpc'))
+        if rad_picked_up == args.galrad: pass # if this file actually corresponds to the correct radius, then you're fine (even if the file itself doesn't have radius column)
+        else: sys.exit('Please regenerate ' + outfilename + ', using the --clobber option') # otherwise throw error
 
     if args.use_density_cut:
         if 'density' in df:
@@ -129,16 +141,17 @@ def make_coordinate_axis(colname, data_min, data_max, ax, fontsize):
     log_text = 'Log ' if islog_dict[colname] else ''
     ax.set_label_text(weight_text + log_text + labels_dict[colname] + ' (' + unit_dict[colname] + ')', fontsize=fontsize)
 
-    nticks = 5
-    ticks = np.linspace(data_min, data_max, nticks)
-    ax.set_ticks(ticks)
+    if data_min is not None and data_max is not None:
+        nticks = 5
+        ticks = np.linspace(data_min, data_max, nticks)
+        ax.set_ticks(ticks)
 
-    nticklabels = 5
-    ticklabels = np.array(['     '] * nticks)
-    ticklabel_every = int(nticks/nticklabels)
-    ticklabels[:: ticklabel_every] = ['%.1F' % item for item in ticks[:: ticklabel_every]]
+        nticklabels = 5
+        ticklabels = np.array(['     '] * nticks)
+        ticklabel_every = int(nticks/nticklabels)
+        ticklabels[:: ticklabel_every] = ['%.1F' % item for item in ticks[:: ticklabel_every]]
 
-    ax.set_ticklabels(ticklabels, fontsize=fontsize)
+        ax.set_ticklabels(ticklabels, fontsize=fontsize)
 
     return ax
 
@@ -187,6 +200,8 @@ def make_datashader_plot_mpl(df, outfilename, args):
     axes.ax_marg_x = plot_1D_histogram(df[args.xcolname], args.xmin, args.xmax, axes.ax_marg_x, vertical=False)
     axes.ax_marg_y = plot_1D_histogram(df[args.ycolname], args.ymin, args.ymax, axes.ax_marg_y, vertical=True)
 
+    if not args.nooverplot_binned: ax1 = overplot_binned(df, ax1, args)  # to overplot binned profile
+
     # ------to make the axes-------------
     ax1.xaxis = make_coordinate_axis(args.xcol, args.xmin, args.xmax, ax1.xaxis, args.fontsize)
     ax1.yaxis = make_coordinate_axis(args.ycol, args.ymin, args.ymax, ax1.yaxis, args.fontsize)
@@ -204,6 +219,31 @@ def make_datashader_plot_mpl(df, outfilename, args):
 
     return df, fig
 
+# ---------------------------------------------------------------------------------
+def overplot_binned(df, ax, args):
+    '''
+    Function to overplot binned data on existing datashader plot
+    Uses globally defined islog_dict
+    '''
+    if args.xcol == 'rad':
+        x_bins = np.logspace(np.log10(args.xmin + 0.001), np.log10(args.xmax), 200) # the 0.001 term is to avoid taking log of 0, in case args.xmin = 0
+    else:
+        x_bin_size = bin_size_dict[args.xcol]
+        x_bins = np.arange(args.xmin, args.xmax + x_bin_size, x_bin_size)
+    df['binned_cat'] = pd.cut(df[args.xcolname], x_bins)
+
+    if isfield_weighted_dict[args.ycol] and args.weight: agg_func = lambda x: np.mean(weight_by(x, df.loc[x.index, args.weight])) # function to get weighted mean
+    else: agg_func = np.mean
+    y_binned = df.groupby('binned_cat', as_index=False).agg([(args.ycol, agg_func)])[args.ycol]
+    if islog_dict[args.ycol] and not args.use_cvs_log: y_binned = np.log10(y_binned)
+
+    # ----------to plot mean binned y vs x profile--------------
+    x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
+    x_on_plot, y_on_plot = x_bin_centers, y_binned
+
+    ax.plot(x_on_plot, y_on_plot, color='black', lw=1)
+
+    return ax
 # -------------------------------------------------------------------------------------------------------------
 def update_dicts(param, ds):
     '''
@@ -215,20 +255,20 @@ def update_dicts(param, ds):
     labels_dict.update({param: param})
 
 #-------- set variables and dictionaries such that they are available to other scripts importing this script-----------
-field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'mass':('gas', 'mass'), \
+field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'mass':('gas', 'mass'), 'stars_mass':('deposit', 'stars_mass'), 'ystars_mass':('deposit', 'young_stars_mass'), 'ystars_age':('deposit', 'young_stars_nn_age'), \
               'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'vrad':('gas', 'radial_velocity_corrected'), \
               'phi_L':('gas', 'angular_momentum_phi'), 'theta_L':('gas', 'angular_momentum_theta'), 'volume':('gas', 'volume'), \
               'phi_disk': ('gas', 'phi_pos_disk'), 'theta_disk': ('gas', 'theta_pos_disk')}
 if yt_ver[0]=='3':
     field_dict['mass'] = ('gas','cell_mass')
     field_dict['volume'] = ('gas', 'cell_volume')
-unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'volume':'pc**3', 'phi_disk':'deg', 'theta_disk':'deg'}
-labels_dict = {'mass':'Cell mass', 'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF', 'phi_disk':'Azimuthal Angle', 'theta_disk':r'$\theta_{\mathrm{diskrel}}$'}
-islog_dict = defaultdict(lambda: False, mass=True, metal=True, density=True, temp=True)
+unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'stars_mass':'Msun', 'ystars_mass':'Msun', 'ystars_age':'Gyr', 'gas_frac':'', 'gas_time':'Gyr', 'volume':'pc**3', 'phi_disk':'deg', 'theta_disk':'deg'}
+labels_dict = {'mass':'Cell mass', 'rad':'Radius', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF', 'gas_frac':'Gas fraction', 'gas_time':'Gas consumption timescale', 'phi_disk':'Azimuthal Angle', 'theta_disk':r'$\theta_{\mathrm{diskrel}}$', 'volume':'Cell volume'}
+islog_dict = defaultdict(lambda: False, mass=True, metal=True, density=True, temp=True, gas_frac=True)
 bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
-colormap_dict = {'temp':temperature_discrete_cmap, 'metal':metal_discrete_cmap, 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi, 'phi_disk':'viridis', 'theta_disk':angle_discrete_cmap_2pi}
+colormap_dict = {'temp':temperature_discrete_cmap, 'metal':metal_discrete_cmap, 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi, 'phi_disk':'viridis', 'theta_disk':angle_discrete_cmap_2pi, 'gas_time':'viridis', 'gas_frac':'viridis'}
 isfield_weighted_dict = defaultdict(lambda: False, metal=True, temp=True, vrad=True, phi_L=True, theta_L=True, phi_disk=True, theta_disk=True)
-bounds_dict = defaultdict(lambda: (None, None), mass=(1e-2, 1e7), density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-3, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180), phi_disk=(0, 90), theta_disk=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
+bounds_dict = defaultdict(lambda: (None, None), gas_time=(1e-3, 5), gas_frac=(1e-5, 1), volume=(1e7, 1e9), mass=(1e-2, 1e7), density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-3, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180), phi_disk=(0, 90), theta_disk=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -249,9 +289,9 @@ if __name__ == '__main__':
     # ----------to determine axes labels--------------
     if args.xcol == 'radius': args.xcol == 'rad'
     args.colorcol = args.colorcol[0]
-    if args.xcol not in field_dict: update_dicts(args.xcol, ds)
-    if args.ycol not in field_dict: update_dicts(args.ycol, ds)
-    if args.colorcol not in field_dict: update_dicts(args.colorcol, ds)
+    if args.xcol not in field_dict and not args.xcol in ['gas_frac', 'gas_time']: update_dicts(args.xcol, ds)
+    if args.ycol not in field_dict and not args.ycol in ['gas_frac', 'gas_time']: update_dicts(args.ycol, ds)
+    if args.colorcol not in field_dict and not args.colorcol in ['gas_frac', 'gas_time']: update_dicts(args.colorcol, ds)
 
 
     args.xcolname = 'log_' + args.xcol if islog_dict[args.xcol] else args.xcol
@@ -264,7 +304,7 @@ if __name__ == '__main__':
     # ----------to determine box size--------------
     args.current_redshift = ds.current_redshift
     args.current_time = ds.current_time.in_units('Gyr')
-    if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+    if args.docomoving: args.galrad = args.galrad / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
 
     if args.fullbox:
         box_width = ds.refine_width  # kpc
@@ -282,7 +322,7 @@ if __name__ == '__main__':
         print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
     # ----------to determine axes limits--------------
-    bounds_dict.update(rad=(0, args.galrad))
+    bounds_dict.update(rad=(0, np.ceil(args.galrad * (1 + args.current_redshift)) if args.docomoving else args.galrad)) # if comoving is used, put plot limits to maximum radius, i.e. physical radius at z = 0
     if args.xmin is None:
         args.xmin = np.log10(bounds_dict[args.xcol][0]) if islog_dict[args.xcol] else bounds_dict[args.xcol][0]
     if args.xmax is None:
