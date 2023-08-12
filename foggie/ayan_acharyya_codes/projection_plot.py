@@ -97,7 +97,7 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
 
 # --------------------------------------------------------------------------------
 def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
-                          fig_end='projection', do=['stars', 'gas', 'metal'], axes=['x', 'y', 'z'], annotate_positions=[], \
+                          fig_end='projection', do=['stars', 'gas', 'metal'], projections=['x', 'y', 'z'], annotate_positions=[], \
                           is_central=False, add_velocity=False, add_arrow=False, start_arrow=[], end_arrow=[], total_normal_rot=0, \
                           total_north_rot=0, rot_frame=0, nframes=200, hide_axes=False, iscolorlog=False, noweight=False, \
                           rot_north_about='x', rot_normal_about='y', output='', fontsize=20, cbar_horizontal=False, use_density_cut=False, args=None):
@@ -142,7 +142,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
     rot_text = '_normrotby_%.3F_northrotby_%.3F_frame_%03d_of_%03d' % (total_normal_rot, total_north_rot, rot_frame, nframes) if (total_normal_rot + total_north_rot) != 0 else ''
     density_cut_text = '_wdencut' if use_density_cut else ''
 
-    for ax in axes:
+    for thisproj in projections:
         north_vector = north_vector_dict[rot_north_about] if rot_frame else None
         normal_vector = normal_vector_dict[rot_normal_about] if rot_frame else None
 
@@ -152,8 +152,8 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
             zmin = zmin_dict[d] if args.cmin is None else args.cmin
             zmax = zmax_dict[d] if args.cmax is None else args.cmax
 
-            thisfield = 'v' + ax + '_corrected' if d == 'vlos' else field_dict[d]
-            prj = do_plot(ds, thisfield, ax, annotate_positions, small_box, center, box_width, cmap_dict[d], name, unit=unit_dict[d], zmin=zmin, zmax=zmax, weight_field=weight_field_dict[d], normal_vector=normal_vector, north_vector=north_vector, hide_axes=hide_axes, iscolorlog=iscolorlog if iscolorlog else colorlog_dict[d], noweight=noweight, fontsize=fontsize, args=args)
+            thisfield = 'v' + thisproj + '_corrected' if d == 'vlos' else field_dict[d]
+            prj = do_plot(ds, thisfield, thisproj, annotate_positions, small_box, center, box_width, cmap_dict[d], name, unit=unit_dict[d], zmin=zmin, zmax=zmax, weight_field=weight_field_dict[d], normal_vector=normal_vector, north_vector=north_vector, hide_axes=hide_axes, iscolorlog=iscolorlog if iscolorlog else colorlog_dict[d], noweight=noweight, fontsize=fontsize, args=args)
 
             if add_velocity: prj.annotate_velocity(factor=20)
             if add_arrow:
@@ -189,7 +189,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
             axes.set_xlabel(axes.get_xlabel(), fontsize=fontsize)
             axes.set_ylabel(axes.get_ylabel(), fontsize=fontsize)
 
-            filename = fig_dir + '%s_%s' % (output, d) + '_box=%.2Fkpc' % (box_width) + '_proj_' + ax + rot_text + '_' + fig_end + density_cut_text + '.png'
+            filename = fig_dir + '%s_%s' % (output, d) + '_box=%.2Fkpc' % (box_width) + '_proj_' + thisproj + rot_text + '_' + fig_end + density_cut_text + '.png'
             plt.savefig(filename, transparent=args.fortalk)
             myprint('Saved figure ' + filename, args)
 
@@ -261,7 +261,7 @@ if __name__ == '__main__':
                 fig = make_projection_plots(ds=refine_box.ds, center=center, \
                                         refine_box=refine_box, box_width=2 * args.galrad * kpc, \
                                         fig_dir=fig_dir, name=halo_dict[args.halo], output=this_sim[1], fontsize=args.fontsize*1.5, \
-                                        fig_end='projection', do=[ar for ar in args.do.split(',')], axes=[ar for ar in args.projection.split(',')], \
+                                        fig_end='projection', do=[ar for ar in args.do.split(',')], projections=[ar for ar in args.projection.split(',')], \
                                         is_central=args.do_central, add_arrow=args.add_arrow, add_velocity=args.add_velocity, rot_frame=nrot, \
                                         total_normal_rot=args.rot_normal_by, total_north_rot=args.rot_north_by, rot_north_about=args.rot_north_about, rot_normal_about=args.rot_normal_about, \
                                         nframes=(end_frame - start_frame), hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight, cbar_horizontal=False, use_density_cut=args.use_density_cut, args=args) # using halo_center_kpc instead of refine_box_center
