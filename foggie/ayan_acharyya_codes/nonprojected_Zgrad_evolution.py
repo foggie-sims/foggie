@@ -214,7 +214,7 @@ def plot_Zgrad_evolution(df, ax, args):
     '''
     myprint('Now making the time evolution plot for Z gradient fits..', args)
     xcol = 'time'
-    ax.plot(df[xcol], df['Zgrad'], c=args.col_arr[index], lw=1, ls='solid')
+    ax.plot(df[xcol], df['Zgrad'], c=args.col_arr[0], lw=1, ls='solid')
 
     ax.axvline(args.current_time, lw=1, ls='--', c='k')
     ax.set_xlim(0, 14) # Gyr
@@ -235,8 +235,8 @@ def plot_Zdist_evolution(df, ax, args):
     '''
     myprint('Now making the time evolution plot for histogram fits..', args)
     xcol = 'time'
-    ax.plot(df[xcol], df['Zpeak'], c=args.col_arr[index], lw=1, ls='solid', label=None if index else 'Peak')
-    ax.plot(df[xcol], df['Zwidth'], c=args.col_arr[index], lw=1, ls='dashed', label=None if index else 'Width')
+    ax.plot(df[xcol], df['Zpeak'], c=args.col_arr[0], lw=1, ls='solid', label=None if index else 'Peak')
+    ax.plot(df[xcol], df['Zwidth'], c=args.col_arr[0], lw=1, ls='dashed', label=None if index else 'Width')
 
     ax.legend(fontsize=args.fontsize / args.fontfactor)
     ax.axvline(args.current_time, lw=1, ls='--', c='k')
