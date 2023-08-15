@@ -33,7 +33,7 @@ def get_and_prepare_dataset(ds_name):
     
     cut_region_dict['cgm'] = gr.get_region(ds, 'cgm') 
     cut_region_dict['rvir'] = gr.get_region(ds, 'rvir') 
-    cut_region_dict['trackbox'] = gr.get_region(ds, 'trackbox') 
+    #cut_region_dict['trackbox'] = gr.get_region(ds, 'trackbox') 
 
     cut_region_dict['cool_cgm'] = gr.get_region(ds, 'cgm', filter=cool_cgm_filter)
     cut_region_dict['warm_cgm'] = gr.get_region(ds, 'cgm', filter=warm_cgm_filter)
@@ -234,13 +234,13 @@ def shades(ds_name):
 parser = argparse.ArgumentParser()
 parser.add_argument('--snap_number', type=int, required=True)
 args = parser.parse_args()
+if (args.snap_number < 10000): snap_string='RD'+str(args.snap_number)
 if (args.snap_number < 1000): snap_string='RD0'+str(args.snap_number)
 if (args.snap_number < 100): snap_string='RD00'+str(args.snap_number)
 if (args.snap_number < 10): snap_string='RD000'+str(args.snap_number)
 print('Hello your snap_number is:', args.snap_number, snap_string)
 
 ds_name = snap_string+'/'+snap_string
-TRACKFILE = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_tracks/005036/nref11n_selfshield_15/halo_track_200kpc_nref10'
 
 print(ds_name)
 
