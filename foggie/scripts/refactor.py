@@ -233,6 +233,7 @@ def shades(ds_name):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--snap_number', type=int, required=True)
+parser.add_argument('--sims_dir', type=str, default='./') 
 args = parser.parse_args()
 if (args.snap_number < 10000): snap_string='RD'+str(args.snap_number)
 if (args.snap_number < 1000): snap_string='RD0'+str(args.snap_number)
@@ -240,7 +241,9 @@ if (args.snap_number < 100): snap_string='RD00'+str(args.snap_number)
 if (args.snap_number < 10): snap_string='RD000'+str(args.snap_number)
 print('Hello your snap_number is:', args.snap_number, snap_string)
 
-ds_name = snap_string+'/'+snap_string
+print('Hello your sims_dir is:', args.sims_dir) 
+
+ds_name = args.sims_dir+'/'+snap_string+'/'+snap_string
 
 print(ds_name)
 
