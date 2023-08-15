@@ -5,7 +5,8 @@ import foggie.utils.foggie_load as foggie_load
 import foggie.utils.get_region as gr 
 from foggie.utils.consistency import proj_min_dict, proj_max_dict, \
     colormap_dict, background_color_dict, o6_min, o6_max, o6_color_map, \
-    h1_color_map, h1_proj_max, cgm_outflow_filter, cgm_inflow_filter, \
+    h1_color_map, h1_proj_max, cgm_outflow_filter, cool_cgm_filter, \
+    warm_cgm_filter, cgm_inflow_filter, \
     cool_outflow_filter, cool_inflow_filter, warm_inflow_filter, \
     warm_outflow_filter
 from astropy.table import Table
@@ -29,9 +30,13 @@ def get_and_prepare_dataset(ds_name):
     # a blank dictionary to contain all the cut regions we'll use downstream 
     cut_region_dict = {}
         
+    
     cut_region_dict['cgm'] = gr.get_region(ds, 'cgm') 
     cut_region_dict['rvir'] = gr.get_region(ds, 'rvir') 
     cut_region_dict['trackbox'] = gr.get_region(ds, 'trackbox') 
+
+    cut_region_dict['cool_cgm'] = gr.get_region(ds, 'cgm', filter=cool_cgm_filter)
+    cut_region_dict['warm_cgm'] = gr.get_region(ds, 'cgm', filter=warm_cgm_filter)
 
     cut_region_dict['cgm_outflows'] = gr.get_region(ds, 'cgm', filter=cgm_outflow_filter)
     cut_region_dict['cool_outflows'] = gr.get_region(ds, 'cgm', filter=cool_outflow_filter)
@@ -100,8 +105,46 @@ def velocities(dataset, region, region_name, prefix):
     image = sm.render_image(data_frame[mask], 'radius_corrected', 'radial_velocity_corrected', 'phase', (0,200),(-500,500), filename)       
     sm.wrap_axes(dataset, image, filename, 'radius_corrected', 'radial_velocity_corrected', 'phase', ((0,200),(-500,500)), region_name, filter=None)
 
+def frb_radius(ds, prefix):  
+    #radius at this redshift using a slice 
+    r = yt.SlicePlot(ds, 'z', ('gas','radius_corrected'), center=ds.halo_center_code, width=(200, 'kpc'))
+    radius_frb = r.data_source.to_frb((200., "kpc"), 512)
+    radius_frb.save_as_dataset(filename=prefix+'radius/'+ds_name[-6:]+'_radius', fields=[('gas', 'radius_corrected')]) 
 
-                       
+def TBDfrb_foviTBD(ds_name): 
+
+    data_set = yt.load(ds_name)
+    data_set, refine_box = foggie_load.foggie_load(ds_name, track, disk_relative=True, particle_type_angmom='young_stars')
+    trident.add_ion_fields(data_set, ions=['H I','C II', 'C III', 'C IV', 'O I', 'O II', 'O III', 'O IV', 'O V', 'O VI', 'O VII', 'O VIII', 'Mg II'])
+
+    #CGM - all temperatures and velocities, fOVI > 0.1
+    cgm = gr.get_region(data_set, 'cgm', filter="obj['O_p5_ion_fraction'] > 0.1") 
+    p = yt.ProjectionPlot(data_set, 'z', 'O_p5_number_density', data_source=cgm, center=cgm.base_object.dobj1.center, width=(200, 'kpc')) 
+    proj_frb = p.data_source.to_frb((200., "kpc"), 512)
+    proj_frb.save_as_dataset(filename='cgm_fOVI/'+ds_name[-6:]+'_cgm_fOVI_frb', fields=['density', 'H_p0_number_density', 'O_p5_number_density'])
+
+    #Cool CGM - all velocities, fOVI > 0.1
+    cool_cgm = gr.get_region(data_set, 'cgm', filter=" (obj['O_p5_ion_fraction'] > 0.1) & ((obj['temperature'] > 1.5e4) | (obj['density'] < 2e-26)) & (obj['temperature'] < 1e5)" )
+    p = yt.ProjectionPlot(data_set, 'z', 'O_p5_number_density', data_source=cool_cgm, center=cgm.base_object.dobj1.center, width=(200, 'kpc'))
+    proj_frb = p.data_source.to_frb((200., "kpc"), 512)
+    proj_frb.save_as_dataset(filename='cgm_fOVI/'+ds_name[-6:]+'_cool_cgm_fOVI_frb', fields=['density', 'H_p0_number_density', 'O_p5_number_density'])
+    
+    #Warm CGM - all velocities, fOVI > 0.1
+    warm_cgm = gr.get_region(data_set, 'cgm', filter=" (obj['O_p5_ion_fraction'] > 0.1) & ((obj['temperature'] > 1.5e4) | (obj['density'] < 2e-26)) & (obj['temperature'] > 1e5)" )
+    p = yt.ProjectionPlot(data_set, 'z', 'O_p5_number_density', data_source=warm_cgm, center=cgm.base_object.dobj1.center, width=(200, 'kpc'))
+    proj_frb = p.data_source.to_frb((200., "kpc"), 512)
+    proj_frb.save_as_dataset(filename='cgm_fOVI/'+ds_name[-6:]+'_warm_cgm_fOVI_frb', fields=['density', 'H_p0_number_density', 'O_p5_number_density'])
+
+def regions_to_frbs(ds, region, region_name, prefix):  
+    """ This function creates the column density plots and FRBs.
+        It's passed a dataset (ds) and the cut_region. It operates
+        on only one  cut_region object which comes in as 
+        the second argument."""
+
+    p = yt.ProjectionPlot(ds, 'z', 'O_p5_number_density', data_source=region, center=ds.halo_center_code, width=(200, 'kpc')) 
+    proj_frb = p.data_source.to_frb((200., "kpc"), 512)
+    proj_frb.save_as_dataset(filename=prefix+'cgm/'+ds_name[-6:]+'_'+region_name+'_frb', fields=['density', 'H_p0_number_density', 'O_p5_number_density'])
+
 def frame(ds, axis, region, region_name, prefix): 
 
     field='density' 
@@ -203,11 +246,13 @@ print(ds_name)
 
 ds, crd = get_and_prepare_dataset(ds_name)
 
+frb_radius(ds, './outputs/') #<--- this is not cut_region dependent 
+
 for region in crd.keys(): 
     print("region")
     velocities(ds, crd[region], region, 'outputs/')
     shades(ds_name) 
+    regions_to_frbs(ds, crd[region], region, './outputs/')
     for axis in ['x']: 
         frame(ds, axis, crd[region], region, './outputs/')
         flows(ds, axis, crd[region], region, './outputs/')
-
