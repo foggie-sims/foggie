@@ -144,20 +144,26 @@ def fit_distribution(Zarr, args, weights=None):
     Returns the fitted parameters for a skewed Gaussian
     '''
     Zarr = Zarr.flatten()
-    if weights is not None: weights = weights.flatten()
+    if weights is not None:
+        weights = weights.flatten()
+        indices = np.array(np.logical_not(np.logical_or(np.isnan(Zarr), np.isnan(weights))))
+        weights = weights[indices]
+    else:
+        indices = np.array(np.logical_not(np.isnan(weights)))
+    Zarr =Zarr[indices]
 
     y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights)
     x = x[:-1] + np.diff(x)/2
 
     model = SkewedGaussianModel(prefix='sg_')
     if args.islog: params = model.make_params(sg_amplitude=2.0, sg_center=0.1, sg_sigma=0.5, sg_gamma=-3)
-    else: params = model.make_params(sg_amplitude=0.5, sg_center=0.5, sg_sigma=0.5, sg_gamma=0)
+    else: params = model.make_params(sg_amplitude=1.0, sg_center=1.0, sg_sigma=0.5, sg_gamma=1)
 
     if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
         print('Fitting with one skewed gaussian + one regular guassian...')
         g_model = GaussianModel(prefix='g_')
         if args.islog: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
-        else: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
+        else: params.update(g_model.make_params(g_amplitude=2, g_center=0.2, g_sigma=0.1))
         model = model + g_model
     else: # fitting a single skewed gaussian with SkewedGaussianModel()
         print('Fitting with one skewed gaussian...')
