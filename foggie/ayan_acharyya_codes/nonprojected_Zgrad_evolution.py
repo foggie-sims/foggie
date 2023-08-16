@@ -14,7 +14,7 @@ from header import *
 from util import *
 from datashader_movie import field_dict, unit_dict
 from compute_Zscatter import fit_distribution
-from compute_MZgrad import get_density_cut
+from compute_MZgrad import get_density_cut, get_re_from_coldgas, get_re_from_stars
 from uncertainties import ufloat, unumpy
 from lmfit.models import GaussianModel, SkewedGaussianModel
 from projection_plot import make_projection_plots, do_plot
@@ -337,7 +337,7 @@ if __name__ == '__main__':
 
             # ------tailoring the simulation box for individual snapshot analysis--------
             if args.upto_kpc is not None: args.re = np.nan
-            else: args.re = args.upto_re
+            else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
 
             if args.upto_kpc is not None:
                 if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant

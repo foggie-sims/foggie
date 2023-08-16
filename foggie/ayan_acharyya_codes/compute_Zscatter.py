@@ -295,7 +295,7 @@ if __name__ == '__main__':
             args.ymax = 1.5 if args.forproposal else 2.0 if args.use_density_cut else 2.5 if args.islog else 2.5
 
         if args.write_file or args.upto_kpc is None:
-            args.re = get_re_from_coldgas(gasprofile, args) if args.use_gasre else get_re_from_stars(ds, args)
+            args.re = get_re_from_coldgas(args, gasprofile=gasprofile) if args.use_gasre else get_re_from_stars(ds, args)
         else:
             args.re = np.nan
         thisrow = [args.output, args.current_redshift, args.current_time, args.re] # row corresponding to this snapshot to append to df
