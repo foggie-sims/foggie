@@ -8,8 +8,8 @@
     Author :     Ayan Acharyya
     Started :    January 2021
     Example :    run projection_plot.py --system ayan_local --halo 4123 --output RD0038 --do gas --proj x --fullbox --nframes 1 --rot_normal_by -30 --rot_normal_about y --rot_north_by 45 --rot_north_about x --iscolorlog
-                 run projection_plot.py --system ayan_local --halo 8508 --galrad 1000 --output RD0042 --do mrp --annotate_grids --annotate_box 200,400
-                 run projection_plot.py --system ayan_local --halo 8508 --galrad 10 --output RD0030 --do metal --forpaper --proj y
+                 run projection_plot.py --system ayan_local --halo 8508 --upto_kpc 1000 --output RD0042 --do mrp --annotate_grids --annotate_box 200,400
+                 run projection_plot.py --system ayan_local --halo 8508 --upto_kpc 10 --output RD0030 --do metal --use_density_cut --proj y --docomoving
 
 """
 from header import *
@@ -248,6 +248,16 @@ if __name__ == '__main__':
         if 'mrp' in args.do:
             yt.add_particle_filter('ptype4', function=ptype4, requires=['particle_type'])
             ds.add_particle_filter('ptype4')
+
+        # --------------tailoring the extent of the box------------------------
+        if args.upto_kpc is not None: args.re = np.nan
+        else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
+
+        if args.upto_kpc is not None:
+            if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+            else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
+        else:
+            args.galrad = args.re * args.upto_re  # kpc
 
         if args.fullbox: args.galrad = ds.refine_width / 2 # kpc
         center = ds.halo_center_kpc
