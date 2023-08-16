@@ -1092,7 +1092,8 @@ if __name__ == '__main__':
             isdisk_required = np.array(['disk' in item for item in all_fields]).any()
             should_load_disk = (isdisk_required or dummy_args.diskload) and not dummy_args.nodiskload
 
-            halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_cen_smoothed'
+            halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/'
+            halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
             if type(args) is tuple:
                 args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
                 if should_load_disk: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=True, particle_type_for_angmom='gas', halo_c_v_name=halos_df_name)
@@ -1119,7 +1120,7 @@ if __name__ == '__main__':
             args.galrad = box_width / 2
             box = refine_box
         else:
-            box_center = ds.arr(args.halo_center, kpc)
+            box_center = ds.halo_center_kpc
             box_width = args.galrad * 2  # in kpc
             box_width_kpc = ds.arr(box_width, 'kpc')
             box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]

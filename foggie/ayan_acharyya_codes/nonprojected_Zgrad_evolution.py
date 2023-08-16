@@ -290,7 +290,8 @@ if __name__ == '__main__':
         start_time_this_snapshot = time.time()
         this_sim = list_of_sims[index]
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', args)
-        halos_df_name = args.code_path + 'halo_infos/00' + this_sim[0] + '/' + args.run + '/' + 'halo_cen_smoothed'
+        halos_df_name = args.code_path + 'halo_infos/00' + this_sim[0] + '/' + args.run + '/'
+        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
 
         # -------loading in snapshot-------------------
         try:
@@ -344,7 +345,7 @@ if __name__ == '__main__':
                 args.galrad = args.re * args.upto_re  # kpc
 
             # extract the required box
-            box_center = ds.arr(args.halo_center, kpc)
+            box_center = ds.halo_center_kpc
             box_width = 2 * args.galrad # kpc
             box_width_kpc = ds.arr(box_width, 'kpc')
             box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]

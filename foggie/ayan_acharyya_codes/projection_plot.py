@@ -169,7 +169,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
             # ------plotting onto a matplotlib figure--------------
             fig, axes = plt.subplots(figsize=(8, 8))
 
-            prj.plots[thisfield].figure = fig
+            #prj.plots[thisfield].figure = fig
             prj.plots[thisfield].axes = axes
             divider = make_axes_locatable(axes)
             prj._setup_plots()
@@ -195,6 +195,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
             filename = fig_dir + '%s_%s' % (output, d) + '_box=%.2Fkpc' % (box_width) + '_proj_' + thisproj + rot_text + '_' + fig_end + density_cut_text + '.png'
             plt.savefig(filename, transparent=args.fortalk)
             myprint('Saved figure ' + filename, args)
+            plt.show()
 
     return fig, prj
 
@@ -229,7 +230,8 @@ if __name__ == '__main__':
         if len(list_of_sims) == 1: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
         else: args = parse_args(this_sim[0], this_sim[1])
 
-        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_c_v' # 'halo_cen_smoothed'
+        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/'
+        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
         if type(args) is tuple:
             args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
             myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
@@ -257,7 +259,7 @@ if __name__ == '__main__':
         else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
 
         if args.upto_kpc is not None:
-            if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+            if args.docomoving: args.galrad = args.upto_kpc / (1 + ds.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
             else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
         else:
             args.galrad = args.re * args.upto_re  # kpc

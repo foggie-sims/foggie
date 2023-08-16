@@ -252,7 +252,8 @@ if __name__ == '__main__':
         this_sim = list_of_sims[index]
         this_df_grad = pd.DataFrame(columns=cols_in_df)
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
-        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_cen_smoothed'
+        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/'
+        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
         try:
             if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
@@ -308,7 +309,7 @@ if __name__ == '__main__':
 
         if args.galrad > 0:
             # extract the required box
-            box_center = ds.arr(args.halo_center, kpc)
+            box_center = ds.halo_center_kpc
             box_width = args.galrad * 2  # in kpc
             box_width_kpc = ds.arr(box_width, 'kpc')
             mstar = get_disk_stellar_mass(args)  # Msun

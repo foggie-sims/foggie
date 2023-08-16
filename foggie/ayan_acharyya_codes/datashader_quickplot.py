@@ -279,8 +279,10 @@ if __name__ == '__main__':
         print_mpi('ds ' + str(ds) + ' for halo ' + str(args.output) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
     else:
         args = args_tuple
+        halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
         isdisk_required = np.array(['disk' in item for item in [args.xcol, args.ycol] + args.colorcol]).any()
-        ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=(isdisk_required or args.diskload) and not args.nodiskload)
+        ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=(isdisk_required or args.diskload) and not args.nodiskload, halo_c_v_name=halos_df_name)
 
     # -------create new fields for angular momentum vectors-----------
     ds.add_field(('gas', 'angular_momentum_phi'), function=phi_angular_momentum, sampling_type='cell', units='degree')
@@ -311,7 +313,7 @@ if __name__ == '__main__':
         args.galrad = box_width / 2
         box = refine_box
     else:
-        box_center = ds.arr(args.halo_center, kpc)
+        box_center = ds.halo_center_kpc
         box_width = args.galrad * 2  # in kpc
         box_width_kpc = ds.arr(box_width, 'kpc')
         box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
