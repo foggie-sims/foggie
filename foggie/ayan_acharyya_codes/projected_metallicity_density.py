@@ -42,10 +42,10 @@ def plot_projected(field, box, box_center, box_width, projection, ax, args, anno
     if args.annotate_box is not None:
         for thisbox in [float(item) for item in args.annotate_box.split(',')]:  # comoving size in kpc
             if args.docomoving: thisbox = thisbox / (1 + ds.current_redshift) / ds.hubble_constant  # physical size at current redshift in kpc
-            proj = annotate_box(proj, thisbox, box.ds, box_center, unit='kpc', projection=projection)
+            proj = annotate_box(proj, thisbox, box.ds, args.halo_center, unit='kpc', projection=projection)
 
     for index,marker in enumerate(annotate_markers):
-        print('Marking ' + str(index+1) + 'out of ' + str(len(annotate_markers)) + 'markers:', marker)
+        print('Marking ' + str(index+1) + ' out of ' + str(len(annotate_markers)) + 'markers:', marker)
         proj.annotate_marker(marker, coord_system='data')#, color=col_arr[index])
 
     # -----------making the axis labels etc--------------
@@ -84,8 +84,8 @@ if __name__ == '__main__':
     else: args = args_tuple
     if not args.keep: plt.close('all')
 
-    fields = ['density']#, 'metal']
-    projections = ['y'] #['x', 'y', 'z']
+    fields = ['density', 'metal']
+    projections = ['x', 'y', 'z']
 
     # --------domain decomposition; for mpi parallelisation-------------
     if args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(args) # all snapshots of this particular halo
