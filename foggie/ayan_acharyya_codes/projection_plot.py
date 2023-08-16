@@ -262,6 +262,8 @@ if __name__ == '__main__':
         if args.fullbox: args.galrad = ds.refine_width / 2 # kpc
         center = ds.halo_center_kpc
 
+        annotate_positions = [] ##
+
         if not args.noplot:
             start_frame = 0 if args.makerotmovie or (args.rot_normal_by == 0 and args.rot_north_by == 0) else 1
             end_frame = args.nframes if args.makerotmovie else start_frame + 1
@@ -271,7 +273,7 @@ if __name__ == '__main__':
                 fig = make_projection_plots(ds=refine_box.ds, center=center, \
                                         refine_box=refine_box, box_width=2 * args.galrad * kpc, \
                                         fig_dir=fig_dir, name=halo_dict[args.halo], output=this_sim[1], fontsize=args.fontsize*1.5, \
-                                        fig_end='projection', do=[ar for ar in args.do.split(',')], projections=[ar for ar in args.projection.split(',')], \
+                                        fig_end='projection', do=[ar for ar in args.do.split(',')], projections=[ar for ar in args.projection.split(',')], annotate_positions=annotate_positions, \
                                         is_central=args.do_central, add_arrow=args.add_arrow, add_velocity=args.add_velocity, rot_frame=nrot, \
                                         total_normal_rot=args.rot_normal_by, total_north_rot=args.rot_north_by, rot_north_about=args.rot_north_about, rot_normal_about=args.rot_normal_about, \
                                         nframes=(end_frame - start_frame), hide_axes=args.hide_axes, iscolorlog=args.iscolorlog, noweight=args.noweight, cbar_horizontal=False, use_density_cut=args.use_density_cut, args=args) # using halo_center_kpc instead of refine_box_center
