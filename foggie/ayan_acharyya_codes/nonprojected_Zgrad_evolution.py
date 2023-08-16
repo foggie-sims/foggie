@@ -17,8 +17,6 @@ from compute_Zscatter import fit_distribution
 from compute_MZgrad import get_density_cut, get_re_from_coldgas, get_re_from_stars
 from uncertainties import ufloat, unumpy
 from lmfit.models import GaussianModel, SkewedGaussianModel
-from projection_plot import make_projection_plots, do_plot
-from matplotlib import image as mpimg
 
 start_time = time.time()
 plt.rcParams['axes.linewidth'] = 1
