@@ -118,12 +118,36 @@ def get_re_from_stars(ds, args):
     print('\nStellar-profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' %(args.current_redshift) + ') is %.2F kpc' %(re))
     return re
 
+# ---------------------------------------------------------------------------------------
+def get_gas_profile(args):
+    '''
+    Function to acquire the cold gas profile for a given halo and output
+    Returns the gasprofile as a numpy array
+    '''
+    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + args.run + '/all_rprof_' + args.halo + '.npy'
+
+    if os.path.exists(gasfilename):
+        print('Reading in cold gas profile from', gasfilename)
+    else:
+        print('Did not find', gasfilename)
+        gasfilename = gasfilename.replace(dummy_args.run, dummy_args.run[:14])
+        print('Instead, reading in cold gas profile from', gasfilename)
+    try:
+        gasprofile = np.load(gasfilename, allow_pickle=True)[()]
+    except FileNotFoundError as e:
+        print('Did not find', gasfilename, 'so assigning dummy values to gas re')
+        gasprofile = None
+
+    return gasprofile
+
 # --------------------------------------------------------------------------------
-def get_re_from_coldgas(gasprofile, args):
+def get_re_from_coldgas(args, gasprofile=None):
     '''
     Function to determine the effective radius of stellar disk, based on the cold gas profile, given a dataset
     Returns the effective radius in kpc
     '''
+    if gasprofile is None: gasprofile = get_gas_profile(args)
     re_hmr_factor = 1.0
 
     if gasprofile is not None and args.output[:2] == 'DD' and args.output[2:] in gasprofile.keys(): # because cold gas profile is only present for all the DD outputs
@@ -409,20 +433,7 @@ if __name__ == '__main__':
 
     # --------------read in the cold gas profile file ONCE for a given halo-------------
     if dummy_args.write_file or dummy_args.upto_kpc is None:
-        foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(dummy_args)
-        gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + dummy_args.run + '/all_rprof_' + dummy_args.halo + '.npy'
-
-        if os.path.exists(gasfilename):
-            print('Reading in cold gas profile from', gasfilename)
-        else:
-            print('Did not find', gasfilename)
-            gasfilename = gasfilename.replace(dummy_args.run, dummy_args.run[:14])
-            print('Instead, reading in cold gas profile from', gasfilename)
-        try:
-            gasprofile = np.load(gasfilename, allow_pickle=True)[()]
-        except FileNotFoundError as e:
-            print('Did not find', gasfilename, 'so assigning dummy values to gas re')
-            gasprofile = None
+        gasprofile = get_gas_profile(dummy_args)
     else:
         print('Not reading in cold gas profile because any re calculation is not needed')
         gasprofile = None
@@ -452,7 +463,8 @@ if __name__ == '__main__':
         this_sim = list_of_sims[index]
         this_df_grad = pd.DataFrame(columns=cols_in_df)
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
-        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_cen_smoothed'
+        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/'
+        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
         try:
             if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
@@ -485,7 +497,7 @@ if __name__ == '__main__':
         args.ylim = [-2.2 if args.ymin is None else args.ymin, 1.2 if args.ymax is None else args.ymax] # [-3, 1]
 
         re_from_stars = get_re_from_stars(ds, args) if args.write_file or args.upto_kpc is None else None # kpc
-        re_from_coldgas = get_re_from_coldgas(gasprofile, args)  if args.write_file or args.upto_kpc is None else None # kpc
+        re_from_coldgas = get_re_from_coldgas(args, gasprofile=gasprofile)  if args.write_file or args.upto_kpc is None else None # kpc
         thisrow = [args.output, args.current_redshift, args.current_time, re_from_stars, re_from_coldgas] # row corresponding to this snapshot to append to df
 
         if args.upto_kpc is not None:
@@ -506,7 +518,7 @@ if __name__ == '__main__':
                     args.galrad = args.re * args.upto_re  # kpc
 
                 # extract the required box
-                box_center = ds.arr(args.halo_center, kpc)
+                box_center = ds.halo_center_kpc
                 box_width = args.galrad * 2  # in kpc
                 box_width_kpc = ds.arr(box_width, 'kpc')
                 box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]

@@ -58,6 +58,7 @@ from astropy import convolution as con
 
 from operator import itemgetter
 from collections import defaultdict
+import cmasher as cmr
 
 import datashader as dsh
 from datashader.utils import export_image

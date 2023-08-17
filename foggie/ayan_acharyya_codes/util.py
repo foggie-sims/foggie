@@ -876,8 +876,8 @@ def pull_halo_center(args, fast=False):
     Adapted from utils.foggie_load()
     '''
 
-    #halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_c_v'
-    halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'halo_cen_smoothed' # changed on Aug 30, after Cassi updated smoothed halo centers
+    halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+    halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v' # changed on Aug 30, after Cassi updated smoothed halo centers
 
     if os.path.exists(halos_df_name):
         halos_df = pd.read_table(halos_df_name, sep='|')
@@ -1185,6 +1185,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--makeanimation', dest='makeanimation', action='store_true', default=False, help='Make animation of a single halo trajectory?, default is no')
     parser.add_argument('--formolly', dest='formolly', action='store_true', default=False, help='Set plot labels, transparency etc for being used by Molly?, default is no')
     parser.add_argument('--hide_overplot', dest='hide_overplot', action='store_true', default=False, help='Hide the overplotted curve even though all computations were done on the overplotted curve?, default is no')
+    parser.add_argument('--usecmasher', dest='usecmasher', action='store_true', default=False, help='use cmasher colorcoding package?, default is no')
 
     # ------- args added for compute_Zscatter.py ------------------------------
     parser.add_argument('--res', metavar='res', type=str, action='store', default='0.1', help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')
@@ -1208,6 +1209,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--plot_Z', dest='plot_Z', action='store_true', default=False, help='plot spatially resolved metallicity?, default is no')
     parser.add_argument('--plot_cm', dest='plot_cm', action='store_true', default=False, help='plot spatially resolved cell mass profiles?, default is no')
     parser.add_argument('--plot_vel', dest='plot_vel', action='store_true', default=False, help='plot spatially resolved kinenmatics?, default is no')
+    parser.add_argument('--use_cen_smoothed', dest='use_cen_smoothed', action='store_true', default=False, help='use Cassis new smoothed center file?, default is no')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
