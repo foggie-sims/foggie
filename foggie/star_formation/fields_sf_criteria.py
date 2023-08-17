@@ -33,13 +33,13 @@ def _jeans_mass(field, data):
     return (data[("gas", "cell_mass")] > data[("gas","jeans_mass")]).astype(float)
 
 def _mass_threshold(field, data):
-    """
-    WARNING: Enzo checks that formation efficiency times cell mass
-    exceeds the threshold. Currently the user must set the
-    "stellar_mass_threshold" accounting for the formation efficiency.
-    """
+    data._debug
+    if data.has_field_parameter("stellar_mass_efficiency"):
+        masseff = data.get_field_parameter("stellar_mass_efficiency")
+    else:
+        masseff = 1
     massthresh = data.get_field_parameter("stellar_mass_threshold")
-    return (data[("gas", "cell_mass")] > massthresh).astype(float)
+    return ((masseff * data[("gas", "cell_mass")]) > massthresh).astype(float)
 
 # Add fields to yt
 
