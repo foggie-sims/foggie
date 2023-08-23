@@ -199,6 +199,7 @@ def filter_particles(data_source, filter_particle_types = ['stars', 'dm'], load_
             from foggie.utils import yt_fields
             if ptype == 'stars': func = yt_fields._stars
             elif ptype == 'young_stars': func = yt_fields._young_stars
+            elif ptype == 'young_stars3': func = yt_fields._young_stars3
             elif ptype == 'young_stars7': func = yt_fields._young_stars7
             elif ptype == 'young_stars8': func = yt_fields._young_stars8
             elif ptype == 'old_stars': func = yt_fields._old_stars

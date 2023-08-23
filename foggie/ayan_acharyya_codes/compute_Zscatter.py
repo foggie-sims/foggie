@@ -144,20 +144,26 @@ def fit_distribution(Zarr, args, weights=None):
     Returns the fitted parameters for a skewed Gaussian
     '''
     Zarr = Zarr.flatten()
-    if weights is not None: weights = weights.flatten()
+    if weights is not None:
+        weights = weights.flatten()
+        indices = np.array(np.logical_not(np.logical_or(np.isnan(Zarr), np.isnan(weights))))
+        weights = weights[indices]
+    else:
+        indices = np.array(np.logical_not(np.isnan(weights)))
+    Zarr =Zarr[indices]
 
     y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights)
     x = x[:-1] + np.diff(x)/2
 
     model = SkewedGaussianModel(prefix='sg_')
     if args.islog: params = model.make_params(sg_amplitude=2.0, sg_center=0.1, sg_sigma=0.5, sg_gamma=-3)
-    else: params = model.make_params(sg_amplitude=0.5, sg_center=0.5, sg_sigma=0.5, sg_gamma=0)
+    else: params = model.make_params(sg_amplitude=1.0, sg_center=1.0, sg_sigma=0.5, sg_gamma=1)
 
     if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
         print('Fitting with one skewed gaussian + one regular guassian...')
         g_model = GaussianModel(prefix='g_')
         if args.islog: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
-        else: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
+        else: params.update(g_model.make_params(g_amplitude=2, g_center=0.2, g_sigma=0.1))
         model = model + g_model
     else: # fitting a single skewed gaussian with SkewedGaussianModel()
         print('Fitting with one skewed gaussian...')
@@ -246,7 +252,8 @@ if __name__ == '__main__':
         this_sim = list_of_sims[index]
         this_df_grad = pd.DataFrame(columns=cols_in_df)
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
-        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_cen_smoothed'
+        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/'
+        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
         try:
             if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
@@ -289,7 +296,7 @@ if __name__ == '__main__':
             args.ymax = 1.5 if args.forproposal else 2.0 if args.use_density_cut else 2.5 if args.islog else 2.5
 
         if args.write_file or args.upto_kpc is None:
-            args.re = get_re_from_coldgas(gasprofile, args) if args.use_gasre else get_re_from_stars(ds, args)
+            args.re = get_re_from_coldgas(args, gasprofile=gasprofile) if args.use_gasre else get_re_from_stars(ds, args)
         else:
             args.re = np.nan
         thisrow = [args.output, args.current_redshift, args.current_time, args.re] # row corresponding to this snapshot to append to df
@@ -302,7 +309,7 @@ if __name__ == '__main__':
 
         if args.galrad > 0:
             # extract the required box
-            box_center = ds.arr(args.halo_center, kpc)
+            box_center = ds.halo_center_kpc
             box_width = args.galrad * 2  # in kpc
             box_width_kpc = ds.arr(box_width, 'kpc')
             mstar = get_disk_stellar_mass(args)  # Msun
