@@ -7,7 +7,7 @@
     Output :     One big ASCII table + one small latex table to go in the paper as sample
     Author :     Ayan Acharyya
     Started :    Aug 2023
-    Examples :   run make_table_fitted_quant.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --forpaper
+    Examples :   run make_table_fitted_quant.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --forpaper
 """
 from header import *
 from util import *
@@ -41,14 +41,14 @@ def get_header(df):
     Function to obtain the header for a given table, based on the column names
     Returns: header as string AND modifies the column names in input df according to a dictionary inside this function
     '''
-    header_dict = {'halo': 'Name of the FOGGEI halo', 'output': 'Name of the snapshot', 'redshift': 'Redshift of snapshot', 'time': 'Cosmological ime of the snapshot (Gyr)', \
+    header_dict = {'halo': 'Name of the FOGGEI halo', 'output': 'Name of the snapshot', 'redshift': 'Redshift of snapshot', 'time': 'Cosmological time of the snapshot (Gyr)', \
                    'log_mass': 'Log of stellar mass (in Msun)', 'log_Ztotal': 'Log of total metallicity (in Zsun)', \
                    'Zgrad': 'Fitted gradient of the radial profile, with uncertainty (in dex/kpc)', 'log_Z50': 'Log of the median of the metallicity distribution (in Zsun)', \
                    'log_ZIQR': 'Log of inter-quartile range of the distribution (75th - 25th percentile) (in Zsun)', \
                    'log_Zmean': 'Log of fitted center of the skewed Gaussian, with uncertainty (in Zsun)', 'log_Zwidth': 'Log of fitted width (FWHM) of the skewed Gaussian, with uncertainty (in Zsun)'}
 
     header = ''
-    for thiscol in df.columns: header += header_dict[thiscol] + '\n'
+    for thiscol in df.columns: header += '# ' + header_dict[thiscol] + '\n'
 
     return header
 
@@ -59,15 +59,20 @@ def make_latex_table(df, tabname, args):
     Function to minimise the given larger master table into a small latex table for the paper
     Returns: saves .text file at the destination given by outtabname
     '''
-    column_dict = {'halo':'Halo', 'output':'Output', 'redshift':r'$z$', 'time':'time (Gyr)', 'log_mass':r'log M$_{\star}$/M$_{\odot}$', 'log_Ztotal':'log Z$_{\rm total}$/Z$_{\odot}$', 'Zgrad':r'$\nabla Z$ (dex/kpc)', 'log_Z50':'log Z$_{\rm median}$/Z$_{\odot}$', 'log_ZIQR':'log Z$_{\rm IQR}$/Z$_{\odot}$', 'log_Zmean':'log Z$_{\rm cen}$/Z$_{\odot}$', 'log_Zwidth':'log Z$_{\rm width}$/Z$_{\odot}$'}
+    column_dict = {'halo':'Halo', 'output':'Output', 'redshift':r'$z$', 'time':'Time (Gyr)', 'log_mass':r'log M$_{\star}$/M$_{\odot}$', 'log_Ztotal':'log Z$_{\rm total}$/Z$_{\odot}$', 'Zgrad':r'$\nabla Z$ (dex/kpc)', 'log_Z50':'log Z$_{\rm median}$/Z$_{\odot}$', 'log_ZIQR':'log Z$_{\rm IQR}$/Z$_{\odot}$', 'log_Zmean':'log Z$_{\rm cen}$/Z$_{\odot}$', 'log_Zwidth':'log Z$_{\rm width}$/Z$_{\odot}$'}
     redshift_arr = [0, 1, 2]
-    tex_df = df[df['redshift'].isin(redshift_arr)]
+
+    tex_df = pd.DataFrame(columns = df.columns)
+    for args.halo in args.halo_arr:
+        for thisredshift in redshift_arr:
+            thishalo = halo_dict[args.halo]
+            thisrow = df[(df['halo'] == thishalo) & (df['redshift'].between(thisredshift - 0.01, thisredshift + 0.01))].iloc[0:1]
+            tex_df = tex_df.append(thisrow)
 
     tex_df = tex_df.rename(columns=column_dict)
-    tex_df.to_latex(tabname, index=None, escape=False)
+    tex_df.drop(labels='Output', axis=1, inplace=True)
 
-    # --adding additional material to table--
-    # insert_line_in_file(r'\multicolumn{7}{c}{SNR cut-off = ' + str(columns_choice) + ' }' + '\\\ \n', 2, tabname)
+    tex_df.to_latex(tabname, index=None, escape=False, float_format='%.2F')
 
     print('Saved latex table at', tabname)
 
@@ -98,14 +103,18 @@ if __name__ == '__main__':
     else: upto_text = '_upto%.1FRe' % args.upto_re
 
     # ---------setting up master dataframe------------------------
-    cols_in_df = ['halo', 'output', 'redshift', 'time', 'log_mass', 'log_Ztotal', 'Zgrad', 'Zgrad_u' 'log_Z50', 'log_ZIQR', 'log_Zmean', 'log_Zmean_u', 'log_Zwidth', 'log_Zwidth_u']
+    cols_in_df = ['halo', 'output', 'redshift', 'time', 'log_mass', 'log_Ztotal',  'log_Z50', 'log_ZIQR', 'log_Zmean', 'log_Zmean_u', 'log_Zwidth', 'log_Zwidth_u', 'Zgrad', 'Zgrad_u']
     master_df = pd.DataFrame(columns=cols_in_df)
-    master_filename = args.output_dir + 'txtfiles/master_table_Zpaper%s%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text, args.islog_text)
+    tex_path = HOME + '/Documents/writings/papers/FOGGIE_Zgrad/Tables/'
+    master_filename = tex_path + 'master_table_Zpaper%s%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text, args.islog_text)
 
     # --------loop over different FOGGIE halos-------------
     for index, args.halo in enumerate(args.halo_arr):
         # -------- loading dataframe-------
-        df = load_df(args)
+        try:
+            df = load_df(args)
+        except FileNotFoundError as e:
+            pass
 
         # -------- reading in and merging dataframe with SFR info-------
         sfr_filename = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr'
@@ -118,21 +127,24 @@ if __name__ == '__main__':
         df = df.sort_values('time')
 
         # ---------filter out only necessary columns--------------
-        df = df[cols_in_df]
-        df['halo'] = args.halo
-        master_df = master_df.concat(df)
+        df = df[cols_in_df[1:]]
+        df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
+        df['halo'] = halo_dict[args.halo]
+        master_df = master_df.append(df)
 
     # ---------collate and save master df------------
+    master_df = master_df[cols_in_df]
     cols_with_u = ['Zgrad', 'log_Zmean', 'log_Zwidth']
     for thiscol in cols_with_u:
         master_df[thiscol] = unumpy.uarray(master_df[thiscol].values, master_df[thiscol + '_u'].values)
         master_df.drop(labels=thiscol+'_u', axis=1, inplace=True)
+
     header = get_header(master_df)
-    master_df.to_csv(master_filename, sep='\t', index=None, header=header, comment='#')
+    master_df.to_csv(master_filename, sep='\t', index=None, header=True)
+    insert_line_in_file(header, 0, master_filename)
     print('Wrote to master ASCII file', master_filename)
 
     # ---------make highlight table for paper------------
-    tex_path = HOME + '/Documents/writings/papers/FOGGIE_Zgrad/Tables/'
     tex_tabname = tex_path + os.path.splitext(os.path.split(master_filename)[1])[0].replace('master', 'small') + '.tex'
     tex_df = make_latex_table(master_df, tex_tabname, args)
 
