@@ -355,8 +355,8 @@ if __name__ == '__main__':
 
         # -------computing quantities to save in file-------------------------
         print('Computing stats...')
-        percentiles = np.percentile(Zres, [25, 50, 75])
-        #percentiles = weighted_quantile(Zres, [0.25, 0.50, 0.75], sample_weight=wres)
+        #percentiles = np.percentile(Zres, [25, 50, 75])
+        percentiles = weighted_quantile(Zres, [0.25, 0.50, 0.75], sample_weight=wres)
         Zgini = gini(Zres)
 
         thisrow += [mstar, -99 if args.get_native_res else args.re, result.best_values['sg_amplitude'], result.params['sg_amplitude'].stderr, \
