@@ -12,7 +12,7 @@
 """
 from header import *
 from util import *
-from datashader_movie import field_dict, unit_dict
+from datashader_movie import field_dict, unit_dict, get_correct_tablename
 from compute_Zscatter import fit_distribution
 from compute_MZgrad import get_density_cut, get_re_from_coldgas, get_re_from_stars
 from uncertainties import ufloat, unumpy
@@ -30,7 +30,8 @@ def make_df_from_box(box, args):
     '''
     myprint('Now making dataframe from box..', args)
 
-    df_snap_filename = args.output_dir + '/txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_nonprojectedZ.txt' % (args.galrad)
+    #df_snap_filename = args.output_dir + '/txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_nonprojectedZ.txt' % (args.galrad)
+    df_snap_filename = get_correct_tablename(args)
 
     if not os.path.exists(df_snap_filename) or args.clobber:
         myprint(df_snap_filename + ' does not exist. Creating afresh..', args)
@@ -110,15 +111,15 @@ def plot_Zprof_snap(df, ax, args):
     '''
     plt.style.use('seaborn-whitegrid')
     myprint('Now making the radial profile plot for ' + args.output + '..', args)
-    x_bins = np.linspace(0, args.galrad * np.sqrt(2), 10) # factor of sqrt(2) in order to account for the fact that the data is from inside a "square" of half-size = galrad NOT a "circle" of radius galrad
+    x_bins = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
 
     weightcol = args.weight
     ycol = 'metal'
     color = args.col_arr[0]
 
-    df['weighted_metal'] = len(df) * df['metal'] * df[args.weight] / np.sum(df[args.weight])
-    df['log_metal'] = np.log10(df[ycol])
-    if not args.plot_onlybinned: artist = dsshow(df, dsh.Point('rad', 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.galrad * np.sqrt(2)), y_range=(args.Zlim[0], args.Zlim[1]), aspect='auto', ax=ax, cmap='Blues_r')
+    df['weighted_metal'] = len(df) * df[ycol] * df[args.weight] / np.sum(df[args.weight])
+    df['log_' + ycol] = np.log10(df[ycol])
+    if not args.plot_onlybinned: artist = dsshow(df, dsh.Point('rad', 'log_' + ycol), dsh.count(), norm='linear', x_range=(0, args.galrad * np.sqrt(2)), y_range=(args.Zlim[0], args.Zlim[1]), aspect='auto', ax=ax, cmap='Blues_r')
 
     df['binned_cat'] = pd.cut(df['rad'], x_bins)
 
@@ -142,7 +143,7 @@ def plot_Zprof_snap(df, ax, args):
     y_u_binned = y_u_binned[indices]
 
     # ----------to plot mean binned y vs x profile--------------
-    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True, w=1. / (y_u_binned) ** 2) # linear fitting done in logspace
+    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=1. / (y_u_binned) ** 2) # linear fitting done in logspace
     y_fitted = np.poly1d(linefit)(x_bin_centers) # in logspace
 
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
@@ -152,11 +153,11 @@ def plot_Zprof_snap(df, ax, args):
     ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=5)
     ax.scatter(x_bin_centers, y_binned, c=color, s=50, lw=1, ec='black', zorder=10)
     ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
-    ax.text(0.97, 0.95 - index * 0.1, 'slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='right')
+    ax.text(0.97, 0.95, 'Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='right')
 
     ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_xlim(0, np.round(np.sqrt(2) * args.upto_kpc / 0.695)) # kpc
+    ax.set_xlim(0, np.ceil(args.upto_kpc / 0.695)) # kpc
     ax.set_ylim(args.Zlim[0], args.Zlim[1]) # log limits
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
@@ -174,13 +175,14 @@ def plot_Zdist_snap(df, ax, args):
     myprint('Now making the histogram plot for ' + args.output + '..', args)
 
     Zarr = df['metal']
-    weights = df[args.weight]
+    weights = df[args.weight].values if args.weight is not None else None
     color = args.col_arr[0]
 
-    fit = fit_distribution(Zarr.values, args, weights=weights.values)
+    if args.islog: Zarr = np.log10(Zarr)  # all operations will be done in log
 
-    if args.weight is None: p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, ls='dashed', ec=color, density=True)
-    else: p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, ls='dashed', density=True, ec=color, weights=weights)
+    fit = fit_distribution(Zarr.values, args, weights=weights)
+
+    p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, ls='dashed', density=True, ec=color, weights=weights)
 
     xvals = p[1][:-1] + np.diff(p[1])
     #ax.plot(xvals, fit.init_fit, c=color, lw=1, ls='--') # for plotting the initial guess
@@ -190,17 +192,17 @@ def plot_Zdist_snap(df, ax, args):
         ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=color, lw=1, ls='dotted', label='Skewed Gaussian')
 
     Zdist = [fit.best_values['sg_sigma'], fit.best_values['sg_center']]
-    ax.text(0.97, 0.75 - index * 0.1, 'center = %.2F, width = %.2F' % (fit.best_values['sg_center'], fit.best_values['sg_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='right')
+    ax.text(0.03 if args.islog else 0.97, 0.95, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['sg_center'], 2.355 * fit.best_values['sg_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
 
-    ax.set_xlabel(r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
+    ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)
-    ax.set_xlim(0, 3) # Zsun
-    ax.set_ylim(0, 2)
+    ax.set_xlim(-2 if args.islog else 0, 1 if args.islog else 3) # Zsun
+    ax.set_ylim(0, 3)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
 
-    ax.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
-    ax.text(0.97, 0.85, 't = %.1F Gyr' % args.current_time, ha='right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
+    ax.text(0.03 if args.islog else 0.97, 0.65, 'z = %.2F' % args.current_redshift, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
+    ax.text(0.03 if args.islog else 0.97, 0.55, 't = %.1F Gyr' % args.current_time, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
 
     return Zdist, ax
 
@@ -304,12 +306,12 @@ if __name__ == '__main__':
                 args.use_density_cut = True
                 args.docomoving = True
                 args.fit_multiple = True # True # for the Z distribution panel
-                args.islog = False # for the Z distribution panel
+                args.islog = True # for the Z distribution panel
                 args.nbins = 100 # for the Z distribution panel
                 args.weight = 'mass'
 
             args.current_redshift = ds.current_redshift
-            args.current_time = ds.current_time.in_units('Gyr').v
+            args.current_time = ds.current_time.in_units('Gyr').tolist()
 
             args.col_arr = ['salmon', 'seagreen', 'cornflowerblue']  # colors corresponding to different projections
             args.Zlim = [-2, 2] # log Zsun units
@@ -346,23 +348,21 @@ if __name__ == '__main__':
 
             # extract the required box
             box_center = ds.halo_center_kpc
-            box_width = 2 * args.galrad # kpc
-            box_width_kpc = ds.arr(box_width, 'kpc')
-            box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+            box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
             if args.use_density_cut:
                 rho_cut = get_density_cut(ds.current_time.in_units('Gyr'))  # based on Cassi's CGM-ISM density cut-off
                 box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
                 print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
-            # ------plotting projected metallcity snapshots---------------
-            proj, axes_proj_snap = plot_projectedZ_snap(box, ds.halo_center_kpc, box_width, axes_proj_snap, args, clim=args.Zlim, cmap=old_metal_color_map)
+            # ------plotting nonprojected metallcity snapshots---------------
+            proj, axes_proj_snap = plot_projectedZ_snap(box, ds.halo_center_kpc, 2 * args.galrad, axes_proj_snap, args, clim=args.Zlim, cmap=old_metal_color_map)
 
             df_snap = make_df_from_box(box,  args)
-            # ------plotting projected metallicity profiles---------------
+            # ------plotting nonprojected metallicity profiles---------------
             Zgrad, ax_prof_snap = plot_Zprof_snap(df_snap, ax_prof_snap, args)
 
-            # ------plotting projected metallicity histograms---------------
+            # ------plotting nonprojected metallicity histograms---------------
             Zdist, ax_dist_snap = plot_Zdist_snap(df_snap, ax_dist_snap, args)
 
             # ------update full dataframe and read it from file-----------
@@ -373,10 +373,10 @@ if __name__ == '__main__':
             df_full = df_full.drop_duplicates(subset='output', keep='last')
             df_full = df_full.sort_values(by='time')
 
-            # ------plotting full time evolution of projected metallicity gradient---------------
+            # ------plotting full time evolution of nonprojected metallicity gradient---------------
             ax_grad_ev = plot_Zgrad_evolution(df_full, ax_grad_ev, args)
 
-            # ------plotting full time evolution of projected metallicity distribution---------------
+            # ------plotting full time evolution of nonprojected metallicity distribution---------------
             ax_dist_ev = plot_Zdist_evolution(df_full, ax_dist_ev, args)
 
             # ------saving fig------------------

@@ -40,8 +40,8 @@ def make_frb_from_box(box, box_center, box_width, projection, args):
     '''
     myprint('Now making the FRB for ' + projection + '..', args)
     dummy_field = ('gas', 'density')  # dummy field just to create the FRB; any field can be extracted from the FRB thereafter
-    dummy_proj = ds.proj(dummy_field, projection, center=box_center, data_source=box)
-    frb = dummy_proj.to_frb(ds.arr(box_width, 'kpc'), args.ncells, center=box_center)
+    dummy_proj = box.ds.proj(dummy_field, projection, center=box_center, data_source=box)
+    frb = dummy_proj.to_frb(box.ds.arr(box_width, 'kpc'), args.ncells, center=box_center)
 
     return frb
 
@@ -109,8 +109,7 @@ def plot_Zprof_snap(df, ax, args):
     '''
     plt.style.use('seaborn-whitegrid')
     myprint('Now making the radial profile plot for ' + args.output + '..', args)
-    x_bins = np.linspace(0, args.galrad * np.sqrt(2), 10) # factor of sqrt(2) in order to account for the fact that the data is from inside a "square" of half-size = galrad NOT a "circle" of radius galrad
-
+    x_bins = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
     Zgrad_arr = []
 
     for index,thisproj in enumerate(args.projections):
@@ -144,8 +143,7 @@ def plot_Zprof_snap(df, ax, args):
         y_u_binned = y_u_binned[indices]
 
         # ----------to plot mean binned y vs x profile--------------
-        linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True,
-                                      w=1. / (y_u_binned) ** 2)  # linear fitting done in logspace
+        linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=1. / (y_u_binned) ** 2)  # linear fitting done in logspace
         y_fitted = np.poly1d(linefit)(x_bin_centers) # in logspace
 
         Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
@@ -156,11 +154,11 @@ def plot_Zprof_snap(df, ax, args):
         ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=5)
         ax.scatter(x_bin_centers, y_binned, c=color, s=50, lw=1, ec='black', zorder=10)
         ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
-        ax.text(0.97, 0.95 - index * 0.1, thisproj + ': slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='right')
+        ax.text(0.97, 0.95 - index * 0.1, thisproj + ': Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='right')
 
     ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_xlim(0, np.round(np.sqrt(2) * args.upto_kpc / 0.695)) # kpc
+    ax.set_xlim(0, np.ceil(args.upto_kpc / 0.695)) # kpc
     ax.set_ylim(args.Zlim[0], args.Zlim[1]) # log limits
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
@@ -179,14 +177,15 @@ def plot_Zdist_snap(df, ax, args):
     Zdist_arr = []
 
     for index,thisproj in enumerate(args.projections):
-        Zarr = df['metal_' + thisproj]
-        weights = df['weights_' + thisproj]
+        Zarr = df['metal_' + thisproj].values
+        weights = df['weights_' + thisproj].values if args.weight is not None else None
         color = args.col_arr[index]
 
-        fit = fit_distribution(Zarr.values, args, weights=weights.values)
+        if args.islog: Zarr = np.log10(Zarr)  # all operations will be done in log
 
-        if args.weight is None: p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, ls='dashed', ec=color, density=True)
-        else: p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, ls='dashed', density=True, ec=color, weights=weights)
+        fit = fit_distribution(Zarr, args, weights=weights)
+
+        p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, ls='dashed', density=True, ec=color, weights=weights)
 
         xvals = p[1][:-1] + np.diff(p[1])
         #ax.plot(xvals, fit.init_fit, c=color, lw=1, ls='--') # for plotting the initial guess
@@ -196,17 +195,17 @@ def plot_Zdist_snap(df, ax, args):
             ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=color, lw=1, ls='dotted', label='Skewed Gaussian')
 
         Zdist_arr.append([fit.best_values['sg_sigma'], fit.best_values['sg_center']])
-        ax.text(0.97, 0.75 - index * 0.1, thisproj + ': center = %.2F, width = %.2F' % (fit.best_values['sg_center'], fit.best_values['sg_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='right')
+        ax.text(0.03 if args.islog else 0.97, 0.95 - index * 0.21, '%s: Center = %.2F\n%s: Width = %.2F' % (thisproj, fit.best_values['sg_center'], thisproj, 2.355 * fit.best_values['sg_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
 
-    ax.set_xlabel(r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
+    ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)
-    ax.set_xlim(0, 3) # Zsun
-    ax.set_ylim(0, 2)
+    ax.set_xlim(-2 if args.islog else 0, 1 if args.islog else 3) # Zsun
+    ax.set_ylim(0, 3)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
 
-    ax.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
-    ax.text(0.97, 0.85, 't = %.1F Gyr' % args.current_time, ha='right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
+    ax.text(0.03 if args.islog else 0.97, 0.3, 'z = %.2F' % args.current_redshift, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
+    ax.text(0.03 if args.islog else 0.97, 0.2, 't = %.1F Gyr' % args.current_time, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
 
     return Zdist_arr, ax
 
@@ -312,12 +311,12 @@ if __name__ == '__main__':
                 args.use_density_cut = False
                 args.docomoving = True
                 args.fit_multiple = True # True # for the Z distribution panel
-                args.islog = False # for the Z distribution panel
+                args.islog = True # for the Z distribution panel
                 args.nbins = 100 # for the Z distribution panel
                 args.weight = 'mass'
 
             args.current_redshift = ds.current_redshift
-            args.current_time = ds.current_time.in_units('Gyr').v
+            args.current_time = ds.current_time.in_units('Gyr').tolist()
 
             args.projections = ['x', 'y', 'z']
             args.col_arr = ['salmon', 'seagreen', 'cornflowerblue']  # colors corresponding to different projections
@@ -359,9 +358,7 @@ if __name__ == '__main__':
 
             # extract the required box
             box_center = ds.halo_center_kpc
-            box_width = 2 * args.galrad # kpc
-            box_width_kpc = ds.arr(box_width, 'kpc')
-            box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+            box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
             # ------plotting projected metallcity snapshots---------------
             df_snap_filename = args.output_dir + '/txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projectedZ.txt'%(args.galrad)
@@ -373,7 +370,7 @@ if __name__ == '__main__':
                 df_snap['rad'] = map_dist.flatten()
 
                 for index, thisproj in enumerate(args.projections):
-                    frb = make_frb_from_box(box, box_center, box_width, thisproj, args)
+                    frb = make_frb_from_box(box, box_center, 2 * args.galrad, thisproj, args)
                     df_snap, weighted_map_Z = make_df_from_frb(frb, df_snap, thisproj,  args)
                     axes_proj_snap[index] = plot_projectedZ_snap(np.log10(weighted_map_Z), thisproj, axes_proj_snap[index], args, clim=args.Zlim, cmap=old_metal_color_map, color=args.col_arr[index])
 

@@ -38,6 +38,9 @@ def plot_projected(field, box, box_center, box_width, projection, ax, args, anno
     cmap.set_bad('k')
     proj.set_cmap(field_dict[field], cmap)
 
+    proj.annotate_timestamp(corner='lower_right', redshift=True, draw_inset_box=True)
+    proj.annotate_text((0.05, 0.9), args.output, coord_system='axis', text_args={'fontsize': 500, 'color': 'white'})  # , inset_box_args = {})
+
     # --------annotating boxes etc-----------------------
     if args.annotate_box is not None:
         for thisbox in [float(item) for item in args.annotate_box.split(',')]:  # comoving size in kpc

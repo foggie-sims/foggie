@@ -31,26 +31,33 @@ def load_df(args):
 
     df = pd.read_table(grad_filename, delim_whitespace=True)
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
+    df.rename(columns={'Zvar':'Zsigma', 'Zvar_u':'Zsigma_u', 'gauss_mean':'Zgauss_mean', 'gauss_mean_u':'Zgauss_mean_u', 'gauss_sigma':'Zgauss_sigma', 'gauss_sigma_u':'Zgauss_sigma_u'}, inplace=True) # for backward compatibility
 
     Zgrad_den_text = 'rad' if args.upto_kpc is not None else 'rad_re'
-    df2 = pd.read_table(args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text), comment='#', delim_whitespace=True)
+    df2 = pd.read_table(args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text, args.density_cut_text), comment='#', delim_whitespace=True)
     df = df.merge(df2[['output', 'Zcen_fixedr', 'Zgrad_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr', 'Ztotal_fixedr']], on='output')
     cols_to_rename = ['Zcen_fixedr', 'Zgrad_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr']
     df = df.rename(columns=dict(zip(cols_to_rename, [item[:-7] for item in cols_to_rename])))
 
     df.sort_values(by='redshift', ascending=False, ignore_index=True, inplace=True)
 
-    if 'res' in df: df = df[df['res'] == float(args.res)]
-    df['ZIQR'] = df['Z75'] - df['Z25']
+    #if 'res' in df: df = df[df['res'] == -99 if args.get_native_res else float(args.res)]
 
-    cols_to_log = ['Zpeak', 'Z25', 'Z50', 'Z75', 'ZIQR', 'Zmean', 'Zvar', 'Zskew', 'Ztotal', 'mass', 'Zcen', 'Zcen_binned', 'Ztotal_fixedr', 'gauss_mean', 'gauss_sigma']
+    cols_to_log = ['Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zsigma', 'Ztotal', 'Zcen', 'Zcen_binned', 'Ztotal_fixedr', 'Zgauss_mean', 'Zgauss_sigma']
     for thiscol in cols_to_log:
         if thiscol in df:
-            if args.islog: df['log_' + thiscol] = df[thiscol] # column is already in log
-            else: df['log_' + thiscol] = np.log10(df[thiscol])
+            if args.islog:
+                df.rename(columns={thiscol:'log_' + thiscol}, inplace=True) # column was already in log
+                df[thiscol] = 10**df['log_' + thiscol]
+            else:
+                df['log_' + thiscol] = np.log10(df[thiscol])
         else:
             print(thiscol, 'column not found in dataframe, putting dummy values')
             df['log_' + thiscol] = -99
+
+    df['ZIQR'] = df['Z75'] - df['Z25'] # do the subtraction AFTER the Z75 and Z25 columns have been un-logged
+    df['Zwidth'] = 2.355 * df['Zsigma']
+    for thiscol in ['ZIQR', 'Zwidth', 'mass']: df['log_' + thiscol] = np.log10(df[thiscol])
 
     return df
 
@@ -279,6 +286,7 @@ if __name__ == '__main__':
         args.fit_multiple = True
         args.nocolorcoding = True
         args.zhighlight = True
+        args.get_native_res = True
         if not args.fortalk:
             args.use_density_cut = True
             args.islog = True

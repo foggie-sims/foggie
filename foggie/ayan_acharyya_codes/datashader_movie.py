@@ -52,20 +52,24 @@ def get_correct_tablename(args):
     '''
     Function to determine the correct tablename for a given set of args
     '''
+    if args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % args.upto_re
     density_cut_text = '_wdencut' if args.use_density_cut else ''
-    if args.quick: outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc_%s_vs_%s_colby_%s%s%s.txt' % (args.ycol, args.xcol, args.colorcol, inflow_outflow_text, density_cut_text)
-    else: outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_*kpc' + density_cut_text + '.txt'
+    if args.quick: outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad%s_%s_vs_%s_colby_%s%s%s.txt' % (upto_text, args.ycol, args.xcol, args.colorcol, inflow_outflow_text, density_cut_text)
+    else: outfileroot = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad%s%s.txt' % (upto_text, density_cut_text)
 
     outfile_list = glob.glob(outfileroot)
     if len(outfile_list) == 0:
-        correct_rad_to_grab = args.galrad
+        correct_rad_to_grab = args.upto_kpc
     else:
-        available_rads = np.sort([float(get_text_between_strings(item, 'boxrad_', 'kpc')) for item in outfile_list])
+        available_rads = np.sort([float(get_text_between_strings(item, 'upto', 'ckpc' if args.docomoving else 'kpc')) for item in outfile_list])
         try:
             index = np.where(available_rads >= args.galrad)[0][0]
             correct_rad_to_grab = available_rads[index]
         except IndexError:
-            correct_rad_to_grab = args.galrad
+            correct_rad_to_grab = args.upto_kpc
             pass
 
     outfilename = outfileroot.replace('*', '%.2F' % correct_rad_to_grab)

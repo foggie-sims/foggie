@@ -1143,6 +1143,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--notextonplot', dest='notextonplot', action='store_true', default=False, help='skip putting the "Slope = ..." text on the plot?, default is no')
     parser.add_argument('--plot_onlybinned', dest='plot_onlybinned', action='store_true', default=False, help='plot ONLY the binned plot, without individual pixels?, default is no')
     parser.add_argument('--use_density_cut', dest='use_density_cut', action='store_true', default=False, help='impose a density cut to get just the disk?, default is no')
+    parser.add_argument('--narrowfig', dest='narrowfig', action='store_true', default=False, help='make the figure size proportions narrow instead of square?, default is no')
 
     # ------- args added for get_halo_track.py ------------------------------
     parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')
@@ -1191,6 +1192,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--res', metavar='res', type=str, action='store', default='0.1', help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')
     parser.add_argument('--fit_multiple', dest='fit_multiple', action='store_true', default=False, help='fit one gaussian + one skewed guassian?, default is no')
     parser.add_argument('--annotate_profile', dest='annotate_profile', action='store_true', default=False, help='annotate the multi-component gaussian with text and arrows?, default is no')
+    parser.add_argument('--no_vlines', dest='no_vlines', action='store_true', default=False, help='avoid plotting vertical lines?, default is no')
     parser.add_argument('--Zcut', metavar='Zcut', type=float, action='store', default=None, help='Z/Zsun value below which the metallicity histogram is to be chopped off; default is None')
     parser.add_argument('--hide_multiplefit', dest='hide_multiplefit', action='store_true', default=False, help='hide the multiple components of fit while plotting?, default is no')
     parser.add_argument('--get_native_res', dest='get_native_res', action='store_true', default=False, help='get corresponding info for the native resolution of the sim?, default is no')

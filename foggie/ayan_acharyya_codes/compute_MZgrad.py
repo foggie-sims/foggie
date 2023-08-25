@@ -12,7 +12,7 @@
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_re 3 --xcol rad_re --do_all_sims --weight mass --write_file --noplot
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --xcol rad --do_all_sims --weight mass --write_file --noplot
                  run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass --plot_onlybinned --forproposal
-                 run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass --forpaper
+                 run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --forpaper
 
 """
 from header import *
@@ -244,10 +244,15 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, fit_inlog=False, color='darkoran
     if fit_inlog:
         quant = unumpy.log10(unumpy.uarray(y_binned, y_u_binned)) # for correct propagation of errors
         y_binned, y_u_binned = unumpy.nominal_values(quant), unumpy.std_devs(quant)
-    w_binned = 1 / (y_u_binned) ** 2
+
+    # getting rid of potential nan values
+    indices = np.array(np.logical_not(np.logical_or(np.isnan(x_bin_centers), np.isnan(y_binned))))
+    x_bin_centers = x_bin_centers[indices]
+    y_binned = y_binned[indices]
+    y_u_binned = y_u_binned[indices]
 
     # ----------to plot mean binned y vs x profile--------------
-    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=w_binned)
+    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=1 / (y_u_binned) ** 2)
     y_fitted = np.poly1d(linefit)(x_bin_centers)
 
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
@@ -262,7 +267,7 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, fit_inlog=False, color='darkoran
         ax.scatter(x_bin_centers, y_binned, c=color, s=150, lw=1, ec='black', zorder=10)
         ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
         units = 'dex/re' if 're' in xcol else 'dex/kpc'
-        if not (args.notextonplot or args.forproposal): ax.text(0.033, 0.2, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize, va='center', bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
+        if not (args.notextonplot or args.forproposal): ax.text(0.033, 0.2, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize, va='center', bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
         return ax
     else:
         return Zcen, Zgrad
@@ -286,8 +291,11 @@ def plot_gradient(df, args, linefit=None):
     filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
     # ---------first, plot both cell-by-cell profile first, using datashader---------
-    if args.forproposal and args.output != 'RD0042':
+    if (args.forproposal and args.output != 'RD0042'):
         fig, ax = plt.subplots(figsize=(8, 4))
+        fig.subplots_adjust(right=0.95, top=0.95, bottom=0.2, left=0.17)
+    elif args.narrowfig:
+        fig, ax = plt.subplots(figsize=(8, 5))
         fig.subplots_adjust(right=0.95, top=0.95, bottom=0.2, left=0.17)
     else:
         fig, ax = plt.subplots(figsize=(8, 8))
@@ -304,7 +312,7 @@ def plot_gradient(df, args, linefit=None):
             fitted_y = np.poly1d(linefit)(args.bin_edges)
             ax.plot(args.bin_edges, fitted_y, color=color, lw=3, ls='solid')
             units = 'dex/re' if 're' in args.xcol else 'dex/kpc'
-            if not args.notextonplot: plt.text(0.033,0.3, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, va='center', fontsize=args.fontsize, bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
+            if not args.notextonplot: plt.text(0.033,0.3, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, va='center', fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize, bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
 
     # ----------tidy up figure-------------
     ax.set_xlim(0, args.upto_re if 're' in args.xcol else args.upto_kpc)
@@ -329,8 +337,8 @@ def plot_gradient(df, args, linefit=None):
 
     # ---------annotate and save the figure----------------------
     if not (args.forproposal and args.output == 'RD0042'):
-        plt.text(0.033, 0.05, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize)
-        plt.text(0.033, 0.15 if args.forproposal else 0.1, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize)
+        plt.text(0.033, 0.05, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize)
+        plt.text(0.033, 0.15 if args.forproposal else 0.1, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize)
     plt.savefig(filename, transparent=args.fortalk)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
@@ -353,7 +361,7 @@ def fit_gradient(df, args):
     return Zcen, Zgrad
 
 # -------------------------------------------------------------------------------
-def get_df_from_ds(box, args):
+def get_df_from_ds(box, args, outfilename=None):
     '''
     Function to make a pandas dataframe from the yt dataset, including only the metallicity profile,
     then writes dataframe to file for faster access in future
@@ -362,7 +370,7 @@ def get_df_from_ds(box, args):
     '''
     # -------------read/write pandas df file with ALL fields-------------------
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
-    outfilename = get_correct_tablename(args)
+    if outfilename is None: outfilename = get_correct_tablename(args)
 
     if not os.path.exists(outfilename) or args.clobber:
         myprint(outfilename + ' does not exist. Creating afresh..', args)
@@ -409,6 +417,7 @@ if __name__ == '__main__':
     if dummy_args.forpaper:
         dummy_args.docomoving = True
         dummy_args.use_density_cut = True
+        dummy_args.weight = 'mass'
 
     # -------set up dataframe and filename to store/write gradients in to--------
     cols_in_df = ['output', 'redshift', 'time']
@@ -464,7 +473,7 @@ if __name__ == '__main__':
         this_df_grad = pd.DataFrame(columns=cols_in_df)
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
         halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/'
-        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
+        halos_df_name += 'halo_cen_smoothed' if dummy_args.use_cen_smoothed else 'halo_c_v'
         try:
             if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
@@ -487,13 +496,14 @@ if __name__ == '__main__':
             setup_plots_for_talks()
             args.forpaper = True
         if args.forpaper:
-            if not args.fortalk: args.docomoving = True
+            args.docomoving = True
             args.use_density_cut = True
+            args.weight = 'mass'
         if args.forproposal:
             args.plotlog = True
 
         args.current_redshift = ds.current_redshift
-        args.current_time = ds.current_time.in_units('Gyr').v
+        args.current_time = ds.current_time.in_units('Gyr').tolist()
         args.ylim = [-2.2 if args.ymin is None else args.ymin, 1.2 if args.ymax is None else args.ymax] # [-3, 1]
 
         re_from_stars = get_re_from_stars(ds, args) if args.write_file or args.upto_kpc is None else None # kpc
@@ -519,9 +529,7 @@ if __name__ == '__main__':
 
                 # extract the required box
                 box_center = ds.halo_center_kpc
-                box_width = args.galrad * 2  # in kpc
-                box_width_kpc = ds.arr(box_width, 'kpc')
-                box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+                box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
                 df = get_df_from_ds(box, args) # get dataframe with metallicity profile info
 
@@ -535,6 +543,7 @@ if __name__ == '__main__':
 
                 df['metal_mass'] = df['mass'] * df['metal'] * metallicity_sun
                 Ztotal = (df['metal_mass'].sum()/df['mass'].sum())/metallicity_sun # in Zsun
+                Ztotal = np.log10(Ztotal) # in log Zsun
 
                 thisrow += [mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Zcen_binned.n, Zcen_binned.s, Zgrad_binned.n, Zgrad_binned.s, Ztotal]
             else:

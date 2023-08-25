@@ -19,9 +19,9 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_cadence 50
                  run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --overplot_smoothed 1500 --formolly --hiderawdata --hide_overplot [FOR MOLLY]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --glasspaper [FOR MATCHING GLASS PAPER]
-                 run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol redshift --nocolorcoding --overplot_literature
-                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_smoothed 1000 --nocolorcoding
+                 run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol redshift --overplot_literature --forpaper
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 2 --overplot_smoothed 1000 --snaphighlight DD0452,DD0466 --forproposal
+                 run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 1 --overplot_cadence 500 --keep --snaphighlight DD0452,DD0466 --forpaper
 """
 from header import *
 from util import *
@@ -29,6 +29,7 @@ from matplotlib.collections import LineCollection
 from matplotlib.colors import is_color_like
 from matplotlib import animation
 start_time = time.time()
+
 
 # ---------------------------------
 def load_df(args):
@@ -275,13 +276,13 @@ def overplot_literature(ax, args):
 
     # -----actual plotting --------------
     master_df = master_df.dropna(subset=['Zgrad']).reset_index(drop=True)
-    color, legendcolor = 'palegoldenrod', 'goldenrod'
-    ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=50, lw=0.5, ec='k', zorder=7 if args.fortalk else 10, alpha=0.8) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
+    color, legendcolor, pointsize = 'grey', 'grey', 20
+    ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=pointsize, lw=0.5, ec='k', zorder=7 if args.fortalk else 1, alpha=0.5) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
     #ax.errorbar(master_df['redshift'], master_df['Zgrad'], yerr=master_df['Zgrad_u'], ls='none', lw=0.5, c=color)
     if not args.forproposal:
         ax.text(3.86, 0.36, 'Observations', ha='left', va='center', color=legendcolor, fontsize=args.fontsize)
         ax.text(3.0, 0.36, '(Typical uncertainty   )', ha='left', va='center', color=legendcolor, fontsize=args.fontsize/1.2)
-        ax.scatter(1.965, 0.363, s=50, c=legendcolor, lw=0.5, ec='k')
+        ax.scatter(1.965, 0.363, s=pointsize, c=legendcolor, lw=0.5, ec='k')
         ax.errorbar(1.965, 0.363, yerr=master_df['Zgrad_u'].mean(), capsize=5, capthick=2, lw=2, c=legendcolor)
 
     return ax, master_df
@@ -334,7 +335,7 @@ def plot_MZGR(args):
     things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
 
     # -------------get plot limits-----------------
-    lim_dict = {'Zgrad': (-0.25, 0.1) if (args.Zgrad_den == 'kpc' and args.use_binnedfit) else (-0.5, 0.1) if args.Zgrad_den == 'kpc' else (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (8, 9), 'log_sfr': (-1, 3)}
+    lim_dict = {'Zgrad': (-0.5, 0.1) if args.Zgrad_den == 'kpc' else (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (8, 9), 'log_sfr': (-1, 3)}
     label_dict = MyDefaultDict(Zgrad=r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.Zgrad_den == 're' else 'Metallicity gradient (dex/kpc)' if args.fortalk else r'$\nabla Z$ (dex/kpc)', \
         re='Scale length (kpc)', log_mass=r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', redshift='Redshift', time='Time (Gyr)', sfr=r'SFR (M$_{\odot}$/yr)', \
         log_ssfr=r'$\log{\, \mathrm{sSFR} (\mathrm{yr}^{-1})}$', Ztotal=r'$\log{(\mathrm{O/H})}$ + 12', log_sfr=r'$\log{(\mathrm{SFR} (\mathrm{M}_{\odot}/yr))}$')
@@ -666,6 +667,8 @@ if __name__ == '__main__':
     if args.forpaper:
         args.use_density_cut = True
         args.docomoving = True
+        args.use_binnedfit = True
+        args.weight = 'mass'
 
     # ---------reading in existing MZgrad txt file------------------
     args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight
