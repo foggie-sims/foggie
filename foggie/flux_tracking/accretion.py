@@ -40,7 +40,7 @@ import ast
 import trident
 import matplotlib.pyplot as plt
 import healpy
-import cmasher as cmr
+#import cmasher as cmr
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
