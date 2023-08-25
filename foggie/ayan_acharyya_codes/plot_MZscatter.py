@@ -37,8 +37,8 @@ def load_df(args):
 
     Zgrad_den_text = 'rad' if args.upto_kpc is not None else 'rad_re'
     df2 = pd.read_table(args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text, args.density_cut_text), comment='#', delim_whitespace=True)
-    df = df.merge(df2[['output', 'Zcen_fixedr', 'Zgrad_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr', 'Ztotal_fixedr']], on='output')
-    cols_to_rename = ['Zcen_fixedr', 'Zgrad_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr']
+    df = df.merge(df2[['output', 'Zcen_fixedr', 'Zgrad_fixedr', 'Zgrad_u_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr', 'Ztotal_fixedr']], on='output')
+    cols_to_rename = ['Zcen_fixedr', 'Zgrad_fixedr', 'Zgrad_u_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr']
     df = df.rename(columns=dict(zip(cols_to_rename, [item[:-7] for item in cols_to_rename])))
 
     df.sort_values(by='redshift', ascending=False, ignore_index=True, inplace=True)
@@ -70,7 +70,10 @@ def load_df(args):
 
     df['ZIQR'] = df['Z75'] - df['Z25'] # do the subtraction AFTER the Z75 and Z25 columns have been un-logged
     df['Zwidth'] = 2.355 * df['Zsigma']
-    for thiscol in ['ZIQR', 'Zwidth', 'mass']: df['log_' + thiscol] = np.log10(df[thiscol])
+    df['Zwidth_u'] = 2.355 * df['Zsigma_u']
+    quant = unumpy.log10(unumpy.uarray(df['Zwidth'].values, df['Zwidth_u'].values))
+    df['log_Zwidth'], df['log_Zwidth_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
+    for thiscol in ['ZIQR', 'mass']: df['log_' + thiscol] = np.log10(df[thiscol])
 
     return df
 
