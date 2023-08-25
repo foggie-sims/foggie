@@ -80,8 +80,8 @@ if __name__ == '__main__':
         args.Zlim = [-2, 2] # log Zsun units
         args.res = args.res_arr[0]
         if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695 # converting from comoving kcp h^-1 to physical kpc
-        args.fontsize = 15
-        args.fontfactor = 1.5
+        args.fontsize = 20
+        args.fontfactor = 1
 
         # --------determining corresponding text suffixes-------------
         args.weightby_text = '_wtby_' + args.weight
@@ -92,7 +92,7 @@ if __name__ == '__main__':
         # -------setting up fig--------------
         nrow, ncol1, ncol2 = 3, 2, 3
         ncol = ncol1 * ncol2 # the overall figure is nrow x (ncol1 + ncol2)
-        fig = plt.figure(figsize=(8, 6))
+        fig = plt.figure(figsize=(16, 12))
         axes_proj_snap = [plt.subplot2grid(shape=(nrow, ncol), loc=(0, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
         ax_prof_proj = plt.subplot2grid(shape=(nrow, ncol), loc=(1, 0), colspan=ncol2)
         ax_dist_proj = plt.subplot2grid(shape=(nrow, ncol), loc=(1, ncol2), colspan=ncol - ncol2)

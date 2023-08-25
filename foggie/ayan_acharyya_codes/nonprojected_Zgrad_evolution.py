@@ -89,7 +89,7 @@ def plot_projectedZ_snap(box, box_center, box_width, axes, args, clim=None, cmap
         ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
         ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
         ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
-        ax.text(0.9 * args.galrad, 0.9 * args.galrad, projection, ha='right', va='top', c=args.col_arr[index], fontsize=args.fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
+        ax.text(0.9 * args.galrad, 0.9 * args.galrad, projection, ha='right', va='top', c=args.col_arr[index], fontsize=args.fontsize)#, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
 
     # ---------making the colorbar axis once, that will correspond to all projections--------------
     cax_xpos, cax_ypos, cax_width, cax_height = 0.1, 0.93, 0.8, 0.02

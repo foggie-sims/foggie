@@ -86,7 +86,7 @@ def plot_projectedZ_snap(map, projection, ax, args, clim=None, cmap='viridis', c
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
 
-    ax.text(0.9 * args.galrad, 0.9 * args.galrad, projection, ha='right', va='top', c=color, fontsize=args.fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
+    ax.text(0.9 * args.galrad, 0.9 * args.galrad, projection, ha='right', va='top', c=color, fontsize=args.fontsize)#, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
 
     # ---------making the colorbar axis once, that will correspond to all projections--------------
     if projection == 'x':
@@ -95,7 +95,7 @@ def plot_projectedZ_snap(map, projection, ax, args, clim=None, cmap='viridis', c
         cax = fig.add_axes([cax_xpos, cax_ypos, cax_width, cax_height])
         plt.colorbar(proj, cax=cax, orientation='horizontal')
 
-        cax.set_xticklabels(['%.1F' % index for index in cax.get_xticks()])
+        cax.set_xticklabels(['%.1F' % index for index in cax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
         fig.text(cax_xpos + cax_width / 2, cax_ypos + cax_height + 0.005, r'log Metallicity (Z$_{\odot}$)', ha='center', va='bottom', fontsize=args.fontsize)
 
     return ax
