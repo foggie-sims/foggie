@@ -15,6 +15,7 @@ from header import *
 from util import *
 from matplotlib.collections import LineCollection
 from plot_MZgrad import *
+from uncertainties import unumpy
 start_time = time.time()
 
 # ---------------------------------
@@ -47,16 +48,26 @@ def load_df(args):
     for thiscol in cols_to_log:
         if thiscol in df:
             if args.islog:
-                df.rename(columns={thiscol:'log_' + thiscol}, inplace=True) # column was already in log
-                df[thiscol] = 10**df['log_' + thiscol]
+                if thiscol + '_u' in df: # need to propagate uncertainties properly
+                    quant = unumpy.pow(unumpy.uarray(df[thiscol].values, df[thiscol + '_u'].values), 10)
+                    df.rename(columns={thiscol:'log_' + thiscol, thiscol+'_u':'log_' + thiscol + '_u'}, inplace=True) # column was already in log
+                    df[thiscol], df[thiscol + '_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
+                else: # no uncertainties available, makes life simpler
+                    df.rename(columns={thiscol:'log_' + thiscol}, inplace=True) # column was already in log
+                    df[thiscol] = 10**df['log_' + thiscol]
             else:
-                df['log_' + thiscol] = np.log10(df[thiscol])
+                if thiscol + '_u' in df: # need to propagate uncertainties properly
+                    quant = unumpy.log10(unumpy.uarray(df[thiscol].values, df[thiscol + '_u'].values))
+                    df['log_' + thiscol], df['log_' + thiscol + '_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
+                else: # no uncertainties available, makes life simpler
+                    df['log_' + thiscol] = np.log10(df[thiscol])
         else:
             print(thiscol, 'column not found in dataframe, putting dummy values')
             df['log_' + thiscol] = -99
 
     df['ZIQR'] = df['Z75'] - df['Z25'] # do the subtraction AFTER the Z75 and Z25 columns have been un-logged
     df['Zwidth'] = 2.355 * df['Zsigma']
+    df['']
     for thiscol in ['ZIQR', 'Zwidth', 'mass']: df['log_' + thiscol] = np.log10(df[thiscol])
 
     return df
