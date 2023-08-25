@@ -42,7 +42,7 @@ def plot_all_stats(df, args):
                                           ['gauss_mean', 'gauss_sigma'], ['Ztotal', 'Ztotal_fixedr'],
                                           ['Zgrad', 'Zgrad_binned'], ['Zcen', 'Zcen_binned']], \
                            'label': np.hstack([np.tile([r'$\log{(\mathrm{Z}/\mathrm{Z}_\odot)}$'], 4),
-                                               [r'$\Delta Z$ (dex/kpc)', r'$\log{(\mathrm{Z}/\mathrm{Z}_\odot)}$']]), \
+                                               [r'$\nabla Z$ (dex/kpc)', r'$\log{(\mathrm{Z}/\mathrm{Z}_\odot)}$']]), \
                            'limits': [(-3, 1), (-3, 1), (-3, 1), (-1, 1), (-0.6, 0), (-3, 1)], \
                            'isalreadylog': np.hstack([np.tile([True], 4), [False, True]])})
 
@@ -191,7 +191,7 @@ def plot_time_series(df, args):
 
     groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zsigma']], \
                            'legend': [['Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Width (fit)']], \
-                           'label': np.hstack([r'$\Delta Z$ (dex/kpc)', np.tile([r'log Z/Z$_\odot$'], 2)]), \
+                           'label': np.hstack([r'$\nabla Z$ (dex/kpc)', np.tile([r'log Z/Z$_\odot$'], 2)]), \
                            'limits': [(-0.5, 0.1), (-1, 1), (-1.5, 1)], \
                            'isalreadylog': np.hstack([[False], np.tile([True], 2)]), \
                            'needscleaning': [False, False, True]})
