@@ -28,15 +28,21 @@ def load_df(args):
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
-    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZscat%s%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text, args.islog_text)
 
-    df = pd.read_table(grad_filename, delim_whitespace=True)
-    print('Read in file', grad_filename)
+    # ---------reading in dataframe produced by compute_Zscatter.py-----------
+    dist_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZscat%s%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text, args.islog_text)
+    df = pd.read_table(dist_filename, delim_whitespace=True)
+    print('Read in file', dist_filename)
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
     df.rename(columns={'Zvar':'Zsigma', 'Zvar_u':'Zsigma_u', 'gauss_mean':'Zgauss_mean', 'gauss_mean_u':'Zgauss_mean_u', 'gauss_sigma':'Zgauss_sigma', 'gauss_sigma_u':'Zgauss_sigma_u'}, inplace=True) # for backward compatibility
 
+    # ---------reading in dataframe produced by compute_MZgrad.py-----------
     Zgrad_den_text = 'rad' if args.upto_kpc is not None else 'rad_re'
-    df2 = pd.read_table(args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text, args.density_cut_text), comment='#', delim_whitespace=True)
+    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text, args.density_cut_text)
+    df2 = pd.read_table(grad_filename, comment='#', delim_whitespace=True)
+    print('Read in file', grad_filename)
+
+    # ---------merging both dataframes-----------
     df = df.merge(df2[['output', 'Zcen_fixedr', 'Zgrad_fixedr', 'Zgrad_u_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr', 'Ztotal_fixedr']], on='output')
     cols_to_rename = ['Zcen_fixedr', 'Zgrad_fixedr', 'Zgrad_u_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr']
     df = df.rename(columns=dict(zip(cols_to_rename, [item[:-7] for item in cols_to_rename])))

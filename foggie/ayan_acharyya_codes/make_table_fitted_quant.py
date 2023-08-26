@@ -59,8 +59,10 @@ def make_latex_table(df, tabname, args):
     Function to minimise the given larger master table into a small latex table for the paper
     Returns: saves .text file at the destination given by outtabname
     '''
-    column_dict = {'halo':'Halo', 'output':'Output', 'redshift':r'$z$', 'time':'Time (Gyr)', 'log_mass':r'log M$_{\star}$/M$_{\odot}$', 'log_Ztotal':'log Z$_{\rm total}$/Z$_{\odot}$', 'Zgrad':r'$\nabla Z$ (dex/kpc)', 'log_Z50':'log Z$_{\rm median}$/Z$_{\odot}$', 'log_ZIQR':'log Z$_{\rm IQR}$/Z$_{\odot}$', 'log_Zmean':'log Z$_{\rm cen}$/Z$_{\odot}$', 'log_Zwidth':'log Z$_{\rm width}$/Z$_{\odot}$'}
+    column_dict = {'halo':'Halo', 'output':'Output', 'redshift':r'$z$', 'time':'Time (Gyr)', 'log_mass':r'M$_{\star}$/M$_{\odot}$', 'log_Ztotal':'Z$_{\rm total}$/Z$_{\odot}$', 'Zgrad':r'$\nabla Z$ (dex/kpc)', 'log_Z50':'Z$_{\rm median}$/Z$_{\odot}$', 'log_ZIQR':'Z$_{\rm IQR}$/Z$_{\odot}$', 'log_Zmean':'Z$_{\rm cen}$/Z$_{\odot}$', 'log_Zwidth':'Z$_{\rm width}$/Z$_{\odot}$'}
     redshift_arr = [0, 1, 2]
+    columns_with_unc = ['log_Zmean', 'log_Zwidth', 'Zgrad']
+    decimal_dict = defaultdict(lambda: 2, redshift=1, Zgrad=3)
 
     tex_df = pd.DataFrame(columns = df.columns)
     for args.halo in args.halo_arr:
@@ -69,11 +71,19 @@ def make_latex_table(df, tabname, args):
             thisrow = df[(df['halo'] == thishalo) & (df['redshift'].between(thisredshift - 0.01, thisredshift + 0.01))].iloc[0:1]
             tex_df = tex_df.append(thisrow)
 
-    tex_df = tex_df.rename(columns=column_dict)
-    tex_df.drop(labels='Output', axis=1, inplace=True)
+    for thiscol in tex_df.columns:
+        try:
+            if thiscol in columns_with_unc: # special treatment for columns with +/-
+                tex_df[thiscol] = [('$%.' + str(decimal_dict[thiscol]) + 'f\pm%.' + str(decimal_dict[thiscol]) + 'f$') % (item.n, item.s) for item in tex_df[thiscol].values]
+            else:
+                tex_df[thiscol] = tex_df[thiscol].map(('${:,.' + str(decimal_dict[thiscol]) + 'f}$').format)
+        except ValueError: # columns that do not have numbers
+            continue
 
-    tex_df.to_latex(tabname, index=None, escape=False, float_format='%.2F')
+    tex_df = tex_df.rename(columns=column_dict) # change column names to nice ones
+    tex_df.drop(labels='Output', axis=1, inplace=True) # paper doesn't need DD names
 
+    tex_df.to_latex(tabname, index=None, escape=False)
     print('Saved latex table at', tabname)
 
     return tex_df
