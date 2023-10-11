@@ -306,6 +306,10 @@ def load_and_calculate(snap):
     if ('sb_profile' in args.plot):
         surface_brightness_profile(ds, refine_box, snap)
 
+    # Delete output from temp directory if on pleiades
+    if (args.system=='pleiades_cassi'):
+        print('Deleting directory from /tmp')
+        shutil.rmtree(snap_dir)
 
 if __name__ == "__main__":
     args = parse_args()
