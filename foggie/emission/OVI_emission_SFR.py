@@ -191,7 +191,7 @@ def surface_brightness_profile(ds, refine_box, snap):
     radius = np.sqrt(FRB_x**2. + FRB_y**2.)
 
     minor = ((FRB_x > -10.) & (FRB_x < 10.))
-    major = ((FRB_y < 10.) | (FRB_y > -10.))
+    major = ((FRB_y < 10.) & (FRB_y > -10.))
 
     profile_row = [0., 50., np.log10(np.mean(FRB[(radius < 50.)])), np.log10(np.mean(FRB_in[(radius<50.)])), np.log10(np.mean(FRB_out[(radius<50.)])), np.log10(np.mean(FRB[major])), np.log10(np.mean(FRB[minor]))]
     profile_table.add_row(profile_row)
