@@ -10,7 +10,7 @@ export LD_LIBRARY_PATH="/nasa/hdf5/1.8.18_serial/lib:/u/jtumlins/installs/gsl-2.
 
 For restarting from an old run (say, one of Molly's):
 1. Make a new directory in your /nobackup
-2. Copy over all files (EXCEPT THE DD AND RD DIRECTORIES) from /nobackup/mpeeples/halo_002392/nref11c_nref9f/
+2. Copy over all files (EXCEPT THE DD AND RD DIRECTORIES) from /nobackup/mpeeples/halo_002878/nref11c_nref9f/
 3. Copy over just the one DD or RD directory you want to restart from
 4. Put a new file in your home directory called memory_gauge.sh, containing this:
 
