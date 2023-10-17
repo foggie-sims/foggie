@@ -26,6 +26,7 @@ def get_foggie_met(args):
     density_cut_text = '_wdencut' if args.use_density_cut else ''
     if args.get_native_res:
         ncells_text = ''
+        res_text = '_res_native'
     else:
         if args.upto_kpc is not None:
             if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
@@ -36,23 +37,26 @@ def get_foggie_met(args):
         box_width = args.galrad * 2  # in kpc
 
         if args.res_arc is not None:
-            args.res = get_kpc_from_arc_at_redshift(float(args.res_arc), args.current_redshift)
+            res_text = '_res%.1farcsec' %args.res_arc
+            args.res = get_kpc_from_arc_at_redshift(args.res_arc, args.current_redshift)
             native_res_at_z = 0.27 / (1 + args.current_redshift)  # converting from comoving kpc to physical kpc
             if args.res < native_res_at_z:
                 print('Computed resolution %.2f kpc is below native FOGGIE res at z=%.2f, so we set resolution to the native res = %.2f kpc.' % (args.res, args.current_redshift, native_res_at_z))
                 args.res = native_res_at_z  # kpc
         else:
             args.res = float(args.res)
+            res_text = '_res%.1fkpc' %args.res
             if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695  # converting from comoving kcp h^-1 to physical kpc
         ncells = int(box_width / args.res)
         ncells_text = '_ncells%d' % ncells
     outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%s%s%s.txt' % (upto_text, density_cut_text, ncells_text)
+    print('Reading existing file', outfilename)
 
     df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
     met = df['log_metal'].values if 'log_metal' in df else np.log10(df['metal'].values)
     weights = df[args.weight].values if args.weight is not None else None
 
-    return met, weights
+    return met, weights, upto_text + density_cut_text + res_text
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -65,7 +69,7 @@ if __name__ == '__main__':
     galaxies = ['GN2_17579', 'GS3_40108', 'GS4_24615', 'GS4_20651', 'GS5_44519']
     nrow, ncol = 2, 3
     if args.add_foggie_panel: galaxies = galaxies + args.output_arr
-    foggie_color_arr = ['saddlebrown', 'salmon', 'tan', 'darkorange']
+    foggie_color_arr = ['salmon', 'tan', 'saddlebrown', 'darkorange']
     logOH_sun = 8.69 # Asplund+2009
 
     foggie_z_dict = {'DD0138':4.3, 'DD0287':2.9, 'RD0020':2.0, 'DD0538':1.84, 'DD0638':1.58, 'DD0738':1.37, 'DD0838':1.19, 'DD1038':0.9, 'RD0030':0.7, 'RD0042':0.0}
@@ -82,17 +86,17 @@ if __name__ == '__main__':
         print('Reading %s which is %d out of %d files..' % (thisgal, index+1, len(galaxies)))
         if args.add_foggie_panel and ('RD' in thisgal or 'DD' in thisgal):
             ax = axes[nrow - 1][ncol - 1] # all FOGGIE overplotted in the last panel
-            thislabel = thisgal + '; z= ' + str(foggie_z_dict[thisgal]) # for labeling on the plot
+            thislabel = 'FOGGIE; z= ' + str(foggie_z_dict[thisgal]) # for labeling on the plot
             args.output = thisgal # for reading in FOGGIE files
             args.current_redshift = foggie_z_dict[args.output]
-            log_met_zsun, weights = get_foggie_met(args)
+            log_met_zsun, weights, suffix_text = get_foggie_met(args)
             color = foggie_color_arr[index - len(galaxies) + len(args.output_arr)]
             yoffset = 0.15 * (index - len(galaxies) + len(args.output_arr))
             lw = 1 if len(args.output_arr) > 1 else 2
         else:
             ax = axes[int(index / ncol)][index % ncol]
             thispath = input_path + thisgal + '_zmap.fits'
-            thislabel = thisgal + '; z= ' + str(clear_z_dict[thisgal]) # for labeling on the plot
+            thislabel = 'CLEAR; z= ' + str(clear_z_dict[thisgal]) # for labeling on the plot
 
             log_met_oh = fits.open(thispath)[1].data.flatten()
             log_met_zsun = log_met_oh - logOH_sun
@@ -108,8 +112,8 @@ if __name__ == '__main__':
         if args.overplot_foggie and clear_foggie_dict[thisgal] is not None: # for plotting corresponding FOGGIE snapshot
             args.output = clear_foggie_dict[thisgal] # for reading in FOGGIE files
             args.current_redshift = foggie_z_dict[args.output]
-            thislabel = args.output + '; z= ' + str(foggie_z_dict[args.output]) # for labeling on the plot
-            log_met_zsun, weights = get_foggie_met(args)
+            thislabel = 'FOGGIE; z= ' + str(foggie_z_dict[args.output]) # for labeling on the plot
+            log_met_zsun, weights, suffix_text = get_foggie_met(args)
             color = 'salmon'
             ax.hist(log_met_zsun, bins=args.nbins, histtype='step', density=True, lw=1, weights=weights, range=(args.xmin, args.xmax) if args.xmin is not None else None, color=color)
             ax.text(ax.get_xlim()[1] * 0.99, ax.get_ylim()[1] * 0.99 - 0.17, thislabel, fontsize=args.fontsize/1.5, va='top', ha='right', color=color)
@@ -120,7 +124,10 @@ if __name__ == '__main__':
     fig.text(0.5, 0.05, r'Log Metallicity (Z$_{\odot}$)', ha='center', va='top', fontsize=args.fontsize)
     fig.text(0.01, 0.5, 'Normalised distribution', ha='left', va='center', rotation='vertical', fontsize=args.fontsize)
 
-    figname = input_path + 'CLEAR_met_histograms.png'
+    overplot_text = '_foggie_overplotted' if args.overplot_foggie else ''
+    add_panel_text = '_foggie_panel_' + ','.join(args.output_arr) if args.add_foggie_panel else ''
+    if 'suffix_text' not in locals(): suffix_text = ''
+    figname = input_path + 'CLEAR_met_histograms%s%s%s.png' %(overplot_text, add_panel_text, suffix_text)
     fig.savefig(figname)
     print('Saved images as', figname)
 
