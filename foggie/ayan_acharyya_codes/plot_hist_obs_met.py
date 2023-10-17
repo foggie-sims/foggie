@@ -9,7 +9,7 @@
     Started :    Oct 2023
     Examples :   run plot_hist_obs_met.py --keep --xmin -1.5 --xmax 1 --ymin 0 --ymax 3 --fontsize 20 --halo 8508 --upto_kpc 10 --weight mass --docomoving --use_density_cut --get_native_res --nbins 30 --add_foggie_panel --output DD0538,DD0738,DD0838,DD1038
                  run plot_hist_obs_met.py --keep --xmin -1.5 --xmax 1 --ymin 0 --ymax 3 --fontsize 20 --halo 8508 --upto_kpc 10 --weight mass --docomoving --use_density_cut --get_native_res --nbins 30 --overplot_foggie
-                 run plot_hist_obs_met.py --keep --xmin -1.5 --xmax 1 --ymin 0 --ymax 3 --fontsize 20 --halo 8508 --upto_kpc 10 --weight mass --docomoving --use_density_cut --res_arc 0.1 --nbins 30 --overplot_foggie
+                 run plot_hist_obs_met.py --keep --xmin -1.5 --xmax 1 --ymin 0 --ymax 3 --fontsize 20 --halo 8508 --upto_kpc 10 --weight mass --docomoving --use_density_cut --res_arc 0.1 --nbins 20 --overplot_foggie
 """
 from header import *
 from util import *
