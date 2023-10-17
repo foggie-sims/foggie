@@ -1,4 +1,80 @@
+To make a clean Enzo build using the enzo-foggie fork:
+
+1. From the command line:
+> git clone https://github.com/foggie-sims/enzo-foggie.git 
+> cd enzo-foggie
+> ./configure 
+> cd src/enzo 
+> make machine-pleiades-mpich
+> make grackle-yes 
+> make opt-high 
+> module load comp-intel/2020.4.304 hdf5/1.8.18_serial
+> make clean 
+> make
+[wait while Enzo builds] 
+
+
+Note that Make.mach.pleiades-mpich links to JT's mpich libraries: 
+u/jtumlins/installs/mpich-4.0.3/usr/lib
+and 
+grackle: 
+/u/jtumlins/grackle-mpich/build-mpich/
+/u/jtumlins/grackle-mpich/src/clib/*.o
+
+
+2. Add the following lines to your .bash_profile:
+
+export LD_LIBRARY_PATH="/u/jtumlins/installs/mpich-4.0.3/usr/local/lib":"/u/jtumlins/installs/mpich-4.0.3/usr/lib":$LD_LIBRARY_PATH
+
+export PATH="/nobackup/jtumlins/anaconda3/bin:/u/scicon/tools/bin/:/u/jtumlins/installs/mpich-4.0.3/usr/local/bin:$PATH"
+
+
+3. 4. Put a new file in your home directory called memory_gauge.sh, containing this:
+
+#!/bin/bash
+count=1
+echo "---------------------------Nodes------------------------"
+/u/scicon/tools/bin/qsh.pl $1 "cat /proc/meminfo"   | grep r  | grep i | grep n | grep -v SU | awk '{print $1}' | fmt -1000
+echo "-----------------------Total Memory---------------------"
+/u/scicon/tools/bin/qsh.pl $1 "cat /proc/meminfo" | grep MemTotal: | awk '{print $2/1024/1024}' | fmt -1000
+echo "----------------------Available Memory---------------------"
+while [ $count -le 999999 ]
+do
+	sleep 2
+        (echo "time = "; date +'%s'; /u/scicon/tools/bin/qsh.pl $1 "cat /proc/meminfo" | grep Available: | awk '{print $2/1024/1024}') | tr '\n' '\t' | fmt -1000
+	((count++))
+
+
+
+4. To start a re-run from a previous output:
+	a. Make a new directory to house the run
+	b. Copy over the DD or RD directory of the last output you're restarting from
+	c. Copy over RunScript_jt.sh, simrun.pl, OutputLog, and OutputLevelInformation.out from /nobackup/mpeeples/halo_002878/nref11c_nref9f_mpich_test into your new directory
+	d. Copy the halo track for the halo you're re-running into your new directory
+	e. Make these edits to simrun.pl:
+		- Change the email address to your own
+		- Change the path to the enzo executable to the new enzo-foggie build you just compiled
+		- Change the path when it copies a backup file to lou to your own lou directory
+	f. Make these edits to RunScript_jt.sh:
+		- Change /u/mpeeples/memory_gauge.sh to your own memory_gauge.sh file path
+		- Change the email address to your own
+	g. Make this edit to the parameter file of the output you're restarting from:
+		grackle_data_file = /u/jtumlins/grackle_stable/input/CloudyData_UVB=HM2012_shielded.h5
+	h. Delete all lines after the output you're restarting from from OutputLog
+	i. If you want to be able to monitor the run as it's going, copy over the file np from your new enzo-foggie/bin directory to the run directory. Then, as it's running, you can cd into the directory and type ./np to get information
+	j. If you want to force enzo to make an output, cd into the run directory and then type
+		> touch outputNow
+	k. Another way to monitor as it runs is to cd into the run directory and then type
+		> tail -f estd.out
+	This will give you a running output of new lines being added to the end of the estd.out file.
+
+
+
+
+
+--------------------------------------------------------------------------------------
 Using JT's Enzo executable with memory leak fixed
+NOTE: IF YOU COMPILE THE ENZO-FOGGIE BRANCH YOURSELF, YOU DON'T NEED THESE STEPS
 
 Add these lines to your .bash_profile:
 
