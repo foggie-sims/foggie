@@ -663,8 +663,6 @@ if __name__ == '__main__':
         args.docomoving = True
     if args.forproposal or args.forpaper:
         args.nocolorcoding = True
-        if args.plot_timefraction: args.use_binnedfit = True
-    if args.forpaper:
         args.use_density_cut = True
         args.docomoving = True
         args.use_binnedfit = True
