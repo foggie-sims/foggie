@@ -1,0 +1,24 @@
+Metadata-Version: 2.1
+Name: foggie
+Version: 0.0.0
+Summary: FOGGIE analysis tools
+Home-page: https://github.com/foggie-sims/foggie
+Author: the FOGGIE team
+Author-email: molly@stsci.edu
+License: BSD
+Keywords: simulation,astronomy,astrophysics
+Platform: UNKNOWN
+Classifier: Development Status :: 1 - Planning
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Astronomy
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Operating System :: MacOS :: MacOS X
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Operating System :: Unix
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+
+UNKNOWN
+
