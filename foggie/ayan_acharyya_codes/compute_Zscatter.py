@@ -11,7 +11,7 @@
                  run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --nbins 100 --weight mass --docomoving --fit_multiple --hide_multiplefit --forproposal
                  run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --nbins 100 --forpaper
                  run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --xmax 4 --do_all_sims --weight mass --write_file --use_gasre --noplot
-
+                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --nbins 20 --weight mass --docomoving --use_density_cut --res_arc 0.1 --islog --fit_multiple --hide_multiplefit --no_vlines
 """
 from header import *
 from util import *
@@ -20,7 +20,21 @@ from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
 from lmfit.models import GaussianModel, SkewedGaussianModel
 from pygini import gini
+from astropy.cosmology import FlatLambdaCDM
+from astropy import units as u
+
 start_time = time.time()
+
+# ---------------------------------------------------------------------------
+def get_kpc_from_arc_at_redshift(arcseconds, redshift):
+    '''
+    Function to convert arcseconds on sky to physical kpc, at a given redshift
+    '''
+    cosmo = FlatLambdaCDM(H0=67.8, Om0=0.308)
+    d_A = cosmo.angular_diameter_distance(z=redshift)
+    kpc = (d_A * arcseconds * u.arcsec).to(u.kpc, u.dimensionless_angles()).value # in kpc
+    print('Converted resolution of %.2f arcseconds to %.2F kpc at target redshift of %.2f' %(arcseconds, kpc, redshift))
+    return kpc
 
 # ----------------------------------------------------------------------------
 # Following function is adapted from https://stackoverflow.com/questions/21844024/weighted-percentile-using-numpy
@@ -322,13 +336,21 @@ if __name__ == '__main__':
         if args.get_native_res: # native res
             box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
         else: # binned res
-            if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695 # converting from comoving kcp h^-1 to physical kpc
+            if args.res_arc is not None:
+                args.res = get_kpc_from_arc_at_redshift(float(args.res_arc), args.current_redshift)
+                native_res_at_z = 0.27 / (1 + args.current_redshift) # converting from comoving kpc to physical kpc
+                if args.res < native_res_at_z:
+                    print('Computed resolution %.2f kpc is below native FOGGIE res at z=%.2f, so we set resolution to the native res = %.2f kpc.'%(args.res, args.current_redshift, native_res_at_z))
+                    args.res = native_res_at_z # kpc
+            else:
+                args.res = float(args.res)
+                if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695 # converting from comoving kcp h^-1 to physical kpc
             ncells = int(box_width / args.res)
             box = ds.arbitrary_grid(left_edge=[box_center[0] - box_width_kpc / 2., box_center[1] - box_width_kpc / 2., box_center[2] - box_width_kpc / 2.], \
                                     right_edge=[box_center[0] + box_width_kpc / 2., box_center[1] + box_width_kpc / 2., box_center[2] + box_width_kpc / 2.], \
                                     dims=[ncells, ncells, ncells])
             print('res =', args.res, 'kpc; box shape=', np.shape(box)) #
-            box = box.cut_region(['obj["gas", "radius_corrected"] > %.1E' % args.galrad]) # to make it a sphere instead of a box
+            box = box.cut_region(['obj["gas", "radius_corrected"] < %.1E' % args.galrad]) # to make it a sphere instead of a box
 
         # ----------------getting the corresponding dataframe--------------------------
         if args.upto_kpc is not None: upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
