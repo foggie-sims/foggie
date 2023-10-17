@@ -99,12 +99,12 @@ def foggie_load(snap, trackfile, **kwargs):
                 if (snap[-6:] in halo_c_v['col3']):
                     print("Pulling halo center from catalog file")
                     halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
-                    halo_center_kpc = ds.arr([float(halo_c_v['col4'][halo_ind]), \
-                                              float(halo_c_v['col5'][halo_ind]), \
-                                              float(halo_c_v['col6'][halo_ind])], 'kpc')
-                    halo_velocity_kms = ds.arr([float(halo_c_v['col7'][halo_ind]), \
-                                                float(halo_c_v['col8'][halo_ind]), \
-                                                float(halo_c_v['col9'][halo_ind])], 'km/s')
+                    halo_center_kpc = ds.arr([float(halo_c_v['col5'][halo_ind]), \
+                                              float(halo_c_v['col6'][halo_ind]), \
+                                              float(halo_c_v['col7'][halo_ind])], 'kpc')
+                    halo_velocity_kms = ds.arr([float(halo_c_v['col8'][halo_ind]), \
+                                                float(halo_c_v['col9'][halo_ind]), \
+                                                float(halo_c_v['col10'][halo_ind])], 'km/s')
                     ds.halo_center_kpc = halo_center_kpc
                     ds.halo_center_code = halo_center_kpc.in_units('code_length')
                     ds.halo_velocity_kms = halo_velocity_kms
