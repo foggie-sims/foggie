@@ -85,10 +85,10 @@ data_source = ds.box(leftedge, rightedge)
 #data_source = ds.sphere(region.center, (20, 'kpc'))
 
 for field in fields_of_interest:
-    for or in ['x','y','z']:
+    for ori in ['x','y','z']:
 
 
-        prj = yt.ProjectionPlot(ds, or, ("gas", field),
+        prj = yt.ProjectionPlot(ds, ori, ("gas", field),
                                # center=chosencenter, width=(chosenwidth,'kpc'),weight_field=("gas", "density"), data_source=data_source)
                                 center=region.center, width=(20,'kpc'), data_source=data_source)
 
