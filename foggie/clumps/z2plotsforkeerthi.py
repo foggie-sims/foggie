@@ -95,7 +95,7 @@ for field in fields_of_interest:
         prj.annotate_clumps(leaf_clumps)
         plotsdir = output_dir +'plots'
         if not (os.path.exists(plotsdir)): os.system('mkdir -p ' + plotsdir)
-        prj.save(plotsdir+'/halo_00'+halo+'_'+sim+'_'+snap+'_'+or+'_'+field+'_proj_20kpc_box.png')
+        prj.save(plotsdir+'/halo_00'+halo+'_'+sim+'_'+snap+'_'+ori+'_'+field+'_proj_20kpc_box.png')
 
 
 
@@ -127,6 +127,7 @@ source /home5/raugust4/.bashrc
 /home5/raugust4/anaconda3/bin/python3 /home5/raugust4/offlinescripts/plotsforkeerthi.py --halo=8508 > /home5/raugust4/z2proj.log
 
 
+/home5/raugust4/anaconda3/bin/python3 /nobackupp13/raugust4/foggie/foggie/clumps/z2plotsforkeerthi.py --halo=2392
 
 
 """
