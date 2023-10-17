@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import foggie.utils.get_region as gr 
 from foggie.utils.consistency import colormap_dict, background_color_dict, proj_min_dict, proj_max_dict
 import foggie.render.shade_maps as sm
+import argparse
 plt.rcParams["image.origin"] = 'lower'
 
 import frame 
@@ -85,32 +86,8 @@ def parse_args():
     return args
 
 
-if __name__ == '__main__':
+parser = argparse.ArgumentParser()
+parser.add_argument('--snap_number', type=int, required=True)
+args = parser.parse_args()
+print('Hello your snap_number is:', args.snap_number)
 
-    args = parse_args()
-    print('  wildcard = ', args.card)
-    print('      axis = ', args.axis)
-    print('     width = ', args.width)
-    print('    prefix = ', args.prefix)
-    print('  nthreads = ', args.nthreads)
-    print(' functions = ', args.functions)
-    print('    region = ', args.region)
-    
-
-    ts = yt.load(snapshot_dir+args.card) 
-    ts.outputs.reverse() # work backwards in time
-    print("the snapshots are: ", ts.outputs)
-    print("there are N = ", len(ts.outputs), " outputs ") 
-
-    print("We will be using Nthreads = ", args.nthreads, " processing threads") 
-    print("We will apply the plotting functions: ", args.functions)
-    print("              onto the FOGGIE region: ", args.region)
-
-    chunksize = int(np.ceil(len(ts.outputs) / args.nthreads)) 
-    dslist = list(chunks(ts.outputs, chunksize))
- 
-    with ProcessPoolExecutor(args.nthreads) as executor:
-        # these return immediately and are executed in parallel on separate processes
-        for index in np.arange(args.nthreads): 
-            print(index) 
-            _ = executor.submit(script, dslist[index], args.axis, args.width, args.prefix, args.functions, args.region)      

@@ -12,7 +12,7 @@
                  run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --res 0.1 --zhighlight --docomoving --fit_multiple
                  run plot_Zevolution.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --keep --weight mass --res 0.1 --zhighlight --docomoving --fit_multiple
                  run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --weight mass --forpaper [FOR THE PAPER]
-                 run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --forpaper --docorr sfr --doft
+                 run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --forpaper --docorr sfr --doft
                  run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --forappendix
                  run plot_Zevolution.py --system ayan_local --halo 8508 --upto_kpc 10 --keep --weight mass --forposter
 
@@ -38,11 +38,11 @@ def plot_all_stats(df, args):
                'black', 'darkturquoise', 'lawngreen']
     sfr_col_arr = ['cornflowerblue', 'salmon']  # ['black', 'brown']
 
-    groups = pd.DataFrame({'quantities': [['Z25', 'Z50', 'Z75'], ['Zskew', 'Zmean', 'Zvar'],
+    groups = pd.DataFrame({'quantities': [['Z25', 'Z50', 'Z75'], ['Zskew', 'Zmean', 'Zwidth'],
                                           ['gauss_mean', 'gauss_sigma'], ['Ztotal', 'Ztotal_fixedr'],
                                           ['Zgrad', 'Zgrad_binned'], ['Zcen', 'Zcen_binned']], \
                            'label': np.hstack([np.tile([r'$\log{(\mathrm{Z}/\mathrm{Z}_\odot)}$'], 4),
-                                               [r'$\Delta Z$ (dex/kpc)', r'$\log{(\mathrm{Z}/\mathrm{Z}_\odot)}$']]), \
+                                               [r'$\nabla Z$ (dex/kpc)', r'$\log{(\mathrm{Z}/\mathrm{Z}_\odot)}$']]), \
                            'limits': [(-3, 1), (-3, 1), (-3, 1), (-1, 1), (-0.6, 0), (-3, 1)], \
                            'isalreadylog': np.hstack([np.tile([True], 4), [False, True]])})
 
@@ -188,13 +188,13 @@ def plot_time_series(df, args):
 
     col_arr = ['saddlebrown', 'royalblue', 'darkolivegreen', 'black', 'cornflowerblue', 'salmon', 'gold', 'brown', 'crimson',
                'black', 'darkturquoise', 'lawngreen']
-    sfr_col_arr = ['black']
 
-    groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zvar']], \
+    groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zsigma']], \
                            'legend': [['Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Width (fit)']], \
-                           'label': np.hstack([r'$\Delta Z$ (dex/kpc)', np.tile([r'Z/Z$_\odot$'], 2)]), \
-                           'limits': [(-0.5, 0.1), (1e-3, 8), (1e-4, 2)], \
-                           'isalreadylog': np.hstack([np.tile([False], 3)])})
+                           'label': np.hstack([r'$\nabla Z$ (dex/kpc)', np.tile([r'log Z/Z$_\odot$'], 2)]), \
+                           'limits': [(-0.5, 0.1), (-1, 1), (-1.5, 1)], \
+                           'isalreadylog': np.hstack([[False], np.tile([True], 2)]), \
+                           'needscleaning': [False, False, True]})
     if args.forappendix: groups = groups[groups.index.isin([2])]
     if args.forposter: groups = groups[groups.index.isin([0, 2])]
 
@@ -204,8 +204,10 @@ def plot_time_series(df, args):
         ax = axes[j]
         log_text = 'log_' if thisgroup.isalreadylog else ''
         for i, ycol in enumerate(thisgroup.quantities):
-            if args.forposter or args.fortalk:# or args.forpaper or args.forappendix:
+            if (args.forposter or args.fortalk or args.forpaper) and thisgroup.needscleaning:
                 df = omit_bad_spikes(df, log_text + ycol)
+            df = df.dropna(subset=[log_text + ycol], axis=0) # to drop nan values of the quantity being plotted
+
             ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=1, label=thisgroup.legend[i])
             if args.zhighlight: ax = plot_zhighlight(df,log_text + ycol, col_arr[i], ax, args)
             # -------for the FT plot--------------
@@ -474,13 +476,15 @@ if __name__ == '__main__':
         args.forposter = True
 
     if args.forpaper or args.forappendix or args.forposter:
-        args.res = 0.1 # kpc
         args.zhighlight = True
         args.docomoving = True
         args.fit_multiple = True
         args.fontsize = 15 # 15 is fine because these will be 1-page size figures
     if args.forpaper:
         args.use_density_cut = True
+        args.islog = True
+        args.weight = 'mass'
+        args.get_native_res = True
 
     # --------loop over different FOGGIE halos-------------
     for index, args.halo in enumerate(args.halo_arr):
@@ -488,12 +492,14 @@ if __name__ == '__main__':
         args.weightby_text = '' if args.weight is None else '_wtby_' + args.weight
         args.fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
         args.density_cut_text = '_wdencut' if args.use_density_cut else ''
+        args.islog_text = '_islog' if args.islog else ''
+
         if args.upto_kpc is not None:
             upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
         else:
             upto_text = '_upto%.1FRe' % args.upto_re
         _, args.output_dir, _, _ ,_, _, _, _ = get_run_loc_etc(args)
-        output_filename = args.output_dir + 'txtfiles/' + args.halo + '_timeseries%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text)
+        output_filename = args.output_dir + 'txtfiles/' + args.halo + '_timeseries%s%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text, args.islog_text)
 
         if not os.path.exists(output_filename) or args.clobber:
             print('\n', output_filename, 'does not exist, merging dataframes to create it..')
@@ -509,8 +515,8 @@ if __name__ == '__main__':
                 print('Reading SFR history from', sfr_filename)
                 sfr_df = pd.read_table(sfr_filename, names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
                 df = df.merge(sfr_df[['output', 'sfr']], on='output')
-                df['ssfr'] = df['sfr'] / 10 ** df['log_mass']
-                df = df.replace([np.inf, -np.inf], np.nan).dropna(axis=0)
+                df['ssfr'] = df['sfr'] / df['mass']
+                df = df.replace([np.inf, -np.inf], np.nan)
                 df['log_ssfr'] = np.log10(df['ssfr'])
                 df['log_sfr'] = np.log10(df['sfr'])
             else:

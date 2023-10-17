@@ -15,6 +15,7 @@ from header import *
 from util import *
 from matplotlib.collections import LineCollection
 from plot_MZgrad import *
+from uncertainties import unumpy
 start_time = time.time()
 
 # ---------------------------------
@@ -27,30 +28,58 @@ def load_df(args):
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
-    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZscat%s%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text, args.islog_text)
 
-    df = pd.read_table(grad_filename, delim_whitespace=True)
+    # ---------reading in dataframe produced by compute_Zscatter.py-----------
+    dist_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZscat%s%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text, args.islog_text)
+    df = pd.read_table(dist_filename, delim_whitespace=True)
+    print('Read in file', dist_filename)
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
+    df.rename(columns={'Zvar':'Zsigma', 'Zvar_u':'Zsigma_u', 'gauss_mean':'Zgauss_mean', 'gauss_mean_u':'Zgauss_mean_u', 'gauss_sigma':'Zgauss_sigma', 'gauss_sigma_u':'Zgauss_sigma_u'}, inplace=True) # for backward compatibility
 
+    # ---------reading in dataframe produced by compute_MZgrad.py-----------
     Zgrad_den_text = 'rad' if args.upto_kpc is not None else 'rad_re'
-    df2 = pd.read_table(args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text), comment='#', delim_whitespace=True)
-    df = df.merge(df2[['output', 'Zcen_fixedr', 'Zgrad_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr', 'Ztotal_fixedr']], on='output')
-    cols_to_rename = ['Zcen_fixedr', 'Zgrad_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr']
+    grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text, args.density_cut_text)
+    df2 = pd.read_table(grad_filename, comment='#', delim_whitespace=True)
+    print('Read in file', grad_filename)
+
+    # ---------merging both dataframes-----------
+    df = df.merge(df2[['output', 'Zcen_fixedr', 'Zgrad_fixedr', 'Zgrad_u_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr', 'Ztotal_fixedr']], on='output')
+    cols_to_rename = ['Zcen_fixedr', 'Zgrad_fixedr', 'Zgrad_u_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr']
     df = df.rename(columns=dict(zip(cols_to_rename, [item[:-7] for item in cols_to_rename])))
 
     df.sort_values(by='redshift', ascending=False, ignore_index=True, inplace=True)
 
-    if 'res' in df: df = df[df['res'] == float(args.res)]
-    df['ZIQR'] = df['Z75'] - df['Z25']
+    #if 'res' in df: df = df[df['res'] == -99 if args.get_native_res else float(args.res)]
 
-    cols_to_log = ['Zpeak', 'Z25', 'Z50', 'Z75', 'ZIQR', 'Zmean', 'Zvar', 'Zskew', 'Ztotal', 'mass', 'Zcen', 'Zcen_binned', 'Ztotal_fixedr', 'gauss_mean', 'gauss_sigma']
+    cols_to_log = ['Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zsigma', 'Ztotal', 'Zcen', 'Zcen_binned', 'Ztotal_fixedr', 'Zgauss_mean', 'Zgauss_sigma']
     for thiscol in cols_to_log:
         if thiscol in df:
-            if args.islog: df['log_' + thiscol] = df[thiscol] # column is already in log
-            else: df['log_' + thiscol] = np.log10(df[thiscol])
+            if args.islog:
+                if thiscol + '_u' in df and (df[thiscol + '_u']!=0).any(): # need to propagate uncertainties properly
+                    df = df[(df[thiscol + '_u'] >= 0) & (np.abs(df[thiscol]/df[thiscol + '_u']).between(1e-1, 1e5))] # remove negative errors and errors that are way too high compared to the measured value; something must be wrong there
+                    quant = unumpy.pow(10, unumpy.uarray(df[thiscol].values, df[thiscol + '_u'].values))
+                    df.rename(columns={thiscol:'log_' + thiscol, thiscol+'_u':'log_' + thiscol + '_u'}, inplace=True) # column was already in log
+                    df[thiscol], df[thiscol + '_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
+                else: # no uncertainties available, makes life simpler
+                    df.rename(columns={thiscol:'log_' + thiscol}, inplace=True) # column was already in log
+                    df[thiscol] = 10**df['log_' + thiscol]
+            else:
+                if thiscol + '_u' in df and (df[thiscol + '_u']!=0).any(): # need to propagate uncertainties properly
+                    df = df[(df[thiscol + '_u'] >= 0) & (np.abs(df[thiscol]/df[thiscol + '_u']).between(1e-1, 1e5))] # remove negative errors and errors that are way too high compared to the measured value; something must be wrong there
+                    quant = unumpy.log10(unumpy.uarray(df[thiscol].values, df[thiscol + '_u'].values))
+                    df['log_' + thiscol], df['log_' + thiscol + '_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
+                else: # no uncertainties available, makes life simpler
+                    df['log_' + thiscol] = np.log10(df[thiscol])
         else:
             print(thiscol, 'column not found in dataframe, putting dummy values')
             df['log_' + thiscol] = -99
+
+    df['ZIQR'] = df['Z75'] - df['Z25'] # do the subtraction AFTER the Z75 and Z25 columns have been un-logged
+    df['Zwidth'] = 2.355 * df['Zsigma']
+    df['Zwidth_u'] = 2.355 * df['Zsigma_u']
+    quant = unumpy.log10(unumpy.uarray(df['Zwidth'].values, df['Zwidth_u'].values))
+    df['log_Zwidth'], df['log_Zwidth_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
+    for thiscol in ['ZIQR', 'mass']: df['log_' + thiscol] = np.log10(df[thiscol])
 
     return df
 
@@ -279,6 +308,7 @@ if __name__ == '__main__':
         args.fit_multiple = True
         args.nocolorcoding = True
         args.zhighlight = True
+        args.get_native_res = True
         if not args.fortalk:
             args.use_density_cut = True
             args.islog = True

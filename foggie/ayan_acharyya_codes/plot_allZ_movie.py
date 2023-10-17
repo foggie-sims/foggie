@@ -12,7 +12,7 @@
 """
 from header import *
 from util import *
-from compute_Zscatter import gauss, skewed_gauss, multiple_gauss
+from lmfit.models import GaussianModel, SkewedGaussianModel
 from compute_MZgrad import get_df_from_ds
 from plot_MZgrad import plot_zhighlight
 from plot_MZscatter import load_df
@@ -30,7 +30,7 @@ def plot_full_evolution(df, axes, args, col_arr=['green', 'darkorgange']):
     # -------------which quantities to plot in which axis-----------------
     groups = pd.DataFrame({'quantities': [['Zgrad', 'Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zvar']], \
                            'legend': [['Fit to all cells', 'Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Fitted mean', 'Fitted width']], \
-                           'label': np.hstack([r'$\Delta Z$ (dex/kpc)', np.tile([r'Z/Z$_\odot$'], 2)]), \
+                           'label': np.hstack([r'$\nabla Z$ (dex/kpc)', np.tile([r'Z/Z$_\odot$'], 2)]), \
                            'limits': [(-0.5, 0.1), (1e-3, 8), (1e-4, 2)]})
     groups = groups[groups.index.isin([0, 2])]
     xlimits = [0, 14] # Gyr
@@ -69,35 +69,6 @@ def plot_full_evolution(df, axes, args, col_arr=['green', 'darkorgange']):
                 df[args.colorcol + '_interp'] = cfunc(df[args.xcol])
                 ax.plot(df[args.xcol], df[args.ycol + '_interp'], c=col_arr[i], lw=0.5)
 
-            # ------- making additional plot of deviation in gradient vs other quantities, like SFR------------
-            if args.plot_timefraction:
-                print('Plotting time fraction vs', args.colorcol, 'halo', args.halo)
-                if args.overplot_smoothed: overplotted_column = args.ycol + '_smoothed'
-                elif args.overplot_cadence: overplotted_column = args.ycol + '_interp'
-
-                df[args.ycol + '_deviation'] = df[args.ycol] - df[overplotted_column]
-                df = df.sort_values('time')
-
-                # ---------vertical line for time-cut-off-----
-                ax.plot(df[args.xcol], df[overplotted_column] + args.Zgrad_allowance, color=col_arr[i], lw=0.3)
-                ax.plot(df[args.xcol], df[overplotted_column] - args.Zgrad_allowance, color=col_arr[i], lw=0.3)
-                ax.axvline(df[df['redshift'] >= args.upto_z]['time'].values[-1], lw=2, ls='dashed', color='k')
-
-                # ---------filled area plot for deviation outside allowance-----
-                ax.fill_between(df[args.xcol], df[overplotted_column], df[overplotted_column] + args.Zgrad_allowance, color=col_arr[i], alpha=0.1)
-                ax.fill_between(df[args.xcol],  df[overplotted_column], df[overplotted_column] - args.Zgrad_allowance, color=col_arr[i], alpha=0.1)
-
-                ax.text(xlimits[1] * 0.98, (df[overplotted_column].values[-1] + args.Zgrad_allowance) * 0.9, '+%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='bottom', fontsize=args.fontsize)
-                ax.text(xlimits[1] * 0.98, (df[overplotted_column].values[-1] - args.Zgrad_allowance) * 2.0, '-%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='top', fontsize=args.fontsize)
-
-                # ---------calculating fration of time spent in filled area-----
-                dfsub = df[df['redshift'] >= args.upto_z]
-                snaps_outside_allowance = len(dfsub[(dfsub['Zgrad_deviation'] > args.Zgrad_allowance) | (dfsub['Zgrad_deviation'] < -args.Zgrad_allowance)])
-                total_snaps = len(dfsub)
-                timefraction_outside = snaps_outside_allowance * 100 / total_snaps
-                ax.text(xlimits[0] * 1.1 + 0.1, thisgroup.limits[1] * 0.88 - i * 0.05, '%s spends %0d%% time outside' % (halo_dict[args.halo], timefraction_outside), ha='left', va='top', color=col_arr[i], fontsize=args.fontsize)
-                print('Halo', args.halo, 'spends %.2F%%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation upto redshift %.1F' % args.upto_z)
-
         ax.legend(loc='upper right' if j == 1 else 'lower right', fontsize=args.fontsize)
         ax.set_ylabel(thisgroup.label, fontsize=args.fontsize)
         ax.set_ylim(thisgroup.limits)
@@ -117,7 +88,7 @@ def get_box_from_ds(ds, args):
     Returns yt dataset type
     '''
     # extract the required box
-    box_center = ds.arr(args.halo_center, kpc)
+    box_center = ds.halo_center_kpc
     box_width = args.galrad * 2  # in kpc
     box_width_kpc = ds.arr(box_width, 'kpc')
     box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2.,
@@ -136,7 +107,7 @@ def plot_profile(df, ax, args, col_arr=['green', 'darkorgange']):
     args.xlim = [0, args.upto_kpc]
 
     # ------plot the datashader background---------------------
-    artist = dsshow(df, dsh.Point(args.xcol, args.ycol), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ylim[0], args.ylim[1]), aspect = 'auto', ax=ax, cmap='Blues_r')#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
+    artist = dsshow(df, dsh.Point(args.xcol, args.ycol), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ylim[0], args.ylim[1]), aspect = 'auto', ax=ax, cmap='Greys_r')#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # --------bin the metallicity profile and plot the binned profile-----------
     args.bin_edges = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
@@ -154,8 +125,8 @@ def plot_profile(df, ax, args, col_arr=['green', 'darkorgange']):
     ax.tick_params(axis='both', labelsize=args.fontsize)
 
     # ---------annotate and save the figure----------------------
-    ax.text(0.05, 0.2, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor, color='white', bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
-    ax.text(0.05, 0.1, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor, color='white', bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
+    ax.text(0.05, 0.2, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor, color='k', bbox=dict(facecolor='white', alpha=0.6, edgecolor='k'))
+    ax.text(0.05, 0.1, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor, color='k', bbox=dict(facecolor='white', alpha=0.6, edgecolor='k'))
 
     return linefit_binned, linefit_cells, ax
 
@@ -166,16 +137,15 @@ def fit_binned(df, ax, args, color='darkorange'):
     '''
     df['binned_cat'] = pd.cut(df[args.xcol], args.bin_edges)
 
-    agg_func = lambda x: np.sum(x * df.loc[x.index, args.weight]) / np.sum(df.loc[x.index, args.weight]) # function to get weighted mean
-    #agg_u_func = lambda x: np.sqrt(((np.sum(df.loc[x.index, args.weight] * x**2) / np.sum(df.loc[x.index, args.weight])) - (np.sum(x * df.loc[x.index, args.weight]) / np.sum(df.loc[x.index, args.weight]))**2) * (np.sum(df.loc[x.index, args.weight]**2)) / (np.sum(df.loc[x.index, args.weight])**2 - np.sum(df.loc[x.index, args.weight]**2))) # eq 6 of http://seismo.berkeley.edu/~kirchner/Toolkits/Toolkit_12.pdf
-    agg_u_func = np.std
+    agg_func = lambda x: np.sum(x * df.loc[x.index, args.weight]) / np.sum(df.loc[x.index, args.weight])  # function to get weighted mean
+    agg_u_func = lambda x: np.sqrt(((np.sum(df.loc[x.index, args.weight] * x ** 2) / np.sum(df.loc[x.index, args.weight])) - (np.sum(x * df.loc[x.index, args.weight]) / np.sum(df.loc[x.index, args.weight])) ** 2) * (np.sum(df.loc[x.index, args.weight] ** 2)) / (np.sum(df.loc[x.index, args.weight]) ** 2 - np.sum(df.loc[x.index, args.weight] ** 2)))  # eq 6 of http://seismo.berkeley.edu/~kirchner/Toolkits/Toolkit_12.pdf
 
     y_binned = df.groupby('binned_cat', as_index=False).agg([(args.ycol, agg_func)])[args.ycol].values
     y_u_binned = df.groupby('binned_cat', as_index=False).agg([(args.ycol, agg_u_func)])[args.ycol].values
 
     # ----------to plot mean binned y vs x profile--------------
     x_bin_centers = args.bin_edges[:-1] + np.diff(args.bin_edges) / 2
-    linefit, linecov = np.polyfit(x_bin_centers, y_binned.flatten(), 1, cov=True, w=1/(y_u_binned.flatten())**2)
+    linefit, linecov = np.polyfit(x_bin_centers, y_binned.flatten(), 1, cov=True)#, w=1/(y_u_binned.flatten())**2)
 
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
     Zcen = ufloat(linefit[1], np.sqrt(linecov[1][1]))
@@ -185,7 +155,7 @@ def fit_binned(df, ax, args, color='darkorange'):
     ax.scatter(x_bin_centers, y_binned, c=color, s=50, lw=1, ec='black')
     ax.plot(x_bin_centers, np.poly1d(linefit)(x_bin_centers), color=color, lw=1, ls='dashed')
     units = 'dex/re' if 're' in args.xcol else 'dex/kpc'
-    ax.text(0.95, 0.9, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor, ha='right', va='center', bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
+    ax.text(0.95, 0.9, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor, ha='right', va='center', bbox=dict(facecolor='white', alpha=0.8, edgecolor='k'))
     return [Zgrad, Zcen], ax
 
 # -------------------------------
@@ -202,7 +172,7 @@ def fit_gradient(df, ax, args, color='limegreen'):
     fitted_y = np.poly1d(linefit)(args.bin_edges)
     ax.plot(args.bin_edges, fitted_y, color=color, lw=1, ls='solid')
     units = 'dex/re' if 're' in args.xcol else 'dex/kpc'
-    ax.text(0.95, 0.8, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, ha='right', va='center', fontsize=args.fontsize/args.fontfactor, bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
+    ax.text(0.95, 0.8, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, ha='right', va='center', fontsize=args.fontsize/args.fontfactor, bbox=dict(facecolor='white', alpha=0.8, edgecolor='k'))
 
     print('Inferred slope for halo ' + args.halo + ' output ' + args.output + ' is', Zgrad, 'dex/re' if 're' in args.xcol else 'dex/kpc')
 
@@ -241,7 +211,7 @@ def plot_distribution(Zarr, weights, ax, args, col_arr=['green', 'darkorgange'])
     args.xlim, args.ylim = [0, 4], [0, 2.5]
     p = plt.hist(Zarr, bins=args.nbins, histtype='step', lw=2, density=True, range=args.xlim, ec=col_arr[1], weights=weights)
 
-    dist_stats, ax = fit_distribution(Zarr, weights, ax, args, color=col_arr[0], range=args.xlim)
+    fit, ax = fit_distribution(Zarr, weights, ax, args, color=col_arr[0], range=args.xlim)
 
     # ----------tidy up figure-------------
     plt.legend(loc='upper right', bbox_to_anchor=(1, 0.75), fontsize=args.fontsize)
@@ -254,10 +224,10 @@ def plot_distribution(Zarr, weights, ax, args, col_arr=['green', 'darkorgange'])
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 
     # ---------annotate and save the figure----------------------
-    ax.text(0.95, 0.9, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor)
-    ax.text(0.95, 0.8, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor)
+    ax.text(0.97, 0.9, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor)
+    ax.text(0.97, 0.8, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor)
 
-    return dist_stats, ax
+    return fit, ax
 
 # -------------------------------
 def fit_distribution(Zarr, weights, ax, args, color='k', range=(0, 4)):
@@ -269,33 +239,29 @@ def fit_distribution(Zarr, weights, ax, args, color='k', range=(0, 4)):
     x = x[:-1] + np.diff(x)/2
 
     # ----------fitting distribution with multiple components------------
+    model = SkewedGaussianModel(prefix='sg_')
+    params = model.make_params(sg_amplitude=0.5, sg_center=0.5, sg_sigma=0.5, sg_gamma=0)
     print('Fitting with one skewed gaussian + one regular guassian...')
-    p0 = [2, 0.1, 0.1, 0.5, 0.5, 0.5, 0]  # initial guess for parameters; [gaussian amplitude, gaussian mean, gaussian sigma, skewed gaussian amplitude, skewed gaussian mean, skewed gaussian sigma, skewed gaussian gamma]
-    lower_bounds = np.zeros(len(p0))
-    upper_bounds = [np.inf, 0.4, 0.1, np.inf, np.inf, np.inf, np.inf]
-    result, cov = curve_fit(multiple_gauss, x, y, p0=p0, bounds=[lower_bounds, upper_bounds], maxfev=int(1e4))
+    g_model = GaussianModel(prefix='g_')
+    if args.islog: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
+    else: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
+    model = model + g_model
 
-    gauss_amp = ufloat(result[0], np.sqrt(cov[0][0]))
-    gauss_mean = ufloat(result[1], np.sqrt(cov[1][1]))
-    gauss_sigma = ufloat(result[2], np.sqrt(cov[2][2]))
-
-    Zpeak = ufloat(result[3], np.sqrt(cov[3][3]))
-    Zmean = ufloat(result[4], np.sqrt(cov[4][4]))
-    Zvar = ufloat(result[5], np.sqrt(cov[5][5]))
-    Zskew = ufloat(result[6], np.sqrt(cov[6][6]))
+    result = model.fit(y, params, x=x)
 
     # --------overplotting the fit-----------------
-    ax.plot(x, multiple_gauss(x, *result), c=color, lw=1)
-    ax.plot(x, gauss(x, result[:3]), c=color, lw=1, ls='--')
-    ax.plot(x, skewed_gauss(x, result[3:]), c=color, lw=1, ls='dotted')
+    ax.plot(x, result.best_fit, c=color, lw=1)
+    ax.plot(x, GaussianModel().eval(x=x, amplitude=result.best_values['g_amplitude'], center=result.best_values['g_center'], sigma=result.best_values['g_sigma']), c=color, lw=1, ls='--')
+    ax.plot(x, SkewedGaussianModel().eval(x=x, amplitude=result.best_values['sg_amplitude'], center=result.best_values['sg_center'], sigma=result.best_values['sg_sigma'], gamma=result.best_values['sg_gamma']), c=color, lw=1, ls='dotted')
 
-    ax.axvline(gauss_mean.n, lw=1, ls='dashed', color=color)
-    ax.axvline(Zmean.n, lw=1, ls='dotted', color=color)
+    ax.axvline(result.best_values['sg_center'], lw=1, ls='dotted', color=color)
+    ax.axvline(result.best_values['g_center'], lw=1, ls='dashed', color=color)
 
-    ax.text(0.95, 0.6, r'Mean = %.2F Z/Z$\odot$' % Zmean.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor)
-    ax.text(0.95, 0.5, r'Sigma = %.2F Z/Z$\odot$' % Zvar.n, ha='right', transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor)
+    plt.text(0.97, 0.7, r'Mean = %.2F Z$\odot$' % result.best_values['sg_center'], ha='right', transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor)
+    plt.text(0.97, 0.6, r'Sigma = %.2F Z$\odot$' % result.best_values['sg_sigma'], ha='right', transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor)
 
-    return [Zpeak, Zmean, Zvar, Zskew, gauss_amp, gauss_mean, gauss_sigma], ax
+    return result, ax
+
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -303,7 +269,7 @@ if __name__ == '__main__':
     if type(args_tuple) is tuple: args, ds, refine_box = args_tuple # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     else: args = args_tuple
     if not args.keep: plt.close('all')
-    col_arr = ['fuchsia', 'darkturquoise']
+    col_arr = ['saddlebrown', 'royalblue'] #['fuchsia', 'darkturquoise']
 
     # --------domain decomposition; for mpi parallelisation-------------
     if args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(args) # all snapshots of this particular halo
@@ -333,7 +299,8 @@ if __name__ == '__main__':
         start_time_this_snapshot = time.time()
         this_sim = list_of_sims[index]
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', args)
-        halos_df_name = args.code_path + 'halo_infos/00' + this_sim[0] + '/' + args.run + '/' + 'halo_cen_smoothed'
+        halos_df_name = args.code_path + 'halo_infos/00' + this_sim[0] + '/' + args.run + '/'
+        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
 
         # -------loading in snapshot-------------------
         try:
@@ -351,6 +318,8 @@ if __name__ == '__main__':
         # --------loading df for full time evolution-------------
         args.weightby_text = '_wtby_' + args.weight
         args.fitmultiple_text = '_fitmultiple'
+        args.density_cut_text = '_wdencut' if args.use_density_cut else ''
+        args.islog_text = '_islog' if args.islog else ''
         df = load_df(args)  # loading dataframe (includes both gradinets and distribution measurements
 
         # -------setting up fig--------------
@@ -386,7 +355,7 @@ if __name__ == '__main__':
 
         # ------plotting individual snapshot: histogram--------
         Zarr, weights = get_Zarr_from_box(ds, args)
-        dist_stats, ax_dist_snap = plot_distribution(Zarr, weights, ax_dist_snap, args, col_arr=col_arr)
+        result, ax_dist_snap = plot_distribution(Zarr, weights, ax_dist_snap, args, col_arr=col_arr)
 
         # ------plotting individual snapshots: corresponding vertical lines on time-evolution plot------
         color = 'k'

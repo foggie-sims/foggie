@@ -1,0 +1,35 @@
+# Run started Thu Apr  6 19:45:19 2023.
+#
+# cloudyRunMode = 4 
+# outputFilePrefix = sh_z0_HM12
+# outputDir = /Users/dalek/repos/Aspera/self-shielding-tests/updated_ciaoloop/
+#
+# Commands to be executed everytime:
+# failures 200 times map
+# iterate to convergence max=2 error=0.20
+# CMB redshift 0.00
+# Table HM12 redshift 0.00
+# set WeakHeatCool -20
+# no H2 molecule
+# no charge transfer
+# metals 0 log
+#
+# Loop commands and values:
+# hden: -5 -4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -0.5 0 0.5 1 1.5 2
+#
+#run	hden
+1	-5
+2	-4.5
+3	-4
+4	-3.5
+5	-3
+6	-2.5
+7	-2
+8	-1.5
+9	-1
+10	-0.5
+11	0
+12	0.5
+13	1
+14	1.5
+15	2

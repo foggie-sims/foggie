@@ -5369,8 +5369,8 @@ def force_slice(snap):
         mass_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), mass_edges)
         mass_masked = np.copy(mass)
         mass_masked[disk_mask] = mass_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
-        smooth_mass = gaussian_filter(mass_masked, window_size)
-        #sum_mass = ndimage.generic_filter(mass_masked, np.sum, size=window_size)
+        #smooth_mass = gaussian_filter(mass_masked, window_size)
+        sum_mass = ndimage.generic_filter(mass_masked, np.sum, size=window_size)
 
     for i in range(len(ftypes)):
         if (ftypes[i]=='thermal') or ((ftypes[i]=='total') and (args.force_type!='all')):
@@ -5388,22 +5388,22 @@ def force_slice(snap):
             #thermal_force = -dPdr
             if (ftypes[i]=='thermal'):
                 if (args.smoothed > 0.):
-                    force_mass = thermal_force * mass_masked
-                    smooth_force = gaussian_filter(force_mass, window_size)
-                    force = smooth_force / smooth_mass
+                    #force_mass = thermal_force * mass_masked
+                    #smooth_force = gaussian_filter(force_mass, window_size)
+                    #force = smooth_force / smooth_mass
                     # This code for making overlay of different force types for job proposals:
                     #sum_force = ndimage.generic_filter(force_mass, np.sum, size=window_size)
                     #force = sum_force / sum_mass
                     #thermal_force = np.copy(force)
                     #thermal_force[thermal_force<1e-11] = 1e-11
-                    #vals = np.ones((256, 4))
-                    #vals[:, 0] = np.ones(256)*10/256
-                    #vals[:, 1] = np.ones(256)*38/256
-                    #vals[:, 2] = np.ones(256)*247/256
-                    #vals[:, 3] = np.linspace(0., 0.8, 256)
-                    #therm_cmap = colors.ListedColormap(vals)
+                    vals = np.ones((256, 4))
+                    vals[:, 0] = np.ones(256)*10/256
+                    vals[:, 1] = np.ones(256)*38/256
+                    vals[:, 2] = np.ones(256)*247/256
+                    vals[:, 3] = np.linspace(0., 0.8, 256)
+                    therm_cmap = colors.ListedColormap(vals)
                     #np.save(save_dir + 'thermal_force.npy', thermal_force)
-                    #thermal_force = np.load(save_dir + 'thermal_force.npy')
+                    thermal_force = np.load(save_dir + 'thermal_force.npy')
                 else:
                     force = thermal_force
                 force_label = 'Thermal Pressure'
@@ -5442,22 +5442,22 @@ def force_slice(snap):
             #turb_force = -dPdr
             if (ftypes[i]=='turbulent'):
                 if (args.smoothed > 0.):
-                    force_mass = turb_force * mass_masked
-                    smooth_force = gaussian_filter(force_mass, window_size)
-                    force = smooth_force / smooth_mass
+                    #force_mass = turb_force * mass_masked
+                    #smooth_force = gaussian_filter(force_mass, window_size)
+                    #force = smooth_force / smooth_mass
                     # This code for making overlay of different force types for job proposals:
                     #sum_force = ndimage.generic_filter(force_mass, np.sum, size=window_size)
                     #force = sum_force / sum_mass
                     #turb_force = np.copy(force)
                     #turb_force[turb_force<1e-11] = 1e-11vals = np.ones((256, 4))
-                    #vals = np.ones((256, 4))
-                    #vals[:, 0] = np.ones(256)*7/256
-                    #vals[:, 1] = np.ones(256)*173/256
-                    #vals[:, 2] = np.ones(256)*2/256
-                    #vals[:, 3] = np.linspace(0., 0.8, 256)
-                    #turb_cmap = colors.ListedColormap(vals)
+                    vals = np.ones((256, 4))
+                    vals[:, 0] = np.ones(256)*7/256
+                    vals[:, 1] = np.ones(256)*173/256
+                    vals[:, 2] = np.ones(256)*2/256
+                    vals[:, 3] = np.linspace(0., 0.8, 256)
+                    turb_cmap = colors.ListedColormap(vals)
                     #np.save(save_dir + 'turb_force.npy', turb_force)
-                    #turb_force = np.load(save_dir + 'turb_force.npy')
+                    turb_force = np.load(save_dir + 'turb_force.npy')
                 else:
                     force = turb_force
                 force_label = 'Turbulent Pressure'
@@ -5507,22 +5507,22 @@ def force_slice(snap):
             rot_force = (smooth_vtheta**2. + smooth_vphi**2.)/r
             if (ftypes[i]=='rotation'):
                 if (args.smoothed > 0.):
-                    force_mass = rot_force * mass_masked
-                    smooth_force = gaussian_filter(force_mass, window_size)
-                    force = smooth_force / smooth_mass
+                    #force_mass = rot_force * mass_masked
+                    #smooth_force = gaussian_filter(force_mass, window_size)
+                    #force = smooth_force / smooth_mass
                     # This code for making overlay of different force types for job proposals:
                     #sum_force = ndimage.generic_filter(force_mass, np.sum, size=window_size)
                     #force = sum_force / sum_mass
                     #rot_force = np.copy(force)
                     #rot_force[rot_force<1e-11] = 1e-11vals = np.ones((256, 4))
-                    #vals = np.ones((256, 4))
-                    #vals[:, 0] = np.ones(256)*183/256
-                    #vals[:, 1] = np.ones(256)*2/256
-                    #vals[:, 2] = np.ones(256)*219/256
-                    #vals[:, 3] = np.linspace(0., 0.8, 256)
-                    #rot_cmap = colors.ListedColormap(vals)
+                    vals = np.ones((256, 4))
+                    vals[:, 0] = np.ones(256)*183/256
+                    vals[:, 1] = np.ones(256)*2/256
+                    vals[:, 2] = np.ones(256)*219/256
+                    vals[:, 3] = np.linspace(0., 0.8, 256)
+                    rot_cmap = colors.ListedColormap(vals)
                     #np.save(save_dir + 'rot_force.npy', rot_force)
-                    #rot_force = np.load(save_dir + 'rot_force.npy')
+                    rot_force = np.load(save_dir + 'rot_force.npy')
                 else:
                     force = rot_force
                 force_label = 'Rotation'
@@ -5542,10 +5542,10 @@ def force_slice(snap):
             tot_force = thermal_force + turb_force + rot_force + ram_force + grav_force
             if (args.smoothed > 0.):
                 force_mass = tot_force * mass_masked
-                smooth_force = gaussian_filter(force_mass, window_size)
-                force = smooth_force / smooth_mass
-                #sum_force = ndimage.generic_filter(force_mass, np.sum, size=window_size)
-                #force = sum_force / sum_mass
+                #smooth_force = gaussian_filter(force_mass, window_size)
+                #force = smooth_force / smooth_mass
+                sum_force = ndimage.generic_filter(force_mass, np.sum, size=window_size)
+                force = sum_force / sum_mass
                 #tot_force = np.copy(force)
                 #tot_force[tot_force<1e-11] = 1e-11
             else:
@@ -5583,9 +5583,9 @@ def force_slice(snap):
         ax.set_xlabel('y [kpc]', fontsize=30)
         ax.set_ylabel('z [kpc]', fontsize=30)
         if (args.smoothed):
-            ax.text(-200, 200, '%d kpc' % (args.smoothed), fontsize=34, ha='left', va='center')
-        else:
-            ax.text(-200,200, slice_label, fontsize=34, ha='left', va='center')
+            ax.text(-200, 200, '%d kpc smoothing' % (args.smoothed), fontsize=34, ha='left', va='center')
+        #else:
+            #ax.text(-200,200, slice_label, fontsize=34, ha='left', va='center')
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=28, \
           top=True, right=True)
         cax = fig.add_axes([0.775, 0.1, 0.04, 0.87])
