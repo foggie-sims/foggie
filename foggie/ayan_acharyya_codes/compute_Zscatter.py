@@ -9,19 +9,32 @@
     Started :    Aug 2022
     Examples :   run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_re 3 --res 0.1 --nbins 100 --keep --weight mass
                  run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0042 --upto_kpc 10 --nbins 100 --weight mass --docomoving --fit_multiple --hide_multiplefit --forproposal
-                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --nbins 100 --weight mass --forpaper
+                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --nbins 100 --forpaper
                  run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --xmax 4 --do_all_sims --weight mass --write_file --use_gasre --noplot
-
+                 run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --nbins 20 --weight mass --docomoving --use_density_cut --res_arc 0.1 --islog --fit_multiple --hide_multiplefit --no_vlines
 """
 from header import *
 from util import *
-from datashader_movie import *
 from compute_MZgrad import *
 from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
 from lmfit.models import GaussianModel, SkewedGaussianModel
 from pygini import gini
+from astropy.cosmology import FlatLambdaCDM
+from astropy import units as u
+
 start_time = time.time()
+
+# ---------------------------------------------------------------------------
+def get_kpc_from_arc_at_redshift(arcseconds, redshift):
+    '''
+    Function to convert arcseconds on sky to physical kpc, at a given redshift
+    '''
+    cosmo = FlatLambdaCDM(H0=67.8, Om0=0.308)
+    d_A = cosmo.angular_diameter_distance(z=redshift)
+    kpc = (d_A * arcseconds * u.arcsec).to(u.kpc, u.dimensionless_angles()).value # in kpc
+    print('Converted resolution of %.2f arcseconds to %.2F kpc at target redshift of %.2f' %(arcseconds, kpc, redshift))
+    return kpc
 
 # ----------------------------------------------------------------------------
 # Following function is adapted from https://stackoverflow.com/questions/21844024/weighted-percentile-using-numpy
@@ -72,30 +85,33 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     if args.forproposal:
         fig, ax = plt.subplots(figsize=(8, 4))
         fig.subplots_adjust(right=0.95, top=0.9, bottom=0.2, left=0.2)
+    elif args.narrowfig:
+        fig, ax = plt.subplots(figsize=(8, 5))
+        fig.subplots_adjust(right=0.95, top=0.95, bottom=0.2, left=0.17)
     else:
         fig, ax = plt.subplots(figsize=(8, 8))
         fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.15)
 
     color = 'cornflowerblue' if args.fortalk else 'salmon'
-    if args.weight is None: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, ec=color, density=True)
-    else: p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, ec=color, weights=weights.flatten())
+    p = plt.hist(Zarr.flatten(), bins=args.nbins, histtype='step', lw=2, density=True, ec=color, weights=weights.flatten() if args.weight is not None else None)
 
     if fit is not None and not (args.forproposal and args.output != 'RD0042'):
         fit_color = 'darkorange' if args.fortalk else 'k'
         xvals = p[1][:-1] + np.diff(p[1])
-        ax.plot(xvals, fit.best_fit, c=fit_color, lw=2, label=None if args.forproposal else 'Best fit')
-        #ax.plot(xvals, fit.init_fit, c='b', lw=2, label='Initial guess') #
+        ax.plot(xvals, fit.best_fit, c=fit_color, lw=1, label=None if args.forproposal or args.hide_multiplefit else 'Best fit')
+        #ax.plot(xvals, fit.init_fit, c='b', lw=1, label='Initial guess') #
         if not args.hide_multiplefit:
             ax.plot(xvals, GaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma']), c=fit_color, lw=2, ls='--', label='Regular Gaussian')
             ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=fit_color, lw=2, ls='dotted', label='Skewed Gaussian')
 
     # ----------adding vertical lines-------------
-    if fit is not None and not (args.forproposal and args.output != 'RD0042'):
-        ax.axvline(fit.best_values['sg_center'], lw=2, ls='dotted', color=fit_color)
-        if args.fit_multiple: ax.axvline(fit.best_values['g_center'], lw=2, ls='dashed', color=fit_color)
+    if not args.no_vlines:
+        if fit is not None and not (args.forproposal and args.output != 'RD0042'):
+            ax.axvline(fit.best_values['sg_center'], lw=1, ls='dotted', color=fit_color)
+            if args.fit_multiple: ax.axvline(fit.best_values['g_center'], lw=1, ls='dashed', color=fit_color)
 
-    if percentiles is not None and not args.fortalk:
-        for thisper in np.atleast_1d(percentiles): ax.axvline(thisper, lw=2.5, ls='solid', color='crimson')
+        if percentiles is not None and not args.fortalk:
+            for thisper in np.atleast_1d(percentiles): ax.axvline(thisper, lw=1, ls='solid', color='crimson')
 
     # ----------adding arrows--------------
     if args.annotate_profile and not args.notextonplot:
@@ -124,12 +140,13 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
 
     # ---------annotate and save the figure----------------------
     if not args.notextonplot:
+        if args.narrowfig: args.fontsize /= 1.5
         plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
         plt.text(0.97, 0.9, 't = %.1F Gyr' % args.current_time, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-
+        log_text = r'Log Mean/Z$\odot$ = %.2F' if args.islog else r'Mean = %.2F Z$\odot$'
         if fit is not None:
-            plt.text(0.97, 0.8, r'Mean = %.2F Z$\odot$' % fit.best_values['sg_center'], ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-            plt.text(0.97, 0.75, r'Sigma = %.2F Z$\odot$' % fit.best_values['sg_sigma'], ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+            plt.text(0.97, 0.8, log_text % fit.best_values['sg_center'], ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+            plt.text(0.97, 0.75, log_text.replace('Mean', 'Width') % (2.355 * fit.best_values['sg_sigma']), ha='right', transform=ax.transAxes, fontsize=args.fontsize)
     plt.savefig(filename, transparent=args.fortalk)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
@@ -143,20 +160,26 @@ def fit_distribution(Zarr, args, weights=None):
     Returns the fitted parameters for a skewed Gaussian
     '''
     Zarr = Zarr.flatten()
-    if weights is not None: weights = weights.flatten()
+    if weights is not None:
+        weights = weights.flatten()
+        indices = np.array(np.logical_not(np.logical_or(np.isnan(Zarr), np.isnan(weights))))
+        weights = weights[indices]
+    else:
+        indices = np.array(np.logical_not(np.isnan(weights)))
+    Zarr =Zarr[indices]
 
     y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights)
     x = x[:-1] + np.diff(x)/2
 
     model = SkewedGaussianModel(prefix='sg_')
     if args.islog: params = model.make_params(sg_amplitude=2.0, sg_center=0.1, sg_sigma=0.5, sg_gamma=-3)
-    else: params = model.make_params(sg_amplitude=0.5, sg_center=0.5, sg_sigma=0.5, sg_gamma=0)
+    else: params = model.make_params(sg_amplitude=1.0, sg_center=1.0, sg_sigma=0.5, sg_gamma=1)
 
     if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
         print('Fitting with one skewed gaussian + one regular guassian...')
         g_model = GaussianModel(prefix='g_')
         if args.islog: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
-        else: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
+        else: params.update(g_model.make_params(g_amplitude=2, g_center=0.2, g_sigma=0.1))
         model = model + g_model
     else: # fitting a single skewed gaussian with SkewedGaussianModel()
         print('Fitting with one skewed gaussian...')
@@ -178,14 +201,14 @@ if __name__ == '__main__':
     total_snaps = len(list_of_sims)
 
     if dummy_args.forpaper:
-        dummy_args.res = 0.1  # kpc
         dummy_args.docomoving = True
         dummy_args.islog = True
         dummy_args.use_density_cut = True
         dummy_args.fit_multiple = True
+        dummy_args.weight = 'mass'
 
     # -------set up dataframe and filename to store/write gradients in to--------
-    cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zgini', 'Zmean', 'Zmean_u', 'Zvar', 'Zvar_u', 'Zskew', 'Zskew_u', 'Ztotal', 'gauss_amp', 'gauss_amp_u', 'gauss_mean', 'gauss_mean_u', 'gauss_sigma', 'gauss_sigma_u']
+    cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zgini', 'Zmean', 'Zmean_u', 'Zsigma', 'Zsigma_u', 'Zskew', 'Zskew_u', 'Ztotal', 'Zgauss_amp', 'Zgauss_amp_u', 'Zgauss_mean', 'Zgauss_mean_u', 'Zgauss_sigma', 'Zgauss_sigma_u']
 
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
@@ -245,7 +268,8 @@ if __name__ == '__main__':
         this_sim = list_of_sims[index]
         this_df_grad = pd.DataFrame(columns=cols_in_df)
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
-        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/' + 'halo_cen_smoothed'
+        halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/'
+        halos_df_name += 'halo_cen_smoothed' if dummy_args.use_cen_smoothed else 'halo_c_v'
         try:
             if len(list_of_sims) == 1 and not dummy_args.do_all_sims: args = dummy_args_tuple # since parse_args() has already been called and evaluated once, no need to repeat it
             else: args = parse_args(this_sim[0], this_sim[1])
@@ -268,27 +292,30 @@ if __name__ == '__main__':
             args.forpaper = True
             args.notextonplot = True
         if args.forpaper:
-            args.res = 0.1  # kpc
-            if not args.fortalk: args.docomoving = True
+            args.get_native_res = True
+            args.docomoving = True
             args.islog = True
             args.use_density_cut = True
             args.fit_multiple = True
+            args.no_vlines = True
+            args.hide_multiplefit = True
+            args.weight = 'mass'
         elif args.forproposal:
-            args.res = 0.1  # kpc
+            args.res = 0.3  # kpc
             args.notextonplot = True
 
 
         args.current_redshift = ds.current_redshift
-        args.current_time = ds.current_time.in_units('Gyr').v
+        args.current_time = ds.current_time.in_units('Gyr').tolist()
         if args.xmin is None:
             args.xmin = -1.5 if args.islog else 0
         if args.xmax is None:
-            args.xmax = 2 if args.forproposal else 0.6 if args.islog else 4
+            args.xmax = 2 if args.forproposal else 1.0 if args.islog else 4
         if args.ymax is None:
-            args.ymax = 1.5 if args.forproposal else 2.0 if args.use_density_cut else 2.5 if args.islog else 2.5
+            args.ymax = 1.5 if args.forproposal else 2.5 if args.islog else 2.5
 
         if args.write_file or args.upto_kpc is None:
-            args.re = get_re_from_coldgas(gasprofile, args) if args.use_gasre else get_re_from_stars(ds, args)
+            args.re = get_re_from_coldgas(args, gasprofile=gasprofile) if args.use_gasre else get_re_from_stars(ds, args)
         else:
             args.re = np.nan
         thisrow = [args.output, args.current_redshift, args.current_time, args.re] # row corresponding to this snapshot to append to df
@@ -299,75 +326,70 @@ if __name__ == '__main__':
         else:
             args.galrad = args.re * args.upto_re  # kpc
 
-        if args.galrad > 0:
-            # extract the required box
-            box_center = ds.arr(args.halo_center, kpc)
-            box_width = args.galrad * 2  # in kpc
-            box_width_kpc = ds.arr(box_width, 'kpc')
-            mstar = get_disk_stellar_mass(args)  # Msun
+        # extract the required box
+        box_center = ds.halo_center_kpc
+        box_width = args.galrad * 2  # in kpc
+        box_width_kpc = ds.arr(box_width, 'kpc')
+        mstar = get_disk_stellar_mass(args)  # Msun
 
-            # ----------------native res--------------------------
-            if args.get_native_res:
-                box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
-                if args.use_density_cut:
-                    rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
-                    ad = box.ds.all_data()
-                    box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
-                    print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
+        # ----------------getting the box--------------------------
+        if args.get_native_res: # native res
+            box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
+        else: # binned res
+            if args.res_arc is not None:
+                args.res = get_kpc_from_arc_at_redshift(float(args.res_arc), args.current_redshift)
+                native_res_at_z = 0.27 / (1 + args.current_redshift) # converting from comoving kpc to physical kpc
+                if args.res < native_res_at_z:
+                    print('Computed resolution %.2f kpc is below native FOGGIE res at z=%.2f, so we set resolution to the native res = %.2f kpc.'%(args.res, args.current_redshift, native_res_at_z))
+                    args.res = native_res_at_z # kpc
+            else:
+                args.res = float(args.res)
+                if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695 # converting from comoving kcp h^-1 to physical kpc
+            ncells = int(box_width / args.res)
+            box = ds.arbitrary_grid(left_edge=[box_center[0] - box_width_kpc / 2., box_center[1] - box_width_kpc / 2., box_center[2] - box_width_kpc / 2.], \
+                                    right_edge=[box_center[0] + box_width_kpc / 2., box_center[1] + box_width_kpc / 2., box_center[2] + box_width_kpc / 2.], \
+                                    dims=[ncells, ncells, ncells])
+            print('res =', args.res, 'kpc; box shape=', np.shape(box)) #
+            box = box.cut_region(['obj["gas", "radius_corrected"] < %.1E' % args.galrad]) # to make it a sphere instead of a box
 
-                Znative = box[('gas', 'metallicity')].in_units('Zsun').ndarray_view()
-                mnative = box[('gas', 'mass')].in_units('Msun').ndarray_view()
-                print('native no. of cells =', np.shape(Znative))
+        # ----------------getting the corresponding dataframe--------------------------
+        if args.upto_kpc is not None: upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+        else: upto_text = '_upto%.1FRe' % args.upto_re
+        density_cut_text = '_wdencut' if args.use_density_cut else ''
+        ncells_text = '_ncells%d' %ncells if not args.get_native_res else ''
+        outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%s%s%s.txt' % (upto_text, density_cut_text, ncells_text)
+        df = get_df_from_ds(box, args, outfilename=outfilename)  # get dataframe with metallicity profile info
 
-            # ----------------binned res-----------------------------
-            for index, res in enumerate(args.res_arr):
-                ncells = int(box_width / res)
-                box = ds.arbitrary_grid(left_edge=[box_center[0] - box_width_kpc / 2., box_center[1] - box_width_kpc / 2., box_center[2] - box_width_kpc / 2.], \
-                                        right_edge=[box_center[0] + box_width_kpc / 2., box_center[1] + box_width_kpc / 2., box_center[2] + box_width_kpc / 2.], \
-                                        dims=[ncells, ncells, ncells])
-                print('res =', res, 'kpc; box shape=', np.shape(box)) #
-                if args.use_density_cut:
-                    rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
-                    ad = box.ds.all_data()
-                    box = ad.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
-                    print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
+        # ----------------getting the arrays--------------------------
+        Zres = df['log_metal'].values if args.islog else df['metal'].values
+        mres = df['mass'].values
+        wres = df[args.weight].values
+        Ztotal = np.sum(df['metal'].values * mres) / np.sum(mres) # in Zsun
+        if args.islog: Ztotal = np.log10(Ztotal) # in log
 
-                Zres = box['gas', 'metallicity'].in_units('Zsun').ndarray_view()
-                mres = box['gas', 'mass'].in_units('Msun').ndarray_view()
-                if args.weight is not None: wres = box['gas', args.weight].in_units(unit_dict[args.weight]).ndarray_view()
-                else: wres = None
-                Ztotal = np.sum(Zres * mres) / np.sum(mres) # in Zsun
-                if args.islog:
-                    Zres = np.log10(Zres) # all operations will be done in log
-                    wres = np.ma.compressed(np.ma.array(wres, mask=np.ma.masked_where(wres, Zres < -4))) # discarding wild values of metallicity
-                    Zres = np.ma.compressed(np.ma.array(Zres, mask=np.ma.masked_where(Zres, Zres < -4)))
+        if args.Zcut is not None: # testing if can completely chop-off low-gaussian component
+            print('Chopping off histogram at a fixed %.1F, therefore NOT fiting multiple components' % args.Zcut)
+            wres = np.ma.compressed(np.ma.array(wres, mask=np.ma.masked_where(wres, Zres < args.Zcut)))
+            Zres = np.ma.compressed(np.ma.array(Zres, mask=np.ma.masked_where(Zres, Zres < args.Zcut)))
+            args.fit_multiple = False
 
-                if args.Zcut is not None: # testing if can completely chop-off low-gaussian component
-                    print('Chopping off histogram at a fixed %.1F, therefore NOT fiting multiple components' % args.Zcut)
-                    wres = np.ma.compressed(np.ma.array(wres, mask=np.ma.masked_where(wres, Zres < args.Zcut)))
-                    Zres = np.ma.compressed(np.ma.array(Zres, mask=np.ma.masked_where(Zres, Zres < args.Zcut)))
-                    args.fit_multiple = False
+        result = fit_distribution(Zres, args, weights=wres)
 
-                result = fit_distribution(Zres, args, weights=wres)
+        # -------computing quantities to save in file-------------------------
+        print('Computing stats...')
+        #percentiles = np.percentile(Zres, [25, 50, 75])
+        percentiles = weighted_quantile(Zres, [0.25, 0.50, 0.75], sample_weight=wres)
+        Zgini = gini(Zres)
 
-                # -------computing quantities to save in file-------------------------
-                print('Computing stats...')
-                # percentiles = np.percentile(Zres, [25, 50, 75])
-                percentiles = weighted_quantile(Zres, [0.25, 0.50, 0.75], sample_weight=wres)
-                Zgini = gini(Zres)
-
-                thisrow += [mstar, res, result.best_values['sg_amplitude'], result.params['sg_amplitude'].stderr, \
-                            percentiles[0], 0, percentiles[1], 0, percentiles[2], 0, Zgini, \
-                            result.best_values['sg_center'], result.params['sg_center'].stderr, \
-                            result.best_values['sg_sigma'], result.params['sg_sigma'].stderr, \
-                            result.best_values['sg_gamma'], result.params['sg_gamma'].stderr, Ztotal, \
-                            result.best_values['g_amplitude'], result.params['g_amplitude'].stderr, \
-                            result.best_values['g_center'], result.params['g_center'].stderr, \
-                            result.best_values['g_sigma'], result.params['g_sigma'].stderr]
-                if not args.noplot: fig = plot_distribution(Zres, args, weights=wres, fit=result, percentiles=percentiles) # plotting the Z profile, with fit
-
-        else:
-            thisrow += (np.ones(23)*np.nan).tolist()
+        thisrow += [mstar, -99 if args.get_native_res else args.re, result.best_values['sg_amplitude'], result.params['sg_amplitude'].stderr, \
+                    percentiles[0], 0, percentiles[1], 0, percentiles[2], 0, Zgini, \
+                    result.best_values['sg_center'], result.params['sg_center'].stderr, \
+                    result.best_values['sg_sigma'], result.params['sg_sigma'].stderr, \
+                    result.best_values['sg_gamma'], result.params['sg_gamma'].stderr, Ztotal, \
+                    result.best_values['g_amplitude'], result.params['g_amplitude'].stderr, \
+                    result.best_values['g_center'], result.params['g_center'].stderr, \
+                    result.best_values['g_sigma'], result.params['g_sigma'].stderr]
+        if not args.noplot: fig = plot_distribution(Zres, args, weights=wres, fit=result, percentiles=percentiles) # plotting the Z profile, with fit
 
         this_df_grad.loc[len(this_df_grad)] = thisrow
         df_grad = pd.concat([df_grad, this_df_grad])

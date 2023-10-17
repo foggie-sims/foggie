@@ -169,7 +169,7 @@ if __name__ == "__main__":
 
     # Smooth halo center position
 
-    '''# Read in halo center catalog
+    # Read in halo center catalog
     halo_center = Table.read(halo_c_v_name, format='ascii')
     DD_col = halo_center['col3'][1:]
     x_col = halo_center['col4'][1:]
@@ -276,13 +276,13 @@ if __name__ == "__main__":
         row = [snaps[i], redshifts[i], times[i], \
                smoothed_x_cen[i], smoothed_y_cen[i], smoothed_z_cen[i]]
         f_cen.add_row(row)
-    ascii.write(f_cen, catalog_dir + 'halo_cen_smoothed', format='fixed_width', overwrite=True)'''
+    ascii.write(f_cen, catalog_dir + 'halo_cen_smoothed', format='fixed_width', overwrite=True)
 
 
 
     # Smooth AM vector
 
-    '''# Read in AM vector catalog
+    # Read in AM vector catalog
     am_table = Table.read(catalog_dir + 'angmom_table.hdf5', path='all_data')
     times = np.array(am_table['time'])
     Lx = np.array(am_table['Lx'])
@@ -350,7 +350,7 @@ if __name__ == "__main__":
         row = [am_table['snap'][i], am_table['redshift'][i], times[i], \
                smooth_Lx[i], smooth_Ly[i], smooth_Lz[i]]
         f_cen.add_row(row)
-    ascii.write(f_cen, catalog_dir + 'AM_direction_smoothed', format='fixed_width', overwrite=True)'''
+    ascii.write(f_cen, catalog_dir + 'AM_direction_smoothed', format='fixed_width', overwrite=True)
 
     # Smooth bulk halo velocity
 
