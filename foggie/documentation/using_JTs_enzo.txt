@@ -37,3 +37,4 @@ do
 6. Make these edits to RunScript_jt.sh:
 	- Change /u/mpeeples/memory_gauge.sh to your own memory_gauge.sh file path
 	- Change the email address to your own
+7. Go into the Enzo parameter file for the DD or RD you're restarting from (e.g., DD1582/DD1582), and change the path to the Grackle UV background file to your own Grackle path (by default it's Molly's, which you probably don't have permission to access). If you don't have Grackle installed in your own directory, see the directions in pleiades_notes.txt.
