@@ -1,0 +1,39 @@
+Using JT's Enzo executable with memory leak fixed
+
+Add these lines to your .bash_profile:
+
+export PATH="/u/scicon/tools/bin/:/u/jtumlins/installs/mpich-4.0.3/usr/local/bin:$PATH"
+
+export LD_LIBRARY_PATH="/nasa/hdf5/1.8.18_serial/lib:/u/jtumlins/installs/gsl-2.4/lib:/u/jtumlins/src/local/lib":"/u/jtumlins/anaconda2/lib":"/u/jtumlins/grackle-toss4/build-icc/lib":"/u/jtumlins/installs/mpich-4.0.3/usr/local/lib":"/u/jtumlins/installs/mpich-4.0.3/usr/lib":"/u/jtumlins/installs/mpich-4.0.3/usr/local/lib":"/nasa/intel/Compiler/2022.1.0/compiler/2022.1.0/linux/compiler/lib/intel64_lin":$LD_LIBRARY_PATH
+
+
+
+For restarting from an old run (say, one of Molly's):
+1. Make a new directory in your /nobackup
+2. Copy over all files (EXCEPT THE DD AND RD DIRECTORIES) from /nobackup/mpeeples/halo_002392/nref11c_nref9f/
+3. Copy over just the one DD or RD directory you want to restart from
+4. Put a new file in your home directory called memory_gauge.sh, containing this:
+
+
+
+#!/bin/bash
+count=1
+echo "---------------------------Nodes------------------------"
+/u/scicon/tools/bin/qsh.pl $1 "cat /proc/meminfo"   | grep r  | grep i | grep n | grep -v SU | awk '{print $1}' | fmt -1000
+echo "-----------------------Total Memory---------------------"
+/u/scicon/tools/bin/qsh.pl $1 "cat /proc/meminfo" | grep MemTotal: | awk '{print $2/1024/1024}' | fmt -1000
+echo "----------------------Available Memory---------------------"
+while [ $count -le 999999 ]
+do
+	sleep 2
+        (echo "time = "; date +'%s'; /u/scicon/tools/bin/qsh.pl $1 "cat /proc/meminfo" | grep Available: | awk '{print $2/1024/1024}') | tr '\n' '\t' | fmt -1000
+	((count++))
+
+
+
+5. Make these edits to simrun.pl:
+	- Change the email address to your own
+	- Change the path when it copies a backup file to lou to your own lou directory
+6. Make these edits to RunScript_jt.sh:
+	- Change /u/mpeeples/memory_gauge.sh to your own memory_gauge.sh file path
+	- Change the email address to your own
