@@ -92,7 +92,6 @@ for field in fields_of_interest:
                                # center=chosencenter, width=(chosenwidth,'kpc'),weight_field=("gas", "density"), data_source=data_source)
                                 center=region.center, width=(20,'kpc'), data_source=data_source)
 
-        prj.annotate_clumps(leaf_clumps)
         plotsdir = output_dir +'plots'
         if not (os.path.exists(plotsdir)): os.system('mkdir -p ' + plotsdir)
         prj.save(plotsdir+'/halo_00'+halo+'_'+sim+'_'+snap+'_'+ori+'_'+field+'_proj_20kpc_box.png')
