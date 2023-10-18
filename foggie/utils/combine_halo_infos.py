@@ -11,6 +11,7 @@ from astropy.table import Table, vstack
 import os
 import argparse
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
+from astropy.io import ascii
 
 def parse_args():
     '''Parse command line arguments. Returns args object.'''
@@ -36,7 +37,7 @@ def parse_args():
 
     parser.add_argument('--which', metavar='which', type=str, action='store', \
                         help='Which set of tables do you want to combine? Options are:\n' + \
-                        'masses, satellites, or both, and default is to do both.')
+                        'masses, satellites, both, or new_c_v and default is to do both masses and satellites.')
     parser.set_defaults(which='both')
 
     args = parser.parse_args()
@@ -118,3 +119,30 @@ if __name__ == "__main__":
             big_table[key].unit = table_units[key]
         big_table.write(code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/' + 'satellites.hdf5', path='all_data', serialize_meta=True, overwrite=True)
     #################################################
+
+    #################################################
+    # Merging new halo velocities into existing halo_c_v tables
+    # Note that Cassi ran this already and everything is merged for: 8508, 5016, 5036, 4123, 2392
+    # The get_halo_c_v_parallel.py script now uses the new halo velocities, so there is no reason
+    # to run the following code ever again. It is saved here for posterity.
+    '''if (args.which=='new_c_v'):
+        halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
+        halo_c_v = Table.read(halo_c_v_name, format='ascii')
+        snaps = halo_c_v['col3']
+        bulk_v_table = Table.read('/Users/clochhaas/Documents/Research/FOGGIE/Outputs/halo_centers/halo_00' + args.halo + '/' + args.run + '/bulk-v_table.dat', format='ascii')
+        new_table = Table(dtype=('f8','S6', 'f8','f8', 'f8', 'f8', 'f8', 'f8', 'f8'),
+                names=('redshift', 'name', 'time', 'x_c', 'y_c', 'z_c', 'v_x', 'v_y', 'v_z'))
+        for i in range(1,len(snaps)):
+            halo_center_x = float(halo_c_v['col4'][i])
+            halo_center_y = float(halo_c_v['col5'][i])
+            halo_center_z = float(halo_c_v['col6'][i])
+            halo_vel_x = float(bulk_v_table['col5'][i])
+            halo_vel_y = float(bulk_v_table['col6'][i])
+            halo_vel_z = float(bulk_v_table['col7'][i])
+            time = float(bulk_v_table['col4'][i])
+            redshift = float(bulk_v_table['col3'][i])
+            row = [redshift, snaps[i], time, halo_center_x, halo_center_y, halo_center_z, halo_vel_x, halo_vel_y, halo_vel_z]
+            new_table.add_row(row)
+
+        new_table.sort('time')
+        ascii.write(new_table, code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v_new', format='fixed_width', overwrite=True)'''
