@@ -86,8 +86,8 @@ def loop_over_halos(system, nproc, run_dir, trackname, output_dir, outs):
     track = Table.read(trackname, format='ascii')
     track.sort('col1')
 
-    t = Table(dtype=('f8','S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'),
-            names=('redshift', 'name', 'xc', 'yc', 'zc', 'xv', 'yv', 'zv'))
+    t = Table(dtype=('f8', 'S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'),
+            names=('redshift', 'name', 'time', 'x_c', 'y_c', 'z_c', 'v_x', 'v_y', 'v_z'))
 
     print('Computing centers and velocities for ' + str(len(outs)) + ' snaps ' + \
           'from ' + outs[0] + ' to ' + outs[-1])
@@ -142,6 +142,7 @@ def get_halo_info(system, snap, track, t):
     ds = yt.load(snap_name)
 
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    time = ds.current_time.in_units('Myr').v
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track)
     center, velocity = get_halo_center(ds, refine_box_center)
@@ -149,7 +150,7 @@ def get_halo_info(system, snap, track, t):
     sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
     halo_velocity_kms = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
 
-    row = [zsnap, ds.parameter_filename[-6:],
+    row = [zsnap, ds.parameter_filename[-6:], time,
             halo_center_kpc[0], halo_center_kpc[1], halo_center_kpc[2],
             halo_velocity_kms[0], halo_velocity_kms[1], halo_velocity_kms[2]]
     print(snap[-6:] + ' done')
