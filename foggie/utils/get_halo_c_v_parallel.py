@@ -16,7 +16,7 @@ from yt.units import *
 from yt import YTArray
 from astropy.table import Table
 from astropy.io import ascii
-import multiprocessing as mp
+import multiprocessing as multi
 import argparse
 import shutil
 
@@ -28,7 +28,6 @@ from foggie.utils.analysis_utils import *
 import numpy as np
 import glob
 import os
-from enzoGalaxyProps import find_rvirial
 
 import warnings
 
@@ -96,10 +95,10 @@ def loop_over_halos(system, nproc, run_dir, trackname, output_dir, outs):
     rows = []
     for i in range(len(outs)//nproc):
         threads = []
-        queue = mp.Queue()
+        queue = multi.Queue()
         for j in range(nproc):
             snap = run_dir + outs[nproc*i+j] + '/' + outs[nproc*i+j]
-            thr = mp.Process(target=get_halo_info, \
+            thr = multi.Process(target=get_halo_info, \
                args=(system, snap, track, queue))
             threads.append(thr)
             thr.start()
@@ -110,10 +109,10 @@ def loop_over_halos(system, nproc, run_dir, trackname, output_dir, outs):
             thr.join()
     # For any leftover snapshots, run one per processor
     threads = []
-    queue = mp.Queue()
+    queue = multi.Queue()
     for j in range(len(outs)%nproc):
         snap = run_dir + outs[-(j+1)] + '/' + outs[-(j+1)]
-        thr = mp.Process(target=get_halo_info, \
+        thr = multi.Process(target=get_halo_info, \
            args=(system, snap, track, queue))
         threads.append(thr)
         thr.start()
