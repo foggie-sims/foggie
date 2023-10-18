@@ -146,7 +146,7 @@ def get_halo_info(system, snap, track, t):
     refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track)
     center, velocity = get_halo_center(ds, refine_box_center)
     halo_center_kpc = ds.arr(np.array(center)*proper_box_size, 'kpc')
-    sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
+    sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
     halo_velocity_kms = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
 
     row = [zsnap, ds.parameter_filename[-6:], time,

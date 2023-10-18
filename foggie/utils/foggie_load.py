@@ -59,7 +59,6 @@ def foggie_load(snap, trackfile, **kwargs):
     region = kwargs.get('region', 'refine_box')
     gravity = kwargs.get('gravity', False)
     masses_dir = kwargs.get('masses_dir', '')
-    correct_bulk_velocity = kwargs.get('correct_bulk_velocity', False)
     smooth_AM_name = kwargs.get('smooth_AM_name', False)
 
     print ('Opening snapshot ' + snap)
@@ -88,7 +87,7 @@ def foggie_load(snap, trackfile, **kwargs):
                                               float(halo_c_v['col7'][halo_ind])], 'kpc')
                     ds.halo_center_kpc = halo_center_kpc
                     ds.halo_center_code = halo_center_kpc.in_units('code_length')
-                    sp = ds.sphere(ds.halo_center_kpc, (5., 'kpc'))
+                    sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
                     bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
                     ds.halo_velocity_kms = bulk_vel
                     calc_hc = False
@@ -119,14 +118,10 @@ def foggie_load(snap, trackfile, **kwargs):
             halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
             # Define the halo center in kpc and the halo velocity in km/s
             halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
-            sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
+            sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
             bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
             ds.halo_center_code = halo_center
             ds.halo_center_kpc = halo_center_kpc
-            ds.halo_velocity_kms = bulk_vel
-        if (correct_bulk_velocity):
-            sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
-            bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
             ds.halo_velocity_kms = bulk_vel
     else:
         print("Not finding halo center")
