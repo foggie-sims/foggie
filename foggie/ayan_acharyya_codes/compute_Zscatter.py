@@ -314,7 +314,7 @@ if __name__ == '__main__':
         if args.ymax is None:
             args.ymax = 1.5 if args.forproposal else 2.5 if args.islog else 2.5
 
-        if args.write_file or args.upto_kpc is None:
+        if args.upto_kpc is None:
             args.re = get_re_from_coldgas(args, gasprofile=gasprofile) if args.use_gasre else get_re_from_stars(ds, args)
         else:
             args.re = np.nan

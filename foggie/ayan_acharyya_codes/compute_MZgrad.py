@@ -506,8 +506,8 @@ if __name__ == '__main__':
         args.current_time = ds.current_time.in_units('Gyr').tolist()
         args.ylim = [-2.2 if args.ymin is None else args.ymin, 1.2 if args.ymax is None else args.ymax] # [-3, 1]
 
-        re_from_stars = get_re_from_stars(ds, args) if args.write_file or args.upto_kpc is None else None # kpc
-        re_from_coldgas = get_re_from_coldgas(args, gasprofile=gasprofile)  if args.write_file or args.upto_kpc is None else None # kpc
+        re_from_stars = get_re_from_stars(ds, args) if args.upto_kpc is None else np.nan # kpc
+        re_from_coldgas = get_re_from_coldgas(args, gasprofile=gasprofile) if args.upto_kpc is None else np.nan # kpc
         thisrow = [args.output, args.current_redshift, args.current_time, re_from_stars, re_from_coldgas] # row corresponding to this snapshot to append to df
 
         if args.upto_kpc is not None:
