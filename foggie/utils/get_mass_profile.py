@@ -279,6 +279,7 @@ if __name__ == "__main__":
             snaps = []
             for j in range(args.nproc):
                 snap = outs[args.nproc*i+j]
+                tablename = prefix + snap + '_masses'
                 snaps.append(snap)
                 threads.append(multi.Process(target=load_and_calculate, \
 		          args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))
@@ -302,6 +303,7 @@ if __name__ == "__main__":
         snaps = []
         for j in range(len(outs)%args.nproc):
             snap = outs[-(j+1)]
+            tablename = prefix + snap + '_masses'
             snaps.append(snap)
             threads.append(multi.Process(target=load_and_calculate, \
 		      args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))

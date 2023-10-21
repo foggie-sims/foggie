@@ -1,4 +1,6 @@
 # Filename: save_halo_v_corrected.py
+# NOTE: THIS FILE DOES NOT NEED TO BE USED ANYMORE BECAUSE GET_HALO_C_V_PARALLEL.PY HAS BEEN UPDATED
+# TO DO THE SAME THING AS THIS FILE.
 
 from __future__ import print_function
 
@@ -70,6 +72,7 @@ def parse_args():
 
 def find_bulk_velocity(snap_name, t):
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, correct_bulk_velocity=True)
+    print('foggie_load found ds.halo_velocity_kms to be', ds.halo_velocity_kms)
     row = [snap_name[-6:], ds.get_parameter('CosmologyCurrentRedshift'), ds.current_time.in_units('Myr').v, ds.halo_velocity_kms[0], ds.halo_velocity_kms[1], ds.halo_velocity_kms[2]]
     t.put(row)
 
