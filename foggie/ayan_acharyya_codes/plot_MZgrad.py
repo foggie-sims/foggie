@@ -420,7 +420,7 @@ def plot_MZGR(args):
         addn_df = pd.read_table(sfr_filename, names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
         df = df.merge(addn_df[['output', 'sfr']], on='output')
         df['ssfr'] = df['sfr'] / 10**df['log_mass']
-        df = df.replace([0, np.inf, -np.inf], np.nan).dropna(axis=0)
+        df = df.replace([0, np.inf, -np.inf], np.nan).dropna(subset=[args.xcol, args.ycol, args.colorcol], axis=0)
         df['log_ssfr'] = np.log10(df['ssfr'])
         df['log_sfr'] = np.log10(df['sfr'])
         df = df.sort_values(args.xcol)
@@ -447,6 +447,7 @@ def plot_MZGR(args):
         thistextcolor = col_arr[thisindex] if args.nocolorcoding else mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
+                print('Deb458:', len(df))  ##
                 line, = ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature or args.formolly else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2)
                 if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
                     # ----------------------------------
