@@ -21,11 +21,13 @@ from util import *
 from projection_plot import do_plot
 from make_ideal_datacube import shift_ref_frame
 from filter_star_properties import get_star_properties
+from compute_MZgrad import get_re_from_stars, get_re_from_coldgas, get_density_cut
 
 from matplotlib.colors import to_hex
 from matplotlib.widgets import LassoSelector
 from matplotlib.widgets import SpanSelector
 import matplotlib as mpl
+from scipy.ndimage import gaussian_filter
 
 from functools import partial
 
@@ -103,6 +105,36 @@ def extract_columns_from_df(df_allprop, args):
 
     return df
 
+# --------------------------------------------------------------------------------------------------------------
+def get_vel_disp(box, args):
+    '''
+    Function to compute gas velocity dispersion, given a YT box object
+    This function is based on Cassi's script vdisp_vs_mass_res() in foggie/turbulence/turbulence.py
+    Returns vdisp in km/s
+    '''
+    pix_res = float(np.min(box['dx'].in_units('kpc')))  # at level 11
+    cooling_level = int(re.search('nref(.*)c', args.run).group(1))
+    string_to_skip = '%dc' % cooling_level
+    forced_level = int(re.search('nref(.*)f', args.run[args.run.find(string_to_skip) + len(string_to_skip):]).group(1))
+    lvl1_res = pix_res * 2. ** cooling_level
+    level = forced_level
+    dx = lvl1_res / (2. ** level)
+    smooth_scale = int(25. / dx) / 6.
+    myprint('Smoothing velocity field at %.2f kpc to compute velocity dispersion..'%smooth_scale, args)
+
+    vx = box['vx_corrected'].in_units('km/s').v
+    vy = box['vy_corrected'].in_units('km/s').v
+    vz = box['vz_corrected'].in_units('km/s').v
+    smooth_vx = gaussian_filter(vx, smooth_scale)
+    smooth_vy = gaussian_filter(vy, smooth_scale)
+    smooth_vz = gaussian_filter(vz, smooth_scale)
+    sig_x = (vx - smooth_vx)**2.
+    sig_y = (vy - smooth_vy)**2.
+    sig_z = (vz - smooth_vz)**2.
+    vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
+
+    return vdisp
+
 # -------------------------------------------------------------------------------
 def get_df_from_ds(ds, args, outfilename=None):
     '''
@@ -114,6 +146,11 @@ def get_df_from_ds(ds, args, outfilename=None):
     # -------------read/write pandas df file with ALL fields-------------------
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
     if outfilename is None: outfilename = get_correct_tablename(args)
+
+    if args.use_density_cut:
+        rho_cut = get_density_cut(ds.current_time.in_units('Gyr'))  # based on Cassi's CGM-ISM density cut-off
+        ds = ds.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+        print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
     all_fields = [args.xcol, args.ycol, args.colorcol] if args.quick else field_dict.keys()  # only the relevant properties if in a hurry
     if 'rad' not in all_fields: all_fields = ['rad'] + all_fields
@@ -131,6 +168,7 @@ def get_df_from_ds(ds, args, outfilename=None):
             myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(all_fields)) + ' fields..', args)
             if 'phi' in field and 'disk' in field: df_allprop[field] = np.abs(np.degrees(ds[field_dict[field]].v) - 90) # to convert from radian to degrees; and then restrict phi from 0 to 90
             elif 'theta' in field and 'disk' in field: df_allprop[field] = np.degrees(ds[field_dict[field]].v) # to convert from radian to degrees
+            elif field == 'vdisp': arr = get_vel_disp(box, args) # km/s
             elif field == 'gas_frac':
                 for index2,field2 in enumerate(['mass', 'stars_mass']):
                     myprint('\tDoing sub-property: ' + field2 + ', which is ' + str(index2 + 1) + ' of the 2 sub-fields required for ' + field + '..', args)
@@ -1020,13 +1058,13 @@ field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), '
 if yt_ver[0]=='3':
     field_dict['mass'] = ('gas','cell_mass')
     field_dict['volume'] = ('gas', 'cell_volume')
-unit_dict = {'rad':'kpc', 'rad_re':'', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'stars_mass':'Msun', 'ystars_mass':'Msun', 'ystars_age':'Gyr', 'gas_frac':'', 'gas_time':'Gyr', 'volume':'pc**3', 'phi_disk':'deg', 'theta_disk':'deg'}
-labels_dict = {'rad':'Radius', 'rad_re':'Radius/R_e', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF', 'gas_frac':'Gas fraction', 'gas_time':'Gas consumption timescale', 'phi_disk':'Azimuthal Angle', 'theta_disk':r'$\theta_{\mathrm{diskrel}}$'}
+unit_dict = {'rad':'kpc', 'rad_re':'', 'density':'g/cm**3', 'metal':r'Zsun', 'temp':'K', 'vrad':'km/s', 'phi_L':'deg', 'theta_L':'deg', 'PDF':'', 'mass':'Msun', 'stars_mass':'Msun', 'ystars_mass':'Msun', 'ystars_age':'Gyr', 'gas_frac':'', 'gas_time':'Gyr', 'volume':'pc**3', 'phi_disk':'deg', 'theta_disk':'deg', 'vdisp':'km/s'}
+labels_dict = {'rad':'Radius', 'rad_re':'Radius/R_e', 'density':'Density', 'metal':'Metallicity', 'temp':'Temperature', 'vrad':'Radial velocity', 'phi_L':r'$\phi_L$', 'theta_L':r'$\theta_L$', 'PDF':'PDF', 'gas_frac':'Gas fraction', 'gas_time':'Gas consumption timescale', 'phi_disk':'Azimuthal Angle', 'theta_disk':r'$\theta_{\mathrm{diskrel}}$', 'vdisp':'Gas velocity dispersion'}
 islog_dict = defaultdict(lambda: False, metal=True, density=True, temp=True, gas_frac=True)
-bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50)
-colormap_dict = {'temp':temperature_discrete_cmap, 'metal':'viridis', 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi, 'phi_disk':'viridis', 'theta_disk':angle_discrete_cmap_2pi, 'gas_time':'viridis', 'gas_frac':'viridis'}
+bin_size_dict = defaultdict(lambda: 1.0, metal=0.1, density=2, temp=1, rad=0.1, vrad=50, vdisp=10)
+colormap_dict = {'temp':temperature_discrete_cmap, 'metal':'viridis', 'density': density_discrete_cmap, 'vrad': outflow_inflow_discrete_cmap, 'rad': radius_discrete_cmap, 'phi_L': angle_discrete_cmap_pi, 'theta_L': angle_discrete_cmap_2pi, 'phi_disk':'viridis', 'theta_disk':angle_discrete_cmap_2pi, 'gas_time':'viridis', 'gas_frac':'viridis', 'vdisp':'viridis'}
 isfield_weighted_dict = defaultdict(lambda: False, metal=True, temp=True, vrad=True, phi_L=True, theta_L=True, phi_disk=True, theta_disk=True)
-bounds_dict = defaultdict(lambda: (None, None), gas_time=(1e-3, 5), gas_frac=(1e-5, 1), volume=(1e7, 1e9), mass=(1e-2, 1e7), density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-3, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180), phi_disk=(0, 90), theta_disk=(-180, 180))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
+bounds_dict = defaultdict(lambda: (None, None), gas_time=(1e-3, 5), gas_frac=(1e-5, 1), volume=(1e7, 1e9), mass=(1e-2, 1e7), density=(1e-31, 1e-21), temp=(1e1, 1e8), metal=(1e-3, 1e1), vrad=(-400, 400), phi_L=(0, 180), theta_L=(-180, 180), phi_disk=(0, 90), theta_disk=(-180, 180), vdisp=(0, 100))  # in g/cc, range within box; hard-coded for Blizzard RD0038; but should be broadly applicable to other snaps too
 
 projected_unit_dict = defaultdict(lambda x: unit_dict[x], density='Msun/pc**2')
 cmap_dict = {'density':density_color_map, 'metal':metal_color_map, 'temp':temperature_color_map, 'vrad':velocity_discrete_cmap} # for projection plots, if any
@@ -1118,6 +1156,15 @@ if __name__ == '__main__':
         # parse paths and filenames
         fig_dir = args.output_dir + 'figs/' if args.do_all_sims else args.output_dir + 'figs/' + args.output + '/'
         Path(fig_dir).mkdir(parents=True, exist_ok=True)
+
+        if args.upto_kpc is not None: args.re = np.nan
+        else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
+
+        if args.upto_kpc is not None:
+            if args.docomoving: args.galrad = args.upto_kpc / (1 + ds.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+            else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
+        else:
+            args.galrad = args.re * args.upto_re  # kpc
 
         if args.fullbox:
             box_width = ds.refine_width  # kpc
