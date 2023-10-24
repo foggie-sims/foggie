@@ -14,10 +14,9 @@
 """
 from header import *
 from util import *
-from compute_MZgrad import get_re_from_stars, get_re_from_coldgas, get_density_cut
 from datashader_movie import weight_by
-from scipy.ndimage import gaussian_filter
 from functools import partial
+from yt.fields.api import ValidateParameter
 
 yt_ver = yt.__version__
 start_time = time.time()
@@ -56,36 +55,6 @@ def get_correct_tablename(args):
     outfilename = outfileroot.replace('*', '%.2F' % correct_rad_to_grab)
     return outfilename
 
-# --------------------------------------------------------------------------------------------------------------
-def get_vel_disp(box, args):
-    '''
-    Function to compute gas velocity dispersion, given a YT box object
-    This function is based on Cassi's script vdisp_vs_mass_res() in foggie/turbulence/turbulence.py
-    Returns vdisp in km/s
-    '''
-    pix_res = float(np.min(box['dx'].in_units('kpc')))  # at level 11
-    cooling_level = int(re.search('nref(.*)c', args.run).group(1))
-    string_to_skip = '%dc' % cooling_level
-    forced_level = int(re.search('nref(.*)f', args.run[args.run.find(string_to_skip) + len(string_to_skip):]).group(1))
-    lvl1_res = pix_res * 2. ** cooling_level
-    level = forced_level
-    dx = lvl1_res / (2. ** level)
-    smooth_scale = int(25. / dx) / 6.
-    myprint('Smoothing velocity field at %.2f kpc to compute velocity dispersion..'%smooth_scale, args)
-
-    vx = box['vx_corrected'].in_units('km/s').v
-    vy = box['vy_corrected'].in_units('km/s').v
-    vz = box['vz_corrected'].in_units('km/s').v
-    smooth_vx = gaussian_filter(vx, smooth_scale)
-    smooth_vy = gaussian_filter(vy, smooth_scale)
-    smooth_vz = gaussian_filter(vz, smooth_scale)
-    sig_x = (vx - smooth_vx)**2.
-    sig_y = (vy - smooth_vy)**2.
-    sig_z = (vz - smooth_vz)**2.
-    vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
-
-    return vdisp
-
 # -------------------------------------------------------------------------------
 def get_df_from_ds(box, args):
     '''
@@ -114,7 +83,7 @@ def get_df_from_ds(box, args):
             myprint('Doing property: ' + field + ', which is ' + str(index + 1) + ' of the ' + str(len(all_fields)) + ' fields..', args)
             if 'phi' in field and 'disk' in field: arr = np.abs(np.degrees(box[field_dict[field]].v) - 90) # to convert from radian to degrees; and then restrict phi from 0 to 90
             elif 'theta' in field and 'disk' in field: arr = np.degrees(box[field_dict[field]].v) # to convert from radian to degrees
-            elif field == 'vdisp': arr = get_vel_disp(box, args) # km/s
+            # elif field == 'vdisp': arr = get_vel_disp(box, args) # km/s
             elif field == 'gas_frac':
                 for index2,field2 in enumerate(['mass', 'stars_mass']):
                     myprint('\tDoing sub-property: ' + field2 + ', which is ' + str(index2 + 1) + ' of the 2 sub-fields required for ' + field + '..', args)
@@ -291,7 +260,7 @@ def update_dicts(param, ds):
 
 #-------- set variables and dictionaries such that they are available to other scripts importing this script-----------
 field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'mass':('gas', 'mass'), 'stars_mass':('deposit', 'stars_mass'), 'ystars_mass':('deposit', 'young_stars_mass'), 'ystars_age':('deposit', 'young_stars_nn_age'), \
-              'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'vrad':('gas', 'radial_velocity_corrected'), 'vdisp':'velocity_dispersion', \
+              'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'vrad':('gas', 'radial_velocity_corrected'), 'vdisp': ('gas', 'velocity_dispersion_3d'), \
               'phi_L':('gas', 'angular_momentum_phi'), 'theta_L':('gas', 'angular_momentum_theta'), 'volume':('gas', 'volume'), \
               'phi_disk': ('gas', 'phi_pos_disk'), 'theta_disk': ('gas', 'theta_pos_disk')}
 if yt_ver[0]=='3':
@@ -322,7 +291,8 @@ if __name__ == '__main__':
     # -------create new fields for angular momentum vectors-----------
     ds.add_field(('gas', 'angular_momentum_phi'), function=phi_angular_momentum, sampling_type='cell', units='degree')
     ds.add_field(('gas', 'angular_momentum_theta'), function=theta_angular_momentum, sampling_type='cell', units='degree')
-    
+    ds.add_field(('gas','velocity_dispersion_3d'), function=get_velocity_dispersion_3d, units='km/s', take_log=False,  sampling_type='cell')
+
     # ----------to determine axes labels--------------
     if args.xcol == 'radius': args.xcol == 'rad'
     args.colorcol = args.colorcol[0]

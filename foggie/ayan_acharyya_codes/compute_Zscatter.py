@@ -20,21 +20,8 @@ from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
 from lmfit.models import GaussianModel, SkewedGaussianModel
 from pygini import gini
-from astropy.cosmology import FlatLambdaCDM
-from astropy import units as u
 
 start_time = time.time()
-
-# ---------------------------------------------------------------------------
-def get_kpc_from_arc_at_redshift(arcseconds, redshift):
-    '''
-    Function to convert arcseconds on sky to physical kpc, at a given redshift
-    '''
-    cosmo = FlatLambdaCDM(H0=67.8, Om0=0.308)
-    d_A = cosmo.angular_diameter_distance(z=redshift)
-    kpc = (d_A * arcseconds * u.arcsec).to(u.kpc, u.dimensionless_angles()).value # in kpc
-    print('Converted resolution of %.2f arcseconds to %.2F kpc at target redshift of %.2f' %(arcseconds, kpc, redshift))
-    return kpc
 
 # ----------------------------------------------------------------------------
 # Following function is adapted from https://stackoverflow.com/questions/21844024/weighted-percentile-using-numpy

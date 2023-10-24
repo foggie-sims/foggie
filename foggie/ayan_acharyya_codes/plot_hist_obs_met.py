@@ -14,7 +14,6 @@
 """
 from header import *
 from util import *
-from compute_Zscatter import get_kpc_from_arc_at_redshift
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 start_time = time.time()
 
