@@ -397,6 +397,9 @@ if __name__ == '__main__':
                 box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
                 df = get_df_from_ds(box, args) # get dataframe with metallicity profile info
+                if len(df) == 0:
+                    print_mpi('Skipping ' + this_sim[1] + ' because empty dataframe', dummy_args)
+                    continue
 
                 Zcen, Zgrad = fit_gradient(df, args)
                 args.bin_edges = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
