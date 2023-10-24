@@ -399,7 +399,7 @@ if __name__ == '__main__':
                 df = get_df_from_ds(box, args) # get dataframe with metallicity profile info
                 if len(df) == 0:
                     print_mpi('Skipping ' + this_sim[1] + ' because empty dataframe', dummy_args)
-                    thisrow += (np.ones(11) * np.nan).tolist()
+                    thisrow += (np.ones(10) * np.nan).tolist()
                     continue
 
                 Zcen, Zgrad = fit_gradient(df, args)
@@ -416,7 +416,7 @@ if __name__ == '__main__':
 
                 thisrow += [mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Zcen_binned.n, Zcen_binned.s, Zgrad_binned.n, Zgrad_binned.s, Ztotal]
             else:
-                thisrow += (np.ones(11)*np.nan).tolist()
+                thisrow += (np.ones(10)*np.nan).tolist()
 
         this_df_grad.loc[len(this_df_grad)] = thisrow
         df_grad = pd.concat([df_grad, this_df_grad])
