@@ -3,12 +3,12 @@
 """
 
     Title :      projected_Zgrad_hist_map
-    Notes :      Plot PROJECTED metallicity gradient, distribution and projections ALL in one plot, for a given line of sight
+    Notes :      Plot PROJECTED metallicity gradient, distribution and projections and velocity dispersion ALL in one plot, for a given line of sight
     Output :     Combined plots as png files plus
     Author :     Ayan Acharyya
     Started :    Oct 2023
     Examples :   run projected_Zgrad_hist_map.py --system ayan_pleiades --halo 8508 --Zgrad_den kpc --upto_kpc 10 --docomoving --res_arc 0.1 --weight mass --output RD0030
-                 run projected_Zgrad_hist_map.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --res_arc 0.1 --forpaper --output RD0030
+                 run projected_Zgrad_hist_map.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --res_arc 0.1 --forpaper --output RD0030 --nofit --proj x,y,z
 """
 from header import *
 from util import *
@@ -246,7 +246,6 @@ def plot_Zdist_snap(df, ax, args):
     :return: fitted histogram parameters across each projection, and the axis handle
     '''
     myprint('Now making the histogram plot for ' + args.output + '..', args)
-    Zdist_arr = []
 
     Zarr = df['metal'].values
     weights = df['weights'].values if args.weight is not None else None
@@ -254,26 +253,28 @@ def plot_Zdist_snap(df, ax, args):
 
     if args.islog: Zarr = np.log10(Zarr)  # all operations will be done in log
 
-    fit = fit_distribution(Zarr, args, weights=weights)
-
     p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, density=True, ec='cornflowerblue', weights=weights)
 
-    xvals = p[1][:-1] + np.diff(p[1])
-    #ax.plot(xvals, fit.init_fit, c=color, lw=1, ls='--') # for plotting the initial guess
-    ax.plot(xvals, fit.best_fit, c=color, lw=1)
-    if not args.hide_multiplefit:
-        ax.plot(xvals, GaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma']), c=color, lw=1, ls='--', label='Regular Gaussian')
-        ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=color, lw=1, ls='dotted', label='Skewed Gaussian')
-
-    Zdist_arr.append([fit.best_values['sg_sigma'], fit.best_values['sg_center']])
+    if not args.nofit:
+        Zdist_arr = []
+        fit = fit_distribution(Zarr, args, weights=weights)
+        xvals = p[1][:-1] + np.diff(p[1])
+        ax.plot(xvals, fit.init_fit, c=color, lw=1, ls='--') # for plotting the initial guess
+        #ax.plot(xvals, fit.best_fit, c=color, lw=1)
+        if not args.hide_multiplefit:
+            ax.plot(xvals, GaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma']), c=color, lw=1, ls='--', label='Regular Gaussian')
+            ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=color, lw=1, ls='dotted', label='Skewed Gaussian')
+        Zdist_arr.append([fit.best_values['sg_sigma'], fit.best_values['sg_center']])
+    else:
+        Zdist_arr = np.nan
 
     ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)
+    ax.set_ylabel('Normalised PDF', fontsize=args.fontsize / args.fontfactor)
     ax.set_xlim(args.Zlim[0], args.Zlim[1]) # Zsun
     ax.set_ylim(0, 3)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.text(ax.get_xlim()[1]*0.9, ax.get_ylim()[1]*0.9, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['sg_center'], 2.355 * fit.best_values['sg_sigma']), color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
+    if not args.nofit: ax.text(ax.get_xlim()[1]*0.9, ax.get_ylim()[1]*0.9, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['sg_center'], 2.355 * fit.best_values['sg_sigma']), color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
 
     #ax.text(0.03 if args.islog else 0.97, 0.3, 'z = %.2F' % args.current_redshift, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
     #ax.text(0.03 if args.islog else 0.97, 0.2, 't = %.1F Gyr' % args.current_time, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
@@ -360,8 +361,7 @@ if __name__ == '__main__':
             args.res = args.res_arr[0]
             if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695 # converting from comoving kcp h^-1 to physical kpc
         args.res_text = '_res%.1fkpc' % float(args.res)
-        args.fontsize = 15
-        args.fontfactor = 1.5
+        args.fontfactor = 1.
 
         # --------determining corresponding text suffixes-------------
         args.weightby_text = '_wtby_' + args.weight
@@ -373,7 +373,7 @@ if __name__ == '__main__':
         nrow, ncol = len(args.projections), 4
         fig, axes = plt.subplots(nrow, ncol, figsize=(15, 8))
         fig.tight_layout()
-        fig.subplots_adjust(top=0.95, bottom=0.07, left=0.05, right=0.93, wspace=0.3, hspace=0.2)
+        fig.subplots_adjust(top=0.95, bottom=0.07, left=0.07, right=0.93, wspace=0.7, hspace=0.5)
 
         # ------tailoring the simulation box for individual snapshot analysis--------
         if args.upto_kpc is not None: args.re = np.nan
