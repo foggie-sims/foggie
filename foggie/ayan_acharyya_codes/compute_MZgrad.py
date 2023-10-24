@@ -292,6 +292,10 @@ if __name__ == '__main__':
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s%s%s%s.txt' % (dummy_args.xcol, upto_text, weightby_text, density_cut_text)
     if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
+    if os.path.isfile(grad_filename) and not args.clobber: # if gradfile already exists
+        existing_df_grad = pd.read_table(grad_filename)
+        outputs_existing_on_file = pd.unique(existing_df_grad['output'])
+
     if dummy_args.dryrun:
         print('List of the total ' + str(total_snaps) + ' sims =', list_of_sims)
         sys.exit('Exiting dryrun..')
@@ -325,8 +329,12 @@ if __name__ == '__main__':
     print_mpi('Operating on snapshots ' + str(core_start + 1) + ' to ' + str(core_end + 1) + ', i.e., ' + str(core_end - core_start + 1) + ' out of ' + str(total_snaps) + ' snapshots', dummy_args)
 
     for index in range(core_start + dummy_args.start_index, core_end + 1):
-        start_time_this_snapshot = time.time()
         this_sim = list_of_sims[index]
+        if 'outputs_existing_on_file' in locals() and this_sim[1] in outputs_existing_on_file:
+            print_mpi('Skipping ' + this_sim[1] + ' because it already exists in file', dummy_args)
+            continue # skip if this output has already been done and saved on file
+
+        start_time_this_snapshot = time.time()
         this_df_grad = pd.DataFrame(columns=cols_in_df)
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
         halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/'
