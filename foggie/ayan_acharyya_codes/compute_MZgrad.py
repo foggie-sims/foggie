@@ -399,6 +399,7 @@ if __name__ == '__main__':
                 df = get_df_from_ds(box, args) # get dataframe with metallicity profile info
                 if len(df) == 0:
                     print_mpi('Skipping ' + this_sim[1] + ' because empty dataframe', dummy_args)
+                    thisrow += (np.ones(11) * np.nan).tolist()
                     continue
 
                 Zcen, Zgrad = fit_gradient(df, args)
