@@ -13,8 +13,7 @@
 from header import *
 from util import *
 from plot_MZgrad import plot_zhighlight
-from compute_Zscatter import fit_distribution, get_kpc_from_arc_at_redshift
-from compute_MZgrad import get_re_from_coldgas, get_re_from_stars
+from compute_Zscatter import fit_distribution
 from uncertainties import ufloat, unumpy
 from lmfit.models import GaussianModel, SkewedGaussianModel
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -46,6 +45,49 @@ def make_frb_from_box(box, box_center, box_width, projection, args):
 
     return frb
 
+# -----------------------------------------------------------------
+def make_its_own_figure(ax, label, args):
+    '''
+    Function to take an already filled axis handle and turn it into its stand-alone figure
+    Output: saved png
+    '''
+    import pickle
+    import io
+    buf = io.BytesIO()
+    pickle.dump(ax.figure, buf)
+    buf.seek(0)
+    fig = pickle.load(buf)
+
+    outfile_rootname = '%s_%s_%s%s%s%s%s.png' % (label, args.output, args.halo, args.Zgrad_den, args.upto_text, args.weightby_text, args.res_text)
+    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
+    figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+    fig.savefig(figname)
+    myprint('Saved plot as ' + figname, args)
+
+    return
+
+# --------------------------------------------------------------------------------------------------------------
+def get_los_velocity_dispersion(field, data, args):
+    '''
+    Function to compute gas velocity dispersion, given a YT box object
+    This function is based on Cassi's script vdisp_vs_mass_res() in foggie/turbulence/turbulence.py
+    '''
+    pix_res = float(np.min(data['dx'].in_units('kpc')))  # at level 11
+    cooling_level = int(re.search('nref(.*)c', args.run).group(1))
+    string_to_skip = '%dc' % cooling_level
+    forced_level = int(re.search('nref(.*)f', args.run[args.run.find(string_to_skip) + len(string_to_skip):]).group(1))
+    lvl1_res = pix_res * 2. ** cooling_level
+    level = forced_level
+    dx = lvl1_res / (2. ** level)
+    smooth_scale = int(25. / dx) / 6.
+    myprint('Smoothing velocity field at %.2f kpc to compute velocity dispersion..'%smooth_scale, args)
+
+    vlos = data['v' + args.projection + '_corrected'].in_units('km/s').v
+    smooth_vlos = gaussian_filter(vlos, smooth_scale)
+    vdisp_los = vlos - smooth_vlos
+
+    return vdisp_los
+
 # ----------------------------------------------------------------
 def make_df_from_frb(frb, df, projection, args):
     '''
@@ -60,6 +102,10 @@ def make_df_from_frb(frb, df, projection, args):
     map_Z = np.array((map_metal_mass / map_gas_mass).in_units('Zsun')) # now in Zsun units
     df['metal_' + projection] = map_Z.flatten()
 
+    map_vdisp_los = frb['gas', 'velocity_dispersion_' + projection] # cm*km/s
+    map_vdisp_los = (map_vdisp_los / (2 * YTArray(args.galrad, 'kpc'))).in_units('km/s') # km/s
+    df['vdisp_' + projection] = map_vdisp_los.flatten()
+
     if args.weight is not None:
         map_weights = np.array(frb['gas', args.weight])
         weighted_map_Z = len(map_weights) ** 2 * map_Z * map_weights / np.sum(map_weights)
@@ -67,8 +113,37 @@ def make_df_from_frb(frb, df, projection, args):
 
     return df, weighted_map_Z
 
+# -----------------------------------------------------------------------
+def plot_projected_vdisp(map, ax, args, clim=None, cmap='viridis'):
+    '''
+    Function to plot the 2D LoS velocity dispersion map, at the given resolution of the FRB
+    :return: axis handle
+    '''
+    myprint('Now making projected vel disp plot..', args)
+    plt.style.use('seaborn-white')
+
+    proj = ax.imshow(map, cmap=cmap, extent=[-args.galrad, args.galrad, -args.galrad, args.galrad], vmin=clim[0] if clim is not None else None, vmax=clim[1] if clim is not None else None)
+
+    # -----------making the axis labels etc--------------
+    ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 5))
+    ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 5))
+    ax.set_xlabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
+    ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
+    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
+    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
+
+    # ---------making the colorbar axis once, that will correspond to all projections--------------
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    plt.colorbar(proj, cax=cax, orientation='vertical')
+
+    cax.set_xticklabels(['%.1F' % index for index in cax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
+    cax.set_ylabel(r'LoS $\sigma_v$ (km/s)', fontsize=args.fontsize / args.fontfactor)
+
+    return ax
+
 # ----------------------------------------------------------------
-def plot_projectedZ_snap(map, ax, args, clim=None, cmap='viridis', color='k'):
+def plot_projectedZ_snap(map, ax, args, clim=None, cmap='viridis'):
     '''
     Function to plot a given projected metallicity map on to a given axis
     :return: axis handle
@@ -94,6 +169,8 @@ def plot_projectedZ_snap(map, ax, args, clim=None, cmap='viridis', color='k'):
 
     cax.set_xticklabels(['%.1F' % index for index in cax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     cax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
+
+    #make_its_own_figure(ax, 'projectedZ', args) #to save a copy of figure as its own separate fig too
 
     return ax
 
@@ -180,7 +257,6 @@ def plot_Zdist_snap(df, ax, args):
     fit = fit_distribution(Zarr, args, weights=weights)
 
     p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, density=True, ec='cornflowerblue', weights=weights)
-    print('Deb183:', Zarr, weights) ##
 
     xvals = p[1][:-1] + np.diff(p[1])
     #ax.plot(xvals, fit.init_fit, c=color, lw=1, ls='--') # for plotting the initial guess
@@ -210,6 +286,14 @@ if __name__ == '__main__':
     if type(args_tuple) is tuple: args, ds, refine_box = args_tuple # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
     else: args = args_tuple
     if not args.keep: plt.close('all')
+
+    # ---------to determine filenames, suffixes, etc.----------------
+    args.fig_dir = args.output_dir + 'figs/'
+    if not args.do_all_sims: args.fig_dir += args.output + '/'
+    Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
+
+    if args.upto_kpc is not None: args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    else: args.upto_text = '_upto%.1FRe' % args.upto_re
 
     # --------domain decomposition; for mpi parallelisation-------------
     if args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(args) # all snapshots of this particular halo
@@ -246,6 +330,10 @@ if __name__ == '__main__':
         if len(list_of_sims) > 1 or args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
         if type(args) is tuple: args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
         else: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
+        ds.add_field(('gas', 'velocity_dispersion_3d'), function=get_velocity_dispersion_3d, units='km/s', take_log=False, sampling_type='cell')
+        ds.add_field(('gas', 'velocity_dispersion_x'), function=get_velocity_dispersion_x, units='km/s', take_log=False, sampling_type='cell')
+        ds.add_field(('gas', 'velocity_dispersion_y'), function=get_velocity_dispersion_y, units='km/s', take_log=False, sampling_type='cell')
+        ds.add_field(('gas', 'velocity_dispersion_z'), function=get_velocity_dispersion_z, units='km/s', take_log=False, sampling_type='cell')
 
         # --------assigning additional keyword args-------------
         if args.forpaper:
@@ -271,6 +359,7 @@ if __name__ == '__main__':
         else:
             args.res = args.res_arr[0]
             if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695 # converting from comoving kcp h^-1 to physical kpc
+        args.res_text = '_res%.1fkpc' % float(args.res)
         args.fontsize = 15
         args.fontfactor = 1.5
 
@@ -281,10 +370,10 @@ if __name__ == '__main__':
         args.islog_text = '_islog' if args.islog else ''
 
         # -------setting up fig--------------
-        nrow, ncol = len(args.projections), 3
-        fig, axes = plt.subplots(nrow, ncol, figsize=(8, 8))
+        nrow, ncol = len(args.projections), 4
+        fig, axes = plt.subplots(nrow, ncol, figsize=(15, 8))
         fig.tight_layout()
-        fig.subplots_adjust(top=0.95, bottom=0.07, left=0.1, right=0.93, wspace=0.3, hspace=0.1)
+        fig.subplots_adjust(top=0.95, bottom=0.07, left=0.05, right=0.93, wspace=0.3, hspace=0.2)
 
         # ------tailoring the simulation box for individual snapshot analysis--------
         if args.upto_kpc is not None: args.re = np.nan
@@ -302,7 +391,7 @@ if __name__ == '__main__':
         box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
         # -----------reading in the snapshot's projected metallicity dataframe----------
-        df_snap_filename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projectedZ.txt' % (args.galrad)
+        df_snap_filename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projectedZ%s.txt' % (args.galrad, args.res_text)
 
         if not os.path.exists(df_snap_filename) or args.clobber:
             myprint(df_snap_filename + 'not found, creating afresh..', args)
@@ -322,14 +411,19 @@ if __name__ == '__main__':
 
         # -------loop over lines of sight---------------------
         for index, thisproj in enumerate(args.projections):
+            args.projection = thisproj
             ax_row = axes if len(args.projections) == 1 else axes[index]
-            df_thisproj = df_snap[['rad', 'metal_' + thisproj, 'weights_' + thisproj]]
-            df_thisproj.rename(columns={'metal_' + thisproj: 'metal', 'weights_' + thisproj: 'weights'}, inplace=True)
+            df_thisproj = df_snap[['rad', 'metal_' + thisproj, 'weights_' + thisproj, 'vdisp_' + thisproj]]
+            df_thisproj.rename(columns={'metal_' + thisproj: 'metal', 'weights_' + thisproj: 'weights', 'vdisp_' + thisproj: 'vdisp_los'}, inplace=True)
+
+            # ------plotting projected metallcity snapshots---------------
+            vdisp_map = df_thisproj['vdisp_los'].values.reshape((args.ncells, args.ncells))
+            ax_row[3] = plot_projected_vdisp(vdisp_map, ax_row[3], args, clim=[0, 200])
 
             # ------plotting projected metallcity snapshots---------------
             weighted_Z = len(df_thisproj) * df_thisproj['metal'] * df_thisproj['weights'] / np.sum(df_thisproj['weights'])
             weighted_map_Z = weighted_Z.values.reshape((args.ncells, args.ncells))
-            ax_row[2] = plot_projectedZ_snap(np.log10(weighted_map_Z), ax_row[2], args, clim=args.Zlim, cmap=old_metal_color_map, color='white')
+            ax_row[2] = plot_projectedZ_snap(np.log10(weighted_map_Z), ax_row[2], args, clim=args.Zlim, cmap=old_metal_color_map)
             df_thisproj = df_thisproj.replace([0, np.inf, -np.inf], np.nan).dropna(subset=['metal', 'weights'], axis=0)
 
             # ------plotting projected metallicity profiles---------------
@@ -339,15 +433,7 @@ if __name__ == '__main__':
             Zdist_arr, ax_row[1] = plot_Zdist_snap(df_thisproj, ax_row[1], args)
 
         # ------saving fig------------------
-        if args.upto_kpc is not None: upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
-        else: upto_text = '_upto%.1FRe' % args.upto_re
-        res_text = '_res%.1Farcsec' % float(args.res_arc) if args.res_arc is not None else '_res%.1fkpc' %float(args.res)
-
-        args.fig_dir = args.output_dir + 'figs/'
-        if not args.do_all_sims: args.fig_dir += args.output + '/'
-        Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
-
-        outfile_rootname = '%s_%s_projectedZ_prof_hist_map_%s%s%s%s.png' % (args.output, args.halo, args.Zgrad_den, upto_text, args.weightby_text, res_text)
+        outfile_rootname = '%s_%s_projectedZ_prof_hist_map_%s%s%s%s.png' % (args.output, args.halo, args.Zgrad_den, args.upto_text, args.weightby_text, args.res_text)
         if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
         figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 

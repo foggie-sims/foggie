@@ -10,6 +10,256 @@
 """
 from header import *
 
+# -----------------------------------------------------------------
+def make_its_own_figure(ax, label, args):
+    '''
+    Function to take an already filled axis handle and turn it into its stand-alone figure
+    Output: saved png
+    '''
+    fig, thisax = plt.subplots(figsize=(8, 8))
+    fig.subplots_adjust(right=0.97, top=0.95, bottom=0.05, left=0.07)
+    thisax = ax
+    outfile_rootname = '%s_%s_%s%s%s%s%s.png' % (label, args.output, args.halo, args.Zgrad_den, args.upto_text, args.weightby_text, args.res_text)
+    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
+    figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+    fig.savefig(figname)
+    myprint('Saved plot as ' + figname, args)
+
+    return
+
+# ---------------------------------------------------------------------------------------
+def get_gas_profile(args):
+    '''
+    Function to acquire the cold gas profile for a given halo and output
+    Returns the gasprofile as a numpy array
+    '''
+    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + args.run + '/all_rprof_' + args.halo + '.npy'
+
+    if os.path.exists(gasfilename):
+        print('Reading in cold gas profile from', gasfilename)
+    else:
+        print('Did not find', gasfilename)
+        gasfilename = gasfilename.replace(dummy_args.run, dummy_args.run[:14])
+        print('Instead, reading in cold gas profile from', gasfilename)
+    try:
+        gasprofile = np.load(gasfilename, allow_pickle=True)[()]
+    except FileNotFoundError as e:
+        print('Did not find', gasfilename, 'so assigning dummy values to gas re')
+        gasprofile = None
+
+    return gasprofile
+
+# --------------------------------------------------------------------------------
+def get_re_from_coldgas(args, gasprofile=None):
+    '''
+    Function to determine the effective radius of stellar disk, based on the cold gas profile, given a dataset
+    Returns the effective radius in kpc
+    '''
+    if gasprofile is None: gasprofile = get_gas_profile(args)
+    re_hmr_factor = 1.0
+
+    if gasprofile is not None and args.output[:2] == 'DD' and args.output[2:] in gasprofile.keys(): # because cold gas profile is only present for all the DD outputs
+        this_gasprofile = gasprofile[args.output[2:]]
+        this_coldgas = this_gasprofile['cold']
+        mass_profile = pd.DataFrame({'radius': this_coldgas['r'], 'coldgas':np.cumsum(this_coldgas['mass'])})
+        mass_profile = mass_profile.sort_values('radius')
+        total_mass = mass_profile['coldgas'].iloc[-1]
+        half_mass_radius = mass_profile[mass_profile['coldgas'] <= total_mass/2]['radius'].iloc[-1]
+        re = re_hmr_factor * half_mass_radius
+        print('\nCold gas profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' % (args.current_redshift) + ') is %.2F kpc' % (re))
+    else:
+        re = -99
+        print('\nCold gas profile not found for halo ' + args.halo + ' output ' + args.output + '; therefore returning dummy re %d' % (re))
+
+    return re
+
+# -------------------------------------------------------------------------------
+def calc_masses(ds, snap, refine_width_kpc, tablename, get_gas_profile=False):
+    """Computes the mass enclosed in spheres centered on the halo center.
+    Takes the dataset for the snapshot 'ds', the name of the snapshot 'snap', the redshfit of the
+    snapshot 'zsnap', and the width of the refine box in kpc 'refine_width_kpc'
+    and does the calculation, then writes a hdf5 table out to 'tablename'. If 'ions' is True then it
+    computes the enclosed mass for various gas-phase ions.
+    This is mostly copied from Cassi's get_mass_profile.calc_mass(), but for a shortened set of parameters, to save runtime
+    """
+
+    halo_center_kpc = ds.halo_center_kpc
+
+    # Set up table of everything we want
+    # NOTE: Make sure table units are updated when things are added to this table!
+    if get_gas_profile: data = Table(names=('radius', 'stars_mass', 'gas_mass', 'gas_metal_mass'), dtype=('f8', 'f8', 'f8', 'f8'))
+    else: data = Table(names=('radius', 'stars_mass'), dtype=('f8', 'f8'))
+
+    # Define the radii of the spheres where we want to calculate mass enclosed
+    radii = refine_width_kpc * np.logspace(-4, 0, 250)
+
+    # Initialize first sphere
+    print('Loading field arrays for snapshot', snap)
+    sphere = ds.sphere(halo_center_kpc, radii[-1])
+
+    if get_gas_profile:
+        gas_mass = sphere['gas','cell_mass'].in_units('Msun').v
+        gas_metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
+        gas_radius = sphere['gas', 'radius_corrected'].in_units('kpc').v
+
+    stars_mass = sphere['stars','particle_mass'].in_units('Msun').v
+    stars_radius = sphere['stars','radius_corrected'].in_units('kpc').v
+
+    # Loop over radii
+    for i in range(len(radii)):
+        if (i%10==0): print('Computing radius ' + str(i) + '/' + str(len(radii)-1) + ' for snapshot ' + snap)
+
+        # Cut the data interior to this radius
+        if get_gas_profile:
+            gas_mass_enc = np.sum(gas_mass[gas_radius <= radii[i]])
+            gas_metal_mass_enc = np.sum(gas_metal_mass[gas_radius <= radii[i]])
+        stars_mass_enc = np.sum(stars_mass[stars_radius <= radii[i]])
+
+        # Add everything to the table
+        if get_gas_profile: data.add_row([radii[i], stars_mass_enc, gas_mass_enc, gas_metal_mass_enc])
+        else: data.add_row([radii[i], stars_mass_enc])
+
+    # Save to file
+    table_units = {'radius':'kpc', 'stars_mass':'Msun', 'gas_mass':'Msun', 'gas_metal_mass':'Msun'}
+    for key in data.keys(): data[key].unit = table_units[key]
+
+    data.write(tablename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+    print('Masses have been calculated for snapshot' + snap)
+
+# --------------------------------------------------------------------------------
+def get_re_from_stars(ds, args):
+    '''
+    Function to determine the effective radius of stellar disk, based on the stellar mass profile, given a dataset
+    Returns the effective radius in kpc
+    '''
+    re_hmr_factor = 2.0 # from the Illustris group (?)
+    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    prefix = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + args.run + '/'
+    tablename = prefix + args.output + '_masses.hdf5'
+
+    if os.path.exists(tablename):
+        print('Reading mass profile file', tablename)
+    else:
+        print('File not found:', tablename, '\n', 'Therefore computing mass profile now..')
+        Path(prefix).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
+        refine_width_kpc = ds.quan(ds.refine_width, 'kpc')
+        calc_masses(ds, args.output, refine_width_kpc, os.path.splitext(tablename)[0], get_gas_profile=args.get_gasmass)
+
+    mass_profile = pd.read_hdf(tablename, key='all_data')
+    mass_profile = mass_profile.sort_values('radius')
+    total_mass = mass_profile['stars_mass'].iloc[-1]
+    half_mass_radius = mass_profile[mass_profile['stars_mass'] <= total_mass/2]['radius'].iloc[-1]
+    re = re_hmr_factor * half_mass_radius
+
+    print('\nStellar-profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' %(args.current_redshift) + ') is %.2F kpc' %(re))
+    return re
+
+# ---------------------------------------------------------------------------
+def get_kpc_from_arc_at_redshift(arcseconds, redshift):
+    '''
+    Function to convert arcseconds on sky to physical kpc, at a given redshift
+    '''
+    cosmo = FlatLambdaCDM(H0=67.8, Om0=0.308)
+    d_A = cosmo.angular_diameter_distance(z=redshift)
+    kpc = (d_A * arcseconds * u.arcsec).to(u.kpc, u.dimensionless_angles()).value # in kpc
+    print('Converted resolution of %.2f arcseconds to %.2F kpc at target redshift of %.2f' %(arcseconds, kpc, redshift))
+    return kpc
+
+# -------------------------------------------------------------------------------------------------------------
+def get_smoothing_scale(data, args):
+    '''
+    Function to derive a smoothing scale for computing velocity dispersion
+    '''
+    pix_res = float(np.min(data['dx'].in_units('kpc')))  # at level 11
+    cooling_level = int(re.search('nref(.*)c', args.run).group(1))
+    string_to_skip = '%dc' % cooling_level
+    forced_level = int(re.search('nref(.*)f', args.run[args.run.find(string_to_skip) + len(string_to_skip):]).group(1))
+    lvl1_res = pix_res * 2. ** cooling_level
+    level = forced_level
+    dx = lvl1_res / (2. ** level)
+    smooth_scale = int(25. / dx) / 6.
+    myprint('Smoothing velocity field at %.2f kpc to compute velocity dispersion..'%smooth_scale, args)
+
+    return smooth_scale
+
+# --------------------------------------------------------------------------------------------------------------
+def get_velocity_dispersion_3d(field, data):
+    '''
+    Function to compute gas velocity dispersion, given a YT box object
+    This function is based on Cassi's script vdisp_vs_mass_res() in foggie/turbulence/turbulence.py
+    '''
+    smooth_scale = 6.33 # kpc; this is hard-oded for a very specific scenario of nref11c_nref9f
+    vx = data['vx_corrected'].in_units('km/s').v
+    vy = data['vy_corrected'].in_units('km/s').v
+    vz = data['vz_corrected'].in_units('km/s').v
+    smooth_vx = gaussian_filter(vx, smooth_scale)
+    smooth_vy = gaussian_filter(vy, smooth_scale)
+    smooth_vz = gaussian_filter(vz, smooth_scale)
+    sig_x = (vx - smooth_vx)**2.
+    sig_y = (vy - smooth_vy)**2.
+    sig_z = (vz - smooth_vz)**2.
+    vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
+    vdisp = yt.YTArray(vdisp, 'km/s')
+    return vdisp
+
+# --------------------------------------------------------------------------------------------------------------
+def get_velocity_dispersion_x(field, data):
+    '''
+    Function to compute gas velocity dispersion, given a YT box object
+    This function is based on Cassi's script vdisp_vs_mass_res() in foggie/turbulence/turbulence.py
+    '''
+    smooth_scale = 6.33 # kpc; this is hard-oded for a very specific scenario of nref11c_nref9f
+    v = data['vx' + '_corrected'].in_units('km/s').v
+    smooth_v = gaussian_filter(v, smooth_scale)
+    vdisp = np.abs(v - smooth_v)
+    vdisp = yt.YTArray(vdisp, 'km/s')
+
+    return vdisp
+
+# --------------------------------------------------------------------------------------------------------------
+def get_velocity_dispersion_y(field, data):
+    '''
+    Function to compute gas velocity dispersion, given a YT box object
+    This function is based on Cassi's script vdisp_vs_mass_res() in foggie/turbulence/turbulence.py
+    '''
+    smooth_scale = 6.33 # kpc; this is hard-oded for a very specific scenario of nref11c_nref9f
+    v = data['vy' + '_corrected'].in_units('km/s').v
+    smooth_v = gaussian_filter(v, smooth_scale)
+    vdisp = np.abs(v - smooth_v)
+    vdisp = yt.YTArray(vdisp, 'km/s')
+
+    return vdisp
+
+# --------------------------------------------------------------------------------------------------------------
+def get_velocity_dispersion_z(field, data):
+    '''
+    Function to compute gas velocity dispersion, given a YT box object
+    This function is based on Cassi's script vdisp_vs_mass_res() in foggie/turbulence/turbulence.py
+    '''
+    smooth_scale = 6.33 # kpc; this is hard-oded for a very specific scenario of nref11c_nref9f
+    v = data['vz' + '_corrected'].in_units('km/s').v
+    smooth_v = gaussian_filter(v, smooth_scale)
+    vdisp = np.abs(v - smooth_v)
+    vdisp = yt.YTArray(vdisp, 'km/s')
+
+    return vdisp
+
+# --------------------------------------------------------------------
+def get_density_cut(t):
+    '''
+    Function to get density cut based on Cassi's paper. The cut is a function of ime.
+    if z > 0.5: rho_cut = 2e-26 g/cm**3
+    elif z < 0.25: rho_cut = 2e-27 g/cm**3
+    else: linearly from 2e-26 to 2e-27 from z = 0.5 to z = 0.25
+    Takes time in Gyr as input
+    '''
+    t1, t2 = 8.628, 10.754 # Gyr; corresponds to z1 = 0.5 and z2 = 0.25
+    rho1, rho2 = 2e-26, 2e-27 # g/cm**3
+    t = np.float64(t)
+    rho_cut = np.piecewise(t, [t < t1, (t >= t1) & (t <= t2), t > t2], [rho1, lambda t: rho1 + (t - t1) * (rho2 - rho1) / (t2 - t1), rho2])
+    return rho_cut
+
 # ------------------------------------------------------------------
 class BlitManager:
     def __init__(self, canvas, animated_artists=()):
