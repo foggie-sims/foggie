@@ -1468,6 +1468,9 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--add_foggie_panel', dest='add_foggie_panel', action='store_true', default=False, help='add a panel corresponding to FOGGIE histograms?, default is no')
     parser.add_argument('--overplot_foggie', dest='overplot_foggie', action='store_true', default=False, help='overplot on observed data the corresponding FOGGIE histogram?, default is no')
 
+    # ------- args added for projected_Zgrad_hist_map.py ------------------------------
+    parser.add_argument('--nofit', dest='nofit', action='store_true', default=False, help='skip fitting the metallicity histogram?, default is no')
+
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 
