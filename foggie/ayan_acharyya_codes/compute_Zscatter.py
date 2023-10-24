@@ -209,7 +209,7 @@ if __name__ == '__main__':
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZscat%s%s%s%s%s.txt' % (upto_text, weightby_text, fitmultiple_text, density_cut_text, islog_text)
     if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
-    if os.path.isfile(grad_filename) and not args.clobber: # if gradfile already exists
+    if os.path.isfile(grad_filename) and not dummy_args.clobber: # if gradfile already exists
         existing_df_grad = pd.read_table(grad_filename)
         outputs_existing_on_file = pd.unique(existing_df_grad['output'])
 
