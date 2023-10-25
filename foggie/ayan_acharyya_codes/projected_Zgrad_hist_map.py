@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    Oct 2023
     Examples :   run projected_Zgrad_hist_map.py --system ayan_pleiades --halo 8508 --Zgrad_den kpc --upto_kpc 10 --docomoving --res_arc 0.1 --weight mass --output RD0030
-                 run projected_Zgrad_hist_map.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --res_arc 0.1 --forpaper --output RD0030 --nofit --proj x,y,z
+                 run projected_Zgrad_hist_map.py --system ayan_hd --halo 2392 --Zgrad_den kpc --upto_kpc 10 --res_arc 0.1 --forproposal --output DD0417 --proj x,y,z --vcol vtan
 """
 from header import *
 from util import *
@@ -41,7 +41,7 @@ def make_frb_from_box(box, box_center, box_width, projection, args):
     myprint('Now making the FRB for ' + projection + '..', args)
     dummy_field = ('gas', 'density')  # dummy field just to create the FRB; any field can be extracted from the FRB thereafter
     dummy_proj = box.ds.proj(dummy_field, projection, center=box_center, data_source=box)
-    frb = dummy_proj.to_frb(box.ds.arr(box_width, 'kpc'), args.ncells, center=box_center)
+    frb = dummy_proj.to_frb(box_width, args.ncells, center=box_center)
 
     return frb
 
@@ -102,75 +102,43 @@ def make_df_from_frb(frb, df, projection, args):
     map_Z = np.array((map_metal_mass / map_gas_mass).in_units('Zsun')) # now in Zsun units
     df['metal_' + projection] = map_Z.flatten()
 
-    map_vdisp_los = frb['gas', 'velocity_dispersion_' + projection] # cm*km/s
-    map_vdisp_los = (map_vdisp_los / (2 * YTArray(args.galrad, 'kpc'))).in_units('km/s') # km/s
-    df['vdisp_' + projection] = map_vdisp_los.flatten()
-
     if args.weight is not None:
         map_weights = np.array(frb['gas', args.weight])
-        weighted_map_Z = len(map_weights) ** 2 * map_Z * map_weights / np.sum(map_weights)
-        df['weights_' + projection] = map_weights.flatten()
+        df[args.weight + '_' + projection] = map_weights.flatten()
 
-    return df, weighted_map_Z
+    return df
 
 # -----------------------------------------------------------------------
-def plot_projected_vdisp(map, ax, args, clim=None, cmap='viridis'):
+def plot_projection(quantity, box, box_center, box_width, projection, ax, args, unit=None, clim=None, cmap=None):
     '''
-    Function to plot the 2D LoS velocity dispersion map, at the given resolution of the FRB
+    Function to plot the 2D map of various velocity quantities, at the given resolution of the FRB
     :return: axis handle
     '''
-    myprint('Now making projected vel disp plot..', args)
-    plt.style.use('seaborn-white')
+    myprint('Now making projected velocity quantity plot..', args)
 
-    proj = ax.imshow(map, cmap=cmap, extent=[-args.galrad, args.galrad, -args.galrad, args.galrad], vmin=clim[0] if clim is not None else None, vmax=clim[1] if clim is not None else None)
+    field = ('gas', field_dict[quantity])
+    weight_field = ('gas', args.weight) if args.weight is not None else None
 
-    # -----------making the axis labels etc--------------
-    ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 5))
-    ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 5))
-    ax.set_xlabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
+    prj = yt.ProjectionPlot(box.ds, projection, field, center=box_center, data_source=box, width=box_width, weight_field=weight_field, fontsize=args.fontsize, buff_size=(args.ncells, args.ncells))
+    if unit is not None: prj.set_unit(field, unit)
+    if cmap is not None: prj.set_cmap(field, cmap)
+    if clim is not None: prj.set_zlim(field, zmin=clim[0], zmax=clim[1])
 
-    # ---------making the colorbar axis once, that will correspond to all projections--------------
+    # ------plotting onto a matplotlib figure--------------
+    position = ax.get_position()
+    prj.plots[field].axes = ax
     divider = make_axes_locatable(ax)
+    prj._setup_plots()
+    prj.plots[field].axes.set_position(position)  # in order to resize the axis back to where it should be
+
     cax = divider.append_axes('right', size='5%', pad=0.05)
-    plt.colorbar(proj, cax=cax, orientation='vertical')
+    cbar = fig.colorbar(prj.plots[field].cb.mappable, orientation='vertical', cax=cax)
+    cbar.ax.tick_params(labelsize=args.fontsize)
+    cbar.set_label(prj.plots[field].cax.get_ylabel(), fontsize=args.fontsize / args.fontfactor if quantity != 'metal' else args.fontsize)
 
-    cax.set_xticklabels(['%.1F' % index for index in cax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-    cax.set_ylabel(r'LoS $\sigma_v$ (km/s)', fontsize=args.fontsize / args.fontfactor)
-
-    return ax
-
-# ----------------------------------------------------------------
-def plot_projectedZ_snap(map, ax, args, clim=None, cmap='viridis'):
-    '''
-    Function to plot a given projected metallicity map on to a given axis
-    :return: axis handle
-    '''
-    myprint('Now making projection plot..', args)
-    plt.style.use('seaborn-white')
-    #sns.set_style('ticks')  # instead of darkgrid, so that there are no grids overlaid on the projections
-
-    proj = ax.imshow(map, cmap=cmap, extent=[-args.galrad, args.galrad, -args.galrad, args.galrad], vmin=clim[0] if clim is not None else None, vmax=clim[1] if clim is not None else None)
-
-    # -----------making the axis labels etc--------------
-    ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 5))
-    ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 5))
-    ax.set_xlabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
-
-    # ---------making the colorbar axis once, that will correspond to all projections--------------
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    plt.colorbar(proj, cax=cax, orientation='vertical')
-
-    cax.set_xticklabels(['%.1F' % index for index in cax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-    cax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
-
-    #make_its_own_figure(ax, 'projectedZ', args) #to save a copy of figure as its own separate fig too
+    ax.tick_params(axis='both', labelsize=args.fontsize)
+    ax.set_xlabel(ax.get_xlabel(), fontsize=args.fontsize)
+    ax.set_ylabel(ax.get_ylabel(), fontsize=args.fontsize)
 
     return ax
 
@@ -186,19 +154,17 @@ def plot_Zprof_snap(df, ax, args):
     x_bins = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
     Zgrad_arr = []
 
-    weightcol = 'weights'
     ycol = 'metal'
     color = 'blue'
 
-    df['weighted_metal'] = len(df) * df[ycol] * df[weightcol] / np.sum(df[weightcol])
     df['log_metal'] = np.log10(df[ycol])
     if not args.plot_onlybinned: ax.scatter(df['rad'], df['log_metal'], c='cornflowerblue', s=5, lw=0, alpha=0.7)
 
     df['binned_cat'] = pd.cut(df['rad'], x_bins)
 
     if args.weight is not None:
-        agg_func = lambda x: np.sum(x * df.loc[x.index, weightcol]) / np.sum(df.loc[x.index, weightcol]) # function to get weighted mean
-        agg_u_func = lambda x: np.sqrt(((np.sum(df.loc[x.index, weightcol] * x**2) / np.sum(df.loc[x.index, weightcol])) - (np.sum(x * df.loc[x.index, weightcol]) / np.sum(df.loc[x.index, weightcol]))**2) * (np.sum(df.loc[x.index, weightcol]**2)) / (np.sum(df.loc[x.index, weightcol])**2 - np.sum(df.loc[x.index, weightcol]**2))) # eq 6 of http://seismo.berkeley.edu/~kirchner/Toolkits/Toolkit_12.pdf
+        agg_func = lambda x: np.sum(x * df.loc[x.index, args.weight]) / np.sum(df.loc[x.index, args.weight]) # function to get weighted mean
+        agg_u_func = lambda x: np.sqrt(((np.sum(df.loc[x.index, args.weight] * x**2) / np.sum(df.loc[x.index, args.weight])) - (np.sum(x * df.loc[x.index, args.weight]) / np.sum(df.loc[x.index, args.weight]))**2) * (np.sum(df.loc[x.index, args.weight]**2)) / (np.sum(df.loc[x.index, args.weight])**2 - np.sum(df.loc[x.index, args.weight]**2))) # eq 6 of http://seismo.berkeley.edu/~kirchner/Toolkits/Toolkit_12.pdf
     else:
         agg_func, agg_u_func = np.mean, np.std
 
@@ -228,13 +194,11 @@ def plot_Zprof_snap(df, ax, args):
     ax.scatter(x_bin_centers, y_binned, c=color, s=30, lw=1, ec='black', zorder=10)
     ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
 
-    ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_xlim(0, np.ceil(args.upto_kpc / 0.695)) # kpc
+    ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
+    ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
+    ax.set_xlim(0, 5. if args.forproposal else np.ceil(args.upto_kpc / 0.695)) # kpc
     ax.set_ylim(args.Zlim[0], args.Zlim[1]) # log limits
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.text(ax.get_xlim()[1]*0.9, ax.get_ylim()[1]*0.9, 'Slope = %.2F ' % linefit[0] + 'dex/kpc', color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='right')
+    ax.tick_params(axis='both', labelsize=args.fontsize)
 
     return Zgrad_arr, ax
 
@@ -247,8 +211,9 @@ def plot_Zdist_snap(df, ax, args):
     '''
     myprint('Now making the histogram plot for ' + args.output + '..', args)
 
-    Zarr = df['metal'].values
-    weights = df['weights'].values if args.weight is not None else None
+    ycol = 'metal'
+    Zarr = df[ycol].values
+    weights = df[args.weight].values if args.weight is not None else None
     color = 'blue'
 
     if args.islog: Zarr = np.log10(Zarr)  # all operations will be done in log
@@ -268,18 +233,23 @@ def plot_Zdist_snap(df, ax, args):
     else:
         Zdist_arr = np.nan
 
-    ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_ylabel('Normalised PDF', fontsize=args.fontsize / args.fontfactor)
+    ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
+    ax.set_ylabel('Normalised PDF', fontsize=args.fontsize)
     ax.set_xlim(args.Zlim[0], args.Zlim[1]) # Zsun
-    ax.set_ylim(0, 3)
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
-    if not args.nofit: ax.text(ax.get_xlim()[1]*0.9, ax.get_ylim()[1]*0.9, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['sg_center'], 2.355 * fit.best_values['sg_sigma']), color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
+    ax.set_ylim(0, 2.5 if args.forproposal else 3)
+    ax.tick_params(axis='both', labelsize=args.fontsize)
+    if not args.nofit: ax.text(ax.get_xlim()[1]*0.9, ax.get_ylim()[1]*0.9, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['sg_center'], 2.355 * fit.best_values['sg_sigma']), color='k', transform=ax.transAxes, fontsize=args.fontsize, va='top', ha='left' if args.islog else 'right')
 
-    #ax.text(0.03 if args.islog else 0.97, 0.3, 'z = %.2F' % args.current_redshift, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
-    #ax.text(0.03 if args.islog else 0.97, 0.2, 't = %.1F Gyr' % args.current_time, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
+    #ax.text(0.03 if args.islog else 0.97, 0.3, 'z = %.2F' % args.current_redshift, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize)
+    #ax.text(0.03 if args.islog else 0.97, 0.2, 't = %.1F Gyr' % args.current_time, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize)
 
     return Zdist_arr, ax
+
+
+field_dict = {'vrad': 'radial_velocity_corrected', 'vdisp_3d': 'velocity_dispersion_3d', 'vtan': 'tangential_velocity_corrected', \
+              'vphi': 'phi_velocity_corrected', 'vtheta': 'theta_velocity_corrected', 'metal':'metallicity'}
+label_dict = {'vrad': r'$v_{\rm radial}$', 'vdisp_3d': r'3D $\sigma_v$', 'vdisp_los': r'LoS $\sigma_v$', 'vtan': r'$v_{\rm tangential}$', \
+              'vphi': r'$v_{\phi}$', 'vtheta': r'$v_{\theta}$'}
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -337,20 +307,25 @@ if __name__ == '__main__':
         ds.add_field(('gas', 'velocity_dispersion_z'), function=get_velocity_dispersion_z, units='km/s', take_log=False, sampling_type='cell')
 
         # --------assigning additional keyword args-------------
-        if args.forpaper:
-            args.use_density_cut = False
+        if args.forproposal:
+            args.nofit = True
+            args.fontsize = 15
+            args.nbins = 20 # for the Z distribution panel
+        if args.forpaper or args.forproposal:
+            args.use_density_cut = True
             args.docomoving = True
-            args.fit_multiple = True # True # for the Z distribution panel
             args.islog = True # for the Z distribution panel
-            args.nbins = 30 # for the Z distribution panel
             args.weight = 'mass'
+        if args.forpaper:
+            args.nbins = 30 # for the Z distribution panel
+            args.fit_multiple = True # True # for the Z distribution panel
             args.hide_multiplefit = True
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').tolist()
 
         args.projections = [item for item in args.projection.split(',')]
-        args.Zlim = [-2, 1] # log Zsun units
+        args.Zlim = [-1.5, 0.5] if args.forproposal else [-2, 1]# log Zsun units
         if args.res_arc is not None:
             args.res = get_kpc_from_arc_at_redshift(float(args.res_arc), args.current_redshift)
             native_res_at_z = 0.27 / (1 + args.current_redshift) # converting from comoving kpc to physical kpc
@@ -361,17 +336,17 @@ if __name__ == '__main__':
             args.res = args.res_arr[0]
             if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695 # converting from comoving kcp h^-1 to physical kpc
         args.res_text = '_res%.1fkpc' % float(args.res)
-        args.fontfactor = 1.
+        args.fontfactor = 1.2
 
         # --------determining corresponding text suffixes-------------
-        args.weightby_text = '_wtby_' + args.weight
+        args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''
         args.fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
         args.density_cut_text = '_wdencut' if args.use_density_cut else ''
         args.islog_text = '_islog' if args.islog else ''
 
         # -------setting up fig--------------
         nrow, ncol = len(args.projections), 4
-        fig, axes = plt.subplots(nrow, ncol, figsize=(15, 8))
+        fig, axes = plt.subplots(nrow, ncol, figsize=(15, 4 if nrow == 1 else 6 if nrow == 2 else 8))
         fig.tight_layout()
         fig.subplots_adjust(top=0.95, bottom=0.07, left=0.07, right=0.93, wspace=0.7, hspace=0.5)
 
@@ -389,19 +364,26 @@ if __name__ == '__main__':
         # extract the required box
         box_center = ds.halo_center_kpc
         box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
+        box_width = 2 * args.galrad * kpc
+
+        if args.use_density_cut:
+            rho_cut = get_density_cut(ds.current_time.in_units('Gyr'))  # based on Cassi's CGM-ISM density cut-off
+            box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+            print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
         # -----------reading in the snapshot's projected metallicity dataframe----------
-        df_snap_filename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projectedZ%s.txt' % (args.galrad, args.res_text)
+        df_snap_filename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projectedZ%s%s%s.txt' % (args.galrad, args.res_text, args.weightby_text, args.density_cut_text)
 
         if not os.path.exists(df_snap_filename) or args.clobber:
-            myprint(df_snap_filename + 'not found, creating afresh..', args)
+            myprint(df_snap_filename + ' not found, creating afresh..', args)
             df_snap = pd.DataFrame()
             map_dist = get_dist_map(args)
             df_snap['rad'] = map_dist.flatten()
 
             for thisproj in ['x', 'y', 'z']:
-                frb = make_frb_from_box(box, box_center, 2 * args.galrad, thisproj, args)
-                df_snap, weighted_map_Z = make_df_from_frb(frb, df_snap, thisproj, args)
+                field_dict.update({'vdisp_los':'velocity_dispersion_' + thisproj})
+                frb = make_frb_from_box(box, box_center, box_width, thisproj, args)
+                df_snap = make_df_from_frb(frb, df_snap, thisproj, args)
 
             df_snap.to_csv(df_snap_filename, sep='\t', index=None)
             myprint('Saved file ' + df_snap_filename, args)
@@ -413,24 +395,23 @@ if __name__ == '__main__':
         for index, thisproj in enumerate(args.projections):
             args.projection = thisproj
             ax_row = axes if len(args.projections) == 1 else axes[index]
-            df_thisproj = df_snap[['rad', 'metal_' + thisproj, 'weights_' + thisproj, 'vdisp_' + thisproj]]
-            df_thisproj.rename(columns={'metal_' + thisproj: 'metal', 'weights_' + thisproj: 'weights', 'vdisp_' + thisproj: 'vdisp_los'}, inplace=True)
-
-            # ------plotting projected metallcity snapshots---------------
-            vdisp_map = df_thisproj['vdisp_los'].values.reshape((args.ncells, args.ncells))
-            ax_row[3] = plot_projected_vdisp(vdisp_map, ax_row[3], args, clim=[0, 200])
-
-            # ------plotting projected metallcity snapshots---------------
-            weighted_Z = len(df_thisproj) * df_thisproj['metal'] * df_thisproj['weights'] / np.sum(df_thisproj['weights'])
-            weighted_map_Z = weighted_Z.values.reshape((args.ncells, args.ncells))
-            ax_row[2] = plot_projectedZ_snap(np.log10(weighted_map_Z), ax_row[2], args, clim=args.Zlim, cmap=old_metal_color_map)
-            df_thisproj = df_thisproj.replace([0, np.inf, -np.inf], np.nan).dropna(subset=['metal', 'weights'], axis=0)
+            columns_to_extract = ['rad', 'metal_' + thisproj]
+            if args.weight is not None: columns_to_extract += [args.weight + '_' + thisproj]
+            df_thisproj = df_snap[columns_to_extract]
+            df_thisproj = df_thisproj.replace([0, np.inf, -np.inf], np.nan).dropna(subset=columns_to_extract, axis=0)
+            df_thisproj.columns = df_thisproj.columns.str.replace('_' + thisproj, '')
 
             # ------plotting projected metallicity profiles---------------
             Zgrad_arr, ax_row[0] = plot_Zprof_snap(df_thisproj, ax_row[0], args)
 
             # ------plotting projected metallicity histograms---------------
             Zdist_arr, ax_row[1] = plot_Zdist_snap(df_thisproj, ax_row[1], args)
+
+            # ------plotting projected metallcity snapshots---------------
+            ax_row[2] = plot_projection('metal', box, box_center, box_width, thisproj, ax_row[2], args, clim=[10**-1.5, 10**0] if args.forproposal else None, cmap=old_metal_color_map)
+
+            # ------plotting projected velocity quantity snapshots---------------
+            ax_row[3] = plot_projection(args.vcol, box, box_center, box_width, thisproj, ax_row[3], args, clim=[-150, 150] if args.vcol == 'vrad' or args.vcol == 'vphi' else [0, 150] if args.forproposal else None, cmap='PRGn' if args.vcol == 'vrad' else 'viridis')
 
         # ------saving fig------------------
         outfile_rootname = '%s_%s_projectedZ_prof_hist_map_%s%s%s%s.png' % (args.output, args.halo, args.Zgrad_den, args.upto_text, args.weightby_text, args.res_text)
