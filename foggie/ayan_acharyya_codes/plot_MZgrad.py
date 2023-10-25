@@ -50,20 +50,20 @@ def load_df(args):
 
     if os.path.exists(grad_filename):
         print('Trying to read in', grad_filename)
-        df = pd.read_table(grad_filename, delim_whitespace=True)
+        df = pd.read_table(grad_filename)
 
     elif not os.path.exists(grad_filename) and args.Zgrad_den == 're':
         print('Could not find', grad_filename)
         grad_filename = grad_filename.replace('rad_re', 'rad')
         print('Trying to read in', grad_filename, 'instead')
-        df = pd.read_table(grad_filename, delim_whitespace=True)
+        df = pd.read_table(grad_filename)
         convert_Zgrad_from_dexkpc_to_dexre = True
 
     elif not os.path.exists(grad_filename) and args.Zgrad_den == 'kpc':
         print('Could not find', grad_filename)
         grad_filename = grad_filename.replace('rad', 'rad_re')
         print('Trying to read in', grad_filename, 'instead')
-        df = pd.read_table(grad_filename, delim_whitespace=True)
+        df = pd.read_table(grad_filename)
         convert_Zgrad_from_dexre_to_dexkpc = True
 
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
@@ -417,12 +417,13 @@ def plot_MZGR(args):
             print(sfr_filename, 'not found')
             sfr_filename = sfr_filename.replace(args.run, args.run[:14])
             print('Instead, reading SFR history from', sfr_filename)
-        addn_df = pd.read_table(sfr_filename, names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
-        df = df.merge(addn_df[['output', 'sfr']], on='output')
-        df['ssfr'] = df['sfr'] / 10**df['log_mass']
         df = df.replace([0, np.inf, -np.inf], np.nan).dropna(subset=[args.xcol, args.ycol, args.colorcol], axis=0)
-        df['log_ssfr'] = np.log10(df['ssfr'])
-        df['log_sfr'] = np.log10(df['sfr'])
+        if 'sfr' in args.xcol or 'sfr' in args.ycol or 'sfr' in args.colorcol:
+            addn_df = pd.read_table(sfr_filename, names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
+            df = df.merge(addn_df[['output', 'sfr']], on='output')
+            df['ssfr'] = df['sfr'] / 10**df['log_mass']
+            df['log_ssfr'] = np.log10(df['ssfr'])
+            df['log_sfr'] = np.log10(df['sfr'])
         df = df.sort_values(args.xcol)
 
         if not args.nocolorcoding:
@@ -447,8 +448,8 @@ def plot_MZGR(args):
         thistextcolor = col_arr[thisindex] if args.nocolorcoding else mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
-                print('Deb458:', len(df))  ##
-                line, = ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature or args.formolly else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2)
+                line, = ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) else 1)
+                #ax.scatter(df[args.xcol], df[args.ycol], c=thistextcolor)
                 if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
                     # ----------------------------------
                     def update(i, x, y, line, args):
@@ -461,20 +462,12 @@ def plot_MZGR(args):
                         ax.set_xlabel(label_dict[args.xcol], fontsize=args.fontsize)
                         ax.set_ylabel(label_dict[args.ycol], fontsize=args.fontsize)
 
-                        return line,
+                        return line
 
                     anim = animation.FuncAnimation(fig, update, len(df), fargs=[df[args.xcol].values, df[args.ycol].values, line, args], interval=25, blit=True)
             else:
                 line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_literature else 2)
                 plot = ax.add_collection(line)
-
-        # ------- overplotting specific snapshot highlights------------
-        if args.snaphighlight is not None:
-            snaps_to_highlight = [item for item in args.snaphighlight.split(',')]
-            df_snaps = df[df['output'].isin(snaps_to_highlight)]
-            if args.nocolorcoding: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[args.ycol], c=thistextcolor, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
-            else: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[args.ycol], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
-            print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, ' with star-markers\nThese snapshots correspond to times', df_snaps['time'].values, 'Gyr respectively, i.e.,', np.diff(df_snaps['time'].values) * 1000, 'Myr apart')
 
         # ------- overplotting redshift-binned scatter plot------------
         if args.zhighlight and not args.formolly:
@@ -492,7 +485,7 @@ def plot_MZGR(args):
             if 'line' in locals() and not args.nocolorcoding: line.set_alpha(0.5) # make the actual wiggly line fainter
             if not args.hide_overplot:
                 if args.nocolorcoding:
-                    smoothline, = ax.plot(df[args.xcol], df[args.ycol + '_smoothed'], c=thistextcolor, lw=2 if args.formolly else 0.5, alpha=0.5 if args.formolly and not args.hiderawdata else 1)
+                    smoothline, = ax.plot(df[args.xcol], df[args.ycol + '_smoothed'], c=thistextcolor, lw=2 if args.formolly or (args.forproposal and args.overplot_smoothed) else 0.5, alpha=0.5 if args.formolly and not args.hiderawdata else 1)
                 else:
                     smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=2 if args.hiderawdata else 0.5)
                     plot = ax.add_collection(smoothline)
@@ -515,6 +508,15 @@ def plot_MZGR(args):
             else:
                 interpline = get_multicolored_line(df[args.xcol], df[args.ycol + '_interp'], df[args.colorcol + '_interp'], this_cmap, args.cmin, args.cmax, lw=0.5)
                 plot = ax.add_collection(interpline)
+
+        # ------- overplotting specific snapshot highlights------------
+        if args.snaphighlight is not None:
+            snaps_to_highlight = [item for item in args.snaphighlight.split(',')]
+            df_snaps = df[df['output'].isin(snaps_to_highlight)]
+            trace_to_overplot_on = args.ycol + '_smoothed' if args.overplot_smoothed else args.colorcol + '_interp' if args.overplot_cadence else args.ycol
+            if args.nocolorcoding: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[trace_to_overplot_on], c=thistextcolor, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
+            else: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[trace_to_overplot_on], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
+            print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, ' with star-markers\nThese snapshots correspond to times', df_snaps['time'].values, 'Gyr respectively, i.e.,', np.diff(df_snaps['time'].values) * 1000, 'Myr apart')
 
         # ------- making additional plot of deviation in gradient vs other quantities, like SFR------------
         if args.plot_deviation:
