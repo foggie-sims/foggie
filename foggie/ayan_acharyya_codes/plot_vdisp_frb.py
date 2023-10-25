@@ -7,7 +7,7 @@
     Output :     projection plots as png files
     Author :     Ayan Acharyya
     Started :    October 2023
-    Example :    run plot_vdisp_frb.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --proj x --res_arc 0.1 --get3d --plot_frb
+    Example :    run plot_vdisp_frb.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --proj x --res_arc 0.1 --plot_frb
 """
 import numpy as np
 from matplotlib import pyplot as plt
@@ -52,7 +52,7 @@ def get_smoothing_scale(data, args):
     lvl1_res = pix_res * 2. ** cooling_level
     level = forced_level
     dx = lvl1_res / (2. ** level)
-    smooth_scale = int(25. / dx) / 6.
+    smooth_scale = int(25. / dx) / 6. # this is for
     print('Smoothing velocity field at %.2f kpc to compute velocity dispersion..'%smooth_scale)
 
     return smooth_scale
@@ -125,11 +125,16 @@ def get_vdisp_frb(box, box_center, box_width, args):
     Function to convert a given dataset to Fixed Resolution Buffer (FRB) for a given angle of projection and resolution (args.res)
     :return: FRB (2D numpy array)
     '''
-    proj = box.ds.proj(('gas', 'velocity_dispersion_' + args.projection), args.projection, center=box_center, data_source=box)
+    dummy_field = ('gas', 'velocity_dispersion_' + args.projection) # the choice of this field does not matter I think
+    proj = box.ds.proj(dummy_field, args.projection, center=box_center, data_source=box)
     frb = proj.to_frb(box.ds.arr(box_width, 'kpc'), args.ncells, center=box_center)
-
+    '''
+    # ------to get vdisp from pre-defined yt fields------
     map_vdisp = frb['gas', 'velocity_dispersion_3d'] if args.get3d else frb['gas', 'velocity_dispersion_' + args.projection]# cm*km/s
     map_vdisp = (map_vdisp / (2 * yt.YTArray(args.galrad, 'kpc'))).in_units('km/s') # km/s
+    '''
+    # ------to compute vdisp on the fly------------
+    map_vdisp = 
 
     return map_vdisp
 
@@ -287,7 +292,7 @@ if __name__ == '__main__':
         print('Starting snapshot', args.output, 'i.e.,', index+1, 'out of', len(args.output_arr), 'snapshots..')
         args.snap_name = args.output_path + args.output + '/' + args.output
         box, box_center, box_width = get_box(args)
-        fig1 = plot_vdisp_projection(box, box_center, box_width, args)
+        #fig1 = plot_vdisp_projection(box, box_center, box_width, args)
         if args.plot_frb: fig2 = plot_vdisp_frb(box, box_center, box_width, args)
 
     print('All snapshots completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
