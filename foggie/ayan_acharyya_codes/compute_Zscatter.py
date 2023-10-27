@@ -352,7 +352,7 @@ if __name__ == '__main__':
         else: upto_text = '_upto%.1FRe' % args.upto_re
         density_cut_text = '_wdencut' if args.use_density_cut else ''
         ncells_text = '_ncells%d' %ncells if not args.get_native_res else ''
-        outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%s%s%s.txt' % (upto_text, density_cut_text, ncells_text)
+        outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad%s%s%s.txt' % (upto_text, density_cut_text, ncells_text)
         df = get_df_from_ds(box, args, outfilename=outfilename)  # get dataframe with metallicity profile info
 
         # ----------------getting the arrays--------------------------
