@@ -255,10 +255,6 @@ if __name__ == "__main__":
 
     print('foggie_dir: ', foggie_dir)
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
-    if (args.smoothed):
-        halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_cen_smoothed'
-        velocity_table = Table(dtype=('S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'),
-                names=('name', 'redshift', 'time', 'xc', 'yc', 'zc', 'xv', 'yv', 'zv'))
 
     # Build output list
     outs = make_output_list(args.output, output_step=args.output_step)
