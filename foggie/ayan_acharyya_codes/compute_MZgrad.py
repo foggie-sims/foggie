@@ -248,7 +248,13 @@ def get_df_from_ds(box, args, outfilename=None):
         df.to_csv(outfilename, sep='\t', index=None)
     else:
         myprint('Reading from existing file ' + outfilename, args)
-        df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
+        try:
+            df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
+        except pd.errors.EmptyDataError:
+            print('File existed, but it was empty, so making new file afresh..')
+            dummy_args = copy.deepcopy(args)
+            dummy_args.clobber = True
+            df = get_df_from_ds(box, dummy_args, outfilename=outfilename)
 
     df = df[df['rad'].between(0, args.galrad)]  # in case this dataframe has been read in from a file corresponding to a larger chunk of the box
     df['log_metal'] = np.log10(df['metal'])
