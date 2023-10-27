@@ -1140,9 +1140,15 @@ def pull_halo_center(args, fast=False):
         if halos_df['name'].str.contains(args.output).any():
             myprint('Pulling halo center from catalog file', args)
             halo_ind = halos_df.index[halos_df['name'] == args.output][0]
-            args.halo_center = halos_df.loc[halo_ind, ['xc', 'yc', 'zc']].values # in kpc units
-            try: args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
-            except: pass
+            if 'xc' in halos_df: args.halo_center = halos_df.loc[halo_ind, ['xc', 'yc', 'zc']].values # in kpc units
+            elif 'x_c' in halos_df: args.halo_center = halos_df.loc[halo_ind, ['x_c', 'y_c', 'z_c']].values # in kpc units
+            try:
+                args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
+            except:
+                try:
+                    args.halo_velocity = halos_df.loc[halo_ind, ['v_x', 'v_y', 'v_z']].values  # in km/s units
+                except:
+                    pass
             calc_hc = False
         elif not fast:
             myprint('This snapshot is not in the halos_df file, calculating halo center...', args)
