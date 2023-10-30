@@ -362,7 +362,7 @@ def plot_MZGR(args):
 
     # -------declare figure object-------------
     fig, ax = plt.subplots(1, figsize=(12, 6))
-    fig.subplots_adjust(top=0.95, bottom=0.12, left=0.12, right=0.97 if args.nocolorcoding else 1.05)
+    fig.subplots_adjust(top=0.95, bottom=0.12, left=0.12, right=0.97 if args.nocolorcoding else 1.0)
 
     if args.plot_deviation:
         fig2, ax2 = plt.subplots(1, figsize=(12, 6))
@@ -410,24 +410,24 @@ def plot_MZGR(args):
         thisindex = len(args.halo_arr) - index - 1
         df = load_df(args)
         # -------- reading in additional dataframes-------
-        sfr_filename = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr'
-        if os.path.exists(sfr_filename):
-            print('Reading SFR history from', sfr_filename)
-        else:
-            print(sfr_filename, 'not found')
-            sfr_filename = sfr_filename.replace(args.run, args.run[:14])
-            print('Instead, reading SFR history from', sfr_filename)
-        df = df.replace([0, np.inf, -np.inf], np.nan).dropna(subset=[args.xcol, args.ycol, args.colorcol], axis=0)
         if 'sfr' in args.xcol or 'sfr' in args.ycol or 'sfr' in args.colorcol:
+            sfr_filename = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr'
+            if os.path.exists(sfr_filename):
+                print('Reading SFR history from', sfr_filename)
+            else:
+                print(sfr_filename, 'not found')
+                sfr_filename = sfr_filename.replace(args.run, args.run[:14])
+                print('Instead, reading SFR history from', sfr_filename)
+
             addn_df = pd.read_table(sfr_filename, names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
             df = df.merge(addn_df[['output', 'sfr']], on='output')
             df['ssfr'] = df['sfr'] / 10**df['log_mass']
             df['log_ssfr'] = np.log10(df['ssfr'])
             df['log_sfr'] = np.log10(df['sfr'])
         df = df.sort_values(args.xcol)
+        #df = df.replace([0, np.inf, -np.inf], np.nan).dropna(subset=[args.xcol, args.ycol, args.colorcol], axis=0)
 
-        if not args.nocolorcoding:
-            df = df[(df[args.colorcol] >= args.cmin) & (df[args.colorcol] <= args.cmax)]
+        if not args.nocolorcoding: df = df[(df[args.colorcol] >= args.cmin) & (df[args.colorcol] <= args.cmax)]
 
         #df = df[(df[args.xcol] >= args.xmin) & (df[args.xcol] <= args.xmax)]
         #df = df[(df[args.ycol] >= args.ymin) & (df[args.ycol] <= args.ymax)]
@@ -449,7 +449,7 @@ def plot_MZGR(args):
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
                 line, = ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) else 1)
-                #ax.scatter(df[args.xcol], df[args.ycol], c=thistextcolor)
+                #ax.scatter(df[args.xcol], df[args.ycol], c=thistextcolor, s=10, lw=0)
                 if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
                     # ----------------------------------
                     def update(i, x, y, line, args):
