@@ -31,7 +31,7 @@ def get_valid_snaps(halo):
         try:
             job = subprocess.check_output('ls ' + given_path + thissnap, shell=True)
             valid_snaps.append(thissnap)
-        except CalledProcessError:
+        except:
             invalid_snaps.append(thissnap)
             pass
     print('%d out of % snapshots are readable, and %d are not' % (len(valid_snaps), len(dd_snaps), len(invalid_snaps)))
