@@ -75,19 +75,13 @@ def parse_args():
     parser.set_defaults(nproc=1)
 
     parser.add_argument('--plot', metavar='plot', type=str, action='store', \
-                       help='What do you want to plot? Options are emission_map or sb_profile\n' + \
-                       'and you can select multiple options separated by commas (no spaces!)')
-    parser.set_defaults(plot='emission_map,sb_profile')
+                       help='What do you want to plot? Options are emission_map, sb_profile,\n' + \
+                       'or sb_time_hist and you can select multiple options separated by commas (no spaces!)')
+    parser.set_defaults(plot='emission_map,sb_profile,sb_time_hist')
     
     parser.add_argument('--save_suffix', metavar='save_suffix', type=str, action='store', \
                         help='Do you want to append a string onto the names of the saved files? Default is no.')
     parser.set_defaults(save_suffix="")
-
-    parser.add_argument('--copy_to_tmp', dest='copy_to_tmp', action='store_true', \
-                        help="If running on pleiades, do you want to copy the snapshot to the node's /tmp/\n" + \
-                        "directory? This may speed up analysis somewhat, but also requires a large-memory node.\n" + \
-                        "Default is not to do this.")
-    parser.set_defaults(copy_to_tmp=False)
 
     args = parser.parse_args()
     return args
@@ -197,11 +191,11 @@ def surface_brightness_profile(ds, refine_box, snap):
     profile_table.add_row(profile_row)
 
     SB_bins = np.linspace(-1,5,61)
-    SB_hist, bins = np.histogram(FRB[radius<50.], bins=SB_bins)
-    SB_hist_in, bins = np.histogram(FRB_in[radius<50.], bins=SB_bins)
-    SB_hist_out, bins = np.histogram(FRB_out[radius<50.], bins=SB_bins)
-    SB_hist_major, bins = np.histogram(FRB[(radius<50.) & (major)], bins=SB_bins)
-    SB_hist_minor, bins = np.histogram(FRB[(radius<50.) & (minor)], bins=SB_bins)
+    SB_hist, bins = np.histogram(np.log10(FRB[radius<50.]), bins=SB_bins)
+    SB_hist_in, bins = np.histogram(np.log10(FRB_in[radius<50.]), bins=SB_bins)
+    SB_hist_out, bins = np.histogram(np.log10(FRB_out[radius<50.]), bins=SB_bins)
+    SB_hist_major, bins = np.histogram(np.log10(FRB[(radius<50.) & (major)]), bins=SB_bins)
+    SB_hist_minor, bins = np.histogram(np.log10(FRB[(radius<50.) & (minor)]), bins=SB_bins)
 
     for i in range(len(bins)-1):
         pdf_row = [0., 50., bins[i], bins[i+1], SB_hist[i], SB_hist_in[i], SB_hist_out[i], SB_hist_major[i], SB_hist_minor[i]]
@@ -226,11 +220,11 @@ def surface_brightness_profile(ds, refine_box, snap):
         profile_row = [r_low, r_upp, np.log10(full_profile[-1]), np.log10(inflow_profile[-1]), np.log10(outflow_profile[-1]), np.log10(major_profile[-1]), np.log10(minor_profile[-1])]
         profile_table.add_row(profile_row)
 
-        SB_hist, bins = np.histogram(FRB[shell], bins=SB_bins)
-        SB_hist_in, bins = np.histogram(FRB_in[shell], bins=SB_bins)
-        SB_hist_out, bins = np.histogram(FRB_out[shell], bins=SB_bins)
-        SB_hist_major, bins = np.histogram(FRB[shell & major], bins=SB_bins)
-        SB_hist_minor, bins = np.histogram(FRB[shell & minor], bins=SB_bins)
+        SB_hist, bins = np.histogram(np.log10(FRB[shell]), bins=SB_bins)
+        SB_hist_in, bins = np.histogram(np.log10(FRB_in[shell]), bins=SB_bins)
+        SB_hist_out, bins = np.histogram(np.log10(FRB_out[shell]), bins=SB_bins)
+        SB_hist_major, bins = np.histogram(np.log10(FRB[shell & major]), bins=SB_bins)
+        SB_hist_minor, bins = np.histogram(np.log10(FRB[shell & minor]), bins=SB_bins)
         for i in range(len(bins)-1):
             pdf_row = [r_low, r_upp, bins[i], bins[i+1], SB_hist[i], SB_hist_in[i], SB_hist_out[i], SB_hist_major[i], SB_hist_minor[i]]
             pdf_table.add_row(pdf_row)
@@ -271,6 +265,70 @@ def surface_brightness_profile(ds, refine_box, snap):
     plt.subplots_adjust(left=0.06, bottom=0.12, top=0.96, right=0.98)
     plt.savefig(prefix + 'Profiles/' + snap + '_OVI_surface_brightness_profile_edge-on' + save_suffix + '.png')
 
+def surface_brightness_time_histogram(outs):
+    '''Makes a plot of surface brightness histograms vs time for the outputs in 'outs'. Requires
+    surface brightness tables to have already been created for the outputs plotted using the
+    surface_brightness_profile function.'''
+
+    halo_c_v = Table.read(halo_c_v_name, format='ascii')
+    timelist = halo_c_v['col4']
+    snaplist = halo_c_v['col3']
+    zlist = halo_c_v['col2']
+
+    sb_hists = []
+    time_hist = []
+    max_weights = []
+    sb_hists_sections = []
+    max_weights_sections = []
+    sections = ['inflow','outflow','major','minor']
+    for j in range(len(sections)):
+        sb_hists_sections.append([])
+        max_weights_sections.append([])
+    for i in range(len(outs)):
+        snap = outs[i]
+        time_hist.append(float(timelist[snaplist==snap])/1000.)
+        sb_data = Table.read(table_loc + snap + '_SB_pdf' + save_suffix + '.hdf5', path='all_data')
+        radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==50.)
+        sb_hists.append(sb_data['all'][radial_range])
+        max_weights.append(np.max(sb_data['all'][radial_range]))
+        for j in range(len(sections)):
+            sb_hists_sections[j].append(sb_data[sections[j]][radial_range])
+            max_weights_sections[j].append(np.max(sb_data[sections[j]][radial_range]))
+
+    sb_hists = np.array(sb_hists)
+    sb_hists = np.transpose(sb_hists).flatten()
+    for j in range(len(sections)):
+        sb_hists_sections[j] = np.transpose(np.array(sb_hists_sections[j])).flatten()
+    sb_bins_l = sb_data['lower_SB'][radial_range]
+    sb_bins_u = sb_data['upper_SB'][radial_range]
+    bin_edges = np.array(sb_bins_l)
+    bin_edges = np.append(bin_edges, sb_bins_u[-1])
+    time_bins = np.array(time_hist)
+    time_bins = np.append(time_bins, time_hist[-1] + np.diff(time_hist)[-1])
+    xdata = np.tile(time_bins[:-1], (len(bin_edges)-1, 1)).flatten()
+    ydata = np.transpose(np.tile(bin_edges[:-1], (len(time_bins)-1, 1))).flatten()
+
+    fig = plt.figure(figsize=(6,4), dpi=300)
+    ax = fig.add_subplot(1,1,1)
+    ax.hist2d(xdata, ydata, weights=sb_hists, bins=[time_bins[:-1],bin_edges], vmin=0., vmax=np.mean(max_weights), cmap=cmr.get_sub_cmap('cmr.flamingo', 0.2, 1.))
+    ax.set_xlabel('Time [Gyr]', fontsize=12)
+    ax.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=12)
+    plt.subplots_adjust(left=0.1, bottom=0.12, top=0.96, right=0.98)
+    plt.savefig(prefix + 'OVI_SB_histogram_vs_time' + save_suffix + '.png')
+    plt.close()
+
+    section_labels = ['Inflow','Outflow','Major axis','Minor axis']
+    for j in range(len(sections)):
+        fig = plt.figure(figsize=(6,4), dpi=300)
+        ax = fig.add_subplot(1,1,1)
+        ax.hist2d(xdata, ydata, weights=sb_hists_sections[j], bins=[time_bins[:-1],bin_edges], vmin=0., vmax=np.mean(max_weights_sections[j]), cmap=cmr.get_sub_cmap('cmr.flamingo', 0.2, 1.))
+        ax.set_xlabel('Time [Gyr]', fontsize=12)
+        ax.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=12)
+        ax.set_title(section_labels[j], fontsize=12)
+        plt.subplots_adjust(left=0.1, bottom=0.12, top=0.93, right=0.98)
+        plt.savefig(prefix + 'OVI_SB_histogram_vs_time_' + sections[j] + save_suffix + '.png')
+        plt.close()
+
 
 def load_and_calculate(snap):
     '''Loads the simulation snapshot and makes the requested plots.'''
@@ -278,16 +336,11 @@ def load_and_calculate(snap):
     # Load simulation output
     if (args.system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        if (args.copy_to_tmp):
-            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
-            shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-            snap_name = snap_dir + '/' + snap
-        else:
-            # Make a dummy directory with the snap name so the script later knows the process running
-            # this snapshot failed if the directory is still there
-            snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
-            os.makedirs(snap_dir)
-            snap_name = foggie_dir + run_dir + snap + '/' + snap
+        # Make a dummy directory with the snap name so the script later knows the process running
+        # this snapshot failed if the directory is still there
+        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+        os.makedirs(snap_dir)
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     
@@ -322,6 +375,7 @@ if __name__ == "__main__":
     # Set directory for output location, making it if necessary
     prefix = output_dir + 'ions_halo_00' + args.halo + '/' + args.run + '/'
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
+    table_loc = prefix + 'Tables/'
 
     print('foggie_dir: ', foggie_dir)
     catalog_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
@@ -386,21 +440,43 @@ if __name__ == "__main__":
     # Build outputs list
     outs = make_output_list(args.output, output_step=args.output_step)
 
-    target_dir = 'ions'
-    if (args.nproc==1):
-        for snap in outs:
-            load_and_calculate(snap)
+    if ('sb_time_hist' in args.plot):
+        surface_brightness_time_histogram(outs)
     else:
-        skipped_outs = outs
-        while (len(skipped_outs)>0):
-            skipped_outs = []
-            # Split into a number of groupings equal to the number of processors
-            # and run one process per processor
-            for i in range(len(outs)//args.nproc):
+        target_dir = 'ions'
+        if (args.nproc==1):
+            for snap in outs:
+                load_and_calculate(snap)
+        else:
+            skipped_outs = outs
+            while (len(skipped_outs)>0):
+                skipped_outs = []
+                # Split into a number of groupings equal to the number of processors
+                # and run one process per processor
+                for i in range(len(outs)//args.nproc):
+                    threads = []
+                    snaps = []
+                    for j in range(args.nproc):
+                        snap = outs[args.nproc*i+j]
+                        snaps.append(snap)
+                        threads.append(multi.Process(target=load_and_calculate, args=[snap]))
+                    for t in threads:
+                        t.start()
+                    for t in threads:
+                        t.join()
+                    # Delete leftover outputs from failed processes from tmp directory if on pleiades
+                    if (args.system=='pleiades_cassi'):
+                        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
+                        for s in range(len(snaps)):
+                            if (os.path.exists(snap_dir + snaps[s])):
+                                print('Deleting failed %s from /tmp' % (snaps[s]))
+                                skipped_outs.append(snaps[s])
+                                shutil.rmtree(snap_dir + snaps[s])
+                # For any leftover snapshots, run one per processor
                 threads = []
                 snaps = []
-                for j in range(args.nproc):
-                    snap = outs[args.nproc*i+j]
+                for j in range(len(outs)%args.nproc):
+                    snap = outs[-(j+1)]
                     snaps.append(snap)
                     threads.append(multi.Process(target=load_and_calculate, args=[snap]))
                 for t in threads:
@@ -409,38 +485,13 @@ if __name__ == "__main__":
                     t.join()
                 # Delete leftover outputs from failed processes from tmp directory if on pleiades
                 if (args.system=='pleiades_cassi'):
-                    if (args.copy_to_tmp):
-                        snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
-                    else:
-                        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
+                    snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
                     for s in range(len(snaps)):
                         if (os.path.exists(snap_dir + snaps[s])):
                             print('Deleting failed %s from /tmp' % (snaps[s]))
                             skipped_outs.append(snaps[s])
                             shutil.rmtree(snap_dir + snaps[s])
-            # For any leftover snapshots, run one per processor
-            threads = []
-            snaps = []
-            for j in range(len(outs)%args.nproc):
-                snap = outs[-(j+1)]
-                snaps.append(snap)
-                threads.append(multi.Process(target=load_and_calculate, args=[snap]))
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
-            # Delete leftover outputs from failed processes from tmp directory if on pleiades
-            if (args.system=='pleiades_cassi'):
-                if (args.copy_to_tmp):
-                    snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
-                else:
-                    snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
-                for s in range(len(snaps)):
-                    if (os.path.exists(snap_dir + snaps[s])):
-                        print('Deleting failed %s from /tmp' % (snaps[s]))
-                        skipped_outs.append(snaps[s])
-                        shutil.rmtree(snap_dir + snaps[s])
-            outs = skipped_outs
+                outs = skipped_outs
 
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")
