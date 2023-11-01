@@ -115,4 +115,4 @@ if __name__ == '__main__':
 
     # -------printing results---------------------------
     print('Halo %s. Total snaps %d. Txtfiles %d. Gradient pngs %d. Histogram pngs %d. MZR file has %d (%d usable). MZscat file has %d (%d usable). 3D vs projected plots %d. Projected evolution plots %d, Non-projected evolution plots %d.' %\
-          (args.halo, n_total_snaps, n_snap_txtfiles, n_snap_prof_pngfiles, n_snap_hist_pngfiles, n_unique_MZR_lines, n_usable_MZR_lines, n_unique_MZscat_lines, n_usable_MZscat_lines, n_snap_3dvproj_pngfiles, n_snap_prof_pngfiles, n_snap_nonprojev_pngfiles))
+          (args.halo, n_total_snaps, n_snap_txtfiles, n_snap_prof_pngfiles, n_snap_hist_pngfiles, n_unique_MZR_lines, n_usable_MZR_lines, n_unique_MZscat_lines, n_usable_MZscat_lines, n_snap_3dvproj_pngfiles, n_snap_projev_pngfiles, n_snap_nonprojev_pngfiles))
