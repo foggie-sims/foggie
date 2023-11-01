@@ -11,7 +11,7 @@
 from header import *
 
 # -----------------------------------------------------------------
-def get_valid_snaps(halo):
+def get_valid_snaps(halo, silent=False):
     '''
     Function to tell how many of the availabel snapshots are permitted to read
     '''
@@ -27,7 +27,7 @@ def get_valid_snaps(halo):
         if len(thissnap) == 6 and thissnap[:2] == 'DD': dd_snaps.append(thissnap)
 
     for index, thissnap in enumerate(dd_snaps):
-        print('Doing %d out of %d snaps' % (index + 1, len(dd_snaps)))
+        if not silent: print('Doing %d out of %d snaps' % (index + 1, len(dd_snaps)))
         try:
             job = subprocess.check_output('ls ' + given_path + thissnap, shell=True)
             valid_snaps.append(thissnap)
