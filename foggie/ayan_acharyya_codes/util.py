@@ -14,6 +14,7 @@ from header import *
 def get_valid_snaps(halo, silent=False):
     '''
     Function to tell how many of the availabel snapshots are permitted to read
+    Returns a list of "bad" snapshots
     '''
     start_time = time.time()
 
@@ -36,7 +37,7 @@ def get_valid_snaps(halo, silent=False):
             pass
     print('%d out of % snapshots are readable, and %d are not' % (len(valid_snaps), len(dd_snaps), len(invalid_snaps)))
     print('Completed in %s mins' % ((time.time() - start_time) / 60))
-    return
+    return invalid_snaps
 
 # -----------------------------------------------------------------
 def make_its_own_figure(ax, label, args):
