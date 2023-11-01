@@ -11,6 +11,34 @@
 from header import *
 
 # -----------------------------------------------------------------
+def get_valid_snaps(halo):
+    '''
+    Function to tell how many of the availabel snapshots are permitted to read
+    '''
+    start_time = time.time()
+
+    valid_snaps, invalid_snaps, dd_snaps = [], [], []
+    given_path = '/nobackup/mpeeples/halo_00' + str(halo) + '/nref11c_nref9f/'
+    snapshot_paths = glob.glob(given_path + '*/')
+    snapshot_paths.sort()
+    snapshots = [item.split('/')[-2] for item in snapshot_paths]
+
+    for thissnap in snapshots:
+        if len(thissnap) == 6 and thissnap[:2] == 'DD': dd_snaps.append(thissnap)
+
+    for index, thissnap in enumerate(dd_snaps):
+        print('Doing %d out of %d snaps' % (index + 1, len(dd_snaps)))
+        try:
+            job = subprocess.check_output('ls ' + given_path + thissnap, shell=True)
+            valid_snaps.append(thissnap)
+        except CalledProcessError:
+            invalid_snaps.append(thissnap)
+            pass
+    print('%d out of % snapshots are readable, and %d are not' % (len(valid_snaps), len(dd_snaps), len(invalid_snaps)))
+    print('Completed in %s mins' % ((time.time() - start_time) / 60))
+    return
+
+# -----------------------------------------------------------------
 def make_its_own_figure(ax, label, args):
     '''
     Function to take an already filled axis handle and turn it into its stand-alone figure
