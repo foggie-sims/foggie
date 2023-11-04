@@ -341,7 +341,6 @@ if __name__ == '__main__':
 
         # ---------to determine filenames, suffixes, etc.----------------
         args.fig_dir = args.output_dir + 'figs/'
-        if not args.do_all_sims: args.fig_dir += args.output + '/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
 
         # -------setting up fig--------------
@@ -415,8 +414,7 @@ if __name__ == '__main__':
 
         # ------saving fig------------------
         outfile_rootname = '%s_%s_projectedZ_prof_hist_map_%s%s%s%s.png' % (args.output, args.halo, args.Zgrad_den, args.upto_text, args.weightby_text, args.res_text)
-        if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
-        figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+        figname = args.fig_dir + outfile_rootname
 
         fig.savefig(figname)
         myprint('Saved plot as ' + figname, args)
