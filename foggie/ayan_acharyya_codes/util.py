@@ -69,7 +69,7 @@ def get_gas_profile(args):
         print('Reading in cold gas profile from', gasfilename)
     else:
         print('Did not find', gasfilename)
-        gasfilename = gasfilename.replace(dummy_args.run, dummy_args.run[:14])
+        gasfilename = gasfilename.replace(args.run, args.run[:14])
         print('Instead, reading in cold gas profile from', gasfilename)
     try:
         gasprofile = np.load(gasfilename, allow_pickle=True)[()]

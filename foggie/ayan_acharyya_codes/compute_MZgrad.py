@@ -308,7 +308,7 @@ if __name__ == '__main__':
     # parse column names, in case log
 
     # --------------read in the cold gas profile file ONCE for a given halo-------------
-    if dummy_args.write_file or dummy_args.upto_kpc is None:
+    if dummy_args.upto_kpc is None:
         gasprofile = get_gas_profile(dummy_args)
     else:
         print('Not reading in cold gas profile because any re calculation is not needed')
