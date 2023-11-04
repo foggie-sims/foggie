@@ -325,10 +325,15 @@ if __name__ == '__main__':
             if args.res < native_res_at_z:
                 print('Computed resolution %.2f kpc is below native FOGGIE res at z=%.2f, so we set resolution to the native res = %.2f kpc.'%(args.res, args.current_redshift, native_res_at_z))
                 args.res = native_res_at_z # kpc
+                args.res_text = '_res%.1farc' % float(args.res_arc)
         else:
             args.res = args.res_arr[0]
-            if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695 # converting from comoving kcp h^-1 to physical kpc
-        args.res_text = '_res%.1fkpc' % float(args.res)
+            if args.docomoving:
+                args.res_text = '_res%.1fckpchinv' % float(args.res)
+                args.res = args.res / (1 + args.current_redshift) / 0.695 # converting from comoving kcp h^-1 to physical kpc
+            else:
+                args.res_text = '_res%.1fkpc' % float(args.res)
+
         args.fontfactor = 1.2
 
         # --------determining corresponding text suffixes-------------
