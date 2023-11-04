@@ -196,7 +196,7 @@ def plot_Zprof_snap(df, ax, args):
 
     ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
     ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
-    ax.set_xlim(0, 5. if args.forproposal else np.ceil(args.upto_kpc / 0.695)) # kpc
+    ax.set_xlim(0, 5. if args.forproposal or args.forpaper else np.ceil(args.upto_kpc / 0.695)) # kpc
     ax.set_ylim(args.Zlim[0], args.Zlim[1]) # log limits
     ax.tick_params(axis='both', labelsize=args.fontsize)
 
@@ -249,7 +249,7 @@ def plot_Zdist_snap(df, ax, args):
 field_dict = {'vrad': 'radial_velocity_corrected', 'vdisp_3d': 'velocity_dispersion_3d', 'vtan': 'tangential_velocity_corrected', \
               'vphi': 'phi_velocity_corrected', 'vtheta': 'theta_velocity_corrected', 'metal':'metallicity'}
 label_dict = {'vrad': r'$v_{\rm radial}$', 'vdisp_3d': r'3D $\sigma_v$', 'vdisp_los': r'LoS $\sigma_v$', 'vtan': r'$v_{\rm tangential}$', \
-              'vphi': r'$v_{\phi}$', 'vtheta': r'$v_{\theta}$'}
+              'vphi': r'$v_{\phi}$', 'vtheta': r'$v_{\theta}$', 'vlos': r'LoS velocity'}
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -309,16 +309,17 @@ if __name__ == '__main__':
         # --------assigning additional keyword args-------------
         if args.forproposal:
             args.nofit = True
-            args.fontsize = 15
             args.nbins = 20 # for the Z distribution panel
         if args.forpaper or args.forproposal:
             args.use_density_cut = True
             args.docomoving = True
             args.islog = True # for the Z distribution panel
             args.weight = 'mass'
+            args.fontsize = 15
         if args.forpaper:
             args.nbins = 30 # for the Z distribution panel
-            args.fit_multiple = True # True # for the Z distribution panel
+            #args.fit_multiple = True # True # for the Z distribution panel
+            args.nofit = True #
             args.hide_multiplefit = True
 
         args.current_redshift = ds.current_redshift
@@ -381,7 +382,7 @@ if __name__ == '__main__':
             df_snap['rad'] = map_dist.flatten()
 
             for thisproj in ['x', 'y', 'z']:
-                field_dict.update({'vdisp_los':'velocity_dispersion_' + thisproj})
+                field_dict.update({'vdisp_los':'velocity_dispersion_' + thisproj, 'vlos': 'v' + thisproj + '_corrected'})
                 frb = make_frb_from_box(box, box_center, box_width, thisproj, args)
                 df_snap = make_df_from_frb(frb, df_snap, thisproj, args)
 
@@ -411,7 +412,7 @@ if __name__ == '__main__':
             ax_row[2] = plot_projection('metal', box, box_center, box_width, thisproj, ax_row[2], args, clim=[10**-1.5, 10**0] if args.forproposal else None, cmap=old_metal_color_map)
 
             # ------plotting projected velocity quantity snapshots---------------
-            ax_row[3] = plot_projection(args.vcol, box, box_center, box_width, thisproj, ax_row[3], args, clim=[-150, 150] if args.vcol == 'vrad' or args.vcol == 'vphi' else [0, 150] if args.forproposal else None, cmap='PRGn' if args.vcol == 'vrad' else 'viridis')
+            ax_row[3] = plot_projection(args.vcol, box, box_center, box_width, thisproj, ax_row[3], args, clim=[-150, 150] if args.vcol == 'vrad' or args.vcol == 'vphi' or args.vcol == 'vlos' else [0, 150] if args.forproposal else None, cmap='PRGn' if args.vcol == 'vrad' else 'viridis')
 
         # ------saving fig------------------
         outfile_rootname = '%s_%s_projectedZ_prof_hist_map_%s%s%s%s.png' % (args.output, args.halo, args.Zgrad_den, args.upto_text, args.weightby_text, args.res_text)
