@@ -258,11 +258,6 @@ if __name__ == '__main__':
     else: args = args_tuple
     if not args.keep: plt.close('all')
 
-    # ---------to determine filenames, suffixes, etc.----------------
-    args.fig_dir = args.output_dir + 'figs/'
-    if not args.do_all_sims: args.fig_dir += args.output + '/'
-    Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
-
     # --------domain decomposition; for mpi parallelisation-------------
     if args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(args) # all snapshots of this particular halo
     else: list_of_sims = list(itertools.product([args.halo], args.output_arr))
@@ -343,6 +338,11 @@ if __name__ == '__main__':
         args.islog_text = '_islog' if args.islog else ''
         if args.upto_kpc is not None: args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
         else: args.upto_text = '_upto%.1FRe' % args.upto_re
+
+        # ---------to determine filenames, suffixes, etc.----------------
+        args.fig_dir = args.output_dir + 'figs/'
+        if not args.do_all_sims: args.fig_dir += args.output + '/'
+        Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
 
         # -------setting up fig--------------
         nrow, ncol = len(args.projections), 4
