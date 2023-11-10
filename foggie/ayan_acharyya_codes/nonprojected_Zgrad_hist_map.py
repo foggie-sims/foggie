@@ -147,7 +147,7 @@ def plot_Zprof_snap(df, ax, args):
 
     ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_xlim(0, args.xmax if args.xmax is None else np.ceil(args.galrad) if args.forpaper else np.ceil(args.upto_kpc / 0.695)) # kpc
+    ax.set_xlim(0, args.xmax if args.xmax is not None else np.ceil(args.galrad) if args.forpaper else np.ceil(args.upto_kpc / 0.695)) # kpc
     ax.set_ylim(args.Zlim[0], args.Zlim[1]) # log limits
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
