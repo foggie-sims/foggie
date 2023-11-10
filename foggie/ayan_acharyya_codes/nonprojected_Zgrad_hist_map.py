@@ -196,7 +196,7 @@ def plot_Zdist_snap(df, ax, args):
 
     return Zdist, ax
 
-field_dict = {'rad':'radius_corrected', 'vrad': 'radial_velocity_corrected', 'vdisp_3d': 'velocity_dispersion_3d', 'vtan': 'tangential_velocity_corrected', \
+field_dict = {'rad':'radius_corrected', 'mass':'mass', 'vrad': 'radial_velocity_corrected', 'vdisp_3d': 'velocity_dispersion_3d', 'vtan': 'tangential_velocity_corrected', \
               'vphi': 'phi_velocity_corrected', 'vtheta': 'theta_velocity_corrected', 'metal':'metallicity'}
 label_dict = {'vrad': r'$v_{\rm radial}$', 'vdisp_3d': r'3D $\sigma_v$', 'vdisp_los': r'LoS $\sigma_v$', 'vtan': r'$v_{\rm tangential}$', \
               'vphi': r'$v_{\phi}$', 'vtheta': r'$v_{\theta}$', 'vlos': r'LoS velocity'}
