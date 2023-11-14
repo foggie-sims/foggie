@@ -217,7 +217,7 @@ if __name__ == '__main__':
             ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 0), colspan=ncol2)
             ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(2, ncol2), colspan=ncol - ncol2)
             fig.tight_layout()
-            fig.subplots_adjust(top=0.9, bottom=0.07, left=0.1, right=0.87, wspace=2.0, hspace=0.35)
+            fig.subplots_adjust(top=0.98, bottom=0.07, left=0.1, right=0.87, wspace=2.0, hspace=0.35)
 
             # ------tailoring the simulation box for individual snapshot analysis--------
             if args.upto_kpc is not None: args.re = np.nan
