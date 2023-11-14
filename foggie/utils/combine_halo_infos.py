@@ -63,8 +63,8 @@ if __name__ == "__main__":
         for i in range(len(all_files)):
             if (all_files[i][:2]=='DD') or (all_files[i][:2]=='RD'):
                 catalog_files.append(all_files[i])
-        big_table1 = None
-        big_table2 = None
+        big_table1 = Table()
+        big_table2 = Table()
         for filename in catalog_files:
             data = Table.read(table_loc + '/' + filename, path='all_data')
             snap_list.append(filename[:6])
@@ -72,12 +72,12 @@ if __name__ == "__main__":
             sfr_list.append(data['sfr'][np.where(data['radius']>20.)[0][0]])
             data.remove_column('sfr')
             if (data['redshift'][0]>2.):
-                if (big_table1 == None):
+                if (len(big_table1)==0):
                     big_table1 = data
                 else:
                     big_table1 = vstack([big_table1, data])
             if (data['redshift'][0]<=2.):
-                if (big_table2 == None):
+                if (len(big_table2)==0):
                     big_table2 = data
                 else:
                     big_table2 = vstack([big_table2, data])

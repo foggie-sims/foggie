@@ -21,6 +21,7 @@ from scipy import interpolate
 import shutil
 import matplotlib.pyplot as plt
 import cmasher as cmr
+import matplotlib.colors as mcolors
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -75,9 +76,19 @@ def parse_args():
     parser.set_defaults(nproc=1)
 
     parser.add_argument('--plot', metavar='plot', type=str, action='store', \
-                       help='What do you want to plot? Options are emission_map, sb_profile,\n' + \
-                       'or sb_time_hist and you can select multiple options separated by commas (no spaces!)')
-    parser.set_defaults(plot='emission_map,sb_profile,sb_time_hist')
+                       help='What do you want to plot? Options are:\n' + \
+                        'emission_map       -  Plots an image of projected O VI emission edge-on\n' + \
+                        'sb_profile         -  Plots the surface brightness profile\n' + \
+                        'sb_time_hist       -  Plots a histogram of surface brightness over time\n' + \
+                        'sb_vs_sfr          -  Plots a scatterplot of surface brightness vs. SFR\n\n' + \
+                        'Emission maps and SB profiles are calculated from the simulation snapshot.\n' + \
+                        'SB over time or vs. SFR are plotted from the SB pdfs that are generated when sb_profile is run.\n' + \
+                        'You can plot multiple things by separating keywords with a comma (no spaces!), and the default is "emission_map,sb_profile".')
+    parser.set_defaults(plot='emission_map,sb_profile')
+
+    parser.add_argument('--limit', dest='Aspera_limit', action='store_true', \
+                        help='Do you want to calculate and plot only above the Aspera limit? Default is no.')
+    parser.set_defaults(Aspera_limit=False)
     
     parser.add_argument('--save_suffix', metavar='save_suffix', type=str, action='store', \
                         help='Do you want to append a string onto the names of the saved files? Default is no.')
@@ -122,7 +133,22 @@ def _Emission_OVI(field,data):
         emission_line=((10.0**dia1)+(10**dia2))*((10.0**H_N)**2.0)
         emission_line = emission_line/(4.*np.pi*1.92e-11)
         emission_line = scale_by_metallicity(emission_line,0.0,np.log10(np.array(data['metallicity'])))
-        return emission_line * ytEmUALT
+        return emission_line * ytEmU
+
+def _Emission_OVI_ALTunits(field,data):
+        H_N=np.log10(np.array(data["H_nuclei_density"]))
+        Temperature=np.log10(np.array(data["Temperature"]))
+        dia1 = bl_OVI_1(H_N,Temperature)
+        dia2 = bl_OVI_2(H_N,Temperature)
+        idx = np.isnan(dia1)
+        dia1[idx] = -200.
+        dia2[idx] = -200.
+        emission_line=((10.0**dia1))*((10.0**H_N)**2.0)
+        emission_line= emission_line + ((10**dia2))*((10.0**H_N)**2.0)
+        emission_line = emission_line/(4.*np.pi)
+        emission_line = emission_line/4.25e10 # convert steradian to arcsec**2
+        emission_line = scale_by_metallicity(emission_line,0.0,np.log10(np.array(data['metallicity'])))
+        return emission_line*ytEmUALT
 
 def make_pdf_table():
     '''Makes the giant table of O VI surface brightness histograms that will be saved to file.'''
@@ -190,7 +216,8 @@ def surface_brightness_profile(ds, refine_box, snap):
     profile_row = [0., 50., np.log10(np.mean(FRB[(radius < 50.)])), np.log10(np.mean(FRB_in[(radius<50.)])), np.log10(np.mean(FRB_out[(radius<50.)])), np.log10(np.mean(FRB[major])), np.log10(np.mean(FRB[minor]))]
     profile_table.add_row(profile_row)
 
-    SB_bins = np.linspace(-1,5,61)
+    if (args.Aspera_limit): SB_bins = np.linspace(-19,-16,31)
+    else: SB_bins = np.linspace(-22,-16,61)
     SB_hist, bins = np.histogram(np.log10(FRB[radius<50.]), bins=SB_bins)
     SB_hist_in, bins = np.histogram(np.log10(FRB_in[radius<50.]), bins=SB_bins)
     SB_hist_out, bins = np.histogram(np.log10(FRB_out[radius<50.]), bins=SB_bins)
@@ -240,30 +267,33 @@ def surface_brightness_profile(ds, refine_box, snap):
     inflow_profile = np.log10(np.array(inflow_profile))
     outflow_profile = np.log10(np.array(outflow_profile))
 
-    fig = plt.figure(figsize=(10,4), dpi=300)
-    ax1 = fig.add_subplot(1,2,1)
-    ax2 = fig.add_subplot(1,2,2)
+    if (not args.Aspera_limit):
+        fig = plt.figure(figsize=(10,4), dpi=300)
+        ax1 = fig.add_subplot(1,2,1)
+        ax2 = fig.add_subplot(1,2,2)
 
-    ax1.plot(rbin_centers, full_profile, 'k-', lw=2, label='Full profile')
-    ax1.plot(rbin_centers, major_profile, 'b--', lw=2, label='Major axis')
-    ax1.plot(rbin_centers, minor_profile, 'r:', lw=2, label='Minor axis')
-    ax1.axis([0,50,-1,5])
-    ax1.set_xlabel('Radius [kpc]', fontsize=12)
-    ax1.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=12)
-    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
-                top=True, right=True)
-    ax1.legend(loc=1, fontsize=12, frameon=False)
-    ax2.plot(rbin_centers, full_profile, 'k-', lw=2, label='Full profile')
-    ax2.plot(rbin_centers, inflow_profile, color="#984ea3", ls='--', lw=2, label='Inflowing gas')
-    ax2.plot(rbin_centers, outflow_profile, color='darkorange', ls=':', lw=2, label='Outflowing gas')
-    ax2.axis([0,50,-1,5])
-    ax2.set_xlabel('Radius [kpc]', fontsize=12)
-    ax2.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=12)
-    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
-                top=True, right=True)
-    ax2.legend(loc=1, fontsize=12, frameon=False)
-    plt.subplots_adjust(left=0.06, bottom=0.12, top=0.96, right=0.98)
-    plt.savefig(prefix + 'Profiles/' + snap + '_OVI_surface_brightness_profile_edge-on' + save_suffix + '.png')
+        ax1.plot(rbin_centers, full_profile, 'k-', lw=2, label='Full profile')
+        ax1.plot(rbin_centers, major_profile, 'b--', lw=2, label='Major axis')
+        ax1.plot(rbin_centers, minor_profile, 'r:', lw=2, label='Minor axis')
+        ax1.plot([0, 50], [np.log10(3.7e-19), np.log10(3.7e-19)], 'k:', lw=1)
+        ax1.axis([0,50,-22,-16])
+        ax1.set_xlabel('Radius [kpc]', fontsize=12)
+        ax1.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=12)
+        ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+                    top=True, right=True)
+        ax1.legend(loc=1, fontsize=12, frameon=False)
+        ax2.plot(rbin_centers, full_profile, 'k-', lw=2, label='Full profile')
+        ax2.plot(rbin_centers, inflow_profile, color="#984ea3", ls='--', lw=2, label='Inflowing gas')
+        ax2.plot(rbin_centers, outflow_profile, color='darkorange', ls=':', lw=2, label='Outflowing gas')
+        ax2.plot([0, 50], [np.log10(3.7e-19), np.log10(3.7e-19)], 'k:', lw=1)
+        ax2.axis([0,50,-22,-16])
+        ax2.set_xlabel('Radius [kpc]', fontsize=12)
+        ax2.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=12)
+        ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+                    top=True, right=True)
+        ax2.legend(loc=1, fontsize=12, frameon=False)
+        plt.subplots_adjust(left=0.07, bottom=0.12, top=0.96, right=0.98)
+        plt.savefig(prefix + 'Profiles/' + snap + '_OVI_surface_brightness_profile_edge-on' + save_suffix + '.png')
 
 def surface_brightness_time_histogram(outs):
     '''Makes a plot of surface brightness histograms vs time for the outputs in 'outs'. Requires
@@ -329,6 +359,56 @@ def surface_brightness_time_histogram(outs):
         plt.savefig(prefix + 'OVI_SB_histogram_vs_time_' + sections[j] + save_suffix + '.png')
         plt.close()
 
+def sb_vs_sfr(halos, outs):
+    '''Plots the median surface brightness vs. SFR for all the halos and outputs listed in halos and outs.'''
+
+    fig = plt.figure(figsize=(10,6),dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    halo_colors = ['r','b','g','c','m']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    for h in range(len(halos)):
+        sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+        sfr_table = Table.read(code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr', format='ascii')
+        SFR_list = []
+        SB_med_list = []
+        SB_iqr_list = []
+        for i in range(len(outs[h])):
+            # Load the PDF of OVI emission
+            snap = outs[h][i]
+            sb_data = Table.read(sb_table_loc + snap + '_SB_pdf' + save_suffix + '.hdf5', path='all_data')
+            radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==50.)
+            sb_hist = sb_data['all'][radial_range]
+            sb_bins_l = sb_data['lower_SB'][radial_range]
+            sb_bins_u = sb_data['upper_SB'][radial_range]
+            bin_edges = np.array(sb_bins_l)
+            bin_edges = np.append(bin_edges, sb_bins_u[-1])
+            bin_mids = bin_edges[:-1] + np.diff(bin_edges)/2.
+            # Find median SB from histogram
+            all_SBs = []
+            for s in range(len(bin_mids)):
+                all_SBs.append(int(sb_hist[s])*bin_mids[s])
+            all_SBs = np.array(all_SBs).flatten()
+            med_SB = np.median(all_SBs)
+            percents = np.percentile(all_SBs, [0.25, 0.75])
+            iqr_SB = percents[1] - percents[0]
+            SB_med_list.append(med_SB)
+            SB_iqr_list.append(iqr_SB)
+            SFR_list.append(sfr_table['col3'][sfr_table['col1']==snap][0])
+
+        SB_med_list = np.array(SB_med_list)
+        SB_iqr_list = np.array(SB_iqr_list)
+        SFR_list = np.array(SFR_list)
+        ax.errorbar(SFR_list, SB_med_list, yerr=SB_iqr_list, fmt='.', color=halo_colors[h], label=halo_names[h])
+        
+    ax.set_xlabel('Star formation rate [$M_\odot$/yr]', fontsize=12)
+    ax.set_ylabel('Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=12)
+    ax.legend(loc=2, frameon=False, fontsize=12)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+                top=True, right=True)
+    plt.savefig(prefix + 'OVI_SB_vs_SFR' + save_suffix + '.png')
+    plt.close()
+
+
 
 def load_and_calculate(snap):
     '''Loads the simulation snapshot and makes the requested plots.'''
@@ -349,8 +429,15 @@ def load_and_calculate(snap):
 
     if ('emission_map' in args.plot):
         proj = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas','Emission_OVI'), center=ds.halo_center_kpc, data_source=refine_box, width=(100., 'kpc'), north_vector=ds.z_unit_disk)
-        proj.set_cmap('Emission_OVI', cmr.get_sub_cmap('cmr.flamingo', 0.2, 1.))
-        proj.set_zlim('Emission_OVI', 1e-1, 1e5)
+        if (args.Aspera_limit):
+            cmap1 = cmr.take_cmap_colors('cmr.flamingo', 4, cmap_range=(0.4, 0.8), return_fmt='rgba')
+            cmap2 = cmr.take_cmap_colors('cmr.neutral_r', 6, cmap_range=(0.2, 0.6), return_fmt='rgba')
+            cmap = np.hstack([cmap2, cmap1])
+            mymap = mcolors.LinearSegmentedColormap.from_list('cmap', cmap)
+        else:
+            mymap = cmr.get_sub_cmap('cmr.flamingo', 0.2, 0.8)
+        proj.set_cmap('Emission_OVI', mymap)
+        proj.set_zlim('Emission_OVI', 1e-22, 1e-16)
         proj.set_colorbar_label('Emission_OVI', 'O VI Emission [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]')
         proj.set_font_size(20)
         proj.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
@@ -424,7 +511,7 @@ if __name__ == "__main__":
     bl_OVI_1 = interpolate.LinearNDInterpolator(pts,sr_OVI_1)
     bl_OVI_2 = interpolate.LinearNDInterpolator(pts,sr_OVI_2)
     # 4. and 5. Define emission field and add it to yt
-    yt.add_field(("gas","Emission_OVI"),units=emission_units_ALT,function=_Emission_OVI,take_log=True,force_override=True,sampling_type='cell')
+    yt.add_field(("gas","Emission_OVI"),units=emission_units_ALT,function=_Emission_OVI_ALTunits,take_log=True,force_override=True,sampling_type='cell')
 
     if (args.save_suffix!=''):
         save_suffix = '_' + args.save_suffix
@@ -442,6 +529,15 @@ if __name__ == "__main__":
 
     if ('sb_time_hist' in args.plot):
         surface_brightness_time_histogram(outs)
+    if ('sb_vs_sfr' in args.plot):
+        halos = ['8508', '5016', '5036', '4123', '2392']
+        outs = []
+        for h in range(len(halos)):
+            if (halos[h]=='8508'):
+                outs.append(make_output_list('DD0967-DD2427', output_step=args.output_step))
+            else:
+                outs.append(make_output_list('DD1060-DD2520', output_step=args.output_step))
+        sb_vs_sfr(halos, outs)
     else:
         target_dir = 'ions'
         if (args.nproc==1):
