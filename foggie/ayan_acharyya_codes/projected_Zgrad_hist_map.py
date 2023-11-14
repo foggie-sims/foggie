@@ -210,88 +210,90 @@ if __name__ == '__main__':
         # ---------to determine filenames, suffixes, etc.----------------
         args.fig_dir = args.output_dir + 'figs/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
+        figname = args.fig_dir + '%s_%s_projectedZ_prof_hist_map_%s%s%s%s.png' % (args.output, args.halo, args.vcol, args.upto_text, args.weightby_text, args.res_text)
 
-        # -------setting up fig--------------
-        nrow, ncol1, ncol2 = 3, 2, 3
-        ncol = ncol1 * ncol2  # the overall figure is nrow x (ncol1 + ncol2)
-        fig = plt.figure(figsize=(8, 8))
-        axes_met_proj = [plt.subplot2grid(shape=(nrow, ncol), loc=(0, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
-        axes_vel_proj = [plt.subplot2grid(shape=(nrow, ncol), loc=(1, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
-        ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 0), colspan=ncol2)
-        ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(2, ncol2), colspan=ncol - ncol2)
-        fig.tight_layout()
-        fig.subplots_adjust(top=0.9, bottom=0.07, left=0.1, right=0.9, wspace=0.95, hspace=0.35)
+        if not os.path.exists(figname) or args.clobber_plot:
+            # -------setting up fig--------------
+            nrow, ncol1, ncol2 = 3, 2, 3
+            ncol = ncol1 * ncol2  # the overall figure is nrow x (ncol1 + ncol2)
+            fig = plt.figure(figsize=(8, 8))
+            axes_met_proj = [plt.subplot2grid(shape=(nrow, ncol), loc=(0, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
+            axes_vel_proj = [plt.subplot2grid(shape=(nrow, ncol), loc=(1, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
+            ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 0), colspan=ncol2)
+            ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(2, ncol2), colspan=ncol - ncol2)
+            fig.tight_layout()
+            fig.subplots_adjust(top=0.9, bottom=0.07, left=0.1, right=0.9, wspace=0.95, hspace=0.35)
 
-        # ------tailoring the simulation box for individual snapshot analysis--------
-        if args.upto_kpc is not None: args.re = np.nan
-        else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
+            # ------tailoring the simulation box for individual snapshot analysis--------
+            if args.upto_kpc is not None: args.re = np.nan
+            else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
 
-        if args.upto_kpc is not None:
-            if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
-            else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
+            if args.upto_kpc is not None:
+                if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+                else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
+            else:
+                args.galrad = args.re * args.upto_re  # kpc
+            args.ncells = int(2 * args.galrad / args.res)
+
+            # extract the required box
+            box_center = ds.halo_center_kpc
+            box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
+            box_width = 2 * args.galrad * kpc
+
+            if args.use_density_cut:
+                rho_cut = get_density_cut(ds.current_time.in_units('Gyr'))  # based on Cassi's CGM-ISM density cut-off
+                box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+                print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
+
+            # -----------reading in the snapshot's projected metallicity dataframe----------
+            df_snap_filename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projectedZ%s%s%s.txt' % (args.galrad, args.res_text, args.weightby_text, args.density_cut_text)
+
+            if not os.path.exists(df_snap_filename) or args.clobber:
+                myprint(df_snap_filename + ' not found, creating afresh..', args)
+                df_snap = pd.DataFrame()
+                map_dist = get_dist_map(args)
+                df_snap['rad'] = map_dist.flatten()
+
+                # -------loop over lines of sight---------------------
+                for thisproj in ['x', 'y', 'z']:
+                    field_dict.update({'vdisp_los':'velocity_dispersion_' + thisproj, 'vlos': 'v' + thisproj + '_corrected'})
+                    frb = make_frb_from_box(box, box_center, box_width, thisproj, args)
+                    df_snap = make_df_from_frb(frb, df_snap, thisproj, args)
+
+                df_snap.to_csv(df_snap_filename, sep='\t', index=None)
+                myprint('Saved file ' + df_snap_filename, args)
+            else:
+                myprint('Reading in existing ' + df_snap_filename, args)
+                df_snap = pd.read_table(df_snap_filename, delim_whitespace=True, comment='#')
+
+            # ------plotting projected metallcity snapshots---------------
+            axes_met_proj = plot_projection('metal', box, box_center, box_width, axes_met_proj, args, clim=[10 ** -1.5, 10 ** 0] if args.forproposal else None, cmap=old_metal_color_map, ncells=args.ncells)
+
+            # ------plotting projected velocity quantity snapshots---------------
+            axes_vel_proj = plot_projection(args.vcol, box, box_center, box_width, axes_vel_proj, args, clim=[-150, 150] if args.vcol == 'vrad' or args.vcol == 'vphi' or args.vcol == 'vlos' else [0, 150] if args.forproposal else None, cmap='PRGn' if args.vcol == 'vrad' else 'viridis', ncells=args.ncells)
+
+            # -------extracting columns for just the given line of sight---------------------
+            columns_to_extract = ['rad', 'metal_' + args.projection]
+            if args.weight is not None: columns_to_extract += [args.weight + '_' + args.projection]
+            df_thisproj = df_snap[columns_to_extract]
+            df_thisproj = df_thisproj.replace([0, np.inf, -np.inf], np.nan).dropna(subset=columns_to_extract, axis=0)
+            df_thisproj.columns = df_thisproj.columns.str.replace('_' + args.projection, '')
+
+            # ------plotting projected metallicity profiles---------------
+            Zgrad_arr, ax_prof_snap = plot_Zprof_snap(df_thisproj, ax_prof_snap, args)
+
+            # ------plotting projected metallicity histograms---------------
+            Zdist_arr, ax_dist_snap = plot_Zdist_snap(df_thisproj, ax_dist_snap, args)
+
+            # ------saving fig------------------
+            fig.savefig(figname)
+            myprint('Saved plot as ' + figname, args)
+
+            plt.show(block=False)
+            print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
         else:
-            args.galrad = args.re * args.upto_re  # kpc
-        args.ncells = int(2 * args.galrad / args.res)
-
-        # extract the required box
-        box_center = ds.halo_center_kpc
-        box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
-        box_width = 2 * args.galrad * kpc
-
-        if args.use_density_cut:
-            rho_cut = get_density_cut(ds.current_time.in_units('Gyr'))  # based on Cassi's CGM-ISM density cut-off
-            box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
-            print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
-
-        # -----------reading in the snapshot's projected metallicity dataframe----------
-        df_snap_filename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projectedZ%s%s%s.txt' % (args.galrad, args.res_text, args.weightby_text, args.density_cut_text)
-
-        if not os.path.exists(df_snap_filename) or args.clobber:
-            myprint(df_snap_filename + ' not found, creating afresh..', args)
-            df_snap = pd.DataFrame()
-            map_dist = get_dist_map(args)
-            df_snap['rad'] = map_dist.flatten()
-
-            # -------loop over lines of sight---------------------
-            for thisproj in ['x', 'y', 'z']:
-                field_dict.update({'vdisp_los':'velocity_dispersion_' + thisproj, 'vlos': 'v' + thisproj + '_corrected'})
-                frb = make_frb_from_box(box, box_center, box_width, thisproj, args)
-                df_snap = make_df_from_frb(frb, df_snap, thisproj, args)
-
-            df_snap.to_csv(df_snap_filename, sep='\t', index=None)
-            myprint('Saved file ' + df_snap_filename, args)
-        else:
-            myprint('Reading in existing ' + df_snap_filename, args)
-            df_snap = pd.read_table(df_snap_filename, delim_whitespace=True, comment='#')
-
-        # ------plotting projected metallcity snapshots---------------
-        axes_met_proj = plot_projection('metal', box, box_center, box_width, axes_met_proj, args, clim=[10 ** -1.5, 10 ** 0] if args.forproposal else None, cmap=old_metal_color_map, ncells=args.ncells)
-
-        # ------plotting projected velocity quantity snapshots---------------
-        axes_vel_proj = plot_projection(args.vcol, box, box_center, box_width, axes_vel_proj, args, clim=[-150, 150] if args.vcol == 'vrad' or args.vcol == 'vphi' or args.vcol == 'vlos' else [0, 150] if args.forproposal else None, cmap='PRGn' if args.vcol == 'vrad' else 'viridis', ncells=args.ncells)
-
-        # -------extracting columns for just the given line of sight---------------------
-        columns_to_extract = ['rad', 'metal_' + args.projection]
-        if args.weight is not None: columns_to_extract += [args.weight + '_' + args.projection]
-        df_thisproj = df_snap[columns_to_extract]
-        df_thisproj = df_thisproj.replace([0, np.inf, -np.inf], np.nan).dropna(subset=columns_to_extract, axis=0)
-        df_thisproj.columns = df_thisproj.columns.str.replace('_' + args.projection, '')
-
-        # ------plotting projected metallicity profiles---------------
-        Zgrad_arr, ax_prof_snap = plot_Zprof_snap(df_thisproj, ax_prof_snap, args)
-
-        # ------plotting projected metallicity histograms---------------
-        Zdist_arr, ax_dist_snap = plot_Zdist_snap(df_thisproj, ax_dist_snap, args)
-
-        # ------saving fig------------------
-        outfile_rootname = '%s_%s_projectedZ_prof_hist_map_%s%s%s%s.png' % (args.output, args.halo, args.Zgrad_den, args.upto_text, args.weightby_text, args.res_text)
-        figname = args.fig_dir + outfile_rootname
-
-        fig.savefig(figname)
-        myprint('Saved plot as ' + figname, args)
-
-        plt.show(block=False)
-        print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
+            print('Skipping snapshot %s as %s already exists. Use --clobber_plot to remake figure.' %(args.output, figname))
+            continue
 
     if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), args)
