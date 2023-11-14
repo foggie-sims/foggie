@@ -322,10 +322,11 @@ if __name__ == '__main__':
         if args.res_arc is not None:
             args.res = get_kpc_from_arc_at_redshift(float(args.res_arc), args.current_redshift)
             native_res_at_z = 0.27 / (1 + args.current_redshift) # converting from comoving kpc to physical kpc
+            args.res_text = '_res%.1farc' % float(args.res_arc)
             if args.res < native_res_at_z:
                 print('Computed resolution %.2f kpc is below native FOGGIE res at z=%.2f, so we set resolution to the native res = %.2f kpc.'%(args.res, args.current_redshift, native_res_at_z))
                 args.res = native_res_at_z # kpc
-                args.res_text = '_res%.1farc' % float(args.res_arc)
+                args.res_text = '_res%.1fkpc' % float(args.res)
         else:
             args.res = args.res_arr[0]
             if args.docomoving:
