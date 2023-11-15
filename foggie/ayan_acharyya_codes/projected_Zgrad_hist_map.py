@@ -159,7 +159,7 @@ if __name__ == '__main__':
         # --------assigning additional keyword args-------------
         if args.forproposal:
             args.nofit = True
-            args.nbins = 20 # for the Z distribution panel
+            args.nbins = 20 if args.nbins == 200 else args.nbins # for the Z distribution panel
         if args.forpaper or args.forproposal:
             args.use_density_cut = True
             args.docomoving = True
@@ -167,7 +167,7 @@ if __name__ == '__main__':
             args.weight = 'mass'
             args.fontsize = 15
         if args.forpaper:
-            args.nbins = 30 # for the Z distribution panel
+            args.nbins = 30 if args.nbins == 200 else args.nbins # for the Z distribution panel
             #args.fit_multiple = True # True # for the Z distribution panel
             args.nofit = True #
             args.hide_multiplefit = True
