@@ -265,7 +265,7 @@ if __name__ == '__main__':
             axes_met_proj = plot_projection('metal', box, box_center, box_width, axes_met_proj, args, clim=[10 ** -1.5, 10 ** 0] if args.forproposal else None, cmap=old_metal_color_map, ncells=args.ncells)
 
             # ------plotting projected velocity quantity snapshots---------------
-            axes_vel_proj = plot_projection(args.vcol, box, box_center, box_width, axes_vel_proj, args, clim=[-150, 150] if args.vcol == 'vrad' or args.vcol == 'vphi' or args.vcol == 'vlos' else [0, 150] if args.forproposal else None, cmap='PRGn' if args.vcol == 'vrad' else 'viridis', ncells=args.ncells)
+            axes_vel_proj = plot_projection(args.vcol, box, box_center, box_width, axes_vel_proj, args, clim=[-150, 150] if args.vcol == 'vrad' or args.vcol == 'vphi' or args.vcol == 'vlos' else [0, 150] if args.forproposal else None, cmap='PRGn' if args.vcol == 'vrad' or args.vcol == 'vlos' or args.vcol == 'vphi' else 'viridis', ncells=args.ncells)
 
             # -------extracting columns for just the given line of sight---------------------
             columns_to_extract = ['rad', 'metal_' + args.projection]
