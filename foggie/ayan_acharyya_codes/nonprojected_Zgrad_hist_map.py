@@ -55,7 +55,7 @@ def make_df_from_box(box, args):
     return df
 
 # -----------------------------------------------------------------------
-def plot_projection(quantity, box, box_center, box_width, axes, args, unit=None, clim=None, cmap=None):
+def plot_projection(quantity, box, box_center, box_width, axes, args, unit=None, clim=None, cmap=None, ncells=None):
     '''
     Function to plot the 2D map of various velocity quantities, at the given resolution of the FRB
     :return: axis handle
@@ -67,7 +67,7 @@ def plot_projection(quantity, box, box_center, box_width, axes, args, unit=None,
     for index, projection in enumerate(['x', 'y', 'z']):
         field_dict.update({'vdisp_los': 'velocity_dispersion_' + projection, 'vlos': 'v' + projection + '_corrected'})
         field = field_dict[quantity]
-        prj = yt.ProjectionPlot(box.ds, projection, field, center=box_center, data_source=box, width=box_width, weight_field=weight_field, fontsize=args.fontsize)
+        prj = yt.ProjectionPlot(box.ds, projection, field, center=box_center, data_source=box, width=box_width, weight_field=weight_field, fontsize=args.fontsize, buff_size=(ncells, ncells) if ncells is not None else (800, 800))
         if unit is not None: prj.set_unit(field, unit)
         if cmap is not None: prj.set_cmap(field, cmap)
         if clim is not None: prj.set_zlim(field, zmin=clim[0], zmax=clim[1])
@@ -86,7 +86,7 @@ def plot_projection(quantity, box, box_center, box_width, axes, args, unit=None,
         else: ax.set_ylabel('')
 
     cax = divider.append_axes('right', size='5%', pad=0.05)
-    cbar = fig.colorbar(prj.plots[field].cb.mappable, orientation='vertical', cax=cax)
+    cbar = ax.figure.colorbar(prj.plots[field].cb.mappable, orientation='vertical', cax=cax)
     cbar.ax.tick_params(labelsize=args.fontsize)
     cbar.set_label(prj.plots[field].cax.get_ylabel(), fontsize=args.fontsize / args.fontfactor if quantity != 'metal' else args.fontsize)
 
@@ -109,7 +109,9 @@ def plot_Zprof_snap(df, ax, args):
 
     df['weighted_metal'] = len(df) * df[ycol] * df[args.weight] / np.sum(df[args.weight])
     df['log_' + ycol] = np.log10(df[ycol])
-    if not args.plot_onlybinned: artist = dsshow(df, dsh.Point('rad', 'log_' + ycol), dsh.count(), norm='linear', x_range=(0, args.galrad * np.sqrt(2)), y_range=(args.Zlim[0], args.Zlim[1]), aspect='auto', ax=ax, cmap='Blues_r')
+    if not args.plot_onlybinned:
+        if len(df) < 1000: ax.scatter(df['rad'], df['log_metal'], c='cornflowerblue', s=5, lw=0, alpha=0.8) # make scatter plots for smaller datasets, otherwise points on plot are too small with datashader
+        else: artist = dsshow(df, dsh.Point('rad', 'log_' + ycol), dsh.count(), norm='linear', x_range=(0, args.galrad * np.sqrt(2)), y_range=(args.Zlim[0], args.Zlim[1]), aspect='auto', ax=ax, cmap='Blues_r')
 
     df['binned_cat'] = pd.cut(df['rad'], x_bins)
 
@@ -151,7 +153,7 @@ def plot_Zprof_snap(df, ax, args):
     ax.set_ylim(args.Zlim[0], args.Zlim[1]) # log limits
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.text(0.03, 0.03, args.output, color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left')
+    #ax.text(0.03, 0.03, args.output, color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left')
 
     return Zgrad, ax
 
@@ -170,19 +172,21 @@ def plot_Zdist_snap(df, ax, args):
 
     if args.islog: Zarr = np.log10(Zarr)  # all operations will be done in log
 
-    fit = fit_distribution(Zarr.values, args, weights=weights)
-
     p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, ls='dashed', density=True, ec=color, weights=weights)
 
-    xvals = p[1][:-1] + np.diff(p[1])
-    #ax.plot(xvals, fit.init_fit, c=color, lw=1, ls='--') # for plotting the initial guess
-    ax.plot(xvals, fit.best_fit, c=color, lw=1)
-    if not args.hide_multiplefit:
-        ax.plot(xvals, GaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma']), c=color, lw=1, ls='--', label='Regular Gaussian')
-        ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=color, lw=1, ls='dotted', label='Skewed Gaussian')
+    if args.nofit:
+        Zdist = np.nan
+    else:
+        fit = fit_distribution(Zarr.values, args, weights=weights)
+        xvals = p[1][:-1] + np.diff(p[1])
+        #ax.plot(xvals, fit.init_fit, c=color, lw=1, ls='--') # for plotting the initial guess
+        ax.plot(xvals, fit.best_fit, c=color, lw=1)
+        if not args.hide_multiplefit:
+            ax.plot(xvals, GaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma']), c=color, lw=1, ls='--', label='Regular Gaussian')
+            ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=color, lw=1, ls='dotted', label='Skewed Gaussian')
 
-    Zdist = [fit.best_values['sg_sigma'], fit.best_values['sg_center']]
-    ax.text(0.03 if args.islog else 0.97, 0.95, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['sg_center'], 2.355 * fit.best_values['sg_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
+        Zdist = [fit.best_values['sg_sigma'], fit.best_values['sg_center']]
+        ax.text(0.03 if args.islog else 0.97, 0.75, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['sg_center'], 2.355 * fit.best_values['sg_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
 
     ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)
@@ -191,8 +195,8 @@ def plot_Zdist_snap(df, ax, args):
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
 
-    ax.text(0.03 if args.islog else 0.97, 0.65, 'z = %.2F' % args.current_redshift, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
-    ax.text(0.03 if args.islog else 0.97, 0.55, 't = %.1F Gyr' % args.current_time, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
+    ax.text(0.03 if args.islog else 0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
+    ax.text(0.03 if args.islog else 0.97, 0.85, 't = %.1F Gyr' % args.current_time, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
 
     return Zdist, ax
 
@@ -255,7 +259,7 @@ if __name__ == '__main__':
             args.islog = True # for the Z distribution panel
             args.weight = 'mass'
             args.fontsize = 15
-            args.nbins = 30 # for the Z distribution panel
+            args.nbins = 30 if args.nbins == 200 else args.nbins # for the Z distribution panel
             #args.fit_multiple = True # True # for the Z distribution panel
             args.nofit = True #
             args.hide_multiplefit = True
@@ -289,7 +293,7 @@ if __name__ == '__main__':
             ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 0), colspan=ncol2)
             ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(2, ncol2), colspan=ncol - ncol2)
             fig.tight_layout()
-            fig.subplots_adjust(top=0.9, bottom=0.07, left=0.1, right=0.9, wspace=0.95, hspace=0.35)
+            fig.subplots_adjust(top=0.98, bottom=0.07, left=0.1, right=0.87, wspace=2.0, hspace=0.35)
 
             # ------tailoring the simulation box for individual snapshot analysis--------
             if args.upto_kpc is not None: args.re = np.nan
@@ -316,7 +320,7 @@ if __name__ == '__main__':
             axes_met_proj = plot_projection('metal', box, box_center, box_width, axes_met_proj, args, clim=[10 ** -1.5, 10 ** 0] if args.forproposal else None, cmap=old_metal_color_map)
 
             # ------plotting projected velocity quantity snapshots---------------
-            axes_vel_proj = plot_projection(args.vcol, box, box_center, box_width, axes_vel_proj, args, clim=[-150, 150] if args.vcol == 'vrad' or args.vcol == 'vphi' or args.vcol == 'vlos' else [0, 150] if args.forproposal else None, cmap='PRGn' if args.vcol == 'vrad' else 'viridis')
+            axes_vel_proj = plot_projection(args.vcol, box, box_center, box_width, axes_vel_proj, args, clim=[-150, 150] if args.vcol == 'vrad' or args.vcol == 'vphi' or args.vcol == 'vlos' else [0, 150] if args.forproposal else None, cmap='PRGn' if args.vcol == 'vrad' or args.vcol == 'vlos' or args.vcol == 'vphi' else 'viridis')
 
             # ------plotting nonprojected metallicity profiles---------------
             df_snap = make_df_from_box(box,  args)

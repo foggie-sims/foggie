@@ -429,7 +429,7 @@ def plot_MZGR(args):
 
         if not args.nocolorcoding: df = df[(df[args.colorcol] >= args.cmin) & (df[args.colorcol] <= args.cmax)]
 
-        #df = df[(df[args.xcol] >= args.xmin) & (df[args.xcol] <= args.xmax)]
+        if args.plot_timefraction: df = df[(df[args.xcol] >= args.xmin) & (df[args.xcol] <= args.xmax)]
         #df = df[(df[args.ycol] >= args.ymin) & (df[args.ycol] <= args.ymax)]
 
         # ------- plot only the binned plot------------
