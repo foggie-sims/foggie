@@ -307,7 +307,7 @@ if __name__ == '__main__':
 
         # --------assigning additional keyword args-------------
         if args.forpaper:
-            args.use_density_cut = False
+            args.use_density_cut = True
             args.docomoving = True
             args.fit_multiple = True # True # for the Z distribution panel
             args.islog = True # for the Z distribution panel
