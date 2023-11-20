@@ -31,7 +31,7 @@ def load_df(args):
 
     # ---------reading in dataframe produced by compute_Zscatter.py-----------
     dist_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZscat%s%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text, args.islog_text)
-    df = pd.read_table(dist_filename, delim_whitespace=True)
+    df = pd.read_table(dist_filename)
     print('Read in file', dist_filename)
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
     df.rename(columns={'Zvar':'Zsigma', 'Zvar_u':'Zsigma_u', 'gauss_mean':'Zgauss_mean', 'gauss_mean_u':'Zgauss_mean_u', 'gauss_sigma':'Zgauss_sigma', 'gauss_sigma_u':'Zgauss_sigma_u'}, inplace=True) # for backward compatibility
@@ -39,7 +39,7 @@ def load_df(args):
     # ---------reading in dataframe produced by compute_MZgrad.py-----------
     Zgrad_den_text = 'rad' if args.upto_kpc is not None else 'rad_re'
     grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text, args.density_cut_text)
-    df2 = pd.read_table(grad_filename, comment='#', delim_whitespace=True)
+    df2 = pd.read_table(grad_filename)
     print('Read in file', grad_filename)
 
     # ---------merging both dataframes-----------

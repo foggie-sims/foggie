@@ -513,7 +513,7 @@ def plot_MZGR(args):
         if args.snaphighlight is not None:
             snaps_to_highlight = [item for item in args.snaphighlight.split(',')]
             df_snaps = df[df['output'].isin(snaps_to_highlight)]
-            trace_to_overplot_on = args.ycol + '_smoothed' if args.overplot_smoothed else args.colorcol + '_interp' if args.overplot_cadence else args.ycol
+            trace_to_overplot_on = args.ycol if args.forpaper else args.ycol + '_smoothed' if args.overplot_smoothed else args.ycol + '_interp' if args.overplot_cadence else args.ycol
             if args.nocolorcoding: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[trace_to_overplot_on], c=thistextcolor, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
             else: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[trace_to_overplot_on], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
             print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, ' with star-markers\nThese snapshots correspond to times', df_snaps['time'].values, 'Gyr respectively, i.e.,', np.diff(df_snaps['time'].values) * 1000, 'Myr apart')
