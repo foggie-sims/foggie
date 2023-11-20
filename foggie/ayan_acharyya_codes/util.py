@@ -1505,7 +1505,7 @@ def parse_args(haloname, RDname, fast=False):
 
     # ------- args added for projected_Zgrad_hist_map.py ------------------------------
     parser.add_argument('--nofit', dest='nofit', action='store_true', default=False, help='skip fitting the metallicity histogram?, default is no')
-    parser.add_argument('--vcol', metavar='vcol', type=str, action='store', default='vtan', help='which velocity quantity to plot in the rightmost panel? default is vtan')
+    parser.add_argument('--vcol', metavar='vcol', type=str, action='store', default='vlos', help='which velocity quantity to plot in the rightmost panel? default is vtan')
     parser.add_argument('--clim', metavar='clim', type=str, action='store', default=None, help='limit for velocity colorbar, in km/s; default is None')
 
     # ------- wrap up and processing args ------------------------------
