@@ -163,8 +163,9 @@ def make_pdf_table():
 def make_sb_profile_table():
     '''Makes the giant table of O VI surface brightness profiles that will be saved to file.'''
 
-    names_list = ['inner_radius', 'outer_radius', 'all', 'inflow', 'outflow', 'major', 'minor']
-    types_list = ['f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8']
+    names_list = ['inner_radius', 'outer_radius', 'all_mean', 'all_med', 'inflow_mean', 'inflow_med', \
+                  'outflow_mean', 'outflow_med', 'major_mean', 'major_med', 'minor_mean', 'minor_med']
+    types_list = ['f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8']
 
     table = Table(names=names_list, dtype=types_list)
 
@@ -202,6 +203,10 @@ def surface_brightness_profile(ds, refine_box, snap):
     FRB_in = proj_in.frb[('gas','Emission_OVI')].v
     proj_out = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas','Emission_OVI'), center=ds.halo_center_kpc, data_source=sph_outflow, width=(100., 'kpc'), north_vector=ds.z_unit_disk)
     FRB_out = proj_out.frb[('gas','Emission_OVI')].v
+    if (args.Aspera_limit):
+        FRB[FRB<1e-19] = np.nan
+        FRB_in[FRB_in<1e-19] = np.nan
+        FRB_out[FRB_out<1e-19] = np.nan
 
     dx = 100./800.              # physical width of FRB (kpc) divided by resolution
     FRB_x = np.indices((800,800))[0]
@@ -213,7 +218,11 @@ def surface_brightness_profile(ds, refine_box, snap):
     minor = ((FRB_x > -10.) & (FRB_x < 10.))
     major = ((FRB_y < 10.) & (FRB_y > -10.))
 
-    profile_row = [0., 50., np.log10(np.mean(FRB[(radius < 50.)])), np.log10(np.mean(FRB_in[(radius<50.)])), np.log10(np.mean(FRB_out[(radius<50.)])), np.log10(np.mean(FRB[major])), np.log10(np.mean(FRB[minor]))]
+    profile_row = [0., 50., np.log10(np.nanmean(FRB[(radius < 50.)])), np.log10(np.nanmedian(FRB[(radius < 50.)])), \
+                np.log10(np.nanmean(FRB_in[(radius<50.)])), np.log10(np.nanmedian(FRB_in[(radius<50.)])), \
+                np.log10(np.nanmean(FRB_out[(radius<50.)])), np.log10(np.nanmedian(FRB_out[(radius<50.)])), \
+                np.log10(np.nanmean(FRB[major])), np.log10(np.nanmedian(FRB[major])), \
+                np.log10(np.nanmean(FRB[minor])), np.log10(np.nanmedian(FRB[minor]))]
     profile_table.add_row(profile_row)
 
     if (args.Aspera_limit): SB_bins = np.linspace(-19,-16,31)
@@ -239,12 +248,16 @@ def surface_brightness_profile(ds, refine_box, snap):
         r_low = rbins[r]
         r_upp = rbins[r+1]
         shell = (radius > r_low) & (radius < r_upp)
-        full_profile.append(np.mean(FRB[shell]))
-        major_profile.append(np.mean(FRB[shell & major]))
-        minor_profile.append(np.mean(FRB[shell & minor]))
-        inflow_profile.append(np.mean(FRB_in[shell]))
-        outflow_profile.append(np.mean(FRB_out[shell]))
-        profile_row = [r_low, r_upp, np.log10(full_profile[-1]), np.log10(inflow_profile[-1]), np.log10(outflow_profile[-1]), np.log10(major_profile[-1]), np.log10(minor_profile[-1])]
+        full_profile.append(np.nanmean(FRB[shell]))
+        major_profile.append(np.nanmean(FRB[shell & major]))
+        minor_profile.append(np.nanmean(FRB[shell & minor]))
+        inflow_profile.append(np.nanmean(FRB_in[shell]))
+        outflow_profile.append(np.nanmean(FRB_out[shell]))
+        profile_row = [r_low, r_upp, np.log10(full_profile[-1]), np.log10(np.nanmedian(FRB[shell])), \
+                    np.log10(inflow_profile[-1]), np.log10(np.nanmedian(FRB_in[shell])), \
+                    np.log10(outflow_profile[-1]), np.log10(np.nanmedian(FRB_out[shell])), \
+                    np.log10(major_profile[-1]), np.log10(np.nanmedian(FRB[shell & major])), \
+                    np.log10(minor_profile[-1]), np.log10(np.nanmedian(FRB[shell & minor]))]
         profile_table.add_row(profile_row)
 
         SB_hist, bins = np.histogram(np.log10(FRB[shell]), bins=SB_bins)
@@ -343,7 +356,7 @@ def surface_brightness_time_histogram(outs):
     ax.hist2d(xdata, ydata, weights=sb_hists, bins=[time_bins[:-1],bin_edges], vmin=0., vmax=np.mean(max_weights), cmap=cmr.get_sub_cmap('cmr.flamingo', 0.2, 1.))
     ax.set_xlabel('Time [Gyr]', fontsize=12)
     ax.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=12)
-    plt.subplots_adjust(left=0.1, bottom=0.12, top=0.96, right=0.98)
+    plt.subplots_adjust(left=0.15, bottom=0.12, top=0.96, right=0.98)
     plt.savefig(prefix + 'OVI_SB_histogram_vs_time' + save_suffix + '.png')
     plt.close()
 
@@ -355,7 +368,7 @@ def surface_brightness_time_histogram(outs):
         ax.set_xlabel('Time [Gyr]', fontsize=12)
         ax.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=12)
         ax.set_title(section_labels[j], fontsize=12)
-        plt.subplots_adjust(left=0.1, bottom=0.12, top=0.93, right=0.98)
+        plt.subplots_adjust(left=0.15, bottom=0.12, top=0.93, right=0.98)
         plt.savefig(prefix + 'OVI_SB_histogram_vs_time_' + sections[j] + save_suffix + '.png')
         plt.close()
 
@@ -364,47 +377,33 @@ def sb_vs_sfr(halos, outs):
 
     fig = plt.figure(figsize=(10,6),dpi=250)
     ax = fig.add_subplot(1,1,1)
-    halo_colors = ['r','b','g','c','m']
-    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
-    for h in range(len(halos)):
+    #halo_colors = ['r','b','g','c','m']
+    #halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard']
+    halo_colors = ['r','b','g','c']
+    for h in range(len(halo_names)):
         sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
         sfr_table = Table.read(code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr', format='ascii')
         SFR_list = []
-        SB_med_list = []
-        SB_iqr_list = []
+        SB_mean_list = []
         for i in range(len(outs[h])):
             # Load the PDF of OVI emission
             snap = outs[h][i]
-            sb_data = Table.read(sb_table_loc + snap + '_SB_pdf' + save_suffix + '.hdf5', path='all_data')
+            sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + save_suffix + '.hdf5', path='all_data')
             radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==50.)
-            sb_hist = sb_data['all'][radial_range]
-            sb_bins_l = sb_data['lower_SB'][radial_range]
-            sb_bins_u = sb_data['upper_SB'][radial_range]
-            bin_edges = np.array(sb_bins_l)
-            bin_edges = np.append(bin_edges, sb_bins_u[-1])
-            bin_mids = bin_edges[:-1] + np.diff(bin_edges)/2.
-            # Find median SB from histogram
-            all_SBs = []
-            for s in range(len(bin_mids)):
-                all_SBs.append(int(sb_hist[s])*bin_mids[s])
-            all_SBs = np.array(all_SBs).flatten()
-            med_SB = np.median(all_SBs)
-            percents = np.percentile(all_SBs, [0.25, 0.75])
-            iqr_SB = percents[1] - percents[0]
-            SB_med_list.append(med_SB)
-            SB_iqr_list.append(iqr_SB)
+            SB_mean_list.append(sb_data['all'][radial_range])
             SFR_list.append(sfr_table['col3'][sfr_table['col1']==snap][0])
 
-        SB_med_list = np.array(SB_med_list)
-        SB_iqr_list = np.array(SB_iqr_list)
+        SB_mean_list = np.array(SB_mean_list)
         SFR_list = np.array(SFR_list)
-        ax.errorbar(SFR_list, SB_med_list, yerr=SB_iqr_list, fmt='.', color=halo_colors[h], label=halo_names[h])
+        ax.scatter(SFR_list, SB_mean_list, marker='.', color=halo_colors[h], label=halo_names[h])
         
-    ax.set_xlabel('Star formation rate [$M_\odot$/yr]', fontsize=12)
-    ax.set_ylabel('Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=12)
-    ax.legend(loc=2, frameon=False, fontsize=12)
-    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+    ax.set_xlabel('Star formation rate [$M_\odot$/yr]', fontsize=16)
+    ax.set_ylabel('Mean O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
+    ax.legend(loc=4, frameon=False, fontsize=16)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
+    plt.subplots_adjust(left=0.1, bottom=0.12, top=0.93, right=0.98)
     plt.savefig(prefix + 'OVI_SB_vs_SFR' + save_suffix + '.png')
     plt.close()
 
@@ -538,7 +537,7 @@ if __name__ == "__main__":
             else:
                 outs.append(make_output_list('DD1060-DD2520', output_step=args.output_step))
         sb_vs_sfr(halos, outs)
-    else:
+    if ('emission_map' in args.plot) or ('sb_profile' in args.plot):
         target_dir = 'ions'
         if (args.nproc==1):
             for snap in outs:
