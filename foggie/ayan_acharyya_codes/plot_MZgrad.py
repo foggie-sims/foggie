@@ -449,7 +449,6 @@ def plot_MZGR(args):
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
                 line, = ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) else 1)
-                #ax.scatter(df[args.xcol], df[args.ycol], c=thistextcolor, s=10, lw=0)
                 if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
                     # ----------------------------------
                     def update(i, x, y, line, args):
@@ -468,6 +467,7 @@ def plot_MZGR(args):
             else:
                 line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_literature else 2)
                 plot = ax.add_collection(line)
+            if args.overplot_points: ax.scatter(df[args.xcol], df[args.ycol], c=thistextcolor, lw=0.5, s=10)
 
         # ------- overplotting redshift-binned scatter plot------------
         if args.zhighlight and not args.formolly:
