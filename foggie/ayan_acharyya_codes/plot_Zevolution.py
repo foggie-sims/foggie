@@ -130,6 +130,18 @@ def plot_zhighlight(df, ycol, color, ax, args):
     print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
     return ax
 
+# --------------------------------------------------
+def plot_snaphighlight(df, ycol, color, ax, args):
+
+    '''
+    Function to overplot circles at integer-ish redshifts and return the ax
+    '''
+    snaps_to_highlight = [item for item in args.snaphighlight.split(',')]
+    df_snaps = df[df['output'].isin(snaps_to_highlight)]
+    dummy = ax.scatter(df_snaps['time'], df_snaps[ycol], c=color, lw=1, edgecolor='k', s=300, alpha=1, marker='*', zorder=10)
+    print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, ' with star-markers\nThese snapshots correspond to times', df_snaps['time'].values, 'Gyr respectively, i.e.,', np.diff(df_snaps['time'].values) * 1000, 'Myr apart')
+    return ax
+
 # -----------------------------------------------
 def correlate(xdata, ydata):
     '''
@@ -169,7 +181,7 @@ def plot_time_series(df, args):
     if args.forappendix or args.forposter:
         fig, axes = plt.subplots(3, figsize=(8, 7.5), sharex=True)
     else:
-        fig, axes = plt.subplots(5 if args.includemerger else 4 if args.forpaper else 7, figsize=(8, 10), sharex=True)
+        fig, axes = plt.subplots(5 if args.includemerger else 4 if args.forpaper else 7, figsize=(8, 9), sharex=True)
     fig.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
 
     df = df.sort_values(by='time')
@@ -194,7 +206,7 @@ def plot_time_series(df, args):
                            'label': np.hstack([r'$\nabla Z$ (dex/kpc)', np.tile([r'log Z/Z$_\odot$'], 2)]), \
                            'limits': [(-0.5, 0.1), (-1, 1), (-1.5, 1)], \
                            'isalreadylog': np.hstack([[False], np.tile([True], 2)]), \
-                           'needscleaning': [False, False, True]})
+                           'needscleaning': [False, False, False]})
     if args.forappendix: groups = groups[groups.index.isin([2])]
     if args.forposter: groups = groups[groups.index.isin([0, 2])]
 
@@ -204,12 +216,13 @@ def plot_time_series(df, args):
         ax = axes[j]
         log_text = 'log_' if thisgroup.isalreadylog else ''
         for i, ycol in enumerate(thisgroup.quantities):
-            if (args.forposter or args.fortalk or args.forpaper) and thisgroup.needscleaning:
-                df = omit_bad_spikes(df, log_text + ycol)
+            if (args.forposter or args.fortalk or args.forpaper) and thisgroup.needscleaning: df = omit_bad_spikes(df, log_text + ycol)
             df = df.dropna(subset=[log_text + ycol], axis=0) # to drop nan values of the quantity being plotted
 
             ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=1, label=thisgroup.legend[i])
+            if args.overplot_points: ax.scatter(df['time'], df[log_text + ycol], c=col_arr[i], lw=0.5, s=10)
             if args.zhighlight: ax = plot_zhighlight(df,log_text + ycol, col_arr[i], ax, args)
+            if args.snaphighlight is not None: ax = plot_snaphighlight(df, log_text + ycol, col_arr[i], ax, args)
             # -------for the FT plot--------------
             if args.doft:
                 ax2 = axes2[j]
@@ -243,7 +256,9 @@ def plot_time_series(df, args):
     thisax = axes[axiscount]
     if ycol in df:
         thisax.plot(df['time'], df[ycol], c=col_arr[0], lw=1, label='SFR')
+        if args.overplot_points: thisax.scatter(df['time'], df[ycol], c=col_arr[0], lw=0.5, s=10)
         if args.zhighlight: thisax = plot_zhighlight(df, ycol, col_arr[0], thisax, args)
+        if args.snaphighlight is not None: thisax = plot_snaphighlight(df, ycol, col_arr[0], thisax, args)
         # -------for the FT plot--------------
         if args.doft:
             thisax2 = axes2[axiscount]
@@ -288,6 +303,7 @@ def plot_time_series(df, args):
         if ycol in df:
             thisax.plot(df['time'], df[ycol], c=col_arr[0], lw=1, label='Metal flux ejected')
             if args.zhighlight: thisax = plot_zhighlight(df, ycol, col_arr[0], thisax, args)
+            if args.snaphighlight is not None: thisax = plot_snaphighlight(df, ycol, col_arr[0], thisax, args)
 
             # ---------for the correlation plot---------
             if args.docorr is not None:
@@ -561,7 +577,7 @@ if __name__ == '__main__':
             print('Saved merged dataframe as', output_filename)
         else:
             print('\nReading from existing file', output_filename)
-            df = pd.read_table(output_filename, delim_whitespace=True, comment='#')
+            df = pd.read_table(output_filename)#, delim_whitespace=True, comment='#')
 
         if not (args.forpaper or args.forappendix or args.forposter): df2, fig1 = plot_all_stats(df, args)
         df, fig2 = plot_time_series(df, args)
