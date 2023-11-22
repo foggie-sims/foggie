@@ -20,7 +20,7 @@ from lmfit.models import GaussianModel, SkewedGaussianModel
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 start_time = time.time()
-plt.rcParams['axes.linewidth'] = 1
+plt.rcParams['axes.linewidth'] = 2
 
 # ----------------------------------------------------------------
 def make_df_from_box(box, args):

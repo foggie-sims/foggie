@@ -1490,6 +1490,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--includemerger', dest='includemerger', action='store_true', default=False, help='include merger history panel, even if forpaper?, default is no')
     parser.add_argument('--doft', dest='doft', action='store_true', default=False, help='make new plot for Fourier Transform?, default is no')
     parser.add_argument('--docorr', metavar='docorr', type=str, action='store', default=None, help='make new plot for time delay cross-correlation with respect to a column?, default is no')
+    parser.add_argument('--overplot_points', dest='overplot_points', action='store_true', default=False, help='overplot data points as scatter plot on each trace?, default is no')
 
     # ------- args added for plot_spatially_resolved.py ------------------------------
     parser.add_argument('--plot_map', dest='plot_map', action='store_true', default=False, help='plot the corresponding 2D map?, default is no')
@@ -1505,7 +1506,7 @@ def parse_args(haloname, RDname, fast=False):
 
     # ------- args added for projected_Zgrad_hist_map.py ------------------------------
     parser.add_argument('--nofit', dest='nofit', action='store_true', default=False, help='skip fitting the metallicity histogram?, default is no')
-    parser.add_argument('--vcol', metavar='vcol', type=str, action='store', default='vtan', help='which velocity quantity to plot in the rightmost panel? default is vtan')
+    parser.add_argument('--vcol', metavar='vcol', type=str, action='store', default='vlos', help='which velocity quantity to plot in the rightmost panel? default is vtan')
     parser.add_argument('--clim', metavar='clim', type=str, action='store', default=None, help='limit for velocity colorbar, in km/s; default is None')
 
     # ------- wrap up and processing args ------------------------------

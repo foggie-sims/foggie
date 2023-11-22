@@ -449,7 +449,6 @@ def plot_MZGR(args):
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
                 line, = ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) else 1)
-                #ax.scatter(df[args.xcol], df[args.ycol], c=thistextcolor, s=10, lw=0)
                 if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
                     # ----------------------------------
                     def update(i, x, y, line, args):
@@ -468,6 +467,7 @@ def plot_MZGR(args):
             else:
                 line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_literature else 2)
                 plot = ax.add_collection(line)
+            if args.overplot_points: ax.scatter(df[args.xcol], df[args.ycol], c=thistextcolor, lw=0.5, s=10)
 
         # ------- overplotting redshift-binned scatter plot------------
         if args.zhighlight and not args.formolly:
@@ -513,7 +513,7 @@ def plot_MZGR(args):
         if args.snaphighlight is not None:
             snaps_to_highlight = [item for item in args.snaphighlight.split(',')]
             df_snaps = df[df['output'].isin(snaps_to_highlight)]
-            trace_to_overplot_on = args.ycol + '_smoothed' if args.overplot_smoothed else args.colorcol + '_interp' if args.overplot_cadence else args.ycol
+            trace_to_overplot_on = args.ycol if args.forpaper else args.ycol + '_smoothed' if args.overplot_smoothed else args.ycol + '_interp' if args.overplot_cadence else args.ycol
             if args.nocolorcoding: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[trace_to_overplot_on], c=thistextcolor, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
             else: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[trace_to_overplot_on], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
             print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, ' with star-markers\nThese snapshots correspond to times', df_snaps['time'].values, 'Gyr respectively, i.e.,', np.diff(df_snaps['time'].values) * 1000, 'Myr apart')
