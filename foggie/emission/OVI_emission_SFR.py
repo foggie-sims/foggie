@@ -80,9 +80,12 @@ def parse_args():
                         'emission_map       -  Plots an image of projected O VI emission edge-on\n' + \
                         'sb_profile         -  Plots the surface brightness profile\n' + \
                         'sb_time_hist       -  Plots a histogram of surface brightness over time\n' + \
-                        'sb_vs_sfr          -  Plots a scatterplot of surface brightness vs. SFR\n\n' + \
+                        'sb_vs_sfr          -  Plots a scatterplot of surface brightness vs. SFR\n' + \
+                        'sb_vs_mh           -  Plots a scatterplot of surface brightness vs. halo mass\n' + \
+                        'emiss_area_vs_sfr  -  Plots a scatterplot of the fraction of the area with a surface brightness above the Aspera limit vs. SFR\n' + \
+                        'emiss_area_vs_mh  -  Plots a scatterplot of the fraction of the area with a surface brightness above the Aspera limit vs. halo mass\n' + \
                         'Emission maps and SB profiles are calculated from the simulation snapshot.\n' + \
-                        'SB over time or vs. SFR are plotted from the SB pdfs that are generated when sb_profile is run.\n' + \
+                        'SB over time or vs. SFR or Mh are plotted from the SB pdfs that are generated when sb_profile is run.\n' + \
                         'You can plot multiple things by separating keywords with a comma (no spaces!), and the default is "emission_map,sb_profile".')
     parser.set_defaults(plot='emission_map,sb_profile')
 
@@ -93,6 +96,10 @@ def parse_args():
     parser.add_argument('--save_suffix', metavar='save_suffix', type=str, action='store', \
                         help='Do you want to append a string onto the names of the saved files? Default is no.')
     parser.set_defaults(save_suffix="")
+
+    parser.add_argument('--file_suffix', metavar='file_suffix', type=str, action='store', \
+                        help='If plotting from saved surface brightness files, use this to pass the file name suffix.')
+    parser.set_defaults(file_suffix="")
 
     args = parser.parse_args()
     return args
@@ -377,35 +384,185 @@ def sb_vs_sfr(halos, outs):
 
     fig = plt.figure(figsize=(10,6),dpi=250)
     ax = fig.add_subplot(1,1,1)
-    #halo_colors = ['r','b','g','c','m']
-    #halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
-    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard']
-    halo_colors = ['r','b','g','c']
+    fig2 = plt.figure(figsize=(10,6),dpi=250)
+    ax2 = fig2.add_subplot(1,1,1)
+    halo_colors = ['r','b','g','c','m']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    alphas = np.linspace(1., 0.1, 10)
+    #halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard']
+    #halo_colors = ['r','b','g','c']
     for h in range(len(halo_names)):
         sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
         sfr_table = Table.read(code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr', format='ascii')
         SFR_list = []
-        SB_mean_list = []
+        SB_med_list = []
         for i in range(len(outs[h])):
             # Load the PDF of OVI emission
             snap = outs[h][i]
-            sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + save_suffix + '.hdf5', path='all_data')
-            radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==50.)
-            SB_mean_list.append(sb_data['all'][radial_range])
-            SFR_list.append(sfr_table['col3'][sfr_table['col1']==snap][0])
+            sfr = sfr_table['col3'][sfr_table['col1']==snap][0]
+            sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
+            #radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==50.)
+            radial_range = (sb_data['outer_radius']<=20.)
+            if (i==0): ax2.scatter([sfr], sb_data['all_med'][radial_range][0], marker='.', color=halo_colors[h], label=halo_names[h])
+            else: ax2.scatter([sfr]*len(sb_data['all_med'][radial_range]), sb_data['all_med'][radial_range], marker='.', color=halo_colors[h], alpha=alphas, label='_nolegend_')
+            SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
+            SFR_list.append(sfr)
 
-        SB_mean_list = np.array(SB_mean_list)
+        SB_med_list = np.array(SB_med_list)
         SFR_list = np.array(SFR_list)
-        ax.scatter(SFR_list, SB_mean_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        ax.scatter(SFR_list, SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
         
     ax.set_xlabel('Star formation rate [$M_\odot$/yr]', fontsize=16)
-    ax.set_ylabel('Mean O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
+    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
     ax.legend(loc=4, frameon=False, fontsize=16)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
-    plt.subplots_adjust(left=0.1, bottom=0.12, top=0.93, right=0.98)
-    plt.savefig(prefix + 'OVI_SB_vs_SFR' + save_suffix + '.png')
-    plt.close()
+    if (args.Aspera_limit): ax.axis([-5,100,-19,-18])
+    else: ax.axis([-5,100,-21,-18])
+    fig.subplots_adjust(left=0.13, bottom=0.12, top=0.93, right=0.98)
+    fig.savefig(prefix + 'OVI_SB_vs_SFR' + save_suffix + '.png')
+
+    ax2.set_xlabel('Star formation rate [$M_\odot$/yr]', fontsize=16)
+    ax2.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
+    ax2.legend(loc=4, frameon=False, fontsize=16)
+    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=True, right=True)
+    if (args.Aspera_limit): ax2.axis([-5,100,-19,-18])
+    else: ax2.axis([-5,100,-21.5,-16.5])
+    fig2.subplots_adjust(left=0.13, bottom=0.12, top=0.93, right=0.98)
+    fig2.savefig(prefix + 'OVI_SB_vs_SFR_rad-bins' + save_suffix + '.png')
+
+def sb_vs_Mh(halos, outs):
+    '''Plots the median surface brightness vs. halo mass for all the halos and outputs listed in halos and outs.'''
+
+    fig = plt.figure(figsize=(10,6),dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    halo_colors = ['r','b','g','c','m']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    for h in range(len(halo_names)):
+        sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+        mvir_table = Table.read(code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/rvir_masses.hdf5', path='all_data')
+        mvir_list = []
+        SB_med_list = []
+        for i in range(len(outs[h])):
+            # Load the PDF of OVI emission
+            snap = outs[h][i]
+            sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
+            #radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==50.)
+            radial_range = (sb_data['outer_radius']<=20.)
+            SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
+            mvir_list.append(mvir_table['total_mass'][mvir_table['snapshot']==snap][0])
+
+        SB_med_list = np.array(SB_med_list)
+        mvir_list = np.array(mvir_list)
+        ax.scatter(np.log10(mvir_list), SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        
+    ax.set_xlabel('log Halo mass [$M_\odot$]', fontsize=16)
+    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
+    ax.legend(loc=2, frameon=False, fontsize=16)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=True, right=True)
+    if (args.Aspera_limit): ax.axis([11.5,12.25,-19,-18])
+    else: ax.axis([11.5,12.25,-21.,-18])
+    plt.subplots_adjust(left=0.13, bottom=0.12, top=0.93, right=0.98)
+    plt.savefig(prefix + 'OVI_SB_vs_Mh' + save_suffix + '.png')
+
+def emiss_area_vs_sfr(halos, outs):
+    '''Plots the fractional area of pixels above the Aspera limit vs SFR.'''
+
+    dx = 100./800.              # physical width of FRB (kpc) divided by resolution
+    FRB_x = np.indices((800,800))[0]
+    FRB_y = np.indices((800,800))[1]
+    FRB_x = FRB_x*dx - 50.
+    FRB_y = FRB_y*dx - 50.
+    radius = np.sqrt(FRB_x**2. + FRB_y**2.)
+
+    fig = plt.figure(figsize=(10,6),dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    fig2 = plt.figure(figsize=(10,6),dpi=250)
+    ax2 = fig2.add_subplot(1,1,1)
+    halo_colors = ['r','b','g','c','m']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    alphas = np.linspace(1., 0.1, 10)
+    #halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard']
+    #halo_colors = ['r','b','g','c']
+    for h in range(len(halo_names)):
+        sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+        sfr_table = Table.read(code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr', format='ascii')
+        SFR_list = []
+        SB_frac_list = []
+        for i in range(len(outs[h])):
+            # Load the PDF of OVI emission
+            snap = outs[h][i]
+            sfr = sfr_table['col3'][sfr_table['col1']==snap][0]
+            sb_pdf = Table.read(sb_table_loc + snap + '_SB_pdf' + file_suffix + '.hdf5', path='all_data')
+            radial_range = (sb_pdf['inner_radius']==0.) & (sb_pdf['outer_radius']==50.)
+            #radial_range = (sb_pdf['outer_radius']<=20.)
+            npix = len(radius[radius<=50.])
+            frac_area = np.sum(sb_pdf['all'][(radial_range) & (sb_pdf['lower_SB']>=-18.5)])/npix
+            SB_frac_list.append(frac_area)
+            SFR_list.append(sfr)
+
+        SB_frac_list = np.array(SB_frac_list)
+        SFR_list = np.array(SFR_list)
+        ax.scatter(SFR_list, SB_frac_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        
+    ax.set_xlabel('Star formation rate [$M_\odot$/yr]', fontsize=16)
+    ax.set_ylabel('Fraction of area above O VI SB limit', fontsize=16)
+    ax.legend(loc=2, frameon=False, fontsize=16)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=True, right=True)
+    ax.axis([-5,100,0.,0.2])
+    fig.subplots_adjust(left=0.1, bottom=0.12, top=0.93, right=0.98)
+    fig.savefig(prefix + 'fractional-area-above-limit_vs_SFR' + save_suffix + '.png')
+
+def emiss_area_vs_Mh(halos, outs):
+    '''Plots the fractional area of pixels above the Aspera limit vs halo mass.'''
+
+    dx = 100./800.              # physical width of FRB (kpc) divided by resolution
+    FRB_x = np.indices((800,800))[0]
+    FRB_y = np.indices((800,800))[1]
+    FRB_x = FRB_x*dx - 50.
+    FRB_y = FRB_y*dx - 50.
+    radius = np.sqrt(FRB_x**2. + FRB_y**2.)
+
+    fig = plt.figure(figsize=(10,6),dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    fig2 = plt.figure(figsize=(10,6),dpi=250)
+    ax2 = fig2.add_subplot(1,1,1)
+    halo_colors = ['r','b','g','c','m']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    alphas = np.linspace(1., 0.1, 10)
+    #halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard']
+    #halo_colors = ['r','b','g','c']
+    for h in range(len(halo_names)):
+        sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+        mvir_table = Table.read(code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/rvir_masses.hdf5', path='all_data')
+        mvir_list = []
+        SB_frac_list = []
+        for i in range(len(outs[h])):
+            # Load the PDF of OVI emission
+            snap = outs[h][i]
+            mvir_list.append(np.log10(mvir_table['total_mass'][mvir_table['snapshot']==snap][0]))
+            sb_pdf = Table.read(sb_table_loc + snap + '_SB_pdf' + file_suffix + '.hdf5', path='all_data')
+            #radial_range = (sb_pdf['inner_radius']==0.) & (sb_pdf['outer_radius']==50.)
+            radial_range = (sb_pdf['outer_radius']<=20.)
+            npix = len(radius[radius<=20.])
+            frac_area = np.sum(sb_pdf['all'][(radial_range) & (sb_pdf['lower_SB']>=-18.5)])/npix
+            SB_frac_list.append(frac_area)
+
+        SB_frac_list = np.array(SB_frac_list)
+        mvir_list = np.array(mvir_list)
+        ax.scatter(mvir_list, SB_frac_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        
+    ax.set_xlabel('log Halo mass [$M_\odot$]', fontsize=16)
+    ax.set_ylabel('Fraction of area above O VI SB limit', fontsize=16)
+    ax.legend(loc=2, frameon=False, fontsize=16)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=True, right=True)
+    ax.axis([11.5,12.25,0.,0.5])
+    fig.subplots_adjust(left=0.1, bottom=0.12, top=0.93, right=0.98)
+    fig.savefig(prefix + 'fractional-area-above-limit_vs_Mh' + save_suffix + '.png')
 
 
 
@@ -457,6 +614,10 @@ if __name__ == "__main__":
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
+
+    if ('feedback' in args.run) and ('track' in args.run):
+        foggie_dir = '/nobackup/jtumlins/halo_008508/feedback-track/'
+        run_dir = args.run + '/'
     
     # Set directory for output location, making it if necessary
     prefix = output_dir + 'ions_halo_00' + args.halo + '/' + args.run + '/'
@@ -517,6 +678,11 @@ if __name__ == "__main__":
     else:
         save_suffix = ''
 
+    if (args.file_suffix!=''):
+        file_suffix = '_' + args.file_suffix
+    else:
+        file_suffix = ''
+
     # Build plots list
     if (',' in args.plot):
         plots = args.plot.split(',')
@@ -528,7 +694,7 @@ if __name__ == "__main__":
 
     if ('sb_time_hist' in args.plot):
         surface_brightness_time_histogram(outs)
-    if ('sb_vs_sfr' in args.plot):
+    if ('vs_sfr' in args.plot) or ('vs_mh' in args.plot):
         halos = ['8508', '5016', '5036', '4123', '2392']
         outs = []
         for h in range(len(halos)):
@@ -536,7 +702,10 @@ if __name__ == "__main__":
                 outs.append(make_output_list('DD0967-DD2427', output_step=args.output_step))
             else:
                 outs.append(make_output_list('DD1060-DD2520', output_step=args.output_step))
-        sb_vs_sfr(halos, outs)
+        if ('sb_vs_sfr' in args.plot): sb_vs_sfr(halos, outs)
+        if ('sb_vs_mh' in args.plot): sb_vs_Mh(halos, outs)
+        if ('emiss_area_vs_sfr' in args.plot): emiss_area_vs_sfr(halos, outs)
+        if ('emiss_area_vs_mh' in args.plot): emiss_area_vs_Mh(halos, outs)
     if ('emission_map' in args.plot) or ('sb_profile' in args.plot):
         target_dir = 'ions'
         if (args.nproc==1):
