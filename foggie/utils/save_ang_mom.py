@@ -69,8 +69,9 @@ def parse_args():
     return args
 
 def find_angmom(snap_name, t):
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, disk_relative=True, correct_bulk_velocity=True, particle_type_for_angmom='young_stars8')
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, disk_relative=True, particle_type_for_angmom='young_stars8')
     row = [snap_name[-6:], ds.get_parameter('CosmologyCurrentRedshift'), ds.current_time.in_units('Myr').v, ds.z_unit_disk[0], ds.z_unit_disk[1], ds.z_unit_disk[2]]
+    print(row)
     t.put(row)
 
 if __name__ == "__main__":
