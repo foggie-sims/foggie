@@ -248,7 +248,13 @@ def get_df_from_ds(box, args, outfilename=None):
         df.to_csv(outfilename, sep='\t', index=None)
     else:
         myprint('Reading from existing file ' + outfilename, args)
-        df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
+        try:
+            df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
+        except pd.errors.EmptyDataError:
+            print('File existed, but it was empty, so making new file afresh..')
+            dummy_args = copy.deepcopy(args)
+            dummy_args.clobber = True
+            df = get_df_from_ds(box, dummy_args, outfilename=outfilename)
 
     df = df[df['rad'].between(0, args.galrad)]  # in case this dataframe has been read in from a file corresponding to a larger chunk of the box
     df['log_metal'] = np.log10(df['metal'])
@@ -302,7 +308,7 @@ if __name__ == '__main__':
     # parse column names, in case log
 
     # --------------read in the cold gas profile file ONCE for a given halo-------------
-    if dummy_args.write_file or dummy_args.upto_kpc is None:
+    if dummy_args.upto_kpc is None:
         gasprofile = get_gas_profile(dummy_args)
     else:
         print('Not reading in cold gas profile because any re calculation is not needed')

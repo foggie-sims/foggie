@@ -118,78 +118,82 @@ if __name__ == '__main__':
         start_time_this_snapshot = time.time()
         this_sim = list_of_sims[index]
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', args)
-        halos_df_name = args.code_path + 'halo_infos/00' + this_sim[0] + '/' + args.run + '/'
-        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
 
         # -------loading in snapshot-------------------
-        try:
-            if len(list_of_sims) > 1 or args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
-            if type(args) is tuple: args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
-            else: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
+        halos_df_name = args.code_path + 'halo_infos/00' + this_sim[0] + '/' + args.run + '/'
+        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
+        if len(list_of_sims) > 1 or args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
+        if type(args) is tuple: args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+        else: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
 
-            args.current_redshift = ds.current_redshift
-            args.current_time = ds.current_time.in_units('Gyr').v
+        args.current_redshift = ds.current_redshift
+        args.current_time = ds.current_time.in_units('Gyr').v
 
-            # --------determining corresponding text suffixes-------------
-            args.density_cut_text = '_wdencut' if args.use_density_cut else ''
+        # --------determining corresponding text suffixes-------------
+        args.density_cut_text = '_wdencut' if args.use_density_cut else ''
+        if args.upto_kpc is not None: upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+        else: upto_text = '_upto%.1FRe' % args.upto_re
 
-            # -------setting up fig--------------
-            nrow, ncol = len(fields), len(projections)
-            fig, axes = plt.subplots(nrow, ncol, figsize=(3 + ncol*3, 2 + nrow*2), sharex=True, sharey=True)
-            fig.tight_layout()
-            fig.subplots_adjust(top=0.97, bottom=0.1, left=0.05, right=0.95, wspace=0.2, hspace=0.05)
+        args.fig_dir = args.output_dir + 'figs/'
+        if not args.do_all_sims: args.fig_dir += args.output + '/'
+        Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
 
-            # ------tailoring the simulation box for individual snapshot analysis--------
-            if args.upto_kpc is not None: args.re = np.nan
-            else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
+        outfile_rootname = '%s_%s_projected_met_den_%s.png' % (args.output, args.halo, upto_text)
+        if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
+        figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
-            if args.upto_kpc is not None:
-                if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
-                else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
-            else:
-                args.galrad = args.re * args.upto_re  # kpc
+        if not os.path.exists(figname) or args.clobber_plot:
+            try:
+                # -------setting up fig--------------
+                nrow, ncol = len(fields), len(projections)
+                fig, axes = plt.subplots(nrow, ncol, figsize=(3 + ncol*3, 2 + nrow*2), sharex=True, sharey=True)
+                fig.tight_layout()
+                fig.subplots_adjust(top=0.97, bottom=0.1, left=0.05, right=0.95, wspace=0.2, hspace=0.05)
 
-            # extract the required box
-            box_center = ds.halo_center_kpc
-            box_width = 2 * args.galrad # kpc
-            box_width_kpc = ds.arr(box_width, 'kpc')
-            box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
+                # ------tailoring the simulation box for individual snapshot analysis--------
+                if args.upto_kpc is not None: args.re = np.nan
+                else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
 
-            if args.use_density_cut:
-                rho_cut = get_density_cut(ds.current_time.in_units('Gyr'))  # based on Cassi's CGM-ISM density cut-off
-                box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
-                print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
+                if args.upto_kpc is not None:
+                    if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+                    else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
+                else:
+                    args.galrad = args.re * args.upto_re  # kpc
 
-            # ------plotting projected metallcity and density snapshots---------------
-            annotate_markers = [box_center] #
-            for i,field in enumerate(fields):
-                for j,projection in enumerate(projections):
-                    print('Plotting ' + str(i * ncol + j + 1) + ' of ' + str(nrow * ncol) + ' projections..')
-                    thisax = axes[i][j] if nrow * ncol > 1 else axes
-                    proj, thisax = plot_projected(field, box, ds.halo_center_kpc, box_width, projection, thisax, args, annotate_markers=annotate_markers)
-                    thisax.set_xlabel('Offset (kpc)' if i == len(fields) - 1 else '', fontsize=args.fontsize)
-                    thisax.set_ylabel('Offset (kpc)' if j == 0 else '', fontsize=args.fontsize)
+                # extract the required box
+                box_center = ds.halo_center_kpc
+                box_width = 2 * args.galrad # kpc
+                box_width_kpc = ds.arr(box_width, 'kpc')
+                box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
 
-            # ------saving fig------------------
-            if args.upto_kpc is not None: upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
-            else: upto_text = '_upto%.1FRe' % args.upto_re
+                if args.use_density_cut:
+                    rho_cut = get_density_cut(ds.current_time.in_units('Gyr'))  # based on Cassi's CGM-ISM density cut-off
+                    box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+                    print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
-            args.fig_dir = args.output_dir + 'figs/'
-            if not args.do_all_sims: args.fig_dir += args.output + '/'
-            Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
+                # ------plotting projected metallcity and density snapshots---------------
+                annotate_markers = [box_center] #
+                for i,field in enumerate(fields):
+                    for j,projection in enumerate(projections):
+                        print('Plotting ' + str(i * ncol + j + 1) + ' of ' + str(nrow * ncol) + ' projections..')
+                        thisax = axes[i][j] if nrow * ncol > 1 else axes
+                        proj, thisax = plot_projected(field, box, ds.halo_center_kpc, box_width, projection, thisax, args, annotate_markers=annotate_markers)
+                        thisax.set_xlabel('Offset (kpc)' if i == len(fields) - 1 else '', fontsize=args.fontsize)
+                        thisax.set_ylabel('Offset (kpc)' if j == 0 else '', fontsize=args.fontsize)
 
-            outfile_rootname = '%s_%s_projected_met_den_%s.png' % (args.output, args.halo, upto_text)
-            if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
-            figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+                # ------saving fig------------------
+                fig.savefig(figname)
+                myprint('Saved plot as ' + figname, args)
 
-            fig.savefig(figname)
-            myprint('Saved plot as ' + figname, args)
-
-            plt.show(block=False)
-            print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
-        except Exception as e:
-            print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), args)
+                plt.show(block=False)
+                print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
+            except Exception as e:
+                print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), args)
+                continue
+        else:
+            print('Skipping snapshot %s as %s already exists. Use --clobber_plot to remake figure.' %(args.output, figname))
             continue
+
 
     if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), args)

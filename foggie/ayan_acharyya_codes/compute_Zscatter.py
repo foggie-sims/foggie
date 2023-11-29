@@ -20,6 +20,7 @@ from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
 from lmfit.models import GaussianModel, SkewedGaussianModel
 from pygini import gini
+plt.rcParams['axes.linewidth'] = 2
 
 start_time = time.time()
 
@@ -86,7 +87,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
         fit_color = 'darkorange' if args.fortalk else 'k'
         xvals = p[1][:-1] + np.diff(p[1])
         ax.plot(xvals, fit.best_fit, c=fit_color, lw=1, label=None if args.forproposal or args.hide_multiplefit else 'Best fit')
-        #ax.plot(xvals, fit.init_fit, c='b', lw=1, label='Initial guess') #
+        ax.plot(xvals, fit.init_fit, c='b', lw=1, label='Initial guess') #
         if not args.hide_multiplefit:
             ax.plot(xvals, GaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma']), c=fit_color, lw=2, ls='--', label='Regular Gaussian')
             ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=fit_color, lw=2, ls='dotted', label='Skewed Gaussian')
@@ -159,13 +160,13 @@ def fit_distribution(Zarr, args, weights=None):
     x = x[:-1] + np.diff(x)/2
 
     model = SkewedGaussianModel(prefix='sg_')
-    if args.islog: params = model.make_params(sg_amplitude=2.0, sg_center=0.1, sg_sigma=0.5, sg_gamma=-3)
+    if args.islog: params = model.make_params(sg_amplitude=2.0, sg_center=0.1+0.4, sg_sigma=0.5-0.2, sg_gamma=-2)
     else: params = model.make_params(sg_amplitude=1.0, sg_center=1.0, sg_sigma=0.5, sg_gamma=1)
 
     if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
         print('Fitting with one skewed gaussian + one regular guassian...')
         g_model = GaussianModel(prefix='g_')
-        if args.islog: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
+        if args.islog: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9+0.4, g_sigma=0.05))
         else: params.update(g_model.make_params(g_amplitude=2, g_center=0.2, g_sigma=0.1))
         model = model + g_model
     else: # fitting a single skewed gaussian with SkewedGaussianModel()
@@ -293,7 +294,7 @@ if __name__ == '__main__':
             args.use_density_cut = True
             args.fit_multiple = True
             args.no_vlines = True
-            args.hide_multiplefit = True
+            #args.hide_multiplefit = True ##
             args.weight = 'mass'
         elif args.forproposal:
             args.res = 0.3  # kpc
@@ -352,7 +353,7 @@ if __name__ == '__main__':
         else: upto_text = '_upto%.1FRe' % args.upto_re
         density_cut_text = '_wdencut' if args.use_density_cut else ''
         ncells_text = '_ncells%d' %ncells if not args.get_native_res else ''
-        outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%s%s%s.txt' % (upto_text, density_cut_text, ncells_text)
+        outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad%s%s%s.txt' % (upto_text, density_cut_text, ncells_text)
         df = get_df_from_ds(box, args, outfilename=outfilename)  # get dataframe with metallicity profile info
 
         # ----------------getting the arrays--------------------------

@@ -165,16 +165,17 @@ if __name__ == "__main__":
     print('foggie_dir: ', foggie_dir)
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
     catalog_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
 
     # Smooth halo center position
 
     # Read in halo center catalog
     halo_center = Table.read(halo_c_v_name, format='ascii')
+    z_col = halo_center['col2'][1:]
+    t_col = halo_center['col4'][1:]
     DD_col = halo_center['col3'][1:]
-    x_col = halo_center['col4'][1:]
-    y_col = halo_center['col5'][1:]
-    z_col = halo_center['col6'][1:]
+    x_col = halo_center['col5'][1:]
+    y_col = halo_center['col6'][1:]
+    z_col = halo_center['col7'][1:]
     times = []
     redshifts = []
     snaps = []
@@ -182,13 +183,12 @@ if __name__ == "__main__":
     y_cen = []
     z_cen = []
     for i in range(len(DD_col)):
-        if (DD_col[i]!='RD0016') and (DD_col[i]!='RD0018'):
-            times.append(time_table['time'][time_table['snap']==DD_col[i]][0])
-            redshifts.append(time_table['redshift'][time_table['snap']==DD_col[i]][0])
-            snaps.append(DD_col[i])
-            x_cen.append(float(x_col[i]))
-            y_cen.append(float(y_col[i]))
-            z_cen.append(float(z_col[i]))
+        snaps.append(DD_col[i])
+        redshifts.append(float(z_col[i]))
+        times.append(float(t_col[i]))
+        x_cen.append(float(x_col[i]))
+        y_cen.append(float(y_col[i]))
+        z_cen.append(float(z_col[i]))
     times = np.array(times)
     redshifts = np.array(redshifts)
     snaps = np.array(snaps)
@@ -354,7 +354,7 @@ if __name__ == "__main__":
 
     # Smooth bulk halo velocity
 
-    # Read in velocity vector catalog
+    '''# Read in velocity vector catalog
     vel_table = Table.read(output_dir + 'halo_centers/halo_00' + args.halo + '/' + args.run + '/bulk-v_table.dat', format='ascii')
     DD_col = vel_table['col2'][1:]
     time_col = vel_table['col4'][1:]
@@ -437,4 +437,4 @@ if __name__ == "__main__":
         row = [DD_col[i], redshifts[i], times[i], \
                smooth_vx[i], smooth_vy[i], smooth_vz[i]]
         f_cen.add_row(row)
-    ascii.write(f_cen, output_dir + 'halo_centers/halo_00' + args.halo + '/' + args.run + '/bulk-v_smoothed.dat', format='fixed_width', overwrite=True)
+    ascii.write(f_cen, output_dir + 'halo_centers/halo_00' + args.halo + '/' + args.run + '/bulk-v_smoothed.dat', format='fixed_width', overwrite=True)'''

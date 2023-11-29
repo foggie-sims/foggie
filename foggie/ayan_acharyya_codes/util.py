@@ -11,6 +11,35 @@
 from header import *
 
 # -----------------------------------------------------------------
+def get_valid_snaps(halo, silent=False):
+    '''
+    Function to tell how many of the availabel snapshots are permitted to read
+    Returns a list of "bad" snapshots
+    '''
+    start_time = time.time()
+
+    valid_snaps, invalid_snaps, dd_snaps = [], [], []
+    given_path = '/nobackup/mpeeples/halo_00' + str(halo) + '/nref11c_nref9f/'
+    snapshot_paths = glob.glob(given_path + '*/')
+    snapshot_paths.sort()
+    snapshots = [item.split('/')[-2] for item in snapshot_paths]
+
+    for thissnap in snapshots:
+        if len(thissnap) == 6 and thissnap[:2] == 'DD': dd_snaps.append(thissnap)
+
+    for index, thissnap in enumerate(dd_snaps):
+        if not silent: print('Doing %d out of %d snaps' % (index + 1, len(dd_snaps)))
+        try:
+            job = subprocess.check_output('ls ' + given_path + thissnap, shell=True)
+            valid_snaps.append(thissnap)
+        except:
+            invalid_snaps.append(thissnap)
+            pass
+    print('%d out of % snapshots are readable, and %d are not' % (len(valid_snaps), len(dd_snaps), len(invalid_snaps)))
+    print('Completed in %s mins' % ((time.time() - start_time) / 60))
+    return invalid_snaps
+
+# -----------------------------------------------------------------
 def make_its_own_figure(ax, label, args):
     '''
     Function to take an already filled axis handle and turn it into its stand-alone figure
@@ -40,7 +69,7 @@ def get_gas_profile(args):
         print('Reading in cold gas profile from', gasfilename)
     else:
         print('Did not find', gasfilename)
-        gasfilename = gasfilename.replace(dummy_args.run, dummy_args.run[:14])
+        gasfilename = gasfilename.replace(args.run, args.run[:14])
         print('Instead, reading in cold gas profile from', gasfilename)
     try:
         gasprofile = np.load(gasfilename, allow_pickle=True)[()]
@@ -1140,9 +1169,15 @@ def pull_halo_center(args, fast=False):
         if halos_df['name'].str.contains(args.output).any():
             myprint('Pulling halo center from catalog file', args)
             halo_ind = halos_df.index[halos_df['name'] == args.output][0]
-            args.halo_center = halos_df.loc[halo_ind, ['xc', 'yc', 'zc']].values # in kpc units
-            try: args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
-            except: pass
+            if 'xc' in halos_df: args.halo_center = halos_df.loc[halo_ind, ['xc', 'yc', 'zc']].values # in kpc units
+            elif 'x_c' in halos_df: args.halo_center = halos_df.loc[halo_ind, ['x_c', 'y_c', 'z_c']].values # in kpc units
+            try:
+                args.halo_velocity = halos_df.loc[halo_ind, ['xv', 'yv', 'zv']].values # in km/s units
+            except:
+                try:
+                    args.halo_velocity = halos_df.loc[halo_ind, ['v_x', 'v_y', 'v_z']].values  # in km/s units
+                except:
+                    pass
             calc_hc = False
         elif not fast:
             myprint('This snapshot is not in the halos_df file, calculating halo center...', args)
@@ -1455,6 +1490,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--includemerger', dest='includemerger', action='store_true', default=False, help='include merger history panel, even if forpaper?, default is no')
     parser.add_argument('--doft', dest='doft', action='store_true', default=False, help='make new plot for Fourier Transform?, default is no')
     parser.add_argument('--docorr', metavar='docorr', type=str, action='store', default=None, help='make new plot for time delay cross-correlation with respect to a column?, default is no')
+    parser.add_argument('--overplot_points', dest='overplot_points', action='store_true', default=False, help='overplot data points as scatter plot on each trace?, default is no')
 
     # ------- args added for plot_spatially_resolved.py ------------------------------
     parser.add_argument('--plot_map', dest='plot_map', action='store_true', default=False, help='plot the corresponding 2D map?, default is no')
@@ -1470,6 +1506,8 @@ def parse_args(haloname, RDname, fast=False):
 
     # ------- args added for projected_Zgrad_hist_map.py ------------------------------
     parser.add_argument('--nofit', dest='nofit', action='store_true', default=False, help='skip fitting the metallicity histogram?, default is no')
+    parser.add_argument('--vcol', metavar='vcol', type=str, action='store', default='vlos', help='which velocity quantity to plot in the rightmost panel? default is vtan')
+    parser.add_argument('--clim', metavar='clim', type=str, action='store', default=None, help='limit for velocity colorbar, in km/s; default is None')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()

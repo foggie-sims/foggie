@@ -170,6 +170,7 @@ if __name__ == '__main__':
         ncores = args.ncores if args.ncores is not None else procs_dir[args.proc][0]
         memory = args.memory if args.memory is not None else str(procs_dir[args.proc][1]) + 'GB' # minimum memory per node; by default the entire node me is allocated, therefore it is redundant to specify mem as the highest available memory per node
         qname = args.queue
+        if args.queue[:2] == 'e_':  qname += '@pbspl4' # add this for endeavour nodes
 
     # ----------determining what resource request goes into the job script, based on queues, procs, etc.---------
     nhours = args.nhours if args.nhours is not None else '01' if args.dryrun or args.queue == 'devel' else '%02d' % (max_hours_dict[args.queue])

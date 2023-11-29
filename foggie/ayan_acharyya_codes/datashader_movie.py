@@ -52,6 +52,7 @@ def get_correct_tablename(args):
     '''
     Function to determine the correct tablename for a given set of args
     '''
+    Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
@@ -112,7 +113,6 @@ def get_df_from_ds(ds, args, outfilename=None):
     :return: dataframe
     '''
     # -------------read/write pandas df file with ALL fields-------------------
-    Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
     if outfilename is None: outfilename = get_correct_tablename(args)
 
     if args.use_density_cut:

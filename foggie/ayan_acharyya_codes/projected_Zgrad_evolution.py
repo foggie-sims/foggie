@@ -297,134 +297,140 @@ if __name__ == '__main__':
         start_time_this_snapshot = time.time()
         this_sim = list_of_sims[index]
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', args)
-        halos_df_name = args.code_path + 'halo_infos/00' + this_sim[0] + '/' + args.run + '/'
-        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
 
         # -------loading in snapshot-------------------
-        try:
-            if len(list_of_sims) > 1 or args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
-            if type(args) is tuple: args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
-            else: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
+        halos_df_name = args.code_path + 'halo_infos/00' + this_sim[0] + '/' + args.run + '/'
+        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
+        if len(list_of_sims) > 1 or args.do_all_sims: args = parse_args(this_sim[0], this_sim[1])
+        if type(args) is tuple: args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+        else: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
 
-            # --------assigning additional keyword args-------------
-            if args.forpaper:
-                args.use_density_cut = False
-                args.docomoving = True
-                args.fit_multiple = True # True # for the Z distribution panel
-                args.islog = True # for the Z distribution panel
-                args.nbins = 100 # for the Z distribution panel
-                args.weight = 'mass'
+        # --------assigning additional keyword args-------------
+        if args.forpaper:
+            args.use_density_cut = True
+            args.docomoving = True
+            args.fit_multiple = True # True # for the Z distribution panel
+            args.islog = True # for the Z distribution panel
+            args.nbins = 100 # for the Z distribution panel
+            args.weight = 'mass'
 
-            args.current_redshift = ds.current_redshift
-            args.current_time = ds.current_time.in_units('Gyr').tolist()
+        args.current_redshift = ds.current_redshift
+        args.current_time = ds.current_time.in_units('Gyr').tolist()
 
-            args.projections = ['x', 'y', 'z']
-            args.col_arr = ['salmon', 'seagreen', 'cornflowerblue']  # colors corresponding to different projections
-            args.Zlim = [-2, 2] # log Zsun units
-            args.res = args.res_arr[0]
-            if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695 # converting from comoving kcp h^-1 to physical kpc
-            args.fontsize = 15
-            args.fontfactor = 1.5
+        args.projections = ['x', 'y', 'z']
+        args.col_arr = ['salmon', 'seagreen', 'cornflowerblue']  # colors corresponding to different projections
+        args.Zlim = [-2, 2]  # log Zsun units
+        args.res = args.res_arr[0]
+        if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695  # converting from comoving kcp h^-1 to physical kpc
+        args.fontsize = 15
+        args.fontfactor = 1.5
 
-            # --------determining corresponding text suffixes-------------
-            args.weightby_text = '_wtby_' + args.weight
-            args.fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
-            args.density_cut_text = '_wdencut' if args.use_density_cut else ''
-            args.islog_text = '_islog' if args.islog else ''
+        # --------determining corresponding text suffixes and figname-------------
+        args.weightby_text = '_wtby_' + args.weight
+        args.fitmultiple_text = '_fitmultiple' if args.fit_multiple else ''
+        args.density_cut_text = '_wdencut' if args.use_density_cut else ''
+        args.islog_text = '_islog' if args.islog else ''
+        if args.upto_kpc is not None:
+            upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+        else:
+            upto_text = '_upto%.1FRe' % args.upto_re
 
-            # -------setting up fig--------------
-            nrow, ncol1, ncol2 = 4, 2, 3
-            ncol = ncol1 * ncol2 # the overall figure is nrow x (ncol1 + ncol2)
-            fig = plt.figure(figsize=(8, 8))
-            axes_proj_snap = [plt.subplot2grid(shape=(nrow, ncol), loc=(0, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
-            ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(1, 0), colspan=ncol2)
-            ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(1, ncol2), colspan=ncol - ncol2)
-            ax_grad_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 0), colspan=ncol)
-            ax_dist_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(3, 0), colspan=ncol, sharex=ax_grad_ev)
-            fig.tight_layout()
-            fig.subplots_adjust(top=0.9, bottom=0.07, left=0.1, right=0.95, wspace=0.8, hspace=0.35)
+        args.fig_dir = args.output_dir + 'figs/'
+        if not args.do_all_sims: args.fig_dir += args.output + '/'
+        Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
 
-            # ------tailoring the simulation box for individual snapshot analysis--------
-            if args.upto_kpc is not None: args.re = np.nan
-            else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
+        outfile_rootname = '%s_%s_projectedZ_Zgrad_den_%s%s%s.png' % (
+        args.output, args.halo, args.Zgrad_den, upto_text, args.weightby_text)
+        if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
+        figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+
+        if not os.path.exists(figname) or args.clobber_plot:
+            try:
+                # -------setting up fig--------------
+                nrow, ncol1, ncol2 = 4, 2, 3
+                ncol = ncol1 * ncol2 # the overall figure is nrow x (ncol1 + ncol2)
+                fig = plt.figure(figsize=(8, 8))
+                axes_proj_snap = [plt.subplot2grid(shape=(nrow, ncol), loc=(0, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
+                ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(1, 0), colspan=ncol2)
+                ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(1, ncol2), colspan=ncol - ncol2)
+                ax_grad_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 0), colspan=ncol)
+                ax_dist_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(3, 0), colspan=ncol, sharex=ax_grad_ev)
+                fig.tight_layout()
+                fig.subplots_adjust(top=0.9, bottom=0.07, left=0.1, right=0.95, wspace=0.8, hspace=0.35)
+
+                # ------tailoring the simulation box for individual snapshot analysis--------
+                if args.upto_kpc is not None: args.re = np.nan
+                else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
 
 
-            if args.upto_kpc is not None:
-                if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
-                else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
-            else:
-                args.galrad = args.re * args.upto_re  # kpc
-            args.ncells = int(2 * args.galrad / args.res)
+                if args.upto_kpc is not None:
+                    if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+                    else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
+                else:
+                    args.galrad = args.re * args.upto_re  # kpc
+                args.ncells = int(2 * args.galrad / args.res)
 
-            # extract the required box
-            box_center = ds.halo_center_kpc
-            box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
+                # extract the required box
+                box_center = ds.halo_center_kpc
+                box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
-            # ------plotting projected metallcity snapshots---------------
-            df_snap_filename = args.output_dir + '/txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projectedZ.txt'%(args.galrad)
+                # ------plotting projected metallcity snapshots---------------
+                df_snap_filename = args.output_dir + '/txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projectedZ.txt'%(args.galrad)
 
-            if not os.path.exists(df_snap_filename) or args.clobber:
-                myprint(df_snap_filename + 'not found, creating afresh..', args)
-                df_snap = pd.DataFrame()
-                map_dist = get_dist_map(args)
-                df_snap['rad'] = map_dist.flatten()
+                if not os.path.exists(df_snap_filename) or args.clobber:
+                    myprint(df_snap_filename + 'not found, creating afresh..', args)
+                    df_snap = pd.DataFrame()
+                    map_dist = get_dist_map(args)
+                    df_snap['rad'] = map_dist.flatten()
 
-                for index, thisproj in enumerate(args.projections):
-                    frb = make_frb_from_box(box, box_center, 2 * args.galrad, thisproj, args)
-                    df_snap, weighted_map_Z = make_df_from_frb(frb, df_snap, thisproj,  args)
-                    axes_proj_snap[index] = plot_projectedZ_snap(np.log10(weighted_map_Z), thisproj, axes_proj_snap[index], args, clim=args.Zlim, cmap=old_metal_color_map, color=args.col_arr[index])
+                    for index, thisproj in enumerate(args.projections):
+                        frb = make_frb_from_box(box, box_center, 2 * args.galrad, thisproj, args)
+                        df_snap, weighted_map_Z = make_df_from_frb(frb, df_snap, thisproj,  args)
+                        axes_proj_snap[index] = plot_projectedZ_snap(np.log10(weighted_map_Z), thisproj, axes_proj_snap[index], args, clim=args.Zlim, cmap=old_metal_color_map, color=args.col_arr[index])
 
-                df_snap.to_csv(df_snap_filename, sep='\t', index=None)
-                myprint('Saved file ' + df_snap_filename, args)
-            else:
-                myprint('Reading in existing ' + df_snap_filename, args)
-                df_snap = pd.read_table(df_snap_filename, delim_whitespace=True, comment='#')
-                for index, thisproj in enumerate(args.projections):
-                    weighted_Z = len(df_snap) * df_snap['metal_' + thisproj] * df_snap['weights_' + thisproj] / np.sum(df_snap['weights_' + thisproj])
-                    weighted_map_Z = weighted_Z.values.reshape((args.ncells, args.ncells))
-                    axes_proj_snap[index] = plot_projectedZ_snap(np.log10(weighted_map_Z), thisproj, axes_proj_snap[index], args, clim=args.Zlim, cmap=old_metal_color_map, color=args.col_arr[index])
+                    df_snap.to_csv(df_snap_filename, sep='\t', index=None)
+                    myprint('Saved file ' + df_snap_filename, args)
+                else:
+                    myprint('Reading in existing ' + df_snap_filename, args)
+                    df_snap = pd.read_table(df_snap_filename, delim_whitespace=True, comment='#')
+                    for index, thisproj in enumerate(args.projections):
+                        weighted_Z = len(df_snap) * df_snap['metal_' + thisproj] * df_snap['weights_' + thisproj] / np.sum(df_snap['weights_' + thisproj])
+                        weighted_map_Z = weighted_Z.values.reshape((args.ncells, args.ncells))
+                        axes_proj_snap[index] = plot_projectedZ_snap(np.log10(weighted_map_Z), thisproj, axes_proj_snap[index], args, clim=args.Zlim, cmap=old_metal_color_map, color=args.col_arr[index])
 
-            df_snap = df_snap.dropna()
-            # ------plotting projected metallicity profiles---------------
-            Zgrad_arr, ax_prof_snap = plot_Zprof_snap(df_snap, ax_prof_snap, args)
+                df_snap = df_snap.dropna()
+                # ------plotting projected metallicity profiles---------------
+                Zgrad_arr, ax_prof_snap = plot_Zprof_snap(df_snap, ax_prof_snap, args)
 
-            # ------plotting projected metallicity histograms---------------
-            Zdist_arr, ax_dist_snap = plot_Zdist_snap(df_snap, ax_dist_snap, args)
+                # ------plotting projected metallicity histograms---------------
+                Zdist_arr, ax_dist_snap = plot_Zdist_snap(df_snap, ax_dist_snap, args)
 
-            # ------update full dataframe and read it from file-----------
-            df_full_row = np.hstack(([args.output, args.current_redshift, args.current_time], np.hstack([[Zgrad_arr[i].n, Zgrad_arr[i].s] for i in range(len(args.projections))]), np.hstack([[Zdist_arr[i][0], Zdist_arr[i][1]] for i in range(len(args.projections))])))
-            df_full.loc[0] = df_full_row
-            df_full.to_csv(outfilename, mode='a', sep='\t', header=False, index=None)
-            df_full = pd.read_table(outfilename, delim_whitespace=True)
-            df_full = df_full.drop_duplicates(subset='output', keep='last')
-            df_full = df_full.sort_values(by='time')
+                # ------update full dataframe and read it from file-----------
+                df_full_row = np.hstack(([args.output, args.current_redshift, args.current_time], np.hstack([[Zgrad_arr[i].n, Zgrad_arr[i].s] for i in range(len(args.projections))]), np.hstack([[Zdist_arr[i][0], Zdist_arr[i][1]] for i in range(len(args.projections))])))
+                df_full.loc[0] = df_full_row
+                df_full.to_csv(outfilename, mode='a', sep='\t', header=False, index=None)
+                df_full = pd.read_table(outfilename, delim_whitespace=True)
+                df_full = df_full.drop_duplicates(subset='output', keep='last')
+                df_full = df_full.sort_values(by='time')
 
-            # ------plotting full time evolution of projected metallicity gradient---------------
-            ax_grad_ev = plot_Zgrad_evolution(df_full, ax_grad_ev, args)
+                # ------plotting full time evolution of projected metallicity gradient---------------
+                ax_grad_ev = plot_Zgrad_evolution(df_full, ax_grad_ev, args)
 
-            # ------plotting full time evolution of projected metallicity distribution---------------
-            ax_dist_ev = plot_Zdist_evolution(df_full, ax_dist_ev, args)
+                # ------plotting full time evolution of projected metallicity distribution---------------
+                ax_dist_ev = plot_Zdist_evolution(df_full, ax_dist_ev, args)
 
-            # ------saving fig------------------
-            if args.upto_kpc is not None: upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
-            else: upto_text = '_upto%.1FRe' % args.upto_re
+                # ------saving fig------------------
+                fig.savefig(figname)
+                myprint('Saved plot as ' + figname, args)
 
-            args.fig_dir = args.output_dir + 'figs/'
-            if not args.do_all_sims: args.fig_dir += args.output + '/'
-            Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
+                plt.show(block=False)
+                print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
 
-            outfile_rootname = '%s_%s_projectedZ_Zgrad_den_%s%s%s.png' % (args.output, args.halo, args.Zgrad_den, upto_text, args.weightby_text)
-            if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
-            figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
-
-            fig.savefig(figname)
-            myprint('Saved plot as ' + figname, args)
-
-            plt.show(block=False)
-            print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
-
-        except Exception as e:
-            print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), args)
+            except Exception as e:
+                print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), args)
+                continue
+        else:
+            print('Skipping snapshot %s as %s already exists. Use --clobber_plot to remake figure.' %(args.output, figname))
             continue
 
     if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), args)
