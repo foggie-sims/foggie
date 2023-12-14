@@ -16,7 +16,7 @@ from yt.units import *
 from yt import YTArray
 from astropy.table import Table
 from astropy.io import ascii
-import multiprocessing as mp
+import multiprocessing as multi
 import argparse
 import shutil
 
@@ -28,7 +28,6 @@ from foggie.utils.analysis_utils import *
 import numpy as np
 import glob
 import os
-from enzoGalaxyProps import find_rvirial
 
 import warnings
 
@@ -86,8 +85,8 @@ def loop_over_halos(system, nproc, run_dir, trackname, output_dir, outs):
     track = Table.read(trackname, format='ascii')
     track.sort('col1')
 
-    t = Table(dtype=('f8','S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'),
-            names=('redshift', 'name', 'xc', 'yc', 'zc', 'xv', 'yv', 'zv'))
+    t = Table(dtype=('f8', 'S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'),
+            names=('redshift', 'name', 'time', 'x_c', 'y_c', 'z_c', 'v_x', 'v_y', 'v_z'))
 
     print('Computing centers and velocities for ' + str(len(outs)) + ' snaps ' + \
           'from ' + outs[0] + ' to ' + outs[-1])
@@ -96,10 +95,10 @@ def loop_over_halos(system, nproc, run_dir, trackname, output_dir, outs):
     rows = []
     for i in range(len(outs)//nproc):
         threads = []
-        queue = mp.Queue()
+        queue = multi.Queue()
         for j in range(nproc):
             snap = run_dir + outs[nproc*i+j] + '/' + outs[nproc*i+j]
-            thr = mp.Process(target=get_halo_info, \
+            thr = multi.Process(target=get_halo_info, \
                args=(system, snap, track, queue))
             threads.append(thr)
             thr.start()
@@ -110,10 +109,10 @@ def loop_over_halos(system, nproc, run_dir, trackname, output_dir, outs):
             thr.join()
     # For any leftover snapshots, run one per processor
     threads = []
-    queue = mp.Queue()
+    queue = multi.Queue()
     for j in range(len(outs)%nproc):
         snap = run_dir + outs[-(j+1)] + '/' + outs[-(j+1)]
-        thr = mp.Process(target=get_halo_info, \
+        thr = multi.Process(target=get_halo_info, \
            args=(system, snap, track, queue))
         threads.append(thr)
         thr.start()
@@ -142,14 +141,15 @@ def get_halo_info(system, snap, track, t):
     ds = yt.load(snap_name)
 
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    time = ds.current_time.in_units('Myr').v
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, refine_width = get_refine_box(ds, zsnap, track)
     center, velocity = get_halo_center(ds, refine_box_center)
     halo_center_kpc = ds.arr(np.array(center)*proper_box_size, 'kpc')
-    sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
+    sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
     halo_velocity_kms = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
 
-    row = [zsnap, ds.parameter_filename[-6:],
+    row = [zsnap, ds.parameter_filename[-6:], time,
             halo_center_kpc[0], halo_center_kpc[1], halo_center_kpc[2],
             halo_velocity_kms[0], halo_velocity_kms[1], halo_velocity_kms[2]]
     print(snap[-6:] + ' done')

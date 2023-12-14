@@ -22,149 +22,6 @@ from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
 start_time = time.time()
 
-# --------------------------------------------------------------------
-def get_density_cut(t):
-    '''
-    Function to get density cut based on Cassi's paper. The cut is a function of ime.
-    if z > 0.5: rho_cut = 2e-26 g/cm**3
-    elif z < 0.25: rho_cut = 2e-27 g/cm**3
-    else: linearly from 2e-26 to 2e-27 from z = 0.5 to z = 0.25
-    Takes time in Gyr as input
-    '''
-    t1, t2 = 8.628, 10.754 # Gyr; corresponds to z1 = 0.5 and z2 = 0.25
-    rho1, rho2 = 2e-26, 2e-27 # g/cm**3
-    t = np.float64(t)
-    rho_cut = np.piecewise(t, [t < t1, (t >= t1) & (t <= t2), t > t2], [rho1, lambda t: rho1 + (t - t1) * (rho2 - rho1) / (t2 - t1), rho2])
-    return rho_cut
-
-# -------------------------------------------------------------------------------
-def calc_masses(ds, snap, refine_width_kpc, tablename, get_gas_profile=False):
-    """Computes the mass enclosed in spheres centered on the halo center.
-    Takes the dataset for the snapshot 'ds', the name of the snapshot 'snap', the redshfit of the
-    snapshot 'zsnap', and the width of the refine box in kpc 'refine_width_kpc'
-    and does the calculation, then writes a hdf5 table out to 'tablename'. If 'ions' is True then it
-    computes the enclosed mass for various gas-phase ions.
-    This is mostly copied from Cassi's get_mass_profile.calc_mass(), but for a shortened set of parameters, to save runtime
-    """
-
-    halo_center_kpc = ds.halo_center_kpc
-
-    # Set up table of everything we want
-    # NOTE: Make sure table units are updated when things are added to this table!
-    if get_gas_profile: data = Table(names=('radius', 'stars_mass', 'gas_mass', 'gas_metal_mass'), dtype=('f8', 'f8', 'f8', 'f8'))
-    else: data = Table(names=('radius', 'stars_mass'), dtype=('f8', 'f8'))
-
-    # Define the radii of the spheres where we want to calculate mass enclosed
-    radii = refine_width_kpc * np.logspace(-4, 0, 250)
-
-    # Initialize first sphere
-    print('Loading field arrays for snapshot', snap)
-    sphere = ds.sphere(halo_center_kpc, radii[-1])
-
-    if get_gas_profile:
-        gas_mass = sphere['gas','cell_mass'].in_units('Msun').v
-        gas_metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
-        gas_radius = sphere['gas', 'radius_corrected'].in_units('kpc').v
-
-    stars_mass = sphere['stars','particle_mass'].in_units('Msun').v
-    stars_radius = sphere['stars','radius_corrected'].in_units('kpc').v
-
-    # Loop over radii
-    for i in range(len(radii)):
-        if (i%10==0): print('Computing radius ' + str(i) + '/' + str(len(radii)-1) + ' for snapshot ' + snap)
-
-        # Cut the data interior to this radius
-        if get_gas_profile:
-            gas_mass_enc = np.sum(gas_mass[gas_radius <= radii[i]])
-            gas_metal_mass_enc = np.sum(gas_metal_mass[gas_radius <= radii[i]])
-        stars_mass_enc = np.sum(stars_mass[stars_radius <= radii[i]])
-
-        # Add everything to the table
-        if get_gas_profile: data.add_row([radii[i], stars_mass_enc, gas_mass_enc, gas_metal_mass_enc])
-        else: data.add_row([radii[i], stars_mass_enc])
-
-    # Save to file
-    table_units = {'radius':'kpc', 'stars_mass':'Msun', 'gas_mass':'Msun', 'gas_metal_mass':'Msun'}
-    for key in data.keys(): data[key].unit = table_units[key]
-
-    data.write(tablename + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
-    print('Masses have been calculated for snapshot' + snap)
-
-# --------------------------------------------------------------------------------
-def get_re_from_stars(ds, args):
-    '''
-    Function to determine the effective radius of stellar disk, based on the stellar mass profile, given a dataset
-    Returns the effective radius in kpc
-    '''
-    re_hmr_factor = 2.0 # from the Illustris group (?)
-    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    prefix = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + args.run + '/'
-    tablename = prefix + args.output + '_masses.hdf5'
-
-    if os.path.exists(tablename):
-        print('Reading mass profile file', tablename)
-    else:
-        print('File not found:', tablename, '\n', 'Therefore computing mass profile now..')
-        Path(prefix).mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
-        refine_width_kpc = ds.quan(ds.refine_width, 'kpc')
-        calc_masses(ds, args.output, refine_width_kpc, os.path.splitext(tablename)[0], get_gas_profile=args.get_gasmass)
-
-    mass_profile = pd.read_hdf(tablename, key='all_data')
-    mass_profile = mass_profile.sort_values('radius')
-    total_mass = mass_profile['stars_mass'].iloc[-1]
-    half_mass_radius = mass_profile[mass_profile['stars_mass'] <= total_mass/2]['radius'].iloc[-1]
-    re = re_hmr_factor * half_mass_radius
-
-    print('\nStellar-profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' %(args.current_redshift) + ') is %.2F kpc' %(re))
-    return re
-
-# ---------------------------------------------------------------------------------------
-def get_gas_profile(args):
-    '''
-    Function to acquire the cold gas profile for a given halo and output
-    Returns the gasprofile as a numpy array
-    '''
-    foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    gasfilename = '/'.join(output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + args.run + '/all_rprof_' + args.halo + '.npy'
-
-    if os.path.exists(gasfilename):
-        print('Reading in cold gas profile from', gasfilename)
-    else:
-        print('Did not find', gasfilename)
-        gasfilename = gasfilename.replace(dummy_args.run, dummy_args.run[:14])
-        print('Instead, reading in cold gas profile from', gasfilename)
-    try:
-        gasprofile = np.load(gasfilename, allow_pickle=True)[()]
-    except FileNotFoundError as e:
-        print('Did not find', gasfilename, 'so assigning dummy values to gas re')
-        gasprofile = None
-
-    return gasprofile
-
-# --------------------------------------------------------------------------------
-def get_re_from_coldgas(args, gasprofile=None):
-    '''
-    Function to determine the effective radius of stellar disk, based on the cold gas profile, given a dataset
-    Returns the effective radius in kpc
-    '''
-    if gasprofile is None: gasprofile = get_gas_profile(args)
-    re_hmr_factor = 1.0
-
-    if gasprofile is not None and args.output[:2] == 'DD' and args.output[2:] in gasprofile.keys(): # because cold gas profile is only present for all the DD outputs
-        this_gasprofile = gasprofile[args.output[2:]]
-        this_coldgas = this_gasprofile['cold']
-        mass_profile = pd.DataFrame({'radius': this_coldgas['r'], 'coldgas':np.cumsum(this_coldgas['mass'])})
-        mass_profile = mass_profile.sort_values('radius')
-        total_mass = mass_profile['coldgas'].iloc[-1]
-        half_mass_radius = mass_profile[mass_profile['coldgas'] <= total_mass/2]['radius'].iloc[-1]
-        re = re_hmr_factor * half_mass_radius
-        print('\nCold gas profile: Half mass radius for halo ' + args.halo + ' output ' + args.output + ' (z=%.1F' % (args.current_redshift) + ') is %.2F kpc' % (re))
-    else:
-        re = -99
-        print('\nCold gas profile not found for halo ' + args.halo + ' output ' + args.output + '; therefore returning dummy re %d' % (re))
-
-    return re
-
 # -----------------------------------------------------------------------------
 def get_disk_stellar_mass(args):
     '''
@@ -391,7 +248,13 @@ def get_df_from_ds(box, args, outfilename=None):
         df.to_csv(outfilename, sep='\t', index=None)
     else:
         myprint('Reading from existing file ' + outfilename, args)
-        df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
+        try:
+            df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
+        except pd.errors.EmptyDataError:
+            print('File existed, but it was empty, so making new file afresh..')
+            dummy_args = copy.deepcopy(args)
+            dummy_args.clobber = True
+            df = get_df_from_ds(box, dummy_args, outfilename=outfilename)
 
     df = df[df['rad'].between(0, args.galrad)]  # in case this dataframe has been read in from a file corresponding to a larger chunk of the box
     df['log_metal'] = np.log10(df['metal'])
@@ -435,13 +298,17 @@ if __name__ == '__main__':
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s%s%s%s.txt' % (dummy_args.xcol, upto_text, weightby_text, density_cut_text)
     if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
+    if os.path.isfile(grad_filename) and not dummy_args.clobber and dummy_args.write_file: # if gradfile already exists
+        existing_df_grad = pd.read_table(grad_filename)
+        outputs_existing_on_file = pd.unique(existing_df_grad['output'])
+
     if dummy_args.dryrun:
         print('List of the total ' + str(total_snaps) + ' sims =', list_of_sims)
         sys.exit('Exiting dryrun..')
     # parse column names, in case log
 
     # --------------read in the cold gas profile file ONCE for a given halo-------------
-    if dummy_args.write_file or dummy_args.upto_kpc is None:
+    if dummy_args.upto_kpc is None:
         gasprofile = get_gas_profile(dummy_args)
     else:
         print('Not reading in cold gas profile because any re calculation is not needed')
@@ -468,8 +335,12 @@ if __name__ == '__main__':
     print_mpi('Operating on snapshots ' + str(core_start + 1) + ' to ' + str(core_end + 1) + ', i.e., ' + str(core_end - core_start + 1) + ' out of ' + str(total_snaps) + ' snapshots', dummy_args)
 
     for index in range(core_start + dummy_args.start_index, core_end + 1):
-        start_time_this_snapshot = time.time()
         this_sim = list_of_sims[index]
+        if 'outputs_existing_on_file' in locals() and this_sim[1] in outputs_existing_on_file:
+            print_mpi('Skipping ' + this_sim[1] + ' because it already exists in file', dummy_args)
+            continue # skip if this output has already been done and saved on file
+
+        start_time_this_snapshot = time.time()
         this_df_grad = pd.DataFrame(columns=cols_in_df)
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
         halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/'
@@ -506,8 +377,8 @@ if __name__ == '__main__':
         args.current_time = ds.current_time.in_units('Gyr').tolist()
         args.ylim = [-2.2 if args.ymin is None else args.ymin, 1.2 if args.ymax is None else args.ymax] # [-3, 1]
 
-        re_from_stars = get_re_from_stars(ds, args) if args.write_file or args.upto_kpc is None else None # kpc
-        re_from_coldgas = get_re_from_coldgas(args, gasprofile=gasprofile)  if args.write_file or args.upto_kpc is None else None # kpc
+        re_from_stars = get_re_from_stars(ds, args) if args.upto_kpc is None else np.nan # kpc
+        re_from_coldgas = get_re_from_coldgas(args, gasprofile=gasprofile) if args.upto_kpc is None else np.nan # kpc
         thisrow = [args.output, args.current_redshift, args.current_time, re_from_stars, re_from_coldgas] # row corresponding to this snapshot to append to df
 
         if args.upto_kpc is not None:
@@ -532,6 +403,10 @@ if __name__ == '__main__':
                 box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
                 df = get_df_from_ds(box, args) # get dataframe with metallicity profile info
+                if len(df) == 0:
+                    print_mpi('Skipping ' + this_sim[1] + ' because empty dataframe', dummy_args)
+                    thisrow += (np.ones(10) * np.nan).tolist()
+                    continue
 
                 Zcen, Zgrad = fit_gradient(df, args)
                 args.bin_edges = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
@@ -547,7 +422,7 @@ if __name__ == '__main__':
 
                 thisrow += [mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Zcen_binned.n, Zcen_binned.s, Zgrad_binned.n, Zgrad_binned.s, Ztotal]
             else:
-                thisrow += (np.ones(11)*np.nan).tolist()
+                thisrow += (np.ones(10)*np.nan).tolist()
 
         this_df_grad.loc[len(this_df_grad)] = thisrow
         df_grad = pd.concat([df_grad, this_df_grad])

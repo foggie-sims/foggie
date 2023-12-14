@@ -122,12 +122,25 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
         print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
     # The variables used below come from foggie.utils.consistency.py
-    field_dict = {'gas':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), 'stars':('deposit', 'stars_density'),'ys_density':('deposit', 'young_stars_density'), 'ys_age':('my_young_stars', 'age'), 'ys_mass':('deposit', 'young_stars_mass'), 'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected'), 'vlos':('gas', 'v_corrected'), 'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass')}
-    cmap_dict = {'gas':density_color_map, 'gas_entropy':entropy_color_map, 'stars':plt.cm.Greys_r, 'ys_density':density_color_map, 'ys_age':density_color_map, 'ys_mass':density_color_map, 'metal':old_metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap, 'vlos':velocity_discrete_cmap, 'grid':'viridis', 'mrp':'viridis'}
-    unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', temp='K', vrad='km/s', ys_age='Myr', ys_mass='pc*Msun', gas_entropy='keV*cm**3', vlos='km/s', grid='', mrp='cm*g')
-    zmin_dict = defaultdict(lambda: density_proj_min, metal=7e-2 if args.forpaper else 2e-2, temp=1.e3, vrad=-50, ys_age=0.1, ys_mass=1, ys_density=1e-3, gas_entropy=1.6e25, vlos=-500, grid=1, mrp=1e57)
-    zmax_dict = defaultdict(lambda: density_proj_max, metal= 2 if args.forproposal else 4e0 if args.forpaper else 5e0, temp= temperature_max, vrad=50, ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=500, grid=11, mrp=1e65)
-    weight_field_dict = defaultdict(lambda: None, metal=('gas', 'mass') if args.forpaper else ('gas', 'density'), temp=('gas', 'density'), vrad=('gas', 'density'), vlos=('gas', 'density'))
+    field_dict = {'gas':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), \
+                  'stars':('deposit', 'stars_density'),'ys_density':('deposit', 'young_stars_density'), 'ys_age':('my_young_stars', 'age'), 'ys_mass':('deposit', 'young_stars_mass'), \
+                  'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected'), \
+                  'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass'), 'vdisp_3d':('gas', 'velocity_dispersion_3d'), \
+                  'vtan':('gas', 'tangential_velocity_corrected'), 'vphi':('gas', 'phi_velocity_corrected'), 'vtheta':('gas', 'theta_velocity_corrected')}
+    cmap_dict = {'gas':density_color_map, 'gas_entropy':entropy_color_map, 'stars':plt.cm.Greys_r, 'ys_density':density_color_map, 'ys_age':density_color_map, \
+                 'ys_mass':density_color_map, 'metal':old_metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap, \
+                 'vlos':velocity_discrete_cmap, 'grid':'viridis', 'mrp':'viridis', 'vdisp_los':'viridis', 'vdisp_3d':'viridis', 'vtan':'viridis', \
+                 'vphi':velocity_discrete_cmap, 'vtheta':'viridis'}
+    unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', temp='K', vrad='km/s', ys_age='Myr', ys_mass='pc*Msun', gas_entropy='keV*cm**3', \
+                            vlos='km/s', grid='', mrp='cm*g', vdisp_los='km/s', vdisp_3d='km/s', vtan='km/s', vphi='km/s', vtheta='km/s')
+    zmin_dict = defaultdict(lambda: density_proj_min, metal=7e-2 if args.forpaper else 2e-2, temp=1.e3, vrad=-200, ys_age=0.1, ys_mass=1, ys_density=1e-3, \
+                            gas_entropy=1.6e25, vlos=-500, grid=1, mrp=1e57, vdisp_los=0, vdisp_3d=0, vtan=0, vphi=-500, vtheta=0)
+    zmax_dict = defaultdict(lambda: density_proj_max, metal= 2 if args.forproposal else 4e0 if args.forpaper else 5e0, temp= temperature_max, vrad=200, \
+                            ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=500, grid=11, mrp=1e65, vdisp_los=500, vdisp_3d=500, \
+                            vtan=500, vphi=500, vtheta=500)
+    weight_field_dict = defaultdict(lambda: None, metal=('gas', 'mass') if args.forpaper else ('gas', 'density'), temp=('gas', 'density'), \
+                                    vrad=('gas', 'density'), vlos=('gas', 'density'), vdisp_los=('gas', 'density'), vdisp_3d=('gas', 'density'),\
+                                    vtan=('gas', 'density'), vphi=('gas', 'density'), vtheta=('gas', 'density'))
     colorlog_dict = defaultdict(lambda: False, metal=False if args.forproposal else True, gas=True, temp=True, gas_entropy=True, mrp=True)
 
     # north vector = which way is up; this is set up such that the north vector rotates ABOUT the normal vector
@@ -146,6 +159,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
     density_cut_text = '_wdencut' if use_density_cut else ''
 
     for thisproj in projections:
+        field_dict.update({'vlos':('gas', 'v' + thisproj + '_corrected'), 'vdisp_los':('gas', 'velocity_dispersion_' + thisproj)})
         north_vector = north_vector_dict[rot_north_about] if rot_frame else None
         normal_vector = normal_vector_dict[rot_normal_about] if rot_frame else None
 
@@ -155,8 +169,7 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
             zmin = zmin_dict[d] if args.cmin is None else args.cmin
             zmax = zmax_dict[d] if args.cmax is None else args.cmax
 
-            thisfield = 'v' + thisproj + '_corrected' if d == 'vlos' else field_dict[d]
-            prj = do_plot(ds, thisfield, thisproj, annotate_positions, small_box, center, box_width, cmap_dict[d], name, unit=unit_dict[d], zmin=zmin, zmax=zmax, weight_field=weight_field_dict[d], normal_vector=normal_vector, north_vector=north_vector, hide_axes=hide_axes, iscolorlog=iscolorlog if iscolorlog else colorlog_dict[d], noweight=noweight, fontsize=fontsize, annotate_markers=annotate_markers, args=args)
+            prj = do_plot(ds, field_dict[d], thisproj, annotate_positions, small_box, center, box_width, cmap_dict[d], name, unit=unit_dict[d], zmin=zmin, zmax=zmax, weight_field=weight_field_dict[d], normal_vector=normal_vector, north_vector=north_vector, hide_axes=hide_axes, iscolorlog=iscolorlog if iscolorlog else colorlog_dict[d], noweight=noweight, fontsize=fontsize, annotate_markers=annotate_markers, args=args)
 
             if add_velocity: prj.annotate_velocity(factor=20)
             if add_arrow:
@@ -170,20 +183,20 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
             fig, axes = plt.subplots(figsize=(8, 8))
 
             #prj.plots[thisfield].figure = fig
-            prj.plots[thisfield].axes = axes
+            prj.plots[field_dict[d]].axes = axes
             divider = make_axes_locatable(axes)
             prj._setup_plots()
 
             if cbar_horizontal:
                 fig.subplots_adjust(right=0.95, top=0.95, bottom=0.12, left=0.05)
                 cax = divider.append_axes('bottom', size='5%', pad=1.3)
-                cbar = fig.colorbar(prj.plots[thisfield].cb.mappable, orientation='horizontal', cax=cax)
+                cbar = fig.colorbar(prj.plots[field_dict[d]].cb.mappable, orientation='horizontal', cax=cax)
             else:
                 fig.subplots_adjust(right=0.9, top=0.95, bottom=0.12, left=0.1)
                 cax = divider.append_axes('right', size='5%', pad=0.05)
-                cbar = fig.colorbar(prj.plots[thisfield].cb.mappable, orientation='vertical', cax=cax)
+                cbar = fig.colorbar(prj.plots[field_dict[d]].cb.mappable, orientation='vertical', cax=cax)
             cbar.ax.tick_params(labelsize=fontsize)
-            cbar.set_label(prj.plots[thisfield].cax.get_ylabel(), fontsize=fontsize)
+            cbar.set_label(prj.plots[field_dict[d]].cax.get_ylabel(), fontsize=fontsize)
 
             axes.xaxis.set_major_locator(plt.MaxNLocator(5))
             axes.yaxis.set_major_locator(plt.MaxNLocator(5))
@@ -237,6 +250,11 @@ if __name__ == '__main__':
             myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
         else:
             ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=False, halo_c_v_name=halos_df_name)
+
+        ds.add_field(('gas', 'velocity_dispersion_3d'), function=get_velocity_dispersion_3d, units='km/s', take_log=False, sampling_type='cell')
+        ds.add_field(('gas', 'velocity_dispersion_x'), function=get_velocity_dispersion_x, units='km/s', take_log=False, sampling_type='cell')
+        ds.add_field(('gas', 'velocity_dispersion_y'), function=get_velocity_dispersion_y, units='km/s', take_log=False, sampling_type='cell')
+        ds.add_field(('gas', 'velocity_dispersion_z'), function=get_velocity_dispersion_z, units='km/s', take_log=False, sampling_type='cell')
 
         fig_dir = args.output_dir + 'figs/' + args.output + '/'
         Path(fig_dir).mkdir(parents=True, exist_ok=True)

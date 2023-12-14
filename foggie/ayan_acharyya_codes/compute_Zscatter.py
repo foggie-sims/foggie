@@ -20,21 +20,9 @@ from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
 from lmfit.models import GaussianModel, SkewedGaussianModel
 from pygini import gini
-from astropy.cosmology import FlatLambdaCDM
-from astropy import units as u
+plt.rcParams['axes.linewidth'] = 2
 
 start_time = time.time()
-
-# ---------------------------------------------------------------------------
-def get_kpc_from_arc_at_redshift(arcseconds, redshift):
-    '''
-    Function to convert arcseconds on sky to physical kpc, at a given redshift
-    '''
-    cosmo = FlatLambdaCDM(H0=67.8, Om0=0.308)
-    d_A = cosmo.angular_diameter_distance(z=redshift)
-    kpc = (d_A * arcseconds * u.arcsec).to(u.kpc, u.dimensionless_angles()).value # in kpc
-    print('Converted resolution of %.2f arcseconds to %.2F kpc at target redshift of %.2f' %(arcseconds, kpc, redshift))
-    return kpc
 
 # ----------------------------------------------------------------------------
 # Following function is adapted from https://stackoverflow.com/questions/21844024/weighted-percentile-using-numpy
@@ -99,7 +87,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
         fit_color = 'darkorange' if args.fortalk else 'k'
         xvals = p[1][:-1] + np.diff(p[1])
         ax.plot(xvals, fit.best_fit, c=fit_color, lw=1, label=None if args.forproposal or args.hide_multiplefit else 'Best fit')
-        #ax.plot(xvals, fit.init_fit, c='b', lw=1, label='Initial guess') #
+        ax.plot(xvals, fit.init_fit, c='b', lw=1, label='Initial guess') #
         if not args.hide_multiplefit:
             ax.plot(xvals, GaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma']), c=fit_color, lw=2, ls='--', label='Regular Gaussian')
             ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=fit_color, lw=2, ls='dotted', label='Skewed Gaussian')
@@ -172,13 +160,13 @@ def fit_distribution(Zarr, args, weights=None):
     x = x[:-1] + np.diff(x)/2
 
     model = SkewedGaussianModel(prefix='sg_')
-    if args.islog: params = model.make_params(sg_amplitude=2.0, sg_center=0.1, sg_sigma=0.5, sg_gamma=-3)
+    if args.islog: params = model.make_params(sg_amplitude=2.0, sg_center=0.1+0.4, sg_sigma=0.5-0.2, sg_gamma=-2)
     else: params = model.make_params(sg_amplitude=1.0, sg_center=1.0, sg_sigma=0.5, sg_gamma=1)
 
     if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
         print('Fitting with one skewed gaussian + one regular guassian...')
         g_model = GaussianModel(prefix='g_')
-        if args.islog: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9, g_sigma=0.05))
+        if args.islog: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9+0.4, g_sigma=0.05))
         else: params.update(g_model.make_params(g_amplitude=2, g_center=0.2, g_sigma=0.1))
         model = model + g_model
     else: # fitting a single skewed gaussian with SkewedGaussianModel()
@@ -222,6 +210,10 @@ if __name__ == '__main__':
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZscat%s%s%s%s%s.txt' % (upto_text, weightby_text, fitmultiple_text, density_cut_text, islog_text)
     if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
 
+    if os.path.isfile(grad_filename) and not dummy_args.clobber and dummy_args.write_file: # if gradfile already exists
+        existing_df_grad = pd.read_table(grad_filename)
+        outputs_existing_on_file = pd.unique(existing_df_grad['output'])
+
     if dummy_args.dryrun:
         print('List of the total ' + str(total_snaps) + ' sims =', list_of_sims)
         sys.exit('Exiting dryrun..')
@@ -264,8 +256,12 @@ if __name__ == '__main__':
     print_mpi('Operating on snapshots ' + str(core_start + 1) + ' to ' + str(core_end + 1) + ', i.e., ' + str(core_end - core_start + 1) + ' out of ' + str(total_snaps) + ' snapshots', dummy_args)
 
     for index in range(core_start + dummy_args.start_index, core_end + 1):
-        start_time_this_snapshot = time.time()
         this_sim = list_of_sims[index]
+        if 'outputs_existing_on_file' in locals() and this_sim[1] in outputs_existing_on_file:
+            print_mpi('Skipping ' + this_sim[1] + ' because it already exists in file', dummy_args)
+            continue # skip if this output has already been done and saved on file
+
+        start_time_this_snapshot = time.time()
         this_df_grad = pd.DataFrame(columns=cols_in_df)
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', dummy_args)
         halos_df_name = dummy_args.code_path + 'halo_infos/00' + this_sim[0] + '/' + dummy_args.run + '/'
@@ -298,7 +294,7 @@ if __name__ == '__main__':
             args.use_density_cut = True
             args.fit_multiple = True
             args.no_vlines = True
-            args.hide_multiplefit = True
+            #args.hide_multiplefit = True ##
             args.weight = 'mass'
         elif args.forproposal:
             args.res = 0.3  # kpc
@@ -314,7 +310,7 @@ if __name__ == '__main__':
         if args.ymax is None:
             args.ymax = 1.5 if args.forproposal else 2.5 if args.islog else 2.5
 
-        if args.write_file or args.upto_kpc is None:
+        if args.upto_kpc is None:
             args.re = get_re_from_coldgas(args, gasprofile=gasprofile) if args.use_gasre else get_re_from_stars(ds, args)
         else:
             args.re = np.nan
@@ -357,7 +353,7 @@ if __name__ == '__main__':
         else: upto_text = '_upto%.1FRe' % args.upto_re
         density_cut_text = '_wdencut' if args.use_density_cut else ''
         ncells_text = '_ncells%d' %ncells if not args.get_native_res else ''
-        outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%s%s%s.txt' % (upto_text, density_cut_text, ncells_text)
+        outfilename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad%s%s%s.txt' % (upto_text, density_cut_text, ncells_text)
         df = get_df_from_ds(box, args, outfilename=outfilename)  # get dataframe with metallicity profile info
 
         # ----------------getting the arrays--------------------------

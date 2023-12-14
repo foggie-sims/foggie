@@ -220,9 +220,9 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
     if (system=='pleiades_cassi'):
         print('Copying directory to /tmp')
-        snap_dir = '/nobackup/clochhaa/tmp/' + snap
-        shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-        snap_name = snap_dir + '/' + snap
+        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/masses/' + snap
+        os.makedirs(snap_dir)
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, track, halo_c_v_name=halo_c_v_name)
     refine_width_kpc = ds.quan(ds.refine_width, 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
@@ -255,10 +255,6 @@ if __name__ == "__main__":
 
     print('foggie_dir: ', foggie_dir)
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
-    if (args.smoothed):
-        halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_cen_smoothed'
-        velocity_table = Table(dtype=('S6', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'),
-                names=('name', 'redshift', 'time', 'xc', 'yc', 'zc', 'xv', 'yv', 'zv'))
 
     # Build output list
     outs = make_output_list(args.output, output_step=args.output_step)
@@ -279,6 +275,7 @@ if __name__ == "__main__":
             snaps = []
             for j in range(args.nproc):
                 snap = outs[args.nproc*i+j]
+                tablename = prefix + snap + '_masses'
                 snaps.append(snap)
                 threads.append(multi.Process(target=load_and_calculate, \
 		          args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))
@@ -288,10 +285,7 @@ if __name__ == "__main__":
                 t.join()
             # Delete leftover outputs from failed processes from tmp directory if on pleiades
             if (args.system=='pleiades_cassi'):
-                if (args.copy_to_tmp):
-                    snap_dir = '/tmp/' + args.halo + '/' + args.run + '/masses/'
-                else:
-                    snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/masses/'
+                snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/masses/'
                 for s in range(len(snaps)):
                     if (os.path.exists(snap_dir + snaps[s])):
                         print('Deleting failed %s from /tmp' % (snaps[s]))
@@ -302,6 +296,7 @@ if __name__ == "__main__":
         snaps = []
         for j in range(len(outs)%args.nproc):
             snap = outs[-(j+1)]
+            tablename = prefix + snap + '_masses'
             snaps.append(snap)
             threads.append(multi.Process(target=load_and_calculate, \
 		      args=(args.system, foggie_dir, run_dir, trackname, halo_c_v_name, snap, tablename, ions)))
@@ -311,10 +306,7 @@ if __name__ == "__main__":
             t.join()
         # Delete leftover outputs from failed processes from tmp directory if on pleiades
         if (args.system=='pleiades_cassi'):
-            if (args.copy_to_tmp):
-                snap_dir = '/tmp/' + args.halo + '/' + args.run + '/masses/'
-            else:
-                snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/masses/'
+            snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/masses/'
             for s in range(len(snaps)):
                 if (os.path.exists(snap_dir + snaps[s])):
                     print('Deleting failed %s from /tmp' % (snaps[s]))

@@ -31,7 +31,7 @@ def load_df(args):
 
     # ---------reading in dataframe produced by compute_Zscatter.py-----------
     dist_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZscat%s%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text, args.islog_text)
-    df = pd.read_table(dist_filename, delim_whitespace=True)
+    df = pd.read_table(dist_filename)
     print('Read in file', dist_filename)
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
     df.rename(columns={'Zvar':'Zsigma', 'Zvar_u':'Zsigma_u', 'gauss_mean':'Zgauss_mean', 'gauss_mean_u':'Zgauss_mean_u', 'gauss_sigma':'Zgauss_sigma', 'gauss_sigma_u':'Zgauss_sigma_u'}, inplace=True) # for backward compatibility
@@ -39,8 +39,9 @@ def load_df(args):
     # ---------reading in dataframe produced by compute_MZgrad.py-----------
     Zgrad_den_text = 'rad' if args.upto_kpc is not None else 'rad_re'
     grad_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_%s%s%s%s.txt' % (Zgrad_den_text, upto_text, args.weightby_text, args.density_cut_text)
-    df2 = pd.read_table(grad_filename, comment='#', delim_whitespace=True)
+    df2 = pd.read_table(grad_filename)
     print('Read in file', grad_filename)
+    df2.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
 
     # ---------merging both dataframes-----------
     df = df.merge(df2[['output', 'Zcen_fixedr', 'Zgrad_fixedr', 'Zgrad_u_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr', 'Ztotal_fixedr']], on='output')
@@ -56,7 +57,8 @@ def load_df(args):
         if thiscol in df:
             if args.islog:
                 if thiscol + '_u' in df and (df[thiscol + '_u']!=0).any(): # need to propagate uncertainties properly
-                    df = df[(df[thiscol + '_u'] >= 0) & (np.abs(df[thiscol]/df[thiscol + '_u']).between(1e-1, 1e5))] # remove negative errors and errors that are way too high compared to the measured value; something must be wrong there
+                    #df = df[(df[thiscol + '_u'] >= 0) & (np.abs(df[thiscol]/df[thiscol + '_u']).between(1e-1, 1e5))] # remove negative errors and errors that are way too high compared to the measured value; something is wrong there
+                    df = df[(df[thiscol + '_u'] >= 0) & (df[thiscol] < 1e2)] # remove negative errors and large numbers given it is already in log
                     quant = unumpy.pow(10, unumpy.uarray(df[thiscol].values, df[thiscol + '_u'].values))
                     df.rename(columns={thiscol:'log_' + thiscol, thiscol+'_u':'log_' + thiscol + '_u'}, inplace=True) # column was already in log
                     df[thiscol], df[thiscol + '_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
@@ -155,6 +157,7 @@ def plot_MZscatter(args):
         else:
             line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_smoothed else 2)
             plot = ax.add_collection(line)
+        if args.overplot_points: ax.scatter(df[args.xcol], df[args.ycol], c=thistextcolor, lw=0.5, s=10)
 
         # ------- overplotting specific snapshot highlights------------
         if args.snaphighlight is not None:
