@@ -12,6 +12,7 @@
                  run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --nbins 100 --forpaper
                  run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --xmax 4 --do_all_sims --weight mass --write_file --use_gasre --noplot
                  run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --nbins 20 --weight mass --docomoving --use_density_cut --res_arc 0.1 --islog --fit_multiple --hide_multiplefit --no_vlines
+                 run compute_Zscatter.py --system ayan_local --halo 8508 --use_onlyDD --upto_kpc 10 --nbins 100 --forpaper --output DD0238 --keep --no_vlines --sga 2.1 --sgc 0.6 --sgs 0.5 --sgg -1
 """
 from header import *
 from util import *
@@ -160,14 +161,28 @@ def fit_distribution(Zarr, args, weights=None):
     x = x[:-1] + np.diff(x)/2
 
     model = SkewedGaussianModel(prefix='sg_')
-    if args.islog: params = model.make_params(sg_amplitude=2.0, sg_center=0.1+0.4, sg_sigma=0.5-0.2, sg_gamma=-2)
-    else: params = model.make_params(sg_amplitude=1.0, sg_center=1.0, sg_sigma=0.5, sg_gamma=1)
+    if args.islog:
+        params = model.make_params(sg_amplitude=2.0 if args.sga is None else args.sga, \
+                                   sg_center=0.1+0.4 if args.sgc is None else args.sgc, \
+                                   sg_sigma=0.5-0.2 if args.sgs is None else args.sgs, \
+                                   sg_gamma=-2 if args.sgg is None else args.sgg)
+    else:
+        params = model.make_params(sg_amplitude=1.0 if args.sga is None else args.sga, \
+                                   sg_center=1.0 if args.sgc is None else args.sgc, \
+                                   sg_sigma=0.5 if args.sgs is None else args.sgs, \
+                                   sg_gamma=1 if args.sgg is None else args.sgg)
 
     if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
         print('Fitting with one skewed gaussian + one regular guassian...')
         g_model = GaussianModel(prefix='g_')
-        if args.islog: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9+0.4, g_sigma=0.05))
-        else: params.update(g_model.make_params(g_amplitude=2, g_center=0.2, g_sigma=0.1))
+        if args.islog:
+            params.update(g_model.make_params(g_amplitude=2 if args.ga is None else args.ga, \
+                                              g_center=-0.9+0.4 if args.gc is None else args.gc, \
+                                              g_sigma=0.05 if args.gs is None else args.gs))
+        else:
+            params.update(g_model.make_params(g_amplitude=2 if args.ga is None else args.ga, \
+                                              g_center=0.2 if args.gc is None else args.gc, \
+                                              g_sigma=0.1 if args.gs is None else args.gs))
         model = model + g_model
     else: # fitting a single skewed gaussian with SkewedGaussianModel()
         print('Fitting with one skewed gaussian...')
@@ -293,7 +308,7 @@ if __name__ == '__main__':
             args.islog = True
             args.use_density_cut = True
             args.fit_multiple = True
-            args.no_vlines = True
+            #args.no_vlines = True ##
             #args.hide_multiplefit = True ##
             args.weight = 'mass'
         elif args.forproposal:
