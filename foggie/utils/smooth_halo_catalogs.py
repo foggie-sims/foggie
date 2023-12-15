@@ -168,7 +168,7 @@ if __name__ == "__main__":
 
     # Smooth halo center position
 
-    '''# Read in halo center catalog
+    # Read in halo center catalog
     halo_center = Table.read(halo_c_v_name, format='ascii')
     z_col = halo_center['col2'][1:]
     t_col = halo_center['col4'][1:]
@@ -276,7 +276,7 @@ if __name__ == "__main__":
         row = [snaps[i], redshifts[i], times[i], \
                smoothed_x_cen[i], smoothed_y_cen[i], smoothed_z_cen[i]]
         f_cen.add_row(row)
-    ascii.write(f_cen, catalog_dir + 'halo_cen_smoothed', format='fixed_width', overwrite=True)'''
+    ascii.write(f_cen, catalog_dir + 'halo_cen_smoothed', format='fixed_width', overwrite=True)
 
 
 
