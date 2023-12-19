@@ -159,6 +159,9 @@ def fit_distribution(Zarr, args, weights=None):
 
     y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights)
     x = x[:-1] + np.diff(x)/2
+    # getting rid of potential nan values
+    indices = np.array(np.logical_not(np.logical_or(np.isnan(x), np.isnan(y))))
+    x, y = x[indices], y[indices]
 
     model = SkewedGaussianModel(prefix='sg_')
     if args.islog:
