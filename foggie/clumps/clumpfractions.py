@@ -85,7 +85,7 @@ for halo in ['2392','2878','4123','5016','5036','8508']:
     radiusarray=np.array(regall['gas','radius_corrected'])
     densityarray=np.array(regall['gas','density'])
     massarray=np.array(regall['gas','cell_mass'])
-    volumearray = np.array(regall['gas', 'volume'].in_units('kpc**3'))
+    volumearray = np.array(regall['gas', 'cell_volume'].in_units('kpc**3'))
     himassarray=np.array(regall['gas','H_p0_mass'])
     metalmassarray=np.array(regall['gas','metal_mass'])
     
