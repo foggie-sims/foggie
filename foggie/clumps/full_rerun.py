@@ -258,7 +258,7 @@ for halo in ['2392','2878','4123','5016','5036','8508']:
                 data_source = ds.box(leftedge, rightedge)
 
             elif args.shape=='shell':
-                i = args.level
+                i = lv
                 if i == 1:
                     data_source = ds.sphere(ds.halo_center_kpc, (chosenwidth, 'kpc'))
                 else:
