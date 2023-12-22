@@ -79,7 +79,7 @@ for halo in ['2392','2878','4123','5016','5036','8508']:
     #trackname = '/Users/raugustin/foggie/foggie/halo_tracks/00'+halo+'/nref11n_selfshield_15/halo_track_200kpc_nref9'
     filename = foggie_dir+'halo_00'+halo+'/'+sim+'/'+snap+'/'+snap
     track_name = trackname
-    ds, region = fl(filename,trackname)
+    #ds, region = fl(filename,trackname)
     ds, region = fl(filename, trackname, particle_type_for_angmom=False, do_filter_particles=False, region='refine_box') # this *SHOULD* work better, I just hope I'm not losing anything important
     regall = ds.sphere(ds.halo_center_kpc, (80, 'kpc'))
     radiusarray=np.array(regall['gas','radius_corrected'])
