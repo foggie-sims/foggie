@@ -9,7 +9,37 @@ from foggie.utils.get_run_loc_etc import get_run_loc_etc
 import argparse
 import trident
 from datetime import datetime
+
+"""
+    halo='8508'
+    min 3.625314185909559e-31 g/cm**3
+    max 2.10952437540689e-22 g/cm**3
     
+    halo='2392'
+    min 1.2543553490817013e-30 g/cm**3
+    max 5.211153035675982e-22 g/cm**3
+    
+    halo='2878'
+    min 2.9556980036367175e-31 g/cm**3
+    max 5.453768672501874e-22 g/cm**3
+    
+    halo='4123'
+    min 6.628487544938248e-31 g/cm**3
+    max 1.0107420908932098e-21 g/cm**3
+    
+    halo='5016'
+    min 7.59760762075589e-32 g/cm**3
+    max 6.123170753736257e-22 g/cm**3
+    
+    halo='5036'
+    min 4.021896838122221e-31 g/cm**3
+    max 6.218920603802716e-22 g/cm**3
+    
+    
+    
+"""
+
+
 
 def parse_args():
     '''Parse command line arguments. Returns args object.
@@ -242,34 +272,6 @@ for halo in ['2392','2878','4123','5016','5036','8508']:
 
             #### change min to min of all 6 halos
 
-            """
-                halo='8508'
-                min 3.625314185909559e-31 g/cm**3
-                max 2.10952437540689e-22 g/cm**3
-                
-                halo='2392'
-                min 1.2543553490817013e-30 g/cm**3
-                max 5.211153035675982e-22 g/cm**3
-                
-                halo='2878'
-                min 2.9556980036367175e-31 g/cm**3
-                max 5.453768672501874e-22 g/cm**3
-                
-                halo='4123'
-                min 6.628487544938248e-31 g/cm**3
-                max 1.0107420908932098e-21 g/cm**3
-                
-                halo='5016'
-                min 7.59760762075589e-32 g/cm**3
-                max 6.123170753736257e-22 g/cm**3
-                
-                halo='5036'
-                min 4.021896838122221e-31 g/cm**3
-                max 6.218920603802716e-22 g/cm**3
-                
-                
-                
-                """
             master_clump = Clump(data_source, ("gas", "density"))
             master_clump.add_validator("min_cells", args.mincells)
             #c_min = data_source["gas", "density"].min()
