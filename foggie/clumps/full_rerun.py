@@ -256,22 +256,19 @@ for halo in ['2392','2878','4123','5016','5036','8508']:
             if args.shape=='box':
                 
                 data_source = ds.box(leftedge, rightedge)
+                print('we have a boxy data source')
 
             elif args.shape=='shell':
                 i = lv
                 if i == 1:
                     data_source = ds.sphere(ds.halo_center_kpc, (chosenwidth, 'kpc'))
+                    print('we have a spherical data source')
+
                 else:
                     data_source = ds.sphere(ds.halo_center_kpc, (i*chosenwidth, 'kpc')) - ds.sphere(ds.halo_center_kpc, ((i-1)*chosenwidth, 'kpc'))
+                    print('we have a shelly data source')
 
-            #yt.ProjectionPlot(ds, 2, ("gas", "density"), center=chosencenter, width=(chosenwidth,'kpc'),data_source=data_source, weight_field=("gas", "density")).show()
-
-            #yt.ProjectionPlot(ds, 2, ("gas", "temperature"), center=chosencenter, width=(chosenwidth,'kpc'),data_source=data_source, weight_field=("gas", "density")).show()
-
-            #yt.ProjectionPlot(ds, 2, ("gas", "metallicity"), center=chosencenter, width=(chosenwidth,'kpc'),data_source=data_source, weight_field=("gas", "density")).show()
-
-            #### change min to min of all 6 halos
-
+            print(data_source)
             master_clump = Clump(data_source, ("gas", "density"))
             master_clump.add_validator("min_cells", args.mincells)
             #c_min = data_source["gas", "density"].min()
