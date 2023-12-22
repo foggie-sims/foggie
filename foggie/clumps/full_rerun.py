@@ -572,17 +572,17 @@ for halo in ['2392','2878','4123','5016','5036','8508']:
               
               leaf_clumps = master_clump.leaves
               for clump in leaf_clumps:
-              clumpfn=str(clump.clump_id)+'_single_clump'
-              #clump.save_as_dataset(filename=clumpfn,fields=["density", "particle_mass",'particle_position'])
-              clump.data.save_as_dataset(filename=indclumpdir+'/'+clumpfn,fields=fields_of_interest)
-              now = datetime.now()
-              print(now)
-              print("~~~~~~~saved individual files")
-              
-              
-              filename = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_cut_region'
-              os.system("mv " + filename + ".h5 " + filename + "_old.h5")
-              master_clump.data.save_as_dataset(filename=filename,fields=fields_of_interest)
-              now = datetime.now()
-              print(now)
-              print("~~~~~~~saved clumps cut region")
+                  clumpfn=str(clump.clump_id)+'_single_clump'
+                  #clump.save_as_dataset(filename=clumpfn,fields=["density", "particle_mass",'particle_position'])
+                  clump.data.save_as_dataset(filename=indclumpdir+'/'+clumpfn,fields=fields_of_interest)
+                  now = datetime.now()
+                  print(now)
+                  print("~~~~~~~saved individual files")
+                  
+                  
+                  filename = 'halo_00'+halo+'_'+sim+'_'+snap+'_'+snap+'_clumps_cut_region'
+                  os.system("mv " + filename + ".h5 " + filename + "_old.h5")
+                  master_clump.data.save_as_dataset(filename=filename,fields=fields_of_interest)
+                  now = datetime.now()
+                  print(now)
+                  print("~~~~~~~saved clumps cut region")
