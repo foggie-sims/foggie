@@ -16,6 +16,7 @@ import yt
 import trident
 from scipy.ndimage import gaussian_filter
 import pandas as pd
+import os
 
 
 
