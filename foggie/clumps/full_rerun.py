@@ -253,20 +253,14 @@ for halo in ['2392','2878','4123','5016','5036','8508']:
             leftedge = chosencenter - ds.quan(chosenwidth/2., 'kpc').in_units('code_length')
             rightedge = chosencenter + ds.quan(chosenwidth/2., 'kpc').in_units('code_length')
 
-            if args.shape=='box':
-                
-                data_source = ds.box(leftedge, rightedge)
-                print('we have a boxy data source')
+            i = lv
+            if i == 1:
+                data_source = ds.sphere(ds.halo_center_kpc, (chosenwidth, 'kpc'))
+                print('we have a spherical data source')
 
-            elif args.shape=='shell':
-                i = lv
-                if i == 1:
-                    data_source = ds.sphere(ds.halo_center_kpc, (chosenwidth, 'kpc'))
-                    print('we have a spherical data source')
-
-                else:
-                    data_source = ds.sphere(ds.halo_center_kpc, (i*chosenwidth, 'kpc')) - ds.sphere(ds.halo_center_kpc, ((i-1)*chosenwidth, 'kpc'))
-                    print('we have a shelly data source')
+            else:
+                data_source = ds.sphere(ds.halo_center_kpc, (i*chosenwidth, 'kpc')) - ds.sphere(ds.halo_center_kpc, ((i-1)*chosenwidth, 'kpc'))
+                print('we have a shelly data source')
 
             print(data_source)
             master_clump = Clump(data_source, ("gas", "density"))
