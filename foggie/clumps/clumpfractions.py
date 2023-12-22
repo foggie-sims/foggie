@@ -269,11 +269,6 @@ for lv in [1,2,3,4]:
             if index == 1: ax.legend(fontsize=10)
             if index == 0:  ax.set_title(r'shell from  %s to %s kpc' %(i,a),fontsize=10)
 
-
-#plt.legend(loc='center left', bbox_to_anchor=(1, 0.5),fontsize=10)
-"""
-    """    #plt.title(r'shell from  %s to %s kpc' %(i,a),fontsize=10)
-
 plt.tight_layout()
-    plt.savefig(output_dir+'densityseparatedfractions_'+str(lv)+'.png')
-    plt.show()
+plt.savefig(output_dir+'densityseparatedfractions_'+str(lv)+'.png')
+plt.show()
