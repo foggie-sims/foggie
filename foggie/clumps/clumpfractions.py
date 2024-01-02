@@ -37,7 +37,7 @@ def parse_args():
                         
     parser.add_argument('--output', metavar='output', type=str, action='store', \
                                             help='Which output? Default is RD0027 = redshift 2')
-    parser.set_defaults(output='RD0020')
+    parser.set_defaults(output='RD0027')
                         
     parser.add_argument('--system', metavar='system', type=str, action='store', \
                                             help='Which system are you on? Default is ramona_pleiades')
@@ -52,7 +52,7 @@ def parse_args():
 
 args = parse_args()
 foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-output_dir = output_dir+"fractionplots/"
+output_dir = "/nobackupp13/raugust4/WORK/Outputs/fractionplots/"
 if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
 os.chdir(output_dir)
 #halo = args.halo
@@ -273,4 +273,4 @@ for lv in [1,2,3,4]:
 
 plt.tight_layout()
 plt.savefig(output_dir+'densityseparatedfractions_'+str(lv)+'.png')
-plt.show()
+#plt.show()
