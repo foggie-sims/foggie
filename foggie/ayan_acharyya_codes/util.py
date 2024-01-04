@@ -1489,6 +1489,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--ga', metavar='ga', type=float, action='store', default=None, help='initial guess for the gaussian amplitude; default is None')
     parser.add_argument('--gc', metavar='gc', type=float, action='store', default=None, help='initial guess for the gaussian center; default is None')
     parser.add_argument('--gs', metavar='gs', type=float, action='store', default=None, help='initial guess for the gaussian sigma; default is None')
+    parser.add_argument('--gg', metavar='gg', type=float, action='store', default=None, help='initial guess for the gaussian gamma; default is None')
 
     # ------- args added for plot_Zevolution.py ------------------------------
     parser.add_argument('--forposter', dest='forposter', action='store_true', default=False, help='make plot with certain set panels, specifically for the poster?, default is no')
