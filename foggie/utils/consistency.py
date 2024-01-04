@@ -365,6 +365,10 @@ e_color_map = sns.blend_palette(("white", "#FFA07A", "#FF6347", "#9370DB", "#663
 e_min = 3.1e18 # in unit of cm-2, equal to 1 pc/cm3 for dispersion measure unit
 e_max = 3.1e20 # in unit of cm-2, equal to 100 pc/cm3
 
+### clumps color map
+density_color_map_clumps = sns.blend_palette(
+                                      ("black", "cyan", "#4575b4", "#4daf4a", "#ffe34d", "darkorange"), as_cmap=True)
+
 #####################################################################
 
 

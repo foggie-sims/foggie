@@ -20,7 +20,6 @@ conda install pip
   cd yt_astro_analysis
   pip install -e .
 
- - conda install -c conda-forge cmyt
  - conda install datashader
  - conda install seaborn
  - conda install bokeh
