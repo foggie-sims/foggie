@@ -97,7 +97,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     if not args.no_vlines:
         if fit is not None and not (args.forproposal and args.output != 'RD0042'):
             ax.axvline(fit.best_values['sg_center'], lw=1, ls='dotted', color=fit_color)
-            if args.fit_multiple: ax.axvline(fit.best_values['g_center'], lw=1, ls='dashed', color=fit_color)
+            if 'g_amplitude' in fit.best_values: ax.axvline(fit.best_values['g_center'], lw=1, ls='dashed', color=fit_color)
 
         if percentiles is not None and not args.fortalk:
             for thisper in np.atleast_1d(percentiles): ax.axvline(thisper, lw=1, ls='solid', color='crimson')
@@ -222,6 +222,7 @@ if __name__ == '__main__':
         dummy_args.use_density_cut = True
         dummy_args.fit_multiple = True
         dummy_args.weight = 'mass'
+        dummy_args.no_vlines= True
 
     # -------set up dataframe and filename to store/write gradients in to--------
     cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zgini', 'Zmean', 'Zmean_u', 'Zsigma', 'Zsigma_u', 'Zskew', 'Zskew_u', 'Ztotal', 'Zgauss_amp', 'Zgauss_amp_u', 'Zgauss_mean', 'Zgauss_mean_u', 'Zgauss_sigma', 'Zgauss_sigma_u', 'Zgauss_gamma', 'Zgauss_gamma_u']
@@ -321,7 +322,7 @@ if __name__ == '__main__':
             args.islog = True
             args.use_density_cut = True
             args.fit_multiple = True
-            #args.no_vlines = True ##
+            args.no_vlines = True
             #args.hide_multiplefit = True ##
             args.weight = 'mass'
         elif args.forproposal:
