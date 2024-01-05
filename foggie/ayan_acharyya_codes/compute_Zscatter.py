@@ -87,8 +87,8 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     if fit is not None and not (args.forproposal and args.output != 'RD0042'):
         fit_color = 'darkorange' if args.fortalk else 'k'
         xvals = p[1][:-1] + np.diff(p[1])
-        ax.plot(xvals, fit.best_fit, c=fit_color, lw=1, label=None if args.forproposal or args.hide_multiplefit else 'Best fit')
-        ax.plot(xvals, fit.init_fit, c='b', lw=1, label='Initial guess') #
+        ax.plot(xvals, fit.eval(x=np.array(xvals)), c=fit_color, lw=1, label=None if args.forproposal or args.hide_multiplefit else 'Best fit')
+        #ax.plot(xvals, fit.init_fit, c='b', lw=1, label='Initial guess') # plot this only for debugging purposes, otherwise keep commented out
         if not args.hide_multiplefit:
             ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=fit_color, lw=2, ls='dotted', label='Broad high-Z component')
             if 'g_amplitude' in fit.best_values: ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma'], gamma=fit.best_values['g_gamma']), c=fit_color, lw=2, ls='--', label='Narrow low-Z component')
@@ -159,45 +159,38 @@ def fit_distribution(Zarr, args, weights=None):
 
     y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights)
     x = x[:-1] + np.diff(x)/2
-    # getting rid of potential nan values
-    indices = np.array(np.logical_not(np.logical_or(np.isnan(x), np.isnan(y))))
-    x, y = x[indices], y[indices]
 
     myprint('First, fitting with one skewed gaussian...', args)
     model = SkewedGaussianModel(prefix='sg_')
     if args.islog:
         params = model.make_params(\
-                                   sg_amplitude=dict(value=1.0 if args.sga is None else args.sga, min=0, max=np.inf), \
+                                   sg_amplitude=dict(value=1.0 if args.sga is None else args.sga, min=0, max=10), \
                                    sg_center = dict(value=0.5 if args.sgc is None else args.sgc, min=-0.2, max=1), \
                                    sg_sigma = dict(value=0.3 if args.sgs is None else args.sgs, min=0, max=1), \
-                                   sg_gamma=dict(value=-2 if args.sgg is None else args.sgg, min=-np.inf, max=np.inf), \
+                                   sg_gamma=dict(value=-2 if args.sgg is None else args.sgg, min=-10, max=10), \
                                    )
     else:
-        params = model.make_params(sg_amplitude=dict(value=1.0 if args.sga is None else args.sga, min=0, max=np.inf), \
+        params = model.make_params(sg_amplitude=dict(value=1.0 if args.sga is None else args.sga, min=0, max=10), \
                                    sg_center=dict(value=1.0 if args.sgc is None else args.sgc, min=0, max=3), \
                                    sg_sigma=dict(value=0.5 if args.sgs is None else args.sgs, min=0, max=3), \
-                                   sg_gamma=dict(value=1 if args.sgg is None else args.sgg, min=-np.inf, max=np.inf))
+                                   sg_gamma=dict(value=1 if args.sgg is None else args.sgg, min=-10, max=10))
 
-    result_1comp = model.fit(y, params, x=x, nan_policy='omit') # first fit just with one component
-    print('Deb181:') ##
-    params.pretty_print() ##
+    result_1comp = model.fit(y, params, x=x, nan_policy='omit', method=args.fit_method) # first fit just with one component
 
     myprint('Then, fitting with two skewed gaussians...', args)
     g_model = SkewedGaussianModel(prefix='g_')
     if args.islog:
-        params.update(g_model.make_params(g_amplitude=dict(value=1 if args.ga is None else args.ga, min=0, max=np.inf), \
+        params.update(g_model.make_params(g_amplitude=dict(value=1 if args.ga is None else args.ga, min=0, max=10), \
                                           g_center=dict(value=-0.5 if args.gc is None else args.gc, min=-1, max=0), \
                                           g_sigma=dict(value=0.05 if args.gs is None else args.gs, min=0, max=0.5), \
                                           g_gamma=dict(value=0 if args.gg is None else args.gg, min=-5, max=5)))
     else:
-        params.update(g_model.make_params(g_amplitude=dict(value=2 if args.ga is None else args.ga, min=0, max=np.inf), \
+        params.update(g_model.make_params(g_amplitude=dict(value=2 if args.ga is None else args.ga, min=0, max=10), \
                                           g_center=dict(value=0.2 if args.gc is None else args.gc, min=0, max=2), \
                                           g_sigma=dict(value=0.1 if args.gs is None else args.gs, min=0, max=1), \
                                           g_gamma=dict(value=0 if args.gg is None else args.gg, min=-5, max=5)))
     model = model + g_model
-    result_2comp = model.fit(y, params, x=x, nan_policy='omit') # also fit with two components
-    print('Deb201:') ##
-    params.pretty_print() ##
+    result_2comp = model.fit(y, params, x=x, nan_policy='omit', method=args.fit_method) # also fit with two components
 
     myprint('Red. chisq. with 1 component = %.3f, and with 2 component = %.3f' %(result_1comp.redchi, result_2comp.redchi), args)
 
