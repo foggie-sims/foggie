@@ -1,3 +1,4 @@
+
 """ a module for datashader renders of phase diagrams"""
 import datashader as dshader
 from datashader.utils import export_image
@@ -201,8 +202,6 @@ def sightline_plot(wildcards, field1, field2, colorcode, ranges, outfile):
         varibles in our FOGGIE spectra. JT August 2019"""
 
     all_sightlines = prep_dataframe.rays_to_dataframe(wildcards[0], wildcards[1], wildcards[2])
-    all_sightlines = prep_dataframe.check_dataframe(all_sightlines, field1, field2, colorcode)
-    all_sightlines = prep_dataframe.check_dataframe(all_sightlines, 'metallicity', 'temperature', colorcode)
 
     h1_clouds_only = all_sightlines[all_sightlines["h1_cloud_flag"] > 0]
     o6_clouds_only = all_sightlines[all_sightlines["o6_cloud_flag"] > 0]

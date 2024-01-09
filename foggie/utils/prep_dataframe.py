@@ -51,47 +51,6 @@ def rays_to_dataframe(halo, run, wildcard):
 
     return all_sightlines
 
-def check_dataframe(frame, field1, field2, count_cat): 
-    """ This function checks the input dataframe for properties that 
-    it will need to properly shade the fields in the frame. For instance, 
-    it checks that certain fields are log fields and have the proper units.
-    It only checks the two fields that are going to be shaded so it 
-    needs to be run prior to render_image each time.""" 
-
-    field_names = field1+'_'+field2
-
-    if ('pressure' in field_names and 'pressure' in frame.keys()): 
-        if (frame['pressure'].max() > 0.):   # if pressure is NOT in log units
-            frame['pressure'] = np.log10(frame['pressure'])
-
-    if ('temperature' in field_names and 'temperature' in frame.keys()): 
-        if (frame['temperature'].max() > 10.):   # if pressure is NOT in log units
-            frame['temperature'] = np.log10(frame['temperature'])
-
-    if ('cell_mass' in field_names and 'cell_mass' in frame.keys()): 
-        if (frame['cell_mass'].max() > 1e33):   # if cell_mass is NOT in log units
-            frame['cell_mass'] = np.log10(frame['cell_mass'] / 1.989e33)
-
-    if ('number_density' in field1):
-        frame[field1] = np.log10(frame[field1])
-
-    if ('number_density' in field2):
-        frame[field2] = np.log10(frame[field2])
-
-    if ('cooling_time' in field_names and 'cooling_time' in frame.keys()): 
-        if (frame['cooling_time'].max() > 1e12):   # if cooling_time is NOT in log units
-            frame['cooling_time'] = np.log10(frame['cooling_time'] / 3.156e7)
-
-    if ('phase' in count_cat): 
-        frame['phase'] = categorize_by_temp(frame['temperature'])
-        frame.phase = frame.phase.astype('category')
-
-    if ('metal' in count_cat): 
-        frame['metal'] = categorize_by_temp(frame['metallicity'])
-        frame.metal = frame.metal.astype('category')
-
-    return frame
-
 def prep_dataframe(cut_region, field_list, categories):
     """ input is a cut_region, like "cgm", or "cool_outflows" 
         field_list is the fields specified that will be added 
@@ -143,17 +102,16 @@ def prep_dataframe(cut_region, field_list, categories):
         data_frame.phase = data_frame.phase.astype('category')
         print('Added phase category to the dataframe')
 
+    if (('gas','cell_mass') in field_list):
+        data_frame['cell_mass'] = np.log10(cut_region[('gas','cell_mass')].in_units('Msun')) 
+
+    if ( ('gas','entropy') in field_list): data_frame["entropy"] = np.log10(cut_region["entropy"].in_units('cm**2*erg'))              
+
     return data_frame
 
-    """ 
-    if ('cell_mass' in field_names):
-        data_frame['cell_mass'] = np.log10(all_data['cell_volume'].in_units('kpc**3') * \
-                                    all_data['density'].in_units('Msun / kpc**3') )
-
-    if ('cell_size' in field_names):
+    """
+    if ('cell_size' in field_list):
         data_frame['cell_size'] = (all_data['cell_volume'].in_units('pc**3') )**(1./3.)
-
-    if ("entropy" in field_names): data_frame["entropy"] = np.log10(all_data["entropy"].in_units('cm**2*erg'))              
 
     if ('metal' in category):
         if ('metallicity' not in data_frame.columns):
@@ -220,6 +178,7 @@ def prep_dataframe_old(dataset, all_data, field_list, category, \
             z = z - np.mean(z)
             data_frame['position_z'] = z
 
+    print('here are the field_names', field_names) 
     if ('cell_mass' in field_names):
         data_frame['cell_mass'] = np.log10(all_data['cell_volume'].in_units('kpc**3') * \
                                     all_data['density'].in_units('Msun / kpc**3') )
