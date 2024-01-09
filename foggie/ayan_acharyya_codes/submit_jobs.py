@@ -45,6 +45,7 @@ def parse_args():
     parser.add_argument('--nnodes', metavar='nnodes', type=int, action='store', default=1)
     parser.add_argument('--ncores', metavar='ncores', type=int, action='store', default=None)
     parser.add_argument('--nhours', metavar='nhours', type=int, action='store', default=None)
+    parser.add_argument('--ncpus', metavar='ncpus', type=int, action='store', default=None)
     parser.add_argument('--nmins', metavar='nmins', type=int, action='store', default=0)
     parser.add_argument('--proc', metavar='proc', type=str, action='store', default='has')
     parser.add_argument('--memory', metavar='memory', type=str, action='store', default=None)
@@ -174,6 +175,7 @@ if __name__ == '__main__':
 
     # ----------determining what resource request goes into the job script, based on queues, procs, etc.---------
     nhours = args.nhours if args.nhours is not None else '01' if args.dryrun or args.queue == 'devel' else '%02d' % (max_hours_dict[args.queue])
+    ncpus = nnodes * ncores if args.ncpus is None else args.ncpus
 
     resources = 'select=' + str(nnodes) + ':ncpus=' + str(ncores)
 
@@ -201,7 +203,7 @@ if __name__ == '__main__':
 
         replacements = {'PROJ_CODE': args.proj, 'RUN_NAME': jobname, 'NHOURS': nhours, 'NMINS': args.nmins, 'CALLFILE': callfile, 'WORKDIR': workdir, \
                         'JOBSCRIPT_PATH': jobscript_path, 'DRYRUNFLAG': dryrunflag, 'QNAME': qname, 'RESOURCES': resources, 'RUNSIMFLAG': runsimflag,\
-                        'MERGEHIIFLAG': mergeHIIflag, 'SYSTEMFLAG': systemflag, 'NCPUS': str(nnodes * ncores),\
+                        'MERGEHIIFLAG': mergeHIIflag, 'SYSTEMFLAG': systemflag, 'NCPUS': str(ncpus),\
                         'HALOFLAG': haloflag, 'GALRAD_FLAG':galrad_flag, 'XCOL_FLAG': xcol_flag, 'YCOL_FLAG': ycol_flag, \
                         'COLORCOL_FLAG': colorcol_flag, 'MAKEMOVIE_FLAG': makemovie_flag, 'DELAY_FLAG': delay_flag, 'FULLBOX_FLAG': fullbox_flag, \
                         'OVERPLOT_STARS_FLAG': overplot_stars_flag, 'OVERPLOT_SOURCE_SINK_FLAG': overplot_source_sink_flag, 'CLOBBER_PLOT_FLAG': clobber_plot_flag, 'NSECONDS':str(int(nhours) * 3600), \

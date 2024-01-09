@@ -12,6 +12,7 @@
                  run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --nbins 100 --forpaper
                  run compute_Zscatter.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.1 --nbins 100 --xmax 4 --do_all_sims --weight mass --write_file --use_gasre --noplot
                  run compute_Zscatter.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --nbins 20 --weight mass --docomoving --use_density_cut --res_arc 0.1 --islog --fit_multiple --hide_multiplefit --no_vlines
+                 run compute_Zscatter.py --system ayan_local --halo 8508 --use_onlyDD --upto_kpc 10 --nbins 100 --forpaper --output DD0238 --keep --no_vlines --sga 2.1 --sgc 0.6 --sgs 0.5 --sgg -1
 """
 from header import *
 from util import *
@@ -86,17 +87,17 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
     if fit is not None and not (args.forproposal and args.output != 'RD0042'):
         fit_color = 'darkorange' if args.fortalk else 'k'
         xvals = p[1][:-1] + np.diff(p[1])
-        ax.plot(xvals, fit.best_fit, c=fit_color, lw=1, label=None if args.forproposal or args.hide_multiplefit else 'Best fit')
-        ax.plot(xvals, fit.init_fit, c='b', lw=1, label='Initial guess') #
+        ax.plot(xvals, fit.eval(x=np.array(xvals)), c=fit_color, lw=1, label=None if args.forproposal or args.hide_multiplefit else 'Best fit')
+        #ax.plot(xvals, fit.init_fit, c='b', lw=1, label='Initial guess') # plot this only for debugging purposes, otherwise keep commented out
         if not args.hide_multiplefit:
-            ax.plot(xvals, GaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma']), c=fit_color, lw=2, ls='--', label='Regular Gaussian')
-            ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=fit_color, lw=2, ls='dotted', label='Skewed Gaussian')
+            ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=fit_color, lw=2, ls='dotted', label='Broad high-Z component')
+            if 'g_amplitude' in fit.best_values: ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma'], gamma=fit.best_values['g_gamma']), c=fit_color, lw=2, ls='--', label='Narrow low-Z component')
 
     # ----------adding vertical lines-------------
     if not args.no_vlines:
         if fit is not None and not (args.forproposal and args.output != 'RD0042'):
             ax.axvline(fit.best_values['sg_center'], lw=1, ls='dotted', color=fit_color)
-            if args.fit_multiple: ax.axvline(fit.best_values['g_center'], lw=1, ls='dashed', color=fit_color)
+            if 'g_amplitude' in fit.best_values: ax.axvline(fit.best_values['g_center'], lw=1, ls='dashed', color=fit_color)
 
         if percentiles is not None and not args.fortalk:
             for thisper in np.atleast_1d(percentiles): ax.axvline(thisper, lw=1, ls='solid', color='crimson')
@@ -159,23 +160,50 @@ def fit_distribution(Zarr, args, weights=None):
     y, x = np.histogram(Zarr, bins=args.nbins, density=True, weights=weights)
     x = x[:-1] + np.diff(x)/2
 
+    myprint('First, fitting with one skewed gaussian...', args)
     model = SkewedGaussianModel(prefix='sg_')
-    if args.islog: params = model.make_params(sg_amplitude=2.0, sg_center=0.1+0.4, sg_sigma=0.5-0.2, sg_gamma=-2)
-    else: params = model.make_params(sg_amplitude=1.0, sg_center=1.0, sg_sigma=0.5, sg_gamma=1)
+    if args.islog:
+        params = model.make_params(\
+                                   sg_amplitude=dict(value=1.0 if args.sga is None else args.sga, min=0, max=10), \
+                                   sg_center = dict(value=0.5 if args.sgc is None else args.sgc, min=-0.2, max=1), \
+                                   sg_sigma = dict(value=0.3 if args.sgs is None else args.sgs, min=0, max=1), \
+                                   sg_gamma=dict(value=-2 if args.sgg is None else args.sgg, min=-10, max=10), \
+                                   )
+    else:
+        params = model.make_params(sg_amplitude=dict(value=1.0 if args.sga is None else args.sga, min=0, max=10), \
+                                   sg_center=dict(value=1.0 if args.sgc is None else args.sgc, min=0, max=3), \
+                                   sg_sigma=dict(value=0.5 if args.sgs is None else args.sgs, min=0, max=3), \
+                                   sg_gamma=dict(value=1 if args.sgg is None else args.sgg, min=-10, max=10))
 
-    if args.fit_multiple: # fitting a skewed gaussian + another regular gaussian using curve_fit()
-        print('Fitting with one skewed gaussian + one regular guassian...')
-        g_model = GaussianModel(prefix='g_')
-        if args.islog: params.update(g_model.make_params(g_amplitude=2, g_center=-0.9+0.4, g_sigma=0.05))
-        else: params.update(g_model.make_params(g_amplitude=2, g_center=0.2, g_sigma=0.1))
-        model = model + g_model
-    else: # fitting a single skewed gaussian with SkewedGaussianModel()
-        print('Fitting with one skewed gaussian...')
+    result_1comp = model.fit(y, params, x=x, nan_policy='omit', method=args.fit_method) # first fit just with one component
 
-    result = model.fit(y, params, x=x)
-    print('Fitted parameters:\n', result.best_values)
+    myprint('Then, fitting with two skewed gaussians...', args)
+    g_model = SkewedGaussianModel(prefix='g_')
+    if args.islog:
+        params.update(g_model.make_params(g_amplitude=dict(value=1 if args.ga is None else args.ga, min=0, max=10), \
+                                          g_center=dict(value=-0.5 if args.gc is None else args.gc, min=-1, max=0), \
+                                          g_sigma=dict(value=0.05 if args.gs is None else args.gs, min=0, max=0.5), \
+                                          g_gamma=dict(value=0 if args.gg is None else args.gg, min=-5, max=5)))
+    else:
+        params.update(g_model.make_params(g_amplitude=dict(value=2 if args.ga is None else args.ga, min=0, max=10), \
+                                          g_center=dict(value=0.2 if args.gc is None else args.gc, min=0, max=2), \
+                                          g_sigma=dict(value=0.1 if args.gs is None else args.gs, min=0, max=1), \
+                                          g_gamma=dict(value=0 if args.gg is None else args.gg, min=-5, max=5)))
+    model = model + g_model
+    result_2comp = model.fit(y, params, x=x, nan_policy='omit', method=args.fit_method) # also fit with two components
 
-    return result
+    myprint('Red. chisq. with 1 component = %.3f, and with 2 component = %.3f' %(result_1comp.redchi, result_2comp.redchi), args)
+
+    if result_2comp.redchi < result_1comp.redchi:
+        myprint('Therefore choosing 2 component model as the better fit for %s' %args.output, args)
+        final_result, other_result = result_2comp, result_1comp # if the two-component model is a better fit then go forward with that
+    else:
+        myprint('Therefore choosing 1 component model as the better fit for %s' %args.output, args)
+        final_result, other_result = result_1comp, result_2comp
+
+    print('Fitted parameters:\n', final_result.best_values)
+
+    return final_result, other_result
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -194,9 +222,10 @@ if __name__ == '__main__':
         dummy_args.use_density_cut = True
         dummy_args.fit_multiple = True
         dummy_args.weight = 'mass'
+        dummy_args.no_vlines= True
 
     # -------set up dataframe and filename to store/write gradients in to--------
-    cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zgini', 'Zmean', 'Zmean_u', 'Zsigma', 'Zsigma_u', 'Zskew', 'Zskew_u', 'Ztotal', 'Zgauss_amp', 'Zgauss_amp_u', 'Zgauss_mean', 'Zgauss_mean_u', 'Zgauss_sigma', 'Zgauss_sigma_u']
+    cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zgini', 'Zmean', 'Zmean_u', 'Zsigma', 'Zsigma_u', 'Zskew', 'Zskew_u', 'Ztotal', 'Zgauss_amp', 'Zgauss_amp_u', 'Zgauss_mean', 'Zgauss_mean_u', 'Zgauss_sigma', 'Zgauss_sigma_u', 'Zgauss_gamma', 'Zgauss_gamma_u']
 
     df_grad = pd.DataFrame(columns=cols_in_df)
     weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
@@ -369,7 +398,7 @@ if __name__ == '__main__':
             Zres = np.ma.compressed(np.ma.array(Zres, mask=np.ma.masked_where(Zres, Zres < args.Zcut)))
             args.fit_multiple = False
 
-        result = fit_distribution(Zres, args, weights=wres)
+        result, other_result = fit_distribution(Zres, args, weights=wres)
 
         # -------computing quantities to save in file-------------------------
         print('Computing stats...')
@@ -381,10 +410,16 @@ if __name__ == '__main__':
                     percentiles[0], 0, percentiles[1], 0, percentiles[2], 0, Zgini, \
                     result.best_values['sg_center'], result.params['sg_center'].stderr, \
                     result.best_values['sg_sigma'], result.params['sg_sigma'].stderr, \
-                    result.best_values['sg_gamma'], result.params['sg_gamma'].stderr, Ztotal, \
-                    result.best_values['g_amplitude'], result.params['g_amplitude'].stderr, \
-                    result.best_values['g_center'], result.params['g_center'].stderr, \
-                    result.best_values['g_sigma'], result.params['g_sigma'].stderr]
+                    result.best_values['sg_gamma'], result.params['sg_gamma'].stderr, Ztotal]
+
+        if 'g_amplitude' in result.best_values: # if this was a 2-component fit
+            thisrow += [result.best_values['g_amplitude'], result.params['g_amplitude'].stderr, \
+                        result.best_values['g_center'], result.params['g_center'].stderr, \
+                        result.best_values['g_sigma'], result.params['g_sigma'].stderr, \
+                        result.best_values['g_gamma'], result.params['g_gamma'].stderr]
+        else:
+            thisrow += (np.ones(8) * np.nan).tolist()
+
         if not args.noplot: fig = plot_distribution(Zres, args, weights=wres, fit=result, percentiles=percentiles) # plotting the Z profile, with fit
 
         this_df_grad.loc[len(this_df_grad)] = thisrow
