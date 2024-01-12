@@ -3,27 +3,111 @@ import trident
 import numpy as np 
 import foggie.utils.foggie_load as foggie_load
 import foggie.utils.get_region as gr 
-from foggie.utils.consistency import proj_min_dict, proj_max_dict, \
-    colormap_dict, background_color_dict, o6_min, o6_max, o6_color_map, \
-    h1_color_map, h1_proj_max, cgm_outflow_filter, cool_cgm_filter, \
-    warm_cgm_filter, cgm_inflow_filter, \
-    cool_outflow_filter, cool_inflow_filter, warm_inflow_filter, \
-    warm_outflow_filter
+from foggie.utils.consistency import * 
 from astropy.table import Table
 from astropy.cosmology import WMAP9 as cosmo
-import argparse 
+import os, argparse 
 from astropy import units as u
 import foggie.render.shade_maps as sm
 from foggie.utils import prep_dataframe
 
-TRACKFILE = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/halo_tracks/005036/nref11n_selfshield_15/halo_track_200kpc_nref10'
+TRACKFILE = os.getenv('FOGGIE_REPO') + 'halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref10'
+HALO_C_V_FILE = os.getenv('FOGGIE_REPO') + 'halo_infos/008508/nref11c_nref9f/halo_cen_smoothed' 
+
+def ludicrous_views(ds, ds_disk): 
+
+    for ax in ['x', 'y', 'x']: 
+        p = yt.ProjectionPlot(ds, ax, 'density', center = ds.halo_center_code, weight_field='density', width=(60, 'kpc'))
+        p.set_cmap('density', density_color_map)
+        p.set_zlim('density', 1e-30, 1e-22)
+        p.save()
+
+        p = yt.ProjectionPlot(ds, ax, 'temperature', center = ds.halo_center_code, weight_field='density', width=(60, 'kpc'))
+        p.set_zlim('temperature', 3e3, 1e6)
+        p.set_cmap('temperature', 'magma')
+        p.save()
+
+        p = yt.ProjectionPlot(ds, ax, 'metallicity', center = ds.halo_center_code, weight_field='density', width=(60, 'kpc'))
+        p.set_cmap('metallicity', metal_color_map)
+        p.set_zlim('metallicity', 0.003, 3)
+        p.save()
+
+        p = yt.ProjectionPlot(ds, ax, 'H_p0_number_density', center = ds.halo_center_code, width=(60, 'kpc'))
+        p.set_cmap('H_p0_number_density', h1_color_map)
+        p.set_zlim('H_p0_number_density', h1_proj_min, h1_proj_max) 
+        p.save()
+
+        p = yt.ProjectionPlot(ds, ax, 'O_p5_number_density', center = ds.halo_center_code, width=(60, 'kpc'))
+        p.set_cmap('O_p5_number_density', o6_color_map)
+        p.set_zlim('O_p5_number_density', o6_min, o6_max) 
+        p.save()
+
+        p = yt.ProjectionPlot(ds, ax, 'Mg_p1_number_density', center = ds.halo_center_code, width=(60, 'kpc'))
+        p.set_cmap('Mg_p1_number_density', mg2_color_map) 
+        p.set_zlim('Mg_p1_number_density', mg2_min, mg2_max) 
+        p.save()
+
+    snapname = ds.filename[-6:]
+
+    # Edge-on "z" Projection
+    p = yt.ProjectionPlot(ds_disk, ds_disk.x_unit_disk, 'density', north_vector=ds_disk.z_unit_disk, center = ds_disk.halo_center_code, weight_field='density', width=(60, 'kpc'))
+    p.set_cmap('density', density_color_map)
+    p.set_zlim('density', dens_phase_min, dens_phase_max)
+    p.save(snapname+'_Edge_x')
+
+    p = yt.ProjectionPlot(ds_disk, ds_disk.x_unit_disk, 'temperature', north_vector=ds_disk.z_unit_disk, center = ds_disk.halo_center_code, weight_field='density', width=(60, 'kpc'))
+    p.set_cmap('temperature', temperature_color_map)
+    p.set_zlim('temperature', temperature_min, temperature_max)
+    p.save(snapname+'_Edge_x')
+
+    p = yt.ProjectionPlot(ds_disk, ds_disk.x_unit_disk, 'metallicity', north_vector=ds_disk.z_unit_disk, center = ds_disk.halo_center_code, weight_field='density', width=(60, 'kpc'))
+    p.set_cmap('metallicity', metal_color_map)
+    p.set_zlim('metallicity', metal_min, metal_max) 
+    p.save(snapname+'_Edge_x')
+
+    p = yt.ProjectionPlot(ds_disk, ds_disk.y_unit_disk, 'density', north_vector=ds_disk.z_unit_disk, center = ds_disk.halo_center_code, weight_field='density', width=(60, 'kpc'))
+    p.set_cmap('density', density_color_map)
+    p.set_zlim('density', dens_phase_min, dens_phase_min)
+    p.save(snapname+'_Edge_y')
+
+    p = yt.ProjectionPlot(ds_disk, ds_disk.y_unit_disk, 'temperature', north_vector=ds_disk.z_unit_disk, center = ds_disk.halo_center_code, weight_field='density', width=(60, 'kpc'))
+    p.set_zlim('temperature', temperature_min, temperature_max) 
+    p.set_cmap('temperature', temperature_color_map) 
+    p.save(snapname+'_Edge_y')
+
+    p = yt.ProjectionPlot(ds_disk, ds_disk.y_unit_disk, 'metallicity', north_vector=ds_disk.z_unit_disk, center = ds_disk.halo_center_code, weight_field='density', width=(60, 'kpc'))
+    p.set_cmap('metallicity', metal_color_map)
+    p.set_zlim('metallicity', metal_min, metal_max) 
+    p.save(snapname+'_Edge_y')
+
+    ### Now try an oriented face-on projection
+    p = yt.ProjectionPlot(ds_disk, ds_disk.z_unit_disk, 'density', north_vector=ds_disk.x_unit_disk, center = ds_disk.halo_center_code, weight_field='density', width=(60, 'kpc'))
+    p.set_cmap('density', density_color_map)
+    p.set_zlim('density', dens_phase_min, dens_phase_min)
+    p.save(snapname+'_Face_z')
+
+    p = yt.ProjectionPlot(ds_disk, ds_disk.z_unit_disk, 'temperature', north_vector=ds_disk.x_unit_disk, center = ds_disk.halo_center_code, weight_field='density', width=(60, 'kpc'))
+    p.set_zlim('temperature', temperature_min, temperature_max) 
+    p.set_cmap('temperature', temperature_color_map) 
+    p.save(snapname+'_Face_z')
+
+    p = yt.ProjectionPlot(ds_disk, ds_disk.z_unit_disk, 'metallicity', north_vector=ds_disk.x_unit_disk, center = ds_disk.halo_center_code, weight_field='density', width=(60, 'kpc'))
+    p.set_cmap('metallicity', metal_color_map)
+    p.set_zlim('metallicity', metal_min, metal_max) 
+    p.save(snapname+'_Face_z')
+
+    
 
 def get_and_prepare_dataset(ds_name):  
     """ This function obtains the dataset and all the usual cut_regions
         It returns a dictionary, keyed by region name, containing each 
         cut region we use. """
     
-    ds, _ = foggie_load.foggie_load(ds_name, TRACKFILE)
+    # load the dataset the default way 
+    ds, _ = foggie_load.foggie_load(ds_name, TRACKFILE) 
+
+    ds_disk, refine_box = foggie_load.foggie_load(ds_name, TRACKFILE, 
+                                 particle_type_for_angmom='gas', disk_relative=True) 
     
     trident.add_ion_fields(ds, ions=['H I','C II', 'C III', 'C IV', 'O I', 'O II', 'O III', 'O IV', 'O V', 'O VI', 'O VII', 'O VIII', 'Mg II']) 
     
@@ -46,7 +130,7 @@ def get_and_prepare_dataset(ds_name):
     cut_region_dict['cool_inflows'] = gr.get_region(ds, 'cgm', filter=cool_inflow_filter)
     cut_region_dict['warm_inflows'] = gr.get_region(ds, 'cgm', filter=warm_inflow_filter)
     
-    return ds, cut_region_dict 
+    return ds, ds_disk, cut_region_dict 
 
 def velocities(dataset, region, region_name, prefix): 
 
@@ -235,10 +319,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--snap_number', type=int, required=True)
 parser.add_argument('--sims_dir', type=str, default='./') 
 args = parser.parse_args()
-if (args.snap_number < 10000): snap_string='RD'+str(args.snap_number)
-if (args.snap_number < 1000): snap_string='RD0'+str(args.snap_number)
-if (args.snap_number < 100): snap_string='RD00'+str(args.snap_number)
-if (args.snap_number < 10): snap_string='RD000'+str(args.snap_number)
+if (args.snap_number < 10000): snap_string='DD'+str(args.snap_number)
+if (args.snap_number < 1000): snap_string='DD0'+str(args.snap_number)
+if (args.snap_number < 100): snap_string='DD00'+str(args.snap_number)
+if (args.snap_number < 10): snap_string='DD000'+str(args.snap_number)
 print('Hello your snap_number is:', args.snap_number, snap_string)
 
 print('Hello your sims_dir is:', args.sims_dir) 
@@ -247,15 +331,21 @@ ds_name = args.sims_dir+'/'+snap_string+'/'+snap_string
 
 print(ds_name)
 
-ds, crd = get_and_prepare_dataset(ds_name)
-
-frb_radius(ds, './outputs/') #<--- this is not cut_region dependent 
+ds, ds_disk, crd = get_and_prepare_dataset(ds_name)
 
 for region in crd.keys(): 
     print("region")
-    velocities(ds, crd[region], region, 'outputs/')
-    shades(ds_name) 
-    regions_to_frbs(ds, crd[region], region, './outputs/')
-    for axis in ['x']: 
-        frame(ds, axis, crd[region], region, './outputs/')
-        flows(ds, axis, crd[region], region, './outputs/')
+    #velocities(ds, crd[region], region, 'outputs/')
+    #shades(ds_name) 
+    #regions_to_frbs(ds, crd[region], region, './outputs/')
+    #for axis in ['x']: 
+    #    frame(ds, axis, crd[region], region, './outputs/')
+    #    flows(ds, axis, crd[region], region, './outputs/')
+    ludicrous_views(ds, ds_disk) 
+
+#frb_radius(ds, './outputs/') #<--- this is not cut_region dependent 
+
+
+
+
+
