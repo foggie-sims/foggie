@@ -1500,6 +1500,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--doft', dest='doft', action='store_true', default=False, help='make new plot for Fourier Transform?, default is no')
     parser.add_argument('--docorr', metavar='docorr', type=str, action='store', default=None, help='make new plot for time delay cross-correlation with respect to a column?, default is no')
     parser.add_argument('--overplot_points', dest='overplot_points', action='store_true', default=False, help='overplot data points as scatter plot on each trace?, default is no')
+    parser.add_argument('--plot_all_stats', dest='plot_all_stats', action='store_true', default=False, help='plot all the different stats in different panels?, default is no')
 
     # ------- args added for plot_spatially_resolved.py ------------------------------
     parser.add_argument('--plot_map', dest='plot_map', action='store_true', default=False, help='plot the corresponding 2D map?, default is no')
