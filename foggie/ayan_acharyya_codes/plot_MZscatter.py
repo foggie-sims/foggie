@@ -34,7 +34,7 @@ def load_df(args):
     df = pd.read_table(dist_filename)
     print('Read in file', dist_filename)
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
-    df.rename(columns={'Zvar':'Zsigma', 'Zvar_u':'Zsigma_u', 'gauss_mean':'Zgauss_mean', 'gauss_mean_u':'Zgauss_mean_u', 'gauss_sigma':'Zgauss_sigma', 'gauss_sigma_u':'Zgauss_sigma_u'}, inplace=True) # for backward compatibility
+    df.rename(columns={'Zvar':'Zsigma', 'Zvar_u':'Zsigma_u', 'gauss_mean':'Zgauss_mean', 'gauss_mean_u':'Zgauss_mean_u', 'gauss_sigma':'Zgauss_sigma', 'gauss_sigma_u':'Zgauss_sigma_u', 'Zgauss_gamma':'Zgauss_skew', 'Zgauss_gamma_u':'Zgauss_skew_u'}, inplace=True) # for backward compatibility
 
     # ---------reading in dataframe produced by compute_MZgrad.py-----------
     Zgrad_den_text = 'rad' if args.upto_kpc is not None else 'rad_re'

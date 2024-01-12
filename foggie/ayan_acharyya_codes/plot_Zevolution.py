@@ -178,11 +178,6 @@ def plot_time_series(df, args):
     '''
     Function to plot the time evolution of Z distribution statistics, based on an input dataframe
     '''
-    if args.forappendix or args.forposter:
-        fig, axes = plt.subplots(3, figsize=(8, 7.5), sharex=True)
-    else:
-        fig, axes = plt.subplots(5 if args.includemerger else 4 if args.forpaper else 7, figsize=(8, 9), sharex=True)
-    fig.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
 
     df = df.sort_values(by='time')
     df['ZIQR_rel'] = df['ZIQR'] / df['Z50']  # IQR relative to the median Z
@@ -201,14 +196,21 @@ def plot_time_series(df, args):
     col_arr = ['saddlebrown', 'royalblue', 'darkolivegreen', 'black', 'cornflowerblue', 'salmon', 'gold', 'brown', 'crimson',
                'black', 'darkturquoise', 'lawngreen']
 
-    groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zsigma']], \
-                           'legend': [['Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Width (fit)']], \
-                           'label': np.hstack([r'$\nabla Z$ (dex/kpc)', np.tile([r'log Z/Z$_\odot$'], 2)]), \
-                           'limits': [(-0.5, 0.1), (-1, 1), (-1.5, 1)], \
-                           'isalreadylog': np.hstack([[False], np.tile([True], 2)]), \
-                           'needscleaning': [False, False, False]})
+    groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zsigma'], ['Zgauss_mean', 'Zgauss_sigma'], ['Zskew', 'Zgauss_skew']], \
+                           'legend': [['Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Width (fit)'], ['Mean Z (fit)', 'Width (fit)'], ['High-Z component', 'Low-Z component']], \
+                           'label': np.hstack([r'$\nabla Z$ (dex/kpc)', np.tile([r'log Z/Z$_\odot$'], 3), r'Skewness']), \
+                           'limits': [(-0.5, 0.1), (-1, 1), (-1.5, 1), (-1.5, 1), (-10, 10)], \
+                           'isalreadylog': np.hstack([[False], np.tile([True], 3), [False]]), \
+                           'needscleaning': [False, False, False, False, False]})
     if args.forappendix: groups = groups[groups.index.isin([2])]
     if args.forposter: groups = groups[groups.index.isin([0, 2])]
+    if args.forpaper and not args.plot_all_stats: groups = groups[groups.index.isin([0, 1, 2])]
+
+    if args.forappendix or args.forposter:
+        fig, axes = plt.subplots(3, figsize=(8, 7.5), sharex=True)
+    else:
+        fig, axes = plt.subplots(len(groups) + 2 if args.includemerger else len(groups) + 1, figsize=(8, 9), sharex=True)
+    fig.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
 
     # -----------for first few panels: Z distribution statistics-------------------
     for j in range(len(groups)):
