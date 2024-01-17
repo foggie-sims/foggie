@@ -196,7 +196,7 @@ def plot_time_series(df, args):
     col_arr = ['saddlebrown', 'royalblue', 'darkolivegreen', 'black', 'cornflowerblue', 'salmon', 'gold', 'brown', 'crimson',
                'black', 'darkturquoise', 'lawngreen']
 
-    groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zsigma'], ['Zgauss_mean', 'Zgauss_sigma'], ['Zskew', 'Zgauss_skew']], \
+    groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zsigma'], ['Z2_mean', 'Z2_sigma'], ['Zskew', 'Z2_skew']], \
                            'legend': [['Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Width (fit)'], ['Mean Z (fit)', 'Width (fit)'], ['High-Z component', 'Low-Z component']], \
                            'label': np.hstack([r'$\nabla Z$ (dex/kpc)', np.tile([r'log Z/Z$_\odot$'], 3), r'Skewness']), \
                            'limits': [(-0.5, 0.1), (-1, 1), (-1.5, 1), (-1.5, 1), (-10, 10)], \
