@@ -209,6 +209,13 @@ def fit_distribution(Zarr, args, weights=None):
         myprint('Therefore choosing 1 component model as the better fit for %s' %args.output, args)
         final_result, other_result = result_1comp, result_2comp
 
+    for thisquant in list(final_result.params.keys()):
+        try:
+            dummy = np.isnan(final_result.params[thisquant].stderr)
+        except TypeError:
+            final_result.params[thisquant].stderr = 0 # setting non-existing errors to 0 by hand :|
+            pass
+
     print('Fitted parameters:\n', final_result.best_values)
 
     return final_result, other_result
