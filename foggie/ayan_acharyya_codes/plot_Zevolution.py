@@ -204,7 +204,7 @@ def plot_time_series(df, args):
                            'needscleaning': [False, False, False, False, False]})
     if args.forappendix: groups = groups[groups.index.isin([2])]
     if args.forposter: groups = groups[groups.index.isin([0, 2])]
-    if args.forpaper and not args.plot_all_stats: groups = groups[groups.index.isin([0, 1, 2])]
+    if args.forpaper and not args.plot_all_stats: groups = groups[groups.index.isin([0, 1])]
 
     if args.forappendix or args.forposter:
         fig, axes = plt.subplots(3, figsize=(8, 7.5), sharex=True)
