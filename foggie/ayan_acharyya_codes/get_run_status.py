@@ -89,11 +89,11 @@ if __name__ == '__main__':
 
     # -------determining projected prof-hist-map png file name pattern for each snapshot---------------
     snap_projphm_pngfiles = args.output_dir + 'figs/z=*_%s_projectedZ_prof_hist_map*%s%s*.png' % (args.halo, upto_text, weightby_text)
-    n_snap_projphm_pngfiles = len(glob.glob(snap_projev_pngfiles))
+    n_snap_projphm_pngfiles = len(glob.glob(snap_projphm_pngfiles))
 
     # -------determining non-projected prof-hist-map png file name pattern for each snapshot---------------
     snap_nonprojphm_pngfiles = args.output_dir + 'figs/z=*_%s_nonprojectedZ_prof_hist_map*%s%s.png' % (args.halo, upto_text, weightby_text)
-    n_snap_nonprojphm_pngfiles = len(glob.glob(snap_nonprojev_pngfiles))
+    n_snap_nonprojphm_pngfiles = len(glob.glob(snap_nonprojphm_pngfiles))
 
     # -------determining combined MZR file name pattern for the halo---------------
     MZR_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_rad%s%s%s.txt' % (upto_text, weightby_text, density_cut_text)
