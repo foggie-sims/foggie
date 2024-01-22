@@ -80,11 +80,11 @@ if __name__ == '__main__':
     n_snap_3dvproj_pngfiles = len(glob.glob(snap_3dvproj_pngfiles))
 
     # -------determining projected evolution png file name pattern for each snapshot---------------
-    snap_projev_pngfiles = args.output_dir + 'figs/z=*_%s_projectedZ_Zgrad_den_kpc%s%s.png' % (args.halo, upto_text, weightby_text)
+    snap_projev_pngfiles = args.output_dir + 'figs/z=*_%s_projectedZ_prof_hist_map*%s%s*.png' % (args.halo, upto_text, weightby_text)
     n_snap_projev_pngfiles = len(glob.glob(snap_projev_pngfiles))
 
-    # -------determining projected evolution png file name pattern for each snapshot---------------
-    snap_nonprojev_pngfiles = args.output_dir + 'figs/z=*_%s_nonprojectedZ_Zgrad_den_kpc%s%s.png' % (args.halo, upto_text, weightby_text)
+    # -------determining non projected evolution png file name pattern for each snapshot---------------
+    snap_nonprojev_pngfiles = args.output_dir + 'figs/z=*_%s_nonprojectedZ_prof_hist_map*%s%s.png' % (args.halo, upto_text, weightby_text)
     n_snap_nonprojev_pngfiles = len(glob.glob(snap_nonprojev_pngfiles))
 
     # -------determining combined MZR file name pattern for the halo---------------

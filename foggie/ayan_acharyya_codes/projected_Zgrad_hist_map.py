@@ -205,7 +205,9 @@ if __name__ == '__main__':
         # ---------to determine filenames, suffixes, etc.----------------
         args.fig_dir = args.output_dir + 'figs/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
-        figname = args.fig_dir + '%s_%s_projectedZ_prof_hist_map_%s%s%s%s.png' % (args.output, args.halo, args.vcol, args.upto_text, args.weightby_text, args.res_text)
+        outfile_rootname = '%s_%s_projectedZ_prof_hist_map_%s%s%s%s.png' % (args.output, args.halo, args.vcol, args.upto_text, args.weightby_text, args.res_text)
+        if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
+        figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
         if not os.path.exists(figname) or args.clobber_plot:
             # -------setting up fig--------------

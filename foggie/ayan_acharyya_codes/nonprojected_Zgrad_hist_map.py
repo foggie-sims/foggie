@@ -21,6 +21,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 start_time = time.time()
 plt.rcParams['axes.linewidth'] = 2
+plt.rcParams['axes.edgecolor'] = 'k'
 
 # ----------------------------------------------------------------
 def make_df_from_box(box, args):
@@ -177,16 +178,15 @@ def plot_Zdist_snap(df, ax, args):
     if args.nofit:
         Zdist = np.nan
     else:
-        fit = fit_distribution(Zarr.values, args, weights=weights)
+        fit, other_result = fit_distribution(Zarr.values, args, weights=weights)
         xvals = p[1][:-1] + np.diff(p[1])
-        #ax.plot(xvals, fit.init_fit, c=color, lw=1, ls='--') # for plotting the initial guess
-        ax.plot(xvals, fit.best_fit, c=color, lw=1)
+        ax.plot(xvals, fit.eval(x=np.array(xvals)), c=color, lw=1)
         if not args.hide_multiplefit:
-            ax.plot(xvals, GaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma']), c=color, lw=1, ls='--', label='Regular Gaussian')
-            ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=color, lw=1, ls='dotted', label='Skewed Gaussian')
+            ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['g1_amplitude'], center=fit.best_values['g1_center'], sigma=fit.best_values['g1_sigma'], gamma=fit.best_values['g1_gamma']), c='k', lw=0.5, ls='dotted', label='High-Z component')
+            if 'g2_amplitude' in fit.best_values: ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['g2_amplitude'], center=fit.best_values['g2_center'], sigma=fit.best_values['g2_sigma'], gamma=fit.best_values['g2_gamma']), c='k', lw=0.5, ls='--', label='Low-Z component')
 
-        Zdist = [fit.best_values['sg_sigma'], fit.best_values['sg_center']]
-        ax.text(0.03 if args.islog else 0.97, 0.75, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['sg_center'], 2.355 * fit.best_values['sg_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
+        Zdist = [fit.best_values['g1_sigma'], fit.best_values['g1_center']]
+        ax.text(0.03 if args.islog else 0.97, 0.75, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['g1_center'], 2.355 * fit.best_values['g1_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
 
     ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)
@@ -280,7 +280,9 @@ if __name__ == '__main__':
         # ---------to determine filenames, suffixes, etc.----------------
         args.fig_dir = args.output_dir + 'figs/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
-        figname = args.fig_dir + '%s_%s_nonprojectedZ_prof_hist_map_%s%s%s.png' % (args.output, args.halo, args.vcol, args.upto_text, args.weightby_text)
+        outfile_rootname = '%s_%s_nonprojectedZ_prof_hist_map_%s%s%s.png' % (args.output, args.halo, args.vcol, args.upto_text, args.weightby_text)
+        if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
+        figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
         if not os.path.exists(figname) or args.clobber_plot:
             #try:
