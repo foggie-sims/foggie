@@ -80,12 +80,20 @@ if __name__ == '__main__':
     n_snap_3dvproj_pngfiles = len(glob.glob(snap_3dvproj_pngfiles))
 
     # -------determining projected evolution png file name pattern for each snapshot---------------
-    snap_projev_pngfiles = args.output_dir + 'figs/z=*_%s_projectedZ_prof_hist_map*%s%s*.png' % (args.halo, upto_text, weightby_text)
+    snap_projev_pngfiles = args.output_dir + 'figs/z=*_%s_projectedZ_Zgrad_den_kpc%s%s.png' % (args.halo, upto_text, weightby_text)
     n_snap_projev_pngfiles = len(glob.glob(snap_projev_pngfiles))
 
-    # -------determining non projected evolution png file name pattern for each snapshot---------------
-    snap_nonprojev_pngfiles = args.output_dir + 'figs/z=*_%s_nonprojectedZ_prof_hist_map*%s%s.png' % (args.halo, upto_text, weightby_text)
+    # -------determining projected evolution png file name pattern for each snapshot---------------
+    snap_nonprojev_pngfiles = args.output_dir + 'figs/z=*_%s_nonprojectedZ_Zgrad_den_kpc%s%s.png' % (args.halo, upto_text, weightby_text)
     n_snap_nonprojev_pngfiles = len(glob.glob(snap_nonprojev_pngfiles))
+
+    # -------determining projected prof-hist-map png file name pattern for each snapshot---------------
+    snap_projphm_pngfiles = args.output_dir + 'figs/z=*_%s_projectedZ_prof_hist_map*%s%s*.png' % (args.halo, upto_text, weightby_text)
+    n_snap_projphm_pngfiles = len(glob.glob(snap_projev_pngfiles))
+
+    # -------determining non-projected prof-hist-map png file name pattern for each snapshot---------------
+    snap_nonprojphm_pngfiles = args.output_dir + 'figs/z=*_%s_nonprojectedZ_prof_hist_map*%s%s.png' % (args.halo, upto_text, weightby_text)
+    n_snap_nonprojphm_pngfiles = len(glob.glob(snap_nonprojev_pngfiles))
 
     # -------determining combined MZR file name pattern for the halo---------------
     MZR_filename = args.output_dir + 'txtfiles/' + args.halo + '_MZR_xcol_rad%s%s%s.txt' % (upto_text, weightby_text, density_cut_text)
@@ -114,5 +122,5 @@ if __name__ == '__main__':
         print('MZscat file does not exist.')
 
     # -------printing results---------------------------
-    print('Halo %s. Total snaps %d. Txtfiles %d. Gradient pngs %d. Histogram pngs %d. MZR file has %d (%d usable). MZscat file has %d (%d usable). 3D vs projected plots %d. Projected evolution plots %d, Non-projected evolution plots %d.' %\
-          (args.halo, n_total_snaps, n_snap_txtfiles, n_snap_prof_pngfiles, n_snap_hist_pngfiles, n_unique_MZR_lines, n_usable_MZR_lines, n_unique_MZscat_lines, n_usable_MZscat_lines, n_snap_3dvproj_pngfiles, n_snap_projev_pngfiles, n_snap_nonprojev_pngfiles))
+    print('Halo %s. Total snaps %d. Txtfiles %d. Gradient pngs %d. Histogram pngs %d. MZR file has %d (%d usable). MZscat file has %d (%d usable). 3D vs projected plots %d. Projected evolution plots %d, Non-projected evolution plots %d, Projected prof-hist-map plots %d, Non-projected prof-hist-map plots %d.' %\
+          (args.halo, n_total_snaps, n_snap_txtfiles, n_snap_prof_pngfiles, n_snap_hist_pngfiles, n_unique_MZR_lines, n_usable_MZR_lines, n_unique_MZscat_lines, n_usable_MZscat_lines, n_snap_3dvproj_pngfiles, n_snap_projev_pngfiles, n_snap_nonprojev_pngfiles, n_snap_projphm_pngfiles, n_snap_nonprojphm_pngfiles))
