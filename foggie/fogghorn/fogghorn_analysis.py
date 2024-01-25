@@ -71,24 +71,24 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def gas_density_projection(ds, region, snap):
+def gas_density_projection(ds, region, snap, save_directory):
     '''Plots a gas density projection of the galaxy disk.'''
 
     p = yt.ProjectionPlot(ds, 'z', 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
     p.set_unit('density','Msun/pc**2')
     p.set_cmap('density', density_color_map)
     p.set_zlim('density',0.01,300)
-    p.save(args.save_directory + '/' + snap + '_Projection_z_density.png')
+    p.save(save_directory + '/' + snap + '_Projection_z_density.png')
 
-def young_stars_density_projection(ds, region, snap):
+def young_stars_density_projection(ds, region, snap, save_directory):
     '''Plots a young stars density projection of the galaxy disk.'''
 
     p = yt.ProjectionPlot(ds, 'z', ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code)
     p.set_unit(('deposit','young_stars3_cic'),'Msun/kpc**2')
     p.set_zlim(('deposit','young_stars3_cic'),1000,1000000)
-    p.save(args.save_directory + '/' + snap + '_Projection_z_young_stars3_cic.png')
+    p.save(save_directory + '/' + snap + '_Projection_z_young_stars3_cic.png')
 
-def KS_relation(ds, region, snap):
+def KS_relation(ds, region, snap, save_directory):
     '''Plots the KS relation from the dataset as compared to a curve taken from KMT09.'''
 
     # Make a projection and convert to FRB
@@ -114,20 +114,20 @@ def KS_relation(ds, region, snap):
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
         top=True, right=True)
     plt.tight_layout()
-    plt.savefig(args.save_directory + '/' + snap + '_KS-relation.png', dpi=300)
+    plt.savefig(save_directory + '/' + snap + '_KS-relation.png', dpi=300)
 
-def make_plots(snap):
+def make_plots(snap, directory, save_directory, trackfile):
     '''Finds the halo center and other properties of the dataset and then calls
     the plotting scripts.'''
 
-    filename = args.directory + '/' + snap + '/' + snap
-    ds, region = foggie_load(filename, args.trackfile)
+    filename = directory + '/' + snap + '/' + snap
+    ds, region = foggie_load(filename, trackfile)
 
     # Make the plots!
     # Eventually want to make this check to see if the plots already exist first before re-making them
-    gas_density_projection(ds, region, snap)
-    young_stars_density_projection(ds, region, snap)
-    KS_relation(ds, region, snap)
+    gas_density_projection(ds, region, snap, save_directory)
+    young_stars_density_projection(ds, region, snap, save_directory)
+    KS_relation(ds, region, snap, save_directory)
 
 if __name__ == "__main__":
     args = parse_args()
@@ -151,7 +151,7 @@ if __name__ == "__main__":
             for j in range(args.nproc):
                 snap = outputs[args.nproc*i+j]
                 threads.append(multi.Process(target=make_plots, \
-    			       args=(snap)))
+    			       args=[snap, args.directory, args.save_directory, args.trackfile]))
             for t in threads:
                 t.start()
             for t in threads:
@@ -161,7 +161,7 @@ if __name__ == "__main__":
         for j in range(len(outputs)%args.nproc):
             snap = outputs[-(j+1)]
             threads.append(multi.Process(target=make_plots, \
-                   args=(snap)))
+                   args=[snap, args.directory, args.save_directory, args.trackfile]))
         for t in threads:
             t.start()
         for t in threads:
