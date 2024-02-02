@@ -163,7 +163,7 @@ def plot_Zprof_snap(df, ax, args):
     ax.set_ylim(args.Zlim[0], args.Zlim[1]) # log limits
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.text(0.03, 0.03, args.output, color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left')
+    if not args.forpaper: ax.text(0.03, 0.03, args.output, color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left')
 
     return Zgrad_arr, ax
 
