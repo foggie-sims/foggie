@@ -6,7 +6,7 @@
 This is the FOGGIE Project Documentation 
 ========================================
 
-FOGGIE = Figuring Out Gas and Galaxies in Enzo 
+FOGGIE = Figuring Out Gas & Galaxies in Enzo 
 Co-PIs Molly Peeples, Jason Tumlinson, Brian O'Shea 
 
 .. toctree::
