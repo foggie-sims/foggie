@@ -10,7 +10,7 @@ To make a clean Enzo build using the enzo-foggie fork:
 > make opt-high 
 > module load comp-intel/2020.4.304 hdf5/1.8.18_serial
 > make clean 
-> make
+> make -j16
 [wait while Enzo builds] 
 
 

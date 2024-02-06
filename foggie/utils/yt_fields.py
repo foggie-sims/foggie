@@ -40,7 +40,7 @@ def _stars(pfilter, data):
     return data[(pfilter.filtered_type, "particle_type")] == 2
 
 def _young_stars(pfilter, data):
-    """Filter star particles with creation time < 3 Myr ago
+    """Filter star particles with creation time < 10 Myr ago
     To use: yt.add_particle_filter("young_stars", function=_young_stars, filtered_type='all', requires=["creation_time"])"""
 
     age = data.ds.current_time - data[pfilter.filtered_type, "creation_time"]

@@ -196,15 +196,15 @@ def plot_time_series(df, args):
     col_arr = ['saddlebrown', 'royalblue', 'darkolivegreen', 'black', 'cornflowerblue', 'salmon', 'gold', 'brown', 'crimson',
                'black', 'darkturquoise', 'lawngreen']
 
-    groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zsigma'], ['Zgauss_mean', 'Zgauss_sigma'], ['Zskew', 'Zgauss_skew']], \
+    groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zsigma'], ['Z2_mean', 'Z2_sigma'], ['Zskew', 'Z2_skew']], \
                            'legend': [['Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Width (fit)'], ['Mean Z (fit)', 'Width (fit)'], ['High-Z component', 'Low-Z component']], \
                            'label': np.hstack([r'$\nabla Z$ (dex/kpc)', np.tile([r'log Z/Z$_\odot$'], 3), r'Skewness']), \
-                           'limits': [(-0.5, 0.1), (-1, 1), (-1.5, 1), (-1.5, 1), (-10, 10)], \
+                           'limits': [(-0.5, 0.1), (-1.5, 1), (-1.5, 1), (-1.5, 1), (-10, 10)], \
                            'isalreadylog': np.hstack([[False], np.tile([True], 3), [False]]), \
                            'needscleaning': [False, False, False, False, False]})
     if args.forappendix: groups = groups[groups.index.isin([2])]
     if args.forposter: groups = groups[groups.index.isin([0, 2])]
-    if args.forpaper and not args.plot_all_stats: groups = groups[groups.index.isin([0, 1, 2])]
+    if args.forpaper and not args.plot_all_stats: groups = groups[groups.index.isin([0, 1])]
 
     if args.forappendix or args.forposter:
         fig, axes = plt.subplots(3, figsize=(8, 7.5), sharex=True)
@@ -274,7 +274,7 @@ def plot_time_series(df, args):
             ax3.plot(delay_list * dt, xcorr_list, c=col_arr[0], lw=1, label='SFR')
 
     thisax.set_ylabel(label_dict[ycol], fontsize=args.fontsize)
-    thisax.set_ylim(0, 50)
+    thisax.set_ylim(0, 100)
     thisax.tick_params(axis='y', labelsize=args.fontsize)
     thisax.legend(loc='upper left', fontsize=args.fontsize)
     axiscount += 1 

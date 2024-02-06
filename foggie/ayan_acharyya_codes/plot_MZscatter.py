@@ -34,7 +34,7 @@ def load_df(args):
     df = pd.read_table(dist_filename)
     print('Read in file', dist_filename)
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
-    df.rename(columns={'Zvar':'Zsigma', 'Zvar_u':'Zsigma_u', 'gauss_mean':'Zgauss_mean', 'gauss_mean_u':'Zgauss_mean_u', 'gauss_sigma':'Zgauss_sigma', 'gauss_sigma_u':'Zgauss_sigma_u', 'Zgauss_gamma':'Zgauss_skew', 'Zgauss_gamma_u':'Zgauss_skew_u'}, inplace=True) # for backward compatibility
+    df.rename(columns={'Zvar':'Zsigma', 'Zvar_u':'Zsigma_u', 'gauss_mean':'Z2_mean', 'Zgauss_mean':'Z2_mean', 'gauss_mean_u':'Z2_mean_u', 'Zgauss_mean_u':'Z2_mean_u', 'gauss_sigma':'Z2_sigma', 'Zgauss_sigma':'Z2_sigma', 'gauss_sigma_u':'Z2_sigma_u', 'Zgauss_sigma_u':'Z2_sigma_u', 'Z2_gamma':'Z2_skew', 'Zgauss_gamma':'Z2_skew', 'Z2_gamma_u':'Z2_skew_u', 'Zgauss_gamma_u':'Z2_skew_u'}, inplace=True) # for backward compatibility
 
     # ---------reading in dataframe produced by compute_MZgrad.py-----------
     Zgrad_den_text = 'rad' if args.upto_kpc is not None else 'rad_re'
@@ -52,13 +52,13 @@ def load_df(args):
 
     #if 'res' in df: df = df[df['res'] == -99 if args.get_native_res else float(args.res)]
 
-    cols_to_log = ['Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zsigma', 'Ztotal', 'Zcen', 'Zcen_binned', 'Ztotal_fixedr', 'Zgauss_mean', 'Zgauss_sigma']
+    cols_to_log = ['Zpeak', 'Z25', 'Z50', 'Z75', 'Zmean', 'Zsigma', 'Ztotal', 'Zcen', 'Zcen_binned', 'Ztotal_fixedr', 'Z2_mean', 'Z2_sigma']
     for thiscol in cols_to_log:
         if thiscol in df:
             if args.islog:
                 if thiscol + '_u' in df and (df[thiscol + '_u']!=0).any(): # need to propagate uncertainties properly
                     #df = df[(df[thiscol + '_u'] >= 0) & (np.abs(df[thiscol]/df[thiscol + '_u']).between(1e-1, 1e5))] # remove negative errors and errors that are way too high compared to the measured value; something is wrong there
-                    df = df[(df[thiscol + '_u'] >= 0) & (df[thiscol] < 1e2)] # remove negative errors and large numbers given it is already in log
+                    df = df[(np.isnan(df[thiscol])) | ((df[thiscol + '_u'] >= 0) & (df[thiscol] < 1e2))] # remove negative errors and large numbers given it is already in log
                     quant = unumpy.pow(10, unumpy.uarray(df[thiscol].values, df[thiscol + '_u'].values))
                     df.rename(columns={thiscol:'log_' + thiscol, thiscol+'_u':'log_' + thiscol + '_u'}, inplace=True) # column was already in log
                     df[thiscol], df[thiscol + '_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
@@ -67,7 +67,7 @@ def load_df(args):
                     df[thiscol] = 10**df['log_' + thiscol]
             else:
                 if thiscol + '_u' in df and (df[thiscol + '_u']!=0).any(): # need to propagate uncertainties properly
-                    df = df[(df[thiscol + '_u'] >= 0) & (np.abs(df[thiscol]/df[thiscol + '_u']).between(1e-1, 1e5))] # remove negative errors and errors that are way too high compared to the measured value; something must be wrong there
+                    df = df[(np.isnan(df[thiscol])) | ((df[thiscol + '_u'] >= 0) & (np.abs(df[thiscol]/df[thiscol + '_u']).between(1e-1, 1e5)))] # remove negative errors and errors that are way too high compared to the measured value; something must be wrong there
                     quant = unumpy.log10(unumpy.uarray(df[thiscol].values, df[thiscol + '_u'].values))
                     df['log_' + thiscol], df['log_' + thiscol + '_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
                 else: # no uncertainties available, makes life simpler
