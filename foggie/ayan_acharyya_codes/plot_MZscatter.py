@@ -58,7 +58,7 @@ def load_df(args):
             if args.islog:
                 if thiscol + '_u' in df and (df[thiscol + '_u']!=0).any(): # need to propagate uncertainties properly
                     #df = df[(df[thiscol + '_u'] >= 0) & (np.abs(df[thiscol]/df[thiscol + '_u']).between(1e-1, 1e5))] # remove negative errors and errors that are way too high compared to the measured value; something is wrong there
-                    df = df[(df[thiscol + '_u'] >= 0) & (df[thiscol] < 1e2)] # remove negative errors and large numbers given it is already in log
+                    df = df[(np.isnan(df[thiscol])) | ((df[thiscol + '_u'] >= 0) & (df[thiscol] < 1e2))] # remove negative errors and large numbers given it is already in log
                     quant = unumpy.pow(10, unumpy.uarray(df[thiscol].values, df[thiscol + '_u'].values))
                     df.rename(columns={thiscol:'log_' + thiscol, thiscol+'_u':'log_' + thiscol + '_u'}, inplace=True) # column was already in log
                     df[thiscol], df[thiscol + '_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
@@ -67,7 +67,7 @@ def load_df(args):
                     df[thiscol] = 10**df['log_' + thiscol]
             else:
                 if thiscol + '_u' in df and (df[thiscol + '_u']!=0).any(): # need to propagate uncertainties properly
-                    df = df[(df[thiscol + '_u'] >= 0) & (np.abs(df[thiscol]/df[thiscol + '_u']).between(1e-1, 1e5))] # remove negative errors and errors that are way too high compared to the measured value; something must be wrong there
+                    df = df[(np.isnan(df[thiscol])) | ((df[thiscol + '_u'] >= 0) & (np.abs(df[thiscol]/df[thiscol + '_u']).between(1e-1, 1e5)))] # remove negative errors and errors that are way too high compared to the measured value; something must be wrong there
                     quant = unumpy.log10(unumpy.uarray(df[thiscol].values, df[thiscol + '_u'].values))
                     df['log_' + thiscol], df['log_' + thiscol + '_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
                 else: # no uncertainties available, makes life simpler

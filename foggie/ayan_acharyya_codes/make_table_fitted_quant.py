@@ -113,7 +113,8 @@ if __name__ == '__main__':
     else: upto_text = '_upto%.1FRe' % args.upto_re
 
     # ---------setting up master dataframe------------------------
-    cols_in_df = ['halo', 'output', 'redshift', 'time', 'log_mass', 'log_Ztotal',  'log_Z50', 'log_ZIQR', 'log_Zmean', 'log_Zmean_u', 'log_Zwidth', 'log_Zwidth_u', 'Zgrad', 'Zgrad_u']
+    #cols_in_df = ['halo', 'output', 'redshift', 'time', 'log_mass', 'log_Ztotal',  'log_Z50', 'log_ZIQR', 'log_Zmean', 'log_Zmean_u', 'log_Zwidth', 'log_Zwidth_u', 'Zgrad', 'Zgrad_u']
+    cols_in_df = ['halo', 'output', 'redshift', 'time', 'log_mass', 'log_Ztotal',  'log_Z50', 'log_ZIQR', 'Zgrad', 'Zgrad_u'] # removed fitted center and width for paper
     master_df = pd.DataFrame(columns=cols_in_df)
     tex_path = HOME + '/Documents/writings/papers/FOGGIE_Zgrad/Tables/'
     master_filename = tex_path + 'master_table_Zpaper%s%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text, args.islog_text)
@@ -146,8 +147,9 @@ if __name__ == '__main__':
     master_df = master_df[cols_in_df]
     cols_with_u = ['Zgrad', 'log_Zmean', 'log_Zwidth']
     for thiscol in cols_with_u:
-        master_df[thiscol] = unumpy.uarray(master_df[thiscol].values, master_df[thiscol + '_u'].values)
-        master_df.drop(labels=thiscol+'_u', axis=1, inplace=True)
+        if thiscol in master_df:
+            master_df[thiscol] = unumpy.uarray(master_df[thiscol].values, master_df[thiscol + '_u'].values)
+            master_df.drop(labels=thiscol+'_u', axis=1, inplace=True)
 
     header = get_header(master_df)
     master_df.to_csv(master_filename, sep='\t', index=None, header=True)

@@ -111,6 +111,7 @@ def plot_Zprof_snap(df, ax, args):
     myprint('Now making the radial profile plot for ' + args.output + '..', args)
     x_bins = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
     Zgrad_arr = []
+    darker_color_dict = {'salmon':'maroon', 'seagreen':'darkgreen', 'cornflowerblue':'midnightblue'}
 
     for index,thisproj in enumerate(args.projections):
         weightcol = 'weights_' + thisproj
@@ -119,7 +120,7 @@ def plot_Zprof_snap(df, ax, args):
 
         df['weighted_metal_' + thisproj] = len(df) * df['metal_' + thisproj] * df['weights_' + thisproj] / np.sum(df['weights_' + thisproj])
         df['log_metal_' + thisproj] = np.log10(df[ycol])
-        if not args.plot_onlybinned: ax.scatter(df['rad'], df['log_metal_' + thisproj], c=args.col_arr[index], s=1, lw=0, alpha=0.7)
+        if not args.plot_onlybinned: ax.scatter(df['rad'], df['log_metal_' + thisproj], c=args.col_arr[index], s=1, lw=0, alpha=0.3)
 
         df['binned_cat'] = pd.cut(df['rad'], x_bins)
 
@@ -153,7 +154,7 @@ def plot_Zprof_snap(df, ax, args):
 
         ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=5)
         ax.scatter(x_bin_centers, y_binned, c=color, s=50, lw=1, ec='black', zorder=10)
-        ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
+        ax.plot(x_bin_centers, y_fitted, color=darker_color_dict[color], lw=2.5, ls='dashed')
         ax.text(0.97, 0.95 - index * 0.1, thisproj + ': Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='right')
 
     ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize / args.fontfactor)
@@ -162,7 +163,7 @@ def plot_Zprof_snap(df, ax, args):
     ax.set_ylim(args.Zlim[0], args.Zlim[1]) # log limits
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.text(0.03, 0.03, args.output, color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left')
+    if not args.forpaper: ax.text(0.03, 0.03, args.output, color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left')
 
     return Zgrad_arr, ax
 
@@ -183,7 +184,7 @@ def plot_Zdist_snap(df, ax, args):
 
         if args.islog: Zarr = np.log10(Zarr)  # all operations will be done in log
 
-        fit = fit_distribution(Zarr, args, weights=weights)
+        fit, __ = fit_distribution(Zarr, args, weights=weights)
 
         p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, ls='dashed', density=True, ec=color, weights=weights)
 
@@ -191,11 +192,11 @@ def plot_Zdist_snap(df, ax, args):
         #ax.plot(xvals, fit.init_fit, c=color, lw=1, ls='--') # for plotting the initial guess
         ax.plot(xvals, fit.best_fit, c=color, lw=1)
         if not args.hide_multiplefit:
-            ax.plot(xvals, GaussianModel().eval(x=xvals, amplitude=fit.best_values['g_amplitude'], center=fit.best_values['g_center'], sigma=fit.best_values['g_sigma']), c=color, lw=1, ls='--', label='Regular Gaussian')
-            ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['sg_amplitude'], center=fit.best_values['sg_center'], sigma=fit.best_values['sg_sigma'], gamma=fit.best_values['sg_gamma']), c=color, lw=1, ls='dotted', label='Skewed Gaussian')
+            ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['g1_amplitude'], center=fit.best_values['g1_center'], sigma=fit.best_values['g1_sigma'], gamma=fit.best_values['g1_gamma']), c=color, lw=2, ls='dotted', label='High-Z component')
+            if 'g2_amplitude' in fit.best_values: ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['g2_amplitude'], center=fit.best_values['g2_center'], sigma=fit.best_values['g2_sigma'], gamma=fit.best_values['g2_gamma']), c=color, lw=2, ls='--', label='Low-Z component')
 
-        Zdist_arr.append([fit.best_values['sg_sigma'], fit.best_values['sg_center']])
-        ax.text(0.03 if args.islog else 0.97, 0.95 - index * 0.21, '%s: Center = %.2F\n%s: Width = %.2F' % (thisproj, fit.best_values['sg_center'], thisproj, 2.355 * fit.best_values['sg_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
+        Zdist_arr.append([fit.best_values['g1_sigma'], fit.best_values['g1_center']])
+        ax.text(0.03 if args.islog else 0.97, 0.95 - index * 0.21, '%s: Center = %.2F\n%s: Width = %.2F' % (thisproj, fit.best_values['g1_center'], thisproj, 2.355 * fit.best_values['g1_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
 
     ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)

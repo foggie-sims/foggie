@@ -82,9 +82,14 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'O_p7_column_density': 'log [O VIII Cell Column Density]',
                     'C_p3_ion_fraction': 'C IV Ionization Fraction',
                     'C_p3_number_density': 'log [C IV Number Density]',
-                    'Si_p3_ion_fraction': 'Si IV Ionization Fraction',
+                    'Si_p1_ion_fraction': 'Si IV Ionization Fraction',
+                    'Si_p1_number_density': 'log [Si II Number Density]',
+                    'Si_p2_ion_fraction': 'Si II Ionization Fraction',
+                    'Si_p2_number_density': 'log [Si III Number Density]',
+                    'Si_p3_ion_fraction': 'Si III Ionization Fraction',
                     'Si_p3_number_density': 'log [Si IV Number Density]',
-                    'N_p4_number_denstiy': 'log [N V Number Density]'
+                    'N_p4_number_denstiy': 'log [N V Number Density]',
+                    'Ca_p1_number_density': 'log [Ca II Number Density]'
                    }
 
 # this is a dictionary of fields where we prefer to plot or
@@ -113,8 +118,10 @@ logfields = ('Dark_Matter_Density', 'density', 'temperature',
              'metallicity', 'cell_mass', 'cell_size')
 
 species_dict = {'CIII': 'C_p2_number_density',
+                'CaII': 'Ca_p1_number_density',
                 'CIV': 'C_p3_number_density',
                 'HI': 'H_p0_number_density',
+                'MgI': 'Mg_p0_number_density',
                 'MgII': 'Mg_p1_number_density',
                 'OVI': 'O_p5_number_density',
                 'SiII': "Si_p1_number_density",

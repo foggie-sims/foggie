@@ -564,7 +564,7 @@ def plot_MZGR(args):
             ax.fill_between(df[args.xcol], df[overplotted_column], df[overplotted_column] + args.Zgrad_allowance, color=thistextcolor, alpha=0.3 if args.fortalk else 0.1)
             ax.fill_between(df[args.xcol],  df[overplotted_column], df[overplotted_column] - args.Zgrad_allowance, color=thistextcolor, alpha=0.3 if args.fortalk else 0.1)
 
-            if not args.forproposal:
+            if not (args.forproposal or args.forpaper):
                 ax.text(lim_dict[args.xcol][1] * 0.98, (df[overplotted_column].values[-1] + args.Zgrad_allowance) * 0.9, '+%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='bottom', fontsize=args.fontsize)
                 ax.text(lim_dict[args.xcol][1] * 0.98, (df[overplotted_column].values[-1] - args.Zgrad_allowance) * 2.0, '-%.2F dex/%s' % (args.Zgrad_allowance, args.Zgrad_den), c='k', ha='right', va='top', fontsize=args.fontsize)
 
