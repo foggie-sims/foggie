@@ -199,7 +199,7 @@ def plot_time_series(df, args):
     groups = pd.DataFrame({'quantities': [['Zgrad_binned'], ['Z50', 'ZIQR'], ['Zmean', 'Zsigma'], ['Z2_mean', 'Z2_sigma'], ['Zskew', 'Z2_skew']], \
                            'legend': [['Fit to radial bins'], ['Median Z', 'Inter-quartile range'], ['Mean Z (fit)', 'Width (fit)'], ['Mean Z (fit)', 'Width (fit)'], ['High-Z component', 'Low-Z component']], \
                            'label': np.hstack([r'$\nabla Z$ (dex/kpc)', np.tile([r'log Z/Z$_\odot$'], 3), r'Skewness']), \
-                           'limits': [(-0.5, 0.1), (-1.5, 1), (-1.5, 1), (-1.5, 1), (-10, 10)], \
+                           'limits': [(-0.5, 0.1), (-1, 1), (-1.5, 1), (-1.5, 1), (-10, 10)], \
                            'isalreadylog': np.hstack([[False], np.tile([True], 3), [False]]), \
                            'needscleaning': [False, False, False, False, False]})
     if args.forappendix: groups = groups[groups.index.isin([2])]
@@ -221,7 +221,7 @@ def plot_time_series(df, args):
             if (args.forposter or args.fortalk or args.forpaper) and thisgroup.needscleaning: df = omit_bad_spikes(df, log_text + ycol)
             df = df.dropna(subset=[log_text + ycol], axis=0) # to drop nan values of the quantity being plotted
 
-            ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=1, label=thisgroup.legend[i])
+            ax.plot(df['time'], df[log_text + ycol], c=col_arr[i], lw=1, label=None if args.forpaper and len(thisgroup.quantities) == 1 else thisgroup.legend[i])
             if args.overplot_points: ax.scatter(df['time'], df[log_text + ycol], c=col_arr[i], lw=0.5, s=10)
             if args.zhighlight: ax = plot_zhighlight(df,log_text + ycol, col_arr[i], ax, args)
             if args.snaphighlight is not None: ax = plot_snaphighlight(df, log_text + ycol, col_arr[i], ax, args)
@@ -246,7 +246,7 @@ def plot_time_series(df, args):
                 delay_list, xcorr_list = correlate(df[args.docorr], df[ycol])
                 ax3.plot(delay_list * dt, xcorr_list, c=col_arr[i], lw=1, label=thisgroup.legend[i], alpha=1)
 
-        ax.legend(loc='upper left', fontsize=args.fontsize)
+        ax.legend(loc='lower center', fontsize=args.fontsize)
         ax.set_ylabel(thisgroup.label, fontsize=args.fontsize)
         ax.set_ylim(thisgroup.limits)
         ax.tick_params(axis='y', labelsize=args.fontsize)
@@ -257,7 +257,7 @@ def plot_time_series(df, args):
     ycol = 'sfr'
     thisax = axes[axiscount]
     if ycol in df:
-        thisax.plot(df['time'], df[ycol], c=col_arr[0], lw=1, label='SFR')
+        thisax.plot(df['time'], df[ycol], c=col_arr[0], lw=1)
         if args.overplot_points: thisax.scatter(df['time'], df[ycol], c=col_arr[0], lw=0.5, s=10)
         if args.zhighlight: thisax = plot_zhighlight(df, ycol, col_arr[0], thisax, args)
         if args.snaphighlight is not None: thisax = plot_snaphighlight(df, ycol, col_arr[0], thisax, args)
