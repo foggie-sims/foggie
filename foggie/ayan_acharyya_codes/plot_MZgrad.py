@@ -430,17 +430,19 @@ def plot_MZGR(args):
         if not args.nocolorcoding: df = df[(df[args.colorcol] >= args.cmin) & (df[args.colorcol] <= args.cmax)]
 
         if args.plot_timefraction: df = df[(df[args.xcol] >= args.xmin) & (df[args.xcol] <= args.xmax)]
-        #df = df[(df[args.ycol] >= args.ymin) & (df[args.ycol] <= args.ymax)]
+        df = df[(df[args.ycol].between(args.ymin, args.ymax)) & (df[args.xcol].between(args.xmin, args.xmax))]
 
         # ------- plot only the binned plot------------
         if args.binby is not None:
-            df[args.binby + '_bins'] = pd.cut(df[args.binby], bins=np.linspace(np.min(df[args.binby]), np.max(df[args.binby]), args.nbins))
+            df_binned = df[np.isfinite(df[args.binby])]
+            df_binned[args.binby + '_bins'] = pd.cut(df_binned[args.binby], bins=np.linspace(np.min(df_binned[args.binby]), np.max(df_binned[args.binby]), args.nbins))
             cols_to_bin = [args.colorcol, args.xcol, args.ycol, args.binby + '_bins']
             if args.plot_deviation: cols_to_bin += [args.zcol]
             if 'redshift' not in cols_to_bin: cols_to_bin += ['redshift']
-            df = df[cols_to_bin].groupby(args.binby + '_bins', as_index=False).agg(np.mean)
-            df.dropna(axis=0, inplace=True)
-            df = df.sort_values(args.xcol)
+            df_binned = df_binned[cols_to_bin].groupby(args.binby + '_bins', as_index=False).agg(np.mean)
+            df_binned.dropna(axis=0, inplace=True)
+            df_binned = df_binned.sort_values(args.xcol)
+            if not args.overplot_binned: df = df_binned
 
         # -----plot line with color gradient--------
         this_cmap = cmap_dict[args.halo] + '_r' if args.colorcol in things_that_reduce_with_time and not args.usecmasher else cmap_dict[args.halo] # reverse colromap for redshift
@@ -448,7 +450,7 @@ def plot_MZGR(args):
         thistextcolor = col_arr[thisindex] if args.nocolorcoding else mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
-                line, = ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=1 if args.overplot_literature or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) else 1)
+                line, = ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=0.5 if args.overplot_binned else 1 if args.overplot_literature or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) or args.overplot_binned else 1)
                 if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
                     # ----------------------------------
                     def update(i, x, y, line, args):
@@ -490,6 +492,14 @@ def plot_MZGR(args):
                     smoothline = get_multicolored_line(df[args.xcol], df[args.ycol + '_smoothed'], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=2 if args.hiderawdata else 0.5)
                     plot = ax.add_collection(smoothline)
             if args.formolly: ax = plot_zhighlight(df, ax, thistextcolor if args.nocolorcoding else this_cmap, args, ycol=args.ycol + '_smoothed') # for making plots for Molly, the z-highlights are on the smoothed curve, not the raw curve
+
+        # ------- overplotting a binned version of the MZGR------------
+        if args.overplot_binned:
+            if args.nocolorcoding:
+                ax.plot(df_binned[args.xcol], df_binned[args.ycol], c=thistextcolor, lw=2)
+            else:
+                interpline = get_multicolored_line(df_binned[args.xcol], df_binned[args.ycol], df_binned[args.colorcol], this_cmap, args.cmin, args.cmax, lw=2)
+                plot = ax.add_collection(interpline)
 
         # ------- overplotting a lower cadence version of the MZGR------------
         if args.overplot_cadence:

@@ -1450,6 +1450,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--overplot_literature', dest='overplot_literature', action='store_true', default=False, help='overplot all literature observed Zgrad vs z?, default is no')
     parser.add_argument('--overplot_smoothed', metavar='overplot_smoothed', type=float, action='store', default=None, help='overplot temporally smoothed data with <X> Myr smoothing scale, default is None')
     parser.add_argument('--overplot_cadence', metavar='overplot_cadence', type=float, action='store', default=None, help='overplot with only the outputs after every <X> Myr, default is None')
+    parser.add_argument('--overplot_binned', dest='overplot_binned', action='store_true', default=False, help='overplot with the binned behaviour, default is None')
     parser.add_argument('--manga_diag', metavar='manga_diag', type=str, action='store', default='n2', help='which metallicity diagnostic to extract from manga? options are: n2, o3n2, ons, pyqz, t2, m08, t04; default is n2')
     parser.add_argument('--zhighlight', dest='zhighlight', action='store_true', default=False, help='highlight a few integer-ish redshift points on the MZGR?, default is no')
     parser.add_argument('--use_gasre', dest='use_gasre', action='store_true', default=False, help='use measurements based on Re estimated from cold gas clumps (instead of that measured from stellar mass profile)?, default is no')
