@@ -19,8 +19,8 @@ def get_run_loc_etc(args):
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackup/mpeeples/"
         code_path = '/pleiades/u/mpeeples/foggie/'
-    elif args.system == "lefty":
-        foggie_dir = "/astro/simulations/FOGGIE/"
+    elif args.system == "guy":
+        foggie_dir = "/Users/tumlinson/Dropbox/FOGGIE/snapshots"
         output_path = "/Users/tumlinson/Dropbox/foggie/collab/"
         code_path = '/Users/tumlinson/Dropbox/FOGGIE/foggie/'
     elif args.system == "jase":
