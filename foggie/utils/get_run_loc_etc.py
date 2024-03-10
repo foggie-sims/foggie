@@ -59,9 +59,9 @@ def get_run_loc_etc(args):
         code_path = '/Users/nnishimura/Desktop/FOGGIE/foggie/foggie'
         output_path = '/Users/nnishimura/sasp2021practice'
     elif args.system == "ramona":
-        foggie_dir = "/Users/raugustin/WORK/SIMULATIONS/"
-        output_path = "/Users/raugustin/WORK/Outputs/"
-        code_path = "/Users/raugustin/foggie/foggie/"
+        foggie_dir = "/Users/ramonaaugustin/WORK/SIMULATIONS/"
+        output_path = "/Users/ramonaaugustin/WORK/Outputs/"
+        code_path = "/Users/ramonaaugustin/foggie/foggie/"
     elif args.system == "ramona_astro":
         foggie_dir = "/astro/simulations/FOGGIE/"
         output_path = "/Users/raugustin/WORK/Outputs/"
