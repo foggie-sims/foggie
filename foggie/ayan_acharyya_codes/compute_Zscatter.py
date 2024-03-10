@@ -100,7 +100,7 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
             if 'g2_amplitude' in fit.best_values: ax.axvline(fit.best_values['g2_center'], lw=1, ls='dashed', color=fit_color)
 
         if percentiles is not None and not args.fortalk:
-            for thisper in np.atleast_1d(percentiles): ax.axvline(thisper, lw=1, ls='solid', color='crimson')
+            for thisper in np.atleast_1d(percentiles): ax.axvline(thisper, lw=1, ls='solid', color='maroon')
 
     # ----------adding arrows--------------
     if args.annotate_profile and not args.notextonplot:
@@ -413,27 +413,33 @@ if __name__ == '__main__':
             Zres = np.ma.compressed(np.ma.array(Zres, mask=np.ma.masked_where(Zres, Zres < args.Zcut)))
             args.fit_multiple = False
 
-        result, other_result = fit_distribution(Zres, args, weights=wres)
-
         # -------computing quantities to save in file-------------------------
         print('Computing stats...')
         #percentiles = np.percentile(Zres, [25, 50, 75])
         percentiles = weighted_quantile(Zres, [0.25, 0.50, 0.75], sample_weight=wres)
         Zgini = gini(Zres)
 
-        thisrow += [mstar, -99 if args.get_native_res else args.re, result.best_values['g1_amplitude'], result.params['g1_amplitude'].stderr, \
-                    percentiles[0], 0, percentiles[1], 0, percentiles[2], 0, Zgini, \
-                    result.best_values['g1_center'], result.params['g1_center'].stderr, \
-                    result.best_values['g1_sigma'], result.params['g1_sigma'].stderr, \
-                    result.best_values['g1_gamma'], result.params['g1_gamma'].stderr, Ztotal]
-
-        if 'g2_amplitude' in result.best_values: # if this was a 2-component fit
-            thisrow += [result.best_values['g2_amplitude'], result.params['g2_amplitude'].stderr, \
-                        result.best_values['g2_center'], result.params['g2_center'].stderr, \
-                        result.best_values['g2_sigma'], result.params['g2_sigma'].stderr, \
-                        result.best_values['g2_gamma'], result.params['g2_gamma'].stderr]
+        if args.nofit:
+            result = None
+            thisrow += [mstar, -99 if args.get_native_res else args.re, np.nan, np.nan, \
+                        percentiles[0], 0, percentiles[1], 0, percentiles[2], 0, Zgini]
+            thisrow += (np.ones(14) * np.nan).tolist()
+            thisrow += [Ztotal]
         else:
-            thisrow += (np.ones(8) * np.nan).tolist()
+            result, other_result = fit_distribution(Zres, args, weights=wres)
+            thisrow += [mstar, -99 if args.get_native_res else args.re, result.best_values['g1_amplitude'], result.params['g1_amplitude'].stderr, \
+                        percentiles[0], 0, percentiles[1], 0, percentiles[2], 0, Zgini, \
+                        result.best_values['g1_center'], result.params['g1_center'].stderr, \
+                        result.best_values['g1_sigma'], result.params['g1_sigma'].stderr, \
+                        result.best_values['g1_gamma'], result.params['g1_gamma'].stderr, Ztotal]
+
+            if 'g2_amplitude' in result.best_values: # if this was a 2-component fit
+                thisrow += [result.best_values['g2_amplitude'], result.params['g2_amplitude'].stderr, \
+                            result.best_values['g2_center'], result.params['g2_center'].stderr, \
+                            result.best_values['g2_sigma'], result.params['g2_sigma'].stderr, \
+                            result.best_values['g2_gamma'], result.params['g2_gamma'].stderr]
+            else:
+                thisrow += (np.ones(8) * np.nan).tolist()
 
         if not args.noplot: fig = plot_distribution(Zres, args, weights=wres, fit=result, percentiles=percentiles) # plotting the Z profile, with fit
 

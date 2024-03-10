@@ -40,7 +40,7 @@ import ast
 import trident
 import matplotlib.pyplot as plt
 import healpy
-#import cmasher as cmr
+import cmasher as cmr
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -205,7 +205,8 @@ def parse_args():
                         'fluxes              -  will calculate fluxes onto shape\n' + \
                         'accretion_compare   -  will calculate statistics (mean, median, etc) of gas properties\n' + \
                         '                       comparing accreting cells to non-accreting cells in edge around shape\n' + \
-                        'filament_stats      -  will calculate the number of large filaments and their widths')
+                        'filament_stats      -  will calculate the number of large filaments and their widths\n' + \
+                        'filaments_3D        -  will identify separate filament structures in 3D')
     parser.set_defaults(calculate='none')
 
     parser.add_argument('--weight', metavar='weight', type=str, action='store', \
@@ -254,7 +255,7 @@ def make_flux_table(flux_types):
         types_list += ['S5']
 
     dir_name = ['_in', '_out']
-    fd_name = ['','_0-0p5', '_0-1', '_1-2', '_1-inf', '_2-inf']
+    fd_name = ['','_0-0p5', '_0p5-0p75', '_0p75-inf']
 
     for i in range(len(flux_types)):
         if (args.region_filter != 'none') and ('dm' not in flux_types[i]):
@@ -316,7 +317,7 @@ def make_props_table(prop_types):
         names_list += ['phi_bin']
         types_list += ['S5']
 
-    dir_name = ['_all', '_non', '_acc', '_acc_0-0.5','_acc_0-1','_acc_1-2','_acc_1-inf','_acc_2-inf']
+    dir_name = ['_all', '_non', '_acc', '_acc_0-0.5','_acc_0.5-0.75','_acc_0.75-inf']
     stat_names = ['_med', '_iqr', '_avg', '_std']
     for i in range(len(prop_types)):
         if (args.region_filter != 'none'):
@@ -404,11 +405,18 @@ def weighted_avg_and_std(values, weights):
     variance = np.average((values-average)**2, weights=weights)
     return average, np.sqrt(variance)
 
-def plot_accretion_direction(theta_acc, phi_acc, temperature, metallicity, radial_velocity, cooling_time, mass, metals, theta_out, phi_out, tsnap, zsnap, prefix, snap, radius, save_r, save_fd):
+def plot_accretion_direction(theta_acc, phi_acc, density, temperature, metallicity, radial_velocity, cooling_time, mass, metals, flux_sr, theta_out, phi_out, tsnap, zsnap, prefix, snap, radius, save_r, save_fd):
     '''Plots the temperature, metallicity, radial velocity, cooling time, mass, and metal mass of only those cells
     identified as accreting, while over-plotting contours showing the location of fast outflows.'''
 
-    for c in ['temperature', 'metallicity', 'cooling_time', 'radial_velocity']:
+    for c in ['density', 'temperature', 'metallicity', 'cooling_time', 'radial_velocity', 'flux_sr']:
+        if (c=='density'):
+            color_field = 'density'
+            color_val = np.log10(density)
+            cmap = sns.blend_palette(("black", "#4575b4", "#4daf4a", "#ffe34d", "darkorange"), as_cmap=True)
+            cmin = -31.
+            cmax = -21.
+            field_label = 'log Density [g/cm$^{-3}$]'
         if (c=='temperature'):
             color_field = 'temperature'
             color_val = np.log10(temperature)
@@ -419,14 +427,14 @@ def plot_accretion_direction(theta_acc, phi_acc, temperature, metallicity, radia
         elif (c=='metallicity'):
             color_field = 'metallicity'
             color_val = np.log10(metallicity)
-            cmap = cmr.get_sub_cmap('cmr.torch', 0.05, 0.9)
+            cmap = sns.blend_palette(("black", "#4575b4", "#984ea3", "#d73027", "darkorange", "#ffe34d"), as_cmap=True)
             cmin = -2.
             cmax = 0.5
             field_label = 'log Metallicity [$Z_\odot$]'
         elif (c=='cooling_time'):
             color_field = 'cooling-time'
             color_val = np.log10(cooling_time)
-            cmap = cmr.eclipse
+            cmap = cmr.get_sub_cmap('cmr.sepia', 0.1, 1.)
             cmin = np.log10(tcool_min)
             cmax = np.log10(tcool_max)
             field_label = 'log Cooling Time [Myr]'
@@ -437,6 +445,13 @@ def plot_accretion_direction(theta_acc, phi_acc, temperature, metallicity, radia
             cmin = -200.
             cmax = 200.
             field_label = 'Radial velocity [km/s]'
+        elif (c=='flux_sr'):
+            color_field = 'flux-sr'
+            color_val = np.log10(flux_sr)
+            cmap = cmap = cmr.get_sub_cmap('cmr.ocean_r', 0.1, 1.)
+            cmin = -1.
+            cmax = 1.
+            field_label = 'log Mass Flux [$M_\odot$/yr/sr]'
 
         fig1 = plt.figure(num=1, figsize=(10,6), dpi=300)
         contour_fig = plt.figure(num=2)
@@ -445,10 +460,10 @@ def plot_accretion_direction(theta_acc, phi_acc, temperature, metallicity, radia
         u, dup_ind = np.unique(pixel_acc, return_index=True)
         for d in dup_ind:
             val_dup = color_val[np.where(pixel_acc==pixel_acc[d])[0]]
-            if (color_field=='temperature') or (color_field=='cooling_time'):
-                val_to_set = np.log10(np.mean(10**val_dup))
-            else:
+            if (color_field=='radial_velocity'):
                 val_to_set = np.mean(val_dup)
+            else:
+                val_to_set = np.log10(np.mean(10**val_dup))
             color_val[np.where(pixel_acc==pixel_acc[d])[0]] = val_to_set
         m = np.zeros(healpy.nside2npix(nside))              # make empty array of map pixels
         m[pixel_acc] = color_val           # assign pixels of map to data values
@@ -693,7 +708,7 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
     vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
     radius = grid['gas','radius_corrected'].in_units('kpc').v
     rv = grid['gas','radial_velocity_corrected'].in_units('km/s').v
-    vff = grid['gas','vff'].in_units('km/s').v
+    vff = grid['gas','vff'].in_units('kpc/yr').v
     if (args.direction) or ('disk' in surface[0]) or ('accretion_direction' in plots):
         theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
         phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
@@ -702,6 +717,7 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
         density = grid['gas','density'].in_units('g/cm**3').v
         tcool = grid['gas','cooling_time'].in_units('Myr').v
         metallicity = grid['gas', 'metallicity'].in_units('Zsun').v
+        flux_sr = -grid['gas','density'].in_units('Msun/kpc**3').v*grid['gas','radial_velocity_corrected'].in_units('kpc/yr').v*radius**2.
     
     properties = []
     if ('mass' in flux_types):
@@ -727,7 +743,8 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
     new_z = vz*(5.*dt) + z
     displacement = np.sqrt((new_x-x)**2. + (new_y-y)**2. + (new_z-z)**2.)
     displacement_vel = displacement/(5.*dt)
-    flux_density_rad = density*displacement_vel*radius**2.      # units of Msun/yr/rad**2
+    disp_vff = displacement_vel/-vff
+    #flux_density_rad = density*displacement_vel*radius**2.      # units of Msun/yr/rad**2
     inds_x = np.digitize(new_x, xbins)-1      # indices of new x positions
     inds_y = np.digitize(new_y, ybins)-1      # indices of new y positions
     inds_z = np.digitize(new_z, zbins)-1      # indices of new z positions
@@ -745,7 +762,8 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
             max_R = surface[1]*Rvir
         else:
             max_R = surface[1]
-        radii = np.linspace(0., max_R, args.radial_stepping+1)[1:]
+        min_R = 0.1*Rvir
+        radii = np.linspace(min_R, max_R, args.radial_stepping+1)[1:]
     else:
         radii = [0]
 
@@ -762,8 +780,8 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
             regions = [0., -20., -50., -100., -200.]
             filter = grid['gas','radial_velocity_corrected'].in_units('km/s').v
 
-    flux_den_bins = [[0.,0.5],[0.,1.],[1.,2.],[1.,np.inf],[2.,np.inf]]
-    flux_den_saves = ['_0-0p5', '_0-1', '_1-2', '_1-inf', '_2-inf']
+    disp_vff_bins = [[0.,0.5],[0.5,0.75],[0.75,np.inf]]
+    disp_vff_saves = ['_0-0p5', '_0p5-0p75', '_0p75-inf']
 
     # Step through radii (if chosen) and calculate fluxes and plot things for each radius
     for r in range(len(radii)):
@@ -779,13 +797,12 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
         to_shape = ~shape & new_in_shape
         from_shape_fast = from_shape & (rv > 200.)
 
-        # Bin cells by flux density
-        mean_flux_den = np.mean(flux_density_rad[to_shape])
-        to_shape_fd = []
-        for fd in range(len(flux_den_bins)):
-            low_fd = flux_den_bins[fd][0]
-            upp_fd = flux_den_bins[fd][1]
-            to_shape_fd.append(to_shape & (flux_density_rad >= low_fd*mean_flux_den) & (flux_density_rad < upp_fd*mean_flux_den))
+        # Bin cells by displacement velocity relative to vff
+        to_shape_dv = []
+        for dv in range(len(disp_vff_bins)):
+            low_dv = disp_vff_bins[dv][0]
+            upp_dv = disp_vff_bins[dv][1]
+            to_shape_dv.append(to_shape & (disp_vff >= low_dv) & (disp_vff < upp_dv))
 
         if ('accretion_viz' in plots):
             # Set all values outside of the shapes of interest to zero
@@ -821,11 +838,11 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
             proj.save(prefix + 'Plots/' + snap + '_temperature-accreting_x' + save_suffix + '.png')
 
         if (args.direction):
-            theta_to_fd = []
-            phi_to_fd = []
-            for fd in range(len(flux_den_bins)-1):
-                theta_to_fd.append(theta[to_shape_fd[fd]])
-                phi_to_fd.append(phi[to_shape_fd[fd]])
+            theta_to_dv = []
+            phi_to_dv = []
+            for dv in range(len(disp_vff_bins)-1):
+                theta_to_dv.append(theta[to_shape_dv[dv]])
+                phi_to_dv.append(phi[to_shape_dv[dv]])
             theta_to = theta[to_shape]
             phi_to = phi[to_shape]
             phi_from = phi[from_shape]
@@ -844,19 +861,19 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
                 angle_bin_from = (phi_from >= 60.) & (phi_from <= 120.)
             elif (phi_bins[p]=='minor'):
                 angle_bin_from = (phi_from < 60.) | (phi_from > 120.)
-            angle_bin_to_fd = []
+            angle_bin_to_dv = []
             if (phi_bins[p]=='all'):
                 angle_bin_to = np.ones(len(phi_to), dtype=bool)
-                for fd in range(len(flux_den_bins)-1):
-                    angle_bin_to_fd.append(np.ones(np.count_nonzero(to_shape_fd[fd]), dtype=bool))
+                for dv in range(len(disp_vff_bins)-1):
+                    angle_bin_to_dv.append(np.ones(np.count_nonzero(to_shape_dv[dv]), dtype=bool))
             elif (phi_bins[p]=='major'):
                 angle_bin_to = (phi_to >= 60.) & (phi_to <= 120.)
-                for fd in range(len(flux_den_bins)-1):
-                    angle_bin_to_fd.append((phi_to_fd[fd] >= 60.) & (phi_to_fd[fd] <= 120.))
+                for dv in range(len(disp_vff_bins)-1):
+                    angle_bin_to_dv.append((phi_to_dv[dv] >= 60.) & (phi_to_dv[dv] <= 120.))
             elif (phi_bins[p]=='minor'):
                 angle_bin_to = (phi_to < 60.) | (phi_to > 120.)
-                for fd in range(len(flux_den_bins)-1):
-                    angle_bin_to_fd.append((phi_to_fd[fd] < 60.) | (phi_to_fd[fd] > 120.))
+                for dv in range(len(disp_vff_bins)-1):
+                    angle_bin_to_dv.append((phi_to_dv[dv] < 60.) | (phi_to_dv[dv] > 120.))
 
             for i in range(len(fluxes)):
                 prop_to = properties[i][to_shape][angle_bin_to]
@@ -868,14 +885,14 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
                         prop_to_region = prop_to[(region_to > regions[j]) & (region_to < regions[j+1])]
                         flux_in = np.sum(prop_to_region)/(5.*dt)
                         results.append(flux_in)
-                for fd in range(len(flux_den_bins)-1):
-                    prop_to_fd = properties[i][to_shape_fd[fd]][angle_bin_to_fd[fd]]
-                    flux_in = np.sum(prop_to_fd)/(5.*dt)
+                for dv in range(len(disp_vff_bins)-1):
+                    prop_to_dv = properties[i][to_shape_dv[dv]][angle_bin_to_dv[dv]]
+                    flux_in = np.sum(prop_to_dv)/(5.*dt)
                     results.append(flux_in)
                     if (args.region_filter!='none'):
-                        region_to = filter[to_shape_fd[fd]][angle_bin_to_fd[fd]]
+                        region_to = filter[to_shape_dv[dv]][angle_bin_to_dv[dv]]
                         for j in range(len(regions)-1):
-                            prop_to_region = prop_to_fd[(region_to > regions[j]) & (region_to < regions[j+1])]
+                            prop_to_region = prop_to_dv[(region_to > regions[j]) & (region_to < regions[j+1])]
                             flux_in = np.sum(prop_to_region)/(5.*dt)
                             results.append(flux_in)
                 prop_from = properties[i][from_shape][angle_bin_from]
@@ -890,10 +907,10 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
             table.add_row(results)
 
         if ('accretion_direction' in plots):
-            plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], mass[to_shape], metals[to_shape], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, '')
-            for fd in range(len(flux_den_bins)-1):
-                save_fd = flux_den_saves[fd]
-                plot_accretion_direction(theta_to_fd[fd]*(np.pi/180.)+np.pi, phi_to_fd[fd]*(np.pi/180.), temperature[to_shape_fd[fd]], metallicity[to_shape_fd[fd]], rv[to_shape_fd[fd]], tcool[to_shape_fd[fd]], mass[to_shape_fd[fd]], metals[to_shape_fd[fd]], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, save_fd)
+            plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), density[to_shape], temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], mass[to_shape], metals[to_shape], flux_sr[to_shape], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, '')
+            for dv in range(len(disp_vff_bins)-1):
+                save_dv = disp_vff_saves[dv]
+                plot_accretion_direction(theta_to_dv[dv]*(np.pi/180.)+np.pi, phi_to_dv[dv]*(np.pi/180.), density[to_shape_dv[dv]], temperature[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], mass[to_shape_dv[dv]], metals[to_shape_dv[dv]], flux_sr[to_shape[dv]], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, save_dv)
 
     table = set_flux_table_units(table)
     table.write(tablename + flux_filename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
@@ -919,6 +936,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     props.append('turbulent_kinetic_energy')
     props.append('rotational_kinetic_energy')
     props.append('cooling_energy')
+    props.append('density')
     props.append('temperature')
     props.append('metallicity')
     props.append('cooling_time')
@@ -926,6 +944,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     props.append('pressure')
     props.append('radial_velocity')
     props.append('sound_speed')
+    props.append('flux_sr')
     table = make_props_table(props)
 
     dx = float(np.min(grid[('gas','dx')].in_units('kpc')))
@@ -947,17 +966,19 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     rv = grid['gas','radial_velocity_corrected'].in_units('km/s').v
     vtheta = grid['gas','theta_velocity_corrected'].in_units('km/s').v
     vphi = grid['gas','phi_velocity_corrected'].in_units('km/s').v
+    vff = grid['gas','vff'].in_units('kpc/yr').v
     temperature = grid['gas','temperature'].in_units('K').v
     metallicity = grid['gas','metallicity'].in_units('Zsun').v
     tcool = grid['gas','cooling_time'].in_units('Myr').v
     entropy = grid['gas','entropy'].in_units('cm**2*keV').v
     pressure = grid['gas','pressure'].in_units('erg/cm**3').v
-    density = grid['gas','density'].in_units('Msun/kpc**3').v
+    density = grid['gas','density'].in_units('g/cm**3').v
     mass = grid['gas', 'cell_mass'].in_units('Msun').v
     metals = grid['gas','metal_mass'].in_units('Msun').v
     sound_speed = grid['gas','sound_speed'].in_units('km/s').v
     thermal = grid['gas','thermal_energy'].in_units('erg/g').v*grid['gas','cell_mass'].in_units('g').v
     cooling_energy = thermal/(tcool*1e6)*(5.*dt)
+    flux_sr = -grid['gas','density'].in_units('Msun/kpc**3').v*grid['gas','radial_velocity_corrected'].in_units('kpc/yr').v*radius**2.
     if (args.weight=='mass'): weights = np.copy(mass)
     if (args.weight=='volume'): weights = grid['gas','cell_volume'].in_units('kpc**3').v
     smooth_vx = gaussian_filter(vx, smooth_scale)
@@ -973,7 +994,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     radial_kinetic = 1./2.*smooth_vr**2.*grid['gas','cell_mass'].in_units('g').v
     rotational_kinetic = 1./2.*(smooth_vtheta**2. + smooth_vphi**2.)*grid['gas','cell_mass'].in_units('g').v
     # Load dark matter velocities and positions and digitize onto grid
-    properties = [mass, metals, thermal, radial_kinetic, turbulent_kinetic, rotational_kinetic, cooling_energy, temperature, metallicity, tcool, entropy, pressure, rv, sound_speed]
+    properties = [mass, metals, thermal, radial_kinetic, turbulent_kinetic, rotational_kinetic, cooling_energy, density, temperature, metallicity, tcool, entropy, pressure, rv, sound_speed, flux_sr]
 
     # Calculate new positions of gas cells
     new_x = vx*(5.*dt) + x
@@ -981,7 +1002,8 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     new_z = vz*(5.*dt) + z
     displacement = np.sqrt((new_x-x)**2. + (new_y-y)**2. + (new_z-z)**2.)
     displacement_vel = displacement/(5.*dt)
-    flux_density_rad = density*displacement_vel*radius**2.      # units of Msun/yr/rad**2
+    disp_vff = displacement_vel/-vff
+    #flux_density_rad = density*displacement_vel*radius**2.      # units of Msun/yr/rad**2
     inds_x = np.digitize(new_x, xbins)-1      # indices of new x positions
     inds_y = np.digitize(new_y, ybins)-1      # indices of new y positions
     inds_z = np.digitize(new_z, zbins)-1      # indices of new z positions
@@ -1002,8 +1024,8 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
             regions = [0., 1e-2, 1e-1, np.inf]
             filter = np.copy(metallicity)
 
-    flux_den_bins = [[0.,0.5],[0.,1.],[1.,2.],[1.,np.inf],[2.,np.inf]]
-    flux_den_saves = ['_0-0p5', '_0-1', '_1-2', '_1-inf', '_2-inf']
+    disp_vff_bins = [[0.,0.5],[0.5,0.75],[0.75,np.inf]]
+    disp_vff_saves = ['_0-0p5', '_0p5-0p75', '_0p75-inf']
 
     # If calculating direction of accretion, set up bins
     if (args.direction):
@@ -1039,21 +1061,20 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
         from_shape_fast = from_shape & (rv > 200.)
         shape_non = shape_edge & ~to_shape
 
-        # Bin cells by flux density
-        mean_flux_den = np.mean(flux_density_rad[to_shape])
-        to_shape_fd = []
-        for fd in range(len(flux_den_bins)):
-            low_fd = flux_den_bins[fd][0]
-            upp_fd = flux_den_bins[fd][1]
-            to_shape_fd.append(to_shape & (flux_density_rad >= low_fd*mean_flux_den) & (flux_density_rad < upp_fd*mean_flux_den))
+        # Bin cells by displacement velocity relative to free-fall velocity
+        to_shape_dv = []
+        for dv in range(len(disp_vff_bins)):
+            low_dv = disp_vff_bins[dv][0]
+            upp_dv = disp_vff_bins[dv][1]
+            to_shape_dv.append(to_shape & (disp_vff >= low_dv) & (disp_vff < upp_dv))
 
         theta_to = theta[to_shape]
         phi_to = phi[to_shape]
-        theta_to_fd = []
-        phi_to_fd = []
-        for fd in range(len(flux_den_bins)):
-            theta_to_fd.append(theta[to_shape_fd[fd]])
-            phi_to_fd.append(phi[to_shape_fd[fd]])
+        theta_to_dv = []
+        phi_to_dv = []
+        for dv in range(len(disp_vff_bins)):
+            theta_to_dv.append(theta[to_shape_dv[dv]])
+            phi_to_dv.append(phi[to_shape_dv[dv]])
         theta_edge = theta[shape_edge]
         phi_edge = phi[shape_edge]
         theta_non = theta[shape_non]
@@ -1063,7 +1084,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
         pix_area = healpy.nside2pixarea(nside)
 
         for p in range(len(phi_bins)):
-            angle_bin_to_fd = []
+            angle_bin_to_dv = []
             if (surface[0]=='sphere') and (args.radial_stepping>0):
                 results = [radii[r]]
             elif ('disk' in surface[0]):
@@ -1076,28 +1097,28 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                 angle_bin_to = np.ones(len(phi_to), dtype=bool)
                 angle_bin_edge = np.ones(len(phi_edge), dtype=bool)
                 angle_bin_non = np.ones(len(phi_non), dtype=bool)
-                for fd in range(len(flux_den_bins)):
-                    angle_bin_to_fd.append(np.ones(np.count_nonzero(to_shape_fd[fd]), dtype=bool))
+                for dv in range(len(disp_vff_bins)):
+                    angle_bin_to_dv.append(np.ones(np.count_nonzero(to_shape_dv[dv]), dtype=bool))
             elif (phi_bins[p]=='major'):
                 angle_bin_to = (phi_to >= 60.) & (phi_to <= 120.)
                 angle_bin_edge = (phi_edge >= 60.) & (phi_edge <= 120.)
                 angle_bin_non = (phi_non >= 60.) & (phi_non <= 120.)
-                for fd in range(len(flux_den_bins)):
-                    angle_bin_to_fd.append((phi_to_fd[fd] >= 60.) & (phi_to_fd[fd] <= 120.))
+                for dv in range(len(disp_vff_bins)):
+                    angle_bin_to_dv.append((phi_to_dv[dv] >= 60.) & (phi_to_dv[dv] <= 120.))
             elif (phi_bins[p]=='minor'):
                 angle_bin_to = (phi_to < 60.) | (phi_to > 120.)
                 angle_bin_edge = (phi_edge < 60.) | (phi_edge > 120.)
                 angle_bin_non = (phi_non < 60.) | (phi_non > 120.)
-                for fd in range(len(flux_den_bins)):
-                    angle_bin_to_fd.append((phi_to_fd[fd] < 60.) | (phi_to_fd[fd] > 120.))
+                for dv in range(len(disp_vff_bins)):
+                    angle_bin_to_dv.append((phi_to_dv[dv] < 60.) | (phi_to_dv[dv] > 120.))
             pixel_acc = healpy.ang2pix(nside, phi_to[angle_bin_to]*(np.pi/180.), theta_to[angle_bin_to]*(np.pi/180.)+np.pi)
             u = np.unique(pixel_acc)
             covering_acc = len(u)*pix_area
-            covering_acc_fd = []
-            for fd in range(len(flux_den_bins)):
-                pixel_acc = healpy.ang2pix(nside, phi_to_fd[fd][angle_bin_to_fd[fd]]*(np.pi/180.), theta_to_fd[fd][angle_bin_to_fd[fd]]*(np.pi/180.)+np.pi)
+            covering_acc_dv = []
+            for dv in range(len(disp_vff_bins)):
+                pixel_acc = healpy.ang2pix(nside, phi_to_dv[dv][angle_bin_to_dv[dv]]*(np.pi/180.), theta_to_dv[dv][angle_bin_to_dv[dv]]*(np.pi/180.)+np.pi)
                 u = np.unique(pixel_acc)
-                covering_acc_fd.append(len(u)*pix_area)
+                covering_acc_dv.append(len(u)*pix_area)
             pixel_non = healpy.ang2pix(nside, phi_non[angle_bin_non]*(np.pi/180.), theta_non[angle_bin_non]*(np.pi/180.)+np.pi)
             u = np.unique(pixel_non)
             covering_non = len(u)*pix_area
@@ -1106,19 +1127,19 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
             covering_edge = len(u)*pix_area
             results.append(covering_non/covering_edge)
             results.append(covering_acc/covering_edge)
-            for fd in range(len(flux_den_bins)):
-                results.append(covering_acc_fd[fd]/covering_edge)
+            for dv in range(len(disp_vff_bins)):
+                results.append(covering_acc_dv[dv]/covering_edge)
             weights_to = weights[to_shape][angle_bin_to]
-            weights_to_fd = []
-            for fd in range(len(flux_den_bins)):
-                weights_to_fd.append(weights[to_shape_fd[fd]][angle_bin_to_fd[fd]])
+            weights_to_dv = []
+            for dv in range(len(disp_vff_bins)):
+                weights_to_dv.append(weights[to_shape_dv[dv]][angle_bin_to_dv[dv]])
             weights_edge = weights[shape_edge][angle_bin_edge]
             weights_non = weights[shape_non][angle_bin_non]
             if (args.region_filter!='none'):
                 region_to = filter[to_shape][angle_bin_to]
-                region_to_fd = []
-                for fd in range(len(flux_den_bins)):
-                    region_to_fd.append(filter[to_shape_fd[fd]][angle_bin_to_fd[fd]])
+                region_to_dv = []
+                for dv in range(len(disp_vff_bins)):
+                    region_to_dv.append(filter[to_shape_dv[dv]][angle_bin_to_dv[dv]])
                 region_edge = filter[shape_edge][angle_bin_edge]
                 region_non = filter[shape_non][angle_bin_non]
                 for f in range(len(regions)-1):
@@ -1134,31 +1155,31 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                     u = np.unique(pixel_f)
                     covering_f = len(u)*pix_area
                     results.append(covering_f/covering_edge)
-                    for fd in range(len(flux_den_bins)):
-                        phi_to_f = phi_to_fd[fd][angle_bin_to_fd[fd]][(region_to_fd[fd]>=regions[f]) & (region_to_fd[fd]<regions[f+1])]
-                        theta_to_f = theta_to_fd[fd][angle_bin_to_fd[fd]][(region_to_fd[fd]>=regions[f]) & (region_to_fd[fd]<regions[f+1])]
+                    for dv in range(len(disp_vff_bins)):
+                        phi_to_f = phi_to_dv[dv][angle_bin_to_dv[dv]][(region_to_dv[dv]>=regions[f]) & (region_to_dv[dv]<regions[f+1])]
+                        theta_to_f = theta_to_dv[dv][angle_bin_to_dv[dv]][(region_to_dv[dv]>=regions[f]) & (region_to_dv[dv]<regions[f+1])]
                         pixel_f = healpy.ang2pix(nside, phi_to_f*(np.pi/180.), theta_to_f*(np.pi/180.)+np.pi)
                         results.append(covering_f/covering_edge)
             for i in range(len(properties)):
                 prop_to = properties[i][to_shape][angle_bin_to]
-                prop_to_fd = []
-                for fd in range(len(flux_den_bins)):
-                    prop_to_fd.append(properties[i][to_shape_fd[fd]][angle_bin_to_fd[fd]])
+                prop_to_dv = []
+                for dv in range(len(disp_vff_bins)):
+                    prop_to_dv.append(properties[i][to_shape_dv[dv]][angle_bin_to_dv[dv]])
                 prop_edge = properties[i][shape_edge][angle_bin_edge]
                 prop_non = properties[i][shape_non][angle_bin_non]
                 if ('mass' in props[i+1]) or ('energy' in props[i+1]):
                     results.append(np.sum(prop_edge))
                     results.append(np.sum(prop_non))
                     results.append(np.sum(prop_to))
-                    for fd in range(len(flux_den_bins)):
-                        results.append(np.sum(prop_to_fd[fd]))
+                    for dv in range(len(disp_vff_bins)):
+                        results.append(np.sum(prop_to_dv[dv]))
                     if (args.region_filter!='none'):
                         for f in range(len(regions)-1):
                             results.append(np.sum(prop_edge[(region_edge>=regions[f]) & (region_edge<regions[f+1])]))
                             results.append(np.sum(prop_non[(region_non>=regions[f]) & (region_non<regions[f+1])]))
                             results.append(np.sum(prop_to[(region_to>=regions[f]) & (region_to<regions[f+1])]))
-                            for fd in range(len(flux_den_bins)):
-                                results.append(np.sum(prop_to_fd[fd][(region_to_fd[fd]>=regions[f]) & (region_to_fd[fd]<regions[f+1])]))
+                            for dv in range(len(disp_vff_bins)):
+                                results.append(np.sum(prop_to_dv[dv][(region_to_dv[dv]>=regions[f]) & (region_to_dv[dv]<regions[f+1])]))
                 else:
                     if (len(prop_edge)>0):
                         quantiles = weighted_quantile(prop_edge, weights_edge, np.array([0.25,0.5,0.75]))
@@ -1196,12 +1217,12 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                         results.append(np.nan)
                         results.append(np.nan)
                         results.append(np.nan)
-                    for fd in range(len(flux_den_bins)):
-                        if (len(prop_to_fd[fd])>0):
-                            quantiles = weighted_quantile(prop_to_fd[fd], weights_to_fd[fd], np.array([0.25,0.5,0.75]))
+                    for dv in range(len(disp_vff_bins)):
+                        if (len(prop_to_dv[dv])>0):
+                            quantiles = weighted_quantile(prop_to_dv[dv], weights_to_dv[dv], np.array([0.25,0.5,0.75]))
                             results.append(quantiles[1])
                             results.append(quantiles[2]-quantiles[0])
-                            avg, std = weighted_avg_and_std(prop_to_fd[fd], weights_to_fd[fd])
+                            avg, std = weighted_avg_and_std(prop_to_dv[dv], weights_to_dv[dv])
                             results.append(avg)
                             results.append(std)
                         else:
@@ -1253,9 +1274,9 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
                                 results.append(np.nan)
                                 results.append(np.nan)
                                 results.append(np.nan)
-                            for fd in range(len(flux_den_bins)):
-                                prop_to_f = prop_to_fd[fd][(region_to_fd[fd]>=regions[f]) & (region_to_fd[fd]<regions[f+1])]
-                                weights_to_f = weights_to_fd[fd][(region_to_fd[fd]>=regions[f]) & (region_to_fd[fd]<regions[f+1])]
+                            for dv in range(len(disp_vff_bins)):
+                                prop_to_f = prop_to_dv[dv][(region_to_dv[dv]>=regions[f]) & (region_to_dv[dv]<regions[f+1])]
+                                weights_to_f = weights_to_dv[dv][(region_to_dv[dv]>=regions[f]) & (region_to_dv[dv]<regions[f+1])]
                                 if (len(prop_to_f)>0):
                                     quantiles = weighted_quantile(prop_to_f, weights_to_f, np.array([0.25,0.5,0.75]))
                                     results.append(quantiles[1])
@@ -1272,15 +1293,15 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
             table.add_row(results)
 
         if ('accretion_direction' in plots):
-            plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], mass[to_shape], metals[to_shape], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r, '')
-            for fd in range(len(flux_den_bins)):
-                save_fd = flux_den_saves[fd]
-                plot_accretion_direction(theta_to_fd[fd]*(np.pi/180.)+np.pi, phi_to_fd[fd]*(np.pi/180.), temperature[to_shape_fd[fd]], metallicity[to_shape_fd[fd]], rv[to_shape_fd[fd]], tcool[to_shape_fd[fd]], mass[to_shape_fd[fd]], metals[to_shape_fd[fd]], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r, save_fd)
+            plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), density[to_shape], temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], mass[to_shape], metals[to_shape], flux_sr[to_shape], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r, '')
+            for dv in range(len(disp_vff_bins)):
+                save_dv = disp_vff_saves[dv]
+                plot_accretion_direction(theta_to_dv[dv]*(np.pi/180.)+np.pi, phi_to_dv[dv]*(np.pi/180.), density[to_shape_dv[dv]], temperature[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], mass[to_shape_dv[dv]], metals[to_shape_dv[dv]], flux_sr[to_shape_dv[dv]], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r, save_dv)
         if ('phase_plot' in plots):
             phase_plots(temperature[to_shape], rv[to_shape], tcool[to_shape], metallicity[to_shape], entropy[to_shape], pressure[to_shape], mass[to_shape], temperature[shape_non], rv[shape_non], tcool[shape_non], metallicity[shape_non], entropy[shape_non], pressure[shape_non], mass[shape_non], tsnap, zsnap, prefix, snap, radii[r], save_r, '')
-            for fd in range(len(flux_den_bins)):
-                save_fd = flux_den_saves[fd]
-                phase_plots(temperature[to_shape_fd[fd]], rv[to_shape_fd[fd]], tcool[to_shape_fd[fd]], metallicity[to_shape_fd[fd]], entropy[to_shape_fd[fd]], pressure[to_shape_fd[fd]], mass[to_shape_fd[fd]], temperature[shape_non], rv[shape_non], tcool[shape_non], metallicity[shape_non], entropy[shape_non], pressure[shape_non], mass[shape_non], tsnap, zsnap, prefix, snap, radii[r], save_r, save_fd)
+            for dv in range(len(disp_vff_bins)):
+                save_dv = disp_vff_saves[dv]
+                phase_plots(temperature[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], entropy[to_shape_dv[dv]], pressure[to_shape_dv[dv]], mass[to_shape_dv[dv]], temperature[shape_non], rv[shape_non], tcool[shape_non], metallicity[shape_non], entropy[shape_non], pressure[shape_non], mass[shape_non], tsnap, zsnap, prefix, snap, radii[r], save_r, save_dv)
 
     table = set_props_table_units(table)
     table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
@@ -2642,7 +2663,7 @@ def filaments_3D(ds, grid, snap, snap_props):
     Menc_profile, Mvir, Rvir = snap_props
     tsnap = ds.current_time.in_units('Gyr').v
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-    acc_compare_props = Table.read(prefix + 'Tables/' + snap + '_accretion-compare_radial_1p5Rvir.hdf5', path='all_data')
+    #acc_compare_props = Table.read(prefix + 'Tables/' + snap + '_accretion-compare_radial_1p5Rvir.hdf5', path='all_data')
 
     # Load grid properties
     x = grid['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
@@ -2658,14 +2679,14 @@ def filaments_3D(ds, grid, snap, snap_props):
     density = grid['gas','density'].in_units('Msun/kpc**3.').v
     radial_velocity = grid['gas','radial_velocity_corrected'].in_units('kpc/yr').v
     vff = grid['gas','vff'].in_units('kpc/yr').v
-    '''theta = grid['gas','theta_pos_disk'].v
+    theta = grid['gas','theta_pos_disk'].v
     phi = grid['gas','phi_pos_disk'].v
     temperature = grid['gas','temperature'].in_units('K').v
     mass = grid['gas','cell_mass'].in_units('Msun').v
     tcool = grid['gas','cooling_time'].in_units('s').v
     sound_speed = grid['gas','sound_speed'].in_units('km/s').v
     metallicity = grid['gas','metallicity'].in_units('Zsun').v
-    metal_mass = grid['gas', 'metal_mass'].in_units('Msun').v'''
+    metal_mass = grid['gas', 'metal_mass'].in_units('Msun').v
 
     # Calculate new positions of gas cells
     new_x = vx*(5.*dt) + x
@@ -2681,18 +2702,19 @@ def filaments_3D(ds, grid, snap, snap_props):
     new_inds = np.array([inds_x, inds_y, inds_z])
     print('Arrays loaded and displacements found')
 
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=7091.48):
+        density_cut_factor = 20. - 19.*current_time/7091.48
+    elif (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
+
     if (args.cgm_only):
-        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
-        # with it being 1 at higher redshifts and 0.1 at lower redshifts
-        current_time = ds.current_time.in_units('Myr').v
-        if (current_time<=7091.48):
-            density_cut_factor = 20. - 19.*current_time/7091.48
-        elif (current_time<=8656.88):
-            density_cut_factor = 1.
-        elif (current_time<=10787.12):
-            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
-        else:
-            density_cut_factor = 0.1
         cgm_bool = (grid['gas','density'].in_units('g/cm**3').v < density_cut_factor * cgm_density_max)
     else:
         cgm_bool = (grid['gas','density'].in_units('g/cm**3').v > 0.)
@@ -2731,21 +2753,6 @@ def filaments_3D(ds, grid, snap, snap_props):
 
     flux_ratio_array_smoothed = gaussian_filter(flux_ratio_array, 2.)
     fast_streams_r = (flux_ratio_array_smoothed > 1.5)
-    
-    '''flux_density_rad = -1*density*radial_velocity*radius**2.
-    flux_density_rad[flux_density_rad<0.] = np.nan
-    avg_flux_density_rad = []
-    radii = np.linspace(0., Rvir, 200)
-    for r in range(len(radii)-1):
-        avg_flux_density_rad.append(np.nanmean(flux_density_rad[(radius>radii[r]) & (radius<radii[r+1])]))
-    avg_flux_density_rad = np.array(avg_flux_density_rad)
-    avg_flux_den = IUS(radii[1:], avg_flux_density_rad)
-    plt.plot(radii[1:], avg_flux_density_rad, 'k-', lw=2)
-    plt.plot(radii[1:], avg_flux_den(radii[1:]), 'k--', lw=2)
-    plt.show()
-    flux_density_rad = np.nan_to_num(flux_density_rad)
-    fast_streams = (flux_density_rad > 2.) & (radius > 30.)
-    flux_ratio_array = flux_density_rad/avg_flux_den(radius)'''
 
     fils_labeled, n_fils = ndimage.label(fast_streams_r)
     # Ignore filaments that are too small
@@ -2759,6 +2766,8 @@ def filaments_3D(ds, grid, snap, snap_props):
     from skimage.measure import marching_cubes
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
     import napari
+
+    viewer = napari.view_image(np.log10(density), name='density', colormap='viridis', contrast_limits=[-5,7])
 
     fil_extents = []
     fil_areas = []
@@ -2793,7 +2802,7 @@ def filaments_3D(ds, grid, snap, snap_props):
 
         print('Marching cubes for filament', f+1, 'of', n_fils)
         verts, faces, normals, values = marching_cubes(flux_ratio_array_smoothed, level=1.5, step_size=3, mask=np.array(fil_expanded, dtype=bool))
-        fig = plt.figure(figsize=(10, 10))
+        fig = plt.figure(num=f+1,figsize=(10, 10))
         ax = fig.add_subplot(111, projection='3d')
 
         # Fancy indexing: verts[faces] to generate a collection of triangles
@@ -2803,15 +2812,10 @@ def filaments_3D(ds, grid, snap, snap_props):
         ax.set_xlim(np.min(verts[:,0]), np.max(verts[:,0]))
         ax.set_ylim(np.min(verts[:,1]), np.max(verts[:,1]))
         ax.set_zlim(np.min(verts[:,2]), np.max(verts[:,2]))
-        plt.show()
 
         den_fil = np.copy(density)
         den_fil[fil==0] = 1e-5
-        den_edge = np.copy(density)
-        den_edge[fil_edge==0] = 1e-5
-        viewer = napari.view_image(np.log10(den_fil), name='filament', colormap='viridis', contrast_limits=[-2,4])
-        #den_edge_layer = viewer.add_image(np.log10(den_edge), name='filament_edge', colormap='viridis', contrast_limits=[-30,-20])
-        napari.run()
+        fil_layer = viewer.add_image(np.log10(den_fil), name='filament %d' % (f+1), colormap='viridis', contrast_limits=[-2,4])
 
         '''for r in range(len(radii)-1):
             if (args.radial_stepping>0): save_r = '_r%d' % (r)
@@ -2877,9 +2881,12 @@ def filaments_3D(ds, grid, snap, snap_props):
                 tturbs[f][r] = tturb
                 tshears[f][r] = tshear
                 taccs[f][r] = (radii[r]*1000*cmtopc)/(np.abs(fil_rv)*1e5)
-                print('tacc', (radii[r]*1000*cmtopc)/(np.abs(fil_rv)*1e5))
+                print('tacc', (radii[r]*1000*cmtopc)/(np.abs(fil_rv)*1e5))'''
+
+    #napari.run()
+    plt.show()
                 
-    fil_extents = np.array(fil_extents)
+    '''fil_extents = np.array(fil_extents)
     fil_areas = np.array(fil_areas)
     tcools = np.array(tcools)
     taccs = np.array(taccs)
