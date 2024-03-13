@@ -115,7 +115,7 @@ def make_fits(args):
     dat = region['gas', 'density'] #or whatever you like
     pix_size = float(np.min(region['gas','dx'].in_units('kpc')))
     res=properwidth/pix_size 
-    frbdat = fullds.covering_grid(level=9, left_edge=fullds.halo_center_kpc, dims=[res, res, res]) #modify to whatever
+    frbdat = fullds.covering_grid(level=9, left_edge=region.left_edge, dims=[res, res, res]) #modify to whatever
     datnp = np.array(frbdat['gas','density'])
 
     hdr = fits.Header()
@@ -142,10 +142,10 @@ def make_fits(args):
     hdr['CD3_3'] = pix_size
     hdr['CRPIX3'] = pix_size
     hdr['CRVAL3'] = 0.
-    primary_hdu = fits.PrimaryHDU(header = hdr)
-    data_hdu = fits.ImageHDU(datnp)
+    primary_hdu = fits.PrimaryHDU(datnp, header = hdr)
+    #data_hdu = fits.ImageHDU(datnp, header = hdr)
 
-    hdulist = fits.HDUList([primary_hdu, data_hdu])
+    hdulist = fits.HDUList([primary_hdu])
     fitsfile = halo+'_'+sim+'_'+snap+'_'+'.fits'
     if (os.path.exists(output_dir+fitsfile)): os.system('mv ' + output_dir+fitsfile + ' '+ output_dir+'old_'+fitsfile)
     hdulist.writeto(fitsfile)
