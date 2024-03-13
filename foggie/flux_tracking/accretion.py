@@ -18,8 +18,6 @@ utils/analysis_utils.py
 
 # Import everything as needed
 from __future__ import print_function
-import warnings
-warnings.filterwarnings("ignore")
 
 import numpy as np
 import yt
@@ -421,7 +419,7 @@ def plot_accretion_direction(theta_acc, phi_acc, density, temperature, metallici
             cmap = sns.blend_palette(("black", "#4575b4", "#4daf4a", "#ffe34d", "darkorange"), as_cmap=True)
             cmin = -31.
             cmax = -24.
-            field_label = 'log Density [g/cm$^{-3}$]'
+            field_label = r'log Density [g/cm$^{-3}$]'
         if (c=='temperature'):
             color_field = 'temperature'
             color_val = np.log10(temperature)
@@ -435,7 +433,7 @@ def plot_accretion_direction(theta_acc, phi_acc, density, temperature, metallici
             cmap = sns.blend_palette(("black", "#4575b4", "#984ea3", "#d73027", "darkorange", "#ffe34d"), as_cmap=True)
             cmin = -2.
             cmax = 0.5
-            field_label = 'log Metallicity [$Z_\odot$]'
+            field_label = r'log Metallicity [$Z_\odot$]'
         elif (c=='cooling_time'):
             color_field = 'cooling-time'
             color_val = np.log10(cooling_time)
@@ -449,7 +447,7 @@ def plot_accretion_direction(theta_acc, phi_acc, density, temperature, metallici
             cmap = cmr.wildfire
             cmin = -2
             cmax = 2
-            field_label = 'log $t_\mathrm{cool}/t_{ff}$'
+            field_label = r'log $t_\mathrm{cool}/t_{ff}$'
         elif (c=='radial_velocity'):
             color_field = 'radial-velocity'
             color_val = radial_velocity
@@ -463,14 +461,14 @@ def plot_accretion_direction(theta_acc, phi_acc, density, temperature, metallici
             cmap = cmr.get_sub_cmap('cmr.ocean_r', 0.1, 1.)
             cmin = -1.
             cmax = 1.
-            field_label = 'log Mass Flux [$M_\odot$/yr/sr]'
+            field_label = r'log Mass Flux [$M_\odot$/yr/sr]'
         elif (c=='metal_flux_sr'):
             color_field = 'metal-flux-sr'
             color_val = np.log10(metal_flux_sr)
             cmap = cmr.amethyst_r
             cmin = -4.
             cmax = 0.
-            field_label = 'log Metal Mass Flux [$M_\odot$/yr/sr]'
+            field_label = r'log Metal Mass Flux [$M_\odot$/yr/sr]'
 
         fig1 = plt.figure(num=1, figsize=(10,6), dpi=300)
         contour_fig = plt.figure(num=2)
@@ -502,7 +500,7 @@ def plot_accretion_direction(theta_acc, phi_acc, density, temperature, metallici
         else:
             contour2_segs = []
         if (surface[0]=='sphere') and (args.radial_stepping>0):
-            title = '$r=%.2f$ kpc' % (radius)
+            title = r'$r=%.2f$ kpc' % (radius)
         else:
             title = ''
         healpy.mollview(m, fig=1, cmap=cmap, min=cmin, max=cmax, title=title, unit=field_label, badcolor='white')
@@ -543,11 +541,11 @@ def plot_accretion_direction(theta_acc, phi_acc, density, temperature, metallici
     else:
         contour2_segs = []
     if (surface[0]=='sphere') and (args.radial_stepping>0):
-        title = '$r=%.2f$ kpc' % (radius)
+        title = r'$r=%.2f$ kpc' % (radius)
     else:
         title = ''
     cmap = cmr.get_sub_cmap('cmr.ocean_r', 0.1, 1.)
-    healpy.mollview(m, fig=1, cmap=cmap, min=-1, max=1, title=title, unit='log Mass Flux [$M_\odot$/yr/sr]', badcolor='white')
+    healpy.mollview(m, fig=1, cmap=cmap, min=-1, max=1, title=title, unit=r'log Mass Flux [$M_\odot$/yr/sr]', badcolor='white')
     healpy.graticule()
     for i in range(len(contour1_segs)):
         healpy.projplot(contour1_segs[i][:,1], contour1_segs[i][:,0], color='#d4d4d4', ls='-', lw=2)
@@ -583,11 +581,11 @@ def plot_accretion_direction(theta_acc, phi_acc, density, temperature, metallici
     else:
         contour2_segs = []
     if (surface[0]=='sphere') and (args.radial_stepping>0):
-        title = '$r=%.2f$ kpc' % (radius)
+        title = r'$r=%.2f$ kpc' % (radius)
     else:
         title = ''
     cmap = cmr.amethyst_r
-    healpy.mollview(m, fig=1, cmap=cmap, min=-4, max=0, title=title, unit='log Metal Mass Flux [$M_\odot$/yr/sr]', badcolor='white')
+    healpy.mollview(m, fig=1, cmap=cmap, min=-4, max=0, title=title, unit=r'log Metal Mass Flux [$M_\odot$/yr/sr]', badcolor='white')
     healpy.graticule()
     for i in range(len(contour1_segs)):
         healpy.projplot(contour1_segs[i][:,1], contour1_segs[i][:,0], color='#d4d4d4', ls='-', lw=2)
@@ -669,7 +667,7 @@ def sky_map(ds, sp, snap, snap_props):
             title = 'All gas'
         else:
             title = 'Only accreting gas'
-        healpy.mollview(m, fig=1, cmap=cmap, min=cmin, max=cmax, title=title, unit='log H I Column Density [cm$^{-2}$]')
+        healpy.mollview(m, fig=1, cmap=cmap, min=cmin, max=cmax, title=title, unit=r'log H I Column Density [cm$^{-2}$]')
         healpy.graticule()
         plt.savefig(prefix + snap + '_col-den-map_' + i + save_suffix + '.png')
         plt.close()
@@ -1341,7 +1339,7 @@ def phase_plots(temp_acc, vel_acc, tcool_acc, met_acc, entropy_acc, pressure_acc
 
     props_acc = [np.log10(temp_acc), vel_acc, np.log10(tcool_acc), np.log10(entropy_acc), np.log10(pressure_acc), np.log10(met_acc)]
     props_else = [np.log10(temp_else), vel_else, np.log10(tcool_else), np.log10(entropy_else), np.log10(pressure_else), np.log10(met_else)]
-    props_labels = ['log Temperature [K]', 'Radial velocity [km/s]', 'log Cooling time [Myr]', 'log Entropy [keV cm$^2$]', 'log Pressure [erg/cm$^3$]', 'log Metallicity [$Z_\odot$]']
+    props_labels = ['log Temperature [K]', 'Radial velocity [km/s]', 'log Cooling time [Myr]', r'log Entropy [keV cm$^2$]', r'log Pressure [erg/cm$^3$]', r'log Metallicity [$Z_\odot$]']
     props_save = ['temp', 'rv', 'tcool', 'entropy', 'pressure', 'met']
     ranges = [[3,7], [-300,300], [0,6], [0,3], [-17,-13], [-4,0.5]]
     for i in range(len(props_acc)):
@@ -1620,15 +1618,15 @@ def accretion_flux_vs_time(snaplist):
 
     if (args.region_filter=='temperature'):
         plot_colors = ['salmon', "#984ea3", "#4daf4a", 'darkorange', 'k']
-        region_label = ['$<10^4$ K', '$10^4-10^5$ K', '$10^5-10^6$ K', '$>10^6$ K', 'All']
+        region_label = [r'$<10^4$ K', r'$10^4-10^5$ K', r'$10^5-10^6$ K', r'$>10^6$ K', 'All']
         region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
     elif (args.region_filter=='metallicity'):
         plot_colors = ["#4575b4", "#984ea3", "#d73027", "darkorange", 'k']
-        region_label = ['$<0.1Z_\odot$', '$0.1-0.5Z_\odot$', '$0.5-1Z_\odot$', '$>Z_\odot$', 'All']
+        region_label = [r'$<0.1Z_\odot$', r'$0.1-0.5Z_\odot$', r'$0.5-1Z_\odot$', r'$>Z_\odot$', 'All']
         region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
     elif (args.location_compare):
         plot_colors = ['c', 'g', 'b']
-        region_label = ['$0.25R_\mathrm{vir}$', '$0.5R_\mathrm{vir}$', '$R_\mathrm{vir}$']
+        region_label = [r'$0.25R_\mathrm{vir}$', r'$0.5R_\mathrm{vir}$', r'$R_\mathrm{vir}$']
         filenames = ['_0p25Rvir', '_0p5Rvir', '_Rvir']
         region_name = ['']
     else:
@@ -1638,7 +1636,7 @@ def accretion_flux_vs_time(snaplist):
         plot_colors = np.delete(plot_colors, 4, axis=0)
         plot_colors = np.delete(plot_colors, 4, axis=0)
         plot_colors = np.append(plot_colors, [[0., 0., 0., 1.]], axis=0)
-        region_label = ['$<0.25v_\mathrm{ff}$','0.25-0.5 $v_\mathrm{ff}$','0.5-0.75 $v_\mathrm{ff}$','$>0.75v_\mathrm{ff}$', 'Total flux']
+        region_label = [r'$<0.25v_\mathrm{ff}$',r'0.25-0.5 $v_\mathrm{ff}$',r'0.5-0.75 $v_\mathrm{ff}$',r'$>0.75v_\mathrm{ff}$', 'Total flux']
         region_name = ['_0-0.25','_0.25-0.5','_0.5-0.75','_0.75-inf', '']
 
     if (args.direction):
@@ -1702,7 +1700,7 @@ def accretion_flux_vs_time(snaplist):
                 ax.plot([-100,-100], [-100,-100], color='k', ls=linestyles[k], lw=2, label=angle_labels[k])
 
     #ax.axis([np.min(timelist), np.max(timelist), -30, 30])
-    ax.set_ylabel('Accretion Rate [$M_\odot$/yr]', fontsize=18)
+    ax.set_ylabel(r'Accretion Rate [$M_\odot$/yr]', fontsize=18)
     ax.set_yscale('log')
     ax.axis([np.min(timelist), np.max(timelist), 0.01, 50])
 
@@ -1739,7 +1737,7 @@ def accretion_flux_vs_time(snaplist):
     ax.plot([timelist[0],timelist[-1]], [0,0], 'k:', lw=1, label='SFR (right axis)')
     ax3.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=20, right=True)
     ax3.set_ylim(-5,200)
-    ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=20)'''
+    ax3.set_ylabel(r'SFR [$M_\odot$/yr]', fontsize=20)'''
     ax.plot(t_sfr, sfr, 'k--', lw=1, label='SFR')
 
     ax.plot([np.min(timelist), np.max(timelist)], [0,0], 'k-', lw=1)
@@ -1766,15 +1764,15 @@ def accretion_compare_vs_time(snaplist):
 
         if (args.region_filter=='temperature'):
             plot_colors = ['salmon', "#984ea3", "#4daf4a", 'darkorange', 'k']
-            region_label = ['$<10^4$ K', '$10^4-10^5$ K', '$10^5-10^6$ K', '$>10^6$ K', 'All']
+            region_label = [r'$<10^4$ K', r'$10^4-10^5$ K', r'$10^5-10^6$ K', r'$>10^6$ K', 'All']
             region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
         elif (args.region_filter=='metallicity'):
             plot_colors = ["#4575b4", "#984ea3", "#d73027", "darkorange", 'k']
-            region_label = ['$<0.1Z_\odot$', '$0.1-0.5Z_\odot$', '$0.5-1Z_\odot$', '$>Z_\odot$', 'All']
+            region_label = [r'$<0.1Z_\odot$', r'$0.1-0.5Z_\odot$', r'$0.5-1Z_\odot$', r'$>Z_\odot$', 'All']
             region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
         elif (args.location_compare):
             plot_colors = ['c', 'g', 'b']
-            region_label = ['$0.25R_\mathrm{vir}$', '$0.5R_\mathrm{vir}$', '$R_\mathrm{vir}$']
+            region_label = [r'$0.25R_\mathrm{vir}$', r'$0.5R_\mathrm{vir}$', r'$R_\mathrm{vir}$']
             filenames = ['_0p25Rvir', '_0p5Rvir', '_Rvir']
             region_name = ['']
         else:
@@ -1784,7 +1782,7 @@ def accretion_compare_vs_time(snaplist):
             plot_colors = np.delete(plot_colors, 4, axis=0)
             plot_colors = np.delete(plot_colors, 4, axis=0)
             plot_colors = np.append(plot_colors, [[0., 0., 0., 1.]], axis=0)
-            region_label = ['$<0.25v_\mathrm{ff}$','0.25-0.5 $v_\mathrm{ff}$','0.5-0.75 $v_\mathrm{ff}$','$>0.75v_\mathrm{ff}$', 'All accreting gas']
+            region_label = [r'$<0.25v_\mathrm{ff}$',r'0.25-0.5 $v_\mathrm{ff}$',r'0.5-0.75 $v_\mathrm{ff}$',r'$>0.75v_\mathrm{ff}$', 'All accreting gas']
             region_name = ['_0-0.25','_0.25-0.5','_0.5-0.75','_0.75-inf', '']
 
         if (args.direction):
@@ -1869,7 +1867,7 @@ def accretion_compare_vs_time(snaplist):
             ax.set_yscale('log')
             ax.axis([np.min(timelist), np.max(timelist), 1e2, 2e6])
         if (p=='metallicity'):
-            ax.set_ylabel('Metallicity [$Z_\odot$]', fontsize=18)
+            ax.set_ylabel(r'Metallicity [$Z_\odot$]', fontsize=18)
             ax.set_yscale('log')
             ax.axis([np.min(timelist), np.max(timelist), 1e-3, 2])
         if (p=='cooling_time'):
@@ -1929,9 +1927,9 @@ def accretion_compare_vs_radius(snap):
              [1e2,2e6], [1,1e3], [1e-17,5e-12], [-300, 300], 
              [1e-1,1e1], [1e-4,1e0]]
     logs = [False, True, True, True, True, True, True, False, True, True]
-    ylabels = ['Accretion Covering Fraction', 'Density [g/cm$^3$]',
-              'Temperature [K]', 'Metallicity [$Z_\odot$]', 'Cooling Time [Myr]', 'Entropy [keV cm$^2$]',
-              'Pressure [erg/cm$^3$]', 'Radial Velocity [km/s]', 'Mass Flux Density [$M_\odot$/yr/sr]', 'Metal Flux Density [$M_\odot$/yr/sr]']
+    ylabels = ['Accretion Covering Fraction', r'Density [g/cm$^3$]',
+              'Temperature [K]', r'Metallicity [$Z_\odot$]', 'Cooling Time [Myr]', r'Entropy [keV cm$^2$]',
+              r'Pressure [erg/cm$^3$]', 'Radial Velocity [km/s]', r'Mass Flux Density [$M_\odot$/yr/sr]', r'Metal Flux Density [$M_\odot$/yr/sr]']
 
     if ('phi_bin' in data.columns):
         all = (data['phi_bin']=='all')
@@ -1951,10 +1949,10 @@ def accretion_compare_vs_radius(snap):
     if (args.region_filter!='none'):
         region_file = ['', 'low_', 'mid_']
         if (args.region_filter=='temperature'):
-            region_labels = ['All temperatures', '$T<10^{4.9}$ K', '$10^{4.9}$ K $<T<10^{5.5}$ K', '$T>10^{5.5}$ K']
+            region_labels = ['All temperatures', r'$T<10^{4.9}$ K', r'$10^{4.9}$ K $<T<10^{5.5}$ K', r'$T>10^{5.5}$ K']
             region_colors = ['k', "#984ea3", "#4daf4a", "#ffe34d"]
         if (args.region_filter=='metallicity'):
-            region_labels = ['All metallicities', '$Z<10^{-2}Z_\odot$', '$10^{-2}Z_\odot < Z < 10^{-1}Z_\odot$', '$Z>10^{-1}Z_\odot$']
+            region_labels = ['All metallicities', r'$Z<10^{-2}Z_\odot$', r'$10^{-2}Z_\odot < Z < 10^{-1}Z_\odot$', r'$Z>10^{-1}Z_\odot$']
             region_colors = ['k',"#4575b4", "#984ea3", "#d73027"]
     else:
         #region_colors = plt.cm.Dark2(np.linspace(0, 1, 8))
@@ -1963,7 +1961,7 @@ def accretion_compare_vs_radius(snap):
         #region_colors = np.delete(region_colors, 4, axis=0)
         #region_colors = np.delete(region_colors, 4, axis=0)
         #region_colors = np.append(region_colors, [[0., 0., 0., 1.]], axis=0)
-        #region_labels = ['$<0.25v_\mathrm{ff}$','0.25-0.5 $v_\mathrm{ff}$','0.5-0.75 $v_\mathrm{ff}$','$>0.75v_\mathrm{ff}$', 'All accreting gas']
+        #region_labels = [r'$<0.25v_\mathrm{ff}$',r'0.25-0.5 $v_\mathrm{ff}$',r'0.5-0.75 $v_\mathrm{ff}$',r'$>0.75v_\mathrm{ff}$', 'All accreting gas']
         region_colors = ["#4A4DAF", "#4AAFAC", "#C8C556", 'k']
         region_labels = ['Filament core', 'Filament sheath', 'Non-filament accretion', 'All accreting gas']
         region_file = ['_0.75-inf','_0.25-0.75','_0-0.25','']
@@ -2093,11 +2091,11 @@ def accretion_flux_vs_radius(snap):
 
     if (args.region_filter=='temperature'):
         plot_colors = ['salmon', "#984ea3", "#4daf4a", 'darkorange', 'k']
-        region_label = ['$<10^4$ K', '$10^4-10^5$ K', '$10^5-10^6$ K', '$>10^6$ K', 'All temperatures']
+        region_label = [r'$<10^4$ K', r'$10^4-10^5$ K', r'$10^5-10^6$ K', r'$>10^6$ K', 'All temperatures']
         region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
     elif (args.region_filter=='metallicity'):
         plot_colors = ["#4575b4", "#984ea3", "#d73027", "darkorange", 'k']
-        region_label = ['$<0.1Z_\odot$', '$0.1-0.5Z_\odot$', '$0.5-1Z_\odot$', '$>Z_\odot$', 'All metallicities']
+        region_label = [r'$<0.1Z_\odot$', r'$0.1-0.5Z_\odot$', r'$0.5-1Z_\odot$', r'$>Z_\odot$', 'All metallicities']
         region_name = ['lowest_', 'low-mid_', 'high-mid_', 'highest_']
     else:
         plot_colors = ["#4A4DAF", "#4AAFAC", "#C8C556", 'k']
@@ -2106,7 +2104,7 @@ def accretion_flux_vs_radius(snap):
 
     fluxes = ['mass','metal']
     ranges = [[1e-4,1e3],[1e-6,5]]
-    ylabels = ['Mass Flux [$M_\odot$/yr]', 'Metal Mass Flux [$M_\odot$/yr]']
+    ylabels = [r'Mass Flux [$M_\odot$/yr]', r'Metal Mass Flux [$M_\odot$/yr]']
 
     if ('phi_bin' in data.columns):
         all = (data['phi_bin']=='all')
@@ -2568,7 +2566,7 @@ def number_and_size_of_filaments(ds, grid, shape, snap, snap_props):
         m[pixels] = label_fil           # assign pixels of map to data values
         m[m==0.] = np.nan
         fig1 = plt.figure(num=1, figsize=(10,6), dpi=300)
-        title = '$r=%.2f$ kpc' % (radii[r])
+        title = r'$r=%.2f$ kpc' % (radii[r])
         healpy.mollview(m, fig=1, badcolor='white', title=title, format='', unit='Filament number')
         healpy.graticule()
         plt.savefig(plot_prefix + 'Plots/' + snap + '_filaments_labeled' + save_r + save_suffix + '.png')
