@@ -18,6 +18,8 @@ utils/analysis_utils.py
 
 # Import everything as needed
 from __future__ import print_function
+import warnings
+warnings.filterwarnings("ignore")
 
 import numpy as np
 import yt
