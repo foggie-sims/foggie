@@ -74,25 +74,48 @@ def parse_args():
 def gas_density_projection(ds, region, snap, save_directory):
     '''Plots a gas density projection of the galaxy disk.'''
 
-    p = yt.ProjectionPlot(ds, 'z', 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
+    p = yt.ProjectionPlot(ds, ds.z_unit_disk, 'density', data_source=region,
+                          width=(20, 'kpc'), center=ds.halo_center_code)
     p.set_unit('density','Msun/pc**2')
     p.set_cmap('density', density_color_map)
     p.set_zlim('density',0.01,300)
-    p.save(save_directory + '/' + snap + '_Projection_z_density.png')
+    p.save(save_directory + '/' + snap + '_Projection_disk-z_density.png')
 
 def young_stars_density_projection(ds, region, snap, save_directory):
     '''Plots a young stars density projection of the galaxy disk.'''
 
-    p = yt.ProjectionPlot(ds, 'z', ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code)
+    p = yt.ProjectionPlot(ds, ds.z_unit_disk, ('deposit', 'young_stars3_cic'), 
+                          width=(20, 'kpc'), data_source=region, center=ds.halo_center_code)
     p.set_unit(('deposit','young_stars3_cic'),'Msun/kpc**2')
     p.set_zlim(('deposit','young_stars3_cic'),1000,1000000)
-    p.save(save_directory + '/' + snap + '_Projection_z_young_stars3_cic.png')
+    p.save(save_directory + '/' + snap + '_Projection_disk-z_young_stars3_cic.png')
+
+def edge_visualizations(ds, region, snap, save_directory):
+    """Plot slices & thin projections of galaxy temperature viewed from the disk edge."""
+
+    # Visualize along two perpendicular edge axes
+    for label, axis in zip(["disk-x","disk-y"],
+                           [ds.x_unit_disk, ds.y_unit_disk]):
+
+        # "Thin" projections (30 kpc deep).        
+        p = yt.ProjectionPlot(ds, axis, "temperature", weight_field="density",
+                              center=ds.halo_center_code, data_source=region,
+                              width=(60,"kpc"), depth=(30,"kpc"),
+                              north_vector=ds.z_unit_disk)
+        p.save(save_directory + '/' + snap + "_Projection_" + label + "temperature_density.png")
+
+        # Slices
+        s = yt.SlicePlot(ds, axis, "temperature",
+                         center=ds.halo_center_code, data_source=region,
+                         width=(60,"kpc"), north_vector=ds.z_unit_disk)
+        s.save(save_directory + '/' + snap + "_Slice_" + label + "temperature.png")
 
 def KS_relation(ds, region, snap, save_directory):
     '''Plots the KS relation from the dataset as compared to a curve taken from KMT09.'''
 
     # Make a projection and convert to FRB
-    p = yt.ProjectionPlot(ds, 'z', 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
+    p = yt.ProjectionPlot(ds, ds.z_unit_disk, 'density', 
+                          data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
     proj_frb = p.data_source.to_frb((20., "kpc"), 500)
     # Pull out the gas surface density and the star formation rate of the young stars
     projected_density = proj_frb['density'].in_units('Msun/pc**2')
@@ -121,12 +144,13 @@ def make_plots(snap, directory, save_directory, trackfile):
     the plotting scripts.'''
 
     filename = directory + '/' + snap + '/' + snap
-    ds, region = foggie_load(filename, trackfile)
+    ds, region = foggie_load(filename, trackfile, disk_relative=True)
 
     # Make the plots!
     # Eventually want to make this check to see if the plots already exist first before re-making them
     gas_density_projection(ds, region, snap, save_directory)
     young_stars_density_projection(ds, region, snap, save_directory)
+    edge_visualizations(ds, region, snap, save_directory)
     KS_relation(ds, region, snap, save_directory)
 
 if __name__ == "__main__":
