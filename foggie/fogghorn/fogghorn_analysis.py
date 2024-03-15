@@ -148,8 +148,8 @@ def KS_relation(ds, region, args):
 
 # --------------------------------------------------------------------------------------------------------------------
 def outflow_rates(ds, region, args):
-    '''Plots the mass and metals outflow rates and loading factors, through both a 10 kpc sphere centered on the galaxy
-    and through 20x20 kpc horizontal planes +/- 2 kpc above and below the disk of young stars.'''
+    '''Plots the mass and metals outflow rates and loading factors, both as a function of radius centered on the galaxy
+    and as a function of height through 20x20 kpc horizontal planes above and below the disk of young stars.'''
 
     output_filename = args.save_directory + '/' + args.snap + '_outflows.png'
 
