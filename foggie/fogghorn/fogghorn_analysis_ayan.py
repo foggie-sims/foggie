@@ -13,7 +13,7 @@ Plots included so far:
 - Kennicutt-Schmidt relation compared to KMT09 relation
 
 Examples of how to run: run fogghorn_analysis.py --directory /Users/acharyya/models/simulation_output/foggie/halo_5205/natural_7n --upto_kpc 10 --docomoving --weight mass
-                        run fogghorn_analysis.py --directory /Users/acharyya/models/simulation_output/foggie/halo_008508/nref11c_nref9f --trackfile /Users/acharyya/Work/astro/ayan_codes/foggie/foggie/halo_tracks/008508/nref11n_selfshield_15/halo_track_200kpc_nref9 --output RD0030 --upto_kpc 10 --docomoving --clobber
+                        run fogghorn_analysis.py --directory /Users/acharyya/models/simulation_output/foggie/halo_008508/nref11c_nref9f --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --docomoving --clobber
 """
 
 from __future__ import print_function
@@ -22,7 +22,7 @@ import numpy as np
 import argparse
 import os
 import matplotlib
-matplotlib.use('agg')
+#matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from numpy.polynomial import Polynomial
 import multiprocessing as multi
@@ -63,9 +63,12 @@ def parse_args():
     parser.add_argument('--upto_kpc', metavar='upto_kpc', type=float, action='store', default=None, help='Limit analysis out to a certain physical kpc. By default it does the entire refine box.')
     parser.add_argument('--docomoving', dest='docomoving', action='store_true', default=False, help='Consider the input upto_kpc as a comoving quantity? Default is No.')
     parser.add_argument('--weight', metavar='weight', type=str, action='store', default=None, help='Name of quantity to weight the metallicity by. Default is None i.e., no weighting.')
+    parser.add_argument('--projection', metavar='projection', type=str, action='store', default='z', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is z')
 
+    # The following three args are used for backward compatibility, to find the trackfile for production runs, if a trackfile has not been explicitly specified
     parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_local', help='Which system are you on? This is used only when trackfile is not specified. Default is ayan_local')
-    parser.add_argument('--halo', metavar='halo', type=str, action='store', default='8508', help='Which halo? This is used only when trackfile is not specified.')
+    parser.add_argument('--halo', metavar='halo', type=str, action='store', default='8508', help='Which halo? Default is Tempesxt. This is used only when trackfile is not specified.')
+    parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f', help='Which run? Default is nref11c_nref9f. This is used only when trackfile is not specified.')
 
     args = parser.parse_args()
     return args
@@ -83,7 +86,7 @@ def need_to_make_this_plot(output_filename, args):
             return True
         else:
             if not args.silent: print(' So we will skip it.')
-            return True
+            return False
     else:
         if not args.silent: print('About to make ' + output_filename + '...')
         return True
@@ -91,10 +94,10 @@ def need_to_make_this_plot(output_filename, args):
 # --------------------------------------------------------------------------------------------------------------------
 def gas_density_projection(ds, region, args):
     '''Plots a gas density projection of the galaxy disk.'''
-    output_filename = args.save_directory + '/' + args.snap + '_Projection_z_density.png'
+    output_filename = args.save_directory + '/' + args.snap + '_Projection_' + args.projection + '_density.png'
 
     if need_to_make_this_plot(output_filename, args):
-        p = yt.ProjectionPlot(ds, 'z', 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
+        p = yt.ProjectionPlot(ds, args.projection, 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
         p.set_unit('density','Msun/pc**2')
         p.set_cmap('density', density_color_map)
         p.set_zlim('density',0.01,300)
@@ -154,15 +157,16 @@ def make_plots(snap, args):
     args.snap = snap
 
     # --------- If a upto_kpc is specified, then the analysis 'region' will be restricted up to that value ---------
-    if args.to_kpc is not None:
+    if args.upto_kpc is not None:
         if args.docomoving: args.galrad = args.upto_kpc / (1 + ds.current_redshift) / 0.695  # include stuff within a fixed comoving kpc h^-1, 0.695 is Hubble constant
         else: args.galrad = args.upto_kpc  # include stuff within a fixed physical kpc
         region = ds.sphere(ds.halo_center_kpc, ds.arr(args.galrad, 'kpc'))
 
     # ----------------------- Make the plots ---------------------------------------------
     gas_density_projection(ds, region, args)
-    young_stars_density_projection(ds, region, args)
-    KS_relation(ds, region, args)
+    # young_stars_density_projection(ds, region, args)
+    # KS_relation(ds, region, args)
+
 
 # --------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
