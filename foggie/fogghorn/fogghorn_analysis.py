@@ -53,7 +53,7 @@ def parse_args():
     # Optional arguments:
     parser.add_argument('--directory', metavar='directory', type=str, action='store', default='', help='What is the directory of the enzo outputs you want to make plots of?')
     parser.add_argument('--save_directory', metavar='save_directory', type=str, action='store', default=None, help='Where do you want to store the plots, if different from where the outputs are stored?')
-    parser.add_argument('--output', metavar='output', type=str, action='store', default=None, help='If you want to make the plots for specific output/s then specify those here separated by comma (e.g., DD0030,DD0040). Otherwise (default) it will make plots for ALL outputs in that directory')
+    parser.add_argument('--output', metavar='output', type=str, action='store', default=None, help='If you want to make the plots for specific output/s then specify those here separated by comma (e.g., DD0030,DD0040) or with dashes to include all outputs between (e.g., DD0030-DD040). Otherwise (default) it will make plots for ALL outputs in that directory')
     parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, help='What is the directory of the track file for this halo?\n' + 'This is needed to find the center of the galaxy of interest.')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the working directory?, Default is no')
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', default=1, help='How many processes do you want? Default is 1 (no parallelization), if multiple processors are specified, code will run one output per processor')
@@ -80,7 +80,7 @@ def need_to_make_this_plot(output_filename, args):
     :return boolean
     '''
     if os.path.exists(output_filename):
-        if not args.silent: print(output_filename + 'already exists.', )
+        if not args.silent: print(output_filename + ' already exists.', )
         if args.clobber:
             if not args.silent: print(' But we will re-make it...')
             return True
@@ -176,8 +176,9 @@ def KS_relation(ds, region, args):
 
 # --------------------------------------------------------------------------------------------------------------------
 def outflow_rates(ds, region, args):
-    '''Plots the mass and metals outflow rates and loading factors, both as a function of radius centered on the galaxy
-    and as a function of height through 20x20 kpc horizontal planes above and below the disk of young stars.'''
+    '''Plots the mass and metals outflow rates, both as a function of radius centered on the galaxy
+    and as a function of height through 20x20 kpc horizontal planes above and below the disk of young stars.
+    Uses only gas with outflow velocities greater than 50 km/s.'''
 
     output_filename = args.save_directory + '/' + args.snap + '_outflows.png'
 
@@ -187,14 +188,17 @@ def outflow_rates(ds, region, args):
         x = region['gas', 'x_disk'].in_units('kpc').v
         y = region['gas', 'y_disk'].in_units('kpc').v
         z = region['gas', 'z_disk'].in_units('kpc').v
-        xbins = x[:,0,0][:-1] - 0.5*np.diff(x[:,0,0])
-        ybins = y[0,:,0][:-1] - 0.5*np.diff(y[0,:,0])
-        zbins = z[0,0,:][:-1] - 0.5*np.diff(z[0,0,:])
         vx = region['gas','vx_disk'].in_units('kpc/yr').v
         vy = region['gas','vy_disk'].in_units('kpc/yr').v
         vz = region['gas','vz_disk'].in_units('kpc/yr').v
         mass = region['gas', 'cell_mass'].in_units('Msun').v
         metals = region['gas','metal_mass'].in_units('Msun').v
+        rv = region['gas','radial_velocity_corrected'].in_units('km/s').v
+        hv = region['gas','vz_disk'].in_units('km/s').v
+
+        # Define radius and height lists
+        radii = np.linspace(0.5, 20., 40)
+        heights = np.linspace(0.5, 20., 40)
 
         # Calculate new positions of gas cells 10 Myr later
         dt = 10.e6
@@ -204,12 +208,39 @@ def outflow_rates(ds, region, args):
         new_radius = np.sqrt(new_x**2. + new_y**2. + new_z**2.)
 
         # Sum the mass and metals passing through the boundaries
-        mass_sph = np.sum(mass[(radius < 15.) & (new_radius > 15.)])
-        metal_sph = np.sum(metals[(radius < 15.) & (new_radius > 15.)])
-        mass_horiz = np.sum(mass[(np.abs(z) < 2.) & (np.abs(new_z) > 2.)])
-        metal_horiz = np.sum(metals[(np.abs(z) < 2.) & (np.abs(new_z) > 2.)])
+        mass_sph = []
+        metal_sph = []
+        mass_horiz = []
+        metal_horiz = []
+        for i in range(len(radii)):
+            r = radii[i]
+            mass_sph.append(np.sum(mass[(radius < r) & (new_radius > r) & (rv > 50.)])/dt)
+            metal_sph.append(np.sum(metals[(radius < r) & (new_radius > r) & (rv > 50.)])/dt)
+        for i in range(len(heights)):
+            h = heights[i]
+            mass_horiz.append(np.sum(mass[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt)
+            metal_horiz.append(np.sum(metals[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt)
 
         # Plot the outflow rates
+        fig = plt.figure(1, figsize=(10,4))
+        ax1 = fig.add_subplot(1,2,1)
+        ax2 = fig.add_subplot(1,2,2)
+        ax1.plot(radii, mass_sph, 'k-', lw=2, label='Mass')
+        ax1.plot(radii, metal_sph, 'k--', lw=2, label='Metals')
+        ax1.set_ylabel(r'Mass outflow rate [$M_\odot$/yr]', fontsize=16)
+        ax1.set_xlabel('Radius [kpc]', fontsize=16)
+        ax1.set_yscale('log')
+        ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14)
+        ax1.legend(loc=1, frameon=False, fontsize=16)
+        ax2.plot(heights, mass_horiz, 'k-', lw=2, label='Mass')
+        ax2.plot(heights, metal_horiz, 'k--', lw=2, label='Metals')
+        ax2.set_ylabel(r'Mass outflow rate [$M_\odot$/yr]', fontsize=16)
+        ax2.set_xlabel('Height from disk midplane [kpc]', fontsize=16)
+        ax2.set_yscale('log')
+        ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14)
+        plt.tight_layout()
+        plt.savefig(output_filename, dpi=300)
+        plt.close()
 
 # --------------------------------------------------------------------------------------------------------------------
 def make_plots(snap, args):
@@ -218,7 +249,7 @@ def make_plots(snap, args):
 
     # ----------------------- Read the snapshot ---------------------------------------------
     filename = args.directory + '/' + snap + '/' + snap
-    ds, region = foggie_load(filename, args.trackfile)
+    ds, region = foggie_load(filename, args.trackfile, disk_relative=True)
     args.snap = snap
 
     # --------- If a upto_kpc is specified, then the analysis 'region' will be restricted up to that value ---------
@@ -228,9 +259,11 @@ def make_plots(snap, args):
         region = ds.sphere(ds.halo_center_kpc, ds.arr(args.galrad, 'kpc'))
 
     # ----------------------- Make the plots ---------------------------------------------
-    gas_density_projection(ds, region, args)
-    # young_stars_density_projection(ds, region, args)
-    # KS_relation(ds, region, args)
+    #gas_density_projection(ds, region, args)
+    #young_stars_density_projection(ds, region, args)
+    #edge_visualizations(ds, region, args)
+    #KS_relation(ds, region, args)
+    outflow_rates(ds, region, args)
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -245,7 +278,7 @@ if __name__ == "__main__":
     if args.trackfile is None: _, _, _, _, args.trackfile, _, _, _ = get_run_loc_etc(args) # for FOGGIE production runs it knows which trackfile to grab
 
     if args.output is not None: # Running on specific output/s
-        outputs =[item for item in args.output.split(',')]
+        outputs = make_output_list(args.output)
     else: # Running on all snapshots in the directory
         outputs = []
         for fname in os.listdir(args.directory):
