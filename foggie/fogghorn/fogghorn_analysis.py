@@ -107,13 +107,41 @@ def gas_density_projection(ds, region, args):
 def young_stars_density_projection(ds, region, args):
     '''Plots a young stars density projection of the galaxy disk.'''
 
-    output_filename = args.save_directory + '/' + args.snap + '_Projection_z_young_stars3_cic.png'
+    output_filename = args.save_directory + '/' + args.snap + '_Projection_disk-z_young_stars3_cic.png'
 
     if need_to_make_this_plot(output_filename, args):
-        p = yt.ProjectionPlot(ds, 'z', ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code)
+        p = yt.ProjectionPlot(ds, ds.z_unit_disk, ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code)
         p.set_unit(('deposit','young_stars3_cic'),'Msun/kpc**2')
         p.set_zlim(('deposit','young_stars3_cic'),1000,1000000)
         p.save(output_filename)
+
+# --------------------------------------------------------------------------------------------------------------------
+def edge_visualizations(ds, region, args):
+    """Plot slices & thin projections of galaxy temperature viewed from the disk edge."""
+
+    output_basename = args.save_directory + '/' + args.snap
+
+    # Visualize along two perpendicular edge axes
+    for label, axis in zip(["disk-x","disk-y"],
+                           [ds.x_unit_disk, ds.y_unit_disk]):
+
+        p_filename = output_basename + f"_Projection_{label}_temperature_density.png"
+        s_filename = output_basename + f"_Slice_{label}_temperature.png"
+
+        if need_to_make_this_plot(p_filename, args):
+            # "Thin" projections (30 kpc deep).
+            p = yt.ProjectionPlot(ds, axis, "temperature", weight_field="density",
+                                center=ds.halo_center_code, data_source=region,
+                                width=(60,"kpc"), depth=(30,"kpc"),
+                                north_vector=ds.z_unit_disk)
+            p.save(p_filename)
+
+        if need_to_make_this_plot(s_filename, args):
+            # Slices
+            s = yt.SlicePlot(ds, axis, "temperature",
+                            center=ds.halo_center_code, data_source=region,
+                            width=(60,"kpc"), north_vector=ds.z_unit_disk)
+            s.save(s_filename)
 
 # --------------------------------------------------------------------------------------------------------------------
 def KS_relation(ds, region, args):
