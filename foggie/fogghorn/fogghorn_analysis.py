@@ -101,6 +101,8 @@ def gas_density_projection(ds, region, args):
         p.set_unit('density','Msun/pc**2')
         p.set_cmap('density', density_color_map)
         p.set_zlim('density',0.01,300)
+        p.set_font_size(16)
+        p.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
         p.save(output_filename)
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -113,6 +115,7 @@ def young_stars_density_projection(ds, region, args):
         p = yt.ProjectionPlot(ds, ds.z_unit_disk, ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code)
         p.set_unit(('deposit','young_stars3_cic'),'Msun/kpc**2')
         p.set_zlim(('deposit','young_stars3_cic'),1000,1000000)
+        p.set_cmap(('deposit','young_stars3_cic'), density_color_map)
         p.save(output_filename)
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -134,6 +137,9 @@ def edge_visualizations(ds, region, args):
                                 center=ds.halo_center_code, data_source=region,
                                 width=(60,"kpc"), depth=(30,"kpc"),
                                 north_vector=ds.z_unit_disk)
+            p.set_cmap('temperature', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+            p.set_zlim('temperature', 1e4,1e7)
+            p.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
             p.save(p_filename)
 
         if need_to_make_this_plot(s_filename, args):
@@ -141,6 +147,9 @@ def edge_visualizations(ds, region, args):
             s = yt.SlicePlot(ds, axis, "temperature",
                             center=ds.halo_center_code, data_source=region,
                             width=(60,"kpc"), north_vector=ds.z_unit_disk)
+            s.set_cmap('temperature', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+            s.set_zlim('temperature', 1e4,1e7)
+            s.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
             s.save(s_filename)
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -173,6 +182,7 @@ def KS_relation(ds, region, args):
         plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
         plt.tight_layout()
         plt.savefig(output_filename, dpi=300)
+        plt.close()
 
 # --------------------------------------------------------------------------------------------------------------------
 def outflow_rates(ds, region, args):
@@ -249,7 +259,7 @@ def make_plots(snap, args):
 
     # ----------------------- Read the snapshot ---------------------------------------------
     filename = args.directory + '/' + snap + '/' + snap
-    ds, region = foggie_load(filename, args.trackfile, disk_relative=True, disk_relative=True)
+    ds, region = foggie_load(filename, args.trackfile, disk_relative=True)
     args.snap = snap
 
     # --------- If a upto_kpc is specified, then the analysis 'region' will be restricted up to that value ---------
