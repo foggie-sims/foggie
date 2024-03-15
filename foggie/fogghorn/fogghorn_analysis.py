@@ -218,7 +218,7 @@ def make_plots(snap, args):
 
     # ----------------------- Read the snapshot ---------------------------------------------
     filename = args.directory + '/' + snap + '/' + snap
-    ds, region = foggie_load(filename, args.trackfile)
+    ds, region = foggie_load(filename, args.trackfile, disk_relative=True)
     args.snap = snap
 
     # --------- If a upto_kpc is specified, then the analysis 'region' will be restricted up to that value ---------
@@ -242,6 +242,9 @@ if __name__ == "__main__":
     if cli_args.save_directory is None:
         cli_args.save_directory = cli_args.directory + '/plots'
         Path(cli_args.save_directory).mkdir(parents=True, exist_ok=True)
+    else:
+        # In case users save to their home directory using "~"
+        cli_args.save_directory = os.path.expanduser(cli_args.save_directory)
 
     if cli_args.trackfile is None: _, _, _, _, cli_args.trackfile, _, _, _ = get_run_loc_etc(cli_args) # for FOGGIE production runs it knows which trackfile to grab
 
