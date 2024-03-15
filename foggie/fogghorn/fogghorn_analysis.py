@@ -181,7 +181,7 @@ def outflow_rates(ds, region, args):
         mass_horiz = np.sum(mass[(np.abs(z) < 2.) & (np.abs(new_z) > 2.)])
         metal_horiz = np.sum(metals[(np.abs(z) < 2.) & (np.abs(new_z) > 2.)])
 
-
+        # Plot the outflow rates
 
 # --------------------------------------------------------------------------------------------------------------------
 def make_plots(snap, args):
