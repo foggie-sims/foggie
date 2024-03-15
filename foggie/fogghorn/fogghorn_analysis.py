@@ -67,7 +67,7 @@ def parse_args():
 
     # The following three args are used for backward compatibility, to find the trackfile for production runs, if a trackfile has not been explicitly specified
     parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_local', help='Which system are you on? This is used only when trackfile is not specified. Default is ayan_local')
-    parser.add_argument('--halo', metavar='halo', type=str, action='store', default='8508', help='Which halo? Default is Tempesxt. This is used only when trackfile is not specified.')
+    parser.add_argument('--halo', metavar='halo', type=str, action='store', default='8508', help='Which halo? Default is Tempest. This is used only when trackfile is not specified.')
     parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f', help='Which run? Default is nref11c_nref9f. This is used only when trackfile is not specified.')
 
     args = parser.parse_args()
@@ -229,51 +229,52 @@ def make_plots(snap, args):
 
     # ----------------------- Make the plots ---------------------------------------------
     gas_density_projection(ds, region, args)
+    edge_visualizations(ds, region, args)
     # young_stars_density_projection(ds, region, args)
     # KS_relation(ds, region, args)
 
 
 # --------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    args = parse_args()
+    cli_args = parse_args()
 
     # ------------------ Figure out directory and outputs -------------------------------------
-    if args.save_directory is None:
-        args.save_directory = args.directory + '/plots'
-        Path(args.save_directory).mkdir(parents=True, exist_ok=True)
+    if cli_args.save_directory is None:
+        cli_args.save_directory = cli_args.directory + '/plots'
+        Path(cli_args.save_directory).mkdir(parents=True, exist_ok=True)
 
-    if args.trackfile is None: _, _, _, _, args.trackfile, _, _, _ = get_run_loc_etc(args) # for FOGGIE production runs it knows which trackfile to grab
+    if cli_args.trackfile is None: _, _, _, _, cli_args.trackfile, _, _, _ = get_run_loc_etc(cli_args) # for FOGGIE production runs it knows which trackfile to grab
 
-    if args.output is not None: # Running on specific output/s
-        outputs =[item for item in args.output.split(',')]
+    if cli_args.output is not None: # Running on specific output/s
+        outputs =[item for item in cli_args.output.split(',')]
     else: # Running on all snapshots in the directory
         outputs = []
-        for fname in os.listdir(args.directory):
-            folder_path = os.path.join(args.directory, fname)
+        for fname in os.listdir(cli_args.directory):
+            folder_path = os.path.join(cli_args.directory, fname)
             if os.path.isdir(folder_path) and ((fname[0:2]=='DD') or (fname[0:2]=='RD')):
                 outputs.append(fname)
 
     # --------- Loop over outputs, for either single-processor or parallel processor computing ---------------
-    if (args.nproc == 1):
+    if (cli_args.nproc == 1):
         for snap in outputs:
-            make_plots(snap, args)
+            make_plots(snap, cli_args)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
-        for i in range(len(outputs)//args.nproc):
+        for i in range(len(outputs)//cli_args.nproc):
             threads = []
-            for j in range(args.nproc):
-                snap = outputs[args.nproc*i+j]
-                threads.append(multi.Process(target=make_plots, args=[snap, args]))
+            for j in range(cli_args.nproc):
+                snap = outputs[cli_args.nproc*i+j]
+                threads.append(multi.Process(target=make_plots, args=[snap, cli_args]))
             for t in threads:
                 t.start()
             for t in threads:
                 t.join()
         # For any leftover snapshots, run one per processor
         threads = []
-        for j in range(len(outputs)%args.nproc):
+        for j in range(len(outputs)%cli_args.nproc):
             snap = outputs[-(j+1)]
-            threads.append(multi.Process(target=make_plots, args=[snap, args]))
+            threads.append(multi.Process(target=make_plots, args=[snap, cli_args]))
         for t in threads:
             t.start()
         for t in threads:
