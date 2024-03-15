@@ -13,7 +13,7 @@ Plots included so far:
 - Kennicutt-Schmidt relation compared to KMT09 relation
 
 Examples of how to run: run fogghorn_analysis.py --directory /Users/acharyya/models/simulation_output/foggie/halo_5205/natural_7n --upto_kpc 10 --docomoving --weight mass
-                        run fogghorn_analysis.py --directory /Users/acharyya/models/simulation_output/foggie/halo_008508/nref11c_nref9f --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --docomoving --clobber
+                        run fogghorn_analysis.py --directory /Users/acharyya/models/simulation_output/foggie/halo_008508/nref11c_nref9f --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --docomoving --weight mass
 """
 
 from __future__ import print_function
@@ -22,6 +22,8 @@ import numpy as np
 import argparse
 import os
 import copy
+import time
+import datetime
 
 import matplotlib
 #matplotlib.use('agg') # Ayan commented this out because it was leading to weird errors while running in ipython
@@ -32,6 +34,7 @@ import multiprocessing as multi
 from pathlib import Path
 import pandas as pd
 from uncertainties import ufloat, unumpy
+import seaborn as sns
 
 from astropy.table import Table
 from astropy.io import ascii
@@ -54,6 +57,10 @@ from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
 from foggie.utils.analysis_utils import *
+
+import warnings
+warnings.filterwarnings("ignore")
+start_time = time.time()
 
 # --------------------------------------------------------------------------------------------------------------------
 def parse_args():
@@ -78,6 +85,7 @@ def parse_args():
     parser.add_argument('--disk_rel', dest='disk_rel', action='store_true', default=False, help='Consider projection plots w.r.t the disk rather than the box edges? Be aware that this will turn on disk_relative=True while reading in each snapshot whic might slow down the loading of data. Default is No.')
     parser.add_argument('--use_density_cut', dest='use_density_cut', action='store_true', default=False, help='Impose a density cut to get just the disk? Default is no.')
     parser.add_argument('--fontsize', metavar='fontsize', type=int, action='store', default=15, help='Fontsize of plot labels, etc. Default is 15')
+    parser.add_argument('--nbins', metavar='nbins', type=int, action='store', default=100, help='Number of bins to use for the metallicity histogram plot. Default is 100')
 
     # The following three args are used for backward compatibility, to find the trackfile for production runs, if a trackfile has not been explicitly specified
     parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_local', help='Which system are you on? This is used only when trackfile is not specified. Default is ayan_local')
@@ -161,7 +169,7 @@ def get_df_from_ds(box, args, outfilename=None):
         df.to_csv(outfilename, sep='\t', index=None)
     else:
         # ------------- Read from existing pandas df file -------------------
-        print('Reading from existing file ' + outfilename, args)
+        print('Reading from existing file ' + outfilename)
         try:
             df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
         except pd.errors.EmptyDataError:
@@ -183,29 +191,97 @@ def gas_metallicity_resolved_MZR(ds, region, args):
     output_filename = args.save_directory + '/' + args.snap + '_resolved_gas_MZR' + args.upto_text + args.density_cut_text + '.png'
 
     if need_to_make_this_plot(output_filename, args):
+        df = get_df_from_ds(region, args)
+
+        # --------- Setting up the figure ---------
+        fig, ax = plt.subplots(figsize=(8, 8))
+        fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.15)
+
+        # Ayan will add stuff here
+
+        # ---------annotate and save the figure----------------------
+        plt.text(0.97, 0.95, 'z = %.2F' % ds.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
         plt.savefig(output_filename)
+        print('Saved figure ' + output_filename)
+        plt.close()
+
+# ----------------------------------------------------------------------------
+# Following function is adapted from https://stackoverflow.com/questions/21844024/weighted-percentile-using-numpy
+def weighted_quantile(values, quantiles, weight=None):
+    """ Very close to numpy.percentile, but supports weights.
+    NOTE: quantiles should be in [0, 1]!
+    :param values: numpy.array with data
+    :param quantiles: array-like with many quantiles needed
+    :param sample_weight: array-like of the same length as `array`
+    :param values_sorted: bool, if True, then will avoid sorting of initial array
+    :param old_style: if True, will correct output to be consistent with numpy.percentile.
+    :return: numpy.array with computed quantiles.
+    """
+    if weight is None: weight = np.ones(len(values))
+    values = np.array(values)
+    quantiles = np.array(quantiles)
+    weight = np.array(weight)
+    assert np.all(quantiles >= 0) and np.all(quantiles <= 1), 'quantiles should be in [0, 1]'
+
+    sorter = np.argsort(values)
+    values = values[sorter]
+    weight = weight[sorter]
+
+    weighted_quantiles = np.cumsum(weight) - 0.5 * weight
+    weighted_quantiles /= np.sum(weight)
+    return np.interp(quantiles, weighted_quantiles, values)
 
 # --------------------------------------------------------------------------------------------------------------------
 def gas_metallicity_histogram(ds, region, args):
     '''
-    Plots a histogram of the gas metallicity.
+    Plots a histogram of the gas metallicity (No Gaussian fits, for now).
     Returns nothing. Saves output as png file
     '''
     output_filename = args.save_directory + '/' + args.snap + '_gas_metallicity_histogram' + args.upto_text + args.density_cut_text + '.png'
 
     if need_to_make_this_plot(output_filename, args):
+        df = get_df_from_ds(region, args)
+
+        # --------- Plotting the histogram ---------
+        fig, ax = plt.subplots(figsize=(8, 8))
+        fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.15)
+
+        color = 'salmon'
+        p = plt.hist(df['log_metal'], bins=args.nbins, histtype='step', lw=2, density=True, ec=color, weights=df[args.weight] if args.weight is not None else None)
+
+        # ---------- Adding vertical lines for percentile -------------
+        percentiles = weighted_quantile(df['log_metal'], [0.25, 0.50, 0.75], weight=df[args.weight] if args.weight is not None else None)
+        for thispercentile in np.atleast_1d(percentiles): ax.axvline(thispercentile, lw=1, ls='solid', color='maroon')
+
+        # ---------- Tidy up figure-------------
+        plt.legend(loc='upper right', bbox_to_anchor=(1, 0.75), fontsize=args.fontsize)
+        ax.set_xlim(-1.5, 2.0)
+        ax.set_ylim(0, 2.5)
+
+        ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 5))
+        ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 6))
+
+        ax.set_xlabel(r'Log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
+        ax.set_ylabel('Normalised distribution', fontsize=args.fontsize)
+        ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
+        ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
+
+        # ---------annotate and save the figure----------------------
+        plt.text(0.97, 0.95, 'z = %.2F' % ds.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
         plt.savefig(output_filename)
+        print('Saved figure ' + output_filename)
+        plt.close()
 
 # ---------------------------------------------------------------------------------
-def fit_binned(df, xcol, ycol, x_bins, ax, color='darkorange', weightcol=None):
+def bin_fit_radial_profile(df, xcol, ycol, x_bins, ax, args, color='darkorange'):
     '''
     Function to overplot binned data on existing plot of radial profile of gas metallicity
     '''
     df['binned_cat'] = pd.cut(df[xcol], x_bins)
 
-    if weightcol is not None:
-        agg_func = lambda x: np.sum(x * df.loc[x.index, weightcol]) / np.sum(df.loc[x.index, weightcol]) # function to get weighted mean
-        agg_u_func = lambda x: np.sqrt(((np.sum(df.loc[x.index, weightcol] * x**2) / np.sum(df.loc[x.index, weightcol])) - (np.sum(x * df.loc[x.index, weightcol]) / np.sum(df.loc[x.index, weightcol]))**2) * (np.sum(df.loc[x.index, weightcol]**2)) / (np.sum(df.loc[x.index, weightcol])**2 - np.sum(df.loc[x.index, weightcol]**2))) # eq 6 of http://seismo.berkeley.edu/~kirchner/Toolkits/Toolkit_12.pdf
+    if args.weight is not None:
+        agg_func = lambda x: np.sum(x * df.loc[x.index, args.weight]) / np.sum(df.loc[x.index, args.weight]) # function to get weighted mean
+        agg_u_func = lambda x: np.sqrt(((np.sum(df.loc[x.index, args.weight] * x**2) / np.sum(df.loc[x.index, args.weight])) - (np.sum(x * df.loc[x.index, args.weight]) / np.sum(df.loc[x.index, args.weight]))**2) * (np.sum(df.loc[x.index, args.weight]**2)) / (np.sum(df.loc[x.index, args.weight])**2 - np.sum(df.loc[x.index, args.weight]**2))) # eq 6 of http://seismo.berkeley.edu/~kirchner/Toolkits/Toolkit_12.pdf
     else:
         agg_func, agg_u_func = np.mean, np.std
 
@@ -213,7 +289,7 @@ def fit_binned(df, xcol, ycol, x_bins, ax, color='darkorange', weightcol=None):
     y_u_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_u_func)])[ycol].values.flatten()
     x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
 
-    # --------- for correct propagation of errors ----------
+    # --------- For correct propagation of errors, given that the actual fitting will be in log-space ----------
     quant = unumpy.log10(unumpy.uarray(y_binned, y_u_binned))
     y_binned, y_u_binned = unumpy.nominal_values(quant), unumpy.std_devs(quant)
 
@@ -223,16 +299,12 @@ def fit_binned(df, xcol, ycol, x_bins, ax, color='darkorange', weightcol=None):
     y_binned = y_binned[indices]
     y_u_binned = y_u_binned[indices]
 
-    # ----------to plot mean binned y vs x profile--------------
+    # ---------- Plot mean binned y vs x profile--------------
     linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)
     y_fitted = np.poly1d(linefit)(x_bin_centers)
 
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
     Zcen = ufloat(linefit[1], np.sqrt(linecov[1][1]))
-
-    y_binned, y_u_binned, y_fitted = 10**y_binned, 10**y_u_binned, 10**y_fitted # to convert things back to log space
-
-    print('Upon radially binning: Inferred slope for output ' + args.snap + ' is', Zgrad, 'dex/kpc')
 
     ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=1)
     ax.scatter(x_bin_centers, y_binned, c=color, s=150, lw=1, ec='black', zorder=10)
@@ -243,48 +315,50 @@ def fit_binned(df, xcol, ycol, x_bins, ax, color='darkorange', weightcol=None):
 # --------------------------------------------------------------------------------------------------------------------
 def gas_metallicity_radial_profile(ds, region, args):
     '''
-    Plots a radial profile of the gas metallicity.
+    Plots a radial profile of the gas metallicity, overplotted with the radially binned profile and the fit to the binned profile.
     Returns nothing. Saves output as png file
     '''
     output_filename = args.save_directory + '/' + args.snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png'
+    args.ylim = [-2.2, 1.2]
 
     if need_to_make_this_plot(output_filename, args):
         df = get_df_from_ds(region, args)
 
-        # ---------first, plot both cell-by-cell profile first, using datashader---------
+        # --------- First, plot both cell-by-cell profile first, using datashader---------
         fig, ax = plt.subplots(figsize=(8, 8))
         fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.17)
-        artist = dsshow(df, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear',x_range=(0, args.galrad), y_range=(-2.2, 1.2), aspect='auto', ax=ax, cmap='Blues_r') # this is to make the background datashader plot
+        artist = dsshow(df, dsh.Point('rad', 'log_metal'), dsh.count(), norm='linear',x_range=(0, args.galrad), y_range=(args.ylim[0], args.ylim[1]), aspect='auto', ax=ax, cmap='Blues_r')
 
-        # --------bin the metallicity profile and plot the binned profile-----------
-        ax, Zcen, Zgrad = fit_binned(df, 'rad', 'metal', np.linspace(0, args.galrad, 10), ax, weightcol=args.weight)
+        # -------- Next, bin the metallicity profile and overplot the binned profile-----------
+        bin_edges = np.linspace(0, args.galrad, 10)
+        ax, Zcen, Zgrad = bin_fit_radial_profile(df, 'rad', 'metal', bin_edges, ax, args)
         linefit = [Zgrad.n, Zcen.n]
 
-        # ----------plot the fitted metallicity profile---------------
+        # ---------- Then, plot the fitted metallicity profile---------------
         color = 'limegreen'
-        fitted_y = np.poly1d(linefit)(args.bin_edges)
-        ax.plot(args.bin_edges, fitted_y, color=color, lw=3, ls='solid')
+        fitted_y = np.poly1d(linefit)(bin_edges)
+        ax.plot(bin_edges, fitted_y, color=color, lw=3, ls='solid')
         plt.text(0.033, 0.3, 'Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, va='center', fontsize=args.fontsize,bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
 
-        # ----------tidy up figure-------------
-        ax.set_xlim(0, args.upto_re if 're' in args.xcol else args.upto_kpc)
+        # ---------- Tidy up figure-------------
+        ax.set_xlim(0, args.upto_kpc)
         ax.set_ylim(args.ylim[0], args.ylim[1])
-        if args.forproposal: ax.set_yscale('log')
+        ax.set_yscale('log')
 
         ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
-        ax.set_ylabel(r'Metallicity (Z$_{\odot}$)' if args.forproposal else r'Log Metallicity (Z$_{\odot}$)',
-                      fontsize=args.fontsize)
+        ax.set_ylabel(r'Log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
 
         ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 6))
-        ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 3 if args.forproposal else 5))
+        ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 5))
 
         ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
         ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
 
-        # ---------annotate and save the figure----------------------
+        # --------- Annotate and save the figure----------------------
         plt.text(0.033, 0.05, 'z = %.2F' % ds.current_redshift, transform=ax.transAxes, fontsize=args.fontsize)
         plt.savefig(output_filename)
         print('Saved figure ' + output_filename)
+        plt.close()
 
 # --------------------------------------------------------------------------------------------------------------------
 def gas_metallicity_projection(ds, region, args):
@@ -297,10 +371,10 @@ def gas_metallicity_projection(ds, region, args):
 
     if need_to_make_this_plot(output_filename, args):
         if args.disk_rel: p = yt.OffAxisProjectionPlot(ds, args.projection_axis_dict[args.projection], 'metallicity', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
-        else: yt.ProjectionPlot(ds, args.projection, 'metallicity', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
-        p.set_unit('metallicity','Zsun')
+        else: p = yt.ProjectionPlot(ds, args.projection, 'metallicity', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
+        p.set_unit('metallicity','Zsun*cm') # the length dimension is because this is a projected quantity
         p.set_cmap('metallicity', old_metal_color_map)
-        p.set_zlim('metallicity', 2e-2, 4e0)
+        #p.set_zlim('metallicity', 2e-2, 4e0)
         p.save(output_filename)
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -338,13 +412,44 @@ def young_stars_density_projection(ds, region, args):
         p.save(output_filename)
 
 # --------------------------------------------------------------------------------------------------------------------
+def edge_visualizations(ds, region, args):
+    """Plot slices & thin projections of galaxy temperature viewed from the disk edge."""
+
+    output_basename = args.save_directory + '/' + args.snap
+
+    # ---------- Visualize along two perpendicular edge axes ---------------
+    for label, axis in zip(['disk-x', 'disk-y'], [ds.x_unit_disk, ds.y_unit_disk]):
+
+        p_filename = output_basename + f'_Projection_{label}_temperature_density.png'
+        s_filename = output_basename + f'_Slice_{label}_temperature.png'
+
+        if need_to_make_this_plot(p_filename, args):
+            # --------------- "Thin" projections (30 kpc deep) -----------------------
+            try:
+                p = yt.ProjectionPlot(ds, axis, 'temperature', weight_field='density', center=ds.halo_center_code, data_source=region, width=(60, 'kpc'), depth=(30, 'kpc'), north_vector=ds.z_unit_disk)
+            except TypeError: # in case 'depth' is an "unexpected keyword" for a different version of yt
+                p = yt.OffAxisProjectionPlot(ds, axis, 'temperature', weight_field='density', center=ds.halo_center_code, data_source=region, width=(60, 'kpc'), depth=(30, 'kpc'), north_vector=ds.z_unit_disk)
+            p.set_cmap('temperature', sns.blend_palette(('salmon', '#984ea3', '#4daf4a', '#ffe34d', 'darkorange'), as_cmap=True))
+            p.set_zlim('temperature', 1e4,1e7)
+            p.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
+            p.save(p_filename)
+
+        if need_to_make_this_plot(s_filename, args):
+            # ---------- Slices ----------------------------
+            s = yt.SlicePlot(ds, axis, "temperature", center=ds.halo_center_code, data_source=region, width=(60,"kpc"), north_vector=ds.z_unit_disk)
+            s.set_cmap('temperature', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
+            s.set_zlim('temperature', 1e4,1e7)
+            s.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
+            s.save(s_filename)
+
+# --------------------------------------------------------------------------------------------------------------------
 def KS_relation(ds, region, args):
     '''
     Plots the KS relation from the dataset as compared to a curve taken from KMT09.
     Returns nothing. Saves output as png file
     '''
 
-    output_filename = args.save_directory + '/' + args.snap + '_KS-relation' + args.upto_text + '.png'
+    output_filename = args.save_directory + '/' + args.snap + '_KS-relation' + args.upto_text + args.density_cut_text + '.png'
 
     if need_to_make_this_plot(output_filename, args):
         # Make a projection and convert to FRB
@@ -370,6 +475,75 @@ def KS_relation(ds, region, args):
         plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
         plt.tight_layout()
         plt.savefig(output_filename, dpi=300)
+        plt.close()
+
+# --------------------------------------------------------------------------------------------------------------------
+def outflow_rates(ds, region, args):
+    '''Plots the mass and metals outflow rates, both as a function of radius centered on the galaxy
+    and as a function of height through 20x20 kpc horizontal planes above and below the disk of young stars.
+    Uses only gas with outflow velocities greater than 50 km/s.'''
+
+    output_filename = args.save_directory + '/' + args.snap + '_outflows.png'
+
+    if need_to_make_this_plot(output_filename, args):
+        # ------------- Load needed fields into arrays --------------------
+        radius = region['gas','radius_corrected'].in_units('kpc')
+        x = region['gas', 'x_disk'].in_units('kpc').v
+        y = region['gas', 'y_disk'].in_units('kpc').v
+        z = region['gas', 'z_disk'].in_units('kpc').v
+        vx = region['gas','vx_disk'].in_units('kpc/yr').v
+        vy = region['gas','vy_disk'].in_units('kpc/yr').v
+        vz = region['gas','vz_disk'].in_units('kpc/yr').v
+        mass = region['gas', 'cell_mass'].in_units('Msun').v
+        metals = region['gas','metal_mass'].in_units('Msun').v
+        rv = region['gas','radial_velocity_corrected'].in_units('km/s').v
+        hv = region['gas','vz_disk'].in_units('km/s').v
+
+        # ----------- Define radius and height lists ---------------------------
+        radii = np.linspace(0.5, 20., 40)
+        heights = np.linspace(0.5, 20., 40)
+
+        # ---------- Calculate new positions of gas cells 10 Myr later ---------------
+        dt = 10.e6
+        new_x = vx*dt + x
+        new_y = vy*dt + y
+        new_z = vz*dt + z
+        new_radius = np.sqrt(new_x**2. + new_y**2. + new_z**2.)
+
+        # ------------- Sum the mass and metals passing through the boundaries ---------------
+        mass_sph = []
+        metal_sph = []
+        mass_horiz = []
+        metal_horiz = []
+        for i in range(len(radii)):
+            r = radii[i]
+            mass_sph.append(np.sum(mass[(radius < r) & (new_radius > r) & (rv > 50.)])/dt)
+            metal_sph.append(np.sum(metals[(radius < r) & (new_radius > r) & (rv > 50.)])/dt)
+        for i in range(len(heights)):
+            h = heights[i]
+            mass_horiz.append(np.sum(mass[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt)
+            metal_horiz.append(np.sum(metals[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt)
+
+        # --------------- Plot the outflow rates ------------------------------------
+        fig = plt.figure(1, figsize=(10,4))
+        ax1 = fig.add_subplot(1,2,1)
+        ax2 = fig.add_subplot(1,2,2)
+        ax1.plot(radii, mass_sph, 'k-', lw=2, label='Mass')
+        ax1.plot(radii, metal_sph, 'k--', lw=2, label='Metals')
+        ax1.set_ylabel(r'Mass outflow rate [$M_\odot$/yr]', fontsize=16)
+        ax1.set_xlabel('Radius [kpc]', fontsize=16)
+        ax1.set_yscale('log')
+        ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14)
+        ax1.legend(loc=1, frameon=False, fontsize=16)
+        ax2.plot(heights, mass_horiz, 'k-', lw=2, label='Mass')
+        ax2.plot(heights, metal_horiz, 'k--', lw=2, label='Metals')
+        ax2.set_ylabel(r'Mass outflow rate [$M_\odot$/yr]', fontsize=16)
+        ax2.set_xlabel('Height from disk midplane [kpc]', fontsize=16)
+        ax2.set_yscale('log')
+        ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14)
+        plt.tight_layout()
+        plt.savefig(output_filename, dpi=300)
+        plt.close()
 
 # --------------------------------------------------------------------------------------------------------------------
 def make_plots(snap, args):
@@ -380,7 +554,7 @@ def make_plots(snap, args):
 
     # ----------------------- Read the snapshot ----------------------
     filename = args.directory + '/' + snap + '/' + snap
-    ds, region = foggie_load(filename, args.trackfile, disk_relative=True)
+    ds, region = foggie_load(filename, args.trackfile)#, disk_relative=True)
 
     # ----------------- Add some parameters to args that will be used throughout ----------------------------------
     args.snap = snap
@@ -400,56 +574,60 @@ def make_plots(snap, args):
         args.upto_text = ''
 
     # ----------------------- Make the plots ---------------------------------------------
-    # gas_density_projection(ds, region, args)
-    # young_stars_density_projection(ds, region, args)
-    # KS_relation(ds, region, args)
-    # gas_metallicity_projection(ds, region, args)
-    # gas_metallicity_radial_profile(ds, region, args)
-    # gas_metallicity_histogram(ds, region, args)
-    # gas_resolved_MZR(ds, regio, args)
+    gas_density_projection(ds, region, args)
+    edge_visualizations(ds, region, args)
+    young_stars_density_projection(ds, region, args)
+    KS_relation(ds, region, args)
+    outflow_rates(ds, region, args)
+    gas_metallicity_projection(ds, region, args)
+    gas_metallicity_radial_profile(ds, region, args)
+    gas_metallicity_histogram(ds, region, args)
+    gas_metallicity_resolved_MZR(ds, region, args)
+    print('Yayyy you have completed making all plots for this snap ' + snap)
 
 # --------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    args = parse_args()
+    cli_args = parse_args()
 
     # ------------------ Figure out directory and outputs -------------------------------------
-    if args.save_directory is None:
-        args.save_directory = args.directory + '/plots'
-        Path(args.save_directory).mkdir(parents=True, exist_ok=True)
+    if cli_args.save_directory is None:
+        cli_args.save_directory = cli_args.directory + '/plots'
+        Path(cli_args.save_directory).mkdir(parents=True, exist_ok=True)
 
-    if args.trackfile is None: _, _, _, _, args.trackfile, _, _, _ = get_run_loc_etc(args) # for FOGGIE production runs it knows which trackfile to grab
+    if cli_args.trackfile is None: _, _, _, _, cli_args.trackfile, _, _, _ = get_run_loc_etc(cli_args) # for FOGGIE production runs it knows which trackfile to grab
 
-    if args.output is not None: # Running on specific output/s
-        outputs =[item for item in args.output.split(',')]
+    if cli_args.output is not None: # Running on specific output/s
+        outputs = make_output_list(cli_args.output)
     else: # Running on all snapshots in the directory
         outputs = []
-        for fname in os.listdir(args.directory):
-            folder_path = os.path.join(args.directory, fname)
+        for fname in os.listdir(cli_args.directory):
+            folder_path = os.path.join(cli_args.directory, fname)
             if os.path.isdir(folder_path) and ((fname[0:2]=='DD') or (fname[0:2]=='RD')):
                 outputs.append(fname)
 
     # --------- Loop over outputs, for either single-processor or parallel processor computing ---------------
-    if (args.nproc == 1):
+    if (cli_args.nproc == 1):
         for snap in outputs:
-            make_plots(snap, args)
+            make_plots(snap, cli_args)
+        print('Serially: time taken for ' + str(len(outputs)) + ' snapshots with ' + str(cli_args.nproc) + ' core was %s mins' % ((time.time() - start_time) / 60))
     else:
-        # Split into a number of groupings equal to the number of processors
-        # and run one process per processor
-        for i in range(len(outputs)//args.nproc):
+        # ------- Split into a number of groupings equal to the number of processors and run one process per processor ---------
+        for i in range(len(outputs)//cli_args.nproc):
             threads = []
-            for j in range(args.nproc):
-                snap = outputs[args.nproc*i+j]
-                threads.append(multi.Process(target=make_plots, args=[snap, args]))
+            for j in range(cli_args.nproc):
+                snap = outputs[cli_args.nproc*i+j]
+                threads.append(multi.Process(target=make_plots, args=[snap, cli_args]))
             for t in threads:
                 t.start()
             for t in threads:
                 t.join()
-        # For any leftover snapshots, run one per processor
+        # ----- For any leftover snapshots, run one per processor ------------------
         threads = []
-        for j in range(len(outputs)%args.nproc):
+        for j in range(len(outputs) % cli_args.nproc):
             snap = outputs[-(j+1)]
-            threads.append(multi.Process(target=make_plots, args=[snap, args]))
+            threads.append(multi.Process(target=make_plots, args=[snap, cli_args]))
         for t in threads:
             t.start()
         for t in threads:
             t.join()
+        print('Parallely: time taken for ' + str(len(outputs)) + ' snapshots with ' + str(cli_args.nproc) + ' cores was %s mins' % ((time.time() - start_time) / 60))
