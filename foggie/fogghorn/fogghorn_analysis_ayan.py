@@ -554,7 +554,7 @@ def make_plots(snap, args):
 
     # ----------------------- Read the snapshot ----------------------
     filename = args.directory + '/' + snap + '/' + snap
-    ds, region = foggie_load(filename, args.trackfile)#, disk_relative=True)
+    ds, region = foggie_load(filename, args.trackfile, disk_relative=True)
 
     # ----------------- Add some parameters to args that will be used throughout ----------------------------------
     args.snap = snap
