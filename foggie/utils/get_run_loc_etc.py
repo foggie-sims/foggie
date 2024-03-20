@@ -20,9 +20,9 @@ def get_run_loc_etc(args):
         output_path = "/nobackup/mpeeples/"
         code_path = '/pleiades/u/mpeeples/foggie/'
     elif args.system == "guy":
-        foggie_dir = "/Users/tumlinson/Dropbox/FOGGIE/snapshots"
+        foggie_dir = "/Users/tumlinson/Dropbox/FOGGIE/snapshots/"
         output_path = "/Users/tumlinson/Dropbox/foggie/collab/"
-        code_path = '/Users/tumlinson/Dropbox/FOGGIE/foggie/'
+        code_path = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/'
     elif args.system == "jase":
         foggie_dir = "/Users/rsimons/Desktop/foggie/sims/"
         output_path = "/Users/rsimons/Desktop/foggie/"
@@ -43,6 +43,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackupp2/rcsimons/foggie/"
         code_path = '/nobackupp2/rcsimons/git/foggie/foggie/'
+    elif args.system == "pleiades_jt":
+        foggie_dir = "/nobackup/jtumlins/"
+        output_path = "/nobackupp/jtumlins/"
+        code_path = '/nobackup/jtumlins/foggie/foggie/'
     elif args.system == "cassiopeia":
         foggie_dir = "/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/"
         output_path = "/Users/clochhaas/Documents/Research/FOGGIE/Outputs/"
