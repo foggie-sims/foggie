@@ -1,0 +1,101 @@
+To restart a FOGGIE halo with next-generation setup:
+
+1. Make sure to have the enzo-foggie branch of enzo installed. See the document "using_JTs_enzo.txt" for the steps.
+
+2. Make a new directory in your /nobackup/<username> directory for your new run.
+
+3. In your new run directory, copy over these files:
+	- The snapshot directory that you want to restart from.
+	  e.g., if I'm restarting Tempest from DD1970, I would copy
+	  /nobackup/mpeeples/halo_008508/nref11c_nref9f/DD1970
+	  into my new directory
+	- OutputLog from the original run directory
+	  e.g., for the above example,
+	  /nobackup/mpeeples/halo_008508/nref11c_nref9f/OutputLog
+	- halo_track from the original run directory
+	  e.g., for the above example,
+	  /nobackup/mpeeples/halo_008508/nref11c_nref9f/halo_track
+	- np from the directory where you installed enzo_foggie
+	  e.g., /path/to/enzo_foggie/bin/np
+	- simrun.pl from /nobackup/clochhaa/reruns/simrun.pl
+	- RunScript.sh from /nobackup/clochhaa/reruns/RunScript.sh
+
+4. From a pfe, ssh to lou and create a new directory where you want to backup new simulation outputs
+	e.g.:
+	> ssh lou
+	> mkdir test_restart
+	> logout
+	The final step will bring you back to the pfe.
+
+4. Modify these files:
+	- simrun.pl:
+	Put in your email address on the line that starts with $email_address.
+	Put in the path to your enzo install location on the line that starts with $enzo_executable.
+	Note that the actual executable is in the 'bin' directory of the enzo install.
+	Look for the line that starts $command_line = "shiftc --create-tar $directory.
+	On this line, change the path after lou: to the path to the new directory on lou you just
+	made for backup. simrun.pl will automatically back up new simulation outputs to this
+	directory as they're made while the code runs.
+	- RunScript.sh:
+	On the line that calls memory_gauge.sh, put in the path to your own memory_gauge.sh file
+	(see the instructions for installing JT's enzo for how to create this)
+	Feel free to change the name of the run to whatever you'd like (on the line #PBS -N)
+	The first time you try a new run, submit it to the devel queue to make sure it works:
+	Change the line #PBS -q long to #PBS -q devel and change the line
+	#PBS -l walltime=120:00:00 to #PBS -l walltime=2:00:00
+	- OutputLog:
+	Delete all lines after whichever output you're restarting from. In the above example, I
+	would delete everything after DD1970, so that the last line starts with
+	DATASET WRITTEN ./DD1970/DD1970
+
+5. Modify the parameter file of the last output you're restarting from to include all the new stuff. In the example above, this would be DD1970/DD1970
+	- H2-regulated SF stuff:
+	  Look for the line that says StarParticleCreation = 1 and change it to
+	  StarParticleCreation = 2048
+	  Look for a block of a bunch of parameters that start with H2StarMaker. Delete this block
+	  and copy-paste in this block of parameters instead:
+		H2StarMakerEfficiency = 0.01
+		H2StarMakerNumberDensityThreshold = 0
+		H2StarMakerMinimumMass = 1000
+		H2StarMakerMinimumH2FractionForStarFormation = 1e-05
+		H2StarMakerStochastic = 0
+		H2StarMakerUseSobolevColumn = 1
+		H2StarMakerSigmaOverR = 0.0333333
+		H2StarMakerAssumeColdWarmPressureBalance = 1
+		H2StarMakerH2DissociationFlux_MW = 1
+		H2StarMakerH2FloorInColdGas = 0
+		H2StarMakerColdGasTemperature = 10000
+		H2StarMakerUseLocalDensityMax = 1
+		H2StarMakerWriteStarLogFiles = 1
+	- path to grackle file:
+	  Look for a parameter called grackle_data_file. Set it to the path to your particular
+	  grackle install so that it points toward your CloudyData_UVB=HM2012_shielded.h5 file
+	  (should be in the 'input' directory of your grackle install). See the notes on installing
+	  JT's enzo for installing grackle.
+
+6. If this is your first time doing a re-run, make sure this all works before you start changing things. If you have enzo running fine, then the last step is to change whichever parameter you want to explore!
+	- e.g., if I want to explore the impact of different H2 fraction floors, I would want to
+	  change the parameter H2StarMakerH2FloorInColdGas.
+
+7. Submit your re-run to PBS by cd'ing into the directory and typing
+	> qsub RunScript.sh
+
+8. Monitoring the run:
+	- You can cd into the directory of the run and type
+	  > ./np
+	  to get information about what the simulation is currently doing, like the timestep
+	- When a run stops, there will be a file called .message in the directory telling you why
+	  it stopped. Could be because the run finished (yay!), could be because simrun calculated
+	  there wasn't enough time to produce another output in your remaining walltime (in which
+	  case it will automatically-resubmit for you), could be because something went wrong.
+	- All output from running enzo gets piped into estd.out. If there's a problem, look there
+	  first. simrun automatically moves this file to estd_1.out, estd_2.out, etc., each time a
+	  run stops so that you have a record of past runs.
+	- OutputLog will update each time the simulation makes new data.
+	- run.log will also give you some information. This is written by simrun, and can tell you
+	  if the simulation didn't make more data for a bad reason or because it was just short on
+	  walltime.
+	- memory.JOBID.pbspl1.nas.nasa.gov file has information about how much memory is available
+	  on each node that the simulation is running on, for load-balancing information. You
+	  probably won't need to worry about this now that Jason has implemented a load-balancing
+	  fix, but may be something to check if you're really stuck trying to figure out an error.
