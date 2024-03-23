@@ -192,11 +192,15 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
                 cax = divider.append_axes('bottom', size='5%', pad=1.3)
                 cbar = fig.colorbar(prj.plots[field_dict[d]].cb.mappable, orientation='horizontal', cax=cax)
             else:
-                fig.subplots_adjust(right=0.9, top=0.95, bottom=0.12, left=0.1)
+                fig.subplots_adjust(right=0.85, top=0.95, bottom=0.12, left=0.15)
                 cax = divider.append_axes('right', size='5%', pad=0.05)
                 cbar = fig.colorbar(prj.plots[field_dict[d]].cb.mappable, orientation='vertical', cax=cax)
-            cbar.ax.tick_params(labelsize=fontsize)
+            cbar.ax.tick_params(labelsize=fontsize, width=2.5, length=5)
             cbar.set_label(prj.plots[field_dict[d]].cax.get_ylabel(), fontsize=fontsize)
+            if args.forpaper:
+                cbar.set_ticks([1e-1, 5e-1, 2e0])
+                cbar.set_ticklabels(['0.1', '0.5', '2.0'])
+
 
             axes.xaxis.set_major_locator(plt.MaxNLocator(5))
             axes.yaxis.set_major_locator(plt.MaxNLocator(5))
@@ -263,6 +267,9 @@ if __name__ == '__main__':
             args.forpaper = True
         if args.forpaper or args.forproposal:
             args.use_density_cut = True
+        if args.forpaper:
+            args.fontsize = 15
+            args.docomoving = True
 
 
         yt.add_particle_filter('my_young_stars', function=my_young_stars, filtered_type='all', requires=['creation_time', 'particle_type'])

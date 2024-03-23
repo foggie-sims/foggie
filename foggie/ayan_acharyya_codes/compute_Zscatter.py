@@ -109,11 +109,12 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
 
     # ----------tidy up figure-------------
     if not (args.annotate_profile or args.notextonplot): plt.legend(loc='upper right', bbox_to_anchor=(1, 0.75), fontsize=args.fontsize)
-    ax.set_xlim(args.xmin, args.xmax)
+    delta_x = (args.xmax - args.xmin) / 50
+    ax.set_xlim(args.xmin - delta_x, args.xmax) # the small offset between the actual limits and intended tick labels is to ensure that tick labels do not reach the very edge of the plot
     ax.set_ylim(0, args.ymax)
 
-    ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 5))
-    ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 4 if args.forproposal else 6))
+    ax.set_xticks(np.linspace(args.xmin, args.xmax, 5))
+    ax.set_yticks(np.linspace(0, args.ymax, 4 if args.forproposal else 6))
 
     ax.set_xlabel(r'Log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize/1.2 if args.forproposal else args.fontsize)
@@ -235,9 +236,8 @@ if __name__ == '__main__':
         dummy_args.docomoving = True
         dummy_args.islog = True
         dummy_args.use_density_cut = True
-        dummy_args.fit_multiple = True
+        dummy_args.nofit = True
         dummy_args.weight = 'mass'
-        dummy_args.no_vlines= True
 
     # -------set up dataframe and filename to store/write gradients in to--------
     cols_in_df = ['output', 'redshift', 'time', 're', 'mass', 'res', 'Zpeak', 'Zpeak_u', 'Z25', 'Z25_u', 'Z50', 'Z50_u', 'Z75', 'Z75_u', 'Zgini', 'Zmean', 'Zmean_u', 'Zsigma', 'Zsigma_u', 'Zskew', 'Zskew_u', 'Ztotal', 'Z2_amp', 'Z2_amp_u', 'Z2_mean', 'Z2_mean_u', 'Z2_sigma', 'Z2_sigma_u', 'Z2_gamma', 'Z2_gamma_u']
@@ -336,9 +336,7 @@ if __name__ == '__main__':
             args.docomoving = True
             args.islog = True
             args.use_density_cut = True
-            args.fit_multiple = True
-            args.no_vlines = True
-            #args.hide_multiplefit = True ##
+            args.nofit = True
             args.weight = 'mass'
         elif args.forproposal:
             args.res = 0.3  # kpc
@@ -348,9 +346,9 @@ if __name__ == '__main__':
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').tolist()
         if args.xmin is None:
-            args.xmin = -1.5 if args.islog else 0
+            args.xmin = -1.6 if args.forpaper else -1.5 if args.islog else 0
         if args.xmax is None:
-            args.xmax = 2 if args.forproposal else 1.0 if args.islog else 4
+            args.xmax = 2 if args.forproposal else 0.8 if args.forpaper else 1.0 if args.islog else 4
         if args.ymax is None:
             args.ymax = 1.5 if args.forproposal else 2.5 if args.islog else 2.5
 

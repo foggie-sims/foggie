@@ -88,8 +88,11 @@ def plot_projection(quantity, box, box_center, box_width, axes, args, unit=None,
 
     cax = divider.append_axes('right', size='5%', pad=0.05)
     cbar = ax.figure.colorbar(prj.plots[field].cb.mappable, orientation='vertical', cax=cax)
-    cbar.ax.tick_params(labelsize=args.fontsize)
+    cbar.ax.tick_params(labelsize=args.fontsize, width=2.5, length=5)
     cbar.set_label(prj.plots[field].cax.get_ylabel(), fontsize=args.fontsize / args.fontfactor if quantity != 'metal' else args.fontsize)
+    if args.forpaper and quantity == 'metal':
+        cbar.set_ticks([1e-1, 1e0])
+        cbar.set_ticklabels(['0.1', '1.0'])
 
     return axes
 
@@ -145,13 +148,16 @@ def plot_Zprof_snap(df, ax, args):
 
     ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=5)
     ax.scatter(x_bin_centers, y_binned, c=color, s=50, lw=1, ec='black', zorder=10)
-    ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
-    ax.text(0.97, 0.95, 'Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='right')
+    ax.plot(x_bin_centers, y_fitted, color=color, lw=3.5, ls='dashed')
+    ax.text(0.05, 0.05, 'Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left', bbox=dict(facecolor='k', alpha=0.99, edgecolor='k'))
 
     ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
     ax.set_xlim(0, args.xmax if args.xmax is not None else np.ceil(args.galrad) if args.forpaper else np.ceil(args.upto_kpc / 0.695)) # kpc
-    ax.set_ylim(args.Zlim[0], args.Zlim[1]) # log limits
+
+    delta_y = np.diff(args.Zlim)[0] / 50
+    ax.set_ylim(args.Zlim[0] - delta_y, args.Zlim[1]) # the small offset between the actual limits and intended tick labels is to ensure that tick labels do not reach the very edge of the plot
+
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
     #ax.text(0.03, 0.03, args.output, color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left')
@@ -190,8 +196,11 @@ def plot_Zdist_snap(df, ax, args):
 
     ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)
-    ax.set_xlim(-2 if args.islog else 0, 1 if args.islog else 3) # Zsun
+
+    delta_x = np.diff(args.Zlim)[0] / 50
+    ax.set_xlim(args.Zlim[0] - delta_x, args.Zlim[1]) # the small offset between the actual limits and intended tick labels is to ensure that tick labels do not reach the very edge of the plot
     ax.set_ylim(0, 3)
+
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
 
@@ -267,7 +276,7 @@ if __name__ == '__main__':
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').tolist()
         args.fontfactor = 1.2
-        args.Zlim = [-1.5, 0.5] if args.forproposal else [-2, 1]# log Zsun units
+        args.Zlim = [-1.5, 0.5] if args.forproposal else [-2, 1] if args.islog else [0, 3]# log Zsun units
 
         # --------determining corresponding text suffixes-------------
         args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''
@@ -319,7 +328,7 @@ if __name__ == '__main__':
                 print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
             # ------plotting projected metallcity snapshots---------------
-            axes_met_proj = plot_projection('metal', box, box_center, box_width, axes_met_proj, args, clim=[10 ** -1.5, 10 ** 0] if args.forproposal else None, cmap=old_metal_color_map)
+            axes_met_proj = plot_projection('metal', box, box_center, box_width, axes_met_proj, args, clim=[10 ** -1.5, 10 ** 0] if args.forproposal else [10 ** -1.5, 10 ** 1], cmap=old_metal_color_map)
 
             # ------plotting projected velocity quantity snapshots---------------
             axes_vel_proj = plot_projection(args.vcol, box, box_center, box_width, axes_vel_proj, args, clim=[-150, 150] if args.vcol == 'vrad' or args.vcol == 'vphi' or args.vcol == 'vlos' else [0, 150] if args.forproposal else None, cmap='PRGn' if args.vcol == 'vrad' or args.vcol == 'vlos' or args.vcol == 'vphi' else 'viridis')

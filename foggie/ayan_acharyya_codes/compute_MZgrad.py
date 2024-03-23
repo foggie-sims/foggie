@@ -157,7 +157,7 @@ def plot_gradient(df, args, linefit=None):
     else:
         fig, ax = plt.subplots(figsize=(8, 8))
         fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.17)
-    if not args.plot_onlybinned: artist = dsshow(df, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ylim[0], args.ylim[1]), aspect = 'auto', ax=ax, cmap='Blues_r')#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
+    if not args.plot_onlybinned: artist = dsshow(df, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ymin, args.ymax), aspect = 'auto', ax=ax, cmap='Blues_r')#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # --------bin the metallicity profile and plot the binned profile-----------
     ax = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=ax, fit_inlog=True, weightcol=args.weight)
@@ -172,15 +172,16 @@ def plot_gradient(df, args, linefit=None):
             if not args.notextonplot: plt.text(0.033,0.3, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, va='center', fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize, bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
 
     # ----------tidy up figure-------------
-    ax.set_xlim(0, args.upto_re if 're' in args.xcol else args.upto_kpc)
-    ax.set_ylim(args.ylim[0], args.ylim[1])
+    ax.set_xlim(0, args.upto_re if 're' in args.xcol else args.galrad if args.forpaper else args.upto_kpc)
+    delta_y = (args.ymax - args.ymin) / 50
+    ax.set_ylim(args.ymin - delta_y, args.ymax) # the small offset between the actual limits and intended tick labels is to ensure that tick labels do not reach the very edge of the plot
     if args.forproposal: ax.set_yscale('log')
 
     ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
     ax.set_ylabel(r'Metallicity (Z$_{\odot}$)' if args.forproposal else r'Log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
 
     ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 6))
-    ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 3 if args.forproposal else 5))
+    ax.set_yticks(np.linspace(args.ymin, args.ymax, 3 if args.forproposal else 5))
 
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
@@ -375,7 +376,10 @@ if __name__ == '__main__':
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').tolist()
-        args.ylim = [-2.2 if args.ymin is None else args.ymin, 1.2 if args.ymax is None else args.ymax] # [-3, 1]
+        if args.ymin is None:
+            args.ymin = -1.6 if args.forpaper else -2.2
+        if args.ymax is None:
+            args.ymax = 0.8 if args.forpaper else 1.2
 
         re_from_stars = get_re_from_stars(ds, args) if args.upto_kpc is None else np.nan # kpc
         re_from_coldgas = get_re_from_coldgas(args, gasprofile=gasprofile) if args.upto_kpc is None else np.nan # kpc

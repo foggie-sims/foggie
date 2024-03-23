@@ -19,7 +19,6 @@ from uncertainties import ufloat, unumpy
 from lmfit.models import GaussianModel, SkewedGaussianModel
 
 start_time = time.time()
-plt.rcParams['axes.linewidth'] = 1
 
 # ----------------------------------------------------------------
 def make_df_from_box(box, args):
@@ -103,7 +102,7 @@ def plot_projectedZ_snap(box, box_center, box_width, axes, args, clim=None, cmap
     return proj, axes
 
 # ----------------------------------------------------------------
-def plot_Zprof_snap(df, ax, args):
+def plot_Zprof_snap(df, ax, args, hidex=False, hidey=False):
     '''
     Function to plot the radial metallicity profile (from input dataframe) as seen from all three projections, on to the given axis
     Also computes the projected metallicity gradient along each projection
@@ -115,9 +114,9 @@ def plot_Zprof_snap(df, ax, args):
 
     weightcol = args.weight
     ycol = 'metal'
-    color = args.col_arr[0]
+    color = args.color
 
-    df['weighted_metal'] = len(df) * df[ycol] * df[args.weight] / np.sum(df[args.weight])
+    if args.weight is not None: df['weighted_metal'] = len(df) * df[ycol] * df[args.weight] / np.sum(df[args.weight])
     df['log_' + ycol] = np.log10(df[ycol])
     if not args.plot_onlybinned: artist = dsshow(df, dsh.Point('rad', 'log_' + ycol), dsh.count(), norm='linear', x_range=(0, args.galrad * np.sqrt(2)), y_range=(args.Zlim[0], args.Zlim[1]), aspect='auto', ax=ax, cmap='Blues_r')
 
@@ -151,22 +150,29 @@ def plot_Zprof_snap(df, ax, args):
     print('Upon radially binning: Inferred slope for halo ' + args.halo + ' output ' + args.output + ' is', Zgrad, 'dex/kpc')
 
     ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=5)
-    ax.scatter(x_bin_centers, y_binned, c=color, s=50, lw=1, ec='black', zorder=10)
+    ax.scatter(x_bin_centers, y_binned, c='white' if color == 'k' else color, s=50, lw=1, ec='black', zorder=10)
     ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
-    ax.text(0.97, 0.95, 'Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='right')
+    ax.text(0.97, 0.95, 'Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor / 1.2, va='top', ha='right')
 
-    ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
     ax.set_xlim(0, np.ceil(args.upto_kpc / 0.695)) # kpc
-    ax.set_ylim(args.Zlim[0], args.Zlim[1]) # log limits
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.text(0.03, 0.03, args.output, color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left')
+    ax.set_ylim(args.Zlim[0] - 0.1, args.Zlim[1]) # log limits
+    if hidex:
+        ax.set_xticklabels([])
+    else:
+        ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
+        ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize / args.fontfactor)
+    if hidey:
+        ax.set_yticklabels([])
+    else:
+        ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
+        ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
+
+    if not args.forpaper: ax.text(0.03, 0.03, args.output, color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left')
 
     return Zgrad, ax
 
 # ----------------------------------------------------------------
-def plot_Zdist_snap(df, ax, args):
+def plot_Zdist_snap(df, ax, args, hidex=False, hidey=False):
     '''
     Function to plot the metallicity histogram (from input dataframe) as seen from all three projections, on to the given axis
     Also fits the histogram of projected metallicity along each projection
@@ -191,12 +197,18 @@ def plot_Zdist_snap(df, ax, args):
     Zdist = [fit.best_values['g1_sigma'], fit.best_values['g1_center']]
     ax.text(0.03 if args.islog else 0.97, 0.75, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['g1_center'], 2.355 * fit.best_values['g1_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
 
-    ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)
     ax.set_xlim(-2 if args.islog else 0, 1 if args.islog else 3) # Zsun
     ax.set_ylim(0, 3)
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
+    if hidex:
+        ax.set_xticklabels([])
+    else:
+        ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
+        ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
+    if hidey:
+        ax.set_yticklabels([])
+    else:
+        ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
+        ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)
 
     ax.text(0.03 if args.islog else 0.97, 0.65, 'z = %.2F' % args.current_redshift, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
     ax.text(0.03 if args.islog else 0.97, 0.55, 't = %.1F Gyr' % args.current_time, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
