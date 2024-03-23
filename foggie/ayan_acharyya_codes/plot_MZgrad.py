@@ -157,51 +157,89 @@ def overplot_manga(ax, args):
 
     return ax, df_manga
 
+# ---------------------------------------------
+def plot_filled_region(df, xcol, ycol, ax, color=None, noscatter=False, zorder=None, alpha=0.5):
+    '''
+    Function to overplot a filled region between multiple y-values for each x-value
+    If there is only 1 y-value for each x-value then this will lead to a simple line plot
+    This is only efficient/useful when only a few unique x-values exist in the data
+    :return: axis handle
+    '''
+    xarr = pd.unique(df[xcol])
+    if len(xarr) == len(df): # all values of x are unique; then just to do a thick line plot
+        ax.plot(df[xcol], df[ycol], lw=2, color=color, zorder=zorder)
+        if not noscatter: ax.scatter(df['redshift'], df['Zgrad'], c=color, lw=1.0, s=50, ec='k', zorder=zorder + 1 if zorder is not None else None)
+
+    else: # some values of x have multiple y-values
+        yup_arr, ylow_arr = [], []
+        for thisx in xarr:
+            yup_arr.append(df[df[xcol] == thisx][ycol].max())
+            ylow_arr.append(df[df[xcol] == thisx][ycol].min())
+
+        ax.fill_between(xarr, ylow_arr, yup_arr, color=color, alpha=alpha, edgecolor='k', lw=0.9, zorder=zorder)
+        if not noscatter: ax.scatter(df['redshift'], df['Zgrad'], c=color, lw=0.5, s=10, ec='k', zorder=zorder + 1 if zorder is not None else None)
+
+    return ax
+
 # -----------------------------------
 def overplot_theory(ax, args):
     '''
     Function to overplot the simulated Z gradient vs redshift from several papers
     '''
     literature_path = HOME + '/Documents/writings/papers/FOGGIE_Zgrad/Literature/'
-    master_df = pd.DataFrame()
+    outputfile = literature_path + 'combined_theory_data.txt'
 
-    # ------Gibson et al. 2013 Fig 1 ---------
-    filename = literature_path + 'Gibson_2013_Fig1.txt'
-    df = pd.read_table(filename, delim_whitespace=True, comment='#')
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
-    '''
-    # ------Ma et al. 2017 SIMULATIONS (from Raymond) ---------
-    filename = literature_path + 'ma17.cat'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=26, names=['redshift', 'col2', 'col3', 'col4', 'col5', 'col6', 'col7', 'Zgrad', 'Zgrad_u'], usecols=['redshift', 'Zgrad', 'Zgrad_u'])
-    df['source'] = os.path.split(filename)[1][:-4]
-    df['id'] = [item[1:] for item in pd.read_table(filename, delim_whitespace=True, skiprows=14, nrows=9, names=['id'])['id']]
-    master_df = pd.concat([master_df, df])
-    '''
-    # ------Ma et al. 2017 Table A1 ---------
-    filename = literature_path + 'Ma_2017_TableA1.txt'
-    df = pd.read_table(filename, delim_whitespace=True, comment='#')
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
+    if not os.path.exists(outputfile) or args.clobber:
+        print('Could not find', outputfile, 'Making combined theory data file now..')
+        master_df = pd.DataFrame()
+        cols_to_concat = ['redshift', 'Zgrad', 'Zgrad_u', 'source']
 
-    # ------Hemler et al. 2021 Table 1 ---------
-    filename = literature_path + 'Hemler_2021_Table1.txt'
-    df = pd.read_table(filename, delim_whitespace=True, comment='#')
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
+        # ------Gibson et al. 2013 Fig 1 ---------
+        filename = literature_path + 'Gibson_2013_Fig1.txt'
+        df = pd.read_table(filename, delim_whitespace=True, comment='#')
+        df['source'] = os.path.split(filename)[1][:-4]
+        df['Zgrad_u'] = np.nan
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    master_df.sort_values(by='redshift', inplace=True)
+        # ------Ma et al. 2017 Table A1 ---------
+        filename = literature_path + 'Ma_2017_TableA1.txt'
+        df = pd.read_table(filename, skiprows=18, delim_whitespace=True, names=['col1', 'redshift', 'col3', 'col4', 'col5', 'col6', 'col7', 'col8', 'Zgrad'])
+        df['source'] = os.path.split(filename)[1][:-4]
+        df['Zgrad_u'] = np.nan
+        master_df = pd.concat([master_df, df[cols_to_concat]])
+
+        # ------Hemler et al. 2021 Table 1 ---------
+        filename = literature_path + 'Hemler_2021_Table1.txt'
+        df = pd.read_table(filename, delim_whitespace=True, comment='#')
+        df['Zgrad_u'] = df[['Zgrad_ulim', 'Zgrad_llim']].mean(axis=1)
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
+
+        # -----saving the combined dataframe --------------
+        master_df = master_df.sort_values(by='redshift', ignore_index=True)
+        master_df.to_csv(outputfile, index=None, sep='\t', na_rep='-')
+        print('Saved', outputfile)
+    else:
+        print('Reading from existing', outputfile)
+        master_df = pd.read_table(outputfile, delim_whitespace=True)
+        master_df.replace(['-', '--'], np.nan, inplace=True)
+        master_df['Zgrad'] = master_df['Zgrad'].astype(np.float64)
+        master_df['Zgrad_u'] = master_df['Zgrad_u'].astype(np.float64)
+
+    master_df = master_df.dropna(subset=['Zgrad']).reset_index(drop=True)
+    master_df = master_df[master_df['redshift'].between(args.xmin, args.xmax)]
+    master_df['year'] = master_df['source'].apply(lambda x: x.split('_')[1])
+    master_df = master_df.sort_values(by='year', ignore_index=True)
 
     # -----actual plotting --------------
-    color_dict = {'Gibson_2013_Fig1':'salmon', 'Ma_2017_TableA1':'brown', 'Hemler_2021_Table1':'sienna'}
+    color_dict = {'Gibson_2013_Fig1':'lightcoral', 'Ma_2017_TableA1':'sienna', 'Hemler_2021_Table1':'crimson'}
     label_dict = {'Gibson_2013_Fig1':'Gibson+13', 'Ma_2017_TableA1':'Ma+17', 'Hemler_2021_Table1':'Hemler+21'}
 
     fig = ax.figure
     fig.text(0.15, 0.93, 'FOGGIE', ha='left', va='top', color='cornflowerblue', fontsize=args.fontsize / 1.2)
     for index, thissource in enumerate(pd.unique(master_df['source'])):
-        df = master_df[master_df['source'] == thissource]
-        ax.plot(df['redshift'], df['Zgrad'], c=color_dict[thissource], lw=2)
-        ax.scatter(df['redshift'], df['Zgrad'], c='white', lw=2, s=50, ec=color_dict[thissource])
+        df = master_df[master_df['source'] == thissource].sort_values(by='redshift', ignore_index=True)
+        ax = plot_filled_region(df, 'redshift', 'Zgrad', ax, color=color_dict[thissource], zorder=20, alpha=0.8)
         fig.text(0.15, 0.88 - index * 0.05, label_dict[thissource], ha='left', va='top', color=color_dict[thissource], fontsize=args.fontsize / 1.2)
 
     return ax, master_df
@@ -212,121 +250,137 @@ def overplot_observations(ax, args):
     Function to overplot the observed Z gradient vs redshift from several papers
     '''
     literature_path = HOME + '/Documents/writings/papers/FOGGIE_Zgrad/Literature/'
-    master_df = pd.DataFrame()
+    outputfile = literature_path + 'combined_obs_data.txt'
 
-    # ------Swinbank et al. 2012 (from Raymond) ---------
-    filename = literature_path + 'swinbank12.cat'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=10, names=['id', 'redshift', 'col1', 'Zgrad', 'Zgrad_u1', 'Zgrad_u2'])
-    df['Zgrad_u'] = np.mean([df['Zgrad_u1'], df['Zgrad_u2']], axis=0)
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df[['id', 'redshift', 'Zgrad', 'Zgrad_u', 'source']]])
+    if not os.path.exists(outputfile) or args.clobber:
+        print('Could not find', outputfile, 'Making combined theory data file now..')
+        master_df = pd.DataFrame()
+        cols_to_concat = ['redshift', 'Zgrad', 'Zgrad_u', 'source']
 
-    # ------Jones et al. 2013 (Table 1 & 5) ------------
-    filename = literature_path + 'Jones_2013_Table1.txt'
-    df1 = pd.read_table(filename, skiprows=18, delim_whitespace=True)
+        # ------Swinbank et al. 2012 (from Raymond) ---------
+        filename = literature_path + 'swinbank12.cat'
+        df = pd.read_table(filename, delim_whitespace=True, skiprows=10, names=['id', 'redshift', 'col1', 'Zgrad', 'Zgrad_u1', 'Zgrad_u2'])
+        df['Zgrad_u'] = np.mean([df['Zgrad_u1'], df['Zgrad_u2']], axis=0)
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    filename = literature_path + 'Jones_2013_Table5.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=6, names=['col1', 'id', 'col3', 'col4', 'col5', 'Zgrad', 'col7', 'Zgrad_u', 'col9', 'col10', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16', 'col17', 'col18', 'col19', 'col20'])
-    df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
+        # ------Jones et al. 2013 (Table 1 & 5) ------------
+        filename = literature_path + 'Jones_2013_Table1.txt'
+        df1 = pd.read_table(filename, skiprows=18, delim_whitespace=True)
 
-    # ------Jones et al. 2015 (Table 1) --------
-    filename = literature_path + 'Jones_2015_Table1.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=15)
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
+        filename = literature_path + 'Jones_2013_Table5.txt'
+        df = pd.read_table(filename, delim_whitespace=True, skiprows=6, names=['col1', 'id', 'col3', 'col4', 'col5', 'Zgrad', 'col7', 'Zgrad_u', 'col9', 'col10', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16', 'col17', 'col18', 'col19', 'col20'])
+        df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    # ------Leethochawalit et al. 2016 (Table 1 & 4) -------
-    filename = literature_path + 'Leethochawalit_2016_Table1.txt'
-    df1 = pd.read_table(filename, skiprows=43, delim_whitespace=True)
+        # ------Jones et al. 2015 (Table 1) --------
+        filename = literature_path + 'Jones_2015_Table1.txt'
+        df = pd.read_table(filename, delim_whitespace=True, skiprows=15)
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    filename = literature_path + 'Leethochawalit_2016_Table4.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=35)
-    df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
+        # ------Leethochawalit et al. 2016 (Table 1 & 4) -------
+        filename = literature_path + 'Leethochawalit_2016_Table1.txt'
+        df1 = pd.read_table(filename, skiprows=43, delim_whitespace=True)
 
-    # ------Wang et al. 2017 (Table 2 & 5) --------
-    filename = literature_path + 'Wang_2017_Table2.txt'
-    df1 = pd.read_table(filename, skiprows=27, delim_whitespace=True)
+        filename = literature_path + 'Leethochawalit_2016_Table4.txt'
+        df = pd.read_table(filename, delim_whitespace=True, skiprows=35)
+        df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    filename = literature_path + 'Wang_2017_Table5.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=6, names=['id', 'Zgrad', 'col3', 'Zgrad_u', 'col5', 'col6', 'col7'])
-    df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
+        # ------Wang et al. 2017 (Table 2 & 5) --------
+        filename = literature_path + 'Wang_2017_Table2.txt'
+        df1 = pd.read_table(filename, skiprows=27, delim_whitespace=True)
 
-    # ------Schreiber et al. 2018 (Table 1 & 7) --------
-    filename = literature_path + 'Schreiber_2018_Table1.txt'
-    df1 = pd.read_table(filename, skiprows=6, delim_whitespace=True, names=['id', 'col2', 'col3', 'col4', 'redshift', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'col12', 'col13'], skipfooter=7)
+        filename = literature_path + 'Wang_2017_Table5.txt'
+        df = pd.read_table(filename, delim_whitespace=True, skiprows=6, names=['id', 'Zgrad', 'col3', 'Zgrad_u', 'col5', 'col6', 'col7'])
+        df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    filename = literature_path + 'Schreiber_2018_Table7.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=33)
-    df['N2Ha_u'] = np.mean([df['N2Ha_u1'], df['N2Ha_u2']], axis=0)
-    df['Zgrad'] = 0.57 * df['N2Ha']
-    df['Zgrad_u'] = 0.57 * df['N2Ha_u']
-    df = df1[['id', 'redshift']].merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
+        # ------Schreiber et al. 2018 (Table 1 & 7) --------
+        filename = literature_path + 'Schreiber_2018_Table1.txt'
+        df1 = pd.read_table(filename, skiprows=6, delim_whitespace=True, names=['id', 'col2', 'col3', 'col4', 'redshift', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'col12', 'col13'], skipfooter=7)
 
-    # ------Curti et al. 2019 (from Raymond) ------------
-    filename = literature_path + 'curti20.cat'
-    df = pd.read_table(filename, delim_whitespace=True)
-    df = df.rename(columns={'#id': 'id', 'z':'redshift', 'zgrad':'Zgrad'})
-    df['Zgrad_u'] = np.mean([df['uezgrad'], df['lezgrad']], axis=0)
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df[['id', 'redshift', 'Zgrad', 'Zgrad_u', 'source']]])
+        filename = literature_path + 'Schreiber_2018_Table7.txt'
+        df = pd.read_table(filename, delim_whitespace=True, skiprows=33)
+        df['N2Ha_u'] = np.mean([df['N2Ha_u1'], df['N2Ha_u2']], axis=0)
+        df['Zgrad'] = 0.57 * df['N2Ha']
+        df['Zgrad_u'] = 0.57 * df['N2Ha_u']
+        df = df1[['id', 'redshift']].merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    # ------Wang et al. 2019 (Table 3) ------------
-    filename = literature_path + 'Wang_2019_Table3.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=24)
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
+        # ------Curti et al. 2019 (from Raymond) ------------
+        filename = literature_path + 'curti20.cat'
+        df = pd.read_table(filename, delim_whitespace=True)
+        df = df.rename(columns={'#id': 'id', 'z':'redshift', 'zgrad':'Zgrad'})
+        df['Zgrad_u'] = np.mean([df['uezgrad'], df['lezgrad']], axis=0)
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    # ------Wang et al. 2020 (Table A1) ------------
-    filename = literature_path + 'Wang_2020_TableA1.txt'
-    df = pd.read_table(filename, skiprows=11, nrows=47, delim_whitespace=True, names=['col1', 'col2', 'col3', 'labels', 'col5'])
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=59, names=df['labels'])
-    df = df.rename(columns={'ID':'id', 'zspec':'redshift', 'dZ/dr':'Zgrad', 'e_dZ/dr':'Zgrad_u'})[['id', 'redshift', 'Zgrad', 'Zgrad_u']]
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
+        # ------Wang et al. 2019 (Table 3) ------------
+        filename = literature_path + 'Wang_2019_Table3.txt'
+        df = pd.read_table(filename, delim_whitespace=True, skiprows=24)
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    # ------Simons et al. 2021 (Table 1) ----------
-    filename = literature_path + 'Simons_2021_Table1.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=28, names=['field', 'id', 'ra', 'dec', 'redshift', 'log_mass', 'Zgrad', 'Zgrad_u', 'Zcen', 'Zcen_u'], usecols=['id', 'redshift', 'Zgrad', 'Zgrad_u'])
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
+        # ------Wang et al. 2020 (Table A1) ------------
+        filename = literature_path + 'Wang_2020_TableA1.txt'
+        df = pd.read_table(filename, skiprows=11, nrows=47, delim_whitespace=True, names=['col1', 'col2', 'col3', 'labels', 'col5'])
+        df = pd.read_table(filename, delim_whitespace=True, skiprows=59, names=df['labels'])
+        df = df.rename(columns={'ID':'id', 'zspec':'redshift', 'dZ/dr':'Zgrad', 'e_dZ/dr':'Zgrad_u'})[['id', 'redshift', 'Zgrad', 'Zgrad_u']]
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    # ------Li et al. 2022 (Table 1) --------
-    filename = literature_path + 'Li_2022_Table1.txt'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=7, skipfooter=3, names=['id', 'col2', 'col3', 'redshift', 'col5', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16', 'col17', 'Zgrad', 'col19', 'Zgrad_u'], usecols=['id', 'redshift', 'Zgrad', 'Zgrad_u'])
-    df['source'] = os.path.split(filename)[1][:-4]
-    master_df = pd.concat([master_df, df])
+        # ------Simons et al. 2021 (Table 1) ----------
+        filename = literature_path + 'Simons_2021_Table1.txt'
+        df = pd.read_table(filename, delim_whitespace=True, skiprows=28, names=['field', 'id', 'ra', 'dec', 'redshift', 'log_mass', 'Zgrad', 'Zgrad_u', 'Zcen', 'Zcen_u'], usecols=['id', 'redshift', 'Zgrad', 'Zgrad_u'])
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    # ------Wang et al. 2022 (GLASS) -------------
-    df = pd.DataFrame({'id':'GLASS', 'redshift':3.06, 'Zgrad':0.165, 'Zgrad_u':0.023, 'source':'Wang_2022'}, index=[0])
-    master_df = pd.concat([master_df, df])
+        # ------Li et al. 2022 (Table 1) --------
+        filename = literature_path + 'Li_2022_Table1.txt'
+        df = pd.read_table(filename, delim_whitespace=True, skiprows=7, skipfooter=3, names=['id', 'col2', 'col3', 'redshift', 'col5', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16', 'col17', 'Zgrad', 'col19', 'Zgrad_u'], usecols=['id', 'redshift', 'Zgrad', 'Zgrad_u'])
+        df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    # ------MANGA --------------
-    filename = HOME + '/models/manga/manga.Pipe3D-v2_4_3_downloaded.fits'
-    data = Table.read(filename, format='fits')
-    df = data.to_pandas()
-    df = df.rename(columns={'mangaid':'id', 'alpha_oh_re_fit_' + args.manga_diag:'Zgrad', 'e_alpha_oh_re_fit_' + args.manga_diag:'Zgrad_u'})[['id', 'redshift', 'Zgrad', 'Zgrad_u']] # options for args.manga_diag are: n2, o3n2, ons, pyqz, t2, m08, t04
-    df['source'] = 'MaNGA_Pipe3D'
-    master_df = pd.concat([master_df, df])
+        # ------Wang et al. 2022 (GLASS) -------------
+        df = pd.DataFrame({'id':'GLASS', 'redshift':3.06, 'Zgrad':0.165, 'Zgrad_u':0.023, 'source':'Wang_2022'}, index=[0])
+        master_df = pd.concat([master_df, df[cols_to_concat]])
 
-    # -----actual plotting --------------
+        # ------MANGA --------------
+        filename = HOME + '/models/manga/manga.Pipe3D-v2_4_3_downloaded.fits'
+        data = Table.read(filename, format='fits')
+        df = data.to_pandas()
+        df = df.rename(columns={'mangaid':'id', 'alpha_oh_re_fit_' + args.manga_diag:'Zgrad', 'e_alpha_oh_re_fit_' + args.manga_diag:'Zgrad_u'})[['id', 'redshift', 'Zgrad', 'Zgrad_u']] # options for args.manga_diag are: n2, o3n2, ons, pyqz, t2, m08, t04
+        df['source'] = 'MaNGA_Pipe3D'
+        master_df = pd.concat([master_df, df[cols_to_concat]])
+
+        # -----saving the combined dataframe --------------
+        master_df = master_df.sort_values(by='redshift', ignore_index=True)
+        master_df.to_csv(outputfile, index=None, sep='\t', na_rep='-')
+        print('Saved', outputfile)
+    else:
+        print('Reading from existing', outputfile)
+        master_df = pd.read_table(outputfile, delim_whitespace=True)
+        master_df.replace(['-', '--'], np.nan, inplace=True)
+        master_df['Zgrad'] = master_df['Zgrad'].astype(np.float64)
+        master_df['Zgrad_u'] = master_df['Zgrad_u'].astype(np.float64)
+
     master_df = master_df.dropna(subset=['Zgrad']).reset_index(drop=True)
     master_df = master_df[master_df['redshift'].between(args.xmin, args.xmax)]
+
+    # -----actual plotting --------------
     color, legendcolor, pointsize = 'grey', 'grey', 20
     if args.overplot_theory:
-        #ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=pointsize, lw=0.5, ec='k', zorder=7 if args.fortalk else 1, alpha=0.5)
-        sns.kdeplot(master_df['redshift'], master_df['Zgrad'], ax=ax, shade=False, shade_lowest=False, alpha=1, n_levels=30, color=color, cmap='YlGn')
+        sns.kdeplot(master_df['redshift'], master_df['Zgrad'], ax=ax, shade=False, shade_lowest=False, alpha=1, n_levels=30, color=color, cmap='cividis_r')
         #ax.hexbin(master_df['redshift'], master_df['Zgrad'], alpha=1, cmap='Greys', gridsize=(30, 10), zorder=1)
+        ax.text(2.1, 0.25, 'Density of observed data', ha='left', va='center', color='darkslategrey', fontsize=args.fontsize / 1.2)
     else:
         ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=pointsize, lw=0.5, ec='k', zorder=7 if args.fortalk else 1, alpha=0.5) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
-        #ax.errorbar(master_df['redshift'], master_df['Zgrad'], yerr=master_df['Zgrad_u'], ls='none', lw=0.5, c=color)
         if not args.forproposal:
             ax.text(3.88, 0.36, 'Observations (Typical uncertainty   )', ha='left', va='center', color=legendcolor, fontsize=args.fontsize / 1.2)
             ax.scatter(2.355, 0.363, s=pointsize, c=legendcolor, lw=0.5, ec='k')
@@ -504,7 +558,7 @@ def plot_MZGR(args):
         thistextcolor = col_arr[thisindex] if args.nocolorcoding else mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
-                line, = ax.plot(df[args.xcol], df[args.ycol], c='cornflowerblue' if args.overplot_theory else thistextcolor, lw=0.5 if args.overplot_binned else 1 if args.overplot_observations or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) or args.overplot_binned else 1)
+                line, = ax.plot(df[args.xcol], df[args.ycol], c='cornflowerblue' if args.overplot_theory else thistextcolor, lw=0.5 if args.overplot_binned or args.overplot_theory else 1 if args.overplot_observations or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) or args.overplot_binned else 1)
                 if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
                     # ----------------------------------
                     def update(i, x, y, line, args):
@@ -645,6 +699,21 @@ def plot_MZGR(args):
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])
 
+    # -------overplotting shaded region for all FOGGIE halos--------------
+    if args.overplot_theory:
+        xarr = np.linspace(df_master[args.xcol].min(), df_master[args.xcol].max(), 1000) # uniform grid of redshift values
+        xarr = xarr[:-1] + np.diff(xarr) / 2.
+        new_df = pd.DataFrame()
+
+        for thishalo in pd.unique(df_master['halo']):
+            thisdf = df_master[df_master['halo'] == thishalo]
+            thisnewdf = pd.DataFrame()
+            thisnewdf[args.ycol] = np.interp(xarr, thisdf[args.xcol], thisdf[args.ycol]) # interpolating data from each halo onto the uniform grid
+            thisnewdf[args.xcol] = xarr
+            new_df = pd.concat([new_df, thisnewdf])
+
+        ax = plot_filled_region(new_df, args.xcol, args.ycol, ax, color='skyblue', noscatter=True)
+
     # ------- tidying up fig1------------
     if not args.nocolorcoding:
         cax = fig.colorbar(plot)
@@ -655,6 +724,7 @@ def plot_MZGR(args):
     else: ax.set_xlim(args.xmin, args.xmax)
     delta_y = (args.ymax - args.ymin) / 50
     ax.set_ylim(args.ymin - delta_y, args.ymax) # the small offset between the actual limits and intended tick labels is to ensure that tick labels do not reach the very edge of the plot
+    ax.yaxis.set_major_locator(plt.MaxNLocator(5))
 
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
