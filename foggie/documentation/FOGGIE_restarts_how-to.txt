@@ -54,7 +54,7 @@ To restart a FOGGIE halo with next-generation setup:
 	  StarParticleCreation = 2048
 	  Look for a block of a bunch of parameters that start with H2StarMaker. Delete this block
 	  and copy-paste in this block of parameters instead:
-		H2StarMakerEfficiency = 0.01
+		H2StarMakerEfficiency = 0.1
 		H2StarMakerNumberDensityThreshold = 0
 		H2StarMakerMinimumMass = 1000
 		H2StarMakerMinimumH2FractionForStarFormation = 1e-05
@@ -67,6 +67,11 @@ To restart a FOGGIE halo with next-generation setup:
 		H2StarMakerColdGasTemperature = 10000
 		H2StarMakerUseLocalDensityMax = 1
 		H2StarMakerWriteStarLogFiles = 1
+
+          NOTE: These parameters work well at low redshift and relatively high refinement (>11) 
+            but we have not yet found a good scheme or parameter set for the initial onset 
+	    of star formation at high z. 
+
 	- path to grackle file:
 	  Look for a parameter called grackle_data_file. Set it to the path to your particular
 	  grackle install so that it points toward your CloudyData_UVB=HM2012_shielded.h5 file
