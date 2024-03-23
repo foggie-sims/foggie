@@ -210,7 +210,7 @@ def plot_time_series(df, args):
         fig, axes = plt.subplots(3, figsize=(8, 7.5), sharex=True)
     else:
         fig, axes = plt.subplots(len(groups) + 2 if args.includemerger else len(groups) + 1, figsize=(8, 9), sharex=True)
-    fig.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.05)
+    fig.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.07)
 
     # -----------for first few panels: Z distribution statistics-------------------
     for j in range(len(groups)):

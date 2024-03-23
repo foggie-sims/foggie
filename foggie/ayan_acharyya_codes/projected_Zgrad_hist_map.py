@@ -15,7 +15,6 @@ from util import *
 from nonprojected_Zgrad_hist_map import plot_projection, plot_Zprof_snap, plot_Zdist_snap
 
 start_time = time.time()
-plt.rcParams['axes.linewidth'] = 1
 
 # -----------------------------------------------------
 def get_dist_map(args):
