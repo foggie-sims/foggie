@@ -19,7 +19,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol log_mass --colorcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.05 --upto_z 2 --overplot_cadence 50
                  run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --keep --weight mass --ycol Zgrad --xcol time --overplot_smoothed 1500 --formolly --hiderawdata --hide_overplot [FOR MOLLY]
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --weight mass --glasspaper [FOR MATCHING GLASS PAPER]
-                 run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol redshift --overplot_literature --forpaper
+                 run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol redshift --overplot_observations --forpaper
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 2 --overplot_smoothed 1000 --snaphighlight DD0452,DD0466 --forproposal
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 1 --overplot_cadence 500 --keep --snaphighlight DD0452,DD0466 --forpaper
 """
@@ -158,7 +158,56 @@ def overplot_manga(ax, args):
     return ax, df_manga
 
 # -----------------------------------
-def overplot_literature(ax, args):
+def overplot_theory(ax, args):
+    '''
+    Function to overplot the simulated Z gradient vs redshift from several papers
+    '''
+    literature_path = HOME + '/Documents/writings/papers/FOGGIE_Zgrad/Literature/'
+    master_df = pd.DataFrame()
+
+    # ------Gibson et al. 2013 Fig 1 ---------
+    filename = literature_path + 'Gibson_2013_Fig1.txt'
+    df = pd.read_table(filename, delim_whitespace=True, comment='#')
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
+    '''
+    # ------Ma et al. 2017 SIMULATIONS (from Raymond) ---------
+    filename = literature_path + 'ma17.cat'
+    df = pd.read_table(filename, delim_whitespace=True, skiprows=26, names=['redshift', 'col2', 'col3', 'col4', 'col5', 'col6', 'col7', 'Zgrad', 'Zgrad_u'], usecols=['redshift', 'Zgrad', 'Zgrad_u'])
+    df['source'] = os.path.split(filename)[1][:-4]
+    df['id'] = [item[1:] for item in pd.read_table(filename, delim_whitespace=True, skiprows=14, nrows=9, names=['id'])['id']]
+    master_df = pd.concat([master_df, df])
+    '''
+    # ------Ma et al. 2017 Table A1 ---------
+    filename = literature_path + 'Ma_2017_TableA1.txt'
+    df = pd.read_table(filename, delim_whitespace=True, comment='#')
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
+
+    # ------Hemler et al. 2021 Table 1 ---------
+    filename = literature_path + 'Hemler_2021_Table1.txt'
+    df = pd.read_table(filename, delim_whitespace=True, comment='#')
+    df['source'] = os.path.split(filename)[1][:-4]
+    master_df = pd.concat([master_df, df])
+
+    master_df.sort_values(by='redshift', inplace=True)
+
+    # -----actual plotting --------------
+    color_dict = {'Gibson_2013_Fig1':'salmon', 'Ma_2017_TableA1':'brown', 'Hemler_2021_Table1':'sienna'}
+    label_dict = {'Gibson_2013_Fig1':'Gibson+13', 'Ma_2017_TableA1':'Ma+17', 'Hemler_2021_Table1':'Hemler+21'}
+
+    fig = ax.figure
+    fig.text(0.15, 0.93, 'FOGGIE', ha='left', va='top', color='cornflowerblue', fontsize=args.fontsize / 1.2)
+    for index, thissource in enumerate(pd.unique(master_df['source'])):
+        df = master_df[master_df['source'] == thissource]
+        ax.plot(df['redshift'], df['Zgrad'], c=color_dict[thissource], lw=2)
+        ax.scatter(df['redshift'], df['Zgrad'], c='white', lw=2, s=50, ec=color_dict[thissource])
+        fig.text(0.15, 0.88 - index * 0.05, label_dict[thissource], ha='left', va='top', color=color_dict[thissource], fontsize=args.fontsize / 1.2)
+
+    return ax, master_df
+
+# -----------------------------------
+def overplot_observations(ax, args):
     '''
     Function to overplot the observed Z gradient vs redshift from several papers
     '''
@@ -207,14 +256,7 @@ def overplot_literature(ax, args):
     df = df1.merge(df[['id', 'Zgrad', 'Zgrad_u']], on='id')
     df['source'] = os.path.split(filename)[1][:-4]
     master_df = pd.concat([master_df, df])
-    '''
-    # ------Ma et al. 2017 SIMULATIONS (from Raymond) ---------
-    filename = literature_path + 'ma17.cat'
-    df = pd.read_table(filename, delim_whitespace=True, skiprows=26, names=['redshift', 'col2', 'col3', 'col4', 'col5', 'col6', 'col7', 'Zgrad', 'Zgrad_u'], usecols=['redshift', 'Zgrad', 'Zgrad_u'])
-    df['source'] = os.path.split(filename)[1][:-4]
-    df['id'] = [item[1:] for item in pd.read_table(filename, delim_whitespace=True, skiprows=14, nrows=9, names=['id'])['id']]
-    master_df = pd.concat([master_df, df])
-    '''
+
     # ------Schreiber et al. 2018 (Table 1 & 7) --------
     filename = literature_path + 'Schreiber_2018_Table1.txt'
     df1 = pd.read_table(filename, skiprows=6, delim_whitespace=True, names=['id', 'col2', 'col3', 'col4', 'redshift', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'col12', 'col13'], skipfooter=7)
@@ -276,14 +318,19 @@ def overplot_literature(ax, args):
 
     # -----actual plotting --------------
     master_df = master_df.dropna(subset=['Zgrad']).reset_index(drop=True)
+    master_df = master_df[master_df['redshift'].between(args.xmin, args.xmax)]
     color, legendcolor, pointsize = 'grey', 'grey', 20
-    ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=pointsize, lw=0.5, ec='k', zorder=7 if args.fortalk else 1, alpha=0.5) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
-    #ax.errorbar(master_df['redshift'], master_df['Zgrad'], yerr=master_df['Zgrad_u'], ls='none', lw=0.5, c=color)
-    if not args.forproposal:
-        ax.text(3.86, 0.36, 'Observations', ha='left', va='center', color=legendcolor, fontsize=args.fontsize)
-        ax.text(3.0, 0.36, '(Typical uncertainty   )', ha='left', va='center', color=legendcolor, fontsize=args.fontsize/1.2)
-        ax.scatter(1.965, 0.363, s=pointsize, c=legendcolor, lw=0.5, ec='k')
-        ax.errorbar(1.965, 0.363, yerr=master_df['Zgrad_u'].mean(), capsize=5, capthick=2, lw=2, c=legendcolor)
+    if args.overplot_theory:
+        #ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=pointsize, lw=0.5, ec='k', zorder=7 if args.fortalk else 1, alpha=0.5)
+        sns.kdeplot(master_df['redshift'], master_df['Zgrad'], ax=ax, shade=False, shade_lowest=False, alpha=1, n_levels=30, color=color, cmap='YlGn')
+        #ax.hexbin(master_df['redshift'], master_df['Zgrad'], alpha=1, cmap='Greys', gridsize=(30, 10), zorder=1)
+    else:
+        ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=pointsize, lw=0.5, ec='k', zorder=7 if args.fortalk else 1, alpha=0.5) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
+        #ax.errorbar(master_df['redshift'], master_df['Zgrad'], yerr=master_df['Zgrad_u'], ls='none', lw=0.5, c=color)
+        if not args.forproposal:
+            ax.text(3.88, 0.36, 'Observations (Typical uncertainty   )', ha='left', va='center', color=legendcolor, fontsize=args.fontsize / 1.2)
+            ax.scatter(2.355, 0.363, s=pointsize, c=legendcolor, lw=0.5, ec='k')
+            ax.errorbar(2.355, 0.363, yerr=master_df['Zgrad_u'].mean(), capsize=5, capthick=2, lw=2, c=legendcolor)
 
     return ax, master_df
 
@@ -309,7 +356,7 @@ def plot_zhighlight(df, ax, cmap, args, ycol=None):
     if ycol is None: ycol = args.ycol
     df['redshift_int'] = np.floor(df['redshift'])
     df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-    if is_color_like(cmap): dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=cmap, lw=1, edgecolor='gold' if args.fortalk else 'k', s=100, alpha=1 if args.fortalk or args.formolly or args.forpaper else 0.7, zorder=20)
+    if is_color_like(cmap): dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=cmap, lw=4, edgecolor='gold' if args.fortalk else 'k', s=200, alpha=1 if args.fortalk or args.formolly or args.forpaper else 0.7, zorder=20)
     else: dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=df_zbin[args.colorcol], cmap=cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.7 if (args.overplot_smoothed and 'smoothed' not in ycol) or (args.overplot_cadence and 'interp' not in ycol) else 1, zorder=20)
     print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
     return ax
@@ -397,14 +444,21 @@ def plot_MZGR(args):
         ax.scatter(3.06, 0.165, marker='*', ms=100, mfc='yellow', mec='red', mew=1)
         fig.text(0.85, 0.94, 'GLASS', ha='left', va='top', color='gold', fontsize=args.fontsize)
 
-    if args.overplot_literature and args.xcol == 'redshift' and args.ycol == 'Zgrad':
+    if args.overplot_observations and args.xcol == 'redshift' and args.ycol == 'Zgrad':
         args.ymax = 0.4
         args.xmax = 4
-        ax, df_lit = overplot_literature(ax, args)
-        obs_text += '_lit'
+        ax, df_lit = overplot_observations(ax, args)
+        obs_text += '_compobs'
     else:
         df_lit = None
 
+    if args.overplot_theory and args.xcol == 'redshift' and args.ycol == 'Zgrad':
+        args.ymax = 0.4
+        args.xmax = 4
+        ax, df_lit = overplot_theory(ax, args)
+        obs_text += '_comptheory'
+    else:
+        df_lit = None
     # --------loop over different FOGGIE halos-------------
     for index, args.halo in enumerate(args.halo_arr[::-1]):
         thisindex = len(args.halo_arr) - index - 1
@@ -450,7 +504,7 @@ def plot_MZGR(args):
         thistextcolor = col_arr[thisindex] if args.nocolorcoding else mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
-                line, = ax.plot(df[args.xcol], df[args.ycol], c=thistextcolor, lw=0.5 if args.overplot_binned else 1 if args.overplot_literature or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) or args.overplot_binned else 1)
+                line, = ax.plot(df[args.xcol], df[args.ycol], c='cornflowerblue' if args.overplot_theory else thistextcolor, lw=0.5 if args.overplot_binned else 1 if args.overplot_observations or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) or args.overplot_binned else 1)
                 if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
                     # ----------------------------------
                     def update(i, x, y, line, args):
@@ -467,7 +521,7 @@ def plot_MZGR(args):
 
                     anim = animation.FuncAnimation(fig, update, len(df), fargs=[df[args.xcol].values, df[args.ycol].values, line, args], interval=25, blit=True)
             else:
-                line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_literature else 2)
+                line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_observations else 2)
                 plot = ax.add_collection(line)
             if args.overplot_points: ax.scatter(df[args.xcol], df[args.ycol], c=thistextcolor, lw=0.5, s=10)
 
@@ -524,7 +578,7 @@ def plot_MZGR(args):
             snaps_to_highlight = [item for item in args.snaphighlight.split(',')]
             df_snaps = df[df['output'].isin(snaps_to_highlight)]
             trace_to_overplot_on = args.ycol if args.forpaper else args.ycol + '_smoothed' if args.overplot_smoothed else args.ycol + '_interp' if args.overplot_cadence else args.ycol
-            if args.nocolorcoding: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[trace_to_overplot_on], c=thistextcolor, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
+            if args.nocolorcoding: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[trace_to_overplot_on], c=thistextcolor, lw=2, edgecolor='gold' if args.fortalk else 'k', s=500, alpha=1, marker='*', zorder=10)
             else: dummy = ax.scatter(df_snaps[args.xcol], df_snaps[trace_to_overplot_on], c=df_snaps[args.colorcol], cmap=this_cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='gold' if args.fortalk else 'k', s=300, alpha=1, marker='*', zorder=10)
             print('For halo', args.halo, 'highlighted snapshots =', df_snaps['output'].values, ' with star-markers\nThese snapshots correspond to times', df_snaps['time'].values, 'Gyr respectively, i.e.,', np.diff(df_snaps['time'].values) * 1000, 'Myr apart')
 
@@ -586,7 +640,7 @@ def plot_MZGR(args):
             ax.text(args.xmin * 1.1 + 0.1, (args.ymin if args.forproposal else args.ymax) * 0.88 - thisindex * 0.05, '%0d%% time of z>=%d is spent outside shaded region' % (timefraction_outside, args.upto_z), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
             print('Halo', args.halo, 'spends %.2F%%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation upto redshift %.1F' % args.upto_z)
 
-        if not (args.plot_timefraction or args.forproposal): fig.text(0.85 if args.glasspaper or args.formolly else 0.15, 0.38 - thisindex * 0.05 if args.formolly else 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
+        if not (args.plot_timefraction or args.forproposal) and not args.overplot_theory: fig.text(0.85 if args.glasspaper or args.formolly else 0.15, 0.38 - thisindex * 0.05 if args.formolly else 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize / 1.2)
         if args.plot_deviation: fig2.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])
@@ -599,7 +653,8 @@ def plot_MZGR(args):
 
     if args.xcol == 'redshift':  ax.set_xlim(args.xmax, args.xmin)
     else: ax.set_xlim(args.xmin, args.xmax)
-    ax.set_ylim(args.ymin, args.ymax)
+    delta_y = (args.ymax - args.ymin) / 50
+    ax.set_ylim(args.ymin - delta_y, args.ymax) # the small offset between the actual limits and intended tick labels is to ensure that tick labels do not reach the very edge of the plot
 
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
