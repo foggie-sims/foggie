@@ -15,7 +15,6 @@ from util import *
 from nonprojected_Zgrad_hist_map import plot_projection, plot_Zprof_snap, plot_Zdist_snap
 
 start_time = time.time()
-plt.rcParams['axes.linewidth'] = 1
 
 # -----------------------------------------------------
 def get_dist_map(args):
@@ -264,7 +263,7 @@ if __name__ == '__main__':
                 df_snap = pd.read_table(df_snap_filename, delim_whitespace=True, comment='#')
 
             # ------plotting projected metallcity snapshots---------------
-            axes_met_proj = plot_projection('metal', box, box_center, box_width, axes_met_proj, args, clim=[10 ** -1.5, 10 ** 0] if args.forproposal else None, cmap=old_metal_color_map, ncells=args.ncells)
+            axes_met_proj = plot_projection('metal', box, box_center, box_width, axes_met_proj, args, clim=[10 ** -1.5, 10 ** 0] if args.forproposal else [10 ** -1.5, 10 ** 1], cmap=old_metal_color_map, ncells=args.ncells)
 
             # ------plotting projected velocity quantity snapshots---------------
             axes_vel_proj = plot_projection(args.vcol, box, box_center, box_width, axes_vel_proj, args, clim=[-150, 150] if args.vcol == 'vrad' or args.vcol == 'vphi' or args.vcol == 'vlos' else [0, 150] if args.forproposal else None, cmap='PRGn' if args.vcol == 'vrad' or args.vcol == 'vlos' or args.vcol == 'vphi' else 'viridis', ncells=args.ncells)

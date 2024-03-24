@@ -1447,7 +1447,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--overplot_clear', dest='overplot_clear', action='store_true', default=False, help='overplot CLEAR observed MZGR?, default is no')
     parser.add_argument('--overplot_belfiore', dest='overplot_belfiore', action='store_true', default=False, help='overplot Belfiore+17 observed MZGR?, default is no')
     parser.add_argument('--overplot_mingozzi', dest='overplot_mingozzi', action='store_true', default=False, help='overplot Mongozzi+19 observed MZGR?, default is no')
-    parser.add_argument('--overplot_literature', dest='overplot_literature', action='store_true', default=False, help='overplot all literature observed Zgrad vs z?, default is no')
+    parser.add_argument('--overplot_observations', dest='overplot_observations', action='store_true', default=False, help='overplot all literature observed Zgrad vs z?, default is no')
     parser.add_argument('--overplot_smoothed', metavar='overplot_smoothed', type=float, action='store', default=None, help='overplot temporally smoothed data with <X> Myr smoothing scale, default is None')
     parser.add_argument('--overplot_cadence', metavar='overplot_cadence', type=float, action='store', default=None, help='overplot with only the outputs after every <X> Myr, default is None')
     parser.add_argument('--overplot_binned', dest='overplot_binned', action='store_true', default=False, help='overplot with the binned behaviour, default is None')
@@ -1473,6 +1473,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--formolly', dest='formolly', action='store_true', default=False, help='Set plot labels, transparency etc for being used by Molly?, default is no')
     parser.add_argument('--hide_overplot', dest='hide_overplot', action='store_true', default=False, help='Hide the overplotted curve even though all computations were done on the overplotted curve?, default is no')
     parser.add_argument('--usecmasher', dest='usecmasher', action='store_true', default=False, help='use cmasher colorcoding package?, default is no')
+    parser.add_argument('--overplot_theory', dest='overplot_theory', action='store_true', default=False, help='Make the plot for comparing with theory?, default is no')
 
     # ------- args added for compute_Zscatter.py ------------------------------
     parser.add_argument('--res', metavar='res', type=str, action='store', default='0.1', help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')
