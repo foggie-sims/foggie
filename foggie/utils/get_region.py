@@ -74,6 +74,10 @@ def get_region(data_set, region, filter='None', sphere_size=25., left_corner=[0,
             all_data = refine_box
         else: 
             all_data = refine_box.cut_region(filter) 
+    elif region == 'sphere': 
+        sph = data_set.sphere(data_set.halo_center_kpc, radius=(sphere_size, 'kpc'))
+        cut_region = sph
+        all_data = cut_region
     elif region == 'cube-sphere': 
         # draw a cube of given size/shape relative to center, cut by a sphere of given size
         # originally developed for efficient clump finding 
