@@ -233,7 +233,7 @@ def overplot_theory(ax, args):
 
     # -----actual plotting --------------
     color_dict = {'Gibson_2013_Fig1':'lightcoral', 'Ma_2017_TableA1':'sienna', 'Hemler_2021_Table1':'crimson'}
-    label_dict = {'Gibson_2013_Fig1':'Gibson+13', 'Ma_2017_TableA1':'Ma+17', 'Hemler_2021_Table1':'Hemler+21'}
+    label_dict = {'Gibson_2013_Fig1':'MUGS (Gibson+13)', 'Ma_2017_TableA1':'FIRE (Ma+17)', 'Hemler_2021_Table1':'Illustris TNG (Hemler+21)'}
 
     fig = ax.figure
     fig.text(0.15, 0.93, 'FOGGIE', ha='left', va='top', color='cornflowerblue', fontsize=args.fontsize / 1.2)
