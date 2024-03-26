@@ -167,7 +167,7 @@ def plot_filled_region(df, xcol, ycol, ax, color=None, noscatter=False, zorder=N
     '''
     xarr = pd.unique(df[xcol])
     if len(xarr) == len(df): # all values of x are unique; then just to do a thick line plot
-        ax.plot(df[xcol], df[ycol], lw=2, color=color, zorder=zorder)
+        ax.plot(df[xcol], df[ycol], lw=2, color=color, zorder=zorder, alpha=alpha)
         if not noscatter: ax.scatter(df['redshift'], df['Zgrad'], c=color, lw=1.0, s=50, ec='k', zorder=zorder + 1 if zorder is not None else None)
 
     else: # some values of x have multiple y-values
@@ -227,19 +227,19 @@ def overplot_theory(ax, args):
         master_df['Zgrad_u'] = master_df['Zgrad_u'].astype(np.float64)
 
     master_df = master_df.dropna(subset=['Zgrad']).reset_index(drop=True)
-    master_df = master_df[master_df['redshift'].between(args.xmin, args.xmax)]
+    #master_df = master_df[master_df['redshift'].between(args.xmin, args.xmax)]
     master_df['year'] = master_df['source'].apply(lambda x: x.split('_')[1])
     master_df = master_df.sort_values(by='year', ignore_index=True)
 
     # -----actual plotting --------------
-    color_dict = {'Gibson_2013_Fig1':'lightcoral', 'Ma_2017_TableA1':'sienna', 'Hemler_2021_Table1':'crimson'}
+    color_dict = {'Gibson_2013_Fig1':'cadetblue', 'Ma_2017_TableA1':'lightskyblue', 'Hemler_2021_Table1':'cornflowerblue'}
     label_dict = {'Gibson_2013_Fig1':'MUGS (Gibson+13)', 'Ma_2017_TableA1':'FIRE (Ma+17)', 'Hemler_2021_Table1':'Illustris TNG (Hemler+21)'}
 
     fig = ax.figure
-    fig.text(0.15, 0.93, 'FOGGIE', ha='left', va='top', color='cornflowerblue', fontsize=args.fontsize / 1.2)
+    fig.text(0.15, 0.93, 'FOGGIE (This work)', ha='left', va='top', color='salmon', fontsize=args.fontsize / 1.2)
     for index, thissource in enumerate(pd.unique(master_df['source'])):
         df = master_df[master_df['source'] == thissource].sort_values(by='redshift', ignore_index=True)
-        ax = plot_filled_region(df, 'redshift', 'Zgrad', ax, color=color_dict[thissource], zorder=20, alpha=0.8)
+        ax = plot_filled_region(df, 'redshift', 'Zgrad', ax, color=color_dict[thissource], zorder=20, alpha=0.7)
         fig.text(0.15, 0.88 - index * 0.05, label_dict[thissource], ha='left', va='top', color=color_dict[thissource], fontsize=args.fontsize / 1.2)
 
     return ax, master_df
@@ -377,8 +377,8 @@ def overplot_observations(ax, args):
     color, legendcolor, pointsize = 'grey', 'grey', 20
     if args.overplot_theory:
         #sns.kdeplot(master_df['redshift'], master_df['Zgrad'], ax=ax, shade=False, shade_lowest=False, alpha=1, n_levels=30, color=color, cmap='cividis_r')
-        ax.hexbin(master_df['redshift'], master_df['Zgrad'], alpha=1, cmap='cividis_r', gridsize=(30, 10), zorder=-1, mincnt=1) # zorder -1 to put hexbins behind the grid lines
-        ax.text(2.1, 0.25, 'Density of observed data', ha='left', va='center', color='darkslategrey', fontsize=args.fontsize / 1.2)
+        ax.hexbin(master_df['redshift'], master_df['Zgrad'], alpha=1, cmap='Greys', gridsize=(50, 17), zorder=-1, mincnt=1, vmin=-5) # zorder<0 in order to put hexbins behind the grid lines; vmin<0 in order to have the lowest count bin not white, but still some grey
+        ax.text(2.1, 0.25, 'Density of observed data', ha='left', va='center', color='dimgrey', fontsize=args.fontsize / 1.2)
     else:
         ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=pointsize, lw=0.5, ec='k', zorder=7 if args.fortalk else 1, alpha=0.5) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
         if not args.forproposal:
@@ -558,7 +558,7 @@ def plot_MZGR(args):
         thistextcolor = col_arr[thisindex] if args.nocolorcoding else mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
-                line, = ax.plot(df[args.xcol], df[args.ycol], c='cornflowerblue' if args.overplot_theory else thistextcolor, lw=0.5 if args.overplot_binned or args.overplot_theory else 1 if args.overplot_observations or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) or args.overplot_binned else 1)
+                line, = ax.plot(df[args.xcol], df[args.ycol], c='salmon' if args.overplot_theory else thistextcolor, lw=0.5 if args.overplot_binned or args.overplot_theory else 1 if args.overplot_observations or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) or args.overplot_binned else 1)
                 if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
                     # ----------------------------------
                     def update(i, x, y, line, args):
@@ -712,7 +712,7 @@ def plot_MZGR(args):
             thisnewdf[args.xcol] = xarr
             new_df = pd.concat([new_df, thisnewdf])
 
-        ax = plot_filled_region(new_df, args.xcol, args.ycol, ax, color='skyblue', noscatter=True)
+        ax = plot_filled_region(new_df, args.xcol, args.ycol, ax, color='lightsalmon', noscatter=True)
 
     # ------- tidying up fig1------------
     if not args.nocolorcoding:
