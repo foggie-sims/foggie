@@ -376,8 +376,8 @@ def overplot_observations(ax, args):
     # -----actual plotting --------------
     color, legendcolor, pointsize = 'grey', 'grey', 20
     if args.overplot_theory:
-        sns.kdeplot(master_df['redshift'], master_df['Zgrad'], ax=ax, shade=False, shade_lowest=False, alpha=1, n_levels=30, color=color, cmap='cividis_r')
-        #ax.hexbin(master_df['redshift'], master_df['Zgrad'], alpha=1, cmap='Greys', gridsize=(30, 10), zorder=1)
+        #sns.kdeplot(master_df['redshift'], master_df['Zgrad'], ax=ax, shade=False, shade_lowest=False, alpha=1, n_levels=30, color=color, cmap='cividis_r')
+        ax.hexbin(master_df['redshift'], master_df['Zgrad'], alpha=1, cmap='cividis_r', gridsize=(30, 10), zorder=-1, mincnt=1) # zorder -1 to put hexbins behind the grid lines
         ax.text(2.1, 0.25, 'Density of observed data', ha='left', va='center', color='darkslategrey', fontsize=args.fontsize / 1.2)
     else:
         ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=pointsize, lw=0.5, ec='k', zorder=7 if args.fortalk else 1, alpha=0.5) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
