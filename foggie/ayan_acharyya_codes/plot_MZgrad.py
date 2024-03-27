@@ -239,7 +239,7 @@ def overplot_theory(ax, args):
     fig.text(0.15, 0.93, 'FOGGIE (This work)', ha='left', va='top', color='salmon', fontsize=args.fontsize / 1.2)
     for index, thissource in enumerate(pd.unique(master_df['source'])):
         df = master_df[master_df['source'] == thissource].sort_values(by='redshift', ignore_index=True)
-        ax = plot_filled_region(df, 'redshift', 'Zgrad', ax, color=color_dict[thissource], zorder=20, alpha=0.7)
+        ax = plot_filled_region(df, 'redshift', 'Zgrad', ax, color=color_dict[thissource], zorder=20, alpha=0.6)
         fig.text(0.15, 0.88 - index * 0.05, label_dict[thissource], ha='left', va='top', color=color_dict[thissource], fontsize=args.fontsize / 1.2)
 
     return ax, master_df
@@ -712,7 +712,7 @@ def plot_MZGR(args):
             thisnewdf[args.xcol] = xarr
             new_df = pd.concat([new_df, thisnewdf])
 
-        ax = plot_filled_region(new_df, args.xcol, args.ycol, ax, color='lightsalmon', noscatter=True)
+        ax = plot_filled_region(new_df, args.xcol, args.ycol, ax, color='salmon', noscatter=True)
 
     # ------- tidying up fig1------------
     if not args.nocolorcoding:
