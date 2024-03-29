@@ -180,7 +180,7 @@ def plot_gradient(df, args, linefit=None):
     ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
     ax.set_ylabel(r'Metallicity (Z$_{\odot}$)' if args.forproposal else r'Log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
 
-    ax.set_xticks(np.arange(0, np.min([15, args.galrad]), 2)) # for nice, round number tick marks
+    ax.set_xticks(np.arange(0, np.ceil(args.upto_kpc /0.695) if args.forappendix else np.min([np.ceil(args.upto_kpc /0.695), args.galrad]), 2)) # for nice, round number tick marks
     if args.forpaper: ax.set_yticks(np.linspace(-1.5, 0.5, 5))
     else: ax.set_yticks(np.linspace(args.ymin, args.ymax, 5))
 
