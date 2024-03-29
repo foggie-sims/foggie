@@ -124,7 +124,7 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, fit_inlog=False, color='darkoran
         ax.scatter(x_bin_centers, y_binned, c=color, s=150, lw=1, ec='black', zorder=10)
         ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
         units = 'dex/re' if 're' in xcol else 'dex/kpc'
-        if not (args.notextonplot or args.forproposal): ax.text(0.033, 0.2, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize, va='center', bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
+        if not (args.notextonplot or args.forproposal): ax.text(0.033, 0.05, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize, va='center', bbox=dict(facecolor='white', alpha=0.8, edgecolor='white'))
         return ax
     else:
         return Zcen, Zgrad
@@ -169,10 +169,10 @@ def plot_gradient(df, args, linefit=None):
             fitted_y = np.poly1d(linefit)(args.bin_edges)
             ax.plot(args.bin_edges, fitted_y, color=color, lw=3, ls='solid')
             units = 'dex/re' if 're' in args.xcol else 'dex/kpc'
-            if not args.notextonplot: plt.text(0.033,0.3, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, va='center', fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize, bbox=dict(facecolor='k', alpha=0.6, edgecolor='k'))
+            if not args.notextonplot: plt.text(0.033, 0.15, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, va='center', fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize, bbox=dict(facecolor='white', alpha=0.8, edgecolor='w'))
 
     # ----------tidy up figure-------------
-    ax.set_xlim(0, args.upto_re if 're' in args.xcol else args.galrad if args.forpaper else args.upto_kpc)
+    ax.set_xlim(0, args.upto_re if 're' in args.xcol else np.ceil(args.upto_kpc /0.695) if args.forappendix else args.galrad if args.forpaper else args.upto_kpc)
     delta_y = (args.ymax - args.ymin) / 50
     ax.set_ylim(args.ymin - delta_y, args.ymax) # the small offset between the actual limits and intended tick labels is to ensure that tick labels do not reach the very edge of the plot
     if args.forproposal: ax.set_yscale('log')
@@ -180,8 +180,9 @@ def plot_gradient(df, args, linefit=None):
     ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
     ax.set_ylabel(r'Metallicity (Z$_{\odot}$)' if args.forproposal else r'Log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
 
-    ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 6))
-    ax.set_yticks(np.linspace(args.ymin, args.ymax, 3 if args.forproposal else 5))
+    ax.set_xticks(np.arange(0, np.min([15, args.galrad]), 2)) # for nice, round number tick marks
+    if args.forpaper: ax.set_yticks(np.linspace(-1.5, 0.5, 5))
+    else: ax.set_yticks(np.linspace(args.ymin, args.ymax, 5))
 
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
@@ -194,9 +195,9 @@ def plot_gradient(df, args, linefit=None):
         except: pass
 
     # ---------annotate and save the figure----------------------
-    if not (args.forproposal and args.output == 'RD0042'):
-        plt.text(0.033, 0.05, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize)
-        plt.text(0.033, 0.15 if args.forproposal else 0.1, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize)
+    if not (args.forproposal and args.output == 'RD0042') and not args.forpaper:
+        plt.text(0.033, 0.25, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize)
+        plt.text(0.033, 0.15 if args.forproposal else 0.3, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize)
     plt.savefig(filename, transparent=args.fortalk)
     myprint('Saved figure ' + filename, args)
     if not args.makemovie: plt.show(block=False)
@@ -377,9 +378,9 @@ if __name__ == '__main__':
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').tolist()
         if args.ymin is None:
-            args.ymin = -1.6 if args.forpaper else -2.2
+            args.ymin = -1.5 if args.forpaper else -2.2
         if args.ymax is None:
-            args.ymax = 0.8 if args.forpaper else 1.2
+            args.ymax = 0.6 if args.forpaper else 1.2
 
         re_from_stars = get_re_from_stars(ds, args) if args.upto_kpc is None else np.nan # kpc
         re_from_coldgas = get_re_from_coldgas(args, gasprofile=gasprofile) if args.upto_kpc is None else np.nan # kpc

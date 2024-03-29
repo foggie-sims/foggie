@@ -496,7 +496,6 @@ if __name__ == '__main__':
     if args.forpaper or args.forappendix or args.forposter:
         args.zhighlight = True
         args.docomoving = True
-        args.fit_multiple = True
         args.fontsize = 15 # 15 is fine because these will be 1-page size figures
     if args.forpaper:
         args.use_density_cut = True
