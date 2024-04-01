@@ -142,7 +142,7 @@ def plot_Zprof_snap(df, ax, args, hidex=False, hidey=False):
     y_u_binned = y_u_binned[indices]
 
     # ----------to plot mean binned y vs x profile--------------
-    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=1. / (y_u_binned) ** 2) # linear fitting done in logspace
+    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True, w=1. / (y_u_binned) ** 2) # linear fitting done in logspace
     y_fitted = np.poly1d(linefit)(x_bin_centers) # in logspace
 
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))

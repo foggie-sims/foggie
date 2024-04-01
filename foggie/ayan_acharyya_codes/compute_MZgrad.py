@@ -109,7 +109,7 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, fit_inlog=False, color='darkoran
     y_u_binned = y_u_binned[indices]
 
     # ----------to plot mean binned y vs x profile--------------
-    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=1 / (y_u_binned) ** 2)
+    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True, w=1 / (y_u_binned) ** 2)
     y_fitted = np.poly1d(linefit)(x_bin_centers)
 
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
