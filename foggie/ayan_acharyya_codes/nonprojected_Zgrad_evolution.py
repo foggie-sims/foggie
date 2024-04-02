@@ -152,7 +152,7 @@ def plot_Zprof_snap(df, ax, args, hidex=False, hidey=False):
     ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=5)
     ax.scatter(x_bin_centers, y_binned, c='white' if color == 'k' else color, s=50, lw=1, ec='black', zorder=10)
     ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
-    ax.text(0.97, 0.95, r'Slope = %.2F $\pm$ %.2F' % (Zgrad.n, Zgrad.s) + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor / 1.2, va='top', ha='right')
+    ax.text(0.97, 0.95, r'Slope = %.2F $\pm$ %.2F ' % (Zgrad.n, Zgrad.s) + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor / 1.2, va='top', ha='right')
 
     ax.set_xlim(0, np.ceil(args.upto_kpc / 0.695)) # kpc
     ax.set_ylim(args.Zlim[0] - 0.1, args.Zlim[1]) # log limits
