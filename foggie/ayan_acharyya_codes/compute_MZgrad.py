@@ -124,7 +124,7 @@ def fit_binned(df, xcol, ycol, x_bins, ax=None, fit_inlog=False, color='darkoran
         ax.scatter(x_bin_centers, y_binned, c=color, s=150, lw=1, ec='black', zorder=10)
         ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
         units = 'dex/re' if 're' in xcol else 'dex/kpc'
-        if not (args.notextonplot or args.forproposal): ax.text(0.033, 0.05, 'Slope = %.2F ' % linefit[0] + units, color=color, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize, va='center', bbox=dict(facecolor='white', alpha=0.8, edgecolor='white'))
+        if not (args.notextonplot or args.forproposal): ax.text(0.033, 0.05, r'Slope = %.2F $\pm$ %.2F' % (Zgrad.n, Zgrad.s) + units, color=color, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize, va='center', bbox=dict(facecolor='white', alpha=0.8, edgecolor='white'))
         return ax
     else:
         return Zcen, Zgrad
