@@ -382,9 +382,9 @@ def overplot_observations(ax, args):
     else:
         ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=pointsize, lw=0.5, ec='k', zorder=7 if args.fortalk else 1, alpha=0.5) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
         if not args.forproposal:
-            ax.text(3.88, 0.36, 'Observations (Typical uncertainty   )', ha='left', va='center', color=legendcolor, fontsize=args.fontsize / 1.2)
-            ax.scatter(2.355, 0.363, s=pointsize, c=legendcolor, lw=0.5, ec='k')
-            ax.errorbar(2.355, 0.363, yerr=master_df['Zgrad_u'].mean(), capsize=5, capthick=2, lw=2, c=legendcolor)
+            ax.text(3.88, 0.35, 'Observations (Typical uncertainty   )', ha='left', va='center', color=legendcolor, fontsize=args.fontsize / 1.2)
+            ax.scatter(2.355, 0.35, s=pointsize, c=legendcolor, lw=0.5, ec='k')
+            ax.errorbar(2.355, 0.35, yerr=master_df['Zgrad_u'].mean(), capsize=5, capthick=2, lw=2, c=legendcolor)
 
     return ax, master_df
 
