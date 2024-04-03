@@ -79,7 +79,7 @@ if __name__ == '__main__':
         args.Zlim = [-2, 1]  # log Zsun units
         args.res = args.res_arr[0]
         if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695  # converting from comoving kcp h^-1 to physical kpc
-        args.fontsize = 20
+        args.fontsize = 23
         args.fontfactor = 1
 
         # --------determining corresponding text suffixes and figname-------------
@@ -103,7 +103,7 @@ if __name__ == '__main__':
             # -------setting up fig--------------
             nrow, ncol1, ncol2 = 2 if args.forpaper else 3, 2, 3
             ncol = ncol1 * ncol2 # the overall figure is nrow x (ncol1 + ncol2)
-            if args.forpaper: fig = plt.figure(figsize=(16, 8))
+            if args.forpaper: fig = plt.figure(figsize=(16, 10))
             else: fig = plt.figure(figsize=(16, 12))
 
             axes_proj_snap = [plt.subplot2grid(shape=(nrow, ncol), loc=(0, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
