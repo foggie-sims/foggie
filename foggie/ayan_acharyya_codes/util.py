@@ -1132,6 +1132,24 @@ def get_all_sims_for_this_halo(args, given_path=None):
     all_sims = all_sims[:: args.nevery]
     return all_sims
 
+# --------------------------------------------------------------------------------------------
+def get_output_range(output_range):
+    '''
+    Function to get an array of output names based on an input range
+    '''
+    if '-' in output_range:
+        first_output, last_output = output_range.split('-')
+        first_prefix,first_num = first_output[:2], int(first_output[2:])
+        last_prefix, last_num = last_output[:2], int(last_output[2:])
+        if first_prefix == last_prefix:
+            array = [first_prefix + '%04d' %item for item in np.arange(first_num, last_num + 1)]
+        else:
+            raise Exception('The prefixes of the output range need to be the same.')
+    else:
+        raise Exception('The range needs to be separated by a -')
+
+    return array
+
 # ---------------------------------------------------------------------------------------------
 def pull_halo_redshift(args):
     '''
@@ -1533,7 +1551,7 @@ def parse_args(haloname, RDname, fast=False):
     if args.snapnumber is not None:
         if args.use_onlyDD: args.output = 'DD%04d' % (args.snapnumber)
         else: args.output = 'RD%04d' % (args.snapnumber)
-    args.output_arr = [item for item in args.output.split(',')]
+    args.output_arr = get_output_range(args.output) if '-' in args.output else [item for item in args.output.split(',')]
     args.res_arr = [float(item) for item in args.res.split(',')]
     args.output = args.output_arr[0] if len(args.output_arr) == 1 else RDname
     args.move_to = np.array([float(item) for item in args.move_to.split(',')])  # kpc
