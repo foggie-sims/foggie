@@ -411,7 +411,7 @@ def plot_time_series(df, args):
     poster_text = '_poster' if args.forposter else ''
 
     figname = args.output_dir + 'figs/' + args.halo + '_timeseries_res%.2Fkpc%s%s%s%s.png' % (float(args.res), upto_text, args.weightby_text, appendix_text, poster_text)
-    fig.savefig(figname, transparent=args.fortalk)
+    fig.savefig(figname, transparent=args.fortalk, dpi=800)
     print('Saved', figname)
     if args.doft:
         figname2 = figname.replace('timeseries', 'fourier')
