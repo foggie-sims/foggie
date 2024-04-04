@@ -34,6 +34,12 @@ def make_df_from_box(box, args):
 
     if not os.path.exists(df_snap_filename) or args.clobber:
         myprint(df_snap_filename + ' does not exist. Creating afresh..', args)
+
+        if args.use_density_cut:
+            rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
+            box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+            print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
+
         df = pd.DataFrame()
         fields = ['rad', 'metal'] # only the relevant properties
         if args.weight is not None: fields += [args.weight]
