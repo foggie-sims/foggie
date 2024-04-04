@@ -84,8 +84,8 @@ def plot_projectedZ_snap(map, projection, ax, args, clim=None, cmap='viridis', c
     proj = ax.imshow(map, cmap=cmap, extent=[-args.galrad - delta, args.galrad + delta, -args.galrad - delta, args.galrad + delta], vmin=clim[0] if clim is not None else None, vmax=clim[1] if clim is not None else None)
 
     # -----------making the axis labels etc--------------
-    ax.set_xticks(np.linspace(-args.galrad, args.galrad, 5))
-    ax.set_yticks(np.linspace(-args.galrad, args.galrad, 5))
+    ax.set_xticks(np.linspace(-int(args.galrad), int(args.galrad), 5))
+    ax.set_yticks(np.linspace(-int(args.galrad), int(args.galrad), 5))
     ax.set_xlabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
@@ -123,9 +123,9 @@ def plot_Zprof_snap(df, ax, args, hidex=False, hidey=False):
         ycol = 'metal_' + thisproj
         color = args.col_arr[index]
 
-        if args.weight is not None: df['weighted_metal_' + thisproj] = len(df) * df['metal_' + thisproj] * df['weights_' + thisproj] / np.sum(df['weights_' + thisproj])
-        df['log_metal_' + thisproj] = np.log10(df[ycol])
-        if not args.plot_onlybinned: ax.scatter(df['rad'], df['log_metal_' + thisproj], c=args.col_arr[index], s=1, lw=0, alpha=0.3)
+        if args.weight is not None: df['weighted_' + ycol] = len(df) * df[ycol] * df['weights_' + thisproj] / np.sum(df['weights_' + thisproj])
+        df['log_' + ycol] = np.log10(df[ycol])
+        if not args.plot_onlybinned: ax.scatter(df['rad'], df['log_' + ycol], c=args.col_arr[index], s=1, lw=0, alpha=0.3)
 
         df['binned_cat'] = pd.cut(df['rad'], x_bins)
 
