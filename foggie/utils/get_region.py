@@ -1,8 +1,9 @@
 
 from foggie.utils.consistency import cgm_inner_radius, cgm_outer_radius, cgm_field_filter, ism_field_filter
 import numpy as np 
+from unyt import unyt_array
 
-def get_region(data_set, region, filter='None'): 
+def get_region(data_set, region, filter='None', sphere_size=25., left_corner=[0,0,0], right_corner=[80,80,80]): 
     """ this function takes in a dataset and returns a CutRegion 
     that corresponds to particular FOGGIE regions- JT 091619"""
 
@@ -73,6 +74,20 @@ def get_region(data_set, region, filter='None'):
             all_data = refine_box
         else: 
             all_data = refine_box.cut_region(filter) 
+    elif region == 'sphere': 
+        sph = data_set.sphere(data_set.halo_center_kpc, radius=(sphere_size, 'kpc'))
+        cut_region = sph
+        all_data = cut_region
+    elif region == 'cube-sphere': 
+        # draw a cube of given size/shape relative to center, cut by a sphere of given size
+        # originally developed for efficient clump finding 
+        cube =  data_set.r[data_set.halo_center_kpc[0]+unyt_array(left_corner[0],'kpc'):data_set.halo_center_kpc[0]+unyt_array(right_corner[0], 'kpc'), \
+                data_set.halo_center_kpc[1]+unyt_array(left_corner[1],'kpc'):data_set.halo_center_kpc[1]+unyt_array(right_corner[1], 'kpc'), \
+                data_set.halo_center_kpc[2]+unyt_array(left_corner[2],'kpc'):data_set.halo_center_kpc[2]+unyt_array(right_corner[2], 'kpc')]
+        
+        sph = data_set.sphere(data_set.halo_center_kpc, radius=(sphere_size, 'kpc'))
+        cut_region = cube-sph
+        all_data = cut_region
     else:
         print("get_region: your region is invalid!")
 

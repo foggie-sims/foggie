@@ -1132,6 +1132,24 @@ def get_all_sims_for_this_halo(args, given_path=None):
     all_sims = all_sims[:: args.nevery]
     return all_sims
 
+# --------------------------------------------------------------------------------------------
+def get_output_range(output_range):
+    '''
+    Function to get an array of output names based on an input range
+    '''
+    if '-' in output_range:
+        first_output, last_output = output_range.split('-')
+        first_prefix,first_num = first_output[:2], int(first_output[2:])
+        last_prefix, last_num = last_output[:2], int(last_output[2:])
+        if first_prefix == last_prefix:
+            array = [first_prefix + '%04d' %item for item in np.arange(first_num, last_num + 1)]
+        else:
+            raise Exception('The prefixes of the output range need to be the same.')
+    else:
+        raise Exception('The range needs to be separated by a -')
+
+    return array
+
 # ---------------------------------------------------------------------------------------------
 def pull_halo_redshift(args):
     '''
@@ -1429,6 +1447,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--plot_onlybinned', dest='plot_onlybinned', action='store_true', default=False, help='plot ONLY the binned plot, without individual pixels?, default is no')
     parser.add_argument('--use_density_cut', dest='use_density_cut', action='store_true', default=False, help='impose a density cut to get just the disk?, default is no')
     parser.add_argument('--narrowfig', dest='narrowfig', action='store_true', default=False, help='make the figure size proportions narrow instead of square?, default is no')
+    parser.add_argument('--noweight_forfit', dest='noweight_forfit', action='store_true', default=False, help='do the radial fit without using inverse square weights?, default is no (i.e., use the weighting while fitting)')
 
     # ------- args added for get_halo_track.py ------------------------------
     parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')
@@ -1447,9 +1466,10 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--overplot_clear', dest='overplot_clear', action='store_true', default=False, help='overplot CLEAR observed MZGR?, default is no')
     parser.add_argument('--overplot_belfiore', dest='overplot_belfiore', action='store_true', default=False, help='overplot Belfiore+17 observed MZGR?, default is no')
     parser.add_argument('--overplot_mingozzi', dest='overplot_mingozzi', action='store_true', default=False, help='overplot Mongozzi+19 observed MZGR?, default is no')
-    parser.add_argument('--overplot_literature', dest='overplot_literature', action='store_true', default=False, help='overplot all literature observed Zgrad vs z?, default is no')
+    parser.add_argument('--overplot_observations', dest='overplot_observations', action='store_true', default=False, help='overplot all literature observed Zgrad vs z?, default is no')
     parser.add_argument('--overplot_smoothed', metavar='overplot_smoothed', type=float, action='store', default=None, help='overplot temporally smoothed data with <X> Myr smoothing scale, default is None')
     parser.add_argument('--overplot_cadence', metavar='overplot_cadence', type=float, action='store', default=None, help='overplot with only the outputs after every <X> Myr, default is None')
+    parser.add_argument('--overplot_binned', dest='overplot_binned', action='store_true', default=False, help='overplot with the binned behaviour, default is None')
     parser.add_argument('--manga_diag', metavar='manga_diag', type=str, action='store', default='n2', help='which metallicity diagnostic to extract from manga? options are: n2, o3n2, ons, pyqz, t2, m08, t04; default is n2')
     parser.add_argument('--zhighlight', dest='zhighlight', action='store_true', default=False, help='highlight a few integer-ish redshift points on the MZGR?, default is no')
     parser.add_argument('--use_gasre', dest='use_gasre', action='store_true', default=False, help='use measurements based on Re estimated from cold gas clumps (instead of that measured from stellar mass profile)?, default is no')
@@ -1472,6 +1492,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--formolly', dest='formolly', action='store_true', default=False, help='Set plot labels, transparency etc for being used by Molly?, default is no')
     parser.add_argument('--hide_overplot', dest='hide_overplot', action='store_true', default=False, help='Hide the overplotted curve even though all computations were done on the overplotted curve?, default is no')
     parser.add_argument('--usecmasher', dest='usecmasher', action='store_true', default=False, help='use cmasher colorcoding package?, default is no')
+    parser.add_argument('--overplot_theory', dest='overplot_theory', action='store_true', default=False, help='Make the plot for comparing with theory?, default is no')
 
     # ------- args added for compute_Zscatter.py ------------------------------
     parser.add_argument('--res', metavar='res', type=str, action='store', default='0.1', help='spatial sampling resolution, in kpc, to compute the Z statistics; default is 0.1 kpc')
@@ -1531,7 +1552,7 @@ def parse_args(haloname, RDname, fast=False):
     if args.snapnumber is not None:
         if args.use_onlyDD: args.output = 'DD%04d' % (args.snapnumber)
         else: args.output = 'RD%04d' % (args.snapnumber)
-    args.output_arr = [item for item in args.output.split(',')]
+    args.output_arr = get_output_range(args.output) if '-' in args.output else [item for item in args.output.split(',')]
     args.res_arr = [float(item) for item in args.res.split(',')]
     args.output = args.output_arr[0] if len(args.output_arr) == 1 else RDname
     args.move_to = np.array([float(item) for item in args.move_to.split(',')])  # kpc

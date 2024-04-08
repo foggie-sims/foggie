@@ -76,12 +76,13 @@ def load_df(args):
             print(thiscol, 'column not found in dataframe, putting dummy values')
             df['log_' + thiscol] = -99
 
-    df['ZIQR'] = df['Z75'] - df['Z25'] # do the subtraction AFTER the Z75 and Z25 columns have been un-logged
+    df['ZIQR'] = df['Z75'] - df['Z25'] # IQR in linear space; hence performing the subtraction AFTER the Z75 and Z25 columns have been un-logged
+    df['log_ZIQR'] = np.log10(df['Z75']) - np.log10(df['Z25']) # log IQR is the width in log-space; hence performing the subtraction AFTER the Z75 and Z25 columns have been converted to log
     df['Zwidth'] = 2.355 * df['Zsigma']
     df['Zwidth_u'] = 2.355 * df['Zsigma_u']
     quant = unumpy.log10(unumpy.uarray(df['Zwidth'].values, df['Zwidth_u'].values))
     df['log_Zwidth'], df['log_Zwidth_u'] = unumpy.nominal_values(quant), unumpy.std_devs(quant)
-    for thiscol in ['ZIQR', 'mass']: df['log_' + thiscol] = np.log10(df[thiscol])
+    for thiscol in ['mass']: df['log_' + thiscol] = np.log10(df[thiscol])
 
     return df
 

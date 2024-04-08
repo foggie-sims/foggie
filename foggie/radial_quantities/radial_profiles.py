@@ -27,6 +27,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 import multiprocessing as multi
 import shutil
 import ast
+import cmasher as cmr
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -68,7 +69,7 @@ def parse_args():
     parser.set_defaults(pwd=False)
 
     parser.add_argument('--plot_type', metavar='plot_type', type=str, action='store', \
-                        help='What kind of plot do you want? Options are datashader, histogram, or profiles_over_time\n' + \
+                        help='What kind of plot do you want? Options are datashader, histogram, column density profile, or profiles_over_time\n' + \
                             'and default is datashader.')
     parser.set_defaults(plot_type='datashader')
 
@@ -333,14 +334,16 @@ def make_histogram_profile_plot(snap):
                  'radial_velocity':'km/s'}
     if (args.cgm_only):
         y_range_dict = {'density':[-32,-26],
-                        'temperature':[0.01,100],
+                        #'temperature':[0.01,100],
+                        'temperature':[4,7],
                         'metallicity':[-3,2],
                         'pressure':[-19,-12],
                         'entropy':[-1,5],
                         'radial_velocity':[-500,1000]}
     else:
         y_range_dict = {'density':[-32,-23],
-                        'temperature':[0.01,100],
+                        #'temperature':[0.01,100],
+                        'temperature':[4,7],
                         'metallicity':[-3,2],
                         'pressure':[-19,-12],
                         'entropy':[-5,5],
@@ -351,9 +354,10 @@ def make_histogram_profile_plot(snap):
                   'pressure':'log Pressure [erg/cm$^3$]',
                   'entropy':'log Entropy [keV cm$^2$]',
                   'radial_velocity':'Radial Velocity [km/s]'}
-    radius_range = [0.03*Rvir, 1.5*Rvir]/Rvir
-    radius_data = sph_cgm['gas','radius_corrected'].in_units('kpc').v/Rvir
-    radius_bins = np.logspace(np.log10(radius_range[0]), np.log10(radius_range[1]), 200)
+    radius_range = [0.03*Rvir, 1.5*Rvir]
+    radius_data = sph_cgm['gas','radius_corrected'].in_units('kpc').v
+    #radius_bins = np.logspace(np.log10(radius_range[0]), np.log10(radius_range[1]), 200)
+    radius_bins = np.linspace(radius_range[0], radius_range[1], 200)
     if (args.weight=='mass'):
         weight_data = sph_cgm['gas','cell_mass'].in_units('Msun').v
         weight_label = 'Mass'
@@ -369,41 +373,43 @@ def make_histogram_profile_plot(snap):
         if (plot_y=='radial_velocity'):
             y_data = sph_cgm['gas', 'radial_velocity_corrected'].in_units(unit_dict[plot_y]).v
         elif (plot_y=='temperature'):
-            y_data = sph_cgm['gas','temperature'].in_units('K').v/Tvir
-            y_bins = np.logspace(np.log10(y_range_dict[plot_y][0]), np.log10(y_range_dict[plot_y][1]), 200)
+            y_data = np.log10(sph_cgm['gas','temperature'].in_units('K').v)
+            #y_bins = np.logspace(np.log10(y_range_dict[plot_y][0]), np.log10(y_range_dict[plot_y][1]), 200)
         else:
             y_data = np.log10(sph_cgm['gas', plot_y].in_units(unit_dict[plot_y]).v)
+        y_bins = np.linspace(y_range_dict[plot_y][0], y_range_dict[plot_y][1], 200)
         hist = ax.hist2d(radius_data, y_data, weights=weight_data, bins=(radius_bins, y_bins), cmin=cmin, cmap=plt.cm.BuPu, norm=mpl.colors.LogNorm())
         hist2d = np.transpose(hist[0])
         #cbaxes = fig.add_axes([0.7, 0.95, 0.25, 0.03])
         #cbar = plt.colorbar(hist[3], cax=cbaxes, orientation='horizontal', ticks=[])
         #cbar.set_label(weight_label, fontsize=18)
-        ax.set_xlabel('$R/R_\mathrm{vir}$', fontsize=20)
+        ax.set_xlabel('$R$ [kpc]', fontsize=20)
         ax.set_ylabel(label_dict[plot_y], fontsize=20)
-        ax.set_xscale('log')
-        ax.set_yscale('log')
+        #ax.set_xscale('log')
+        #ax.set_yscale('log')
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
           top=True, right=True)
         bin_indices = np.digitize(radius_data, radius_bins)
         median_profile = []
         mean_profile = []
         for i in range(1,len(radius_bins)):
-            if (plot_y=='radial_velocity') or (plot_y=='temperature'):
+            if (plot_y=='radial_velocity'):
                 values = y_data[np.where(bin_indices==i)[0]]
             else:
                 values = 10**y_data[np.where(bin_indices==i)[0]]
             weights = weight_data[np.where(bin_indices==i)[0]]
-            mean_profile.append(10.**(np.average(np.log10(values*Tvir), weights=weights))/Tvir)
+            mean_profile.append(np.average(values, weights=weights))
             median_profile.append(weighted_quantile(values, weights, [0.5])[0])
         radius_bin_centers = 0.5*np.diff(radius_bins)+radius_bins[1:]
-        if (plot_y=='radial_velocity') or (plot_y=='temperature'):
+        if (plot_y=='radial_velocity'):
             ax.plot(radius_bin_centers, np.array(median_profile), 'k-', lw=2, label='Median')
             ax.plot(radius_bin_centers, np.array(mean_profile), 'k--', lw=2, label='Mean')
         else:
-            ax.plot(radius_bin_centers, np.log10(np.array(median_profile)), 'k-', lw=2)
+            ax.plot(radius_bin_centers, np.log10(np.array(median_profile)), 'k-', lw=2, label='Median')
+            ax.plot(radius_bin_centers, np.log10(np.array(mean_profile)), 'k--', lw=2, label='Mean')
         ax.axis([radius_range[0], radius_range[1], y_range_dict[plot_y][0], y_range_dict[plot_y][1]])
-        ax.plot([radius_range[0], radius_range[1]], [1,1], 'k--', lw=1)
-        ax.plot([1,1],[y_range_dict[plot_y][0], y_range_dict[plot_y][1]], 'k--', lw=1)
+        #ax.plot([radius_range[0], radius_range[1]], [1,1], 'k--', lw=1)
+        ax.plot([Rvir,Rvir],[y_range_dict[plot_y][0], y_range_dict[plot_y][1]], 'k--', lw=1)
         ax.legend(loc='upper center',fontsize=16, frameon=False, ncol=2)
         ax.text(0.03, 0.03, 'z = %.2f' % (zsnap), fontsize=16, transform=ax.transAxes, ha='left', va='center')
         plt.subplots_adjust(left=0.12, bottom=0.1, top=0.97, right=0.98)
@@ -411,7 +417,7 @@ def make_histogram_profile_plot(snap):
         plt.close()
         print('Plot of %s vs. radius, weighted by %s, made for snapshot %s.' % (plot_y, args.weight, snap))
         f = open(save_dir + snap + '_' + plot_y + '_vs_radius_' + args.weight + '-weighted_profiles' + save_suffix + '.txt', 'w')
-        f.write('# radius (/Rvir)  Median %s (%s)  Mean %s (%s)\n' % (plot_y, unit_dict[plot_y], plot_y, unit_dict[plot_y]))
+        f.write('# radius (kpc)  Median %s (%s)  Mean %s (%s)\n' % (plot_y, unit_dict[plot_y], plot_y, unit_dict[plot_y]))
         for i in range(len(median_profile)):
             f.write('%.3f             %.3e                   %.3e\n' % (radius_bin_centers[i], median_profile[i], mean_profile[i]))
         f.close()
@@ -529,6 +535,224 @@ def make_profile_plot_over_time(snaplist):
         plt.savefig(save_dir + plot_y + '_vs_radius_' + weight + '-weighted_over-time' + save_suffix + '.png')
         plt.close()
 
+def make_col_den_profile_plot(snap):
+    '''Makes a radial profile plot of column density of gas in different temperature bins for the snapshot 'snap'.'''
+
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snap
+        # Make a dummy directory with the snap name so the script later knows the process running
+        # this snapshot failed if the directory is still there
+        os.makedirs(snap_dir)
+    snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name, disk_relative=True)
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=7091.48):
+        density_cut_factor = 20. - 19.*current_time/7091.48
+    elif (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
+
+    sphere = ds.sphere(center=ds.halo_center_kpc, radius=(100., 'kpc'))
+    if (args.cgm_only):
+        sph_cgm = sphere.cut_region("obj['density'] < %.3e" % (density_cut_factor * cgm_density_max))
+    else:
+        sph_cgm = sphere
+
+    density = sph_cgm['gas','density'].in_units('g/cm**3').v
+    temperature = sph_cgm['gas','temperature'].in_units('K').v
+    radius = sph_cgm['gas','radius_corrected'].in_units('kpc').v
+    phi = sph_cgm['gas','phi_pos_disk'].v
+    rv = sph_cgm['gas','radial_velocity_corrected'].in_units('km/s').v
+
+    slow_halo = (rv < 50.) & (rv > -50.)
+
+    temp_bins = [10**3.5, 10**4., 10**4.5]
+    temp_bins_labels = ['$10^{3.5}$', '$10^4$', '$10^{4.5}$']
+    rbin_size = 5.      # kpc
+    radius_bins = np.arange(0.,100.+rbin_size,rbin_size)
+    phi_bins = [0., np.pi/6., np.pi/3., np.pi/2., 2./3.*np.pi, 5./6.*np.pi, np.pi]
+    phi_bins_labels = ['0', '30', '60', '90', '120', '150', '180']
+
+    den_profile = []
+    col_den_profile = []
+    cum_den_profile = []
+    cum_col_den_profile = []
+    for i in range(len(temp_bins)-1):
+        den_profile.append([])
+        col_den_profile.append([])
+        cum_den_profile.append([])
+        cum_col_den_profile.append([])
+        for j in range(len(phi_bins)-1):
+            den_profile[i].append([])
+            col_den_profile[i].append([])
+            cum_den_profile[i].append([])
+            cum_col_den_profile[i].append([])
+    
+    for t in range(len(temp_bins)-1):
+        low_t = temp_bins[t]
+        upp_t = temp_bins[t+1]
+        for p in range(len(phi_bins)-1):
+            low_p = phi_bins[p]
+            upp_p = phi_bins[p+1]
+            for r in range(len(radius_bins)-1):
+                low_r = radius_bins[r]
+                upp_r = radius_bins[r+1]
+
+                avg_den = np.mean(density[(slow_halo) & (radius > low_r) & (radius < upp_r) & (temperature > low_t) & (temperature < upp_t) & (phi < upp_p) & (phi > low_p)])
+                den_profile[t][p].append(avg_den)
+                col_den_profile[t][p].append(avg_den/mp*rbin_size*1000*cmtopc)
+            cum_den_profile[t][p] = np.nancumsum(den_profile[t][p])
+            cum_col_den_profile[t][p] = np.nancumsum(col_den_profile[t][p])
+
+    fig1 = plt.figure(num=1, figsize=(10,5), dpi=300)
+    ax1 = fig1.add_subplot(1,1,1)
+    fig2 = plt.figure(num=2, figsize=(10,5), dpi=300)
+    ax2 = fig2.add_subplot(1,1,1)
+    fig3 = plt.figure(num=3, figsize=(10,5), dpi=300)
+    ax3 = fig3.add_subplot(1,1,1)
+    fig4 = plt.figure(num=4, figsize=(10,5), dpi=300)
+    ax4 = fig4.add_subplot(1,1,1)
+    colors = cmr.neon(np.linspace(0,1,len(phi_bins)-1))
+    lines = ['-', '--']
+    for t in range(len(temp_bins)-1):
+        for p in range(len(phi_bins)-1):
+            ax1.plot(radius_bins[:-1], den_profile[t][p], color=colors[p], ls=lines[t], lw=2, label='_nolegend_')
+            if (t==0): ax1.plot(-100,-100, color=colors[p], ls='-', label=phi_bins_labels[p] + ' < azimuth angle < ' + phi_bins_labels[p+1])
+            if (p==len(phi_bins)-2):
+                ax1.plot(-100,-100, color='k', ls=lines[t], label=temp_bins_labels[t] + ' < T < ' + temp_bins_labels[t+1] + ' K')
+            ax2.plot(radius_bins[:-1], col_den_profile[t][p], color=colors[p], ls=lines[t], lw=2, label='_nolegend_')
+            if (t==0): ax2.plot(-100,-100, color=colors[p], ls='-', label=phi_bins_labels[p] + ' < azimuth angle < ' + phi_bins_labels[p+1])
+            if (p==len(phi_bins)-2):
+                ax2.plot(-100,-100, color='k', ls=lines[t], label=temp_bins_labels[t] + ' < T < ' + temp_bins_labels[t+1] + ' K')
+            ax3.plot(radius_bins[:-1], cum_den_profile[t][p], color=colors[p], ls=lines[t], lw=2, label='_nolegend_')
+            if (t==0): ax3.plot(-100,-100, color=colors[p], ls='-', label=phi_bins_labels[p] + ' < azimuth angle < ' + phi_bins_labels[p+1])
+            if (p==len(phi_bins)-2):
+                ax3.plot(-100,-100, color='k', ls=lines[t], label=temp_bins_labels[t] + ' < T < ' + temp_bins_labels[t+1] + ' K')
+            ax4.plot(radius_bins[:-1], cum_col_den_profile[t][p], color=colors[p], ls=lines[t], lw=2, label='_nolegend_')
+            if (t==0): ax4.plot(-100,-100, color=colors[p], ls='-', label=phi_bins_labels[p] + ' < azimuth angle < ' + phi_bins_labels[p+1])
+            if (p==len(phi_bins)-2):
+                ax4.plot(-100,-100, color='k', ls=lines[t], label=temp_bins_labels[t] + ' < T < ' + temp_bins_labels[t+1] + ' K')
+
+    ax1.axis([0,100,1e-29,1e-23])
+    ax1.set_xlabel('Distance from galaxy center [kpc]', fontsize=12)
+    ax1.set_ylabel('Average gas density in radial bins [g/cm$^3$]', fontsize=12)
+    ax1.set_yscale('log')
+    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+          top=True, right=True)
+    ax1.legend(loc=1, frameon=False, fontsize=12)
+    fig1.subplots_adjust(left=0.12, bottom=0.1, top=0.97, right=0.98)
+    fig1.savefig(save_dir + snap + '_avg_density_vs_radius' + save_suffix + '.png')
+
+    ax2.axis([0,100,1e17,1e23])
+    ax2.set_xlabel('Distance from galaxy center [kpc]', fontsize=12)
+    ax2.set_ylabel('Average column density in radial bins [cm$^{-2}$]', fontsize=12)
+    ax2.set_yscale('log')
+    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+          top=True, right=True)
+    ax2.legend(loc=1, frameon=False, fontsize=12)
+    fig2.subplots_adjust(left=0.12, bottom=0.1, top=0.97, right=0.98)
+    fig2.savefig(save_dir + snap + '_avg_col-den_vs_radius' + save_suffix + '.png')
+
+    ax3.axis([0,100,1e-29,1e-23])
+    ax3.set_xlabel('Distance from galaxy center [kpc]', fontsize=12)
+    ax3.set_ylabel('Cumulative density in radial bins [g/cm$^{3}$]', fontsize=12)
+    ax3.set_yscale('log')
+    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+          top=True, right=True)
+    ax3.legend(loc=4, frameon=False, fontsize=12)
+    fig3.subplots_adjust(left=0.12, bottom=0.1, top=0.97, right=0.98)
+    fig3.savefig(save_dir + snap + '_cum-den_vs_radius' + save_suffix + '.png')
+
+    ax4.axis([0,100,1e17,1e23])
+    ax4.set_xlabel('Distance from galaxy center [kpc]', fontsize=12)
+    ax4.set_ylabel('Cumulative column density in radial bins [cm$^{-2}$]', fontsize=12)
+    ax4.set_yscale('log')
+    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+          top=True, right=True)
+    ax4.legend(loc=4, frameon=False, fontsize=12)
+    fig4.subplots_adjust(left=0.12, bottom=0.1, top=0.97, right=0.98)
+    fig4.savefig(save_dir + snap + '_cum-col-den_vs_radius' + save_suffix + '.png')
+
+def den_vs_rv_radial_bins(snap):
+    '''Plots 2D histograms of gas density vs. radial velocity in radial bins for cool gas.'''
+
+    Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
+
+    if (args.system=='pleiades_cassi'):
+        print('Copying directory to /tmp')
+        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/profiles/' + snap
+        # Make a dummy directory with the snap name so the script later knows the process running
+        # this snapshot failed if the directory is still there
+        os.makedirs(snap_dir)
+    snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name, disk_relative=True)
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=7091.48):
+        density_cut_factor = 20. - 19.*current_time/7091.48
+    elif (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
+
+    sphere = ds.sphere(center=ds.halo_center_kpc, radius=(100., 'kpc'))
+    if (args.cgm_only):
+        sph_cgm = sphere.cut_region("obj['density'] < %.3e" % (density_cut_factor * cgm_density_max))
+    else:
+        sph_cgm = sphere
+
+    density = sph_cgm['gas','density'].in_units('g/cm**3').v
+    temperature = sph_cgm['gas','temperature'].in_units('K').v
+    radius = sph_cgm['gas','radius_corrected'].in_units('kpc').v
+    rv = sph_cgm['gas','radial_velocity_corrected'].in_units('km/s').v
+    mass = sph_cgm['gas','cell_mass'].in_units('Msun').v
+
+    temp_bins = [0., 10**4., 10**4.5]
+    temp_bins_labels = ['$10^{3.5}$', '$10^4$', '$10^{4.5}$']
+    rbin_size = 20.      # kpc
+    radius_bins = np.arange(20.,100.+rbin_size,rbin_size)
+    
+    for t in range(len(temp_bins)-1):
+        low_t = temp_bins[t]
+        upp_t = temp_bins[t+1]
+        fig = plt.figure(figsize=(11,8), dpi=300)
+        for r in range(len(radius_bins)-1):
+            low_r = radius_bins[r]
+            upp_r = radius_bins[r+1]
+            vel_shell = rv[(radius > low_r) & (radius < upp_r) & (temperature > low_t) & (temperature < upp_t)]
+            den_shell = np.log10(density[(radius > low_r) & (radius < upp_r) & (temperature > low_t) & (temperature < upp_t)])
+            mass_shell = mass[(radius > low_r) & (radius < upp_r) & (temperature > low_t) & (temperature < upp_t)]
+            ax = fig.add_subplot(2,2,r+1)
+            hist = ax.hist2d(vel_shell, den_shell, weights=mass_shell, bins=(200, 200), range=[[-300,300],[-31,-24]], norm=mpl.colors.LogNorm(), cmap=cmr.voltage_r)
+            ax.set_xlabel('Radial velocity [km/s]', fontsize=12)
+            ax.set_ylabel('log Gas density [g/cm$^3$]', fontsize=12)
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+                           top=True, right=True)
+            ax.text(0.05, 0.05, '%d < r < %d kpc' % (low_r, upp_r), fontsize=12, ha='left', va='bottom', transform=ax.transAxes)
+            if (r==len(radius_bins)-2):
+                cbaxes = fig.add_axes([0.9, 0.08, 0.03, 0.89])
+                cbar = plt.colorbar(hist[3], cax=cbaxes, orientation='vertical')
+                cbar.set_label('Mass [$M_\odot$]', fontsize=12)
+                cbar.ax.tick_params(length=4, width=2, pad=3, labelsize=10)
+        plt.subplots_adjust(left=0.07, bottom=0.08, right=0.88, top=0.97, wspace=0.2, hspace=0.18)
+        if (t==0): plt.savefig(save_dir + 'density_vs_radial-velocity_mass-colored_lowT' + save_suffix + '.png')
+        if (t==1): plt.savefig(save_dir + 'density_vs_radial-velocity_mass-colored_highT' + save_suffix + '.png')
+
 
 if __name__ == "__main__":
 
@@ -611,6 +835,10 @@ if __name__ == "__main__":
             color_log = False
     elif (args.plot_type=='histogram'):
         target = make_histogram_profile_plot
+    elif (args.plot_type=='density_profile'):
+        target = make_col_den_profile_plot
+    elif (args.plot_type=='density_vs_velocity'):
+        target = den_vs_rv_radial_bins
     elif (args.plot_type=='profiles_over_time'):
         if (args.filename=='none'):
             sys.exit('You need to supply a filename when plotting profiles over time!')

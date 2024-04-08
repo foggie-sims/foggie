@@ -142,6 +142,7 @@ temperature_color_list = ("darkred", "#d73027", "darkorange", "#ffe34d")
 temperature_color_map = sns.blend_palette(temperature_color_list, as_cmap=True)
 
 metal_color_list = ("#4575b4", "#984ea3", "#984ea3", "#d73027", "darkorange", "#ffe34d")
+#metal_color_list = ("black", "#4575b4", "#984ea3", "#d73027", "darkorange", "#ffe34d")
 metal_color_map = sns.blend_palette(metal_color_list, as_cmap=True)
 #metal_color_map = 'viridis'
 

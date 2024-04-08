@@ -19,10 +19,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackup/mpeeples/"
         code_path = '/pleiades/u/mpeeples/foggie/'
-    elif args.system == "lefty":
-        foggie_dir = "/astro/simulations/FOGGIE/"
+    elif args.system == "guy":
+        foggie_dir = "/Users/tumlinson/Dropbox/FOGGIE/snapshots/"
         output_path = "/Users/tumlinson/Dropbox/foggie/collab/"
-        code_path = '/Users/tumlinson/Dropbox/FOGGIE/foggie/'
+        code_path = '/Users/tumlinson/Dropbox/FOGGIE/foggie/foggie/'
     elif args.system == "jase":
         foggie_dir = "/Users/rsimons/Desktop/foggie/sims/"
         output_path = "/Users/rsimons/Desktop/foggie/"
@@ -43,6 +43,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackupp2/rcsimons/foggie/"
         code_path = '/nobackupp2/rcsimons/git/foggie/foggie/'
+    elif args.system == "pleiades_jt":
+        foggie_dir = "/nobackup/jtumlins/"
+        output_path = "/nobackupp/jtumlins/"
+        code_path = '/nobackup/jtumlins/foggie/foggie/'
     elif args.system == "cassiopeia":
         foggie_dir = "/Users/clochhaas/Documents/Research/FOGGIE/Simulation_Data/"
         output_path = "/Users/clochhaas/Documents/Research/FOGGIE/Outputs/"
@@ -59,9 +63,9 @@ def get_run_loc_etc(args):
         code_path = '/Users/nnishimura/Desktop/FOGGIE/foggie/foggie'
         output_path = '/Users/nnishimura/sasp2021practice'
     elif args.system == "ramona":
-        foggie_dir = "/Users/raugustin/WORK/SIMULATIONS/"
-        output_path = "/Users/raugustin/WORK/Outputs/"
-        code_path = "/Users/raugustin/foggie/foggie/"
+        foggie_dir = "/Users/ramonaaugustin/WORK/SIMULATIONS/"
+        output_path = "/Users/ramonaaugustin/WORK/Outputs/"
+        code_path = "/Users/ramonaaugustin/foggie/foggie/"
     elif args.system == "ramona_astro":
         foggie_dir = "/astro/simulations/FOGGIE/"
         output_path = "/Users/raugustin/WORK/Outputs/"
@@ -86,7 +90,7 @@ def get_run_loc_etc(args):
         foggie_dir = "/Volumes/Elements/foggieforayan/"
         output_path = "/Users/acharyya/Work/astro/foggie_outputs/"
         code_path = "/Users/acharyya/Work/astro/ayan_codes/foggie/foggie/"
-    elif args.system == "msu_hpcc":
+    elif args.system == "claire_hpcc":
         foggie_dir = "/mnt/research/galaxies-REU/sims/FOGGIE/"
         output_path = "/mnt/scratch/kopenhaf/foggie_calcs/"
         code_path = "/mnt/home/kopenhaf/foggie/foggie/"

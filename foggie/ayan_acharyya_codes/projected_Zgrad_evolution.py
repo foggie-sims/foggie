@@ -19,7 +19,6 @@ from uncertainties import ufloat, unumpy
 from lmfit.models import GaussianModel, SkewedGaussianModel
 
 start_time = time.time()
-plt.rcParams['axes.linewidth'] = 1
 
 # -----------------------------------------------------
 def get_dist_map(args):
@@ -39,6 +38,11 @@ def make_frb_from_box(box, box_center, box_width, projection, args):
     :return: FRB (2D numpy array)
     '''
     myprint('Now making the FRB for ' + projection + '..', args)
+    if args.use_density_cut:
+        rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
+        box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+        print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
+
     dummy_field = ('gas', 'density')  # dummy field just to create the FRB; any field can be extracted from the FRB thereafter
     dummy_proj = box.ds.proj(dummy_field, projection, center=box_center, data_source=box)
     frb = dummy_proj.to_frb(box.ds.arr(box_width, 'kpc'), args.ncells, center=box_center)
@@ -76,17 +80,18 @@ def plot_projectedZ_snap(map, projection, ax, args, clim=None, cmap='viridis', c
     myprint('Now making projection plot for ' + projection + '..', args)
     #sns.set_style('ticks')  # instead of darkgrid, so that there are no grids overlaid on the projections
 
-    proj = ax.imshow(map, cmap=cmap, extent=[-args.galrad, args.galrad, -args.galrad, args.galrad], vmin=clim[0] if clim is not None else None, vmax=clim[1] if clim is not None else None)
+    delta = 0.3 # the small offset between the actual limits and intended tick labels is to ensure that tick labels do not reach the very edge of the plot
+    proj = ax.imshow(map, cmap=cmap, extent=[-args.galrad - delta, args.galrad + delta, -args.galrad - delta, args.galrad + delta], vmin=clim[0] if clim is not None else None, vmax=clim[1] if clim is not None else None)
 
     # -----------making the axis labels etc--------------
-    ax.set_xticks(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 5))
-    ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 5))
+    ax.set_xticks(np.linspace(-int(args.galrad), int(args.galrad), 5))
+    ax.set_yticks(np.linspace(-int(args.galrad), int(args.galrad), 5))
     ax.set_xlabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
 
-    ax.text(0.9 * args.galrad, 0.9 * args.galrad, projection, ha='right', va='top', c=color, fontsize=args.fontsize)#, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
+    ax.text(0.9 * args.galrad, 0.9 * args.galrad, projection, ha='right', va='top', c=color, fontsize=args.fontsize * 1.2, weight='bold')#, bbox=dict(facecolor='k', alpha=0.99, edgecolor='k'))
 
     # ---------making the colorbar axis once, that will correspond to all projections--------------
     if projection == 'x':
@@ -101,7 +106,7 @@ def plot_projectedZ_snap(map, projection, ax, args, clim=None, cmap='viridis', c
     return ax
 
 # ----------------------------------------------------------------
-def plot_Zprof_snap(df, ax, args):
+def plot_Zprof_snap(df, ax, args, hidex=False, hidey=False):
     '''
     Function to plot the radial metallicity profile (from input dataframe) as seen from all three projections, on to the given axis
     Also computes the projected metallicity gradient along each projection
@@ -118,9 +123,9 @@ def plot_Zprof_snap(df, ax, args):
         ycol = 'metal_' + thisproj
         color = args.col_arr[index]
 
-        df['weighted_metal_' + thisproj] = len(df) * df['metal_' + thisproj] * df['weights_' + thisproj] / np.sum(df['weights_' + thisproj])
-        df['log_metal_' + thisproj] = np.log10(df[ycol])
-        if not args.plot_onlybinned: ax.scatter(df['rad'], df['log_metal_' + thisproj], c=args.col_arr[index], s=1, lw=0, alpha=0.3)
+        if args.weight is not None: df['weighted_' + ycol] = len(df) * df[ycol] * df['weights_' + thisproj] / np.sum(df['weights_' + thisproj])
+        df['log_' + ycol] = np.log10(df[ycol])
+        if not args.plot_onlybinned: ax.scatter(df['rad'], df['log_' + ycol], c=args.col_arr[index], s=1, lw=0, alpha=0.3)
 
         df['binned_cat'] = pd.cut(df['rad'], x_bins)
 
@@ -144,7 +149,7 @@ def plot_Zprof_snap(df, ax, args):
         y_u_binned = y_u_binned[indices]
 
         # ----------to plot mean binned y vs x profile--------------
-        linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=1. / (y_u_binned) ** 2)  # linear fitting done in logspace
+        linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True, w=None if args.noweight_forfit else 1. / (y_u_binned) ** 2)  # linear fitting done in logspace
         y_fitted = np.poly1d(linefit)(x_bin_centers) # in logspace
 
         Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
@@ -155,20 +160,27 @@ def plot_Zprof_snap(df, ax, args):
         ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=5)
         ax.scatter(x_bin_centers, y_binned, c=color, s=50, lw=1, ec='black', zorder=10)
         ax.plot(x_bin_centers, y_fitted, color=darker_color_dict[color], lw=2.5, ls='dashed')
-        ax.text(0.97, 0.95 - index * 0.1, thisproj + ': Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='right')
+        ax.text(0.97, 0.95 - index * 0.1, thisproj + r': Slope = %.2F $\pm$ %.2F ' % (Zgrad.n, Zgrad.s) + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor / 1.2, va='top', ha='right')
 
-    ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
     ax.set_xlim(0, np.ceil(args.upto_kpc / 0.695)) # kpc
-    ax.set_ylim(args.Zlim[0], args.Zlim[1]) # log limits
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
+    ax.set_ylim(args.Zlim[0] - 0.1, args.Zlim[1]) # log limits
+    if hidex:
+        ax.set_xticklabels([])
+    else:
+        ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
+        ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize / args.fontfactor)
+    if hidey:
+        ax.set_yticklabels([])
+    else:
+        ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
+        ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
+
     if not args.forpaper: ax.text(0.03, 0.03, args.output, color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left')
 
     return Zgrad_arr, ax
 
 # ----------------------------------------------------------------
-def plot_Zdist_snap(df, ax, args):
+def plot_Zdist_snap(df, ax, args, hidex=False, hidey=False):
     '''
     Function to plot the metallicity histogram (from input dataframe) as seen from all three projections, on to the given axis
     Also fits the histogram of projected metallicity along each projection
@@ -198,12 +210,18 @@ def plot_Zdist_snap(df, ax, args):
         Zdist_arr.append([fit.best_values['g1_sigma'], fit.best_values['g1_center']])
         ax.text(0.03 if args.islog else 0.97, 0.95 - index * 0.21, '%s: Center = %.2F\n%s: Width = %.2F' % (thisproj, fit.best_values['g1_center'], thisproj, 2.355 * fit.best_values['g1_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
 
-    ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
-    ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)
     ax.set_xlim(-2 if args.islog else 0, 1 if args.islog else 3) # Zsun
     ax.set_ylim(0, 3)
-    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-    ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
+    if hidex:
+        ax.set_xticklabels([])
+    else:
+        ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
+        ax.set_xlabel(r'log Metallicity (Z$_{\odot}$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
+    if hidey:
+        ax.set_yticklabels([])
+    else:
+        ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
+        ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)
 
     ax.text(0.03 if args.islog else 0.97, 0.3, 'z = %.2F' % args.current_redshift, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
     ax.text(0.03 if args.islog else 0.97, 0.2, 't = %.1F Gyr' % args.current_time, ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor)
