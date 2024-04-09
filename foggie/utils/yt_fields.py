@@ -380,6 +380,10 @@ def tangential_kinetic_energy(field, data):
     units of km/s, to be defined. -Cassi"""
     return 0.5 * data['gas','cell_mass'] * data['gas','tangential_velocity_corrected']**2.
 
+def get_cell_ids(field, data): 
+    """Assigns each cell a unique integer ID for indexing and tracking. -JT"""
+    return np.arange(np.size(data[('gas', 'density')]), dtype=np.int_)
+
 def _no6(field,data):
     return data['gas',"dx"] * data['gas','O_p5_number_density']
 

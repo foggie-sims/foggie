@@ -169,6 +169,9 @@ def foggie_load(snap, trackfile, **kwargs):
                  force_override=True, sampling_type='cell')
 
     # filter particles into star and dm
+    ds.add_field(('index', 'cell_id'), function=get_cell_ids, sampling_type='cell')
+    
+    # filter particles into star and dm
     # JT moved this to before "disk_relative" so that the if statement can use the filtered particle fields
     if (do_filter_particles):
         filter_particles(refine_box, filter_particle_types = ['young_stars', 'young_stars3', 'young_stars8', 'old_stars', 'stars', 'dm'])
@@ -255,7 +258,6 @@ def foggie_load(snap, trackfile, **kwargs):
                     _particle_angular_momentum_component,
                 )
             '''
-
 
 
     # Option to define velocities and coordinates relative to the angular momentum vector of the disk
