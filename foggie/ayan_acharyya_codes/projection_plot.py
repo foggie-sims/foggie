@@ -253,7 +253,7 @@ if __name__ == '__main__':
             args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
             myprint('ds ' + str(ds) + ' for halo ' + str(this_sim[0]) + ' was already loaded at some point by utils; using that loaded ds henceforth', args)
         else:
-            ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=False, halo_c_v_name=halos_df_name)
+            ds, refine_box = load_sim(args, region='refine_box', do_filter_particles='star' in args.do or 'ys' in args.do, halo_c_v_name=halos_df_name)
 
         ds.add_field(('gas', 'velocity_dispersion_3d'), function=get_velocity_dispersion_3d, units='km/s', take_log=False, sampling_type='cell')
         ds.add_field(('gas', 'velocity_dispersion_x'), function=get_velocity_dispersion_x, units='km/s', take_log=False, sampling_type='cell')

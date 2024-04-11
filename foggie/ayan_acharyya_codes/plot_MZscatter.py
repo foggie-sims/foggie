@@ -44,8 +44,8 @@ def load_df(args):
     df2.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
 
     # ---------merging both dataframes-----------
-    df = df.merge(df2[['output', 'Zcen_fixedr', 'Zgrad_fixedr', 'Zgrad_u_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr', 'Ztotal_fixedr']], on='output')
-    cols_to_rename = ['Zcen_fixedr', 'Zgrad_fixedr', 'Zgrad_u_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr']
+    df = df.merge(df2[['output', 'Zcen_fixedr', 'Zgrad_fixedr', 'Zgrad_u_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr', 'Zgrad_u_binned_fixedr', 'Ztotal_fixedr']], on='output')
+    cols_to_rename = ['Zcen_fixedr', 'Zgrad_fixedr', 'Zgrad_u_fixedr', 'Zcen_binned_fixedr', 'Zgrad_binned_fixedr', 'Zgrad_u_binned_fixedr']
     df = df.rename(columns=dict(zip(cols_to_rename, [item[:-7] for item in cols_to_rename])))
 
     df.sort_values(by='redshift', ascending=False, ignore_index=True, inplace=True)
