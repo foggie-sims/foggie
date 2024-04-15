@@ -213,6 +213,7 @@ def plot_time_series(df, args):
     fig.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.07)
 
     # -----------for first few panels: Z distribution statistics-------------------
+    print('Deb216:', groups) ##
     for j in range(len(groups)):
         thisgroup = groups.iloc[j]
         ax = axes[j]
@@ -491,13 +492,12 @@ if __name__ == '__main__':
     # ---------preset values for plotting for paper-------------
     if args.fortalk:
         setup_plots_for_talks()
-        args.forposter = True
+        args.forpaper = True
 
     if args.forpaper or args.forappendix or args.forposter:
         args.zhighlight = True
         args.docomoving = True
         args.fontsize = 15 # 15 is fine because these will be 1-page size figures
-    if args.forpaper:
         args.use_density_cut = True
         args.islog = True
         args.weight = 'mass'

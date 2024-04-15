@@ -306,16 +306,15 @@ if __name__ == '__main__':
         setup_plots_for_talks()
         args.forpaper = True
 
-    if args.forpaper:
+    if args.forpaper or args.fortalk:
         args.res = 0.1 # kpc
         args.docomoving = True
         args.fit_multiple = True
         args.nocolorcoding = True
         args.zhighlight = True
         args.get_native_res = True
-        if not args.fortalk:
-            args.use_density_cut = True
-            args.islog = True
+        args.use_density_cut = True
+        args.islog = True
 
 
     # ---------reading in existing MZgrad txt file------------------

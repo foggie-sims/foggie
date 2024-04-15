@@ -236,11 +236,11 @@ def overplot_theory(ax, args):
     label_dict = {'Gibson_2013_Fig1':'MUGS (Gibson+13)', 'Ma_2017_TableA1':'FIRE (Ma+17)', 'Hemler_2021_Table1':'Illustris TNG (Hemler+21)'}
 
     fig = ax.figure
-    fig.text(0.15, 0.93, 'FOGGIE (This work)', ha='left', va='top', color='salmon', fontsize=args.fontsize / 1.2)
+    if not args.fortalk: fig.text(0.15, 0.93, 'FOGGIE (This work)', ha='left', va='top', color='salmon', fontsize=args.fontsize / 1.2)
     for index, thissource in enumerate(pd.unique(master_df['source'])):
         df = master_df[master_df['source'] == thissource].sort_values(by='redshift', ignore_index=True)
-        ax = plot_filled_region(df, 'redshift', 'Zgrad', ax, color=color_dict[thissource], zorder=20, alpha=0.6)
-        fig.text(0.15, 0.88 - index * 0.05, label_dict[thissource], ha='left', va='top', color=color_dict[thissource], fontsize=args.fontsize / 1.2)
+        ax = plot_filled_region(df, 'redshift', 'Zgrad', ax, color=color_dict[thissource], zorder=100 if args.fortalk else 20, alpha=0.7 if args.fortalk else 0.6)
+        if not args.fortalk: fig.text(0.15, 0.88 - index * 0.05, label_dict[thissource], ha='left', va='top', color=color_dict[thissource], fontsize=args.fontsize / 1.2)
 
     return ax, master_df
 
@@ -374,13 +374,13 @@ def overplot_observations(ax, args):
     master_df = master_df[master_df['redshift'].between(args.xmin, args.xmax)]
 
     # -----actual plotting --------------
-    color, legendcolor, pointsize = 'grey', 'grey', 20
+    color, legendcolor, pointsize = 'khaki' if args.fortalk else 'grey', 'grey', 60 if args.fortalk else 20
     if args.overplot_theory:
         #sns.kdeplot(master_df['redshift'], master_df['Zgrad'], ax=ax, shade=False, shade_lowest=False, alpha=1, n_levels=30, color=color, cmap='cividis_r')
         ax.hexbin(master_df['redshift'], master_df['Zgrad'], alpha=1, cmap='Greys', gridsize=(50, 17), zorder=-1, mincnt=1, vmin=-5) # zorder<0 in order to put hexbins behind the grid lines; vmin<0 in order to have the lowest count bin not white, but still some grey
-        ax.text(2.1, 0.25, 'Density of observed data', ha='left', va='center', color='dimgrey', fontsize=args.fontsize / 1.2)
+        ax.text(2.1, 0.25, 'Density of observed data', ha='left', va='center', color='lightgray' if args.fortalk else 'dimgrey', fontsize=args.fontsize / 1.2)
     else:
-        ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=pointsize, lw=0.5, ec='k', zorder=7 if args.fortalk else 1, alpha=0.5) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
+        ax.scatter(master_df['redshift'], master_df['Zgrad'], c=color, s=pointsize, lw=0.5, ec='k', zorder=30 if args.fortalk else 1, alpha=0.5) # zorder > 6 ensures that these data points are on top pf FOGGIE curves, and vice versa
         if not args.forproposal:
             ax.text(3.88, 0.35, 'Observations (Typical uncertainty   )', ha='left', va='center', color=legendcolor, fontsize=args.fontsize / 1.2)
             ax.scatter(2.355, 0.35, s=pointsize, c=legendcolor, lw=0.5, ec='k')
@@ -732,7 +732,7 @@ def plot_MZGR(args):
     ax.set_xlabel(label_dict[args.xcol], fontsize=args.fontsize)
     ax.set_ylabel(label_dict[args.ycol], fontsize=args.fontsize)
 
-    if args.fortalk and not args.plot_timefraction:
+    if args.fortalk:# and not args.plot_timefraction:
         #mplcyberpunk.add_glow_effects()
         try: mplcyberpunk.make_lines_glow()
         except: pass
@@ -756,7 +756,7 @@ def plot_MZGR(args):
         anim.save(animname, writer = 'ffmpeg', codec = 'h264')
         print('Saved animation as', animname)
     else:
-        fig.savefig(figname, transparent=args.glasspaper or args.forproposal)
+        fig.savefig(figname, transparent=args.glasspaper or args.fortalk)
         print('Saved plot as', figname)
 
     # ------- tidying up fig2 if any------------
@@ -793,7 +793,7 @@ if __name__ == '__main__':
     if not args.keep: plt.close('all')
     if args.fortalk:
         setup_plots_for_talks()
-        args.forproposal = True
+        args.forpaper = True
     if args.formolly:
         args.zhighlight = True
         args.nocolorcoding = True

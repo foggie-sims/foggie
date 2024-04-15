@@ -99,8 +99,8 @@ def plot_distribution(Zarr, args, weights=None, fit=None, percentiles=None):
             ax.axvline(fit.best_values['g1_center'], lw=1, ls='dotted', color=fit_color)
             if 'g2_amplitude' in fit.best_values: ax.axvline(fit.best_values['g2_center'], lw=1, ls='dashed', color=fit_color)
 
-        if percentiles is not None and not args.fortalk:
-            for thisper in np.atleast_1d(percentiles): ax.axvline(thisper, lw=1, ls='solid', color='maroon')
+        if percentiles is not None:
+            for thisper in np.atleast_1d(percentiles): ax.axvline(thisper, lw=1, ls='solid', color='darkorange' if args.fortalk else 'maroon')
 
     # ----------adding arrows--------------
     if args.annotate_profile and not args.notextonplot:
