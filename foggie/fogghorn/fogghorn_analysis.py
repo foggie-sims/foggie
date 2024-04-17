@@ -65,8 +65,10 @@ def parse_args():
     parser.add_argument('--weight', metavar='weight', type=str, action='store', default=None, help='Name of quantity to weight the metallicity by. Default is None i.e., no weighting.')
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default='z', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is z')
 
+    parser.add_argument('--plot', metavar='plot', type=str, action='store', default='density_projection,young_stars_projection,temperature_projection,KS_relation,outflow_rates', help='Which plots do you want to make? Give a comma-separated list. Default is all plots.')
+
     # The following three args are used for backward compatibility, to find the trackfile for production runs, if a trackfile has not been explicitly specified
-    parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_local', help='Which system are you on? This is used only when trackfile is not specified. Default is ayan_local')
+    parser.add_argument('--system', metavar='system', type=str, action='store', default=None, help='Which system are you on? This is used only when trackfile is not specified.')
     parser.add_argument('--halo', metavar='halo', type=str, action='store', default='8508', help='Which halo? Default is Tempest. This is used only when trackfile is not specified.')
     parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f', help='Which run? Default is nref11c_nref9f. This is used only when trackfile is not specified.')
 
@@ -269,11 +271,11 @@ def make_plots(snap, args):
         region = ds.sphere(ds.halo_center_kpc, ds.arr(args.galrad, 'kpc'))
 
     # ----------------------- Make the plots ---------------------------------------------
-    gas_density_projection(ds, region, args)
-    edge_visualizations(ds, region, args)
-    young_stars_density_projection(ds, region, args)
-    KS_relation(ds, region, args)
-    outflow_rates(ds, region, args)
+    if ('density_projection' in cli_args.plot): gas_density_projection(ds, region, args)
+    if ('temperature_projection' in cli_args.plot): edge_visualizations(ds, region, args)
+    if ('young_stars_projection' in cli_args.plot): young_stars_density_projection(ds, region, args)
+    if ('KS_relation' in cli_args.plot): KS_relation(ds, region, args)
+    if ('outflow_rates' in cli_args.plot): outflow_rates(ds, region, args)
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -288,7 +290,10 @@ if __name__ == "__main__":
         # In case users save to their home directory using "~"
         cli_args.save_directory = os.path.expanduser(cli_args.save_directory)
 
-    if cli_args.trackfile is None: _, _, _, _, cli_args.trackfile, _, _, _ = get_run_loc_etc(cli_args) # for FOGGIE production runs it knows which trackfile to grab
+    if cli_args.trackfile is None:
+        if cli_args.system is None:
+            sys.exit('You must provide either the path to the track file or the name of the system you are on!')
+        _, _, _, _, cli_args.trackfile, _, _, _ = get_run_loc_etc(cli_args) # for FOGGIE production runs it knows which trackfile to grab
 
     if cli_args.output is not None: # Running on specific output/s
         outputs = make_output_list(cli_args.output)
