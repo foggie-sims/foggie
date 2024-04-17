@@ -34,6 +34,12 @@ def make_df_from_box(box, args):
 
     if not os.path.exists(df_snap_filename) or args.clobber:
         myprint(df_snap_filename + ' does not exist. Creating afresh..', args)
+
+        if args.use_density_cut:
+            rho_cut = get_density_cut(args.current_time)  # based on Cassi's CGM-ISM density cut-off
+            box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+            print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
+
         df = pd.DataFrame()
         fields = ['rad', 'metal'] # only the relevant properties
         if args.weight is not None: fields += [args.weight]
@@ -142,7 +148,7 @@ def plot_Zprof_snap(df, ax, args, hidex=False, hidey=False):
     y_u_binned = y_u_binned[indices]
 
     # ----------to plot mean binned y vs x profile--------------
-    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=1. / (y_u_binned) ** 2) # linear fitting done in logspace
+    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True, w=None if args.noweight_forfit else 1. / (y_u_binned) ** 2) # linear fitting done in logspace
     y_fitted = np.poly1d(linefit)(x_bin_centers) # in logspace
 
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
@@ -152,7 +158,7 @@ def plot_Zprof_snap(df, ax, args, hidex=False, hidey=False):
     ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=5)
     ax.scatter(x_bin_centers, y_binned, c='white' if color == 'k' else color, s=50, lw=1, ec='black', zorder=10)
     ax.plot(x_bin_centers, y_fitted, color=color, lw=2.5, ls='dashed')
-    ax.text(0.97, 0.95, 'Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor / 1.2, va='top', ha='right')
+    ax.text(0.97, 0.95, r'Slope = %.2F $\pm$ %.2F ' % (Zgrad.n, Zgrad.s) + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor / 1.2, va='top', ha='right')
 
     ax.set_xlim(0, np.ceil(args.upto_kpc / 0.695)) # kpc
     ax.set_ylim(args.Zlim[0] - 0.1, args.Zlim[1]) # log limits

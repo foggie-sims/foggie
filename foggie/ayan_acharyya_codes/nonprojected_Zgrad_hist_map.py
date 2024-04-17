@@ -137,7 +137,7 @@ def plot_Zprof_snap(df, ax, args):
     y_u_binned = y_u_binned[indices]
 
     # ----------to plot mean binned y vs x profile--------------
-    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=1. / (y_u_binned) ** 2) # linear fitting done in logspace
+    linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True, w=None if args.noweight_forfit else 1. / (y_u_binned) ** 2) # linear fitting done in logspace
     y_fitted = np.poly1d(linefit)(x_bin_centers) # in logspace
 
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
@@ -147,7 +147,7 @@ def plot_Zprof_snap(df, ax, args):
     ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=5)
     ax.scatter(x_bin_centers, y_binned, c=color, s=50, lw=1, ec='black', zorder=10)
     ax.plot(x_bin_centers, y_fitted, color=color, lw=3.5, ls='dashed')
-    ax.text(0.05, 0.05, 'Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left', bbox=dict(facecolor='k', alpha=0.99, edgecolor='k'))
+    ax.text(0.05, 0.05, 'Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='bottom', ha='left', bbox=dict(facecolor='w', alpha=0.99, edgecolor='w'))
 
     ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel(r'log Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
@@ -155,6 +155,10 @@ def plot_Zprof_snap(df, ax, args):
 
     delta_y = np.diff(args.Zlim)[0] / 50
     ax.set_ylim(args.Zlim[0] - delta_y, args.Zlim[1]) # the small offset between the actual limits and intended tick labels is to ensure that tick labels do not reach the very edge of the plot
+
+    ax.set_xticks(np.arange(0, np.min([15, args.galrad]), 1)) # for nice, round number tick marks
+    if args.forpaper: ax.set_yticks(np.linspace(-1.5, 0.5, 5))
+    else: ax.set_yticks(np.linspace(args.ymin, args.ymax, 5))
 
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
@@ -177,7 +181,7 @@ def plot_Zdist_snap(df, ax, args):
 
     if args.islog: Zarr = np.log10(Zarr)  # all operations will be done in log
 
-    p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, ls='dashed', density=True, ec=color, weights=weights)
+    p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=2, ls='solid', density=True, ec=color, weights=weights)
 
     if args.nofit:
         Zdist = np.nan
@@ -198,6 +202,10 @@ def plot_Zdist_snap(df, ax, args):
     delta_x = np.diff(args.Zlim)[0] / 50
     ax.set_xlim(args.Zlim[0] - delta_x, args.Zlim[1]) # the small offset between the actual limits and intended tick labels is to ensure that tick labels do not reach the very edge of the plot
     ax.set_ylim(0, 3)
+
+    if args.forpaper: ax.set_xticks(np.linspace(-1.5, 0.5, 5))
+    else: ax.set_xticks(np.linspace(args.xmin, args.xmax, 5))
+    ax.set_yticks(np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 6))
 
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
@@ -274,7 +282,7 @@ if __name__ == '__main__':
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').tolist()
         args.fontfactor = 1.2
-        args.Zlim = [-1.5, 0.5] if args.forproposal else [-2, 1] if args.islog else [0, 3]# log Zsun units
+        args.Zlim = [-1.5, 0.5] if args.forproposal else [-1.5, 0.6] if args.forpaper else [-2, 1] if args.islog else [0, 3]# log Zsun units
 
         # --------determining corresponding text suffixes-------------
         args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''

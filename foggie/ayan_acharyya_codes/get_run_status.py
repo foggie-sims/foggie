@@ -115,7 +115,7 @@ if __name__ == '__main__':
         n_MZscat_lines = len(df)
         n_unique_MZscat_lines = len(pd.unique(df['output']))
         df = df.drop_duplicates(subset='output', keep='last', ignore_index=True)
-        sigma_col = 'Zsigma' if 'Zsigma' in df else 'Zvar'
+        sigma_col = 'Z25' if 'Z25' in df else 'Zsigma'
         n_usable_MZscat_lines = len(df[~np.isnan(df[sigma_col])])
         n_useless_MZscat_lines = len(df[np.isnan(df[sigma_col])])
     else:

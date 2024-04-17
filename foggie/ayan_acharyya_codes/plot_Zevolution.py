@@ -213,6 +213,7 @@ def plot_time_series(df, args):
     fig.subplots_adjust(top=0.98, bottom=0.07, left=0.11, right=0.98, hspace=0.07)
 
     # -----------for first few panels: Z distribution statistics-------------------
+    print('Deb216:', groups) ##
     for j in range(len(groups)):
         thisgroup = groups.iloc[j]
         ax = axes[j]
@@ -411,7 +412,7 @@ def plot_time_series(df, args):
     poster_text = '_poster' if args.forposter else ''
 
     figname = args.output_dir + 'figs/' + args.halo + '_timeseries_res%.2Fkpc%s%s%s%s.png' % (float(args.res), upto_text, args.weightby_text, appendix_text, poster_text)
-    fig.savefig(figname, transparent=args.fortalk)
+    fig.savefig(figname, transparent=args.fortalk, dpi=800)
     print('Saved', figname)
     if args.doft:
         figname2 = figname.replace('timeseries', 'fourier')
@@ -491,14 +492,12 @@ if __name__ == '__main__':
     # ---------preset values for plotting for paper-------------
     if args.fortalk:
         setup_plots_for_talks()
-        args.forposter = True
+        args.forpaper = True
 
     if args.forpaper or args.forappendix or args.forposter:
         args.zhighlight = True
         args.docomoving = True
-        args.fit_multiple = True
         args.fontsize = 15 # 15 is fine because these will be 1-page size figures
-    if args.forpaper:
         args.use_density_cut = True
         args.islog = True
         args.weight = 'mass'

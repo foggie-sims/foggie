@@ -174,7 +174,7 @@ if __name__ == '__main__':
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').tolist()
 
-        args.Zlim = [-1.5, 0.5] if args.forproposal else [-2, 1]# log Zsun units
+        args.Zlim = [-1.5, 0.5] if args.forproposal else [-1.5, 0.6] if args.forpaper else [-2, 1]# log Zsun units
         if args.res_arc is not None:
             args.res = get_kpc_from_arc_at_redshift(float(args.res_arc), args.current_redshift)
             native_res_at_z = 0.27 / (1 + args.current_redshift) # converting from comoving kpc to physical kpc

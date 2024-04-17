@@ -79,7 +79,7 @@ if __name__ == '__main__':
         args.Zlim = [-2, 1]  # log Zsun units
         args.res = args.res_arr[0]
         if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695  # converting from comoving kcp h^-1 to physical kpc
-        args.fontsize = 20
+        args.fontsize = 23
         args.fontfactor = 1
 
         # --------determining corresponding text suffixes and figname-------------
@@ -99,92 +99,90 @@ if __name__ == '__main__':
         figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
         if not os.path.exists(figname) or args.clobber_plot:
-            #try:
-            # -------setting up fig--------------
-            nrow, ncol1, ncol2 = 2 if args.forpaper else 3, 2, 3
-            ncol = ncol1 * ncol2 # the overall figure is nrow x (ncol1 + ncol2)
-            if args.forpaper: fig = plt.figure(figsize=(16, 8))
-            else: fig = plt.figure(figsize=(16, 12))
+            try:
+                # -------setting up fig--------------
+                nrow, ncol1, ncol2 = 2 if args.forpaper else 3, 2, 3
+                ncol = ncol1 * ncol2 # the overall figure is nrow x (ncol1 + ncol2)
+                if args.forpaper: fig = plt.figure(figsize=(16, 10))
+                else: fig = plt.figure(figsize=(16, 12))
 
-            axes_proj_snap = [plt.subplot2grid(shape=(nrow, ncol), loc=(0, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
-            ax_prof_proj = plt.subplot2grid(shape=(nrow, ncol), loc=(1, 0), colspan=ncol2)
-            ax_prof_3d = plt.subplot2grid(shape=(nrow, ncol), loc=(1, ncol2), colspan=ncol2)
-            if args.forpaper:
-                fig.subplots_adjust(top=0.88, bottom=0.1, left=0.08, right=0.98, wspace=0.1, hspace=0.5)
-            else:
-                ax_dist_proj = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 0), colspan=ncol - ncol2)
-                ax_dist_3d = plt.subplot2grid(shape=(nrow, ncol), loc=(2, ncol2), colspan=ncol - ncol2)
-                fig.subplots_adjust(top=0.88, bottom=0.07, left=0.1, right=0.95, wspace=0.8, hspace=0.4)
+                axes_proj_snap = [plt.subplot2grid(shape=(nrow, ncol), loc=(0, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
+                ax_prof_proj = plt.subplot2grid(shape=(nrow, ncol), loc=(1, 0), colspan=ncol2)
+                ax_prof_3d = plt.subplot2grid(shape=(nrow, ncol), loc=(1, ncol2), colspan=ncol2)
+                if args.forpaper:
+                    fig.subplots_adjust(top=0.88, bottom=0.1, left=0.08, right=0.98, wspace=0.1, hspace=0.5)
+                else:
+                    ax_dist_proj = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 0), colspan=ncol - ncol2)
+                    ax_dist_3d = plt.subplot2grid(shape=(nrow, ncol), loc=(2, ncol2), colspan=ncol - ncol2)
+                    fig.subplots_adjust(top=0.88, bottom=0.07, left=0.1, right=0.95, wspace=0.8, hspace=0.4)
 
-            # ------tailoring the simulation box for individual snapshot analysis--------
-            if args.upto_kpc is not None: args.re = np.nan
-            else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
+                # ------tailoring the simulation box for individual snapshot analysis--------
+                if args.upto_kpc is not None: args.re = np.nan
+                else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
 
-            if args.upto_kpc is not None:
-                if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
-                else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
-            else:
-                args.galrad = args.re * args.upto_re  # kpc
-            args.ncells = int(2 * args.galrad / args.res)
+                if args.upto_kpc is not None:
+                    if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+                    else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
+                else:
+                    args.galrad = args.re * args.upto_re  # kpc
+                args.ncells = int(2 * args.galrad / args.res)
 
-            # extract the required box
-            box_center = ds.halo_center_kpc
-            box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
+                # extract the required box
+                box_center = ds.halo_center_kpc
+                box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
-            # ------getting the dataframe for projected metallcity and plotting the projections---------------
-            df_proj_filename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projectedZ.txt'%(args.galrad)
+                # ------getting the dataframe for projected metallcity and plotting the projections---------------
+                df_proj_filename = args.output_dir + 'txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projectedZ.txt'%(args.galrad)
 
-            if not os.path.exists(df_proj_filename) or args.clobber:
-                myprint(df_proj_filename + 'not found, creating afresh..', args)
-                df_proj = pd.DataFrame()
-                map_dist = proj.get_dist_map(args)
-                df_proj['rad'] = map_dist.flatten()
+                if not os.path.exists(df_proj_filename) or args.clobber:
+                    myprint(df_proj_filename + ' not found, creating afresh..', args)
+                    df_proj = pd.DataFrame()
+                    map_dist = proj.get_dist_map(args)
+                    df_proj['rad'] = map_dist.flatten()
 
-                for index, thisproj in enumerate(args.projections):
-                    frb = proj.make_frb_from_box(box, box_center, 2 * args.galrad, thisproj, args)
-                    df_proj, weighted_map_Z = proj.make_df_from_frb(frb, df_proj, thisproj,  args)
-                    axes_proj_snap[index] = proj.plot_projectedZ_snap(np.log10(weighted_map_Z), thisproj, axes_proj_snap[index], args, clim=args.Zlim, cmap=old_metal_color_map, color=args.col_arr[index])
+                    for index, thisproj in enumerate(args.projections):
+                        frb = proj.make_frb_from_box(box, box_center, 2 * args.galrad, thisproj, args)
+                        df_proj, weighted_map_Z = proj.make_df_from_frb(frb, df_proj, thisproj,  args)
+                        axes_proj_snap[index] = proj.plot_projectedZ_snap(np.log10(weighted_map_Z), thisproj, axes_proj_snap[index], args, clim=args.Zlim, cmap=old_metal_color_map, color=args.col_arr[index])
 
-                df_proj.to_csv(df_proj_filename, sep='\t', index=None)
-                myprint('Saved file ' + df_proj_filename, args)
-            else:
-                myprint('Reading in existing ' + df_proj_filename, args)
-                df_proj = pd.read_table(df_proj_filename, delim_whitespace=True, comment='#')
-                for index, thisproj in enumerate(args.projections):
-                    if args.weight is None: weighted_Z = df_proj['metal_' + thisproj]
-                    else: weighted_Z = len(df_proj) * df_proj['metal_' + thisproj] * df_proj['weights_' + thisproj] / np.sum(df_proj['weights_' + thisproj])
-                    weighted_map_Z = weighted_Z.values.reshape((args.ncells, args.ncells))
-                    axes_proj_snap[index] = proj.plot_projectedZ_snap(np.log10(weighted_map_Z), thisproj, axes_proj_snap[index], args, clim=args.Zlim, cmap=old_metal_color_map, color=args.col_arr[index])
+                    df_proj.to_csv(df_proj_filename, sep='\t', index=None)
+                    myprint('Saved file ' + df_proj_filename, args)
+                else:
+                    myprint('Reading in existing ' + df_proj_filename, args)
+                    df_proj = pd.read_table(df_proj_filename, delim_whitespace=True, comment='#')
+                    for index, thisproj in enumerate(args.projections):
+                        if args.weight is None: weighted_Z = df_proj['metal_' + thisproj]
+                        else: weighted_Z = len(df_proj) * df_proj['metal_' + thisproj] * df_proj['weights_' + thisproj] / np.sum(df_proj['weights_' + thisproj])
+                        weighted_map_Z = weighted_Z.values.reshape((args.ncells, args.ncells))
+                        axes_proj_snap[index] = proj.plot_projectedZ_snap(np.log10(weighted_map_Z), thisproj, axes_proj_snap[index], args, clim=args.Zlim, cmap=old_metal_color_map, color=args.col_arr[index])
 
-            df_proj = df_proj.dropna()
+                # ------getting the dataframe for 3D metallcity---------------
+                df_3d = nonproj.make_df_from_box(box, args)
 
-            # ------getting the dataframe for 3D metallcity---------------
-            df_3d = nonproj.make_df_from_box(box, args)
+                # ------plotting projected metallicity profiles---------------
+                Zgrad_arr, ax_prof_proj = proj.plot_Zprof_snap(df_proj, ax_prof_proj, args)
 
-            # ------plotting projected metallicity profiles---------------
-            Zgrad_arr, ax_prof_proj = proj.plot_Zprof_snap(df_proj, ax_prof_proj, args)
+                # ------plotting nonprojected metallicity profiles---------------
+                Zgrad, ax_prof_3d = nonproj.plot_Zprof_snap(df_3d, ax_prof_3d, args, hidey=True)
 
-            # ------plotting nonprojected metallicity profiles---------------
-            Zgrad, ax_prof_3d = nonproj.plot_Zprof_snap(df_3d, ax_prof_3d, args, hidey=True)
+                if not args.forpaper:
+                    # ------plotting projected metallicity histograms---------------
+                    Zdist_arr, ax_dist_proj = proj.plot_Zdist_snap(df_proj, ax_dist_proj, args)
 
-            if not args.forpaper:
-                # ------plotting projected metallicity histograms---------------
-                Zdist_arr, ax_dist_proj = proj.plot_Zdist_snap(df_proj, ax_dist_proj, args)
+                    # ------plotting nonprojected metallicity histograms---------------
+                    Zdist, ax_dist_3d = nonproj.plot_Zdist_snap(df_3d, ax_dist_3d, args, hidey=True)
 
-                # ------plotting nonprojected metallicity histograms---------------
-                Zdist, ax_dist_3d = nonproj.plot_Zdist_snap(df_3d, ax_dist_3d, args, hidey=True)
+                # ------saving fig------------------
+                fig.savefig(figname)
+                myprint('Saved plot as ' + figname, args)
 
-            # ------saving fig------------------
-            fig.savefig(figname)
-            myprint('Saved plot as ' + figname, args)
+                plt.show(block=False)
+                print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
 
-            plt.show(block=False)
-            print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
-            '''
             except Exception as e:
                 print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), args)
                 continue
-            '''
+
         else:
             print('Skipping snapshot %s as %s already exists. Use --clobber_plot to remake figure.' %(args.output, figname))
             continue

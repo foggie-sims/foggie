@@ -84,8 +84,8 @@ def plot_projectedZ_snap(map, projection, ax, args, clim=None, cmap='viridis', c
     proj = ax.imshow(map, cmap=cmap, extent=[-args.galrad - delta, args.galrad + delta, -args.galrad - delta, args.galrad + delta], vmin=clim[0] if clim is not None else None, vmax=clim[1] if clim is not None else None)
 
     # -----------making the axis labels etc--------------
-    ax.set_xticks(np.linspace(-args.galrad, args.galrad, 5))
-    ax.set_yticks(np.linspace(-args.galrad, args.galrad, 5))
+    ax.set_xticks(np.linspace(-int(args.galrad), int(args.galrad), 5))
+    ax.set_yticks(np.linspace(-int(args.galrad), int(args.galrad), 5))
     ax.set_xlabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
@@ -123,9 +123,9 @@ def plot_Zprof_snap(df, ax, args, hidex=False, hidey=False):
         ycol = 'metal_' + thisproj
         color = args.col_arr[index]
 
-        if args.weight is not None: df['weighted_metal_' + thisproj] = len(df) * df['metal_' + thisproj] * df['weights_' + thisproj] / np.sum(df['weights_' + thisproj])
-        df['log_metal_' + thisproj] = np.log10(df[ycol])
-        if not args.plot_onlybinned: ax.scatter(df['rad'], df['log_metal_' + thisproj], c=args.col_arr[index], s=1, lw=0, alpha=0.3)
+        if args.weight is not None: df['weighted_' + ycol] = len(df) * df[ycol] * df['weights_' + thisproj] / np.sum(df['weights_' + thisproj])
+        df['log_' + ycol] = np.log10(df[ycol])
+        if not args.plot_onlybinned: ax.scatter(df['rad'], df['log_' + ycol], c=args.col_arr[index], s=1, lw=0, alpha=0.3)
 
         df['binned_cat'] = pd.cut(df['rad'], x_bins)
 
@@ -149,7 +149,7 @@ def plot_Zprof_snap(df, ax, args, hidex=False, hidey=False):
         y_u_binned = y_u_binned[indices]
 
         # ----------to plot mean binned y vs x profile--------------
-        linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True)#, w=1. / (y_u_binned) ** 2)  # linear fitting done in logspace
+        linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True, w=None if args.noweight_forfit else 1. / (y_u_binned) ** 2)  # linear fitting done in logspace
         y_fitted = np.poly1d(linefit)(x_bin_centers) # in logspace
 
         Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
@@ -160,7 +160,7 @@ def plot_Zprof_snap(df, ax, args, hidex=False, hidey=False):
         ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=5)
         ax.scatter(x_bin_centers, y_binned, c=color, s=50, lw=1, ec='black', zorder=10)
         ax.plot(x_bin_centers, y_fitted, color=darker_color_dict[color], lw=2.5, ls='dashed')
-        ax.text(0.97, 0.95 - index * 0.1, thisproj + ': Slope = %.2F ' % linefit[0] + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor / 1.2, va='top', ha='right')
+        ax.text(0.97, 0.95 - index * 0.1, thisproj + r': Slope = %.2F $\pm$ %.2F ' % (Zgrad.n, Zgrad.s) + 'dex/kpc', color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor / 1.2, va='top', ha='right')
 
     ax.set_xlim(0, np.ceil(args.upto_kpc / 0.695)) # kpc
     ax.set_ylim(args.Zlim[0] - 0.1, args.Zlim[1]) # log limits
