@@ -177,8 +177,8 @@ def KS_relation(ds, region, args):
 
     if need_to_make_this_plot(output_filename, args):
         # Make a projection and convert to FRB
-        p = yt.ProjectionPlot(ds, ds.z_unit_disk, 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
-        proj_frb = p.data_source.to_frb((20., "kpc"), 500)
+        p = yt.ProjectionPlot(ds, ds.z_unit_disk, 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code, north_vector=ds.x_unit_disk, buff_size=[500,500])
+        proj_frb = p.frb
         # Pull out the gas surface density and the star formation rate of the young stars
         projected_density = proj_frb['density'].in_units('Msun/pc**2')
         ks_nh1 = proj_frb['H_p0_number_density'].in_units('pc**-2') * yt.YTArray(1.67e-24/1.989e33, 'Msun')
