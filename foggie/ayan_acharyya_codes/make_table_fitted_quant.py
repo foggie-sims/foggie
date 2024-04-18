@@ -59,7 +59,7 @@ def make_latex_table(df, tabname, args):
     Function to minimise the given larger master table into a small latex table for the paper
     Returns: saves .text file at the destination given by outtabname
     '''
-    column_dict = {'halo':'Halo', 'output':'Output', 'redshift':r'$z$', 'time':'Time (Gyr)', 'log_mass':r'M$_{\star}$/M$_{\odot}$', 'log_Ztotal':'Z$_{\rm total}$/Z$_{\odot}$', 'Zgrad':r'$\nabla Z$ (dex/kpc)', 'log_Z50':'Z$_{\rm median}$/Z$_{\odot}$', 'log_ZIQR':'Z$_{\rm IQR}$/Z$_{\odot}$', 'log_Zmean':'Z$_{\rm cen}$/Z$_{\odot}$', 'log_Zwidth':'Z$_{\rm width}$/Z$_{\odot}$'}
+    column_dict = {'halo':'Halo', 'output':'Output', 'redshift':r'$z$', 'time':'Time (Gyr)', 'log_mass':r'M$_{\star}$/M$_{\odot}$', 'log_Ztotal':'$\log Z_{\rm total}$/Z$_{\odot}$', 'Zgrad':r'$\nabla Z$ (dex/kpc)', 'log_Z50':'$\log Z_{\rm median}$/Z$_{\odot}$', 'log_ZIQR':'$\log Z_{\rm IQR}$/Z$_{\odot}$', 'log_Zmean':'Z$_{\rm cen}$/Z$_{\odot}$', 'log_Zwidth':'Z$_{\rm width}$/Z$_{\odot}$'}
     redshift_arr = [0, 1, 2]
     columns_with_unc = ['log_Zmean', 'log_Zwidth', 'Zgrad']
     decimal_dict = defaultdict(lambda: 2, redshift=1, Zgrad=3)
@@ -75,6 +75,8 @@ def make_latex_table(df, tabname, args):
         try:
             if thiscol in columns_with_unc: # special treatment for columns with +/-
                 tex_df[thiscol] = [('$%.' + str(decimal_dict[thiscol]) + 'f\pm%.' + str(decimal_dict[thiscol]) + 'f$') % (item.n, item.s) for item in tex_df[thiscol].values]
+            elif thiscol == 'log_Ztotal' or thiscol == 'log_Z50':
+                tex_df[thiscol] = tex_df[thiscol].map(lambda x: '$%.2f$' % x if x < 0 else '$\phantom{-}%.2f$' % x)
             else:
                 tex_df[thiscol] = tex_df[thiscol].map(('${:,.' + str(decimal_dict[thiscol]) + 'f}$').format)
         except ValueError: # columns that do not have numbers
@@ -114,7 +116,7 @@ if __name__ == '__main__':
 
     # ---------setting up master dataframe------------------------
     #cols_in_df = ['halo', 'output', 'redshift', 'time', 'log_mass', 'log_Ztotal',  'log_Z50', 'log_ZIQR', 'log_Zmean', 'log_Zmean_u', 'log_Zwidth', 'log_Zwidth_u', 'Zgrad', 'Zgrad_u']
-    cols_in_df = ['halo', 'output', 'redshift', 'time', 'log_mass', 'log_Ztotal',  'log_Z50', 'log_ZIQR', 'Zgrad', 'Zgrad_u'] # removed fitted center and width for paper
+    cols_in_df = ['halo', 'output', 'redshift', 'time', 'log_mass', 'log_Ztotal',  'log_Z50', 'log_ZIQR', 'Zgrad_binned', 'Zgrad_u_binned'] # removed fitted center and width for paper
     master_df = pd.DataFrame(columns=cols_in_df)
     tex_path = HOME + '/Documents/writings/papers/FOGGIE_Zgrad/Tables/'
     master_filename = tex_path + 'master_table_Zpaper%s%s%s%s%s.txt' % (upto_text, args.weightby_text, args.fitmultiple_text, args.density_cut_text, args.islog_text)
@@ -145,6 +147,7 @@ if __name__ == '__main__':
 
     # ---------collate and save master df------------
     master_df = master_df[cols_in_df]
+    master_df = master_df.rename(columns={'Zgrad_binned': 'Zgrad', 'Zgrad_u_binned': 'Zgrad_u'})
     cols_with_u = ['Zgrad', 'log_Zmean', 'log_Zwidth']
     for thiscol in cols_with_u:
         if thiscol in master_df:
