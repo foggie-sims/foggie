@@ -63,10 +63,12 @@ def parse_args():
     parser.add_argument('--upto_kpc', metavar='upto_kpc', type=float, action='store', default=None, help='Limit analysis out to a certain physical kpc. By default it does the entire refine box.')
     parser.add_argument('--docomoving', dest='docomoving', action='store_true', default=False, help='Consider the input upto_kpc as a comoving quantity? Default is No.')
     parser.add_argument('--weight', metavar='weight', type=str, action='store', default=None, help='Name of quantity to weight the metallicity by. Default is None i.e., no weighting.')
-    parser.add_argument('--projection', metavar='projection', type=str, action='store', default='z', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is z')
+    parser.add_argument('--projection', metavar='projection', type=str, action='store', default=None, help='Which projection do you want to plot, i.e., which axes are your line of sight? Default is to do x and z. Can specify multiple axes split by commas, and can do disk-relative as e.g. "x-disk".')
+
+    parser.add_argument('--plot', metavar='plot', type=str, action='store', default='density_projection,young_stars_projection,temperature_projection,KS_relation,outflow_rates', help='Which plots do you want to make? Give a comma-separated list. Default is all plots.')
 
     # The following three args are used for backward compatibility, to find the trackfile for production runs, if a trackfile has not been explicitly specified
-    parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_local', help='Which system are you on? This is used only when trackfile is not specified. Default is ayan_local')
+    parser.add_argument('--system', metavar='system', type=str, action='store', default=None, help='Which system are you on? This is used only when trackfile is not specified.')
     parser.add_argument('--halo', metavar='halo', type=str, action='store', default='8508', help='Which halo? Default is Tempest. This is used only when trackfile is not specified.')
     parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f', help='Which run? Default is nref11c_nref9f. This is used only when trackfile is not specified.')
 
@@ -94,29 +96,54 @@ def need_to_make_this_plot(output_filename, args):
 # --------------------------------------------------------------------------------------------------------------------
 def gas_density_projection(ds, region, args):
     '''Plots a gas density projection of the galaxy disk.'''
-    output_filename = args.save_directory + '/' + args.snap + '_Projection_' + args.projection + '_density.png'
 
-    if need_to_make_this_plot(output_filename, args):
-        p = yt.ProjectionPlot(ds, args.projection, 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
-        p.set_unit('density','Msun/pc**2')
-        p.set_cmap('density', density_color_map)
-        p.set_zlim('density',0.01,300)
-        p.set_font_size(16)
-        p.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
-        p.save(output_filename)
+    for p in projections:
+        output_filename = args.save_directory + '/' + args.snap + '_Projection_' + p + '_density.png'
+
+        if need_to_make_this_plot(output_filename, args):
+            if '-disk' in p:
+                if 'x' in p:
+                    p_dir = ds.x_unit_disk
+                    north_vector = ds.z_unit_disk
+                if 'y' in p:
+                    p_dir = ds.y_unit_disk
+                    north_vector = ds.z_unit_disk
+                if 'z' in p:
+                    p_dir = ds.z_unit_disk
+                    north_vector = ds.x_unit_disk
+                p = yt.ProjectionPlot(ds, p_dir, 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code, north_vector=north_vector)
+            else: p = yt.ProjectionPlot(ds, p, 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
+            p.set_unit('density','Msun/pc**2')
+            p.set_cmap('density', density_color_map)
+            p.set_zlim('density',0.01,300)
+            p.set_font_size(16)
+            p.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
+            p.save(output_filename)
 
 # --------------------------------------------------------------------------------------------------------------------
 def young_stars_density_projection(ds, region, args):
     '''Plots a young stars density projection of the galaxy disk.'''
 
-    output_filename = args.save_directory + '/' + args.snap + '_Projection_disk-z_young_stars3_cic.png'
+    for p in projections:
+        output_filename = args.save_directory + '/' + args.snap + '_Projection_' + p + '_young_stars3_cic.png'
 
-    if need_to_make_this_plot(output_filename, args):
-        p = yt.ProjectionPlot(ds, ds.z_unit_disk, ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code)
-        p.set_unit(('deposit','young_stars3_cic'),'Msun/kpc**2')
-        p.set_zlim(('deposit','young_stars3_cic'),1000,1000000)
-        p.set_cmap(('deposit','young_stars3_cic'), density_color_map)
-        p.save(output_filename)
+        if need_to_make_this_plot(output_filename, args):
+            if '-disk' in p:
+                if 'x' in p:
+                    p_dir = ds.x_unit_disk
+                    north_vector = ds.z_unit_disk
+                if 'y' in p:
+                    p_dir = ds.y_unit_disk
+                    north_vector = ds.z_unit_disk
+                if 'z' in p:
+                    p_dir = ds.z_unit_disk
+                    north_vector = ds.x_unit_disk
+                p = yt.ProjectionPlot(ds, p_dir, ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code, north_vector=north_vector)
+            else: p = yt.ProjectionPlot(ds, p, ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code)
+            p.set_unit(('deposit','young_stars3_cic'),'Msun/kpc**2')
+            p.set_zlim(('deposit','young_stars3_cic'),1000,1000000)
+            p.set_cmap(('deposit','young_stars3_cic'), density_color_map)
+            p.save(output_filename)
 
 # --------------------------------------------------------------------------------------------------------------------
 def edge_visualizations(ds, region, args):
@@ -132,10 +159,10 @@ def edge_visualizations(ds, region, args):
         s_filename = output_basename + f"_Slice_{label}_temperature.png"
 
         if need_to_make_this_plot(p_filename, args):
-            # "Thin" projections (30 kpc deep).
+            # "Thin" projections (20 kpc deep).
             p = yt.ProjectionPlot(ds, axis, "temperature", weight_field="density",
                                 center=ds.halo_center_code, data_source=region,
-                                width=(60,"kpc"), depth=(30,"kpc"),
+                                width=(60,"kpc"), depth=(20,"kpc"),
                                 north_vector=ds.z_unit_disk)
             p.set_cmap('temperature', sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True))
             p.set_zlim('temperature', 1e4,1e7)
@@ -160,8 +187,8 @@ def KS_relation(ds, region, args):
 
     if need_to_make_this_plot(output_filename, args):
         # Make a projection and convert to FRB
-        p = yt.ProjectionPlot(ds, 'z', 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
-        proj_frb = p.data_source.to_frb((20., "kpc"), 500)
+        p = yt.ProjectionPlot(ds, ds.z_unit_disk, 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code, north_vector=ds.x_unit_disk, buff_size=[500,500])
+        proj_frb = p.frb
         # Pull out the gas surface density and the star formation rate of the young stars
         projected_density = proj_frb['density'].in_units('Msun/pc**2')
         ks_nh1 = proj_frb['H_p0_number_density'].in_units('pc**-2') * yt.YTArray(1.67e-24/1.989e33, 'Msun')
@@ -269,11 +296,11 @@ def make_plots(snap, args):
         region = ds.sphere(ds.halo_center_kpc, ds.arr(args.galrad, 'kpc'))
 
     # ----------------------- Make the plots ---------------------------------------------
-    gas_density_projection(ds, region, args)
-    edge_visualizations(ds, region, args)
-    young_stars_density_projection(ds, region, args)
-    KS_relation(ds, region, args)
-    outflow_rates(ds, region, args)
+    if ('density_projection' in cli_args.plot): gas_density_projection(ds, region, args)
+    if ('temperature_projection' in cli_args.plot): edge_visualizations(ds, region, args)
+    if ('young_stars_projection' in cli_args.plot): young_stars_density_projection(ds, region, args)
+    if ('KS_relation' in cli_args.plot): KS_relation(ds, region, args)
+    if ('outflow_rates' in cli_args.plot): outflow_rates(ds, region, args)
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -288,7 +315,18 @@ if __name__ == "__main__":
         # In case users save to their home directory using "~"
         cli_args.save_directory = os.path.expanduser(cli_args.save_directory)
 
-    if cli_args.trackfile is None: _, _, _, _, cli_args.trackfile, _, _, _ = get_run_loc_etc(cli_args) # for FOGGIE production runs it knows which trackfile to grab
+    if cli_args.trackfile is None:
+        if cli_args.system is None:
+            sys.exit('You must provide either the path to the track file or the name of the system you are on!')
+        _, _, _, _, cli_args.trackfile, _, _, _ = get_run_loc_etc(cli_args) # for FOGGIE production runs it knows which trackfile to grab
+
+    if cli_args.projection is not None:
+        if ',' in cli_args.projection:
+            projections = cli_args.projection.split(',')
+        else:
+            projections = [cli_args.projection]
+    else:
+        projections = ['x','z']
 
     if cli_args.output is not None: # Running on specific output/s
         outputs = make_output_list(cli_args.output)

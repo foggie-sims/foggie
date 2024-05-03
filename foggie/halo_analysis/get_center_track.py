@@ -229,9 +229,9 @@ if __name__ == "__main__":
         start_snap = 2400
         end_snap = 2520
     elif args.halo == "2878":
-        first_center = [0.5140447616577148,  0.521082878112793, 0.4783582687377929]
-        start_snap = 1800
-        end_snap = 1867
+        first_center = [0.5142889022827148, 0.5215978622436523, 0.4778890609741211]
+        start_snap = 1867
+        end_snap = 1900
     else:
         sys.exit("halo not found!")
 
