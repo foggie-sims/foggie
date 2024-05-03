@@ -215,6 +215,20 @@ def overplot_theory(ax, args):
         df['source'] = os.path.split(filename)[1][:-4]
         master_df = pd.concat([master_df, df[cols_to_concat]])
 
+        # ------Bellardini et al. 2022 Fig B1 (Appendix) ---------
+        filename = literature_path + 'Bellardini_2022/' 'figureC1.txt'
+        check_strings = ['#Gas_redshifts', '#Gas_radial_mean_grad']
+        columns = ['redshift', 'Zgrad']
+        df = pd.DataFrame(columns=columns)
+        with open(filename) as myfile: lines = myfile.readlines()
+        lines = [item[:-1] for item in lines]
+        for index, this_string in enumerate(check_strings):
+            line_num = lines.index(this_string)
+            df[columns[index]] = [float(item) for item in lines[line_num + 1][1:-1].split(', ')]
+        df['Zgrad_u'] = 0. # no information
+        df['source'] = 'Bellardini_2022_B1'
+        master_df = pd.concat([master_df, df[cols_to_concat]])
+
         # -----saving the combined dataframe --------------
         master_df = master_df.sort_values(by='redshift', ignore_index=True)
         master_df.to_csv(outputfile, index=None, sep='\t', na_rep='-')
@@ -232,8 +246,8 @@ def overplot_theory(ax, args):
     master_df = master_df.sort_values(by='year', ignore_index=True)
 
     # -----actual plotting --------------
-    color_dict = {'Gibson_2013_Fig1':'cadetblue', 'Ma_2017_TableA1':'lightskyblue', 'Hemler_2021_Table1':'cornflowerblue'}
-    label_dict = {'Gibson_2013_Fig1':'MUGS (Gibson+13)', 'Ma_2017_TableA1':'FIRE (Ma+17)', 'Hemler_2021_Table1':'Illustris TNG (Hemler+21)'}
+    color_dict = {'Gibson_2013_Fig1':'cadetblue', 'Ma_2017_TableA1':'lightskyblue', 'Hemler_2021_Table1':'cornflowerblue', 'Bellardini_2022_B1':'darkturquoise'}
+    label_dict = {'Gibson_2013_Fig1':'MUGS (Gibson+13)', 'Ma_2017_TableA1':'FIRE-1 (Ma+17)', 'Hemler_2021_Table1':'Illustris TNG (Hemler+21)', 'Bellardini_2022_B1':'FIRE-2 (Bellardini+22)'}
 
     fig = ax.figure
     if not args.fortalk: fig.text(0.15, 0.93, 'FOGGIE (This work)', ha='left', va='top', color='salmon', fontsize=args.fontsize / 1.2)
@@ -345,6 +359,12 @@ def overplot_observations(ax, args):
         filename = literature_path + 'Li_2022_Table1.txt'
         df = pd.read_table(filename, delim_whitespace=True, skiprows=7, skipfooter=3, names=['id', 'col2', 'col3', 'redshift', 'col5', 'col6', 'col7', 'col8', 'col9', 'col10', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16', 'col17', 'Zgrad', 'col19', 'Zgrad_u'], usecols=['id', 'redshift', 'Zgrad', 'Zgrad_u'])
         df['source'] = os.path.split(filename)[1][:-4]
+        master_df = pd.concat([master_df, df[cols_to_concat]])
+
+        # ------Li et al. 2024 (catalogue obtained by priv. comm.) --------
+        filename = literature_path + 'JWST_Li24_catalog.txt'
+        df = pd.read_table(filename, delim_whitespace=True, skiprows=1, names=['id', 'redshift', 'Zgrad', 'Zgrad_u'])
+        df['source'] = 'Li_2024'
         master_df = pd.concat([master_df, df[cols_to_concat]])
 
         # ------Wang et al. 2022 (GLASS) -------------

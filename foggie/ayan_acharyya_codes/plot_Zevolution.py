@@ -502,6 +502,8 @@ if __name__ == '__main__':
         args.islog = True
         args.weight = 'mass'
         args.get_native_res = True
+    if args.plot_all_stats:
+        args.fit_multiple = True
 
     # --------loop over different FOGGIE halos-------------
     for index, args.halo in enumerate(args.halo_arr):
