@@ -67,7 +67,7 @@ def do_plot(ds, field, axs, annotate_positions, small_box, center, box_width, cm
     prj.set_log(field, iscolorlog)
     if not noweight:
         prj.set_unit(field, unit)
-        prj.set_zlim(field, zmin=zmin, zmax=zmax)
+        #prj.set_zlim(field, zmin=zmin, zmax=zmax)
     if field[1] == 'age': prj.set_buff_size((67, 67)) ##
     try: cmap.set_bad('k')
     except: pass
@@ -125,23 +125,23 @@ def make_projection_plots(ds, center, refine_box, box_width, fig_dir, name, \
     field_dict = {'gas':('gas', 'density'), 'gas_entropy':('gas', 'entropy'), \
                   'stars':('deposit', 'stars_density'),'ys_density':('deposit', 'young_stars_density'), 'ys_age':('my_young_stars', 'age'), 'ys_mass':('deposit', 'young_stars_mass'), \
                   'metal':('gas', 'metallicity'), 'temp':('gas', 'temperature'), 'dm':('deposit', 'dm_density'), 'vrad':('gas', 'radial_velocity_corrected'), \
-                  'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass'), 'vdisp_3d':('gas', 'velocity_dispersion_3d'), \
+                  'grid': ('index', 'grid_level'), 'mrp': ('deposit', 'ptype4_mass'), 'vdisp_3d':('gas', 'velocity_dispersion_3d'), 'h1':('gas', 'H_p0_number_density'), 'el':('gas', 'El_number_density'), \
                   'vtan':('gas', 'tangential_velocity_corrected'), 'vphi':('gas', 'phi_velocity_corrected'), 'vtheta':('gas', 'theta_velocity_corrected')}
     cmap_dict = {'gas':density_color_map, 'gas_entropy':entropy_color_map, 'stars':plt.cm.Greys_r, 'ys_density':density_color_map, 'ys_age':density_color_map, \
                  'ys_mass':density_color_map, 'metal':old_metal_color_map, 'temp':temperature_color_map, 'dm':plt.cm.gist_heat, 'vrad':velocity_discrete_cmap, \
                  'vlos':velocity_discrete_cmap, 'grid':'viridis', 'mrp':'viridis', 'vdisp_los':'viridis', 'vdisp_3d':'viridis', 'vtan':'viridis', \
-                 'vphi':velocity_discrete_cmap, 'vtheta':'viridis'}
+                 'vphi':velocity_discrete_cmap, 'vtheta':'viridis', 'h1':h1_color_map, 'el':e_color_map}
     unit_dict = defaultdict(lambda: 'Msun/pc**2', metal='Zsun', temp='K', vrad='km/s', ys_age='Myr', ys_mass='pc*Msun', gas_entropy='keV*cm**3', \
-                            vlos='km/s', grid='', mrp='cm*g', vdisp_los='km/s', vdisp_3d='km/s', vtan='km/s', vphi='km/s', vtheta='km/s')
+                            vlos='km/s', grid='', mrp='cm*g', vdisp_los='km/s', vdisp_3d='km/s', vtan='km/s', vphi='km/s', vtheta='km/s', h1='cm**-2', el='cm**-2')
     zmin_dict = defaultdict(lambda: density_proj_min, metal=7e-2 if args.forpaper else 2e-2, temp=1.e3, vrad=-200, ys_age=0.1, ys_mass=1, ys_density=1e-3, \
-                            gas_entropy=1.6e25, vlos=-500, grid=1, mrp=1e57, vdisp_los=0, vdisp_3d=0, vtan=0, vphi=-500, vtheta=0)
+                            gas_entropy=1.6e25, vlos=-500, grid=1, mrp=1e57, vdisp_los=0, vdisp_3d=0, vtan=0, vphi=-500, vtheta=0, h1=h1_proj_min, el=e_min)
     zmax_dict = defaultdict(lambda: density_proj_max, metal= 2 if args.forproposal else 4e0 if args.forpaper else 5e0, temp= temperature_max, vrad=200, \
                             ys_age=10, ys_mass=2e3, ys_density=1e1, gas_entropy=1.2e27, vlos=500, grid=11, mrp=1e65, vdisp_los=500, vdisp_3d=500, \
-                            vtan=500, vphi=500, vtheta=500)
+                            vtan=500, vphi=500, vtheta=500, h1=h1_proj_max, el=e_max)
     weight_field_dict = defaultdict(lambda: None, metal=('gas', 'mass') if args.forpaper else ('gas', 'density'), temp=('gas', 'density'), \
                                     vrad=('gas', 'density'), vlos=('gas', 'density'), vdisp_los=('gas', 'density'), vdisp_3d=('gas', 'density'),\
                                     vtan=('gas', 'density'), vphi=('gas', 'density'), vtheta=('gas', 'density'))
-    colorlog_dict = defaultdict(lambda: False, metal=False if args.forproposal else True, gas=True, temp=True, gas_entropy=True, mrp=True)
+    colorlog_dict = defaultdict(lambda: False, metal=False if args.forproposal else True, gas=True, temp=True, gas_entropy=True, mrp=True, h1=True, el=True)
 
     # north vector = which way is up; this is set up such that the north vector rotates ABOUT the normal vector
     rot_north_by = (total_north_rot * np.pi / 180) * rot_frame / nframes # to convert total_north_rot from deg to radian
