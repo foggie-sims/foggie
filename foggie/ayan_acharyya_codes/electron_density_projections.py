@@ -2,13 +2,13 @@
 
 """
 
-    Title :      electron_density
-    Notes :      Plot PROJECTED gas density, electron density, as well as electron density profile and distribution ALL in one plot, for ALL 3 projections
+    Title :      electron_density_projections
+    Notes :      Plot PROJECTED gas density, electron density, as well as electron density profile ALL in one plot, for ALL 3 projections
     Output :     Combined plots as png files plus, optionally, these files stitched into a movie
     Author :     Ayan Acharyya
     Started :    May 2024
-    Examples :   run electron_density.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.2 --docomoving --do_all_sims --write_file
-                 run electron_density.py --system ayan_local --halo 4123 --upto_kpc 10 --res 0.2 --output RD0038 --docomoving --nbins 100 --clobber_plot
+    Examples :   run electron_density_projections.py --system ayan_pleiades --halo 8508 --upto_kpc 50 --res 0.2 --docomoving --do_all_sims --write_file
+                 run electron_density_projections.py --system ayan_local --halo 4123 --upto_kpc 50 --res 0.2 --output RD0038 --docomoving --nbins 100 --clobber_plot
 """
 from header import *
 from util import *
@@ -21,7 +21,7 @@ from compute_MZgrad import get_disk_stellar_mass
 start_time = datetime.now()
 
 # ----------------------------------------------------------------
-def plot_projected_map(map, projection, ax, args, clim=None, cmap='viridis', color='k', quantity=None, hidex=False, hidey=False):
+def plot_projected_map(map, projection, ax, args, clim=None, cmap='viridis', quantity=None, hidex=False, hidey=False):
     '''
     Function to plot a given projected metallicity map on to a given axis
     :return: axis handle
@@ -49,11 +49,11 @@ def plot_projected_map(map, projection, ax, args, clim=None, cmap='viridis', col
         ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
         ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
 
-    ax.text(0.9 * args.galrad, 0.9 * args.galrad, projection, ha='right', va='top', c='k', fontsize=args.fontsize * 1.2, weight='bold')#, bbox=dict(facecolor='k', alpha=0.99, edgecolor='k'))
+    ax.text(0.9 * args.galrad, 0.9 * args.galrad, projection, ha='right', va='top', c='k', fontsize=args.fontsize)
 
     # ---------making the colorbar axis once, that will correspond to all projections--------------
     if projection == 'x':
-        cbar_width = 0.13
+        cbar_width = 0.18
         if quantity == 'gas':
             cax_xpos, cax_ypos, cax_width, cax_height = 0.1, 0.93, cbar_width, 0.02
             label = r'log Gas density (M$_{\odot}$/pc$^2$)'
@@ -62,7 +62,7 @@ def plot_projected_map(map, projection, ax, args, clim=None, cmap='viridis', col
             ax.text(0.03, 0.2, 'z = %.2F\nt = %.1F Gyr' % (args.current_redshift, args.current_time), ha='left', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, bbox=dict(facecolor='white', alpha=0.8, edgecolor='k'))
 
         elif quantity == 'el':
-            cax_xpos, cax_ypos, cax_width, cax_height = 0.1 + cbar_width + 0.11, 0.93, cbar_width, 0.02
+            cax_xpos, cax_ypos, cax_width, cax_height = 0.1 + cbar_width + 0.15, 0.93, cbar_width, 0.02
             label = r'log Electron density (1/cm$^2$)'
         else:
             cax_xpos, cax_ypos, cax_width, cax_height = 0.1, 0.93, 0.8, 0.02
@@ -76,6 +76,48 @@ def plot_projected_map(map, projection, ax, args, clim=None, cmap='viridis', col
         fig.text(cax_xpos + cax_width / 2, cax_ypos + cax_height + 0.005, label, ha='center', va='bottom', fontsize=args.fontsize / args.fontfactor)
 
     return ax
+
+# ---------------------------------------------------------------------------------
+def piecewise_linear(x, central, alpha, break_rad, beta):
+    '''
+    Piecewise_linear function, for fitting broken power law in log-space
+    '''
+    return np.piecewise(x, [x < break_rad], [lambda x: central + alpha * x, lambda x: central + alpha * break_rad + beta * (x - break_rad)])
+
+
+# ---------------------------------------------------------------------------------
+def fit_binned(df, xcol, ycol, x_extent, ax=None, weightcol=None, color='darkorange'):
+    '''
+    Function to bin data, fit the binned data, and overplot binned data and fit on existing plot
+    Returns the fitted parameters and axis handle
+    '''
+    x_bins = np.linspace(0, x_extent, 10)
+    df['binned_cat'] = pd.cut(df[xcol], x_bins)
+
+    if weightcol is not None:
+        agg_func = lambda x: np.sum(x * df.loc[x.index, weightcol]) / np.sum(df.loc[x.index, weightcol]) # function to get weighted mean
+        agg_u_func = lambda x: np.sqrt(((np.sum(df.loc[x.index, weightcol] * x**2) / np.sum(df.loc[x.index, weightcol])) - (np.sum(x * df.loc[x.index, weightcol]) / np.sum(df.loc[x.index, weightcol]))**2) * (np.sum(df.loc[x.index, weightcol]**2)) / (np.sum(df.loc[x.index, weightcol])**2 - np.sum(df.loc[x.index, weightcol]**2))) # eq 6 of http://seismo.berkeley.edu/~kirchner/Toolkits/Toolkit_12.pdf
+    else:
+        agg_func, agg_u_func = np.mean, np.std
+
+    y_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_func)])[ycol].values.flatten()
+    y_u_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_u_func)])[ycol].values.flatten()
+    x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
+
+    # ----------to plot mean binned y vs x profile--------------
+    popt, pcov = curve_fit(piecewise_linear, x_bin_centers, y_binned, p0 = [20., -1, 5., -0.5]) # popt = [central (log cm^-3), alpha (dimensionless), break_rad (kpc), beta (dimensionless)]
+    y_fitted = piecewise_linear(x_bin_centers, *popt)
+
+    print('Upon radially binning, inferred fit parameters are: central = %.2f, alpha = %.1f, break_rad = %.1f, beta = %.1f' % (popt[0], popt[1], popt[2], popt[3]))
+
+    if ax is not None:
+        ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=1)
+        ax.scatter(x_bin_centers, y_binned, c=color, s=20, lw=0.5, ec='black', zorder=1)
+        ax.plot(x_bin_centers, y_fitted, color='k', lw=1, ls='solid', zorder=5)
+        if not args.notextonplot: ax.text(0.033, 0.05, 'central = %.2f \nalpha = %.2f\nbreak = %.2f kpc \nbeta = %.2f' % (popt[0], popt[1], popt[2], popt[3]), color='k', transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor, ha='left', va='bottom')#, bbox=dict(facecolor='white', alpha=0.8, edgecolor='white'))
+        return popt, ax
+    else:
+        return popt
 
 # ----------------------------------------------------------------
 def plot_profile(df, projection, ax, args, hidex=False, hidey=False):
@@ -97,9 +139,13 @@ def plot_profile(df, projection, ax, args, hidex=False, hidey=False):
     df['log_' + ycol] = np.log10(df[ycol]) # taking log AFTER the weighting
     ycol = 'log_' + ycol
 
-    # ----------to plot the profile with all cells--------------
-    ax.scatter(df['rad'], df[ycol], c=args.color, s=1, lw=0, alpha=0.3)
+    # ----------to plot the profile with all cells--------------df
+    artist = dsshow(df, dsh.Point('rad', ycol), dsh.count(), norm='linear', x_range=(0, args.galrad), y_range=(args.ed_lim[0], args.ed_lim[1]), aspect = 'auto', ax=ax, cmap='Blues_r')
 
+    # ----------to radially bin and fit the radial bins--------------
+    fit_result, ax = fit_binned(df, 'rad', ycol, args.galrad, ax=ax, weightcol=args.weight)
+
+    # ----------to annotate plot axes etc--------------
     ax.set_xlim(0, np.ceil(args.upto_kpc / 0.695) if args.docomoving else args.upto_kpc) # kpc
     ax.set_ylim(args.ed_lim[0], args.ed_lim[1]) # log limits
 
@@ -115,59 +161,7 @@ def plot_profile(df, projection, ax, args, hidex=False, hidey=False):
         ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
         ax.set_ylabel(r'log El density (1/cm$^2$)', fontsize=args.fontsize / args.fontfactor)
 
-    return ax
-
-# ----------------------------------------------------------------
-def plot_distribution(df, projection, ax, args, hidex=False, hidey=False):
-    '''
-    Function to plot the metallicity histogram (from input dataframe) as seen from all three projections, on to the given axis
-    Also fits the histogram of projected metallicity along each projection
-    :return: fitted histogram parameters across each projection, and the axis handle
-    '''
-    myprint('Now making the histogram plot for ' + args.output + '..', args)
-
-    quant_arr = df['el_density_' + projection].values
-    weights = df[args.weight + '_' + projection].values if args.weight is not None else None
-    color = args.color
-
-    # getting rid of potential zero values
-    indices = np.array(np.logical_not(quant_arr == 0))
-    quant_arr = quant_arr[indices]
-    weights = weights[indices] if args.weight is not None else None
-
-    quant_arr = np.log10(quant_arr)  # all operations will be done in log
-    p = ax.hist(quant_arr, bins=args.nbins, histtype='step', lw=2, ls='solid', density=True, ec=color, weights=weights)
-
-    # characterising distribution
-    percen_25 = np.percentile(quant_arr, 25.)
-    percen_75 = np.percentile(quant_arr, 75.)
-    width = percen_75 - percen_25
-    peak = p[1][np.where(p[0] == np.max(p[0]))[0][0]]
-
-    # drawing vertial lines
-    ax.axvline(percen_25, c='k', lw=1, ls='dashed')
-    ax.axvline(percen_75, c='k', lw=1, ls='dashed')
-    ax.axvline(peak, c='k', lw=2, ls='dashed')
-
-    ax.text(0.03, 0.95, 'Peak = %.2F\nWidth = %.2F' % (peak, width), color='k', transform=ax.transAxes, fontsize = args.fontsize / args.fontfactor, va = 'top', ha = 'left')
-
-    # setting plot limits
-    ax.set_xlim(args.ed_lim[0], args.ed_lim[1]) # Zsun
-    ax.set_ylim(0, 1.2)
-    
-    if hidex:
-        ax.set_xticklabels([])
-    else:
-        ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-        ax.set_xlabel(r'log Electron density (1/cm$^2$)', fontsize=args.fontsize / args.fontfactor)
-    
-    if hidey:
-        ax.set_yticklabels([])
-    else:
-        ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
-        ax.set_ylabel('Normalised distribution', fontsize=args.fontsize / args.fontfactor)
-
-    return width, peak, ax
+    return fit_result, ax
 
 # -----main code-----------------
 if __name__ == '__main__':
@@ -177,7 +171,7 @@ if __name__ == '__main__':
     if not args.keep: plt.close('all')
 
     # --------make new dataframe to store all results-----------------
-    columns = ['output', 'redshift', 'time', 'sfr', 'log_mstar', 'ed_width_x', 'ed_peak_x', 'ed_width_y', 'ed_peak_y', 'ed_width_z', 'ed_peak_z']
+    columns = ['output', 'redshift', 'time', 'sfr', 'log_mstar', 'central_x', 'alpha_x', 'break_rad_x', 'beta_x', 'central_y', 'alpha_y', 'break_rad_y', 'beta_y', 'central_z', 'alpha_z', 'break_rad_z', 'beta_z']
     df_full = pd.DataFrame(columns=columns)
 
     args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''
@@ -197,13 +191,17 @@ if __name__ == '__main__':
         sfr_df = pd.DataFrame()
 
     # -------- reading in stellar mass info-------
-    dummy_args = copy.deepcopy(args)
-    dummy_args.weight = 'mass'
-    dummy_args.weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
-    dummy_args.Zgrad_den = 'kpc'
-    dummy_args.use_density_cut = True
-    mass_df = load_df(dummy_args)
-    mass_df = mass_df[['output', 'log_mass']]
+    try:
+        dummy_args = copy.deepcopy(args)
+        dummy_args.weight = 'mass'
+        dummy_args.weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
+        dummy_args.Zgrad_den = 'kpc'
+        dummy_args.use_density_cut = True
+        mass_df = load_df(dummy_args)
+        mass_df = mass_df[['output', 'log_mass']]
+    except Exception:
+        mass_df = pd.DataFrame()
+        pass
 
     # --------domain decomposition; for mpi parallelisation-------------
     if args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(args) # all snapshots of this particular halo
@@ -271,13 +269,12 @@ if __name__ == '__main__':
         if not os.path.exists(figname) or args.clobber_plot or args.write_file:
             try:
                 # -------setting up fig--------------
-                nrow, ncol = 3, 4
-                fig = plt.figure(figsize=(12, 7))
+                nrow, ncol = 3, 3
+                fig = plt.figure(figsize=(8, 7))
                 axes_proj_den = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 0), colspan=1) for item in np.arange(3)]
                 axes_proj_el_den = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 1), colspan=1) for item in np.arange(3)]
 
                 axes_prof = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 2), colspan=1) for item in np.arange(3)]
-                axes_dist = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 3), colspan=1) for item in np.arange(3)]
 
                 fig.tight_layout()
                 fig.subplots_adjust(top=0.9, bottom=0.07, left=0.1, right=0.95, wspace=0.8, hspace=0.15)
@@ -300,7 +297,7 @@ if __name__ == '__main__':
 
                 # ------calculating projected electron density---------------
                 df_snap_filename = args.output_dir + '/txtfiles/%s_projected_el_density_%s%s%s%s.txt' % (args.output, args.upto_text, args.res_text, args.nbins_text, args.weightby_text)
-                ed_width, ed_peak = [], []
+                fit_result = []
 
                 if not os.path.exists(df_snap_filename) or args.clobber:
                     myprint(df_snap_filename + 'not found, creating afresh..', args)
@@ -316,12 +313,10 @@ if __name__ == '__main__':
                         df_snap['density_' + thisproj] = gas_density_map.flatten()
                         df_snap['el_density_' + thisproj] = el_density_map.flatten()
 
-                        axes_proj_den[index] = plot_projected_map(np.log10(gas_density_map), thisproj, axes_proj_den[index], args, clim=args.gd_lim, cmap=density_color_map, color=args.color, quantity='gas', hidex=index < len(args.projections) - 1)
-                        axes_proj_el_den[index] = plot_projected_map(np.log10(el_density_map), thisproj, axes_proj_el_den[index], args, clim=args.ed_lim, cmap=e_color_map, color=args.color, quantity='el', hidex=index < len(args.projections) - 1)
-                        axes_prof[index] = plot_profile(df_snap, thisproj, axes_prof[index], args, hidex=index < len(args.projections) - 1)
-                        this_width, this_peak, axes_dist[index] = plot_distribution(df_snap, thisproj, axes_dist[index], args, hidex=index < len(args.projections) - 1)
-                        ed_width.append(this_width)
-                        ed_peak.append(this_peak)
+                        axes_proj_den[index] = plot_projected_map(np.log10(gas_density_map), thisproj, axes_proj_den[index], args, clim=args.gd_lim, cmap=density_color_map, quantity='gas', hidex=index < len(args.projections) - 1)
+                        axes_proj_el_den[index] = plot_projected_map(np.log10(el_density_map), thisproj, axes_proj_el_den[index], args, clim=args.ed_lim, cmap=e_color_map, quantity='el', hidex=index < len(args.projections) - 1)
+                        this_fit, axes_prof[index] = plot_profile(df_snap, thisproj, axes_prof[index], args, hidex=index < len(args.projections) - 1)
+                        fit_result.append(this_fit)
 
                     df_snap.to_csv(df_snap_filename, sep='\t', index=None)
                     myprint('Saved file ' + df_snap_filename, args)
@@ -335,25 +330,21 @@ if __name__ == '__main__':
                         else: el_density = df_snap['el_density_' + thisproj]
                         el_density_map = el_density.values.reshape((args.ncells, args.ncells))
 
-                        axes_proj_den[index] = plot_projected_map(np.log10(gas_density_map), thisproj, axes_proj_den[index], args, clim=args.gd_lim, cmap=density_color_map, color=args.color, quantity='gas', hidex=index < len(args.projections) - 1)
-                        axes_proj_el_den[index] = plot_projected_map(np.log10(el_density_map), thisproj, axes_proj_el_den[index], args, clim=args.ed_lim, cmap=e_color_map, color=args.color, quantity='el', hidex=index < len(args.projections) - 1)
-                        axes_prof[index] = plot_profile(df_snap, thisproj, axes_prof[index], args, hidex=index < len(args.projections) - 1)
-                        this_width, this_peak, axes_dist[index] = plot_distribution(df_snap, thisproj, axes_dist[index], args, hidex=index < len(args.projections) - 1)
-                        ed_width.append(this_width)
-                        ed_peak.append(this_peak)
+                        axes_proj_den[index] = plot_projected_map(np.log10(gas_density_map), thisproj, axes_proj_den[index], args, clim=args.gd_lim, cmap=density_color_map, quantity='gas', hidex=index < len(args.projections) - 1)
+                        axes_proj_el_den[index] = plot_projected_map(np.log10(el_density_map), thisproj, axes_proj_el_den[index], args, clim=args.ed_lim, cmap=e_color_map, quantity='el', hidex=index < len(args.projections) - 1)
+                        this_fit, axes_prof[index] = plot_profile(df_snap, thisproj, axes_prof[index], args, hidex=index < len(args.projections) - 1)
+                        fit_result.append(this_fit)
 
+                fit_result = np.array(fit_result)
                 df_snap = df_snap.dropna()
                 try: sfr = sfr_df[sfr_df['output'] == args.output]['sfr'].values[0]
-                except IndexError: sfr = -99
+                except Exception: sfr = -99
 
                 try: log_mstar = mass_df[mass_df['output'] == args.output]['log_mass'].values[0]
-                except IndexError: log_mstar = np.log10(get_disk_stellar_mass(args))
-
-                # --------------annotating figure-------------------
-                fig.text(0.95, 0.95, r'SFR = %.2F M$_{\odot}/yr$    $\log{(\mathrm{M}_* / \mathrm{M}_{\odot})}$ = %.2F' % (sfr, log_mstar), ha='right', va='top', color='k', fontsize=args.fontsize, bbox=dict(facecolor='white', alpha=1.0, edgecolor='k'))
+                except Exception: log_mstar = np.log10(get_disk_stellar_mass(args))
 
                 # ------update full dataframe and read it from file-----------
-                df_full_row = np.hstack(([args.output, args.current_redshift, args.current_time, sfr, log_mstar], np.hstack([[ed_width[i], ed_peak[i]] for i in range(len(args.projections))])))
+                df_full_row = np.hstack(([args.output, args.current_redshift, args.current_time, sfr, log_mstar], np.hstack([[fit_result[i][0], fit_result[i][1], fit_result[i][2], fit_result[i][2]] for i in range(len(args.projections))])))
                 temp_df = pd.DataFrame(dict(zip(columns, df_full_row)), index=[0])
                 temp_df.to_csv(outfilename, mode='a', sep='\t', header=False, index=None)
 
@@ -367,6 +358,7 @@ if __name__ == '__main__':
             except Exception as e:
                 print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), args)
                 continue
+
         else:
             print('Skipping snapshot %s as %s already exists. Use --clobber_plot to remake figure.' %(args.output, figname))
             continue
