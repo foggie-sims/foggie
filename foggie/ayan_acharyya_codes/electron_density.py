@@ -7,8 +7,8 @@
     Output :     Combined plots as png files plus, optionally, these files stitched into a movie
     Author :     Ayan Acharyya
     Started :    May 2024
-    Examples :   run electron_density.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.2 --docomoving --do_all_sims
-                 run electron_density.py --system ayan_local --halo 4123 --upto_kpc 10 --res 0.2 --output RD0038 --docomoving --islog --nbins 100 --clobber_plot
+    Examples :   run electron_density.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --res 0.2 --docomoving --do_all_sims --write_file
+                 run electron_density.py --system ayan_local --halo 4123 --upto_kpc 10 --res 0.2 --output RD0038 --docomoving --nbins 100 --clobber_plot
 """
 from header import *
 from util import *
@@ -59,7 +59,7 @@ def plot_projected_map(map, projection, ax, args, clim=None, cmap='viridis', col
             label = r'log Gas density (M$_{\odot}$/pc$^2$)'
 
             ax.text(0.03, 0.95, args.output, color='k', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left', bbox=dict(facecolor='white', alpha=0.8, edgecolor='k'))
-            ax.text(0.03, 0.2, 'z = %.2F\nt = %.1F Gyr' % (args.current_redshift, args.current_time), ha='left' if args.islog else 'right', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, bbox=dict(facecolor='white', alpha=0.8, edgecolor='k'))
+            ax.text(0.03, 0.2, 'z = %.2F\nt = %.1F Gyr' % (args.current_redshift, args.current_time), ha='left', va='top', transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, bbox=dict(facecolor='white', alpha=0.8, edgecolor='k'))
 
         elif quantity == 'el':
             cax_xpos, cax_ypos, cax_width, cax_height = 0.1 + cbar_width + 0.11, 0.93, cbar_width, 0.02
@@ -93,9 +93,9 @@ def plot_profile(df, projection, ax, args, hidex=False, hidey=False):
     if args.weight is not None:
         df['weighted_' + ycol] = len(df) * df[ycol] * df['weights_' + projection] / np.sum(df['weights_' + projection])
         ycol = 'weighted_' + ycol
-    if args.islog:
-        df['log_' + ycol] = np.log10(df[ycol])
-        ycol = 'log_' + ycol
+
+    df['log_' + ycol] = np.log10(df[ycol]) # taking log AFTER the weighting
+    ycol = 'log_' + ycol
 
     # ----------to plot the profile with all cells--------------
     ax.scatter(df['rad'], df[ycol], c=args.color, s=1, lw=0, alpha=0.3)
@@ -135,7 +135,7 @@ def plot_distribution(df, projection, ax, args, hidex=False, hidey=False):
     quant_arr = quant_arr[indices]
     weights = weights[indices] if args.weight is not None else None
 
-    if args.islog: quant_arr = np.log10(quant_arr)  # all operations will be done in log
+    quant_arr = np.log10(quant_arr)  # all operations will be done in log
     p = ax.hist(quant_arr, bins=args.nbins, histtype='step', lw=2, ls='solid', density=True, ec=color, weights=weights)
 
     # characterising distribution
@@ -159,7 +159,7 @@ def plot_distribution(df, projection, ax, args, hidex=False, hidey=False):
         ax.set_xticklabels([])
     else:
         ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize / args.fontfactor)
-        ax.set_xlabel(r'log Electron density (1/cm$^2$)' if args.islog else r'Metallicity (Z$_{\odot}$)', fontsize=args.fontsize / args.fontfactor)
+        ax.set_xlabel(r'log Electron density (1/cm$^2$)', fontsize=args.fontsize / args.fontfactor)
     
     if hidey:
         ax.set_yticklabels([])
@@ -179,7 +179,12 @@ if __name__ == '__main__':
     # --------make new dataframe to store all results-----------------
     columns = ['output', 'redshift', 'time', 'sfr', 'log_mstar', 'ed_width_x', 'ed_peak_x', 'ed_width_y', 'ed_peak_y', 'ed_width_z', 'ed_peak_z']
     df_full = pd.DataFrame(columns=columns)
-    outfilename = args.output_dir + '/txtfiles/' + args.halo + '_projected_el_density_evolution.txt'
+
+    args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''
+    args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    args.res_text = '_res%.1Fckpchinv' % float(args.res) if args.docomoving else '_res%.1Fkpc' % float(args.res)
+    args.nbins_text = '_nbins%d' % args.nbins
+    outfilename = args.output_dir + '/txtfiles/' + args.halo + '_projected_el_density_evolution%s%s%s%s.txt' % (args.upto_text, args.res_text, args.nbins_text, args.weightby_text)
     if not os.path.exists(outfilename) or args.clobber: df_full.to_csv(outfilename, sep='\t', index=None) # writing to file, so that invidual processors can read in and append
 
     # -------- reading in SFR info-------
@@ -188,7 +193,7 @@ if __name__ == '__main__':
         print('Reading SFR history from', sfr_filename)
         sfr_df = pd.read_table(sfr_filename, names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
     else:
-        print('Did not find', sfr_filename, ', therefore will not plot the SFR-related panels')
+        print('Did not find', sfr_filename, ', therefore will not include SFR')
         sfr_df = pd.DataFrame()
 
     # -------- reading in stellar mass info-------
@@ -237,6 +242,10 @@ if __name__ == '__main__':
         else: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
 
         # --------assigning additional keyword args-------------
+        args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''
+        args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+        args.res_text = '_res%.1Fckpchinv' % float(args.res) if args.docomoving else '_res%.1Fkpc' % float(args.res)
+        args.nbins_text = '_nbins%d' % args.nbins
 
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').tolist()
@@ -251,125 +260,121 @@ if __name__ == '__main__':
         args.fontfactor = 1.5
 
         # --------determining corresponding text suffixes and figname-------------
-        args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''
-        args.islog_text = '_islog' if args.islog else ''
-        if args.upto_kpc is not None: upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
-        else: upto_text = '_upto%.1FRe' % args.upto_re
-
         args.fig_dir = args.output_dir + 'figs/'
         if not args.do_all_sims: args.fig_dir += args.output + '/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
 
-        outfile_rootname = '%s_%s_projected_el_density_%s%s.png' % (args.output, args.halo, upto_text, args.weightby_text)
+        outfile_rootname = '%s_%s_projected_el_density%s%s%s%s.png' % (args.output, args.halo, args.upto_text, args.res_text, args.nbins_text, args.weightby_text)
         if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
         figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
-        if not os.path.exists(figname) or args.clobber_plot:
-            #try:
-            # -------setting up fig--------------
-            nrow, ncol = 3, 4
-            fig = plt.figure(figsize=(12, 7))
-            axes_proj_den = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 0), colspan=1) for item in np.arange(3)]
-            axes_proj_el_den = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 1), colspan=1) for item in np.arange(3)]
+        if not os.path.exists(figname) or args.clobber_plot or args.write_file:
+            try:
+                # -------setting up fig--------------
+                nrow, ncol = 3, 4
+                fig = plt.figure(figsize=(12, 7))
+                axes_proj_den = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 0), colspan=1) for item in np.arange(3)]
+                axes_proj_el_den = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 1), colspan=1) for item in np.arange(3)]
 
-            axes_prof = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 2), colspan=1) for item in np.arange(3)]
-            axes_dist = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 3), colspan=1) for item in np.arange(3)]
+                axes_prof = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 2), colspan=1) for item in np.arange(3)]
+                axes_dist = [plt.subplot2grid(shape=(nrow, ncol), loc=(item, 3), colspan=1) for item in np.arange(3)]
 
-            fig.tight_layout()
-            fig.subplots_adjust(top=0.9, bottom=0.07, left=0.1, right=0.95, wspace=0.8, hspace=0.15)
+                fig.tight_layout()
+                fig.subplots_adjust(top=0.9, bottom=0.07, left=0.1, right=0.95, wspace=0.8, hspace=0.15)
 
-            # ------tailoring the simulation box for individual snapshot analysis--------
-            if args.upto_kpc is not None: args.re = np.nan
-            else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
+                # ------tailoring the simulation box for individual snapshot analysis--------
+                if args.upto_kpc is not None: args.re = np.nan
+                else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
 
 
-            if args.upto_kpc is not None:
-                if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
-                else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
-            else:
-                args.galrad = args.re * args.upto_re  # kpc
-            args.ncells = int(2 * args.galrad / args.res)
+                if args.upto_kpc is not None:
+                    if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+                    else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
+                else:
+                    args.galrad = args.re * args.upto_re  # kpc
+                args.ncells = int(2 * args.galrad / args.res)
 
-            # extract the required box
-            box_center = ds.halo_center_kpc
-            box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
+                # extract the required box
+                box_center = ds.halo_center_kpc
+                box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
-            # ------plotting projected metallcity snapshots---------------
-            df_snap_filename = args.output_dir + '/txtfiles/' + args.output + '_df_boxrad_%.2Fkpc_projected_el_density.txt'%(args.galrad)
-            ed_width, ed_peak = [], []
+                # ------calculating projected electron density---------------
+                df_snap_filename = args.output_dir + '/txtfiles/%s_projected_el_density_%s%s%s%s.txt' % (args.output, args.upto_text, args.res_text, args.nbins_text, args.weightby_text)
+                ed_width, ed_peak = [], []
 
-            if not os.path.exists(df_snap_filename) or args.clobber:
-                myprint(df_snap_filename + 'not found, creating afresh..', args)
-                df_snap = pd.DataFrame()
-                map_dist = get_dist_map(args)
-                df_snap['rad'] = map_dist.flatten()
+                if not os.path.exists(df_snap_filename) or args.clobber:
+                    myprint(df_snap_filename + 'not found, creating afresh..', args)
+                    df_snap = pd.DataFrame()
+                    map_dist = get_dist_map(args)
+                    df_snap['rad'] = map_dist.flatten()
 
-                for index, thisproj in enumerate(args.projections):
-                    print('Doing projection %s, which %d of %d..' %(thisproj, index+1, len(args.projections)))
-                    frb = make_frb_from_box(box, box_center, 2 * args.galrad, thisproj, args)
-                    gas_density_map = frb['gas', 'density'].in_units('Msun/pc**2')
-                    el_density_map = frb['gas', 'El_number_density'].in_units('1/cm**2')
-                    df_snap['density_' + thisproj] = gas_density_map.flatten()
-                    df_snap['el_density_' + thisproj] = el_density_map.flatten()
+                    for index, thisproj in enumerate(args.projections):
+                        print('Doing projection %s, which %d of %d..' %(thisproj, index+1, len(args.projections)))
+                        frb = make_frb_from_box(box, box_center, 2 * args.galrad, thisproj, args)
+                        gas_density_map = frb['gas', 'density'].in_units('Msun/pc**2')
+                        el_density_map = frb['gas', 'El_number_density'].in_units('1/cm**2')
+                        df_snap['density_' + thisproj] = gas_density_map.flatten()
+                        df_snap['el_density_' + thisproj] = el_density_map.flatten()
 
-                    axes_proj_den[index] = plot_projected_map(np.log10(gas_density_map), thisproj, axes_proj_den[index], args, clim=args.gd_lim, cmap=density_color_map, color=args.color, quantity='gas', hidex=index < len(args.projections) - 1)
-                    axes_proj_el_den[index] = plot_projected_map(np.log10(el_density_map), thisproj, axes_proj_el_den[index], args, clim=args.ed_lim, cmap=e_color_map, color=args.color, quantity='el', hidex=index < len(args.projections) - 1)
-                    axes_prof[index] = plot_profile(df_snap, thisproj, axes_prof[index], args, hidex=index < len(args.projections) - 1)
-                    this_width, this_peak, axes_dist[index] = plot_distribution(df_snap, thisproj, axes_dist[index], args, hidex=index < len(args.projections) - 1)
-                    ed_width.append(this_width)
-                    ed_peak.append(this_peak)
+                        axes_proj_den[index] = plot_projected_map(np.log10(gas_density_map), thisproj, axes_proj_den[index], args, clim=args.gd_lim, cmap=density_color_map, color=args.color, quantity='gas', hidex=index < len(args.projections) - 1)
+                        axes_proj_el_den[index] = plot_projected_map(np.log10(el_density_map), thisproj, axes_proj_el_den[index], args, clim=args.ed_lim, cmap=e_color_map, color=args.color, quantity='el', hidex=index < len(args.projections) - 1)
+                        axes_prof[index] = plot_profile(df_snap, thisproj, axes_prof[index], args, hidex=index < len(args.projections) - 1)
+                        this_width, this_peak, axes_dist[index] = plot_distribution(df_snap, thisproj, axes_dist[index], args, hidex=index < len(args.projections) - 1)
+                        ed_width.append(this_width)
+                        ed_peak.append(this_peak)
 
-                df_snap.to_csv(df_snap_filename, sep='\t', index=None)
-                myprint('Saved file ' + df_snap_filename, args)
-            else:
-                myprint('Reading in existing ' + df_snap_filename, args)
-                df_snap = pd.read_table(df_snap_filename, delim_whitespace=True, comment='#')
-                for index, thisproj in enumerate(args.projections):
-                    print('Doing projection %s, which %d of %d..' %(thisproj, index+1, len(args.projections)))
-                    gas_density_map = df_snap['density_' + thisproj].values.reshape((args.ncells, args.ncells))
-                    if args.weight is not None: el_density = len(df_snap) * df_snap['el_density_' + thisproj] * df_snap[args.weight + '_' + thisproj] / np.sum(df_snap[args.weight + '_' + thisproj])
-                    else: el_density = df_snap['el_density_' + thisproj]
-                    el_density_map = el_density.values.reshape((args.ncells, args.ncells))
+                    df_snap.to_csv(df_snap_filename, sep='\t', index=None)
+                    myprint('Saved file ' + df_snap_filename, args)
+                else:
+                    myprint('Reading in existing ' + df_snap_filename, args)
+                    df_snap = pd.read_table(df_snap_filename, delim_whitespace=True, comment='#')
+                    for index, thisproj in enumerate(args.projections):
+                        print('Doing projection %s, which %d of %d..' %(thisproj, index+1, len(args.projections)))
+                        gas_density_map = df_snap['density_' + thisproj].values.reshape((args.ncells, args.ncells))
+                        if args.weight is not None: el_density = len(df_snap) * df_snap['el_density_' + thisproj] * df_snap[args.weight + '_' + thisproj] / np.sum(df_snap[args.weight + '_' + thisproj])
+                        else: el_density = df_snap['el_density_' + thisproj]
+                        el_density_map = el_density.values.reshape((args.ncells, args.ncells))
 
-                    axes_proj_den[index] = plot_projected_map(np.log10(gas_density_map), thisproj, axes_proj_den[index], args, clim=args.gd_lim, cmap=density_color_map, color=args.color, quantity='gas', hidex=index < len(args.projections) - 1)
-                    axes_proj_el_den[index] = plot_projected_map(np.log10(el_density_map), thisproj, axes_proj_el_den[index], args, clim=args.ed_lim, cmap=e_color_map, color=args.color, quantity='el', hidex=index < len(args.projections) - 1)
-                    axes_prof[index] = plot_profile(df_snap, thisproj, axes_prof[index], args, hidex=index < len(args.projections) - 1)
-                    this_width, this_peak, axes_dist[index] = plot_distribution(df_snap, thisproj, axes_dist[index], args, hidex=index < len(args.projections) - 1)
-                    ed_width.append(this_width)
-                    ed_peak.append(this_peak)
+                        axes_proj_den[index] = plot_projected_map(np.log10(gas_density_map), thisproj, axes_proj_den[index], args, clim=args.gd_lim, cmap=density_color_map, color=args.color, quantity='gas', hidex=index < len(args.projections) - 1)
+                        axes_proj_el_den[index] = plot_projected_map(np.log10(el_density_map), thisproj, axes_proj_el_den[index], args, clim=args.ed_lim, cmap=e_color_map, color=args.color, quantity='el', hidex=index < len(args.projections) - 1)
+                        axes_prof[index] = plot_profile(df_snap, thisproj, axes_prof[index], args, hidex=index < len(args.projections) - 1)
+                        this_width, this_peak, axes_dist[index] = plot_distribution(df_snap, thisproj, axes_dist[index], args, hidex=index < len(args.projections) - 1)
+                        ed_width.append(this_width)
+                        ed_peak.append(this_peak)
 
-            df_snap = df_snap.dropna()
-            try: sfr = sfr_df[sfr_df['output'] == args.output]['sfr'].values[0]
-            except IndexError: sfr = -99
+                df_snap = df_snap.dropna()
+                try: sfr = sfr_df[sfr_df['output'] == args.output]['sfr'].values[0]
+                except IndexError: sfr = -99
 
-            try: log_mstar = mass_df[mass_df['output'] == args.output]['log_mass'].values[0]
-            except IndexError: log_mstar = np.log10(get_disk_stellar_mass(args))
+                try: log_mstar = mass_df[mass_df['output'] == args.output]['log_mass'].values[0]
+                except IndexError: log_mstar = np.log10(get_disk_stellar_mass(args))
 
-            # --------------annotating figure-------------------
-            fig.text(0.95, 0.95, r'SFR = %.2F M$_{\odot}/yr$    $\log{(\mathrm{M}_* / \mathrm{M}_{\odot})}$ = %.2F' % (sfr, log_mstar), ha='right', va='top', color='k', fontsize=args.fontsize, bbox=dict(facecolor='white', alpha=1.0, edgecolor='k'))
+                # --------------annotating figure-------------------
+                fig.text(0.95, 0.95, r'SFR = %.2F M$_{\odot}/yr$    $\log{(\mathrm{M}_* / \mathrm{M}_{\odot})}$ = %.2F' % (sfr, log_mstar), ha='right', va='top', color='k', fontsize=args.fontsize, bbox=dict(facecolor='white', alpha=1.0, edgecolor='k'))
 
-            # ------update full dataframe and read it from file-----------
-            df_full_row = np.hstack(([args.output, args.current_redshift, args.current_time, sfr, log_mstar], np.hstack([[ed_width[i], ed_peak[i]] for i in range(len(args.projections))])))
-            df_full.loc[0] = df_full_row
-            df_full.to_csv(outfilename, mode='a', sep='\t', header=False, index=None)
-            df_full = pd.read_table(outfilename, delim_whitespace=True)
-            df_full = df_full.drop_duplicates(subset='output', keep='last')
-            df_full = df_full.sort_values(by='time')
+                # ------update full dataframe and read it from file-----------
+                df_full_row = np.hstack(([args.output, args.current_redshift, args.current_time, sfr, log_mstar], np.hstack([[ed_width[i], ed_peak[i]] for i in range(len(args.projections))])))
+                temp_df = pd.DataFrame(dict(zip(columns, df_full_row)), index=[0])
+                temp_df.to_csv(outfilename, mode='a', sep='\t', header=False, index=None)
 
-            # ------saving fig------------------
-            fig.savefig(figname)
-            myprint('Saved plot as ' + figname, args)
+                # ------saving fig------------------
+                fig.savefig(figname)
+                myprint('Saved plot as ' + figname, args)
 
-            plt.show(block=False)
-            print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
-            '''
+                plt.show(block=False)
+                print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
+
             except Exception as e:
                 print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), args)
                 continue
-            '''
         else:
             print('Skipping snapshot %s as %s already exists. Use --clobber_plot to remake figure.' %(args.output, figname))
             continue
+
+    # -------reading the full dataframe-----------------------
+    df_full = pd.read_table(outfilename, delim_whitespace=True)
+    df_full = df_full.drop_duplicates(subset='output', keep='last')
+    df_full = df_full.sort_values(by='time')
 
     if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)
