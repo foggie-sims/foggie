@@ -133,6 +133,12 @@ def fit_binned(df, xcol, ycol, x_extent, ax=None, weightcol=None, color='darkora
     y_u_binned = df.groupby('binned_cat', as_index=False).agg([(ycol, agg_u_func)])[ycol].values.flatten()
     x_bin_centers = x_bins[:-1] + np.diff(x_bins) / 2
 
+    # getting rid of potential nan values
+    indices = np.array(np.logical_not(np.logical_or(np.isnan(x_bin_centers), np.isnan(y_binned))))
+    x_bin_centers = x_bin_centers[indices]
+    y_binned = y_binned[indices]
+    y_u_binned = y_u_binned[indices]
+
     # ----------to plot mean binned y vs x profile--------------
     popt, pcov = curve_fit(piecewise_linear, x_bin_centers, y_binned, p0 = [20., -1, 5., -0.5]) # popt = [central (log cm^-3), alpha (dimensionless), break_rad (kpc), beta (dimensionless)]
     y_fitted = piecewise_linear(x_bin_centers, *popt)
@@ -352,7 +358,7 @@ if __name__ == '__main__':
             except Exception as e:
                 print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), args)
                 continue
-            
+
         else:
             print('Skipping snapshot %s as %s already exists. Use --clobber_plot to remake figure.' %(args.output, figname))
             continue
