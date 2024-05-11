@@ -120,7 +120,7 @@ def plot_Zprof_snap(df, ax, args, hidex=False, hidey=False):
 
     weightcol = args.weight
     ycol = 'metal'
-    color = args.color
+    color = args.col_arr[0]
 
     if args.weight is not None: df['weighted_metal'] = len(df) * df[ycol] * df[args.weight] / np.sum(df[args.weight])
     df['log_' + ycol] = np.log10(df[ycol])
@@ -193,15 +193,19 @@ def plot_Zdist_snap(df, ax, args, hidex=False, hidey=False):
     if args.islog: Zarr = np.log10(Zarr)  # all operations will be done in log
 
     p = ax.hist(Zarr, bins=args.nbins, histtype='step', lw=1, ls='dashed', density=True, ec=color, weights=weights)
-    fit, other_result = fit_distribution(Zarr.values, args, weights=weights)
-    xvals = p[1][:-1] + np.diff(p[1])
-    ax.plot(xvals, fit.eval(x=np.array(xvals)), c=color, lw=1)
-    if not args.hide_multiplefit:
-        ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['g1_amplitude'], center=fit.best_values['g1_center'], sigma=fit.best_values['g1_sigma'], gamma=fit.best_values['g1_gamma']), c='k', lw=0.5, ls='dotted', label='High-Z component')
-        if 'g2_amplitude' in fit.best_values: ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['g2_amplitude'], center=fit.best_values['g2_center'], sigma=fit.best_values['g2_sigma'], gamma=fit.best_values['g2_gamma']), c='k', lw=0.5, ls='--', label='Low-Z component')
 
-    Zdist = [fit.best_values['g1_sigma'], fit.best_values['g1_center']]
-    ax.text(0.03 if args.islog else 0.97, 0.75, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['g1_center'], 2.355 * fit.best_values['g1_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
+    if not args.nofit:
+        fit, other_result = fit_distribution(Zarr.values, args, weights=weights)
+        xvals = p[1][:-1] + np.diff(p[1])
+        ax.plot(xvals, fit.eval(x=np.array(xvals)), c=color, lw=1)
+        if not args.hide_multiplefit:
+            ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['g1_amplitude'], center=fit.best_values['g1_center'], sigma=fit.best_values['g1_sigma'], gamma=fit.best_values['g1_gamma']), c='k', lw=0.5, ls='dotted', label='High-Z component')
+            if 'g2_amplitude' in fit.best_values: ax.plot(xvals, SkewedGaussianModel().eval(x=xvals, amplitude=fit.best_values['g2_amplitude'], center=fit.best_values['g2_center'], sigma=fit.best_values['g2_sigma'], gamma=fit.best_values['g2_gamma']), c='k', lw=0.5, ls='--', label='Low-Z component')
+
+        Zdist = [fit.best_values['g1_sigma'], fit.best_values['g1_center']]
+        ax.text(0.03 if args.islog else 0.97, 0.75, 'Center = %.2F\nWidth = %.2F' % (fit.best_values['g1_center'], 2.355 * fit.best_values['g1_sigma']), color=color, transform=ax.transAxes, fontsize=args.fontsize / args.fontfactor, va='top', ha='left' if args.islog else 'right')
+    else:
+        Zdist = [-99, -99]
 
     ax.set_xlim(-2 if args.islog else 0, 1 if args.islog else 3) # Zsun
     ax.set_ylim(0, 3)
@@ -349,71 +353,73 @@ if __name__ == '__main__':
         figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
         if not os.path.exists(figname) or args.clobber_plot:
-            try:
-                # -------setting up fig--------------
-                nrow, ncol1, ncol2 = 4, 2, 3
-                ncol = ncol1 * ncol2 # the overall figure is nrow x (ncol1 + ncol2)
-                fig = plt.figure(figsize=(8, 8))
-                axes_proj_snap = [plt.subplot2grid(shape=(nrow, ncol), loc=(0, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
-                ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(1, 0), colspan=ncol2)
-                ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(1, ncol2), colspan=ncol - ncol2)
-                ax_grad_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 0), colspan=ncol)
-                ax_dist_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(3, 0), colspan=ncol, sharex=ax_grad_ev)
-                fig.tight_layout()
-                fig.subplots_adjust(top=0.9, bottom=0.07, left=0.1, right=0.95, wspace=0.8, hspace=0.35)
+            #try:
+            # -------setting up fig--------------
+            nrow, ncol1, ncol2 = 4, 2, 3
+            ncol = ncol1 * ncol2 # the overall figure is nrow x (ncol1 + ncol2)
+            fig = plt.figure(figsize=(8, 8))
+            axes_proj_snap = [plt.subplot2grid(shape=(nrow, ncol), loc=(0, int(item)), colspan=ncol1) for item in np.linspace(0, ncol1 * 2, 3)]
+            ax_prof_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(1, 0), colspan=ncol2)
+            ax_dist_snap = plt.subplot2grid(shape=(nrow, ncol), loc=(1, ncol2), colspan=ncol - ncol2)
+            ax_grad_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(2, 0), colspan=ncol)
+            ax_dist_ev = plt.subplot2grid(shape=(nrow, ncol), loc=(3, 0), colspan=ncol, sharex=ax_grad_ev)
+            fig.tight_layout()
+            fig.subplots_adjust(top=0.9, bottom=0.07, left=0.1, right=0.95, wspace=0.8, hspace=0.35)
 
-                # ------tailoring the simulation box for individual snapshot analysis--------
-                if args.upto_kpc is not None: args.re = np.nan
-                else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
+            # ------tailoring the simulation box for individual snapshot analysis--------
+            if args.upto_kpc is not None: args.re = np.nan
+            else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
 
-                if args.upto_kpc is not None:
-                    if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
-                    else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
-                else:
-                    args.galrad = args.re * args.upto_re  # kpc
+            if args.upto_kpc is not None:
+                if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+                else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
+            else:
+                args.galrad = args.re * args.upto_re  # kpc
 
-                # extract the required box
-                box_center = ds.halo_center_kpc
-                box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
+            # extract the required box
+            box_center = ds.halo_center_kpc
+            box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
-                if args.use_density_cut:
-                    rho_cut = get_density_cut(ds.current_time.in_units('Gyr'))  # based on Cassi's CGM-ISM density cut-off
-                    box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
-                    print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
+            if args.use_density_cut:
+                rho_cut = get_density_cut(ds.current_time.in_units('Gyr'))  # based on Cassi's CGM-ISM density cut-off
+                box = box.cut_region(['obj["gas", "density"] > %.1E' % rho_cut])
+                print('Imposing a density criteria to get ISM above density', rho_cut, 'g/cm^3')
 
-                # ------plotting nonprojected metallcity snapshots---------------
-                proj, axes_proj_snap = plot_projectedZ_snap(box, ds.halo_center_kpc, 2 * args.galrad, axes_proj_snap, args, clim=args.Zlim, cmap=old_metal_color_map)
+            # ------plotting nonprojected metallcity snapshots---------------
+            proj, axes_proj_snap = plot_projectedZ_snap(box, ds.halo_center_kpc, 2 * args.galrad, axes_proj_snap, args, clim=args.Zlim, cmap=old_metal_color_map)
 
-                df_snap = make_df_from_box(box,  args)
-                # ------plotting nonprojected metallicity profiles---------------
-                Zgrad, ax_prof_snap = plot_Zprof_snap(df_snap, ax_prof_snap, args)
+            df_snap = make_df_from_box(box,  args)
+            # ------plotting nonprojected metallicity profiles---------------
+            Zgrad, ax_prof_snap = plot_Zprof_snap(df_snap, ax_prof_snap, args)
 
-                # ------plotting nonprojected metallicity histograms---------------
-                Zdist, ax_dist_snap = plot_Zdist_snap(df_snap, ax_dist_snap, args)
+            # ------plotting nonprojected metallicity histograms---------------
+            Zdist, ax_dist_snap = plot_Zdist_snap(df_snap, ax_dist_snap, args)
 
-                # ------update full dataframe and read it from file-----------
-                df_full_row = [args.output, args.current_redshift, args.current_time, Zgrad.n, Zgrad.s, Zdist[0], Zdist[1]]
-                df_full.loc[0] = df_full_row
-                df_full.to_csv(outfilename, mode='a', sep='\t', header=False, index=None)
-                df_full = pd.read_table(outfilename, delim_whitespace=True)
-                df_full = df_full.drop_duplicates(subset='output', keep='last')
-                df_full = df_full.sort_values(by='time')
+            # ------update full dataframe and read it from file-----------
+            df_full_row = [args.output, args.current_redshift, args.current_time, Zgrad.n, Zgrad.s, Zdist[0], Zdist[1]]
+            df_full.loc[0] = df_full_row
+            df_full.to_csv(outfilename, mode='a', sep='\t', header=False, index=None)
+            df_full = pd.read_table(outfilename, delim_whitespace=True)
+            df_full = df_full.drop_duplicates(subset='output', keep='last')
+            df_full = df_full.sort_values(by='time')
 
-                # ------plotting full time evolution of nonprojected metallicity gradient---------------
-                ax_grad_ev = plot_Zgrad_evolution(df_full, ax_grad_ev, args)
+            # ------plotting full time evolution of nonprojected metallicity gradient---------------
+            ax_grad_ev = plot_Zgrad_evolution(df_full, ax_grad_ev, args)
 
-                # ------plotting full time evolution of nonprojected metallicity distribution---------------
-                ax_dist_ev = plot_Zdist_evolution(df_full, ax_dist_ev, args)
+            # ------plotting full time evolution of nonprojected metallicity distribution---------------
+            ax_dist_ev = plot_Zdist_evolution(df_full, ax_dist_ev, args)
 
-                # ------saving fig------------------
-                fig.savefig(figname)
-                myprint('Saved plot as ' + figname, args)
+            # ------saving fig------------------
+            fig.savefig(figname)
+            myprint('Saved plot as ' + figname, args)
 
-                plt.show(block=False)
-                print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
+            plt.show(block=False)
+            print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
+            '''
             except Exception as e:
                 print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), args)
                 continue
+            '''
         else:
             print('Skipping snapshot %s as %s already exists. Use --clobber_plot to remake figure.' %(args.output, figname))
             continue

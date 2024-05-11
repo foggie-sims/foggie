@@ -296,7 +296,7 @@ if __name__ == '__main__':
                 box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
                 # ------calculating projected electron density---------------
-                df_snap_filename = args.output_dir + '/txtfiles/%s_projected_el_density_%s%s%s%s.txt' % (args.output, args.upto_text, args.res_text, args.nbins_text, args.weightby_text)
+                df_snap_filename = args.output_dir + '/txtfiles/%s_projected_el_density%s%s%s%s.txt' % (args.output, args.upto_text, args.res_text, args.nbins_text, args.weightby_text)
                 fit_result = []
 
                 if not os.path.exists(df_snap_filename) or args.clobber:

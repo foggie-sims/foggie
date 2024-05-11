@@ -7,13 +7,13 @@
     Output :     Combined plots as png files plus, optionally, these files stitched into a movie
     Author :     Ayan Acharyya
     Started :    May 2024
-    Examples :   run electron_density_spherical.py --system ayan_pleiades --halo 8508 --upto_kpc 50 --res 0.2 --docomoving --do_all_sims --write_file
-                 run electron_density_spherical.py --system ayan_local --halo 4123 --upto_kpc 50 --res 0.2 --output RD0038 --docomoving --nbins 100 --clobber_plot
+    Examples :   run electron_density_spherical.py --system ayan_pleiades --halo 8508 --upto_kpc 50 --docomoving --do_all_sims --write_file
+                 run electron_density_spherical.py --system ayan_local --halo 4123 --upto_kpc 10 --output RD0038 --docomoving --nbins 100 --clobber_plot
 """
 from header import *
 from util import *
 plt.rcParams['axes.linewidth'] = 1
-from datashader_movie import get_correct_tablename
+from datashader_movie import field_dict, unit_dict, islog_dict, get_correct_tablename
 from uncertainties import ufloat, unumpy
 from datetime import datetime, timedelta
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -78,6 +78,7 @@ def plot_projected_map(ds, box, quantity, unit, ax, args, clim=None, cmap='virid
     prj.set_log(field, islog_dict[quantity])
     prj.set_unit(field, unit)
     prj.set_zlim(field, zmin=clim[0], zmax=clim[1])
+    cmap.set_bad('k')
     prj.set_cmap(field, cmap)
 
     # ------plotting onto a matplotlib figure--------------
@@ -95,8 +96,6 @@ def plot_projected_map(ds, box, quantity, unit, ax, args, clim=None, cmap='virid
     ax.set_yticks(np.linspace(-int(args.galrad), int(args.galrad), 5))
     ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=args.fontsize / args.fontfactor)
     ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize / args.fontfactor)
-
-    ax.text(0.9 * args.galrad, 0.9 * args.galrad, projection, ha='right', va='top', c='k', fontsize=args.fontsize)
 
     # ---------making the colorbar axis once, that will correspond to all projections--------------
     fig = ax.figure
@@ -121,7 +120,7 @@ def fit_binned(df, xcol, ycol, x_extent, ax=None, weightcol=None, color='darkora
     Function to bin data, fit the binned data, and overplot binned data and fit on existing plot
     Returns the fitted parameters and axis handle
     '''
-    x_bins = np.linspace(0, x_extent, 10)
+    x_bins = np.arange(0, x_extent, 1) # 1 physical kpc bin size
     df['binned_cat'] = pd.cut(df[xcol], x_bins)
 
     if weightcol is not None:
@@ -143,10 +142,10 @@ def fit_binned(df, xcol, ycol, x_extent, ax=None, weightcol=None, color='darkora
     print('Upon radially binning, inferred fit parameters are: central = %.2f, alpha = %.1f, break_rad = %.1f, beta = %.1f' % (popt[0], popt[1], popt[2], popt[3]))
 
     if ax is not None:
-        ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=2, ls='none', zorder=1)
-        ax.scatter(x_bin_centers, y_binned, c=color, s=20, lw=0.5, ec='black', zorder=1)
+        ax.errorbar(x_bin_centers, y_binned, c=color, yerr=y_u_binned, lw=0.5 if len(x_bins) > 10 else 1.0, ls='none', zorder=1)
+        ax.scatter(x_bin_centers, y_binned, c=color, s=10 if len(x_bins) > 10 else 20, lw=0.5, ec='black', zorder=1)
         ax.plot(x_bin_centers, y_fitted, color='k', lw=1, ls='solid', zorder=5)
-        if not args.notextonplot: ax.text(0.033, 0.05, 'central = %.2f \nalpha = %.2f\nbreak = %.2f kpc \nbeta = %.2f' % (popt[0], popt[1], popt[2], popt[3]), color='k', transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor, ha='left', va='bottom')#, bbox=dict(facecolor='white', alpha=0.8, edgecolor='white'))
+        if not args.notextonplot: ax.text(0.033, 0.05, 'central = %.2f \nalpha = %.2f\nbreak = %.2f kpc \nbeta = %.2f' % (popt[0], popt[1], popt[2], popt[3]), color='k', transform=ax.transAxes, fontsize=args.fontsize/args.fontfactor, ha='left', va='bottom', bbox=dict(facecolor='white', alpha=0.7, edgecolor='white'))
         return fit_result, ax
     else:
         return fit_result
@@ -189,12 +188,6 @@ def plot_profile(df, ax, args):
 
     return fit_result, ax
 
-# ------------------global dictionaries--------------------------
-field_dict = {'rad':('gas', 'radius_corrected'), 'density':('gas', 'density'), 'el_density':('gas', 'El_number_density')}
-unit_dict = {'rad':'kpc', 'density':'g/cm**3', 'el_density':'cm**-3'}
-labels_dict = {'rad':'Radius', 'density':'Density', 'el_density': 'Electron number density'}
-islog_dict = defaultdict(lambda: False, density=True, el_density=True)
-
 # -----main code-----------------
 if __name__ == '__main__':
     args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
@@ -203,14 +196,16 @@ if __name__ == '__main__':
     if not args.keep: plt.close('all')
 
     # --------make new dataframe to store all results-----------------
-    columns = ['output', 'redshift', 'time', 'sfr', 'log_mstar', 'central', 'alpha', 'break_rad', 'beta', 'central_u', 'alpha_u', 'break_rad_u', 'beta_u']
+    columns = ['output', 'redshift', 'time', 'sfr', 'log_mstar', 'central', 'central_u', 'alpha', 'alpha_u', 'break_rad', 'break_rad_u', 'beta', 'beta_u']
     df_full = pd.DataFrame(columns=columns)
 
     args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''
     args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
-    args.res_text = '_res%.1Fckpchinv' % float(args.res) if args.docomoving else '_res%.1Fkpc' % float(args.res)
     args.nbins_text = '_nbins%d' % args.nbins
-    outfilename = args.output_dir + '/txtfiles/' + args.halo + '_spherical_el_density_evolution%s%s%s%s.txt' % (args.upto_text, args.res_text, args.nbins_text, args.weightby_text)
+    outfilename = args.output_dir + 'txtfiles/' + args.halo + '_spherical_el_density_evolution%s%s%s.txt' % (args.upto_text, args.nbins_text, args.weightby_text)
+
+    Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)
+    Path(args.output_dir + 'figs/').mkdir(parents=True, exist_ok=True)
     if not os.path.exists(outfilename) or args.clobber: df_full.to_csv(outfilename, sep='\t', index=None) # writing to file, so that invidual processors can read in and append
 
     # -------- reading in SFR info-------
@@ -274,7 +269,6 @@ if __name__ == '__main__':
         # --------assigning additional keyword args-------------
         args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''
         args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
-        args.res_text = '_res%.1Fckpchinv' % float(args.res) if args.docomoving else '_res%.1Fkpc' % float(args.res)
         args.nbins_text = '_nbins%d' % args.nbins
 
         args.current_redshift = ds.current_redshift
@@ -282,9 +276,7 @@ if __name__ == '__main__':
 
         args.color = 'cornflowerblue' # colors for the scatter plot and histogram
         args.gd_lim = [-2.5, 2.5]  # log Msun/pc^2 units
-        args.ed_lim = [-6, -1]  # log cm^-2 units
-        args.res = args.res_arr[0]
-        if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695  # converting from comoving kcp h^-1 to physical kpc
+        args.ed_lim = [-11, 2] if args.weight is not None else [-6, -1]  # log cm^-2 units
         args.fontsize = 15
         args.fontfactor = 1.5
 
@@ -293,38 +285,36 @@ if __name__ == '__main__':
         if not args.do_all_sims: args.fig_dir += args.output + '/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
 
-        outfile_rootname = '%s_%s_spherical_el_density%s%s%s%s.png' % (args.output, args.halo, args.upto_text, args.res_text, args.nbins_text, args.weightby_text)
+        outfile_rootname = '%s_%s_spherical_el_density%s%s%s.png' % (args.output, args.halo, args.upto_text, args.nbins_text, args.weightby_text)
         if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
         figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
         if not os.path.exists(figname) or args.clobber_plot or args.write_file:
             #try:
             # -------setting up fig--------------
-            fig, [axes_proj_den, axes_proj_el_den, axes_prof] = plt.subplots(1, 3, figsize=(12, 4))
-            fig.subplots_adjust(top=0.9, bottom=0.1, left=0.1, right=0.95, wspace=0.8, hspace=0.15)
+            fig, [axes_proj_den, axes_proj_el_den, axes_prof] = plt.subplots(1, 3, figsize=(10, 3))
+            fig.subplots_adjust(top=0.95, bottom=0.15, left=0.07, right=0.98, wspace=0.6)
 
             # ------tailoring the simulation box for individual snapshot analysis--------
             if args.upto_kpc is not None: args.re = np.nan
             else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
-
 
             if args.upto_kpc is not None:
                 if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
                 else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
             else:
                 args.galrad = args.re * args.upto_re  # kpc
-            args.ncells = int(2 * args.galrad / args.res)
 
             # extract the required box
             box_center = ds.halo_center_kpc
             box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
             # ----------plotting projection plots of densities----------------------------
-            axes_proj_den = plot_projected_map(ds, box, 'density', 'g/cm**2', axes_proj_den, args, clim=args.gd_lim,  cmap=density_color_map,)
-            axes_proj_el_den = plot_projected_map(ds, box, 'el_density', 'cm**-2', axes_proj_den, args, clim=args.ed_lim, cmap=e_color_map)
+            axes_proj_den = plot_projected_map(ds, box, 'density', 'Msun/pc**2', axes_proj_den, args, clim=[1e-3, 1e3],  cmap=density_color_map,)
+            axes_proj_el_den = plot_projected_map(ds, box, 'el_density', 'cm**-2', axes_proj_el_den, args, clim=[1e17, 1e21], cmap=e_color_map)
 
             # ------calculating projected electron density---------------
-            df_snap_filename = args.output_dir + '/txtfiles/%s_spherical_el_density_%s%s%s%s.txt' % (args.output, args.upto_text, args.res_text, args.nbins_text, args.weightby_text)
+            df_snap_filename = args.output_dir + '/txtfiles/%s_spherical_el_density%s%s%s.txt' % (args.output, args.upto_text, args.nbins_text, args.weightby_text)
 
             if not os.path.exists(df_snap_filename) or args.clobber:
                 myprint(df_snap_filename + 'not found, creating afresh..', args)
@@ -348,7 +338,7 @@ if __name__ == '__main__':
             except Exception: log_mstar = np.log10(get_disk_stellar_mass(args))
 
             # ------update full dataframe and read it from file-----------
-            df_full_row = np.hstack(([args.output, args.current_redshift, args.current_time, sfr, log_mstar], fit_result))
+            df_full_row = np.hstack(([args.output, args.current_redshift, args.current_time, sfr, log_mstar], np.hstack([[item.n, item.s] for item in fit_result])))
             temp_df = pd.DataFrame(dict(zip(columns, df_full_row)), index=[0])
             temp_df.to_csv(outfilename, mode='a', sep='\t', header=False, index=None)
 
