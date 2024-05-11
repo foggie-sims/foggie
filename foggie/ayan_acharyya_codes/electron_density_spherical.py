@@ -290,69 +290,69 @@ if __name__ == '__main__':
         figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
         if not os.path.exists(figname) or args.clobber_plot or args.write_file:
-            #try:
-            # -------setting up fig--------------
-            fig, [axes_proj_den, axes_proj_el_den, axes_prof] = plt.subplots(1, 3, figsize=(10, 3))
-            fig.subplots_adjust(top=0.95, bottom=0.15, left=0.07, right=0.98, wspace=0.6)
+            try:
+                # -------setting up fig--------------
+                fig, [axes_proj_den, axes_proj_el_den, axes_prof] = plt.subplots(1, 3, figsize=(10, 3))
+                fig.subplots_adjust(top=0.95, bottom=0.15, left=0.07, right=0.98, wspace=0.6)
 
-            # ------tailoring the simulation box for individual snapshot analysis--------
-            if args.upto_kpc is not None: args.re = np.nan
-            else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
+                # ------tailoring the simulation box for individual snapshot analysis--------
+                if args.upto_kpc is not None: args.re = np.nan
+                else: args.re = get_re_from_coldgas(args) if args.use_gasre else get_re_from_stars(ds, args)
 
-            if args.upto_kpc is not None:
-                if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
-                else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
-            else:
-                args.galrad = args.re * args.upto_re  # kpc
+                if args.upto_kpc is not None:
+                    if args.docomoving: args.galrad = args.upto_kpc / (1 + args.current_redshift) / 0.695  # fit within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+                    else: args.galrad = args.upto_kpc  # fit within a fixed physical kpc
+                else:
+                    args.galrad = args.re * args.upto_re  # kpc
 
-            # extract the required box
-            box_center = ds.halo_center_kpc
-            box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
+                # extract the required box
+                box_center = ds.halo_center_kpc
+                box = ds.sphere(box_center, ds.arr(args.galrad, 'kpc'))
 
-            # ----------plotting projection plots of densities----------------------------
-            axes_proj_den = plot_projected_map(ds, box, 'density', 'Msun/pc**2', axes_proj_den, args, clim=[1e-3, 1e3],  cmap=density_color_map,)
-            axes_proj_el_den = plot_projected_map(ds, box, 'el_density', 'cm**-2', axes_proj_el_den, args, clim=[1e17, 1e21], cmap=e_color_map)
+                # ----------plotting projection plots of densities----------------------------
+                axes_proj_den = plot_projected_map(ds, box, 'density', 'Msun/pc**2', axes_proj_den, args, clim=[1e-3, 1e3],  cmap=density_color_map,)
+                axes_proj_el_den = plot_projected_map(ds, box, 'el_density', 'cm**-2', axes_proj_el_den, args, clim=[1e17, 1e21], cmap=e_color_map)
 
-            # ------calculating projected electron density---------------
-            df_snap_filename = args.output_dir + '/txtfiles/%s_spherical_el_density%s%s%s.txt' % (args.output, args.upto_text, args.nbins_text, args.weightby_text)
+                # ------calculating projected electron density---------------
+                df_snap_filename = args.output_dir + '/txtfiles/%s_spherical_el_density%s%s%s.txt' % (args.output, args.upto_text, args.nbins_text, args.weightby_text)
 
-            if not os.path.exists(df_snap_filename) or args.clobber:
-                myprint(df_snap_filename + 'not found, creating afresh..', args)
-                df_snap = get_df_from_ds(box, args)
-                fit_result, axes_prof = plot_profile(df_snap, axes_prof, args)
+                if not os.path.exists(df_snap_filename) or args.clobber:
+                    myprint(df_snap_filename + 'not found, creating afresh..', args)
+                    df_snap = get_df_from_ds(box, args)
+                    fit_result, axes_prof = plot_profile(df_snap, axes_prof, args)
 
-                df_snap.to_csv(df_snap_filename, sep='\t', index=None)
-                myprint('Saved file ' + df_snap_filename, args)
-            else:
-                myprint('Reading in existing ' + df_snap_filename, args)
-                df_snap = pd.read_table(df_snap_filename, delim_whitespace=True, comment='#')
+                    df_snap.to_csv(df_snap_filename, sep='\t', index=None)
+                    myprint('Saved file ' + df_snap_filename, args)
+                else:
+                    myprint('Reading in existing ' + df_snap_filename, args)
+                    df_snap = pd.read_table(df_snap_filename, delim_whitespace=True, comment='#')
 
-                fit_result, axes_prof = plot_profile(df_snap, axes_prof, args)
+                    fit_result, axes_prof = plot_profile(df_snap, axes_prof, args)
 
-            fit_result = np.array(fit_result)
-            df_snap = df_snap.dropna()
-            try: sfr = sfr_df[sfr_df['output'] == args.output]['sfr'].values[0]
-            except Exception: sfr = -99
+                fit_result = np.array(fit_result)
+                df_snap = df_snap.dropna()
+                try: sfr = sfr_df[sfr_df['output'] == args.output]['sfr'].values[0]
+                except Exception: sfr = -99
 
-            try: log_mstar = mass_df[mass_df['output'] == args.output]['log_mass'].values[0]
-            except Exception: log_mstar = np.log10(get_disk_stellar_mass(args))
+                try: log_mstar = mass_df[mass_df['output'] == args.output]['log_mass'].values[0]
+                except Exception: log_mstar = np.log10(get_disk_stellar_mass(args))
 
-            # ------update full dataframe and read it from file-----------
-            df_full_row = np.hstack(([args.output, args.current_redshift, args.current_time, sfr, log_mstar], np.hstack([[item.n, item.s] for item in fit_result])))
-            temp_df = pd.DataFrame(dict(zip(columns, df_full_row)), index=[0])
-            temp_df.to_csv(outfilename, mode='a', sep='\t', header=False, index=None)
+                # ------update full dataframe and read it from file-----------
+                df_full_row = np.hstack(([args.output, args.current_redshift, args.current_time, sfr, log_mstar], np.hstack([[item.n, item.s] for item in fit_result])))
+                temp_df = pd.DataFrame(dict(zip(columns, df_full_row)), index=[0])
+                temp_df.to_csv(outfilename, mode='a', sep='\t', header=False, index=None)
 
-            # ------saving fig------------------
-            fig.savefig(figname)
-            myprint('Saved plot as ' + figname, args)
+                # ------saving fig------------------
+                fig.savefig(figname)
+                myprint('Saved plot as ' + figname, args)
 
-            plt.show(block=False)
-            print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
-            '''
+                plt.show(block=False)
+                print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), args)
+
             except Exception as e:
                 print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), args)
                 continue
-            '''
+            
         else:
             print('Skipping snapshot %s as %s already exists. Use --clobber_plot to remake figure.' %(args.output, figname))
             continue
