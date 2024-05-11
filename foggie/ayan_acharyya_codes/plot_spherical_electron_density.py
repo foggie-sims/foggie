@@ -65,10 +65,10 @@ if __name__ == '__main__':
     binby_col, color_col = 'redshift', 'bin_color'
     groupby_col = binby_col + '_bin'
     bins = [0, 0.02, 0.05, 0.1, 0.5, 2.0, 4.0] # non-linear redshift bins
-    all_bins = [pd.Interval(bins[item], bins[item + 1], closed='right') for item in range(len(bins) - 1)]
+    all_bins = [pd.Interval(bins[item], bins[item + 1], closed='left') for item in range(len(bins) - 1)]
     col_dict = dict(zip(all_bins, ['rebeccapurple', 'chocolate', 'darkgreen', 'darkblue', 'crimson', 'darkkhaki']))
 
-    df[groupby_col] = pd.cut(df[binby_col], bins)
+    df[groupby_col] = pd.cut(df[binby_col], bins, right=False)
     df[color_col] = df[groupby_col].map(col_dict)
 
     # --------loop over different parameters and plot them-------------
