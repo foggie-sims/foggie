@@ -13,7 +13,7 @@
 from header import *
 from util import *
 plt.rcParams['axes.linewidth'] = 1
-from datashader_movie import field_dict, unit_dict, islog_dict, get_correct_tablename
+from datashader_movie import field_dict, unit_dict, islog_dict, get_correct_tablename, get_text_between_strings
 from uncertainties import ufloat, unumpy
 from datetime import datetime, timedelta
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -50,9 +50,32 @@ def get_df_from_ds(box, args, outfilename=None):
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)  # creating the directory structure, if doesn't exist already
     if outfilename is None: outfilename = get_correct_tablename(args)
 
-    if not os.path.exists(outfilename) or args.clobber:
-        myprint(outfilename + ' does not exist. Creating afresh..', args)
+    if args.clobber: # create new file no matter what, by over writing existing ones if need be
+        myprint(outfilename + ' exits, but still creating afresh..', args)
+        create_new_file = True
+    else:
+        if os.path.exists(outfilename): # file exists, so read that in
+            myprint('Reading from existing file ' + outfilename, args)
+            create_new_file = False
+        else:
+            outfileroot = outfilename.replace(str(args.upto_kpc), '*')
+            outfile_list = glob.glob(outfileroot)
+            if len(outfile_list) == 0: # no other similar files present, so have to create a new one
+                myprint(outfilename + ' does not exist. Creating afresh..', args)
+                create_new_file = True
+            else:
+                available_rads = np.sort([float(get_text_between_strings(item, 'upto', 'ckpc' if args.docomoving else 'kpc')) for item in outfile_list])
+                try: # try to see if one of the other similar files can be useful
+                    index = np.where(available_rads >= args.galrad)[0][0]
+                    myprint(outfilename + ' does not exist...', args)
+                    outfilename = outfileroot.replace('*', '%.1F' % available_rads[index]) # found file containing info up to larger than required radius, so read that in
+                    myprint('...but %s exists, so reading that instead..' % outfilename, args)
+                    create_new_file = False
+                except IndexError: # other files present aren't appropriate, so have to create a new one
+                    myprint(outfilename + ' does not exist. Creating afresh..', args)
+                    create_new_file = True
 
+    if create_new_file:
         df = pd.DataFrame()
         fields = ['rad', 'density', 'el_density'] # only the relevant properties
         if args.weight is not None: fields += [args.weight]
@@ -63,7 +86,6 @@ def get_df_from_ds(box, args, outfilename=None):
 
         df.to_csv(outfilename, sep='\t', index=None)
     else:
-        myprint('Reading from existing file ' + outfilename, args)
         try:
             df = pd.read_table(outfilename, delim_whitespace=True, comment='#')
         except pd.errors.EmptyDataError:
@@ -336,20 +358,9 @@ if __name__ == '__main__':
                 axes_proj_el_den = plot_projected_map(ds, box, 'el_density', 'cm**-2', axes_proj_el_den, args, clim=[1e17, 1e21], cmap=e_color_map)
 
                 # ------calculating projected electron density---------------
-                df_snap_filename = args.output_dir + '/txtfiles/%s_spherical_el_density%s%s%s.txt' % (args.output, args.upto_text, args.nbins_text, args.weightby_text)
-
-                if not os.path.exists(df_snap_filename) or args.clobber:
-                    myprint(df_snap_filename + 'not found, creating afresh..', args)
-                    df_snap = get_df_from_ds(box, args)
-                    fit_result, axes_prof = plot_profile(df_snap, axes_prof, args)
-
-                    df_snap.to_csv(df_snap_filename, sep='\t', index=None)
-                    myprint('Saved file ' + df_snap_filename, args)
-                else:
-                    myprint('Reading in existing ' + df_snap_filename, args)
-                    df_snap = pd.read_table(df_snap_filename, delim_whitespace=True, comment='#')
-
-                    fit_result, axes_prof = plot_profile(df_snap, axes_prof, args)
+                df_snap_filename = args.output_dir + 'txtfiles/%s_spherical_el_density%s%s%s.txt' % (args.output, args.upto_text, args.nbins_text, args.weightby_text)
+                df_snap = get_df_from_ds(box, args, outfilename=df_snap_filename)
+                fit_result, axes_prof = plot_profile(df_snap, axes_prof, args)
 
                 fit_result = np.array(fit_result)
                 df_snap = df_snap.dropna()
@@ -385,7 +396,7 @@ if __name__ == '__main__':
     df_full = df_full.sort_values(by='time')
 
     # -------making animation of all snapshots-----------------------
-    if args.do_all_sims: make_movie(args.fig_dir + outfile_rootname, rever=True, fps=5)
+    if args.do_all_sims: make_movie(args.fig_dir + outfile_rootname, reverse=True, fps=5)
 
     if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)
