@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    May 2024
     Examples :   run electron_density_spherical.py --system ayan_pleiades --halo 8508 --upto_kpc 50 --docomoving --do_all_sims --write_file
-                 run electron_density_spherical.py --system ayan_local --halo 4123 --upto_kpc 10 --output RD0038 --docomoving --nbins 100 --clobber_plot
+                 run electron_density_spherical.py --system ayan_local --halo 4123 --upto_kpc 10 --output RD0038 --docomoving --nbins 100 --clobber_plot --dont_use_wider_file
 """
 from header import *
 from util import *
@@ -57,7 +57,10 @@ def get_df_from_ds(box, args, outfilename=None):
         if os.path.exists(outfilename): # file exists, so read that in
             myprint('Reading from existing file ' + outfilename, args)
             create_new_file = False
-        else:
+        elif args.dont_use_wider_file: # do not use other similar files even if they exist, so have to create a new one
+            myprint(outfilename + ' does not exist. Creating afresh..', args)
+            create_new_file = True
+        else: # try to see if one of the other similar files can be useful
             outfileroot = outfilename.replace(str(args.upto_kpc), '*')
             outfile_list = glob.glob(outfileroot)
             if len(outfile_list) == 0: # no other similar files present, so have to create a new one
@@ -65,7 +68,7 @@ def get_df_from_ds(box, args, outfilename=None):
                 create_new_file = True
             else:
                 available_rads = np.sort([float(get_text_between_strings(item, 'upto', 'ckpc' if args.docomoving else 'kpc')) for item in outfile_list])
-                try: # try to see if one of the other similar files can be useful
+                try:
                     index = np.where(available_rads >= args.galrad)[0][0]
                     myprint(outfilename + ' does not exist...', args)
                     outfilename = outfileroot.replace('*', '%.1F' % available_rads[index]) # found file containing info up to larger than required radius, so read that in
@@ -250,7 +253,7 @@ if __name__ == '__main__':
 
     Path(args.output_dir + 'txtfiles/').mkdir(parents=True, exist_ok=True)
     Path(args.output_dir + 'figs/').mkdir(parents=True, exist_ok=True)
-    if not os.path.exists(outfilename) or args.clobber: df_full.to_csv(outfilename, sep='\t', index=None) # writing to file, so that invidual processors can read in and append
+    if not os.path.exists(outfilename): df_full.to_csv(outfilename, sep='\t', index=None) # writing to file, so that invidual processors can read in and append
 
     # -------- reading in SFR info-------
     sfr_filename = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr'

@@ -1540,6 +1540,9 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--vcol', metavar='vcol', type=str, action='store', default='vlos', help='which velocity quantity to plot in the rightmost panel? default is vtan')
     parser.add_argument('--clim', metavar='clim', type=str, action='store', default=None, help='limit for velocity colorbar, in km/s; default is None')
 
+    # ------- args added for electron_density_spherical.py ------------------------------
+    parser.add_argument('--dont_use_wider_file', dest='dont_use_wider_file', action='store_true', default=False, help='avoid using files up to wider extent in radii even if they already exist?, default is no')
+
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 

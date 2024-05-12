@@ -179,7 +179,7 @@ if __name__ == '__main__':
     args.res_text = '_res%.1Fckpchinv' % float(args.res) if args.docomoving else '_res%.1Fkpc' % float(args.res)
     args.nbins_text = '_nbins%d' % args.nbins
     outfilename = args.output_dir + '/txtfiles/' + args.halo + '_projected_el_density_evolution%s%s%s%s.txt' % (args.upto_text, args.res_text, args.nbins_text, args.weightby_text)
-    if not os.path.exists(outfilename) or args.clobber: df_full.to_csv(outfilename, sep='\t', index=None) # writing to file, so that invidual processors can read in and append
+    if not os.path.exists(outfilename): df_full.to_csv(outfilename, sep='\t', index=None) # writing to file, so that invidual processors can read in and append
 
     # -------- reading in SFR info-------
     sfr_filename = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr'
