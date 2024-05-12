@@ -17,10 +17,26 @@ from datashader_movie import field_dict, unit_dict, islog_dict, get_correct_tabl
 from uncertainties import ufloat, unumpy
 from datetime import datetime, timedelta
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 from plot_MZgrad import load_df
 from compute_MZgrad import get_disk_stellar_mass
 
 start_time = datetime.now()
+
+# ------------------------------------------------------------------------------
+def make_movie(filename_pattern, reverse=True, fps=5):
+    '''
+    Function to make movie out of given list of files
+    Saves mp4 file
+    '''
+    print('\nNow making movie for snapshots with name %s ...' % filename_pattern)
+    outfilename = os.path.splitext(filename_pattern)[0] + '.mp4'
+    files = glob.glob(filename_pattern)
+    files.sort(reverse=reverse)
+
+    clip = ImageSequenceClip(files, fps=fps)
+    clip.write_videofile(outfilename)
+    print('Saved', outfilename)
 
 # -------------------------------------------------------------------------------
 def get_df_from_ds(box, args, outfilename=None):
@@ -367,6 +383,9 @@ if __name__ == '__main__':
     df_full = pd.read_table(outfilename, delim_whitespace=True)
     df_full = df_full.drop_duplicates(subset='output', keep='last')
     df_full = df_full.sort_values(by='time')
+
+    # -------making animation of all snapshots-----------------------
+    if args.do_all_sims: make_movie(args.fig_dir + outfile_rootname, rever=True, fps=5)
 
     if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)

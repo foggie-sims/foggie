@@ -17,6 +17,21 @@ from datetime import datetime, timedelta
 
 start_time = datetime.now()
 
+# ----------------------------------------------------
+def discrete_cmap(N, base_cmap=None):
+    '''
+    Create an N-bin discrete colormap from the specified input map
+    '''
+
+    # Note that if base_cmap is a string or None, you can simply do
+    #    return plt.cm.get_cmap(base_cmap, N)
+    # The following works for string, None, or a colormap instance:
+
+    base = plt.cm.get_cmap(base_cmap)
+    color_list = base(np.linspace(0, 1, N))
+    cmap_name = base.name + str(N)
+    return base.from_list(cmap_name, color_list, N)
+
 # -----main code-----------------
 if __name__ == '__main__':
     args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
@@ -24,50 +39,59 @@ if __name__ == '__main__':
     else: args = args_tuple
     if not args.keep: plt.close('all')
 
-    # --------determing filenames and declaring dicts-----------------
-    args.fontsize, args.fontfactor, pointsize = 15, 1.5, 20
+    # --------determing filenames-----------------
     if args.do_all_halos: args.halo_arr = ['8508', '5036', '5016', '4123', '2878', '2392']
-
     args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''
     args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     args.nbins_text = '_nbins%d' % args.nbins
     figname = args.output_dir + 'figs/' + ','.join(args.halo_arr) + '_el_density_vs_sfr_mass%s%s%s.png' % (args.upto_text, args.nbins_text, args.weightby_text)
     outfilename = args.output_dir + 'txtfiles/' + ','.join(args.halo_arr) + '_spherical_el_density_evolution_combined%s%s%s.txt' % (args.upto_text, args.nbins_text, args.weightby_text)
 
+    # ---------------loading the combined dataframe file---------------------------
+    if not os.path.exists(outfilename) or args.clobber:
+        print('The following combined file does not exists, so making new..\n%s' %outfilename)
+        df = pd.DataFrame()
+
+        # --------loop over different FOGGIE halos-------------
+        for index, args.halo in enumerate(args.halo_arr):
+            args.foggie_dir, args.output_dir, args.run_loc, args.code_path, args.trackname, args.haloname, args.spectra_dir, args.infofile = get_run_loc_etc(args)
+            filename = args.output_dir + 'txtfiles/' + args.halo + '_spherical_el_density_evolution%s%s%s.txt' % (args.upto_text, args.nbins_text, args.weightby_text)
+            print('For halo %d out of %d, reading file %s...' %(index + 1, len(args.halo_arr), filename))
+
+            df_halo = pd.read_table(filename, delim_whitespace=True, comment='#')
+            df_halo = df_halo.drop_duplicates(subset='output', keep='last')
+            df_halo['halo'] = args.halo
+            df = df.append(df_halo)
+
+        df.to_csv(outfilename, sep='\t', index=None)
+        print('\nSaved master dataframe as', outfilename)
+    else:
+        print('Reading existing combined file..\n%s' %outfilename)
+        df = pd.read_table(outfilename, delim_whitespace=True)
+
+    # --------declaring plot parameters and dicts-----------------------
+    args.fontsize, args.fontfactor, pointsize = 15, 1.5, 20
     quant_arr = ['central', 'alpha', 'break_rad', 'beta']
     label_dict = {'central':r'Central ED log (1/cm$^3$)', 'alpha':'Inner exponent', 'break_rad':'Break radius (kpc)', 'beta':'Outer exponent'}
-    lim_dict = {'central': (-3, 1), 'alpha': (-1, 0), 'break_rad': (0, 10), 'beta': (-1, 1)}
-
+    lim_dict = {'central': (-3, -1), 'alpha': (-2, 0.1), 'break_rad': (0, 15), 'beta': (-0.05, 0.05)}
     color = 'purple'
+
+    binby_col, color_col, cmap = 'redshift', 'bin_color', 'magma'
+    groupby_col = binby_col + '_bin'
+    bins = [0, 0.02, 0.05, 0.1, 0.5, 3.0, 6.0] # non-linear redshift bins
+    all_colors = []
+    for val in np.linspace(0., 0.8, len(bins) - 1):
+        rgb = plt.cm.get_cmap(cmap)(val, bytes=True)[:-1]
+        all_colors.append("#{0:02x}{1:02x}{2:02x}".format(rgb[0], rgb[1], rgb[2]))
+    all_bins = [pd.Interval(bins[item], bins[item + 1], closed='left') for item in range(len(bins) - 1)]
+    col_dict = dict(zip(all_bins, all_colors))
 
     # ---------------setting up the figure---------------------------
     fig, axes = plt.subplots(len(quant_arr), 2, sharex='col', sharey='row', figsize=(4, 6))
     ax_sfr, ax_mass = axes[:, 0], axes[:, 1]
     fig.subplots_adjust(top=0.95, bottom=0.1, left=0.2, right=0.95)
 
-    df = pd.DataFrame()
-
-    # --------loop over different FOGGIE halos-------------
-    for index, args.halo in enumerate(args.halo_arr):
-        args.foggie_dir, args.output_dir, args.run_loc, args.code_path, args.trackname, args.haloname, args.spectra_dir, args.infofile = get_run_loc_etc(args)
-        filename = args.output_dir + 'txtfiles/' + args.halo + '_spherical_el_density_evolution%s%s%s.txt' % (args.upto_text, args.nbins_text, args.weightby_text)
-        print('For halo %d out of %d, reading file %s...' %(index + 1, len(args.halo_arr), filename))
-
-        df_halo = pd.read_table(filename, delim_whitespace=True, comment='#')
-        df_halo = df_halo.drop_duplicates(subset='output', keep='last')
-        df_halo['halo'] = args.halo
-        df = df.append(df_halo)
-
-    df.to_csv(outfilename, sep='\t', index=None)
-    print('\nSaved master dataframe as', outfilename)
-
     # --------binning by redshift-----------------------
-    binby_col, color_col = 'redshift', 'bin_color'
-    groupby_col = binby_col + '_bin'
-    bins = [0, 0.02, 0.05, 0.1, 0.5, 2.0, 4.0] # non-linear redshift bins
-    all_bins = [pd.Interval(bins[item], bins[item + 1], closed='left') for item in range(len(bins) - 1)]
-    col_dict = dict(zip(all_bins, ['rebeccapurple', 'chocolate', 'darkgreen', 'darkblue', 'crimson', 'darkkhaki']))
-
     df[groupby_col] = pd.cut(df[binby_col], bins, right=False)
     df[color_col] = df[groupby_col].map(col_dict)
 
@@ -84,10 +108,10 @@ if __name__ == '__main__':
         ax_sfr[ind].set_ylabel(label_dict[quant], fontsize=args.fontsize / args.fontfactor)
 
     # ------------annotating axes labels------------------
-    for ind, this_bin in enumerate(all_bins): ax_mass[0].text(8.6, lim_dict[quant_arr[0]][1] - 0.1 - ind * 0.5, '%.2f < z <= %.2f' % (this_bin.left, this_bin.right) , c=col_dict[this_bin], fontsize = args.fontsize / args.fontfactor**2, ha='left', va='top')
+    for ind, this_bin in enumerate(all_bins): ax_mass[1].text(8.6, lim_dict[quant_arr[1]][0] + 0.2 + ind * 0.2, '%.2f < z <= %.2f' % (this_bin.left, this_bin.right) , c=col_dict[this_bin], fontsize = args.fontsize / args.fontfactor**2, ha='left', va='top')
 
     ax_sfr[-1].set_xlim(0, 15)
-    ax_mass[-1].set_xlim(8.5, 11)
+    ax_mass[-1].set_xlim(8.5, 11.5)
 
     ax_sfr[-1].set_xticklabels(['%.1F' % item for item in ax_sfr[-1].get_xticks()], fontsize=args.fontsize / args.fontfactor)
     ax_mass[-1].set_xticklabels(['%.1F' % item for item in ax_mass[-1].get_xticks()], fontsize=args.fontsize / args.fontfactor)
