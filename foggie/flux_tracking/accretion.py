@@ -3026,6 +3026,7 @@ def filaments_3D(ds, grid, snap, snap_props):
             unique_nonzero = unique[1:]
             counts_nonzero = counts[1:]
             biggest_label = unique_nonzero[counts_nonzero==np.max(counts_nonzero)]
+            biggest_label = biggest_label[0]
             sph_grid_2_labeled[sph_grid_2_labeled != biggest_label] = 0
             sph_grid_2_labeled[sph_grid_2_labeled > 0] = 1
             #plt.imshow(np.transpose(sph_grid_2_labeled), origin='lower')
