@@ -31,6 +31,8 @@ from pathlib import Path
 from astropy.table import Table
 from astropy.io import ascii
 
+from astropy.cosmology import Planck15 as cosmo
+
 import yt
 from yt.units import *
 from yt import YTArray
@@ -65,7 +67,7 @@ def parse_args():
     parser.add_argument('--weight', metavar='weight', type=str, action='store', default=None, help='Name of quantity to weight the metallicity by. Default is None i.e., no weighting.')
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default=None, help='Which projection do you want to plot, i.e., which axes are your line of sight? Default is to do x and z. Can specify multiple axes split by commas, and can do disk-relative as e.g. "x-disk".')
 
-    parser.add_argument('--plot', metavar='plot', type=str, action='store', default='density_projection,young_stars_projection,temperature_projection,KS_relation,outflow_rates', help='Which plots do you want to make? Give a comma-separated list. Default is all plots.')
+    parser.add_argument('--plot', metavar='plot', type=str, action='store', default='halo_info,density_projection,young_stars_projection,temperature_projection,KS_relation,outflow_rates', help='Which plots do you want to make? Give a comma-separated list. Default is all plots.')
 
     # The following three args are used for backward compatibility, to find the trackfile for production runs, if a trackfile has not been explicitly specified
     parser.add_argument('--system', metavar='system', type=str, action='store', default=None, help='Which system are you on? This is used only when trackfile is not specified.')
@@ -80,6 +82,9 @@ def need_to_make_this_plot(output_filename, args):
     '''
     Determines whether a figure with this name already exists, and if so, should it be over-written
     :return boolean
+
+    NOTE: NEEDS TO BE REWRITTEN SO CHECK HAPPENS *BEFORE* THE SNAPSHOT IS LOADED
+    It takes too much time to load a snapshot if you're not making any plots with it
     '''
     if os.path.exists(output_filename):
         if not args.silent: print(output_filename + ' already exists.', )
@@ -178,6 +183,63 @@ def edge_visualizations(ds, region, args):
             s.set_zlim('temperature', 1e4,1e7)
             s.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
             s.save(s_filename)
+
+# --------------------------------------------------------------------------------------------------------------------
+def get_halo_info(ds, region, args, queue):
+    '''Calculates basic information about the halo: snapshot name, time, redshift, halo x,y,z location, halo vx,vy,vz bulk velocity, virial mass, virial radius, stellar mass, star formation rate.
+    NOTE: The virial mass and radius as currently written will only work for the central galaxies! Rockstar is not being run to find satellite halos.'''
+    global data
+
+    # Determine if this snapshot has already had its information calculated
+    if (args.snap in args.data['snapshot']):
+        if not args.silent: print('Halo info for snapshot ' + args.snap + ' already calculated.', )
+        if args.clobber:
+            if not args.silent: print(' But we will re-calculate it...')
+            calc = True
+        else:
+            if not args.silent: print(' So we will skip it.')
+            calc = False
+    else: calc = True
+
+    if (calc):
+        if not args.silent: print('About to calculate halo info for ' + args.snap + '...')
+
+        row = [args.snap, ds.current_time.in_units('Myr').v, ds.get_parameter('CosmologyCurrentRedshift'), \
+               ds.halo_center_kpc[0], ds.halo_center_kpc[1], ds.halo_center_kpc[2], \
+               ds.halo_velocity_kms[0], ds.halo_velocity_kms[1], ds.halo_velocity_kms[2]]
+        
+        sph = ds.sphere(center = ds.halo_center_kpc, radius = (400., 'kpc'))
+        filter_particles(sph)
+        prof_dm = yt.create_profile(sph, ('index', 'radius'), fields = [('deposit', 'dm_mass')], \
+                                    n_bins = 500, weight_field = None, accumulation = True)
+        prof_stars = yt.create_profile(sph, ('index', 'radius'), fields = [('deposit', 'stars_mass')], \
+                                    n_bins = 500, weight_field = None, accumulation = True)
+        prof_young_stars = yt.create_profile(sph, ('index', 'radius'), fields = [('deposit', 'young_stars_mass')], \
+                                    n_bins = 500, weight_field = None, accumulation = True)
+        prof_gas = yt.create_profile(sph, ('index', 'radius'), fields = [('gas', 'cell_mass')],\
+                                    n_bins = 500, weight_field = None, accumulation = True)
+
+        internal_density =  (prof_dm[('deposit', 'dm_mass')].to('g') + prof_stars[('deposit', 'stars_mass')].to('g') + \
+                             prof_gas[('gas', 'cell_mass')].to('g'))/(4*np.pi*prof_dm.x.to('cm')**3./3.)
+
+        rho_crit = cosmo.critical_density(ds.current_redshift)
+        rvir = prof_dm.x[np.argmin(abs(internal_density.value - 200*rho_crit.value))]
+        Mdm_rvir    = prof_dm[('deposit', 'dm_mass')][np.argmin(abs(internal_density.value - 200*rho_crit.value))]
+        Mstars_rvir = prof_stars[('deposit', 'stars_mass')][np.argmin(abs(internal_density.value - 200*rho_crit.value))]
+        Mgas_rvir   = prof_gas[('gas', 'cell_mass')][np.argmin(abs(internal_density.value - 200*rho_crit.value))]
+        Mvir = Mdm_rvir + Mstars_rvir + Mgas_rvir
+        Myoung_stars = prof_young_stars[('deposit','young_stars_mass')][np.where(prof_young_stars.x.to('kpc') >= 20.)[0][0]]
+        SFR = Myoung_stars.to('Msun').v/1e7
+
+        row.append(Mvir.to('Msun').v)
+        row.append(rvir.to('kpc').v)
+        row.append(Mstars_rvir.to('Msun').v)
+        row.append(SFR)
+
+        if (args.nproc != 1):
+            queue.put(row)
+        else:
+            queue.add_row(row)
 
 # --------------------------------------------------------------------------------------------------------------------
 def KS_relation(ds, region, args):
@@ -280,7 +342,7 @@ def outflow_rates(ds, region, args):
         plt.close()
 
 # --------------------------------------------------------------------------------------------------------------------
-def make_plots(snap, args):
+def make_plots(snap, args, queue):
     '''Finds the halo center and other properties of the dataset and then calls
     the plotting scripts.'''
 
@@ -296,11 +358,112 @@ def make_plots(snap, args):
         region = ds.sphere(ds.halo_center_kpc, ds.arr(args.galrad, 'kpc'))
 
     # ----------------------- Make the plots ---------------------------------------------
-    if ('density_projection' in cli_args.plot): gas_density_projection(ds, region, args)
-    if ('temperature_projection' in cli_args.plot): edge_visualizations(ds, region, args)
-    if ('young_stars_projection' in cli_args.plot): young_stars_density_projection(ds, region, args)
-    if ('KS_relation' in cli_args.plot): KS_relation(ds, region, args)
-    if ('outflow_rates' in cli_args.plot): outflow_rates(ds, region, args)
+    print(args.data['snapshot'])
+    if ('halo_info' in args.plot): get_halo_info(ds, region, args, queue)
+    if ('density_projection' in args.plot): gas_density_projection(ds, region, args)
+    if ('temperature_projection' in args.plot): edge_visualizations(ds, region, args)
+    if ('young_stars_projection' in args.plot): young_stars_density_projection(ds, region, args)
+    if ('KS_relation' in args.plot): KS_relation(ds, region, args)
+    if ('outflow_rates' in args.plot): outflow_rates(ds, region, args)
+
+# --------------------------------------------------------------------------------------------------------------------
+def make_table():
+    data_names = ['snapshot','time','redshift','halo_x','halo_y','halo_z','halo_vx','halo_vy','halo_vz','halo_mass','halo_radius','stellar_mass','SFR']
+    data_types = ['S6','f8','f8','f8','f8','f8','f8','f8','f8','f8','f8','f8','f8']
+    data_units = ['none','Myr','none','kpc','kpc','kpc','km/s','km/s','km/s','Msun','kpc','Msun','Msun/yr']
+    data = Table(names=data_names, dtype=data_types)
+    for i in range(len(data.keys())):
+        key = data.keys()[i]
+        data[key].unit = data_units[i]
+    return data
+
+# --------------------------------------------------------------------------------------------------------------------
+def plot_SFMS(args):
+    '''Plots the star-forming main sequence of the simulated galaxy -- one point per output on the plot -- and compares
+    to best fit curves from observations at different redshifts.'''
+
+    output_filename = args.save_directory + '/SFMS.png'
+
+    # Read in the previously-saved halo information
+    data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
+
+    fig = plt.figure(figsize=(8,6))
+    ax = fig.add_subplot(1,1,1)
+
+    colormap = plt.cm.rainbow
+    normalize = matplotlib.colors.Normalize(vmin=0., vmax=13.759)
+
+    # Plot the observed best-fit values for a handful of redshifts
+    Mstar_list = np.arange(8.,12.5,0.5)
+    tlist = [13.759, 10.788, 8.657, 5.925, 3.330, 1.566]
+    zlist = [0., 0.25, 0.5, 1., 2., 4.]
+    SFR_list = []
+    for i in range(len(tlist)):
+        SFR_list.append([])
+        for j in range(len(Mstar_list)):
+            SFR_list[i].append((0.84-0.026*tlist[i])*Mstar_list[j] - (6.51-0.11*tlist[i]))  # This equation comes from Speagle et al. (2014), first row of Table 9
+        ax.plot(Mstar_list, SFR_list[i], '-', lw=1, color=colormap(normalize(tlist[i])), label='z=%.2f' % zlist[i])
+        ax.fill_between(Mstar_list, np.array(SFR_list[i])-0.2, y2=np.array(SFR_list[i])+0.2, color=colormap(normalize(tlist[i])), alpha=0.2)
+
+    # Plot the simulated galaxy's location in stellar mass-SFR space as a scatterplot color-coded by redshift
+    ax.scatter(np.log10(data['stellar_mass']), np.log10(data['SFR']), c=data['time'], cmap=colormap, norm=normalize, s=20)
+
+    ax.set_xlabel('$\log M_\star$ [$M_\odot$]', fontsize=16)
+    ax.set_ylabel('$\log$ SFR [$M_\odot$/yr]', fontsize=16)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
+    ax.legend(loc=2, frameon=False, fontsize=14)
+    plt.tight_layout()
+    plt.savefig(output_filename, dpi=300)
+    plt.close()
+
+# --------------------------------------------------------------------------------------------------------------------
+def plot_SMHM(args):
+    '''Plots the stellar mass-halo mass relation of the simulated galaxy -- one point per output on the plot -- and compares
+    to best fit curves from observations at different redshifts.'''
+
+    output_filename = args.save_directory + '/SMHM.png'
+
+    # Read in the previously-saved halo information
+    data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
+
+    fig = plt.figure(figsize=(8,6))
+    ax = fig.add_subplot(1,1,1)
+
+    colormap = plt.cm.rainbow
+    normalize = matplotlib.colors.LogNorm(vmin=0.5, vmax=13.759)
+
+    # Plot the observed best-fit values for a handful of redshifts
+    tlist = [12.447, 5.925, 3.330, 2.182, 1.566, 1.193, 0.947]
+    zlist = [0.1, 1., 2., 3., 4., 5., 6.]
+    # These values come from digitizing Figure 7 of Behroozi et al. (2013)
+    Mhalo_list = [[10.010, 10.379, 10.746, 11.131, 11.500, 11.874, 12.239, 12.627, 13.002, 13.380, 13.751, 14.122, 14.510, 14.876],
+                  [10.876, 11.257, 11.675, 12.000, 12.374, 12.750, 13.129, 13.504, 13.875, 14.251, 14.633],
+                  [11.266, 11.637, 11.998, 12.375, 12.762, 13.124, 13.505, 13.875],
+                  [11.510, 11.875, 12.247, 12.624, 13.002, 13.386],
+                  [11.376, 11.753, 12.119, 12.503, 12.875, 13.251],
+                  [11.256, 11.634, 12.006, 12.374, 12.757],
+                  [11.136, 11.504, 11.881, 12.251]]
+    Mstar_list = [[7.246, 7.750, 8.291, 8.901, 9.697, 10.275, 10.633, 10.821, 10.937, 11.078, 11.152, 11.224, 11.290, 11.372],
+                  [8.306, 8.918, 9.882, 10.420, 10.774, 10.955, 11.045, 11.114, 11.151, 11.205, 11.229],
+                  [8.780, 9.569, 10.364, 10.789, 10.960, 11.055, 11.102, 11.136],
+                  [9.349, 10.091, 10.626, 10.862, 10.970, 11.040],
+                  [9.240, 9.981, 10.478, 10.704, 10.822, 10.886],
+                  [9.213, 9.904, 10.323, 10.515, 10.644],
+                  [9.190, 9.799, 10.161, 10.317]]
+    for i in range(len(tlist)):
+        ax.plot(Mhalo_list[i], Mstar_list[i], '-', lw=1, color=colormap(normalize(tlist[i])), label='z=%.2f' % zlist[i])
+        ax.fill_between(Mhalo_list[i], np.array(Mstar_list[i])-0.15, y2=np.array(Mstar_list[i])+0.15, color=colormap(normalize(tlist[i])), alpha=0.2)
+
+    # Plot the simulated galaxy's location in stellar mass-SFR space as a scatterplot color-coded by redshift
+    ax.scatter(np.log10(data['halo_mass']), np.log10(data['stellar_mass']), c=data['time'], cmap=colormap, norm=normalize, s=20)
+
+    ax.set_xlabel('$\log M_\mathrm{halo}$ [$M_\odot$]', fontsize=16)
+    ax.set_ylabel('$\log$ M_\star [$M_\odot$]', fontsize=16)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
+    ax.legend(loc=2, frameon=False, fontsize=14)
+    plt.tight_layout()
+    plt.savefig(output_filename, dpi=300)
+    plt.close()
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -337,28 +500,65 @@ if __name__ == "__main__":
             if os.path.isdir(folder_path) and ((fname[0:2]=='DD') or (fname[0:2]=='RD')):
                 outputs.append(fname)
 
+    if ('halo_info' in cli_args.plot):
+        if (os.path.exists(cli_args.save_directory + '/halo_data.txt')):
+            data = Table.read(cli_args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
+        else:
+            data = make_table()
+        cli_args.data = data
+
     # --------- Loop over outputs, for either single-processor or parallel processor computing ---------------
     if (cli_args.nproc == 1):
         for snap in outputs:
-            make_plots(snap, cli_args)
+            queue = []
+            make_plots(snap, cli_args, queue)
+            if ('halo_info' in cli_args.plot):
+                data.sort('time')
+                data.write(cli_args.save_directory + '/halo_data.txt', format='ascii.fixed_width', overwrite=True)
     else:
         # Split into a number of groupings equal to the number of processors
         # and run one process per processor
         for i in range(len(outputs)//cli_args.nproc):
+            queue = multi.Queue()
+            rows = []
             threads = []
             for j in range(cli_args.nproc):
                 snap = outputs[cli_args.nproc*i+j]
-                threads.append(multi.Process(target=make_plots, args=[snap, cli_args]))
+                threads.append(multi.Process(target=make_plots, args=[snap, cli_args, queue]))
             for t in threads:
                 t.start()
             for t in threads:
+                row = queue.get()
+                rows.append(row)
+            for t in threads:
                 t.join()
+            # Append halo data to file
+            if ('halo_info' in cli_args.plot):
+                for row in rows:
+                    data.add_row(row)
+                data.sort('time')
+                data.write(cli_args.save_directory + '/halo_data.txt', format='ascii.fixed_width', overwrite=True)
         # For any leftover snapshots, run one per processor
+        queue = multi.Queue()
+        rows = []
         threads = []
         for j in range(len(outputs)%cli_args.nproc):
             snap = outputs[-(j+1)]
-            threads.append(multi.Process(target=make_plots, args=[snap, cli_args]))
+            threads.append(multi.Process(target=make_plots, args=[snap, cli_args, queue]))
         for t in threads:
             t.start()
         for t in threads:
+            row = queue.get()
+            rows.append(row)
+        for t in threads:
             t.join()
+        # Append halo data to file
+        if ('halo_info' in cli_args.plot):
+            for row in rows:
+                data.add_row(row)
+            data.sort('time')
+            data.write(cli_args.save_directory + '/halo_data.txt', format='ascii.fixed_width', overwrite=True)
+
+    if ('halo_info' in cli_args.plot):
+        plot_SFMS(cli_args)
+        plot_SMHM(cli_args)
