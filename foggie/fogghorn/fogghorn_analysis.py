@@ -358,7 +358,6 @@ def make_plots(snap, args, queue):
         region = ds.sphere(ds.halo_center_kpc, ds.arr(args.galrad, 'kpc'))
 
     # ----------------------- Make the plots ---------------------------------------------
-    print(args.data['snapshot'])
     if ('halo_info' in args.plot): get_halo_info(ds, region, args, queue)
     if ('density_projection' in args.plot): gas_density_projection(ds, region, args)
     if ('temperature_projection' in args.plot): edge_visualizations(ds, region, args)
@@ -406,7 +405,7 @@ def plot_SFMS(args):
         ax.fill_between(Mstar_list, np.array(SFR_list[i])-0.2, y2=np.array(SFR_list[i])+0.2, color=colormap(normalize(tlist[i])), alpha=0.2)
 
     # Plot the simulated galaxy's location in stellar mass-SFR space as a scatterplot color-coded by redshift
-    ax.scatter(np.log10(data['stellar_mass']), np.log10(data['SFR']), c=data['time'], cmap=colormap, norm=normalize, s=20)
+    ax.scatter(np.log10(data['stellar_mass']), np.log10(data['SFR']), c=data['time']/1000., cmap=colormap, norm=normalize, s=20)
 
     ax.set_xlabel('$\log M_\star$ [$M_\odot$]', fontsize=16)
     ax.set_ylabel('$\log$ SFR [$M_\odot$/yr]', fontsize=16)
@@ -455,10 +454,10 @@ def plot_SMHM(args):
         ax.fill_between(Mhalo_list[i], np.array(Mstar_list[i])-0.15, y2=np.array(Mstar_list[i])+0.15, color=colormap(normalize(tlist[i])), alpha=0.2)
 
     # Plot the simulated galaxy's location in stellar mass-SFR space as a scatterplot color-coded by redshift
-    ax.scatter(np.log10(data['halo_mass']), np.log10(data['stellar_mass']), c=data['time'], cmap=colormap, norm=normalize, s=20)
+    ax.scatter(np.log10(data['halo_mass']), np.log10(data['stellar_mass']), c=data['time']/1000., cmap=colormap, norm=normalize, s=20)
 
     ax.set_xlabel('$\log M_\mathrm{halo}$ [$M_\odot$]', fontsize=16)
-    ax.set_ylabel('$\log$ M_\star [$M_\odot$]', fontsize=16)
+    ax.set_ylabel('$\log M_\star$ [$M_\odot$]', fontsize=16)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     ax.legend(loc=2, frameon=False, fontsize=14)
     plt.tight_layout()
