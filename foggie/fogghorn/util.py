@@ -34,8 +34,15 @@ def parse_args():
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default='z', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is z; but user can input multiple comma-separated values')
     parser.add_argument('--disk_rel', dest='disk_rel', action='store_true', default=False, help='Consider projection plots w.r.t the disk rather than the box edges? Be aware that this will turn on disk_relative=True while reading in each snapshot whic might slow down the loading of data. Default is No.')
     parser.add_argument('--use_density_cut', dest='use_density_cut', action='store_true', default=False, help='Impose a density cut to get just the disk? Default is no.')
-    parser.add_argument('--fontsize', metavar='fontsize', type=int, action='store', default=15, help='Fontsize of plot labels, etc. Default is 15')
     parser.add_argument('--nbins', metavar='nbins', type=int, action='store', default=100, help='Number of bins to use for the metallicity histogram plot. Default is 100')
+
+    # The following is for the user to choose which plots they want
+    parser.add_argument('--all_plots', dest='all_plots', action='store_true', default=False, help='Make all the plots? Default is no.')
+    parser.add_argument('--all_sf_plots', dest='all_sf_plots', action='store_true', default=False, help='Make all star formation plots? Default is no.')
+    parser.add_argument('--all_fb_plots', dest='all_fb_plots', action='store_true', default=False, help='Make all feedback plots? Default is no.')
+    parser.add_argument('--all_vis_plots', dest='all_vis_plots', action='store_true', default=False, help='Make all visualisation plots? Default is no.')
+    parser.add_argument('--all_metal_plots', dest='all_metal_plots', action='store_true', default=False, help='Make all resolved metallicity plots? Default is no.')
+    parser.add_argument('--make_plots', metavar='make_plots', type=str, action='store', default='', help='Which plots to make? Comma-separated names of the plotting routines to call. Default is none.')
 
     # The following three args are used for backward compatibility, to find the trackfile for production runs, if a trackfile has not been explicitly specified
     parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_local', help='Which system are you on? This is used only when trackfile is not specified. Default is ayan_local')
@@ -45,6 +52,7 @@ def parse_args():
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
     args.projections = [item for item in args.projection.split(',')]
+    args.plots_asked_for = [item for item in args.make_plots.split(',')]
 
     return args
 
@@ -213,19 +221,21 @@ def generate_plot_filename(quantity, args):
     Generates filename for a plot that is about to be made
     This way the nomenclature is consistent
     '''
-    output_filename = args.save_directory + '/' + args.snap + '_Projection_' + args.projection + '_young_stars3_cic.png' # star_formation_plots.young_stars_density_projection()
-    output_filename = args.save_directory + '/' + args.snap + '_KS-relation.png' # star_formation_plots.KS_relation()
-    output_filename = args.save_directory + '/' + args.snap + '_outflows.png' # feedback_plots.outflow_rates()
-    output_filename = args.save_directory + '/' + args.snap + '_Projection_' + args.projection + '_density.png' # visualization_plots.gas_density_projection()
-    output_basename = args.save_directory + '/' + args.snap # visualization_plots.edge_visualizations()
-    output_filename = args.save_directory + '/' + args.snap + '_gas_metallicity_projection_' + args.projection_text + args.upto_text + args.density_cut_text + '.png' # visualization_plots.plot_gas_metallicity_projection()
-    output_filename = args.save_directory + '/' + args.snap + '_resolved_gas_MZR' + args.upto_text + args.density_cut_text + '.png' # resolved_metallicity_plots.gas_metallicity_resolved_MZR()
-    output_filename = args.save_directory + '/' + args.snap + '_gas_metallicity_histogram' + args.upto_text + args.density_cut_text + '.png' # resolved_metallicity_plots.gas_metallicity_histogram()
-    output_filename = args.save_directory + '/' + args.snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png' # resolved_metallicity_plots.gas_metallicity_radial_profile()
+    output_filename_dict = {'young_stars_density_projection':args.snap + '_Projection_' + args.projection + '_young_stars3_cic.png', \
+                            'KS_relation': args.snap + '_KS-relation.png', \
+                            'outflow_rates': args.snap + '_outflows.png', \
+                            'gas_density_projection': args.snap + '_Projection_' + args.projection + '_density.png', \
+                            'gas_metallicity_projection': args.snap + '_gas_metallicity_projection_' + args.projection_text + args.upto_text + args.density_cut_text + '.png', \
+                            'edge_visualizations': args.snap + '_Projection_disk-x_temperature_density.png', \
+                            'gas_metallicity_resolved_MZR': args.snap + '_resolved_gas_MZR' + args.upto_text + args.density_cut_text + '.png', \
+                            'gas_metallicity_histogram': args.snap + '_gas_metallicity_histogram' + args.upto_text + args.density_cut_text + '.png', \
+                            'gas_metallicity_radial_profile': args.snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png', \
+                            'plot_SFMS': 'SFMS.png', \
+                            'plot_SMHM': 'SMHM.png', \
+                            'plot_MZR': 'MZR.png'}
 
-    output_filename = args.save_directory + '/SFMS.png' # population_plots.plot_SFMS()
-    output_filename = args.save_directory + '/SMHM.png' # population_plots.plot_SMHM()
-    output_filename = args.save_directory + '/MZR.png' # population_plots.plot_MZR()
+    output_filename = args.save_directory + '/' + output_filename_dict[quantity]
+    return output_filename
 
 
 

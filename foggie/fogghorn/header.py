@@ -29,6 +29,7 @@ from pathlib import Path
 import pandas as pd
 from uncertainties import ufloat, unumpy
 import seaborn as sns
+from mpi4py import MPI
 
 from astropy.table import Table
 from astropy.io import ascii
@@ -61,3 +62,12 @@ from star_formation_plots import *
 from visualization_plots import *
 from resolved_metallicity_plots import *
 from halo_info_table import *
+
+# global variables that should be accessible throughout
+# if you add a function to any of the following scripts, add the function name below
+sf_plots = ['young_stars_density_projection', 'KS_relation']
+fb_plots = ['outflow_rates']
+vis_plots = ['gas_density_projection', 'gas_metallicity_projection', 'edge_visualizations']
+metal_plots = ['gas_metallicity_resolved_MZR', 'gas_metallicity_histogram', 'gas_metallicity_radial_profile']
+pop_plots = ['plot_SFMS', 'plot_SMHM', 'plot_MZR']
+
