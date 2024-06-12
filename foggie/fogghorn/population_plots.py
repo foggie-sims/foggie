@@ -4,7 +4,12 @@
     Created: 6-12-24
     Last modified: 6-12-24 by Cassi
     This file works with fogghorn_analysis.py to make the set of plots for halo scaling relations.
+    If you add a new function to this scripts, then please also add the function name to the appropriate list at the end of fogghorn/header.py
+
 '''
+
+from foggie.fogghorn.header import *
+from foggie.fogghorn.util import *
 
 # --------------------------------------------------------------------------------------------------------------------
 def plot_SFMS(args):
@@ -12,8 +17,6 @@ def plot_SFMS(args):
     Plots the star-forming main sequence of the simulated galaxy -- one point per output on the plot -- and compares
     to best fit curves from observations at different redshifts.
     '''
-
-    output_filename = args.save_directory + '/SFMS.png'
 
     # Read in the previously-saved halo information
     data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
@@ -44,7 +47,8 @@ def plot_SFMS(args):
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     ax.legend(loc=2, frameon=False, fontsize=14)
     plt.tight_layout()
-    plt.savefig(output_filename, dpi=300)
+    plt.savefig(args.output_filename, dpi=300)
+    print('Saved figure ' + args.output_filename)
     plt.close()
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -53,8 +57,6 @@ def plot_SMHM(args):
     Plots the stellar mass-halo mass relation of the simulated galaxy -- one point per output on the plot -- and compares
     to best fit curves from observations at different redshifts.
     '''
-
-    output_filename = args.save_directory + '/SMHM.png'
 
     # Read in the previously-saved halo information
     data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
@@ -95,11 +97,25 @@ def plot_SMHM(args):
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     ax.legend(loc=2, frameon=False, fontsize=14)
     plt.tight_layout()
-    plt.savefig(output_filename, dpi=300)
+    plt.savefig(args.output_filename, dpi=300)
+    print('Saved figure ' + args.output_filename)
     plt.close()
 
 # --------------------------------------------------------------------------------------------------------------------
 def plot_MZR(args):
     '''
-    Placeholder function for mass-metallicity relation plot
+    Plots global gas metallicity vs gas mass relation.
+    Returns nothing. Saves output as png file
     '''
+
+    # --------- Setting up the figure ---------
+    fig, ax = plt.subplots(figsize=(8, 8))
+    fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.15)
+
+    # Ayan will add stuff here
+
+    # ---------annotate and save the figure----------------------
+    plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
+    plt.savefig(args.output_filename)
+    print('Saved figure ' + args.output_filename)
+    plt.close()

@@ -10,7 +10,7 @@
 
 """
 
-from header import *
+from foggie.fogghorn.header import *
 
 # --------------------------------------------------------------------------------------------------------------------
 def parse_args():
@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, help='What is the directory of the track file for this halo?\n' + 'This is needed to find the center of the galaxy of interest.')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the working directory?, Default is no')
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', default=1, help='How many processes do you want? Default is 1 (no parallelization), if multiple processors are specified, code will run one output per processor')
+    parser.add_argument('--rockstar_directory', metavar='rockstar_directory', type=str, action='store', default=None, help='What is the directory where your rockstar outputs are located?')
 
     parser.add_argument('--clobber', dest='clobber', action='store_true', default=False, help='Over-write existing plots? Default is no.')
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress some generic pritn statements? Default is no.')
@@ -35,6 +36,7 @@ def parse_args():
     parser.add_argument('--disk_rel', dest='disk_rel', action='store_true', default=False, help='Consider projection plots w.r.t the disk rather than the box edges? Be aware that this will turn on disk_relative=True while reading in each snapshot whic might slow down the loading of data. Default is No.')
     parser.add_argument('--use_density_cut', dest='use_density_cut', action='store_true', default=False, help='Impose a density cut to get just the disk? Default is no.')
     parser.add_argument('--nbins', metavar='nbins', type=int, action='store', default=100, help='Number of bins to use for the metallicity histogram plot. Default is 100')
+    parser.add_argument('--use_cen_smoothed', dest='use_cen_smoothed', action='store_true', default=False, help='use Cassis new smoothed center file?, default is no')
 
     # The following is for the user to choose which plots they want
     parser.add_argument('--all_plots', dest='all_plots', action='store_true', default=False, help='Make all the plots? Default is no.')
@@ -42,6 +44,7 @@ def parse_args():
     parser.add_argument('--all_fb_plots', dest='all_fb_plots', action='store_true', default=False, help='Make all feedback plots? Default is no.')
     parser.add_argument('--all_vis_plots', dest='all_vis_plots', action='store_true', default=False, help='Make all visualisation plots? Default is no.')
     parser.add_argument('--all_metal_plots', dest='all_metal_plots', action='store_true', default=False, help='Make all resolved metallicity plots? Default is no.')
+    parser.add_argument('--all_pop_plots', dest='all_pop_plots', action='store_true', default=False, help='Make all population plots? Default is no.')
     parser.add_argument('--make_plots', metavar='make_plots', type=str, action='store', default='', help='Which plots to make? Comma-separated names of the plotting routines to call. Default is none.')
 
     # The following three args are used for backward compatibility, to find the trackfile for production runs, if a trackfile has not been explicitly specified
@@ -51,7 +54,7 @@ def parse_args():
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
-    args.projections = [item for item in args.projection.split(',')]
+    args.projection_arr = [item for item in args.projection.split(',')]
     args.plots_asked_for = [item for item in args.make_plots.split(',')]
 
     return args
@@ -93,13 +96,7 @@ def myprint_orig(text, args):
     if 'minutes' in text: text = fix_time_format(text, 'minutes')
     elif 'mins' in text: text = fix_time_format(text, 'mins')
 
-    if not args.silent:
-        if args.print_to_file:
-            ofile = open(args.printoutfile, 'a')
-            ofile.write(text)
-            ofile.close()
-        else:
-            print(text)
+    if not args.silent: print(text)
 
 # --------------------------------------------------------------------------------------------------------------------
 def need_to_make_this_plot(output_filename, args):
@@ -108,7 +105,7 @@ def need_to_make_this_plot(output_filename, args):
     :return boolean
     '''
     if os.path.exists(output_filename):
-        if not args.silent: print(output_filename + 'already exists.')
+        if not args.silent: print(output_filename + ' already exists.')
         if args.clobber:
             if not args.silent: print('But we will re-make it...')
             return True

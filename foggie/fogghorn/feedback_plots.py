@@ -4,7 +4,11 @@
     Created: 6-12-24
     Last modified: 6-12-24 by Cassi
     This file works with fogghorn_analysis.py to make a set of plots for investigating feddback.
+    If you add a new function to this scripts, then please also add the function name to the appropriate list at the end of fogghorn/header.py
 '''
+
+from foggie.fogghorn.header import *
+from foggie.fogghorn.util import *
 
 # --------------------------------------------------------------------------------------------------------------------
 def outflow_rates(ds, region, args):
@@ -13,8 +17,6 @@ def outflow_rates(ds, region, args):
     and as a function of height through 20x20 kpc horizontal planes above and below the disk of young stars.
     Uses only gas with outflow velocities greater than 50 km/s.
     '''
-
-    output_filename = args.save_directory + '/' + args.snap + '_outflows.png'
 
     # Load needed fields into arrays
     radius = region['gas','radius_corrected'].in_units('kpc')
@@ -72,5 +74,6 @@ def outflow_rates(ds, region, args):
     ax2.set_yscale('log')
     ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14)
     plt.tight_layout()
-    plt.savefig(output_filename, dpi=300)
+    plt.savefig(args.output_filename, dpi=300)
+    print('Saved figure ' + args.output_filename)
     plt.close()

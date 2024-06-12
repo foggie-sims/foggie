@@ -4,16 +4,19 @@
     Created: 6-12-24
     Last modified: 6-12-24 by Ayan
     This file works with fogghorn_analysis.py to make the set of plots for resolved gas phase metallicity.
+    If you add a new function to this scripts, then please also add the function name to the appropriate list at the end of fogghorn/header.py
+
 '''
 
+from foggie.fogghorn.header import *
+from foggie.fogghorn.util import *
+
 # --------------------------------------------------------------------------------------------------------------------
-def plot_gas_metallicity_resolved_MZR(ds, region, args):
+def gas_metallicity_resolved_MZR(ds, region, args):
     '''
     Plots a spatially resolved gas metallicity vs gas mass relation.
     Returns nothing. Saves output as png file
     '''
-    output_filename = args.save_directory + '/' + args.snap + '_resolved_gas_MZR' + args.upto_text + args.density_cut_text + '.png'
-
     df = get_df_from_ds(region, args)
 
     # --------- Setting up the figure ---------
@@ -24,18 +27,16 @@ def plot_gas_metallicity_resolved_MZR(ds, region, args):
 
     # ---------annotate and save the figure----------------------
     plt.text(0.97, 0.95, 'z = %.2F' % ds.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.savefig(output_filename)
-    print('Saved figure ' + output_filename)
+    plt.savefig(args.output_filename)
+    print('Saved figure ' + args.output_filename)
     plt.close()
 
 # --------------------------------------------------------------------------------------------------------------------
-def plot_gas_metallicity_histogram(ds, region, args):
+def gas_metallicity_histogram(ds, region, args):
     '''
     Plots a histogram of the gas metallicity (No Gaussian fits, for now).
     Returns nothing. Saves output as png file
     '''
-    output_filename = args.save_directory + '/' + args.snap + '_gas_metallicity_histogram' + args.upto_text + args.density_cut_text + '.png'
-
     df = get_df_from_ds(region, args)
 
     # --------- Plotting the histogram ---------
@@ -64,15 +65,17 @@ def plot_gas_metallicity_histogram(ds, region, args):
 
     # ---------annotate and save the figure----------------------
     plt.text(0.97, 0.95, 'z = %.2F' % ds.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.savefig(output_filename)
-    print('Saved figure ' + output_filename)
+    plt.savefig(args.output_filename)
+    print('Saved figure ' + args.output_filename)
     plt.close()
 
 # ---------------------------------------------------------------------------------
-def plot_bin_fit_radial_profile(df, xcol, ycol, x_bins, ax, args, color='darkorange'):
+def bin_fit_radial_profile(df, xcol, ycol, x_bins, ax, args, color='darkorange'):
     '''
     Function to overplot binned data on existing plot of radial profile of gas metallicity
     '''
+    from uncertainties import ufloat, unumpy # this import statement is not in header.py because it is rarely used by the other functions
+
     df['binned_cat'] = pd.cut(df[xcol], x_bins)
 
     if args.weight is not None:
@@ -109,12 +112,11 @@ def plot_bin_fit_radial_profile(df, xcol, ycol, x_bins, ax, args, color='darkora
     return ax, Zcen, Zgrad
 
 # --------------------------------------------------------------------------------------------------------------------
-def plot_gas_metallicity_radial_profile(ds, region, args):
+def gas_metallicity_radial_profile(ds, region, args):
     '''
     Plots a radial profile of the gas metallicity, overplotted with the radially binned profile and the fit to the binned profile.
     Returns nothing. Saves output as png file
     '''
-    output_filename = args.save_directory + '/' + args.snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png'
     args.ylim = [-2.2, 1.2]
 
     df = get_df_from_ds(region, args)
@@ -151,8 +153,8 @@ def plot_gas_metallicity_radial_profile(ds, region, args):
 
     # --------- Annotate and save the figure----------------------
     plt.text(0.033, 0.05, 'z = %.2F' % ds.current_redshift, transform=ax.transAxes, fontsize=args.fontsize)
-    plt.savefig(output_filename)
-    print('Saved figure ' + output_filename)
+    plt.savefig(args.output_filename)
+    print('Saved figure ' + args.output_filename)
     plt.close()
 
 

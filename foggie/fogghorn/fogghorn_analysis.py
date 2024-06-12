@@ -14,14 +14,36 @@
     - New stars density projection
     - Kennicutt-Schmidt relation compared to KMT09 relation
 
-    Example of how to run (in ipython): run fogghorn_analysis.py --directory /Users/acharyya/models/simulation_output/foggie/halo_008508/nref11c_nref9f --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --docomoving --weight mass
+    Example of how to run (in ipython):
+    run fogghorn_analysis.py --directory /Users/acharyya/models/simulation_output/foggie/halo_004123/nref11c_nref9f --system ayan_local --halo 4123 --output RD0038 --upto_kpc 10 --docomoving --weight mass --make_plot gas_metallicity_histogram,gas_density_projection --all_sf_plots
 
 """
 
-from header import *
-from util import *
+from foggie.fogghorn.header import *
+from foggie.fogghorn.util import *
 
-start_time = time.time()
+start_time = datetime.now()
+
+# --------------------------------------------------------------------------------------------------------------------
+def which_plots_asked_for(args):
+    '''
+    Determines which plots have been asked for by the user, and then checks, which of them already exists, and
+    returns the list of plots that need to be still made
+    '''
+    plots_asked_for = args.plots_asked_for
+
+    if args.all_plots:
+        plots_asked_for += np.hstack([sf_plots, fb_plots, vis_plots, metal_plots, pop_plots]) # these *_plots variables are in header.py
+    else:
+        if args.all_sf_plots: plots_asked_for += sf_plots
+        if args.all_fb_plots: plots_asked_for += fb_plots
+        if args.all_vis_plots: plots_asked_for += vis_plots
+        if args.all_metal_plots: plots_asked_for += metal_plots
+        if args.all_pop_plots: plots_asked_for += pop_plots
+
+    plots_asked_for = np.unique(plots_asked_for)
+
+    return plots_asked_for
 
 # --------------------------------------------------------------------------------------------------------------------
 def make_plots(snap, args):
@@ -30,37 +52,47 @@ def make_plots(snap, args):
     Returns nothing. Saves outputs as multiple png files
     '''
 
-    # ----------------------- Read the snapshot ----------------------
-    filename = args.directory + '/' + snap + '/' + snap
-    ds, region = foggie_load(filename, args.trackfile, disk_relative=True)
-
     # ----------------- Add some parameters to args that will be used throughout ----------------------------------
-    args.snap = snap
-    args.projection_axis_dict = {'x': ds.x_unit_disk, 'y': ds.y_unit_disk, 'z': ds.z_unit_disk}
     args.projection_text = '_disk-' + args.projection if args.disk_rel else '_' + args.projection
     args.density_cut_text = '_wdencut' if args.use_density_cut else ''
+    args.upto_text = '' if args.upto_kpc is None else '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
 
-    # --------- If a upto_kpc is specified, then the analysis 'region' will be restricted up to that value ---------
-    if args.upto_kpc is not None:
-        if args.docomoving: args.galrad = args.upto_kpc / (1 + ds.current_redshift) / 0.695  # include stuff within a fixed comoving kpc h^-1, 0.695 is Hubble constant
-        else: args.galrad = args.upto_kpc  # include stuff within a fixed physical kpc
-        region = ds.sphere(ds.halo_center_kpc, ds.arr(args.galrad, 'kpc'))
+    # ------------- Determine which plots need to be made -----------------------
+    plots_asked_for = which_plots_asked_for(args)
+    plots_to_make = []
 
-        args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
-    else:
-        args.galrad = ds.refine_width / 2.
-        args.upto_text = ''
+    for thisplot in plots_asked_for:
+        args.output_filename = generate_plot_filename(thisplot, args)
+        if need_to_make_this_plot(args.output_filename, args):
+            plots_to_make += [thisplot]
 
-    # ----------------------- Make the plots ---------------------------------------------
-    gas_density_projection(ds, region, args)
-    edge_visualizations(ds, region, args)
-    young_stars_density_projection(ds, region, args)
-    KS_relation(ds, region, args)
-    outflow_rates(ds, region, args)
-    gas_metallicity_projection(ds, region, args)
-    gas_metallicity_radial_profile(ds, region, args)
-    gas_metallicity_histogram(ds, region, args)
-    gas_metallicity_resolved_MZR(ds, region, args)
+    myprint('Total %d plots asked for, of which %d will be made, others already exist' %(len(plots_asked_for), len(plots_to_make)), args)
+
+    if len(plots_to_make) > 0:
+        # ----------------------- Read the snapshot ----------------------
+        filename = args.directory + '/' + snap + '/' + snap
+        halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
+        ds, region = foggie_load(filename, args.trackfile, do_filter_particles=True, disk_relative=args.disk_rel, halo_c_v_name=halos_df_name)
+
+        # ------------ Set a few more snapshot-dependent args ----------------------
+        if args.disk_rel:
+            args.projection_axis_dict = {'x': ds.x_unit_disk, 'y': ds.y_unit_disk, 'z': ds.z_unit_disk}
+            args.north_vector_dict = {'disk-x': ds.z_unit_disk, 'disk-y': ds.z_unit_disk, 'disk-z': ds.x_unit_disk}
+
+        if args.upto_kpc is not None:
+            if args.docomoving: args.galrad = args.upto_kpc / (1 + ds.current_redshift) / 0.695  # include stuff within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+            else: args.galrad = args.upto_kpc  # include stuff within a fixed physical kpc
+            region = ds.sphere(ds.halo_center_kpc, ds.arr(args.galrad, 'kpc')) # if a args.upto_kpc is specified, then the analysis 'region' will be restricted up to that
+        else:
+            args.galrad = ds.refine_width / 2.
+
+        # ----------------------- Make the plots ---------------------------------------------
+        for thisplot in plots_to_make:
+            args.output_filename = generate_plot_filename(thisplot, args)
+            if thisplot in pop_plots: globals()[thisplot](args) # because population plots do not require individual datasets
+            else: globals()[thisplot](ds, region, args) # all other plotting functions should preferably have this same argument list in their function definitions
+
     print_mpi('Yayyy you have completed making all plots for this snap ' + snap, args)
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -72,7 +104,7 @@ if __name__ == "__main__":
         args.save_directory = args.directory + '/plots'
         Path(args.save_directory).mkdir(parents=True, exist_ok=True)
 
-    if args.trackfile is None: _, _, _, _, args.trackfile, _, _, _ = get_run_loc_etc(args) # for FOGGIE production runs it knows which trackfile to grab
+    if args.trackfile is None: _, _, _, args.code_path, args.trackfile, _, _, _ = get_run_loc_etc(args) # for FOGGIE production runs it knows which trackfile to grab
 
     if args.output is not None: # Running on specific output/s
         outputs = make_output_list(args.output)
@@ -130,16 +162,14 @@ if __name__ == "__main__":
         core_end = split_at_cpu * nper_cpu2 + (rank - split_at_cpu + 1) * nper_cpu1 - 1
 
     # -------------loop over snapshots-----------------
-    print_mpi('Operating on snapshots ' + str(core_start + 1) + ' to ' + str(core_end + 1) + ', i.e., ' + str(
-        core_end - core_start + 1) + ' out of ' + str(total_snaps) + ' snapshots', args)
+    print_mpi('Operating on snapshots ' + str(core_start + 1) + ' to ' + str(core_end + 1) + ', i.e., ' + str(core_end - core_start + 1) + ' out of ' + str(total_snaps) + ' snapshots', args)
 
-    for index in range(core_start + args.start_index, core_end + 1):
+    for index in range(core_start, core_end + 1):
         start_time_this_snapshot = time.time()
-        this_output = outputs[index]
-        print_mpi('Doing snapshot ' + this_output + ' of halo ' + args.halo + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', args)
+        args.snap = outputs[index]
+        print_mpi('Doing snapshot ' + args.snap + ' of halo ' + args.halo + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', args)
 
-        ##do stuff
-        make_plots(this_output, args)
+        make_plots(args.snap, args) # this is the main stuff
 
     if args.nproc > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(args.nproc) + ' cores was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(args.nproc) + ' core was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)

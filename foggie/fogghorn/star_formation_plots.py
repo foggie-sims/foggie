@@ -4,15 +4,17 @@
     Created: 6-12-24
     Last modified: 6-12-24 by Ayan
     This file works with fogghorn_analysis.py to make a set of plots for investigating star formation.
+    If you add a new function to this scripts, then please also add the function name to the appropriate list at the end of fogghorn/header.py
 '''
+
+from foggie.fogghorn.header import *
+from foggie.fogghorn.util import *
 
 # --------------------------------------------------------------------------------------------------------------------
 def young_stars_density_projection(ds, region, args):
     '''
     Plots a young stars density projection of the galaxy disk.
     '''
-
-    output_filename = args.save_directory + '/' + args.snap + '_Projection_' + args.projection + '_young_stars3_cic.png'
 
     if '-disk' in args.projection:
         if 'x' in args.projection:
@@ -29,15 +31,14 @@ def young_stars_density_projection(ds, region, args):
     p.set_unit(('deposit','young_stars3_cic'),'Msun/kpc**2')
     p.set_zlim(('deposit','young_stars3_cic'),1000,1000000)
     p.set_cmap(('deposit','young_stars3_cic'), density_color_map)
-    p.save(output_filename)
+    p.save(args.output_filename)
+    print('Saved figure ' + args.output_filename)
 
 # --------------------------------------------------------------------------------------------------------------------
 def KS_relation(ds, region, args):
     '''
     Plots the KS relation from the dataset as compared to a curve taken from Krumholz, McKee, & Tumlinson (2009), ApJ 699, 850.
     '''
-
-    output_filename = args.save_directory + '/' + args.snap + '_KS-relation.png'
 
     # Make a projection and convert to FRB
     p = yt.ProjectionPlot(ds, ds.z_unit_disk, 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code, north_vector=ds.x_unit_disk, buff_size=[500,500])
@@ -61,5 +62,6 @@ def KS_relation(ds, region, args):
     plt.axis([-1,5,-6,3])
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
-    plt.savefig(output_filename, dpi=300)
+    plt.savefig(args.output_filename, dpi=300)
+    print('Saved figure ' + args.output_filename)
     plt.close()
