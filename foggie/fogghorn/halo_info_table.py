@@ -1,42 +1,16 @@
 '''
-Filename: halo_info_table.py
-Author: Cassi
-Created: 6-12-24
-Last modified: 6-12-24 by Cassi
-This file works with fogghorn_analysis.py to make a table of various halo info properties that can be used for plotting.
+    Filename: halo_info_table.py
+    Author: Cassi
+    Created: 6-12-24
+    Last modified: 6-12-24 by Ayan
+    This file works with fogghorn_analysis.py to make a table of various halo info properties that can be used for plotting.
 '''
 
-from __future__ import print_function
-
-import numpy as np
-import argparse
-import os
-import matplotlib
-#matplotlib.use('agg')
-import matplotlib.pyplot as plt
-from numpy.polynomial import Polynomial
-import multiprocessing as multi
-from pathlib import Path
-
-from astropy.table import Table
-from astropy.io import ascii
-
-from astropy.cosmology import Planck15 as cosmo
-
-import yt
-from yt.units import *
-from yt import YTArray
-
-from foggie.utils.consistency import *
-from foggie.utils.get_refine_box import get_refine_box
-from foggie.utils.get_halo_center import get_halo_center
-from foggie.utils.get_proper_box_size import get_proper_box_size
-from foggie.utils.get_run_loc_etc import get_run_loc_etc
-from foggie.utils.yt_fields import *
-from foggie.utils.foggie_load import *
-from foggie.utils.analysis_utils import *
-
+# --------------------------------------------------------------------------------------------------------------------
 def make_table():
+    '''
+    Initialises table to hold properties of each halo at each snapshot
+    '''
     data_names = ['snapshot','time','redshift','halo_x','halo_y','halo_z','halo_vx','halo_vy','halo_vz','halo_mass','halo_radius','stellar_mass','SFR']
     data_types = ['S6','f8','f8','f8','f8','f8','f8','f8','f8','f8','f8','f8','f8']
     data_units = ['none','Myr','none','kpc','kpc','kpc','km/s','km/s','km/s','Msun','kpc','Msun','Msun/yr']
@@ -46,9 +20,12 @@ def make_table():
         data[key].unit = data_units[i]
     return data
 
+# --------------------------------------------------------------------------------------------------------------------
 def get_halo_info(ds, args):
-    '''Calculates basic information about the halo: snapshot name, time, redshift, halo x,y,z location, halo vx,vy,vz bulk velocity, virial mass, virial radius, stellar mass, star formation rate.
-    NOTE: The virial mass and radius as currently written will only work for the central galaxies! Rockstar is not being run to find satellite halos.'''
+    '''
+    Calculates basic information about the halo: snapshot name, time, redshift, halo x,y,z location, halo vx,vy,vz bulk velocity, virial mass, virial radius, stellar mass, star formation rate.
+    NOTE: The virial mass and radius as currently written will only work for the central galaxies! Rockstar is not being run to find satellite halos.
+    '''
     
     # Load the table if it exists, or make it if it does not exist
     if (os.path.exists(args.save_directory + '/halo_data.txt')):

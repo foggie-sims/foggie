@@ -1,45 +1,18 @@
 '''
-Filename: feedback_plots.py
-Author: Cassi
-Created: 6-12-24
-Last modified: 6-12-24 by Cassi
-This file works with fogghorn_analysis.py to make a set of plots for investigating feddback.
+    Filename: feedback_plots.py
+    Author: Cassi
+    Created: 6-12-24
+    Last modified: 6-12-24 by Cassi
+    This file works with fogghorn_analysis.py to make a set of plots for investigating feddback.
 '''
 
-from __future__ import print_function
-
-import numpy as np
-import argparse
-import os
-import matplotlib
-#matplotlib.use('agg')
-import matplotlib.pyplot as plt
-from numpy.polynomial import Polynomial
-import multiprocessing as multi
-from pathlib import Path
-
-from astropy.table import Table
-from astropy.io import ascii
-
-from astropy.cosmology import Planck15 as cosmo
-
-import yt
-from yt.units import *
-from yt import YTArray
-
-from foggie.utils.consistency import *
-from foggie.utils.get_refine_box import get_refine_box
-from foggie.utils.get_halo_center import get_halo_center
-from foggie.utils.get_proper_box_size import get_proper_box_size
-from foggie.utils.get_run_loc_etc import get_run_loc_etc
-from foggie.utils.yt_fields import *
-from foggie.utils.foggie_load import *
-from foggie.utils.analysis_utils import *
-
+# --------------------------------------------------------------------------------------------------------------------
 def outflow_rates(ds, region, args):
-    '''Plots the mass and metals outflow rates, both as a function of radius centered on the galaxy
+    '''
+    Plots the mass and metals outflow rates, both as a function of radius centered on the galaxy
     and as a function of height through 20x20 kpc horizontal planes above and below the disk of young stars.
-    Uses only gas with outflow velocities greater than 50 km/s.'''
+    Uses only gas with outflow velocities greater than 50 km/s.
+    '''
 
     output_filename = args.save_directory + '/' + args.snap + '_outflows.png'
 

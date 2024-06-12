@@ -1,44 +1,17 @@
 '''
-Filename: population_plots.py
-Author: Cassi
-Created: 6-12-24
-Last modified: 6-12-24 by Cassi
-This file works with fogghorn_analysis.py to make the set of plots for halo scaling relations.
+    Filename: population_plots.py
+    Author: Cassi
+    Created: 6-12-24
+    Last modified: 6-12-24 by Cassi
+    This file works with fogghorn_analysis.py to make the set of plots for halo scaling relations.
 '''
 
-from __future__ import print_function
-
-import numpy as np
-import argparse
-import os
-import matplotlib
-#matplotlib.use('agg')
-import matplotlib.pyplot as plt
-from numpy.polynomial import Polynomial
-import multiprocessing as multi
-from pathlib import Path
-
-from astropy.table import Table
-from astropy.io import ascii
-
-from astropy.cosmology import Planck15 as cosmo
-
-import yt
-from yt.units import *
-from yt import YTArray
-
-from foggie.utils.consistency import *
-from foggie.utils.get_refine_box import get_refine_box
-from foggie.utils.get_halo_center import get_halo_center
-from foggie.utils.get_proper_box_size import get_proper_box_size
-from foggie.utils.get_run_loc_etc import get_run_loc_etc
-from foggie.utils.yt_fields import *
-from foggie.utils.foggie_load import *
-from foggie.utils.analysis_utils import *
-
+# --------------------------------------------------------------------------------------------------------------------
 def plot_SFMS(args):
-    '''Plots the star-forming main sequence of the simulated galaxy -- one point per output on the plot -- and compares
-    to best fit curves from observations at different redshifts.'''
+    '''
+    Plots the star-forming main sequence of the simulated galaxy -- one point per output on the plot -- and compares
+    to best fit curves from observations at different redshifts.
+    '''
 
     output_filename = args.save_directory + '/SFMS.png'
 
@@ -74,9 +47,12 @@ def plot_SFMS(args):
     plt.savefig(output_filename, dpi=300)
     plt.close()
 
+# --------------------------------------------------------------------------------------------------------------------
 def plot_SMHM(args):
-    '''Plots the stellar mass-halo mass relation of the simulated galaxy -- one point per output on the plot -- and compares
-    to best fit curves from observations at different redshifts.'''
+    '''
+    Plots the stellar mass-halo mass relation of the simulated galaxy -- one point per output on the plot -- and compares
+    to best fit curves from observations at different redshifts.
+    '''
 
     output_filename = args.save_directory + '/SMHM.png'
 
@@ -122,5 +98,8 @@ def plot_SMHM(args):
     plt.savefig(output_filename, dpi=300)
     plt.close()
 
+# --------------------------------------------------------------------------------------------------------------------
 def plot_MZR(args):
-    '''Placeholder function for mass-metallicity relation plot'''
+    '''
+    Placeholder function for mass-metallicity relation plot
+    '''
