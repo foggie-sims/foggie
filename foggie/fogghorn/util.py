@@ -182,7 +182,8 @@ def get_df_from_ds(box, args, outfilename=None):
 
 # ----------------------------------------------------------------------------
 def weighted_quantile(values, quantiles, weight=None):
-    """ Very close to numpy.percentile, but supports weights.
+    '''
+    Very close to numpy.percentile, but supports weights.
     NOTE: quantiles should be in [0, 1]!
     :param values: numpy.array with data
     :param quantiles: array-like with many quantiles needed
@@ -191,7 +192,7 @@ def weighted_quantile(values, quantiles, weight=None):
     :param old_style: if True, will correct output to be consistent with numpy.percentile.
     :return: numpy.array with computed quantiles.
     This function was adapted from https://stackoverflow.com/questions/21844024/weighted-percentile-using-numpy
-    """
+    '''
     if weight is None: weight = np.ones(len(values))
     values = np.array(values)
     quantiles = np.array(quantiles)
@@ -205,4 +206,32 @@ def weighted_quantile(values, quantiles, weight=None):
     weighted_quantiles = np.cumsum(weight) - 0.5 * weight
     weighted_quantiles /= np.sum(weight)
     return np.interp(quantiles, weighted_quantiles, values)
+
+# ----------------------------------------------------------------------------
+def generate_plot_filename(quantity, args):
+    '''
+    Generates filename for a plot that is about to be made
+    This way the nomenclature is consistent
+    '''
+    output_filename = args.save_directory + '/' + args.snap + '_Projection_' + args.projection + '_young_stars3_cic.png' # star_formation_plots.young_stars_density_projection()
+    output_filename = args.save_directory + '/' + args.snap + '_KS-relation.png' # star_formation_plots.KS_relation()
+    output_filename = args.save_directory + '/' + args.snap + '_outflows.png' # feedback_plots.outflow_rates()
+    output_filename = args.save_directory + '/' + args.snap + '_Projection_' + args.projection + '_density.png' # visualization_plots.gas_density_projection()
+    output_basename = args.save_directory + '/' + args.snap # visualization_plots.edge_visualizations()
+    output_filename = args.save_directory + '/' + args.snap + '_gas_metallicity_projection_' + args.projection_text + args.upto_text + args.density_cut_text + '.png' # visualization_plots.plot_gas_metallicity_projection()
+    output_filename = args.save_directory + '/' + args.snap + '_resolved_gas_MZR' + args.upto_text + args.density_cut_text + '.png' # resolved_metallicity_plots.gas_metallicity_resolved_MZR()
+    output_filename = args.save_directory + '/' + args.snap + '_gas_metallicity_histogram' + args.upto_text + args.density_cut_text + '.png' # resolved_metallicity_plots.gas_metallicity_histogram()
+    output_filename = args.save_directory + '/' + args.snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png' # resolved_metallicity_plots.gas_metallicity_radial_profile()
+
+    output_filename = args.save_directory + '/SFMS.png' # population_plots.plot_SFMS()
+    output_filename = args.save_directory + '/SMHM.png' # population_plots.plot_SMHM()
+    output_filename = args.save_directory + '/MZR.png' # population_plots.plot_MZR()
+
+
+
+
+
+
+
+
 
