@@ -65,7 +65,7 @@ def print_mpi(string, args):
     Function to print corresponding to each mpi thread
     '''
     comm = MPI.COMM_WORLD
-    myprint_orig('[' + str(comm.rank) + '] {' + subprocess.check_output(['uname -n'],shell=True)[:-1].decode("utf-8") + '} ' + string + '\n', args)
+    myprint('[' + str(comm.rank) + '] {' + subprocess.check_output(['uname -n'],shell=True)[:-1].decode("utf-8") + '} ' + string + '\n', args)
 
 # -------------------------------------------------------------------------------------------
 def print_master(string, args):
@@ -73,7 +73,7 @@ def print_master(string, args):
     Function to print only if on the head node/thread
     '''
     comm = MPI.COMM_WORLD
-    if comm.rank == 0: myprint_orig('[' + str(comm.rank) + '] ' + string + '\n', args)
+    if comm.rank == 0: myprint('[' + str(comm.rank) + '] ' + string + '\n', args)
 
 # --------------------------------------------------------------------------------------------
 def fix_time_format(text, keyword):
@@ -88,7 +88,7 @@ def fix_time_format(text, keyword):
 
     return text
 # -------------------------------------------------------------------------------------------
-def myprint_orig(text, args):
+def myprint(text, args):
     '''
     Function to direct the print output to stdout or a file, depending upon user args
     '''
