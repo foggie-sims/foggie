@@ -29,6 +29,7 @@ from pathlib import Path
 import pandas as pd
 from uncertainties import ufloat, unumpy
 import seaborn as sns
+import scipy
 
 from astropy.table import Table
 from astropy.io import ascii
@@ -42,6 +43,7 @@ if datashader_ver > 11: from datashader.mpl_ext import dsshow
 import yt
 from yt.units import *
 from yt import YTArray
+from yt.data_objects.particle_filters import add_particle_filter
 
 from foggie.utils.consistency import *
 from foggie.utils.get_refine_box import get_refine_box
