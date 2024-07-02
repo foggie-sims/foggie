@@ -24,7 +24,7 @@ def plot_SFMS(args):
     fig = plt.figure(figsize=(8,6))
     ax = fig.add_subplot(1,1,1)
 
-    colormap = plt.cm.rainbow
+    colormap = plt.cm.rainbow_r
     normalize = matplotlib.colors.Normalize(vmin=0., vmax=13.759)
 
     # Plot the observed best-fit values for a handful of redshifts
@@ -64,7 +64,7 @@ def plot_SMHM(args):
     fig = plt.figure(figsize=(8,6))
     ax = fig.add_subplot(1,1,1)
 
-    colormap = plt.cm.rainbow
+    colormap = plt.cm.rainbow_r
     normalize = matplotlib.colors.LogNorm(vmin=0.5, vmax=13.759)
 
     # Plot the observed best-fit values for a handful of redshifts

@@ -27,7 +27,7 @@ def young_stars_density_projection(ds, region, args):
             p_dir = ds.z_unit_disk
             north_vector = ds.x_unit_disk
         p = yt.ProjectionPlot(ds, p_dir, ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code, north_vector=north_vector)
-    else: p = yt.ProjectionPlot(ds, p, ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code)
+    else: p = yt.ProjectionPlot(ds, args.projection, ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code)
     p.set_unit(('deposit','young_stars3_cic'),'Msun/kpc**2')
     p.set_zlim(('deposit','young_stars3_cic'),1000,1000000)
     p.set_cmap(('deposit','young_stars3_cic'), density_color_map)
@@ -41,7 +41,18 @@ def KS_relation(ds, region, args):
     '''
 
     # Make a projection and convert to FRB
-    p = yt.ProjectionPlot(ds, ds.z_unit_disk, 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code, north_vector=ds.x_unit_disk, buff_size=[500,500])
+    if '-disk' in args.projection:
+        if 'x' in args.projection:
+            p_dir = ds.x_unit_disk
+            north_vector = ds.z_unit_disk
+        if 'y' in args.projection:
+            p_dir = ds.y_unit_disk
+            north_vector = ds.z_unit_disk
+        if 'z' in args.projection:
+            p_dir = ds.z_unit_disk
+            north_vector = ds.x_unit_disk
+        p = yt.ProjectionPlot(ds, p_dir, ('gas', 'density'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code, north_vector=north_vector, buff_size=[500,500])
+    else: p = yt.ProjectionPlot(ds, args.projection, ('gas', 'density'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code, buff_size=[500,500])
     proj_frb = p.frb
     # Pull out the gas surface density and the star formation rate of the young stars
     projected_density = proj_frb['density'].in_units('Msun/pc**2')

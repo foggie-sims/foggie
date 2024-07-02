@@ -25,6 +25,33 @@ from foggie.fogghorn.util import *
 start_time = datetime.now()
 
 # --------------------------------------------------------------------------------------------------------------------
+def update_table(snap, args):
+    '''
+    Determines if the halo info table needs to be updated with information from this snapshot
+    and returns True if needing an update and False if not.
+    '''
+
+    # Load the table if it exists, or make it if it does not exist
+    if (os.path.exists(args.save_directory + '/halo_data.txt')):
+        data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
+        print(data)
+    else:
+        return True
+
+    # If the table already exists, search for this snapshot in the table
+    if (args.snap in data['snapshot']):
+        if not args.silent: print('Halo info for snapshot ' + args.snap + ' already calculated.', )
+        if args.clobber:
+            if not args.silent: print(' But we will re-calculate it...')
+            calc = True
+        else:
+            if not args.silent: print(' So we will skip it.')
+            calc = False
+    else: calc = True
+
+    return calc
+
+# --------------------------------------------------------------------------------------------------------------------
 def which_plots_asked_for(args):
     '''
     Determines which plots have been asked for by the user, and then checks, which of them already exists, and
@@ -42,6 +69,7 @@ def which_plots_asked_for(args):
         if args.all_pop_plots: plots_asked_for += pop_plots
 
     plots_asked_for = np.unique(plots_asked_for)
+    print(plots_asked_for)
 
     return plots_asked_for
 
@@ -63,35 +91,51 @@ def make_plots(snap, args):
 
     for thisplot in plots_asked_for:
         args.output_filename = generate_plot_filename(thisplot, args)
-        if need_to_make_this_plot(args.output_filename, args):
+        if need_to_make_this_plot(args.output_filename, args) or (thisplot in pop_plots):     # Population plots always need to be remade
             plots_to_make += [thisplot]
+
+    need_to_load_snapshot = False
+    for plot in plots_to_make:
+        if (plot in pop_plots):
+            if update_table(snap, args): need_to_load_snapshot = True
+        else: need_to_load_snapshot = True
 
     myprint('Total %d plots asked for, of which %d will be made, others already exist' %(len(plots_asked_for), len(plots_to_make)), args)
 
     if len(plots_to_make) > 0:
         # ----------------------- Read the snapshot ----------------------
-        filename = args.directory + '/' + snap + '/' + snap
-        halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-        halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
-        ds, region = foggie_load(filename, args.trackfile, do_filter_particles=True, disk_relative=args.disk_rel, halo_c_v_name=halos_df_name)
+        if need_to_load_snapshot:
+            filename = args.directory + '/' + snap + '/' + snap
+            if args.trackfile == None:
+                halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
+                halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
+                ds, region = foggie_load(filename, args.trackfile, do_filter_particles=True, disk_relative=args.disk_rel, halo_c_v_name=halos_df_name)
+            else:
+                ds, region = foggie_load(filename, args.trackfile, do_filter_particles=True, disk_relative=args.disk_rel)
 
-        # ------------ Set a few more snapshot-dependent args ----------------------
-        if args.disk_rel:
-            args.projection_axis_dict = {'x': ds.x_unit_disk, 'y': ds.y_unit_disk, 'z': ds.z_unit_disk}
-            args.north_vector_dict = {'disk-x': ds.z_unit_disk, 'disk-y': ds.z_unit_disk, 'disk-z': ds.x_unit_disk}
+            # ------------ Set a few more snapshot-dependent args ----------------------
+            if args.disk_rel:
+                args.projection_axis_dict = {'x': ds.x_unit_disk, 'y': ds.y_unit_disk, 'z': ds.z_unit_disk}
+                args.north_vector_dict = {'disk-x': ds.z_unit_disk, 'disk-y': ds.z_unit_disk, 'disk-z': ds.x_unit_disk}
 
-        if args.upto_kpc is not None:
-            if args.docomoving: args.galrad = args.upto_kpc / (1 + ds.current_redshift) / 0.695  # include stuff within a fixed comoving kpc h^-1, 0.695 is Hubble constant
-            else: args.galrad = args.upto_kpc  # include stuff within a fixed physical kpc
-            region = ds.sphere(ds.halo_center_kpc, ds.arr(args.galrad, 'kpc')) # if a args.upto_kpc is specified, then the analysis 'region' will be restricted up to that
-        else:
-            args.galrad = ds.refine_width / 2.
+            if args.upto_kpc is not None:
+                if args.docomoving: args.galrad = args.upto_kpc / (1 + ds.current_redshift) / 0.695  # include stuff within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+                else: args.galrad = args.upto_kpc  # include stuff within a fixed physical kpc
+                region = ds.sphere(ds.halo_center_kpc, ds.arr(args.galrad, 'kpc')) # if a args.upto_kpc is specified, then the analysis 'region' will be restricted up to that
+            else:
+                args.galrad = ds.refine_width / 2.
 
         # ----------------------- Make the plots ---------------------------------------------
         for thisplot in plots_to_make:
-            args.output_filename = generate_plot_filename(thisplot, args)
-            if thisplot in pop_plots: globals()[thisplot](args) # because population plots do not require individual datasets
-            else: globals()[thisplot](ds, region, args) # all other plotting functions should preferably have this same argument list in their function definitions
+            if (thisplot not in pop_plots):
+                args.output_filename = generate_plot_filename(thisplot, args)
+                globals()[thisplot](ds, region, args) # all plotting functions should preferably have this same argument list in their function definitions
+            else:
+                if update_table(snap, args):
+                    get_halo_info(ds, args)
+                args.output_filename = generate_plot_filename(thisplot, args)
+                globals()[thisplot](args)
+
 
     print_mpi('Yayyy you have completed making all plots for this snap ' + snap, args)
 
@@ -105,6 +149,11 @@ if __name__ == "__main__":
         Path(args.save_directory).mkdir(parents=True, exist_ok=True)
 
     if args.trackfile is None: _, _, _, args.code_path, args.trackfile, _, _, _ = get_run_loc_etc(args) # for FOGGIE production runs it knows which trackfile to grab
+
+    args.table_needed = False
+    for plot in pop_plots:
+        if (plot in args.make_plots) or (args.all_pop_plots):
+            args.table_needed = True
 
     if args.output is not None: # Running on specific output/s
         outputs = make_output_list(args.output)
@@ -167,9 +216,10 @@ if __name__ == "__main__":
     for index in range(core_start, core_end + 1):
         start_time_this_snapshot = time.time()
         args.snap = outputs[index]
-        print_mpi('Doing snapshot ' + args.snap + ' of halo ' + args.halo + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', args)
+        print_mpi('Doing snapshot ' + args.snap + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', args)
 
         make_plots(args.snap, args) # this is the main stuff
+        if args.table_needed: update_table(args.snap, args)
 
     if args.nproc > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(args.nproc) + ' cores was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(args.nproc) + ' core was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)

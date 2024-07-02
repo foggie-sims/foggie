@@ -49,13 +49,14 @@ def parse_args():
 
     # The following three args are used for backward compatibility, to find the trackfile for production runs, if a trackfile has not been explicitly specified
     parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_local', help='Which system are you on? This is used only when trackfile is not specified. Default is ayan_local')
-    parser.add_argument('--halo', metavar='halo', type=str, action='store', default='8508', help='Which halo? Default is Tempesxt. This is used only when trackfile is not specified.')
+    parser.add_argument('--halo', metavar='halo', type=str, action='store', default='8508', help='Which halo? Default is Tempest. This is used only when trackfile is not specified.')
     parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f', help='Which run? Default is nref11c_nref9f. This is used only when trackfile is not specified.')
 
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
     args.projection_arr = [item for item in args.projection.split(',')]
-    args.plots_asked_for = [item for item in args.make_plots.split(',')]
+    if (args.make_plots!=''): args.plots_asked_for = [item for item in args.make_plots.split(',')]
+    else: args.plots_asked_for = []
 
     return args
 
@@ -106,7 +107,7 @@ def need_to_make_this_plot(output_filename, args):
     '''
     if os.path.exists(output_filename):
         if not args.silent: print(output_filename + ' already exists.')
-        if args.clobber:
+        if args.clobber or ('SFMS' in output_filename) or ('SMHM' in output_filename) or ('MZR' in output_filename):
             if not args.silent: print('But we will re-make it...')
             return True
         else:
