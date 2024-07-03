@@ -163,19 +163,21 @@ if __name__ == "__main__":
             folder_path = os.path.join(args.directory, fname)
             if os.path.isdir(folder_path) and ((fname[0:2]=='DD') or (fname[0:2]=='RD')):
                 outputs.append(fname)
-    '''
+
     # --------- Loop over outputs, for either single-processor or parallel processor computing ---------------
     if (args.nproc == 1):
-        for snap in outputs:
-            make_plots(snap, args)
-        print('Serially: time taken for ' + str(len(outputs)) + ' snapshots with ' + str(args.nproc) + ' core was %s mins' % ((time.time() - start_time) / 60))
+        for args.snap in outputs:
+            make_plots(args.snap, args)
+            if args.table_needed: update_table(args.snap, args)
+        print('Serially: time taken for ' + str(len(outputs)) + ' snapshots with ' + str(args.nproc) + ' core was %s' % timedelta(seconds=(datetime.now() - start_time).seconds))
     else:
         # ------- Split into a number of groupings equal to the number of processors and run one process per processor ---------
         for i in range(len(outputs)//args.nproc):
             threads = []
             for j in range(args.nproc):
-                snap = outputs[args.nproc*i+j]
-                threads.append(multi.Process(target=make_plots, args=[snap, args]))
+                args.snap = outputs[args.nproc*i+j]
+                threads.append(multi.Process(target=make_plots, args=[args.snap, args]))
+                if args.table_needed: update_table(args.snap, args)
             for t in threads:
                 t.start()
             for t in threads:
@@ -183,14 +185,16 @@ if __name__ == "__main__":
         # ----- For any leftover snapshots, run one per processor ------------------
         threads = []
         for j in range(len(outputs) % args.nproc):
-            snap = outputs[-(j+1)]
-            threads.append(multi.Process(target=make_plots, args=[snap, args]))
+            args.snap = outputs[-(j+1)]
+            threads.append(multi.Process(target=make_plots, args=[args.snap, args]))
         for t in threads:
             t.start()
         for t in threads:
             t.join()
-        print('Parallely: time taken for ' + str(len(outputs)) + ' snapshots with ' + str(args.nproc) + ' cores was %s mins' % ((time.time() - start_time) / 60))
+        print('Parallely: time taken for ' + str(len(outputs)) + ' snapshots with ' + str(args.nproc) + ' cores was %s' % timedelta(seconds=(datetime.now() - start_time).seconds))
+
     '''
+    # the following only works for running the script with mpirun -n <nproc> python fogghorn_analysis.py --options....
     # --------domain decomposition; for mpi parallelisation-------------
     total_snaps = len(outputs)
 
@@ -223,3 +227,4 @@ if __name__ == "__main__":
 
     if args.nproc > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(args.nproc) + ' cores was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(args.nproc) + ' core was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)
+'''
