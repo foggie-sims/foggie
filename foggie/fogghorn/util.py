@@ -107,7 +107,7 @@ def need_to_make_this_plot(output_filename, args):
     '''
     if os.path.exists(output_filename):
         if not args.silent: print(output_filename + ' already exists.')
-        if args.clobber or ('SFMS' in output_filename) or ('SMHM' in output_filename) or ('MZR' in output_filename):
+        if args.clobber or ('halo_data' in output_filename):
             if not args.silent: print('But we will re-make it...')
             return True
         else:
@@ -230,7 +230,8 @@ def generate_plot_filename(quantity, args):
                             'gas_metallicity_radial_profile': args.snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png', \
                             'plot_SFMS': 'SFMS.png', \
                             'plot_SMHM': 'SMHM.png', \
-                            'plot_MZR': 'MZR.png'}
+                            'plot_MZR': 'MZR.png',
+                            'info_table': 'halo_data.txt'}
 
     output_filename = args.save_directory + '/' + output_filename_dict[quantity]
     return output_filename

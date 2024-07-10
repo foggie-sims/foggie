@@ -31,23 +31,24 @@ def update_table(snap, args):
     and returns True if needing an update and False if not.
     '''
 
-    # Load the table if it exists, or make it if it does not exist
+    # Load the table if it exists
     if (os.path.exists(args.save_directory + '/halo_data.txt')):
         data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
-        print(data)
     else:
         return True
 
     # If the table already exists, search for this snapshot in the table
-    if (args.snap in data['snapshot']):
-        if not args.silent: print('Halo info for snapshot ' + args.snap + ' already calculated.', )
+    if (snap in data['snapshot']):
+        if not args.silent: print('Halo info for snapshot ' + snap + ' already calculated.', )
         if args.clobber:
             if not args.silent: print(' But we will re-calculate it...')
             calc = True
         else:
             if not args.silent: print(' So we will skip it.')
             calc = False
-    else: calc = True
+    else:
+        print('Calculating halo info for snapshot ' + snap + '...')
+        calc = True
 
     return calc
 
@@ -60,13 +61,17 @@ def which_plots_asked_for(args):
     plots_asked_for = args.plots_asked_for
 
     if args.all_plots:
-        plots_asked_for += np.hstack([sf_plots, fb_plots, vis_plots, metal_plots, pop_plots]) # these *_plots variables are in header.py
+        plots_asked_for += np.hstack([sf_plots, fb_plots, vis_plots, metal_plots, 'info_table']) # these *_plots variables are in header.py
     else:
         if args.all_sf_plots: plots_asked_for += sf_plots
         if args.all_fb_plots: plots_asked_for += fb_plots
         if args.all_vis_plots: plots_asked_for += vis_plots
         if args.all_metal_plots: plots_asked_for += metal_plots
-        if args.all_pop_plots: plots_asked_for += pop_plots
+        if args.all_pop_plots: plots_asked_for += ['info_table']
+
+    for p in range(len(plots_asked_for)):
+        if plots_asked_for[p] in pop_plots:
+            plots_asked_for[p] = 'info_table'
 
     plots_asked_for = np.unique(plots_asked_for)
     print(plots_asked_for)
@@ -74,7 +79,7 @@ def which_plots_asked_for(args):
     return plots_asked_for
 
 # --------------------------------------------------------------------------------------------------------------------
-def make_plots(snap, args):
+def make_plots(snap, args, queue):
     '''
     Finds the halo center and other properties of the dataset and then calls the plotting scripts.
     Returns nothing. Saves outputs as multiple png files
@@ -91,12 +96,12 @@ def make_plots(snap, args):
 
     for thisplot in plots_asked_for:
         args.output_filename = generate_plot_filename(thisplot, args)
-        if need_to_make_this_plot(args.output_filename, args) or (thisplot in pop_plots):     # Population plots always need to be remade
+        if need_to_make_this_plot(args.output_filename, args) or (thisplot=='info_table'):     # Population plots always need to be remade
             plots_to_make += [thisplot]
 
     need_to_load_snapshot = False
     for plot in plots_to_make:
-        if (plot in pop_plots):
+        if (plot=='info_table'):
             if update_table(snap, args): need_to_load_snapshot = True
         else: need_to_load_snapshot = True
 
@@ -127,15 +132,31 @@ def make_plots(snap, args):
 
         # ----------------------- Make the plots ---------------------------------------------
         for thisplot in plots_to_make:
-            if (thisplot not in pop_plots):
+            if (thisplot != 'info_table'):
                 args.output_filename = generate_plot_filename(thisplot, args)
                 globals()[thisplot](ds, region, args) # all plotting functions should preferably have this same argument list in their function definitions
             else:
                 if update_table(snap, args):
-                    get_halo_info(ds, args)
-                args.output_filename = generate_plot_filename(thisplot, args)
-                globals()[thisplot](args)
-
+                    print('Updating table', snap)
+                    # Make the table if it does not exist
+                    if not (os.path.exists(args.save_directory + '/halo_data.txt')):
+                        data = make_table()
+                    row = get_halo_info(ds, snap, args)
+                    if (args.nproc != 1):
+                        print(row)
+                        queue.put(row)
+                    else:
+                        if (os.path.exists(args.save_directory + '/halo_data.txt')): data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
+                        data.add_row(row)
+                        data.sort('time')
+                        data.write(args.save_directory + '/halo_data.txt', format='ascii.fixed_width', overwrite=True)
+                elif (args.nproc != 1):
+                    print('Not updating table', snap)
+                    queue.put('no entry')
+                if (args.nproc==1):
+                    for p in pop_plots:
+                        args.output_filename = args.save_directory + '/' + p[5:] + '.png'
+                        globals()[p](args)
 
     print_mpi('Yayyy you have completed making all plots for this snap ' + snap, args)
 
@@ -163,34 +184,65 @@ if __name__ == "__main__":
             folder_path = os.path.join(args.directory, fname)
             if os.path.isdir(folder_path) and ((fname[0:2]=='DD') or (fname[0:2]=='RD')):
                 outputs.append(fname)
+    print(outputs)
 
     # --------- Loop over outputs, for either single-processor or parallel processor computing ---------------
     if (args.nproc == 1):
+        queue = []
         for args.snap in outputs:
-            make_plots(args.snap, args)
-            if args.table_needed: update_table(args.snap, args)
+            make_plots(args.snap, args, queue)
         print('Serially: time taken for ' + str(len(outputs)) + ' snapshots with ' + str(args.nproc) + ' core was %s' % timedelta(seconds=(datetime.now() - start_time).seconds))
     else:
         # ------- Split into a number of groupings equal to the number of processors and run one process per processor ---------
         for i in range(len(outputs)//args.nproc):
             threads = []
+            queue = multi.Queue()
+            rows = []
             for j in range(args.nproc):
                 args.snap = outputs[args.nproc*i+j]
-                threads.append(multi.Process(target=make_plots, args=[args.snap, args]))
-                if args.table_needed: update_table(args.snap, args)
+                print(args.snap)
+                threads.append(multi.Process(target=make_plots, args=[args.snap, args, queue]))
             for t in threads:
                 t.start()
             for t in threads:
+                row = queue.get()
+                rows.append(row)
+            for t in threads:
                 t.join()
+            for r in rows:
+                print(r)
+                if (r != 'no entry'):
+                    data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
+                    data.add_row(r)
+                    data.sort('time')
+                    data.write(args.save_directory + '/halo_data.txt', format='ascii.fixed_width', overwrite=True)
         # ----- For any leftover snapshots, run one per processor ------------------
         threads = []
+        queue = multi.Queue()
+        rows = []
         for j in range(len(outputs) % args.nproc):
             args.snap = outputs[-(j+1)]
-            threads.append(multi.Process(target=make_plots, args=[args.snap, args]))
+            threads.append(multi.Process(target=make_plots, args=[args.snap, args, queue]))
         for t in threads:
             t.start()
         for t in threads:
+            row = queue.get()
+            rows.append(row)
+        for t in threads:
             t.join()
+        for r in rows:
+            print(r)
+            if (r != 'no entry'):
+                data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
+                data.add_row(r)
+                data.sort('time')
+                data.write(args.save_directory + '/halo_data.txt', format='ascii.fixed_width', overwrite=True)
+        # Remake population plots now that all data has been collected
+        plots_asked_for = which_plots_asked_for(args)
+        if ('info_table') in plots_asked_for:
+            for plot in pop_plots:
+                args.output_filename = args.save_directory + '/' + plot[5:] + '.png'
+                globals()[plot](args)
         print('Parallely: time taken for ' + str(len(outputs)) + ' snapshots with ' + str(args.nproc) + ' cores was %s' % timedelta(seconds=(datetime.now() - start_time).seconds))
 
     '''

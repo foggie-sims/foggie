@@ -25,22 +25,13 @@ def make_table():
     return data
 
 # --------------------------------------------------------------------------------------------------------------------
-def get_halo_info(ds, args):
+def get_halo_info(ds, snap, args):
     '''
     Calculates basic information about the halo: snapshot name, time, redshift, halo x,y,z location, halo vx,vy,vz bulk velocity, virial mass, virial radius, stellar mass, star formation rate.
     NOTE: The virial mass and radius as currently written will only work for the central galaxies! Rockstar is not being run to find satellite halos.
     '''
-    
-    
-    # Load the table if it exists, or make it if it does not exist
 
-    # Load the table if it exists, or make it if it does not exist
-    if (os.path.exists(args.save_directory + '/halo_data.txt')):
-        data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
-    else:
-        data = make_table()
-
-    row = [args.snap, ds.current_time.in_units('Myr').v, ds.get_parameter('CosmologyCurrentRedshift'), \
+    row = [snap, ds.current_time.in_units('Myr').v, ds.get_parameter('CosmologyCurrentRedshift'), \
             ds.halo_center_kpc[0], ds.halo_center_kpc[1], ds.halo_center_kpc[2], \
             ds.halo_velocity_kms[0], ds.halo_velocity_kms[1], ds.halo_velocity_kms[2]]
     
@@ -72,5 +63,4 @@ def get_halo_info(ds, args):
     row.append(Mstars_rvir.to('Msun').v)
     row.append(SFR)
 
-    data.add_row(row)
-    data.write(args.save_directory + '/halo_data.txt', format='ascii.fixed_width', overwrite=True)
+    return row
