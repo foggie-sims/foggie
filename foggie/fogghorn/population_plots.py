@@ -2,7 +2,7 @@
     Filename: population_plots.py
     Author: Cassi
     Created: 6-12-24
-    Last modified: 6-12-24 by Cassi
+    Last modified: 7-22-24 by Cassi
     This file works with fogghorn_analysis.py to make the set of plots for halo scaling relations.
     If you add a new function to this scripts, then please also add the function name to the appropriate list at the end of fogghorn/header.py
 
@@ -12,7 +12,7 @@ from foggie.fogghorn.header import *
 from foggie.fogghorn.util import *
 
 # --------------------------------------------------------------------------------------------------------------------
-def plot_SFMS(args):
+def plot_SFMS(args, output_filename):
     '''
     Plots the star-forming main sequence of the simulated galaxy -- one point per output on the plot -- and compares
     to best fit curves from observations at different redshifts.
@@ -47,12 +47,12 @@ def plot_SFMS(args):
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     ax.legend(loc=2, frameon=False, fontsize=14)
     plt.tight_layout()
-    plt.savefig(args.output_filename, dpi=300)
-    print('Saved figure ' + args.output_filename)
+    plt.savefig(output_filename, dpi=300)
+    print('Saved figure ' + output_filename)
     plt.close()
 
 # --------------------------------------------------------------------------------------------------------------------
-def plot_SMHM(args):
+def plot_SMHM(args, output_filename):
     '''
     Plots the stellar mass-halo mass relation of the simulated galaxy -- one point per output on the plot -- and compares
     to best fit curves from observations at different redshifts.
@@ -97,12 +97,12 @@ def plot_SMHM(args):
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     ax.legend(loc=2, frameon=False, fontsize=14)
     plt.tight_layout()
-    plt.savefig(args.output_filename, dpi=300)
-    print('Saved figure ' + args.output_filename)
+    plt.savefig(output_filename, dpi=300)
+    print('Saved figure ' + output_filename)
     plt.close()
 
 # --------------------------------------------------------------------------------------------------------------------
-def plot_MZR(args):
+def plot_MZR(args, output_filename):
     '''
     Plots global gas metallicity vs gas mass relation.
     Returns nothing. Saves output as png file
@@ -116,6 +116,6 @@ def plot_MZR(args):
 
     # ---------annotate and save the figure----------------------
     plt.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.savefig(args.output_filename)
-    print('Saved figure ' + args.output_filename)
+    plt.savefig(output_filename)
+    print('Saved figure ' + output_filename)
     plt.close()

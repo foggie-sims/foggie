@@ -2,16 +2,14 @@
     Filename: phase_plots.py
     Author: Cassi
     Created: 6-12-24
-    Last modified: 6-12-24 by Cassi
+    Last modified: 7-22-24 by Cassi
     This file works with fogghorn_analysis.py to make a set of phase plots.
 '''
 
 from foggie.fogghorn.header import *
 
-def den_temp_phase(ds, region, args):
+def den_temp_phase(ds, region, args, output_filename):
     '''Makes a 2D histogram of density and temperature in the region of interest.'''
-
-    output_filename = args.save_directory + '/' + args.snap + '_density_temperature_phase.png'
 
     density = np.log10(region['gas', 'density'].in_units('g/cm**3').v)
     temperature = np.log10(region['gas','temperature'].in_units('K').v)

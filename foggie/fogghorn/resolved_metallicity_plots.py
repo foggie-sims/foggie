@@ -2,7 +2,7 @@
     Filename: resolved_metallicity_plots.py
     Author: Ayan
     Created: 6-12-24
-    Last modified: 6-12-24 by Ayan
+    Last modified: 7-22-24 by Cassi
     This file works with fogghorn_analysis.py to make the set of plots for resolved gas phase metallicity.
     If you add a new function to this scripts, then please also add the function name to the appropriate list at the end of fogghorn/header.py
 
@@ -12,7 +12,7 @@ from foggie.fogghorn.header import *
 from foggie.fogghorn.util import *
 
 # --------------------------------------------------------------------------------------------------------------------
-def gas_metallicity_resolved_MZR(ds, region, args):
+def gas_metallicity_resolved_MZR(ds, region, args, output_filename):
     '''
     Plots a spatially resolved gas metallicity vs gas mass relation.
     Returns nothing. Saves output as png file
@@ -27,12 +27,12 @@ def gas_metallicity_resolved_MZR(ds, region, args):
 
     # ---------annotate and save the figure----------------------
     plt.text(0.97, 0.95, 'z = %.2F' % ds.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.savefig(args.output_filename)
-    print('Saved figure ' + args.output_filename)
+    plt.savefig(output_filename)
+    print('Saved figure ' + output_filename)
     plt.close()
 
 # --------------------------------------------------------------------------------------------------------------------
-def gas_metallicity_histogram(ds, region, args):
+def gas_metallicity_histogram(ds, region, args, output_filename):
     '''
     Plots a histogram of the gas metallicity (No Gaussian fits, for now).
     Returns nothing. Saves output as png file
@@ -65,8 +65,8 @@ def gas_metallicity_histogram(ds, region, args):
 
     # ---------annotate and save the figure----------------------
     plt.text(0.97, 0.95, 'z = %.2F' % ds.current_redshift, ha='right', transform=ax.transAxes, fontsize=args.fontsize)
-    plt.savefig(args.output_filename)
-    print('Saved figure ' + args.output_filename)
+    plt.savefig(output_filename)
+    print('Saved figure ' + output_filename)
     plt.close()
 
 # ---------------------------------------------------------------------------------
@@ -112,22 +112,28 @@ def bin_fit_radial_profile(df, xcol, ycol, x_bins, ax, args, color='darkorange')
     return ax, Zcen, Zgrad
 
 # --------------------------------------------------------------------------------------------------------------------
-def gas_metallicity_radial_profile(ds, region, args):
+def gas_metallicity_radial_profile(ds, region, args, output_filename):
     '''
     Plots a radial profile of the gas metallicity, overplotted with the radially binned profile and the fit to the binned profile.
     Returns nothing. Saves output as png file
     '''
-    args.ylim = [-2.2, 1.2]
+    ylim = [-2.2, 1.2]
+    if args.upto_kpc is not None:
+        if args.docomoving: galrad = args.upto_kpc / (1 + ds.current_redshift) / 0.695  # include stuff within a fixed comoving kpc h^-1, 0.695 is Hubble constant
+        else: galrad = args.upto_kpc  # include stuff within a fixed physical kpc
+        region = ds.sphere(ds.halo_center_kpc, ds.arr(galrad, 'kpc')) # if a args.upto_kpc is specified, then the analysis 'region' will be restricted up to that
+    else:
+        galrad = ds.refine_width / 2.
 
     df = get_df_from_ds(region, args)
 
     # --------- First, plot both cell-by-cell profile first, using datashader---------
     fig, ax = plt.subplots(figsize=(8, 8))
     fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.17)
-    artist = dsshow(df, dsh.Point('rad', 'log_metal'), dsh.count(), norm='linear',x_range=(0, args.galrad), y_range=(args.ylim[0], args.ylim[1]), aspect='auto', ax=ax, cmap='Blues_r')
+    artist = dsshow(df, dsh.Point('rad', 'log_metal'), dsh.count(), norm='linear',x_range=(0, galrad), y_range=(ylim[0], ylim[1]), aspect='auto', ax=ax, cmap='Blues_r')
 
     # -------- Next, bin the metallicity profile and overplot the binned profile-----------
-    bin_edges = np.linspace(0, args.galrad, 10)
+    bin_edges = np.linspace(0, galrad, 10)
     ax, Zcen, Zgrad = bin_fit_radial_profile(df, 'rad', 'metal', bin_edges, ax, args)
     linefit = [Zgrad.n, Zcen.n]
 
@@ -139,7 +145,7 @@ def gas_metallicity_radial_profile(ds, region, args):
 
     # ---------- Tidy up figure-------------
     ax.set_xlim(0, args.upto_kpc)
-    ax.set_ylim(args.ylim[0], args.ylim[1])
+    ax.set_ylim(ylim[0], ylim[1])
     ax.set_yscale('log')
 
     ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
@@ -153,8 +159,8 @@ def gas_metallicity_radial_profile(ds, region, args):
 
     # --------- Annotate and save the figure----------------------
     plt.text(0.033, 0.05, 'z = %.2F' % ds.current_redshift, transform=ax.transAxes, fontsize=args.fontsize)
-    plt.savefig(args.output_filename)
-    print('Saved figure ' + args.output_filename)
+    plt.savefig(output_filename)
+    print('Saved figure ' + output_filename)
     plt.close()
 
 

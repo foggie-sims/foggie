@@ -4,9 +4,9 @@
 
     Filename :   header.py
     Notes :      Header file for importing packages/modules and declaring global variables required for working with FOGGIE code.
-    Authors :    Ayan,
+    Authors :    Ayan, Cassi
     Created: 06-12-24
-    Last modified: 06-12-24 by Ayan
+    Last modified: 07-22-24 by Cassi
 
 """
 
@@ -27,7 +27,7 @@ import multiprocessing as multi
 from pathlib import Path
 import pandas as pd
 import seaborn as sns
-from mpi4py import MPI
+#from mpi4py import MPI    # This was causing issues for Cassi's pleiades setup
 import scipy
 import subprocess
 

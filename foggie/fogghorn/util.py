@@ -4,9 +4,9 @@
 
     Filename :   util.py
     Notes :      Contains various generic utility functions and classes used by the other scripts in FOGGHORN, including a function to parse args
-    Authors :    Ayan, 
+    Authors :    Ayan, Cassi
     Created: 06-12-24
-    Last modified: 06-12-24 by Ayan
+    Last modified: 07-22-24 by Cassi
 
 """
 
@@ -214,20 +214,20 @@ def weighted_quantile(values, quantiles, weight=None):
     return np.interp(quantiles, weighted_quantiles, values)
 
 # ----------------------------------------------------------------------------
-def generate_plot_filename(quantity, args):
+def generate_plot_filename(quantity, args, snap):
     '''
     Generates filename for a plot that is about to be made
     This way the nomenclature is consistent
     '''
-    output_filename_dict = {'young_stars_density_projection':args.snap + '_Projection_' + args.projection + '_young_stars3_cic.png', \
-                            'KS_relation': args.snap + '_KS-relation.png', \
-                            'outflow_rates': args.snap + '_outflows.png', \
-                            'gas_density_projection': args.snap + '_Projection_' + args.projection + '_density.png', \
-                            'gas_metallicity_projection': args.snap + '_gas_metallicity_projection_' + args.projection_text + args.upto_text + args.density_cut_text + '.png', \
-                            'edge_visualizations': args.snap + '_Projection_disk-x_temperature_density.png', \
-                            'gas_metallicity_resolved_MZR': args.snap + '_resolved_gas_MZR' + args.upto_text + args.density_cut_text + '.png', \
-                            'gas_metallicity_histogram': args.snap + '_gas_metallicity_histogram' + args.upto_text + args.density_cut_text + '.png', \
-                            'gas_metallicity_radial_profile': args.snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png', \
+    output_filename_dict = {'young_stars_density_projection':snap + '_Projection_young_stars3_cic.png', \
+                            'KS_relation': snap + '_KS-relation.png', \
+                            'outflow_rates': snap + '_outflows.png', \
+                            'gas_density_projection': snap + '_Projection_density.png', \
+                            'gas_metallicity_projection': snap + '_gas_metallicity_projection.png', \
+                            'edge_visualizations': snap + '_Projection_disk-x_temperature_density.png', \
+                            'gas_metallicity_resolved_MZR': snap + '_resolved_gas_MZR' + args.upto_text + args.density_cut_text + '.png', \
+                            'gas_metallicity_histogram': snap + '_gas_metallicity_histogram' + args.upto_text + args.density_cut_text + '.png', \
+                            'gas_metallicity_radial_profile': snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png', \
                             'plot_SFMS': 'SFMS.png', \
                             'plot_SMHM': 'SMHM.png', \
                             'plot_MZR': 'MZR.png',

@@ -3,7 +3,7 @@
     Filename: fogghorn_analysis.py
     Authors: Cassi, Ayan,
     Created: 06-12-24
-    Last modified: 06-12-24 by Ayan
+    Last modified: 07-22-24 by Cassi
 
     This "master" script calls the relevant functions to produce a set of basic analysis plots for all outputs in the directory passed to it.
     The user can choose which plots Or groups of plots to make. This script does the book-keeping for existing plots and multiprocessing.
@@ -85,18 +85,13 @@ def make_plots(snap, args, queue):
     Returns nothing. Saves outputs as multiple png files
     '''
 
-    # ----------------- Add some parameters to args that will be used throughout ----------------------------------
-    args.projection_text = '_disk-' + args.projection if args.disk_rel else '_' + args.projection
-    args.density_cut_text = '_wdencut' if args.use_density_cut else ''
-    args.upto_text = '' if args.upto_kpc is None else '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
-
     # ------------- Determine which plots need to be made -----------------------
     plots_asked_for = which_plots_asked_for(args)
     plots_to_make = []
 
     for thisplot in plots_asked_for:
-        args.output_filename = generate_plot_filename(thisplot, args)
-        if need_to_make_this_plot(args.output_filename, args) or (thisplot=='info_table'):     # Population plots always need to be remade
+        output_filename = generate_plot_filename(thisplot, args, snap)
+        if need_to_make_this_plot(output_filename, args) or (thisplot=='info_table'):     # Population plots always need to be remade
             plots_to_make += [thisplot]
 
     need_to_load_snapshot = False
@@ -118,23 +113,11 @@ def make_plots(snap, args, queue):
             else:
                 ds, region = foggie_load(filename, args.trackfile, do_filter_particles=True, disk_relative=args.disk_rel)
 
-            # ------------ Set a few more snapshot-dependent args ----------------------
-            if args.disk_rel:
-                args.projection_axis_dict = {'x': ds.x_unit_disk, 'y': ds.y_unit_disk, 'z': ds.z_unit_disk}
-                args.north_vector_dict = {'disk-x': ds.z_unit_disk, 'disk-y': ds.z_unit_disk, 'disk-z': ds.x_unit_disk}
-
-            if args.upto_kpc is not None:
-                if args.docomoving: args.galrad = args.upto_kpc / (1 + ds.current_redshift) / 0.695  # include stuff within a fixed comoving kpc h^-1, 0.695 is Hubble constant
-                else: args.galrad = args.upto_kpc  # include stuff within a fixed physical kpc
-                region = ds.sphere(ds.halo_center_kpc, ds.arr(args.galrad, 'kpc')) # if a args.upto_kpc is specified, then the analysis 'region' will be restricted up to that
-            else:
-                args.galrad = ds.refine_width / 2.
-
         # ----------------------- Make the plots ---------------------------------------------
         for thisplot in plots_to_make:
             if (thisplot != 'info_table'):
-                args.output_filename = generate_plot_filename(thisplot, args)
-                globals()[thisplot](ds, region, args) # all plotting functions should preferably have this same argument list in their function definitions
+                output_filename = generate_plot_filename(thisplot, args, snap)
+                globals()[thisplot](ds, region, args, output_filename) # all plotting functions should preferably have this same argument list in their function definitions
             else:
                 if update_table(snap, args):
                     print('Updating table', snap)
@@ -155,10 +138,10 @@ def make_plots(snap, args, queue):
                     queue.put('no entry')
                 if (args.nproc==1):
                     for p in pop_plots:
-                        args.output_filename = args.save_directory + '/' + p[5:] + '.png'
-                        globals()[p](args)
+                        output_filename = args.save_directory + '/' + p[5:] + '.png'
+                        globals()[p](args, output_filename)
 
-    print_mpi('Yayyy you have completed making all plots for this snap ' + snap, args)
+    print('Yayyy you have completed making all plots for this snap ' + snap)
 
 # --------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
@@ -186,11 +169,15 @@ if __name__ == "__main__":
                 outputs.append(fname)
     print(outputs)
 
+    # ----------------- Add some parameters to args that will be used throughout ----------------------------------
+    args.density_cut_text = '_wdencut' if args.use_density_cut else ''
+    args.upto_text = '' if args.upto_kpc is None else '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+
     # --------- Loop over outputs, for either single-processor or parallel processor computing ---------------
     if (args.nproc == 1):
         queue = []
-        for args.snap in outputs:
-            make_plots(args.snap, args, queue)
+        for snap in outputs:
+            make_plots(snap, args, queue)
         print('Serially: time taken for ' + str(len(outputs)) + ' snapshots with ' + str(args.nproc) + ' core was %s' % timedelta(seconds=(datetime.now() - start_time).seconds))
     else:
         # ------- Split into a number of groupings equal to the number of processors and run one process per processor ---------
@@ -199,9 +186,9 @@ if __name__ == "__main__":
             queue = multi.Queue()
             rows = []
             for j in range(args.nproc):
-                args.snap = outputs[args.nproc*i+j]
-                print(args.snap)
-                threads.append(multi.Process(target=make_plots, args=[args.snap, args, queue]))
+                snap = outputs[args.nproc*i+j]
+                print(snap)
+                threads.append(multi.Process(target=make_plots, args=[snap, args, queue]))
             for t in threads:
                 t.start()
             for t in threads:
@@ -221,8 +208,8 @@ if __name__ == "__main__":
         queue = multi.Queue()
         rows = []
         for j in range(len(outputs) % args.nproc):
-            args.snap = outputs[-(j+1)]
-            threads.append(multi.Process(target=make_plots, args=[args.snap, args, queue]))
+            snap = outputs[-(j+1)]
+            threads.append(multi.Process(target=make_plots, args=[snap, args, queue]))
         for t in threads:
             t.start()
         for t in threads:
@@ -241,8 +228,8 @@ if __name__ == "__main__":
         plots_asked_for = which_plots_asked_for(args)
         if ('info_table') in plots_asked_for:
             for plot in pop_plots:
-                args.output_filename = args.save_directory + '/' + plot[5:] + '.png'
-                globals()[plot](args)
+                output_filename = args.save_directory + '/' + plot[5:] + '.png'
+                globals()[plot](args, output_filename)
         print('Parallely: time taken for ' + str(len(outputs)) + ' snapshots with ' + str(args.nproc) + ' cores was %s' % timedelta(seconds=(datetime.now() - start_time).seconds))
 
     '''
