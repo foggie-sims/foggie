@@ -39,7 +39,7 @@ if __name__ == '__main__':
     else: args = args_tuple
     if not args.keep: plt.close('all')
 
-    # --------determing filenames-----------------
+    # --------determining filenames-----------------
     if args.do_all_halos: args.halo_arr = ['8508', '5036', '5016', '4123', '2878', '2392']
     args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''
     args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
