@@ -110,7 +110,7 @@ if __name__ == '__main__':
         args.fits_dir = args.output_dir + 'txtfiles/'
         Path(args.fits_dir).mkdir(parents=True, exist_ok=True)
 
-        outfile_rootname = '%s_%s_%s_FRB_%s%s.png' % (args.output, args.halo, '3D' if args.plot_3d else 'proj', quant_dict[quant_arr[0]][0], args.upto_text)
+        outfile_rootname = '%s_%s_FRB_%s%s.png' % (args.output, args.halo, quant_dict[quant_arr[0]][0], args.upto_text)
         if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
         figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
         fitsname = args.fits_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift)).replace('.png', '.fits')
