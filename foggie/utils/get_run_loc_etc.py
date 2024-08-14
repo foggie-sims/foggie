@@ -88,7 +88,7 @@ def get_run_loc_etc(args):
         code_path = "/Users/acharyya/Work/astro/ayan_codes/foggie/foggie/"
     elif args.system == "ayan_hd":
         foggie_dir = "/Volumes/Elements/foggieforayan/"
-        output_path = "/Users/acharyya/Work/astro/foggie_outputs/"
+        output_path = "/Volumes/Elements/acharyya_backup/Work/astro/foggie_outputs/"
         code_path = "/Users/acharyya/Work/astro/ayan_codes/foggie/foggie/"
     elif args.system == "claire_hpcc":
         foggie_dir = "/mnt/research/galaxies-REU/sims/FOGGIE/"

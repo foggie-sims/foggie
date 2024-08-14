@@ -8,12 +8,11 @@
     Author :     Ayan Acharyya
     Started :    May 2024
     Examples :   run electron_density_projections.py --system ayan_pleiades --halo 8508 --upto_kpc 50 --res 0.2 --docomoving --do_all_sims --write_file
-                 run electron_density_projections.py --system ayan_local --halo 4123 --upto_kpc 50 --res 0.2 --output RD0038 --docomoving --nbins 100 --clobber_plot
+                 run electron_density_projections.py --system ayan_hd --halo 4123 --upto_kpc 50 --res 0.2 --output RD0038 --docomoving --nbins 100 --clobber_plot
 """
 from header import *
 from util import *
 plt.rcParams['axes.linewidth'] = 1
-from datetime import datetime, timedelta
 from projected_Zgrad_evolution import get_dist_map, make_frb_from_box
 from plot_MZgrad import load_df
 from compute_MZgrad import get_disk_stellar_mass

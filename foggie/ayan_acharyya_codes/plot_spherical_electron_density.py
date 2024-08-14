@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    May 2024
     Examples :   run plot_spherical_electron_density.py --system ayan_pleiades --upto_kpc 50 --docomoving --do_all_halos
-                 run plot_spherical_electron_density.py --system ayan_local --do_all_halos --upto_kpc 50 --docomoving --nbins 100 --nocolorcoding
+                 run plot_spherical_electron_density.py --system ayan_hd --do_all_halos --upto_kpc 50 --docomoving --nbins 100 --nocolorcoding
 """
 from header import *
 from util import *
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     else: args = args_tuple
     if not args.keep: plt.close('all')
 
-    # --------determing filenames-----------------
+    # --------determining filenames-----------------
     if args.do_all_halos: args.halo_arr = ['8508', '5036', '5016', '4123', '2878', '2392']
     args.weightby_text = '_wtby_' + args.weight if args.weight is not None else ''
     args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     ax_mass[-1].set_xlabel(r'$\log{(\mathrm{M}_* / \mathrm{M}_{\odot})}$', fontsize=args.fontsize / args.fontfactor)
 
     # ------------saving the figure------------------
-    fig.savefig(figname, transparent=args.glasspaper or args.fortalk)
+    fig.savefig(figname, dpi=800)
     print('\nSaved plot as', figname)
 
     plt.show(block=False)

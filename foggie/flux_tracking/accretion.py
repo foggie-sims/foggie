@@ -3004,26 +3004,32 @@ def filaments_3D(ds, grid, snap, snap_props):
             sph_grid_2 = np.concatenate([sph_grid, sph_grid], axis=0)
             # Identify structures in double-wide grid
             sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2)
-            # Delete structures that go across x-edges (theta)
-            to_del = []
-            for d in range(sph_grid_2_labeled.shape[1]):
-                if (sph_grid_2_labeled[0, d] > 0) and (sph_grid_2_labeled[-1, d] > 0):
-                    to_del.append(sph_grid_2_labeled[0, d])
-                    to_del.append(sph_grid_2_labeled[-1, d])
-            for u in np.unique(to_del):
-                sph_grid_2_labeled[sph_grid_2_labeled == u] = 0
-            # Re-label to get the new number of structures
-            sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2_labeled)
-            # Delete structures that are repeated exactly at theta and theta + 2pi
-            for n in range(n_struct):
-                if (n+1 in sph_grid_2_labeled):
-                    indices = np.where(sph_grid_2_labeled==n+1)
-                    if (np.max(indices[0]) < len(theta_centers)):
-                        shift_t = indices[0] + len(theta_centers)
-                        if (all(sph_grid_2_labeled[(shift_t,indices[1])]>0)):
-                            sph_grid_2_labeled[(shift_t,indices[1])] = 0
-            # Re-label to get final number of structures - these are how many fragments this filament has at this radius
-            sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2_labeled)
+            # Delete structures that go across x-edges (theta), unless there is only one structure (complete ring wrap-around)
+            if (np.max(sph_grid_2_labeled)>1):
+                to_del = []
+                for d in range(sph_grid_2_labeled.shape[1]):
+                    if (sph_grid_2_labeled[0, d] > 0) and (sph_grid_2_labeled[-1, d] > 0):
+                        to_del.append(sph_grid_2_labeled[0, d])
+                        to_del.append(sph_grid_2_labeled[-1, d])
+                for u in np.unique(to_del):
+                    sph_grid_2_labeled[sph_grid_2_labeled == u] = 0
+                # Re-label to get the new number of structures
+                sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2_labeled)
+                # Delete structures that are repeated exactly at theta and theta + 2pi
+                for n in range(n_struct):
+                    if (n+1 in sph_grid_2_labeled):
+                        indices = np.where(sph_grid_2_labeled==n+1)
+                        if (np.max(indices[0]) < len(theta_centers)):
+                            shift_t = indices[0] + len(theta_centers)
+                            if (all(sph_grid_2_labeled[(shift_t,indices[1])]>0)):
+                                sph_grid_2_labeled[(shift_t,indices[1])] = 0
+                # Re-label to get final number of structures - these are how many fragments this filament has at this radius
+                sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2_labeled)
+            # If there is just one big structure that goes all the way around, remove the excess for calculating
+            else:
+                sph_grid_2_labeled[:49, :] = 0
+                sph_grid_2_labeled[150:, :] = 0
+                n_struct = 1
             results.append(n_struct)
 
             # Calculate properties of the largest identified structure
