@@ -37,9 +37,6 @@ in on, so make sure to set these manually. All other parameters should be
 as listed here:
 
 ::
-    #
-    #  SIMULATION SET 1 - SINGLE-GALAXY ZOOM SIMULATIONS
-    #
 
     ProblemType                = 30      // cosmology simulation
     TopGridRank                = 3
@@ -52,9 +49,6 @@ as listed here:
     ComputePotential           = 1 
     WritePotential             = 1 
 
-    #
-    #  problem parameters
-    #
     CosmologySimulationOmegaBaryonNow        = 0.0461
     CosmologySimulationOmegaCDMNow           = 0.2389
     CosmologySimulationDensityName           = GridDensity
@@ -89,9 +83,6 @@ as listed here:
 
     CosmologySimulationUseMetallicityField = 1
 
-    #
-    #  define cosmology parameters
-    #
     ComovingCoordinates        = 1       // Expansion ON
     CosmologyOmegaMatterNow    = 0.285
     CosmologyOmegaDarkMatterNow = 0.2389
@@ -103,9 +94,6 @@ as listed here:
     CosmologyFinalRedshift 	   = 15.0    // stop at z = 15 to turn on self-shielding
     GravitationalConstant      = 1.0       // this must be true for cosmology
 
-    #
-    #  set I/O and stop/start parameters
-    #
     DataDumpDir      = DD
     DataDumpName     = DD
     RedshiftDumpName = RD
@@ -163,9 +151,6 @@ as listed here:
     StopCycle        = 100000
     StopCPUTime      = 3600000
 
-    #
-    #  set hydro parameters
-    #
     HydroMethod                     = 0       // PPM
     RiemannSolver                   = 4       // HLLC
     Gamma                           = 1.6667
@@ -173,15 +158,12 @@ as listed here:
     DualEnergyFormalism             = 1       // use total & internal energy
     InterpolationMethod             = 1       // SecondOrderA
     ReconstructionMethod            = 1 // PPM
-    RiemannSolverFallback           = 1 // HLL if there's a dnu<=0
+    RiemannSolverFallback           = 1 // HLL if there is a dnu<=0
     FluxCorrection                  = 1
     ConservativeInterpolation       = 0
     CourantSafetyNumber             = 0.4
     ParticleCourantSafetyNumber     = 0.8
 
-    #
-    #  set grid refinement parameters
-    #
     StaticHierarchy                = 0    // dynamic hierarchy
     MaximumRefinementLevel         = 11   // 11 = 190/h comoving pc
     MaximumGravityRefinementLevel  = 11
@@ -208,9 +190,6 @@ as listed here:
     RebuildHierarchyCycleSkip[9] = 2
     RebuildHierarchyCycleSkip[10] = 2
 
-    #
-    #  chemistry, cooling, radiation background
-    #
     RadiativeCooling                         = 1
     use_grackle                              = 1
     MultiSpecies                             = 2
@@ -219,10 +198,6 @@ as listed here:
     grackle_data_file                        = /nobackup/clochhaa/grackle_install/grackle/input/CloudyData_UVB=HM2012.h5 // change to your own grackle install path
     CMBTemperatureFloor                      = 1
 
-
-    #
-    # star formation and feedback parameters
-    #
     StarParticleCreation                     = 2048
     StarParticleFeedback                     = 64
     WriteFeedbackLogFiles                    = 1
@@ -252,10 +227,6 @@ as listed here:
     H2StarMakerUseLocalDensityMax      = 0
     H2StarMakerWriteStarLogFiles       = 1
 
-    #
-    # parallelism stuff
-    #
-
     LoadBalancing               = 1
     ResetLoadBalancing     = 0
     SubgridSizeAutoAdjust       = 1
@@ -264,7 +235,6 @@ as listed here:
     LoadBalancingCycleSkip = 2
     OptimalSubgridsPerProcessor = 16
     UnigridTranspose            = 2
-
 
     PartitionNestedGrids = 1
     ParallelRootGridIO   = 1
@@ -281,12 +251,13 @@ The last output snapshot should be RD0006. Here are the parameters you need
 to change in the RD0006/RD0006 parameter file:
 
 ::
+
     CosmologyFinalRedshift = 6          // stop at z = 6 to turn on track box
     StarFormationOncePerRootGridTimeStep  = 1
     H2StarMakerH2FractionMethod        = 1
     self_shielding_method       = 3
     H2_self_shielding           = 1
-    grackle_data_file           = /nobackup/clochhaa/grackle_install/grackle/input/CloudyData_UVB=HM2012_shielded.h5  // use the path to your own grackle install. Note this time it's the shielded file
+    grackle_data_file           = /nobackup/clochhaa/grackle_install/grackle/input/CloudyData_UVB=HM2012_shielded.h5  // use the path to your own grackle install. Note this time it is the shielded file
 
 With those changes made, you can now submit it to run again, and this time
 it will stop at z = 6. This will probably take an hour or two.
@@ -298,6 +269,7 @@ The last output should be RD0012 (z = 6). In the RD0012/RD0012 parameter
 file, change these parameters:
 
 ::
+
     CellFlaggingMethod             = 2 4 7 8 12 -99999 -99999 -99999 -99999 // turns on both forced refinement and cooling refinement
     MustRefineRegionMinRefinementLevel  = 9
     MustRefineRegionLeftEdge   = 0.495391 0.494903 0.499969 // take these values from the halo track
