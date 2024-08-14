@@ -44,3 +44,4 @@ inquiries and comments should be directed to the `Enzo Users' List
   
    bootcamp.rst
    SampleParameterFiles.rst
+   clean_from_ICs.rst
