@@ -1,0 +1,15 @@
+
+These CAMB files were created by JT on August 14, 2024 
+
+- Using online tool https://lambda.gsfc.nasa.gov/toolbox/camb_online.html
+- Set parameters according to adopted values. 
+	- turn reionization off 
+	- sigma_8 is not an input parameter 
+		- iterate on A_s until sigma_8 = 0.81 in the results (z = 0) 
+		- A_s scalar amplitude = 1.66e-9 
+		- generate transfer functions for z = 99 and z = 0 
+	- see stored PDF of inputs for verification 
+- results in ~foggie/ic_generation
+- the file camb_47799596_transfer_z99 will feed into MUSIC
+- see PDFs in these files for inputs and outputs 
+
