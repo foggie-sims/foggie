@@ -7,7 +7,7 @@
     Output :     projection plots as png files
     Author :     Ayan Acharyya
     Started :    October 2023
-    Example :    run plot_vdisp_frb.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --proj x --res_arc 0.1 --plot_frb
+    Example :    run plot_vdisp_frb.py --system ayan_hd --halo 8508 --output RD0030 --upto_kpc 10 --proj x --res_arc 0.1 --plot_frb
 """
 import numpy as np
 from matplotlib import pyplot as plt
