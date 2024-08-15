@@ -13,12 +13,13 @@
 from header import *
 from util import *
 from yt.visualization.fits_image import FITSImageData
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 plt.rcParams['axes.linewidth'] = 1
 
 start_time = datetime.now()
 
 # --------------------------------------------------------------------------
-def plot_3d_frb(data, ax, label=None, unit=None, clim=None,  cmap='viridis'):
+def plot_3d_frb(data, ax, args, label=None, unit=None, clim=None,  cmap='viridis'):
     '''
     Function to make a 3D plot given a 3D numpy array in a given axis
     Returns axis handle
@@ -33,7 +34,7 @@ def plot_3d_frb(data, ax, label=None, unit=None, clim=None,  cmap='viridis'):
     return ax
 
 # --------------------------------------------------------------------------
-def plot_proj_frb(data, ax, label='', unit='', clim=None,  cmap='viridis'):
+def plot_proj_frb(data, ax, args, label='', unit='', clim=None,  cmap='viridis'):
     '''
     Function to make a 2D projection plot (along one line of sight) given a 3D numpy array, in a given axis
     Returns axis handle
@@ -41,11 +42,28 @@ def plot_proj_frb(data, ax, label='', unit='', clim=None,  cmap='viridis'):
     data_proj = np.sum(data, axis=2)
     p = ax.imshow(np.log10(data_proj), cmap=cmap)
 
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
+    # -----------making the axis labels etc--------------
+    central_pixel = args.ncells / 2
+    kpc_per_pix = 2 * args.galrad / args.ncells
+    #ax.set_xticks(np.linspace(-int(args.galrad), int(args.galrad), 5))
+    ax.set_xticklabels(['%.1F' % ((item - central_pixel) * kpc_per_pix) for item in ax.get_xticks()], fontsize=args.fontsize)
+    ax.set_xlabel('Offset (kpc)', fontsize=args.fontsize)
 
-    cbar = plt.colorbar(p)
-    cbar.set_label(f'log integrated {label} ({unit})')
+    #ax.set_yticks(np.linspace(-int(args.galrad), int(args.galrad), 5))
+    ax.set_yticklabels(['%.1F' % ((item - central_pixel) * kpc_per_pix) for item in ax.get_yticks()], fontsize=args.fontsize)
+    ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize)
+
+    # ---------making the colorbar axis once, that will correspond to all projections--------------
+    fig = ax.figure
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cbar = fig.colorbar(p, orientation='vertical', cax=cax)
+    cbar.ax.tick_params(labelsize=args.fontsize, width=2.5, length=5)
+    cbar.set_label(f'log(LoS summed {label} ({unit}))', fontsize=args.fontsize/1.5)
+
+    # ---------------making annotations------------------------
+    ax.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, c='white', ha='right', va='top', transform=ax.transAxes, fontsize=args.fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
+    ax.text(0.97, 0.85, 't = %.1F Gyr' % args.current_time, c='white', ha='right', va='top', transform=ax.transAxes, fontsize=args.fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
 
     return ax
 
@@ -101,6 +119,7 @@ if __name__ == '__main__':
         args.current_time = ds.current_time.in_units('Gyr').tolist()
         args.res = args.res_arr[0]
         if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695  # converting from comoving kcp h^-1 to physical kpc
+        args.fontsize = 15
 
         # --------determining corresponding text suffixes and figname-------------
         args.fig_dir = args.output_dir + 'figs/'
@@ -134,7 +153,7 @@ if __name__ == '__main__':
 
             # -------setting up fig--------------
             fig = plt.figure(figsize=(10, 5))
-            fig.subplots_adjust(top=0.95, bottom=0.15, left=0.07, right=0.98, wspace=0.1, hspace=0.)
+            fig.subplots_adjust(top=0.95, bottom=0.15, left=0.07, right=0.92, wspace=0.4, hspace=0.)
 
             # -------making and plotting the 3D FRBs--------------
             all_data = ds.arbitrary_grid(left_edge=box.left_edge, right_edge=box.right_edge, dims=[args.ncells, args.ncells, args.ncells])
@@ -146,8 +165,8 @@ if __name__ == '__main__':
                 img_hdu = FITSImageData(FRB, ('gas', quant_dict[quant][1])) # making the FITS ImageHDU
                 img_hdu_list.append(img_hdu)
                 ax = fig.add_subplot(1, len(quant_arr), index + 1, projection='3d' if args.plot_3d else None)
-                if args.plot_3d: ax = plot_3d_frb(FRB, ax, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6]) # making the 3D plot
-                else: ax = plot_proj_frb(FRB, ax, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6]) # making the 3D plot
+                if args.plot_3d: ax = plot_3d_frb(FRB, ax, args, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6]) # making the 3D plot
+                else: ax = plot_proj_frb(FRB, ax, args, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6]) # making the 3D plot
 
             # ------saving fits file------------------
             combined_img_hdu = FITSImageData.from_images(img_hdu_list)
