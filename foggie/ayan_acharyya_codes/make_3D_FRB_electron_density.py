@@ -34,7 +34,7 @@ def plot_3d_frb(data, ax, args, label=None, unit=None, clim=None,  cmap='viridis
     return ax
 
 # --------------------------------------------------------------------------
-def plot_proj_frb(data, ax, args, label='', unit='', clim=None,  cmap='viridis'):
+def plot_proj_frb(data, ax, args, label='', unit='', clim=None,  cmap='viridis', hidex=False, hidey=False):
     '''
     Function to make a 2D projection plot (along one line of sight) given a 3D numpy array, in a given axis
     Returns axis handle
@@ -43,23 +43,30 @@ def plot_proj_frb(data, ax, args, label='', unit='', clim=None,  cmap='viridis')
     p = ax.imshow(np.log10(data_proj), cmap=cmap)
 
     # -----------making the axis labels etc--------------
-    central_pixel = args.ncells / 2
-    kpc_per_pix = 2 * args.galrad / args.ncells
-    #ax.set_xticks(np.linspace(-int(args.galrad), int(args.galrad), 5))
-    ax.set_xticklabels(['%.1F' % ((item - central_pixel) * kpc_per_pix) for item in ax.get_xticks()], fontsize=args.fontsize)
-    ax.set_xlabel('Offset (kpc)', fontsize=args.fontsize)
+    if hidex:
+        ax.set_xticklabels(['' % item for item in ax.get_xticks()])
+        ax.set_xlabel('')
+    else:
+        ax.set_xticklabels(['%.1F' % ((item - central_pixel) * args.kpc_per_pix) for item in ax.get_xticks()], fontsize=args.fontsize)
+        ax.set_xlabel('Offset (kpc)', fontsize=args.fontsize)
 
-    #ax.set_yticks(np.linspace(-int(args.galrad), int(args.galrad), 5))
-    ax.set_yticklabels(['%.1F' % ((item - central_pixel) * kpc_per_pix) for item in ax.get_yticks()], fontsize=args.fontsize)
-    ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize)
+    if hidey:
+        ax.set_yticklabels(['' % item for item in ax.get_yticks()])
+        ax.set_ylabel('')
+    else:
+        ax.set_yticklabels(['%.1F' % ((item - central_pixel) * args.kpc_per_pix) for item in ax.get_yticks()], fontsize=args.fontsize)
+        ax.set_ylabel('Offset (kpc)', fontsize=args.fontsize)
 
     # ---------making the colorbar axis once, that will correspond to all projections--------------
     fig = ax.figure
     divider = make_axes_locatable(ax)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    cbar = fig.colorbar(p, orientation='vertical', cax=cax)
+    cax = divider.append_axes('top', size='5%', pad=0.05)
+    cbar = fig.colorbar(p, orientation='horizontal', cax=cax)
+    cbar.ax.xaxis.set_ticks_position('top')
+    cbar.ax.xaxis.set_label_position('top')
     cbar.ax.tick_params(labelsize=args.fontsize, width=2.5, length=5)
-    cbar.set_label(f'log(LoS summed {label} ({unit}))', fontsize=args.fontsize/1.5)
+    cbar.set_label(f'log(LoS summed {label} ({unit}))', fontsize=args.fontsize/1.)
+    cbar.set_label(f'log(LoS summed {label} ({unit}))', fontsize=args.fontsize/1.)
 
     # ---------------making annotations------------------------
     ax.text(0.97, 0.95, 'z = %.2F' % args.current_redshift, c='white', ha='right', va='top', transform=ax.transAxes, fontsize=args.fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
@@ -151,9 +158,12 @@ if __name__ == '__main__':
             box_center = ds.halo_center_kpc
             box = ds.r[box_center[0] - box_width_kpc / 2.: box_center[0] + box_width_kpc / 2., box_center[1] - box_width_kpc / 2.: box_center[1] + box_width_kpc / 2., box_center[2] - box_width_kpc / 2.: box_center[2] + box_width_kpc / 2., ]
 
+            central_pixel = args.ncells / 2
+            args.kpc_per_pix = 2 * args.galrad / args.ncells
+
             # -------setting up fig--------------
             fig = plt.figure(figsize=(10, 5))
-            fig.subplots_adjust(top=0.95, bottom=0.15, left=0.07, right=0.92, wspace=0.4, hspace=0.)
+            fig.subplots_adjust(top=0.9, bottom=0.15, left=0.07, right=0.92, wspace=0.4 if args.plot_3d else 0.02, hspace=0.)
 
             # -------making and plotting the 3D FRBs--------------
             all_data = ds.arbitrary_grid(left_edge=box.left_edge, right_edge=box.right_edge, dims=[args.ncells, args.ncells, args.ncells])
@@ -161,12 +171,22 @@ if __name__ == '__main__':
 
             for index, quant in enumerate(quant_arr):
                 myprint(f'Making and plotting FRB for {quant} which is {index+1} out of {len(quant_arr)} quantities..', args)
-                FRB = all_data[('gas', quant_dict[quant][0])].in_units(quant_dict[quant][2]) # making the 3D FRB
-                img_hdu = FITSImageData(FRB, ('gas', quant_dict[quant][1])) # making the FITS ImageHDU
+
+                # --------making the 3D FRB------------
+                FRB = all_data[('gas', quant_dict[quant][0])].in_units(quant_dict[quant][2])
+
+                # --------making the FITS ImageHDU---------------
+                img_hdu = FITSImageData(FRB, ('gas', quant_dict[quant][1]))
+                header = img_hdu[0].header
+                for ind in range(3):
+                    header[f'CDELT{ind+1}'] = args.kpc_per_pix
+                    header[f'CUNIT{ind+1}'] = 'kpc'
                 img_hdu_list.append(img_hdu)
+
+                # ------making the plots-----------
                 ax = fig.add_subplot(1, len(quant_arr), index + 1, projection='3d' if args.plot_3d else None)
-                if args.plot_3d: ax = plot_3d_frb(FRB, ax, args, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6]) # making the 3D plot
-                else: ax = plot_proj_frb(FRB, ax, args, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6]) # making the 3D plot
+                if args.plot_3d: ax = plot_3d_frb(FRB, ax, args, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6])
+                else: ax = plot_proj_frb(FRB, ax, args, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6], hidey=index > 0)
 
             # ------saving fits file------------------
             combined_img_hdu = FITSImageData.from_images(img_hdu_list)
