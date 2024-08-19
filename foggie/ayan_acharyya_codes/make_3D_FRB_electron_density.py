@@ -125,6 +125,7 @@ if __name__ == '__main__':
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').tolist()
         args.res = args.res_arr[0]
+        args.res_text = f'_res{args.res:.1f}kpc'
         if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695  # converting from comoving kcp h^-1 to physical kpc
         args.fontsize = 15
 
@@ -136,7 +137,7 @@ if __name__ == '__main__':
         args.fits_dir = args.output_dir + 'txtfiles/'
         Path(args.fits_dir).mkdir(parents=True, exist_ok=True)
 
-        outfile_rootname = '%s_%s_FRB_%s%s.png' % (args.output, args.halo, quant_dict[quant_arr[0]][0], args.upto_text)
+        outfile_rootname = '%s_%s_FRB_%s%s%s.png' % (args.output, args.halo, quant_dict[quant_arr[0]][0], args.upto_text, args.res_text)
         if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
         figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
         fitsname = args.fits_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift)).replace('.png', '.fits')
@@ -163,7 +164,7 @@ if __name__ == '__main__':
 
             # -------setting up fig--------------
             fig = plt.figure(figsize=(10, 5))
-            fig.subplots_adjust(top=0.9, bottom=0.15, left=0.07, right=0.92, wspace=0.4 if args.plot_3d else 0.02, hspace=0.)
+            fig.subplots_adjust(top=0.88, bottom=0.12, left=0.07, right=0.92, wspace=0.4 if args.plot_3d else 0.02, hspace=0.)
 
             # -------making and plotting the 3D FRBs--------------
             all_data = ds.arbitrary_grid(left_edge=box.left_edge, right_edge=box.right_edge, dims=[args.ncells, args.ncells, args.ncells])
