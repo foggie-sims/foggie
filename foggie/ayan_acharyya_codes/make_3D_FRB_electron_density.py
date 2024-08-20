@@ -7,8 +7,9 @@
     Output :     3D data cube as fits file, and optionally png figures
     Author :     Ayan Acharyya
     Started :    Aug 2024
-    Examples :   run make_3D_FRB_electron_density.py --system ayan_pleiades --halo 8508 --res 0.3 --upto_kpc 50 --docomoving --do_all_sims
-                 run make_3D_FRB_electron_density.py --system ayan_hd --halo 4123 --res 0.3 --upto_kpc 10 --output RD0038 --docomoving --clobber --plot_3d
+    Examples :   run make_3D_FRB_electron_density.py --system ayan_pleiades --halo 8508 --res 1 --upto_kpc 50 --docomoving --do_all_sims
+                 run make_3D_FRB_electron_density.py --system ayan_hd --halo 4123 --res 1 --upto_kpc 10 --output RD0038 --docomoving --clobber --plot_3d
+                 run make_3D_FRB_electron_density.py --system ayan_hd --halo 8508 --res 1 --upto_kpc 200 --output RD0030,RD0042 --docomoving --clobber
 """
 from header import *
 from util import *
@@ -17,6 +18,24 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 plt.rcParams['axes.linewidth'] = 1
 
 start_time = datetime.now()
+
+# -----------------------------------------------------------------------------
+def get_AM_vector(ds):
+    '''
+    Computes the orientation vector of angular momentum of the disk, in the given dataset, considering young star particles
+    Based on foggie_load()
+    Returns the unit vector as a list
+    '''
+    start_time = datetime.now()
+
+    print('Staring to derive angular momentum vector. This can take a while..')
+    sphere = ds.sphere(ds.halo_center_kpc, (15., 'kpc'))
+    L = sphere.quantities.angular_momentum_vector(use_gas=False, use_particles=True, particle_type='young_stars')
+    print('Completed deriving angular momentum vector, in %s'% timedelta(seconds=(datetime.now() - start_time).seconds))
+    norm_L = L / np.sqrt((L ** 2).sum())
+    norm_L = np.array(norm_L.value)
+
+    return norm_L
 
 # --------------------------------------------------------------------------
 def plot_3d_frb(data, ax, args, label=None, unit=None, clim=None,  cmap='viridis'):
@@ -74,6 +93,72 @@ def plot_proj_frb(data, ax, args, label='', unit='', clim=None,  cmap='viridis',
 
     return ax
 
+# --------------------------------------------------------------------------
+def plot_proj_frb_diskrel(box, field, box_width_kpc, norm_L, args, unit='', clim=None,  cmap='viridis'):
+    '''
+    Function to make a 2D projection plot along edge-on and face-on views given a dataset
+    Borrowed a little from foggie_load()
+    Returns figure handle
+    '''
+    x = np.random.randn(3)  # take a random vector
+    x -= x.dot(norm_L) * norm_L  # make it orthogonal to L
+    x /= np.linalg.norm(x)  # normalize it
+    y = np.cross(norm_L, x)  # cross product with L
+
+    field = ('gas', field)
+    fontsize = args.fontsize
+
+    p_faceon = yt.OffAxisProjectionPlot(box.ds, ds.arr(norm_L), field, data_source=box, width=(box_width, 'kpc'), weight_field='density', center=box.ds.halo_center_kpc, north_vector=ds.arr(x))
+    p_edgeon = yt.OffAxisProjectionPlot(box.ds, ds.arr(x), field, data_source=box, width=(box_width, 'kpc'), weight_field='density', center=box.ds.halo_center_kpc, north_vector=ds.arr(norm_L))
+
+    p_faceon.set_log(field, True)
+    p_faceon.set_unit(field, unit)
+    p_faceon.set_zlim(field, zmin=10**clim[0], zmax=10**clim[1])
+    p_faceon.set_cmap(field, cmap)
+
+    p_edgeon.set_log(field, True)
+    p_edgeon.set_unit(field, unit)
+    p_edgeon.set_zlim(field, zmin=10**clim[0], zmax=10**clim[1])
+    p_edgeon.set_cmap(field, cmap)
+
+    # ------plotting onto a matplotlib figure--------------
+    fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+
+    p_faceon.plots[field].axes = axes[0]
+    p_faceon._setup_plots()
+    p_edgeon.plots[field].axes = axes[1]
+    p_edgeon._setup_plots()
+    divider = make_axes_locatable(axes[1])
+
+    fig.subplots_adjust(right=0.85, top=0.95, bottom=0.12, left=0.15, wspace=0.3)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cbar = fig.colorbar(p_edgeon.plots[field].cb.mappable, orientation='vertical', cax=cax)
+    cbar.ax.tick_params(labelsize=fontsize, width=2.5, length=5)
+    cbar.set_label(p_edgeon.plots[field].cax.get_ylabel(), fontsize=fontsize)
+
+    for ax in axes:
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=fontsize)
+        ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=fontsize)
+        ax.set_xlabel(ax.get_xlabel(), fontsize=fontsize)
+        ax.set_ylabel(ax.get_ylabel(), fontsize=fontsize)
+
+    # ---------------making annotations------------------------
+    axes[0].text(0.97, 0.95, 'z = %.2F' % args.current_redshift, c='white', ha='right', va='top', transform=ax.transAxes, fontsize=fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
+    axes[0].text(0.97, 0.85, 't = %.1F Gyr' % args.current_time, c='white', ha='right', va='top', transform=ax.transAxes, fontsize=fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
+
+
+    outfile_rootname = '%s_%s_diskrel_%s%s.png' % (args.output, args.halo, quant_dict[quant_arr[0]][0], args.upto_text)
+    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
+    figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+
+    plt.savefig(figname)
+    myprint('Saved figure ' + figname, args)
+    plt.show()
+
+    return fig
+
 # -----main code-----------------
 if __name__ == '__main__':
     args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
@@ -82,7 +167,7 @@ if __name__ == '__main__':
     if not args.keep: plt.close('all')
 
     quant_dict = {'density':['density', 'Gas density', 'Msun/pc**3', -2.5, 2.5, 'cornflowerblue', density_color_map], 'el_density':['El_number_density', 'Electron density', 'cm**-3', -6, -1, 'cornflowerblue', e_color_map]} # for each quantity: [yt field, label in plots, units, lower limit in log, upper limit in log, color for scatter plot, colormap]
-    quant_arr = ['el_density', 'density']
+    quant_arr = ['el_density']#, 'density']
 
     # --------domain decomposition; for mpi parallelisation-------------
     if args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(args) # all snapshots of this particular halo
@@ -120,6 +205,8 @@ if __name__ == '__main__':
         if type(args) is tuple: args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
         else: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
 
+        norm_L = get_AM_vector(ds) # np.array([-0.64498829, -0.5786498 , -0.49915379]) #computing disk orientation
+
         # --------assigning additional keyword args-------------
         args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
         args.current_redshift = ds.current_redshift
@@ -130,11 +217,12 @@ if __name__ == '__main__':
         args.fontsize = 15
 
         # --------determining corresponding text suffixes and figname-------------
-        args.fig_dir = args.output_dir + 'figs/'
-        if not args.do_all_sims: args.fig_dir += args.output + '/'
+        #args.fig_dir = args.output_dir + 'figs/'
+        args.fig_dir = '/Users/acharyya/Library/CloudStorage/GoogleDrive-ayan.acharyya@inaf.it/My Drive/FOGGIE-Curtin/plots/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
 
-        args.fits_dir = args.output_dir + 'txtfiles/'
+        #args.fits_dir = args.output_dir + 'txtfiles/'
+        args.fits_dir = '/Users/acharyya/Library/CloudStorage/GoogleDrive-ayan.acharyya@inaf.it/My Drive/FOGGIE-Curtin/data/'
         Path(args.fits_dir).mkdir(parents=True, exist_ok=True)
 
         outfile_rootname = '%s_%s_FRB_%s%s%s.png' % (args.output, args.halo, quant_dict[quant_arr[0]][0], args.upto_text, args.res_text)
@@ -163,8 +251,9 @@ if __name__ == '__main__':
             args.kpc_per_pix = 2 * args.galrad / args.ncells
 
             # -------setting up fig--------------
-            fig = plt.figure(figsize=(10, 5))
-            fig.subplots_adjust(top=0.88, bottom=0.12, left=0.07, right=0.92, wspace=0.4 if args.plot_3d else 0.02, hspace=0.)
+            if args.plot_3d or args.plot_proj:
+                fig = plt.figure(figsize=(2 + 4 * len(quant_arr), 5))
+                fig.subplots_adjust(top=0.88, bottom=0.12, left=0.07, right=0.92, wspace=0.4 if args.plot_3d else 0.02, hspace=0.)
 
             # -------making and plotting the 3D FRBs--------------
             all_data = ds.arbitrary_grid(left_edge=box.left_edge, right_edge=box.right_edge, dims=[args.ncells, args.ncells, args.ncells])
@@ -174,7 +263,7 @@ if __name__ == '__main__':
                 myprint(f'Making and plotting FRB for {quant} which is {index+1} out of {len(quant_arr)} quantities..', args)
 
                 # --------making the 3D FRB------------
-                FRB = all_data[('gas', quant_dict[quant][0])].in_units(quant_dict[quant][2])
+                FRB = all_data[('gas', quant_dict[quant][0])].in_units(quant_dict[quant][2]).astype(np.float32)
 
                 # --------making the FITS ImageHDU---------------
                 img_hdu = FITSImageData(FRB, ('gas', quant_dict[quant][1]))
@@ -182,12 +271,16 @@ if __name__ == '__main__':
                 for ind in range(3):
                     header[f'CDELT{ind+1}'] = args.kpc_per_pix
                     header[f'CUNIT{ind+1}'] = 'kpc'
+                    header[f'NORMAL_UNIT_VECTOR{ind+1}'] = norm_L[ind]
                 img_hdu_list.append(img_hdu)
 
                 # ------making the plots-----------
-                ax = fig.add_subplot(1, len(quant_arr), index + 1, projection='3d' if args.plot_3d else None)
-                if args.plot_3d: ax = plot_3d_frb(FRB, ax, args, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6])
-                else: ax = plot_proj_frb(FRB, ax, args, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6], hidey=index > 0)
+                if args.plot_3d or args.plot_proj:
+                    ax = fig.add_subplot(1, len(quant_arr), index + 1, projection='3d' if args.plot_3d else None)
+                    if args.plot_3d: ax = plot_3d_frb(FRB, ax, args, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6])
+                    elif args.plot_proj: ax = plot_proj_frb(FRB, ax, args, label=quant_dict[quant][1], unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]], cmap=quant_dict[quant][6], hidey=index > 0)
+
+                fig_diskrel = plot_proj_frb_diskrel(box, quant_dict[quant][0], box_width_kpc, norm_L, args, unit=quant_dict[quant][2], clim=[quant_dict[quant][3], quant_dict[quant][4]],  cmap=quant_dict[quant][6])
 
             # ------saving fits file------------------
             combined_img_hdu = FITSImageData.from_images(img_hdu_list)
@@ -195,8 +288,9 @@ if __name__ == '__main__':
             myprint('Saved fits file as ' + fitsname, args)
 
             # ------saving fig------------------
-            fig.savefig(figname)
-            myprint('Saved plot as ' + figname, args)
+            if args.plot_3d or args.plot_proj:
+                fig.savefig(figname)
+                myprint('Saved plot as ' + figname, args)
 
             plt.show(block=False)
             print_mpi('This snapshots completed in %s' % timedelta(seconds=(datetime.now() - start_time_this_snapshot).seconds), args)
