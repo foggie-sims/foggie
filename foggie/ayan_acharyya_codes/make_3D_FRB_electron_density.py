@@ -108,9 +108,11 @@ def plot_proj_frb_diskrel(box, field, box_width_kpc, norm_L, args, unit='', clim
     field = ('gas', field)
     fontsize = args.fontsize
 
+    # ---------------making face on and edge on projections------------------------
     p_faceon = yt.OffAxisProjectionPlot(box.ds, ds.arr(norm_L), field, data_source=box, width=(box_width, 'kpc'), weight_field='density', center=box.ds.halo_center_kpc, north_vector=ds.arr(x))
     p_edgeon = yt.OffAxisProjectionPlot(box.ds, ds.arr(x), field, data_source=box, width=(box_width, 'kpc'), weight_field='density', center=box.ds.halo_center_kpc, north_vector=ds.arr(norm_L))
 
+    # ---------------setting up units, colormaps, etc------------------------
     p_faceon.set_log(field, True)
     p_faceon.set_unit(field, unit)
     p_faceon.set_zlim(field, zmin=10**clim[0], zmax=10**clim[1])
@@ -130,25 +132,36 @@ def plot_proj_frb_diskrel(box, field, box_width_kpc, norm_L, args, unit='', clim
     p_edgeon._setup_plots()
     divider = make_axes_locatable(axes[1])
 
-    fig.subplots_adjust(right=0.85, top=0.95, bottom=0.12, left=0.15, wspace=0.3)
+    fig.subplots_adjust(right=0.87, top=0.98, bottom=0.1, left=0.1, wspace=0.1)
+
+    # ---------------making colorbar------------------------
     cax = divider.append_axes('right', size='5%', pad=0.05)
     cbar = fig.colorbar(p_edgeon.plots[field].cb.mappable, orientation='vertical', cax=cax)
     cbar.ax.tick_params(labelsize=fontsize, width=2.5, length=5)
     cbar.set_label(p_edgeon.plots[field].cax.get_ylabel(), fontsize=fontsize)
 
-    for ax in axes:
+    # ---------------prepping axes------------------------
+    for index in range(len(axes)):
+        ax = axes[index]
         ax.xaxis.set_major_locator(plt.MaxNLocator(5))
         ax.yaxis.set_major_locator(plt.MaxNLocator(5))
         ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=fontsize)
-        ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=fontsize)
         ax.set_xlabel(ax.get_xlabel(), fontsize=fontsize)
-        ax.set_ylabel(ax.get_ylabel(), fontsize=fontsize)
+        if index == 0:
+            ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=fontsize)
+            ax.set_ylabel(ax.get_ylabel(), fontsize=fontsize)
+        else:
+            ax.set_yticklabels(['' % item for item in ax.get_yticks()])
+            ax.set_ylabel('')
 
     # ---------------making annotations------------------------
-    axes[0].text(0.97, 0.95, 'z = %.2F' % args.current_redshift, c='white', ha='right', va='top', transform=ax.transAxes, fontsize=fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
-    axes[0].text(0.97, 0.85, 't = %.1F Gyr' % args.current_time, c='white', ha='right', va='top', transform=ax.transAxes, fontsize=fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
+    axes[0].text(0.97, 0.95, 'z = %.2F' % args.current_redshift, c='white', ha='right', va='top', transform=axes[0].transAxes, fontsize=fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
+    axes[0].text(0.97, 0.85, 't = %.1F Gyr' % args.current_time, c='white', ha='right', va='top', transform=axes[0].transAxes, fontsize=fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
 
+    axes[0].text(0.98, 0.02, 'Face on', c='white', ha='right', va='bottom', transform=axes[0].transAxes, fontsize=fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
+    axes[1].text(0.98, 0.02, 'Edge on', c='white', ha='right', va='bottom', transform=axes[1].transAxes, fontsize=fontsize, bbox=dict(facecolor='k', alpha=0.3, edgecolor='k'))
 
+    # ---------------saving fig------------------------
     outfile_rootname = '%s_%s_diskrel_%s%s.png' % (args.output, args.halo, quant_dict[quant_arr[0]][0], args.upto_text)
     if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output) + 1:]
     figname = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
@@ -205,7 +218,7 @@ if __name__ == '__main__':
         if type(args) is tuple: args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
         else: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
 
-        norm_L = get_AM_vector(ds) # np.array([-0.64498829, -0.5786498 , -0.49915379]) #computing disk orientation
+        norm_L = get_AM_vector(ds) # np.array([-0.64498829, -0.5786498 , -0.49915379]) #computing disk orientation #
 
         # --------assigning additional keyword args-------------
         args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
