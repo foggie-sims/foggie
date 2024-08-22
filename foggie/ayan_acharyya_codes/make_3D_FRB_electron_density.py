@@ -146,10 +146,10 @@ def plot_proj_frb_diskrel(box, field, box_width_kpc, norm_L, args, unit='', clim
         ax.xaxis.set_major_locator(plt.MaxNLocator(5))
         ax.yaxis.set_major_locator(plt.MaxNLocator(5))
         ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=fontsize)
-        ax.set_xlabel(ax.get_xlabel(), fontsize=fontsize)
+        ax.set_xlabel('Offset (kpc)', fontsize=fontsize)
         if index == 0:
             ax.set_yticklabels(['%.1F' % item for item in ax.get_yticks()], fontsize=fontsize)
-            ax.set_ylabel(ax.get_ylabel(), fontsize=fontsize)
+            ax.set_ylabel('Offset (kpc)', fontsize=fontsize)
         else:
             ax.set_yticklabels(['' % item for item in ax.get_yticks()])
             ax.set_ylabel('')
@@ -218,7 +218,7 @@ if __name__ == '__main__':
         if type(args) is tuple: args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
         else: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
 
-        norm_L = get_AM_vector(ds) # np.array([-0.64498829, -0.5786498 , -0.49915379]) #computing disk orientation #
+        norm_L =  get_AM_vector(ds) #np.array([-0.64498829, -0.5786498 , -0.49915379]) #computing disk orientation #
 
         # --------assigning additional keyword args-------------
         args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
