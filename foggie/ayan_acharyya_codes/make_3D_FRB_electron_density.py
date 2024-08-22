@@ -17,7 +17,47 @@ from yt.visualization.fits_image import FITSImageData
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 plt.rcParams['axes.linewidth'] = 1
 
+from plot_MZgrad import load_df
+from compute_MZgrad import get_disk_stellar_mass
+
 start_time = datetime.now()
+
+# -----------------------------------------------------------------------------
+def get_sfr_df(args):
+    '''
+    Reads in the dataframe that contains SFR of each snapshot of a given halo
+    Returns pandas dataframe
+    '''
+    sfr_filename = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/sfr'
+    if os.path.exists(sfr_filename):
+        print('Reading SFR history from', sfr_filename)
+        sfr_df = pd.read_table(sfr_filename, names=('output', 'redshift', 'sfr'), comment='#', delim_whitespace=True)
+    else:
+        print('Did not find', sfr_filename, ', therefore will not include SFR')
+        sfr_df = pd.DataFrame()
+
+    return sfr_df
+
+# -----------------------------------------------------------------------------
+def get_mstar_df(args):
+    '''
+    Reads in the dataframe that contains stellar mass of each snapshot of a given halo
+    Returns pandas dataframe
+    '''
+    try:
+        dummy_args = copy.deepcopy(args)
+        dummy_args.weight = 'mass'
+        dummy_args.weightby_text = '' if dummy_args.weight is None else '_wtby_' + dummy_args.weight
+        dummy_args.Zgrad_den = 'kpc'
+        dummy_args.use_density_cut = True
+        mass_df = load_df(dummy_args)
+        mass_df = mass_df[['output', 'log_mass']]
+        print('Retrieved stellar masses')
+    except:
+        print('Could not retrieve stellar masses, therefore will not include mstar')
+        mass_df = pd.DataFrame()
+
+    return mass_df
 
 # -----------------------------------------------------------------------------
 def get_AM_vector(ds):
@@ -182,6 +222,10 @@ if __name__ == '__main__':
     quant_dict = {'density':['density', 'Gas density', 'Msun/pc**3', -2.5, 2.5, 'cornflowerblue', density_color_map], 'el_density':['El_number_density', 'Electron density', 'cm**-3', -6, -1, 'cornflowerblue', e_color_map]} # for each quantity: [yt field, label in plots, units, lower limit in log, upper limit in log, color for scatter plot, colormap]
     quant_arr = ['el_density']#, 'density']
 
+    # ------------reading SFR and mstar df-----------------
+    mstar_df = get_mstar_df(args)
+    sfr_df  =get_sfr_df(args)
+
     # --------domain decomposition; for mpi parallelisation-------------
     if args.do_all_sims: list_of_sims = get_all_sims_for_this_halo(args) # all snapshots of this particular halo
     else: list_of_sims = list(itertools.product([args.halo], args.output_arr))
@@ -218,7 +262,7 @@ if __name__ == '__main__':
         if type(args) is tuple: args, ds, refine_box = args  # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
         else: ds, refine_box = load_sim(args, region='refine_box', do_filter_particles=True, disk_relative=False, halo_c_v_name=halos_df_name)
 
-        norm_L =  get_AM_vector(ds) #np.array([-0.64498829, -0.5786498 , -0.49915379]) #computing disk orientation #
+        norm_L = get_AM_vector(ds) #np.array([-0.64498829, -0.5786498 , -0.49915379]) #computing disk orientation #
 
         # --------assigning additional keyword args-------------
         args.upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
@@ -228,6 +272,13 @@ if __name__ == '__main__':
         args.res_text = f'_res{args.res:.1f}kpc'
         if args.docomoving: args.res = args.res / (1 + args.current_redshift) / 0.695  # converting from comoving kcp h^-1 to physical kpc
         args.fontsize = 15
+
+        # -----------determining SFR amd stellar mass--------------------
+        try: sfr = sfr_df[sfr_df['output'] == args.output]['sfr'].values[0]
+        except: sfr = -99
+
+        try: log_mstar = mstar_df[mstar_df['output'] == args.output]['log_mass'].values[0]
+        except: log_mstar = np.log10(get_disk_stellar_mass(args))
 
         # --------determining corresponding text suffixes and figname-------------
         #args.fig_dir = args.output_dir + 'figs/'
@@ -285,6 +336,13 @@ if __name__ == '__main__':
                     header[f'CDELT{ind+1}'] = args.kpc_per_pix
                     header[f'CUNIT{ind+1}'] = 'kpc'
                     header[f'NORMAL_UNIT_VECTOR{ind+1}'] = norm_L[ind]
+
+                header[f'SFR'] = sfr
+                header[f'SFRUNIT'] = 'Msun/yr'
+
+                header[f'LOG_MSTAR'] = log_mstar
+                header[f'MSTARUNIT'] = 'Msun'
+
                 img_hdu_list.append(img_hdu)
 
                 # ------making the plots-----------
