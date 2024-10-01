@@ -57,7 +57,7 @@ def get_header(df):
 def make_latex_table(df, tabname, args):
     '''
     Function to minimise the given larger master table into a small latex table for the paper
-    Returns: saves .text file at the destination given by outtabname
+    Returns: saves .tex file at the destination given by outtabname
     '''
     column_dict = {'halo':'Halo', 'output':'Output', 'redshift':r'$z$', 'time':'Time (Gyr)', 'log_mass':r'M$_{\star}$/M$_{\odot}$', 'log_Ztotal':'$\log Z_{\rm total}$/Z$_{\odot}$', 'Zgrad':r'$\nabla Z$ (dex/kpc)', 'log_Z50':'$\log Z_{\rm median}$/Z$_{\odot}$', 'log_ZIQR':'$\log Z_{\rm IQR}$/Z$_{\odot}$', 'log_Zmean':'Z$_{\rm cen}$/Z$_{\odot}$', 'log_Zwidth':'Z$_{\rm width}$/Z$_{\odot}$'}
     redshift_arr = [0, 1, 2]

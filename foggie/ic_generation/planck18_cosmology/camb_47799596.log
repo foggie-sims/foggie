@@ -1,0 +1,14 @@
+=============== CAMB Processing ===============
+
+Om_b h^2             =  0.022422
+Om_c h^2             =  0.120168
+Om_nu h^2            =  0.000000
+Om_darkenergy        =  0.708950
+Om_K                 =  0.000000
+Om_m (inc Om_u)      =  0.291000
+100 theta (CosmoMC)  =  1.179364
+tau_recomb/Mpc       =  315.73  tau_now/Mpc =  14123.6
+at z = 99.000 sigma8 (all matter) =  0.0106
+at z =  0.000 sigma8 (all matter) =  0.8100
+at z = 99.000 sigma8^2_vd/sigma8  =  0.0105
+at z =  0.000 sigma8^2_vd/sigma8  =  0.4083

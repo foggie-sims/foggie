@@ -8,7 +8,7 @@
     Author :     Ayan Acharyya
     Started :    May 2024
     Examples :   run plot_projected_electron_density.py --system ayan_pleiades --upto_kpc 10 --res 0.2 --docomoving --do_all_halos
-                 run plot_projected_electron_density.py --system ayan_local --do_all_halos --upto_kpc 10 --res 0.2 --docomoving --nbins 100 --nocolorcoding
+                 run plot_projected_electron_density.py --system ayan_hd --do_all_halos --upto_kpc 10 --res 0.2 --docomoving --nbins 100 --nocolorcoding
 """
 from header import *
 from util import *

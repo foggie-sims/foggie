@@ -150,6 +150,12 @@ def parse_args():
                         'simply use 0 for num_steps in the --surface argument.')
     parser.set_defaults(simple=False)
 
+    parser.add_argument('--shell', dest='shell', action='store_true',
+                        help='Specify this if you want to compute fluxes into and out of spherical\n' + \
+                        'shells as the sum of the field multiplied by its radial velocity and divided by\n' + \
+                        'the width of the shell. Must use a sphere shape with this option.')
+    parser.set_defaults(simple=False)
+
     parser.add_argument('--cgm_filter', dest='cgm_filter', action='store_true',
                         help='Do you want to remove gas above a certain density threshold and below\n' + \
                         'a certain temperature threshold defined in consistency.py? This is much more\n' + \
@@ -315,6 +321,77 @@ def make_table_simple(flux_types, surface_type):
     table = Table(names=names_list, dtype=types_list)
 
     return table
+
+def calc_fluxes_shell(ds, snap, zsnap, surface_args, Rvir, tablename, save_suffix, flux_types):
+    '''Calculates and saves to file catalogs of mass and energy flux calculated as simply
+    the sum of the energy or mass multiplied by its velocity in thin shells and divided
+    by the width of the shell.'''
+
+    # Set up table of everything we want
+    fluxes = []
+    flux_filename = ''
+    if ('mass' in flux_types):
+        fluxes.append('mass_flux')
+        fluxes.append('metal_flux')
+        flux_filename += '_mass'
+    if ('energy' in flux_types):
+        fluxes.append('thermal_energy_flux')
+        fluxes.append('kinetic_energy_flux')
+        flux_filename += '_energy'
+
+    table = make_table_simple(fluxes, ['sphere', 0])
+    inner_radius = surface_args[0][1]
+    outer_radius = surface_args[0][2]
+    num_radii = surface_args[0][3]
+    if (args.units_kpc):
+        radius_bins = ds.arr(np.linspace(inner_radius, outer_radius, num_radii), 'kpc')
+    elif (args.units_rvir):
+        radius_bins = ds.arr(np.linspace(inner_radius*Rvir, outer_radius*Rvir, num_radii), 'kpc')
+
+    # Load arrays of all fields we need
+    print('Loading field arrays')
+    sphere = ds.sphere(ds.halo_center_kpc, radius=(outer_radius, 'kpc'))
+
+    radius = sphere['gas','radius_corrected'].in_units('kpc').v
+    rv = sphere['gas','radial_velocity_corrected'].in_units('kpc/yr').v
+    fields = []
+    if ('mass' in flux_types):
+        mass = sphere['gas','cell_mass'].in_units('Msun').v
+        metal_mass = sphere['gas','metal_mass'].in_units('Msun').v
+        fields.append(mass)
+        fields.append(metal_mass)
+    if ('energy' in flux_types):
+        kinetic_energy = sphere['gas','kinetic_energy_corrected'].in_units('erg').v
+        thermal_energy = (sphere['gas','cell_mass']*sphere['gas','specific_thermal_energy']).in_units('erg').v
+        fields.append(thermal_energy)
+        fields.append(kinetic_energy)
+
+    for r in range(len(radius_bins)-1):
+        inner_r = radius_bins[r]
+        outer_r = radius_bins[r+1]
+        dr = outer_r - inner_r
+        bin_net = (radius > inner_r) & (radius < outer_r)
+        bin_in = bin_net & (rv < 0.)
+        bin_out = bin_net & (rv > 0.)
+
+        row = [zsnap, inner_r, outer_r]
+        for f in range(len(fields)):
+            flux_net = np.sum(fields[f][bin_net]*rv[bin_net]/dr)
+            flux_in = np.sum(fields[f][bin_in]*rv[bin_in]/dr)
+            flux_out = np.sum(fields[f][bin_out]*rv[bin_out]/dr)
+            row.append(flux_net)
+            row.append(flux_in)
+            row.append(flux_out)
+
+        table.add_row(row)
+
+    table = set_table_units(table)
+
+    # Save to file
+    table.write(tablename + flux_filename + save_suffix + '_shells.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
+    return "Fluxes have been calculated for snapshot " + snap + "!"
+
 
 def calc_fluxes_simple(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_suffix, surface_args, flux_types, Menc_profile, disk=False, Rvir=100., halo_center_kpc2=[0,0,0]):
     '''This function calculates the fluxes specified by 'flux_types' into and out of the surfaces specified by 'surface_args'. It
@@ -1249,6 +1326,8 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
     if (args.simple):
         message = calc_fluxes_simple(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_suffix, \
           surface_args, flux_types, Menc_profile, disk=disk, Rvir=Rvir, halo_center_kpc2=halo_center_kpc2)
+    elif (args.shell):
+        message = calc_fluxes_shell(ds, snap, zsnap, surface_args, Rvir, tablename, save_suffix, flux_types)
     else:
         message = calc_fluxes(ds, snap, zsnap, dt, refine_width_kpc, tablename, save_suffix, \
           surface_args, flux_types, Menc_profile, sat=sat, sat_radius=sat_radius,inverse=args.inverse, \

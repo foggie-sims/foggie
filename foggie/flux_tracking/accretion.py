@@ -998,6 +998,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     props.append('entropy')
     props.append('pressure')
     props.append('radial_velocity')
+    props.append('tangential_velocity')
     props.append('sound_speed')
     props.append('flux_sr')
     props.append('metal_flux_sr')
@@ -1017,6 +1018,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
     phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
     rv = grid['gas','radial_velocity_corrected'].in_units('km/s').v
+    vtan = grid['gas','tangential_velocity_corrected'].in_units('km/s').v
     vff = grid['gas','vff'].in_units('kpc/yr').v
     temperature = grid['gas','temperature'].in_units('K').v
     metallicity = grid['gas','metallicity'].in_units('Zsun').v
@@ -1033,7 +1035,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     if (args.weight=='mass'): weights = np.copy(mass)
     if (args.weight=='volume'): weights = grid['gas','cell_volume'].in_units('kpc**3').v
     # Load dark matter velocities and positions and digitize onto grid
-    properties = [mass, metals, density, temperature, metallicity, tcool, tcool_tff, entropy, pressure, rv, sound_speed, flux_sr, metal_flux_sr]
+    properties = [mass, metals, density, temperature, metallicity, tcool, tcool_tff, entropy, pressure, rv, vtan, sound_speed, flux_sr, metal_flux_sr]
 
     if (args.cgm_only):
         # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
@@ -1840,9 +1842,12 @@ def accretion_compare_vs_time(snaplist):
             filenames = ['_0p25Rvir', '_0p5Rvir', '_Rvir']
             region_name = ['']
         else:
-            plot_colors = ["#4A4DAF", "#4AAFAC", "#C8C556", 'k']
-            region_label = ['Stream core', 'Stream sheath', 'Non-stream accretion', 'All accreting gas']
-            region_name = ['_0.75-inf','_0.25-0.75','_0-0.25','']
+            #plot_colors = ["#4A4DAF", "#4AAFAC", "#C8C556", 'k']
+            #region_label = ['Stream core', 'Stream sheath', 'Non-stream accretion', 'All accreting gas']
+            #region_name = ['_0.75-inf','_0.25-0.75','_0-0.25','']
+            plot_colors = ["#4A4DAF", "#4AAFAC"]
+            region_label = ['Stream core', 'Stream sheath']
+            region_name = ['_0.75-inf', '_0.25-0.75']
 
         if (args.direction):
             linestyles = ['-', '--']
@@ -2928,8 +2933,8 @@ def filaments_3D(ds, grid, snap, snap_props):
             out_r = rbins[r+1]
             fil_slice = (fil == 1) & (radius > inn_r) & (radius < out_r)
             fil_edge_slice = (fil_edge == 1) & (radius > inn_r) & (radius < out_r)
-            weights_slice = mass[fil_slice]
-            weights_edge = mass[fil_edge_slice]
+            weights_slice = np.ones(len(mass[fil_slice]))
+            weights_edge = np.ones(len(mass[fil_edge_slice]))
             results = [f+1, inn_r, out_r]
             # Add all average/median/iqr/std properties to the row
             for p in range(len(properties)):
@@ -2999,26 +3004,32 @@ def filaments_3D(ds, grid, snap, snap_props):
             sph_grid_2 = np.concatenate([sph_grid, sph_grid], axis=0)
             # Identify structures in double-wide grid
             sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2)
-            # Delete structures that go across x-edges (theta)
-            to_del = []
-            for d in range(sph_grid_2_labeled.shape[1]):
-                if (sph_grid_2_labeled[0, d] > 0) and (sph_grid_2_labeled[-1, d] > 0):
-                    to_del.append(sph_grid_2_labeled[0, d])
-                    to_del.append(sph_grid_2_labeled[-1, d])
-            for u in np.unique(to_del):
-                sph_grid_2_labeled[sph_grid_2_labeled == u] = 0
-            # Re-label to get the new number of structures
-            sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2_labeled)
-            # Delete structures that are repeated exactly at theta and theta + 2pi
-            for n in range(n_struct):
-                if (n+1 in sph_grid_2_labeled):
-                    indices = np.where(sph_grid_2_labeled==n+1)
-                    if (np.max(indices[0]) < len(theta_centers)):
-                        shift_t = indices[0] + len(theta_centers)
-                        if (all(sph_grid_2_labeled[(shift_t,indices[1])]>0)):
-                            sph_grid_2_labeled[(shift_t,indices[1])] = 0
-            # Re-label to get final number of structures - these are how many fragments this filament has at this radius
-            sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2_labeled)
+            # Delete structures that go across x-edges (theta), unless there is only one structure (complete ring wrap-around)
+            if (np.max(sph_grid_2_labeled)>1):
+                to_del = []
+                for d in range(sph_grid_2_labeled.shape[1]):
+                    if (sph_grid_2_labeled[0, d] > 0) and (sph_grid_2_labeled[-1, d] > 0):
+                        to_del.append(sph_grid_2_labeled[0, d])
+                        to_del.append(sph_grid_2_labeled[-1, d])
+                for u in np.unique(to_del):
+                    sph_grid_2_labeled[sph_grid_2_labeled == u] = 0
+                # Re-label to get the new number of structures
+                sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2_labeled)
+                # Delete structures that are repeated exactly at theta and theta + 2pi
+                for n in range(n_struct):
+                    if (n+1 in sph_grid_2_labeled):
+                        indices = np.where(sph_grid_2_labeled==n+1)
+                        if (np.max(indices[0]) < len(theta_centers)):
+                            shift_t = indices[0] + len(theta_centers)
+                            if (all(sph_grid_2_labeled[(shift_t,indices[1])]>0)):
+                                sph_grid_2_labeled[(shift_t,indices[1])] = 0
+                # Re-label to get final number of structures - these are how many fragments this filament has at this radius
+                sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2_labeled)
+            # If there is just one big structure that goes all the way around, remove the excess for calculating
+            else:
+                sph_grid_2_labeled[:49, :] = 0
+                sph_grid_2_labeled[150:, :] = 0
+                n_struct = 1
             results.append(n_struct)
 
             # Calculate properties of the largest identified structure

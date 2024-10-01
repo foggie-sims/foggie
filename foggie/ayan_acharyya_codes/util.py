@@ -1543,6 +1543,9 @@ def parse_args(haloname, RDname, fast=False):
     # ------- args added for electron_density_spherical.py ------------------------------
     parser.add_argument('--dont_use_wider_file', dest='dont_use_wider_file', action='store_true', default=False, help='avoid using files up to wider extent in radii even if they already exist?, default is no')
 
+    # ------- args added for make_3D_FRB_electron_density.py ------------------------------
+    parser.add_argument('--plot_3d', dest='plot_3d', action='store_true', default=False, help='Plot 3D FRB?, default is no')
+
     # ------- wrap up and processing args ------------------------------
     args = parser.parse_args()
 
