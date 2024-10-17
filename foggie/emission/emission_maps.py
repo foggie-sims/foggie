@@ -239,6 +239,8 @@ def make_FRB(ds, refine_box, snap, ions):
     grp.attrs.create("redshift", ds.get_parameter('CosmologyCurrentRedshift'))
     grp.attrs.create("halo_name", halo_name)
     grp.attrs.create("emission_units", 'photons/sec/cm^2/sr')
+    grp.attrs.create("gas_density_units", 'g/cm^2')
+    grp.attrs.create("stars_density_units", 'Msun/kpc^2')
 
     for i in range(len(ions)):
         ion = ions[i]
@@ -265,6 +267,28 @@ def make_FRB(ds, refine_box, snap, ions):
         proj_face.set_font_size(20)
         proj_face.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
         proj_face.save(prefix + 'FRBs/' + snap + '_' + ion + '_emission_map_face-on' + save_suffix + '.png')
+
+    # Add gas density field
+    proj_edge = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas','density'), center=ds.halo_center_kpc, data_source=refine_box, width=(ds.refine_width, 'kpc'), north_vector=ds.z_unit_disk, buff_size=[res,res])
+    proj_edge.set_unit(('gas','density'), 'g/cm**2')
+    frb_edge = proj_edge.frb[('gas','density')]
+    dset1 = grp.create_dataset("gas_density_edge", data=frb_edge)
+
+    proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, ('gas','density'), center=ds.halo_center_kpc, data_source=refine_box, width=(ds.refine_width, 'kpc'), north_vector=ds.x_unit_disk, buff_size=[res,res])
+    proj_face.set_unit(('gas','density'), 'g/cm**2')
+    frb_face = proj_face.frb[('gas','density')]
+    dset2 = grp.create_dataset("gas_density_face", data=frb_face)
+
+    # Add all stars density field
+    proj_edge = yt.ProjectionPlot(ds, ds.x_unit_disk, ('deposit','stars_density'), center=ds.halo_center_kpc, data_source=refine_box, width=(ds.refine_width, 'kpc'), north_vector=ds.z_unit_disk, buff_size=[res,res])
+    proj_edge.set_unit(('deposit','stars_density'), 'Msun/kpc**2')
+    frb_edge = proj_edge.frb[('deposit','stars_density')]
+    dset1 = grp.create_dataset("stars_density_edge", data=frb_edge)
+
+    proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, ('deposit','stars_density'), center=ds.halo_center_kpc, data_source=refine_box, width=(ds.refine_width, 'kpc'), north_vector=ds.x_unit_disk, buff_size=[res,res])
+    proj_face.set_unit(('deposit','stars_density'), 'Msun/kpc**2')
+    frb_face = proj_face.frb[('deposit','stars_density')]
+    dset2 = grp.create_dataset("stars_density_face", data=frb_face)
 
     f.close()
 
