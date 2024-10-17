@@ -238,6 +238,7 @@ def make_FRB(ds, refine_box, snap, ions):
     grp.attrs.create("image_extent_kpc", ds.refine_width)
     grp.attrs.create("redshift", ds.get_parameter('CosmologyCurrentRedshift'))
     grp.attrs.create("halo_name", halo_name)
+    grp.attrs.create("emission_units", 'photons/sec/cm^2/sr')
 
     for i in range(len(ions)):
         ion = ions[i]
