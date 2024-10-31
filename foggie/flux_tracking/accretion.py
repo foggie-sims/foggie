@@ -1120,12 +1120,14 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
     density = grid['gas','density'].in_units('g/cm**3').v
     vtan = grid['gas','tangential_velocity_corrected'].in_units('km/s').v
     flux_sr = -grid['gas','density'].in_units('Msun/kpc**3').v*grid['gas','radial_velocity_corrected'].in_units('kpc/yr').v*radius**2.
-    if (args.direction): phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
-    else: phi = grid['gas','phi_pos'].v*(180./np.pi)
+    if (args.direction):
+        phi = grid['gas','phi_pos_disk'].v*(180./np.pi)
+        theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
+    else:
+        phi = grid['gas','phi_pos'].v*(180./np.pi)
+        theta = grid['gas','theta_pos'].v*(180./np.pi)
     if ('default' in args.properties):
         vff = grid['gas','vff'].in_units('kpc/yr').v
-        if (args.direction): theta = grid['gas','theta_pos_disk'].v*(180./np.pi)
-        else: theta = grid['gas','theta_pos'].v*(180./np.pi)
         temperature = grid['gas','temperature'].in_units('K').v
         metallicity = grid['gas','metallicity'].in_units('Zsun').v
         tcool = grid['gas','cooling_time'].in_units('Myr').v
