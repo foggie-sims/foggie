@@ -7,7 +7,8 @@
     Output :     One pandas dataframe as a txt file
     Author :     Ayan Acharyya
     Started :    January 2021
-    Example :    run <scriptname>.py --system ayan_local --halo 8508 --output RD0042
+    Example :    run compute_hiir_radii.py --system ayan_local --halo 8508 --output RD0042
+                 run compute_hiir_radii.py --system ayan_local --halo 8508 --output RD0042 --mergeHII 0.04 --galrad 20
 
 """
 from header import *

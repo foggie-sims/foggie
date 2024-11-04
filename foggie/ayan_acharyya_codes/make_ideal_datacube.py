@@ -7,7 +7,7 @@
     Output :     FITS cube
     Author :     Ayan Acharyya
     Started :    February 2021
-    Example :    run make_ideal_datacube.py --system ayan_local --halo 5036 --output RD0030 --mergeHII 0.04 --base_spatial_res 0.4 --z 0.25 --base_wave_range 0.64,0.68 --projection z --obs_wave_range 0.8,0.85 --instrument dummy
+    Example :    run make_ideal_datacube.py --system ayan_local --halo 5036 --output RD0030 --mergeHII 0.04 --galrad 20 --base_spatial_res 0.4 --base_wave_range 0.64,0.68 --projection z --instrument dummy
 
 """
 from header import *
@@ -86,9 +86,9 @@ def get_grid_coord(paramlist, args):
     :return: paramlist
     '''
 
-    paramlist['pos_x_grid'] = ((paramlist['pos_x_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
-    paramlist['pos_y_grid'] = ((paramlist['pos_y_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
-    paramlist['pos_z_grid'] = ((paramlist['pos_z_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
+    paramlist['pos_x_grid'] = ((paramlist['pos_x_inc'] + args.galrad)/args.base_spatial_res).astype(np.int32)
+    paramlist['pos_y_grid'] = ((paramlist['pos_y_inc'] + args.galrad)/args.base_spatial_res).astype(np.int32)
+    paramlist['pos_z_grid'] = ((paramlist['pos_z_inc'] + args.galrad)/args.base_spatial_res).astype(np.int32)
 
     return paramlist
 
