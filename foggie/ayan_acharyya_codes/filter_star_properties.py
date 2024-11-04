@@ -23,6 +23,7 @@ def get_star_properties(args):
     '''
     start_time = time.time()
     outfilename = args.output_dir + 'txtfiles/' + args.output + '_young_star_properties.txt'
+    Path(os.path.split(outfilename)).mkdir(parents=True, exist_ok=True)
 
     # ----------------------Reading in simulation data-------------------------------------------
     if not os.path.exists(outfilename) or args.clobber:
