@@ -1,0 +1,38 @@
+# Run started Mon Aug 25 13:03:28 2014.
+#
+# cloudyRunMode = 4 
+# outputFilePrefix = bertone
+# outputDir = /scratch/lauren/data/Ryan/Emis/bertone/
+#
+# Commands to be executed everytime:
+# constant density
+# element helium abundance -1.10744 log
+# stop zone 1
+# stop column density 5
+# table HM05 redshift 0.00
+# CMB redshift 0.00
+# metals 0 log
+# no molecules
+# no induced processes
+#
+# Loop commands and values:
+# hden: -6 -5.5 -5 -4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -0.5 0 0.5 1 1.5 2
+#
+#run	hden
+1	-6
+2	-5.5
+3	-5
+4	-4.5
+5	-4
+6	-3.5
+7	-3
+8	-2.5
+9	-2
+10	-1.5
+11	-1
+12	-0.5
+13	0
+14	0.5
+15	1
+16	1.5
+17	2
