@@ -208,8 +208,9 @@ def get_ideal_datacube(args, linelist):
 
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
-    dummy_args = parse_args('8508', 'RD0042') # default simulation to work upon when comand line args not provided
-    if type(dummy_args) is tuple: dummy = dummy_args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+    dummy_args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
+    if type(dummy_args_tuple) is tuple: dummy_args = dummy_args_tuple[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+    else: dummy_args = dummy_args_tuple
     if not dummy_args.keep: plt.close('all')
 
     linelist = read_linelist(mappings_lab_dir + 'targetlines.txt')  # list of emission lines

@@ -62,7 +62,8 @@ from astropy.cosmology import FlatLambdaCDM
 from operator import itemgetter
 from collections import defaultdict
 import cmasher as cmr
-from datetime import datetime, timedelta
+import datetime
+from datetime import timedelta
 from uncertainties import ufloat, unumpy
 
 import datashader as dsh
