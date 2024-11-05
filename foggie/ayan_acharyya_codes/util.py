@@ -1078,7 +1078,7 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
         else: hdulist = fits.HDUList([flux_hdu, wavelength_hdu, error_hdu])
     else:
         hdulist = fits.HDUList([flux_hdu, wavelength_hdu])
-    hdulist.writeto(filename, clobber=True)
+    hdulist.writeto(filename, overwrite=True)
     myprint('Written file ' + filename + '\n', args)
 
 # --------------------------------------------------------------------------------------------

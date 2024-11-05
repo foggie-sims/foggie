@@ -7,7 +7,7 @@
     Output :     One pandas dataframe as a txt file
     Author :     Ayan Acharyya
     Started :    January 2021
-    Example :    run lookup_flux.py --system ayan_local --halo 8508 --output RD0042 --plot_phase_space --plot_fluxgrid --plot_metgrad --plot_Zin_Zout # optional plotting arguments
+    Example :    run lookup_flux.py --system ayan_local --halo 8508 --output RD0042 --plot_phase_space --plot_fluxgrid --plot_metgrad --galrad 20 --plot_Zin_Zout # optional plotting arguments
 
 """
 from header import *

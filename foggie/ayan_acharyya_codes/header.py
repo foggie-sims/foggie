@@ -44,7 +44,9 @@ from importlib import reload
 
 from mpi4py import MPI
 
-from scipy import optimize as op, exp, stats
+from numpy import exp
+from scipy import optimize as op
+from scipy import stats
 from scipy.interpolate import interp1d
 from scipy.interpolate import RegularGridInterpolator as RGI
 from scipy.interpolate import LinearNDInterpolator as LND
@@ -62,7 +64,8 @@ from astropy.cosmology import FlatLambdaCDM
 from operator import itemgetter
 from collections import defaultdict
 import cmasher as cmr
-from datetime import datetime, timedelta
+import datetime
+from datetime import timedelta
 from uncertainties import ufloat, unumpy
 
 import datashader as dsh
@@ -109,8 +112,12 @@ m_H = 1.67e-27  # kg; mass of proton
 
 # ------------declaring overall paths (can be modified on a machine/user basis)-----------
 HOME = os.getenv('HOME')
-if not os.path.exists(HOME+'/Work/astro/ayan_codes'): # if the code directory does not exist in current home, then it must exist in /pleiades home
+try:
+    if not os.path.exists(HOME+'/Work/astro/ayan_codes'): # if the code directory does not exist in current home, then it must exist in /pleiades home
     HOME = '/pleiades/u/' + os.getenv('USER')
+except:
+    pass
+
 mappings_lab_dir = HOME + '/Mappings/lab/'  # if you are producing the MAPPINGS grid,
 # this is where your MAPPINGS executable .map51 is installed,
 # otherwise, this is where your MAPPINGS grid and your emission line list is
