@@ -159,7 +159,7 @@ def _Emission_OVI_ALTunits(field,data):
         emission_line= emission_line + ((10**dia2))*((10.0**H_N)**2.0)
         emission_line = emission_line/(4.*np.pi)
         emission_line = emission_line/4.25e10 # convert steradian to arcsec**2
-        emission_line = scale_by_metallicity(emission_line,0.0,np.log10(np.array(data['metallicity'])))
+        #emission_line = scale_by_metallicity(emission_line,0.0,np.log10(np.array(data['metallicity'])))
         return emission_line*ytEmUALT
 
 def make_pdf_table():
@@ -241,8 +241,6 @@ def make_FRB(ds, refine_box, snap):
     proj_face.save(prefix + 'FRBs/' + snap + '_OVI_emission_map_face-on' + save_suffix + '.png')
 
     f.close()
-
-
 
 def surface_brightness_profile(ds, refine_box, snap):
     '''Makes radial surface brightness profiles of O VI emission for full image, along major and minor axes, and for inflows and outflows separately.'''
@@ -785,8 +783,6 @@ def emiss_area_vs_den(halos, outs):
     ax.axis([-28.2,-26,0.,0.2])
     fig.subplots_adjust(left=0.1, bottom=0.12, top=0.93, right=0.98)
     fig.savefig(prefix + 'fractional-area-above-limit_vs_den' + save_suffix + '.png')
-
-
 
 def load_and_calculate(snap):
     '''Loads the simulation snapshot and makes the requested plots.'''
