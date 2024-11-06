@@ -13,7 +13,7 @@
 from header import *
 from util import *
 from compute_hiir_radii import get_radii_for_df
-from projection_plot import make_projection_plots
+#from projection_plot import make_projection_plots
 
 # ----------------------------------------------------------------------------------
 def get_star_properties(args):
@@ -23,6 +23,7 @@ def get_star_properties(args):
     '''
     start_time = time.time()
     outfilename = args.output_dir + 'txtfiles/' + args.output + '_young_star_properties.txt'
+    Path(os.path.split(outfilename)).mkdir(parents=True, exist_ok=True)
 
     # ----------------------Reading in simulation data-------------------------------------------
     if not os.path.exists(outfilename) or args.clobber:
@@ -100,8 +101,10 @@ def get_star_properties(args):
 if __name__ == '__main__':
     start_time = time.time()
 
-    dummy_args = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
-    if type(dummy_args) is tuple: dummy_args = dummy_args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+    dummy_args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
+    if type(dummy_args_tuple) is tuple: dummy_args = dummy_args_tuple[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+    else: dummy_args = dummy_args_tuple
+    if not dummy_args.keep: plt.close('all')
 
     if dummy_args.do_all_sims:
         list_of_sims = get_all_sims(dummy_args) # all snapshots of this particular halo

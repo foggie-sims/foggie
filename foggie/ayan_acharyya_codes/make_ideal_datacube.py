@@ -7,7 +7,7 @@
     Output :     FITS cube
     Author :     Ayan Acharyya
     Started :    February 2021
-    Example :    run make_ideal_datacube.py --system ayan_local --halo 5036 --output RD0030 --mergeHII 0.04 --base_spatial_res 0.4 --z 0.25 --base_wave_range 0.64,0.68 --projection z --obs_wave_range 0.8,0.85 --instrument dummy
+    Example :    run make_ideal_datacube.py --system ayan_local --halo 5036 --output RD0030 --mergeHII 0.04 --galrad 20 --base_spatial_res 0.4 --base_wave_range 0.64,0.68 --projection z --instrument dummy
 
 """
 from header import *
@@ -86,9 +86,9 @@ def get_grid_coord(paramlist, args):
     :return: paramlist
     '''
 
-    paramlist['pos_x_grid'] = ((paramlist['pos_x_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
-    paramlist['pos_y_grid'] = ((paramlist['pos_y_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
-    paramlist['pos_z_grid'] = ((paramlist['pos_z_inc'] + args.galrad)/args.base_spatial_res).astype(np.int)
+    paramlist['pos_x_grid'] = ((paramlist['pos_x_inc'] + args.galrad)/args.base_spatial_res).astype(np.int32)
+    paramlist['pos_y_grid'] = ((paramlist['pos_y_inc'] + args.galrad)/args.base_spatial_res).astype(np.int32)
+    paramlist['pos_z_grid'] = ((paramlist['pos_z_inc'] + args.galrad)/args.base_spatial_res).astype(np.int32)
 
     return paramlist
 
@@ -208,8 +208,9 @@ def get_ideal_datacube(args, linelist):
 
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
-    dummy_args = parse_args('8508', 'RD0042') # default simulation to work upon when comand line args not provided
-    if type(dummy_args) is tuple: dummy = dummy_args[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+    dummy_args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
+    if type(dummy_args_tuple) is tuple: dummy_args = dummy_args_tuple[0] # if the sim has already been loaded in, in order to compute the box center (via utils.pull_halo_center()), then no need to do it again
+    else: dummy_args = dummy_args_tuple
     if not dummy_args.keep: plt.close('all')
 
     linelist = read_linelist(mappings_lab_dir + 'targetlines.txt')  # list of emission lines
