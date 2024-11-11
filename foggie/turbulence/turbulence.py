@@ -44,6 +44,7 @@ import scipy.ndimage as ndimage
 from scipy.interpolate import LinearNDInterpolator
 import copy
 import matplotlib.colors as colors
+import matplotlib.cm
 from matplotlib.collections import LineCollection
 import random
 
@@ -84,7 +85,7 @@ def parse_args():
                         + ' and the default output is RD0036) or specify a range of outputs ' + \
                         'using commas to list individual outputs and dashes for ranges of outputs ' + \
                         '(e.g. "RD0020-RD0025" or "DD1341,DD1353,DD1600-DD1700", no spaces!)')
-    parser.set_defaults(output='RD0034')
+    parser.set_defaults(output='DD2427')
 
     parser.add_argument('--output_step', metavar='output_step', type=int, action='store', \
                         help='If you want to do every Nth output, this specifies N. Default: 1 (every output in specified range)')
@@ -111,6 +112,7 @@ def parse_args():
                         'vorticity_direction    -  2D histograms of vorticity direction split by temperature and radius\n' + \
                         'turbulent_spectrum     -  Turbulent energy power spectrum\n' + \
                         'vel_struc_func         -  Velocity structure function\n' + \
+                        'emiss_vsf              -  Density-squared-weighted 2D VSF to mimic emission maps\n' + \
                         'vdisp_vs_radius        -  Velocity dispersion vs radius\n' + \
                         'vdisp_vs_mass_res      -  Datashader plot of cell-by-cell velocity dispersion vs. cell mass\n' + \
                         'vdisp_vs_spatial_res   -  Plot of average velocity dispersion vs. spatial resolution\n' + \
@@ -150,6 +152,11 @@ def parse_args():
                         help='What is the name of the file (after the snapshot name) to pull vdisp from?\n' + \
                         'There is no default for this, you must specify a filename, unless you are plotting\n' + \
                         'a datashader plot.')
+    
+    parser.add_argument('--cgm_only', dest='cgm_only', action='store_true',
+                        help='Do you want to remove gas above a certain density threshold?\n' + \
+                        'Default is not to do this.')
+    parser.set_defaults(cgm_only=False)
 
     parser.add_argument('--time_radius', metavar='time_radius', type=float, action='store', \
                         help='If plotting vdisp_vs_time or vdisp_SFR_xcorr, at what radius do you\n' + \
@@ -161,6 +168,11 @@ def parse_args():
                         '/tmp directory on the run node before doing calculations? This may speed up\n' + \
                         'run time and reduce weight on IO file system. Default is no.')
     parser.set_defaults(copy_to_tmp=False)
+
+    parser.add_argument('--phase', metavar='phase', type=str, action='store', \
+                        help='When making VSFs, do you want only cool gas or only hot gas?\n' + \
+                            'Options are --phase cool and --phase hot.')
+    parser.set_defaults(phase='none')
 
     args = parser.parse_args()
     return args
@@ -345,11 +357,15 @@ def vorticity_slice(snap):
 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    left_edge = ds.halo_center_kpc - ds.arr([15., 150., 150.], 'kpc')
+    right_edge = ds.halo_center_kpc + ds.arr([15., 150., 150.], 'kpc')
+    box = ds.box(left_edge, right_edge)
 
-    slc = yt.SlicePlot(ds, 'x', 'vorticity_magnitude', center=ds.halo_center_kpc, width=(Rvir*2, 'kpc'))
-    slc.set_zlim('vorticity_magnitude', 1e-17, 1e-13)
-    slc.set_cmap('vorticity_magnitude', 'BuGn')
-    slc.save(save_dir + snap + '_vorticity_slice_x' + save_suffix + '.png')
+    proj = yt.ProjectionPlot(ds, 'x', 'vorticity_x', weight_field='density', center=ds.halo_center_kpc, width=(300, 'kpc'), data_source=box)
+    proj.set_log('vorticity_x', False)
+    proj.set_zlim('vorticity_x', -1e-15, 1e-15)
+    proj.set_cmap('vorticity_x', 'PRGn')
+    proj.save(save_dir + snap + '_vorticity_thin-proj_x' + save_suffix + '.png')
 
 def vorticity_direction(snap):
     '''Plots a mass-weighted histogram of vorticity direction in theta-phi space split into cold,
@@ -491,7 +507,7 @@ def Pk_turbulence(snap):
     plt.xlabel('$l$ [kpc]')
     plt.ylabel(r"$E(k)dk$")
 
-    plt.savefig(save_dir + snap + '_turbulent_energy_spectrum' + save_suffix + '.pdf')
+    plt.savefig(save_dir + snap + '_turbulent_energy_spectrum' + save_suffix + '.png')
 
 def vsf_cubeshift(snap):
     '''I DON'T THINK THIS WORKED PROPERLY. DO NOT USE.
@@ -605,21 +621,25 @@ def vsf_randompoints(snap):
             snap_name = foggie_dir + run_dir + snap + '/' + snap
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
 
-        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
-        # with it being 1 at higher redshifts and 0.1 at lower redshifts
-        current_time = ds.current_time.in_units('Myr').v
-        if (current_time<=8656.88):
-            density_cut_factor = 1.
-        elif (current_time<=10787.12):
-            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+        if (args.cgm_only):
+            # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+            # with it being 1 at higher redshifts and 0.1 at lower redshifts
+            current_time = ds.current_time.in_units('Myr').v
+            if (current_time<=7091.48):
+                density_cut_factor = 20. - 19.*current_time/7091.48
+            elif (current_time<=8656.88):
+                density_cut_factor = 1.
+            elif (current_time<=10787.12):
+                density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+            else:
+                density_cut_factor = 0.1
+            cgm = refine_box.cut_region("obj['density'] < %.3e" % (cgm_density_max * density_cut_factor))
         else:
-            density_cut_factor = 0.1
-
-        cgm = refine_box.cut_region("obj['density'] < %.3e" % (cgm_density_max * density_cut_factor))
+            cgm = refine_box
         if (args.region_filter=='temperature'):
             filter = cgm['temperature'].v
-            low = 10**4.8
-            high = 10**6.3
+            low = 10**4.5
+            high = 10**6.
         if (args.region_filter=='metallicity'):
             filter = cgm['metallicity'].in_units('Zsun').v
             low = 0.01
@@ -639,13 +659,13 @@ def vsf_randompoints(snap):
         print('Fields loaded')
 
         # Loop through bins of radius
-        radius_bins = np.linspace(0., 200., 3)
+        radius_bins = np.linspace(0., 200., 5)
         npairs_bins_list = []
         vsf_list = []
         if (args.region_filter!='none'):
-            vsf_low_list = []
-            vsf_mid_list = []
-            vsf_high_list = []
+            vsf_low = []
+            vsf_mid = []
+            vsf_high = []
             npairs_bins_low = []
             npairs_bins_mid = []
             npairs_bins_high = []
@@ -672,10 +692,11 @@ def vsf_randompoints(snap):
             if (args.region_filter!='none'):
                 seps_fil = []
                 vdiffs_fil = []
+                filter_r = filter[(radius >= r_inner) & (radius < r_outer)]
                 for i in range(3):
-                    if (i==0): bool = (filter < low)
-                    if (i==1): bool = (filter > low) & (filter < high)
-                    if (i==2): bool = (filter > high)
+                    if (i==0): bool = (filter_r < low)
+                    if (i==1): bool = (filter_r > low) & (filter_r < high)
+                    if (i==2): bool = (filter_r > high)
                     x_fil = x_bin[bool]
                     y_fil = y_bin[bool]
                     z_fil = z_bin[bool]
@@ -703,12 +724,12 @@ def vsf_randompoints(snap):
             sep_bins = np.arange(0.,2.*Rvir+1,1)
             vsf_list.append(np.zeros(len(sep_bins)-1))
             if (args.region_filter!='none'):
-                vsf_low = np.zeros(len(sep_bins)-1)
-                vsf_mid = np.zeros(len(sep_bins)-1)
-                vsf_high = np.zeros(len(sep_bins)-1)
-                npairs_bins_low = np.zeros(len(sep_bins))
-                npairs_bins_mid = np.zeros(len(sep_bins))
-                npairs_bins_high = np.zeros(len(sep_bins))
+                vsf_low.append(np.zeros(len(sep_bins)-1))
+                vsf_mid.append(np.zeros(len(sep_bins)-1))
+                vsf_high.append(np.zeros(len(sep_bins)-1))
+                npairs_bins_low.append(np.zeros(len(sep_bins)))
+                npairs_bins_mid.append(np.zeros(len(sep_bins)))
+                npairs_bins_high.append(np.zeros(len(sep_bins)))
             npairs_bins_list.append(np.zeros(len(sep_bins)))
             for i in range(len(sep_bins)-1):
                 npairs_bins_list[r][i] += len(sep[(sep > sep_bins[i]) & (sep < sep_bins[i+1])])
@@ -727,7 +748,7 @@ def vsf_randompoints(snap):
             f.close()
             bin_centers = sep_bins[:-1] + np.diff(sep_bins)
     else:
-        radius_bins = np.linspace(0., 200., 3)
+        radius_bins = np.linspace(0., 200., 5)
         if (args.region_filter!='none'):
             vsf_list = []
             vsf_low_list = []
@@ -741,7 +762,7 @@ def vsf_randompoints(snap):
                 vsf_high_list.append(vsf_high)
         else:
             vsf_list = []
-            for r in range(len(radius_bins-1)):
+            for r in range(len(radius_bins)-1):
                 inner_r, outer_r, sep_bins, vsf = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF_rbin' + str(r) + args.load_vsf + '.dat', unpack=True, usecols=[0,1,2,3])
                 vsf_list.append(vsf)
         sep_bins = np.append(sep_bins, sep_bins[-1]+np.diff(sep_bins)[-1])
@@ -750,22 +771,41 @@ def vsf_randompoints(snap):
     # Plot
     fig = plt.figure(figsize=(8,6),dpi=200)
     ax = fig.add_subplot(1,1,1)
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+    zsnap = time_table['redshift'][time_table['snap']==snap]
 
-    alphas = np.linspace(0.5,1.,2)
+    alphas = np.linspace(0.5,1.,5)
     for r in range(len(radius_bins)-1):
         # Calculate expected VSF from subsonic Kolmogorov turbulence
         Kolmogorov_slope = []
         for i in range(len(bin_centers)):
             Kolmogorov_slope.append(vsf_list[r][10]*(bin_centers[i]/bin_centers[10])**(1./3.))
-        ax.plot(bin_centers, vsf_list[r], 'k-', lw=2, alpha=alphas[r])
-        #ax.plot(bin_centers, Kolmogorov_slope, 'k--', lw=2, alpha=alphas[r])
+        ax.plot(bin_centers, vsf_list[r], 'k-', lw=2, alpha=alphas[r], label='%d - %d kpc' % (radius_bins[r], radius_bins[r+1]))
+        ax.plot(bin_centers, Kolmogorov_slope, 'k:', lw=2, alpha=alphas[r])
         if (args.region_filter!='none'):
-            ax.plot(bin_centers, vsf_low[r], 'b--', lw=2, alpha=alphas[r])
-            ax.plot(bin_centers, vsf_mid[r], 'g--', lw=2, alpha=alphas[r])
-            ax.plot(bin_centers, vsf_high[r], 'r--', lw=2, alpha=alphas[r])
+            fig_regions = plt.figure(figsize=(8,6),dpi=200)
+            ax_regions = fig_regions.add_subplot(1,1,1)
+            if (args.region_filter=='temperature'):
+                    label_low = '$T<10^{4.5}$ K'
+                    label_mid = '$10^{4.5}\\ {\\rm K} < T < 10^{6}$ K'
+                    label_high = '$T>10^6$ K'
+            ax_regions.plot(bin_centers, vsf_list[r], 'k-', lw=2)
+            ax_regions.plot(bin_centers, Kolmogorov_slope, 'k:', lw=2)
+            ax_regions.plot(bin_centers, vsf_low_list[r], 'b--', lw=2, label=label_low)
+            ax_regions.plot(bin_centers, vsf_mid_list[r], 'g--', lw=2, label=label_mid)
+            ax_regions.plot(bin_centers, vsf_high_list[r], 'r--', lw=2, label=label_high)
+            ax_regions.text(0.7,8e2,'$z=%.2f$\n%d - %d kpc' % (zsnap, radius_bins[r], radius_bins[r+1]), fontsize=14, ha='left', va='top')
+            ax_regions.set_xlabel('Separation [kpc]', fontsize=14)
+            ax_regions.set_ylabel('$\\langle | \\delta v | \\rangle$ [km/s]', fontsize=14)
+            ax_regions.set_xscale('log')
+            ax_regions.set_yscale('log')
+            ax_regions.axis([0.5,350,10,1000])
+            ax_regions.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+            top=True, right=True)
+            ax_regions.legend(loc=4, frameon=False, fontsize=14)
+            fig_regions.subplots_adjust(bottom=0.12, top=0.97, left=0.12, right=0.97)
+            fig_regions.savefig(save_dir + 'Movie_frames/' + snap + '_VSF_' + args.region_filter + '-filtered_rbin' + str(r) + save_suffix + '.png')
 
-    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
-    zsnap = time_table['redshift'][time_table['snap']==snap]
     ax.text(0.7,8e2,'$z=%.2f$' % (zsnap), fontsize=14, ha='left', va='top')
     ax.set_xlabel('Separation [kpc]', fontsize=14)
     ax.set_ylabel('$\\langle | \\delta v | \\rangle$ [km/s]', fontsize=14)
@@ -774,13 +814,180 @@ def vsf_randompoints(snap):
     ax.axis([0.5,350,10,1000])
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
       top=True, right=True)
-    plt.subplots_adjust(bottom=0.12, top=0.97, left=0.12, right=0.97)
-    plt.savefig(save_dir + 'Movie_frames/' + snap + '_VSF' + save_suffix + '.png')
+    ax.legend(loc=4, frameon=False, fontsize=14)
+    fig.subplots_adjust(bottom=0.12, top=0.97, left=0.12, right=0.97)
+    fig.savefig(save_dir + 'Movie_frames/' + snap + '_VSF' + save_suffix + '.png')
 
     # Delete output from temp directory if on pleiades
     if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
+
+def emission_2d_vsf(snap):
+    '''Calculates and plots a velocity structure function from a 2D density-squared-weighted
+    projection, to mimic what observers see. Options to use different gas phases
+    (--phase cool for UV/optical line emission, --phase hot for X-ray) and for
+    removing bulk flows or not (--remove_bulk). Calculates by drawing random pairs
+    of pixels from the 2D image (projected separations) and using only the density-squared-weighted average
+    line of sight velocity.'''
+
+    if (args.load_vsf=='none'):
+        if (args.system=='pleiades_cassi'):
+            print('Copying directory to /tmp')
+            snap_dir = '/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+            if (args.copy_to_tmp):
+                shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
+                snap_name = snap_dir + '/' + snap
+            else:
+                snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
+                # Make a dummy directory with the snap name so the script later knows the process running
+                # this snapshot failed if the directory is still there
+                os.makedirs(snap_dir)
+                snap_name = foggie_dir + run_dir + snap + '/' + snap
+        else:
+            snap_name = foggie_dir + run_dir + snap + '/' + snap
+        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+        pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
+        lvl1_res = pix_res*2.**11.
+        level = 9
+        box_size = 100.
+        refine_res = int(box_size/(lvl1_res/(2.**level)))
+        dx = lvl1_res/(2.**level)*1000.*cmtopc
+        box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc'), dims=[refine_res, refine_res, refine_res])
+        vx = box['vx_corrected'].in_units('km/s').v
+        vy = box['vy_corrected'].in_units('km/s').v
+        vz = box['vz_corrected'].in_units('km/s').v
+        x = box['x'].in_units('kpc').v
+        y = box['y'].in_units('kpc').v
+        z = box['z'].in_units('kpc').v
+        density = box['density'].in_units('g/cm**3').v
+        density_squared = (density)**2.
+        temperature = box['temperature'].v
+        if (args.phase=='cool'):
+            filter = (temperature > 10**4) & (temperature < 10**4.8)
+        elif (args.phase=='hot'):
+            filter = (temperature > 10**6.)
+        else:
+            filter = (temperature > 0.)
+        mask = ~filter
+        print('Fields loaded')
+
+        m_den = np.ma.array(density, mask=mask)
+        m_den_squared = np.ma.array(density_squared, mask=mask)
+        m_vx = np.ma.array(vx, mask=mask)
+        m_vy = np.ma.array(vy, mask=mask)
+        m_vz = np.ma.array(vz, mask=mask)
+        m_x = np.ma.array(x, mask=mask)
+        m_y = np.ma.array(y, mask=mask)
+        m_z = np.ma.array(z, mask=mask)
+
+        los_avg = np.ma.average(m_vx, weights=m_den_squared, axis=(0))
+        y_img = np.ma.average(m_y, axis=(0))
+        z_img = np.ma.average(m_z, axis=(0))
+
+        fig = plt.figure(figsize=(14,6), dpi=250)
+        ax_den = fig.add_subplot(1,2,1)
+        ax_los = fig.add_subplot(1,2,2)
+
+        den_cmap = copy.copy(matplotlib.cm.get_cmap('viridis'))
+        den_cmap.set_bad('white')
+        los_cmap = copy.copy(matplotlib.cm.get_cmap('coolwarm'))
+        los_cmap.set_bad('white')
+
+        den_plot = np.ma.sum(m_den*dx, axis=(0))
+        im_den = ax_den.imshow(den_plot, cmap=den_cmap, norm=colors.LogNorm(vmin=1e-8, vmax=1e-2), \
+            origin='lower', extent=[-box_size/2.,box_size/2.,-box_size/2.,box_size/2.])
+        ax_den.axis([-box_size/2.,box_size/2.,-box_size/2.,box_size/2.])
+        ax_den.set_xlabel('x [kpc]', fontsize=16)
+        ax_den.set_ylabel('y [kpc]', fontsize=16)
+        ax_den.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+            top=True, right=True)
+        cax_den = fig.add_axes([0.42, 0.13, 0.02, 0.79])
+        cax_den.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+            top=True, right=True)
+        fig.colorbar(im_den, cax=cax_den, orientation='vertical')
+        cax_den.text(3.5, 0.5, 'Gas Surface Density [g cm$^{-2}$]', fontsize=16, rotation='vertical', ha='center', va='center', transform=cax_den.transAxes)
+
+        im_los = ax_los.imshow(los_avg, cmap=los_cmap, norm=colors.Normalize(vmin=-400, vmax=400), \
+                               origin='lower', extent=[-box_size/2.,box_size/2.,-box_size/2.,box_size/2.])
+        ax_los.axis([-box_size/2.,box_size/2.,-box_size/2.,box_size/2.])
+        ax_los.set_xlabel('x [kpc]', fontsize=16)
+        ax_los.set_ylabel('y [kpc]', fontsize=16)
+        ax_los.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+            top=True, right=True)
+        cax_los = fig.add_axes([0.91, 0.13, 0.02, 0.79])
+        cax_los.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+            top=True, right=True)
+        fig.colorbar(im_los, cax=cax_los, orientation='vertical')
+        cax_los.text(4., 0.5, 'Average LOS Velocity [km/s]', fontsize=16, rotation='vertical', ha='center', va='center', transform=cax_los.transAxes)
+        
+        fig.subplots_adjust(left=0.08, bottom=0.09, top=0.96, right=0.91, wspace=0.45, hspace=0.2)
+        fig.savefig(save_dir + '/' + snap + '_den-proj_avg-los' + save_suffix + '.png')
+
+        # Calculate the LOS VSF
+
+        # Loop over all cells and calculate separations and velocity differences with all other cells
+        sep_list = []
+        vdiff_list = []
+        # Flatten masked arrays
+        los_avg_flat = los_avg.compressed()
+        y_flat = y_img.compressed()
+        z_flat = z_img.compressed()
+        for i in range(len(los_avg_flat)):
+            y_cell = y_flat[i]
+            z_cell = z_flat[i]
+            los_cell = los_avg_flat[i]
+            sep_list.append(np.sqrt((y_cell - y_flat[i+1:len(y_flat)])**2. + (z_cell - z_flat[i+1:len(z_flat)])**2.))
+            vdiff_list.append((los_cell - los_avg_flat[i+1:len(los_avg_flat)])**2.)
+        sep_list = np.concatenate(sep_list, axis=None).ravel()
+        vdiff_list = np.concatenate(vdiff_list, axis=None).ravel()
+
+        # Find average vdiff in bins of pixel separation and save to file
+        f = open(save_dir + snap + '_VSF_2d-emiss' + save_suffix + '.dat', 'w')
+        f.write('# Separation [kpc]   VSF2 [km^2/s^2]\n')
+        sep_bins = np.arange(0.,200.,1)
+        vsf_list = np.zeros(len(sep_bins)-1)
+        npairs_bins_list = np.zeros(len(sep_bins)-1)
+        for i in range(len(sep_bins)-1):
+            npairs_bins_list[i] += len(sep_list[(sep_list > sep_bins[i]) & (sep_list < sep_bins[i+1])])
+            vsf_list[i] += np.mean(vdiff_list[(sep_list > sep_bins[i]) & (sep_list < sep_bins[i+1])])
+            f.write('  %.5f              %.5f\n' % (sep_bins[i], vsf_list[i]))
+        f.close()
+        bin_centers = sep_bins[:-1] + 0.5*np.diff(sep_bins)
+    else:
+        sep_bins, vsf_list = np.loadtxt(save_dir + 'Tables/' + snap + '_VSF' + args.load_vsf + '.dat', unpack=True, usecols=[0,1])
+        sep_bins = np.append(sep_bins, sep_bins[-1]+np.diff(sep_bins)[-1])
+        bin_centers = sep_bins[:-1] + 0.5*np.diff(sep_bins)
+        
+
+    # Plot
+    fig = plt.figure(figsize=(8,6),dpi=200)
+    ax = fig.add_subplot(1,1,1)
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+    zsnap = time_table['redshift'][time_table['snap']==snap]
+
+    # Calculate expected VSF from subsonic Kolmogorov turbulence
+    Kolmogorov_slope = []
+    for i in range(len(bin_centers)):
+        Kolmogorov_slope.append(vsf_list[10]*(bin_centers[i]/bin_centers[10])**(2./3.))
+    ax.plot(bin_centers, vsf_list, 'k-', lw=2)
+    ax.plot(bin_centers, Kolmogorov_slope, 'k:', lw=2)
+    ax.text(0.7,8e2,'$z=%.2f$' % (zsnap), fontsize=14, ha='left', va='top')
+    ax.set_xlabel('Projected Separation [kpc]', fontsize=14)
+    ax.set_ylabel('$\\langle | \\Delta v |^2 \\rangle$ [km$^2$/s$^2$]', fontsize=14)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.axis([0.5,200,1e2,1e5])
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, \
+      top=True, right=True)
+    ax.legend(loc=4, frameon=False, fontsize=14)
+    fig.subplots_adjust(bottom=0.12, top=0.97, left=0.12, right=0.97)
+    fig.savefig(save_dir + '/' + snap + '_VSF_2d-emiss' + save_suffix + '.png')
+
+
+
+
+
 
 def vdisp_vs_radius(snap):
     '''Plots the turbulent velocity dispersion in hot, warm, and cool gas as functions of galactocentric
@@ -1327,10 +1534,14 @@ def vdisp_vs_time(snaplist):
     tablename_prefix = output_dir + 'turbulence_halo_00' + args.halo + '/' + args.run + '/Tables/'
     time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
 
-    plot_colors = ['darkorange', "#4daf4a", "#984ea3", 'k']
-    plot_labels = ['$T>10^6$ K', '$10^5 < T < 10^6$ K', '$T < 10^5$ K', 'All gas']
-    table_labels = ['high_temperature_', 'mid_temperature_', 'low_temperature_', '']
-    linestyles = ['--', ':', '-.', '-']
+    #plot_colors = ['darkorange', "#4daf4a", "#984ea3", 'k']
+    #plot_labels = ['$T>10^6$ K', '$10^5 < T < 10^6$ K', '$T < 10^5$ K', 'All gas']
+    #table_labels = ['high_temperature_', 'mid_temperature_', 'low_temperature_', '']
+    #linestyles = ['--', ':', '-.', '-']
+    plot_colors = ['g']
+    plot_labels = ['CGM turbulence']
+    table_labels = ['']
+    linestyles = ['--']
 
     zlist = []
     timelist = []
@@ -1339,7 +1550,7 @@ def vdisp_vs_time(snaplist):
         data_list.append([])
 
     for i in range(len(snaplist)):
-        data = Table.read(tablename_prefix + snaplist[i] + '_' + args.filename + '.hdf5', path='all_data')
+        data = Table.read(tablename_prefix + snaplist[i] + '_' + args.filename + '.hdf5', path='all_data', format='hdf5')
         rvir = rvir_masses['radius'][rvir_masses['snapshot']==snaplist[i]]
         pos_ind = np.where(data['outer_radius']>=args.time_radius*rvir)[0][0]
 
@@ -1372,6 +1583,7 @@ def vdisp_vs_time(snaplist):
     time_func = IUS(zlist, timelist)
     timelist.reverse()
     ax.set_xlim(np.min(timelist), np.max(timelist))
+    #ax.set_ylim(0, 200)
     ax.set_ylim(0, 200)
     x0, x1 = ax.get_xlim()
     z_ticks = [2,1.5,1,.75,.5,.3,.2,.1,0]
@@ -1384,9 +1596,9 @@ def vdisp_vs_time(snaplist):
     ax2.set_xticklabels(tick_labels)
     ax.set_xlabel('Cosmic Time [Gyr]', fontsize=18)
     ax2.set_xlabel('Redshift', fontsize=18)
-    ax3.plot(time_func(np.array(z_sfr)), sfr, 'b-', lw=1)
-    ax.plot([timelist[0],timelist[-1]], [-100,-100], 'b-', lw=1, label='SFR (right axis)')
-    ax.text(4, 185, '$%.2f R_{200}$' % (args.time_radius), fontsize=20, ha='left', va='center')
+    ax3.plot(time_func(np.array(z_sfr)), sfr, 'k-', lw=1)
+    ax.plot([timelist[0],timelist[-1]], [-100,-100], 'k-', lw=1, label='SFR (right axis)')
+    #ax.text(4, 185, '$%.2f R_{200}$' % (args.time_radius), fontsize=20, ha='left', va='center')
     ax3.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, right=True)
     ax3.set_ylim(-5,100)
     ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=18)
@@ -2061,6 +2273,7 @@ if __name__ == "__main__":
                 vorticity_slice(outs[i])
         else:
             target = vorticity_slice
+            target_dir = 'vorticity_slice'
     elif (args.plot=='vorticity_direction'):
         if (args.nproc==1):
             for i in range(len(outs)):
@@ -2080,6 +2293,13 @@ if __name__ == "__main__":
         else:
             target = vsf_randompoints
             target_dir = 'vsf_randompoints'
+    elif (args.plot=='emiss_vsf'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                emission_2d_vsf(outs[i])
+        else:
+            target = emission_2d_vsf
+            target_dir = 'emiss_vsf'
     elif (args.plot=='vdisp_vs_radius'):
         if (args.nproc==1):
             for i in range(len(outs)):
