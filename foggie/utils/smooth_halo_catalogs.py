@@ -269,7 +269,7 @@ if __name__ == "__main__":
     smoothed_y_cen += major_motion_y
     smoothed_z_cen += major_motion_z
 
-    # Save to file smoothed versions of halo center and AM direction
+    # Save to file smoothed versions of halo center
     f_cen = Table(dtype=('S6', 'f8', 'f8', 'f8', 'f8', 'f8'),
             names=('snap', 'redshift', 'time', 'xc', 'yc', 'zc'))
     for i in range(len(snaps)):
@@ -281,7 +281,7 @@ if __name__ == "__main__":
 
 
     # Smooth AM vector
-
+    
     # Read in AM vector catalog
     am_table = Table.read(catalog_dir + 'angmom_table.hdf5', path='all_data')
     times = np.array(am_table['time'])
@@ -351,7 +351,7 @@ if __name__ == "__main__":
                smooth_Lx[i], smooth_Ly[i], smooth_Lz[i]]
         f_cen.add_row(row)
     ascii.write(f_cen, catalog_dir + 'AM_direction_smoothed', format='fixed_width', overwrite=True)
-
+    
     # Smooth bulk halo velocity
 
     '''# Read in velocity vector catalog

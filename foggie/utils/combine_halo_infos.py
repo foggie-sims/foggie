@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument('--which', metavar='which', type=str, action='store', \
                         help='Which set of tables do you want to combine? Options are:\n' + \
                         'masses, satellites, both, or new_c_v and default is to do both masses and satellites.')
-    parser.set_defaults(which='both')
+    parser.set_defaults(which='masses')
 
     args = parser.parse_args()
     return args
