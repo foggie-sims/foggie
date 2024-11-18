@@ -30,7 +30,7 @@ from matplotlib.colors import is_color_like
 from matplotlib import animation
 start_time = time.time()
 
-logOH_sol = 0#8.69 # solar metallicity from Asplund+2009
+logOH_sol = 8.69 # solar metallicity from Asplund+2009
 
 # ---------------------------------
 def load_df(args):
@@ -444,6 +444,32 @@ class MyDefaultDict(dict):
     '''
     __missing__ = lambda self, key: key
 
+# --------------------------------------------------------------------------------------------------------------------
+def plot_MZR_literature(ax):
+    '''
+    Computes empirical MZRs based on several studies
+    Then overplots them on a given existing axis handle
+    Returns axis handle
+    '''
+    log_mass = np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 20)
+
+    # ---------Sanders+21-----------
+    # Coefficients from Table 3 in https://arxiv.org/abs/2009.07292
+    Z_0, log_MTO, gamma, delta = 8.82, 10.16, 0.28, 3.43
+    log_OH = Z_0 - gamma * (np.log10(1 + (10 ** (log_mass - log_MTO)) ** (-delta))) / delta # Eq 8 of S21
+    ax.plot(log_mass, log_OH, c='blue', lw=2, label=f'z=0 (Sanders+2021)', ls='dashed')
+
+    log_mass_10 = log_mass - 10
+    #Z_10, gamma = 8.51, 0.30
+    #log_OH = log_mass_10 * gamma + Z_10 # Eq 7 of S21
+    #ax.plot(log_mass, log_OH, c='lightblue', lw=2, label=f'z=2.3 (Sanders+2021)', ls='dashed')
+
+    Z_10, gamma = 8.41, 0.29
+    log_OH = log_mass_10 * gamma + Z_10 # Eq 7 of S21
+    ax.plot(log_mass, log_OH, c='darkblue', lw=2, label=f'z=3.3 (Sanders+2021)', ls='dashed')
+
+    return ax
+
 # -----------------------------------
 def plot_MZGR(args):
     '''
@@ -721,10 +747,12 @@ def plot_MZGR(args):
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])
 
-    # -------overplotting solar metallicity line for Z vs z plots--------------
-    if 'Ztotal' in args.ycol:
+    # -------overplotting some stuff for Ztotal plots--------------
+    if 'Ztotal' in args.ycol: # overplotting solar metallicity line
         ax.axhline(logOH_sol, c='k', ls='dashed', lw=1, label=r'log(O/H)$_\bigodot$+ 12 (Asplund+2009)' if logOH_sol == 8.69 else None)
-        plt.legend(loc='best')
+        if 'log_mass' in args.xcol: # overplotting MZR from literature
+            ax = plot_MZR_literature(ax)
+        plt.legend(loc='lower center')
 
     # -------overplotting shaded region for all FOGGIE halos--------------
     if args.overplot_theory:
