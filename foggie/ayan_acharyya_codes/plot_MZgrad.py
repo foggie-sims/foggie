@@ -30,6 +30,7 @@ from matplotlib.colors import is_color_like
 from matplotlib import animation
 start_time = time.time()
 
+logOH_sol = 0#8.69 # solar metallicity from Asplund+2009
 
 # ---------------------------------
 def load_df(args):
@@ -86,7 +87,8 @@ def load_df(args):
     df['log_mass'] = np.log10(df['mass'])
     df = df.drop('mass', axis=1)
 
-    df['Ztotal'] = np.log10(df['Ztotal']) + 8.69
+    if (df['Ztotal']<0).any(): df['Ztotal'] = df['Ztotal'] + logOH_sol # if it is already in log-scale it will have negatives
+    else: df['Ztotal'] = np.log10(df['Ztotal']) + logOH_sol
 
     if convert_Zgrad_from_dexkpc_to_dexre:
         print('Zgrad is in dex/kpc, converting it to dex/re')
@@ -456,10 +458,10 @@ def plot_MZGR(args):
     things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
 
     # -------------get plot limits-----------------
-    lim_dict = {'Zgrad': (-0.5, 0.1) if args.Zgrad_den == 'kpc' else (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (8, 9), 'log_sfr': (-1, 3)}
+    lim_dict = {'Zgrad': (-0.5, 0.1) if args.Zgrad_den == 'kpc' else (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (-0.69 + logOH_sol, 0.31 + logOH_sol), 'log_sfr': (-1, 3)}
     label_dict = MyDefaultDict(Zgrad=r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.Zgrad_den == 're' else 'Metallicity gradient (dex/kpc)' if args.fortalk else r'$\nabla Z$ (dex/kpc)', \
         re='Scale length (kpc)', log_mass=r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', redshift='Redshift', time='Time (Gyr)', sfr=r'SFR (M$_{\odot}$/yr)', \
-        log_ssfr=r'$\log{\, \mathrm{sSFR} (\mathrm{yr}^{-1})}$', Ztotal=r'$\log{(\mathrm{O/H})}$ + 12', log_sfr=r'$\log{(\mathrm{SFR} (\mathrm{M}_{\odot}/yr))}$')
+        log_ssfr=r'$\log{\, \mathrm{sSFR} (\mathrm{yr}^{-1})}$', Ztotal=r'$\log{(\mathrm{Z/Z_\bigodot})}$' if logOH_sol == 0 else r'$\log{(\mathrm{O/H})}$ + 12', log_sfr=r'$\log{(\mathrm{SFR} (\mathrm{M}_{\odot}/yr))}$')
 
     if args.xmin is None: args.xmin = lim_dict[args.xcol][0]
     if args.xmax is None: args.xmax = lim_dict[args.xcol][1]
@@ -714,10 +716,15 @@ def plot_MZGR(args):
             ax.text(args.xmin * 1.1 + 0.1, (args.ymin if args.forproposal else args.ymax) * 0.88 - thisindex * 0.05, '%0d%% time of z>=%d is spent outside shaded region' % (timefraction_outside, args.upto_z), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
             print('Halo', args.halo, 'spends %.2F%%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation upto redshift %.1F' % args.upto_z)
 
-        if not (args.plot_timefraction or args.forproposal) and not args.overplot_theory: fig.text(0.85 if args.glasspaper or args.formolly else 0.15, 0.38 - thisindex * 0.05 if args.formolly else 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize / 1.2)
+        if not (args.plot_timefraction or args.forproposal) and not args.overplot_theory: fig.text(0.85 if args.glasspaper or args.formolly else 0.15, 0.43 - thisindex * 0.05 if args.formolly else 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize / 1.2)
         if args.plot_deviation: fig2.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])
+
+    # -------overplotting solar metallicity line for Z vs z plots--------------
+    if 'Ztotal' in args.ycol:
+        ax.axhline(logOH_sol, c='k', ls='dashed', lw=1, label=r'log(O/H)$_\bigodot$+ 12 (Asplund+2009)' if logOH_sol == 8.69 else None)
+        plt.legend(loc='best')
 
     # -------overplotting shaded region for all FOGGIE halos--------------
     if args.overplot_theory:

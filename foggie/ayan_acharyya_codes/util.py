@@ -1070,7 +1070,7 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
         counts = np.ma.filled(cube.counts, fill_value=fill_val)
         counts_hdu = fits.ImageHDU(counts)
         hdulist = fits.HDUList([flux_hdu, wavelength_hdu, counts_hdu])
-    elif hasattr(cube, 'error'): # error sttribute is only available for noisy data cubes
+    elif hasattr(cube, 'error'): # error attribute is only available for noisy data cubes
         error = np.ma.filled(cube.error, fill_value=fill_val)
         error = error.swapaxes(0,2) # QFitsView requires (wave, pos, pos) arrangement rather than (pos, pos, wave)  arrangement
         error_hdu = fits.ImageHDU(error)

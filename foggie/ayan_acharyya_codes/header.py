@@ -114,7 +114,7 @@ m_H = 1.67e-27  # kg; mass of proton
 HOME = os.getenv('HOME')
 try:
     if not os.path.exists(HOME+'/Work/astro/ayan_codes'): # if the code directory does not exist in current home, then it must exist in /pleiades home
-    HOME = '/pleiades/u/' + os.getenv('USER')
+        HOME = '/pleiades/u/' + os.getenv('USER')
 except:
     pass
 
