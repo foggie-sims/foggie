@@ -367,7 +367,7 @@ if __name__ == '__main__':
             continue
 
         # parse paths and filenames
-        args.fig_dir = args.output_dir + 'figs/' if args.do_all_sims else args.output_dir + 'figs/' + args.output + '/'
+        args.fig_dir = args.output_dir + 'figs/' if args.do_all_sims or len(list_of_sims) > 1 else args.output_dir + 'figs/' + args.output + '/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
         args.plotlog = False
         if args.fortalk:
