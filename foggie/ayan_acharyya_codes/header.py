@@ -59,7 +59,7 @@ from astropy.table import Table
 from astropy.stats import gaussian_fwhm_to_sigma as gf2s
 from astropy import convolution as con
 from astropy import units as u
-from astropy.cosmology import FlatLambdaCDM
+from astropy.cosmology import FlatLambdaCDM, Planck13, z_at_value
 
 from operator import itemgetter
 from collections import defaultdict

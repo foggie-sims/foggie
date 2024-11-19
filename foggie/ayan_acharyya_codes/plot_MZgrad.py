@@ -217,18 +217,21 @@ def overplot_theory(ax, args):
         df['source'] = os.path.split(filename)[1][:-4]
         master_df = pd.concat([master_df, df[cols_to_concat]])
 
-        # ------Bellardini et al. 2022 Fig B1 (Appendix) ---------
-        filename = literature_path + 'Bellardini_2022/' 'figureC1.txt'
-        check_strings = ['#Gas_redshifts', '#Gas_radial_mean_grad']
-        columns = ['redshift', 'Zgrad']
+        # ------Bellardini et al. 2022 Fig 7 ---------
+        filename = literature_path + 'Bellardini_2022/figure7.txt'
+        check_strings = ['#Age_bins', '#Delta_feonh_over_R90_mean', '#Delta_feonh_over_R90_minimum', '#Delta_feonH_over_R90_maximum']
+        columns = ['age', 'Zgrad', 'Zgrad_min', 'Zgrad_max']
         df = pd.DataFrame(columns=columns)
         with open(filename) as myfile: lines = myfile.readlines()
         lines = [item[:-1] for item in lines]
         for index, this_string in enumerate(check_strings):
             line_num = lines.index(this_string)
             df[columns[index]] = [float(item) for item in lines[line_num + 1][1:-1].split(', ')]
-        df['Zgrad_u'] = 0. # no information
-        df['source'] = 'Bellardini_2022_B1'
+
+        df['redshift'] = df['age'].apply(lambda x: z_at_value(Planck13.lookback_time, x * u.Gyr))
+        df = pd.DataFrame({'redshift': np.tile(df['redshift'], 3), 'Zgrad': np.hstack((df['Zgrad'], df['Zgrad_min'], df['Zgrad_max']))})
+        df['Zgrad_u'] = np.nan
+        df['source'] = 'Bellardini_2022_7'
         master_df = pd.concat([master_df, df[cols_to_concat]])
 
         # -----saving the combined dataframe --------------
@@ -237,10 +240,10 @@ def overplot_theory(ax, args):
         print('Saved', outputfile)
     else:
         print('Reading from existing', outputfile)
-        master_df = pd.read_table(outputfile, delim_whitespace=True)
-        master_df.replace(['-', '--'], np.nan, inplace=True)
-        master_df['Zgrad'] = master_df['Zgrad'].astype(np.float64)
-        master_df['Zgrad_u'] = master_df['Zgrad_u'].astype(np.float64)
+    master_df = pd.read_table(outputfile, delim_whitespace=True)
+    master_df.replace(['-', '--'], np.nan, inplace=True)
+    master_df['Zgrad'] = master_df['Zgrad'].astype(np.float64)
+    master_df['Zgrad_u'] = master_df['Zgrad_u'].astype(np.float64)
 
     master_df = master_df.dropna(subset=['Zgrad']).reset_index(drop=True)
     #master_df = master_df[master_df['redshift'].between(args.xmin, args.xmax)]
@@ -248,8 +251,8 @@ def overplot_theory(ax, args):
     master_df = master_df.sort_values(by='year', ignore_index=True)
 
     # -----actual plotting --------------
-    color_dict = {'Gibson_2013_Fig1':'cadetblue', 'Ma_2017_TableA1':'lightskyblue', 'Hemler_2021_Table1':'cornflowerblue', 'Bellardini_2022_B1':'darkturquoise'}
-    label_dict = {'Gibson_2013_Fig1':'MUGS (Gibson+13)', 'Ma_2017_TableA1':'FIRE-1 (Ma+17)', 'Hemler_2021_Table1':'Illustris TNG (Hemler+21)', 'Bellardini_2022_B1':'FIRE-2 (Bellardini+22)'}
+    color_dict = {'Gibson_2013_Fig1':'cadetblue', 'Ma_2017_TableA1':'lightskyblue', 'Hemler_2021_Table1':'cornflowerblue', 'Bellardini_2022_7':'darkturquoise'}
+    label_dict = {'Gibson_2013_Fig1':'MUGS (Gibson+13)', 'Ma_2017_TableA1':'FIRE-1 (Ma+17)', 'Hemler_2021_Table1':'Illustris TNG (Hemler+21)', 'Bellardini_2022_7':'FIRE-2 (Bellardini+22)'}
 
     fig = ax.figure
     if not args.fortalk: fig.text(0.15, 0.93, 'FOGGIE (This work)', ha='left', va='top', color='salmon', fontsize=args.fontsize / 1.2)
@@ -269,7 +272,7 @@ def overplot_observations(ax, args):
     outputfile = literature_path + 'combined_obs_data.txt'
 
     if not os.path.exists(outputfile) or args.clobber:
-        print('Could not find', outputfile, 'Making combined theory data file now..')
+        print('Could not find', outputfile, 'Making combined obs data file now..')
         master_df = pd.DataFrame()
         cols_to_concat = ['redshift', 'Zgrad', 'Zgrad_u', 'source']
 
