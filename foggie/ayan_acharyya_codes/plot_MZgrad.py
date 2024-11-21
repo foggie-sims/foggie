@@ -22,6 +22,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508,5036,5016,4123,2878,2392 --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol redshift --overplot_observations --forpaper
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 2 --overplot_smoothed 1000 --snaphighlight DD0452,DD0466 --forproposal
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 1 --overplot_cadence 500 --keep --snaphighlight DD0452,DD0466 --forpaper
+                 run plot_MZgrad.py --system ayan_hd --halo 8508 --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol age --plot_stellar --forpaper
 """
 from header import *
 from util import *
@@ -37,6 +38,10 @@ def load_df(args):
     '''
     Function to load and return the dataframe containing MZGR
     '''
+    binned_fit_text = '_binned' if args.use_binnedfit else ''
+    which_re = 're_coldgas' if args.use_gasre else 're_stars'
+    re_text = 'fixedr' if args.upto_kpc is not None else which_re
+
     args.foggie_dir, args.output_dir, args.run_loc, args.code_path, args.trackname, args.haloname, args.spectra_dir, args.infofile = get_run_loc_etc(args)
     Zgrad_den_text = 'rad' if args.Zgrad_den == 'kpc' else 'rad_re'
     density_cut_text = '_wdencut' if args.use_density_cut else ''
@@ -58,6 +63,22 @@ def load_df(args):
         grad_filename = grad_filename.replace('rad_re', 'rad')
         print('Trying to read in', grad_filename, 'instead')
         df = pd.read_table(grad_filename)
+
+        # ------re-calculate re if they do not exist for over 50% of df-------
+        if len(df[~np.isnan(df[which_re])]) / len(df) < 0.5 and args.use_gasre:
+            gasfilename = '/'.join(args.output_dir.split('/')[:-2]) + '/' + 'mass_profiles/' + args.run + '/all_rprof_' + args.halo + '.npy'
+            print('Reading in cold gas profile from', gasfilename)
+            gasprofile = np.load(gasfilename, allow_pickle=True)[()]
+
+            for index, row in df.iterrows(): # looping for over outputs in df
+                print(f'Computing re for output {args.output} which is {index + 1} out of {len(df)}..')
+                args.output = row['output']
+                args.current_redshift = row['redshift']
+                df.at[index, which_re] = get_re_from_coldgas(args, gasprofile=gasprofile)
+
+            df.to_csv(grad_filename, sep='\t', index=None)
+            print(f'Over-written gradfile to {grad_filename}')
+
         convert_Zgrad_from_dexkpc_to_dexre = True
 
     elif not os.path.exists(grad_filename) and args.Zgrad_den == 'kpc':
@@ -69,10 +90,6 @@ def load_df(args):
 
     df.drop_duplicates(subset='output', keep='last', ignore_index=True, inplace=True)
     df.sort_values(by='redshift', ascending=False, ignore_index=True, inplace=True)
-
-    binned_fit_text = '_binned' if args.use_binnedfit else ''
-    which_re = 're_coldgas' if args.use_gasre else 're_stars'
-    re_text = 'fixedr' if args.upto_kpc is not None else which_re
 
     try:
         df = df[['output', 'redshift', 'time', which_re, 'mass_' + re_text] + [item + binned_fit_text + '_' + re_text for item in ['Zcen', 'Zcen_u', 'Zgrad', 'Zgrad_u']] + ['Ztotal_' + re_text]]
@@ -487,7 +504,7 @@ def plot_MZGR(args):
     things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
 
     # -------------get plot limits-----------------
-    lim_dict = {'Zgrad': (-0.5, 0.1) if args.Zgrad_den == 'kpc' else (-2, 0.1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (-0.69 + logOH_sol, 0.31 + logOH_sol), 'log_sfr': (-1, 3)}
+    lim_dict = {'Zgrad': (-0.5, 0.1) if args.Zgrad_den == 'kpc' else (-3, 1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (-0.69 + logOH_sol, 0.31 + logOH_sol), 'log_sfr': (-1, 3)}
     label_dict = MyDefaultDict(Zgrad=r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.Zgrad_den == 're' else 'Metallicity gradient (dex/kpc)' if args.fortalk else r'$\nabla Z$ (dex/kpc)', \
         re='Scale length (kpc)', log_mass=r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', redshift='Redshift', time='Time (Gyr)', sfr=r'SFR (M$_{\odot}$/yr)', \
         log_ssfr=r'$\log{\, \mathrm{sSFR} (\mathrm{yr}^{-1})}$', Ztotal=r'$\log{(\mathrm{Z/Z_\bigodot})}$' if logOH_sol == 0 else r'$\log{(\mathrm{O/H})}$ + 12', log_sfr=r'$\log{(\mathrm{SFR} (\mathrm{M}_{\odot}/yr))}$')
@@ -843,6 +860,66 @@ def plot_MZGR(args):
 
     return fig, fig2, df_master, df_manga, timefraction_outside, df_lit
 
+# -----------------------------------------------------------
+def plot_stellar_metallicity_gradient_vs_age(args):
+    '''
+    Function to plot the stellar metallicity gradient vs stellar ages
+    Saves plot as .png
+    Returns figure handle
+    '''
+    print(f'Plotting stellar metallicity gradient vs age for halo {args.halo}..')
+    # ----------reading in the dataframe-------------
+    density_cut_text = '_wdencut' if args.use_density_cut else ''
+    if args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % args.upto_re
+    outfilename = args.output_dir + 'txtfiles/%s_stellar_metallicity_gradient_vs_age%s%s.txt' % (args.halo, upto_text, density_cut_text)
+
+    if os.path.exists(outfilename):
+        print(f'Reading stellar metallicity from existing {outfilename} (might take a couple minutes)..')
+        df = pd.read_table(outfilename)
+    else:
+        print(f'{outfilename} not found')
+        return None, None
+
+    df = df.drop_duplicates(subset=['halo', 'output', 'age_bin'], keep='last').reset_index(drop=True)
+
+    # ----------new figure for Zgrad vs age-------------
+    fig, ax =  plt.subplots(figsize=(12, 6))
+    fig.subplots_adjust(right=0.98, top=0.95, bottom=0.15, left=0.12)
+    color_arr = ['rebeccapurple', 'chocolate', 'darkgreen', 'darkblue', 'crimson', 'darkkhaki']
+
+    # -------looping over snapshots------------
+    output_arr = np.unique(df['output'])
+    for index, output in enumerate(output_arr):
+        print(f'Doing output {index + 1} of {len(output_arr)}..')
+        df_sub = df[df['output'] == output]
+        ax.errorbar(df_sub['age_bin'], df_sub['Zgrad'], yerr=df_sub['Zgrad_u'], color=color_arr[index], lw=1, ls='none')
+        ax.scatter(df_sub['age_bin'], df_sub['Zgrad'], color=color_arr[index], s=50, lw=1, edgecolor='k')
+        ax.plot(df_sub['age_bin'], df_sub['Zgrad'], color=color_arr[index], lw=1, label=f'z={df_sub["redshift"].values[0]: .1F}')
+
+    # ----------tidy up figure-------------
+    ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
+    ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
+    ax.set_xlabel('Stellar age (Gyr)', fontsize=args.fontsize)
+    ax.set_ylabel(r'Stellar metallicity gradient ($\nabla$Z$_r$)', fontsize=args.fontsize)
+    plt.legend(loc='best', fontsize=args.fontsize)
+
+    if args.fortalk:
+        try: mplcyberpunk.make_lines_glow()
+        except: pass
+        try: mplcyberpunk.make_scatter_glow()
+        except: pass
+
+    # ---------annotate and save the figure----------------------
+    filename = args.output_dir + 'figs/%s_stellar_metallicity_gradient_vs_age%s%s.png' % (args.halo, upto_text, density_cut_text)
+    fig.savefig(filename, transparent=args.fortalk)
+    print('Saved figure ' + filename)
+    plt.show(block=False)
+
+    return df, fig
+
 # -----main code-----------------
 if __name__ == '__main__':
     args_tuple = parse_args('8508', 'RD0042')  # default simulation to work upon when comand line args not provided
@@ -871,7 +948,10 @@ if __name__ == '__main__':
     if args.colorcol == ['vrad']: args.colorcol = 'time'
     else: args.colorcol = args.colorcol[0]
 
-    fig, fig2, df_binned, df_manga, tfrac, df_lit = plot_MZGR(args)
+    if args.plot_stellar:
+        if args.ycol == 'Zgrad' and args.xcol == 'age': df_stellar_grad, fig = plot_stellar_metallicity_gradient_vs_age(args)
+    else:
+        fig, fig2, df_binned, df_manga, tfrac, df_lit = plot_MZGR(args)
 
     print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
 

@@ -1448,6 +1448,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--use_density_cut', dest='use_density_cut', action='store_true', default=False, help='impose a density cut to get just the disk?, default is no')
     parser.add_argument('--narrowfig', dest='narrowfig', action='store_true', default=False, help='make the figure size proportions narrow instead of square?, default is no')
     parser.add_argument('--noweight_forfit', dest='noweight_forfit', action='store_true', default=False, help='do the radial fit without using inverse square weights?, default is no (i.e., use the weighting while fitting)')
+    parser.add_argument('--plot_stellar', dest='plot_stellar', action='store_true', default=False, help='plot stellar metallicity profile?, default is no (i.e., use the weighting while fitting)')
 
     # ------- args added for get_halo_track.py ------------------------------
     parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')
