@@ -182,7 +182,7 @@ def make_projection_plot(ds, prefix, field, zmin, zmax, cmap, **kwargs):
             if field == "density" or field == "metal_density":
                 p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, width=(width, 'kpc'))
                 p.set_unit(('gas','density'),'Msun/pc**2')
-                p.set_unit(('gas','metal_density'),'Msun/pc**2')
+                #p.set_unit(('gas','metal_density'),'Msun/pc**2')
             else:
                 p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, weight_field=("gas","density"), width=(width, 'kpc'))
             p.set_zlim(field, zmin, zmax)
@@ -232,7 +232,7 @@ def make_projection_plot_no_labels(ds, prefix, field, zmin, zmax, cmap, **kwargs
             if field == "density" or field == "metal_density":
                 p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, width=(width, 'kpc'))
                 p.set_unit(('gas','density'),'Msun/pc**2')
-                p.set_unit(('gas','metal_density'),'Msun/pc**2')
+               # p.set_unit(('gas','metal_density'),'Msun/pc**2')
             else:
                 p = yt.ProjectionPlot(ds, ax, field, center=center, data_source=box, weight_field=("gas","density"), width=(width, 'kpc'))
             p.set_zlim(field, zmin, zmax)
@@ -631,7 +631,7 @@ if __name__ == "__main__":
     if not args.clobber:
         print("NO-CLOBBER IS NOT ACTUALLY IMPLEMENTED SO I'M GOING TO CLOBBER AWAY clobber clobber clobber")
 
-    foggie_dir, output_dir, run_loc, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    foggie_dir, output_dir, run_loc, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     if args.system == 'pleiades':
         trackname = 'halo_track_full'
 
