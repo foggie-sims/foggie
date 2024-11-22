@@ -13,7 +13,7 @@
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --xcol rad --do_all_sims --weight mass --write_file --noplot
                  run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass --plot_onlybinned --forproposal
                  run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --forpaper
-                 run compute_MZgrad.py --system ayan_hd --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --plot_stellar --keep --forpaper
+                 run compute_MZgrad.py --system ayan_hd --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --plot_stellar --write_file --keep --forpaper
 
 """
 from header import *
@@ -273,7 +273,7 @@ def plot_stellar_metallicity_profile(box, args):
     for index, this_age in enumerate(age_bin_centers):
         print(f'Doing age bin {index + 1} of {len(age_bin_centers)}..')
         df_sub = df[df['age_bin'] == this_age]
-        artist = dsshow(df_sub, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ymin, args.ymax), aspect = 'auto', ax=ax, cmap=cmap_arr[index], alpha=0.3)#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
+        artist = dsshow(df_sub, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ymin, args.ymax), aspect = 'auto', ax=ax, cmap=cmap_arr[index])#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
         # --------radially bin the profile in metallicity space-----------
         df_sub['binned_cat'] = pd.cut(df_sub[args.xcol], args.bin_edges)
@@ -352,13 +352,14 @@ def plot_stellar_metallicity_profile(box, args):
     new_df['halo'] = args.halo
     new_df = new_df[['halo', 'output', 'redshift', 'time', 'age_bin', 'Zgrad', 'Zgrad_u', 'Zcen', 'Zcen_u']]
 
-    outfilename2 = args.output_dir + 'txtfiles/%s_stellar_metallicity_gradient_vs_age%s%s.txt' % (args.halo, upto_text, density_cut_text)
-    if not os.path.isfile(outfilename2):
-        new_df.to_csv(outfilename2, sep='\t', index=None, header='column_names')
-        print(f'Written stellar metallicity gradients df at {outfilename2}')
-    else:
-        new_df.to_csv(outfilename2, sep='\t', mode='a', index=False, header=False)
-        print('Appended stellar metallicity gradients to file', outfilename2)
+    if args.write_file:
+        outfilename2 = args.output_dir + 'txtfiles/%s_stellar_metallicity_gradient_vs_age%s%s.txt' % (args.halo, upto_text, density_cut_text)
+        if not os.path.isfile(outfilename2):
+            new_df.to_csv(outfilename2, sep='\t', index=None, header='column_names')
+            print(f'Written stellar metallicity gradients df at {outfilename2}')
+        else:
+            new_df.to_csv(outfilename2, sep='\t', mode='a', index=False, header=False)
+            print('Appended stellar metallicity gradients to file', outfilename2)
 
     return df, new_df, fig
 
