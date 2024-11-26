@@ -29,6 +29,8 @@ from util import *
 from matplotlib.collections import LineCollection
 from matplotlib.colors import is_color_like
 from matplotlib import animation
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 start_time = time.time()
 
 logOH_sol = 8.69 # solar metallicity from Asplund+2009
@@ -884,27 +886,44 @@ def plot_stellar_metallicity_gradient_vs_age(args):
         return None, None
 
     df = df.drop_duplicates(subset=['halo', 'output', 'age_bin'], keep='last').reset_index(drop=True)
+    output_arr = np.unique(df['output'])
 
     # ----------new figure for Zgrad vs age-------------
     fig, ax =  plt.subplots(figsize=(12, 6))
-    fig.subplots_adjust(right=0.98, top=0.95, bottom=0.15, left=0.12)
-    color_arr = ['rebeccapurple', 'chocolate', 'darkgreen', 'darkblue', 'crimson', 'darkkhaki']
+    fig.subplots_adjust(right=0.98 if len(output_arr) <= 6 else 0.9, top=0.95, bottom=0.15, left=0.12)
 
     # -------looping over snapshots------------
-    output_arr = np.unique(df['output'])
+    redshift_arr = [df[df['output'] == item]['redshift'].values[0] for item in output_arr]
+    if len(output_arr) <= 6:
+        color_arr = ['rebeccapurple', 'chocolate', 'darkgreen', 'darkblue', 'crimson', 'darkkhaki']
+    else:
+        cmap = 'viridis'
+        print(f'Making new discrete colormap for {len(output_arr)} lines, with cmap {cmap}')
+        jet = plt.get_cmap(cmap)
+        cnorm = mplcolors.Normalize(vmin=0, vmax=6)
+        scalarMap = mpl_cm.ScalarMappable(norm=cnorm, cmap=jet)
+        color_arr = [scalarMap.to_rgba(item) for item in redshift_arr]
+
     for index, output in enumerate(output_arr):
-        print(f'Doing output {index + 1} of {len(output_arr)}..')
+        if len(output_arr) <= 6: print(f'Doing output {index + 1} of {len(output_arr)}..')
         df_sub = df[df['output'] == output]
         ax.errorbar(df_sub['age_bin'], df_sub['Zgrad'], yerr=df_sub['Zgrad_u'], color=color_arr[index], lw=1, ls='none')
         ax.scatter(df_sub['age_bin'], df_sub['Zgrad'], color=color_arr[index], s=50, lw=1, edgecolor='k')
-        ax.plot(df_sub['age_bin'], df_sub['Zgrad'], color=color_arr[index], lw=1, label=f'z={df_sub["redshift"].values[0]: .1F}')
+        ax.plot(df_sub['age_bin'], df_sub['Zgrad'], color=color_arr[index], lw=1, label=f'z={redshift_arr[index]: .1F}' if len(output_arr) <=6 else None)
 
     # ----------tidy up figure-------------
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
     ax.set_xlabel('Stellar age (Gyr)', fontsize=args.fontsize)
     ax.set_ylabel(r'Stellar metallicity gradient ($\nabla$Z$_r$)', fontsize=args.fontsize)
-    plt.legend(loc='best', fontsize=args.fontsize)
+    if len(output_arr) <= 6:
+        plt.legend(loc='best', fontsize=args.fontsize)
+    else:
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='3%', pad=0.07)
+        fig.colorbar(scalarMap, cax=cax, orientation='vertical')
+        cax.set_yticklabels(['%.2F' % item for item in cax.get_yticks()], fontsize=args.fontsize)
+        cax.set_ylabel('Redshift', fontsize=args.fontsize)
 
     if args.fortalk:
         try: mplcyberpunk.make_lines_glow()
