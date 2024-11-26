@@ -243,9 +243,9 @@ def plot_stellar_metallicity_profile(box, args):
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
     outfilename = args.output_dir + 'txtfiles/%s_stellar_metallicity%s%s.txt' % (args.output, upto_text, density_cut_text)
-    outfile_rootname = '%s_datashader_log_stellar_metal_vs_%s%s%s.png' % (args.output, args.xcol,upto_text, density_cut_text)
-    if args.do_all_sims: outfile_rootname = 'z=*_' + outfile_rootname[len(args.output)+1:]
-    filename = args.fig_dir + outfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+    figfile_rootname = '%s_datashader_log_stellar_metal_vs_%s%s%s.png' % (args.output, args.xcol,upto_text, density_cut_text)
+    if args.do_all_sims: figfile_rootname = 'z=*_' + figfile_rootname[len(args.output)+1:]
+    filename = args.fig_dir + figfile_rootname.replace('*', '%.5F' % (args.current_redshift))
 
     # -------reading in file----------------------
     if not os.path.exists(filename) or args.clobber_plot:
@@ -302,7 +302,13 @@ def plot_stellar_metallicity_profile(box, args):
             mass_binned = mass_binned[indices]
 
             # --------fit the binned profile-----------
-            linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True, w=mass_binned)
+            try:
+                linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True, w=mass_binned)
+            except ValueError:
+                print(f'Could not radially fit age bin {this_age} for snapshot {args.output}, so skipping this age bin..')
+                Zgrad_arr.append(ufloat(np.nan, np.nan))
+                Zcen_arr.append(ufloat(np.nan, np.nan))
+                continue
             y_fitted = np.poly1d(linefit)(x_bin_centers)
 
             Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
@@ -365,7 +371,7 @@ def plot_stellar_metallicity_profile(box, args):
     else:
         print(f'Figure for {args.output} already exists, so skipping it')
         df, new_df, fig = None, None, None
-        
+
     return df, new_df, fig
 
 # -------------------------------------------------------------------------------
