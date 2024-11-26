@@ -304,7 +304,7 @@ def plot_stellar_metallicity_profile(box, args):
             # --------fit the binned profile-----------
             try:
                 linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True, w=mass_binned)
-            except ValueError:
+            except:
                 print(f'Could not radially fit age bin {this_age} for snapshot {args.output}, so skipping this age bin..')
                 Zgrad_arr.append(ufloat(np.nan, np.nan))
                 Zcen_arr.append(ufloat(np.nan, np.nan))
