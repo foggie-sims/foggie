@@ -453,9 +453,9 @@ if __name__ == '__main__':
     else:
         upto_text = '_upto%.1FRe' % dummy_args.upto_re
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s%s%s%s.txt' % (dummy_args.xcol, upto_text, weightby_text, density_cut_text)
-    if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
+    if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename) and not dummy_args.plot_stellar: subprocess.call(['rm ' + grad_filename], shell=True)
 
-    if os.path.isfile(grad_filename) and not dummy_args.clobber and dummy_args.write_file: # if gradfile already exists
+    if os.path.isfile(grad_filename) and not dummy_args.clobber and dummy_args.write_file and not dummy_args.plot_stellar: # if gradfile already exists
         existing_df_grad = pd.read_table(grad_filename)
         outputs_existing_on_file = pd.unique(existing_df_grad['output'])
 
@@ -493,7 +493,7 @@ if __name__ == '__main__':
 
     for index in range(core_start + dummy_args.start_index, core_end + 1):
         this_sim = list_of_sims[index]
-        if 'outputs_existing_on_file' in locals() and this_sim[1] in outputs_existing_on_file:
+        if 'outputs_existing_on_file' in locals() and this_sim[1] in outputs_existing_on_file and not dummy_args.plot_stellar:
             print_mpi('Skipping ' + this_sim[1] + ' because it already exists in file', dummy_args)
             continue # skip if this output has already been done and saved on file
 
@@ -593,7 +593,7 @@ if __name__ == '__main__':
 
         this_df_grad.loc[len(this_df_grad)] = thisrow
         df_grad = pd.concat([df_grad, this_df_grad])
-        if args.write_file:
+        if args.write_file and not args.plot_stellar:
             if not os.path.isfile(grad_filename):
                 this_df_grad.to_csv(grad_filename, sep='\t', index=None, header='column_names')
                 print('Wrote to gradient file', grad_filename)
