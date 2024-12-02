@@ -3318,7 +3318,7 @@ def filaments_3D(ds, grid, snap, snap_props):
                     theta_center, phi_center = regions[0].centroid
                     theta_center = -1
                     phi_center = phi_center*phi_width[0]
-                    major_axis_arc = -1
+                    major_extent_arc = -1
                     minor_extent_arc = (inn_r + out_r)/2. * regions[0].axis_minor_length*phi_width[0]
                     covering_area = np.sum(np.sin(phi_grid[biggest_img==biggest])*theta_width[0]*phi_width[0])
                 else: # Not a ring, so find properties of the biggest labeled structure in the tiled image
