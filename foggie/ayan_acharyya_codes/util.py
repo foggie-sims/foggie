@@ -1116,6 +1116,7 @@ def get_all_sims_for_this_halo(args, given_path=None):
     Function assimilate the names of all snapshots available for the given halo
     '''
     all_sims = []
+    args.foggie_dir, args.output_dir, args.run_loc, args.code_path, args.trackname, args.haloname, args.spectra_dir, args.infofile = get_run_loc_etc(args)
     if given_path is None: given_path = args.foggie_dir + args.run_loc
     snapshot_paths = glob.glob(given_path + '*/')
     if args.use_onlyDD or args.use_onlyRD: snapshot_paths.sort() # alpha-numeric sort if it is just DDs or just RDs because that ensures monotonicity in redshift
