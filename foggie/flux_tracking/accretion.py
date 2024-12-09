@@ -3238,58 +3238,105 @@ def filaments_3D(ds, grid, snap, snap_props):
                 phi_width = np.diff(phi_bins)
                 theta_centers = theta_bins[:-1] + theta_width
                 theta_centers_2 = np.concatenate([theta_centers, theta_centers])
-                theta_width_2 = np.concatenate([theta_width, theta_width])
                 phi_centers = phi_bins[:-1] + phi_width
-                theta_grid, phi_grid = np.meshgrid(theta_centers_2, phi_centers, indexing='ij')
+                theta_grid, phi_grid = np.meshgrid(theta_centers, phi_centers, indexing='ij')
+                theta_grid_wide, phi_grid_wide = np.meshgrid(theta_centers_2, phi_centers, indexing='ij')
                 sph_grid[sph_grid > 0] = 1
-                # Now tack on a copy of the grid onto the theta-edge, since it is periodic
-                sph_grid_2 = np.concatenate([sph_grid, sph_grid], axis=0)
-                # Identify structures in double-wide grid
-                sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2)
-                # Delete structures that go across x-edges (theta), unless the structure is a complete ring wrap-around
-                to_del = []
-                for d in range(sph_grid_2_labeled.shape[1]):
-                    if (sph_grid_2_labeled[0, d] > 0) and (sph_grid_2_labeled[-1, d] > 0):
-                        if (sph_grid_2_labeled[0, d] != sph_grid_2_labeled[-1, d]):   # Structure at either end is labeled different = not a ring
-                            to_del.append(sph_grid_2_labeled[0, d])
-                            to_del.append(sph_grid_2_labeled[-1, d])
-                        if (sph_grid_2_labeled[0, d] == sph_grid_2_labeled[-1, d]): # Same structure at either end = ring
-                            lab = sph_grid_2_labeled[0, d]
-                            sph_grid_2_labeled[100:, :][sph_grid_2_labeled[100:, :]==lab] = 0
-                for u in np.unique(to_del):
-                    sph_grid_2_labeled[sph_grid_2_labeled == u] = 0
-                # Re-label to get the new number of structures
-                sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2_labeled)
-                # Delete structures that are repeated exactly at theta and theta + 2pi
-                for n in range(n_struct):
-                    if (n+1 in sph_grid_2_labeled):
-                        indices = np.where(sph_grid_2_labeled==n+1)
-                        if (np.max(indices[0]) < len(theta_centers)):
-                            shift_t = indices[0] + len(theta_centers)
-                            if (all(sph_grid_2_labeled[(shift_t,indices[1])]>0)):
-                                sph_grid_2_labeled[(shift_t,indices[1])] = 0
-                # Re-label to get final number of structures - these are how many fragments this filament has at this radius
-                sph_grid_2_labeled, n_struct = ndimage.label(sph_grid_2_labeled)
-                results.append(n_struct)
-
+                # Add first theta row on end for better matching across boundary
+                sph_grid = np.vstack([sph_grid, sph_grid[0,:]])
+                # Identify structures
+                sph_grid_labeled, n_struct = ndimage.label(sph_grid)
+                #plt.imshow(sph_grid_labeled, origin='lower')
+                #plt.savefig(prefix + 'test_plots2/' + snap + '_fil-' + str(f) + '_' + str(round(inn_r)) + '_all-labeled.png')
+                #plt.close()
+                # Make sure continuous structures that go across boundary are labeled the same
+                first_col = sph_grid_labeled[0,:]
+                last_col = sph_grid_labeled[-1,:]
+                repeats = []
+                matches = []
+                for n in range(1, n_struct+1):
+                    if (n in first_col):
+                        rows = np.where(first_col==n)[0]
+                        for j in rows:
+                            if (last_col[j] > 0):
+                                repeats.append(last_col[j])
+                                matches.append(first_col[j])
+                for i in range(len(repeats)):
+                    sph_grid_labeled[sph_grid_labeled==repeats[i]] = matches[i]
+                # Do the exact same thing again for any structures that cross the boundary twice or more
+                first_col = sph_grid_labeled[0,:]
+                last_col = sph_grid_labeled[-1,:]
+                repeats = []
+                matches = []
+                for n in range(1, n_struct+1):
+                    if (n in first_col):
+                        rows = np.where(first_col==n)[0]
+                        for j in rows:
+                            if (last_col[j] > 0):
+                                repeats.append(last_col[j])
+                                matches.append(first_col[j])
+                for i in range(len(repeats)):
+                    sph_grid_labeled[sph_grid_labeled==repeats[i]] = matches[i]
+                # Remove extra row of theta
+                sph_grid_labeled = sph_grid_labeled[:-1,:]
+                # Now the number of filament chunks is number of uniquely labeled structures
+                structs = np.unique(sph_grid_labeled)[1:]
+                num_chunks = len(structs)
+                results.append(num_chunks)
+                
                 # Calculate properties of the largest identified structure
-                unique, counts = np.unique(sph_grid_2_labeled, return_counts=True)
+                unique, counts = np.unique(sph_grid_labeled, return_counts=True)
                 unique_nonzero = unique[1:]
                 counts_nonzero = counts[1:]
-                biggest_label = unique_nonzero[counts_nonzero==np.max(counts_nonzero)]
-                biggest_label = biggest_label[0]
-                sph_grid_2_labeled[sph_grid_2_labeled != biggest_label] = 0
-                sph_grid_2_labeled[sph_grid_2_labeled > 0] = 1
-                regions = regionprops(sph_grid_2_labeled)
-                theta_center, phi_center = regions[0].centroid
-                theta_center = theta_center*theta_width[0]-np.pi
-                if (theta_center > np.pi): theta_center -= np.pi
-                phi_center = phi_center*phi_width[0]
-                major_extent_arc = (inn_r + out_r)/2. * regions[0].axis_major_length*theta_width[0]
-                minor_extent_arc = (inn_r + out_r)/2. * regions[0].axis_minor_length*theta_width[0]
-                covering_area = np.sum(np.sin(phi_grid[sph_grid_2_labeled==1])*theta_width_2[0]*phi_width[0])
-                total_area = np.sum(np.sin(phi_grid)*theta_width_2[0]*phi_width[0])/2.
+                biggest = unique_nonzero[counts_nonzero==np.max(counts_nonzero)][0]
+                biggest_img = sph_grid_labeled
+                biggest_img[biggest_img != biggest] = 0
+                #plt.imshow(biggest_img, origin='lower')
+                #plt.savefig(prefix + 'test_plots2/' + snap + '_fil-' + str(f) + '_' + str(round(inn_r)) + '_biggest.png')
+                #plt.close()
+                # Now biggest_img has just one label in it, of the biggest structure
+                # We need to determine if the biggest structure is a full wrap-around ring or not, so tile it in theta
+                biggest_img_tiled = np.vstack([biggest_img, biggest_img])
+                big_labeled, num = ndimage.label(biggest_img_tiled)
+                unique, counts = np.unique(big_labeled, return_counts=True)
+                unique_nonzero = unique[1:]
+                counts_nonzero = counts[1:]
+                new_big = unique_nonzero[counts_nonzero==np.max(counts_nonzero)][0]
+                # Test if this largest structure is a complete wrap-around ring
+                first_col = big_labeled[0, :]
+                last_col = big_labeled[-1, :]
+                if (new_big in first_col) and (new_big in last_col):  # This is a ring
+                    ring = True
+                else:  # This is not a ring
+                    ring = False
+
+                if (ring): # Go back to pre-tiled image to calculate
+                    #plt.imshow(biggest_img, origin='lower')
+                    #plt.savefig(prefix + 'test_plots2/' + snap + '_fil-' + str(f) + '_' + str(round(inn_r)) + '_ring.png')
+                    #plt.close()
+                    regions = regionprops(biggest_img)
+                    theta_center, phi_center = regions[0].centroid
+                    theta_center = -1
+                    phi_center = phi_center*phi_width[0]
+                    major_extent_arc = -1
+                    minor_extent_arc = (inn_r + out_r)/2. * regions[0].axis_minor_length*phi_width[0]
+                    covering_area = np.sum(np.sin(phi_grid[biggest_img==biggest])*theta_width[0]*phi_width[0])
+                else: # Not a ring, so find properties of the biggest labeled structure in the tiled image
+                    big_labeled[big_labeled!=new_big] = 0
+                    #plt.imshow(big_labeled, origin='lower')
+                    #plt.savefig(prefix + 'test_plots2/' + snap + '_fil-' + str(f) + '_' + str(round(inn_r)) + '_not-ring.png')
+                    #plt.close()
+                    regions = regionprops(big_labeled)
+                    theta_center, phi_center = regions[0].centroid
+                    theta_center = theta_center*theta_width[0]-np.pi
+                    if (theta_center > np.pi): theta_center -= np.pi
+                    phi_center = phi_center*phi_width[0]
+                    major_extent_arc = (inn_r + out_r)/2. * regions[0].axis_major_length*theta_width[0]
+                    minor_extent_arc = (inn_r + out_r)/2. * regions[0].axis_minor_length*theta_width[0]
+                    covering_area = np.sum(np.sin(phi_grid_wide[big_labeled==new_big])*theta_width[0]*phi_width[0])
+                total_area = np.sum(np.sin(phi_grid)*theta_width[0]*phi_width[0])
                 covering_fraction = covering_area/total_area
+
                 results.append(theta_center)
                 results.append(phi_center)
                 results.append(covering_fraction)

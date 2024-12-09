@@ -23,12 +23,15 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 2 --overplot_smoothed 1000 --snaphighlight DD0452,DD0466 --forproposal
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 1 --overplot_cadence 500 --keep --snaphighlight DD0452,DD0466 --forpaper
                  run plot_MZgrad.py --system ayan_hd --halo 8508 --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol age --plot_stellar --forpaper
+                 run plot_MZgrad.py --system ayan_hd --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol age --plot_stelar --forpaper --halo 8508,5036,5016,4123,2878,2392
 """
 from header import *
 from util import *
 from matplotlib.collections import LineCollection
 from matplotlib.colors import is_color_like
 from matplotlib import animation
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 start_time = time.time()
 
 logOH_sol = 8.69 # solar metallicity from Asplund+2009
@@ -868,43 +871,76 @@ def plot_stellar_metallicity_gradient_vs_age(args):
     Returns figure handle
     '''
     print(f'Plotting stellar metallicity gradient vs age for halo {args.halo}..')
+    # ----------new figure for Zgrad vs age-------------
+    fig, ax =  plt.subplots(figsize=(12, 6))
+    fig.subplots_adjust(right=0.9, top=0.95, bottom=0.15, left=0.12)
+
+    # --------making new discrete colormap--------
+    cmap, z_max = 'viridis', 5
+    if args.ymin is None: args.ymin = -0.5
+    if args.ymax is None: args.ymax = 0.1
+    jet = plt.get_cmap(cmap)
+    cnorm = mplcolors.Normalize(vmin=0, vmax=z_max)
+    scalarMap = mpl_cm.ScalarMappable(norm=cnorm, cmap=jet)
+
     # ----------reading in the dataframe-------------
     density_cut_text = '_wdencut' if args.use_density_cut else ''
     if args.upto_kpc is not None:
         upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
     else:
         upto_text = '_upto%.1FRe' % args.upto_re
-    outfilename = args.output_dir + 'txtfiles/%s_stellar_metallicity_gradient_vs_age%s%s.txt' % (args.halo, upto_text, density_cut_text)
 
-    if os.path.exists(outfilename):
-        print(f'Reading stellar metallicity from existing {outfilename} (might take a couple minutes)..')
-        df = pd.read_table(outfilename)
-    else:
-        print(f'{outfilename} not found')
-        return None, None
+    # ---------looping over halos-----------------------------
+    for index2, args.halo in enumerate(args.halo_arr):
+        print(f'Doing halo {args.halo} which is {index2 + 1} out of {len(args.halo_arr)} halos..')
+        args.foggie_dir, args.output_dir, args.run_loc, args.code_path, args.trackname, args.haloname, args.spectra_dir, args.infofile = get_run_loc_etc(args)
+        if index2 == 0: filename = args.output_dir + 'figs/%s_stellar_metallicity_gradient_vs_age%s%s.png' % (args.halo, upto_text, density_cut_text)
 
-    df = df.drop_duplicates(subset=['halo', 'output', 'age_bin'], keep='last').reset_index(drop=True)
+        outfilename = args.output_dir + 'txtfiles/%s_stellar_metallicity_gradient_vs_age%s%s.txt' % (args.halo, upto_text, density_cut_text)
 
-    # ----------new figure for Zgrad vs age-------------
-    fig, ax =  plt.subplots(figsize=(12, 6))
-    fig.subplots_adjust(right=0.98, top=0.95, bottom=0.15, left=0.12)
-    color_arr = ['rebeccapurple', 'chocolate', 'darkgreen', 'darkblue', 'crimson', 'darkkhaki']
+        # -------reading in df------------
+        if os.path.exists(outfilename):
+            print(f'Reading stellar metallicity from existing {outfilename}..')
+            df = pd.read_table(outfilename)
+        else:
+            print(f'{outfilename} not found')
+            return None, None
 
-    # -------looping over snapshots------------
-    output_arr = np.unique(df['output'])
-    for index, output in enumerate(output_arr):
-        print(f'Doing output {index + 1} of {len(output_arr)}..')
-        df_sub = df[df['output'] == output]
-        ax.errorbar(df_sub['age_bin'], df_sub['Zgrad'], yerr=df_sub['Zgrad_u'], color=color_arr[index], lw=1, ls='none')
-        ax.scatter(df_sub['age_bin'], df_sub['Zgrad'], color=color_arr[index], s=50, lw=1, edgecolor='k')
-        ax.plot(df_sub['age_bin'], df_sub['Zgrad'], color=color_arr[index], lw=1, label=f'z={df_sub["redshift"].values[0]: .1F}')
+        # -------determining color arr------------
+        df = df.drop_duplicates(subset=['halo', 'output', 'age_bin'], keep='last').reset_index(drop=True)
+        output_arr = np.unique(df['output'])
+        redshift_arr = [df[df['output'] == item]['redshift'].values[0] for item in output_arr]
+        if len(output_arr) <= 6:
+            color_arr = ['rebeccapurple', 'chocolate', 'darkgreen', 'darkblue', 'crimson', 'darkkhaki']
+        else:
+            print(f'Making color_arr for {len(redshift_arr)} outputs for halo {args.halo}, spanning redshift {np.min(redshift_arr):0.2f} to {np.max(redshift_arr):0.2f}')
+            color_arr = [scalarMap.to_rgba(item) for item in redshift_arr]
+
+        # -------looping over snapshots------------
+        for index, output in enumerate(output_arr):
+            if len(output_arr) <= 6: print(f'Doing output {index + 1} of {len(output_arr)}..')
+            df_sub = df[df['output'] == output]
+            if len(output_arr) < 20:
+                ax.errorbar(df_sub['age_bin'], df_sub['Zgrad'], yerr=df_sub['Zgrad_u'], color=color_arr[index], lw=1, ls='none')
+                ax.scatter(df_sub['age_bin'], df_sub['Zgrad'], color=color_arr[index], s=50, lw=1, edgecolor='k')
+            ax.plot(df_sub['age_bin'], df_sub['Zgrad'], color=color_arr[index], lw=1, label=f'z={redshift_arr[index]: .1F}' if len(output_arr) <=6 else None)
 
     # ----------tidy up figure-------------
+    ax.set_xlim(0, 14)
+    ax.set_ylim(args.ymin, args.ymax)
     ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
     ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
     ax.set_xlabel('Stellar age (Gyr)', fontsize=args.fontsize)
     ax.set_ylabel(r'Stellar metallicity gradient ($\nabla$Z$_r$)', fontsize=args.fontsize)
-    plt.legend(loc='best', fontsize=args.fontsize)
+
+    if len(output_arr) <= 6:
+        plt.legend(loc='best', fontsize=args.fontsize)
+    else:
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='3%', pad=0.07)
+        fig.colorbar(scalarMap, cax=cax, orientation='vertical')
+        cax.set_yticklabels(['%.2F' % item for item in cax.get_yticks()], fontsize=args.fontsize)
+        cax.set_ylabel('Redshift', fontsize=args.fontsize)
 
     if args.fortalk:
         try: mplcyberpunk.make_lines_glow()
@@ -913,7 +949,6 @@ def plot_stellar_metallicity_gradient_vs_age(args):
         except: pass
 
     # ---------annotate and save the figure----------------------
-    filename = args.output_dir + 'figs/%s_stellar_metallicity_gradient_vs_age%s%s.png' % (args.halo, upto_text, density_cut_text)
     fig.savefig(filename, transparent=args.fortalk)
     print('Saved figure ' + filename)
     plt.show(block=False)
