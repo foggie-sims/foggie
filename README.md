@@ -14,6 +14,14 @@ cd doc
 make html
 ```
 
+### Using with Conda
+
+If you use a Conda distribution such as Anaconda or Miniforge to manage your Python environments, you are encouraged to use the accompanying `foggie-env.yml` file to create the `foggie` environment:
+
+```
+conda env create -f foggie-env.yml
+```
+
 ## Analysis Modules
 
 The `foggie` directory contains several subdirectories
