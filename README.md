@@ -30,8 +30,8 @@ with scripts from various FOGGIE analysis projects. A description of their conte
 
 | Folder/Module        | Description |
 |----------------------|-------------|
-| `absorption`         |  |
 | `angular_momentum`   | Characterizing galaxy angular momentum. Scripts used for [Simons et al. 2020](https://iopscience.iop.org/article/10.3847/1538-4357/abc5b8). |
+| `cgm_absorption`     | CGM absorption specctra generation and analysis. Scripts used for [Peeples et al. 2019](https://iopscience.iop.org/article/10.3847/1538-4357/ab0654). |
 | `cgm_emission`       | Scripts for post-processing CGM emission using [CLOUDY](https://gitlab.nublado.org/cloudy/cloudy). |
 | `clumps`             | Finding & analyzing clumps. Scripts used for Augustin et al. in prep.|
 | `deprecated`         | Deprecated scripts. |
