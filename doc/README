@@ -1,1 +1,9 @@
-FOGGIE Documentation README
+# FOGGIE Documentation README
+
+This directory can be used for building documentation related to the FOGGIE simulations
+and the analysis codes in this `foggie` repository. Documentation source files are in
+the `source` directory. The documentation uses [ReST formatting](https://docutils.sourceforge.io/rst.html)
+and is built using [Sphinx](https://www.sphinx-doc.org/en/master/index.html).
+Sphinx is included as a dependency if the `foggie` repository was installed as a package.
+
+To build the documentation, run e.g. `make html`. Other available formats can be seen using `make help`. The resulting build will be in a `./build/<format>` directory.
