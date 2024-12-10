@@ -1,9 +1,17 @@
 # foggie
 
 This repository contains code for analyzing the FOGGIE simulations.
-It may be installed as a package using e.g. `pip install .` for 
+It may be installed as a package using e.g. `pip install --editable .` for 
 easier access to imports such as `foggie.utils.consistency`
 or you may directly use the scripts within.
+
+### Using with Conda
+
+If you use a Conda distribution such as Anaconda or Miniforge to manage your Python environments, you are encouraged to use the accompanying `foggie-env.yml` file to create the `foggie` environment:
+
+```
+conda env create -f foggie-env.yml
+```
 
 ## Documentation
 
@@ -14,13 +22,6 @@ cd doc
 make html
 ```
 
-### Using with Conda
-
-If you use a Conda distribution such as Anaconda or Miniforge to manage your Python environments, you are encouraged to use the accompanying `foggie-env.yml` file to create the `foggie` environment:
-
-```
-conda env create -f foggie-env.yml
-```
 
 ## Analysis Modules
 
@@ -54,3 +55,31 @@ with scripts from various FOGGIE analysis projects. A description of their conte
 | `scripts`            | A random assortment of things. |
 | `turbulence`         | Calculate velocity structure functions and velocity dispersions. |
 | `utils`              | Utility scripts. |
+
+## For FOGGIE Developers
+
+As you add new directories and modules to `foggie`, it is requested that you add/update `README` files in the respective directory. Please also keep your module description in this `README` up to date.
+
+The `foggie` repository contains a wide variety of artifacts, from scripts to data tables to command line tools. Developers are encouraged to follow the relevant guidelines for integrating their additions into the `foggie` package.
+
+### Making Importable (Sub)modules
+
+If you install `foggie` as a package with `pip install .` (or, more preferably, `pip install --editable .`) you can import any individual file anywhere on your system as `import.<submodule>.<filename>`. For example, `import foggie.utils.consistency` accesses `foggie/utils/consistency.py`.
+
+But what if you want to load multiple files from a single module folder at once, such as `foggie/utils/consistency.py` and `foggie/utils/foggie_utils.py`? You can define (sub)modules with `__init__.py` files. These files contain `import` statements that will be run when the (sub)module is loaded.
+
+For example, the file `foggie/utils/__init__.py` contains the following:
+```python
+from foggie.utils.consistency import *
+from foggie.utils.foggie_utils import *
+```
+This means that when you run `import foggie.utils`, all of the variables and functions contained in `consitency.py` and `foggie_utils.py` will be accessible to you via the `foggie.utils` submodule; e.g., `foggie.utils.axes_label_dict`.
+
+If you want functions or submodules to be loaded every time you load the main `foggie` module with `import foggie`, add their respective import statements to `foggie/__init__.py`. For example, this file contains the following:
+
+```python
+import foggie.utils
+from foggie.utils.foggie_load import foggie_load
+```
+
+This makes it so that the `foggie.utils` submodule will always be available when `import foggie` is run. Additionally, the `foggie_load()` function in `foggie/utils/foggie_load.py` will be made available as `foggie.foggie_load()`. Not all submodules have to be loaded with the main `foggie` module but it does make them easier to access.
