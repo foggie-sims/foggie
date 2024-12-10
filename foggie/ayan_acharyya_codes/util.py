@@ -1070,7 +1070,7 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
         counts = np.ma.filled(cube.counts, fill_value=fill_val)
         counts_hdu = fits.ImageHDU(counts)
         hdulist = fits.HDUList([flux_hdu, wavelength_hdu, counts_hdu])
-    elif hasattr(cube, 'error'): # error sttribute is only available for noisy data cubes
+    elif hasattr(cube, 'error'): # error attribute is only available for noisy data cubes
         error = np.ma.filled(cube.error, fill_value=fill_val)
         error = error.swapaxes(0,2) # QFitsView requires (wave, pos, pos) arrangement rather than (pos, pos, wave)  arrangement
         error_hdu = fits.ImageHDU(error)
@@ -1078,7 +1078,7 @@ def write_fitsobj(filename, cube, instrument, args, fill_val=np.nan, for_qfits=T
         else: hdulist = fits.HDUList([flux_hdu, wavelength_hdu, error_hdu])
     else:
         hdulist = fits.HDUList([flux_hdu, wavelength_hdu])
-    hdulist.writeto(filename, clobber=True)
+    hdulist.writeto(filename, overwrite=True)
     myprint('Written file ' + filename + '\n', args)
 
 # --------------------------------------------------------------------------------------------
@@ -1116,6 +1116,7 @@ def get_all_sims_for_this_halo(args, given_path=None):
     Function assimilate the names of all snapshots available for the given halo
     '''
     all_sims = []
+    args.foggie_dir, args.output_dir, args.run_loc, args.code_path, args.trackname, args.haloname, args.spectra_dir, args.infofile = get_run_loc_etc(args)
     if given_path is None: given_path = args.foggie_dir + args.run_loc
     snapshot_paths = glob.glob(given_path + '*/')
     if args.use_onlyDD or args.use_onlyRD: snapshot_paths.sort() # alpha-numeric sort if it is just DDs or just RDs because that ensures monotonicity in redshift
@@ -1448,6 +1449,7 @@ def parse_args(haloname, RDname, fast=False):
     parser.add_argument('--use_density_cut', dest='use_density_cut', action='store_true', default=False, help='impose a density cut to get just the disk?, default is no')
     parser.add_argument('--narrowfig', dest='narrowfig', action='store_true', default=False, help='make the figure size proportions narrow instead of square?, default is no')
     parser.add_argument('--noweight_forfit', dest='noweight_forfit', action='store_true', default=False, help='do the radial fit without using inverse square weights?, default is no (i.e., use the weighting while fitting)')
+    parser.add_argument('--plot_stellar', dest='plot_stellar', action='store_true', default=False, help='plot stellar metallicity profile?, default is no (i.e., use the weighting while fitting)')
 
     # ------- args added for get_halo_track.py ------------------------------
     parser.add_argument('--refsize', metavar='refsize', type=float, action='store', default=200, help='width of refine box, in kpc, to make the halo track file; default is 200 kpc')

@@ -1,5 +1,6 @@
 Notes for installing grackle and enzo etc on Pleiades. 
 Updated Jan 18, 2022 by Molly, with older inputs from Anna and Ayan
+November 21, 2024 note: a lot of this is probably out-of-date ...
 
 1. These notes are for using the following modules, which may or may
 not be the latest ones, and may or may not match the paths in the repo makefiles:
@@ -96,7 +97,7 @@ Then:
 make machine-nasa-pleiades
 make grackle-yes
 make opt-high
-make max-subgrids-200000
+make max-subgrids-200000  <--- optional !!
 make -j16
 
 now your enzo should be built and ready to go! It can be found in

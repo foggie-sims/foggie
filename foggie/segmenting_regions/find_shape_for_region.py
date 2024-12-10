@@ -37,6 +37,7 @@ from foggie.utils.get_proper_box_size import get_proper_box_size
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
+from foggie.utils.analysis_utils import *
 
 # These imports for datashader plots
 import datashader as dshader
@@ -87,14 +88,15 @@ def parse_args():
                         "Default is 'filament'.")
     parser.set_defaults(region='filament')
 
+    parser.add_argument('--filter', metavar='filter', type=str, action='store',\
+                        help='How do you want to define regions? Options are "metallicity" or "radial_velocity" and\n' + \
+                            'default is "radial_velocity".')
+    parser.set_defaults(filter='radial_velocity')
+
     parser.add_argument('--region_weight', metavar='region_weight', type=str, action='store', \
                         help='What field do you want to weight the region by? Options are cell_mass\n' + \
                         "or cell_volume. Default is cell_volume.")
     parser.set_defaults(region_weight='cell_volume')
-
-    parser.add_argument('--FRB_name', metavar='FRB_name', type=str, action='store', \
-                        help='If using an FRB, what is the file name of the FRB?')
-    parser.set_defaults(FRB_name='none')
 
     parser.add_argument('--save_suffix', metavar='save_suffix', type=str, action='store', \
                         help='If you want to append a string to the end of the save file(s), what is it?\n' + \
@@ -115,37 +117,18 @@ def filter_ds(box):
     '''This function filters the yt data object passed in as 'box' into inflow and outflow regions,
     based on metallicity, and returns the box filtered into these regions.'''
 
-    bool_inflow = box['metallicity'] < 0.01
-    bool_outflow = box['metallicity'] > 1.
-    bool_neither = (~bool_inflow) & (~bool_outflow)
-    box_inflow = box.include_below('metallicity', 0.01, 'Zsun')
-    box_outflow = box.include_above('metallicity', 1., 'Zsun')
-    box_neither = box.include_above('metallicity', 0.01, 'Zsun')
-    box_neither = box_neither.include_below('metallicity', 1., 'Zsun')
+    if (args.filter=='metallicity'):
+        box_inflow = box.include_below(('gas','metallicity'), 0.01, 'Zsun')
+        box_outflow = box.include_above(('gas','metallicity'), 1., 'Zsun')
+        box_neither = box.include_above(('gas','metallicity'), 0.01, 'Zsun')
+        box_neither = box_neither.include_below(('gas','metallicity'), 1., 'Zsun')
+    elif (args.filter=='radial_velocity'):
+        box_inflow = box.include_below(('gas','radial_velocity_corrected'), -100., 'km/s')
+        box_outflow = box.include_above(('gas','radial_velocity_corrected'), 200., 'km/s')
+        box_neither = box.include_above(('gas','radial_velocity_corrected'), -100., 'km/s')
+        box_neither = box_neither.include_below(('gas','radial_velocity_corrected'), 200., 'km/s')
 
     return box_inflow, box_outflow, box_neither
-
-def filter_FRB(FRB):
-    '''This function filters the FRB passed in into inflow, outflow, and neither regions, based on metallicity,
-    and returns the inflow FRB, outflow FRB, and neither FRB. The field 'metallicity'
-    must exist within the FRB.'''
-
-    bool_inflow = FRB['metallicity'] < 0.01
-    bool_outflow = FRB['metallicity'] > 1.
-    bool_neither = (~bool_inflow) & (~bool_outflow)
-
-    FRB_inflow = Table()
-    FRB_outflow = Table()
-    FRB_neither = Table()
-    for j in range(len(FRB.columns)):
-        FRB_inflow.add_column(FRB.columns[j][bool_inflow], name=FRB.columns[j].name)
-        FRB_inflow[FRB.columns[j].name].unit = FRB[FRB.columns[j].name].unit
-        FRB_outflow.add_column(FRB.columns[j][bool_outflow], name=FRB.columns[j].name)
-        FRB_outflow[FRB.columns[j].name].unit = FRB[FRB.columns[j].name].unit
-        FRB_neither.add_column(FRB.columns[j][bool_neither], name=FRB.columns[j].name)
-        FRB_neither[FRB.columns[j].name].unit = FRB[FRB.columns[j].name].unit
-
-    return FRB_inflow, FRB_outflow, FRB_neither
 
 def ellipse(center_x, center_y, a, b, rot_angle, x, y):
     '''This function returns True if the point (x, y) is within the ellipse defined by
@@ -165,7 +148,7 @@ def ellipses_from_segmentation(x_range, y_range, weight_region, threshold, pix_s
     '''This function uses the photutils segmentation package to identify ellipses that capture
     the different regions.'''
 
-    segm = detect_sources(weight_region, threshold, npixels=1000)
+    segm = detect_sources(weight_region, threshold, npixels=100)
     if (segm==None):
         best_ellipses = [[0,0,0,0,0]]
     else:
@@ -194,8 +177,12 @@ def find_regions(theta_region, phi_region, radius_region, weight_region, radbins
 
     x_range = [0., np.pi]
     y_range = [-np.pi, np.pi]
-    pix_size = np.pi/500.
-    if (radbins=='none'): radbins = [np.min(radius_region), np.max(radius_region)]
+    pix_size = np.pi/200.
+    if (radbins=='none'):
+        radbins = [np.min(radius_region), np.max(radius_region)]
+        radbins_filename = ''
+    else:
+        radbins_filename = 'radbins'
     ellipses = [[]]*(len(radbins)-1)
     for i in range(len(radbins)-1):
         inner_r = radbins[i]
@@ -205,52 +192,59 @@ def find_regions(theta_region, phi_region, radius_region, weight_region, radbins
         phi_bin = phi_region[in_bin]
         weight_bin = weight_region[in_bin]
 
-        hist2d, xbins, ybins = np.histogram2d(theta_bin, phi_bin, weights=weight_bin, bins=(500, 1000), range=[x_range,y_range])
+        hist2d, xbins, ybins = np.histogram2d(theta_bin, phi_bin, weights=weight_bin, bins=(200, 400), range=[x_range,y_range])
         hist2d = np.transpose(hist2d)
-        threshold = 0.1*np.nanmax(hist2d)
-        hist2d[np.isnan(hist2d)] = 0.
-        xbins = xbins[:-1]
-        ybins = ybins[:-1]
-        best_ellipses = ellipses_from_segmentation(x_range, y_range, hist2d, threshold, pix_size)
-        # Combine any overlapping ellipses
-        hist_ellipses_only = np.zeros(np.shape(hist2d))
-        xdata_region = np.tile(xbins, (1000, 1))
-        ydata_region = np.transpose(np.tile(ybins, (500, 1)))
-        for j in range(len(best_ellipses)):
-            in_ellipse = ellipse(best_ellipses[j][0], best_ellipses[j][1], best_ellipses[j][2], \
-              best_ellipses[j][3], best_ellipses[j][4], xdata_region, ydata_region)
-            hist_ellipses_only[in_ellipse] = 1.
-        best_combined_ellipses = ellipses_from_segmentation(x_range, y_range, hist_ellipses_only, 0.5, pix_size)
-        ellipses[i] = best_combined_ellipses
-        fig = plt.figure(figsize=(8,8),dpi=500)
-        ax = fig.add_subplot(1,1,1)
-        cmin = np.min(np.array(weight_region)[np.nonzero(weight_region)[0]])
-        x_range = [0., np.pi]
-        y_range = [-np.pi, np.pi]
-        hist = ax.hist2d(theta_bin, phi_bin, weights=weight_bin, bins=(500, 1000), cmin=cmin, range=[x_range,y_range])
-        hist2d = hist[0]
-        xbins = hist[1][:-1]
-        ybins = hist[2][:-1]
-        c = ax.contour(xbins, ybins, np.transpose(hist2d), [threshold], \
-          colors='w')
-        for j in range(len(best_combined_ellipses)):
-            ell = patches.Ellipse((best_combined_ellipses[j][0], best_combined_ellipses[j][1]), \
-              2.*best_combined_ellipses[j][2], 2.*best_combined_ellipses[j][3], best_combined_ellipses[j][4]/np.pi*180., \
-              color='m', lw=2, fill=False, zorder=10)
-            ax.add_artist(ell)
-            ax.plot([best_combined_ellipses[j][0]], [best_combined_ellipses[j][1]], marker='x', color='m')
-        cbaxes = fig.add_axes([0.7, 0.92, 0.25, 0.03])
-        cbar = plt.colorbar(hist[3], cax=cbaxes, orientation='horizontal', ticks=[])
-        cbar.set_label(weight_label, fontsize=14)
-        ax.set_xlabel('$\\theta$ [rad]', fontsize=14)
-        ax.set_ylabel('$\\phi$ [rad]', fontsize=14)
-        ax.axis([x_range[0], x_range[1], y_range[0], y_range[1]])
-        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
-          top=True, right=True)
-        plt.subplots_adjust(left=0.12, bottom=0.08, right=0.95)
-        plt.savefig(save_dir + FRB_name + '_phi_vs_theta_hist_r' + str(inner_r) + '-' + str(outer_r) + '_best_ellipses' + save_suffix + '.png')
-        plt.close()
-    print(ellipses)
+        if (len(hist2d[hist2d!=0])==0):
+            best_combined_ellipses = [[0,0,0,0,0]]
+            ellipses[i] = best_combined_ellipses
+        else:
+            threshold = 0.1*(np.nanmedian(hist2d[hist2d!=0]) - np.nanmin(hist2d[hist2d!=0])) + np.nanmin(hist2d[hist2d!=0])
+            #print(np.nanmax(hist2d), threshold, np.nanmean(hist2d[hist2d!=0]), np.nanmedian(hist2d[hist2d!=0]), np.nanstd(hist2d[hist2d!=0]), np.nanmin(hist2d[hist2d!=0]))
+            hist2d[np.isnan(hist2d)] = 0.
+            xbins = xbins[:-1]
+            ybins = ybins[:-1]
+            best_ellipses = ellipses_from_segmentation(x_range, y_range, hist2d, threshold, pix_size)
+            # Combine any overlapping ellipses
+            hist_ellipses_only = np.zeros(np.shape(hist2d))
+            xdata_region = np.tile(xbins, (400, 1))
+            ydata_region = np.transpose(np.tile(ybins, (200, 1)))
+            for j in range(len(best_ellipses)):
+                in_ellipse = ellipse(best_ellipses[j][0], best_ellipses[j][1], best_ellipses[j][2], \
+                  best_ellipses[j][3], best_ellipses[j][4], xdata_region, ydata_region)
+                hist_ellipses_only[in_ellipse] = 1.
+            best_combined_ellipses = ellipses_from_segmentation(x_range, y_range, hist_ellipses_only, 0.5, pix_size)
+            ellipses[i] = best_combined_ellipses
+            fig = plt.figure(figsize=(8,8),dpi=500)
+            ax = fig.add_subplot(1,1,1)
+            cmin = np.min(np.array(weight_region)[np.nonzero(weight_region)[0]])
+            x_range = [0., np.pi]
+            y_range = [-np.pi, np.pi]
+            hist = ax.hist2d(theta_bin, phi_bin, weights=weight_bin, bins=(200, 400), cmin=cmin, range=[x_range,y_range])
+            hist2d = hist[0]
+            xbins = hist[1][:-1]
+            ybins = hist[2][:-1]
+            c = ax.contour(xbins, ybins, np.transpose(hist2d), [threshold], \
+              colors='w')
+            for j in range(len(best_combined_ellipses)):
+                ell = patches.Ellipse((best_combined_ellipses[j][0], best_combined_ellipses[j][1]), \
+                  2.*best_combined_ellipses[j][2], 2.*best_combined_ellipses[j][3], best_combined_ellipses[j][4]/np.pi*180., \
+                  color='m', lw=2, fill=False, zorder=10)
+                ax.add_artist(ell)
+                ax.plot([best_combined_ellipses[j][0]], [best_combined_ellipses[j][1]], marker='x', color='m')
+            cbaxes = fig.add_axes([0.7, 0.92, 0.25, 0.03])
+            cbar = plt.colorbar(hist[3], cax=cbaxes, orientation='horizontal', ticks=[])
+            cbar.set_label(weight_label, fontsize=14)
+            ax.set_xlabel('$\\theta$ [rad]', fontsize=14)
+            ax.set_ylabel('$\\phi$ [rad]', fontsize=14)
+            ax.axis([x_range[0], x_range[1], y_range[0], y_range[1]])
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+              top=True, right=True)
+            plt.subplots_adjust(left=0.12, bottom=0.08, right=0.95)
+            if (radbins_filename==''):
+                plt.savefig(save_dir + FRB_name + '_phi_vs_theta_hist_best_ellipses' + save_suffix + '.png')
+            else:
+                plt.savefig(save_dir + FRB_name + '_phi_vs_theta_hist_r' + str(inner_r) + '-' + str(outer_r) + '_best_ellipses' + save_suffix + '.png')
+            plt.close()
     f = open(save_dir + FRB_name + save_suffix + '.txt', 'w')
     f.write('# inner_r      outer_r     center_theta    center_phi    theta_axis    phi_axis    rotation\n')
     for i in range(len(ellipses)):
@@ -294,141 +288,52 @@ if __name__ == "__main__":
                 sys.exit("Something's wrong with your radbins. Make sure to include the outer " + \
                 "quotes, like so:\n" + \
                 '"[10,20,30,40,50]"')
+    else:
+        radbins = 'none'
 
-    if (args.FRB_name!='none'):
-        FRB = Table.read(output_dir + 'FRBs_halo_00' + args.halo + '/' + args.run + '/' + \
-          args.FRB_name + '.hdf5', path='all_data')
-        if ('theta_pos' not in FRB.columns):
-            sys.exit("The FRB doesn't contain the field theta_pos!")
-        if ('phi_pos' not in FRB.columns):
-            sys.exit("The FRB doesn't contain the field phi_pos!")
-        if (args.region_weight not in FRB.columns):
-            sys.exit("The FRB doesn't contain the region weight field %s!" % (args.region_weight))
-        print('FRB loaded, filtering...')
-        FRB_inflow, FRB_outflow, FRB_neither = filter_FRB(FRB)
-        print('FRB filtered. Finding best ellipses')
+    outs = make_output_list(args.output, output_step=args.output_step)
+    outs_save = args.output
+
+    # Loop through outputs and stack necessary fields for combined histogram
+    stacked_theta_inflow = []
+    stacked_phi_inflow = []
+    stacked_radius_inflow = []
+    stacked_hist_inflow = []
+    stacked_theta_outflow = []
+    stacked_phi_outflow = []
+    stacked_radius_outflow = []
+    stacked_hist_outflow = []
+    for i in range(len(outs)):
+        snap = outs[i]
+        snap_name = foggie_dir + run_dir + snap + '/' + snap
+        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
+        sphere = ds.sphere(ds.halo_center_kpc, (2.*ds.refine_width, 'kpc'))
+        print('Filtering dataset')
+        box_inflow, box_outflow, box_neither = filter_ds(sphere)
         if (args.region=='filament') or (args.region=='both'):
-            theta_inflow = FRB_inflow['theta_pos']
-            phi_inflow = FRB_inflow['phi_pos']
-            radius_inflow = FRB_inflow['radius_corrected']
-            weight_data_inflow = FRB_inflow[args.region_weight]
-            theta_inflow[np.isnan(theta_inflow)] = 0.
-            phi_inflow[np.isnan(phi_inflow)] = 0.
-            radius_inflow[np.isnan(radius_inflow)] = 0.
-            weight_data_inflow[np.isnan(weight_data_inflow)] = 0.
-            region_params_inflow = find_regions(theta_inflow, phi_inflow, radius_inflow, weight_data_inflow, \
-              radbins, save_dir, args.FRB_name, save_suffix + '_filament', weight_label)
+            theta_inflow = box_inflow['theta_pos'].flatten().v
+            phi_inflow = box_inflow['phi_pos'].flatten().v
+            radius_inflow = box_inflow['radius_corrected'].in_units('kpc').flatten().v
+            hist_inflow = box_inflow[args.region_weight].flatten().v
+            stacked_theta_inflow += list(theta_inflow)
+            stacked_phi_inflow += list(phi_inflow)
+            stacked_radius_inflow += list(radius_inflow)
+            stacked_hist_inflow += list(hist_inflow)
         if (args.region=='wind') or (args.region=='both'):
-            theta_outflow = FRB_outflow['theta_pos']
-            phi_outflow = FRB_outflow['phi_pos']
-            radius_outflow = FRB_outflow['radius_corrected']
-            weight_data_outflow = FRB_outflow[args.region_weight]
-            theta_outflow[np.isnan(theta_outflow)] = 0.
-            phi_outflow[np.isnan(phi_outflow)] = 0.
-            radius_outflow[np.isnan(radius_outflow)] = 0.
-            weight_data_outflow[np.isnan(weight_data_outflow)] = 0.
-            region_params_outflow = find_regions(theta_outflow, phi_outflow, radius_outflow, weight_data_outflow, \
-              radbins, save_dir, args.FRB_name, save_suffix + '_wind', weight_label)
-        print('Ellipse files saved to', save_dir)
+            theta_outflow = box_outflow['theta_pos'].flatten().v
+            phi_outflow = box_outflow['phi_pos'].flatten().v
+            radius_outflow = box_outflow['radius_corrected'].in_units('kpc').flatten().v
+            hist_outflow = box_outflow[args.region_weight].flatten().v
+            stacked_theta_outflow += list(theta_outflow)
+            stacked_phi_outflow += list(phi_outflow)
+            stacked_radius_outflow += list(radius_outflow)
+            stacked_hist_outflow += list(hist_outflow)
 
-    elif (args.output!='none'):
-        if (',' in args.output):
-            outs = args.output.split(',')
-            for i in range(len(outs)):
-                if ('-' in outs[i]):
-                    ind = outs[i].find('-')
-                    first = outs[i][2:ind]
-                    last = outs[i][ind+3:]
-                    output_type = outs[i][:2]
-                    outs_sub = []
-                    for j in range(int(first), int(last)+1, args.output_step):
-                        if (j < 10):
-                            pad = '000'
-                        elif (j >= 10) and (j < 100):
-                            pad = '00'
-                        elif (j >= 100) and (j < 1000):
-                            pad = '0'
-                        elif (j >= 1000):
-                            pad = ''
-                        outs_sub.append(output_type + pad + str(j))
-                    outs[i] = outs_sub
-            flat_outs = []
-            for i in outs:
-                if (type(i)==list):
-                    for j in i:
-                        flat_outs.append(j)
-                else:
-                    flat_outs.append(i)
-            outs = flat_outs
-            outs_save = outs[0] + '-' + outs[-1]
-        elif ('-' in args.output):
-            ind = args.output.find('-')
-            first = args.output[2:ind]
-            last = args.output[ind+3:]
-            output_type = args.output[:2]
-            outs = []
-            for i in range(int(first), int(last)+1, args.output_step):
-                if (i < 10):
-                    pad = '000'
-                elif (i >= 10) and (i < 100):
-                    pad = '00'
-                elif (i >= 100) and (i < 1000):
-                    pad = '0'
-                elif (i >= 1000):
-                    pad = ''
-                outs.append(output_type + pad + str(i))
-            outs_save = outs[0] + '-' + outs[-1]
-        else:
-            outs = [args.output]
-            outs_save = args.output
-
-        # Loop through outputs and stack necessary fields for combined histogram
-        stacked_theta_inflow = []
-        stacked_phi_inflow = []
-        stacked_radius_inflow = []
-        stacked_hist_inflow = []
-        stacked_theta_outflow = []
-        stacked_phi_outflow = []
-        stacked_radius_outflow = []
-        stacked_hist_outflow = []
-        for i in range(len(outs)):
-            snap = outs[i]
-            snap_name = foggie_dir + run_dir + snap + '/' + snap
-            if (args.system=='pleiades_cassi'):
-                print('Copying directory to /tmp')
-                snap_dir = '/tmp/' + snap
-                shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
-                snap_name = snap_dir + '/' + snap
-            ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
-            print('Filtering dataset')
-            box_inflow, box_outflow, box_neither = filter_ds(refine_box)
-            if (args.region=='filament') or (args.region=='both'):
-                theta_inflow = box_inflow['theta_pos'].flatten().v
-                phi_inflow = box_inflow['phi_pos'].flatten().v
-                radius_inflow = box_inflow['radius_corrected'].in_units('kpc').flatten().v
-                hist_inflow = box_inflow[args.region_weight].flatten().v
-                stacked_theta_inflow += list(theta_inflow)
-                stacked_phi_inflow += list(phi_inflow)
-                stacked_radius_inflow += list(radius_inflow)
-                stacked_hist_inflow += list(hist_inflow)
-            if (args.region=='wind') or (args.region=='both'):
-                theta_outflow = box_outflow['theta_pos'].flatten().v
-                phi_outflow = box_outflow['phi_pos'].flatten().v
-                radius_outflow = box_outflow['radius_corrected'].in_units('kpc').flatten().v
-                hist_outflow = box_outflow[args.region_weight].flatten().v
-                stacked_theta_outflow += list(theta_outflow)
-                stacked_phi_outflow += list(phi_outflow)
-                stacked_radius_outflow += list(radius_outflow)
-                stacked_hist_outflow += list(hist_outflow)
-
-            if (args.system=='pleiades_cassi'):
-                print('Deleting directory from /tmp')
-                shutil.rmtree(snap_dir)
-        print('Dataset(s) stacked and filtered. Finding best ellipses')
-        if (args.region=='filament') or (args.region=='both'):
-            region_params_inflow = find_regions(stacked_theta_inflow, stacked_phi_inflow, stacked_radius_inflow, stacked_hist_inflow, \
-              radbins, save_dir, outs_save, save_suffix + '_filament', weight_label)
-        if (args.region=='wind') or (args.region=='both'):
-            region_params_outflow = find_regions(stacked_theta_outflow, stacked_phi_outflow, stacked_radius_outflow, stacked_hist_outflow, \
-              radbins, save_dir, outs_save, save_suffix + '_wind', weight_label)
-        print('Ellipses saved to', save_dir)
+    print('Dataset(s) stacked and filtered. Finding best ellipses')
+    if (args.region=='filament') or (args.region=='both'):
+        region_params_inflow = find_regions(np.array(stacked_theta_inflow), np.array(stacked_phi_inflow), np.array(stacked_radius_inflow), np.array(stacked_hist_inflow), \
+            radbins, save_dir, outs_save, save_suffix + '_filament', weight_label)
+    if (args.region=='wind') or (args.region=='both'):
+        region_params_outflow = find_regions(np.array(stacked_theta_outflow), np.array(stacked_phi_outflow), np.array(stacked_radius_outflow), np.array(stacked_hist_outflow), \
+            radbins, save_dir, outs_save, save_suffix + '_wind', weight_label)
+    print('Ellipses saved to', save_dir)

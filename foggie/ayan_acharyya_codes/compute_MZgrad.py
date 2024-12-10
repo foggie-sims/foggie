@@ -13,6 +13,7 @@
                  run compute_MZgrad.py --system ayan_pleiades --halo 8508 --upto_kpc 10 --xcol rad --do_all_sims --weight mass --write_file --noplot
                  run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --weight mass --plot_onlybinned --forproposal
                  run compute_MZgrad.py --system ayan_local --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --keep --forpaper
+                 run compute_MZgrad.py --system ayan_hd --halo 8508 --output RD0030 --upto_kpc 10 --xcol rad --plot_stellar --write_file --keep --forpaper
 
 """
 from header import *
@@ -162,7 +163,7 @@ def plot_gradient(df, args, linefit=None):
     else:
         fig, ax = plt.subplots(figsize=(8, 8))
         fig.subplots_adjust(hspace=0.05, wspace=0.05, right=0.95, top=0.95, bottom=0.1, left=0.17)
-    if not args.plot_onlybinned: artist = dsshow(df, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ymin, args.ymax), aspect = 'auto', ax=ax, cmap='Blues_r')#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
+    if not args.plot_onlybinned: artist = dsshow(df, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ymin, args.ymax), aspect = 'auto', ax=ax, cmap='cividis', shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
 
     # --------bin the metallicity profile and plot the binned profile-----------
     ax = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=ax, fit_inlog=True, weightcol=args.weight)
@@ -210,19 +211,168 @@ def plot_gradient(df, args, linefit=None):
     return fig
 
 # -------------------------------
-def fit_gradient(df, args):
+def fit_gradient(df, args, weight=None):
     '''
     Function to linearly fit the (log) metallicity profile out to certain Re, given a dataframe containing metallicity profile
     Returns the fitted gradient with uncertainty
     '''
 
-    if args.weight is None: linefit, linecov = np.polyfit(df[args.xcol], df['log_metal'], 1, cov=True)
-    linefit, linecov = np.polyfit(df[args.xcol], df['log_metal'], 1, cov=True, w=df[args.weight])
+    if weight is None: linefit, linecov = np.polyfit(df[args.xcol], df['log_metal'], 1, cov=True)
+    else: linefit, linecov = np.polyfit(df[args.xcol], df['log_metal'], 1, cov=True, w=df[weight])
     Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
     Zcen = ufloat(linefit[1], np.sqrt(linecov[1][1]))
     print('Inferred slope for halo ' + args.halo + ' output ' + args.output + ' is', Zgrad, 'dex/re' if 're' in args.xcol else 'dex/kpc')
 
     return Zcen, Zgrad
+
+# -----------------------------------------------------------
+def plot_stellar_metallicity_profile(box, args):
+    '''
+    Function to plot the stellar metallicity profile, in bins of stellar ages, along with fitting
+    Saves plot as .png
+    Returns figure handle
+    '''
+    print(f'Plotting stellar metallicity profiles for {args.output}..')
+    age_bins = np.linspace(0, 14, 14+1)
+    cmap_arr = ['Purples_r', 'Oranges_r', 'Greens_r', 'Blues_r', 'PuRd_r', 'Greys_r', 'Reds_r', 'YlGnBu_r', 'RdPu_r', 'YlGn_r', 'YlOrBr_r', 'cividis', 'plasma', 'viridis']
+
+    # ----------determining file names--------------
+    density_cut_text = '_wdencut' if args.use_density_cut else ''
+    if args.upto_kpc is not None:
+        upto_text = '_upto%.1Fckpchinv' % args.upto_kpc if args.docomoving else '_upto%.1Fkpc' % args.upto_kpc
+    else:
+        upto_text = '_upto%.1FRe' % args.upto_re
+    outfilename = args.output_dir + 'txtfiles/%s_stellar_metallicity%s%s.txt' % (args.output, upto_text, density_cut_text)
+    figfile_rootname = '%s_datashader_log_stellar_metal_vs_%s%s%s.png' % (args.output, args.xcol,upto_text, density_cut_text)
+    if args.do_all_sims: figfile_rootname = 'z=*_' + figfile_rootname[len(args.output)+1:]
+    filename = args.fig_dir + figfile_rootname.replace('*', '%.5F' % (args.current_redshift))
+
+    # -------reading in file----------------------
+    if not os.path.exists(filename) or args.clobber_plot:
+        start_time2 = time.time()
+        if not os.path.exists(outfilename) or args.clobber:
+            print(f'{outfilename} not found, making new one..')
+            age = box[('stars', 'age')].in_units('Gyr').ndarray_view()
+            metallicity = box[('stars', 'metallicity_fraction')].in_units('Zsun').ndarray_view()
+            distance = box[('stars', 'radius_corrected')].in_units('kpc').ndarray_view()
+            mass = box[('stars', 'particle_mass')].in_units('Msun').ndarray_view()
+            df = pd.DataFrame({'age': age, 'metal': metallicity, 'mass': mass, 'rad': distance})
+
+            df.to_csv(outfilename, sep='\t', index=None)
+            print(f'Written stellar metallicity df at {outfilename}')
+            print('Finished making in %s' % (datetime.timedelta(minutes=(time.time() - start_time2) / 60)))
+        else:
+            print(f'Reading stellar metallicity from existing {outfilename} (might take a couple minutes)..')
+            df = pd.read_table(outfilename)
+            print('..finished reading in %s' % (datetime.timedelta(minutes=(time.time() - start_time2) / 60)))
+
+        bin_labels = age_bins[:-1] + np.diff(age_bins)/2
+        df['age_bin'] = pd.cut(df['age'], bins=age_bins, labels=bin_labels)
+        df['log_metal'] = np.log10(df['metal'])
+        age_bin_centers = np.unique(df['age_bin'])
+
+        fig, ax = plt.subplots(figsize=(12, 6))
+        fig.subplots_adjust(right=0.98, top=0.95, bottom=0.15, left=0.12)
+
+        # --------looping over age bins-----------
+        Zgrad_arr, Zcen_arr = [], []
+        for index, this_age in enumerate(age_bin_centers):
+            print(f'Doing age bin {index + 1} of {len(age_bin_centers)}..')
+            df_sub = df[df['age_bin'] == this_age]
+            artist = dsshow(df_sub, dsh.Point(args.xcol, 'log_metal'), dsh.count(), norm='linear', x_range=(0, args.galrad / args.re if 're' in args.xcol else args.galrad), y_range=(args.ymin, args.ymax), aspect = 'auto', ax=ax, cmap=cmap_arr[index])#, shade_hook=partial(dstf.spread, px=1, shape='square')) # the 40 in alpha_range and `square` in shade_hook are to reproduce original-looking plots as if made with make_datashader_plot()
+
+            # --------radially bin the profile in metallicity space-----------
+            df_sub['binned_cat'] = pd.cut(df_sub[args.xcol], args.bin_edges)
+
+            stats = np.array([[group.agg(np.mean)['metal'], group.agg(np.std)['metal'], group.agg(np.mean)[args.xcol], group.agg(np.sum)['mass']] for key, group in df_sub.groupby('binned_cat')])
+            y_binned = stats[:, 0]
+            y_u_binned = stats[:, 1]
+            x_bin_centers = stats[:, 2]
+            mass_binned = stats[:, 3]
+
+            # --------fit the binned profile in log metallicity space-----------
+            quant = unumpy.log10(unumpy.uarray(y_binned, y_u_binned)) # for correct propagation of errors
+            y_binned, y_u_binned = unumpy.nominal_values(quant), unumpy.std_devs(quant)
+
+            # getting rid of potential nan values
+            indices = np.array(np.logical_not(np.logical_or(np.isnan(x_bin_centers), np.isnan(y_binned))))
+            x_bin_centers = x_bin_centers[indices]
+            y_binned = y_binned[indices]
+            y_u_binned = y_u_binned[indices]
+            mass_binned = mass_binned[indices]
+
+            # --------fit the binned profile-----------
+            try:
+                linefit, linecov = np.polyfit(x_bin_centers, y_binned, 1, cov=True, w=mass_binned)
+            except:
+                print(f'Could not radially fit age bin {this_age} for snapshot {args.output}, so skipping this age bin..')
+                Zgrad_arr.append(ufloat(np.nan, np.nan))
+                Zcen_arr.append(ufloat(np.nan, np.nan))
+                continue
+            y_fitted = np.poly1d(linefit)(x_bin_centers)
+
+            Zgrad = ufloat(linefit[0], np.sqrt(linecov[0][0]))
+            Zgrad_arr.append(Zgrad)
+            Zcen = ufloat(linefit[1], np.sqrt(linecov[1][1]))
+            Zcen_arr.append(Zcen)
+            print(f'Radially binned stellar Z slope for ages {this_age - np.diff(age_bins)[0]/2}-{this_age + np.diff(age_bins)[0]/2} Gyr  is {Zgrad} dex/kpc')
+
+            # --------plot the fitted profile-----------
+            color = mpl_cm.get_cmap(cmap_arr[index])(0.2)
+            ax.errorbar(x_bin_centers, y_binned, color=color, yerr=y_u_binned, lw=1, ls='none', zorder=1)
+            ax.scatter(x_bin_centers, y_binned, color=color, s=100, lw=1, ec='black', zorder=5)
+            ax.plot(x_bin_centers, y_fitted, color=color, lw=1, ls='dashed')
+            if not (args.notextonplot or args.forproposal): ax.text(0.99 - int(index / 7) * 0.5, 0.02 + index * 0.07 - int(index / 7) * 7 * 0.07, r'[%.1F-%.1F] Gyr: Slope = %.2F $\pm$ %.2F dex/kpc' % (this_age - np.diff(age_bins)[0]/2, this_age + np.diff(age_bins)[0]/2, Zgrad.n, Zgrad.s), color=color, transform=ax.transAxes, fontsize=args.fontsize/1.5, va='bottom', ha='right', bbox=dict(facecolor='white', alpha=0.8, lw=0.1))
+
+        # ----------tidy up figure-------------
+        ax.set_xlim(0, args.upto_re if 're' in args.xcol else np.ceil(args.upto_kpc /0.695) if args.forappendix else args.galrad if args.forpaper else args.upto_kpc)
+        delta_y = (args.ymax - args.ymin) / 50
+        ax.set_ylim(args.ymin - delta_y, args.ymax) # the small offset between the actual limits and intended tick labels is to ensure that tick labels do not reach the very edge of the plot
+
+        ax.set_xlabel('Radius (kpc)', fontsize=args.fontsize)
+        ax.set_ylabel(r'Log Stellar Metallicity (Z$_{\odot}$)', fontsize=args.fontsize)
+
+        ax.set_xticks(np.arange(0, np.ceil(args.upto_kpc /0.695) if args.forappendix else np.min([np.ceil(args.upto_kpc /0.695), args.galrad]), 4 if args.forappendix else 2)) # for nice, round number tick marks
+        ax.set_yticks(np.linspace(args.ymin, args.ymax, 5))
+
+        ax.set_xticklabels(['%.1F' % item for item in ax.get_xticks()], fontsize=args.fontsize)
+        ax.set_yticklabels(['%.2F' % item for item in ax.get_yticks()], fontsize=args.fontsize)
+
+        if args.fortalk:
+            try: mplcyberpunk.make_lines_glow()
+            except: pass
+            try: mplcyberpunk.make_scatter_glow()
+            except: pass
+
+        # ---------annotate and save the figure----------------------
+        if not (args.forproposal and args.output == 'RD0042') and not args.forpaper:
+            plt.text(0.033, 0.25, 'z = %.2F' % args.current_redshift, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize)
+            plt.text(0.033, 0.15 if args.forproposal else 0.3, 't = %.1F Gyr' % args.current_time, transform=ax.transAxes, fontsize=args.fontsize/1.5 if args.narrowfig else args.fontsize)
+        fig.savefig(filename, transparent=args.fortalk)
+        myprint('Saved figure ' + filename, args)
+        plt.show(block=False)
+
+        # ----------write out gradients as new df-------------
+        new_df = pd.DataFrame({'age_bin': age_bin_centers, 'Zgrad': unumpy.nominal_values(Zgrad_arr), 'Zgrad_u': unumpy.std_devs(Zgrad_arr), 'Zcen': unumpy.nominal_values(Zcen_arr), 'Zcen_u': unumpy.std_devs(Zcen_arr)})
+        new_df['output'] = args.output
+        new_df['redshift'] = args.current_redshift
+        new_df['time'] = args.current_time
+        new_df['halo'] = args.halo
+        new_df = new_df[['halo', 'output', 'redshift', 'time', 'age_bin', 'Zgrad', 'Zgrad_u', 'Zcen', 'Zcen_u']]
+
+        if args.write_file:
+            outfilename2 = args.output_dir + 'txtfiles/%s_stellar_metallicity_gradient_vs_age%s%s.txt' % (args.halo, upto_text, density_cut_text)
+            if not os.path.isfile(outfilename2):
+                new_df.to_csv(outfilename2, sep='\t', index=None, header='column_names')
+                print(f'Written stellar metallicity gradients df at {outfilename2}')
+            else:
+                new_df.to_csv(outfilename2, sep='\t', mode='a', index=False, header=False)
+                print('Appended stellar metallicity gradients to file', outfilename2)
+    else:
+        print(f'Figure for {args.output} already exists, so skipping it')
+        df, new_df, fig = None, None, None
+
+    return df, new_df, fig
 
 # -------------------------------------------------------------------------------
 def get_df_from_ds(box, args, outfilename=None):
@@ -303,9 +453,9 @@ if __name__ == '__main__':
     else:
         upto_text = '_upto%.1FRe' % dummy_args.upto_re
     grad_filename = dummy_args.output_dir + 'txtfiles/' + dummy_args.halo + '_MZR_xcol_%s%s%s%s.txt' % (dummy_args.xcol, upto_text, weightby_text, density_cut_text)
-    if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename): subprocess.call(['rm ' + grad_filename], shell=True)
+    if dummy_args.write_file and dummy_args.clobber and os.path.isfile(grad_filename) and not dummy_args.plot_stellar: subprocess.call(['rm ' + grad_filename], shell=True)
 
-    if os.path.isfile(grad_filename) and not dummy_args.clobber and dummy_args.write_file: # if gradfile already exists
+    if os.path.isfile(grad_filename) and not dummy_args.clobber and dummy_args.write_file and not dummy_args.plot_stellar: # if gradfile already exists
         existing_df_grad = pd.read_table(grad_filename)
         outputs_existing_on_file = pd.unique(existing_df_grad['output'])
 
@@ -343,7 +493,7 @@ if __name__ == '__main__':
 
     for index in range(core_start + dummy_args.start_index, core_end + 1):
         this_sim = list_of_sims[index]
-        if 'outputs_existing_on_file' in locals() and this_sim[1] in outputs_existing_on_file:
+        if 'outputs_existing_on_file' in locals() and this_sim[1] in outputs_existing_on_file and not dummy_args.plot_stellar:
             print_mpi('Skipping ' + this_sim[1] + ' because it already exists in file', dummy_args)
             continue # skip if this output has already been done and saved on file
 
@@ -367,7 +517,7 @@ if __name__ == '__main__':
             continue
 
         # parse paths and filenames
-        args.fig_dir = args.output_dir + 'figs/' if args.do_all_sims else args.output_dir + 'figs/' + args.output + '/'
+        args.fig_dir = args.output_dir + 'figs/' if args.do_all_sims or len(list_of_sims) > 1 else args.output_dir + 'figs/' + args.output + '/'
         Path(args.fig_dir).mkdir(parents=True, exist_ok=True)
         args.plotlog = False
         if args.fortalk:
@@ -383,9 +533,9 @@ if __name__ == '__main__':
         args.current_redshift = ds.current_redshift
         args.current_time = ds.current_time.in_units('Gyr').tolist()
         if args.ymin is None:
-            args.ymin = -1.5 if args.forpaper else -2.2
+            args.ymin = -2.5 if args.plot_stellar else -1.5 if args.forpaper else -2.2
         if args.ymax is None:
-            args.ymax = 0.6 if args.forpaper else 1.2
+            args.ymax = 0.7 if args.plot_stellar else 0.6 if args.forpaper else 1.2
 
         re_from_stars = get_re_from_stars(ds, args) if args.upto_kpc is None else np.nan # kpc
         re_from_coldgas = get_re_from_coldgas(args, gasprofile=gasprofile) if args.upto_kpc is None else np.nan # kpc
@@ -407,6 +557,7 @@ if __name__ == '__main__':
                 else:
                     args.re = this_upto_radius
                     args.galrad = args.re * args.upto_re  # kpc
+                args.bin_edges = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
 
                 # extract the required box
                 box_center = ds.halo_center_kpc
@@ -418,25 +569,31 @@ if __name__ == '__main__':
                     thisrow += (np.ones(10) * np.nan).tolist()
                     continue
 
-                Zcen, Zgrad = fit_gradient(df, args)
-                args.bin_edges = np.linspace(0, args.galrad / args.re if 're' in args.xcol else args.galrad, 10)
-                Zcen_binned, Zgrad_binned = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=None, fit_inlog=True, weightcol=args.weight)
+                # ------for stellar metallicity---------
+                if args.plot_stellar:
+                    df_stellar_prof, df_stellar_grad, fig = plot_stellar_metallicity_profile(box, args)
+                    thisrow += (np.ones(10) * np.nan).tolist() # dummy values
+                else:
+                    # ------for gas metallicity---------
+                    Zcen, Zgrad = fit_gradient(df, args, weight=args.weight)
+                    Zcen_binned, Zgrad_binned = fit_binned(df, args.xcol, 'metal', args.bin_edges, ax=None, fit_inlog=True, weightcol=args.weight)
 
-                if not args.noplot: fig = plot_gradient(df, args, linefit=[Zgrad.n, Zcen.n]) # plotting the Z profile, with fit
+                    if not args.noplot: fig = plot_gradient(df, args, linefit=[Zgrad.n, Zcen.n]) # plotting the Z profile, with fit
 
-                mstar = get_disk_stellar_mass(args) # Msun
+                    mstar = get_disk_stellar_mass(args) # Msun
 
-                df['metal_mass'] = df['mass'] * df['metal'] * metallicity_sun
-                Ztotal = (df['metal_mass'].sum()/df['mass'].sum())/metallicity_sun # in Zsun
-                Ztotal = np.log10(Ztotal) # in log Zsun
+                    df['metal_mass'] = df['mass'] * df['metal'] * metallicity_sun
+                    Ztotal = (df['metal_mass'].sum()/df['mass'].sum())/metallicity_sun # in Zsun
+                    Ztotal = np.log10(Ztotal) # in log Zsun
 
-                thisrow += [mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Zcen_binned.n, Zcen_binned.s, Zgrad_binned.n, Zgrad_binned.s, Ztotal]
+                    thisrow += [mstar, Zcen.n, Zcen.s, Zgrad.n, Zgrad.s, Zcen_binned.n, Zcen_binned.s, Zgrad_binned.n, Zgrad_binned.s, Ztotal]
             else:
                 thisrow += (np.ones(10)*np.nan).tolist()
 
+
         this_df_grad.loc[len(this_df_grad)] = thisrow
         df_grad = pd.concat([df_grad, this_df_grad])
-        if args.write_file:
+        if args.write_file and not args.plot_stellar:
             if not os.path.isfile(grad_filename):
                 this_df_grad.to_csv(grad_filename, sep='\t', index=None, header='column_names')
                 print('Wrote to gradient file', grad_filename)
@@ -445,7 +602,6 @@ if __name__ == '__main__':
                 print('Appended to gradient file', grad_filename)
 
         print_mpi('This snapshots completed in %s mins' % ((time.time() - start_time_this_snapshot) / 60), dummy_args)
-
 
     if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s mins' % ((time.time() - start_time) / 60), dummy_args)
     else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s mins' % ((time.time() - start_time) / 60), dummy_args)
