@@ -1,8 +1,0 @@
-README.md
-setup.py
-foggie/cosmo_config.py
-foggie.egg-info/PKG-INFO
-foggie.egg-info/SOURCES.txt
-foggie.egg-info/dependency_links.txt
-foggie.egg-info/requires.txt
-foggie.egg-info/top_level.txt
