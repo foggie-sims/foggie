@@ -16,6 +16,7 @@ analysis codes within the repo.
    :maxdepth: 1
   
    getting_started.rst
+   halo_info_files.rst
 
 
 User Guide - New Sims
@@ -28,4 +29,6 @@ or for restarting an existing FOGGIE simulation from a certain snapshot.
 .. toctree::
    :maxdepth: 1
   
+   enzo-foggie.rst
    clean_from_ICs.rst
+   restart.rst
