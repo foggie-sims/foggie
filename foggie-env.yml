@@ -4,15 +4,15 @@ channels:
   - defaults
 dependencies:
   - astropy
-  - numpy
-  - pandas=2.2.2
-  - jupyter
-  - pip 
   - datashader 
+  - jupyter
+  - numpy==1.26.4
+  - pandas>=2.2.0
+  - pip 
   - seaborn 
+  - sphinx
   - yt>=4
   - pip:
       - trident
-      - yt-astro-analysis 
-prefix: /Users/tumlinson/anaconda3/envs/foggie
+      - yt-astro-analysis
 
