@@ -5,6 +5,10 @@ If you would prefer to use this guide as a Jupyter notebook, you can find it in 
 in ``foggie/foggie/documentation/my_first_foggie_script.py``. It contains the same information as listed on
 this page, plus a few quick examples for using yt to make projection and slice plots of FOGGIE data.
 
+If you're looking for some quick intro material for a summer undergrad research student, check out
+``foggie/foggie/documentation/undergrad_foggie_intro.ipynb``, which boils down most of the below
+information into a much more user-friendly form with more description and some example plots.
+
 Python Packages Needed
 ----------------------
 
