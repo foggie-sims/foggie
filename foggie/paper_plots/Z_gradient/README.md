@@ -4,6 +4,7 @@ LAST UPDATED: 12/12/2024
 
 This directory is meant to contain a set of python scripts used to reproduce all plots in the `FOGGIE VIII paper`.
 Each script within this directory has a description of what it does at the start of the script.
+These scripts also exist elsewhere in the FOGGIE repo, where they are more up-to-date. The purpose of this directory is to preserve a copy of the scripts as they were at the time of writing the above paper.
 
 Below is a list of commands to run in order to reproduce these plots:
 
