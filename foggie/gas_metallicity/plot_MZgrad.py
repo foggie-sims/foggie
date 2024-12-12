@@ -23,7 +23,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 2 --overplot_smoothed 1000 --snaphighlight DD0452,DD0466 --forproposal
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 1 --overplot_cadence 500 --keep --snaphighlight DD0452,DD0466 --forpaper
                  run plot_MZgrad.py --system ayan_hd --halo 8508 --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol age --plot_stellar --forpaper
-                 run plot_MZgrad.py --system ayan_hd --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol age --plot_stelar --forpaper --halo 8508,5036,5016,4123,2878,2392
+                 run plot_MZgrad.py --system ayan_hd --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol age --plot_stellar --forpaper --halo 8508,5036,5016,4123,2878,2392
 """
 from header import *
 from util import *
