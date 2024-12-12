@@ -8,7 +8,6 @@ directory (in a somewhat alphabetical order).
 
 | Folder/Module        | Description |
 |----------------------|-------------|
-
 | `header.py` | Imports packages/modules required for working with scripts in this directory. |
 | `util.py` | Loads some common utility functions that may be invoked by scripts in this directory |
 | `binned_profile.py` | Testing utility function related to binned data |
