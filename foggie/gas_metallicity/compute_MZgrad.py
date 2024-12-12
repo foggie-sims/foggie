@@ -3,7 +3,7 @@
 """
 
     Title :      compute_MZgrad
-    Notes :      Compute mass - metallicity gradient relation for a given FOGGIE galaxy
+    Notes :      Compute radial metallicity gradient (gas or stellar) for a given FOGGIE galaxy
     Output :     txt file storing all the gradients & mass plus, optionally, Z profile plots
     Author :     Ayan Acharyya
     Started :    Feb 2022

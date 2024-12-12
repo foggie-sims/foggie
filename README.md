@@ -40,6 +40,7 @@ with scripts from various FOGGIE analysis projects. A description of their conte
 | `flux_tracking`      | Scripts and Notebooks for estimating fluxes such as accretion. |
 | `fogghorn`           | Diagnostic plot pipeline for planning new simulations. |
 | `galaxy_mocks`       | Scripts for making mock observations. |
+| `gas_metallicity`    | Scripts for gas phase metallicity analysis (and some stellar metallicity). |
 | `halo_infos`         | Catalog files; see accompanying README. |
 | `halo_tracks`        | Halo tracks used for running the FOGGIE simulations. |
 | `initial_conditions` | Old initial conditions for a 25 Mpc simulation box. |

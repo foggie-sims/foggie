@@ -18,19 +18,20 @@ File Name: `util.py`
 Description: Loads some common utility functions that may be invoked by scripts in this directory
 
 File Name: `compute_MZgrad.py`
-Description: Plots and measures Z gradients and saves results to file
+Description: Plots and measures Z gradients and saves results to file; Contrary to what the directory claims to be, this particular script
+             can also plot and fit radial stellar metallicity gradients!
 
 File Name: `compute_Zscatter.py`
 Description: Plots and measures Z distribution (histograms) and saves results to file
 
-File Name: `datashader_movie.py`
+File Name: `datashader_movie.py` [Can be used generally, for non-metallicity stuff too]
 Description: Makes datashader plots between any two-three dimensional parameter space in the FOGGIE dataset, and then can interactively
              use the lasso tool to determine where does the selection lie spatially, and can also make animations from multiple datashader plots
 
-File Name: `datashader_quickplot.py`
+File Name: `datashader_quickplot.py` [Can be used generally, for non-metallicity stuff too]
 Description: Makes datashader plots, but less flexibility than and without the interactiveness of `datashader_movie.py`
 
-File Name: `datashader_singleplot.py`
+File Name: `datashader_singleplot.py` [Can be used generally, for non-metallicity stuff too]
 Description: Makes one datashader plot (no loop over snapshots), but less flexibility than and without the interactiveness of `datashader_movie.py`
 
 File Name: `flux_tracking_movie.py`
@@ -39,7 +40,7 @@ Description: Attempts to track incoming and outgoing metal mass and gas mass bud
 File Name: `kodiaqz_merge_dsh_abs.py`
 Description: Plotting scripts for FOGGIE comparison plots of inflowing and outflowing absorbers, used in KODIAQ-Z paper
 
-File Name: `make_table_fitted_quant.py`
+File Name: `make_table_fitted_quant.py` [Can be used generally, for non-metallicity stuff too]
 Description: Makes machine readable table, as well as the latex table, used in FOGGIE VIII paper
 
 File Name: `nonprojected_Zgrad_evolution.py`
@@ -49,9 +50,10 @@ Description: Plots multi-panel visualisation (instantaneous radial profile, inst
 File Name: `nonprojected_Zgrad_hist_map.py`
 Description: Plots histogram and 2d metallicity maps of the full 3D metallicity profile
 
-File Name: `plot_MZgrad.py`
+File Name: `plot_MZgrad.py` [Can be used generally, for non-metallicity stuff too]
 Description: Primarily plots mass-metallicity relation for any given halo (across redshifts), but can be used to plot any two time-varying quantities
-             against each other for one or more halos
+             against each other for one or more halos; ; Contrary to what the directory claims to be, this particular script
+             can also plot fitted stellar metallicity gradients vs age!
 
 File Name: `plot_MZscatter.py`
 Description: Plots the time evolution of the various parameterisations of the metallicity distribution (IQR vs time etc.)
@@ -80,10 +82,10 @@ Description: Plots projected gas density and metallicity side-by-side
 File Name: `projected_vs_3d_metallicity.py`
 Description: Plots comparison of projected metallicity (map, profile and distribution) vs full 3D metallicity distribution (similar to Fig 2 in FOGGIE VIII paper)
 
-File Name: `projection_plot.py`
+File Name: `projection_plot.py` [Can be used generally, for non-metallicity stuff too]
 Description: Initial attempts to play around with FOGGIE outputs, make projection plots.
 
-File Name: `projection_plot_nondefault.py`
+File Name: `projection_plot_nondefault.py` [Can be used generally, for non-metallicity stuff too]
 Description: Plots projection plots for simulations that are not loadable by foggie_load() i.e., do not have the default paths, halo_info files etc.
 
 File Name: `total_tracking_movie.py`
@@ -92,7 +94,7 @@ Description: Makes movie by animating multiple plots of metal flux (using Cassi'
 File Name: `track_metallicity_evolution.py`
 Description: Tracks ambient gas metallicity around young (< 10Myr) stars as function of redshift, writes to file
 
-File Name: `volume_rendering_movie.py`
+File Name: `volume_rendering_movie.py` [Can be used generally, for non-metallicity stuff too]
 Description: Crude attempt to make volume rendered movie from FOGGIe snapshots; worked okay but not great
 
 File Name: `Zgrad_batch_jobsubmission.sh`

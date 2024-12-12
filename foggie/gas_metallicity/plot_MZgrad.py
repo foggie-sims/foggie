@@ -3,7 +3,7 @@
 """
 
     Title :      plot_MZgrad
-    Notes :      Plot mass - metallicity gradient relation for a given FOGGIE galaxy
+    Notes :      Plot mass - metallicity gradient relation (both stellar and gas) for a given FOGGIE galaxy
     Output :     M-Z gradient plots as png files plus, optionally, MZR plot
     Author :     Ayan Acharyya
     Started :    Mar 2022
