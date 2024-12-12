@@ -12,9 +12,9 @@
 
 from header import *
 from util import *
-from compute_MZgrad import get_density_cut, get_re_from_coldgas, get_re_from_stars
+from foggie.gas_metallicity.compute_MZgrad import get_density_cut, get_re_from_coldgas, get_re_from_stars
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from projection_plot import annotate_box
+from foggie.gas_metallicity.projection_plot import annotate_box
 
 start_time = time.time()
 plt.rcParams['axes.linewidth'] = 1

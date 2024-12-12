@@ -14,7 +14,7 @@
 """
 from header import *
 from util import *
-from filter_star_properties import get_star_properties
+from foggie.galaxy_mocks.mock_ifu.filter_star_properties import get_star_properties
 
 # ----------------------------------------------------------------------------------
 def write_list_file(Z_arr, m_arr, z_arr, filename, args):

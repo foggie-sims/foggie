@@ -11,7 +11,7 @@
 """
 from header import *
 from util import *
-from plot_MZscatter import load_df
+from foggie.gas_metallicity.plot_MZscatter import load_df
 from uncertainties import unumpy
 start_time = time.time()
 

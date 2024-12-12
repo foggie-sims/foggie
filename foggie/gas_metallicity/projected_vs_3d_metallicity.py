@@ -11,9 +11,11 @@
 """
 from header import *
 from util import *
-import projected_Zgrad_evolution as proj
-import nonprojected_Zgrad_evolution as nonproj
-from compute_MZgrad import get_re_from_coldgas, get_re_from_stars
+from header import *
+from util import *.projected_Zgrad_evolution as proj
+from header import *
+from util import *.nonprojected_Zgrad_evolution as nonproj
+from foggie.gas_metallicity.compute_MZgrad import get_re_from_coldgas, get_re_from_stars
 
 start_time = time.time()
 

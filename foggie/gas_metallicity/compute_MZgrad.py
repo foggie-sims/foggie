@@ -18,7 +18,7 @@
 """
 from header import *
 from util import *
-from datashader_movie import *
+from foggie.gas_metallicity.datashader_movie import *
 from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
 start_time = time.time()

@@ -8,7 +8,26 @@
     Started :    March 2021
 
 """
-from header import *
+from foggie.gas_metallicity.header import *
+
+# ----------------------------------------------------------------
+import fnmatch
+def findReplace(directory, find, replace, filePattern):
+    '''
+    Function to replace string A with string B in ALL files with filenames of a certain pattern, within a given directory
+    Modifies all matchinf files in place, therefore returns nothing
+    Example use: findReplace("/Users/acharyya/Work/astro/ayan_codes/foggie/foggie/gas_metallicity/", "from header impot *\nfrom util import *", "from header import *
+from util import *", "*.py")
+    Borrowed from: https://stackoverflow.com/questions/4205854/recursively-find-and-replace-string-in-text-files
+    '''
+    for path, dirs, files in os.walk(os.path.abspath(directory)):
+        for filename in fnmatch.filter(files, filePattern):
+            filepath = os.path.join(path, filename)
+            with open(filepath) as f:
+                s = f.read()
+            s = s.replace(find, replace)
+            with open(filepath, "w") as f:
+                f.write(s)
 
 # -----------------------------------------------------------------
 def get_valid_snaps(halo, silent=False):

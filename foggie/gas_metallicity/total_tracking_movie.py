@@ -13,7 +13,7 @@
 """
 from header import *
 from util import *
-from make_ideal_datacube import shift_ref_frame
+from foggie.galaxy_mocks.mock_ifu.make_ideal_datacube import shift_ref_frame
 from datashader_movie import get_radial_velocity
 from yt.utilities.physical_ratios import metallicity_sun
 from flux_tracking_movie import calc_fluxes

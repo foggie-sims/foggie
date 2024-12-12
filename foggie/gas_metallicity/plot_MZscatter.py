@@ -14,7 +14,7 @@
 from header import *
 from util import *
 from matplotlib.collections import LineCollection
-from plot_MZgrad import *
+from foggie.gas_metallicity.plot_MZgrad import *
 from uncertainties import unumpy
 start_time = time.time()
 

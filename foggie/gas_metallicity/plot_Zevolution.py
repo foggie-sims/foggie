@@ -19,7 +19,7 @@
 """
 from header import *
 from util import *
-from plot_MZscatter import *
+from foggie.gas_metallicity.plot_MZscatter import *
 import h5py
 from scipy.signal import argrelextrema
 from scipy.fft import rfft, rfftfreq

@@ -16,7 +16,7 @@ from header import *
 from util import *
 from foggie.utils.get_proper_box_size import get_proper_box_size
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from compute_MZgrad import *
+from foggie.gas_metallicity.compute_MZgrad import *
 
 start_time = time.time()
 

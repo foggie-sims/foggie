@@ -13,8 +13,8 @@
 from header import *
 from util import *
 from datashader_movie import field_dict, unit_dict, get_correct_tablename
-from compute_Zscatter import fit_distribution
-from compute_MZgrad import get_density_cut, get_re_from_coldgas, get_re_from_stars
+from foggie.gas_metallicity.compute_Zscatter import fit_distribution
+from foggie.gas_metallicity.compute_MZgrad import get_density_cut, get_re_from_coldgas, get_re_from_stars
 from uncertainties import ufloat, unumpy
 from lmfit.models import GaussianModel, SkewedGaussianModel
 from mpl_toolkits.axes_grid1 import make_axes_locatable

@@ -13,9 +13,9 @@
 from header import *
 from util import *
 from lmfit.models import GaussianModel, SkewedGaussianModel
-from compute_MZgrad import get_df_from_ds
-from plot_MZgrad import plot_zhighlight
-from plot_MZscatter import load_df
+from foggie.gas_metallicity.compute_MZgrad import get_df_from_ds
+from foggie.gas_metallicity.plot_MZgrad import plot_zhighlight
+from foggie.gas_metallicity.plot_MZscatter import load_df
 from datashader_movie import unit_dict
 from uncertainties import ufloat
 

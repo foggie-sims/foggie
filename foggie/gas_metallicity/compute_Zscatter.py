@@ -16,7 +16,7 @@
 """
 from header import *
 from util import *
-from compute_MZgrad import *
+from foggie.gas_metallicity.compute_MZgrad import *
 from uncertainties import ufloat, unumpy
 from yt.utilities.physical_ratios import metallicity_sun
 from lmfit.models import GaussianModel, SkewedGaussianModel

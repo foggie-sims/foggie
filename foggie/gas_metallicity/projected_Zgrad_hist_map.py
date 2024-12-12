@@ -12,7 +12,7 @@
 """
 from header import *
 from util import *
-from nonprojected_Zgrad_hist_map import plot_projection, plot_Zprof_snap, plot_Zdist_snap
+from foggie.gas_metallicity.nonprojected_Zgrad_hist_map import plot_projection, plot_Zprof_snap, plot_Zdist_snap
 
 start_time = time.time()
 

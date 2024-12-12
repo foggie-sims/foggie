@@ -3,7 +3,9 @@
 """
 
     Title :      datashader_movie
-    Notes :      Attempt to make datashader plots of 3 given quantities from FOGGIE outputs and make movies
+    Notes :      To make datashader plots of 3 given quantities from FOGGIE outputs and make movies
+                 This is the master script compared to other datashader_*.py scripts, i.e., this can plot multiple plots, for any given quantities,
+                 can make movies, can do interactive lasso tools, etc., which the other datashader_*.py scripts cannot do
     Output :     datashader plots as png files (which can be later converted to a movie via animate_png.py)
     Author :     Ayan Acharyya
     Started :    July 2021
@@ -18,9 +20,9 @@
 """
 from header import *
 from util import *
-from projection_plot import do_plot
-from make_ideal_datacube import shift_ref_frame
-from filter_star_properties import get_star_properties
+from foggie.gas_metallicity.projection_plot import do_plot
+from foggie.galaxy_mocks.mock_ifu.make_ideal_datacube import shift_ref_frame
+from foggie.galaxy_mocks.mock_ifu.filter_star_properties import get_star_properties
 
 from matplotlib.colors import to_hex
 from matplotlib.widgets import LassoSelector

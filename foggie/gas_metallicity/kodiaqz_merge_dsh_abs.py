@@ -14,7 +14,7 @@
 """
 from header import *
 from util import *
-from datashader_movie import *
+from foggie.gas_metallicity.datashader_movie import *
 import matplotlib.gridspec as gridspec
 
 start_time = time.time()

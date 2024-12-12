@@ -12,9 +12,9 @@
 """
 from header import *
 from util import *
-from plot_MZgrad import plot_zhighlight
-from compute_Zscatter import fit_distribution
-from compute_MZgrad import get_re_from_coldgas, get_re_from_stars
+from foggie.gas_metallicity.plot_MZgrad import plot_zhighlight
+from foggie.gas_metallicity.compute_Zscatter import fit_distribution
+from foggie.gas_metallicity.compute_MZgrad import get_re_from_coldgas, get_re_from_stars
 from uncertainties import ufloat, unumpy
 from lmfit.models import GaussianModel, SkewedGaussianModel
 
