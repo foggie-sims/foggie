@@ -21,5 +21,5 @@ Each script within this directory has a detailed description of what it does, al
 | `make_mock_measurements.py` | Derives physical quantities from a given measured datacube (that contains emission line fluxes) |
 | `plot_mock_observables.py` | Plots various quantities measured from the synthetic datacube |
 | `test_kit.py` | Test functions for debugging, particularly how/what emission line fluxes are being assigned to each modeled HII region |
-| starburst11` | Contains the Starburst99 model used to produce the MAPPINGS grid of models (the number 11 is just an identifier, specified in foggie.gas_metallicity.header.py). Provided here for reproducibility. |
-| MAPPINGS` | Contains the MAPPINGS grid of models. Provided here for reproducibility.
+| `starburst11` | Contains the Starburst99 model used to produce the MAPPINGS grid of models (the number 11 is just an identifier, specified in foggie.gas_metallicity.header.py). Provided here for reproducibility. |
+| `MAPPINGS` | Contains the MAPPINGS grid of models. Provided here for reproducibility.
