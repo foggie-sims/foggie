@@ -1,0 +1,37 @@
+yes   : change abund ***************************DUST & ABUNDANCES
+abun_file
+no    : no more changes
+no    : no offsets
+no    : Use Kappa electron distributions
+yes   : include dust
+yes   : change depletions
+dust_file
+no    : no more changes
+no    : allow grain destruction
+M     : MRN distribution
+no   : Include PAH molecules?
+no    : Evaluate dust temperatures and IR flux?
+P6    : Photo. Abs. distance step, full cont ***************************START P6
+D     : Default ionisation values
+I  :   Input sou file    (7976|7977 POINTS)
+phot_file
+0 : Turn-on energy (Min.:1.000E-06 eV.)
+1E2 : Cut-off energy (Max.:1.000E+05 eV)
+X     : eXit with current source
+N     : Include cosmic ray heating
+s     : spherical
+P   :  By Ionizing Photons
+loglum  : Give source ionising photon rate
+B     : isoBaric, (const pressure)
+lpok :  Pressure regime (p/k, <10 as log)
+ltemp     : log(Initial temperature)
+1     : filling factor (0<f<=1)
+u     : Give initial radius in terms of distance or or Q(N), U(N), Q(H), or U(H) (d/q/n/h/u)
+luin    : U at inner radius (< 100 as log)
+yes   : volume integration over whole sphere
+E     : Equilibrium ionization balance.
+0.03  : Step value of the photon absorption fraction  *******
+A     : Radiation bounded, 99% neutral **********
+A     : Standard output (photnxxxx,phapnxxxx)  >Name for run>>>>
+name
+X

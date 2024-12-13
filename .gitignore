@@ -1,3 +1,4 @@
+build/
 doc/build/
 
 .idea
@@ -5,6 +6,7 @@ doc/build/
 .DS_Store
 .ipynb_checkpoints
 foggie.egg-info
+foggie.dist-info
 __pycache__
 
 *.pyc

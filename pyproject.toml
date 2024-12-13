@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "foggie"
+version = "0.0.0"
+description = "FOGGIE analysis tools"
+authors = [
+    { name = "The FOGGIE Collaboration", email = "molly@stsci.edu" },
+]
+readme = "README.md"
+keywords = ["simulation", "astronomy", "astrophysics"]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Unix",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    'astropy',
+    'datashader',
+    'numpy==1.26.4',
+    'pandas>=2.2.0',
+    'seaborn',
+    'sphinx',
+    'trident',
+    'yt>=4',
+    'yt-astro-analysis',
+]
+
+[project.urls]
+Homepage = "https://foggie.science/"
+Repository = "https://github.com/foggie-sims/foggie/"
+
+#[project.scripts]
+# for turning scripts into CLI commands; e.g.
+# spam-cli = "spam:main_cli"
+# would be the same as running `from spam import main_cli; main_cli()`
+
+[tool.setuptools]
+include-package-data = true # default behavior
