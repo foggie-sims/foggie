@@ -1644,8 +1644,9 @@ def find_shape(ds, surface, snap_props):
             max_extent = np.max([radius, height/2.])*np.sqrt(2.) + edge_kpc*2.
 
     data = ds.sphere(ds.halo_center_kpc, (max_extent, 'kpc'))
-    pix_res = float(np.min(data[('gas','dx')].in_units('kpc')))  # at level 11
-    lvl1_res = pix_res*2.**11.
+    pix_res = float(np.min(data[('gas','dx')].in_units('kpc')))  # at level 11 for production runs, level 10 for feedback-track runs
+    if ('feedback' in args.run) and ('track' in args.run): lvl1_res = pix_res*2.**10.
+    else: lvl1_res = pix_res*2.**11.
     dx = lvl1_res/(2.**args.level)
 
     if (args.constant_box!=0.):
