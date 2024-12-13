@@ -3711,7 +3711,7 @@ if __name__ == "__main__":
     smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
 
     # Add these for H-alpha emission
-    cloudy_path = code_path + "emission/cloudy_z0_selfshield/sh_z0_HM12_run%i.dat"
+    cloudy_path = code_path + "cgm_emission/cloudy_z0_selfshield/sh_z0_HM12_run%i.dat"
     emission_units_ALT = 'erg * s**-1 * cm**-3 * arcsec**-2'
     ytEmUALT = unyt.erg * unyt.second**-1 * unyt.cm**-3 * unyt.arcsec**-2
     hden_pts,T_pts,table_HA = make_Cloudy_table(2)
