@@ -57,7 +57,13 @@ def patch_track(snap_start, snap_end, trackfile):
     
     print(new_track)
     
+    new_track.reverse()
+
+    print() 
+    print() 
     for row in new_track: 
         print(row['redshift'], row['x']-0.001, row['y']-0.001, row['z']-0.001, row['x']+0.001, row['y']+0.001, row['z']+0.001, 99)
+
+    return new_track
 
 
