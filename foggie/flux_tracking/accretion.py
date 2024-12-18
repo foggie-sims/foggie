@@ -1644,8 +1644,9 @@ def find_shape(ds, surface, snap_props):
             max_extent = np.max([radius, height/2.])*np.sqrt(2.) + edge_kpc*2.
 
     data = ds.sphere(ds.halo_center_kpc, (max_extent, 'kpc'))
-    pix_res = float(np.min(data[('gas','dx')].in_units('kpc')))  # at level 11
-    lvl1_res = pix_res*2.**11.
+    pix_res = float(np.min(data[('gas','dx')].in_units('kpc')))  # at level 11 for production runs, level 10 for feedback-track runs
+    if ('feedback' in args.run) and ('track' in args.run): lvl1_res = pix_res*2.**10.
+    else: lvl1_res = pix_res*2.**11.
     dx = lvl1_res/(2.**args.level)
 
     if (args.constant_box!=0.):
@@ -3710,7 +3711,7 @@ if __name__ == "__main__":
     smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
 
     # Add these for H-alpha emission
-    cloudy_path = code_path + "emission/cloudy_z0_selfshield/sh_z0_HM12_run%i.dat"
+    cloudy_path = code_path + "cgm_emission/cloudy_z0_selfshield/sh_z0_HM12_run%i.dat"
     emission_units_ALT = 'erg * s**-1 * cm**-3 * arcsec**-2'
     ytEmUALT = unyt.erg * unyt.second**-1 * unyt.cm**-3 * unyt.arcsec**-2
     hden_pts,T_pts,table_HA = make_Cloudy_table(2)
