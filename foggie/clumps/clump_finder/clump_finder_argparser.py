@@ -1,0 +1,126 @@
+import argparse
+
+
+def parse_args():
+    '''Parse command line arguments. Returns args object.
+    NOTE: Need to move command-line argument parsing to separate file.'''
+
+    parser = argparse.ArgumentParser()
+    # Optional arguments:
+    parser.add_argument('--refinement_level', metavar='refinement_level', type=int, action='store', \
+                        help='Which refinement level should the uniform grid be? Default is the max within the region considered.')
+    parser.set_defaults(refinement_level=None)
+    
+    parser.add_argument('--halo', metavar='halo', type=str, action='store', \
+                        help='Which halo id? Default is 008508 (Tempest).')
+    parser.set_defaults(halo="008508")
+    
+    parser.add_argument('--snapshot', metavar='snapshot', type=str, action='store', \
+                        help='Which snapshot? Default is RD0042 (redshift 0).')
+    parser.set_defaults(snapshot="RD0042")
+    
+    parser.add_argument('--run', metavar='run', type=str, action='store', \
+                        help='Which run? Default is nref11c_nref9f.')
+    parser.set_defaults(run="nref11c_nref9f")
+    
+    parser.add_argument('--output', metavar='output', type=str, action='store', \
+                        help='Where do you want to write clump data? Default is ./output/clump_test')
+    parser.set_defaults(output="./output/clump_test")
+    
+    parser.add_argument('--clump_min', metavar='clump_min', type=float, action='store', \
+                        help='What should starting density cutoff be? Default is cgm density cutoff.')
+    parser.set_defaults(clump_min=None)
+    
+    
+    parser.add_argument('--clump_max', metavar='clump_max', type=float, action='store', \
+                        help='What should ending density cutoff be? Default is the maximum in the region.')
+    parser.set_defaults(clump_max=None)
+    
+    parser.add_argument('--step', metavar='step', type=float, action='store', \
+                        help='By what factor should clump_min be incremented? Default is 2.')
+    parser.set_defaults(step=2)
+    
+    parser.add_argument('--mask_disk', metavar='mask_disk', type=bool, action='store', \
+                        help='Should the disk be masked out? Default is False')
+    parser.set_defaults(mask_disk=False)
+    
+    parser.add_argument('--min_cells', metavar='min_cells', type=int, action='store', \
+                        help='Minimum cells required to define a clump. Default is 20')
+    parser.set_defaults(min_cells=20)
+
+
+    parser.add_argument('--nthreads', metavar='nthreads', type=int, action='store', \
+                        help='How many threads to run on? Defaults to num_cores-1.')
+    parser.set_defaults(nthreads=None)
+    
+    parser.add_argument('--Nsubarrays', metavar='Nsubarrays', type=int, action='store', \
+                        help='How many arrays do you want to split the ucg into? Defaults to 64.')
+    parser.set_defaults(Nsubarrays=64)
+    
+    parser.add_argument('--clumping_field', metavar='clumping_field', type=str, action='store', \
+                        help='What field do you want to define clumps on? Default is density.')
+    parser.set_defaults(clumping_field="density")
+    
+    parser.add_argument('--clumping_field_type', metavar='clumping_field_type', type=str, action='store', \
+                        help='What data type (gas, dm, stars) do you want to read for clumping_field? Default is gas.')
+    parser.set_defaults(clumping_field_type="gas")      
+    
+    parser.add_argument('--only_save_leaves', metavar='only_save_leaves', type=bool, action='store', \
+                        help='Set to True to only save leaf clumps. Default saves full parent hierarchy.')
+    parser.set_defaults(only_save_leaves=False)  
+    
+    parser.add_argument('--code_dir', metavar='code_dir', type=str, action='store', \
+                        help='Where is the foggie analysis directory?')
+    parser.set_defaults(code_dir=None)  
+    
+    parser.add_argument('--data_dir', metavar='data_dir', type=str, action='store', \
+                        help='Where are the simulation outputs?')
+    parser.set_defaults(data_dir=None)  
+
+    parser.add_argument('--include_diagonal_neighbors', metavar='include_diagonal_neighbors', type=bool, action='store', \
+                        help='Include neighbors on the diagonal as well. Default is False.')
+    parser.set_defaults(include_diagonal_neighbors=False) 
+    
+    parser.add_argument('--identify_disk', metavar='identify_disk', type=bool, action='store', \
+                        help='Save a clump defining the disk with holes filled. Default is False.')
+    parser.set_defaults(identify_disk=False) 
+    
+    parser.add_argument('--cgm_density_cut_type', metavar='cgm_density_cut_type', type=str, action='store', \
+                        help='How do you want to define the CGM density cut? Options are ["comoving_density,"relative_density","cassis_cut"]. Default is "relative_density".')
+    parser.set_defaults(cgm_density_cut_type="relative_density") 
+    
+    parser.add_argument('--cgm_density_factor', metavar='cgm_density_factor', type=float, action='store', \
+                        help='By what additional factor should the CGM density cut be multiplied by? Default is 200 for relative_density, 0.2 for comoving_density, and 1 for cassis_cut.')
+    parser.set_defaults(cgm_density_factor=None) 
+    
+    parser.add_argument('--max_void_size', metavar='max_void_size', type=int, action='store', \
+                        help='If filling voids, what is the maximum cell size on the ucg you wish to fill? Set to 0 to not fill. Default is 2000 cells.')
+    parser.set_defaults(max_void_size=0) 
+
+    parser.add_argument('--max_disk_void_size', metavar='max_disk_void_size', type=int, action='store', \
+                        help='If filling voids in the disk, what is the maximum cell size on the ucg you wish to fill? Set to 0 to not fill. Default is 2000 cells.')
+    parser.set_defaults(max_disk_void_size=2000) 
+    
+    parser.add_argument('--max_disk_hole_size', metavar='max_disk_hole_size', type=int, action='store', \
+                        help='If filling holes in the disk, what is the maximum cell size on the ucg you wish to fill? Set to 0 to not fill Default is 2000 cells.')
+    parser.set_defaults(max_disk_hole_size=2000) 
+    
+    parser.add_argument('--run_mc_parallel', metavar='run_mc_parallel', type=bool, action='store', \
+                        help='Do you want to run the marching cubes algorithm in parallel? Incurs additional computational overhead, but may be faster with a large (>30) number of cores or for large datacubes. Default is False.')
+    parser.set_defaults(run_mc_parallel=False) 
+
+    parser.add_argument('--run_mapping_linearly', metavar='run_mapping_linearly', type=bool, action='store', \
+                        help='Do you want to run the clump to cell id mapping without parallelization? Should generally be slower, but can be done while filling voids and holes. Default is False.')
+    parser.set_defaults(run_mapping_linearly=False) 
+
+    parser.add_argument('--make_disk_mask_figures', metavar='make_disk_mask_figures', type=bool, action='store', \
+                        help='Do you want to make additional figures illustrating the void/hole filling process when defining the disk? Default is False.')
+    parser.set_defaults(make_disk_mask_figures=False) 
+
+    args = parser.parse_args()
+    
+    
+    
+    
+    return args
+
