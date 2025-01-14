@@ -117,10 +117,25 @@ def parse_args():
                         help='Do you want to make additional figures illustrating the void/hole filling process when defining the disk? Default is False.')
     parser.set_defaults(make_disk_mask_figures=False) 
 
+    parser.add_argument('--system', metavar='system', type=str, action='store', \
+                        help='Set the system to get data paths in get_run_loc_etc. Overrides --code_dir and --data_dir. Default is None.')
+    parser.set_defaults(system=None) 
+
+    parser.add_argument('--pwd', metavar='pwd', type=bool, action='store', \
+                        help='Use pwd arguments in get_run_loc_etc. Default is False.')
+    parser.set_defaults(pwd=False) 
+
+    parser.add_argument('--forcepath', metavar='forcepath', type=bool, action='store', \
+                        help='Use forcepath in get_run_loc_etc. Default is False.')
+    parser.set_defaults(forcepath=False) 
+
+
+    parser.add_argument('--cut_radius', metavar='cut_radius', type=float, action='store', \
+                        help='Define a spherical cut region of this radius instead of using the full refine box. Default is None.')
+    parser.set_defaults(cut_radius=None) 
+
+    
     args = parser.parse_args()
-    
-    
-    
-    
+
     return args
 

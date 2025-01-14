@@ -29,13 +29,13 @@ def read_virial_mass_file(halo_id,snapshot,refinement_scheme,codedir,key="radius
     'gas_SiIV_mass', 'gas_NeVIII_mass']
     '''
     from astropy.table import Table
-    masses_dir = codedir+"foggie/halo_infos/"+halo_id+"/"+refinement_scheme+"/rvir_masses.hdf5"
+    masses_dir = codedir+"halo_infos/"+halo_id+"/"+refinement_scheme+"/rvir_masses.hdf5"
     rvir_masses = Table.read(masses_dir, path='all_data')
     
     return rvir_masses[key][rvir_masses['snapshot']==snapshot][-1]
     
     
-def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,code_dir=None):
+def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run="nref11c_nref9f",code_dir=None):
     '''
     Get a density cutoff to separate the galaxy from the CGM
     '''
@@ -43,7 +43,7 @@ def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,code
         z = ds.get_parameter('CosmologyCurrentRedshift')
         cgm_density_cut = 0.1 *additional_factor* cgm_density_max * (1+z)**3
     elif cut_type=="relative_density":
-        try: Rvir = read_virial_mass_file(gal_id, "RD0042","nref11c_nref9f",code_dir)
+        try: Rvir = read_virial_mass_file(gal_id, "RD0042",run,code_dir)
         except:
             print("Warning: Could not read rvir file for this halo...")
             Rvir = 300.

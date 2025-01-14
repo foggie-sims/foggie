@@ -50,6 +50,12 @@ import merge_clumps
     as the largest clump above a certain density threshold. Depending on the values assigned to --max_disk_void_size and --max_disk_hole_size, 
     3-D topologically enclosed voids are filled in this disk mask, as well as 2-D topologically enclosed holes along the disk axis.
     
+    Basic Example usage:
+    For full clump finding:
+    python clump_finder.py --refinement_level 11 --clump_min 1.3e-30 --system cameron_local
+    For disk finding:
+    python clump_finder.py --refinement_level 11 --identify_disk 1 --system cameron_local
+
     The args are parsed as follows:
     
     IO Arguments:
@@ -62,6 +68,10 @@ import merge_clumps
 
     --output: Where should the clump data be written? Default is ./output/clump_test
     --only_save_leaves: Set to True to only save the leaf clumps. Default is False.
+
+    --system: Set the system to get data paths from get_run_loc_etc if not None Overrides --code_dir and --data_dir. Default is None. 
+    --pwd: Use pwd arguments in get_run_loc_etc. Default is False.
+    --forcepath: Use forcepath in get_run_loc_etc. Default is False.
 
     
     Algorithm Arguments:
@@ -95,6 +105,8 @@ import merge_clumps
     --mask_disk_hole_size: What is the maximum size of 2D holes (in number of cells) to fill in the disk. Set to above 0 to fill holes. Default is 2000.
     
     --make_disk_mask_figures: Do you want to make additional figures illustrating the void/hole filling process when defining the disk? Default is False.
+    
+    --cut_radius: Define a spherical cut region of this radius instead of using the full refine box. Default is None.
 
     
 '''
@@ -164,7 +176,7 @@ class Clump:
         self.tree_level=tree_level
         
         if self.tree_level==0:
-            self.n_levels = np.ceil( np.log(args.clump_max / args.clump_min) / np.log(args.step) + 1 ).astype(int)
+            self.n_levels = np.ceil( np.log(args.clump_max / args.clump_min) / np.log(args.step) ).astype(int)
             print("n_levels=",self.n_levels)
             self.clump_tree=[]
             for i in range(0,self.n_levels):
@@ -778,14 +790,14 @@ def iterate_get_clump_cell_ids(args,thread_id, clump_id_subarray, cell_id_subarr
 
 
 
-def identify_clump_hierarchy(ds,refine_box,args):
+def identify_clump_hierarchy(ds,cut_region,args):
     '''
     Call this function to run the clump finder. This will load the dataset, push the needed data onto a uniform covering grid,
     define the root clump, and finally call master_clump.FindClumps() to perform the clump finding.
 
     Arguments are:
     ds: the yt dataset
-    refine_box: The cut region you want to run the clump finder on. Could technically be something beyond just the refine_box
+    cut_region: The cut region you want to run the clump finder on. Could technically be something beyond just the refine_box
     args: the system arguments parsed by clump_finder_argparser.py
     '''
     #define ds, make sure no data is loaded
@@ -800,7 +812,7 @@ def identify_clump_hierarchy(ds,refine_box,args):
             if args.cgm_density_cut_type=="relative_density": args.cgm_density_factor=200.
             elif args.cgm_density_cut_type=="comoving_density": args.cgm_density_factor=0.2
             else: args.cgm_density_factor = 1.
-        cgm_density_cut = get_cgm_density_cut(ds, args.cgm_density_cut_type,additional_factor=args.cgm_density_factor,code_dir=code_dir)
+        cgm_density_cut = get_cgm_density_cut(ds, args.cgm_density_cut_type,additional_factor=args.cgm_density_factor,code_dir=code_dir,run=args.run)
 
 
 
@@ -854,7 +866,9 @@ def identify_clump_hierarchy(ds,refine_box,args):
         if args.clump_max is None: args.clump_max = sph_ism["gas", "density"].max()
 
 
-    master_clump = Clump(ds,refine_box,args,tree_level=0)
+
+
+    master_clump = Clump(ds,cut_region,args,tree_level=0)
     master_clump.FindClumps(args.clump_min,args,ids_to_ignore=disk_ids)
 
     
@@ -874,15 +888,21 @@ if args.nthreads is None or args.nthreads>num_cores:
 if args.clumping_field_type is not None:
     args.clumping_field = (args.clumping_field_type , args.clumping_field)
     
-if args.code_dir is None:
-    code_dir = '/Users/ctrapp/Documents/GitHub/foggie/'
+
+if args.system is not None:
+    from foggie.utils.get_run_loc_etc import get_run_loc_etc
+    data_dir, output_dir_default, run_loc, code_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+
 else:
-    code_dir = args.code_dir
+    if args.code_dir is None:
+        code_dir = '/Users/ctrapp/Documents/GitHub/foggie/foggie/'
+    else:
+        code_dir = args.code_dir
     
-if args.data_dir is None:
-    data_dir = '/Volumes/FoggieCam/foggie_halos/'
-else:
-    data_dir = args.data_dir
+    if args.data_dir is None:
+        data_dir = '/Volumes/FoggieCam/foggie_halos/'
+    else:
+        data_dir = args.data_dir
 
 halo_id = args.halo #008508
 snapshot = args.snapshot #RD0042
@@ -890,14 +910,16 @@ nref = args.run #nref11c_nref9f
 
 
 
+
+
 snap_name = data_dir + "halo_"+halo_id+"/"+nref+"/"+snapshot+"/"+snapshot
-trackname = code_dir+"/foggie/halo_tracks/"+halo_id+"/nref11n_selfshield_15/halo_track_200kpc_nref9"
-halo_c_v_name = code_dir+"/foggie/halo_infos/"+halo_id+"/"+nref+"/halo_c_v"
+trackname = code_dir+"halo_tracks/"+halo_id+"/nref11n_selfshield_15/halo_track_200kpc_nref9"
+halo_c_v_name = code_dir+"halo_infos/"+halo_id+"/"+nref+"/halo_c_v"
 
 #particle_type_for_angmom = 'young_stars' ##Currently the default
 particle_type_for_angmom = 'gas' #Should be defined by gas with Temps below 1e4 K
 
-catalog_dir = code_dir + 'foggie/halo_infos/' + halo_id + '/'+nref+'/'
+catalog_dir = code_dir + 'halo_infos/' + halo_id + '/'+nref+'/'
 #smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
 smooth_AM_name = None
 
@@ -966,7 +988,16 @@ ds.add_field(('index', 'cell_id_2'), function=get_cell_grid_ids, sampling_type='
 cell_id_field = ('index','cell_id_2')
 
 
-master_clump = identify_clump_hierarchy(ds,refine_box,args)
+cut_region = refine_box
+if args.cut_radius is not None:
+    if args.cut_radius>0:
+        cut_region = ds.sphere(center=ds.halo_center_kpc, radius=(args.cut_radius, 'kpc'))
+    else:
+        print("Warning: Cut region could not be defined as cut_radius<=0. Using full refine_box.")
+            
+
+
+master_clump = identify_clump_hierarchy(ds,cut_region,args)
 if master_clump is None:
     print("Done!")
 else:
