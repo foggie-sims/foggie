@@ -35,7 +35,7 @@ def read_virial_mass_file(halo_id,snapshot,refinement_scheme,codedir,key="radius
     return rvir_masses[key][rvir_masses['snapshot']==snapshot][-1]
     
     
-def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run="nref11c_nref9f",code_dir=None):
+def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run="nref11c_nref9f",code_dir=None,halo=None,snapshot=None):
     '''
     Get a density cutoff to separate the galaxy from the CGM
     '''
@@ -43,7 +43,7 @@ def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run=
         z = ds.get_parameter('CosmologyCurrentRedshift')
         cgm_density_cut = 0.1 *additional_factor* cgm_density_max * (1+z)**3
     elif cut_type=="relative_density":
-        try: Rvir = read_virial_mass_file(gal_id, "RD0042",run,code_dir)
+        try: Rvir = read_virial_mass_file(halo, snapshot,run,code_dir)
         except:
             print("Warning: Could not read rvir file for this halo...")
             Rvir = 300.
@@ -78,52 +78,22 @@ def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run=
 
 
 
-
-
-
-def find_disk(ds,max_disk_radius=100.,use_comoving_density=True,comoving_scaler=0.2):
-    cgm_density_cut = get_cgm_density_cut(ds,use_comoving_density,comoving_scaler)
-
-
-    sphere = ds.sphere(center=ds.halo_center_kpc, radius=(max_disk_radius, 'kpc'))
-    sph_ism = sphere.cut_region("obj['density'] > %.3e" % (cgm_density_cut))
-    
-
-    #Test to identify just the disk
-    master_clump = Clump(sphere, ("gas", "density"))
-    master_clump.add_validator("min_cells", 200)
-    c_min = sph_ism["gas", "density"].min()
-    c_max = sph_ism["gas", "density"].max()
-    #Force to only find highest level clumps
-    step = c_max / c_min #100. #2.0
-
-    find_clumps(master_clump, c_min, c_max, step)
-
-    leaf_clumps=master_clump.leaves
-    #child_clumps=master_clump.children
-    current_max=0
-    for leaf in leaf_clumps:
-        ncells = np.size(leaf["gas","density"])
-        if ncells>current_max:
-            current_max = ncells
-            disk_clump = leaf
-
-
-    return disk_clump
-
-
-
 global clump_cell_ids
 
 def _masked_field(field,data):
+    '''Only the given clump will be marked as True'''
     return np.isin(data["index","cell_id_2"],clump_cell_ids)
-    
+
+def _unmasked_field(field,data):
+    '''All but the given clump will be marked as True'''
+    return ~np.isin(data["index","cell_id_2"],clump_cell_ids)    
 
 global max_gid
 global gx_min; global gy_min; global gz_min
 global gx_max; global gy_max; global gz_max
 
 def get_cell_grid_ids(field, data):
+    '''Function to assign a unique cell_id to each cell based on it's index on its parent grid'''
     gids = data['index','grid_indices'] + 1 #These are different in yt and enzo...
     u_id = np.copy(gids)
     
@@ -156,25 +126,18 @@ def get_cell_grid_ids(field, data):
         u_id[grid_mask] = np.round(gid + c_id * (max_gid+1)).astype(np.uint64)
     return u_id    
     
-
-
-def load_disk(ds,clump_file,source_cut=None):
+def add_cell_id_field(ds):
     '''
-    Function to load a disk cut region defined by clump_finder.py
-    Prior to calling this function, the  cell_grid_ids must be added to the dataset
-    
+        Adds the unique cell id defined by get_cell_grid_ids above to a dataset.
+        Will be consistent between reloads of the same snapshot, but not between
+        successive snapshots.
     '''
-
-    global clump_cell_ids
-    hf = h5py.File(clump_file,'r')
-    clump_cell_ids = np.round(np.array(hf['cell_ids']).astype(np.uint64))
-    hf.close()
-
     global max_gid
     max_gid=-1
     for g,m in ds.all_data().blocks:
         if g.id>max_gid: max_gid=g.id
-    
+
+
     global gx_min; global gy_min; global gz_min
     global gx_max; global gy_max; global gz_max
 
@@ -203,6 +166,23 @@ def load_disk(ds,clump_file,source_cut=None):
           force_override=True
     )
 
+    #return ds
+
+
+
+
+def load_clump(ds,clump_file,source_cut=None):
+    '''
+    Function to load a disk or clump cut region defined by clump_finder.py    
+    '''
+
+    global clump_cell_ids
+    hf = h5py.File(clump_file,'r')
+    clump_cell_ids = np.round(np.array(hf['cell_ids']).astype(np.uint64))
+    hf.close()
+
+    add_cell_id_field(ds)
+
     ds.add_field(
         ("index","masked_field"),
         function=_masked_field,
@@ -217,3 +197,29 @@ def load_disk(ds,clump_file,source_cut=None):
 
     return masked_region
 
+def mask_clump(ds,clump_file,source_cut=None):
+    '''
+    Function to return a cut region that excludes
+    a disk or clump cut region defined by clump_finder.py    
+    '''
+
+    global clump_cell_ids
+    hf = h5py.File(clump_file,'r')
+    clump_cell_ids = np.round(np.array(hf['cell_ids']).astype(np.uint64))
+    hf.close()
+
+    add_cell_id_field(ds)
+
+    ds.add_field(
+        ("index","unmasked_field"),
+        function=_unmasked_field,
+        sampling_type="cell",
+        units="",
+        force_override=True
+    )
+
+    if source_cut is None:
+        source_cut = ds.all_data()
+    masked_region = source_cut.cut_region(["obj['index','unmasked_field']"])
+
+    return masked_region

@@ -1,6 +1,6 @@
 import numpy as np
-from clump_finder_argparser import parse_args
-from clump_load import create_simple_ucg
+from foggie.clumps.clump_finder.clump_finder_argparser import parse_args
+from foggie.clumps.clump_finder.clump_load import create_simple_ucg
 
 from foggie.utils.foggie_load import foggie_load
 
@@ -15,9 +15,10 @@ import time
 
 from collections import defaultdict
 
-from utils_diskproject import get_cgm_density_cut
-from fill_topology import fill_voids
-from fill_topology import fill_holes
+from foggie.clumps.clump_finder.utils_diskproject import get_cgm_density_cut
+from foggie.clumps.clump_finder.utils_diskproject import add_cell_id_field
+from foggie.clumps.clump_finder.fill_topology import fill_voids
+from foggie.clumps.clump_finder.fill_topology import fill_holes
 
 import matplotlib.pyplot as plt
 #from matplotlib.colors import LogNorm
@@ -25,7 +26,7 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import label   
 from scipy.ndimage import find_objects     
 
-import merge_clumps
+from foggie.clumps.clump_finder import merge_clumps
 
 '''
     Finds 3-d clumps in simulation data along an arbitrary clumping field. This code was designed to work with the FOGGIE simulations
@@ -55,6 +56,8 @@ import merge_clumps
     python clump_finder.py --refinement_level 11 --clump_min 1.3e-30 --system cameron_local
     For disk finding:
     python clump_finder.py --refinement_level 11 --identify_disk 1 --system cameron_local
+
+    This can also be used modularly by importing the clump_finder(args, ds, cut_region) function.
 
     The args are parsed as follows:
     
@@ -112,8 +115,6 @@ import merge_clumps
 '''
     
 
-time_marching_cubes = 0
-t0 = time.time()
 
 class TqdmProgressBar:
     '''
@@ -297,7 +298,7 @@ class Clump:
                             plt.yticks([])
                             plt.savefig(args.output + "_disk_mask_faceon_1.png")
                         nx = int(np.round((np.max(self.x_disk_ucg[slice_obj]) - np.min(self.x_disk_ucg[slice_obj])) / self.ucg_dx))
-                        mask = fill_holes(ds.x_unit_disk, mask, args.max_disk_hole_size, nx, structure=None)
+                        mask = fill_holes(self.ds.x_unit_disk, mask, args.max_disk_hole_size, nx, structure=None)
                         n2 = np.size(np.where(mask))
                         print("Hole filling along x-hat filled",n2-n1,"cells in 2d holes.")
                     if args.max_disk_hole_size>0:
@@ -308,7 +309,7 @@ class Clump:
                             plt.yticks([])
                             plt.savefig(args.output + "_disk_mask_faceon_2.png")
                         ny = int(np.round((np.max(self.y_disk_ucg[slice_obj]) - np.min(self.y_disk_ucg[slice_obj])) / self.ucg_dx))
-                        mask = fill_holes(ds.y_unit_disk, mask, args.max_disk_hole_size, ny, structure=None)
+                        mask = fill_holes(self.ds.y_unit_disk, mask, args.max_disk_hole_size, ny, structure=None)
                         n3 = np.size(np.where(mask))
                         print("Hole filling along y-hat filled",n3-n2,"cells in 2d holes.")
                         if args.make_disk_mask_figures:
@@ -318,7 +319,7 @@ class Clump:
                             plt.yticks([])
                             plt.savefig(args.output + "_disk_mask_faceon_3.png")
                         nz = int(np.round((np.max(self.z_disk_ucg[slice_obj]) - np.min(self.z_disk_ucg[slice_obj])) / self.ucg_dx))
-                        mask = fill_holes(ds.z_unit_disk, mask, args.max_disk_hole_size, nz, structure=None)
+                        mask = fill_holes(self.ds.z_unit_disk, mask, args.max_disk_hole_size, nz, structure=None)
                         n4 = np.size(np.where(mask))
                         print("Hole filling along z-hat filled",n4-n3,"cells in 2d holes.")
                         if args.make_disk_mask_figures:
@@ -634,9 +635,6 @@ class Clump:
                 print("Marching cubes...")
                 self.clump_ids, num_features = label((self.ucg>current_threshold))
                 print("Time to march cubes linearly=",time.time()-t1)
-
-            global time_marching_cubes
-            time_marching_cubes += time.time()-t1
         
             print("Updating clump catalog...")
             parallelize_mapping = True
@@ -663,6 +661,7 @@ class Clump:
         '''
         Call to save all clumps in the hiearchy. If args.only_save_leaves is set to True will only save leaf clumps.
         '''
+        if args.skip_saving_clumps: return
         print("Saving clumps...")
         for tree_level in range(0,len(self.clump_tree)):
             for clump in self.clump_tree[tree_level]:
@@ -812,7 +811,7 @@ def identify_clump_hierarchy(ds,cut_region,args):
             if args.cgm_density_cut_type=="relative_density": args.cgm_density_factor=200.
             elif args.cgm_density_cut_type=="comoving_density": args.cgm_density_factor=0.2
             else: args.cgm_density_factor = 1.
-        cgm_density_cut = get_cgm_density_cut(ds, args.cgm_density_cut_type,additional_factor=args.cgm_density_factor,code_dir=code_dir,run=args.run)
+        cgm_density_cut = get_cgm_density_cut(ds, args.cgm_density_cut_type,additional_factor=args.cgm_density_factor,code_dir=args.code_dir,halo=args.halo,snapshot=args.snapshot,run=args.run)
 
 
 
@@ -823,7 +822,7 @@ def identify_clump_hierarchy(ds,cut_region,args):
         args.clump_max = sph_ism["gas", "density"].max()
         args.step = args.clump_max / args.clump_min
         
-        disk = Clump(ds,refine_box,args,tree_level=0,is_disk=True)
+        disk = Clump(ds,cut_region,args,tree_level=0,is_disk=True)
         disk.FindClumps(args.clump_min,args,ids_to_ignore=None)
 
         current_max = 0
@@ -844,7 +843,7 @@ def identify_clump_hierarchy(ds,cut_region,args):
         if args.identify_disk:
             disk_output = args.output + "_Disk.h5"
             disk.SaveClump(disk.clump_tree[0][disk_index],args,leaf=False,output=disk_output)
-            return None
+            return disk
 
     print("Clump_min is set to",args.clump_min)
    
@@ -871,141 +870,131 @@ def identify_clump_hierarchy(ds,cut_region,args):
     master_clump = Clump(ds,cut_region,args,tree_level=0)
     master_clump.FindClumps(args.clump_min,args,ids_to_ignore=disk_ids)
 
+    master_clump.SaveClumps(args) ##Make optional??
+
     
     return master_clump
 
 
 
-####This is the example implementation for this code####
+def clump_finder(args,ds,cut_region):
+    '''
+    Modular implementation for running the clump finder.
 
-args = parse_args()
+    See ModularUseExample.ipynb for usage examples.
 
-num_cores = multiprocessing.cpu_count()-1
-if args.nthreads is None or args.nthreads>num_cores:
-    args.nthreads = num_cores
+    Arguments are:
+        args: Generate the defaults using get_default_args() in clump_finder_argparser.py
+              and modify accordingly
+        ds: The yt dataset
+        cut_region: the cut region you want to run the clump finder on.
+    '''
+    t0 = time.time()
+
+    num_cores = multiprocessing.cpu_count()-1
+    if args.nthreads is None or args.nthreads>num_cores:
+        args.nthreads = num_cores
 
 
-if args.clumping_field_type is not None:
-    args.clumping_field = (args.clumping_field_type , args.clumping_field)
+    if args.clumping_field_type is not None:
+        args.clumping_field = (args.clumping_field_type , args.clumping_field)
     
+    if args.refinement_level is None:
+        args.refinement_level = np.max(cut_region['index','grid_level'])
 
-if args.system is not None:
-    from foggie.utils.get_run_loc_etc import get_run_loc_etc
-    data_dir, output_dir_default, run_loc, code_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+    if args.system is not None:
+        from foggie.utils.get_run_loc_etc import get_run_loc_etc
+        args.data_dir, output_dir_default, run_loc, args.code_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
 
-else:
-    if args.code_dir is None:
-        code_dir = '/Users/ctrapp/Documents/GitHub/foggie/foggie/'
     else:
-        code_dir = args.code_dir
+        if args.code_dir is None:
+            args.code_dir = '/Users/ctrapp/Documents/GitHub/foggie/foggie/'
+
     
-    if args.data_dir is None:
-        data_dir = '/Volumes/FoggieCam/foggie_halos/'
+        if args.data_dir is None:
+            args.data_dir = '/Volumes/FoggieCam/foggie_halos/'
+
+    add_cell_id_field(ds)
+    global cell_id_field
+    cell_id_field = ('index','cell_id_2')
+
+
+
+
+    master_clump = identify_clump_hierarchy(ds,cut_region,args)
+
+    ''' Report on some timing info '''
+    print("For",args.nthreads,"threads total time=",time.time()-t0)
+
+
+    return master_clump
+
+
+### Implementation if ran directly ####
+if __name__ == "__main__":
+    args = parse_args()
+
+    t0 = time.time()
+
+    num_cores = multiprocessing.cpu_count()-1
+    if args.nthreads is None or args.nthreads>num_cores:
+        args.nthreads = num_cores
+
+
+    if args.clumping_field_type is not None:
+        args.clumping_field = (args.clumping_field_type , args.clumping_field)
+    
+
+    if args.system is not None:
+        from foggie.utils.get_run_loc_etc import get_run_loc_etc
+        args.data_dir, output_dir_default, run_loc, args.code_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+
     else:
-        data_dir = args.data_dir
+        if args.code_dir is None:
+            args.code_dir = '/Users/ctrapp/Documents/GitHub/foggie/foggie/'
 
-halo_id = args.halo #008508
-snapshot = args.snapshot #RD0042
-nref = args.run #nref11c_nref9f
-
-
+        if args.data_dir is None:
+            args.data_dir = '/Volumes/FoggieCam/foggie_halos/'
 
 
+    halo_id = args.halo #008508
+    snapshot = args.snapshot #RD0042
+    nref = args.run #nref11c_nref9f
 
-snap_name = data_dir + "halo_"+halo_id+"/"+nref+"/"+snapshot+"/"+snapshot
-trackname = code_dir+"halo_tracks/"+halo_id+"/nref11n_selfshield_15/halo_track_200kpc_nref9"
-halo_c_v_name = code_dir+"halo_infos/"+halo_id+"/"+nref+"/halo_c_v"
+    snap_name = args.data_dir + "halo_"+halo_id+"/"+nref+"/"+snapshot+"/"+snapshot
+    trackname = args.code_dir+"halo_tracks/"+halo_id+"/nref11n_selfshield_15/halo_track_200kpc_nref9"
+    halo_c_v_name = args.code_dir+"halo_infos/"+halo_id+"/"+nref+"/halo_c_v"
 
-#particle_type_for_angmom = 'young_stars' ##Currently the default
-particle_type_for_angmom = 'gas' #Should be defined by gas with Temps below 1e4 K
+    #particle_type_for_angmom = 'young_stars' ##Currently the default
+    particle_type_for_angmom = 'gas' #Should be defined by gas with Temps below 1e4 K
 
-catalog_dir = code_dir + 'halo_infos/' + halo_id + '/'+nref+'/'
-#smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
-smooth_AM_name = None
+    catalog_dir = args.code_dir + 'halo_infos/' + halo_id + '/'+nref+'/'
+    #smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
+    smooth_AM_name = None
 
-ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name, do_filter_particles=True,disk_relative=True,particle_type_for_angmom=particle_type_for_angmom,smooth_AM_name = smooth_AM_name)
+    ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name, do_filter_particles=True,disk_relative=True,particle_type_for_angmom=particle_type_for_angmom,smooth_AM_name = smooth_AM_name)
 
-
-max_gid=-1
-for g,m in ds.all_data().blocks:
-    if g.id>max_gid: max_gid=g.id
-    
-gx_min = np.zeros((max_gid))
-gy_min = np.zeros((max_gid))
-gz_min = np.zeros((max_gid))
-gx_max = np.zeros((max_gid))
-gy_max = np.zeros((max_gid))
-gz_max = np.zeros((max_gid))
-for g,m in ds.all_data().blocks:
-    g_dx = g['index','dx'].max()
-
-    gx_min[g.id-1] = (g['index','x'].min() - g_dx/2.)  / g_dx
-    gy_min[g.id-1] = (g['index','y'].min() - g_dx/2.)  / g_dx
-    gz_min[g.id-1] = (g['index','z'].min() - g_dx/2.)  / g_dx
-
-    gx_max[g.id-1] = (g['index','x'].max() - g_dx/2.)  / g_dx
-    gy_max[g.id-1] = (g['index','y'].max() - g_dx/2.)  / g_dx
-    gz_max[g.id-1] = (g['index','z'].max() - g_dx/2.)  / g_dx
-
-     
-    
-def get_cell_grid_ids(field, data):
-    gids = data['index','grid_indices'] + 1 #These are different in yt and enzo...
-    u_id = np.copy(gids)
-    
-    idx_dx = data['index','dx']
-
-    x_id = np.divide(data['index','x'] - idx_dx/2. , idx_dx)
-    y_id = np.divide(data['index','y'] - idx_dx/2. , idx_dx)
-    z_id = np.divide(data['index','z'] - idx_dx/2. , idx_dx)
-    
-    
-    for gid in np.round(np.unique(gids)).astype(int): 
-        if gid<=0: continue
-        grid_mask = (gids==gid)
-        if np.size(np.where(grid_mask)[0])<=0: continue
-
-        gx = x_id[grid_mask]
-        gy = y_id[grid_mask]
-        gz = z_id[grid_mask]
-
-        gx = gx - gx_min[gid-1]
-        gy = gy - gy_min[gid-1]
-        gz = gz - gz_min[gid-1]
+    add_cell_id_field(ds)
+    cell_id_field = ('index','cell_id_2')
 
 
-        max_x = gx_max[gid-1]-gx_min[gid-1]
-        max_y = gy_max[gid-1]-gy_min[gid-1]
-
-        c_id =  gx+gy*(max_x+1) +gz*(max_x+1)*(max_y+1)
-
-        u_id[grid_mask] = np.round(gid + c_id * (max_gid+1)).astype(np.uint64)
-    return u_id    
-    
-    
-    
-ds.add_field(('index', 'cell_id_2'), function=get_cell_grid_ids, sampling_type='cell', force_override=True)
-cell_id_field = ('index','cell_id_2')
-
-
-cut_region = refine_box
-if args.cut_radius is not None:
-    if args.cut_radius>0:
-        cut_region = ds.sphere(center=ds.halo_center_kpc, radius=(args.cut_radius, 'kpc'))
-    else:
-        print("Warning: Cut region could not be defined as cut_radius<=0. Using full refine_box.")
+    cut_region = refine_box
+    if args.cut_radius is not None:
+        if args.cut_radius>0:
+            cut_region = ds.sphere(center=ds.halo_center_kpc, radius=(args.cut_radius, 'kpc'))
+        else:
+            print("Warning: Cut region could not be defined as cut_radius<=0. Using full refine_box.")
             
+    if args.refinement_level is None:
+        args.refinement_level = np.max(cut_region['index','grid_level'])
 
-
-master_clump = identify_clump_hierarchy(ds,cut_region,args)
-if master_clump is None:
-    print("Done!")
-else:
-    master_clump.SaveClumps(args)
+    master_clump = identify_clump_hierarchy(ds,cut_region,args)
+#if master_clump is None:
+    #print("Done!")
+#else:
+   # master_clump.SaveClumps(args)
 
     print("Done!")
 
     ''' Report on some timing info '''
     print("For",args.nthreads,"threads total time=",time.time()-t0)
-    print("Time for algorithm=",time_marching_cubes)
-    print("Time for io=",time.time()-t0-time_marching_cubes)

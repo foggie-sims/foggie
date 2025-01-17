@@ -1,5 +1,5 @@
 import argparse
-
+from argparse import Namespace
 
 def parse_args():
     '''Parse command line arguments. Returns args object.
@@ -134,8 +134,52 @@ def parse_args():
                         help='Define a spherical cut region of this radius instead of using the full refine box. Default is None.')
     parser.set_defaults(cut_radius=None) 
 
+    parser.add_argument('--skip_saving_clumps', metavar='skip_saving_clumps', type=bool, action='store', \
+                        help='Set to True to not save the clumps to hdf5 files. Default is False.')
+    parser.set_defaults(skip_saving_clumps=False) 
     
     args = parser.parse_args()
 
     return args
 
+
+
+def get_default_args():
+    """
+    Return a Namespace object with the default values for the arguments
+    defined in the parse_args function.
+    """
+    return Namespace(
+        refinement_level=None,
+        halo="008508",
+        snapshot="RD0042",
+        run="nref11c_nref9f",
+        output="./output/clump_test",
+        clump_min=None,
+        clump_max=None,
+        step=2,
+        mask_disk=False,
+        min_cells=20,
+        nthreads=None,
+        Nsubarrays=64,
+        clumping_field="density",
+        clumping_field_type="gas",
+        only_save_leaves=False,
+        code_dir=None,
+        data_dir=None,
+        include_diagonal_neighbors=False,
+        identify_disk=False,
+        cgm_density_cut_type="relative_density",
+        cgm_density_factor=None,
+        max_void_size=0,
+        max_disk_void_size=2000,
+        max_disk_hole_size=2000,
+        run_mc_parallel=False,
+        run_mapping_linearly=False,
+        make_disk_mask_figures=False,
+        system=None,
+        pwd=False,
+        forcepath=False,
+        cut_radius=None,
+        skip_saving_clumps=False,
+    )
