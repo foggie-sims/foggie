@@ -2,6 +2,7 @@ import numpy as np
 from scipy.ndimage import label
 from scipy.ndimage import map_coordinates
 
+
 def fill_voids(mask,max_hole_size=None,structure=None):
     '''
     Fill topologically closed regions within a matrix (2d or 3d). Recommended for disk finding only.
@@ -132,3 +133,38 @@ def fill_holes(unit_vector, mask, max_size, nz, structure = None):
             nFailed+=1
     if nFailed>0: print("Warning: ",nFailed,"/",nz," slices failed to fill.")
     return (filled_mask | mask)
+
+
+def expand_slice(slice_obj, max_dilation, max_size):
+    '''
+    Expands slice object so that dilation does not overflow the minimal parallelepiped returned by scipy.ndimage.find_objects.
+    Will not go past the bounds of the original cut region.
+    '''
+    new_start = max(slice_obj.start - max_dilation, 0)
+    new_stop = min(slice_obj.stop + max_dilation, max_size)
+    return slice(new_start, new_stop)
+
+
+from scipy.ndimage import binary_dilation
+def get_dilated_shells(mask, n_iterations, cells_per_iteration, structure=None):
+    """
+    Get the dilated shells of a binary mask. The thickness of each shell is defined by cells_per_iteration.
+    The total dilated mask is be the union of the original mask and all shells.
+
+    Parameters:
+        mask (np.ndarray): The input binary mask.
+        n_iterations (int): The number of dilation iterations.
+        structure (np.ndarray): The structure for the binary dilation.
+
+    Returns:
+        list of np.ndarrays: The dilated shells of the mask.
+    """
+
+    dilated_mask = np.copy(mask)
+    shells = []
+    for i in range(0,n_iterations):
+        dilated_mask_2 = binary_dilation(dilated_mask, iterations = cells_per_iteration, structure=structure)
+        shells.append(dilated_mask_2 & ~dilated_mask)
+        dilated_mask = np.copy(dilated_mask_2)
+
+    return shells

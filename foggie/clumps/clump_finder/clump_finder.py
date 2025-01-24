@@ -15,16 +15,19 @@ import time
 
 from collections import defaultdict
 
-from foggie.clumps.clump_finder.utils_diskproject import get_cgm_density_cut
-from foggie.clumps.clump_finder.utils_diskproject import add_cell_id_field
+from foggie.clumps.clump_finder.utils_clump_finder import get_cgm_density_cut
+from foggie.clumps.clump_finder.utils_clump_finder import add_cell_id_field
 from foggie.clumps.clump_finder.fill_topology import fill_voids
 from foggie.clumps.clump_finder.fill_topology import fill_holes
+from foggie.clumps.clump_finder.fill_topology import get_dilated_shells
+from foggie.clumps.clump_finder.fill_topology import expand_slice
 
 import matplotlib.pyplot as plt
 #from matplotlib.colors import LogNorm
 
 from scipy.ndimage import label   
-from scipy.ndimage import find_objects     
+from scipy.ndimage import find_objects
+from scipy.ndimage import binary_dilation     
 
 from foggie.clumps.clump_finder import merge_clumps
 
@@ -271,13 +274,20 @@ class Clump:
 
         for label, slice_obj in enumerate(slices,start=1):
           if slice_obj is not None:
+
+            if args.n_dilation_iterations>0: #Make sure the slice is large enough to contain all dilated cells
+                max_dilation = args.n_dilation_iterations * args.n_cells_per_dilation
+                slice_obj = tuple(
+                    expand_slice(slice_obj[i], max_dilation, self.clump_ids.shape[i]) for i in range(3)
+                )
+
+
             clump_id = self.clump_ids[slice_obj]
             id_region = self.cell_id_ucg[slice_obj]
             mask = (clump_id == label)
 
 
             if self.is_disk:
-                #try:
                 if label==disk_label:
                     n0 = np.size(np.where(mask))
                     if args.max_disk_void_size>0:
@@ -291,37 +301,43 @@ class Clump:
                         n1 = np.size(np.where(mask))
                         print("Void filling filled",n1-n0,"cells in 3d cavities.")
                     if args.max_disk_hole_size>0:
+
                         if args.make_disk_mask_figures:
                             plt.figure()
                             plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
                             plt.xticks([])
                             plt.yticks([])
                             plt.savefig(args.output + "_disk_mask_faceon_1.png")
+
                         nx = int(np.round((np.max(self.x_disk_ucg[slice_obj]) - np.min(self.x_disk_ucg[slice_obj])) / self.ucg_dx))
                         mask = fill_holes(self.ds.x_unit_disk, mask, args.max_disk_hole_size, nx, structure=None)
                         n2 = np.size(np.where(mask))
                         print("Hole filling along x-hat filled",n2-n1,"cells in 2d holes.")
-                    if args.max_disk_hole_size>0:
+
                         if args.make_disk_mask_figures:
                             plt.figure()
                             plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
                             plt.xticks([])
                             plt.yticks([])
                             plt.savefig(args.output + "_disk_mask_faceon_2.png")
+
                         ny = int(np.round((np.max(self.y_disk_ucg[slice_obj]) - np.min(self.y_disk_ucg[slice_obj])) / self.ucg_dx))
                         mask = fill_holes(self.ds.y_unit_disk, mask, args.max_disk_hole_size, ny, structure=None)
                         n3 = np.size(np.where(mask))
                         print("Hole filling along y-hat filled",n3-n2,"cells in 2d holes.")
+
                         if args.make_disk_mask_figures:
                             plt.figure()
                             plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
                             plt.xticks([])
                             plt.yticks([])
                             plt.savefig(args.output + "_disk_mask_faceon_3.png")
+
                         nz = int(np.round((np.max(self.z_disk_ucg[slice_obj]) - np.min(self.z_disk_ucg[slice_obj])) / self.ucg_dx))
                         mask = fill_holes(self.ds.z_unit_disk, mask, args.max_disk_hole_size, nz, structure=None)
                         n4 = np.size(np.where(mask))
                         print("Hole filling along z-hat filled",n4-n3,"cells in 2d holes.")
+
                         if args.make_disk_mask_figures:
                             plt.figure()
                             plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
@@ -329,8 +345,15 @@ class Clump:
                             plt.yticks([])
                             plt.savefig(args.output + "_disk_mask_faceon_4.png")
 
+                    if args.n_dilation_iterations>0:
+                        shell_masks = get_dilated_shells(mask,args.n_dilation_iterations, args.n_cells_per_dilation)
+                        for i in range(0,len(shell_masks)):
+                            self.SaveDilatedShell(np.unique(id_region[shell_masks[i]]), i, args)
+
             elif args.max_void_size>0:
                 mask = fill_voids(mask,args.max_void_size,structure=None)
+                if args.n_dilation_iterations>0:
+                    mask = binary_dilation(mask,args.n_dilation_iterations, args.n_cells_per_dilation)
 
             clump_cell_ids = id_region[mask]
 
@@ -633,7 +656,10 @@ class Clump:
 
             else:
                 print("Marching cubes...")
-                self.clump_ids, num_features = label((self.ucg>current_threshold))
+                struct = None #Default is only neighbors that share faces
+                if args.include_diagonal_neighbors:
+                    struct = np.ones((3,3,3)) #get diagonal neighbors as well
+                self.clump_ids, num_features = label((self.ucg>current_threshold),structure=struct)
                 print("Time to march cubes linearly=",time.time()-t1)
         
             print("Updating clump catalog...")
@@ -642,6 +668,7 @@ class Clump:
             if args.run_mapping_linearly: parallelize_mapping = False
             if args.max_void_size>0: parallelize_mapping = False
             if args.nthreads<=1: parallelize_mapping = False
+            if args.n_dilation_iterations>0: parallelize_mapping = False
 
             if parallelize_mapping:#np.max(self.clump_ids) > 300 or current_threshold > 1e-29:
                 nClumpsAdded = self.UpdateClumpCatalog_parallel(args)
@@ -692,13 +719,17 @@ class Clump:
         hf.close()
         
         
-    def SaveClumpLeaf(self,args):
+
+    def SaveDilatedShell(self,shell_cell_ids,shell_iteration,args):
         '''
-        Save an individual clump leaf.
+        Save the dilated shell of the disk.
         '''
-        hf = hdf5.File(args.output+"_leaf"+self.self_id[0]+"_"+self.self_id[1]+"_"+self.self_id[2]+".hdf5",'w')
-        hf.create_dataset("cell_ids",data = self.cell_ids)
+        output = args.output+"_DiskDilationShell_n"+str(int(shell_iteration)) + ".h5"
+        print("Saving dilated shell at",output)
+        hf = h5py.File(output,'w')
+        hf.create_dataset("cell_ids",data = shell_cell_ids)
         hf.close()
+
         
     
     
@@ -747,7 +778,11 @@ def iterate_clump_marching_cubes(args,minval,maxval,ucg_subarray,thread_id):
     Function for running marching cubes in parallel
     '''
     #t_mc = time.time()
-    clump_id, num_features = label((ucg_subarray>minval))
+    struct = None
+    if args.include_diagonal_neighbors:
+        struct = np.ones((3,3,3))
+
+    clump_id, num_features = label((ucg_subarray>minval),structure=struct)
     #print("Subarray "+str(thread_id)+": Finished Marching Cubes in",time.time()-t_mc)
     return clump_id 
             
@@ -757,7 +792,9 @@ def iterate_boundary_slice(args,boundary_slice,thread_id):
     '''
     nx,ny,nz = np.shape(boundary_slice)
     merge_map = np.zeros((int(np.ceil(nx*ny*nz/2)),2)).astype(np.int32)
-    merge_map = merge_clumps.gen_merge_map(boundary_slice.astype(np.int32), merge_map)
+    if args.include_diagonal_neighbors:
+        merge_map = np.zeros((int(np.ceil(nx*ny*nz*4.5)),2)).astype(np.int32)
+    merge_map = merge_clumps.gen_merge_map(boundary_slice.astype(np.int32), merge_map, int(args.include_diagonal_neighbors))
     return np.unique(merge_map,axis=0).astype(np.int32)
 
 

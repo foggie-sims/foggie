@@ -137,6 +137,16 @@ def parse_args():
     parser.add_argument('--skip_saving_clumps', metavar='skip_saving_clumps', type=bool, action='store', \
                         help='Set to True to not save the clumps to hdf5 files. Default is False.')
     parser.set_defaults(skip_saving_clumps=False) 
+
+    parser.add_argument('--n_dilation_iterations', metavar='n_dilation_iterations', type=int, action='store', \
+                        help='If greater than 0, the mask of each clump will be dilated this many times. Default is 0.')
+    parser.set_defaults(n_dilation_iterations=0) 
+
+    parser.add_argument('--n_cells_per_dilation', metavar='n_cells_per_dilation', type=int, action='store', \
+                        help='If n_dilation_iterations>0, each iteration will dilate the clump by this many cells. Default is 1.')
+    parser.set_defaults(n_cells_per_dilation=1)
+
+    
     
     args = parser.parse_args()
 
@@ -182,4 +192,6 @@ def get_default_args():
         forcepath=False,
         cut_radius=None,
         skip_saving_clumps=False,
+        n_dilation_iterations=0,
+        n_cells_per_dilation=1,
     )

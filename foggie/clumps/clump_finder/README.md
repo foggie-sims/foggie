@@ -1,7 +1,7 @@
 DIRECTORY: `clump_finder`
 AUTHOR: Cameron Trapp
 DATE STARTED: 01/13/2025
-LAST UPDATED: 01/17/2025
+LAST UPDATED: 01/24/2025
 
 This directory contains a set of python and cython scripts to run a clump finder on a FOGGIE halo.
 
@@ -9,7 +9,7 @@ To use for the first time, run 'python setup.py --build_ext --inplace' to run cy
 
 To run the clump finder directly, use clump_finder.py (see below).
 You can also load the clump_finder(args, ds, cut_region) function from clump_finder.py to run this modularly. (See ModularUseExample.ipynb for example)
-To load a clump in as a cut region, use the function load_disk(ds,clump_file) in utils_diskproject.py. (See ModularUseExample.ipynb for example)
+To load a clump in as a cut region, use the function load_disk(ds,clump_file) in utils_clump_finder.py. (See ModularUseExample.ipynb for example)
 
 The algorithm loads in the specified clumping field (typically density) in the forced refinement box (refine_box) of the given snapshot, and
 converts it into a uniform covering grid at the given refinement level. From here, a marching cubes alogrithm is run on the UCG to label
@@ -70,6 +70,9 @@ Algorithm Arguments:
     --mask_disk: Should the disk be masked out? Default is False. Not needed any more, but may offer performance upgrades
     --max_void_size: What is the maximum size of voids (in number of cells) to fill. Set to above 0 to fill voids in clump. Default is 0.
 
+    --n_dilation_iterations: If greater than 0, the binary mask for each clump will be dilated by n_cells_per_dilation cells this many times. Default is 0. Recommended for disk dilation only.
+    --n_cells_per_dilation: How many cells each dilation iteration dilates the clump binary mask by. Default is 1 cell. Total dilation in units of cells is n_dilation_iterations*n_cells_per_dilation.
+
 
 Parallelization Arguments:
 
@@ -101,7 +104,6 @@ Disk Identification Arguments:
 | `setup.py` | Code used to compile the cython code into merge_clumps.c. Run as 'python setup.py build_ext --inplace'. |
 | `fill_topology.py` | Contains functions to fill holes in the datacube and in 2-D slices. Used mostly for disk finding. |
 | `clump_finder_argparser.py` | Handles the input arguments for running the clump finder. |
-| `utils_diskproject.py` | Contains some basic utility functions. |
+| `utils_clump_finder.py` | Contains some basic utility functions, including functions to load in a clump as a cut region in yt. |
 | `ModularUseExample.ipynb` | Jupyter notebook with example usage for modular use of the clump_finder and loading in the clump objects as a cut region. |
-
 | `README.md` | Me. |
