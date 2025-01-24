@@ -2,6 +2,9 @@ import numpy as np
 from foggie.utils.consistency import *
 from yt.data_objects.level_sets.api import * #TODO - Not super slow here, but replace with custom clump finding to find disk?
 import h5py
+from functools import partial
+global internal_clump_counter
+internal_clump_counter = 0
 
 halo_dict = {   '2392'  :  'Hurricane' ,
                 '2878'  :  'Cyclone' ,
@@ -43,7 +46,7 @@ def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run=
         z = ds.get_parameter('CosmologyCurrentRedshift')
         cgm_density_cut = 0.1 *additional_factor* cgm_density_max * (1+z)**3
     elif cut_type=="relative_density":
-        try: Rvir = read_virial_mass_file(halo, snapshot,run,code_dir)
+        try: Rvir = read_virial_mass_file(halo, "RD0042",run,code_dir)
         except:
             print("Warning: Could not read rvir file for this halo...")
             Rvir = 300.
@@ -84,17 +87,26 @@ def _masked_field(field,data):
     '''Only the given clump will be marked as True'''
     return np.isin(data["index","cell_id_2"],clump_cell_ids)
 
+
+def _pseudo_masked_field(field,data,var_clump_cell_ids):
+    '''Only the given clump will be marked as True'''
+    return np.isin(data["index","cell_id_2"],var_clump_cell_ids)
+
 def _unmasked_field(field,data):
     '''All but the given clump will be marked as True'''
     return ~np.isin(data["index","cell_id_2"],clump_cell_ids)    
 
-global max_gid
-global gx_min; global gy_min; global gz_min
-global gx_max; global gy_max; global gz_max
+def _pseudo_unmasked_field(field,data,var_clump_cell_ids):
+    '''Only the given clump will be marked as True'''
+    return ~np.isin(data["index","cell_id_2"],var_clump_cell_ids)
+
+#global max_gid
+#global gx_min; global gy_min; global gz_min
+#global gx_max; global gy_max; global gz_max
 
 def get_cell_grid_ids(field, data):
     '''Function to assign a unique cell_id to each cell based on it's index on its parent grid'''
-    gids = data['index','grid_indices'] + 1 #These are different in yt and enzo...
+    gids = (data['index','grid_indices'] + 1).astype(np.uint64) #These are different in yt and enzo...
     u_id = np.copy(gids)
     
     idx_dx = data['index','dx']
@@ -103,8 +115,44 @@ def get_cell_grid_ids(field, data):
     y_id = np.divide(data['index','y'] - idx_dx/2. , idx_dx)
     z_id = np.divide(data['index','z'] - idx_dx/2. , idx_dx)
     
+    gx = np.subtract(x_id , gx_min[gids-1])
+    gy = np.subtract(y_id , gy_min[gids-1])
+    gz = np.subtract(z_id , gz_min[gids-1])
+
+    max_x = gx_max[gids-1] - gx_min[gids-1]
+    max_y = gy_max[gids-1] - gy_min[gids-1]    
+
+    c_ids = gx + np.multiply(gy , max_x+1) + np.multiply(gz , np.multiply(max_x+1 , max_y+1))
+
+    u_id = np.round(gids + np.multiply(c_ids , max_gid+1)).astype(np.uint64)
+
+    return u_id    
     
-    for gid in np.round(np.unique(gids)).astype(int): 
+def pseudo_get_cell_grid_ids(field, data, max_gid, gx_min, gx_max, gy_min, gy_max, gz_min):
+    '''Function to assign a unique cell_id to each cell based on it's index on its parent grid'''
+    gids = (data['index','grid_indices'] + 1).astype(np.uint64) #These are different in yt and enzo...
+    u_id = np.copy(gids)
+    
+    idx_dx = data['index','dx']
+
+    x_id = np.divide(data['index','x'] - idx_dx/2. , idx_dx)
+    y_id = np.divide(data['index','y'] - idx_dx/2. , idx_dx)
+    z_id = np.divide(data['index','z'] - idx_dx/2. , idx_dx)
+    
+    gx = np.subtract(x_id , gx_min[gids-1])
+    gy = np.subtract(y_id , gy_min[gids-1])
+    gz = np.subtract(z_id , gz_min[gids-1])
+
+    max_x = gx_max[gids-1] - gx_min[gids-1]
+    max_y = gy_max[gids-1] - gy_min[gids-1]    
+
+    c_ids = gx + np.multiply(gy , max_x+1) + np.multiply(gz , np.multiply(max_x+1 , max_y+1))
+
+    u_id = np.round(gids + np.multiply(c_ids , max_gid+1)).astype(np.uint64)
+
+    #The above code is a bit hard to follow, here was the original for loop that was randomly way too slow only for certain calls in yt for certain galaxies for reasons I'm not yt-ie enough to understand.
+    '''
+    for gid in np.round(np.unique(gids)).astype(int):
         if gid<=0: continue
         grid_mask = (gids==gid)
         if np.size(np.where(grid_mask)[0])<=0: continue
@@ -124,22 +172,24 @@ def get_cell_grid_ids(field, data):
         c_id =  gx+gy*(max_x+1) +gz*(max_x+1)*(max_y+1)
 
         u_id[grid_mask] = np.round(gid + c_id * (max_gid+1)).astype(np.uint64)
-    return u_id    
-    
+    '''
+    return u_id  
+
+
 def add_cell_id_field(ds):
     '''
         Adds the unique cell id defined by get_cell_grid_ids above to a dataset.
         Will be consistent between reloads of the same snapshot, but not between
         successive snapshots.
     '''
-    global max_gid
+    #global max_gid
     max_gid=-1
     for g,m in ds.all_data().blocks:
         if g.id>max_gid: max_gid=g.id
 
 
-    global gx_min; global gy_min; global gz_min
-    global gx_max; global gy_max; global gz_max
+    #global gx_min; global gy_min; global gz_min
+    #global gx_max; global gy_max; global gz_max
 
     gx_min = np.zeros((max_gid))
     gy_min = np.zeros((max_gid))
@@ -159,9 +209,20 @@ def add_cell_id_field(ds):
         gy_max[g.id-1] = (g['index','y'].max() - g_dx/2.)  / g_dx
         gz_max[g.id-1] = (g['index','z'].max() - g_dx/2.)  / g_dx 
 
+
+    F_get_cell_grid_ids = partial(pseudo_get_cell_grid_ids, max_gid = max_gid, gx_min=gx_min, gx_max=gx_max, gy_min=gy_min, gy_max=gy_max, gz_min=gz_min) 
+
+
+    #ds.add_field(
+    #    ('index', 'cell_id_2'),
+    #      function=get_cell_grid_ids,
+    #      sampling_type='cell',
+    #      force_override=True
+    #)
+
     ds.add_field(
         ('index', 'cell_id_2'),
-          function=get_cell_grid_ids,
+          function=F_get_cell_grid_ids,
           sampling_type='cell',
           force_override=True
     )
@@ -171,55 +232,65 @@ def add_cell_id_field(ds):
 
 
 
-def load_clump(ds,clump_file,source_cut=None):
+def load_clump(ds,clump_file,source_cut = None):
     '''
     Function to load a disk or clump cut region defined by clump_finder.py    
     '''
-
-    global clump_cell_ids
+    global internal_clump_counter
     hf = h5py.File(clump_file,'r')
-    clump_cell_ids = np.round(np.array(hf['cell_ids']).astype(np.uint64))
+    clump_cell_ids = np.round(np.array(hf['cell_ids'])).astype(np.uint64)
     hf.close()
 
     add_cell_id_field(ds)
 
+    F_masked_field = partial(_pseudo_masked_field, var_clump_cell_ids=clump_cell_ids) #Each clump needs its own field and its own function
+
     ds.add_field(
-        ("index","masked_field"),
-        function=_masked_field,
+        ("index","masked_field_"+str(int(internal_clump_counter))),
+        function=F_masked_field,
         sampling_type="cell",
         units="",
         force_override=True
     )
 
+
     if source_cut is None:
         source_cut = ds.all_data()
-    masked_region = source_cut.cut_region(["obj['index','masked_field']"])
+
+    masked_region = source_cut.cut_region(["obj['index','masked_field_"+str(int(internal_clump_counter))+"']"])
+
+    internal_clump_counter+=1
 
     return masked_region
 
-def mask_clump(ds,clump_file,source_cut=None):
+def mask_clump(ds,clump_file,source_cut = None):
     '''
     Function to return a cut region that excludes
     a disk or clump cut region defined by clump_finder.py    
     '''
-
-    global clump_cell_ids
+    global internal_clump_counter
     hf = h5py.File(clump_file,'r')
     clump_cell_ids = np.round(np.array(hf['cell_ids']).astype(np.uint64))
     hf.close()
 
     add_cell_id_field(ds)
 
+
+    F_unmasked_field = partial(_pseudo_unmasked_field, var_clump_cell_ids=clump_cell_ids) #Each clump needs its own field and its own function
+
     ds.add_field(
-        ("index","unmasked_field"),
-        function=_unmasked_field,
+        ("index","unmasked_field_"+str(int(internal_clump_counter))),
+        function=F_unmasked_field,
         sampling_type="cell",
         units="",
         force_override=True
     )
 
+
     if source_cut is None:
         source_cut = ds.all_data()
-    masked_region = source_cut.cut_region(["obj['index','unmasked_field']"])
+    masked_region = source_cut.cut_region(["obj['index','unmasked_field_"+str(int(internal_clump_counter))+"']"])
+
+    internal_clump_counter+=1
 
     return masked_region
