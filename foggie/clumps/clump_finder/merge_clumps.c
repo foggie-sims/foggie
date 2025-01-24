@@ -2520,23 +2520,17 @@ typedef struct {
     #endif
 #endif
 
-/* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_int(int value);
-
 /* CIntFromPy.proto */
 static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *);
+
+/* CIntToPy.proto */
+static CYTHON_INLINE PyObject* __Pyx_PyInt_From_int(int value);
 
 /* CIntToPy.proto */
 static CYTHON_INLINE PyObject* __Pyx_PyInt_From_Py_intptr_t(Py_intptr_t value);
 
 /* CIntToPy.proto */
 static CYTHON_INLINE PyObject* __Pyx_PyInt_From_long(long value);
-
-/* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_npy_int32(npy_int32 value);
-
-/* CIntFromPy.proto */
-static CYTHON_INLINE npy_int32 __Pyx_PyInt_As_npy_int32(PyObject *);
 
 /* CIntFromPy.proto */
 static CYTHON_INLINE long __Pyx_PyInt_As_long(PyObject *);
@@ -2641,6 +2635,14 @@ static const char __pyx_k_spec[] = "__spec__";
 static const char __pyx_k_test[] = "__test__";
 static const char __pyx_k_val0[] = "val0";
 static const char __pyx_k_val1[] = "val1";
+static const char __pyx_k_val2[] = "val2";
+static const char __pyx_k_val3[] = "val3";
+static const char __pyx_k_val4[] = "val4";
+static const char __pyx_k_val5[] = "val5";
+static const char __pyx_k_val6[] = "val6";
+static const char __pyx_k_val7[] = "val7";
+static const char __pyx_k_val8[] = "val8";
+static const char __pyx_k_val9[] = "val9";
 static const char __pyx_k_numpy[] = "numpy";
 static const char __pyx_k_range[] = "range";
 static const char __pyx_k_shape[] = "shape";
@@ -2661,11 +2663,12 @@ static const char __pyx_k_merge_clumps_pyx[] = "merge_clumps.pyx";
 static const char __pyx_k_clump_id_subarray[] = "clump_id_subarray";
 static const char __pyx_k_asyncio_coroutines[] = "asyncio.coroutines";
 static const char __pyx_k_cline_in_traceback[] = "cline_in_traceback";
+static const char __pyx_k_include_diagonal_neighbors[] = "include_diagonal_neighbors";
 static const char __pyx_k_numpy_core_multiarray_failed_to[] = "numpy.core.multiarray failed to import";
 static const char __pyx_k_numpy_core_umath_failed_to_impor[] = "numpy.core.umath failed to import";
 /* #### Code section: decls ### */
 static PyObject *__pyx_pf_12merge_clumps_merge_clumps(CYTHON_UNUSED PyObject *__pyx_self, PyArrayObject *__pyx_v_clump_id_subarray, PyObject *__pyx_v_clump_merge_map); /* proto */
-static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *__pyx_self, PyArrayObject *__pyx_v_boundary_slice, PyArrayObject *__pyx_v_merge_map); /* proto */
+static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *__pyx_self, PyArrayObject *__pyx_v_boundary_slice, PyArrayObject *__pyx_v_merge_map, int __pyx_v_include_diagonal_neighbors); /* proto */
 /* #### Code section: late_includes ### */
 /* #### Code section: module_state ### */
 typedef struct {
@@ -2743,6 +2746,7 @@ typedef struct {
   PyObject *__pyx_n_s_gen_merge_map;
   PyObject *__pyx_n_s_i;
   PyObject *__pyx_n_s_import;
+  PyObject *__pyx_n_s_include_diagonal_neighbors;
   PyObject *__pyx_n_s_initializing;
   PyObject *__pyx_n_s_is_coroutine;
   PyObject *__pyx_n_s_itr;
@@ -2771,6 +2775,14 @@ typedef struct {
   PyObject *__pyx_n_s_u;
   PyObject *__pyx_n_s_val0;
   PyObject *__pyx_n_s_val1;
+  PyObject *__pyx_n_s_val2;
+  PyObject *__pyx_n_s_val3;
+  PyObject *__pyx_n_s_val4;
+  PyObject *__pyx_n_s_val5;
+  PyObject *__pyx_n_s_val6;
+  PyObject *__pyx_n_s_val7;
+  PyObject *__pyx_n_s_val8;
+  PyObject *__pyx_n_s_val9;
   PyObject *__pyx_n_s_x;
   PyObject *__pyx_n_s_y;
   PyObject *__pyx_n_s_z;
@@ -2855,6 +2867,7 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_gen_merge_map);
   Py_CLEAR(clear_module_state->__pyx_n_s_i);
   Py_CLEAR(clear_module_state->__pyx_n_s_import);
+  Py_CLEAR(clear_module_state->__pyx_n_s_include_diagonal_neighbors);
   Py_CLEAR(clear_module_state->__pyx_n_s_initializing);
   Py_CLEAR(clear_module_state->__pyx_n_s_is_coroutine);
   Py_CLEAR(clear_module_state->__pyx_n_s_itr);
@@ -2883,6 +2896,14 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_u);
   Py_CLEAR(clear_module_state->__pyx_n_s_val0);
   Py_CLEAR(clear_module_state->__pyx_n_s_val1);
+  Py_CLEAR(clear_module_state->__pyx_n_s_val2);
+  Py_CLEAR(clear_module_state->__pyx_n_s_val3);
+  Py_CLEAR(clear_module_state->__pyx_n_s_val4);
+  Py_CLEAR(clear_module_state->__pyx_n_s_val5);
+  Py_CLEAR(clear_module_state->__pyx_n_s_val6);
+  Py_CLEAR(clear_module_state->__pyx_n_s_val7);
+  Py_CLEAR(clear_module_state->__pyx_n_s_val8);
+  Py_CLEAR(clear_module_state->__pyx_n_s_val9);
   Py_CLEAR(clear_module_state->__pyx_n_s_x);
   Py_CLEAR(clear_module_state->__pyx_n_s_y);
   Py_CLEAR(clear_module_state->__pyx_n_s_z);
@@ -2945,6 +2966,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_gen_merge_map);
   Py_VISIT(traverse_module_state->__pyx_n_s_i);
   Py_VISIT(traverse_module_state->__pyx_n_s_import);
+  Py_VISIT(traverse_module_state->__pyx_n_s_include_diagonal_neighbors);
   Py_VISIT(traverse_module_state->__pyx_n_s_initializing);
   Py_VISIT(traverse_module_state->__pyx_n_s_is_coroutine);
   Py_VISIT(traverse_module_state->__pyx_n_s_itr);
@@ -2973,6 +2995,14 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_u);
   Py_VISIT(traverse_module_state->__pyx_n_s_val0);
   Py_VISIT(traverse_module_state->__pyx_n_s_val1);
+  Py_VISIT(traverse_module_state->__pyx_n_s_val2);
+  Py_VISIT(traverse_module_state->__pyx_n_s_val3);
+  Py_VISIT(traverse_module_state->__pyx_n_s_val4);
+  Py_VISIT(traverse_module_state->__pyx_n_s_val5);
+  Py_VISIT(traverse_module_state->__pyx_n_s_val6);
+  Py_VISIT(traverse_module_state->__pyx_n_s_val7);
+  Py_VISIT(traverse_module_state->__pyx_n_s_val8);
+  Py_VISIT(traverse_module_state->__pyx_n_s_val9);
   Py_VISIT(traverse_module_state->__pyx_n_s_x);
   Py_VISIT(traverse_module_state->__pyx_n_s_y);
   Py_VISIT(traverse_module_state->__pyx_n_s_z);
@@ -3063,6 +3093,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_gen_merge_map __pyx_mstate_global->__pyx_n_s_gen_merge_map
 #define __pyx_n_s_i __pyx_mstate_global->__pyx_n_s_i
 #define __pyx_n_s_import __pyx_mstate_global->__pyx_n_s_import
+#define __pyx_n_s_include_diagonal_neighbors __pyx_mstate_global->__pyx_n_s_include_diagonal_neighbors
 #define __pyx_n_s_initializing __pyx_mstate_global->__pyx_n_s_initializing
 #define __pyx_n_s_is_coroutine __pyx_mstate_global->__pyx_n_s_is_coroutine
 #define __pyx_n_s_itr __pyx_mstate_global->__pyx_n_s_itr
@@ -3091,6 +3122,14 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_u __pyx_mstate_global->__pyx_n_s_u
 #define __pyx_n_s_val0 __pyx_mstate_global->__pyx_n_s_val0
 #define __pyx_n_s_val1 __pyx_mstate_global->__pyx_n_s_val1
+#define __pyx_n_s_val2 __pyx_mstate_global->__pyx_n_s_val2
+#define __pyx_n_s_val3 __pyx_mstate_global->__pyx_n_s_val3
+#define __pyx_n_s_val4 __pyx_mstate_global->__pyx_n_s_val4
+#define __pyx_n_s_val5 __pyx_mstate_global->__pyx_n_s_val5
+#define __pyx_n_s_val6 __pyx_mstate_global->__pyx_n_s_val6
+#define __pyx_n_s_val7 __pyx_mstate_global->__pyx_n_s_val7
+#define __pyx_n_s_val8 __pyx_mstate_global->__pyx_n_s_val8
+#define __pyx_n_s_val9 __pyx_mstate_global->__pyx_n_s_val9
 #define __pyx_n_s_x __pyx_mstate_global->__pyx_n_s_x
 #define __pyx_n_s_y __pyx_mstate_global->__pyx_n_s_y
 #define __pyx_n_s_z __pyx_mstate_global->__pyx_n_s_z
@@ -5073,7 +5112,7 @@ static PyObject *__pyx_pf_12merge_clumps_merge_clumps(CYTHON_UNUSED PyObject *__
 /* "merge_clumps.pyx":39
  * 
  * 
- * def gen_merge_map(np.ndarray[np.int32_t,ndim=3] boundary_slice, np.ndarray[np.int32_t,ndim=2] merge_map):             # <<<<<<<<<<<<<<
+ * def gen_merge_map(np.ndarray[np.int32_t,ndim=3] boundary_slice, np.ndarray[np.int32_t,ndim=2] merge_map, int include_diagonal_neighbors):             # <<<<<<<<<<<<<<
  *     cdef int nx,ny,nz
  *     cdef int i,j
  */
@@ -5096,11 +5135,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 ) {
   PyArrayObject *__pyx_v_boundary_slice = 0;
   PyArrayObject *__pyx_v_merge_map = 0;
+  int __pyx_v_include_diagonal_neighbors;
   #if !CYTHON_METH_FASTCALL
   CYTHON_UNUSED Py_ssize_t __pyx_nargs;
   #endif
   CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
-  PyObject* values[2] = {0,0};
+  PyObject* values[3] = {0,0,0};
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
@@ -5116,10 +5156,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   #endif
   __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
   {
-    PyObject **__pyx_pyargnames[] = {&__pyx_n_s_boundary_slice,&__pyx_n_s_merge_map,0};
+    PyObject **__pyx_pyargnames[] = {&__pyx_n_s_boundary_slice,&__pyx_n_s_merge_map,&__pyx_n_s_include_diagonal_neighbors,0};
     if (__pyx_kwds) {
       Py_ssize_t kw_args;
       switch (__pyx_nargs) {
+        case  3: values[2] = __Pyx_Arg_FASTCALL(__pyx_args, 2);
+        CYTHON_FALLTHROUGH;
         case  2: values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
         CYTHON_FALLTHROUGH;
         case  1: values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
@@ -5144,25 +5186,37 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
         }
         else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 39, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("gen_merge_map", 1, 2, 2, 1); __PYX_ERR(0, 39, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("gen_merge_map", 1, 3, 3, 1); __PYX_ERR(0, 39, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case  2:
+        if (likely((values[2] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_include_diagonal_neighbors)) != 0)) {
+          (void)__Pyx_Arg_NewRef_FASTCALL(values[2]);
+          kw_args--;
+        }
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 39, __pyx_L3_error)
+        else {
+          __Pyx_RaiseArgtupleInvalid("gen_merge_map", 1, 3, 3, 2); __PYX_ERR(0, 39, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
         if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "gen_merge_map") < 0)) __PYX_ERR(0, 39, __pyx_L3_error)
       }
-    } else if (unlikely(__pyx_nargs != 2)) {
+    } else if (unlikely(__pyx_nargs != 3)) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
+      values[2] = __Pyx_Arg_FASTCALL(__pyx_args, 2);
     }
     __pyx_v_boundary_slice = ((PyArrayObject *)values[0]);
     __pyx_v_merge_map = ((PyArrayObject *)values[1]);
+    __pyx_v_include_diagonal_neighbors = __Pyx_PyInt_As_int(values[2]); if (unlikely((__pyx_v_include_diagonal_neighbors == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 39, __pyx_L3_error)
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("gen_merge_map", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 39, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("gen_merge_map", 1, 3, 3, __pyx_nargs); __PYX_ERR(0, 39, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5178,7 +5232,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __pyx_L4_argument_unpacking_done:;
   if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_boundary_slice), __pyx_ptype_5numpy_ndarray, 1, "boundary_slice", 0))) __PYX_ERR(0, 39, __pyx_L1_error)
   if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_merge_map), __pyx_ptype_5numpy_ndarray, 1, "merge_map", 0))) __PYX_ERR(0, 39, __pyx_L1_error)
-  __pyx_r = __pyx_pf_12merge_clumps_2gen_merge_map(__pyx_self, __pyx_v_boundary_slice, __pyx_v_merge_map);
+  __pyx_r = __pyx_pf_12merge_clumps_2gen_merge_map(__pyx_self, __pyx_v_boundary_slice, __pyx_v_merge_map, __pyx_v_include_diagonal_neighbors);
 
   /* function exit code */
   goto __pyx_L0;
@@ -5195,15 +5249,23 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *__pyx_self, PyArrayObject *__pyx_v_boundary_slice, PyArrayObject *__pyx_v_merge_map) {
+static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *__pyx_self, PyArrayObject *__pyx_v_boundary_slice, PyArrayObject *__pyx_v_merge_map, int __pyx_v_include_diagonal_neighbors) {
   int __pyx_v_nx;
   int __pyx_v_ny;
   int __pyx_v_nz;
   int __pyx_v_i;
   int __pyx_v_j;
   int __pyx_v_itr;
-  PyObject *__pyx_v_val0 = NULL;
-  PyObject *__pyx_v_val1 = NULL;
+  int __pyx_v_val0;
+  int __pyx_v_val1;
+  int __pyx_v_val2;
+  int __pyx_v_val3;
+  int __pyx_v_val4;
+  int __pyx_v_val5;
+  int __pyx_v_val6;
+  int __pyx_v_val7;
+  int __pyx_v_val8;
+  int __pyx_v_val9;
   __Pyx_LocalBuf_ND __pyx_pybuffernd_boundary_slice;
   __Pyx_Buffer __pyx_pybuffer_boundary_slice;
   __Pyx_LocalBuf_ND __pyx_pybuffernd_merge_map;
@@ -5222,10 +5284,9 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
   Py_ssize_t __pyx_t_10;
   Py_ssize_t __pyx_t_11;
   int __pyx_t_12;
-  PyObject *__pyx_t_13 = NULL;
-  int __pyx_t_14;
-  __pyx_t_5numpy_int32_t __pyx_t_15;
-  PyObject *__pyx_t_16 = NULL;
+  int __pyx_t_13;
+  PyObject *__pyx_t_14 = NULL;
+  PyObject *__pyx_t_15 = NULL;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
@@ -5253,42 +5314,42 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
  *     cdef int nx,ny,nz
  *     cdef int i,j
  *     cdef int itr=0             # <<<<<<<<<<<<<<
- * 
- *     nx=boundary_slice.shape[0]
+ *     cdef int val0,val1
+ *     cdef int val2,val3,val4,val5,val6,val7,val8,val9
  */
   __pyx_v_itr = 0;
 
-  /* "merge_clumps.pyx":44
- *     cdef int itr=0
- * 
+  /* "merge_clumps.pyx":45
+ *     cdef int val0,val1
+ *     cdef int val2,val3,val4,val5,val6,val7,val8,val9
  *     nx=boundary_slice.shape[0]             # <<<<<<<<<<<<<<
  *     ny=boundary_slice.shape[1]
  *     nz=boundary_slice.shape[2]
  */
-  __pyx_t_1 = __pyx_f_5numpy_7ndarray_5shape_shape(((PyArrayObject *)__pyx_v_boundary_slice)); if (unlikely(__pyx_t_1 == ((npy_intp *)NULL) && PyErr_Occurred())) __PYX_ERR(0, 44, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5numpy_7ndarray_5shape_shape(((PyArrayObject *)__pyx_v_boundary_slice)); if (unlikely(__pyx_t_1 == ((npy_intp *)NULL) && PyErr_Occurred())) __PYX_ERR(0, 45, __pyx_L1_error)
   __pyx_v_nx = (__pyx_t_1[0]);
 
-  /* "merge_clumps.pyx":45
- * 
+  /* "merge_clumps.pyx":46
+ *     cdef int val2,val3,val4,val5,val6,val7,val8,val9
  *     nx=boundary_slice.shape[0]
  *     ny=boundary_slice.shape[1]             # <<<<<<<<<<<<<<
  *     nz=boundary_slice.shape[2]
  * 
  */
-  __pyx_t_1 = __pyx_f_5numpy_7ndarray_5shape_shape(((PyArrayObject *)__pyx_v_boundary_slice)); if (unlikely(__pyx_t_1 == ((npy_intp *)NULL) && PyErr_Occurred())) __PYX_ERR(0, 45, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5numpy_7ndarray_5shape_shape(((PyArrayObject *)__pyx_v_boundary_slice)); if (unlikely(__pyx_t_1 == ((npy_intp *)NULL) && PyErr_Occurred())) __PYX_ERR(0, 46, __pyx_L1_error)
   __pyx_v_ny = (__pyx_t_1[1]);
 
-  /* "merge_clumps.pyx":46
+  /* "merge_clumps.pyx":47
  *     nx=boundary_slice.shape[0]
  *     ny=boundary_slice.shape[1]
  *     nz=boundary_slice.shape[2]             # <<<<<<<<<<<<<<
  * 
  * 
  */
-  __pyx_t_1 = __pyx_f_5numpy_7ndarray_5shape_shape(((PyArrayObject *)__pyx_v_boundary_slice)); if (unlikely(__pyx_t_1 == ((npy_intp *)NULL) && PyErr_Occurred())) __PYX_ERR(0, 46, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5numpy_7ndarray_5shape_shape(((PyArrayObject *)__pyx_v_boundary_slice)); if (unlikely(__pyx_t_1 == ((npy_intp *)NULL) && PyErr_Occurred())) __PYX_ERR(0, 47, __pyx_L1_error)
   __pyx_v_nz = (__pyx_t_1[2]);
 
-  /* "merge_clumps.pyx":49
+  /* "merge_clumps.pyx":50
  * 
  * 
  *     if nx==2:             # <<<<<<<<<<<<<<
@@ -5298,7 +5359,7 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
   __pyx_t_2 = (__pyx_v_nx == 2);
   if (__pyx_t_2) {
 
-    /* "merge_clumps.pyx":50
+    /* "merge_clumps.pyx":51
  * 
  *     if nx==2:
  *         for i in range(0,ny):             # <<<<<<<<<<<<<<
@@ -5310,7 +5371,7 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
     for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_4; __pyx_t_5+=1) {
       __pyx_v_i = __pyx_t_5;
 
-      /* "merge_clumps.pyx":51
+      /* "merge_clumps.pyx":52
  *     if nx==2:
  *         for i in range(0,ny):
  *             for j in range(0,nz):             # <<<<<<<<<<<<<<
@@ -5322,7 +5383,7 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
       for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
         __pyx_v_j = __pyx_t_8;
 
-        /* "merge_clumps.pyx":52
+        /* "merge_clumps.pyx":53
  *         for i in range(0,ny):
  *             for j in range(0,nz):
  *                 val0 = boundary_slice[0,i,j]             # <<<<<<<<<<<<<<
@@ -5347,14 +5408,11 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
         } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
         if (unlikely(__pyx_t_12 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_12);
-          __PYX_ERR(0, 52, __pyx_L1_error)
+          __PYX_ERR(0, 53, __pyx_L1_error)
         }
-        __pyx_t_13 = __Pyx_PyInt_From_npy_int32((*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides))); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 52, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_13);
-        __Pyx_XDECREF_SET(__pyx_v_val0, __pyx_t_13);
-        __pyx_t_13 = 0;
+        __pyx_v_val0 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
 
-        /* "merge_clumps.pyx":53
+        /* "merge_clumps.pyx":54
  *             for j in range(0,nz):
  *                 val0 = boundary_slice[0,i,j]
  *                 val1 = boundary_slice[1,i,j]             # <<<<<<<<<<<<<<
@@ -5379,43 +5437,35 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
         } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
         if (unlikely(__pyx_t_12 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_12);
-          __PYX_ERR(0, 53, __pyx_L1_error)
+          __PYX_ERR(0, 54, __pyx_L1_error)
         }
-        __pyx_t_13 = __Pyx_PyInt_From_npy_int32((*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides))); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 53, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_13);
-        __Pyx_XDECREF_SET(__pyx_v_val1, __pyx_t_13);
-        __pyx_t_13 = 0;
+        __pyx_v_val1 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
 
-        /* "merge_clumps.pyx":54
+        /* "merge_clumps.pyx":55
  *                 val0 = boundary_slice[0,i,j]
  *                 val1 = boundary_slice[1,i,j]
  *                 if val0>0 and val1>0:             # <<<<<<<<<<<<<<
  *                     merge_map[itr,0] = val0
  *                     merge_map[itr,1] = val1
  */
-        __pyx_t_13 = PyObject_RichCompare(__pyx_v_val0, __pyx_int_0, Py_GT); __Pyx_XGOTREF(__pyx_t_13); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 54, __pyx_L1_error)
-        __pyx_t_14 = __Pyx_PyObject_IsTrue(__pyx_t_13); if (unlikely((__pyx_t_14 < 0))) __PYX_ERR(0, 54, __pyx_L1_error)
-        __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
-        if (__pyx_t_14) {
+        __pyx_t_13 = (__pyx_v_val0 > 0);
+        if (__pyx_t_13) {
         } else {
-          __pyx_t_2 = __pyx_t_14;
+          __pyx_t_2 = __pyx_t_13;
           goto __pyx_L9_bool_binop_done;
         }
-        __pyx_t_13 = PyObject_RichCompare(__pyx_v_val1, __pyx_int_0, Py_GT); __Pyx_XGOTREF(__pyx_t_13); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 54, __pyx_L1_error)
-        __pyx_t_14 = __Pyx_PyObject_IsTrue(__pyx_t_13); if (unlikely((__pyx_t_14 < 0))) __PYX_ERR(0, 54, __pyx_L1_error)
-        __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
-        __pyx_t_2 = __pyx_t_14;
+        __pyx_t_13 = (__pyx_v_val1 > 0);
+        __pyx_t_2 = __pyx_t_13;
         __pyx_L9_bool_binop_done:;
         if (__pyx_t_2) {
 
-          /* "merge_clumps.pyx":55
+          /* "merge_clumps.pyx":56
  *                 val1 = boundary_slice[1,i,j]
  *                 if val0>0 and val1>0:
  *                     merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
  *                     merge_map[itr,1] = val1
  *                     itr+=1
  */
-          __pyx_t_15 = __Pyx_PyInt_As_npy_int32(__pyx_v_val0); if (unlikely((__pyx_t_15 == ((npy_int32)-1)) && PyErr_Occurred())) __PYX_ERR(0, 55, __pyx_L1_error)
           __pyx_t_9 = __pyx_v_itr;
           __pyx_t_10 = 0;
           __pyx_t_12 = -1;
@@ -5429,18 +5479,17 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
           } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
           if (unlikely(__pyx_t_12 != -1)) {
             __Pyx_RaiseBufferIndexError(__pyx_t_12);
-            __PYX_ERR(0, 55, __pyx_L1_error)
+            __PYX_ERR(0, 56, __pyx_L1_error)
           }
-          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_t_15;
+          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
 
-          /* "merge_clumps.pyx":56
+          /* "merge_clumps.pyx":57
  *                 if val0>0 and val1>0:
  *                     merge_map[itr,0] = val0
  *                     merge_map[itr,1] = val1             # <<<<<<<<<<<<<<
  *                     itr+=1
- *     if ny==2:
+ * 
  */
-          __pyx_t_15 = __Pyx_PyInt_As_npy_int32(__pyx_v_val1); if (unlikely((__pyx_t_15 == ((npy_int32)-1)) && PyErr_Occurred())) __PYX_ERR(0, 56, __pyx_L1_error)
           __pyx_t_10 = __pyx_v_itr;
           __pyx_t_9 = 1;
           __pyx_t_12 = -1;
@@ -5454,20 +5503,20 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
           } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
           if (unlikely(__pyx_t_12 != -1)) {
             __Pyx_RaiseBufferIndexError(__pyx_t_12);
-            __PYX_ERR(0, 56, __pyx_L1_error)
+            __PYX_ERR(0, 57, __pyx_L1_error)
           }
-          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_t_15;
+          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val1;
 
-          /* "merge_clumps.pyx":57
+          /* "merge_clumps.pyx":58
  *                     merge_map[itr,0] = val0
  *                     merge_map[itr,1] = val1
  *                     itr+=1             # <<<<<<<<<<<<<<
- *     if ny==2:
- *         for i in range(0,nx):
+ * 
+ *                 if include_diagonal_neighbors>0 and val0>0:
  */
           __pyx_v_itr = (__pyx_v_itr + 1);
 
-          /* "merge_clumps.pyx":54
+          /* "merge_clumps.pyx":55
  *                 val0 = boundary_slice[0,i,j]
  *                 val1 = boundary_slice[1,i,j]
  *                 if val0>0 and val1>0:             # <<<<<<<<<<<<<<
@@ -5475,10 +5524,1069 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
  *                     merge_map[itr,1] = val1
  */
         }
+
+        /* "merge_clumps.pyx":60
+ *                     itr+=1
+ * 
+ *                 if include_diagonal_neighbors>0 and val0>0:             # <<<<<<<<<<<<<<
+ *                     val2=0
+ *                     val3=0
+ */
+        __pyx_t_13 = (__pyx_v_include_diagonal_neighbors > 0);
+        if (__pyx_t_13) {
+        } else {
+          __pyx_t_2 = __pyx_t_13;
+          goto __pyx_L12_bool_binop_done;
+        }
+        __pyx_t_13 = (__pyx_v_val0 > 0);
+        __pyx_t_2 = __pyx_t_13;
+        __pyx_L12_bool_binop_done:;
+        if (__pyx_t_2) {
+
+          /* "merge_clumps.pyx":61
+ * 
+ *                 if include_diagonal_neighbors>0 and val0>0:
+ *                     val2=0             # <<<<<<<<<<<<<<
+ *                     val3=0
+ *                     val4=0
+ */
+          __pyx_v_val2 = 0;
+
+          /* "merge_clumps.pyx":62
+ *                 if include_diagonal_neighbors>0 and val0>0:
+ *                     val2=0
+ *                     val3=0             # <<<<<<<<<<<<<<
+ *                     val4=0
+ *                     val5=0
+ */
+          __pyx_v_val3 = 0;
+
+          /* "merge_clumps.pyx":63
+ *                     val2=0
+ *                     val3=0
+ *                     val4=0             # <<<<<<<<<<<<<<
+ *                     val5=0
+ *                     val6=0
+ */
+          __pyx_v_val4 = 0;
+
+          /* "merge_clumps.pyx":64
+ *                     val3=0
+ *                     val4=0
+ *                     val5=0             # <<<<<<<<<<<<<<
+ *                     val6=0
+ *                     val7=0
+ */
+          __pyx_v_val5 = 0;
+
+          /* "merge_clumps.pyx":65
+ *                     val4=0
+ *                     val5=0
+ *                     val6=0             # <<<<<<<<<<<<<<
+ *                     val7=0
+ *                     val8=0
+ */
+          __pyx_v_val6 = 0;
+
+          /* "merge_clumps.pyx":66
+ *                     val5=0
+ *                     val6=0
+ *                     val7=0             # <<<<<<<<<<<<<<
+ *                     val8=0
+ *                     val9=0
+ */
+          __pyx_v_val7 = 0;
+
+          /* "merge_clumps.pyx":67
+ *                     val6=0
+ *                     val7=0
+ *                     val8=0             # <<<<<<<<<<<<<<
+ *                     val9=0
+ *                     if i+1<ny: val2 = boundary_slice[1,i+1,j]
+ */
+          __pyx_v_val8 = 0;
+
+          /* "merge_clumps.pyx":68
+ *                     val7=0
+ *                     val8=0
+ *                     val9=0             # <<<<<<<<<<<<<<
+ *                     if i+1<ny: val2 = boundary_slice[1,i+1,j]
+ *                     if j+1<nz: val3 = boundary_slice[1,i,j+1]
+ */
+          __pyx_v_val9 = 0;
+
+          /* "merge_clumps.pyx":69
+ *                     val8=0
+ *                     val9=0
+ *                     if i+1<ny: val2 = boundary_slice[1,i+1,j]             # <<<<<<<<<<<<<<
+ *                     if j+1<nz: val3 = boundary_slice[1,i,j+1]
+ *                     if i-1>=0: val4 = boundary_slice[1,i-1,j]
+ */
+          __pyx_t_2 = ((__pyx_v_i + 1) < __pyx_v_ny);
+          if (__pyx_t_2) {
+            __pyx_t_9 = 1;
+            __pyx_t_10 = (__pyx_v_i + 1);
+            __pyx_t_11 = __pyx_v_j;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 69, __pyx_L1_error)
+            }
+            __pyx_v_val2 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":70
+ *                     val9=0
+ *                     if i+1<ny: val2 = boundary_slice[1,i+1,j]
+ *                     if j+1<nz: val3 = boundary_slice[1,i,j+1]             # <<<<<<<<<<<<<<
+ *                     if i-1>=0: val4 = boundary_slice[1,i-1,j]
+ *                     if j-1>=0: val5 = boundary_slice[1,i,j-1]
+ */
+          __pyx_t_2 = ((__pyx_v_j + 1) < __pyx_v_nz);
+          if (__pyx_t_2) {
+            __pyx_t_11 = 1;
+            __pyx_t_10 = __pyx_v_i;
+            __pyx_t_9 = (__pyx_v_j + 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 70, __pyx_L1_error)
+            }
+            __pyx_v_val3 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":71
+ *                     if i+1<ny: val2 = boundary_slice[1,i+1,j]
+ *                     if j+1<nz: val3 = boundary_slice[1,i,j+1]
+ *                     if i-1>=0: val4 = boundary_slice[1,i-1,j]             # <<<<<<<<<<<<<<
+ *                     if j-1>=0: val5 = boundary_slice[1,i,j-1]
+ *                     if i+1<ny and j+1<nz: val6 = boundary_slice[1,i+1,j+1]
+ */
+          __pyx_t_2 = ((__pyx_v_i - 1) >= 0);
+          if (__pyx_t_2) {
+            __pyx_t_9 = 1;
+            __pyx_t_10 = (__pyx_v_i - 1);
+            __pyx_t_11 = __pyx_v_j;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 71, __pyx_L1_error)
+            }
+            __pyx_v_val4 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":72
+ *                     if j+1<nz: val3 = boundary_slice[1,i,j+1]
+ *                     if i-1>=0: val4 = boundary_slice[1,i-1,j]
+ *                     if j-1>=0: val5 = boundary_slice[1,i,j-1]             # <<<<<<<<<<<<<<
+ *                     if i+1<ny and j+1<nz: val6 = boundary_slice[1,i+1,j+1]
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[1,i-1,j-1]
+ */
+          __pyx_t_2 = ((__pyx_v_j - 1) >= 0);
+          if (__pyx_t_2) {
+            __pyx_t_11 = 1;
+            __pyx_t_10 = __pyx_v_i;
+            __pyx_t_9 = (__pyx_v_j - 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 72, __pyx_L1_error)
+            }
+            __pyx_v_val5 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":73
+ *                     if i-1>=0: val4 = boundary_slice[1,i-1,j]
+ *                     if j-1>=0: val5 = boundary_slice[1,i,j-1]
+ *                     if i+1<ny and j+1<nz: val6 = boundary_slice[1,i+1,j+1]             # <<<<<<<<<<<<<<
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[1,i-1,j-1]
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[1,i-1,j+1]
+ */
+          __pyx_t_13 = ((__pyx_v_i + 1) < __pyx_v_ny);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L19_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j + 1) < __pyx_v_nz);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L19_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_9 = 1;
+            __pyx_t_10 = (__pyx_v_i + 1);
+            __pyx_t_11 = (__pyx_v_j + 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 73, __pyx_L1_error)
+            }
+            __pyx_v_val6 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":74
+ *                     if j-1>=0: val5 = boundary_slice[1,i,j-1]
+ *                     if i+1<ny and j+1<nz: val6 = boundary_slice[1,i+1,j+1]
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[1,i-1,j-1]             # <<<<<<<<<<<<<<
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[1,i-1,j+1]
+ *                     if i+1<ny and j-1>=0: val9 = boundary_slice[1,i+1,j-1]
+ */
+          __pyx_t_13 = ((__pyx_v_i - 1) >= 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L22_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j - 1) >= 0);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L22_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_11 = 1;
+            __pyx_t_10 = (__pyx_v_i - 1);
+            __pyx_t_9 = (__pyx_v_j - 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 74, __pyx_L1_error)
+            }
+            __pyx_v_val7 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":75
+ *                     if i+1<ny and j+1<nz: val6 = boundary_slice[1,i+1,j+1]
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[1,i-1,j-1]
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[1,i-1,j+1]             # <<<<<<<<<<<<<<
+ *                     if i+1<ny and j-1>=0: val9 = boundary_slice[1,i+1,j-1]
+ *                     if val2>0 and val2!=val1:
+ */
+          __pyx_t_13 = ((__pyx_v_i - 1) >= 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L25_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j + 1) < __pyx_v_nz);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L25_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_9 = 1;
+            __pyx_t_10 = (__pyx_v_i - 1);
+            __pyx_t_11 = (__pyx_v_j + 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 75, __pyx_L1_error)
+            }
+            __pyx_v_val8 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":76
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[1,i-1,j-1]
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[1,i-1,j+1]
+ *                     if i+1<ny and j-1>=0: val9 = boundary_slice[1,i+1,j-1]             # <<<<<<<<<<<<<<
+ *                     if val2>0 and val2!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+          __pyx_t_13 = ((__pyx_v_i + 1) < __pyx_v_ny);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L28_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j - 1) >= 0);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L28_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_11 = 1;
+            __pyx_t_10 = (__pyx_v_i + 1);
+            __pyx_t_9 = (__pyx_v_j - 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 76, __pyx_L1_error)
+            }
+            __pyx_v_val9 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":77
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[1,i-1,j+1]
+ *                     if i+1<ny and j-1>=0: val9 = boundary_slice[1,i+1,j-1]
+ *                     if val2>0 and val2!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2
+ */
+          __pyx_t_13 = (__pyx_v_val2 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L31_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val2 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L31_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":78
+ *                     if i+1<ny and j-1>=0: val9 = boundary_slice[1,i+1,j-1]
+ *                     if val2>0 and val2!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 78, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":79
+ *                     if val2>0 and val2!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 79, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val2;
+
+            /* "merge_clumps.pyx":80
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val3>0 and val3!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":77
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[1,i-1,j+1]
+ *                     if i+1<ny and j-1>=0: val9 = boundary_slice[1,i+1,j-1]
+ *                     if val2>0 and val2!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2
+ */
+          }
+
+          /* "merge_clumps.pyx":81
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3
+ */
+          __pyx_t_13 = (__pyx_v_val3 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L34_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val3 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L34_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":82
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 82, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":83
+ *                     if val3>0 and val3!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 83, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val3;
+
+            /* "merge_clumps.pyx":84
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val4>0 and val4!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":81
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3
+ */
+          }
+
+          /* "merge_clumps.pyx":85
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4
+ */
+          __pyx_t_13 = (__pyx_v_val4 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L37_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val4 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L37_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":86
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 86, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":87
+ *                     if val4>0 and val4!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 87, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val4;
+
+            /* "merge_clumps.pyx":88
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val5>0 and val5!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":85
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4
+ */
+          }
+
+          /* "merge_clumps.pyx":89
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5
+ */
+          __pyx_t_13 = (__pyx_v_val5 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L40_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val5 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L40_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":90
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 90, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":91
+ *                     if val5>0 and val5!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 91, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val5;
+
+            /* "merge_clumps.pyx":92
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val6>0 and val6!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":89
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5
+ */
+          }
+
+          /* "merge_clumps.pyx":93
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6
+ */
+          __pyx_t_13 = (__pyx_v_val6 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L43_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val6 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L43_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":94
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 94, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":95
+ *                     if val6>0 and val6!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 95, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val6;
+
+            /* "merge_clumps.pyx":96
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val7>0 and val7!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":93
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6
+ */
+          }
+
+          /* "merge_clumps.pyx":97
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7
+ */
+          __pyx_t_13 = (__pyx_v_val7 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L46_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val7 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L46_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":98
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 98, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":99
+ *                     if val7>0 and val7!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 99, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val7;
+
+            /* "merge_clumps.pyx":100
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val8>0 and val8!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":97
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7
+ */
+          }
+
+          /* "merge_clumps.pyx":101
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8
+ */
+          __pyx_t_13 = (__pyx_v_val8 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L49_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val8 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L49_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":102
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 102, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":103
+ *                     if val8>0 and val8!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 103, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val8;
+
+            /* "merge_clumps.pyx":104
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val9>0 and val9!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":101
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8
+ */
+          }
+
+          /* "merge_clumps.pyx":105
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9
+ */
+          __pyx_t_13 = (__pyx_v_val9 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L52_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val9 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L52_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":106
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val9
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 106, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":107
+ *                     if val9>0 and val9!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ * 
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 107, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val9;
+
+            /* "merge_clumps.pyx":108
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ * 
+ *     if ny==2:
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":105
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9
+ */
+          }
+
+          /* "merge_clumps.pyx":60
+ *                     itr+=1
+ * 
+ *                 if include_diagonal_neighbors>0 and val0>0:             # <<<<<<<<<<<<<<
+ *                     val2=0
+ *                     val3=0
+ */
+        }
       }
     }
 
-    /* "merge_clumps.pyx":49
+    /* "merge_clumps.pyx":50
  * 
  * 
  *     if nx==2:             # <<<<<<<<<<<<<<
@@ -5487,9 +6595,9 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
  */
   }
 
-  /* "merge_clumps.pyx":58
- *                     merge_map[itr,1] = val1
- *                     itr+=1
+  /* "merge_clumps.pyx":110
+ *                         itr+=1
+ * 
  *     if ny==2:             # <<<<<<<<<<<<<<
  *         for i in range(0,nx):
  *             for j in range(0,nz):
@@ -5497,8 +6605,8 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
   __pyx_t_2 = (__pyx_v_ny == 2);
   if (__pyx_t_2) {
 
-    /* "merge_clumps.pyx":59
- *                     itr+=1
+    /* "merge_clumps.pyx":111
+ * 
  *     if ny==2:
  *         for i in range(0,nx):             # <<<<<<<<<<<<<<
  *             for j in range(0,nz):
@@ -5509,7 +6617,7 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
     for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_4; __pyx_t_5+=1) {
       __pyx_v_i = __pyx_t_5;
 
-      /* "merge_clumps.pyx":60
+      /* "merge_clumps.pyx":112
  *     if ny==2:
  *         for i in range(0,nx):
  *             for j in range(0,nz):             # <<<<<<<<<<<<<<
@@ -5521,7 +6629,7 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
       for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
         __pyx_v_j = __pyx_t_8;
 
-        /* "merge_clumps.pyx":61
+        /* "merge_clumps.pyx":113
  *         for i in range(0,nx):
  *             for j in range(0,nz):
  *                 val0 = boundary_slice[i,0,j]             # <<<<<<<<<<<<<<
@@ -5546,14 +6654,11 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
         } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
         if (unlikely(__pyx_t_12 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_12);
-          __PYX_ERR(0, 61, __pyx_L1_error)
+          __PYX_ERR(0, 113, __pyx_L1_error)
         }
-        __pyx_t_13 = __Pyx_PyInt_From_npy_int32((*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides))); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 61, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_13);
-        __Pyx_XDECREF_SET(__pyx_v_val0, __pyx_t_13);
-        __pyx_t_13 = 0;
+        __pyx_v_val0 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
 
-        /* "merge_clumps.pyx":62
+        /* "merge_clumps.pyx":114
  *             for j in range(0,nz):
  *                 val0 = boundary_slice[i,0,j]
  *                 val1 = boundary_slice[i,1,j]             # <<<<<<<<<<<<<<
@@ -5578,43 +6683,35 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
         } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
         if (unlikely(__pyx_t_12 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_12);
-          __PYX_ERR(0, 62, __pyx_L1_error)
+          __PYX_ERR(0, 114, __pyx_L1_error)
         }
-        __pyx_t_13 = __Pyx_PyInt_From_npy_int32((*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides))); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 62, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_13);
-        __Pyx_XDECREF_SET(__pyx_v_val1, __pyx_t_13);
-        __pyx_t_13 = 0;
+        __pyx_v_val1 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
 
-        /* "merge_clumps.pyx":63
+        /* "merge_clumps.pyx":115
  *                 val0 = boundary_slice[i,0,j]
  *                 val1 = boundary_slice[i,1,j]
  *                 if val0>0 and val1>0:             # <<<<<<<<<<<<<<
  *                     merge_map[itr,0] = val0
  *                     merge_map[itr,1] = val1
  */
-        __pyx_t_13 = PyObject_RichCompare(__pyx_v_val0, __pyx_int_0, Py_GT); __Pyx_XGOTREF(__pyx_t_13); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 63, __pyx_L1_error)
-        __pyx_t_14 = __Pyx_PyObject_IsTrue(__pyx_t_13); if (unlikely((__pyx_t_14 < 0))) __PYX_ERR(0, 63, __pyx_L1_error)
-        __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
-        if (__pyx_t_14) {
+        __pyx_t_13 = (__pyx_v_val0 > 0);
+        if (__pyx_t_13) {
         } else {
-          __pyx_t_2 = __pyx_t_14;
-          goto __pyx_L17_bool_binop_done;
+          __pyx_t_2 = __pyx_t_13;
+          goto __pyx_L60_bool_binop_done;
         }
-        __pyx_t_13 = PyObject_RichCompare(__pyx_v_val1, __pyx_int_0, Py_GT); __Pyx_XGOTREF(__pyx_t_13); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 63, __pyx_L1_error)
-        __pyx_t_14 = __Pyx_PyObject_IsTrue(__pyx_t_13); if (unlikely((__pyx_t_14 < 0))) __PYX_ERR(0, 63, __pyx_L1_error)
-        __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
-        __pyx_t_2 = __pyx_t_14;
-        __pyx_L17_bool_binop_done:;
+        __pyx_t_13 = (__pyx_v_val1 > 0);
+        __pyx_t_2 = __pyx_t_13;
+        __pyx_L60_bool_binop_done:;
         if (__pyx_t_2) {
 
-          /* "merge_clumps.pyx":64
+          /* "merge_clumps.pyx":116
  *                 val1 = boundary_slice[i,1,j]
  *                 if val0>0 and val1>0:
  *                     merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
  *                     merge_map[itr,1] = val1
  *                     itr+=1
  */
-          __pyx_t_15 = __Pyx_PyInt_As_npy_int32(__pyx_v_val0); if (unlikely((__pyx_t_15 == ((npy_int32)-1)) && PyErr_Occurred())) __PYX_ERR(0, 64, __pyx_L1_error)
           __pyx_t_9 = __pyx_v_itr;
           __pyx_t_10 = 0;
           __pyx_t_12 = -1;
@@ -5628,18 +6725,17 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
           } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
           if (unlikely(__pyx_t_12 != -1)) {
             __Pyx_RaiseBufferIndexError(__pyx_t_12);
-            __PYX_ERR(0, 64, __pyx_L1_error)
+            __PYX_ERR(0, 116, __pyx_L1_error)
           }
-          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_t_15;
+          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
 
-          /* "merge_clumps.pyx":65
+          /* "merge_clumps.pyx":117
  *                 if val0>0 and val1>0:
  *                     merge_map[itr,0] = val0
  *                     merge_map[itr,1] = val1             # <<<<<<<<<<<<<<
  *                     itr+=1
- *     if nz==2:
+ * 
  */
-          __pyx_t_15 = __Pyx_PyInt_As_npy_int32(__pyx_v_val1); if (unlikely((__pyx_t_15 == ((npy_int32)-1)) && PyErr_Occurred())) __PYX_ERR(0, 65, __pyx_L1_error)
           __pyx_t_10 = __pyx_v_itr;
           __pyx_t_9 = 1;
           __pyx_t_12 = -1;
@@ -5653,20 +6749,20 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
           } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
           if (unlikely(__pyx_t_12 != -1)) {
             __Pyx_RaiseBufferIndexError(__pyx_t_12);
-            __PYX_ERR(0, 65, __pyx_L1_error)
+            __PYX_ERR(0, 117, __pyx_L1_error)
           }
-          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_t_15;
+          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val1;
 
-          /* "merge_clumps.pyx":66
+          /* "merge_clumps.pyx":118
  *                     merge_map[itr,0] = val0
  *                     merge_map[itr,1] = val1
  *                     itr+=1             # <<<<<<<<<<<<<<
- *     if nz==2:
- *         for i in range(0,nx):
+ * 
+ *                 if include_diagonal_neighbors>0 and val0>0:
  */
           __pyx_v_itr = (__pyx_v_itr + 1);
 
-          /* "merge_clumps.pyx":63
+          /* "merge_clumps.pyx":115
  *                 val0 = boundary_slice[i,0,j]
  *                 val1 = boundary_slice[i,1,j]
  *                 if val0>0 and val1>0:             # <<<<<<<<<<<<<<
@@ -5674,21 +6770,1080 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
  *                     merge_map[itr,1] = val1
  */
         }
+
+        /* "merge_clumps.pyx":120
+ *                     itr+=1
+ * 
+ *                 if include_diagonal_neighbors>0 and val0>0:             # <<<<<<<<<<<<<<
+ *                     val2=0
+ *                     val3=0
+ */
+        __pyx_t_13 = (__pyx_v_include_diagonal_neighbors > 0);
+        if (__pyx_t_13) {
+        } else {
+          __pyx_t_2 = __pyx_t_13;
+          goto __pyx_L63_bool_binop_done;
+        }
+        __pyx_t_13 = (__pyx_v_val0 > 0);
+        __pyx_t_2 = __pyx_t_13;
+        __pyx_L63_bool_binop_done:;
+        if (__pyx_t_2) {
+
+          /* "merge_clumps.pyx":121
+ * 
+ *                 if include_diagonal_neighbors>0 and val0>0:
+ *                     val2=0             # <<<<<<<<<<<<<<
+ *                     val3=0
+ *                     val4=0
+ */
+          __pyx_v_val2 = 0;
+
+          /* "merge_clumps.pyx":122
+ *                 if include_diagonal_neighbors>0 and val0>0:
+ *                     val2=0
+ *                     val3=0             # <<<<<<<<<<<<<<
+ *                     val4=0
+ *                     val5=0
+ */
+          __pyx_v_val3 = 0;
+
+          /* "merge_clumps.pyx":123
+ *                     val2=0
+ *                     val3=0
+ *                     val4=0             # <<<<<<<<<<<<<<
+ *                     val5=0
+ *                     val6=0
+ */
+          __pyx_v_val4 = 0;
+
+          /* "merge_clumps.pyx":124
+ *                     val3=0
+ *                     val4=0
+ *                     val5=0             # <<<<<<<<<<<<<<
+ *                     val6=0
+ *                     val7=0
+ */
+          __pyx_v_val5 = 0;
+
+          /* "merge_clumps.pyx":125
+ *                     val4=0
+ *                     val5=0
+ *                     val6=0             # <<<<<<<<<<<<<<
+ *                     val7=0
+ *                     val8=0
+ */
+          __pyx_v_val6 = 0;
+
+          /* "merge_clumps.pyx":126
+ *                     val5=0
+ *                     val6=0
+ *                     val7=0             # <<<<<<<<<<<<<<
+ *                     val8=0
+ *                     val9=0
+ */
+          __pyx_v_val7 = 0;
+
+          /* "merge_clumps.pyx":127
+ *                     val6=0
+ *                     val7=0
+ *                     val8=0             # <<<<<<<<<<<<<<
+ *                     val9=0
+ *                     if i+1<nx: val2 = boundary_slice[i+1,1,j]
+ */
+          __pyx_v_val8 = 0;
+
+          /* "merge_clumps.pyx":128
+ *                     val7=0
+ *                     val8=0
+ *                     val9=0             # <<<<<<<<<<<<<<
+ *                     if i+1<nx: val2 = boundary_slice[i+1,1,j]
+ *                     if j+1<nz: val3 = boundary_slice[i,1,j+1]
+ */
+          __pyx_v_val9 = 0;
+
+          /* "merge_clumps.pyx":129
+ *                     val8=0
+ *                     val9=0
+ *                     if i+1<nx: val2 = boundary_slice[i+1,1,j]             # <<<<<<<<<<<<<<
+ *                     if j+1<nz: val3 = boundary_slice[i,1,j+1]
+ *                     if i-1>=0: val4 = boundary_slice[i-1,1,j]
+ */
+          __pyx_t_2 = ((__pyx_v_i + 1) < __pyx_v_nx);
+          if (__pyx_t_2) {
+            __pyx_t_9 = (__pyx_v_i + 1);
+            __pyx_t_10 = 1;
+            __pyx_t_11 = __pyx_v_j;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 129, __pyx_L1_error)
+            }
+            __pyx_v_val2 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":130
+ *                     val9=0
+ *                     if i+1<nx: val2 = boundary_slice[i+1,1,j]
+ *                     if j+1<nz: val3 = boundary_slice[i,1,j+1]             # <<<<<<<<<<<<<<
+ *                     if i-1>=0: val4 = boundary_slice[i-1,1,j]
+ *                     if j-1>=0: val5 = boundary_slice[i,1,j-1]
+ */
+          __pyx_t_2 = ((__pyx_v_j + 1) < __pyx_v_nz);
+          if (__pyx_t_2) {
+            __pyx_t_11 = __pyx_v_i;
+            __pyx_t_10 = 1;
+            __pyx_t_9 = (__pyx_v_j + 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 130, __pyx_L1_error)
+            }
+            __pyx_v_val3 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":131
+ *                     if i+1<nx: val2 = boundary_slice[i+1,1,j]
+ *                     if j+1<nz: val3 = boundary_slice[i,1,j+1]
+ *                     if i-1>=0: val4 = boundary_slice[i-1,1,j]             # <<<<<<<<<<<<<<
+ *                     if j-1>=0: val5 = boundary_slice[i,1,j-1]
+ *                     if i+1<nx and j+1<nz: val6 = boundary_slice[i+1,1,j+1]
+ */
+          __pyx_t_2 = ((__pyx_v_i - 1) >= 0);
+          if (__pyx_t_2) {
+            __pyx_t_9 = (__pyx_v_i - 1);
+            __pyx_t_10 = 1;
+            __pyx_t_11 = __pyx_v_j;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 131, __pyx_L1_error)
+            }
+            __pyx_v_val4 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":132
+ *                     if j+1<nz: val3 = boundary_slice[i,1,j+1]
+ *                     if i-1>=0: val4 = boundary_slice[i-1,1,j]
+ *                     if j-1>=0: val5 = boundary_slice[i,1,j-1]             # <<<<<<<<<<<<<<
+ *                     if i+1<nx and j+1<nz: val6 = boundary_slice[i+1,1,j+1]
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[i-1,1,j-1]
+ */
+          __pyx_t_2 = ((__pyx_v_j - 1) >= 0);
+          if (__pyx_t_2) {
+            __pyx_t_11 = __pyx_v_i;
+            __pyx_t_10 = 1;
+            __pyx_t_9 = (__pyx_v_j - 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 132, __pyx_L1_error)
+            }
+            __pyx_v_val5 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":133
+ *                     if i-1>=0: val4 = boundary_slice[i-1,1,j]
+ *                     if j-1>=0: val5 = boundary_slice[i,1,j-1]
+ *                     if i+1<nx and j+1<nz: val6 = boundary_slice[i+1,1,j+1]             # <<<<<<<<<<<<<<
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[i-1,1,j-1]
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[i-1,1,j+1]
+ */
+          __pyx_t_13 = ((__pyx_v_i + 1) < __pyx_v_nx);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L70_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j + 1) < __pyx_v_nz);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L70_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_9 = (__pyx_v_i + 1);
+            __pyx_t_10 = 1;
+            __pyx_t_11 = (__pyx_v_j + 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 133, __pyx_L1_error)
+            }
+            __pyx_v_val6 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":134
+ *                     if j-1>=0: val5 = boundary_slice[i,1,j-1]
+ *                     if i+1<nx and j+1<nz: val6 = boundary_slice[i+1,1,j+1]
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[i-1,1,j-1]             # <<<<<<<<<<<<<<
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[i-1,1,j+1]
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,1,j-1]
+ */
+          __pyx_t_13 = ((__pyx_v_i - 1) >= 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L73_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j - 1) >= 0);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L73_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_11 = (__pyx_v_i - 1);
+            __pyx_t_10 = 1;
+            __pyx_t_9 = (__pyx_v_j - 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 134, __pyx_L1_error)
+            }
+            __pyx_v_val7 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":135
+ *                     if i+1<nx and j+1<nz: val6 = boundary_slice[i+1,1,j+1]
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[i-1,1,j-1]
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[i-1,1,j+1]             # <<<<<<<<<<<<<<
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,1,j-1]
+ *                     if val2>0 and val2!=val1:
+ */
+          __pyx_t_13 = ((__pyx_v_i - 1) >= 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L76_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j + 1) < __pyx_v_nz);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L76_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_9 = (__pyx_v_i - 1);
+            __pyx_t_10 = 1;
+            __pyx_t_11 = (__pyx_v_j + 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 135, __pyx_L1_error)
+            }
+            __pyx_v_val8 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":136
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[i-1,1,j-1]
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[i-1,1,j+1]
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,1,j-1]             # <<<<<<<<<<<<<<
+ *                     if val2>0 and val2!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+          __pyx_t_13 = ((__pyx_v_i + 1) < __pyx_v_nx);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L79_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j - 1) >= 0);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L79_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_11 = (__pyx_v_i + 1);
+            __pyx_t_10 = 1;
+            __pyx_t_9 = (__pyx_v_j - 1);
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 136, __pyx_L1_error)
+            }
+            __pyx_v_val9 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":137
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[i-1,1,j+1]
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,1,j-1]
+ *                     if val2>0 and val2!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2
+ */
+          __pyx_t_13 = (__pyx_v_val2 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L82_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val2 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L82_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":138
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,1,j-1]
+ *                     if val2>0 and val2!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 138, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":139
+ *                     if val2>0 and val2!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 139, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val2;
+
+            /* "merge_clumps.pyx":140
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val3>0 and val3!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":137
+ *                     if i-1>=0 and j+1<nz: val8 = boundary_slice[i-1,1,j+1]
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,1,j-1]
+ *                     if val2>0 and val2!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2
+ */
+          }
+
+          /* "merge_clumps.pyx":141
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3
+ */
+          __pyx_t_13 = (__pyx_v_val3 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L85_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val3 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L85_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":142
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 142, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":143
+ *                     if val3>0 and val3!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 143, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val3;
+
+            /* "merge_clumps.pyx":144
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val4>0 and val4!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":141
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3
+ */
+          }
+
+          /* "merge_clumps.pyx":145
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4
+ */
+          __pyx_t_13 = (__pyx_v_val4 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L88_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val4 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L88_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":146
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 146, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":147
+ *                     if val4>0 and val4!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 147, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val4;
+
+            /* "merge_clumps.pyx":148
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val5>0 and val5!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":145
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4
+ */
+          }
+
+          /* "merge_clumps.pyx":149
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5
+ */
+          __pyx_t_13 = (__pyx_v_val5 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L91_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val5 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L91_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":150
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 150, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":151
+ *                     if val5>0 and val5!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 151, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val5;
+
+            /* "merge_clumps.pyx":152
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val6>0 and val6!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":149
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5
+ */
+          }
+
+          /* "merge_clumps.pyx":153
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6
+ */
+          __pyx_t_13 = (__pyx_v_val6 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L94_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val6 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L94_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":154
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 154, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":155
+ *                     if val6>0 and val6!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 155, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val6;
+
+            /* "merge_clumps.pyx":156
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val7>0 and val7!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":153
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6
+ */
+          }
+
+          /* "merge_clumps.pyx":157
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7
+ */
+          __pyx_t_13 = (__pyx_v_val7 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L97_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val7 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L97_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":158
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 158, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":159
+ *                     if val7>0 and val7!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 159, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val7;
+
+            /* "merge_clumps.pyx":160
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val8>0 and val8!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":157
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7
+ */
+          }
+
+          /* "merge_clumps.pyx":161
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8
+ */
+          __pyx_t_13 = (__pyx_v_val8 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L100_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val8 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L100_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":162
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 162, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":163
+ *                     if val8>0 and val8!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 163, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val8;
+
+            /* "merge_clumps.pyx":164
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val9>0 and val9!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":161
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8
+ */
+          }
+
+          /* "merge_clumps.pyx":165
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9
+ */
+          __pyx_t_13 = (__pyx_v_val9 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L103_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val9 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L103_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":166
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val9
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 166, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":167
+ *                     if val9>0 and val9!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ * 
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 167, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val9;
+
+            /* "merge_clumps.pyx":168
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ * 
+ *     if nz==2:
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":165
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9
+ */
+          }
+
+          /* "merge_clumps.pyx":120
+ *                     itr+=1
+ * 
+ *                 if include_diagonal_neighbors>0 and val0>0:             # <<<<<<<<<<<<<<
+ *                     val2=0
+ *                     val3=0
+ */
+        }
       }
     }
 
-    /* "merge_clumps.pyx":58
- *                     merge_map[itr,1] = val1
- *                     itr+=1
+    /* "merge_clumps.pyx":110
+ *                         itr+=1
+ * 
  *     if ny==2:             # <<<<<<<<<<<<<<
  *         for i in range(0,nx):
  *             for j in range(0,nz):
  */
   }
 
-  /* "merge_clumps.pyx":67
- *                     merge_map[itr,1] = val1
- *                     itr+=1
+  /* "merge_clumps.pyx":170
+ *                         itr+=1
+ * 
  *     if nz==2:             # <<<<<<<<<<<<<<
  *         for i in range(0,nx):
  *             for j in range(0,ny):
@@ -5696,8 +7851,8 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
   __pyx_t_2 = (__pyx_v_nz == 2);
   if (__pyx_t_2) {
 
-    /* "merge_clumps.pyx":68
- *                     itr+=1
+    /* "merge_clumps.pyx":171
+ * 
  *     if nz==2:
  *         for i in range(0,nx):             # <<<<<<<<<<<<<<
  *             for j in range(0,ny):
@@ -5708,7 +7863,7 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
     for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_4; __pyx_t_5+=1) {
       __pyx_v_i = __pyx_t_5;
 
-      /* "merge_clumps.pyx":69
+      /* "merge_clumps.pyx":172
  *     if nz==2:
  *         for i in range(0,nx):
  *             for j in range(0,ny):             # <<<<<<<<<<<<<<
@@ -5720,7 +7875,7 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
       for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
         __pyx_v_j = __pyx_t_8;
 
-        /* "merge_clumps.pyx":70
+        /* "merge_clumps.pyx":173
  *         for i in range(0,nx):
  *             for j in range(0,ny):
  *                 val0 = boundary_slice[i,j,0]             # <<<<<<<<<<<<<<
@@ -5745,14 +7900,11 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
         } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
         if (unlikely(__pyx_t_12 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_12);
-          __PYX_ERR(0, 70, __pyx_L1_error)
+          __PYX_ERR(0, 173, __pyx_L1_error)
         }
-        __pyx_t_13 = __Pyx_PyInt_From_npy_int32((*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides))); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 70, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_13);
-        __Pyx_XDECREF_SET(__pyx_v_val0, __pyx_t_13);
-        __pyx_t_13 = 0;
+        __pyx_v_val0 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
 
-        /* "merge_clumps.pyx":71
+        /* "merge_clumps.pyx":174
  *             for j in range(0,ny):
  *                 val0 = boundary_slice[i,j,0]
  *                 val1 = boundary_slice[i,j,1]             # <<<<<<<<<<<<<<
@@ -5777,43 +7929,35 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
         } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
         if (unlikely(__pyx_t_12 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_12);
-          __PYX_ERR(0, 71, __pyx_L1_error)
+          __PYX_ERR(0, 174, __pyx_L1_error)
         }
-        __pyx_t_13 = __Pyx_PyInt_From_npy_int32((*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides))); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 71, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_13);
-        __Pyx_XDECREF_SET(__pyx_v_val1, __pyx_t_13);
-        __pyx_t_13 = 0;
+        __pyx_v_val1 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
 
-        /* "merge_clumps.pyx":72
+        /* "merge_clumps.pyx":175
  *                 val0 = boundary_slice[i,j,0]
  *                 val1 = boundary_slice[i,j,1]
  *                 if val0>0 and val1>0:             # <<<<<<<<<<<<<<
  *                     merge_map[itr,0] = val0
  *                     merge_map[itr,1] = val1
  */
-        __pyx_t_13 = PyObject_RichCompare(__pyx_v_val0, __pyx_int_0, Py_GT); __Pyx_XGOTREF(__pyx_t_13); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 72, __pyx_L1_error)
-        __pyx_t_14 = __Pyx_PyObject_IsTrue(__pyx_t_13); if (unlikely((__pyx_t_14 < 0))) __PYX_ERR(0, 72, __pyx_L1_error)
-        __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
-        if (__pyx_t_14) {
+        __pyx_t_13 = (__pyx_v_val0 > 0);
+        if (__pyx_t_13) {
         } else {
-          __pyx_t_2 = __pyx_t_14;
-          goto __pyx_L25_bool_binop_done;
+          __pyx_t_2 = __pyx_t_13;
+          goto __pyx_L111_bool_binop_done;
         }
-        __pyx_t_13 = PyObject_RichCompare(__pyx_v_val1, __pyx_int_0, Py_GT); __Pyx_XGOTREF(__pyx_t_13); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 72, __pyx_L1_error)
-        __pyx_t_14 = __Pyx_PyObject_IsTrue(__pyx_t_13); if (unlikely((__pyx_t_14 < 0))) __PYX_ERR(0, 72, __pyx_L1_error)
-        __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
-        __pyx_t_2 = __pyx_t_14;
-        __pyx_L25_bool_binop_done:;
+        __pyx_t_13 = (__pyx_v_val1 > 0);
+        __pyx_t_2 = __pyx_t_13;
+        __pyx_L111_bool_binop_done:;
         if (__pyx_t_2) {
 
-          /* "merge_clumps.pyx":73
+          /* "merge_clumps.pyx":176
  *                 val1 = boundary_slice[i,j,1]
  *                 if val0>0 and val1>0:
  *                     merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
  *                     merge_map[itr,1] = val1
  *                     itr+=1
  */
-          __pyx_t_15 = __Pyx_PyInt_As_npy_int32(__pyx_v_val0); if (unlikely((__pyx_t_15 == ((npy_int32)-1)) && PyErr_Occurred())) __PYX_ERR(0, 73, __pyx_L1_error)
           __pyx_t_9 = __pyx_v_itr;
           __pyx_t_10 = 0;
           __pyx_t_12 = -1;
@@ -5827,18 +7971,17 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
           } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
           if (unlikely(__pyx_t_12 != -1)) {
             __Pyx_RaiseBufferIndexError(__pyx_t_12);
-            __PYX_ERR(0, 73, __pyx_L1_error)
+            __PYX_ERR(0, 176, __pyx_L1_error)
           }
-          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_t_15;
+          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
 
-          /* "merge_clumps.pyx":74
+          /* "merge_clumps.pyx":177
  *                 if val0>0 and val1>0:
  *                     merge_map[itr,0] = val0
  *                     merge_map[itr,1] = val1             # <<<<<<<<<<<<<<
  *                     itr+=1
  * 
  */
-          __pyx_t_15 = __Pyx_PyInt_As_npy_int32(__pyx_v_val1); if (unlikely((__pyx_t_15 == ((npy_int32)-1)) && PyErr_Occurred())) __PYX_ERR(0, 74, __pyx_L1_error)
           __pyx_t_10 = __pyx_v_itr;
           __pyx_t_9 = 1;
           __pyx_t_12 = -1;
@@ -5852,20 +7995,20 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
           } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
           if (unlikely(__pyx_t_12 != -1)) {
             __Pyx_RaiseBufferIndexError(__pyx_t_12);
-            __PYX_ERR(0, 74, __pyx_L1_error)
+            __PYX_ERR(0, 177, __pyx_L1_error)
           }
-          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_t_15;
+          *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val1;
 
-          /* "merge_clumps.pyx":75
+          /* "merge_clumps.pyx":178
  *                     merge_map[itr,0] = val0
  *                     merge_map[itr,1] = val1
  *                     itr+=1             # <<<<<<<<<<<<<<
  * 
- *     if itr==0: itr=1
+ *                 if include_diagonal_neighbors>0 and val0>0:
  */
           __pyx_v_itr = (__pyx_v_itr + 1);
 
-          /* "merge_clumps.pyx":72
+          /* "merge_clumps.pyx":175
  *                 val0 = boundary_slice[i,j,0]
  *                 val1 = boundary_slice[i,j,1]
  *                 if val0>0 and val1>0:             # <<<<<<<<<<<<<<
@@ -5873,20 +8016,1079 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
  *                     merge_map[itr,1] = val1
  */
         }
+
+        /* "merge_clumps.pyx":180
+ *                     itr+=1
+ * 
+ *                 if include_diagonal_neighbors>0 and val0>0:             # <<<<<<<<<<<<<<
+ *                     val2=0
+ *                     val3=0
+ */
+        __pyx_t_13 = (__pyx_v_include_diagonal_neighbors > 0);
+        if (__pyx_t_13) {
+        } else {
+          __pyx_t_2 = __pyx_t_13;
+          goto __pyx_L114_bool_binop_done;
+        }
+        __pyx_t_13 = (__pyx_v_val0 > 0);
+        __pyx_t_2 = __pyx_t_13;
+        __pyx_L114_bool_binop_done:;
+        if (__pyx_t_2) {
+
+          /* "merge_clumps.pyx":181
+ * 
+ *                 if include_diagonal_neighbors>0 and val0>0:
+ *                     val2=0             # <<<<<<<<<<<<<<
+ *                     val3=0
+ *                     val4=0
+ */
+          __pyx_v_val2 = 0;
+
+          /* "merge_clumps.pyx":182
+ *                 if include_diagonal_neighbors>0 and val0>0:
+ *                     val2=0
+ *                     val3=0             # <<<<<<<<<<<<<<
+ *                     val4=0
+ *                     val5=0
+ */
+          __pyx_v_val3 = 0;
+
+          /* "merge_clumps.pyx":183
+ *                     val2=0
+ *                     val3=0
+ *                     val4=0             # <<<<<<<<<<<<<<
+ *                     val5=0
+ *                     val6=0
+ */
+          __pyx_v_val4 = 0;
+
+          /* "merge_clumps.pyx":184
+ *                     val3=0
+ *                     val4=0
+ *                     val5=0             # <<<<<<<<<<<<<<
+ *                     val6=0
+ *                     val7=0
+ */
+          __pyx_v_val5 = 0;
+
+          /* "merge_clumps.pyx":185
+ *                     val4=0
+ *                     val5=0
+ *                     val6=0             # <<<<<<<<<<<<<<
+ *                     val7=0
+ *                     val8=0
+ */
+          __pyx_v_val6 = 0;
+
+          /* "merge_clumps.pyx":186
+ *                     val5=0
+ *                     val6=0
+ *                     val7=0             # <<<<<<<<<<<<<<
+ *                     val8=0
+ *                     val9=0
+ */
+          __pyx_v_val7 = 0;
+
+          /* "merge_clumps.pyx":187
+ *                     val6=0
+ *                     val7=0
+ *                     val8=0             # <<<<<<<<<<<<<<
+ *                     val9=0
+ *                     if i+1<nx: val2 = boundary_slice[i+1,j,1]
+ */
+          __pyx_v_val8 = 0;
+
+          /* "merge_clumps.pyx":188
+ *                     val7=0
+ *                     val8=0
+ *                     val9=0             # <<<<<<<<<<<<<<
+ *                     if i+1<nx: val2 = boundary_slice[i+1,j,1]
+ *                     if j+1<ny: val3 = boundary_slice[i,j+1,1]
+ */
+          __pyx_v_val9 = 0;
+
+          /* "merge_clumps.pyx":189
+ *                     val8=0
+ *                     val9=0
+ *                     if i+1<nx: val2 = boundary_slice[i+1,j,1]             # <<<<<<<<<<<<<<
+ *                     if j+1<ny: val3 = boundary_slice[i,j+1,1]
+ *                     if i-1>=0: val4 = boundary_slice[i-1,j,1]
+ */
+          __pyx_t_2 = ((__pyx_v_i + 1) < __pyx_v_nx);
+          if (__pyx_t_2) {
+            __pyx_t_9 = (__pyx_v_i + 1);
+            __pyx_t_10 = __pyx_v_j;
+            __pyx_t_11 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 189, __pyx_L1_error)
+            }
+            __pyx_v_val2 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":190
+ *                     val9=0
+ *                     if i+1<nx: val2 = boundary_slice[i+1,j,1]
+ *                     if j+1<ny: val3 = boundary_slice[i,j+1,1]             # <<<<<<<<<<<<<<
+ *                     if i-1>=0: val4 = boundary_slice[i-1,j,1]
+ *                     if j-1>=0: val5 = boundary_slice[i,j-1,1]
+ */
+          __pyx_t_2 = ((__pyx_v_j + 1) < __pyx_v_ny);
+          if (__pyx_t_2) {
+            __pyx_t_11 = __pyx_v_i;
+            __pyx_t_10 = (__pyx_v_j + 1);
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 190, __pyx_L1_error)
+            }
+            __pyx_v_val3 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":191
+ *                     if i+1<nx: val2 = boundary_slice[i+1,j,1]
+ *                     if j+1<ny: val3 = boundary_slice[i,j+1,1]
+ *                     if i-1>=0: val4 = boundary_slice[i-1,j,1]             # <<<<<<<<<<<<<<
+ *                     if j-1>=0: val5 = boundary_slice[i,j-1,1]
+ *                     if i+1<nx and j+1<ny: val6 = boundary_slice[i+1,j+1,1]
+ */
+          __pyx_t_2 = ((__pyx_v_i - 1) >= 0);
+          if (__pyx_t_2) {
+            __pyx_t_9 = (__pyx_v_i - 1);
+            __pyx_t_10 = __pyx_v_j;
+            __pyx_t_11 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 191, __pyx_L1_error)
+            }
+            __pyx_v_val4 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":192
+ *                     if j+1<ny: val3 = boundary_slice[i,j+1,1]
+ *                     if i-1>=0: val4 = boundary_slice[i-1,j,1]
+ *                     if j-1>=0: val5 = boundary_slice[i,j-1,1]             # <<<<<<<<<<<<<<
+ *                     if i+1<nx and j+1<ny: val6 = boundary_slice[i+1,j+1,1]
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[i-1,j-1,1]
+ */
+          __pyx_t_2 = ((__pyx_v_j - 1) >= 0);
+          if (__pyx_t_2) {
+            __pyx_t_11 = __pyx_v_i;
+            __pyx_t_10 = (__pyx_v_j - 1);
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 192, __pyx_L1_error)
+            }
+            __pyx_v_val5 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":193
+ *                     if i-1>=0: val4 = boundary_slice[i-1,j,1]
+ *                     if j-1>=0: val5 = boundary_slice[i,j-1,1]
+ *                     if i+1<nx and j+1<ny: val6 = boundary_slice[i+1,j+1,1]             # <<<<<<<<<<<<<<
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[i-1,j-1,1]
+ *                     if i-1>=0 and j+1<ny: val8 = boundary_slice[i-1,j+1,1]
+ */
+          __pyx_t_13 = ((__pyx_v_i + 1) < __pyx_v_nx);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L121_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j + 1) < __pyx_v_ny);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L121_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_9 = (__pyx_v_i + 1);
+            __pyx_t_10 = (__pyx_v_j + 1);
+            __pyx_t_11 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 193, __pyx_L1_error)
+            }
+            __pyx_v_val6 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":194
+ *                     if j-1>=0: val5 = boundary_slice[i,j-1,1]
+ *                     if i+1<nx and j+1<ny: val6 = boundary_slice[i+1,j+1,1]
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[i-1,j-1,1]             # <<<<<<<<<<<<<<
+ *                     if i-1>=0 and j+1<ny: val8 = boundary_slice[i-1,j+1,1]
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,j-1,1]
+ */
+          __pyx_t_13 = ((__pyx_v_i - 1) >= 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L124_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j - 1) >= 0);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L124_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_11 = (__pyx_v_i - 1);
+            __pyx_t_10 = (__pyx_v_j - 1);
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 194, __pyx_L1_error)
+            }
+            __pyx_v_val7 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":195
+ *                     if i+1<nx and j+1<ny: val6 = boundary_slice[i+1,j+1,1]
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[i-1,j-1,1]
+ *                     if i-1>=0 and j+1<ny: val8 = boundary_slice[i-1,j+1,1]             # <<<<<<<<<<<<<<
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,j-1,1]
+ *                     if val2>0 and val2!=val1:
+ */
+          __pyx_t_13 = ((__pyx_v_i - 1) >= 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L127_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j + 1) < __pyx_v_ny);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L127_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_9 = (__pyx_v_i - 1);
+            __pyx_t_10 = (__pyx_v_j + 1);
+            __pyx_t_11 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 195, __pyx_L1_error)
+            }
+            __pyx_v_val8 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":196
+ *                     if i-1>=0 and j-1>=0: val7 = boundary_slice[i-1,j-1,1]
+ *                     if i-1>=0 and j+1<ny: val8 = boundary_slice[i-1,j+1,1]
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,j-1,1]             # <<<<<<<<<<<<<<
+ *                     if val2>0 and val2!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+          __pyx_t_13 = ((__pyx_v_i + 1) < __pyx_v_nx);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L130_bool_binop_done;
+          }
+          __pyx_t_13 = ((__pyx_v_j - 1) >= 0);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L130_bool_binop_done:;
+          if (__pyx_t_2) {
+            __pyx_t_11 = (__pyx_v_i + 1);
+            __pyx_t_10 = (__pyx_v_j - 1);
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_11 < 0) {
+              __pyx_t_11 += __pyx_pybuffernd_boundary_slice.diminfo[0].shape;
+              if (unlikely(__pyx_t_11 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_11 >= __pyx_pybuffernd_boundary_slice.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_boundary_slice.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_boundary_slice.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_boundary_slice.diminfo[2].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 2;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_boundary_slice.diminfo[2].shape)) __pyx_t_12 = 2;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 196, __pyx_L1_error)
+            }
+            __pyx_v_val9 = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer.buf, __pyx_t_11, __pyx_pybuffernd_boundary_slice.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_boundary_slice.diminfo[1].strides, __pyx_t_9, __pyx_pybuffernd_boundary_slice.diminfo[2].strides));
+          }
+
+          /* "merge_clumps.pyx":197
+ *                     if i-1>=0 and j+1<ny: val8 = boundary_slice[i-1,j+1,1]
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,j-1,1]
+ *                     if val2>0 and val2!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2
+ */
+          __pyx_t_13 = (__pyx_v_val2 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L133_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val2 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L133_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":198
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,j-1,1]
+ *                     if val2>0 and val2!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 198, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":199
+ *                     if val2>0 and val2!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 199, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val2;
+
+            /* "merge_clumps.pyx":200
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val3>0 and val3!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":197
+ *                     if i-1>=0 and j+1<ny: val8 = boundary_slice[i-1,j+1,1]
+ *                     if i+1<nx and j-1>=0: val9 = boundary_slice[i+1,j-1,1]
+ *                     if val2>0 and val2!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val2
+ */
+          }
+
+          /* "merge_clumps.pyx":201
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3
+ */
+          __pyx_t_13 = (__pyx_v_val3 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L136_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val3 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L136_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":202
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 202, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":203
+ *                     if val3>0 and val3!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 203, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val3;
+
+            /* "merge_clumps.pyx":204
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val4>0 and val4!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":201
+ *                         merge_map[itr,1] = val2
+ *                         itr+=1
+ *                     if val3>0 and val3!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val3
+ */
+          }
+
+          /* "merge_clumps.pyx":205
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4
+ */
+          __pyx_t_13 = (__pyx_v_val4 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L139_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val4 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L139_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":206
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 206, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":207
+ *                     if val4>0 and val4!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 207, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val4;
+
+            /* "merge_clumps.pyx":208
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val5>0 and val5!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":205
+ *                         merge_map[itr,1] = val3
+ *                         itr+=1
+ *                     if val4>0 and val4!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val4
+ */
+          }
+
+          /* "merge_clumps.pyx":209
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5
+ */
+          __pyx_t_13 = (__pyx_v_val5 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L142_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val5 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L142_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":210
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 210, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":211
+ *                     if val5>0 and val5!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 211, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val5;
+
+            /* "merge_clumps.pyx":212
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val6>0 and val6!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":209
+ *                         merge_map[itr,1] = val4
+ *                         itr+=1
+ *                     if val5>0 and val5!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val5
+ */
+          }
+
+          /* "merge_clumps.pyx":213
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6
+ */
+          __pyx_t_13 = (__pyx_v_val6 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L145_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val6 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L145_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":214
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 214, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":215
+ *                     if val6>0 and val6!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 215, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val6;
+
+            /* "merge_clumps.pyx":216
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val7>0 and val7!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":213
+ *                         merge_map[itr,1] = val5
+ *                         itr+=1
+ *                     if val6>0 and val6!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val6
+ */
+          }
+
+          /* "merge_clumps.pyx":217
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7
+ */
+          __pyx_t_13 = (__pyx_v_val7 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L148_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val7 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L148_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":218
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 218, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":219
+ *                     if val7>0 and val7!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 219, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val7;
+
+            /* "merge_clumps.pyx":220
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val8>0 and val8!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":217
+ *                         merge_map[itr,1] = val6
+ *                         itr+=1
+ *                     if val7>0 and val7!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val7
+ */
+          }
+
+          /* "merge_clumps.pyx":221
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8
+ */
+          __pyx_t_13 = (__pyx_v_val8 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L151_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val8 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L151_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":222
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 222, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":223
+ *                     if val8>0 and val8!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 223, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val8;
+
+            /* "merge_clumps.pyx":224
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ *                     if val9>0 and val9!=val1:
+ *                         merge_map[itr,0] = val0
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":221
+ *                         merge_map[itr,1] = val7
+ *                         itr+=1
+ *                     if val8>0 and val8!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val8
+ */
+          }
+
+          /* "merge_clumps.pyx":225
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9
+ */
+          __pyx_t_13 = (__pyx_v_val9 > 0);
+          if (__pyx_t_13) {
+          } else {
+            __pyx_t_2 = __pyx_t_13;
+            goto __pyx_L154_bool_binop_done;
+          }
+          __pyx_t_13 = (__pyx_v_val9 != __pyx_v_val1);
+          __pyx_t_2 = __pyx_t_13;
+          __pyx_L154_bool_binop_done:;
+          if (__pyx_t_2) {
+
+            /* "merge_clumps.pyx":226
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:
+ *                         merge_map[itr,0] = val0             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,1] = val9
+ *                         itr+=1
+ */
+            __pyx_t_9 = __pyx_v_itr;
+            __pyx_t_10 = 0;
+            __pyx_t_12 = -1;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 226, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val0;
+
+            /* "merge_clumps.pyx":227
+ *                     if val9>0 and val9!=val1:
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9             # <<<<<<<<<<<<<<
+ *                         itr+=1
+ * 
+ */
+            __pyx_t_10 = __pyx_v_itr;
+            __pyx_t_9 = 1;
+            __pyx_t_12 = -1;
+            if (__pyx_t_10 < 0) {
+              __pyx_t_10 += __pyx_pybuffernd_merge_map.diminfo[0].shape;
+              if (unlikely(__pyx_t_10 < 0)) __pyx_t_12 = 0;
+            } else if (unlikely(__pyx_t_10 >= __pyx_pybuffernd_merge_map.diminfo[0].shape)) __pyx_t_12 = 0;
+            if (__pyx_t_9 < 0) {
+              __pyx_t_9 += __pyx_pybuffernd_merge_map.diminfo[1].shape;
+              if (unlikely(__pyx_t_9 < 0)) __pyx_t_12 = 1;
+            } else if (unlikely(__pyx_t_9 >= __pyx_pybuffernd_merge_map.diminfo[1].shape)) __pyx_t_12 = 1;
+            if (unlikely(__pyx_t_12 != -1)) {
+              __Pyx_RaiseBufferIndexError(__pyx_t_12);
+              __PYX_ERR(0, 227, __pyx_L1_error)
+            }
+            *__Pyx_BufPtrStrided2d(__pyx_t_5numpy_int32_t *, __pyx_pybuffernd_merge_map.rcbuffer->pybuffer.buf, __pyx_t_10, __pyx_pybuffernd_merge_map.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_merge_map.diminfo[1].strides) = __pyx_v_val9;
+
+            /* "merge_clumps.pyx":228
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9
+ *                         itr+=1             # <<<<<<<<<<<<<<
+ * 
+ *     if itr==0: itr=1
+ */
+            __pyx_v_itr = (__pyx_v_itr + 1);
+
+            /* "merge_clumps.pyx":225
+ *                         merge_map[itr,1] = val8
+ *                         itr+=1
+ *                     if val9>0 and val9!=val1:             # <<<<<<<<<<<<<<
+ *                         merge_map[itr,0] = val0
+ *                         merge_map[itr,1] = val9
+ */
+          }
+
+          /* "merge_clumps.pyx":180
+ *                     itr+=1
+ * 
+ *                 if include_diagonal_neighbors>0 and val0>0:             # <<<<<<<<<<<<<<
+ *                     val2=0
+ *                     val3=0
+ */
+        }
       }
     }
 
-    /* "merge_clumps.pyx":67
- *                     merge_map[itr,1] = val1
- *                     itr+=1
+    /* "merge_clumps.pyx":170
+ *                         itr+=1
+ * 
  *     if nz==2:             # <<<<<<<<<<<<<<
  *         for i in range(0,nx):
  *             for j in range(0,ny):
  */
   }
 
-  /* "merge_clumps.pyx":77
- *                     itr+=1
+  /* "merge_clumps.pyx":230
+ *                         itr+=1
  * 
  *     if itr==0: itr=1             # <<<<<<<<<<<<<<
  * 
@@ -5897,44 +9099,44 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
     __pyx_v_itr = 1;
   }
 
-  /* "merge_clumps.pyx":79
+  /* "merge_clumps.pyx":232
  *     if itr==0: itr=1
  * 
  *     return merge_map[0:itr,:]             # <<<<<<<<<<<<<<
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_13 = __Pyx_PyInt_From_int(__pyx_v_itr); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 79, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_13);
-  __pyx_t_16 = PySlice_New(__pyx_int_0, __pyx_t_13, Py_None); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 79, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_16);
-  __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
-  __pyx_t_13 = PyTuple_New(2); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 79, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_13);
-  __Pyx_GIVEREF(__pyx_t_16);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_13, 0, __pyx_t_16)) __PYX_ERR(0, 79, __pyx_L1_error);
+  __pyx_t_14 = __Pyx_PyInt_From_int(__pyx_v_itr); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 232, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_14);
+  __pyx_t_15 = PySlice_New(__pyx_int_0, __pyx_t_14, Py_None); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 232, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_15);
+  __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
+  __pyx_t_14 = PyTuple_New(2); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 232, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_14);
+  __Pyx_GIVEREF(__pyx_t_15);
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_14, 0, __pyx_t_15)) __PYX_ERR(0, 232, __pyx_L1_error);
   __Pyx_INCREF(__pyx_slice__3);
   __Pyx_GIVEREF(__pyx_slice__3);
-  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_13, 1, __pyx_slice__3)) __PYX_ERR(0, 79, __pyx_L1_error);
-  __pyx_t_16 = 0;
-  __pyx_t_16 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_merge_map), __pyx_t_13); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 79, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_16);
-  __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
-  __pyx_r = __pyx_t_16;
-  __pyx_t_16 = 0;
+  if (__Pyx_PyTuple_SET_ITEM(__pyx_t_14, 1, __pyx_slice__3)) __PYX_ERR(0, 232, __pyx_L1_error);
+  __pyx_t_15 = 0;
+  __pyx_t_15 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_merge_map), __pyx_t_14); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 232, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_15);
+  __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
+  __pyx_r = __pyx_t_15;
+  __pyx_t_15 = 0;
   goto __pyx_L0;
 
   /* "merge_clumps.pyx":39
  * 
  * 
- * def gen_merge_map(np.ndarray[np.int32_t,ndim=3] boundary_slice, np.ndarray[np.int32_t,ndim=2] merge_map):             # <<<<<<<<<<<<<<
+ * def gen_merge_map(np.ndarray[np.int32_t,ndim=3] boundary_slice, np.ndarray[np.int32_t,ndim=2] merge_map, int include_diagonal_neighbors):             # <<<<<<<<<<<<<<
  *     cdef int nx,ny,nz
  *     cdef int i,j
  */
 
   /* function exit code */
   __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_13);
-  __Pyx_XDECREF(__pyx_t_16);
+  __Pyx_XDECREF(__pyx_t_14);
+  __Pyx_XDECREF(__pyx_t_15);
   { PyObject *__pyx_type, *__pyx_value, *__pyx_tb;
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
@@ -5949,8 +9151,6 @@ static PyObject *__pyx_pf_12merge_clumps_2gen_merge_map(CYTHON_UNUSED PyObject *
   __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_boundary_slice.rcbuffer->pybuffer);
   __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_merge_map.rcbuffer->pybuffer);
   __pyx_L2:;
-  __Pyx_XDECREF(__pyx_v_val0);
-  __Pyx_XDECREF(__pyx_v_val1);
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
@@ -5986,6 +9186,7 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_gen_merge_map, __pyx_k_gen_merge_map, sizeof(__pyx_k_gen_merge_map), 0, 0, 1, 1},
     {&__pyx_n_s_i, __pyx_k_i, sizeof(__pyx_k_i), 0, 0, 1, 1},
     {&__pyx_n_s_import, __pyx_k_import, sizeof(__pyx_k_import), 0, 0, 1, 1},
+    {&__pyx_n_s_include_diagonal_neighbors, __pyx_k_include_diagonal_neighbors, sizeof(__pyx_k_include_diagonal_neighbors), 0, 0, 1, 1},
     {&__pyx_n_s_initializing, __pyx_k_initializing, sizeof(__pyx_k_initializing), 0, 0, 1, 1},
     {&__pyx_n_s_is_coroutine, __pyx_k_is_coroutine, sizeof(__pyx_k_is_coroutine), 0, 0, 1, 1},
     {&__pyx_n_s_itr, __pyx_k_itr, sizeof(__pyx_k_itr), 0, 0, 1, 1},
@@ -6014,6 +9215,14 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_u, __pyx_k_u, sizeof(__pyx_k_u), 0, 0, 1, 1},
     {&__pyx_n_s_val0, __pyx_k_val0, sizeof(__pyx_k_val0), 0, 0, 1, 1},
     {&__pyx_n_s_val1, __pyx_k_val1, sizeof(__pyx_k_val1), 0, 0, 1, 1},
+    {&__pyx_n_s_val2, __pyx_k_val2, sizeof(__pyx_k_val2), 0, 0, 1, 1},
+    {&__pyx_n_s_val3, __pyx_k_val3, sizeof(__pyx_k_val3), 0, 0, 1, 1},
+    {&__pyx_n_s_val4, __pyx_k_val4, sizeof(__pyx_k_val4), 0, 0, 1, 1},
+    {&__pyx_n_s_val5, __pyx_k_val5, sizeof(__pyx_k_val5), 0, 0, 1, 1},
+    {&__pyx_n_s_val6, __pyx_k_val6, sizeof(__pyx_k_val6), 0, 0, 1, 1},
+    {&__pyx_n_s_val7, __pyx_k_val7, sizeof(__pyx_k_val7), 0, 0, 1, 1},
+    {&__pyx_n_s_val8, __pyx_k_val8, sizeof(__pyx_k_val8), 0, 0, 1, 1},
+    {&__pyx_n_s_val9, __pyx_k_val9, sizeof(__pyx_k_val9), 0, 0, 1, 1},
     {&__pyx_n_s_x, __pyx_k_x, sizeof(__pyx_k_x), 0, 0, 1, 1},
     {&__pyx_n_s_y, __pyx_k_y, sizeof(__pyx_k_y), 0, 0, 1, 1},
     {&__pyx_n_s_z, __pyx_k_z, sizeof(__pyx_k_z), 0, 0, 1, 1},
@@ -6057,12 +9266,12 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__2);
   __Pyx_GIVEREF(__pyx_tuple__2);
 
-  /* "merge_clumps.pyx":79
+  /* "merge_clumps.pyx":232
  *     if itr==0: itr=1
  * 
  *     return merge_map[0:itr,:]             # <<<<<<<<<<<<<<
  */
-  __pyx_slice__3 = PySlice_New(Py_None, Py_None, Py_None); if (unlikely(!__pyx_slice__3)) __PYX_ERR(0, 79, __pyx_L1_error)
+  __pyx_slice__3 = PySlice_New(Py_None, Py_None, Py_None); if (unlikely(!__pyx_slice__3)) __PYX_ERR(0, 232, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_slice__3);
   __Pyx_GIVEREF(__pyx_slice__3);
 
@@ -6081,14 +9290,14 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   /* "merge_clumps.pyx":39
  * 
  * 
- * def gen_merge_map(np.ndarray[np.int32_t,ndim=3] boundary_slice, np.ndarray[np.int32_t,ndim=2] merge_map):             # <<<<<<<<<<<<<<
+ * def gen_merge_map(np.ndarray[np.int32_t,ndim=3] boundary_slice, np.ndarray[np.int32_t,ndim=2] merge_map, int include_diagonal_neighbors):             # <<<<<<<<<<<<<<
  *     cdef int nx,ny,nz
  *     cdef int i,j
  */
-  __pyx_tuple__7 = PyTuple_Pack(10, __pyx_n_s_boundary_slice, __pyx_n_s_merge_map, __pyx_n_s_nx, __pyx_n_s_ny, __pyx_n_s_nz, __pyx_n_s_i, __pyx_n_s_j, __pyx_n_s_itr, __pyx_n_s_val0, __pyx_n_s_val1); if (unlikely(!__pyx_tuple__7)) __PYX_ERR(0, 39, __pyx_L1_error)
+  __pyx_tuple__7 = PyTuple_Pack(19, __pyx_n_s_boundary_slice, __pyx_n_s_merge_map, __pyx_n_s_include_diagonal_neighbors, __pyx_n_s_nx, __pyx_n_s_ny, __pyx_n_s_nz, __pyx_n_s_i, __pyx_n_s_j, __pyx_n_s_itr, __pyx_n_s_val0, __pyx_n_s_val1, __pyx_n_s_val2, __pyx_n_s_val3, __pyx_n_s_val4, __pyx_n_s_val5, __pyx_n_s_val6, __pyx_n_s_val7, __pyx_n_s_val8, __pyx_n_s_val9); if (unlikely(!__pyx_tuple__7)) __PYX_ERR(0, 39, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__7);
   __Pyx_GIVEREF(__pyx_tuple__7);
-  __pyx_codeobj__8 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 10, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__7, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_merge_clumps_pyx, __pyx_n_s_gen_merge_map, 39, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__8)) __PYX_ERR(0, 39, __pyx_L1_error)
+  __pyx_codeobj__8 = (PyObject*)__Pyx_PyCode_New(3, 0, 0, 19, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__7, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_merge_clumps_pyx, __pyx_n_s_gen_merge_map, 39, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__8)) __PYX_ERR(0, 39, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -6538,7 +9747,7 @@ if (!__Pyx_RefNanny) {
   /* "merge_clumps.pyx":39
  * 
  * 
- * def gen_merge_map(np.ndarray[np.int32_t,ndim=3] boundary_slice, np.ndarray[np.int32_t,ndim=2] merge_map):             # <<<<<<<<<<<<<<
+ * def gen_merge_map(np.ndarray[np.int32_t,ndim=3] boundary_slice, np.ndarray[np.int32_t,ndim=2] merge_map, int include_diagonal_neighbors):             # <<<<<<<<<<<<<<
  *     cdef int nx,ny,nz
  *     cdef int i,j
  */
@@ -10789,77 +13998,6 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
     #endif
 #endif
 
-/* CIntToPy */
-  static CYTHON_INLINE PyObject* __Pyx_PyInt_From_int(int value) {
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wconversion"
-#endif
-    const int neg_one = (int) -1, const_zero = (int) 0;
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic pop
-#endif
-    const int is_unsigned = neg_one > const_zero;
-    if (is_unsigned) {
-        if (sizeof(int) < sizeof(long)) {
-            return PyInt_FromLong((long) value);
-        } else if (sizeof(int) <= sizeof(unsigned long)) {
-            return PyLong_FromUnsignedLong((unsigned long) value);
-#ifdef HAVE_LONG_LONG
-        } else if (sizeof(int) <= sizeof(unsigned PY_LONG_LONG)) {
-            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
-#endif
-        }
-    } else {
-        if (sizeof(int) <= sizeof(long)) {
-            return PyInt_FromLong((long) value);
-#ifdef HAVE_LONG_LONG
-        } else if (sizeof(int) <= sizeof(PY_LONG_LONG)) {
-            return PyLong_FromLongLong((PY_LONG_LONG) value);
-#endif
-        }
-    }
-    {
-        unsigned char *bytes = (unsigned char *)&value;
-#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d00A4
-        if (is_unsigned) {
-            return PyLong_FromUnsignedNativeBytes(bytes, sizeof(value), -1);
-        } else {
-            return PyLong_FromNativeBytes(bytes, sizeof(value), -1);
-        }
-#elif !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030d0000
-        int one = 1; int little = (int)*(unsigned char *)&one;
-        return _PyLong_FromByteArray(bytes, sizeof(int),
-                                     little, !is_unsigned);
-#else
-        int one = 1; int little = (int)*(unsigned char *)&one;
-        PyObject *from_bytes, *result = NULL;
-        PyObject *py_bytes = NULL, *arg_tuple = NULL, *kwds = NULL, *order_str = NULL;
-        from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
-        if (!from_bytes) return NULL;
-        py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof(int));
-        if (!py_bytes) goto limited_bad;
-        order_str = PyUnicode_FromString(little ? "little" : "big");
-        if (!order_str) goto limited_bad;
-        arg_tuple = PyTuple_Pack(2, py_bytes, order_str);
-        if (!arg_tuple) goto limited_bad;
-        if (!is_unsigned) {
-            kwds = PyDict_New();
-            if (!kwds) goto limited_bad;
-            if (PyDict_SetItemString(kwds, "signed", __Pyx_NewRef(Py_True))) goto limited_bad;
-        }
-        result = PyObject_Call(from_bytes, arg_tuple, kwds);
-        limited_bad:
-        Py_XDECREF(kwds);
-        Py_XDECREF(arg_tuple);
-        Py_XDECREF(order_str);
-        Py_XDECREF(py_bytes);
-        Py_XDECREF(from_bytes);
-        return result;
-#endif
-    }
-}
-
 /* CIntFromPy */
   static CYTHON_INLINE int __Pyx_PyInt_As_int(PyObject *x) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
@@ -11128,6 +14266,77 @@ raise_neg_overflow:
 }
 
 /* CIntToPy */
+  static CYTHON_INLINE PyObject* __Pyx_PyInt_From_int(int value) {
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const int neg_one = (int) -1, const_zero = (int) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
+    const int is_unsigned = neg_one > const_zero;
+    if (is_unsigned) {
+        if (sizeof(int) < sizeof(long)) {
+            return PyInt_FromLong((long) value);
+        } else if (sizeof(int) <= sizeof(unsigned long)) {
+            return PyLong_FromUnsignedLong((unsigned long) value);
+#ifdef HAVE_LONG_LONG
+        } else if (sizeof(int) <= sizeof(unsigned PY_LONG_LONG)) {
+            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
+#endif
+        }
+    } else {
+        if (sizeof(int) <= sizeof(long)) {
+            return PyInt_FromLong((long) value);
+#ifdef HAVE_LONG_LONG
+        } else if (sizeof(int) <= sizeof(PY_LONG_LONG)) {
+            return PyLong_FromLongLong((PY_LONG_LONG) value);
+#endif
+        }
+    }
+    {
+        unsigned char *bytes = (unsigned char *)&value;
+#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d00A4
+        if (is_unsigned) {
+            return PyLong_FromUnsignedNativeBytes(bytes, sizeof(value), -1);
+        } else {
+            return PyLong_FromNativeBytes(bytes, sizeof(value), -1);
+        }
+#elif !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030d0000
+        int one = 1; int little = (int)*(unsigned char *)&one;
+        return _PyLong_FromByteArray(bytes, sizeof(int),
+                                     little, !is_unsigned);
+#else
+        int one = 1; int little = (int)*(unsigned char *)&one;
+        PyObject *from_bytes, *result = NULL;
+        PyObject *py_bytes = NULL, *arg_tuple = NULL, *kwds = NULL, *order_str = NULL;
+        from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
+        if (!from_bytes) return NULL;
+        py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof(int));
+        if (!py_bytes) goto limited_bad;
+        order_str = PyUnicode_FromString(little ? "little" : "big");
+        if (!order_str) goto limited_bad;
+        arg_tuple = PyTuple_Pack(2, py_bytes, order_str);
+        if (!arg_tuple) goto limited_bad;
+        if (!is_unsigned) {
+            kwds = PyDict_New();
+            if (!kwds) goto limited_bad;
+            if (PyDict_SetItemString(kwds, "signed", __Pyx_NewRef(Py_True))) goto limited_bad;
+        }
+        result = PyObject_Call(from_bytes, arg_tuple, kwds);
+        limited_bad:
+        Py_XDECREF(kwds);
+        Py_XDECREF(arg_tuple);
+        Py_XDECREF(order_str);
+        Py_XDECREF(py_bytes);
+        Py_XDECREF(from_bytes);
+        return result;
+#endif
+    }
+}
+
+/* CIntToPy */
   static CYTHON_INLINE PyObject* __Pyx_PyInt_From_Py_intptr_t(Py_intptr_t value) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic push
@@ -11267,344 +14476,6 @@ raise_neg_overflow:
         return result;
 #endif
     }
-}
-
-/* CIntToPy */
-  static CYTHON_INLINE PyObject* __Pyx_PyInt_From_npy_int32(npy_int32 value) {
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wconversion"
-#endif
-    const npy_int32 neg_one = (npy_int32) -1, const_zero = (npy_int32) 0;
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic pop
-#endif
-    const int is_unsigned = neg_one > const_zero;
-    if (is_unsigned) {
-        if (sizeof(npy_int32) < sizeof(long)) {
-            return PyInt_FromLong((long) value);
-        } else if (sizeof(npy_int32) <= sizeof(unsigned long)) {
-            return PyLong_FromUnsignedLong((unsigned long) value);
-#ifdef HAVE_LONG_LONG
-        } else if (sizeof(npy_int32) <= sizeof(unsigned PY_LONG_LONG)) {
-            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
-#endif
-        }
-    } else {
-        if (sizeof(npy_int32) <= sizeof(long)) {
-            return PyInt_FromLong((long) value);
-#ifdef HAVE_LONG_LONG
-        } else if (sizeof(npy_int32) <= sizeof(PY_LONG_LONG)) {
-            return PyLong_FromLongLong((PY_LONG_LONG) value);
-#endif
-        }
-    }
-    {
-        unsigned char *bytes = (unsigned char *)&value;
-#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d00A4
-        if (is_unsigned) {
-            return PyLong_FromUnsignedNativeBytes(bytes, sizeof(value), -1);
-        } else {
-            return PyLong_FromNativeBytes(bytes, sizeof(value), -1);
-        }
-#elif !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030d0000
-        int one = 1; int little = (int)*(unsigned char *)&one;
-        return _PyLong_FromByteArray(bytes, sizeof(npy_int32),
-                                     little, !is_unsigned);
-#else
-        int one = 1; int little = (int)*(unsigned char *)&one;
-        PyObject *from_bytes, *result = NULL;
-        PyObject *py_bytes = NULL, *arg_tuple = NULL, *kwds = NULL, *order_str = NULL;
-        from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
-        if (!from_bytes) return NULL;
-        py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof(npy_int32));
-        if (!py_bytes) goto limited_bad;
-        order_str = PyUnicode_FromString(little ? "little" : "big");
-        if (!order_str) goto limited_bad;
-        arg_tuple = PyTuple_Pack(2, py_bytes, order_str);
-        if (!arg_tuple) goto limited_bad;
-        if (!is_unsigned) {
-            kwds = PyDict_New();
-            if (!kwds) goto limited_bad;
-            if (PyDict_SetItemString(kwds, "signed", __Pyx_NewRef(Py_True))) goto limited_bad;
-        }
-        result = PyObject_Call(from_bytes, arg_tuple, kwds);
-        limited_bad:
-        Py_XDECREF(kwds);
-        Py_XDECREF(arg_tuple);
-        Py_XDECREF(order_str);
-        Py_XDECREF(py_bytes);
-        Py_XDECREF(from_bytes);
-        return result;
-#endif
-    }
-}
-
-/* CIntFromPy */
-  static CYTHON_INLINE npy_int32 __Pyx_PyInt_As_npy_int32(PyObject *x) {
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wconversion"
-#endif
-    const npy_int32 neg_one = (npy_int32) -1, const_zero = (npy_int32) 0;
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic pop
-#endif
-    const int is_unsigned = neg_one > const_zero;
-#if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_Check(x))) {
-        if ((sizeof(npy_int32) < sizeof(long))) {
-            __PYX_VERIFY_RETURN_INT(npy_int32, long, PyInt_AS_LONG(x))
-        } else {
-            long val = PyInt_AS_LONG(x);
-            if (is_unsigned && unlikely(val < 0)) {
-                goto raise_neg_overflow;
-            }
-            return (npy_int32) val;
-        }
-    }
-#endif
-    if (unlikely(!PyLong_Check(x))) {
-        npy_int32 val;
-        PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
-        if (!tmp) return (npy_int32) -1;
-        val = __Pyx_PyInt_As_npy_int32(tmp);
-        Py_DECREF(tmp);
-        return val;
-    }
-    if (is_unsigned) {
-#if CYTHON_USE_PYLONG_INTERNALS
-        if (unlikely(__Pyx_PyLong_IsNeg(x))) {
-            goto raise_neg_overflow;
-        } else if (__Pyx_PyLong_IsCompact(x)) {
-            __PYX_VERIFY_RETURN_INT(npy_int32, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
-        } else {
-            const digit* digits = __Pyx_PyLong_Digits(x);
-            assert(__Pyx_PyLong_DigitCount(x) > 1);
-            switch (__Pyx_PyLong_DigitCount(x)) {
-                case 2:
-                    if ((8 * sizeof(npy_int32) > 1 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(npy_int32, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(npy_int32) >= 2 * PyLong_SHIFT)) {
-                            return (npy_int32) (((((npy_int32)digits[1]) << PyLong_SHIFT) | (npy_int32)digits[0]));
-                        }
-                    }
-                    break;
-                case 3:
-                    if ((8 * sizeof(npy_int32) > 2 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(npy_int32, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(npy_int32) >= 3 * PyLong_SHIFT)) {
-                            return (npy_int32) (((((((npy_int32)digits[2]) << PyLong_SHIFT) | (npy_int32)digits[1]) << PyLong_SHIFT) | (npy_int32)digits[0]));
-                        }
-                    }
-                    break;
-                case 4:
-                    if ((8 * sizeof(npy_int32) > 3 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(npy_int32, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(npy_int32) >= 4 * PyLong_SHIFT)) {
-                            return (npy_int32) (((((((((npy_int32)digits[3]) << PyLong_SHIFT) | (npy_int32)digits[2]) << PyLong_SHIFT) | (npy_int32)digits[1]) << PyLong_SHIFT) | (npy_int32)digits[0]));
-                        }
-                    }
-                    break;
-            }
-        }
-#endif
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030C00A7
-        if (unlikely(Py_SIZE(x) < 0)) {
-            goto raise_neg_overflow;
-        }
-#else
-        {
-            int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
-            if (unlikely(result < 0))
-                return (npy_int32) -1;
-            if (unlikely(result == 1))
-                goto raise_neg_overflow;
-        }
-#endif
-        if ((sizeof(npy_int32) <= sizeof(unsigned long))) {
-            __PYX_VERIFY_RETURN_INT_EXC(npy_int32, unsigned long, PyLong_AsUnsignedLong(x))
-#ifdef HAVE_LONG_LONG
-        } else if ((sizeof(npy_int32) <= sizeof(unsigned PY_LONG_LONG))) {
-            __PYX_VERIFY_RETURN_INT_EXC(npy_int32, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
-#endif
-        }
-    } else {
-#if CYTHON_USE_PYLONG_INTERNALS
-        if (__Pyx_PyLong_IsCompact(x)) {
-            __PYX_VERIFY_RETURN_INT(npy_int32, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
-        } else {
-            const digit* digits = __Pyx_PyLong_Digits(x);
-            assert(__Pyx_PyLong_DigitCount(x) > 1);
-            switch (__Pyx_PyLong_SignedDigitCount(x)) {
-                case -2:
-                    if ((8 * sizeof(npy_int32) - 1 > 1 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(npy_int32, long, -(long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(npy_int32) - 1 > 2 * PyLong_SHIFT)) {
-                            return (npy_int32) (((npy_int32)-1)*(((((npy_int32)digits[1]) << PyLong_SHIFT) | (npy_int32)digits[0])));
-                        }
-                    }
-                    break;
-                case 2:
-                    if ((8 * sizeof(npy_int32) > 1 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(npy_int32, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(npy_int32) - 1 > 2 * PyLong_SHIFT)) {
-                            return (npy_int32) ((((((npy_int32)digits[1]) << PyLong_SHIFT) | (npy_int32)digits[0])));
-                        }
-                    }
-                    break;
-                case -3:
-                    if ((8 * sizeof(npy_int32) - 1 > 2 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(npy_int32, long, -(long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(npy_int32) - 1 > 3 * PyLong_SHIFT)) {
-                            return (npy_int32) (((npy_int32)-1)*(((((((npy_int32)digits[2]) << PyLong_SHIFT) | (npy_int32)digits[1]) << PyLong_SHIFT) | (npy_int32)digits[0])));
-                        }
-                    }
-                    break;
-                case 3:
-                    if ((8 * sizeof(npy_int32) > 2 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(npy_int32, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(npy_int32) - 1 > 3 * PyLong_SHIFT)) {
-                            return (npy_int32) ((((((((npy_int32)digits[2]) << PyLong_SHIFT) | (npy_int32)digits[1]) << PyLong_SHIFT) | (npy_int32)digits[0])));
-                        }
-                    }
-                    break;
-                case -4:
-                    if ((8 * sizeof(npy_int32) - 1 > 3 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(npy_int32, long, -(long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(npy_int32) - 1 > 4 * PyLong_SHIFT)) {
-                            return (npy_int32) (((npy_int32)-1)*(((((((((npy_int32)digits[3]) << PyLong_SHIFT) | (npy_int32)digits[2]) << PyLong_SHIFT) | (npy_int32)digits[1]) << PyLong_SHIFT) | (npy_int32)digits[0])));
-                        }
-                    }
-                    break;
-                case 4:
-                    if ((8 * sizeof(npy_int32) > 3 * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT(npy_int32, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                        } else if ((8 * sizeof(npy_int32) - 1 > 4 * PyLong_SHIFT)) {
-                            return (npy_int32) ((((((((((npy_int32)digits[3]) << PyLong_SHIFT) | (npy_int32)digits[2]) << PyLong_SHIFT) | (npy_int32)digits[1]) << PyLong_SHIFT) | (npy_int32)digits[0])));
-                        }
-                    }
-                    break;
-            }
-        }
-#endif
-        if ((sizeof(npy_int32) <= sizeof(long))) {
-            __PYX_VERIFY_RETURN_INT_EXC(npy_int32, long, PyLong_AsLong(x))
-#ifdef HAVE_LONG_LONG
-        } else if ((sizeof(npy_int32) <= sizeof(PY_LONG_LONG))) {
-            __PYX_VERIFY_RETURN_INT_EXC(npy_int32, PY_LONG_LONG, PyLong_AsLongLong(x))
-#endif
-        }
-    }
-    {
-        npy_int32 val;
-        int ret = -1;
-#if PY_VERSION_HEX >= 0x030d00A6 && !CYTHON_COMPILING_IN_LIMITED_API
-        Py_ssize_t bytes_copied = PyLong_AsNativeBytes(
-            x, &val, sizeof(val), Py_ASNATIVEBYTES_NATIVE_ENDIAN | (is_unsigned ? Py_ASNATIVEBYTES_UNSIGNED_BUFFER | Py_ASNATIVEBYTES_REJECT_NEGATIVE : 0));
-        if (unlikely(bytes_copied == -1)) {
-        } else if (unlikely(bytes_copied > (Py_ssize_t) sizeof(val))) {
-            goto raise_overflow;
-        } else {
-            ret = 0;
-        }
-#elif PY_VERSION_HEX < 0x030d0000 && !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API) || defined(_PyLong_AsByteArray)
-        int one = 1; int is_little = (int)*(unsigned char *)&one;
-        unsigned char *bytes = (unsigned char *)&val;
-        ret = _PyLong_AsByteArray((PyLongObject *)x,
-                                    bytes, sizeof(val),
-                                    is_little, !is_unsigned);
-#else
-        PyObject *v;
-        PyObject *stepval = NULL, *mask = NULL, *shift = NULL;
-        int bits, remaining_bits, is_negative = 0;
-        int chunk_size = (sizeof(long) < 8) ? 30 : 62;
-        if (likely(PyLong_CheckExact(x))) {
-            v = __Pyx_NewRef(x);
-        } else {
-            v = PyNumber_Long(x);
-            if (unlikely(!v)) return (npy_int32) -1;
-            assert(PyLong_CheckExact(v));
-        }
-        {
-            int result = PyObject_RichCompareBool(v, Py_False, Py_LT);
-            if (unlikely(result < 0)) {
-                Py_DECREF(v);
-                return (npy_int32) -1;
-            }
-            is_negative = result == 1;
-        }
-        if (is_unsigned && unlikely(is_negative)) {
-            Py_DECREF(v);
-            goto raise_neg_overflow;
-        } else if (is_negative) {
-            stepval = PyNumber_Invert(v);
-            Py_DECREF(v);
-            if (unlikely(!stepval))
-                return (npy_int32) -1;
-        } else {
-            stepval = v;
-        }
-        v = NULL;
-        val = (npy_int32) 0;
-        mask = PyLong_FromLong((1L << chunk_size) - 1); if (unlikely(!mask)) goto done;
-        shift = PyLong_FromLong(chunk_size); if (unlikely(!shift)) goto done;
-        for (bits = 0; bits < (int) sizeof(npy_int32) * 8 - chunk_size; bits += chunk_size) {
-            PyObject *tmp, *digit;
-            long idigit;
-            digit = PyNumber_And(stepval, mask);
-            if (unlikely(!digit)) goto done;
-            idigit = PyLong_AsLong(digit);
-            Py_DECREF(digit);
-            if (unlikely(idigit < 0)) goto done;
-            val |= ((npy_int32) idigit) << bits;
-            tmp = PyNumber_Rshift(stepval, shift);
-            if (unlikely(!tmp)) goto done;
-            Py_DECREF(stepval); stepval = tmp;
-        }
-        Py_DECREF(shift); shift = NULL;
-        Py_DECREF(mask); mask = NULL;
-        {
-            long idigit = PyLong_AsLong(stepval);
-            if (unlikely(idigit < 0)) goto done;
-            remaining_bits = ((int) sizeof(npy_int32) * 8) - bits - (is_unsigned ? 0 : 1);
-            if (unlikely(idigit >= (1L << remaining_bits)))
-                goto raise_overflow;
-            val |= ((npy_int32) idigit) << bits;
-        }
-        if (!is_unsigned) {
-            if (unlikely(val & (((npy_int32) 1) << (sizeof(npy_int32) * 8 - 1))))
-                goto raise_overflow;
-            if (is_negative)
-                val = ~val;
-        }
-        ret = 0;
-    done:
-        Py_XDECREF(shift);
-        Py_XDECREF(mask);
-        Py_XDECREF(stepval);
-#endif
-        if (unlikely(ret))
-            return (npy_int32) -1;
-        return val;
-    }
-raise_overflow:
-    PyErr_SetString(PyExc_OverflowError,
-        "value too large to convert to npy_int32");
-    return (npy_int32) -1;
-raise_neg_overflow:
-    PyErr_SetString(PyExc_OverflowError,
-        "can't convert negative value to npy_int32");
-    return (npy_int32) -1;
 }
 
 /* CIntFromPy */
