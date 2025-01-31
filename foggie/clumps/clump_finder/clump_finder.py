@@ -21,13 +21,16 @@ from foggie.clumps.clump_finder.fill_topology import fill_voids
 from foggie.clumps.clump_finder.fill_topology import fill_holes
 from foggie.clumps.clump_finder.fill_topology import get_dilated_shells
 from foggie.clumps.clump_finder.fill_topology import expand_slice
+from foggie.clumps.clump_finder.fill_topology import generate_square_connectivity
+
 
 import matplotlib.pyplot as plt
 #from matplotlib.colors import LogNorm
 
 from scipy.ndimage import label   
 from scipy.ndimage import find_objects
-from scipy.ndimage import binary_dilation     
+from scipy.ndimage import binary_dilation 
+from scipy.ndimage import binary_closing
 
 from foggie.clumps.clump_finder import merge_clumps
 
@@ -109,9 +112,10 @@ from foggie.clumps.clump_finder import merge_clumps
     --cgm_density_factor: When identifying the disk, what factor should the cgm_density_cut use. Default is 200 for relative density, 0.2 for comoving density, and 1 for cassis_cut.
     --max_disk_void_size: What is the maximum size of 3D voids (in number of cells) to fill in the disk. Set to above 0 to fill voids. Default is 2000.
     --mask_disk_hole_size: What is the maximum size of 2D holes (in number of cells) to fill in the disk. Set to above 0 to fill holes. Default is 2000.
-    
-    --make_disk_mask_figures: Do you want to make additional figures illustrating the void/hole filling process when defining the disk? Default is False.
-    
+    --closing_iterations: How many iterations of binary closing should be done to fill holes. Default is 1.
+    --n_dilation_iterations: If greater than 0, the mask of each clump will be dilated this many times. Default is 0.
+    --n_cells_per_dilation: If n_dilation_iterations>0, each iteration will dilate the clump by this many cells. Default is 1.
+
     --cut_radius: Define a spherical cut region of this radius instead of using the full refine box. Default is None.
 
     
@@ -260,23 +264,25 @@ class Clump:
         if self.is_disk:
             current_max = 0
             disk_label = 0
-            for label, slice_obj in enumerate(slices,start=1):
+            for clump_label, slice_obj in enumerate(slices,start=1):
                 if slice_obj is not None:
                     clump_id = self.clump_ids[slice_obj]
-                    mask = (clump_id == label)
+                    mask = (clump_id == clump_label)
                     if np.size(np.where(mask))>current_max:
                         current_max = np.size(self.clump_ids[slice_obj])
-                        disk_label = label
+                        disk_label = clump_label
             print("disk_label set to:",disk_label)
 
         if not self.is_disk: pbar = TqdmProgressBar("Adding Children",np.size(unique_clumps),position=0)
         else: print("Cataloging and filling in disk...")
 
-        for label, slice_obj in enumerate(slices,start=1):
+        for clump_label, slice_obj in enumerate(slices,start=1):
           if slice_obj is not None:
 
-            if args.n_dilation_iterations>0: #Make sure the slice is large enough to contain all dilated cells
+            if args.n_dilation_iterations>0 or args.max_disk_hole_size>0: #Make sure the slice is large enough to contain all dilated cells
                 max_dilation = args.n_dilation_iterations * args.n_cells_per_dilation
+                max_closing = args.max_disk_hole_size
+                if max_closing > max_dilation: max_dilation = max_closing
                 slice_obj = tuple(
                     expand_slice(slice_obj[i], max_dilation, self.clump_ids.shape[i]) for i in range(3)
                 )
@@ -284,66 +290,161 @@ class Clump:
 
             clump_id = self.clump_ids[slice_obj]
             id_region = self.cell_id_ucg[slice_obj]
-            mask = (clump_id == label)
+            mask = (clump_id == clump_label)
 
 
             if self.is_disk:
-                if label==disk_label:
+                if clump_label==disk_label:
                     n0 = np.size(np.where(mask))
                     if args.max_disk_void_size>0:
-                        if args.make_disk_mask_figures:
-                            plt.figure()
-                            plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
-                            plt.xticks([])
-                            plt.yticks([])
-                            plt.savefig(args.output + "_disk_mask_faceon_0.png")
+                        #if args.make_disk_mask_figures:
+                         #   plt.figure()
+                        #    plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
+                        #    plt.xticks([])
+                        #    plt.yticks([])
+                        #    plt.savefig(args.output + "_disk_mask_faceon_0.png")
                         mask = fill_voids(mask,args.max_disk_void_size,structure=None)
                         n1 = np.size(np.where(mask))
                         print("Void filling filled",n1-n0,"cells in 3d cavities.")
                     if args.max_disk_hole_size>0:
 
-                        if args.make_disk_mask_figures:
+                        n0 = np.size(np.where(mask))
+
+                        scm_struct = generate_square_connectivity(args.max_disk_hole_size)
+                        filled_mask = binary_closing(mask, structure=scm_struct,iterations=args.closing_iterations)
+
+                        filled_mask = mask | filled_mask
+
+                        n1 = np.size(np.where(filled_mask))
+                        print("Binary closing filled",n1-n0,"cells.")
+                        if args.max_disk_void_size>0:
+                            filled_mask = fill_voids(filled_mask,args.max_disk_void_size,structure=None)
+                            n2 = np.size(np.where(filled_mask))
+                            print("Void filling after binary closing filled",n2-n1,"cells in 3d cavities.")
+
+                                
+                        self.SaveFilledHoles(np.unique(id_region[filled_mask & ~mask]), args)
+
+                        mask = filled_mask
+                    
+
+                        '''
+                        else:
+                          nx = int(np.round((np.max(self.x_disk_ucg[slice_obj]) - np.min(self.x_disk_ucg[slice_obj])) / self.ucg_dx))
+                          ny = int(np.round((np.max(self.y_disk_ucg[slice_obj]) - np.min(self.y_disk_ucg[slice_obj])) / self.ucg_dx))
+                          nz = int(np.round((np.max(self.z_disk_ucg[slice_obj]) - np.min(self.z_disk_ucg[slice_obj])) / self.ucg_dx))
+
+                         # nslices_x_itr = int( np.ceil( np.sqrt(nx**2 + nz**2) ) )
+                         # nslices_y_itr = int( np.ceil( np.sqrt(ny**2 + nz**2) ) ) #Conservative estimate. Some slices will be skipped
+                         # nslices = int( np.ceil( np.sqrt(nx**2 + ny**2 + nz**2) ) ) #Conservative estimate. Some slices will be skipped
+                          nslices = []
+                          run_slice_filling_parallel = True
+                          if args.nthreads <= 1: run_slice_filling_parallel = False
+
+                          n_azimuthal_iterations = args.azimuthal_slice_iterations
+                          n_polar_iterations = args.polar_slice_iterations
+
+                          iteration_axes = []
+                          print("Calculating slice orientations...")
+                          for azimuthal_itr in range(0,n_azimuthal_iterations):
+                              angle = 2*np.pi * float(azimuthal_itr) / float(n_azimuthal_iterations)
+                              rotation = R.from_rotvec(angle * self.ds.z_unit_disk)
+                              x_iteration_axis = rotation.apply(self.ds.x_unit_disk)
+
+                              phi = ((4*float(azimuthal_itr) / float(n_azimuthal_iterations)) % 1) * np.pi * 0.5
+                              nxy = nx*np.cos(phi) + ny*np.sin(phi)
+                              for polar_itr in range(0,n_polar_iterations):
+                                  n_interp = float(polar_itr) / float(n_polar_iterations)
+                                  iteration_axes.append( (1-n_interp) * self.ds.z_unit_disk + n_interp * x_iteration_axis )
+                                  theta = 0.5*np.pi * n_interp
+                                  nslices.append( int( np.ceil( nxy*np.sin(theta) + nz*np.cos(theta) ) ) )
+                          _iterate_slice_filling = partial(iterate_slice_filling, iteration_axes = iteration_axes,mask=mask,args=args,nslices=nslices)
+
+                          if args.nthreads > len(iteration_axes):
+                                n_jobs = len(iteration_axes)
+                          else:
+                                n_jobs = args.nthreads
+                          print("Filling slices...")
+                          filled_masks = Parallel(n_jobs=n_jobs)(delayed(_iterate_slice_filling)(i) for i in range(0,len(iteration_axes)))
+
+                          print("Combining masks...")
+                          for filled_mask_i in filled_masks:
+                                mask = mask | filled_mask_i
+
+
+                          #counter = 0
+                          #for azimuthal_itr in range(0,n_azimuthal_iterations):
+                          #    angle = 2*np.pi * float(azimuthal_itr) / float(n_azimuthal_iterations)
+                          #    rotation = R.from_rotvec(angle * self.ds.z_unit_disk)
+                          #    x_iteration_axis = rotation.apply(self.ds.x_unit_disk)
+                          #    for polar_itr in range(0,n_polar_iterations):
+                          #        counter+=1
+                          #        n0 = np.size(np.where(mask))
+                          #        n_interp = float(polar_itr) / float(n_polar_iterations)
+                          #       current_iteration_axis = (1-n_interp) * self.ds.z_unit_disk + n_interp * x_iteration_axis
+
+                          #        if polar_itr==0 and azimuthal_itr>0: continue #don't repeat filling the z-axis
+
+                          #        if run_slice_filling_parallel:
+                          #            mask = fill_holes_parallel(current_iteration_axis, mask, args.max_disk_hole_size, nslices, n_jobs=args.nthreads)
+                          #        else:
+                          #            mask = fill_holes(current_iteration_axis, mask, args.max_disk_hole_size, nslices)
+                          #        n1 = np.size(np.where(mask))
+                          #       print( "Hole filling filled for",n1-n0,"cells in 2d holes. (",counter,"/",n_azimuthal_iterations*n_polar_iterations,")")
+
+
+
+
+                        else:
+                          if args.make_disk_mask_figures:
                             plt.figure()
                             plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
                             plt.xticks([])
                             plt.yticks([])
                             plt.savefig(args.output + "_disk_mask_faceon_1.png")
 
-                        nx = int(np.round((np.max(self.x_disk_ucg[slice_obj]) - np.min(self.x_disk_ucg[slice_obj])) / self.ucg_dx))
-                        mask = fill_holes(self.ds.x_unit_disk, mask, args.max_disk_hole_size, nx, structure=None)
-                        n2 = np.size(np.where(mask))
-                        print("Hole filling along x-hat filled",n2-n1,"cells in 2d holes.")
+                          nx = int(np.round((np.max(self.x_disk_ucg[slice_obj]) - np.min(self.x_disk_ucg[slice_obj])) / self.ucg_dx))
+                          mask = fill_holes(self.ds.x_unit_disk, mask, args.max_disk_hole_size, nx, structure=None)
+                          n2 = np.size(np.where(mask))
+                          print("Hole filling along x-hat filled",n2-n1,"cells in 2d holes.")
 
-                        if args.make_disk_mask_figures:
+                          if args.make_disk_mask_figures:
                             plt.figure()
                             plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
                             plt.xticks([])
                             plt.yticks([])
                             plt.savefig(args.output + "_disk_mask_faceon_2.png")
 
-                        ny = int(np.round((np.max(self.y_disk_ucg[slice_obj]) - np.min(self.y_disk_ucg[slice_obj])) / self.ucg_dx))
-                        mask = fill_holes(self.ds.y_unit_disk, mask, args.max_disk_hole_size, ny, structure=None)
-                        n3 = np.size(np.where(mask))
-                        print("Hole filling along y-hat filled",n3-n2,"cells in 2d holes.")
+                          ny = int(np.round((np.max(self.y_disk_ucg[slice_obj]) - np.min(self.y_disk_ucg[slice_obj])) / self.ucg_dx))
+                          mask = fill_holes(self.ds.y_unit_disk, mask, args.max_disk_hole_size, ny, structure=None)
+                          n3 = np.size(np.where(mask))
+                          print("Hole filling along y-hat filled",n3-n2,"cells in 2d holes.")
 
-                        if args.make_disk_mask_figures:
+                          if args.make_disk_mask_figures:
                             plt.figure()
                             plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
                             plt.xticks([])
                             plt.yticks([])
                             plt.savefig(args.output + "_disk_mask_faceon_3.png")
 
-                        nz = int(np.round((np.max(self.z_disk_ucg[slice_obj]) - np.min(self.z_disk_ucg[slice_obj])) / self.ucg_dx))
-                        mask = fill_holes(self.ds.z_unit_disk, mask, args.max_disk_hole_size, nz, structure=None)
-                        n4 = np.size(np.where(mask))
-                        print("Hole filling along z-hat filled",n4-n3,"cells in 2d holes.")
+                          nz = int(np.round((np.max(self.z_disk_ucg[slice_obj]) - np.min(self.z_disk_ucg[slice_obj])) / self.ucg_dx))
+                          mask = fill_holes(self.ds.z_unit_disk, mask, args.max_disk_hole_size, nz, structure=None)
+                          n4 = np.size(np.where(mask))
+                          print("Hole filling along z-hat filled",n4-n3,"cells in 2d holes.")
 
-                        if args.make_disk_mask_figures:
+                          if args.make_disk_mask_figures:
                             plt.figure()
                             plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
                             plt.xticks([])
                             plt.yticks([])
                             plt.savefig(args.output + "_disk_mask_faceon_4.png")
+
+                          if args.max_disk_void_size>0:
+                            n0 = np.size(np.where(mask))
+                            mask = fill_voids(mask,args.max_disk_void_size,structure=None)
+                            n1 = np.size(np.where(mask))
+                            print("Void filling after slicing filled",n1-n0,"cells in 3d cavities.")
+                        '''
 
                     if args.n_dilation_iterations>0:
                         shell_masks = get_dilated_shells(mask,args.n_dilation_iterations, args.n_cells_per_dilation)
@@ -730,7 +831,15 @@ class Clump:
         hf.create_dataset("cell_ids",data = shell_cell_ids)
         hf.close()
 
-        
+    def SaveFilledHoles(self,hole_cell_ids,args):
+        '''
+        Save the cell ids of the holes filled in the disk.
+        '''
+        output = args.output+"_FilledDiskHoles.h5"
+        print("Saving filled holes at",output)
+        hf = h5py.File(output,'w')
+        hf.create_dataset("cell_ids",data = hole_cell_ids)
+        hf.close()
     
     
 #######Push the ucg of the clumping variable into a clump class
@@ -771,6 +880,13 @@ def get_indices(thread_id,nthreads,nx,ny,nz):
     return xrange,yrange,zrange
 
 
+def iterate_slice_filling(i,iteration_axes,mask,args,nslices):
+    n0 = np.size(np.where(mask))
+    print("Thread",i," filling slice along",iteration_axes[i])
+    filled_mask = fill_holes(iteration_axes[i], mask, args.max_disk_hole_size, nslices[i])
+    n1 = np.size(np.where(filled_mask))
+    print("Thread",i," filled ",n1-n0,"cells in 2d holes.")
+    return filled_mask
 
 
 def iterate_clump_marching_cubes(args,minval,maxval,ucg_subarray,thread_id):
@@ -814,13 +930,13 @@ def iterate_get_clump_cell_ids(args,thread_id, clump_id_subarray, cell_id_subarr
     slices = find_objects(clump_id_subarray)
     clump_cell_ids = defaultdict(list)
 
-    for label, slice_obj in enumerate(slices,start=1):
+    for clump_label, slice_obj in enumerate(slices,start=1):
         if slice_obj is not None:
             clump_id = clump_id_subarray[slice_obj]
             id_region = cell_id_subarray[slice_obj]
 
-            cell_ids_to_add = np.unique(id_region[clump_id == label])
-            clump_cell_ids[label] = cell_ids_to_add #add the cell id to the list of clumps
+            cell_ids_to_add = np.unique(id_region[clump_id == clump_label])
+            clump_cell_ids[clump_label] = cell_ids_to_add #add the cell id to the list of clumps
 
     return clump_cell_ids
 

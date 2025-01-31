@@ -1,11 +1,11 @@
 DIRECTORY: `clump_finder`
 AUTHOR: Cameron Trapp
 DATE STARTED: 01/13/2025
-LAST UPDATED: 01/24/2025
+LAST UPDATED: 01/31/2025
 
 This directory contains a set of python and cython scripts to run a clump finder on a FOGGIE halo.
 
-To use for the first time, run 'python setup.py --build_ext --inplace' to run cython.
+To use for the first time you may need to run 'python setup.py build_ext --inplace' to compile the cython code.
 
 To run the clump finder directly, use clump_finder.py (see below).
 You can also load the clump_finder(args, ds, cut_region) function from clump_finder.py to run this modularly. (See ModularUseExample.ipynb for example)
@@ -89,7 +89,9 @@ Disk Identification Arguments:
     --cgm_density_cut_type: When identifying the disk how do you want to define the CGM density cut? Options are comoving_density, relative_density, or cassis_cut. Default is "relative_density".
     --cgm_density_factor: When identifying the disk, what factor should the cgm_density_cut use. Default is 200 for relative density, 0.2 for comoving density, and 1 for cassis_cut.
     --max_disk_void_size: What is the maximum size of 3D voids (in number of cells) to fill in the disk. Set to above 0 to fill voids. Default is 2000.
-    --mask_disk_hole_size: What is the maximum size of 2D holes (in number of cells) to fill in the disk. Set to above 0 to fill holes. Default is 2000.
+    --mask_disk_hole_size: The diameter of the binary closing structure function in number of cells. Will roughly fill holes of this size or smaller. Set to 0 to not fill holes Default is 25 (~7 kpc)
+
+    --closing_iterations: How many iterations of the binary closing algorithm to perform (to fill holes). Default is 1.
     
     --make_disk_mask_figures: Do you want to make additional figures illustrating the void/hole filling process when defining the disk? Default is False.
 

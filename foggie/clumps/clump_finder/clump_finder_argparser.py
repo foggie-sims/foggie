@@ -102,8 +102,12 @@ def parse_args():
     parser.set_defaults(max_disk_void_size=2000) 
     
     parser.add_argument('--max_disk_hole_size', metavar='max_disk_hole_size', type=int, action='store', \
-                        help='If filling holes in the disk, what is the maximum cell size on the ucg you wish to fill? Set to 0 to not fill Default is 2000 cells.')
-    parser.set_defaults(max_disk_hole_size=2000) 
+                        help='The diameter of the dilation structure function in number of cells. Will roughly fill holes of this size or smaller. Set to 0 to not fill holes. Default is 25')
+    parser.set_defaults(max_disk_hole_size=25)
+
+    parser.add_argument('--closing_iterations', metavar='closing_iterations', type=int, action='store', \
+                        help='How many closing iterations for filling. Default is 1.')
+    parser.set_defaults(closing_iterations=5)
     
     parser.add_argument('--run_mc_parallel', metavar='run_mc_parallel', type=bool, action='store', \
                         help='Do you want to run the marching cubes algorithm in parallel? Incurs additional computational overhead, but may be faster with a large (>30) number of cores or for large datacubes. Default is False.')
@@ -112,10 +116,6 @@ def parse_args():
     parser.add_argument('--run_mapping_linearly', metavar='run_mapping_linearly', type=bool, action='store', \
                         help='Do you want to run the clump to cell id mapping without parallelization? Should generally be slower, but can be done while filling voids and holes. Default is False.')
     parser.set_defaults(run_mapping_linearly=False) 
-
-    parser.add_argument('--make_disk_mask_figures', metavar='make_disk_mask_figures', type=bool, action='store', \
-                        help='Do you want to make additional figures illustrating the void/hole filling process when defining the disk? Default is False.')
-    parser.set_defaults(make_disk_mask_figures=False) 
 
     parser.add_argument('--system', metavar='system', type=str, action='store', \
                         help='Set the system to get data paths in get_run_loc_etc. Overrides --code_dir and --data_dir. Default is None.')
@@ -128,7 +128,6 @@ def parse_args():
     parser.add_argument('--forcepath', metavar='forcepath', type=bool, action='store', \
                         help='Use forcepath in get_run_loc_etc. Default is False.')
     parser.set_defaults(forcepath=False) 
-
 
     parser.add_argument('--cut_radius', metavar='cut_radius', type=float, action='store', \
                         help='Define a spherical cut region of this radius instead of using the full refine box. Default is None.')
@@ -146,8 +145,12 @@ def parse_args():
                         help='If n_dilation_iterations>0, each iteration will dilate the clump by this many cells. Default is 1.')
     parser.set_defaults(n_cells_per_dilation=1)
 
-    
-    
+        
+
+
+
+
+
     args = parser.parse_args()
 
     return args
@@ -186,7 +189,6 @@ def get_default_args():
         max_disk_hole_size=2000,
         run_mc_parallel=False,
         run_mapping_linearly=False,
-        make_disk_mask_figures=False,
         system=None,
         pwd=False,
         forcepath=False,
@@ -194,4 +196,5 @@ def get_default_args():
         skip_saving_clumps=False,
         n_dilation_iterations=0,
         n_cells_per_dilation=1,
+        closing_iterations=1,
     )
