@@ -105,7 +105,7 @@ def get_run_loc_etc(args):
     elif args.system == "cameron_pleiades":
         foggie_dir = "/nobackup/mpeeples/"
         output_path = "/nobackup/cwtrapp/foggie_outputs/"
-        code_path =  "/home6/cwtrapp/FOGGIE/foggie/foggie/"
+        code_path =  "/nobackup/cwtrapp/foggie/foggie/"
 
     if not args.pwd:
         if args.run == "natural":
