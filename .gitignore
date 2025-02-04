@@ -1,2 +1,14 @@
-foggie.egg-info/
+build/
+doc/build/
+
+.idea
+.vscode
+.DS_Store
+.ipynb_checkpoints
+foggie.egg-info
+foggie.dist-info
 __pycache__
+
+*.pyc
+*.png
+*.pdf

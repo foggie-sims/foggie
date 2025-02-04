@@ -11,6 +11,8 @@ from foggie.fogghorn.header import *
 def den_temp_phase(ds, region, args, output_filename):
     '''Makes a 2D histogram of density and temperature in the region of interest.'''
 
+    if (args.upto_kpc is not None): region = ds.sphere(center=ds.halo_center_kpc, radius=(args.upto_kpc, 'kpc'))
+
     density = np.log10(region['gas', 'density'].in_units('g/cm**3').v)
     temperature = np.log10(region['gas','temperature'].in_units('K').v)
     mass = np.log10(region['gas','cell_mass'].in_units('Msun').v)
