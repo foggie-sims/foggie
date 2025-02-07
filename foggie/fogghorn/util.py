@@ -228,6 +228,8 @@ def generate_plot_filename(quantity, args, snap):
                             'gas_metallicity_resolved_MZR': snap + '_resolved_gas_MZR' + args.upto_text + args.density_cut_text + '.png', \
                             'gas_metallicity_histogram': snap + '_gas_metallicity_histogram' + args.upto_text + args.density_cut_text + '.png', \
                             'gas_metallicity_radial_profile': snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png', \
+                            'den_temp_phase': snap + '_density_temperature_phase_plot' + args.upto_text +'.png', \
+                            'rad_vel_temp_colored': snap + '_radial-velocity_temperature.png', \
                             'plot_SFMS': 'SFMS.png', \
                             'plot_SMHM': 'SMHM.png', \
                             'plot_MZR': 'MZR.png',
