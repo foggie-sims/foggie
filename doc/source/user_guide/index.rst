@@ -17,6 +17,7 @@ analysis codes within the repo.
   
    getting_started.rst
    halo_info_files.rst
+   clump_finder.rst
 
 
 User Guide - New Sims
