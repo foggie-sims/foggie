@@ -8,7 +8,7 @@ This file contains everything that is needed to make emission maps and FRBs from
 All CLOUDY and emission code copy-pasted from Lauren's foggie/cgm_emission/emission_functions.py and Cassi's foggie/cgm_emission/emission_maps.py 
 
 This code is modified Cassi's foggie/cgm_emission/emission_maps.py to dynamically get:
-1. cut regions: tempreture, density, inflow, outflow, disk, cgm 
+1. yt cut regions: tempreture, density, inflow, outflow, disk, cgm 
 Note: if you want to use disk and cgm filters then you need to run clump_finder.py first and then use the output file in the code
 2. pixel size for frb maps
 3. units for emission: photons: photons s$^{-1}$ cm$^{-2}$ sr$^{-1}$ and erg: erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$
@@ -16,10 +16,8 @@ Note: if you want to use disk and cgm filters then you need to run clump_finder.
 5. intruments name: Aspera,Juniper, Magpie, HWO, MUSE
 
 It saves:
-1. emission maps for edge-on and face-on projections for each ion in the list 'ions' (if the instrument name argument is given than it makes mass using limit of that intrument)
-2. Saves the emission values in a hdf5 file
-3. It also save mass of each ion generating from the surface density in the hdf5 file  for later analysis (in emission_analysis.py file) of how much mass is in each pixel with a spcific emission 
-4. density projections  
+1. emission maps for edge-on and face-on projections for each ion in the list 'ions' 
+2. Saves the emission values in a hdf5 file 
 '''
 
 import numpy as np
@@ -54,6 +52,7 @@ import matplotlib as mpl
 import numpy as np
 from yt.units.yt_array import YTQuantity
 from scipy.ndimage import gaussian_filter
+from astropy.cosmology import Planck18 as cosmology
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -138,9 +137,21 @@ def parse_args():
                             'erg - erg (ergs * s**-1 * cm**-3 * arcsec**-2)')
     parser.set_defaults(unit_system='photons')
 
-    parser.add_argument('--resolution_factor', metavar='resolution_factor', type=str, action='store', \
-                        help='How many times larger than simulation resolution the pixel sizes should be? Default is 1')
-    parser.set_defaults(resolution_factor=1)
+    parser.add_argument('--res_arcsec', metavar='res_arcsec', type=str, action='store', \
+                        help='What is the instrument resolution in arcsec? Default is 10 arcsec')
+    parser.set_defaults(res_arcsec=None)
+
+    parser.add_argument('--target_z', metavar='target_z', type=str, action='store', \
+                        help='What is the target redshift for your instrument? Default is 0.1')
+    parser.set_defaults(target_z=None)
+
+    parser.add_argument('--fov_kpc', metavar='fov_kpc', type=str, action='store', \
+                        help='what is the field of view width in kpc (e.g. 100 )? Default is None. If it is None then it will take the refine box width')
+    parser.set_defaults(fov_kpc=None)
+
+    parser.add_argument('--fov_arcmin', metavar='fov_arcmin', type=str, action='store', \
+                        help='what is the field of view width in arcmin (e.g. 4)? Default is None. If it is None then it will take the refine box width')
+    parser.set_defaults(fov_arcmin=None)
 
     parser.add_argument('--filter_type', metavar='filter_type', type=str, action='store', \
                         help='What filter type? Default is None (Options are: inflow_outflow or disk_cgm )')
@@ -153,10 +164,6 @@ def parse_args():
     parser.add_argument('--scale_factor', metavar='scale_factor', type=str, action='store', \
                         help='Do you want to scale the emissivity to observation? How much? The default is 1 i.e. no scaling.')
     parser.set_defaults(scale_factor=1)
-
-    parser.add_argument('--fov', metavar='fov', type=str, action='store', \
-                        help='what is the field of view width (e.g. 100)? Default is None. If it is None then it will take the refine box width')
-    parser.set_defaults(fov=None)
 
     args = parser.parse_args()
     return args
@@ -446,6 +453,16 @@ def Emission_MgII_2796(field, data,scale_factor, unit_system='photons'):
         emission_line = emission_line / 4.25e10
         return emission_line * ytEmUALT
 
+def register_emission_field_with_unit(field_name, function, emission_units, unit_system,scale_factor):
+        yt.add_field(
+            ('gas', field_name),
+            units=emission_units if unit_system == 'photons' else emission_units_ALT,
+            function=lambda field, data: function(field, data,scale_factor=scale_factor, unit_system=unit_system),
+            take_log=True,
+            force_override=True,
+            sampling_type='cell',
+        )
+
 def filter_ds(box,segmentation_filter='radial_velocity'):
     '''This function filters the yt data object passed in as 'box' into inflow and outflow regions,
     based on metallicity, and returns the box filtered into these regions.'''
@@ -464,22 +481,38 @@ def filter_ds(box,segmentation_filter='radial_velocity'):
     return box_inflow, box_outflow, box_neither
 #####################################################################################################  
 
-def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None, filter_value=None,resolution_factor=1):
+def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
     '''This function takes the dataset 'ds' and the refine box region 'refine_box' and
     makes a fixed resolution buffer of surface brightness from edge-on and face-on orientation 
     projections of all ions in the list 'ions'.'''
 
     # get the halo name to add to the output name
     halo_name = halo_dict[str(args.halo)]
+    pix_res = float(np.min(refine_box['dx'].in_units('kpc')))
+
+    #redshift where the instrument target is
+    if args.target_z is not None:
+        target_redshift = args.target_z
+        arcmin_kpc_scale = cosmology.kpc_proper_per_arcmin(target_redshift) #kpc/arcmin # converting arcmin to kpc using plank 18 cosmology from astropy
+        arcmin_kpc_scale = YTQuantity(arcmin_kpc_scale, 'kpc/arcmin')  
     
     # Determine pixel size for the FRB
-    pix_res = float(np.min(refine_box['dx'].in_units('kpc')))
-    bin_size_kpc = resolution_factor * pix_res
-    round_bin_size_kpc = round(bin_size_kpc,2)
+    if args.res_arcsec is not None:
+        res_arcsec = float(args.res_arcsec)
+        res_arcsec = YTQuantity(res_arcsec, 'arcsec')  # Ensure YTQuantity type for consistency
+        bin_size_kpc = (res_arcsec.in_units('arcmin')) * arcmin_kpc_scale #convert to kpc
+        bin_size_kpc = bin_size_kpc.in_units('kpc')
+        round_bin_size_kpc = round(bin_size_kpc.to_value(),2)
+    else:
+        #simulation resolution
+        bin_size_kpc = pix_res
 
     #Set width of projection to the field of view that is desired
-    if args.fov is not None:
-        width = YTQuantity(float(args.fov), 'kpc')  # Ensure YTQuantity type for consistency
+    if args.fov_kpc is not None:
+        width = YTQuantity(float(args.fov_kpc), 'kpc')  # Ensure YTQuantity type for consistency
+    elif args.fov_arcmin is not None:
+        fov_kpc = float(args.fov_arcmin) * arcmin_kpc_scale
+        width = YTQuantity(fov_kpc, 'kpc')  
     else:
           #first make sure that the fov_refine_box is in kpc
           fov_refine_box = YTQuantity(ds.refine_width, 'kpc') if not hasattr(ds.refine_width, 'in_units') else ds.refine_width.in_units('kpc')
@@ -493,7 +526,7 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
     print('z=%.1f' % ds.get_parameter('CosmologyCurrentRedshift', 1))
     print(f"Simulation resolution (pix_res): {pix_res:.2f} kpc")
     print(f"Field of view (FOV): {width_value:.3f} kpc")
-    print(f"FEB pixel size (bin_size_kpc): {bin_size_kpc:.2f} kpc")
+    print(f"FRB pixel size (bin_size_kpc): {bin_size_kpc:.2f} kpc")
     print(f"FRB number of bins (res): {res}")
     
 
@@ -526,10 +559,13 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
             data_sources['all'] = data_sources['all'].cut_region([f"(obj['gas', 'temperature'] < {filter_value})"])
     elif filter_type == 'density' and filter_value is not None:
             data_sources['all'] = data_sources['all'].cut_region([f"(obj['gas', 'density'] > {filter_value})"])
-
     #No filter      
     else:
         data_sources = {'all': refine_box}
+    # YOUR FILTER AND CUT REGIONS GO HERE
+    #elif filter_type == 'your_filter':
+    #    data_sources = {'your_region': your_cut_region}
+
 
     # Define the unit string based on unit_system
     if unit_system == 'photons':
@@ -547,7 +583,7 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
     f = h5py.File(save_path + halo_name + '_emission_maps' + save_suffix + '.hdf5', 'a')
     # Creat headers to save the data under redshift group
     grp = f.create_group('z=%.1f' % ds.get_parameter('CosmologyCurrentRedshift', 1))
-    grp.attrs.create("image_extent_kpc", args.fov)
+    grp.attrs.create("image_extent_kpc", width)
     grp.attrs.create("redshift", ds.get_parameter('CosmologyCurrentRedshift'))
     grp.attrs.create("halo_name", halo_name)
     grp.attrs.create("emission_units", unit_label)
@@ -634,18 +670,38 @@ def emission_map_vbins(ds,refine_box, snap, ions,unit_system='photons', filter_t
 
     vbins = np.arange(-500., 550., 50.)  # Velocity bins
 
-    # Determine pixel size for the FRB
+    # get the halo name to add to the output name
+    halo_name = halo_dict[str(args.halo)]
     pix_res = float(np.min(refine_box['dx'].in_units('kpc')))
-    bin_size_kpc = resolution_factor * pix_res
+
+    #redshift where the instrument target is
+    if args.target_z is not None:
+        target_redshift = args.target_z
+        arcmin_kpc_scale = cosmology.kpc_proper_per_arcmin(target_redshift) #kpc/arcmin # converting arcmin to kpc
+        arcmin_kpc_scale = YTQuantity(arcmin_kpc_scale, 'kpc/arcmin')  
     
+    # Determine pixel size for the FRB
+    if args.res_arcsec is not None:
+        res_arcsec = float(args.res_arcsec)
+        res_arcsec = YTQuantity(res_arcsec, 'arcsec')  # Ensure YTQuantity type for consistency
+        bin_size_kpc = (res_arcsec.in_units('arcmin')) * arcmin_kpc_scale #convert to kpc
+        bin_size_kpc = bin_size_kpc.in_units('kpc')
+        round_bin_size_kpc = round(bin_size_kpc.to_value(),2)
+    else:
+        #simulation resolution
+        bin_size_kpc = pix_res
 
     #Set width of projection to the field of view that is desired
-    if args.fov is not None:
-        width = YTQuantity(float(args.fov), 'kpc')  # Ensure YTQuantity type for consistency
+    if args.fov_kpc is not None:
+        width = YTQuantity(float(args.fov_kpc), 'kpc')  # Ensure YTQuantity type for consistency
+    elif args.fov_arcmin is not None:
+        fov_kpc = float(args.fov_arcmin) * arcmin_kpc_scale
+        width = YTQuantity(fov_kpc, 'kpc')  
     else:
           #first make sure that the fov_refine_box is in kpc
           fov_refine_box = YTQuantity(ds.refine_width, 'kpc') if not hasattr(ds.refine_width, 'in_units') else ds.refine_width.in_units('kpc')
           width = fov_refine_box  
+
 
     
     width_value = width.v  # Extract width value
@@ -764,21 +820,41 @@ def emission_map_vbins(ds,refine_box, snap, ions,unit_system='photons', filter_t
                 proj_face.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
                 proj_face.save(prefix + 'EmissionMap/' + snap + '_' + ion + '_emission_map_face-on_vbin' + str(v) + save_suffix + '.png')
 
-def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=None, filter_value=None,resolution_factor=1):
+def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
     '''Makes emission maps for each ion in 'ions', oriented both edge-on and face-on.'''
 
-    # Determine pixel size for the FRB
+    # get the halo name to add to the output name
+    halo_name = halo_dict[str(args.halo)]
     pix_res = float(np.min(refine_box['dx'].in_units('kpc')))
-    bin_size_kpc = resolution_factor * pix_res
+
+    #redshift where the instrument target is
+    if args.target_z is not None:
+        target_redshift = args.target_z
+        arcmin_kpc_scale = cosmology.kpc_proper_per_arcmin(target_redshift) #kpc/arcmin # converting arcmin to kpc
+        arcmin_kpc_scale = YTQuantity(arcmin_kpc_scale, 'kpc/arcmin')  
     
+    # Determine pixel size for the FRB
+    if args.res_arcsec is not None:
+        res_arcsec = float(args.res_arcsec)
+        res_arcsec = YTQuantity(res_arcsec, 'arcsec')  # Ensure YTQuantity type for consistency
+        bin_size_kpc = (res_arcsec.in_units('arcmin')) * arcmin_kpc_scale #convert to kpc
+        bin_size_kpc = bin_size_kpc.in_units('kpc')
+        round_bin_size_kpc = round(bin_size_kpc.to_value(),2)
+    else:
+        #simulation resolution
+        bin_size_kpc = pix_res
 
     #Set width of projection to the field of view that is desired
-    if args.fov is not None:
-        width = YTQuantity(float(args.fov), 'kpc')  # Ensure YTQuantity type for consistency
+    if args.fov_kpc is not None:
+        width = YTQuantity(float(args.fov_kpc), 'kpc')  # Ensure YTQuantity type for consistency
+    elif args.fov_arcmin is not None:
+        fov_kpc = float(args.fov_arcmin) * arcmin_kpc_scale
+        width = YTQuantity(fov_kpc, 'kpc')  
     else:
           #first make sure that the fov_refine_box is in kpc
           fov_refine_box = YTQuantity(ds.refine_width, 'kpc') if not hasattr(ds.refine_width, 'in_units') else ds.refine_width.in_units('kpc')
           width = fov_refine_box  
+ 
 
     
     width_value = width.v  # Extract width value
@@ -887,7 +963,7 @@ def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=
             proj_face.save(prefix + 'Projections/' + snap + '_' + ion + '_emission_map_face-on' + save_suffix + '.png')
 
 ######################################################################################################
-def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filter_type=None, filter_value=None, resolution_factor=1):
+def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filter_type=None, filter_value=None, res_arcsec=None):
 
     '''Loads the simulation snapshot and makes the requested plots, with optional filtering.'''
 
@@ -900,11 +976,11 @@ def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filt
     # Generate emission maps based on the plot type
     if ('emission_map' in args.plot):
         if ('vbins' not in args.plot):
-            emission_map(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value,resolution_factor=resolution_factor)
+            emission_map(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value,res_arcsec=res_arcsec)
         else:
             emission_map_vbins(ds,refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value)
     if ('emission_FRB' in args.plot):
-        make_FRB(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, resolution_factor=resolution_factor)
+        make_FRB(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
                 
 if __name__ == "__main__":
 
@@ -923,8 +999,13 @@ if __name__ == "__main__":
     shell_path = output_dir + '/Disk/'
     
     # Set directory for output location, making it if necessary
-    box_name = args.fov if args.fov is not None else 'refine_box'
-    prefix = output_dir + '/res_' + args.resolution_factor + '/' + 'box_' + box_name + '/'
+    if args.fov_kpc is not None:
+        box_name = args.fov_kpc
+    elif args.fov_arcmin is not None:
+        box_name = args.fov_arcmin
+    else:
+        box_name = 'refine_box'
+    prefix = output_dir + '/res_' + args.res_arcsec + '/' + 'box_' + box_name + '/'
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
     table_loc = prefix + 'Tables/'
 
@@ -964,15 +1045,15 @@ if __name__ == "__main__":
 
     ############################
     # Function to register emission fields with unit options
-    def register_emission_field_with_unit(field_name, function, emission_units, unit_system,scale_factor):
-        yt.add_field(
-            ('gas', field_name),
-            units=emission_units if unit_system == 'photons' else emission_units_ALT,
-            function=lambda field, data: function(field, data,scale_factor=scale_factor, unit_system=unit_system),
-            take_log=True,
-            force_override=True,
-            sampling_type='cell',
-        )
+    # def register_emission_field_with_unit(field_name, function, emission_units, unit_system,scale_factor):
+    #     yt.add_field(
+    #         ('gas', field_name),
+    #         units=emission_units if unit_system == 'photons' else emission_units_ALT,
+    #         function=lambda field, data: function(field, data,scale_factor=scale_factor, unit_system=unit_system),
+    #         take_log=True,
+    #         force_override=True,
+    #         sampling_type='cell',
+    #     )
     
     unit_system = args.unit_system
     scale_factor = float(args.scale_factor)
@@ -1079,9 +1160,9 @@ if __name__ == "__main__":
 
     
     #Set the colormap range to look best for each ion and each boxsize
-    if args.fov is not None:
+    if args.fov_kpc is not None or args.fov_arcmin is not None:
         if unit_system  == 'photons':
-            if (args.fov == None) and (args.halo == '2392'):
+            if (args.fov_kpc == None) and (args.halo == '2392'):
                 zlim_dict = {'Lyalpha':[1e-1,1e7], 'HI':[1e-1,1e6], 'CII':[1e-7,1e4], 'CIII':[1e-1,1e5],
                         'CIV':[1e-2,1e4], 'OVI':[1e-2,1e4],'SiII':[1e-6,1e5],'SiIII':[1e-6,1e5],'SiIV':[1e-6,1e5],'MgII':[1e-6,1e5]}
             else:
@@ -1091,14 +1172,14 @@ if __name__ == "__main__":
             zlim_dict = {'Lyalpha':[1e-22,1e-16], 'HI':[1e-22,1e-16], 'CII':[1e-23,1e-16], 'CIII':[1e-23,1e-16],
                         'CIV':[1e-23,1e-16], 'OVI':[1e-22,1e-17],'SiII':[1e-23,1e-16],'SiIII':[1e-23,1e-16],'SiIV':[1e-23,1e-16],'MgII':[1e-23,1e-16]}
     else:
-        if unit_system  == 'default':
-            if (args.fov == None) and (args.halo == '2392'):
+        if unit_system  == 'photons':
+            if (args.fov_kpc == None) and (args.halo == '2392'):
                 zlim_dict = {'Lyalpha':[1e-1,1e7], 'HI':[1e-1,1e6], 'CII':[1e-7,1e4], 'CIII':[1e-1,1e5],
                         'CIV':[1e-2,1e4], 'OVI':[1e-2,1e4],'SiII':[1e-6,1e5],'SiIII':[1e-6,1e5],'SiIV':[1e-6,1e5],'MgII':[1e-6,1e5]}
             else:
                 zlim_dict = {'Lyalpha':[1e-1,1e7], 'HI':[1e-1,1e6], 'CII':[1e-7,1e4], 'CIII':[1e-4,1e3],
                         'CIV':[1e-2,1e4], 'OVI':[1e-2,1e4],'SiII':[1e-5,1e5],'SiIII':[1e-5,1e5],'SiIV':[1e-5,1e5],'MgII':[1e-5,1e5]} 
-        elif unit_system == 'ALT':
+        elif unit_system == 'erg':
             zlim_dict = {'Lyalpha':[1e-22,1e-16], 'HI':[1e-22,1e-16], 'CII':[1e-23,1e-16], 'CIII':[1e-23,1e-16],
                         'CIV':[1e-23,1e-16], 'OVI':[1e-22,1e-17],'SiII':[1e-23,1e-16],'SiIII':[1e-23,1e-16],'SiIV':[1e-23,1e-16],'MgII':[1e-23,1e-16]}
         
@@ -1114,7 +1195,7 @@ if __name__ == "__main__":
 
     elif instrument_name == 'Magpie':
         if args.unit_system == 'photons':
-            flux_threshold_dict = {'CIII': 2000,'CIV': 2000,'OVI': 1500, 'MgII':2000} #photons/s/cm^2/sr
+            flux_threshold_dict = {'CIII': 675,'CIV': 650,'OVI': 270, 'MgII':675} #photons/s/cm^2/sr
         elif args.unit_system == 'erg':
             flux_threshold_dict = {'OVI': 3e-19} #ergs/s/cm^2/arcsec^2
         
@@ -1126,10 +1207,17 @@ if __name__ == "__main__":
         if args.unit_system == 'photons':
             flux_threshold_dict = {'OVI': 200} #photons/s/cm^2/sr
         elif args.unit_system == 'erg':
-            flux_threshold_dict = {'OVI': 1.5e-20} #ergs/s/cm^2/arcsec^2
-        
+            flux_threshold_dict = {'OVI': 1.5e-20} #ergs/s/cm^2/arcsec^2  
     else:
         flux_threshold_dict = {}
+
+    #YOUR INSTRUMENT HERE
+    #elif instrument_name == 'YOUR INSTRUMENT NAME':
+    #    if args.unit_system == 'photons':
+    #        flux_threshold_dict = {'CII': YOUR_VALUE, 'CIII': YOUR_VALUE,'CIV': YOUR_VALUE, 'OVI': YOUR_VALUE} #photons/s/cm^2/sr
+    #    elif args.unit_system == 'erg':        
+    #        flux_threshold_dict = {'CII': YOUR_VALUE, 'CIII': YOUR_VALUE,'CIV': YOUR_VALUE, 'OVI': YOUR_VALUE} #ergs/s/cm^2/arcsec^2
+      
         
 
     if (args.save_suffix!=''):
@@ -1160,9 +1248,8 @@ if __name__ == "__main__":
     #Build filter_type
     filter_type = args.filter_type
 
-    resolution_factor = args.resolution_factor
-    resolution_factor = int(resolution_factor)
-
+    res_arcsec = args.res_arcsec
+    
     shell_count = int(args.shell_count)
 
 
@@ -1173,7 +1260,7 @@ if __name__ == "__main__":
     target_dir = 'ions'
     if (args.nproc==1):
         for snap in outs:
-            load_and_calculate(snap, ions,scale_factor=scale_factor, unit_system=unit_system, filter_type=filter_type, filter_value=None, resolution_factor=resolution_factor)
+            load_and_calculate(snap, ions,scale_factor=scale_factor, unit_system=unit_system, filter_type=filter_type, filter_value=None, res_arcsec=res_arcsec)
     else:
         skipped_outs = outs
         while (len(skipped_outs)>0):
