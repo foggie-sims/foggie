@@ -3,48 +3,79 @@ Compiling enzo-foggie on Pleiades
 
 To make a clean Enzo build using the enzo-foggie fork:
 
-1.  From the command line:
+1. First load the compiler modules needed:
+   ::
+
+        > module load comp-intel/2020.4.304 hdf5/1.8.18_serial
+
+
+2. Install grackle. In the below command line prompts, enter in your own Pleiades username. From the command line:
+   ::
+
+        > cd /nobackup/<USERNAME>
+        > git clone https://github.com/grackle-project/grackle
+        > cd grackle
+        > git submodule update --init
+        > cmake -DCMAKE_INSTALL_PREFIX=/nobackup/<USERNAME>/grackle/build -DBUILD_SHARED_LIBS=ON 
+        -B /nobackup/<USERNAME>/grackle/build
+        > cmake --build /nobackup/<USERNAME>/grackle/build
+        > cmake --install /nobackup/<USERNAME>/grackle/build
+
+   You can run one of the test problems to see if it built properly:
+
+   ::
+
+        > cd build/examples/
+        > ./cxx_example
+
+   If it outputs a bunch of physics stuff to the terminal (as opposed to any errors), it worked!
+
+3.  Now configure enzo. From the command line:
     ::
 
         > git clone https://github.com/foggie-sims/enzo-foggie.git 
         > cd enzo-foggie
         > ./configure 
-        > cd src/enzo 
-        > make machine-pleiades-mpich
-        > make grackle-yes 
-        > make opt-high 
-        > module load comp-intel/2020.4.304 hdf5/1.8.18_serial
-        > make clean 
-        > make -j16
+        > cd src/enzo
 
-    [wait while Enzo builds] 
+    In the ``src/enzo`` directory, there will be a file called ``Make.mach.pleiades-mpich``. There are a couple of lines in
+    this file that need to be updated:
 
-    Note that ``Make.mach.pleiades-mpich`` links to JT's mpich libraries:
+    Change the line that says ``LOCAL_GRACKLE_INSTALL`` to:
 
-    ``u/jtumlins/installs/mpich-4.0.3/usr/lib``
+    ``LOCAL_GRACKLE_INSTALL = /nobackup/<USERNAME>/grackle/build``
 
-    and grackle: 
+    Change the line that says ``LOCAL_GRACKLE_LIBS`` to:
 
-    ``/u/jtumlins/grackle-mpich/build-mpich/``
+    ``LOCAL_GRACKLE_LIBS = -L$(LOCAL_GRACKLE_INSTALL)/lib64 -lgrackle``
 
-    ``/u/jtumlins/grackle-mpich/src/clib/*.o``
+    Note that this ``Make.mach.pleiades-mpich`` file links to JT's mpich libraries. There should be no need to change this.
 
-    This means you don't need to install grackle yourself!
+4. Now we can compile enzo. This needs to be done as a job submitted to a node rather than straight from the command line 
+   on the pfe's. There is an example PBS script for this in the ``enzo-foggie repo``, in ``enzo-foggie/src/qsub_compile_enzo.sh``.
+   In ``qsub_compile_enzo.sh``, you will need to change the directories:
 
-    If you get an error at the linking step of the compile when you're reasonably sure it should be working,
-    try submitting the final make commands as a PBS script to the processors you are planning on running Enzo
-    on (likely Broadwell). Don't forget to include the module loads in the PBS script, and you can submit to
-    the devel queue to get it to run right away. Should only take a few minutes. There is an example PBS script
-    for this in the ``enzo-foggie repo``, in ``enzo-foggie/src/qsub_compile_enzo.sh``.
+   In the line ``#PBS -o /home5/clochhaa/FOGGIE/output_compile_enzo``, change this to your own home or nobackup directory. 
+   This is where the output from the command line will go. If the compile fails, examine this file to see what happened.
 
-2.  Add the following lines to your ``.bash_profile``:
+   In the line ``cd /home5/clochhaa/enzo-foggie/src/enzo``, change this to the directory where you cloned enzo-foggie. 
+   Make sure the end of this path is ``src/enzo``.
+
+   After making these changes, submit this script at the command line:
+   ::
+
+        > qsub qsub_compile_enzo.sh
+
+   And wait for enzo to compile! It should take just a few minutes. Check the ``output_compile_enzo`` file to make sure it ends with "Success!"
+
+5.  Add the following lines to your ``.bash_profile``:
     ::
 
         export LD_LIBRARY_PATH="/u/jtumlins/installs/mpich-4.0.3/usr/local/lib":"/u/jtumlins/installs/mpich-4.0.3/usr/lib":$LD_LIBRARY_PATH
         export PATH="/nobackup/jtumlins/anaconda3/bin:/u/scicon/tools/bin/:/u/jtumlins/installs/mpich-4.0.3/usr/local/bin:$PATH"
 
 
-3.  Put a new file in your home directory called memory_gauge.sh, containing this:
+6.  Put a new file in your home directory called memory_gauge.sh, containing this:
     ::
 
         #!/bin/bash
