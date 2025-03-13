@@ -15,7 +15,6 @@ def patch_track(snap_start, snap_end, trackfile):
     """
 
     new_track = Table(np.array([0., 0., 0., 0.]), names=('redshift', 'x', 'y', 'z')) 
-    print(new_track)
 
     track = Table.read(trackfile, format='ascii')
     track.sort('col1') 
@@ -29,7 +28,7 @@ def patch_track(snap_start, snap_end, trackfile):
         if (thissnap < 1000): snap_string='DD0'+str(thissnap)
         if (thissnap < 100): snap_string='DD00'+str(thissnap)
         if (thissnap < 10): snap_string='DD000'+str(thissnap)
-        print('Hello your snap_number is:', snap_start, snap_string)
+        print('Hello your snap_number is:', snap_string)
         
         snapname = snap_string + '/' + snap_string
         ds = yt.load(snapname)
