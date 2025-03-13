@@ -24,6 +24,7 @@ from foggie.clumps.clump_finder.fill_topology import expand_slice
 from foggie.clumps.clump_finder.fill_topology import generate_connectivity_matrix
 
 
+
 import matplotlib.pyplot as plt
 #from matplotlib.colors import LogNorm
 
@@ -310,8 +311,9 @@ class Clump:
 
                         n0 = np.size(np.where(mask))
 
-                        
+             
                         scm_struct = generate_connectivity_matrix(args.max_disk_hole_size, args.use_cylindrical_connectivity_matrix)
+
                         filled_mask = binary_closing(mask, structure=scm_struct,iterations=args.closing_iterations)
 
                         filled_mask = mask | filled_mask
@@ -780,9 +782,8 @@ class Clump:
             if nClumpsAdded==0:
                 print("No clumps found at this threshold...terminating")
                 return
-            
-            if args.identify_disk:
-                return
+
+
               
                     
             current_threshold *= args.step
@@ -968,7 +969,9 @@ def identify_clump_hierarchy(ds,cut_region,args):
             if args.cgm_density_cut_type=="relative_density": args.cgm_density_factor=200.
             elif args.cgm_density_cut_type=="comoving_density": args.cgm_density_factor=0.2
             else: args.cgm_density_factor = 1.
+
         cgm_density_cut = get_cgm_density_cut(ds, args.cgm_density_cut_type,additional_factor=args.cgm_density_factor,code_dir=args.code_dir,halo=args.halo,snapshot=args.snapshot,run=args.run, cut_field = args.clumping_field)
+
 
 
 
@@ -981,6 +984,7 @@ def identify_clump_hierarchy(ds,cut_region,args):
         args.clump_max = cut_region[args.clumping_field].max()
 
         print("cgm_density_cut=",cgm_density_cut,"clump_max=",args.clump_max,"min_val=",cut_region[args.clumping_field].min())
+
         args.step = args.clump_max / args.clump_min
         
         disk = Clump(ds,cut_region,args,tree_level=0,is_disk=True)
@@ -1021,9 +1025,11 @@ def identify_clump_hierarchy(ds,cut_region,args):
 
 
         sphere = ds.sphere(center=ds.halo_center_kpc, radius=(60, 'kpc'))
+
         sph_ism = sphere.cut_region("obj["+str(args.clumping_field)+"] > %.3e" % (density_cut_factor * cgm_density_max))
         if args.clump_min is None: args.clump_min = sph_ism[args.clumping_field].min()
         if args.clump_max is None: args.clump_max = sph_ism[args.clumping_field].max()
+
 
 
 

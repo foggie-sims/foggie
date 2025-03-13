@@ -120,6 +120,7 @@ def slice_along_arbitrary_axis(matrix, axis_vector, slice_position):
     print("Time to slice:",t1-t0,"Time to interpolate:",t2-t1)
     return slice_data, indices
 
+
 def generate_connectivity_matrix(size,use_cylindrical_connectivity_matrix = False,return_full_connectivity=False):
     if return_full_connectivity: return np.ones((size,size,size))
     if use_cylindrical_connectivity_matrix: return generate_cylindrical_connectivity(size)
@@ -144,6 +145,8 @@ def generate_cylindrical_connectivity(size):
     # Define mask: points inside the cylinder are 1, outside are 0
     return ((distance <= radius) & (z <= size))
     
+
+
 
 
 

@@ -98,6 +98,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/nobackup/mpeeples/" if args.foggie_dir is None else args.foggie_dir
         output_path = "/nobackupp19/aachary2/foggie_outputs/"
         code_path = "/nobackupp19/aachary2/ayan_codes/foggie/foggie/"
+    elif args.system == "vida_local":
+        foggie_dir = "/Users/vidasaeedzadeh/Projects/foggie_data/" 
+        output_path = "/Users/vidasaeedzadeh/Projects/foggie_outputs/"
+        code_path = "/Users/vidasaeedzadeh/Projects/repositories/foggie/foggie/"
     elif args.system == "cameron_local":
         foggie_dir = "/Volumes/FoggieCam/foggie_halos/"
         output_path = "/Users/ctrapp/Documents/foggie_analysis/default_output/"
