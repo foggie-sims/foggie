@@ -145,6 +145,12 @@ def parse_args():
                         help='If n_dilation_iterations>0, each iteration will dilate the clump by this many cells. Default is 1.')
     parser.set_defaults(n_cells_per_dilation=1)
 
+
+    parser.add_argument('--use_cylindrical_connectivity_matrix', metavar='use_cylindrical_connectivity_matrix', type=bool, action='store', \
+                        help='Use a cylindrical connectivy matrix (instead of spherical/square) for hole filling. Default is False.')
+    parser.set_defaults(use_cylindrical_connectivity_matrix=False)
+
+
         
 
 
@@ -197,4 +203,7 @@ def get_default_args():
         n_dilation_iterations=0,
         n_cells_per_dilation=1,
         closing_iterations=1,
+
+        use_cylindrical_connectivity_matrix=False,
+
     )

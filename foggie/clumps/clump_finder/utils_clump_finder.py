@@ -38,13 +38,21 @@ def read_virial_mass_file(halo_id,snapshot,refinement_scheme,codedir,key="radius
     return rvir_masses[key][rvir_masses['snapshot']==snapshot][-1]
     
     
-def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run="nref11c_nref9f",code_dir=None,halo=None,snapshot=None):
+
+def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run="nref11c_nref9f",code_dir=None,halo=None,snapshot=None, cut_field=('gas','density')):
     '''
     Get a density cutoff to separate the galaxy from the CGM
     '''
+
+
     if cut_type=="comoving_density":
         z = ds.get_parameter('CosmologyCurrentRedshift')
         cgm_density_cut = 0.1 *additional_factor* cgm_density_max * (1+z)**3
+        if cut_field==('gas','H_p0_number_density'):
+            column_density_threshold = additional_factor * 1e17 / ds.units.cm / ds.units.cm
+            cgm_density_cut = column_density_threshold / np.min(ds.all_data()['gas','dx'].in_units('cm')) * (1+z)**3 #in units cm^-3
+
+
     elif cut_type=="relative_density":
         try: Rvir = read_virial_mass_file(halo, "RD0042",run,code_dir)
         except:
@@ -59,6 +67,41 @@ def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run=
         mean_density = np.average( sphere['gas','density'][mask], weights=sphere['cell_volume'][mask])
         stdv_density = np.sqrt( np.average( np.power(sphere['gas','density'][mask] - mean_density , 2) , weights=sphere['cell_volume'][mask]))
         cgm_density_cut = mean_density + additional_factor * stdv_density 
+
+
+        if cut_field==('gas','H_p0_number_density'):
+            '''
+            column_density_threshold = additional_factor * 1e17 / ds.units.cm / ds.units.cm
+            mask = ((sphere['gas','radius_corrected']>50./(1+z)))# & (sphere['gas','H_p0_number_density']<=1e17*(1+z)**3))
+            
+        
+            mean_density = np.average( sphere['gas','H_p0_number_density'][mask], weights=sphere['cell_volume'][mask])
+            stdv_density = np.sqrt( np.average( np.power(sphere['gas','H_p0_number_density'][mask] - mean_density , 2) , weights=sphere['cell_volume'][mask]))
+            print("Mean density is:",mean_density)
+            print("stdv_density=",stdv_density)
+
+            cgm_density_cut = mean_density + additional_factor * stdv_density
+            '''
+
+            min_dx = np.min(ds.all_data()['gas','dx'])
+            disk_thickness_factor = min_dx.in_units('kpc') / ds.units.kpc
+
+            column_density_threshold = additional_factor * 1e17 / ds.units.cm / ds.units.cm
+            cgm_density_cut = column_density_threshold / min_dx.in_units('cm') * disk_thickness_factor * (1+z)**3#in units cm^-3
+
+            mask = sphere['gas','H_p0_number_density'] <= cgm_density_cut * 1. # Less than 10**18 cm^2
+            mean_density = np.average( sphere['gas','H_p0_number_density'][mask], weights=sphere['cell_volume'][mask])
+            stdv_density = np.sqrt( np.average( np.power(sphere['gas','H_p0_number_density'][mask] - mean_density , 2) , weights=sphere['cell_volume'][mask]))
+            
+            #mean_density = np.average( sphere['gas','H_p0_number_density'], weights=sphere['cell_volume'])
+            #stdv_density = np.sqrt( np.average( np.power(sphere['gas','H_p0_number_density'] - mean_density , 2) , weights=sphere['cell_volume']))
+            
+
+            print("cgm_density_cut was:",cgm_density_cut,"stdv=",stdv_density)
+            cgm_density_cut += 100. * stdv_density * (1+z)**3
+
+
+
     else:
         # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
         # with it being 1 at higher redshifts and 0.1 at lower redshifts
@@ -75,7 +118,13 @@ def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run=
         
         cgm_density_cut = cgm_density_max * density_cut_factor * additional_factor
         z = ds.get_parameter('CosmologyCurrentRedshift')
-        print("Cassi's cut is:",cgm_density_cut,"(comoving would be",0.1*additional_factor*cgm_density_max*(1+z)**3,")")
+
+
+        if cut_field==('gas','H_p0_number_density'):
+            column_density_threshold = additional_factor * 1e17 / ds.units.cm / ds.units.cm
+            cgm_density_cut = column_density_threshold / np.min(ds.all_data()['gas','dx'].in_units('cm')) * density_cut_factor*10. #in units cm^-3
+
+
     return cgm_density_cut
 
 

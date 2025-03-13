@@ -177,7 +177,10 @@ def parse_args():
                         'accretion_direction    - 2D plots in theta and phi bins showing location of inflow cells, colored by mass, temperature, and metallicity\n' + \
                         'flux_vs_time           - line plot of inward mass flux vs time and redshift\n' + \
                         'accretion_vs_time      - line plot of various properties of accreting gas vs time\n' + \
+                        'momenta_vs_time        - line plot of momenta properties of accreting gas vs time\n' + \
                         'accretion_vs_radius    - line plot of various properties of accreting gas vs radius\n' + \
+                        'momenta_vs_radius      - line plot of momenta properties of accreting gas vs radius\n' + \
+                        'indiv_streams_vs_radius - line plot of momenta properties of accreting gas vs radius\n' + \
                         'flux_vs_radius         - line plot of accreting mass and metal fluxes vs radius\n' + \
                         'phase_plot             - 2D phase plots of various properties of accreting gas and non-accreting gas in same shell\n' + \
                         'sky_map                - column density maps of all gas and only accreting gas\n' + \
@@ -315,7 +318,7 @@ def stress_mag(density, vx, vy, vz, dist_cells):
 
     return magnitude
 
-def make_flux_table(flux_types):
+def make_flux_table(flux_types, args):
     '''Makes the giant table that will be saved to file.'''
 
     if (args.radial_stepping > 0):
@@ -378,7 +381,7 @@ def set_flux_table_units(table):
             table[key].unit = 'none'
     return table
 
-def make_props_table(prop_types):
+def make_props_table(prop_types, args):
     '''Makes the giant table that will be saved to file.'''
 
     if (args.radial_stepping > 0):
@@ -532,7 +535,7 @@ def weighted_avg_and_std(values, weights):
     variance = np.average((values-average)**2, weights=weights)
     return average, np.sqrt(variance)
 
-def plot_accretion_direction(theta_acc, phi_acc, density, temperature, metallicity, radial_velocity, cooling_time, tcool_tff, flux_sr, metal_flux_sr, theta_out, phi_out, tsnap, zsnap, prefix, snap, radius, save_r, save_fd):
+def plot_accretion_direction(theta_acc, phi_acc, density, temperature, metallicity, radial_velocity, cooling_time, tcool_tff, flux_sr, metal_flux_sr, theta_out, phi_out, tsnap, zsnap, prefix, snap, radius, save_r, save_fd, save_suffix):
     '''Plots the temperature, metallicity, radial velocity, cooling time, mass, and metal mass of only those cells
     identified as accreting, while over-plotting contours showing the location of fast outflows.'''
 
@@ -719,9 +722,13 @@ def plot_accretion_direction(theta_acc, phi_acc, density, temperature, metallici
     plt.savefig(prefix + 'Plots/' + snap + '_accretion-direction_metal-mass-colored' + save_r + save_fd + save_suffix + '.png')
     plt.close()'''
 
-def sky_map(ds, sp, snap, snap_props):
+def sky_map(ds, sp, snap, snap_props, global_vars):
     '''Makes a sky map of column densities as viewed from the center of the galaxy for all gas and
     only accreting gas.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
 
     prefix = output_dir + 'projections_halo_00' + args.halo + '/' + args.run + '/'
     Menc_profile, Mvir, Rvir = snap_props
@@ -796,8 +803,12 @@ def sky_map(ds, sp, snap, snap_props):
         plt.savefig(prefix + snap + '_col-den-map_' + i + save_suffix + '.png')
         plt.close()
 
-def calculate_flux(ds, grid, shape, snap, snap_props):
+def calculate_flux(ds, grid, shape, snap, snap_props, global_vars):
     '''Calculates the flux into and out of the specified shape at the snapshot 'snap' and saves to file.'''
+
+    args = global_vars['args']
+    prefix = global_vars['prefix']
+    save_suffix = global_vars['save_suffix']
 
     tablename = prefix + 'Tables/' + snap + '_fluxes'
     Menc_profile, Mvir, Rvir = snap_props
@@ -818,7 +829,7 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
         fluxes.append('bernoulli_energy_flux')
         fluxes.append('cooling_energy_flux')
         flux_filename += '_energy'
-    table = make_flux_table(fluxes)
+    table = make_flux_table(fluxes, args)
 
     if (args.cgm_only):
         # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
@@ -1051,17 +1062,21 @@ def calculate_flux(ds, grid, shape, snap, snap_props):
             table.add_row(results)
 
         if ('accretion_direction' in plots):
-            plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), density[to_shape], temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], tcool_tff[to_shape], flux_sr[to_shape], metal_flux_sr[to_shape], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, '')
+            plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), density[to_shape], temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], tcool_tff[to_shape], flux_sr[to_shape], metal_flux_sr[to_shape], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, '', save_suffix)
             for dv in range(len(disp_vff_bins)):
                 save_dv = flux_sr_saves[dv]
-                plot_accretion_direction(theta_to_dv[dv]*(np.pi/180.)+np.pi, phi_to_dv[dv]*(np.pi/180.), density[to_shape_dv[dv]], temperature[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], tcool_tff[to_shape_dv[dv]], flux_sr[to_shape_dv[dv]], metal_flux_sr[to_shape_dv[dv]], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, save_dv)
+                plot_accretion_direction(theta_to_dv[dv]*(np.pi/180.)+np.pi, phi_to_dv[dv]*(np.pi/180.), density[to_shape_dv[dv]], temperature[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], tcool_tff[to_shape_dv[dv]], flux_sr[to_shape_dv[dv]], metal_flux_sr[to_shape_dv[dv]], theta_out*(np.pi/180.)+np.pi, phi_out*(np.pi/180.), tsnap, zsnap, prefix, snap, radii[r], save_r, save_dv, save_suffix)
 
     table = set_flux_table_units(table)
     table.write(tablename + flux_filename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
-def compare_accreting_cells(ds, grid, shape, snap, snap_props):
+def compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars):
     '''Calculates properties of cells that are identified as accreting compared to cells in a thin
     boundary layer that are not accreting.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['args']
+    save_suffix = global_vars['args']
 
     prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/'
     plot_prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
@@ -1102,7 +1117,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
         props.append('theta_L')
         props.append('velocity_divergence')
         props.append('shear_stress')
-    table = make_props_table(props)
+    table = make_props_table(props, args)
 
     # Load grid properties
     x = grid['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
@@ -1558,20 +1573,20 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props):
             table.add_row(results)
 
         if ('accretion_direction' in plots):
-            plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), density[to_shape], temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], tcool_tff[to_shape], flux_sr[to_shape], metal_flux_sr[to_shape], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r, '')
+            plot_accretion_direction(theta_to*(np.pi/180.)+np.pi, phi_to*(np.pi/180.), density[to_shape], temperature[to_shape], metallicity[to_shape], rv[to_shape], tcool[to_shape], tcool_tff[to_shape], flux_sr[to_shape], metal_flux_sr[to_shape], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r, '', save_suffix)
             for dv in range(len(disp_vff_bins)):
                 save_dv = flux_sr_saves[dv]
-                plot_accretion_direction(theta_to_dv[dv]*(np.pi/180.)+np.pi, phi_to_dv[dv]*(np.pi/180.), density[to_shape_dv[dv]], temperature[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], tcool_tff[to_shape_dv[dv]], flux_sr[to_shape_dv[dv]], metal_flux_sr[to_shape_dv[dv]], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r, save_dv)
+                plot_accretion_direction(theta_to_dv[dv]*(np.pi/180.)+np.pi, phi_to_dv[dv]*(np.pi/180.), density[to_shape_dv[dv]], temperature[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], tcool_tff[to_shape_dv[dv]], flux_sr[to_shape_dv[dv]], metal_flux_sr[to_shape_dv[dv]], theta[from_shape_fast]*(np.pi/180.)+np.pi, phi[from_shape_fast]*(np.pi/180.), tsnap, zsnap, plot_prefix, snap, radii[r], save_r, save_dv, save_suffix)
         if ('phase_plot' in plots):
-            phase_plots(temperature[to_shape], rv[to_shape], tcool[to_shape], metallicity[to_shape], entropy[to_shape], pressure[to_shape], mass[to_shape], temperature[shape_non], rv[shape_non], tcool[shape_non], metallicity[shape_non], entropy[shape_non], pressure[shape_non], mass[shape_non], tsnap, zsnap, prefix, snap, radii[r], save_r, '')
+            phase_plots(temperature[to_shape], rv[to_shape], tcool[to_shape], metallicity[to_shape], entropy[to_shape], pressure[to_shape], mass[to_shape], temperature[shape_non], rv[shape_non], tcool[shape_non], metallicity[shape_non], entropy[shape_non], pressure[shape_non], mass[shape_non], tsnap, zsnap, prefix, snap, radii[r], save_r, '', save_suffix)
             for dv in range(len(disp_vff_bins)):
                 save_dv = disp_vff_saves[dv]
-                phase_plots(temperature[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], entropy[to_shape_dv[dv]], pressure[to_shape_dv[dv]], mass[to_shape_dv[dv]], temperature[shape_non], rv[shape_non], tcool[shape_non], metallicity[shape_non], entropy[shape_non], pressure[shape_non], mass[shape_non], tsnap, zsnap, prefix, snap, radii[r], save_r, save_dv)
+                phase_plots(temperature[to_shape_dv[dv]], rv[to_shape_dv[dv]], tcool[to_shape_dv[dv]], metallicity[to_shape_dv[dv]], entropy[to_shape_dv[dv]], pressure[to_shape_dv[dv]], mass[to_shape_dv[dv]], temperature[shape_non], rv[shape_non], tcool[shape_non], metallicity[shape_non], entropy[shape_non], pressure[shape_non], mass[shape_non], tsnap, zsnap, prefix, snap, radii[r], save_r, save_dv, save_suffix)
 
     table = set_props_table_units(table)
     table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
-def phase_plots(temp_acc, vel_acc, tcool_acc, met_acc, entropy_acc, pressure_acc, mass_acc, temp_else, vel_else, tcool_else, met_else, entropy_else, pressure_else, mass_else, tsnap, zsnap, prefix, snap, radius, save_r, save_fd):
+def phase_plots(temp_acc, vel_acc, tcool_acc, met_acc, entropy_acc, pressure_acc, mass_acc, temp_else, vel_else, tcool_else, met_else, entropy_else, pressure_else, mass_else, tsnap, zsnap, prefix, snap, radius, save_r, save_fd, save_suffix):
     '''Makes 2D phase plots of temperature vs radial velocity, temperature vs cooling time, temperature
     vs velocity dispersion, radial velocity vs velocity dispersion, radial velocity vs cooling time,
     and cooling time vs velocity dispersion for only that gas that is accreting and for the gas that is not
@@ -1612,9 +1627,11 @@ def phase_plots(temp_acc, vel_acc, tcool_acc, met_acc, entropy_acc, pressure_acc
             plt.savefig(prefix + 'Plots/' + snap + '_phase_' + props_save[i] + '-vs-' + props_save[j] + save_r + save_fd + save_suffix + '.png')
             plt.close()
 
-def find_shape(ds, surface, snap_props):
+def find_shape(ds, surface, snap_props, global_vars):
     '''Defines the grid within the data set, identifies the specified shape,
     and returns both the full grid and the boolean array for the shape.'''
+
+    args = global_vars['args']
 
     Menc_profile, Mvir, Rvir = snap_props
     edge_kpc = 20.      # Edge region around shape in kpc
@@ -1644,8 +1661,9 @@ def find_shape(ds, surface, snap_props):
             max_extent = np.max([radius, height/2.])*np.sqrt(2.) + edge_kpc*2.
 
     data = ds.sphere(ds.halo_center_kpc, (max_extent, 'kpc'))
-    pix_res = float(np.min(data[('gas','dx')].in_units('kpc')))  # at level 11
-    lvl1_res = pix_res*2.**11.
+    pix_res = float(np.min(data[('gas','dx')].in_units('kpc')))  # at level 11 for production runs, level 10 for feedback-track runs
+    if ('feedback' in args.run) and ('track' in args.run): lvl1_res = pix_res*2.**10.
+    else: lvl1_res = pix_res*2.**11.
     dx = lvl1_res/(2.**args.level)
 
     if (args.constant_box!=0.):
@@ -1786,9 +1804,19 @@ def find_shape(ds, surface, snap_props):
 
     return box, shape
 
-def load_and_calculate(snap, surface):
+def load_and_calculate(snap, surface, global_vars):
     '''Loads the simulation output given by 'snap' and calls the functions to define the surface
     and calculate flux through that surface.'''
+
+    args = global_vars['args']
+    target_dir = global_vars['target_dir']
+    foggie_dir = global_vars['foggie_dir']
+    run_dir = global_vars['run_dir']
+    trackname = global_vars['trackname']
+    halo_c_v_name = global_vars['halo_c_v_name']
+    catalog_dir = global_vars['catalog_dir']
+    smooth_AM_name = global_vars['smooth_AM_name']
+    emission_units_ALT = global_vars['emission_units_ALT']
 
     # Load simulation output
     if (args.system=='pleiades_cassi'):
@@ -1827,21 +1855,21 @@ def load_and_calculate(snap, surface):
 
     if (args.plot=='sky_map'):
         sp = ds.sphere(ds.halo_center_kpc, (Rvir, 'kpc'))
-        sky_map(ds, sp, snap, snap_props)
+        sky_map(ds, sp, snap, snap_props, global_vars)
     else:
         # Find the covering grid and the shape specified by 'surface'
-        grid, shape = find_shape(ds, surface, snap_props)
+        grid, shape = find_shape(ds, surface, snap_props, global_vars)
         # Calculate fluxes and save to file
         if ('fluxes' in args.calculate):
-            calculate_flux(ds, grid, shape, snap, snap_props)
+            calculate_flux(ds, grid, shape, snap, snap_props, global_vars)
         if ('accretion_compare' in args.calculate):
-            compare_accreting_cells(ds, grid, shape, snap, snap_props)
+            compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars)
         if ('filament_stats' in args.calculate):
-            number_and_size_of_filaments(ds, grid, shape, snap, snap_props)
+            number_and_size_of_filaments(ds, grid, shape, snap, snap_props, global_vars)
         if ('filaments_3D' in args.calculate):
-            filaments_3D(ds, grid, snap, snap_props)
+            filaments_3D(ds, grid, snap, snap_props, global_vars)
         if ('accretion_viz' in args.plot):
-            accretion_projections(ds, grid, snap, snap_props)
+            accretion_projections(ds, grid, snap, snap_props, global_vars)
 
     print('Snapshot', snap, 'complete!')
 
@@ -1850,9 +1878,14 @@ def load_and_calculate(snap, surface):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
-def accretion_flux_vs_time(snaplist):
+def accretion_flux_vs_time(snaplist, global_vars):
     '''Plots fluxes of accretion over time and redshift, broken into CGM sections if --region_filter is specified
     and broken into angle of accretion if --direction is specified.'''
+
+    args = global_vars['args']
+    prefix = global_vars['prefix']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
 
     tablename_prefix = prefix + 'Tables/'
     time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
@@ -1986,15 +2019,19 @@ def accretion_flux_vs_time(snaplist):
     fig.savefig(prefix + 'Plots/accretion_vs_time' + save_suffix + '.png')
     plt.close(fig)
 
-def accretion_compare_vs_time(snaplist):
+def accretion_compare_vs_time(snaplist, global_vars):
     '''Plots fluxes of accretion over time and redshift, broken into CGM sections if --region_filter is specified
     and broken into angle of accretion if --direction is specified.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
 
     tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
     save_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Plots/'
     time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
 
-    '''props = ['covering_fraction','density','overdensity','temperature','metallicity',
+    props = ['covering_fraction','density','overdensity','temperature','metallicity',
             'cooling_time','tcool_tff','entropy','pressure','radial_velocity',
             'flux_sr', 'metal_flux_sr']
     ranges = [[0,1], [1e-30,1e-25], [0.1,1000], [1e4,2e6], [1e-3,1],
@@ -2003,12 +2040,7 @@ def accretion_compare_vs_time(snaplist):
     logs = [False, True, True, True, True, True, True, True, True, False, True, True]
     ylabels = ['Accretion Covering Fraction', r'Density [g/cm$^3$]', r'Overdensity',
               'Temperature [K]', r'Metallicity [$Z_\odot$]', 'Cooling Time [Myr]', r'$t_\mathrm{cool}/t_\mathrm{ff}$', r'Entropy [keV cm$^2$]',
-              r'Pressure [erg/cm$^3$]', 'Radial Velocity [km/s]', r'Mass Flux Density [$M_\odot$/yr/sr]', r'Metal Flux Density [$M_\odot$/yr/sr]']'''
-    
-    props = ['overdensity']
-    ranges = [[0.1, 1000]]
-    logs = [True]
-    ylabels = [r'Overdensity']
+              r'Pressure [erg/cm$^3$]', 'Radial Velocity [km/s]', r'Mass Flux Density [$M_\odot$/yr/sr]', r'Metal Flux Density [$M_\odot$/yr/sr]']
 
     for p in range(len(props)):
 
@@ -2187,8 +2219,171 @@ def accretion_compare_vs_time(snaplist):
         fig.savefig(save_prefix + 'accretion_' + props[p] + '_vs_time' + save_suffix + '.png')
         plt.close(fig)
 
-def accretion_compare_vs_radius(snap):
+def momentum_compare_vs_time(snaplist, global_vars):
+    '''Plots fluxes of accretion over time and redshift, broken into CGM sections if --region_filter is specified
+    and broken into angle of accretion if --direction is specified.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
+
+    tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    save_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Plots/'
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+
+    props = [['radial_momentum','phi_momentum','theta_momentum'],
+             ['j_mag','j_mag_sum','j_vector_sum'],
+             ['L_mag_sum','L_vector_sum','phi_L','theta_L'],
+             ['shear_stress']]
+    norms = [[1e6,1e6,1e6],
+             [1,1,1],
+             [1,1,1,1],[1]]
+    ranges = [[[-10,5],[-5,5],[-5,5]],
+             [[6e24,2e26],[1e29,1e32],[1e29,1e32]],
+             [[1e32,2e35],[1e32,2e35],[-np.pi,np.pi],[0.,np.pi]],
+             [[1e-19,1e-12]]]
+    ylabels = [[r'Median radial momentum [$10^6 M_\odot$ km/s]',r'Median $\phi$ momentum [$10^6 M_\odot$ km/s]',r'Median $\theta$ momentum [$10^6 M_\odot$ km/s]'],
+             [r'Median $|\mathbf{j}|$ [km$^2$/s]',r'Sum of $|\mathbf{j}|$ [km$^2$/s]',r'Vector sum of $\mathbf{j}$ [km$^2$/s]'],
+             [r'Sum of $|\mathbf{L}|$ [$M_\odot$ km$^2$/s]',r'Vector sum of $\mathbf{L}$ [$M_\odot$ km$^2$/s]',r'$\phi_L$',r'$\theta_L$'],
+             [r'Median shear stress [erg cm$^{-3}$]']]
+    ylogs = [[False,False,False],
+             [True,True,True],
+             [True,True,False,False],
+             [True]]
+    saves = ['rad-theta-phi-mom', 'j-mag', 'L-mag', 'shear-stress']
+
+
+    if (args.time_avg!=0):
+        dt_step = 5.38*args.output_step
+        avg_window = int(np.ceil(args.time_avg/dt_step))
+
+    if (args.location_compare):
+        plot_colors = ['c', 'g', 'b']
+        region_label = [r'$0.25R_\mathrm{vir}$', r'$0.5R_\mathrm{vir}$', r'$R_\mathrm{vir}$']
+        filenames = ['_0p25Rvir', '_0p5Rvir', '_Rvir']
+        region_name = ['', '', '']
+    else:
+        plot_colors = ["#4A4DAF", "#4AAFAC", "#C8C556", 'k']
+        region_label = ['Stream core', 'Stream sheath', 'Non-stream accretion', 'All accreting gas']
+        region_name = ['_0.75-inf','_0.25-0.75','_0-0.25','']
+
+    zlist = []
+    timelist = []
+    accretion_list = []
+    non_accretion_list = []
+    for p in range(len(props)):
+        accretion_list.append([])
+        non_accretion_list.append([])
+        for pp in range(len(props[p])):
+            accretion_list[p].append([])
+            non_accretion_list[p].append([])
+            for j in range(len(region_name)):
+                accretion_list[p][pp].append([])
+                if (args.location_compare): non_accretion_list[p][pp].append([])
+
+    for i in range(len(snaplist)):
+        snap = snaplist[i]
+        if (not args.location_compare):
+            stats = Table.read(tablename_prefix + snap + '_accretion-compare' + args.load_from_file + '_momenta_cgm-only.hdf5', path='all_data')
+        timelist.append(time_table['time'][time_table['snap']==snap][0]/1000.)
+        zlist.append(time_table['redshift'][time_table['snap']==snap][0])
+        for j in range(len(region_name)):
+            if (args.location_compare):
+                stats = Table.read(tablename_prefix + snap + '_accretion-compare' + filenames[j] + '_momenta_cgm-only.hdf5', path='all_data')
+            for p in range(len(props)):
+                for pp in range(len(props[p])):
+                    if ('sum' in props[p][pp]):
+                        accretion_list[p][pp][j].append(stats[props[p][pp] + '_acc' + region_name[j]][stats['phi_bin']=='all'])
+                    else:
+                        accretion_list[p][pp][j].append(stats[props[p][pp] + '_acc' + region_name[j] + '_med'][stats['phi_bin']=='all'])
+                    if (args.location_compare):
+                        if ('sum' in props[p][pp]):
+                            non_accretion_list[p][pp][j].append(stats[props[p][pp] + '_non'][stats['phi_bin']=='all'])
+                        else:
+                            non_accretion_list[p][pp][j].append(stats[props[p][pp] + '_non_med'][stats['phi_bin']=='all'])
+                    elif (j==len(region_name)-1):
+                        if ('sum' in props[p][pp]):
+                            non_accretion_list[p][pp].append(stats[props[p][pp] + '_non'][stats['phi_bin']=='all'])
+                        else:
+                            non_accretion_list[p][pp].append(stats[props[p][pp] + '_non_med'][stats['phi_bin']=='all'])
+
+    if (args.time_avg!=0):
+        accretion_list_avgd = []
+        for p in range(len(props)):
+            accretion_list_avgd.append([])
+            for pp in range(len(props[p])):
+                accretion_list_avgd[p].append([])
+                for j in range(len(region_name)):
+                    avg = uniform_filter1d(accretion_list[p][pp][j], size=avg_window)
+                    accretion_list_avgd[p][pp].append(avg)
+        accretion_list = accretion_list_avgd
+
+    zlist.reverse()
+    timelist.reverse()
+    time_func = IUS(zlist, timelist)
+    timelist.reverse()
+    timelist = np.array(timelist).flatten()
+    zlist = np.array(zlist)
+
+    for p in range(len(props)):
+        if (len(props[p])==3):
+            fig = plt.figure(figsize=(20,5), dpi=250)
+            rows = 1
+            cols = 3
+        elif (len(props[p])==4):
+            fig = plt.figure(figsize=(16,9), dpi=250)
+            rows = 2
+            cols = 2
+        else:
+            fig = plt.figure(figsize=(9,5), dpi=250)
+            rows = 1
+            cols = 1
+        for pp in range(len(props[p])):
+            ax = fig.add_subplot(rows,cols,pp+1)
+            for j in range(len(region_name)):
+                if (args.location_compare): label = 'Accretion at ' + region_label[j]
+                else: label = region_label[j]
+                ax.plot(timelist, np.array(accretion_list[p][pp][j])/norms[p][pp], color=plot_colors[j], ls='-', lw=2, label=label)
+                if (args.location_compare): ax.plot(timelist, np.array(non_accretion_list[p][pp][j])/norms[p][pp], color=plot_colors[j], ls='--', lw=1, label='Rest of CGM at ' + region_label[j])
+            if (not args.location_compare): ax.plot(timelist, np.array(non_accretion_list[p][pp])/norms[p][pp], color='darkorange', ls='--', lw=2, label='Rest of CGM')
+
+            ax.axis([np.min(timelist), np.max(timelist), ranges[p][pp][0], ranges[p][pp][1]])
+            ax.set_ylabel(ylabels[p][pp], fontsize=14)
+            if ('momentum' in props[p][pp]): ax.set_yscale('symlog', linthresh=0.1)
+            elif (ylogs[p][pp]): ax.set_yscale('log')
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12)
+
+            ax2 = ax.twiny()
+            ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=True)
+            x0, x1 = ax.get_xlim()
+            z_ticks = [2,1.5,1,.75,.5,.3,.2,.1,0]
+            last_z = np.where(z_ticks >= zlist[0])[0][-1]
+            first_z = np.where(z_ticks <= zlist[-1])[0][0]
+            z_ticks = z_ticks[first_z:last_z+1]
+            tick_pos = [z for z in time_func(z_ticks)]
+            tick_labels = ['%.2f' % (z) for z in z_ticks]
+            ax2.set_xlim(x0,x1)
+            ax2.set_xticks(tick_pos)
+            ax2.set_xticklabels(tick_labels)
+            ax2.set_xlabel('Redshift', fontsize=14)
+            ax.set_xlabel('Time [Gyr]', fontsize=14)
+
+            if (pp==0): ax.legend(loc=1, fontsize=12, frameon=False, ncol=2)
+
+        if (len(props[p])==3): fig.subplots_adjust(left=0.05, bottom=0.12, right=0.97, top=0.89, wspace=0.18)
+        if (len(props[p])==4): fig.subplots_adjust(left=0.05, bottom=0.08, right=0.97, top=0.94, wspace=0.14, hspace=0.34)
+        if (len(props[p])==1): fig.subplots_adjust(left=0.1, bottom=0.12, right=0.97, top=0.89)
+
+        fig.savefig(save_prefix + 'accretion_' + saves[p] + '_vs_time' + save_suffix + '.png')
+        plt.close(fig)
+
+def accretion_compare_vs_radius(snap, global_vars):
     '''Plots various properties of accretion as a function of radius at the snapshot given by 'snap'.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
 
     tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
     save_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Plots/'
@@ -2237,13 +2432,6 @@ def accretion_compare_vs_radius(snap):
             region_labels = ['All metallicities', r'$Z<10^{-2}Z_\odot$', r'$10^{-2}Z_\odot < Z < 10^{-1}Z_\odot$', r'$Z>10^{-1}Z_\odot$']
             region_colors = ['k',"#4575b4", "#984ea3", "#d73027"]
     else:
-        #region_colors = plt.cm.Dark2(np.linspace(0, 1, 8))
-        #region_colors = np.delete(region_colors, 4, axis=0)
-        #region_colors = np.delete(region_colors, 4, axis=0)
-        #region_colors = np.delete(region_colors, 4, axis=0)
-        #region_colors = np.delete(region_colors, 4, axis=0)
-        #region_colors = np.append(region_colors, [[0., 0., 0., 1.]], axis=0)
-        #region_labels = [r'$<0.25v_\mathrm{ff}$',r'0.25-0.5 $v_\mathrm{ff}$',r'0.5-0.75 $v_\mathrm{ff}$',r'$>0.75v_\mathrm{ff}$', 'All accreting gas']
         region_colors = ["#4A4DAF", "#4AAFAC", "#C8C556", 'k']
         region_labels = ['Stream core', 'Stream sheath', 'Non-stream accretion', 'All accreting gas']
         region_file = ['_0.75-inf','_0.25-0.75','_0-0.25','']
@@ -2349,8 +2537,101 @@ def accretion_compare_vs_radius(snap):
         plt.savefig(save_prefix + snap + '_accretion-compare_vs_radius_' + props[i] + save_suffix + '.png')
         plt.close()
 
-def accretion_flux_vs_radius(snap):
+def momentum_compare_vs_radius(snap, global_vars):
+    '''Plots momentum properties of accretion as a function of radius at the snapshot given by 'snap'.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
+
+    tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    save_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Plots/'
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+    zsnap = time_table['redshift'][time_table['snap']==snap][0]
+    tsnap = time_table['time'][time_table['snap']==snap][0]
+
+    data = Table.read(tablename_prefix + snap + '_accretion-compare' + args.load_from_file + '_radial_1p5Rvir_momenta_cgm-only.hdf5', path='all_data')
+    if ('phi_bin' in data.columns):
+        radii = data['radius'][data['phi_bin']=='all']
+    else:
+        radii = data['radius']
+
+    props = [['radial_momentum','phi_momentum','theta_momentum'],
+             ['j_mag','j_mag_sum','j_vector_sum'],
+             ['L_mag_sum','L_vector_sum','phi_L','theta_L'],
+             ['shear_stress']]
+    norms = [[1e6,1e6,1e6],
+             [1,1,1],
+             [1,1,1,1],[1]]
+    ranges = [[[-5,0.5],[-1,1],[-1,1]],
+             [[1e24,1e26],[1e26,1e33],[1e26,1e33]],
+             [[1e29,1e36],[1e29,1e36],[-np.pi/2.,np.pi/2.],[0.,2.*np.pi]],
+             [[1e-19,1e-12]]]
+    ylabels = [[r'Median radial momentum [$10^6 M_\odot$ km/s]',r'Median $\phi$ momentum [$10^6 M_\odot$ km/s]',r'Median $\theta$ momentum [$10^6 M_\odot$ km/s]'],
+             [r'Median $|\mathbf{j}|$ [km$^2$/s]',r'Sum of $|\mathbf{j}|$ [km$^2$/s]',r'Vector sum of $\mathbf{j}$ [km$^2$/s]'],
+             [r'Sum of $|\mathbf{L}|$ [$M_\odot$ km$^2$/s]',r'Vector sum of $\mathbf{L}$ [$M_\odot$ km$^2$/s]',r'$\phi_L$',r'$\theta_L$'],
+             [r'Median shear stress [erg cm$^{-3}$]']]
+    ylogs = [[False,False,False],
+             [True,True,True],
+             [True,True,False,False],
+             [True]]
+    saves = ['rad-theta-phi-mom', 'j-mag', 'L-mag', 'shear-stress']
+
+    region_colors = ["#4A4DAF", "#4AAFAC", "#C8C556", 'k']
+    region_labels = ['Stream core', 'Stream sheath', 'Non-stream accretion', 'All accreting gas']
+    region_file = ['_0.75-inf','_0.25-0.75','_0-0.25','']
+
+    for i in range(len(props)):
+        if (len(props[i])==3):
+            fig = plt.figure(figsize=(16,5), dpi=250)
+            rows = 1
+            cols = 3
+        elif (len(props[i])==4):
+            fig = plt.figure(figsize=(12,9), dpi=250)
+            rows = 2
+            cols = 2
+        else:
+            fig = plt.figure(figsize=(7,5), dpi=250)
+            rows = 1
+            cols = 1
+        for j in range(len(props[i])):
+            ax = fig.add_subplot(rows,cols,j+1)
+            for k in range(len(region_file)):
+                color = region_colors[k]
+                if ('sum' in props[i][j]):
+                    acc_plot = data[props[i][j] + '_acc' + region_file[k]][data['phi_bin']=='all']
+                else:
+                    acc_plot = data[props[i][j] + '_acc' + region_file[k] + '_med'][data['phi_bin']=='all']
+                ax.plot(radii, acc_plot/norms[i][j], color=color, ls='-', lw=2, label=region_labels[k])
+            if ('sum' in props[i][j]):
+                ax.plot(radii, data[props[i][j] + '_non'][data['phi_bin']=='all']/norms[i][j], color='darkorange', ls='--', lw=2, label='Rest of CGM')
+            else:
+                ax.plot(radii, data[props[i][j] + '_non_med'][data['phi_bin']=='all']/norms[i][j], color='darkorange', ls='--', lw=2, label='Rest of CGM')
+
+            ax.axis([0,250,ranges[i][j][0],ranges[i][j][1]])
+            ax.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
+            ax.set_ylabel(ylabels[i][j], fontsize=14)
+            if (ylogs[i][j]): ax.set_yscale('log')
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12)
+            if ((len(props[i])==3) or (len(props[i])==4)) and (j==0):
+                ax.legend(frameon=False, loc=4, fontsize=12)
+                ax.text(0.2, 0.06, '$z=%.2f$' % (zsnap), fontsize=12, ha='left', va='bottom', transform=ax.transAxes)
+            if (len(props[i])==1):
+                ax.legend(frameon=False, loc=1, fontsize=12)
+                ax.text(0.4, 0.9, '$z=%.2f$' % (zsnap), fontsize=12, ha='left', va='bottom', transform=ax.transAxes)
+
+        if (len(props[i])==3): fig.subplots_adjust(left=0.06,bottom=0.14,top=0.95,right=0.97,wspace=0.22)
+        if (len(props[i])==4): fig.subplots_adjust(left=0.08,bottom=0.06,top=0.97,right=0.97,wspace=0.2, hspace=0.18)
+        if (len(props[i])==1): fig.subplots_adjust(left=0.12,bottom=0.1,top=0.97,right=0.97)
+        plt.savefig(save_prefix + snap + '_accretion-compare_vs_radius_' + saves[i] + save_suffix + '.png')
+        plt.close()
+
+def accretion_flux_vs_radius(snap, global_vars):
     '''Plots accretion flux as a function of radius at the snapshot given by 'snap'.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
 
     tablename_prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/Tables/'
     save_prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/Plots/'
@@ -2358,7 +2639,7 @@ def accretion_flux_vs_radius(snap):
     zsnap = time_table['redshift'][time_table['snap']==snap][0]
     tsnap = time_table['time'][time_table['snap']==snap][0]
 
-    data = Table.read(tablename_prefix + snap + '_fluxes_' + args.load_from_file + '_radial_1p5Rvir_cgm-only.hdf5', path='all_data')
+    data = Table.read(tablename_prefix + snap + '_fluxes' + args.load_from_file + '_radial_1p5Rvir_cgm-only.hdf5', path='all_data')
     if ('phi_bin' in data.columns):
         radii = data['radius'][data['phi_bin']=='all']
     else:
@@ -2430,12 +2711,21 @@ def accretion_flux_vs_radius(snap):
         fig.subplots_adjust(left=0.13,bottom=0.14,top=0.95,right=0.97)
         plt.savefig(save_prefix + snap + '_accretion-flux_vs_radius_' + fluxes[i] + save_suffix + '.png')
 
-def streamlines_over_time(snaplist):
+def streamlines_over_time(snaplist, global_vars):
     '''Uses yt's streamlines function to integrate paths through the velocity field at each time step, using
     the previous snapshot's integration as input for the next snapshot's integration. Saves to file the positions
     and properties at each position of each streamline.'''
 
     from yt.visualization.api import Streamlines
+
+    args = global_vars['args']
+    foggie_dir = global_vars['foggie_dir']
+    run_dir = global_vars['run_dir']
+    trackname = global_vars['trackname']
+    halo_c_v_name = global_vars['halo_c_v_name']
+    catalog_dir = global_vars['catalog_dir']
+    prefix = global_vars['prefix']
+    save_suffix = global_vars['save_suffix']
 
     # Load first snapshot
     snap = snaplist[0]
@@ -2615,11 +2905,20 @@ def streamlines_over_time(snaplist):
             length = ds.quan(50.,'kpc')
             dx = ds.quan(dx, 'kpc')
 
-def plot_streamlines(snap):
+def plot_streamlines(snap, global_vars):
     '''Saves x, y, and z projections of gas density with stream lines found with streamlines_over_time.
     Streamlines must have already been found and saved to file before this function can be called to plot them.'''
 
     from yt.units import kpc
+
+    args = global_vars['args']
+    foggie_dir = global_vars['foggie_dir']
+    run_dir = global_vars['run_dir']
+    trackname = global_vars['trackname']
+    halo_c_v_name = global_vars['halo_c_v_name']
+    catalog_dir = global_vars['catalog_dir']
+    prefix = global_vars['prefix']
+    save_suffix = global_vars['save_suffix']
 
     # Load simulation output
     if (args.system=='pleiades_cassi'):
@@ -2706,9 +3005,13 @@ def plot_streamlines(snap):
         print('Deleting directory from /tmp')
         shutil.rmtree(snap_dir)
 
-def number_and_size_of_filaments(ds, grid, shape, snap, snap_props):
+def number_and_size_of_filaments(ds, grid, shape, snap, snap_props, global_vars):
     '''Identifies the number of non-connected filaments and the typical distance between filament cells
     and the background at a given radius or as a function of radius, and saves this information to file.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
 
     prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/'
     plot_prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
@@ -2946,10 +3249,14 @@ def number_and_size_of_filaments(ds, grid, shape, snap, snap_props):
     fig5.savefig(plot_prefix + 'Plots/' + snap + '_fil-area_vs_radius' + save_suffix + '.png')
     plt.close(fig5)
 
-def filaments_3D(ds, grid, snap, snap_props):
+def filaments_3D(ds, grid, snap, snap_props, global_vars):
     '''This function identifies filament structures in 3D by tagging all cells in the grid by their
     inward mass flux and considering the cells with the highest mass fluxes as filaments.
     It then calculates and saves to file a number of properties of each filament.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
 
     prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/'
     tablename = prefix + 'Tables/' + snap + '_filament-props'
@@ -3318,7 +3625,7 @@ def filaments_3D(ds, grid, snap, snap_props):
                     theta_center, phi_center = regions[0].centroid
                     theta_center = -1
                     phi_center = phi_center*phi_width[0]
-                    major_axis_arc = -1
+                    major_extent_arc = -1
                     minor_extent_arc = (inn_r + out_r)/2. * regions[0].axis_minor_length*phi_width[0]
                     covering_area = np.sum(np.sin(phi_grid[biggest_img==biggest])*theta_width[0]*phi_width[0])
                 else: # Not a ring, so find properties of the biggest labeled structure in the tiled image
@@ -3399,9 +3706,137 @@ def filaments_3D(ds, grid, snap, snap_props):
 
     table = set_props_table_units(table)
     table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
+def individual_streams_vs_radius(snap, global_vars):
+    '''Plots properties of individual streams as a function of radius for the snapshot given by 'snap'.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
+
+    tablename_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Tables/'
+    save_prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/Movie_frames/'
+    time_table = Table.read(output_dir + 'times_halo_00' + args.halo + '/' + args.run + '/time_table.hdf5', path='all_data')
+    zsnap = time_table['redshift'][time_table['snap']==snap][0]
+    tsnap = time_table['time'][time_table['snap']==snap][0]
+
+    data = Table.read(tablename_prefix + snap + '_filament-props' + args.load_from_file + '.hdf5', path='all_data')
+    nfils = int(np.max(data['filament_number']))
+
+    # First plot: density, temperature, metallicity, cooling time
+    # Second plot: covering fraction, number of fragments, major axis extent, minor axis extent
+    # Third plot: radial velocity, tangential velocity dispersion, surface normal velocity, surface turbulent velocity
+    # Rest of the plots are the same as in momentum_compare_vs_radius:
+    # Fourth plot: radial momentum, theta momentum, phi momentum
+    # Fifth plot: j mag, j mag sum, j vector sum
+    # Sixth plot: L mag sum, L vector sum, phi_L, theta_L
+    # Seventh plot: shear stress
+
+    props = [['density','temperature','metallicity','cooling_time'],
+             ['covering_fraction','number_of_fragments','major_axis_extent','minor_axis_extent'],
+             ['radial_velocity','tangential_velocity','normal_velocity','turbulent_velocity'],
+             ['radial_momentum','phi_momentum','theta_momentum'],
+             ['j_mag','j_mag_sum','j_vector_sum'],
+             ['L_mag_sum','L_vector_sum','phi_L','theta_L'],
+             ['shear_stress']]
+    norms = [[1.4775e31,1,1,3.15e13],
+             [1,1,1,1],
+             [1,1,1,1],
+             [1e6,1e6,1e6],
+             [1,1,1],
+             [1,1,1,1],
+             [1]]
+    ranges = [[[2e-30,8e-27],[1e4,5e6],[2e-3,5e-1],[1e1,1e5]],
+              [[0,0.3],[-1,20],[0,1000],[0,500]],
+              [[-300,50],[0,150],[-100,100],[0,150]],
+              [[-5,0.5],[-1,1],[-1,1]],
+              [[1e24,1e26],[1e26,1e33],[1e26,1e33]],
+              [[1e29,1e36],[1e29,1e36],[-np.pi/2.,np.pi/2.],[0.,2.*np.pi]],
+              [[1e-19,1e-12]]]
+    ylabels = [[r'Median density [g/cm$^3$]',r'Median temperature [K]',r'Median metallicity [$Z_\odot$]',r'Median cooling time [Myr]'],
+               [r'Covering fraction',r'Number of fragments',r'Major axis arc length [kpc]',r'Minor axis arc length [kpc]'],
+               [r'Median radial velocity [km/s]',r'Tangential velocity dispersion [km/s]',r'Median surface normal velocity [km/s]',r'Median surface turbulent velocity [km/s]'],
+               [r'Median radial momentum [$10^6 M_\odot$ km/s]',r'Median $\phi$ momentum [$10^6 M_\odot$ km/s]',r'Median $\theta$ momentum [$10^6 M_\odot$ km/s]'],
+               [r'Median $|\mathbf{j}|$ [km$^2$/s]',r'Sum of $|\mathbf{j}|$ [km$^2$/s]',r'Vector sum of $\mathbf{j}$ [km$^2$/s]'],
+               [r'Sum of $|\mathbf{L}|$ [$M_\odot$ km$^2$/s]',r'Vector sum of $\mathbf{L}$ [$M_\odot$ km$^2$/s]',r'$\phi_L$',r'$\theta_L$'],
+               [r'Median shear stress [erg cm$^{-3}$]']]
+    file_suffixes = [['_med','_med','_med','_med'],
+                     ['','','',''],
+                     ['_med','_std','_med',''],
+                     ['_med','_med','_med'],
+                     ['_med','',''],
+                     ['','','_med','_med'],
+                     ['_med']]
+    ylogs = [[True,True,True,True],
+             [False,False,False,False],
+             [False,False,False,False],
+             [False,False,False],
+             [True,True,True],
+             [True,True,False,False],
+             [True]]
+    no_core_sheath = ['covering_fraction','number_of_fragments','major_axis_extent','minor_axis_extent','normal_velocity','turbulent_velocity']
+    saves = ['den-temp-met-tcool','covering-nfrag-major-minor','rv-vtan-vnorm-vturb','rad-theta-phi-mom', 'j-mag', 'L-mag', 'shear-stress']
+
+    region_labels = ['Stream core', 'Stream sheath']
+    region_file = ['_core','_sheath']
+    region_ls = ['-','--']
+    region_lw = [2,1]
+    region_alpha = [1,0.5]
+
+    fil_colors = plt.cm.tab10
+
+    for p in range(len(props)):
+        if (len(props[p])==3):
+            fig = plt.figure(figsize=(16,5), dpi=250)
+            rows = 1
+            cols = 3
+        elif (len(props[p])==4):
+            fig = plt.figure(figsize=(12,9), dpi=250)
+            rows = 2
+            cols = 2
+        else:
+            fig = plt.figure(figsize=(7,5), dpi=250)
+            rows = 1
+            cols = 1
+        for pp in range(len(props[p])):
+            ax = fig.add_subplot(rows,cols,pp+1)
+            for f in range(nfils):
+                fil = np.where(data['filament_number']==f+1)
+                radii = (data['inner_radius'][fil] + data['outer_radius'][fil])/2.
+                for j in range(len(region_labels)):
+                    if (f==0): label = region_labels[j]
+                    else: label = '_nolegend_'
+                    if (props[p][pp] in no_core_sheath):
+                        if (j==0): ax.plot(radii, data[props[p][pp] + file_suffixes[p][pp]][fil]/norms[p][pp], color=fil_colors(f), ls=region_ls[j], lw=region_lw[j], alpha=region_alpha[j], label=label)
+                    else:
+                        ax.plot(radii, data[props[p][pp] + region_file[j] + file_suffixes[p][pp]][fil]/norms[p][pp], color=fil_colors(f), ls=region_ls[j], lw=region_lw[j], alpha=region_alpha[j], label=label)
+            ax.axis([0,250,ranges[p][pp][0],ranges[p][pp][1]])
+            ax.set_xlabel('Radius [kpc]', fontsize=14)
+            ax.set_ylabel(ylabels[p][pp], fontsize=14)
+            if (ylogs[p][pp]): ax.set_yscale('log')
+            if ('momentum' in props[p][pp]): ax.set_yscale('symlog', linthresh=0.1)
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+              top=True, right=True)
+            if (pp==0):
+                if (len(props[p])==3):
+                    ax.legend(loc=4, frameon=False, fontsize=12)
+                    ax.text(0.4,0.08,'$z=%.2f$' % (zsnap), fontsize=12, ha='center', va='center', transform=ax.transAxes)
+                else:
+                    if (p!=1): ax.legend(loc=1, frameon=False, fontsize=12)
+                    ax.text(0.5,0.9,'$z=%.2f$' % (zsnap), fontsize=12, ha='center', va='center', transform=ax.transAxes)
+            
+        if (len(props[p])==3): fig.subplots_adjust(left=0.06,bottom=0.14,top=0.95,right=0.97,wspace=0.22)
+        if (len(props[p])==4): fig.subplots_adjust(left=0.08,bottom=0.06,top=0.97,right=0.97,wspace=0.2, hspace=0.18)
+        if (len(props[p])==1): fig.subplots_adjust(left=0.12,bottom=0.1,top=0.97,right=0.97)
+        plt.savefig(save_prefix + snap + '_indiv-streams_vs_radius_' + saves[p] + save_suffix + '.png')
+        plt.close()
         
-def accretion_projections(ds, grid, snap, snap_props):
+def accretion_projections(ds, grid, snap, snap_props, global_vars):
     '''Makes projection plots of all gas, accreting gas, and non-accreting gas.'''
+
+    args = global_vars['args']
+    prefix = global_vars['prefix']
+    save_suffix = global_vars['save_suffix']
 
     Menc_profile, Mvir, Rvir = snap_props
 
@@ -3710,7 +4145,7 @@ if __name__ == "__main__":
     smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
 
     # Add these for H-alpha emission
-    cloudy_path = code_path + "emission/cloudy_z0_selfshield/sh_z0_HM12_run%i.dat"
+    cloudy_path = code_path + "cgm_emission/cloudy_z0_selfshield/sh_z0_HM12_run%i.dat"
     emission_units_ALT = 'erg * s**-1 * cm**-3 * arcsec**-2'
     ytEmUALT = unyt.erg * unyt.second**-1 * unyt.cm**-3 * unyt.arcsec**-2
     hden_pts,T_pts,table_HA = make_Cloudy_table(2)
@@ -3739,33 +4174,51 @@ if __name__ == "__main__":
     surface = ast.literal_eval(args.surface)
     outs = make_output_list(args.output, output_step=args.output_step)
 
-    if (args.load_from_file!='none'):
+    global_vars = {'args':args, 'foggie_dir':foggie_dir, 'output_dir':output_dir, 'run_dir':run_dir, 'code_path':code_path,
+                   'trackname':trackname, 'haloname':haloname, 'spectra_dir':spectra_dir, 'infofile':infofile,
+                   'prefix':prefix, 'catalog_dir':catalog_dir, 'halo_c_v_name':halo_c_v_name, 'smooth_AM_name':smooth_AM_name,
+                   'cloudy_path':cloudy_path, 'emission_units_ALT':emission_units_ALT, 'ytEmUALT':ytEmUALT, 'hden_pts':hden_pts,
+                   'T_pts':T_pts, 'pts':pts, 'sr_HA':sr_HA, 'bl_HA':bl_HA, 'save_suffix':save_suffix, 'flux_types':flux_types,
+                   'plots':plots, 'surface':surface, 'outs':outs}
+
+    if (args.load_from_file!='none') and (args.nproc==1):
         if (args.load_from_file != ''): args.load_from_file = '_' + args.load_from_file
         if ('flux_vs_time' in plots):
-            accretion_flux_vs_time(outs)
+            accretion_flux_vs_time(outs, global_vars)
         if ('accretion_vs_time' in plots):
-            accretion_compare_vs_time(outs)
+            accretion_compare_vs_time(outs, global_vars)
+        if ('momenta_vs_time' in plots):
+            momentum_compare_vs_time(outs, global_vars)
         if ('accretion_vs_radius' in plots):
             for i in range(len(outs)):
-                accretion_compare_vs_radius(outs[i])
+                accretion_compare_vs_radius(outs[i], global_vars)
+        if ('momenta_vs_radius' in plots):
+            for i in range(len(outs)):
+                momentum_compare_vs_radius(outs[i], global_vars)
+        if ('indiv_streams_vs_radius' in plots):
+            for i in range(len(outs)):
+                individual_streams_vs_radius(outs[i], global_vars)
         if ('flux_vs_radius' in plots):
             for i in range(len(outs)):
-                accretion_flux_vs_radius(outs[i])
+                accretion_flux_vs_radius(outs[i], global_vars)
 
     else:
+        if (args.load_from_file!='none') and (args.load_from_file != ''):
+            args.load_from_file = '_' + args.load_from_file
         if (save_suffix != ''):
             target_dir = save_suffix
         else:
             target_dir = 'fluxes'
+        global_vars['target_dir'] = target_dir
         if (args.nproc==1):
             if (args.streamlines):
-                streamlines_over_time(outs)
+                streamlines_over_time(outs, global_vars)
             elif (args.plot=='streamlines'):
                 for snap in outs:
-                    plot_streamlines(snap)
+                    plot_streamlines(snap, global_vars)
             else:
                 for snap in outs:
-                    load_and_calculate(snap, surface)
+                    load_and_calculate(snap, surface, global_vars)
         else:
             skipped_outs = outs
             while (len(skipped_outs)>0):
@@ -3779,9 +4232,11 @@ if __name__ == "__main__":
                         snap = outs[args.nproc*i+j]
                         snaps.append(snap)
                         if (args.plot=='streamlines'):
-                            threads.append(multi.Process(target=plot_streamlines, args=[snap]))
+                            threads.append(multi.Process(target=plot_streamlines, args=[snap,global_vars]))
+                        elif (args.plot=='indiv_streams_vs_radius'):
+                            threads.append(multi.Process(target=individual_streams_vs_radius, args=[snap,global_vars]))
                         else:
-                            threads.append(multi.Process(target=load_and_calculate, args=[snap, surface]))
+                            threads.append(multi.Process(target=load_and_calculate, args=[snap, surface, global_vars]))
                     for t in threads:
                         t.start()
                     for t in threads:
@@ -3804,9 +4259,11 @@ if __name__ == "__main__":
                     snap = outs[-(j+1)]
                     snaps.append(snap)
                     if (args.plot=='streamlines'):
-                        threads.append(multi.Process(target=plot_streamlines, args=[snap]))
+                        threads.append(multi.Process(target=plot_streamlines, args=[snap, global_vars]))
+                    elif (args.plot=='indiv_streams_vs_radius'):
+                        threads.append(multi.Process(target=individual_streams_vs_radius, args=[snap, global_vars]))
                     else:
-                        threads.append(multi.Process(target=load_and_calculate, args=[snap, surface]))
+                        threads.append(multi.Process(target=load_and_calculate, args=[snap, surface, global_vars]))
                 for t in threads:
                     t.start()
                 for t in threads:
