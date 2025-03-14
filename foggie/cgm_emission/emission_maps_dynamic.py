@@ -120,7 +120,8 @@ def parse_args():
                         "--ions 'CIII,OVI,SiIII'")
 
     parser.add_argument('--instrument', metavar='instrument', type=str, action='store', \
-                        help='Which instrument criteria you want to use? Default is None (Options are: Dragonfly, Aspera, Juniper, Magpie, HWO, MUSE)')
+                        help='Which instrument criteria do you want to use?use all caps for name of instruments. Default: None. \n' + \
+                              'Options: DRAGONFLY, ASPERA, JUNIPER, MAGPIE, HWO, MUSE.')
     parser.set_defaults(instrument=None)
     
     parser.add_argument('--save_suffix', metavar='save_suffix', type=str, action='store', \
@@ -453,15 +454,7 @@ def Emission_MgII_2796(field, data,scale_factor, unit_system='photons'):
         emission_line = emission_line / 4.25e10
         return emission_line * ytEmUALT
 
-def register_emission_field_with_unit(field_name, function, emission_units, unit_system,scale_factor):
-        yt.add_field(
-            ('gas', field_name),
-            units=emission_units if unit_system == 'photons' else emission_units_ALT,
-            function=lambda field, data: function(field, data,scale_factor=scale_factor, unit_system=unit_system),
-            take_log=True,
-            force_override=True,
-            sampling_type='cell',
-        )
+
 
 def filter_ds(box,segmentation_filter='radial_velocity'):
     '''This function filters the yt data object passed in as 'box' into inflow and outflow regions,
@@ -494,7 +487,9 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
     if args.target_z is not None:
         target_redshift = args.target_z
         arcmin_kpc_scale = cosmology.kpc_proper_per_arcmin(target_redshift) #kpc/arcmin # converting arcmin to kpc using plank 18 cosmology from astropy
-        arcmin_kpc_scale = YTQuantity(arcmin_kpc_scale, 'kpc/arcmin')  
+        arcmin_kpc_scale = YTQuantity(arcmin_kpc_scale, 'kpc/arcmin') 
+    else:
+        arcmin_kpc_scale = 1 # if there is no spacial resolution from an instrument then there is no need for conversion 
     
     # Determine pixel size for the FRB
     if args.res_arcsec is not None:
@@ -679,6 +674,8 @@ def emission_map_vbins(ds,refine_box, snap, ions,unit_system='photons', filter_t
         target_redshift = args.target_z
         arcmin_kpc_scale = cosmology.kpc_proper_per_arcmin(target_redshift) #kpc/arcmin # converting arcmin to kpc
         arcmin_kpc_scale = YTQuantity(arcmin_kpc_scale, 'kpc/arcmin')  
+    else:
+        arcmin_kpc_scale = 1 # if there is no spacial resolution from an instrument then there is no need for conversion 
     
     # Determine pixel size for the FRB
     if args.res_arcsec is not None:
@@ -832,6 +829,8 @@ def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=
         target_redshift = args.target_z
         arcmin_kpc_scale = cosmology.kpc_proper_per_arcmin(target_redshift) #kpc/arcmin # converting arcmin to kpc
         arcmin_kpc_scale = YTQuantity(arcmin_kpc_scale, 'kpc/arcmin')  
+    else:
+        arcmin_kpc_scale = 1 # if there is no spacial resolution from an instrument then there is no need for conversion 
     
     # Determine pixel size for the FRB
     if args.res_arcsec is not None:
@@ -1005,7 +1004,12 @@ if __name__ == "__main__":
         box_name = args.fov_arcmin
     else:
         box_name = 'refine_box'
-    prefix = output_dir + '/res_' + args.res_arcsec + '/' + 'box_' + box_name + '/'
+
+    if args.instrument is not None:
+        prefix = output_dir + '/' + args.instrument + '/' + 'box_' + box_name + '/'
+    else:
+        prefix = output_dir + '/FOGGIE' + '/' + 'box_' + box_name + '/'
+
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
     table_loc = prefix + 'Tables/'
 
@@ -1017,6 +1021,7 @@ if __name__ == "__main__":
     # right now using the test tables that vida made 
     cloudy_path = "/Users/vidasaeedzadeh/Documents/02-Projects/02-FOGGIE/Cloudy-runs/outputs/test-z0/TEST_z0_HM12_sh_run%i.dat"
     #code_path + "emission/cloudy_z0_selfshield/sh_z0_HM12_run%i.dat"
+    cloudy_path_thin = code_path + "cgm_emission/cloudy_z0_HM05/bertone_run%i.dat"
 
     # These are the typical units that Lauren uses
     # NOTE: This is a volumetric unit since it's for the emissivity of each cell
@@ -1045,15 +1050,15 @@ if __name__ == "__main__":
 
     ############################
     # Function to register emission fields with unit options
-    # def register_emission_field_with_unit(field_name, function, emission_units, unit_system,scale_factor):
-    #     yt.add_field(
-    #         ('gas', field_name),
-    #         units=emission_units if unit_system == 'photons' else emission_units_ALT,
-    #         function=lambda field, data: function(field, data,scale_factor=scale_factor, unit_system=unit_system),
-    #         take_log=True,
-    #         force_override=True,
-    #         sampling_type='cell',
-    #     )
+    def register_emission_field_with_unit(field_name, function, emission_units, unit_system,scale_factor):
+        yt.add_field(
+            ('gas', field_name),
+            units=emission_units if unit_system == 'photons' else emission_units_ALT,
+            function=lambda field, data: function(field, data,scale_factor=scale_factor, unit_system=unit_system),
+            take_log=True,
+            force_override=True,
+            sampling_type='cell',
+        )
     
     unit_system = args.unit_system
     scale_factor = float(args.scale_factor)
@@ -1113,7 +1118,7 @@ if __name__ == "__main__":
     register_emission_field_with_unit('Emission_OVI', Emission_OVI, emission_units, unit_system,scale_factor)
     ############################
     # SiII 1814
-    cloudy_path_thin = code_path + "emission/cloudy_z0_HM05/bertone_run%i.dat"
+    
     hden_pts, T_pts, table_SiII_1814 = make_Cloudy_table_thin(11,cloudy_path)
     hden_pts, T_pts = np.meshgrid(hden_pts, T_pts)
     pts = np.array((hden_pts.ravel(), T_pts.ravel())).T
@@ -1122,7 +1127,7 @@ if __name__ == "__main__":
     register_emission_field_with_unit('Emission_SiII_1814', Emission_SiII_1814, emission_units, unit_system,scale_factor)
     ############################
     # SiIII 1207
-    cloudy_path_thin = code_path + "emission/cloudy_z0_HM05/bertone_run%i.dat"
+    
     hden_pts, T_pts, table_SiIII_1207 = make_Cloudy_table_thin(12,cloudy_path)
     hden_pts, T_pts = np.meshgrid(hden_pts, T_pts)
     pts = np.array((hden_pts.ravel(), T_pts.ravel())).T
@@ -1131,7 +1136,7 @@ if __name__ == "__main__":
     register_emission_field_with_unit('Emission_SiIII_1207', Emission_SiIII_1207, emission_units, unit_system,scale_factor)
     ############################
     # SiIV 1394
-    cloudy_path_thin = code_path + "emission/cloudy_z0_HM05/bertone_run%i.dat"
+    
     hden_pts, T_pts, table_SiIV_1394 = make_Cloudy_table_thin(14,cloudy_path)
     hden_pts, T_pts = np.meshgrid(hden_pts, T_pts)
     pts = np.array((hden_pts.ravel(), T_pts.ravel())).T
@@ -1140,7 +1145,7 @@ if __name__ == "__main__":
     register_emission_field_with_unit('Emission_SiIV_1394', Emission_SiIV_1394, emission_units, unit_system,scale_factor)
     ############################
     # MgII 2796
-    cloudy_path_thin = code_path + "emission/cloudy_z0_HM05/bertone_run%i.dat"
+    
     hden_pts, T_pts, table_MgII_2796 = make_Cloudy_table_thin(16,cloudy_path)
     hden_pts, T_pts = np.meshgrid(hden_pts, T_pts)
     pts = np.array((hden_pts.ravel(), T_pts.ravel())).T
@@ -1184,22 +1189,22 @@ if __name__ == "__main__":
                         'CIV':[1e-23,1e-16], 'OVI':[1e-22,1e-17],'SiII':[1e-23,1e-16],'SiIII':[1e-23,1e-16],'SiIV':[1e-23,1e-16],'MgII':[1e-23,1e-16]}
         
     # Set the detection limits for each ion for each intrument
-    if instrument_name == 'Juniper':
+    if instrument_name == 'JUNIPER':
         if args.unit_system == 'photons':
             flux_threshold_dict = {'CII':1588.24, 'CIII':9000.00,'CIV':3857.14, 'OVI':1800.00} #photons/s/cm^2/sr
         elif args.unit_system == 'erg':
             flux_threshold_dict = {'OVI': 4e-19} 
         
-    elif instrument_name == 'Aspera':
+    elif instrument_name == 'ASPERA':
         flux_threshold_dict = {'OVI': 3e-19} #ergs/s/cm^2/arcsec^2
 
-    elif instrument_name == 'Magpie':
+    elif instrument_name == 'MAGPIE':
         if args.unit_system == 'photons':
             flux_threshold_dict = {'CIII': 675,'CIV': 650,'OVI': 270, 'MgII':675} #photons/s/cm^2/sr
         elif args.unit_system == 'erg':
             flux_threshold_dict = {'OVI': 3e-19} #ergs/s/cm^2/arcsec^2
         
-    elif instrument_name == 'Muse':
+    elif instrument_name == 'MUSE':
         if args.unit_system == 'erg':
             flux_threshold_dict = {'OVI': 3e-19} #ergs/s/cm^2/arcsec^2
 
