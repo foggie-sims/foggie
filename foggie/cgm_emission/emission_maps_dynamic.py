@@ -1019,8 +1019,8 @@ if __name__ == "__main__":
     #smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
 
     # right now using the test tables that vida made 
-    cloudy_path = "/Users/vidasaeedzadeh/Documents/02-Projects/02-FOGGIE/Cloudy-runs/outputs/test-z0/TEST_z0_HM12_sh_run%i.dat"
-    #code_path + "emission/cloudy_z0_selfshield/sh_z0_HM12_run%i.dat"
+    #cloudy_path = "/Users/vidasaeedzadeh/Documents/02-Projects/02-FOGGIE/Cloudy-runs/outputs/test-z0/TEST_z0_HM12_sh_run%i.dat"
+    code_path + "emission/cloudy_extended_z0_selfshield/sh_z0_HM12_run%i.dat"
     cloudy_path_thin = code_path + "cgm_emission/cloudy_z0_HM05/bertone_run%i.dat"
 
     # These are the typical units that Lauren uses
