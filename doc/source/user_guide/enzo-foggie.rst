@@ -68,10 +68,11 @@ To make a clean Enzo build using the enzo-foggie fork:
 
    And wait for enzo to compile! It should take just a few minutes. Check the ``output_compile_enzo`` file to make sure it ends with "Success!"
 
-5.  Add the following lines to your ``.bash_profile``:
+5.  Add the following lines to your ``.profile`` in your home directory. This file will be executed on start of a PBS job:
     ::
 
-        export LD_LIBRARY_PATH="/u/jtumlins/installs/mpich-4.0.3/usr/local/lib":"/u/jtumlins/installs/mpich-4.0.3/usr/lib":$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH="/u/jtumlins/installs/mpich-4.0.3/usr/local/lib":
+        "/u/jtumlins/installs/mpich-4.0.3/usr/lib":"/nobackup/<USERNAME>/grackle/build/lib64":$LD_LIBRARY_PATH
         export PATH="/nobackup/jtumlins/anaconda3/bin:/u/scicon/tools/bin/:/u/jtumlins/installs/mpich-4.0.3/usr/local/bin:$PATH"
 
 
