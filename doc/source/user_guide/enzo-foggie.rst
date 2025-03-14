@@ -91,5 +91,6 @@ To make a clean Enzo build using the enzo-foggie fork:
             sleep 2
                 (echo "time = "; date +'%s'; /u/scicon/tools/bin/qsh.pl $1 "cat /proc/meminfo" | grep Available: | awk '{print $2/1024/1024}') | tr '\n' '\t' | fmt -1000
             ((count++))
+        done
 
 Now you can follow the instructions in either `Restarting an Existing FOGGIE Run <restart.html>`_ or `Starting a Fresh FOGGIE Run from Initial Conditions <clean_from_ICs.html>`_!
