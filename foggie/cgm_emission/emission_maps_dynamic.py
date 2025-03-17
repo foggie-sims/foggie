@@ -2,7 +2,7 @@
 Filename: emission_maps_dynamic.py
 Author: Vida
 Date created: 1-15-25
-Date last modified: 3-11-25
+Date last modified: 3-14-25
 
 This file contains everything that is needed to make emission maps and FRBs from CLOUDY tables.
 All CLOUDY and emission code copy-pasted from Lauren's foggie/cgm_emission/emission_functions.py and Cassi's foggie/cgm_emission/emission_maps.py 
