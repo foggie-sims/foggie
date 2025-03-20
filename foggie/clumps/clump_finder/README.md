@@ -1,7 +1,7 @@
 DIRECTORY: `clump_finder`
 AUTHOR: Cameron Trapp
 DATE STARTED: 01/13/2025
-LAST UPDATED: 01/31/2025
+LAST UPDATED: 03/20/2025
 
 This directory contains a set of python and cython scripts to run a clump finder on a FOGGIE halo.
 
@@ -28,6 +28,8 @@ During these sucessive iterations, the hierarchy of the clumps is calculated and
 As an alternative mode of use, setting the --identifty_disk flag will run the clump finder as a disk finder instead. The disk is identified
 as the largest clump above a certain density threshold. Depending on the values assigned to --max_disk_void_size and --max_disk_hole_size, 
 3-D topologically enclosed voids are filled in this disk mask, as well as 2-D topologically enclosed holes along the disk axis.
+
+By default, the clumps are saved in a single hdf5 file, where each group corresponds to a single clump object with a list of cell ids, parent clump ids, child clump ids, and tree level. There are various functions in utils_clumpfinder.py to help loading and navigating clumps within these files. Disks clumps and shells are saved as individual clump objects.
     
 Basic Example usage:
 For full clump finding:
@@ -53,6 +55,7 @@ IO Arguments:
     --pwd: Use pwd arguments in get_run_loc_etc. Default is False.
     --forcepath: Use forcepath in get_run_loc_etc. Default is False.
 
+    --save_clumps_individually: Save each clump as an individual hdf5 file instead of single hdf5 hierarchy. Default is False.
 
     
 Algorithm Arguments:
@@ -106,6 +109,6 @@ Disk Identification Arguments:
 | `setup.py` | Code used to compile the cython code into merge_clumps.c. Run as 'python setup.py build_ext --inplace'. |
 | `fill_topology.py` | Contains functions to fill holes in the datacube and in 2-D slices. Used mostly for disk finding. |
 | `clump_finder_argparser.py` | Handles the input arguments for running the clump finder. |
-| `utils_clump_finder.py` | Contains some basic utility functions, including functions to load in a clump as a cut region in yt. |
+| `utils_clump_finder.py` | Contains some basic utility functions, including functions to load in clumps as cut regions in yt. |
 | `ModularUseExample.ipynb` | Jupyter notebook with example usage for modular use of the clump_finder and loading in the clump objects as a cut region. |
 | `README.md` | Me. |

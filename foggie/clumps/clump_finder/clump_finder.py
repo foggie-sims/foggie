@@ -86,6 +86,8 @@ from scipy.ndimage import binary_closing
     --pwd: Use pwd arguments in get_run_loc_etc. Default is False.
     --forcepath: Use forcepath in get_run_loc_etc. Default is False.
 
+    --save_clumps_individually: Save each clump as an individual hdf5 file instead of single hdf5 hierarchy. Default is False.
+
     
     Algorithm Arguments:
     --clumping_field: What field are you clumping on? Default is 'density'
@@ -1026,18 +1028,11 @@ def identify_clump_hierarchy(ds,cut_region,args):
     master_clump = Clump(ds,cut_region,args,tree_level=0)
     master_clump.FindClumps(args.clump_min,args,ids_to_ignore=disk_ids)
 
-    master_clump.SaveClumps(args) ##Make optional??
+    if args.save_clumps_individually: master_clump.SaveClumps(args) #Save each clump as its own file
     save_clump_hierarchy(args,master_clump)
     YTClumpTest = save_as_YTClumpContainer(ds,cut_region,master_clump,args.clumping_field,args)
     print("YTClumpTest is:",YTClumpTest)
 
-   
-    #leaf_clumps = YTClumpTest.leaves
-    #for i in range(0,np.size(leaf_clumps)):
-    #    #prj = yt.ProjectionPlot(ds, 2, ("gas","density"),center="c",width=(100,"kpc"))
-    #    prj = yt.ProjectionPlot(ds, 'z', ('gas','density'), center=ds.halo_center_code, data_source=refine_box, width=(0.96*ds.refine_width,'kpc'))
-    #    prj.annotate_clumps(leaf_clumps[i])
-    #    prj.save("ClumpyTest"+str(i))
 
     return master_clump
 
