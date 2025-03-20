@@ -17,12 +17,16 @@ from collections import defaultdict
 
 from foggie.clumps.clump_finder.utils_clump_finder import get_cgm_density_cut
 from foggie.clumps.clump_finder.utils_clump_finder import add_cell_id_field
+from foggie.clumps.clump_finder.utils_clump_finder import save_as_YTClumpContainer
+from foggie.clumps.clump_finder.utils_clump_finder import add_ion_fields
+
 from foggie.clumps.clump_finder.fill_topology import fill_voids
 from foggie.clumps.clump_finder.fill_topology import fill_holes
 from foggie.clumps.clump_finder.fill_topology import get_dilated_shells
 from foggie.clumps.clump_finder.fill_topology import expand_slice
 from foggie.clumps.clump_finder.fill_topology import generate_connectivity_matrix
 
+from foggie.clumps.clump_finder.utils_clump_finder import save_clump_hierarchy
 
 
 import matplotlib.pyplot as plt
@@ -33,7 +37,7 @@ from scipy.ndimage import find_objects
 from scipy.ndimage import binary_dilation 
 from scipy.ndimage import binary_closing
 
-from foggie.clumps.clump_finder import merge_clumps
+
 
 '''
     Finds 3-d clumps in simulation data along an arbitrary clumping field. This code was designed to work with the FOGGIE simulations
@@ -82,6 +86,8 @@ from foggie.clumps.clump_finder import merge_clumps
     --system: Set the system to get data paths from get_run_loc_etc if not None Overrides --code_dir and --data_dir. Default is None. 
     --pwd: Use pwd arguments in get_run_loc_etc. Default is False.
     --forcepath: Use forcepath in get_run_loc_etc. Default is False.
+
+    --save_clumps_individually: Save each clump as an individual hdf5 file instead of single hdf5 hierarchy. Default is False.
 
     
     Algorithm Arguments:
@@ -711,6 +717,7 @@ class Clump:
             print("Iterating for clump threshold=",current_threshold)
 
             if parallelize_marching_cubes:
+                from foggie.clumps.clump_finder import merge_clumps
                 _iterate_clump_marching_cubes = partial(iterate_clump_marching_cubes,args=args,minval=current_threshold,maxval=None)
 
                 print("Marching cubes...")
@@ -1013,23 +1020,12 @@ def identify_clump_hierarchy(ds,cut_region,args):
     print("Clump_min is set to",args.clump_min)
    
     
-    if args.clump_min is None or args.clump_max is None:
-        current_time = ds.current_time.in_units('Myr').v
-        if (current_time<=8656.88):
-            density_cut_factor = 1.
-        elif (current_time<=10787.12):
-            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
-        else:
-            density_cut_factor = 0.1
-
-
-
-        sphere = ds.sphere(center=ds.halo_center_kpc, radius=(60, 'kpc'))
-
-        sph_ism = sphere.cut_region("obj["+str(args.clumping_field)+"] > %.3e" % (density_cut_factor * cgm_density_max))
-        if args.clump_min is None: args.clump_min = sph_ism[args.clumping_field].min()
-        if args.clump_max is None: args.clump_max = sph_ism[args.clumping_field].max()
-
+    if args.clump_min is None:
+        args.clump_min = args.step * cut_region[args.clumping_field][cut_region[args.clumping_field]>0].min()
+        print("Clump min set to",args.clump_min)
+    if args.clump_max is None:
+        args.clump_max = cut_region[args.clumping_field].max()
+        print("Clump max set to",args.clump_max)
 
 
 
@@ -1037,9 +1033,12 @@ def identify_clump_hierarchy(ds,cut_region,args):
     master_clump = Clump(ds,cut_region,args,tree_level=0)
     master_clump.FindClumps(args.clump_min,args,ids_to_ignore=disk_ids)
 
-    master_clump.SaveClumps(args) ##Make optional??
+    if args.save_clumps_individually: master_clump.SaveClumps(args) #Save each clump as its own file
+    save_clump_hierarchy(args,master_clump)
+    YTClumpTest = save_as_YTClumpContainer(ds,cut_region,master_clump,args.clumping_field,args)
+    print("YTClumpTest is:",YTClumpTest)
 
-    
+
     return master_clump
 
 
@@ -1058,14 +1057,34 @@ def clump_finder(args,ds,cut_region):
     '''
     t0 = time.time()
 
+
     num_cores = multiprocessing.cpu_count()-1
     if args.nthreads is None or args.nthreads>num_cores:
         args.nthreads = num_cores
 
 
+
+    trident_dict = { 'HI':'H I', 'CII':'C II','CIII':'C III',
+                'CIV':'C IV','OVI':'O VI','SiII':'Si II','SiIII':'Si III','SiIV':'Si IV','MgII':'Mg II'}
+
+    ions_number_density_dict = {'Lyalpha':'LyAlpha', 'HI':'H_p0_number_density', 'CII':'C_p1_number_density', 'CIII':'C_p2_number_density',
+                              'CIV':'C_p3_number_density','OVI':'O_p5_number_density','SiII':'Si_p1_number_density','SiIII':'Si_p2_number_density',
+                                 'SiIV':'Si_p3_number_density','MgII':'Mg_p1_number_density'}
+    
+    field_dict = {v: k for k, v in ions_number_density_dict.items()}
+
+    if args.clumping_field in trident_dict:
+        import trident
+        trident.add_ion_fields(ds, ions=[trident_dict[args.clumping_field]])
+        args.clumping_field =ions_number_density_dict[args.clumping_field]
+    elif args.clumping_field in field_dict:
+        import trident
+        trident.add_ion_fields(ds, ions=[trident_dict[field_dict[args.clumping_field]]])
+
     if args.clumping_field_type is not None:
         args.clumping_field = (args.clumping_field_type , args.clumping_field)
-    
+
+
     if args.refinement_level is None:
         args.refinement_level = np.max(cut_region['index','grid_level'])
 
@@ -1136,10 +1155,14 @@ if __name__ == "__main__":
     particle_type_for_angmom = 'gas' #Should be defined by gas with Temps below 1e4 K
 
     catalog_dir = args.code_dir + 'halo_infos/' + halo_id + '/'+nref+'/'
-    #smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
-    smooth_AM_name = None
+    smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
+    #smooth_AM_name = None
+
 
     ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name, do_filter_particles=True,disk_relative=True,particle_type_for_angmom=particle_type_for_angmom,smooth_AM_name = smooth_AM_name)
+
+    print("Clumping field=",args.clumping_field)
+    print(args.clumping_field[1])
 
     add_cell_id_field(ds)
     cell_id_field = ('index','cell_id_2')

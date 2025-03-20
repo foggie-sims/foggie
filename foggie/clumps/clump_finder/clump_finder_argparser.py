@@ -152,9 +152,9 @@ def parse_args():
 
 
         
-
-
-
+    parser.add_argument('--save_clumps_individually', metavar='save_clumps_individually', type=bool, action='store', \
+                        help='If True will save each clump as an individual hdf5 file. Default is False.')
+    parser.set_defaults(save_clumps_individually=False)
 
 
     args = parser.parse_args()
@@ -203,7 +203,6 @@ def get_default_args():
         n_dilation_iterations=0,
         n_cells_per_dilation=1,
         closing_iterations=1,
-
         use_cylindrical_connectivity_matrix=False,
-
+        save_clumps_individually=False,
     )
