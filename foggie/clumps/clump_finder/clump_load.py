@@ -28,7 +28,7 @@ def get_clump_bbox(clump):
 
 def create_simple_ucg(ds, data_source, fields, target_nref, split_method=["copy"], merge_method=["max"]):
     '''
-    Function to convert a list of fields into a uniform coverting grid at a refinement level given by target_nref
+    Function to convert a list of fields into a uniform covering grid at a refinement level given by target_nref
     Arguments are:
         ds: the yt dataset
         data_source: the cut_region of interest
