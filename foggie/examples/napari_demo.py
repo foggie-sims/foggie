@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     # Load the snapshot
     snap_name = foggie_dir + run_dir + args.output + '/' + args.output
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name)
+    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
 
     # Define a 3D FRB to be used with napari. The first few lines here are just to define refine_res to
     # be the same as FOGGIE's level 9 forced refinement. You could just put in whatever number you want
@@ -76,9 +76,8 @@ if __name__ == "__main__":
     box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc'), dims=[refine_res, refine_res, refine_res])
 
     # Grab whatever fields we want to visualize
-    density = np.log10(box['density'].v)
-    temperature = np.log10(box['temperature'].v)
-    radial_velocity = box['radial_velocity_corrected'].in_units('km/s').v
+    density = np.log10(box[('gas','density')].v)
+    temperature = np.log10(box[('gas','temperature')].v)
 
     # This next block describes how to grab a disk region and then expand it to grab areas just outside the disk too
     # Define ISM regions
@@ -116,16 +115,6 @@ if __name__ == "__main__":
     # and 'contrast_limits' give the bounds of the color map
     # Note that if you want a log scale, plot the log of the field -- there doesn't appear to be a
     # way to tell napari to do log scaling on the color
-
-    # You can add a points field for particles like stars, but the positions must be passed
-    # in terms of the image coordinates
-    # Load young star positions and shift to halo-centric coordinates
-    '''ys_pos = refine_box[('young_stars','particle_position')].in_units('kpc') - ds.halo_center_kpc
-    # Convert halo-centric coordinates to image resolution coordinates
-    ys_pos = ys_pos.v/dx
-    ys_pos += refine_res/2.
-    # Now add the points in a new layer
-    viewer.add_points(ys_pos, size=1, face_color='white', edge_color='white', name='young stars')'''
 
     # Finally, open the viewer with the above-defined fields!
     napari.run()
