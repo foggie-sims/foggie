@@ -1,0 +1,81 @@
+# This container sets up the Enzo code (https://enzo-project.org/) using
+# starting from a basic Linux system image.  This container will allow
+# you to use Enzo at your system command line, with Enzo installed within
+# the container.
+
+# Basic image
+FROM ubuntu:24.10
+LABEL org.opencontainers.image.authors="bwoshea@gmail.com"
+
+# SET THIS DEPENDING ON WHAT TYPE OF CPU YOU HAVE!
+# Allowable values are "aarch64" (for ARM hardware, such as recent Apple machines)
+#  or "x86_64" (for Intel/AMD HW)
+# This is an input parameter!  (using ARG)
+ARG ARCHITECTURE=aarch64
+ENV ARCHITECTURE=${ARCHITECTURE}
+
+RUN echo "Architecture is: $ARCHITECTURE"
+
+# Install a bunch of packages we need, including everything for Grackle, HYPRE, and Enzo
+# It will also install vim so you have a text editor to work with if you need it.
+RUN apt-get update
+RUN apt-get install -y wget bc csh libhdf5-serial-dev gfortran libtool-bin \
+    zlib1g-dev git build-essential python3 cmake openmpi-bin libopenmpi-dev \
+    vim
+
+# Set up environmental variables we're going to need!
+ENV USER_HOME=/root
+ENV LD_LIBRARY_PATH=$USER_HOME/local/lib
+
+# Soft links so Grackle and Enzo can find HDF5
+RUN ln -s /usr/lib/$ARCHITECTURE-linux-gnu/libhdf5_serial.so /usr/lib/$ARCHITECTURE-linux-gnu/libhdf5.so
+
+# make a working directory for compilation
+RUN mkdir -p $USER_HOME/local
+
+# make grackle (main branch)
+RUN cd $USER_HOME ; \
+    git clone -b main https://github.com/grackle-project/grackle $USER_HOME/grackle ; \
+    cd $USER_HOME/grackle ; \
+    ./configure ; \
+    cd src/clib ; \
+    make machine-linux-gnu ; \
+    make ; \
+    make install
+
+# make hypre
+RUN cd $USER_HOME ; \
+    git clone https://github.com/hypre-space/hypre.git ; \
+    cd hypre/src ; \
+    ./configure --prefix=$USER_HOME/local --with-MPI ; \
+    make install
+
+# now make Enzo!
+# note that the "uuid-no" make argument fixes an annoying
+# compilation problem.
+RUN cd $USER_HOME ; \
+    git clone -b main https://github.com/enzo-project/enzo-dev.git ; \
+    cd enzo-dev ; \
+    ./configure ; \
+    cd src/enzo ; \
+    make machine-ubuntu ; \
+    make uuid-no ; \
+    make grackle-yes ; \
+    make hypre-yes ; \
+    make clean ; \
+    make -j 4
+
+# set a path so that we can find Enzo
+ENV PATH=$USER_HOME/enzo-dev/bin:$PATH
+
+# make a simulation data directory (which will be shared outside of the container)
+RUN mkdir /share
+
+# set the working directory to the simulation data directory
+# (we'll use this when we mount the docker container to the
+# current working directory)
+WORKDIR /share
+
+# this command will automatically execute enzo when the container
+# is started up
+ENTRYPOINT ["enzo"]
