@@ -102,6 +102,10 @@ def get_run_loc_etc(args):
         foggie_dir = "/Users/vidasaeedzadeh/Projects/foggie_data/" 
         output_path = "/Users/vidasaeedzadeh/Projects/foggie_outputs/"
         code_path = "/Users/vidasaeedzadeh/Projects/repositories/foggie/foggie/"
+    elif args.system == "vida_expanse":
+        foggie_dir = "/expanse/lustre/projects/lal106/saeedzadeh/foggie_data" 
+        output_path = "/expanse/lustre/scratch/saeedzadeh/temp_project/foggie_output"
+        code_path = "/home/saeedzadeh/foggie/foggie"
     elif args.system == "cameron_local":
         foggie_dir = "/Volumes/FoggieCam/foggie_halos/"
         output_path = "/Users/ctrapp/Documents/foggie_analysis/default_output/"
