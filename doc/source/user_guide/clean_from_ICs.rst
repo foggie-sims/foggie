@@ -195,7 +195,7 @@ as listed here:
     MultiSpecies                             = 2
     MetalCooling                             = 1
     UVbackground                             = 1
-    grackle_data_file                        = /nobackup/clochhaa/grackle_install/grackle/input/CloudyData_UVB=HM2012.h5 // change to your own grackle install path
+    grackle_data_file                        = /nobackup/clochhaa/grackle/grackle_data_files/input/CloudyData_UVB=HM2012.h5 // change to your own grackle install path
     CMBTemperatureFloor                      = 1
 
     StarParticleCreation                     = 2048
@@ -204,19 +204,17 @@ as listed here:
     MomentumCancellationToThermal            = 1
     MomentumMultiplier                       = 1.0
     StarMakerOverDensityThreshold            = 1.0e+4
-    StarMakerMinimumMass                     = 100.
+    StarMakerMinimumMass                     = 1000.
     StarMakerMinimumDynamicalTime            = 1.0e+6
     StarMakerMassEfficiency                  = 0.2
     StarMassEjectionFraction                 = 0.25
     StarMetalYield                           = 0.025
-    StarEnergyToThermalFeedback              = 1e-5
-    StarFeedbackDistRadius                   = 1
-    StarFeedbackDistCellStep                 = 3
 
+    H2StarMakerH2FractionMethod        = 1
     H2StarMakerEfficiency              = 0.02
     H2StarMakerNumberDensityThreshold  = 0
-    H2StarMakerMinimumMass             = 1
-    H2StarMakerMinimumH2FractionForStarFormation = 1e-09
+    H2StarMakerMinimumMass             = 10
+    H2StarMakerMinimumH2FractionForStarFormation = 0
     H2StarMakerStochastic              = 0
     H2StarMakerUseSobolevColumn        = 1
     H2StarMakerSigmaOverR              = 0.0333333
@@ -224,7 +222,7 @@ as listed here:
     H2StarMakerH2DissociationFlux_MW   = 1
     H2StarMakerH2FloorInColdGas        = 0
     H2StarMakerColdGasTemperature      = 10000
-    H2StarMakerUseLocalDensityMax      = 0
+    H2StarMakerUseLocalDensityMax      = 1
     H2StarMakerWriteStarLogFiles       = 1
 
     LoadBalancing               = 1
@@ -253,11 +251,9 @@ to change in the RD0006/RD0006 parameter file:
 ::
 
     CosmologyFinalRedshift = 6          // stop at z = 6 to turn on track box
-    StarFormationOncePerRootGridTimeStep  = 1
-    H2StarMakerH2FractionMethod        = 1
     self_shielding_method       = 3
     H2_self_shielding           = 1
-    grackle_data_file           = /nobackup/clochhaa/grackle_install/grackle/input/CloudyData_UVB=HM2012_shielded.h5  // use the path to your own grackle install. Note this time it is the shielded file
+    grackle_data_file           = /nobackup/clochhaa/grackle/grackle_data_files/input/CloudyData_UVB=HM2012_shielded.h5  // use the path to your own grackle install. Note this time it is the shielded file
 
 With those changes made, you can now submit it to run again, and this time
 it will stop at z = 6. This will probably take an hour or two.
@@ -282,7 +278,6 @@ file, change these parameters:
     CoolingRefineRegionTimeType   = 1
     MustRefineRegionFile = halo_track
     CoolingRefineRegionFile = halo_track
-    H2StarMakerUseLocalDensityMax      = 1  // turn on using density local max for star maker
     CosmologyFinalRedshift      = 0
     dtDataDump                = 0.25  // finer time spacing
 

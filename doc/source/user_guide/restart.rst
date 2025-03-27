@@ -62,19 +62,20 @@ To restart a FOGGIE halo with next-generation setup:
 
             ::
 
-                H2StarMakerEfficiency = 0.1
-                H2StarMakerNumberDensityThreshold = 0
-                H2StarMakerMinimumMass = 1000
-                H2StarMakerMinimumH2FractionForStarFormation = 1e-05
-                H2StarMakerStochastic = 0
-                H2StarMakerUseSobolevColumn = 1
-                H2StarMakerSigmaOverR = 0.0333333
-                H2StarMakerAssumeColdWarmPressureBalance = 1
-                H2StarMakerH2DissociationFlux_MW = 1
-                H2StarMakerH2FloorInColdGas = 0
-                H2StarMakerColdGasTemperature = 10000
-                H2StarMakerUseLocalDensityMax = 1
-                H2StarMakerWriteStarLogFiles = 1
+                H2StarMakerH2FractionMethod        = 1
+				H2StarMakerEfficiency              = 0.02
+				H2StarMakerNumberDensityThreshold  = 0
+				H2StarMakerMinimumMass             = 1000
+				H2StarMakerMinimumH2FractionForStarFormation = 0
+				H2StarMakerStochastic              = 0
+				H2StarMakerUseSobolevColumn        = 1
+				H2StarMakerSigmaOverR              = 0.0333333
+				H2StarMakerAssumeColdWarmPressureBalance = 1
+				H2StarMakerH2DissociationFlux_MW   = 1
+				H2StarMakerH2FloorInColdGas        = 0
+				H2StarMakerColdGasTemperature      = 10000
+				H2StarMakerUseLocalDensityMax      = 1
+				H2StarMakerWriteStarLogFiles       = 1
 
             NOTE: These parameters work well at low redshift and relatively high refinement (greater than 11) 
             but we have not yet found a good scheme or parameter set for the initial onset of star formation at high z. 
