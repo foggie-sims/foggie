@@ -85,8 +85,8 @@ def parse_args():
     parser.add_argument('--output', metavar='output', type=str, action='store', \
                         help='Which output(s)? Options: Specify a single output (this is default' \
                         + ' and the default output is RD0042) or specify a range of outputs ' + \
-                        '(e.g. "RD0020,RD0025" or "DD1340-DD2029").')
-    parser.set_defaults(output='RD0042')
+                        '(e.g. "20,25" or "20-25").')
+    parser.set_defaults(output='42')
 
     parser.add_argument('--output_step', metavar='output_step', type=int, action='store', \
                         help='If you want to do every Nth output, this specifies N. Default: 1 (every output in specified range)')
@@ -871,7 +871,7 @@ if __name__ == "__main__":
     if args.instrument is not None:
         prefix = output_dir + '/' + args.instrument + '/' + 'box_' + box_name + '/'
     else:
-        prefix = output_dir + '/FOGGIE' + '/'+ args.output + '/'+ 'box_' + box_name + '/'
+        prefix = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ 'box_' + box_name + '/'
 
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
     table_loc = prefix + 'Tables/'
@@ -1122,7 +1122,7 @@ if __name__ == "__main__":
 
 
     # Build outputs list
-    outs = make_output_list(args.output, output_step=args.output_step)
+    outs = make_output_list('RD00'+args.output, output_step=args.output_step)
 
     # Code for running in parallel
     target_dir = 'ions'
