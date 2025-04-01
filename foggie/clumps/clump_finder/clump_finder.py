@@ -263,21 +263,44 @@ class Clump:
         unique_clumps = np.unique(self.clump_ids[self.clump_ids>0])
  
         itr=-1
-       
+        disk_clump_index=-1
         nClumpsAdded=0
 
         slices = find_objects(self.clump_ids)
 
         if self.is_disk:
+            print("Determining disk object based on",args.disk_criteria)
             current_max = 0
+            current_min = None
             disk_label = 0
             for clump_label, slice_obj in enumerate(slices,start=1):
                 if slice_obj is not None:
                     clump_id = self.clump_ids[slice_obj]
                     mask = (clump_id == clump_label)
-                    if np.size(np.where(mask))>current_max:
-                        current_max = np.size(self.clump_ids[slice_obj])
-                        disk_label = clump_label
+
+                    if args.disk_criteria == "mass":
+                        slice_mass = np.sum(self.ucg[slice_obj][mask])
+                        if slice_mass>current_max:
+                            current_max = slice_mass
+                            disk_label = clump_label
+                            print("For clump",disk_label,"current_max set to",current_max)
+
+                    elif args.disk_criteria == "distance":
+                        slice_mass = np.sum(self.ucg[slice_obj][mask])
+                        slice_distance = np.linalg.norm( [ np.sum(np.multiply(self.ucg[slice_obj][mask], self.x_disk_ucg[slice_obj][mask]))/slice_mass, np.sum(np.multiply(self.ucg[slice_obj][mask], self.y_disk_ucg[slice_obj][mask]))/slice_mass, np.sum(np.multiply(self.ucg[slice_obj][mask], self.z_disk_ucg[slice_obj][mask]))/slice_mass ] )
+                        if current_min is None:
+                            current_min = slice_distance
+                            disk_label = clump_label
+                            print("For clump",disk_label,"current_min set to",current_min)
+                        elif slice_distance < current_min:
+                            current_min = slice_distance
+                            disk_label = clump_label
+                            print("For clump",disk_label,"current_min set to",current_min)
+
+                    elif args.disk_criteria == "n_cells":
+                        if np.size(np.where(mask))>current_max:
+                            current_max = np.size(self.clump_ids[slice_obj])
+                            disk_label = clump_label
             print("disk_label set to:",disk_label)
 
         if not self.is_disk: pbar = TqdmProgressBar("Adding Children",np.size(unique_clumps),position=0)
@@ -302,6 +325,7 @@ class Clump:
 
             if self.is_disk:
                 if clump_label==disk_label:
+                    print("Disk label is",clump_label)
                     n0 = np.size(np.where(mask))
                     if args.max_disk_void_size>0:
                         #if args.make_disk_mask_figures:
@@ -493,10 +517,18 @@ class Clump:
                     parent_clump.child_indices.append(clump_index)
                     self.clump_tree[self.tree_level][-1].parent_index = parent_clump.self_index
 
+                if self.is_disk:
+                    if disk_label==clump_label:
+                        disk_clump_index = clump_index
+
 
         if not self.is_disk:
             pbar.update(np.size(unique_clumps))
             pbar.finish()
+
+        if self.is_disk:
+            return disk_clump_index
+
         return nClumpsAdded
 
     def UpdateClumpCatalog_parallel(self,args):
@@ -679,6 +711,14 @@ class Clump:
         '''
         if self.is_disk:
             print("Defining disk ucgs...")
+
+            ##if args.disk_criteria == "mass" or args.disk_criteria == "distance":
+                #Create a mass ucg for identifying the most massive clump as the disk
+            ##    fields = [args.clumping_field,cell_id_field,('gas','z_disk'),('gas','y_disk'),('gas','x_disk'),('gas','cell_mass')]
+            ##    split_methods = ["copy","copy","copy","copy","copy","halve"]
+            ##    merge_methods = ["max" ,"max","mean","mean","mean","sum"]
+            ##    self.ucg, self.cell_id_ucg, self.z_disk_ucg, self.x_disk_ucg, self.y_disk_ucg, self.mass_ucg = create_simple_ucg(self.ds, self.cut_region, fields, args.refinement_level,split_methods,merge_methods) #parallelize? Double check overlaps and which edges are being set to nans
+            ##else:
             fields = [args.clumping_field,cell_id_field,('gas','z_disk'),('gas','y_disk'),('gas','x_disk')]
             split_methods = ["copy","copy","copy","copy","copy"]
             merge_methods = ["max" ,"max","mean","mean","mean"]
@@ -784,7 +824,11 @@ class Clump:
             if parallelize_mapping:#np.max(self.clump_ids) > 300 or current_threshold > 1e-29:
                 nClumpsAdded = self.UpdateClumpCatalog_parallel(args)
             else:
-                nClumpsAdded = self.UpdateClumpCatalog_linear(args)
+                if self.is_disk:
+                    disk_clump_index = self.UpdateClumpCatalog_linear(args)
+                    return disk_clump_index
+                else:
+                    nClumpsAdded = self.UpdateClumpCatalog_linear(args)
 
             if nClumpsAdded==0:
                 print("No clumps found at this threshold...terminating")
@@ -995,16 +1039,16 @@ def identify_clump_hierarchy(ds,cut_region,args):
         args.step = args.clump_max / args.clump_min
         
         disk = Clump(ds,cut_region,args,tree_level=0,is_disk=True)
-        disk.FindClumps(args.clump_min,args,ids_to_ignore=None)
+        disk_index = disk.FindClumps(args.clump_min,args,ids_to_ignore=None)
 
-        current_max = 0
-        disk_index = 0
-        i=0
-        for child in disk.clump_tree[0]:
-            if np.size(child.cell_ids)>current_max:
-                current_max = np.size(child.cell_ids)
-                disk_index = i
-            i+=1
+        #current_max = 0
+        #disk_index = 0
+        #i=0
+        #for child in disk.clump_tree[0]:
+        #    if np.size(child.cell_ids)>current_max:
+        #        current_max = np.size(child.cell_ids)
+        #        disk_index = i
+        #    i+=1
         
 
         args.step=tmp_step
