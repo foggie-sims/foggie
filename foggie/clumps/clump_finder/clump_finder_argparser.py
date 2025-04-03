@@ -145,11 +145,14 @@ def parse_args():
                         help='If n_dilation_iterations>0, each iteration will dilate the clump by this many cells. Default is 1.')
     parser.set_defaults(n_cells_per_dilation=1)
 
+    parser.add_argument('--disk_criteria', metavar='disk_criteria', type=str, action='store', \
+                        help='How do you identify which disk is the clump. Options are n_cells, mass, or distance. Default is mass.')
+    parser.set_defaults(disk_criteria="mass")
+
 
     parser.add_argument('--use_cylindrical_connectivity_matrix', metavar='use_cylindrical_connectivity_matrix', type=bool, action='store', \
                         help='Use a cylindrical connectivy matrix (instead of spherical/square) for hole filling. Default is False.')
     parser.set_defaults(use_cylindrical_connectivity_matrix=False)
-
 
         
     parser.add_argument('--save_clumps_individually', metavar='save_clumps_individually', type=bool, action='store', \
@@ -205,4 +208,5 @@ def get_default_args():
         closing_iterations=1,
         use_cylindrical_connectivity_matrix=False,
         save_clumps_individually=False,
+        disk_criteria="mass",
     )

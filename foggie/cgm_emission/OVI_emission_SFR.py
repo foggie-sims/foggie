@@ -100,6 +100,10 @@ def parse_args():
     parser.add_argument('--limit', dest='Aspera_limit', action='store_true', \
                         help='Do you want to calculate and plot only above the Aspera limit? Default is no.')
     parser.set_defaults(Aspera_limit=False)
+
+    parser.add_argument('--constant_Z', dest='constant_Z', action='store_true', \
+                        help='Do you want to calculate emissivity assuming solar metallicity? Default is no.')
+    parser.set_defaults(Aspera_limit=False)
     
     parser.add_argument('--save_suffix', metavar='save_suffix', type=str, action='store', \
                         help='Do you want to append a string onto the names of the saved files? Default is no.')
@@ -147,7 +151,8 @@ def _Emission_OVI(field,data):
         dia2[idx] = -200.
         emission_line=((10.0**dia1)+(10**dia2))*((10.0**H_N)**2.0)
         emission_line = emission_line/(4.*np.pi*1.92e-11)
-        emission_line = scale_by_metallicity(emission_line,0.0,np.log10(np.array(data['metallicity'])))
+        if (not args.constant_Z):
+            emission_line = scale_by_metallicity(emission_line,0.0,np.log10(np.array(data['metallicity'])))
         emission_line[emission_line==0.0] = 5e-324
         return emission_line * ytEmU
 
@@ -163,7 +168,8 @@ def _Emission_OVI_ALTunits(field,data):
         emission_line= emission_line + ((10**dia2))*((10.0**H_N)**2.0)
         emission_line = emission_line/(4.*np.pi)
         emission_line = emission_line/4.25e10 # convert steradian to arcsec**2
-        emission_line = scale_by_metallicity(emission_line,0.0,np.log10(np.array(data['metallicity'])))
+        if (not args.constant_Z):
+            emission_line = scale_by_metallicity(emission_line,0.0,np.log10(np.array(data['metallicity'])))
         emission_line[emission_line==0.0] = 5e-324
         return emission_line*ytEmUALT
 
