@@ -69,7 +69,6 @@ from foggie.clumps.clump_finder.fill_topology import *
 from foggie.clumps.clump_finder.clump_load import *
 from foggie.clumps.clump_finder.clump_finder import clump_finder
 
-
 def parse_args():
     '''Parse command line arguments. Returns args object.'''
 
@@ -168,6 +167,10 @@ def parse_args():
                         help='How many shell you have around disk when you are using disk_cgm filter? defualt is 0')
     parser.set_defaults(shell_count=0)
 
+    parser.add_argument('--shell_cut_region', metavar='shell_cut_region', type=str, action='store', \
+                        help='What filter type? Default is None (Options are: inflow_outflow or disk_cgm )')
+    parser.set_defaults(shell_cut_region=None)
+    
     parser.add_argument('--scale_factor', metavar='scale_factor', type=str, action='store', \
                         help='Do you want to scale the emissivity to observation? How much? The default is 1 i.e. no scaling.')
     parser.set_defaults(scale_factor=1)
@@ -520,7 +523,7 @@ def determine_fov(args, arcmin_kpc_scale, ds):
     else:
         return YTQuantity(ds.refine_width, 'kpc') if not hasattr(ds.refine_width, 'in_units') else ds.refine_width.in_units('kpc')
 
-def filter_data(refine_box, filter_type, filter_value, ds, disk_file, shell_count, shell_path):
+def filter_data(refine_box, filter_type, filter_value, ds, disk_file, shell_count, shell_path,radii=[20,30,50]):
     """Apply various data filtering methods."""
     if filter_type == 'inflow_outflow':
         box_inflow, box_outflow, box_neither = filter_ds(refine_box, segmentation_filter='radial_velocity')
@@ -532,18 +535,34 @@ def filter_data(refine_box, filter_type, filter_value, ds, disk_file, shell_coun
 
         if shell_count == 0:
             return {'cgm': box_cgm}
-        else:
+        
+        elif shell_count > 0:
             for i in range(shell_count):
                 shell_clump_file = shell_path + f'test_DiskDilationShell_n{i}.h5'
                 shell_cut_region = load_clump(ds, shell_clump_file)
                 box_cgm = box_cgm - shell_cut_region
             return {'cgm': box_cgm}
+        
+        elif shell_cut_region is not None:
+            center=ds.halo_center_kpc
+            sphere = np.zeros(len(radii))
+            for r_index, radius in enumerate(radii):
+                sphere[r_index] = box_cgm.sphere(center,radius)
+            sphere1 = sphere[0]
+            sphere2 = sphere[1] - sphere[0]
+            sphere3 = sphere[2] - sphere[1]
+
+            return {'thick_shell1': sphere1, 'thick_shell2': sphere2, 'thick_shell3': sphere3}
 
     elif filter_type == 'temperature' and filter_value is not None:
         return {'all': refine_box.cut_region([f"(obj['gas', 'temperature'] < {filter_value})"])}
     
     elif filter_type == 'density' and filter_value is not None:
         return {'all': refine_box.cut_region([f"(obj['gas', 'density'] > {filter_value})"])}
+    
+    # # YOUR FILTER AND CUT REGIONS GO HERE
+    # #elif filter_type == 'your_filter':
+    # #    data_sources = {'your_region': your_cut_region}
 
     return {'all': refine_box}  # Default case with no filter
 
@@ -803,210 +822,6 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
     print('Emission frb saved')
     f.close()
   
-def make_column_density_FRB(ds, refine_box, snap, ions, scale_factor=1, filter_type=None, filter_value=None, resolution=1):
-    '''This function calculates and saves projected column density FRBs '''
-
-        # get the halo name to add to the output name
-    halo_name = halo_dict[str(args.halo)]
-    pix_res = np.min(refine_box['dx'].in_units('kpc'))
-
-    #redshift where the instrument target is
-    if args.target_z is not None:
-        target_redshift = args.target_z
-        arcmin_kpc_scale = cosmology.kpc_proper_per_arcmin(target_redshift) #kpc/arcmin # converting arcmin to kpc using plank 18 cosmology from astropy
-        arcmin_kpc_scale = YTQuantity(arcmin_kpc_scale, 'kpc/arcmin') 
-    else:
-        arcmin_kpc_scale = 1 # if there is no spacial resolution from an instrument then there is no need for conversion 
-    
-    # Determine pixel size for the FRB
-    if args.res_arcsec is not None:
-        res_arcsec = float(args.res_arcsec)
-        res_arcsec = YTQuantity(res_arcsec, 'arcsec')  # Ensure YTQuantity type for consistency
-        bin_size_kpc = (res_arcsec.in_units('arcmin')) * arcmin_kpc_scale #convert to kpc
-        bin_size_kpc = bin_size_kpc.in_units('kpc')
-        
-    else:
-        #simulation resolution
-        bin_size_kpc = pix_res
-        
-    round_bin_size_kpc = round(bin_size_kpc.to_value(),2)
-
-    #Set width of projection to the field of view that is desired
-    if args.fov_kpc is not None:
-        width = YTQuantity(float(args.fov_kpc), 'kpc')  # Ensure YTQuantity type for consistency
-    elif args.fov_arcmin is not None:
-        fov_kpc = float(args.fov_arcmin) * arcmin_kpc_scale
-        width = YTQuantity(fov_kpc, 'kpc')  
-    else:
-          #first make sure that the fov_refine_box is in kpc
-          fov_refine_box = YTQuantity(ds.refine_width, 'kpc') if not hasattr(ds.refine_width, 'in_units') else ds.refine_width.in_units('kpc')
-          width = fov_refine_box  
-
-    
-    width_value = width.v  # Extract width value
-    res = int(width_value / bin_size_kpc) # Calculate the number of frb bins based on the width and bin size
-
-    # Print to check everything is set to the values they should be
-    print('z=%.1f' % ds.get_parameter('CosmologyCurrentRedshift', 1))
-    print(f"Simulation resolution (pix_res): {pix_res:.2f} kpc")
-    print(f"Field of view (FOV): {width_value:.3f} kpc")
-    print(f"FRB pixel size (bin_size_kpc): {bin_size_kpc:.2f} kpc")
-    print(f"FRB number of bins (res): {res}")
-    
-
-    # Cut regions for making the FRB, it now includes inflow and outflow cut regions, CGM, and simple filtering based on temperature or density, 
-    # If you do not specify filter_type when running the code then it will make a frb and map for the whole refine_box
-    
-    #Filter: inflow, outflow, neither
-    if filter_type == 'inflow_outflow':
-        box_inflow, box_outflow, box_neither = filter_ds(refine_box, segmentation_filter='radial_velocity')
-        data_sources = {'inflow': box_inflow, 'outflow': box_outflow, 'neither': box_neither}
-
-    #Filter: disk, cgm
-    elif filter_type == 'disk_cgm':
-        disk_cut_region = load_clump(ds, disk_file,source_cut=refine_box)
-        box_cgm = refine_box - disk_cut_region
-
-        if shell_count == 0:
-            data_sources = {'cgm': box_cgm}
-        else: 
-            for i in range(0,shell_count):
-                print('shell number',i)
-                shell_clump_file = shell_path + f'test_DiskDilationShell_n{i}.h5' 
-                shell_cut_region = load_clump(ds, shell_clump_file)
-                box_cgm = box_cgm - shell_cut_region
-            
-            data_sources = {'cgm': box_cgm}
-    
-    #Filter: temperature, density
-    elif filter_type == 'temperature' and filter_value is not None:
-            data_sources['all'] = data_sources['all'].cut_region([f"(obj['gas', 'temperature'] < {filter_value})"])
-    elif filter_type == 'density' and filter_value is not None:
-            data_sources['all'] = data_sources['all'].cut_region([f"(obj['gas', 'density'] > {filter_value})"])
-    #No filter      
-    else:
-        data_sources = {'all': refine_box}
-    # YOUR FILTER AND CUT REGIONS GO HERE
-    #elif filter_type == 'your_filter':
-    #    data_sources = {'your_region': your_cut_region}
-
-
-    # Define the unit string based on unit_system
-    if unit_system == 'photons':
-        unit_label = '[photons s$^{-1}$ cm$^{-2}$ sr$^{-1}$]'
-    elif unit_system == 'erg':
-        unit_label = '[erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]'
-    else:
-        raise ValueError("Invalid unit_system specified. Use 'defphotonsault' or 'erg'.")
-    
-
-    # Create HDF5 file for saving emission maps
-    #Define the path to save the emission maps
-    save_path = prefix + f'FRBs/' 
-    print('save_path:',save_path)
-    os.makedirs(save_path, exist_ok=True)  # Ensure the directory exists
-    f = h5py.File(save_path + halo_name + '_emission_maps' + save_suffix + '.hdf5', 'a')
-
-    # Define the redshift group name
-    z_group_name = 'z=%.1f' % ds.get_parameter('CosmologyCurrentRedshift', 1)
-
-    # Check if the group already exists
-    if z_group_name in f:
-        grp = f[z_group_name]  # Open existing group
-    else:
-        grp = f.create_group(z_group_name)  # Create new group if it doesn't exist
-        grp.attrs.create("image_extent_kpc", width)
-        grp.attrs.create("redshift", ds.get_parameter('CosmologyCurrentRedshift'))
-        grp.attrs.create("halo_name", halo_name)
-        grp.attrs.create("emission_units", unit_label)
-        grp.attrs.create("FRB_pixel_size_kpc", round_bin_size_kpc)
-        grp.attrs.create("ion_list", ions)
-
-    # Add instrument attributes if applicable
-    if args.instrument is not None:
-        grp.attrs["instrument_name"] = args.instrument
-        grp.attrs["instrument_special_res"] = round_bin_size_kpc
-        
-
-
-    # Loop through ions and create projections for each region
-    for region, data_source in data_sources.items():
-        for ion in ions:
-            print(f"Processing ion: {ion}")
-
-            #scaled density
-            if (scale_factor > 1):
-            
-                def scaled_numdensity(field, data):
-                    return scale_factor * data[('gas', ions_number_density_dict[ion])]
-
-                ds.add_field(
-                    name=("gas", f"{ion}_scaled_numdensity"),
-                    function=scaled_numdensity,
-                    units="cm**-3",  # Same units as the original field
-                    sampling_type="cell",
-                )
-
-                numdensity_field = ('gas', f"{ion}_scaled_numdensity") 
-            else:
-                numdensity_field = ('gas', ions_number_density_dict[ion]) 
-
-
-            # Edge-on projection (surface density)
-            proj_edge = yt.ProjectionPlot(ds, ds.x_unit_disk, numdensity_field,
-                                          center=ds.halo_center_kpc, data_source=data_source,
-                                          width=(ds.refine_width, 'kpc'), north_vector=ds.z_unit_disk,
-                                          buff_size=[res, res], weight_field=None)
-            frb_edge = proj_edge.frb[numdensity_field]  # Surface density in g/cm^2
-            # Save mass FRB, total mass, and positions in HDF5
-            dset1 = grp.create_dataset(f"{ion}_numdensity_edge_{region}", data=frb_edge)
-            
-            # Calculate positions
-            # Calculate positions relative to the halo center
-            halo_center_x = ds.halo_center_kpc[0].in_units('kpc')
-            halo_center_y = ds.halo_center_kpc[1].in_units('kpc')
-
-            # Edge-on projection
-            x_min = -width_value/2
-            x_max = width_value/2
-            y_min = -width_value/2
-            y_max = width_value/2
-
-            x_edges = np.linspace(x_min, x_max, res + 1)
-            y_edges = np.linspace(y_min, y_max, res + 1)
-
-            x_positions = 0.5 * (x_edges[:-1] + x_edges[1:]) #- halo_center_x
-            y_positions = 0.5 * (y_edges[:-1] + y_edges[1:]) #- halo_center_y
-
-            # Debugging
-            print(f"x_min: {x_min}, x_max: {x_max}, y_min: {y_min}, y_max: {y_max}")
-            
-
-            # Save positions
-            dset_x = grp.create_dataset(f"{ion}_x_edge_{region}", data=x_positions)
-            dset_y = grp.create_dataset(f"{ion}_y_edge_{region}", data=y_positions)
-
-            
-            
-
-            # Face-on projection (surface density)
-            proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, numdensity_field,
-                                          center=ds.halo_center_kpc, data_source=data_source,
-                                          width=(ds.refine_width, 'kpc'), north_vector=ds.x_unit_disk,
-                                          buff_size=[res, res], weight_field=None)
-            frb_face = proj_face.frb[numdensity_field]  # Surface density in g/cm^2
-        
-            dset2 = grp.create_dataset(f"{ion}_numdensity_face_{region}", data=frb_face)
-
-            # Save relative positions
-            dset_x = grp.create_dataset(f"{ion}_x_face_{region}", data=x_positions)
-            dset_y = grp.create_dataset(f"{ion}_y_face_{region}", data=y_positions)
-
-
-    # Close the HDF5 file after saving the datasets
-    print('Number density FRBs finished')
-    f.close()
-
 def compute_mass_in_emission_pixels(ds, refine_box, snap, ions, unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
     """Compute the total ion mass that contributes to each pixel of an emission FRB for edge-on and face-on views."""
 
@@ -1100,8 +915,8 @@ def compute_mass_in_emission_pixels(ds, refine_box, snap, ions, unit_system='pho
             dset_edge = grp.create_dataset(f"{ion}_mass_edge_{region}", data=mass_frb_edge.in_units('Msun'))
             dset_face = grp.create_dataset(f"{ion}_mass_face_{region}", data=mass_frb_face.in_units('Msun'))
 
-            emission_dset_edge = grp.create_dataset(f"{ion}_emission_manualpixel_edge_{region}", data=emission_frb_edge)
-            emission_dset_face = grp.create_dataset(f"{ion}_emission_manualpixel_face_{region}", data=emission_frb_face)
+            #emission_dset_edge = grp.create_dataset(f"{ion}_emission_manualpixel_edge_{region}", data=emission_frb_edge)
+            #emission_dset_face = grp.create_dataset(f"{ion}_emission_manualpixel_face_{region}", data=emission_frb_face)
 
             print(f"Saved mass FRBs for {ion} in HDF5")
 
@@ -1163,7 +978,7 @@ def emission_map_vertical_slices(ds, refine_box, snap, ions, unit_system='photon
                                                                    disk_file, shell_count, shell_path, unit_system, 
                                                                    prefix, save_suffix, ions)
     
-    width = [(63.7, 'kpc'), (152.88, 'kpc')]  # Define width as a tuple for rectangular projection
+    width = [(63.7, 'kpc'), (142.88, 'kpc')]  # Define width as a tuple for rectangular projection
     res_w = int(width[0][0] / round_bin_size_kpc) 
     res_h = int(width[1][0] / round_bin_size_kpc) 
     print('res w',res_w, 'res h', res_h)
@@ -1255,7 +1070,7 @@ def combined_emission_map(ds, refine_box, snap, ions, unit_system='photons', fil
 
     f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
 
-    width = [(63.7, 'kpc'), (152.88, 'kpc')]  # Define width as a tuple for rectangular projection
+    width = [(73.7, 'kpc'), (140.88, 'kpc')]  # Define width as a tuple for rectangular projection 63.7
     res_w = int(width[0][0] / round_bin_size_kpc) 
     res_h = int(width[1][0] / round_bin_size_kpc) 
     print('res w',res_w, 'res h', res_h)
@@ -1291,12 +1106,12 @@ def combined_emission_map(ds, refine_box, snap, ions, unit_system='photons', fil
             mymap.set_bad(mymap(0))
 
             # Create the projection with correct width
-            proj_edge = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas', 'Emission_' + ions_dict[ion]), 
+            proj = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas', 'Emission_' + ions_dict[ion]), 
                                      center=ds.halo_center_kpc, data_source=data_source, 
                                      width=width, buff_size=[res_w, res_h], method='integrate', weight_field=None, 
                                      north_vector=ds.z_unit_disk)
             
-            proj = yt.ProjectionPlot(ds, ds.z_unit_disk, ('gas', 'Emission_' + ions_dict[ion]), 
+            proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, ('gas', 'Emission_' + ions_dict[ion]), 
                                      center=ds.halo_center_kpc, data_source=data_source, 
                                      width=width, buff_size=[res_w, res_h], method='integrate', weight_field=None, 
                                      north_vector=ds.x_unit_disk)
@@ -1349,6 +1164,94 @@ def combined_emission_map(ds, refine_box, snap, ions, unit_system='photons', fil
         plt.show()
         plt.close()
 
+def make_column_density_FRB(ds, refine_box, snap, ions,scaling = True, scale_factor=100, filter_type=None, filter_value=None, resolution=2):
+    '''This function calculates and saves projected column density FRBs '''
+
+    # # Create HDF5 file for saving mass maps
+    save_path = prefix + f'FRBs/' 
+    os.makedirs(save_path, exist_ok=True)  # Ensure the directory exists
+   
+
+    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
+    # Loop through ions and create projections for each region
+    for region, data_source in data_sources.items():
+        for ion in ions:
+            print(f"Processing ion: {ion}")
+
+            #scaled density
+            if (scaling == True):
+            
+                def scaled_numdensity(field, data):
+                    return scale_factor * data[('gas', ions_number_density_dict[ion])]
+
+                ds.add_field(
+                    name=("gas", f"{ion}_scaled_numdensity"),
+                    function=scaled_numdensity,
+                    units="cm**-3",  # Same units as the original field
+                    sampling_type="cell",
+                )
+
+                numdensity_field = ('gas', f"{ion}_scaled_numdensity") 
+            else:
+                numdensity_field = ('gas', ions_number_density_dict[ion]) 
+
+
+            # Edge-on projection (surface density)
+            proj_edge = yt.ProjectionPlot(ds, ds.x_unit_disk, numdensity_field,
+                                          center=ds.halo_center_kpc, data_source=data_source,
+                                          width=(ds.refine_width, 'kpc'), north_vector=ds.z_unit_disk,
+                                          buff_size=[res, res], weight_field=None)
+            frb_edge = proj_edge.frb[numdensity_field]  # Surface density in g/cm^2
+            # Save mass FRB, total mass, and positions in HDF5
+            dset1 = grp.create_dataset(f"{ion}_numdensity_edge_{region}", data=frb_edge)
+            
+            # Calculate positions
+            # Calculate positions relative to the halo center
+            halo_center_x = ds.halo_center_kpc[0].in_units('kpc')
+            halo_center_y = ds.halo_center_kpc[1].in_units('kpc')
+
+            # Edge-on projection
+            x_min = -width_value/2
+            x_max = width_value/2
+            y_min = -width_value/2
+            y_max = width_value/2
+
+            x_edges = np.linspace(x_min, x_max, res + 1)
+            y_edges = np.linspace(y_min, y_max, res + 1)
+
+            x_positions = 0.5 * (x_edges[:-1] + x_edges[1:]) 
+            y_positions = 0.5 * (y_edges[:-1] + y_edges[1:]) 
+
+            # Debugging
+            print(f"x_min: {x_min}, x_max: {x_max}, y_min: {y_min}, y_max: {y_max}")
+            print(f"x_positions (kpc): {x_positions}")
+            print(f"y_positions (kpc): {y_positions}")
+
+            # Save positions
+            dset_x = grp.create_dataset(f"{ion}_x_edge_{region}", data=x_positions)
+            dset_y = grp.create_dataset(f"{ion}_y_edge_{region}", data=y_positions)
+
+            
+            
+
+            # Face-on projection (surface density)
+            proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, numdensity_field,
+                                          center=ds.halo_center_kpc, data_source=data_source,
+                                          width=(ds.refine_width, 'kpc'), north_vector=ds.x_unit_disk,
+                                          buff_size=[res, res], weight_field=None)
+            frb_face = proj_face.frb[numdensity_field]  # Surface density in g/cm^2
+        
+            dset2 = grp.create_dataset(f"{ion}_numdensity_face_{region}", data=frb_face)
+
+            # Save relative positions
+            dset_x = grp.create_dataset(f"{ion}_x_face_{region}", data=x_positions)
+            dset_y = grp.create_dataset(f"{ion}_y_face_{region}", data=y_positions)
+
+
+    # Close the HDF5 file after saving the datasets
+    print('Number density FRBs finished')
+    f.close()
+
 ######################################################################################################
 def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filter_type=None, filter_value=None, res_arcsec=None):
 
@@ -1369,9 +1272,9 @@ def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filt
             combined_emission_map(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
 
     if ('emission_FRB' in args.plot):
-        make_FRB(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
-        compute_mass_in_emission_pixels(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
-        #make_column_density_FRB(ds, refine_box, snap, ions, scale_factor=scale_factor, filter_type=filter_type, filter_value=filter_value)  
+        #make_FRB(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
+        #compute_mass_in_emission_pixels(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
+        make_column_density_FRB(ds, refine_box, snap, ions, scale_factor=scale_factor, filter_type=filter_type, filter_value=filter_value)  
         
            
 if __name__ == "__main__":
@@ -1404,13 +1307,12 @@ if __name__ == "__main__":
     elif args.res_kpc is not None:
         resolution = args.res_kpc
     else:
-        resolution = 0.27
+        resolution = '0.27'
 
     if args.instrument is not None:
-        prefix = output_dir + '/' + args.instrument + '/' + args.output + '/' + 'target_z_' + args.target_z + '/'+ 'box_' + box_name + '/'
+        prefix = output_dir + '/' + args.instrument + '/' + 'box_' + box_name + '/'
     else:
-        prefix = output_dir + '/FOGGIE' + '/' + args.output + '/' + 'box_' + box_name + '/' + resolution + '/'
-        #prefix =  output_dir + 'res_1' + '/' + 'box_' + box_name + '/'
+        prefix = output_dir + '/FOGGIE' + '/'+ args.output + '/'+ 'box_' + box_name + '/' + resolution + '/'
 
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
     table_loc = prefix + 'Tables/'
@@ -1625,6 +1527,12 @@ if __name__ == "__main__":
             flux_threshold_dict = {'OVI': 200} #photons/s/cm^2/sr
         elif args.unit_system == 'erg':
             flux_threshold_dict = {'OVI': 1.5e-20} #ergs/s/cm^2/arcsec^2  
+    elif instrument_name == '100':
+        if args.unit_system == 'photons':
+            flux_value = int(instrument_name)
+            flux_threshold_dict = {'MgII':flux_value,'CIII': flux_value,'CIV': flux_value,'OVI': flux_value} #photons/s/cm^2/sr
+        elif args.unit_system == 'erg':
+            flux_threshold_dict = {'OVI': 3e-19} #ergs/s/cm^2/arcsec^2
     else:
         flux_threshold_dict = {}
 
@@ -1727,7 +1635,8 @@ if __name__ == "__main__":
     print(str(datetime.datetime.now()))
     print("All snapshots finished!")
 
-    
+
+
 
 
 
