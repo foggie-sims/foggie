@@ -17,11 +17,16 @@ from collections import defaultdict
 
 from foggie.clumps.clump_finder.utils_clump_finder import get_cgm_density_cut
 from foggie.clumps.clump_finder.utils_clump_finder import add_cell_id_field
+from foggie.clumps.clump_finder.utils_clump_finder import save_as_YTClumpContainer
+from foggie.clumps.clump_finder.utils_clump_finder import add_ion_fields
+
 from foggie.clumps.clump_finder.fill_topology import fill_voids
 from foggie.clumps.clump_finder.fill_topology import fill_holes
 from foggie.clumps.clump_finder.fill_topology import get_dilated_shells
 from foggie.clumps.clump_finder.fill_topology import expand_slice
 from foggie.clumps.clump_finder.fill_topology import generate_connectivity_matrix
+
+from foggie.clumps.clump_finder.utils_clump_finder import save_clump_hierarchy
 
 
 import matplotlib.pyplot as plt
@@ -32,7 +37,7 @@ from scipy.ndimage import find_objects
 from scipy.ndimage import binary_dilation 
 from scipy.ndimage import binary_closing
 
-from foggie.clumps.clump_finder import merge_clumps
+
 
 '''
     Finds 3-d clumps in simulation data along an arbitrary clumping field. This code was designed to work with the FOGGIE simulations
@@ -81,6 +86,8 @@ from foggie.clumps.clump_finder import merge_clumps
     --system: Set the system to get data paths from get_run_loc_etc if not None Overrides --code_dir and --data_dir. Default is None. 
     --pwd: Use pwd arguments in get_run_loc_etc. Default is False.
     --forcepath: Use forcepath in get_run_loc_etc. Default is False.
+
+    --save_clumps_individually: Save each clump as an individual hdf5 file instead of single hdf5 hierarchy. Default is False.
 
     
     Algorithm Arguments:
@@ -256,21 +263,44 @@ class Clump:
         unique_clumps = np.unique(self.clump_ids[self.clump_ids>0])
  
         itr=-1
-       
+        disk_clump_index=-1
         nClumpsAdded=0
 
         slices = find_objects(self.clump_ids)
 
         if self.is_disk:
+            print("Determining disk object based on",args.disk_criteria)
             current_max = 0
+            current_min = None
             disk_label = 0
             for clump_label, slice_obj in enumerate(slices,start=1):
                 if slice_obj is not None:
                     clump_id = self.clump_ids[slice_obj]
                     mask = (clump_id == clump_label)
-                    if np.size(np.where(mask))>current_max:
-                        current_max = np.size(self.clump_ids[slice_obj])
-                        disk_label = clump_label
+
+                    if args.disk_criteria == "mass":
+                        slice_mass = np.sum(self.ucg[slice_obj][mask])
+                        if slice_mass>current_max:
+                            current_max = slice_mass
+                            disk_label = clump_label
+                            print("For clump",disk_label,"current_max set to",current_max)
+
+                    elif args.disk_criteria == "distance":
+                        slice_mass = np.sum(self.ucg[slice_obj][mask])
+                        slice_distance = np.linalg.norm( [ np.sum(np.multiply(self.ucg[slice_obj][mask], self.x_disk_ucg[slice_obj][mask]))/slice_mass, np.sum(np.multiply(self.ucg[slice_obj][mask], self.y_disk_ucg[slice_obj][mask]))/slice_mass, np.sum(np.multiply(self.ucg[slice_obj][mask], self.z_disk_ucg[slice_obj][mask]))/slice_mass ] )
+                        if current_min is None:
+                            current_min = slice_distance
+                            disk_label = clump_label
+                            print("For clump",disk_label,"current_min set to",current_min)
+                        elif slice_distance < current_min:
+                            current_min = slice_distance
+                            disk_label = clump_label
+                            print("For clump",disk_label,"current_min set to",current_min)
+
+                    elif args.disk_criteria == "n_cells":
+                        if np.size(np.where(mask))>current_max:
+                            current_max = np.size(self.clump_ids[slice_obj])
+                            disk_label = clump_label
             print("disk_label set to:",disk_label)
 
         if not self.is_disk: pbar = TqdmProgressBar("Adding Children",np.size(unique_clumps),position=0)
@@ -295,6 +325,7 @@ class Clump:
 
             if self.is_disk:
                 if clump_label==disk_label:
+                    print("Disk label is",clump_label)
                     n0 = np.size(np.where(mask))
                     if args.max_disk_void_size>0:
                         #if args.make_disk_mask_figures:
@@ -310,8 +341,9 @@ class Clump:
 
                         n0 = np.size(np.where(mask))
 
-                        
+             
                         scm_struct = generate_connectivity_matrix(args.max_disk_hole_size, args.use_cylindrical_connectivity_matrix)
+
                         filled_mask = binary_closing(mask, structure=scm_struct,iterations=args.closing_iterations)
 
                         filled_mask = mask | filled_mask
@@ -485,10 +517,18 @@ class Clump:
                     parent_clump.child_indices.append(clump_index)
                     self.clump_tree[self.tree_level][-1].parent_index = parent_clump.self_index
 
+                if self.is_disk:
+                    if disk_label==clump_label:
+                        disk_clump_index = clump_index
+
 
         if not self.is_disk:
             pbar.update(np.size(unique_clumps))
             pbar.finish()
+
+        if self.is_disk:
+            return disk_clump_index
+
         return nClumpsAdded
 
     def UpdateClumpCatalog_parallel(self,args):
@@ -671,6 +711,14 @@ class Clump:
         '''
         if self.is_disk:
             print("Defining disk ucgs...")
+
+            ##if args.disk_criteria == "mass" or args.disk_criteria == "distance":
+                #Create a mass ucg for identifying the most massive clump as the disk
+            ##    fields = [args.clumping_field,cell_id_field,('gas','z_disk'),('gas','y_disk'),('gas','x_disk'),('gas','cell_mass')]
+            ##    split_methods = ["copy","copy","copy","copy","copy","halve"]
+            ##    merge_methods = ["max" ,"max","mean","mean","mean","sum"]
+            ##    self.ucg, self.cell_id_ucg, self.z_disk_ucg, self.x_disk_ucg, self.y_disk_ucg, self.mass_ucg = create_simple_ucg(self.ds, self.cut_region, fields, args.refinement_level,split_methods,merge_methods) #parallelize? Double check overlaps and which edges are being set to nans
+            ##else:
             fields = [args.clumping_field,cell_id_field,('gas','z_disk'),('gas','y_disk'),('gas','x_disk')]
             split_methods = ["copy","copy","copy","copy","copy"]
             merge_methods = ["max" ,"max","mean","mean","mean"]
@@ -709,6 +757,7 @@ class Clump:
             print("Iterating for clump threshold=",current_threshold)
 
             if parallelize_marching_cubes:
+                from foggie.clumps.clump_finder import merge_clumps
                 _iterate_clump_marching_cubes = partial(iterate_clump_marching_cubes,args=args,minval=current_threshold,maxval=None)
 
                 print("Marching cubes...")
@@ -775,14 +824,17 @@ class Clump:
             if parallelize_mapping:#np.max(self.clump_ids) > 300 or current_threshold > 1e-29:
                 nClumpsAdded = self.UpdateClumpCatalog_parallel(args)
             else:
-                nClumpsAdded = self.UpdateClumpCatalog_linear(args)
+                if self.is_disk:
+                    disk_clump_index = self.UpdateClumpCatalog_linear(args)
+                    return disk_clump_index
+                else:
+                    nClumpsAdded = self.UpdateClumpCatalog_linear(args)
 
             if nClumpsAdded==0:
                 print("No clumps found at this threshold...terminating")
                 return
-            
-            if args.identify_disk:
-                return
+
+
               
                     
             current_threshold *= args.step
@@ -968,7 +1020,9 @@ def identify_clump_hierarchy(ds,cut_region,args):
             if args.cgm_density_cut_type=="relative_density": args.cgm_density_factor=200.
             elif args.cgm_density_cut_type=="comoving_density": args.cgm_density_factor=0.2
             else: args.cgm_density_factor = 1.
+
         cgm_density_cut = get_cgm_density_cut(ds, args.cgm_density_cut_type,additional_factor=args.cgm_density_factor,code_dir=args.code_dir,halo=args.halo,snapshot=args.snapshot,run=args.run, cut_field = args.clumping_field)
+
 
 
 
@@ -981,19 +1035,20 @@ def identify_clump_hierarchy(ds,cut_region,args):
         args.clump_max = cut_region[args.clumping_field].max()
 
         print("cgm_density_cut=",cgm_density_cut,"clump_max=",args.clump_max,"min_val=",cut_region[args.clumping_field].min())
+
         args.step = args.clump_max / args.clump_min
         
         disk = Clump(ds,cut_region,args,tree_level=0,is_disk=True)
-        disk.FindClumps(args.clump_min,args,ids_to_ignore=None)
+        disk_index = disk.FindClumps(args.clump_min,args,ids_to_ignore=None)
 
-        current_max = 0
-        disk_index = 0
-        i=0
-        for child in disk.clump_tree[0]:
-            if np.size(child.cell_ids)>current_max:
-                current_max = np.size(child.cell_ids)
-                disk_index = i
-            i+=1
+        #current_max = 0
+        #disk_index = 0
+        #i=0
+        #for child in disk.clump_tree[0]:
+        #    if np.size(child.cell_ids)>current_max:
+        #        current_max = np.size(child.cell_ids)
+        #        disk_index = i
+        #    i+=1
         
 
         args.step=tmp_step
@@ -1009,21 +1064,12 @@ def identify_clump_hierarchy(ds,cut_region,args):
     print("Clump_min is set to",args.clump_min)
    
     
-    if args.clump_min is None or args.clump_max is None:
-        current_time = ds.current_time.in_units('Myr').v
-        if (current_time<=8656.88):
-            density_cut_factor = 1.
-        elif (current_time<=10787.12):
-            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
-        else:
-            density_cut_factor = 0.1
-
-
-
-        sphere = ds.sphere(center=ds.halo_center_kpc, radius=(60, 'kpc'))
-        sph_ism = sphere.cut_region("obj["+str(args.clumping_field)+"] > %.3e" % (density_cut_factor * cgm_density_max))
-        if args.clump_min is None: args.clump_min = sph_ism[args.clumping_field].min()
-        if args.clump_max is None: args.clump_max = sph_ism[args.clumping_field].max()
+    if args.clump_min is None:
+        args.clump_min = args.step * cut_region[args.clumping_field][cut_region[args.clumping_field]>0].min()
+        print("Clump min set to",args.clump_min)
+    if args.clump_max is None:
+        args.clump_max = cut_region[args.clumping_field].max()
+        print("Clump max set to",args.clump_max)
 
 
 
@@ -1031,9 +1077,12 @@ def identify_clump_hierarchy(ds,cut_region,args):
     master_clump = Clump(ds,cut_region,args,tree_level=0)
     master_clump.FindClumps(args.clump_min,args,ids_to_ignore=disk_ids)
 
-    master_clump.SaveClumps(args) ##Make optional??
+    if args.save_clumps_individually: master_clump.SaveClumps(args) #Save each clump as its own file
+    save_clump_hierarchy(args,master_clump)
+    YTClumpTest = save_as_YTClumpContainer(ds,cut_region,master_clump,args.clumping_field,args)
+    print("YTClumpTest is:",YTClumpTest)
 
-    
+
     return master_clump
 
 
@@ -1052,14 +1101,34 @@ def clump_finder(args,ds,cut_region):
     '''
     t0 = time.time()
 
+
     num_cores = multiprocessing.cpu_count()-1
     if args.nthreads is None or args.nthreads>num_cores:
         args.nthreads = num_cores
 
 
+
+    trident_dict = { 'HI':'H I', 'CII':'C II','CIII':'C III',
+                'CIV':'C IV','OVI':'O VI','SiII':'Si II','SiIII':'Si III','SiIV':'Si IV','MgII':'Mg II'}
+
+    ions_number_density_dict = {'Lyalpha':'LyAlpha', 'HI':'H_p0_number_density', 'CII':'C_p1_number_density', 'CIII':'C_p2_number_density',
+                              'CIV':'C_p3_number_density','OVI':'O_p5_number_density','SiII':'Si_p1_number_density','SiIII':'Si_p2_number_density',
+                                 'SiIV':'Si_p3_number_density','MgII':'Mg_p1_number_density'}
+    
+    field_dict = {v: k for k, v in ions_number_density_dict.items()}
+
+    if args.clumping_field in trident_dict:
+        import trident
+        trident.add_ion_fields(ds, ions=[trident_dict[args.clumping_field]])
+        args.clumping_field =ions_number_density_dict[args.clumping_field]
+    elif args.clumping_field in field_dict:
+        import trident
+        trident.add_ion_fields(ds, ions=[trident_dict[field_dict[args.clumping_field]]])
+
     if args.clumping_field_type is not None:
         args.clumping_field = (args.clumping_field_type , args.clumping_field)
-    
+
+
     if args.refinement_level is None:
         args.refinement_level = np.max(cut_region['index','grid_level'])
 
@@ -1130,10 +1199,14 @@ if __name__ == "__main__":
     particle_type_for_angmom = 'gas' #Should be defined by gas with Temps below 1e4 K
 
     catalog_dir = args.code_dir + 'halo_infos/' + halo_id + '/'+nref+'/'
-    #smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
-    smooth_AM_name = None
+    smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
+    #smooth_AM_name = None
+
 
     ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name, do_filter_particles=True,disk_relative=True,particle_type_for_angmom=particle_type_for_angmom,smooth_AM_name = smooth_AM_name)
+
+    print("Clumping field=",args.clumping_field)
+    print(args.clumping_field[1])
 
     add_cell_id_field(ds)
     cell_id_field = ('index','cell_id_2')

@@ -208,11 +208,13 @@ Cameron
 Analyzing Clumps
 -----------------
 
+By default, all clumps from a single run are saved in a single `hdf5`` files, with a group for each clump. Each group contains four entries:
+a list of cell ids, the clumps parent clump id (corresponding to the group number), a list of the clumps child clump ids (corresponding to group number),
+and the tree level of that clump. If you are analyzing a disk clump or set args.save_clumps_individually, each clump will instead be a single hdf5 file
+with a list of cell ids.
 
-
-Clump objects are saved out as ``hdf5`` files that contain a list of unique cell_ids that belong to the clump. In order to analyze the clumps, you
-must load the dataset into YT, add the cell_id field, and then add a masking field that isolates the given clump of interest. This is all done
-in the ``load_clumps()`` function in ``utils_clump_finder.py`` and can be used as follows:
+In order to analyze the clumps, you must load the dataset into YT, add the cell_id field, and then add a masking field that isolates the given clump of interest.
+This is all done in the ``load_clumps()`` function in ``utils_clump_finder.py`` and can be used as follows:
 
 First you must import the load_clumps function either as:
 ::
@@ -229,13 +231,39 @@ You must then load the dataset and specify the clump file you wish to read in:
 
     ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name,
                                  do_filter_particles=True, disk_relative=True)
+    clump_hierarchy_file = "/path/to/your/clumps.h5"
+    hf = h5py.File(clump_hierarchy_file,'r')
+    cell_ids = clump_hierarchy_file['your_clump_id']['cell_ids']
+    clump_cut_region = load_clump(ds, cell_ids=cell_ids)
+
+Or if you have a disk clump or individual clump files:
+::
+
+    ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name,
+                                 do_filter_particles=True, disk_relative=True)
     clump_file = "/path/to/your/clump.h5"
-    clump_cut_region = load_clump(ds, clump_file)
+    clump_cut_region = load_clump(ds, clump_file=clump_file)
 
 From here the clump can be used as any other cut region in YT. Note, the disks and shells that can be output with the clump finder can
-be analyzed in the exact same way. Two clumps can be analzying together by adding the cut regions together. A clump can removed from a cut region
-either by subtracting the cut regions, or using the ``mask_clump()`` function in ``utils_clump_finder.py``.
+be analyzed in the exact same way. Two clumps can be analzying together by adding the cut regions together or concatentating the list of
+cell_ids before calling load_clump. A clump can removed from a cut region either by subtracting the cut regions, or using the ``mask_clump()`` 
+function in ``utils_clump_finder.py``.
 
+There are few other functions that help navigate the clump hierarchy as well. For instance, to load all the leaves you can use:
+::
+
+
+    ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name,
+                                 do_filter_particles=True, disk_relative=True)
+    clump_hierarchy_file = "/path/to/your/clumps.h5"
+    
+    #As a single cut region of all leaves
+    leaf_cut_region = load_all_leaves(ds,hierarchy_file,return_as_list=False)
+
+    #As a list of individual cut region
+    leaf_cut_region_list = load_all_leaves(ds,hierarchy_file,return_as_list=True)
+
+There are similar functions to load all roots, as well as load the children/siblings/parent/root of a given clump.
 
 **Author:**
 
