@@ -672,7 +672,7 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
             proj_edge.set_font_size(24)
             proj_edge.set_xlabel('x (kpc)')
             proj_edge.set_ylabel('y (kpc)')
-            #proj_edge.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
+            proj_edge.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
             proj_edge.save(save_path + f'{snap}_{ion}_emission_map_edge-on_{region}' + save_suffix + '.png')
 
             # Face-on projection
@@ -689,7 +689,7 @@ def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None
             proj_face.set_font_size(24)
             proj_face.set_xlabel('x (kpc)')
             proj_face.set_ylabel('y (kpc)')
-            #proj_face.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
+            proj_face.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
             proj_face.save(save_path + f'{snap}_{ion}_emission_map_face-on_{region}' + save_suffix + '.png')
 
     # Close the HDF5 file after saving the datasets
@@ -800,7 +800,9 @@ def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=
                 mymap = mcolors.LinearSegmentedColormap.from_list('cmap', cmap)
             else:
                 # Default colormap
+                #mymap = cmr.get_sub_cmap('magma', 0.0, 1.0)
                 mymap = cmr.get_sub_cmap('cmr.flamingo', 0.2, 1.0)
+
 
             mymap.set_bad(mymap(0))
                 
@@ -1034,7 +1036,7 @@ if __name__ == "__main__":
                 zlim_dict = {'Lyalpha':[1e-1,1e7], 'HI':[1e-1,1e6], 'CII':[1e-7,1e4], 'CIII':[1e-1,1e5],
                         'CIV':[1e-2,1e4], 'OVI':[1e-2,1e4],'SiII':[1e-6,1e5],'SiIII':[1e-6,1e5],'SiIV':[1e-6,1e5],'MgII':[1e-6,1e5]}
             else:
-                zlim_dict = {'Lyalpha':[1e-1,1e7], 'HI':[1e-1,1e6], 'CII':[1e-3,1e4], 'CIII':[1e-1,1e4],
+                zlim_dict = {'Lyalpha':[1e-1,1e7], 'HI':[1e-1,1e6], 'CII':[1e-3,1e3], 'CIII':[1e-1,1e4],
                         'CIV':[1e-1,1e5], 'OVI':[1e0,1e4],'SiII':[1e-1,1e5],'SiIII':[1e-2,1e5],'SiIV':[1e-2,1e5],'MgII':[1e-1,1e5]}
         elif unit_system == 'erg':
             zlim_dict = {'Lyalpha':[1e-22,1e-16], 'HI':[1e-22,1e-16], 'CII':[1e-23,1e-16], 'CIII':[1e-23,1e-16],
