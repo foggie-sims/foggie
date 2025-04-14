@@ -91,6 +91,8 @@ def parse_args():
                         '(e.g. "20,25" or "20-25").')
     parser.set_defaults(output='42')
 
+    
+
     parser.add_argument('--output_step', metavar='output_step', type=int, action='store', \
                         help='If you want to do every Nth output, this specifies N. Default: 1 (every output in specified range)')
     parser.set_defaults(output_step=1)
@@ -846,23 +848,23 @@ def compute_mass_in_emission_pixels(ds, refine_box, snap, ions, unit_system='pho
             extent = [-width_value/2, width_value/2, -width_value/2, width_value/2]  # Define extent in kpc
 
             # Edge-on Mass Map
-            edge_on_msun = mass_frb_edge.in_units('Msun')
-            im1 = axes[0].imshow(edge_on_msun, origin='lower', cmap='inferno', norm=LogNorm(vmin=1e-5, vmax=np.max(edge_on_msun)))
-            axes[0].set_title(f"{ion} Mass Distribution (Edge-on)")
-            axes[0].set_xlabel("Y (kpc)")
-            axes[0].set_ylabel("Z (kpc)")
-            fig.colorbar(im1, ax=axes[0], label="log Mass per pixel (Msun)")
+            # edge_on_msun = mass_frb_edge.in_units('Msun')
+            # im1 = axes[0].imshow(edge_on_msun, origin='lower', cmap='inferno', norm=LogNorm(vmin=1e-5, vmax=np.max(edge_on_msun)))
+            # axes[0].set_title(f"{ion} Mass Distribution (Edge-on)")
+            # axes[0].set_xlabel("Y (kpc)")
+            # axes[0].set_ylabel("Z (kpc)")
+            # fig.colorbar(im1, ax=axes[0], label="log Mass per pixel (Msun)")
 
-            # Face-on Mass Map
-            face_on_msun = mass_frb_face.in_units('Msun')
-            im2 = axes[1].imshow(face_on_msun, origin='lower', cmap='inferno', norm=LogNorm(vmin=1e-5, vmax=np.max(face_on_msun)))
-            axes[1].set_title(f"{ion} Mass Distribution (Face-on)")
-            axes[1].set_xlabel("X (kpc)")
-            axes[1].set_ylabel("Z (kpc)")
-            fig.colorbar(im2, ax=axes[1], label="log Mass per pixel (Msun)")
+            # # Face-on Mass Map
+            # face_on_msun = mass_frb_face.in_units('Msun')
+            # im2 = axes[1].imshow(face_on_msun, origin='lower', cmap='inferno', norm=LogNorm(vmin=1e-5, vmax=np.max(face_on_msun)))
+            # axes[1].set_title(f"{ion} Mass Distribution (Face-on)")
+            # axes[1].set_xlabel("X (kpc)")
+            # axes[1].set_ylabel("Z (kpc)")
+            # fig.colorbar(im2, ax=axes[1], label="log Mass per pixel (Msun)")
 
-            plt.tight_layout()
-            plt.show()
+            # plt.tight_layout()
+            # plt.show()
 
             ###Plot emission Distribution Maps** ###
             # fig, axes = plt.subplots(1, 2, figsize=(12, 5))
