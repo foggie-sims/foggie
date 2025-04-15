@@ -69,7 +69,8 @@ from foggie.clumps.clump_finder.utils_clump_finder import *
 from foggie.clumps.clump_finder.clump_finder_argparser import *
 from foggie.clumps.clump_finder.fill_topology import *
 from foggie.clumps.clump_finder.clump_load import *
-from foggie.clumps.clump_finder.clump_finder import clump_finder
+from foggie.clumps.clump_finder.clump_finder import *
+
 
 def parse_args():
     '''Parse command line arguments. Returns args object.'''
@@ -1087,8 +1088,8 @@ def make_column_density_FRB(ds, refine_box, snap, ions,scaling = True, scale_fac
             # Edge-on projection (surface density)
             proj_edge = yt.ProjectionPlot(ds, ds.x_unit_disk, numdensity_field,
                                           center=ds.halo_center_kpc, data_source=data_source,
-                                          width=(ds.refine_width, 'kpc'), north_vector=ds.z_unit_disk,
-                                          buff_size=[res, res], weight_field=None)
+                                          width=(100, 'kpc'), north_vector=ds.z_unit_disk,
+                                          buff_size=[res, res], weight_field=None)#width=(ds.refine_width, 'kpc')
             frb_edge = proj_edge.frb[numdensity_field]  # Surface density in g/cm^2
             # Save mass FRB, total mass, and positions in HDF5
             dset1 = grp.create_dataset(f"{ion}_numdensity_edge_{region}", data=frb_edge)
@@ -1125,15 +1126,24 @@ def make_column_density_FRB(ds, refine_box, snap, ions,scaling = True, scale_fac
             # Face-on projection (surface density)
             proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, numdensity_field,
                                           center=ds.halo_center_kpc, data_source=data_source,
-                                          width=(ds.refine_width, 'kpc'), north_vector=ds.x_unit_disk,
-                                          buff_size=[res, res], weight_field=None)
+                                          width=(100, 'kpc'), north_vector=ds.x_unit_disk,
+                                          buff_size=[res, res], weight_field=None)#(width=(ds.refine_width, 'kpc')
             frb_face = proj_face.frb[numdensity_field]  # Surface density in g/cm^2
         
             dset2 = grp.create_dataset(f"{ion}_numdensity_face_{region}", data=frb_face)
 
             # Save relative positions
-            dset_x = grp.create_dataset(f"{ion}_x_face_{region}", data=x_positions)
-            dset_y = grp.create_dataset(f"{ion}_y_face_{region}", data=y_positions)
+            #dset_x = grp.create_dataset(f"{ion}_x_face_{region}", data=x_positions)
+            #dset_y = grp.create_dataset(f"{ion}_y_face_{region}", data=y_positions)
+
+            proj_face.set_cmap(numdensity_field, h1_color_map)
+            proj_face.set_zlim(numdensity_field , h1_proj_min, h1_proj_max)
+            proj_face.set_colorbar_label(numdensity_field, label_dict[ion] + ' Column Density ')
+            proj_face.set_font_size(24)
+            proj_face.set_xlabel('x (kpc)')
+            proj_face.set_ylabel('y (kpc)')
+            print('save path', save_path)
+            proj_face.save(save_path + f'{snap}_{ion}_column_density_faceon_{region}' + save_suffix + '.png')
 
 
     # Close the HDF5 file after saving the datasets
@@ -1149,6 +1159,24 @@ def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filt
     snap_name = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/' + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, disk_relative=True, correct_bulk_velocity=True)#, smooth_AM_name=smooth_AM_name)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    #finding disk
+    
+    if filter_type == 'disk_cgm':
+        if not os.path.exists(disk_file):
+            print('Disk file not found. Running clump finder to generate disk')
+            disk_args = get_default_args()
+            disk_args.refinement_level = 11
+            disk_args.identify_disk = True
+            disk_args.snapshot = 'RD00' + args.output
+            disk_args.output = output_dir + '/Disk/H1'
+            disk_args.n_dilation_iterations = 10
+            disk_args.n_cells_per_dilation = 1
+            disk_args.clumping_field = 'H_p0_number_density'
+            disk_args.system = args.system
+
+            clump_finder(disk_args, ds, refine_box)
+        else:
+            print(f'Disk file already exists at {disk_file}, skipping clump finder.')
 
     add_ion_fields(ds,ions)
     
@@ -1168,7 +1196,6 @@ def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filt
     print(f" Total script runtime: {elapsed//60:.0f} min {elapsed%60:.2f} sec")      
                 
 if __name__ == "__main__":
-    
 
     args = parse_args()
     print('Halo:',args.halo)
@@ -1176,12 +1203,13 @@ if __name__ == "__main__":
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
 
+
     if ('feedback' in args.run) and ('track' in args.run):
         foggie_dir = '/nobackup/jtumlins/halo_008508/feedback-track/'
         run_dir = args.run + '/'
 
     #set the clump/disk file directory that you saved the Disk files that you produced by running clump_finder.py
-    disk_file = output_dir + '/Disk/test_Disk.h5'
+    disk_file = output_dir + '/Disk/H1_Disk.h5'
     shell_path = output_dir + '/Disk/'
     
     # Set directory for output location, making it if necessary
@@ -1233,7 +1261,7 @@ if __name__ == "__main__":
     emission_units_ALT = 'erg * s**-1 * cm**-3 * arcsec**-2'
     ytEmUALT = unyt.erg * unyt.second**-1 * unyt.cm**-3 * unyt.arcsec**-2
 
-    ####################################
+   
     ## BEGIN CREATING EMISSION FIELDS ##
     ####################################
 
@@ -1257,11 +1285,14 @@ if __name__ == "__main__":
             force_override=True,
             sampling_type='cell',
         )
-    
+
+    ####################################
     unit_system = args.unit_system
     scale_factor = float(args.scale_factor)
     instrument_name = args.instrument
-    ############################
+
+    ####################################
+
     # H-Alpha
     hden_pts, T_pts, table_HA = make_Cloudy_table(2,cloudy_path)
     hden_pts, T_pts = np.meshgrid(hden_pts, T_pts)
@@ -1456,7 +1487,6 @@ if __name__ == "__main__":
     #        flux_threshold_dict = {'CII': YOUR_VALUE, 'CIII': YOUR_VALUE,'CIV': YOUR_VALUE, 'OVI': YOUR_VALUE} #ergs/s/cm^2/arcsec^2
       
         
-
     if (args.save_suffix!=''):
             save_suffix = '_' + args.save_suffix
     else:
@@ -1490,7 +1520,6 @@ if __name__ == "__main__":
     res_arcsec = args.res_arcsec
     
     shell_count = int(args.shell_count)
-
 
     # Build outputs list
     outs = make_output_list('RD00'+args.output, output_step=args.output_step)
