@@ -107,7 +107,7 @@ def parse_args():
 
     parser.add_argument('--closing_iterations', metavar='closing_iterations', type=int, action='store', \
                         help='How many closing iterations for filling. Default is 1.')
-    parser.set_defaults(closing_iterations=5)
+    parser.set_defaults(closing_iterations=1)
     
     parser.add_argument('--run_mc_parallel', metavar='run_mc_parallel', type=bool, action='store', \
                         help='Do you want to run the marching cubes algorithm in parallel? Incurs additional computational overhead, but may be faster with a large (>30) number of cores or for large datacubes. Default is False.')
@@ -195,7 +195,7 @@ def get_default_args():
         cgm_density_factor=None,
         max_void_size=0,
         max_disk_void_size=2000,
-        max_disk_hole_size=2000,
+        max_disk_hole_size=25,
         run_mc_parallel=False,
         run_mapping_linearly=False,
         system=None,
