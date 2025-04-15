@@ -390,17 +390,31 @@ has an extension that will allow you to
 using VSCode's full feature set. See [this YouTube video](https://www.youtube.com/watch?v=bUhjY2L1iFc)
 for an overview explaining how to get started with the VS Code Docker extension.
 
-### Singularity
+### Singularity and Podman
 
-While Docker is incredibly useful, many supercomputing centers do not
+While Docker is incredibly useful, most supercomputing centers do not
 allow users to run Docker containers through Docker itself because it
 requires root access - i.e., more priveleged access to the machine than
 supercomputer system administrators are willing to share (for security
-and system stability reasons, among others).  Fortunately,
-[Singularity](https://sylabs.io/) is a container environment that
+and system stability reasons, among others). We are going to consider two of these tools, [Podman](https://podman.io/) and [Singularity](https://sylabs.io/).  Podman runs on NASA's Aitken cluster, and Singularity runs on MSU's ICER clusters.
+
+**Running on NASA Pleiades**
+
+[Podman](https://podman.io/) is an open-source set of container tools that allow "rootless containers" - this means that, unlike Docker, you don't need root access to a system in order to provide encapsulation in the way that Docker does.  It also can run on multiple cores, multiple nodes, and on GPUs, and can (most importantly for us!) use Docker image files.  See their [Documentation](https://podman.io/docs) and [Getting Started](https://podman.io/get-started) pages for more information.
+
+Podman is the preferred container tool of choice on NASA's computers for a variety of reasons ([detailed here](https://www.nas.nasa.gov/hecc/support/kb/why-is-podman-recommended-for-use-at-nas_699.html)).  There are some limitations to using it on the NASA HEC systems: you can only run on a single node at a time (though you can use MPI within that node), and it will only run on the [Aitken](https://www.nas.nasa.gov/hecc/support/kb/aitken-configuration-details_580.html) AMD EPYC [Milan](https://www.nas.nasa.gov/hecc/support/kb/amd-milan-processors_688.html) and [Rome](https://www.nas.nasa.gov/hecc/support/kb/amd-rome-processors_658.html) nodes, which have have 2 64-core CPUs per node (128 cores total).  Some useful references from the HECC knowledge base are as follows:
+
+* [Getting Started with Podman at NAS](https://www.nas.nasa.gov/hecc/support/kb/getting-started-with-podman-at-nas_698.html)
+* [Preparing a Podman Image for use on NAS systems](https://www.nas.nasa.gov/hecc/support/kb/preparing-a-podman-image-for-use-on-nas-systems_697.html)
+* [Running Processes in a Podman Container](https://www.nas.nasa.gov/hecc/support/kb/running-processes-in-a-podman-container_696.html)
+* [List of all NAS Knowledge Base Podman pages](https://www.nas.nasa.gov/hecc/support/kb/podman-190/)
+
+**Running at Michigan State University**
+
+[Singularity](https://sylabs.io/) is an alternative to Podman.  it is a container environment that
 works on supercomputers, allows for performant multi-core, multi-node,
 and GPU execution, provides similar encapsulation to Docker, and (most
-importantly for us) can use Docker image files.  See the
+importantly for us!) can use Docker image files.  See the
 [Singularity documentation](https://sylabs.io/docs/) for documentation
 about Sinularity, and consult your local supercomputing center's
 documentation for instructions on how to load and use it there.
