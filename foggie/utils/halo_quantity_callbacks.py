@@ -29,6 +29,24 @@ def halo_max_metallicity(halo):
     zmax = sphere.quantities.extrema(("gas", "metallicity")) / 0.02 
     return zmax[1]
 
+def halo_max_gas_density(halo): 
+    sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "dimensionless")
+
+    dmax = sphere.quantities.extrema(("gas", "density")) 
+    return dmax[1]
+
+def halo_max_dm_density(halo): 
+    sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "dimensionless")
+
+    dm_max = sphere.quantities.extrema(("enzo", "Dark_Matter_Density")) 
+    return dm_max[1]
+
 def halo_total_gas_mass(halo): 
     sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
