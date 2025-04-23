@@ -99,10 +99,10 @@ the directory where the Dockerfile exists at the command line, and
 then typing the following:
 
 ```
-docker build --build-arg ARCHITECTURE="aarch64" -t enzo-container -f Dockerfile.enzo .
+docker build --build-arg ARCHITECTURE="aarch64" -t enzo-image -f Dockerfile.enzo .
 ```
 
-This will create a Docker image that is tagged `enzo-container`, will
+This will create a Docker image that is tagged `enzo-image`, will
 use the file `Dockerfile.enzo` to create said Docker image, and will
 use the current directory (`.`) as Docker's working directory.  The
 `--build-arg ARCHITECTURE="aarch64"` string is a command-line argument
@@ -118,7 +118,7 @@ type `docker build --help` for more information.
 
 The above command can take several minutes to run, depending on the
 speed of your system and your network connection.  Once it is done you
-will have a Docker image named `enzo-container`, which is now ready
+will have a Docker image named `enzo-image`, which is now ready
 to run!
 
 **Potentially useful resources:**
@@ -136,7 +136,7 @@ command line access to it by typing the following at your system's
 command line:
 
 ```
-docker run -it enzo-container /bin/bash
+docker run -it enzo-image /bin/bash
 ```
 
 The `-it` flag is equivalent to `-i -t`, and tells Docker that this is
@@ -251,7 +251,7 @@ inside of it:
 ```
 mkdir enzo-data
 
-docker run -it --name enzo-mount --mount type=bind,source="$(pwd)"/enzo-data,target=/enzo-data enzo-container /bin/bash
+docker run -it --name enzo-mount --mount type=bind,source="$(pwd)"/enzo-data,target=/enzo-data enzo-image /bin/bash
 ```
 
 Note that the `"$(pwd)"` portion of the command line above will work
@@ -280,7 +280,7 @@ directories on the container.
   `/host-enzo-dir` in the container:
 
 ```
-docker run -it --name enzo-mount --mount type=bind,source=/User/yourname/enzo-dev,target=/host-enzo-src enzo-container /bin/bash
+docker run -it --name enzo-mount --mount type=bind,source=/User/yourname/enzo-dev,target=/host-enzo-src enzo-image /bin/bash
 ```
 
 Once you do this, any files that are edited on the host machine in
@@ -303,7 +303,7 @@ compile Enzo using Linux while working on an Apple laptop!)
   the `--mount` option twice:
 
 ```
-docker run -it --name enzo-mount --mount type=bind,source=/User/yourname/enzo-dev,target=/host-enzo-src --mount type=bind,source=/User/yourname/enzo-data,target=/host-enzo-data enzo-container /bin/bash
+docker run -it --name enzo-mount --mount type=bind,source=/User/yourname/enzo-dev,target=/host-enzo-src --mount type=bind,source=/User/yourname/enzo-data,target=/host-enzo-data enzo-image /bin/bash
 ```
 
 This can in principle be done with as many directories as you want.
