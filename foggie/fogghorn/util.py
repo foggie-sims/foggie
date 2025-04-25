@@ -13,52 +13,22 @@
 from foggie.fogghorn.header import *
 
 # --------------------------------------------------------------------------------------------------------------------
-def parse_args():
-    '''Parse command line arguments. Returns args object.'''
-
-    parser = argparse.ArgumentParser(description='Produces analysis plots for FOGGHORN runs.')
-
-    # Optional arguments:
-    parser.add_argument('--directory', metavar='directory', type=str, action='store', default='', help='What is the directory of the enzo outputs you want to make plots of?')
-    parser.add_argument('--save_directory', metavar='save_directory', type=str, action='store', default=None, help='Where do you want to store the plots, if different from where the outputs are stored?')
-    parser.add_argument('--output', metavar='output', type=str, action='store', default=None, help='If you want to make the plots for specific output/s then specify those here separated by comma (e.g., DD0030,DD0040). Otherwise (default) it will make plots for ALL outputs in that directory')
-    parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, help='What is the directory of the track file for this halo?\n' + 'This is needed to find the center of the galaxy of interest.')
-    parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the working directory?, Default is no')
-    parser.add_argument('--nproc', metavar='nproc', type=int, action='store', default=1, help='How many processes do you want? Default is 1 (no parallelization), if multiple processors are specified, code will run one output per processor')
-    parser.add_argument('--rockstar_directory', metavar='rockstar_directory', type=str, action='store', default=None, help='What is the directory where your rockstar outputs are located?')
-
-    parser.add_argument('--clobber', dest='clobber', action='store_true', default=False, help='Over-write existing plots? Default is no.')
-    parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress some generic pritn statements? Default is no.')
-    parser.add_argument('--upto_kpc', metavar='upto_kpc', type=float, action='store', default=None, help='Limit analysis out to a certain physical kpc. By default it does the entire refine box.')
-    parser.add_argument('--docomoving', dest='docomoving', action='store_true', default=False, help='Consider the input upto_kpc as a comoving quantity? Default is No.')
-    parser.add_argument('--weight', metavar='weight', type=str, action='store', default=None, help='Name of quantity to weight the metallicity by. Default is None i.e., no weighting.')
-    parser.add_argument('--projection', metavar='projection', type=str, action='store', default='z', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is z; but user can input multiple comma-separated values')
-    parser.add_argument('--disk_rel', dest='disk_rel', action='store_true', default=False, help='Consider projection plots w.r.t the disk rather than the box edges? Be aware that this will turn on disk_relative=True while reading in each snapshot whic might slow down the loading of data. Default is No.')
-    parser.add_argument('--use_density_cut', dest='use_density_cut', action='store_true', default=False, help='Impose a density cut to get just the disk? Default is no.')
-    parser.add_argument('--nbins', metavar='nbins', type=int, action='store', default=100, help='Number of bins to use for the metallicity histogram plot. Default is 100')
-    parser.add_argument('--use_cen_smoothed', dest='use_cen_smoothed', action='store_true', default=False, help='use Cassis new smoothed center file?, default is no')
-
-    # The following is for the user to choose which plots they want
-    parser.add_argument('--all_plots', dest='all_plots', action='store_true', default=False, help='Make all the plots? Default is no.')
-    parser.add_argument('--all_sf_plots', dest='all_sf_plots', action='store_true', default=False, help='Make all star formation plots? Default is no.')
-    parser.add_argument('--all_fb_plots', dest='all_fb_plots', action='store_true', default=False, help='Make all feedback plots? Default is no.')
-    parser.add_argument('--all_vis_plots', dest='all_vis_plots', action='store_true', default=False, help='Make all visualisation plots? Default is no.')
-    parser.add_argument('--all_metal_plots', dest='all_metal_plots', action='store_true', default=False, help='Make all resolved metallicity plots? Default is no.')
-    parser.add_argument('--all_pop_plots', dest='all_pop_plots', action='store_true', default=False, help='Make all population plots? Default is no.')
-    parser.add_argument('--make_plots', metavar='make_plots', type=str, action='store', default='', help='Which plots to make? Comma-separated names of the plotting routines to call. Default is none.')
-
-    # The following three args are used for backward compatibility, to find the trackfile for production runs, if a trackfile has not been explicitly specified
-    parser.add_argument('--system', metavar='system', type=str, action='store', default='ayan_local', help='Which system are you on? This is used only when trackfile is not specified. Default is ayan_local')
-    parser.add_argument('--halo', metavar='halo', type=str, action='store', default='8508', help='Which halo? Default is Tempest. This is used only when trackfile is not specified.')
-    parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f', help='Which run? Default is nref11c_nref9f. This is used only when trackfile is not specified.')
-
-    # ------- wrap up and processing args ------------------------------
-    args = parser.parse_args()
-    args.projection_arr = [item for item in args.projection.split(',')]
-    if (args.make_plots!=''): args.plots_asked_for = [item for item in args.make_plots.split(',')]
-    else: args.plots_asked_for = []
-
-    return args
+def need_to_make_this_plot(output_filename, args):
+    '''
+    Determines whether a figure with this name already exists, and if so, should it be over-written
+    :return boolean
+    '''
+    if os.path.exists(output_filename):
+        if not args.silent: print(output_filename + ' already exists.')
+        if args.clobber:
+            if not args.silent: print('But we will re-make it...')
+            return True
+        else:
+            if not args.silent: print('So we will skip it.')
+            return False
+    else:
+        if not args.silent: print('About to make ' + output_filename + '...')
+        return True
 
 # -------------------------------------------------------------------------------------------
 def print_mpi(string, args):
@@ -98,24 +68,6 @@ def myprint(text, args):
     elif 'mins' in text: text = fix_time_format(text, 'mins')
 
     if not args.silent: print(text)
-
-# --------------------------------------------------------------------------------------------------------------------
-def need_to_make_this_plot(output_filename, args):
-    '''
-    Determines whether a figure with this name already exists, and if so, should it be over-written
-    :return boolean
-    '''
-    if os.path.exists(output_filename):
-        if not args.silent: print(output_filename + ' already exists.')
-        if args.clobber or ('halo_data' in output_filename):
-            if not args.silent: print('But we will re-make it...')
-            return True
-        else:
-            if not args.silent: print('So we will skip it.')
-            return False
-    else:
-        if not args.silent: print('About to make ' + output_filename + '...')
-        return True
 
 # --------------------------------------------------------------------
 def get_density_cut(t):
@@ -212,31 +164,6 @@ def weighted_quantile(values, quantiles, weight=None):
     weighted_quantiles = np.cumsum(weight) - 0.5 * weight
     weighted_quantiles /= np.sum(weight)
     return np.interp(quantiles, weighted_quantiles, values)
-
-# ----------------------------------------------------------------------------
-def generate_plot_filename(quantity, args, snap):
-    '''
-    Generates filename for a plot that is about to be made
-    This way the nomenclature is consistent
-    '''
-    output_filename_dict = {'young_stars_density_projection':snap + '_Projection_young_stars3_cic.png', \
-                            'KS_relation': snap + '_KS-relation.png', \
-                            'outflow_rates': snap + '_outflows.png', \
-                            'gas_density_projection': snap + '_Projection_density.png', \
-                            'gas_metallicity_projection': snap + '_gas_metallicity_projection.png', \
-                            'edge_visualizations': snap + '_Projection_disk-x_temperature_density.png', \
-                            'gas_metallicity_resolved_MZR': snap + '_resolved_gas_MZR' + args.upto_text + args.density_cut_text + '.png', \
-                            'gas_metallicity_histogram': snap + '_gas_metallicity_histogram' + args.upto_text + args.density_cut_text + '.png', \
-                            'gas_metallicity_radial_profile': snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png', \
-                            'den_temp_phase': snap + '_density_temperature_phase_plot' + args.upto_text +'.png', \
-                            'rad_vel_temp_colored': snap + '_radial-velocity_temperature.png', \
-                            'plot_SFMS': 'SFMS.png', \
-                            'plot_SMHM': 'SMHM.png', \
-                            'plot_MZR': 'MZR.png',
-                            'info_table': 'halo_data.txt'}
-
-    output_filename = args.save_directory + '/' + output_filename_dict[quantity]
-    return output_filename
 
 
 

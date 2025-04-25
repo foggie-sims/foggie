@@ -1,8 +1,8 @@
 '''
-    Filename: population_plots.py
+    Filename: time_evol_plots.py
     Author: Cassi
     Created: 6-12-24
-    Last modified: 7-22-24 by Cassi
+    Last modified: 3-31-25 by Cassi
     This file works with fogghorn_analysis.py to make the set of plots for halo scaling relations.
     If you add a new function to this scripts, then please also add the function name to the appropriate list at the end of fogghorn/header.py
 
@@ -19,7 +19,7 @@ def plot_SFMS(args, output_filename):
     '''
 
     # Read in the previously-saved halo information
-    data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
+    data = Table.read(args.save_directory + '/central_galaxy_info.txt', format='ascii.ecsv')
 
     fig = plt.figure(figsize=(8,6))
     ax = fig.add_subplot(1,1,1)
@@ -59,7 +59,7 @@ def plot_SMHM(args, output_filename):
     '''
 
     # Read in the previously-saved halo information
-    data = Table.read(args.save_directory + '/halo_data.txt', format='ascii.fixed_width')
+    data = Table.read(args.save_directory + '/central_galaxy_info.txt', format='ascii.ecsv')
 
     fig = plt.figure(figsize=(8,6))
     ax = fig.add_subplot(1,1,1)
