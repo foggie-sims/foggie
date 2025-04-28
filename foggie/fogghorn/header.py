@@ -44,8 +44,7 @@ import yt
 from yt.units import *
 from yt import YTArray
 from yt.data_objects.particle_filters import add_particle_filter
-from yt_astro_analysis.halo_analysis.halo_catalog.halo_catalog import HaloCatalog
-from yt_astro_analysis.halo_analysis.halo_catalog.analysis_operators import add_quantity
+from yt_astro_analysis.halo_analysis import *
 
 from foggie.utils.consistency import *
 from foggie.utils.get_refine_box import get_refine_box

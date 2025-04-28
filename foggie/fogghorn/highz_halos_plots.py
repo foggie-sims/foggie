@@ -116,7 +116,7 @@ def halos_SMHM(ds, region, args, output_filename):
     plt.xlabel('log Halo Mass [$M_\odot$]', fontsize=16)
     plt.ylabel('log Stellar Mass [$M_\odot$]', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([7.5,10.5,5,10])
+    plt.axis([7.5,10.5,2,10])
     plt.legend(loc=2, frameon=False, fontsize=14)
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
@@ -140,7 +140,7 @@ def halos_SFMS(ds, region, args, output_filename):
 
     # Plot the observed best-fit values for a handful of redshifts
     Mstar_list = np.arange(8.,12.5,0.5)
-    low_Mstar_list = np.arange(5.,8.5,0.5)
+    low_Mstar_list = np.arange(2.,8.5,0.5)
     tlist = [3.330, 1.566]
     zlist = [2., 4.]
     SFR_list = []
@@ -159,7 +159,7 @@ def halos_SFMS(ds, region, args, output_filename):
     plt.xlabel('log Stellar Mass [$M_\odot$]', fontsize=16)
     plt.ylabel('$\log$ SFR [$M_\odot$/yr]', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([5.,12.5,-3,4])
+    plt.axis([2.,12.5,-5,4])
     plt.legend(loc=2, frameon=False, fontsize=14)
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
@@ -197,16 +197,16 @@ def halos_MZR(ds, region, args, output_filename):
         # Extrapolate the relations linearly to lower Mstar
         slope = (np.log10(Z_list[i][1]) - np.log10(Z_list[i][0])) / (Mstar_list[i][1] - Mstar_list[i][0])
         intercept = np.log10(Z_list[i][0]) - slope * Mstar_list[i][0]
-        low_Mstar = np.array([5., Mstar_list[i][0]])
+        low_Mstar = np.array([2., Mstar_list[i][0]])
         low_Z = 10**(slope * low_Mstar + intercept)
         plt.plot(Mstar_list[i], Z_list[i], '-', lw=1, color=colormap(normalize(tlist[i])))
         plt.plot(low_Mstar, low_Z, '--', lw=1, color=colormap(normalize(tlist[i])), label='z=%.2f' % zlist[i])
     plt.xlabel('log Stellar Mass [$M_\odot$]', fontsize=16)
     plt.ylabel('Average Gas Metallicity [$Z_\odot$]', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([5.,10.5,1e-8,1e1])
+    plt.axis([2.,10.5,1e-8,1e1])
     plt.yscale('log')
-    plt.legend(loc=2, frameon=False, fontsize=14)
+    plt.legend(loc=4, frameon=False, fontsize=14)
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
     plt.savefig(output_filename, dpi=300)
