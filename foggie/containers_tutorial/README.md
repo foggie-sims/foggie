@@ -13,15 +13,17 @@ extensive information about using Docker's more complicated features.
 **Important terminology:** in this context, a Docker "image" is a read-only template that
 has the application code, libraries, and other files that you need to run an application.
 A Docker "container" is a running instance of an image, which will be lost when
-the container is stopped or deleted. You can run multiple containers using the same
-image at the same time, and they are isolated from each other.
+the container is terminated or deleted. You can run multiple containers using the same
+image at the same time, and they are isolated from each other.  You
+can also have multiple images that can be used to create containers
+based on that image.  As you might imagine, this can get a little hard to keep track of.
 
 ## Creating a Docker image for Enzo
 
 1. Download and install [Docker](https://docs.docker.com/get-docker/).
 2. At your computer's command line, go to the directory with the
    Dockerfile `Dockerfile.enzo` (which should be the same directory this file is in)
-   and type `docker build --build-arg ARCHITECTURE="aarch64" -t enzo-container -f Dockerfile.enzo .` ,
+   and type `docker build --build-arg ARCHITECTURE="aarch64" -t enzo-image -f Dockerfile.enzo .` ,
    which uses the Dockerfile in the current directory to build a Linux
    system image and install all of the necessary software (including
    HYPRE, Grackle, and Enzo).  The string `aarch64` tells the Dockerfile that
@@ -32,17 +34,17 @@ image at the same time, and they are isolated from each other.
    and require approximately 1.5 GB of space, which is primarily taken
    up with the various packages that are being installed.  Once this
    is done, you will now have a Docker image called
-   `enzo-container`.
+   `enzo-image`.
 
 ## Starting up a Docker container and running Enzo inside it
 
 Once you've created your Docker image, type
-`docker run --name enzo-test-container -it enzo-container /bin/bash`
+`docker run --name enzo-test-container -it enzo-image /bin/bash`
 at your system's command line.  This will start up a Docker container
-that has a bash command line interface so you can experiment with Enzo,
+(a "live" version of the image) that has a bash command line interface so you can experiment with Enzo,
 and will name the container `enzo-test-container`. You do not have to
 give the container a name if you don't want to, but Docker will then
-generate a random name for you.
+generate a random name for you. If you are running multiple containers it is a good idea to give them distinct names!
 
 You can then run Enzo in the Docker container by doing the following:
 
@@ -72,7 +74,7 @@ long hexadecimal number; you can instead use the container name
 Assuming you've installed Docker, at your computer's command line go to
 the directory with the Dockerfile `Dockerfile.enzo_cli` (which should be
 the same directory this file is in) and type
-`docker build --build-arg ARCHITECTURE="aarch64" -t enzo-cli-container -f Dockerfile.enzo_cli .`
+`docker build --build-arg ARCHITECTURE="aarch64" -t enzo-cli-image -f Dockerfile.enzo_cli .`
 
 (Change `aarch64` to `x86_64` if appropriate for your CPU, as described above.)
 
@@ -84,7 +86,7 @@ You do this by going into the `enzo_parameter_files` directory in this repositor
 and typing the following:
 
 ```
-docker run --rm -v "${PWD}":/share enzo-cli-container -d KelvinHelmholtz.enzo
+docker run --rm -v "${PWD}":/share enzo-cli-image -d KelvinHelmholtz.enzo
 ```
 
 This will use the Enzo binary inside of the container with the Enzo parameter
@@ -106,7 +108,7 @@ As a note, you can set up an alias for the command above.  If you use bash, add
 the following line to your `.bashrc` file:
 
 ```
-alias enzo-docker='docker run --rm -v "${PWD}":/share enzo-cli-container'
+alias enzo-docker='docker run --rm -v "${PWD}":/share enzo-cli-image'
 ```
 
 The `enzo-docker` alias will now include all of the command line arguments, so
@@ -131,18 +133,18 @@ and install [yt](https://yt-project.org/), [yt\_astro\_analysis](https://yt-astr
 on top of it.
 
 Our container is built using essentially the same command as before, which uses the
-file `Dockerfile.yt-jupyter` and creates a container called `yt-container` using the
+file `Dockerfile.yt-jupyter` and creates an image called `yt-image` using the
 current directory as Docker's working directory:
 
 
 ```
-docker build -t yt-container -f Dockerfile.yt-jupyter .
+docker build -t yt-image -f Dockerfile.yt-jupyter .
 ```
 
 Once this is done, we launch the container using the following command:
 
 ```
-docker run --name yt-test-container -it -v "$PWD":/home/jovyan --rm -p 8888:8888 yt-container
+docker run --name yt-test-container -it -v "$PWD":/home/jovyan --rm -p 8888:8888 yt-image
 ```
 
 This has a bunch of additional arguments beyond what we used for the Enzo docker file.
@@ -155,12 +157,12 @@ these arguments are as follows:
 * `-v "$PWD":/home/jovyan` - This bind mounts a volume.  Specifically, it takes the current directory (`$PWD`) and mounts it to the directory `/home/jovyan` inside of the Docker container.  Enclosing `$PWD` in double quotes ensure that it will still work even if your path name has spaces in it.
 * `--rm` - This automatically removes the container and its associated anonymous internal volumes when it exits.  This will ensure that the container is not running in the background, but it ALSO means that any changes made within the container will not work.
 * `-p 8888:8888` - This publishes the container's 8888 port to the same port on the host.  This is needed by Jupyter-lab so that it can send information to your web browser.
-* `yt-container` - this uses the container that you just created.
+* `yt-image` - this uses the image that you just created.
 
 When you run this it will create a great deal of output, including a link with
 a `127.0.0.1` IP that you can copy and paste into your browser.  This will open
 up a Jupyter-lab instance in your browser.  Note that the working directory is
-the directory you ran Docker in, not a directory inside of the container!  This
+the directory you ran Docker in on your own computer, not a directory inside of the container!  This
 means that you can use the software inside of the container to work on data
 outside of it.
 

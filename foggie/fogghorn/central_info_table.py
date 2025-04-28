@@ -1,8 +1,8 @@
 '''
-    Filename: halo_info_table.py
+    Filename: central_info_table.py
     Author: Cassi
     Created: 6-12-24
-    Last modified: 7-2-24 by Cassi
+    Last modified: 3-31-25 by Cassi
     This file works with fogghorn_analysis.py to make a table of various halo info properties that can be used for plotting.
 '''
 
