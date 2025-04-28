@@ -61,6 +61,7 @@ warnings.filterwarnings("ignore")
 
 from datetime import datetime, timedelta
 
+###### IF YOU ADD A PLOT STEP 3B: If your new plot is in a new file, add it as an import here ######
 from feedback_plots import *
 from time_evol_plots import *
 from star_formation_plots import *

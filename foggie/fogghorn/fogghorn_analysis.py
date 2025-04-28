@@ -3,7 +3,7 @@
     Filename: fogghorn_analysis.py
     Authors: Cassi, Ayan,
     Created: 06-12-24
-    Last modified: 03-9-25 by Cassi
+    Last modified: 04-28-25 by Cassi
 
     This "master" script calls the relevant functions to produce a set of basic analysis plots.
     There are two options for types of plots to make:
@@ -22,21 +22,8 @@
     plots and multiprocessing, and is the script that should be called by the user.
     The actual plotting routines are in XXXX_plots.py.
 
-    ###### IF YOU WANT TO ADD A PLOT ###### 
-    1. Put the plotting function in an existing XXXX_plots.py file, or make a new one.
-       Make sure that the argument structure for the function is func(ds, region, args, output_filename)
-       where 'region' is a yt data structure, like the refine_box that is returned from foggie_load.
-    2. Add the name of the plotting function to one of the plot grouping lists.
-    3. Add the file name structure of the plot to the output filename dictionary.
-
-
-    Plots included so far:
-    - Gas density projection
-    - New stars density projection
-    - Kennicutt-Schmidt relation compared to KMT09 relation
-
-    Example of how to run (in ipython):
-    run fogghorn_analysis.py --directory /Users/acharyya/models/simulation_output/foggie/halo_004123/nref11c_nref9f --system ayan_local --halo 4123 --output RD0038 --upto_kpc 10 --docomoving --weight mass --make_plot gas_metallicity_histogram,gas_density_projection --all_sf_plots
+    There is more detailed documentation in foggie/doc/source/user_guide/analysis_scripts.rst. That file 
+    also describes how to add a plot to these scripts.
 
 """
 
@@ -67,22 +54,25 @@ def parse_args():
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress some generic pritn statements? Default is no.')
     
     # These arguments are plotting options
-    ###### IF YOU ADD A PLOT: if that plot has options, add an argument for it here ######
+    ###### IF YOU ADD A PLOT STEP 6: if that plot has options, add an argument for it here ######
     parser.add_argument('--upto_kpc', metavar='upto_kpc', type=float, action='store', default=None, help='Limit analysis out to a certain physical kpc. By default it does the entire refine box.')
-    parser.add_argument('--docomoving', dest='docomoving', action='store_true', default=False, help='Consider the input upto_kpc as a comoving quantity? Default is No.')
-    parser.add_argument('--weight', metavar='weight', type=str, action='store', default=None, help='Name of quantity to weight the metallicity by. Default is None i.e., no weighting.')
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x; but user can input multiple comma-separated values. Options are: x, y, z, x_disk, y_disk, z_disk')
-    parser.add_argument('--use_density_cut', dest='use_density_cut', action='store_true', default=False, help='Impose a density cut to get just the disk? Default is no.')
-    parser.add_argument('--nbins', metavar='nbins', type=int, action='store', default=100, help='Number of bins to use for the metallicity histogram plot. Default is 100')
     parser.add_argument('--use_cen_smoothed', dest='use_cen_smoothed', action='store_true', default=False, help='use Cassis new smoothed center file?, default is no')
 
+    # These are for metallicity plots that are not ready yet
+    parser.add_argument('--docomoving', dest='docomoving', action='store_true', default=False, help='Consider the input upto_kpc as a comoving quantity? Default is No.')
+    parser.add_argument('--weight', metavar='weight', type=str, action='store', default=None, help='Name of quantity to weight the metallicity by. Default is None i.e., no weighting.')
+    parser.add_argument('--use_density_cut', dest='use_density_cut', action='store_true', default=False, help='Impose a density cut to get just the disk? Default is no.')
+    parser.add_argument('--nbins', metavar='nbins', type=int, action='store', default=100, help='Number of bins to use for the metallicity histogram plot. Default is 100')
+
     # These arguments are for choosing groups of plots to make
+    ###### IF YOU ADD A PLOT STEP 3B: If your plot has a new category, add the argument for that category here. ######
     parser.add_argument('--all_plots', dest='all_plots', action='store_true', default=False, help='Make all the plots? Default is no.')
     parser.add_argument('--all_sf_plots', dest='all_sf_plots', action='store_true', default=False, help='Make all star formation plots? Default is no.')
     parser.add_argument('--all_fb_plots', dest='all_fb_plots', action='store_true', default=False, help='Make all feedback plots? Default is no.')
     parser.add_argument('--all_vis_plots', dest='all_vis_plots', action='store_true', default=False, help='Make all visualisation plots? Default is no.')
     parser.add_argument('--all_edge_plots', dest='all_edge_plots', action='store_true', default=False, help='Make all edge-on temperature plots? Default is no.')
-    parser.add_argument('--all_metal_plots', dest='all_metal_plots', action='store_true', default=False, help='Make all resolved metallicity plots? Default is no.')
+    #parser.add_argument('--all_metal_plots', dest='all_metal_plots', action='store_true', default=False, help='Make all resolved metallicity plots? Default is no.') # Not ready yet
     parser.add_argument('--all_time_evol_plots', dest='all_time_evol_plots', action='store_true', default=False, help='Make all time-evolving central galaxy properties plots? Default is no.')
     parser.add_argument('--all_highz_halos_plots', dest='all_highz_halos_plots', action='store_true', default=False, help='Make all plots with all high-z halos on each plot (no central)? Default is no.')
     # This argument is for specifying which individual plots you want to make
@@ -94,6 +84,7 @@ def parse_args():
     parser.add_argument('--run', metavar='run', type=str, action='store', default='nref11c_nref9f', help='Which run? Default is nref11c_nref9f. This is used only when trackfile is not specified.')
 
     # ------- wrap up and processing args ------------------------------
+    ###### IF YOU ADD A PLOT STEP 5: Add the function name as a string to this plots_needing_projection list ######
     plots_needing_projection = ['gas_density_projection', 'young_stars_density_projection', 'KS_relation', 'gas_metallicity_projection', 'edge_projection', 'edge_slice']
     args = parser.parse_args()
     args.projection_arr = [item for item in args.projection.split(',')]
@@ -179,15 +170,17 @@ def which_plots_asked_for(args):
 
     plots_asked_for = args.plots_asked_for
 
+    ###### IF YOU ADD A PLOT STEP 3C: If your plot has a new category, add it to the below lists. ######
     if args.all_plots:
-        plots_asked_for += np.hstack([args.sf_plots, args.fb_plots, args.vis_plots, args.edge_plots, args.metal_plots]) # these *_plots variables are defined in main below
+        plots_asked_for += np.hstack([args.sf_plots, args.fb_plots, args.vis_plots, args.edge_plots, args.highz_halos_plots, args.time_evol_plots]) # these *_plots variables are defined in main below
     else:
         if args.all_sf_plots: plots_asked_for += args.sf_plots
         if args.all_fb_plots: plots_asked_for += args.fb_plots
         if args.all_edge_plots: plots_asked_for += args.edge_plots
         if args.all_vis_plots: plots_asked_for += args.vis_plots
-        if args.all_metal_plots: plots_asked_for += args.metal_plots
+        #if args.all_metal_plots: plots_asked_for += args.metal_plots
         if args.all_highz_halos_plots: plots_asked_for += args.highz_halos_plots
+        if args.all_time_evol_plots: plots_asked_for += args.time_evol_plots
 
     plots_asked_for = np.unique(plots_asked_for)
     print(plots_asked_for)
@@ -201,8 +194,7 @@ def generate_plot_filename(quantity, args, snap):
     This way the nomenclature is consistent.
     '''
 
-    ###### IF YOU ADD A PLOT ######
-    # Add the filename to this dictionary
+    ###### IF YOU ADD A PLOT STEP 4: Add it to this dictionary as 'function_name':'output_filename.png' ######
     output_filename_dict = {'young_stars_density_projection_x':snap + '_Projection_young_stars3_cic_x.png', \
                             'young_stars_density_projection_y':snap + '_Projection_young_stars3_cic_y.png', \
                             'young_stars_density_projection_z':snap + '_Projection_young_stars3_cic_z.png', \
@@ -312,7 +304,7 @@ def make_manysnaps_plots(args):
 if __name__ == "__main__":
     args = parse_args()
 
-    ###### IF YOU ADD A PLOT ######
+    ###### IF YOU ADD A PLOT STEP 3 ######
     # Add the function name to the appropriate grouping list, or make a new list
     # These plots make one plot per snapshot:
     args.sf_plots = []
@@ -329,13 +321,12 @@ if __name__ == "__main__":
             args.disk_rel = True
     args.edge_plots = ['edge_projection_x_disk', 'edge_slice_x_disk', 'edge_projection_y_disk', 'edge_slice_y_disk']
     args.fb_plots = ['outflow_rates', 'rad_vel_temp_colored']
-    args.metal_plots = ['gas_metallicity_resolved_MZR', 'gas_metallicity_histogram', 'gas_metallicity_radial_profile']
+    #args.metal_plots = ['gas_metallicity_resolved_MZR', 'gas_metallicity_histogram', 'gas_metallicity_radial_profile'] # Not ready yet
 
     # These plots put all halos in the high-res area of the box on one plot and require
     # yt's HOP halo finder to be run (each will check if the halo catalog already exists).
     # It is not recommended to run these on snapshots lower than z = 2 because the halo finder
     # doesn't work well at low redshifts:
-    #args.highz_halos_plots = ['halos_density_projection','halos_SFMS','halos_SMHM','halos_MZR','halos_h2_frac','halos_gasMHM']
     args.highz_halos_plots = ['halos_density_projection','halos_SMHM','halos_SFMS','halos_MZR','halos_gasMHM','halos_h2_frac']
 
     # These plots add a line to the central_galaxy_info.txt table for each snapshot, then make

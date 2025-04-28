@@ -186,7 +186,6 @@ def halos_MZR(ds, region, args, output_filename):
     # These data come from Nakajima et al. 2023, Fig. 10 digitized
     tlist = [2.896, 1.962, 1.566]
     zlist = [2.3, 3.3, 4.]
-    # These values come from digitizing Figure 7 of Behroozi et al. (2013)
     Mstar_list = [[9.007, 9.186, 9.417, 9.615, 9.828, 10.048, 10.291, 10.449],
                   [9.156, 9.320, 9.488, 9.618, 9.754, 9.914, 10.062, 10.190, 10.325, 10.464],
                   [7.338, 7.675, 7.895, 8.133, 8.310, 9.031, 9.421, 9.567]]
