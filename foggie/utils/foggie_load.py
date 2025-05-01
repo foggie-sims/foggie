@@ -48,7 +48,7 @@ def load_sim(args, **kwargs):
 
     return ds, region
 
-def foggie_load(snap, trackfile, **kwargs):
+def foggie_load(snap, trackfile, center_style='smoothed', **kwargs):
     """This function loads a specified snapshot named by 'snap', the halo track "trackfile'
     Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT."""
     find_halo_center = kwargs.get('find_halo_center', True)
@@ -63,6 +63,7 @@ def foggie_load(snap, trackfile, **kwargs):
 
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
+    ad = ds.all_data()
 
     track = Table.read(trackfile, format='ascii')
     track.sort('col1')
@@ -74,55 +75,73 @@ def foggie_load(snap, trackfile, **kwargs):
     refine_width = refine_width_code * proper_box_size
     refine_width_kpc = YTArray([refine_width], 'kpc')
 
-    # Get halo center
-    if (find_halo_center):
-        if (os.path.exists(halo_c_v_name)):
-            halo_c_v = Table.read(halo_c_v_name, format='ascii')
-            if ('smoothed' in halo_c_v_name):
-                if (snap[-6:] in halo_c_v['col2']):
-                    print('Pulling halo center from smoothed path catalog file')
-                    halo_ind = np.where(halo_c_v['col2']==snap[-6:])[0][0]
-                    halo_center_kpc = ds.arr([float(halo_c_v['col5'][halo_ind]), \
-                                              float(halo_c_v['col6'][halo_ind]), \
-                                              float(halo_c_v['col7'][halo_ind])], 'kpc')
-                    ds.halo_center_kpc = halo_center_kpc
-                    ds.halo_center_code = halo_center_kpc.in_units('code_length')
-                    sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
-                    bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
-                    ds.halo_velocity_kms = bulk_vel
-                    calc_hc = False
-                else:
-                    print('This snapshot is not in the halo_cen_smoothed file, calculating halo center (which will NOT be smoothed)...')
-                    calc_hc = True
-            else:
-                if (snap[-6:] in halo_c_v['col3']):
-                    print("Pulling halo center from catalog file")
-                    halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
-                    halo_center_kpc = ds.arr([float(halo_c_v['col5'][halo_ind]), \
-                                              float(halo_c_v['col6'][halo_ind]), \
-                                              float(halo_c_v['col7'][halo_ind])], 'kpc')
-                    halo_velocity_kms = ds.arr([float(halo_c_v['col8'][halo_ind]), \
-                                                float(halo_c_v['col9'][halo_ind]), \
-                                                float(halo_c_v['col10'][halo_ind])], 'km/s')
-                    ds.halo_center_kpc = halo_center_kpc
-                    ds.halo_center_code = halo_center_kpc.in_units('code_length')
-                    ds.halo_velocity_kms = halo_velocity_kms
-                    calc_hc = False
-                else:
-                    print('This snapshot is not in the halo_c_v file, calculating halo center...')
-                    calc_hc = True
-        else:
-            print("This halo_c_v file doesn't exist, calculating halo center...")
-            calc_hc = True
-        if (calc_hc):
-            halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
-            # Define the halo center in kpc and the halo velocity in km/s
-            halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
-            sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
-            bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
-            ds.halo_center_code = halo_center
+    print('center_style = ', center_style) 
+
+    if (('smoothed' in center_style) & os.path.exists(halo_c_v_name)):
+        halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
+        if (snap[-6:] in halo_c_v['snap']):
+            print('Pulling halo center from smoothed catalog file :', halo_c_v_name)
+            halo_ind = np.where(halo_c_v['snap']==snap[-6:])[0][0]
+            halo_center_kpc = ds.arr([float(halo_c_v[halo_ind]['xc']), \
+                                      float(halo_c_v[halo_ind]['yc']), \
+                                      float(halo_c_v[halo_ind]['zc'])], 'kpc')
             ds.halo_center_kpc = halo_center_kpc
+            ds.halo_center_code = halo_center_kpc.in_units('code_length')
+            sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
+            bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
             ds.halo_velocity_kms = bulk_vel
+
+    elif (('catalog' in center_style) & os.path.exists(halo_c_v_name)):
+        halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
+        if (snap[-6:] in halo_c_v['name']):
+            print("Pulling halo center from catalog file") 
+            halo_ind = np.where(halo_c_v['name']==snap[-6:])[0][0]
+            halo_center_kpc = ds.arr([float(halo_c_v[halo_ind]['x_c']), \
+                                      float(halo_c_v[halo_ind]['y_c']), \
+                                      float(halo_c_v[halo_ind]['z_c'])], 'kpc')
+            halo_velocity_kms = ds.arr([float(halo_c_v[halo_ind]['v_x']), \
+                                        float(halo_c_v[halo_ind]['v_y']), \
+                                        float(halo_c_v[halo_ind]['v_z'])], 'km/s')
+            ds.halo_center_kpc = halo_center_kpc
+            ds.halo_center_code = halo_center_kpc.in_units('code_length')
+            ds.halo_velocity_kms = halo_velocity_kms
+        
+    elif ('calculate' in center_style): 
+        halo_center, _ = get_halo_center(ds, refine_box_center)
+        # Define the halo center in kpc and the halo velocity in km/s
+        halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
+        sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
+        bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+        ds.halo_center_code = halo_center
+        ds.halo_center_kpc = halo_center_kpc
+        ds.halo_velocity_kms = bulk_vel
+    
+    elif ('root' in center_style): 
+
+        root_particles = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
+        halo0 = root_particles['root_index']
+        
+        x_particles = ad['particle_position_x']
+        y_particles = ad['particle_position_y']
+        z_particles = ad['particle_position_z']
+        
+        root_indices = halo0
+        now_indices = ad['particle_index']
+        indices = np.where(np.isin(now_indices, root_indices))[0]
+        
+        center_x  = float(np.mean(x_particles[indices].in_units('code_length'))) 
+        center_y  = float(np.mean(y_particles[indices].in_units('code_length'))) 
+        center_z  = float(np.mean(z_particles[indices].in_units('code_length'))) 
+        
+        halo_center = [center_x, center_y, center_z]
+        
+        halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
+        sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
+        bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+        ds.halo_center_code = halo_center
+        ds.halo_center_kpc = halo_center_kpc
+        ds.halo_velocity_kms = bulk_vel
+
     else:
         print("Not finding halo center")
         ds.halo_center_kpc = ds.arr([np.nan, np.nan, np.nan], 'kpc')
