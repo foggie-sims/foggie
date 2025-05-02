@@ -170,7 +170,7 @@ if __name__ == "__main__":
 
     # Read in halo center catalog
     halo_center = Table.read(halo_c_v_name, format='ascii')
-    z_col = halo_center['col2'][1:]
+    redshift_col = halo_center['col2'][1:]
     t_col = halo_center['col4'][1:]
     DD_col = halo_center['col3'][1:]
     x_col = halo_center['col5'][1:]
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     z_cen = []
     for i in range(len(DD_col)):
         snaps.append(DD_col[i])
-        redshifts.append(float(z_col[i]))
+        redshifts.append(float(redshift_col[i]))
         times.append(float(t_col[i]))
         x_cen.append(float(x_col[i]))
         y_cen.append(float(y_col[i]))
