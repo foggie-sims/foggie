@@ -48,7 +48,7 @@ def load_sim(args, **kwargs):
 
     return ds, region
 
-def foggie_load(snap, trackfile, center_style='smoothed', **kwargs):
+def foggie_load(snap, trackfile, **kwargs):
     """This function loads a specified snapshot named by 'snap', the halo track "trackfile'
     Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT."""
     find_halo_center = kwargs.get('find_halo_center', True)
@@ -74,6 +74,11 @@ def foggie_load(snap, trackfile, center_style='smoothed', **kwargs):
     refine_box, refine_box_center, refine_width_code = grb.get_refine_box(ds, zsnap, track)
     refine_width = refine_width_code * proper_box_size
     refine_width_kpc = YTArray([refine_width], 'kpc')
+
+    if ('smooth' in halo_c_v_name): center_style = 'smoothed'
+    elif ('halo_c_v' in halo_c_v_name): center_style = 'catalog'
+    elif ('root' in halo_c_v_name): center_style = 'root'
+    else: center_style = 'calculate'
 
     print('center_style = ', center_style) 
 
@@ -138,7 +143,7 @@ def foggie_load(snap, trackfile, center_style='smoothed', **kwargs):
         halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
         sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
         bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
-        ds.halo_center_code = halo_center
+        ds.halo_center_code = halo_center_kpc = ds.arr(np.array(halo_center), 'code_length')
         ds.halo_center_kpc = halo_center_kpc
         ds.halo_velocity_kms = bulk_vel
 
