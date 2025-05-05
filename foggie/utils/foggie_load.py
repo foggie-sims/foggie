@@ -52,7 +52,7 @@ def foggie_load(snap, trackfile, **kwargs):
     """This function loads a specified snapshot named by 'snap', the halo track "trackfile'
     Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT."""
     find_halo_center = kwargs.get('find_halo_center', True)
-    halo_c_v_name = kwargs.get('halo_c_v_name', 'halo_c_v')
+    halo_c_v_name = kwargs.get('halo_c_v_name', 'none')
     disk_relative = kwargs.get('disk_relative', False)
     particle_type_for_angmom = kwargs.get('particle_type_for_angmom', 'young_stars')
     do_filter_particles = kwargs.get('do_filter_particles', True)
@@ -75,12 +75,22 @@ def foggie_load(snap, trackfile, **kwargs):
     refine_width = refine_width_code * proper_box_size
     refine_width_kpc = YTArray([refine_width], 'kpc')
 
+    print('First we will calculated the halo center from the track box: ', refine_box_center)   
+    center_style = "calculate"
+    halo_center, _ = get_halo_center(ds, refine_box_center)
+    # Define the halo center in kpc and the halo velocity in km/s
+    halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
+    sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
+    bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+    ds.halo_center_code = ds.arr(halo_center, 'code_length')
+    ds.halo_center_kpc = ds.arr(halo_center_kpc, 'kpc')
+    ds.halo_velocity_kms = ds.arr(bulk_vel, 'km/s')
+    
     if ('smooth' in halo_c_v_name): center_style = 'smoothed'
-    elif ('halo_c_v' in halo_c_v_name): center_style = 'catalog'
-    elif ('root' in halo_c_v_name): center_style = 'root'
-    else: center_style = 'calculate'
-
-    print('center_style = ', center_style) 
+    if ('halo_c_v' in halo_c_v_name): center_style = 'catalog'
+    if ('root' in halo_c_v_name): center_style = 'root'
+        
+    print('Center style will be:  ', center_style) 
 
     if (('smoothed' in center_style) & os.path.exists(halo_c_v_name)):
         halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
@@ -95,8 +105,11 @@ def foggie_load(snap, trackfile, **kwargs):
             sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
             bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
             ds.halo_velocity_kms = bulk_vel
+        else: 
+            print("Your snapshot was not found in the halo_c_v catalog file: ", halo_c_v_name)
 
     elif (('catalog' in center_style) & os.path.exists(halo_c_v_name)):
+        print('Using halo_c_v catalog file: ', halo_c_v_name, ' for center style ', center_style)
         halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
         if (snap[-6:] in halo_c_v['name']):
             print("Pulling halo center from catalog file") 
@@ -110,16 +123,10 @@ def foggie_load(snap, trackfile, **kwargs):
             ds.halo_center_kpc = halo_center_kpc
             ds.halo_center_code = halo_center_kpc.in_units('code_length')
             ds.halo_velocity_kms = halo_velocity_kms
-        
-    elif ('calculate' in center_style): 
-        halo_center, _ = get_halo_center(ds, refine_box_center)
-        # Define the halo center in kpc and the halo velocity in km/s
-        halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
-        sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
-        bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
-        ds.halo_center_code = halo_center
-        ds.halo_center_kpc = halo_center_kpc
-        ds.halo_velocity_kms = bulk_vel
+            print('halo center in kpc: ', ds.halo_center_kpc)
+            print('halo velocity in km/s: ', ds.halo_velocity_kms)
+        else: 
+            print("Your snapshot was not found in the halo_c_v catalog file: ", halo_c_v_name)
     
     elif ('root' in center_style): 
 
@@ -147,11 +154,6 @@ def foggie_load(snap, trackfile, **kwargs):
         ds.halo_center_kpc = halo_center_kpc
         ds.halo_velocity_kms = bulk_vel
 
-    else:
-        print("Not finding halo center")
-        ds.halo_center_kpc = ds.arr([np.nan, np.nan, np.nan], 'kpc')
-        ds.halo_center_code = ds.arr([np.nan, np.nan, np.nan], 'code_length')
-        ds.halo_velocity_kms = ds.arr([np.nan, np.nan, np.nan], 'km/s')
 
     ds.track = track
     ds.refine_box_center = refine_box_center
