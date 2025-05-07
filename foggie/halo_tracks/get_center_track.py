@@ -229,7 +229,7 @@ if __name__ == "__main__":
         start_snap = 2400
         end_snap = 2520
     elif args.halo == "2878":
-        first_center = [0.5161314010620117 0.5255918502807618  0.4744291305541992]
+        first_center = [0.5161314010620117, 0.5255918502807618,  0.4744291305541992]
         start_snap = 2490
         end_snap = 2520
     else:
