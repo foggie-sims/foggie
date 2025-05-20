@@ -101,6 +101,8 @@ Jump:
 
 :ref:`new-plot`
 
+:ref:`high-z-standalone`
+
 .. raw:: html
 
    <div style="margin-top: 4em;"></div>
@@ -366,3 +368,54 @@ to the table, you will need to delete the old ``central_info_table.txt``. The co
 if a snapshot is already in the table, it does not check if the information has been 
 changed, and adding additional columns to the table without completely re-making it 
 will probably result in some weird errors.
+
+.. raw:: html
+
+   <div style="margin-top: 4em;"></div>
+
+.. _high-z-standalone:
+
+Running High-z Halos Plots Stand-Alone
+--------------------------------------
+
+The code that makes the high-z halos plots (:ref:`all-highz-halos-plots`) can be run independently
+of the rest of the analysis script, *if the halo catalogs have already been made*. Running it 
+independently will make the same scaling relations plots, but will put all the halos from 
+multiple sets of initial conditions on each plot. This is different than the way the analysis script
+works, because that can only handle one set of ICs at a time.
+
+To make these plots with all halos from all specified sets of ICs, run the script like this:
+
+::
+
+    python highz_halos_plots.py --halos halo_008508,halo_005016 --run nref11c_nref9f --output RD0014-RD0015 --directory /path/to/data --all_plots
+
+This script assumes that the file directory structure where your halo catalogs are saved is:
+
+::
+
+    [directory]/[halo]/[run]/plots/halo_catalogs/[output]
+
+where ``[directory]`` is passed in the ``--directory`` argument, ``[halo]`` is passed (as potentially one of many) in the ``--halos`` argument, 
+``[run]`` is passed in the ``--run`` argument, and `[output]` is passed (as potentially one of many) in the ``--output`` argument.
+IMPORTANT NOTE: The ``--run`` argument applies to all halos! You cannot use this script to plot ``nref11c_nref9f`` runs vs. ``mech_and_h2`` runs,
+for example. Also note that the full name of the halo directory must be passed to the ``--halos`` argument, e.g. ``halo_008508``, not just ``8508``
+(unless that's what your directory is called).
+
+Arguments:
+
+* ``--halos``: A comma-separated list of the halos you want to include on the plots.
+* ``--run``: The name of the directory for the run, which must be the same for all halos.
+* ``--output``: A comma-separated list, or a range with a dash, of the outputs you want to make plots for.
+  Each output will have its own plot.
+* ``--directory``: The path to where your halo catalogs are saved, ending just above the halo folder.
+* ``--all_plots``: Use this option to make all the scaling relation plots.
+* ``--make_plots``: A comma-separated list of the plots you want to make, if you don't want to just 
+  make all of them. Options are: ``SMHM``, ``SFMS``, ``MZR``, ``gasMHM``, and/or ``h2_frac``. The descriptions of
+  these plots can be found here: :ref:`all-highz-halos-plots`
+* ``--save_directory``: Where you want to save the plot files. Default is whatever directory you are running the script from.
+* ``--nproc``: Number of processors to use. This only matters if you are making plots for more than a single 
+  output. Each thread will make all the plots for one output.
+
+If this script is run on a halo/run/output combination that does not yet have a halo catalog that has been made 
+for it, it will produce an error and crash.
