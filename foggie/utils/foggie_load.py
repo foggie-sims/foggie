@@ -65,32 +65,35 @@ def foggie_load(snap, trackfile, **kwargs):
     ds = yt.load(snap)
     ad = ds.all_data()
 
-    track = Table.read(trackfile, format='ascii')
+    track = Table.read(trackfile, format='ascii') #read the track file, which must be included as an argument
     track.sort('col1')
 
-    # Get the refined box in physical units
-    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift') # Get the refined box in physical units from the track file 
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, refine_width_code = grb.get_refine_box(ds, zsnap, track)
     refine_width = refine_width_code * proper_box_size
-    refine_width_kpc = YTArray([refine_width], 'kpc')
 
-    print('First we will calculated the halo center from the track box: ', refine_box_center)   
-    center_style = "calculate"
-    halo_center, _ = get_halo_center(ds, refine_box_center)
-    # Define the halo center in kpc and the halo velocity in km/s
-    halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
-    sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
-    bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
-    ds.halo_center_code = ds.arr(halo_center, 'code_length')
-    ds.halo_center_kpc = ds.arr(halo_center_kpc, 'kpc')
-    ds.halo_velocity_kms = ds.arr(bulk_vel, 'km/s')
-    
-    if ('smooth' in halo_c_v_name): center_style = 'smoothed'
-    if ('halo_c_v' in halo_c_v_name): center_style = 'catalog'
-    if ('root' in halo_c_v_name): center_style = 'root'
-        
+    center_style = "calculate" # this will be the default if no halo_c_v file is found
+
+    does_the_halo_c_v_exist = os.path.exists(halo_c_v_name)
+    print('Does the halo_c_v catalog exist? ', does_the_halo_c_v_exist)
+    if (does_the_halo_c_v_exist): 
+        halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
+        if ('smooth' in halo_c_v_name): 
+            center_style = 'smoothed'
+            is_the_snapshot_in_halo_c_v = snap[-6:] in halo_c_v['snap']
+        if ('halo_c_v' in halo_c_v_name): 
+            center_style = 'catalog'
+            is_the_snapshot_in_halo_c_v = snap[-6:] in halo_c_v['name']
+        if ('root' in halo_c_v_name): 
+            center_style = 'root_index'
+            is_the_snapshot_in_halo_c_v = True 
+
+    print('Is the snapshot in the halo_c_v catalog? ', is_the_snapshot_in_halo_c_v)
+
     print('Center style will be:  ', center_style) 
+    print('Halo_c_v name is: ', halo_c_v_name)
+
 
     if (('smoothed' in center_style) & os.path.exists(halo_c_v_name)):
         halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
@@ -128,8 +131,9 @@ def foggie_load(snap, trackfile, **kwargs):
         else: 
             print("Your snapshot was not found in the halo_c_v catalog file: ", halo_c_v_name)
     
-    elif ('root' in center_style): 
+    elif ('root_index' in center_style): 
 
+        print('Using root catalog file: ', halo_c_v_name, ' for center style ', center_style)
         root_particles = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
         halo0 = root_particles['root_index']
         
@@ -150,9 +154,10 @@ def foggie_load(snap, trackfile, **kwargs):
         halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
         sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
         bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
-        ds.halo_center_code = halo_center_kpc = ds.arr(np.array(halo_center), 'code_length')
+        ds.halo_center_code = ds.arr(np.array(halo_center), 'code_length')
         ds.halo_center_kpc = halo_center_kpc
         ds.halo_velocity_kms = bulk_vel
+        print(ds.halo_velocity_kms)
 
 
     ds.track = track
