@@ -37,16 +37,17 @@ from scipy.interpolate import NearestNDInterpolator
 import shutil
 import ast
 import matplotlib.pyplot as plt
-from scipy.ndimage import gaussian_filter
-from scipy.ndimage import rotate
-from scipy.ndimage import uniform_filter1d
+from scipy.ndimage import gaussian_filter, rotate, zoom
 import scipy.ndimage as ndimage
 from scipy.interpolate import LinearNDInterpolator
+from scipy.integrate import quad as scipy_quad
+from scipy.signal import savgol_filter
 import copy
 import matplotlib.colors as colors
 import matplotlib.cm
 from matplotlib.collections import LineCollection
-import random
+import trident
+import cmasher as cmr
 
 # These imports are FOGGIE-specific files
 from foggie.utils.consistency import *
@@ -113,6 +114,7 @@ def parse_args():
                         'turbulent_spectrum     -  Turbulent energy power spectrum\n' + \
                         'vel_struc_func         -  Velocity structure function\n' + \
                         'emiss_vsf              -  Density-squared-weighted 2D VSF to mimic emission maps\n' + \
+                        'vdisp_projection       -  Projections of both local and LOS velocity dispersion weighted by gas density, n_OVI, and n_CII\n' + \
                         'vdisp_vs_radius        -  Velocity dispersion vs radius\n' + \
                         'vdisp_vs_mass_res      -  Datashader plot of cell-by-cell velocity dispersion vs. cell mass\n' + \
                         'vdisp_vs_spatial_res   -  Plot of average velocity dispersion vs. spatial resolution\n' + \
@@ -176,6 +178,34 @@ def parse_args():
 
     args = parser.parse_args()
     return args
+
+def _local_velocity_dispersion(field, data):
+    '''Adds a field for the localized velocity dispersion within Gaussian 
+    windows of ~10-15 kpc, after subtracting off the bulk flows.'''
+
+    # Extract velocity components
+    vx = data[("gas", "vx_corrected")].in_units('km/s').v
+    vy = data[("gas", "vy_corrected")].in_units('km/s').v
+    vz = data[("gas", "vz_corrected")].in_units('km/s').v
+
+    # Smooth to get bulk
+    vx_bulk = gaussian_filter(vx, smooth_scale)
+    vy_bulk = gaussian_filter(vy, smooth_scale)
+    vz_bulk = gaussian_filter(vz, smooth_scale)
+
+    # Residuals
+    vrx = vx - vx_bulk
+    vry = vy - vy_bulk
+    vrz = vz - vz_bulk
+
+    # Local turbulent std
+    vrx2 = gaussian_filter(vrx**2, smooth_scale)
+    vry2 = gaussian_filter(vry**2, smooth_scale)
+    vrz2 = gaussian_filter(vrz**2, smooth_scale)
+
+    sigma_turb = np.sqrt((vrx2 + vry2 + vrz2) / 3.0)
+
+    return sigma_turb * data.ds.unit_system['velocity']
 
 def weighted_quantile(values, weights, quantiles):
     """ Very close to numpy.percentile, but supports weights.
@@ -268,6 +298,707 @@ def make_pdf_table(stat_types):
     table = Table(names=names_list, dtype=types_list)
 
     return table
+
+def estimate_flattening_point(x, y_data, window=8, polyorder=2, slope_thresh=0.2):
+    """
+    Estimate the flattening point of y(x) using smoothed derivatives.
+    
+    Parameters:
+    - x: 1D array of x-values
+    - y_data: 2D array of shape (num_samples, len(x))
+    - window: window size for Savitzky-Golay filter
+    - polyorder: polynomial order for smoothing
+    - slope_thresh_frac: threshold as fraction of max slope
+    
+    Returns:
+    - x_flat: estimated flattening point
+
+    This function written by ChatGPT
+    """
+    # Fill nans with closest non-nan value
+    for y in range(len(y_data)):
+        mask = np.isnan(y_data)
+        y_data[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), y_data[~mask])
+
+    # Average y's, compute derivative, then smooth
+    avg_y = np.mean(y_data, axis=0)
+    dy_dx = np.gradient(avg_y, x)
+    avg_dy_dx = savgol_filter(dy_dx, window_length=window, polyorder=polyorder)
+
+    # Smooth each y, compute derivative, then average
+    #smoothed_dy_dx = []
+    #for y in y_data:
+        #y_smooth = savgol_filter(y, window_length=window, polyorder=polyorder)
+        #dy_dx = np.gradient(y_smooth, x)
+        #smoothed_dy_dx.append(dy_dx)
+    # Average derivative across samples
+    #avg_dy_dx = np.nanmean(smoothed_dy_dx, axis=0)
+
+    # Find first point where slope drops and stays below threshold
+    for i in range(1, len(x)):
+        if (avg_dy_dx[i] < slope_thresh) and np.all(avg_dy_dx[i:i+window] < slope_thresh):
+            print(10**x[i])
+            return x[i]  # Return first sustained drop below threshold
+
+    return None  # No clear flattening point found
+
+def E_k_2D(wk, amplitude):
+    '''Calculates a Kolmogorov energy spectrum with a broken power law turnover at k_peak.'''
+
+    return amplitude * wk**(-8./3.)
+
+def E_k_3D(wk, amplitude, k_peak):
+    '''Calculates a Kolmogorov energy spectrum with a broken power law turnover at k_peak.'''
+
+    #return amplitude * wk**(-11./3.)
+    return amplitude * wk**9. * (1 + (wk / k_peak)**4.)**((-11./3. - 9.) / 4.)
+
+def E_k_for_vsf(wk, amplitude, k_peak):
+
+    #if (wk >= k_peak): return amplitude * wk**(-5./3.)
+    #else: return 0.
+    return amplitude * wk**9. * (1 + (wk / k_peak)**4.)**((-5./3. - 9.) / 4.)
+
+def vsf_from_Ek(scale, amplitude, k_peak):
+    integrand = lambda wk: (1 - np.sinc(wk * scale * np.pi/2.)) * E_k_for_vsf(wk, amplitude, k_peak)
+    result = scipy_quad(integrand, 0, np.inf, limit=200)
+    return 2 * result[0]
+
+def project_solenoidal(vk_x, vk_y, vk_z, KX, KY, KZ, k_mag):
+    '''Takes Fourier-space velocities and wavenumbers in x,y,z and the magnitude of the wavenumber
+    and projects the velocities onto purely solenoidal turbulence to avoid compressibility.'''
+    dot_product = (vk_x * KX + vk_y * KY + vk_z * KZ) / (k_mag**2)
+    vk_x -= dot_product * KX
+    vk_y -= dot_product * KY
+    vk_z -= dot_product * KZ
+    return vk_x, vk_y, vk_z
+
+def measure_Ek_3D(vx, vy, vz, resolution):
+    '''Measures the energy power spectrum from the velocity fields.'''
+
+    Kk = np.zeros((resolution//2+1, resolution//2+1, resolution//2+1))
+    for vel in [vx, vy, vz]:
+
+        # do the FFTs -- note that since our data is real, there will be
+        # too much information here.  fftn puts the positive freq terms in
+        # the first half of the axes -- that's what we keep.  Our
+        # normalization has an '8' to account for this clipping to one
+        # octant.
+        ru = np.fft.fftn(vel)[0:resolution//2+1, 0:resolution//2+1, 0:resolution//2+1]
+        ru = 8.0*ru/(resolution * resolution * resolution)
+        k_fft = np.abs(ru)**2
+        Kk += 0.5 * k_fft
+
+    # wavenumbers
+    kx = np.fft.rfftfreq(resolution) * resolution
+    ky = np.fft.rfftfreq(resolution) * resolution
+    kz = np.fft.rfftfreq(resolution) * resolution
+
+    # physical limits to the wavenumbers
+    kmin = 1.0
+    kmax = 0.5*resolution
+
+    kbins = np.arange(kmin, kmax, kmin)
+    N = len(kbins)
+
+    # bin the Fourier KE into radial kbins
+    kx3d, ky3d, kz3d = np.meshgrid(kx, ky, kz, indexing="ij")
+    k = np.sqrt(kx3d**2 + ky3d**2 + kz3d**2)
+    whichbin = np.digitize(k.flat, kbins)
+    ncount = np.bincount(whichbin)
+    E_spectrum = np.zeros(len(ncount) - 1)
+
+    for n in range(1, len(ncount)):
+        E_spectrum[n - 1] = np.sum(Kk.flat[whichbin == n])
+
+    k = 0.5 * (kbins[0:N-1] + kbins[1:N])
+    E_spectrum = E_spectrum[1:N]
+
+    return k, E_spectrum
+
+def generate_turbulent_box(resolution, v_sigma, k_peak):
+    '''Generates a 3D box of velocities that follow a Kolmogorov power spectrum with
+    amplitude A, peak location wavenumber k_peak, and power law slope of turnover m.
+    The box has physical size given by the length-3 list box_size [x_size, y_size, z_size]
+    and resolution given by the length-3 list dimensions [dim_x, dim_y, dim_z].
+    
+    This function mostly written by ChatGPT.'''
+
+    # Wavenumber grid
+    k = np.fft.fftfreq(resolution, d=1./resolution)
+    kx, ky, kz = np.meshgrid(k, k, k, indexing='ij')
+    k_mag = np.sqrt(kx**2 + ky**2 + kz**2)
+    k_mag[0, 0, 0] = 1.0  # Avoid division by zero
+    E_k = E_k_3D(k_mag, 1.0, k_peak)
+    E_k[0, 0, 0] = 0.0  # Zero out the mean component
+
+    # Set cutoff at k_peak
+    #E_k[k_mag < k_peak] = 0.
+
+    amplitude = resolution**3.*v_sigma**2./(np.sum(E_k))
+    E_k = amplitude*E_k
+
+    # Random complex field with isotropic phases in Fourier space
+    #np.random.seed(0)
+    ux_k = np.exp(2j * np.pi * np.random.rand(resolution, resolution, resolution)) * np.sqrt(2.*E_k)
+    uy_k = np.exp(2j * np.pi * np.random.rand(resolution, resolution, resolution)) * np.sqrt(2.*E_k)
+    uz_k = np.exp(2j * np.pi * np.random.rand(resolution, resolution, resolution)) * np.sqrt(2.*E_k)
+
+    # Project to solenoidal field to ensure incompressible turbulence
+    #ux_k, uy_k, uz_k = project_solenoidal(ux_k, uy_k, uz_k, kx, ky, kz, k_mag)
+
+    ux = np.fft.ifftn(ux_k, norm="ortho").real
+    uy = np.fft.ifftn(uy_k, norm="ortho").real
+    uz = np.fft.ifftn(uz_k, norm="ortho").real
+
+    return ux, uy, uz, amplitude
+
+def plot_vslice(vx, vy, vz, box_size, vdisp, save_suffix=''):
+    '''Plots slices of vx, vy, and vz through the middle of the domain.'''
+
+    vs = [vx, vy, vz]
+    vlabel = ['x', 'y', 'z']
+    fig = plt.figure(figsize=(14,6), dpi=250)
+    fig.subplots_adjust(top=0.94,bottom=0.06,right=0.98,left=0.07,wspace=0.,hspace=0.)
+    for i in range(3):
+        vel = vs[i]
+        ax = fig.add_subplot(1,3,i+1)
+        im = ax.imshow(vel[int(len(vx)/2)], aspect='equal', extent=[0, box_size, 0, box_size], cmap='RdBu', norm=colors.Normalize(vmin=-3.*vdisp,vmax=3.*vdisp))
+        if (i==0):
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True)
+            ax.set_ylabel('y [kpc]', fontsize=18)
+        else:
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+              top=True, right=True, labelleft=False)
+            xticks = ax.get_xticklabels()
+            xticks[0] = ''
+            ax.set_xticklabels(xticks)
+        ax.set_xlabel('x [kpc]', fontsize=18)
+        pos = ax.get_position()
+        cax = fig.add_axes([pos.x0, pos.y1, pos.width, 0.03])  # [left, bottom, width, height]
+        fig.colorbar(im, cax=cax, orientation='horizontal')
+        cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
+                        top=True, right=True, bottom=False, labelbottom=False, labeltop=True)
+        xticks = cax.get_xticks()
+        if (i>0): cax.set_xticks(xticks[1:])
+        cax.text(0.5, 4, vlabel[i] + '-velocity [km/s]', fontsize=18, ha='center', va='center', transform=cax.transAxes)
+
+    fig.savefig('Velocity_slices_turbulent_box' + save_suffix + '.png')
+    plt.close()
+
+def plot_vhist(vx, vy, vz, save_suffix=''):
+    '''Plots histograms of vx, vy, and vz.'''
+
+    vs = [vx, vy, vz]
+    vlabel = ['x', 'y', 'z']
+    fig = plt.figure(figsize=(14,6), dpi=250)
+    fig.subplots_adjust(top=0.94,bottom=0.11,right=0.98,left=0.09,wspace=0.,hspace=0.)
+    for i in range(3):
+        vel = vs[i]
+        ax = fig.add_subplot(1,3,i+1)
+        ax.hist(vel.flatten(), bins=50, density=True)
+        if (i==0):
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True)
+            ax.set_ylabel('Frequency', fontsize=18)
+        else:
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+              top=True, right=True, labelleft=False)
+        ax.set_xlabel(vlabel[i] + '-velocity [km/s]', fontsize=18)
+
+    fig.savefig('Velocity_hists_turbulent_box' + save_suffix + '.png')
+    plt.close()
+
+def vsf_randompoints_box(box_size=100., resolution=256, vdisp=20., peak_loc=50., save_suffix=''):
+    '''Creates a box of Kolmogorov turbulence then computes the VSF from
+    a random selection of a subset of that box.
+    
+    box_size: physical size of one side of box in kpc
+    resolution: number of cells in one direction, total dimensions will be resolution^3
+    vdisp: velocity dispersion of box (where VSF flattens out to)
+    peak_loc: scale where VSF flattens in kpc
+    save_suffix: string to append to filename of plots that are saved'''
+
+    if (save_suffix!=''): save_suffix = '_' + save_suffix
+
+    # Convert physical peak scale to unitless peak wavenumber relative to the box
+    # box_size: physical box size, peak_loc: physical scale
+    k_peak = box_size/peak_loc
+    print(k_peak)
+
+    # Generate turbulent box with this power spectrum (unitless)
+    vx, vy, vz, amplitude = generate_turbulent_box(resolution, vdisp, k_peak)
+ 
+    print('RMS vx, vy, vz:', np.std(vx), np.std(vy), np.std(vz))
+    print('Mean vx, vy, vz:', np.mean(vx), np.mean(vy), np.mean(vz))
+
+    # Plot image and histograms of vx, vy, and vz
+    plot_vslice(vx, vy, vz, box_size, vdisp, save_suffix=save_suffix)
+    plot_vhist(vx, vy, vz, save_suffix=save_suffix)
+
+    # Randomly sample a large number of pairs in this box to calculate VSF
+    x_vals = np.arange(resolution)*box_size/resolution
+    y_vals = np.arange(resolution)*box_size/resolution
+    z_vals = np.arange(resolution)*box_size/resolution
+    x, y, z  = np.meshgrid(x_vals, y_vals, z_vals, indexing='ij')
+
+    npoints = 5000000
+    indA_x = np.random.randint(resolution, size=npoints)
+    indA_y = np.random.randint(resolution, size=npoints)
+    indA_z = np.random.randint(resolution, size=npoints)
+    indB_x = np.random.randint(resolution, size=npoints)
+    indB_y = np.random.randint(resolution, size=npoints)
+    indB_z = np.random.randint(resolution, size=npoints)
+
+    # Calculate separations and velocity differences
+    sep = []
+    vdiff = []
+    for i in range(npoints):
+        sep.append(np.sqrt((x[indA_x[i], indA_y[i], indA_z[i]] - x[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                           (y[indA_x[i], indA_y[i], indA_z[i]] - y[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                           (z[indA_x[i], indA_y[i], indA_z[i]] - z[indB_x[i], indB_y[i], indB_z[i]])**2.))
+        vdiff.append((vx[indA_x[i], indA_y[i], indA_z[i]] - vx[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                     (vy[indA_x[i], indA_y[i], indA_z[i]] - vy[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                     (vz[indA_x[i], indA_y[i], indA_z[i]] - vz[indB_x[i], indB_y[i], indB_z[i]])**2.)
+    sep = np.array(sep)
+    vdiff = np.array(vdiff)
+    
+    sep_bins = np.logspace(np.log10(box_size/resolution), np.log10(np.sqrt(3.)*box_size), 50)
+    sep_bin_centers = sep_bins[:-1] + np.diff(sep_bins)
+    vsf = []
+    for i in range(len(sep_bins)-1):
+        vsf.append(np.mean(vdiff[(sep > sep_bins[i]) & (sep < sep_bins[i+1])]))
+    vsf = np.array(vsf)
+
+    # Plot power spectrum and expected VSF from this power spectrum
+    fig = plt.figure(figsize=(10,4), dpi=250)
+    ax_Ek = fig.add_subplot(1,2,1)
+    ax_vsf = fig.add_subplot(1,2,2)
+
+    k, E_spectrum = measure_Ek_3D(vx, vy, vz, resolution)
+    index = np.argmax(E_spectrum)
+    kmax = k[index]
+    Emax = E_spectrum[index]
+    E_model = E_k_for_vsf(k, Emax, k_peak)
+    norm = Emax/np.max(E_model)
+    ax_Ek.plot(k, E_spectrum, 'k-', lw=2)
+    ax_Ek.plot(k, norm*E_model, 'k--', lw=2)
+
+    ax_Ek.set_yscale('log')
+    ax_Ek.set_xscale('log')
+    ax_Ek.set_xlabel('Wavenumber $k$ [1/kpc]', fontsize=14)
+    ax_Ek.set_ylabel('Power spectrum $E(k)$ [(km/s)$^2$ kpc]', fontsize=14)
+    ax_Ek.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=True, right=True)
+
+    llist = np.logspace(np.log10(1./resolution), np.log10(np.sqrt(3.)), 50)
+    vsf_list = []
+    for scale in llist:
+        vsf_list.append(vsf_from_Ek(scale, amplitude, k_peak))
+    vsf_list = np.array(vsf_list)
+    norm = vsf[-10]/vsf_list[-10]
+
+    peak = estimate_flattening_point(np.log10(sep_bin_centers), np.array([np.log10(vsf)]))
+    ax_vsf.plot([10**peak, 10**peak], [0.25*np.max(vsf_list*norm), 4.*np.max(vsf_list*norm)], 'k:', lw=1)
+    
+    ax_vsf.plot(llist*box_size, vsf_list*norm, 'k--', lw=2)
+    ax_vsf.plot(sep_bin_centers, vsf, 'k-', lw=2)
+    ax_vsf.set_yscale('log')
+    ax_vsf.set_xscale('log')
+    ax_vsf.set_xlabel('Scale $l$ [kpc]', fontsize=14)
+    ax_vsf.set_ylabel('2nd-order VSF [(km/s)$^2$]', fontsize=14)
+    ax_vsf.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=True, right=True)
+    
+    fig.subplots_adjust(left=0.07, bottom=0.13, top=0.97, right=0.98, wspace=0.25)
+    plt.savefig('Kolmogorov_Ek_VSF' + save_suffix + '.png')
+    plt.close()
+
+    # Calculate VSFs for several subboxes of different box sizes
+    boxsizes = [16, 8, 4, 2]  # These are divisive factors of the full box size, so each subbox has size box_size/16 or box_size/8, etc.
+    npoints = [2000, 15000, 100000, 1000000]
+    for b in range(len(boxsizes)):
+        fig = plt.figure(figsize=(6,4), dpi=250)
+        ax = fig.add_subplot(1,1,1)
+        bsize = boxsizes[b]
+        npoint = npoints[b]
+        for sub in range(10):
+            # Generate random starting index for corner of subbox, ensuring it won't go over an edge
+            start_ind_x = np.random.randint(0, resolution - resolution/bsize)
+            start_ind_y = np.random.randint(0, resolution - resolution/bsize)
+            start_ind_z = np.random.randint(0, resolution - resolution/bsize)
+            # Select random pairs of indices within this subbox
+            indA_x = np.random.randint(start_ind_x, start_ind_x+resolution/bsize, size=npoint)
+            indA_y = np.random.randint(start_ind_y, start_ind_y+resolution/bsize, size=npoint)
+            indA_z = np.random.randint(start_ind_z, start_ind_z+resolution/bsize, size=npoint)
+            indB_x = np.random.randint(start_ind_x, start_ind_x+resolution/bsize, size=npoint)
+            indB_y = np.random.randint(start_ind_y, start_ind_y+resolution/bsize, size=npoint)
+            indB_z = np.random.randint(start_ind_z, start_ind_z+resolution/bsize, size=npoint)
+
+            # Calculate separations and velocity differences
+            sep = []
+            vdiff = []
+            for i in range(npoint):
+                sep.append(np.sqrt((x[indA_x[i], indA_y[i], indA_z[i]] - x[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                                   (y[indA_x[i], indA_y[i], indA_z[i]] - y[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                                   (z[indA_x[i], indA_y[i], indA_z[i]] - z[indB_x[i], indB_y[i], indB_z[i]])**2.))
+                vdiff.append((vx[indA_x[i], indA_y[i], indA_z[i]] - vx[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                             (vy[indA_x[i], indA_y[i], indA_z[i]] - vy[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                             (vz[indA_x[i], indA_y[i], indA_z[i]] - vz[indB_x[i], indB_y[i], indB_z[i]])**2.)
+            sep = np.array(sep)
+            vdiff = np.array(vdiff)
+            
+            sep_bins = np.logspace(np.log10(box_size/resolution), np.log10(np.sqrt(3.)*box_size), 50)
+            sep_bin_centers = sep_bins[:-1] + np.diff(sep_bins)
+            vsf = []
+            for i in range(len(sep_bins)-1):
+                vsf.append(np.mean(vdiff[(sep > sep_bins[i]) & (sep < sep_bins[i+1])]))
+            vsf = np.array(vsf)
+            
+            ax.plot(sep_bin_centers, vsf, ls='-', lw=1, alpha=0.5)
+        ax.plot(llist*box_size, vsf_list*norm, 'k--', lw=2)
+        ax.set_yscale('log')
+        ax.set_xscale('log')
+        ax.set_xlabel('Scale $l$ [kpc]', fontsize=12)
+        ax.set_ylabel('2nd-order VSF [(km/s)$^2$]', fontsize=12)
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+                top=True, right=True)
+        
+        peak = estimate_flattening_point(np.log10(sep_bin_centers), np.array([np.log10(vsf)]))
+        ax.plot([10**peak, 10**peak], [0.25*np.max(vsf_list*norm), 4.*np.max(vsf_list*norm)], 'k:', lw=1)
+        
+        fig.subplots_adjust(left=0.15, bottom=0.12, top=0.97, right=0.98)
+        plt.savefig('VSF_subboxes_' + str(bsize) + save_suffix + '.png')
+        plt.close()
+
+def vsf_radial_box(box_size=100., resolution=256, vdisp=20., k_peak=2, save_suffix='', diff_peaks=False, diff_vdisp=False, radial_shells=False):
+    '''Creates a box of Kolmogorov turbulence with varying peak locations with radius
+    then computes the VSF from a random selection of a subset of that box.
+    
+    box_size: physical size of one side of box in kpc
+    resolution: number of cells in one direction, total dimensions will be resolution^3
+    vdisp: velocity dispersion of box (where VSF flattens out to)
+    save_suffix: string to append to filename of plots that are saved'''
+
+    if (save_suffix!=''): save_suffix = '_' + save_suffix
+
+    # Set up the different spectra
+    if (diff_peaks):
+        k_peaks = [16, 8, 4, 2] # These are in wavenumber, so turnover location will be box_size/k_peak
+        iter = k_peaks
+    if (diff_vdisp):
+        vdisps = [100., 50., 25., 12.5] # km/s
+        iter = vdisps
+
+    x = np.linspace(-0.5, 0.5, resolution, endpoint=False)
+    X, Y, Z = np.meshgrid(x, x, x, indexing='ij')
+    R = np.sqrt(X**2 + Y**2 + Z**2)
+
+    # Define the radial bands where velocities from each box will be dominant
+    r_edges = np.array([0., 0.25, 0.5, 0.75, 1.0])/2.
+    r_centers = []
+    for r in range(len(r_edges)-1):
+        if (r==0):
+            r_centers.append(0.)
+        else:
+            r_centers.append((r_edges[r]+r_edges[r+1])/2.)
+    print(r_centers)
+    sigma_r = (1./len(r_centers)/2.)/2.  # controls blending smoothness
+
+    fields = []
+    weights = []
+    # Loop over each peak and generate turbulent boxes with these different peaks
+    for kp in range(len(iter)):
+        if (diff_peaks) and (not diff_vdisp):
+            band_suffix = '_kpeak-' + str(k_peaks[kp]) + save_suffix
+            k_peak = k_peaks[kp]
+        if (diff_vdisp) and (not diff_peaks):
+            band_suffix = '_vdisp-' + str(vdisps[kp]) + save_suffix
+            vdisp = vdisps[kp]
+        if (diff_vdisp) and (diff_peaks):
+            band_suffix = '_kpeak-vdisp-' + str(kp) + save_suffix
+            k_peak = k_peaks[kp]
+            vdisp = vdisps[kp]
+        # Generate turbulent box with this power spectrum (unitless)
+        ux, uy, uz, amplitude = generate_turbulent_box(resolution, vdisp, k_peak)
+        fields.append([ux, uy, uz])
+    
+        print('RMS vx, vy, vz:', np.std(ux), np.std(uy), np.std(uz))
+        print('Mean vx, vy, vz:', np.mean(ux), np.mean(uy), np.mean(uz))
+
+        # Plot image and histograms of vx, vy, and vz
+        plot_vslice(ux, uy, uz, box_size, vdisp, save_suffix=band_suffix)
+        plot_vhist(ux, uy, uz, save_suffix=band_suffix)
+
+        # Calculate the weight for this box as a Gaussian centered on the radial bin for this box
+        weight = np.exp(-0.5 * ((R - r_centers[kp]) / sigma_r)**2)
+        weights.append(weight)
+
+        # Calculate the weight for this box as 1 in this radial bin and 0 otherwise
+        #weight = np.zeros(R.shape)
+        #weight[(R >= r_edges[kp]) & (R < r_edges[kp+1])] = 1.
+        #if (kp==len(k_peaks)-1):
+            #weight[(R >= r_edges[-1])] = 1.
+        #weights.append(weight)
+        #plt.imshow(weight[int(len(weight)/2),:,:])
+        #plt.show()
+        
+    # If using Gaussian: need to normalize weights so they sum to 1
+    weights = np.stack(weights)
+    weights /= np.sum(weights, axis=0)  # normalize
+
+    # Apply weights to fields to combine into one box
+    vx = sum(w * f[0] for w, f in zip(weights, fields))
+    vy = sum(w * f[1] for w, f in zip(weights, fields))
+    vz = sum(w * f[2] for w, f in zip(weights, fields))
+
+    # Plot image and histograms of vx, vy, and vz
+    if (diff_vdisp): plot_vslice(vx, vy, vz, box_size, np.max(vdisps), save_suffix=save_suffix)
+    else: plot_vslice(vx, vy, vz, box_size, vdisp, save_suffix=save_suffix)
+    plot_vhist(vx, vy, vz, save_suffix=save_suffix)
+
+    # Randomly sample a large number of pairs in this box to calculate VSF
+    x_vals = np.arange(resolution)*box_size/resolution - 0.5*box_size
+    y_vals = np.arange(resolution)*box_size/resolution - 0.5*box_size
+    z_vals = np.arange(resolution)*box_size/resolution - 0.5*box_size
+    x, y, z  = np.meshgrid(x_vals, y_vals, z_vals, indexing='ij')
+
+    npoints = 10000000
+    indA_x = np.random.randint(resolution, size=npoints)
+    indA_y = np.random.randint(resolution, size=npoints)
+    indA_z = np.random.randint(resolution, size=npoints)
+    indB_x = np.random.randint(resolution, size=npoints)
+    indB_y = np.random.randint(resolution, size=npoints)
+    indB_z = np.random.randint(resolution, size=npoints)
+
+    # Calculate separations and velocity differences
+    sep = []
+    vdiff = []
+    for i in range(npoints):
+        sep.append(np.sqrt((x[indA_x[i], indA_y[i], indA_z[i]] - x[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                           (y[indA_x[i], indA_y[i], indA_z[i]] - y[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                           (z[indA_x[i], indA_y[i], indA_z[i]] - z[indB_x[i], indB_y[i], indB_z[i]])**2.))
+        vdiff.append((vx[indA_x[i], indA_y[i], indA_z[i]] - vx[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                     (vy[indA_x[i], indA_y[i], indA_z[i]] - vy[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                     (vz[indA_x[i], indA_y[i], indA_z[i]] - vz[indB_x[i], indB_y[i], indB_z[i]])**2.)
+    sep = np.array(sep)
+    vdiff = np.array(vdiff)
+    
+    sep_bins = np.logspace(np.log10(box_size/resolution), np.log10(np.sqrt(3.)*box_size), 50)
+    sep_bin_centers = sep_bins[:-1] + np.diff(sep_bins)
+    vsf = []
+    for i in range(len(sep_bins)-1):
+        vsf.append(np.mean(vdiff[(sep > sep_bins[i]) & (sep < sep_bins[i+1])]))
+    vsf = np.array(vsf)
+
+    # Plot power spectrum and expected VSF from this power spectrum
+    fig = plt.figure(figsize=(10,4), dpi=250)
+    ax_Ek = fig.add_subplot(1,2,1)
+    ax_vsf = fig.add_subplot(1,2,2)
+
+    k, E_spectrum = measure_Ek_3D(vx, vy, vz, resolution)
+    index = np.argmax(E_spectrum)
+    kmax = k[index]
+    Emax = E_spectrum[index]
+    E_model = E_k_for_vsf(k, Emax, k_peak)
+    norm = Emax/np.max(E_model)
+    ax_Ek.plot(k, E_spectrum, 'k-', lw=2)
+    ax_Ek.plot(k, norm*E_model, 'k--', lw=2)
+
+    ax_Ek.set_yscale('log')
+    ax_Ek.set_xscale('log')
+    ax_Ek.set_xlabel('Wavenumber $k$ [1/kpc]', fontsize=14)
+    ax_Ek.set_ylabel('Power spectrum $E(k)$ [(km/s)$^2$ kpc]', fontsize=14)
+    ax_Ek.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=True, right=True)
+
+    llist = np.logspace(np.log10(1./resolution), np.log10(np.sqrt(3.)), 50)
+    vsf_list = []
+    for scale in llist:
+        vsf_list.append(vsf_from_Ek(scale, amplitude, k_peak))
+    vsf_list = np.array(vsf_list)
+    norm = vsf[-15]/vsf_list[-15]
+    
+    ax_vsf.plot(llist*box_size, vsf_list*norm, 'k--', lw=2)
+    ax_vsf.plot(sep_bin_centers, vsf, 'k-', lw=2)
+    ax_vsf.set_yscale('log')
+    ax_vsf.set_xscale('log')
+    ax_vsf.set_xlabel('Scale $l$ [kpc]', fontsize=14)
+    ax_vsf.set_ylabel('2nd-order VSF [(km/s)$^2$]', fontsize=14)
+    ax_vsf.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=True, right=True)
+    
+    # Estimate flattening/turnover point
+    if (diff_vdisp): slope_thresh = 0.1
+    else: slope_thresh = 0.2
+    peak = estimate_flattening_point(np.log10(sep_bin_centers), np.array([np.log10(vsf)]), slope_thresh=slope_thresh)
+    ax_vsf.plot([10**peak, 10**peak], [0.25*np.max(vsf_list*norm), 4.*np.max(vsf_list*norm)], 'k:', lw=1)
+    
+    fig.subplots_adjust(left=0.07, bottom=0.13, top=0.97, right=0.98, wspace=0.25)
+    plt.savefig('Kolmogorov_Ek_VSF' + save_suffix + '.png')
+    plt.close()
+
+
+    # Calculate VSFs for each radial shell
+    if (radial_shells):
+        peaks = []
+        npoint = 100000
+        for r in range(len(r_edges)-1):
+            fig = plt.figure(figsize=(6,4), dpi=250)
+            ax = fig.add_subplot(1,1,1)
+            inn_r = r_edges[r]
+            out_r = r_edges[r+1]
+            shell_ind = np.nonzero((R > inn_r) & (R <= out_r))
+            if (diff_peaks): k_peak = k_peaks[r]
+            vsfs = []
+            # Pull 10 sets of random pairs from this shell
+            for sub in range(10):
+                # Select random pairs of indices within this shell
+                indA = np.random.randint(len(shell_ind[0]), size=npoint)
+                indB = np.random.randint(len(shell_ind[0]), size=npoint)
+                # Calculate separations and velocity differences
+                sep = []
+                vdiff = []
+                for i in range(npoint):
+                    sep.append(np.sqrt((x[shell_ind[0][indA[i]], shell_ind[1][indA[i]], shell_ind[2][indA[i]]] - x[shell_ind[0][indB[i]], shell_ind[1][indB[i]], shell_ind[2][indB[i]]])**2. + 
+                                    (y[shell_ind[0][indA[i]], shell_ind[1][indA[i]], shell_ind[2][indA[i]]] - y[shell_ind[0][indB[i]], shell_ind[1][indB[i]], shell_ind[2][indB[i]]])**2. + 
+                                    (z[shell_ind[0][indA[i]], shell_ind[1][indA[i]], shell_ind[2][indA[i]]] - z[shell_ind[0][indB[i]], shell_ind[1][indB[i]], shell_ind[2][indB[i]]])**2.))
+                    vdiff.append((vx[shell_ind[0][indA[i]], shell_ind[1][indA[i]], shell_ind[2][indA[i]]] - vx[shell_ind[0][indB[i]], shell_ind[1][indB[i]], shell_ind[2][indB[i]]])**2. + 
+                                (vy[shell_ind[0][indA[i]], shell_ind[1][indA[i]], shell_ind[2][indA[i]]] - vy[shell_ind[0][indB[i]], shell_ind[1][indB[i]], shell_ind[2][indB[i]]])**2. + 
+                                (vz[shell_ind[0][indA[i]], shell_ind[1][indA[i]], shell_ind[2][indA[i]]] - vz[shell_ind[0][indB[i]], shell_ind[1][indB[i]], shell_ind[2][indB[i]]])**2.)
+                sep = np.array(sep)
+                vdiff = np.array(vdiff)
+
+                sep_bins = np.logspace(np.log10(box_size/resolution), np.log10(np.sqrt(3.)*box_size*out_r*2), 50)
+                sep_bin_centers = sep_bins[:-1] + np.diff(sep_bins)
+                vsf = []
+                for i in range(len(sep_bins)-1):
+                    vsf.append(np.mean(vdiff[(sep > sep_bins[i]) & (sep < sep_bins[i+1])]))
+                vsf = np.array(vsf)
+                
+                ax.plot(sep_bin_centers, vsf, ls='-', lw=1, alpha=0.5)
+                vsfs.append(vsf)
+
+            llist = np.logspace(np.log10(1./resolution), np.log10(np.sqrt(3.)*out_r*2), 50)
+            vsf_list = []
+            for scale in llist:
+                vsf_list.append(vsf_from_Ek(scale, amplitude, k_peak))
+            vsf_list = np.array(vsf_list)
+            norm = vsf[-15]/vsf_list[-15]
+            ax.plot(llist*box_size, vsf_list*norm, 'k--', lw=2)
+
+            # Estimate flattening/turnover point
+            vsfs = np.array(vsfs)
+            peak = estimate_flattening_point(np.log10(sep_bin_centers), np.log10(vsfs), slope_thresh=slope_thresh)
+            peaks.append(10**peak)
+            ax.plot([10**peak, 10**peak], [0.25*np.max(vsf_list*norm), 4.*np.max(vsf_list*norm)], 'k:', lw=1)
+
+            ax.set_yscale('log')
+            ax.set_xscale('log')
+            ax.set_xlabel('Scale $l$ [kpc]', fontsize=12)
+            ax.set_ylabel('2nd-order VSF [(km/s)$^2$]', fontsize=12)
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+                    top=True, right=True)
+            
+            fig.subplots_adjust(left=0.15, bottom=0.12, top=0.97, right=0.98)
+            plt.savefig('VSF_shells_' + str(r) + save_suffix + '.png')
+            plt.close()
+
+    else:
+        # Calculate VSFs for different box sizes, all centered on center of full box
+        boxsizes = [4, 2, 4/3, 1]  # These are divisive factors of the full box size, so each subbox has size box_size/16 or box_size/8, etc.
+        npoints = [100000, 1000000, 1000000, 5000000]
+        peaks = []
+        for b in range(len(boxsizes)):
+            fig = plt.figure(figsize=(6,4), dpi=250)
+            ax = fig.add_subplot(1,1,1)
+            bsize = boxsizes[b]
+            npoint = npoints[b]
+            if (diff_peaks): k_peak = k_peaks[b]
+            # Find starting index for each box size to ensure it's centered
+            start_ind_x = resolution/2 - (resolution/bsize)/2
+            start_ind_y = resolution/2 - (resolution/bsize)/2
+            start_ind_z = resolution/2 - (resolution/bsize)/2
+            print(bsize, start_ind_x, start_ind_x+resolution/bsize)
+            vsfs = []
+            # Pull 10 sets of random pairs from this box
+            for sub in range(10):
+                # Select random pairs of indices within this subbox
+                indA_x = np.random.randint(start_ind_x, start_ind_x+resolution/bsize, size=npoint)
+                indA_y = np.random.randint(start_ind_y, start_ind_y+resolution/bsize, size=npoint)
+                indA_z = np.random.randint(start_ind_z, start_ind_z+resolution/bsize, size=npoint)
+                indB_x = np.random.randint(start_ind_x, start_ind_x+resolution/bsize, size=npoint)
+                indB_y = np.random.randint(start_ind_y, start_ind_y+resolution/bsize, size=npoint)
+                indB_z = np.random.randint(start_ind_z, start_ind_z+resolution/bsize, size=npoint)
+
+                # Calculate separations and velocity differences
+                sep = []
+                vdiff = []
+                for i in range(npoint):
+                    sep.append(np.sqrt((x[indA_x[i], indA_y[i], indA_z[i]] - x[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                                    (y[indA_x[i], indA_y[i], indA_z[i]] - y[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                                    (z[indA_x[i], indA_y[i], indA_z[i]] - z[indB_x[i], indB_y[i], indB_z[i]])**2.))
+                    vdiff.append((vx[indA_x[i], indA_y[i], indA_z[i]] - vx[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                                (vy[indA_x[i], indA_y[i], indA_z[i]] - vy[indB_x[i], indB_y[i], indB_z[i]])**2. + 
+                                (vz[indA_x[i], indA_y[i], indA_z[i]] - vz[indB_x[i], indB_y[i], indB_z[i]])**2.)
+                sep = np.array(sep)
+                vdiff = np.array(vdiff)
+                
+                sep_bins = np.logspace(np.log10(box_size/resolution), np.log10(np.sqrt(3.)*box_size/bsize), 50)
+                sep_bin_centers = sep_bins[:-1] + np.diff(sep_bins)
+                vsf = []
+                for i in range(len(sep_bins)-1):
+                    vsf.append(np.mean(vdiff[(sep > sep_bins[i]) & (sep < sep_bins[i+1])]))
+                vsf = np.array(vsf)
+                
+                ax.plot(sep_bin_centers, vsf, ls='-', lw=1, alpha=0.5)
+                vsfs.append(vsf)
+
+            llist = np.logspace(np.log10(1./resolution), np.log10(np.sqrt(3.)/bsize), 50)
+            vsf_list = []
+            for scale in llist:
+                vsf_list.append(vsf_from_Ek(scale, amplitude, k_peak))
+            vsf_list = np.array(vsf_list)
+            norm = vsf[-15]/vsf_list[-15]
+            ax.plot(llist*box_size, vsf_list*norm, 'k--', lw=2)
+
+            # Estimate flattening/turnover point
+            vsfs = np.array(vsfs)
+            peak = estimate_flattening_point(np.log10(sep_bin_centers), np.log10(vsfs), slope_thresh=slope_thresh)
+            peaks.append(10**peak)
+            ax.plot([10**peak, 10**peak], [0.25*np.max(vsf_list*norm), 4.*np.max(vsf_list*norm)], 'k:', lw=1)
+
+            ax.set_yscale('log')
+            ax.set_xscale('log')
+            ax.set_xlabel('Scale $l$ [kpc]', fontsize=12)
+            ax.set_ylabel('2nd-order VSF [(km/s)$^2$]', fontsize=12)
+            ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+                    top=True, right=True)
+            
+            fig.subplots_adjust(left=0.15, bottom=0.12, top=0.97, right=0.98)
+            plt.savefig('VSF_subboxes_' + str(bsize) + save_suffix + '.png')
+            plt.close()
+
+    fig = plt.figure(figsize=(6,4), dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    if (radial_shells):
+        radii = r_edges[1:]
+        ax.scatter(radii, np.array(peaks)/box_size, color='k', s=12)
+        ax.set_xlabel('Outer radius of shell', fontsize=12)
+    else:
+        ax.scatter(1./np.array(boxsizes), np.array(peaks)/box_size, color='k', s=12)
+        ax.set_xlabel('Box size', fontsize=12)
+    #ax.set_yscale('log')
+    #ax.set_xscale('log')
+    ax.set_ylabel('Flattening/turnover point', fontsize=12)
+    ax.axis([-0.05,1.05,-0.05,1.05])
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=10, \
+                top=True, right=True)
+    fig.tight_layout()
+    if (radial_shells): plt.savefig('peak_vs_shell-radius' + save_suffix + '.png')
+    else: plt.savefig('peak_vs_boxsize' + save_suffix + '.png')
+    plt.close()
 
 def velocity_slice(snap):
     '''Plots slices of radial, theta, and phi velocity fields through the center of the halo. The field,
@@ -984,11 +1715,6 @@ def emission_2d_vsf(snap):
     fig.subplots_adjust(bottom=0.12, top=0.97, left=0.12, right=0.97)
     fig.savefig(save_dir + '/' + snap + '_VSF_2d-emiss' + save_suffix + '.png')
 
-
-
-
-
-
 def vdisp_vs_radius(snap):
     '''Plots the turbulent velocity dispersion in hot, warm, and cool gas as functions of galactocentric
     radius.'''
@@ -1363,7 +2089,7 @@ def vdisp_vs_mass_res(snap):
     image = plt.imread(save_dir + snap + '_cell-mass_vs_vdisp_temperature-colored' + save_suffix + '_intermediate.png')
     ax.imshow(image, extent=[x_range[0],x_range[1],y_range[0],y_range[1]])
     ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_range[1]-y_range[0])))
-    ax.set_ylabel('Mass Resolution [$M_\odot$]', fontsize=20)
+    ax.set_ylabel(r'Mass Resolution [$M_\odot$]', fontsize=20)
     ax.set_yticks([0,1,2,3,4,5])
     ax.set_yticklabels(['1','10','100','1000','$10^4$','$10^5$'])
     ax.set_xlabel('Velocity Dispersion [km/s]', fontsize=20)
@@ -1601,7 +2327,7 @@ def vdisp_vs_time(snaplist):
     #ax.text(4, 185, '$%.2f R_{200}$' % (args.time_radius), fontsize=20, ha='left', va='center')
     ax3.tick_params(axis='y', which='both', direction='in', length=8, width=2, pad=5, labelsize=18, right=True)
     ax3.set_ylim(-5,100)
-    ax3.set_ylabel('SFR [$M_\odot$/yr]', fontsize=18)
+    ax3.set_ylabel(r'SFR [$M_\odot$/yr]', fontsize=18)
     if (args.halo=='8508'):
         ax.legend(loc=1, frameon=False, fontsize=18)
     #ax.text(4,9,halo_dict[args.halo],ha='left',va='center',fontsize=18)
@@ -2203,7 +2929,7 @@ def outflow_projection(snap):
     lc_met.set_array(y)
     lc_met.set_linewidth(2)
     line = ax3.add_collection(lc_met)
-    ax3.set_ylabel('log Metallicity [$Z_\odot$]', fontsize=18)
+    ax3.set_ylabel(r'log Metallicity [$Z_\odot$]', fontsize=18)
     ax3.axis([-1,12,-1.25,0.4])
     #ax3.plot([-1,15],[avg_met_no_outflow, avg_met_no_outflow], 'b--', lw=2)
     ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
@@ -2212,6 +2938,231 @@ def outflow_projection(snap):
     fig.subplots_adjust(top=0.96,bottom=0.11,right=0.76,left=0.1)
     fig.savefig(save_dir + snap + '_avg-vdisp-temp-met_vs_dist-from-outflow' + save_suffix + '.png')
 
+def vdisp_projection(snap):
+    '''Plot an OVI-weighted and a CII-weighted projection of line-of-sight velocity dispersion and 3D kernel velocity dispersion.'''
+
+    snap_name = foggie_dir + run_dir + snap + '/' + snap
+    ds, refine_box = foggie_load(snap_name, trackname, disk_relative=True, halo_c_v_name=halo_c_v_name, particle_type_for_angmom='gas')
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    trident.add_ion_fields(ds, ions=['O VI', 'C II'], ftype='gas')
+
+    pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))  # at level 11
+    lvl1_res = pix_res*2.**11.
+    level = 10
+    dx = ds.quan(lvl1_res/(2.**level), 'kpc')
+    smooth_scale = (10./dx)/6.
+    box_size = ds.quan(120., 'kpc')
+    refine_res = int(box_size/dx)
+    box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([box_size/2.,box_size/2.,box_size/2.],'kpc'), dims=[refine_res, refine_res, refine_res])
+
+    vx = box[('gas','vx_corrected')].in_units('km/s').v
+    vy = box[('gas','vy_corrected')].in_units('km/s').v
+    vz = box[('gas','vz_corrected')].in_units('km/s').v
+    density = box[('gas','density')].in_units('g/cm**3').v
+    OVI_density = box[('gas','O_p5_number_density')].in_units('1/cm**3').v
+    CII_density = box[('gas','C_p1_number_density')].in_units('1/cm**3').v
+    # Smooth velocity fields to find bulk flows
+    smooth_vx = gaussian_filter(vx, smooth_scale)
+    smooth_vy = gaussian_filter(vy, smooth_scale)
+    smooth_vz = gaussian_filter(vz, smooth_scale)
+    # Subtract off bulk to get just turbulence
+    resid_x = vx - smooth_vx
+    resid_y = vy - smooth_vy
+    resid_z = vz - smooth_vz
+    # Compute the local standard deviation of the velocity fields within Gaussian windows: residual^2 - mean^2
+    # Since the smoothing scales here are the same as was used to calculate the residual above, the subtraction is
+    # not totally necessary because the mean should be zero by definition, but I've left it in for completeness
+    variance_x = gaussian_filter(resid_x**2., smooth_scale) - gaussian_filter(resid_x, smooth_scale)**2.
+    variance_y = gaussian_filter(resid_y**2., smooth_scale) - gaussian_filter(resid_y, smooth_scale)**2.
+    variance_z = gaussian_filter(resid_z**2., smooth_scale) - gaussian_filter(resid_z, smooth_scale)**2.
+    local_std = np.sqrt((np.abs(variance_x) + np.abs(variance_y) + np.abs(variance_z))/3.)
+
+    # Build interpolators
+    left_edge = -np.array([box_size/2.,box_size/2.,box_size/2.])
+    right_edge = np.array([box_size/2.,box_size/2.,box_size/2.])
+    x = np.linspace(left_edge[0], right_edge[0], refine_res)
+    y = np.linspace(left_edge[1], right_edge[1], refine_res)
+    z = np.linspace(left_edge[2], right_edge[2], refine_res)
+    interp_density = RegularGridInterpolator((x, y, z), density, bounds_error=False, fill_value=1e-35)
+    interp_OVI_density = RegularGridInterpolator((x, y, z), OVI_density, bounds_error=False, fill_value=0.)
+    interp_CII_density = RegularGridInterpolator((x, y, z), CII_density, bounds_error=False, fill_value=0.)
+    interp_vx = RegularGridInterpolator((x, y, z), vx, bounds_error=False, fill_value=0.)
+    interp_vy = RegularGridInterpolator((x, y, z), vy, bounds_error=False, fill_value=0.)
+    interp_vz = RegularGridInterpolator((x, y, z), vz, bounds_error=False, fill_value=0.)
+    interp_local_std = RegularGridInterpolator((x, y, z), local_std, bounds_error=False, fill_value=0.)
+
+    # Create rotated grid
+    center = np.array([0.,0.,0.])
+    normal = ds.z_unit_disk.v
+    b1 = ds.x_unit_disk.v
+    b2 = ds.y_unit_disk.v
+    grid_size = 400
+    width = 100  # kpc
+    kpctocm = 3.086e21
+    dx_rot = width/grid_size*kpctocm
+    lin = np.linspace(-width/2, width/2, grid_size)
+    xg, yg, zg = np.meshgrid(lin, lin, lin, indexing="ij")
+    rotated_coords = (xg[..., None] * b1 + yg[..., None] * b2 + zg[..., None] * normal + center)
+    rotated_points = rotated_coords.reshape(-1, 3)
+    
+    # Interpolate at rotated positions
+    density_rot = interp_density(rotated_points).reshape(grid_size, grid_size, grid_size)
+    OVI_density_rot = interp_OVI_density(rotated_points).reshape(grid_size, grid_size, grid_size)
+    CII_density_rot = interp_CII_density(rotated_points).reshape(grid_size, grid_size, grid_size)
+    vx_rot = interp_vx(rotated_points).reshape(grid_size, grid_size, grid_size)
+    vy_rot = interp_vy(rotated_points).reshape(grid_size, grid_size, grid_size)
+    vz_rot = interp_vz(rotated_points).reshape(grid_size, grid_size, grid_size)
+    local_std_rot = interp_local_std(rotated_points).reshape(grid_size, grid_size, grid_size)
+
+    # Project velocities into rotated frame for LOS velocities
+    v1 = vx_rot * b1[0] + vy_rot * b1[1] + vz_rot * b1[2]
+    v2 = vx_rot * b2[0] + vy_rot * b2[1] + vz_rot * b2[2]
+    v3 = vx_rot * normal[0] + vy_rot * normal[1] + vz_rot * normal[2]
+
+    cmap_den = cmr.get_sub_cmap('cmr.rainforest', 0., 0.85)
+    cmap_den.set_bad(cmap_den(0.))
+    cmap_OVI = cmr.get_sub_cmap('cmr.sunburst', 0., 0.8)
+    cmap_OVI.set_bad(cmap_OVI(0.))
+    cmap_CII = cmr.get_sub_cmap('cmr.voltage', 0., 0.8)
+    cmap_CII.set_bad(cmap_CII(0.))
+    fig_colden = plt.figure(figsize=(14,6), dpi=250)
+    ax_gas = fig_colden.add_subplot(1,3,1)
+    ax_OVI = fig_colden.add_subplot(1,3,2)
+    ax_CII = fig_colden.add_subplot(1,3,3)
+    fig_colden.subplots_adjust(top=0.94,bottom=0.06,right=0.98,left=0.07,wspace=0.,hspace=0.)
+
+    #gasden_proj = np.log10(np.sum(density_rot*dx_rot, axis=(0))/(width*kpctocm))
+    #highres_gasden_proj = zoom(gasden_proj, 4, order=3)
+    proj_den = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas','density'), weight_field=('gas','density'), center=ds.halo_center_kpc, width=(100., 'kpc'), depth=(100.,'kpc'), north_vector=ds.z_unit_disk)
+    proj_den.set_cmap(('gas','density'), cmap_den)
+    proj_den.set_zlim(('gas','density'), 10**(-29.5), 10**(-23.5))
+    proj_den.render()
+    frb_den = np.log10(proj_den.frb[('gas','density')])
+    im_den = ax_gas.imshow(frb_den, aspect='equal', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap_den, norm=colors.Normalize(vmin=-29.5,vmax=-23.5))
+    #im_den = ax_gas.imshow(rotate(highres_gasden_proj, 90), aspect='equal', origin='lower', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap_den, norm=colors.Normalize(vmin=-29.5,vmax=-24.5))
+    ax_gas.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True)
+    ax_gas.set_xlabel('x [kpc]', fontsize=18)
+    ax_gas.set_ylabel('y [kpc]', fontsize=18)
+    pos_gas = ax_gas.get_position()
+    cax_den = fig_colden.add_axes([pos_gas.x0, pos_gas.y1, pos_gas.width, 0.03])  # [left, bottom, width, height]
+    fig_colden.colorbar(im_den, cax=cax_den, orientation='horizontal')
+    cax_den.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
+                    top=True, right=True, bottom=False, labelbottom=False, labeltop=True)
+    cax_den.text(0.5, 4, 'log Gas Density [g/cm$^2$]', fontsize=18, ha='center', va='center', transform=cax_den.transAxes)
+
+    #OVI_proj = np.log10(np.sum(OVI_density_rot*dx_rot, axis=(0)))
+    #OVI_proj[np.sum(OVI_density_rot, axis=(0))==0.] = 0.
+    #highres_OVI_proj = zoom(OVI_proj, 4, order=3)
+    proj_OVI = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas','O_p5_number_density'), center=ds.halo_center_kpc, width=(100., 'kpc'), depth=(100.,'kpc'), north_vector=ds.z_unit_disk)
+    proj_OVI.set_cmap(('gas','O_p5_number_density'), cmap_OVI)
+    proj_OVI.set_zlim(('gas','O_p5_number_density'), 10**(10.5), 10**(17.5))
+    proj_OVI.render()
+    frb_OVI = np.log10(proj_OVI.frb[('gas','O_p5_number_density')])
+    im_OVI = ax_OVI.imshow(frb_OVI, aspect='equal', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap_OVI, norm=colors.Normalize(vmin=10.5, vmax=17.5))
+    #im_OVI = ax_OVI.imshow(rotate(highres_OVI_proj,90), aspect='equal', origin='lower', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap_OVI, norm=colors.Normalize(vmin=10.5, vmax=17.5))
+    ax_OVI.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True, labelleft=False)
+    ax_OVI.set_xlabel('x [kpc]', fontsize=18)
+    pos_OVI = ax_OVI.get_position()
+    cax_OVI = fig_colden.add_axes([pos_OVI.x0, pos_OVI.y1, pos_OVI.width, 0.03])  # [left, bottom, width, height]
+    fig_colden.colorbar(im_OVI, cax=cax_OVI, orientation='horizontal')
+    cax_OVI.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
+                    top=True, right=True, bottom=False, labelbottom=False, labeltop=True)
+    cax_OVI.text(0.5, 4, 'log O VI Column [cm$^{-2}$]', fontsize=18, ha='center', va='center', transform=cax_OVI.transAxes)
+
+    #CII_proj = np.log10(np.sum(CII_density_rot*dx_rot, axis=(0)))
+    #CII_proj[np.sum(CII_density_rot, axis=(0))==0.] = 0.
+    #highres_CII_proj = zoom(CII_proj, 4, order=3)
+    proj_CII = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas','C_p1_number_density'), center=ds.halo_center_kpc, width=(100., 'kpc'), depth=(100.,'kpc'), north_vector=ds.z_unit_disk)
+    proj_CII.set_cmap(('gas','C_p1_number_density'), cmap_CII)
+    proj_CII.set_zlim(('gas','C_p1_number_density'), 10**(10.5), 10**(17.5))
+    proj_CII.render()
+    frb_CII = np.log10(proj_CII.frb[('gas','C_p1_number_density')])
+    im_CII = ax_CII.imshow(frb_CII, aspect='equal', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap_CII, norm=colors.Normalize(vmin=10.5, vmax=17.5))
+    #im_CII = ax_CII.imshow(rotate(highres_CII_proj,90), aspect='equal', origin='lower', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap_CII, norm=colors.Normalize(vmin=10.5, vmax=17.5))
+    ax_CII.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True, labelleft=False)
+    ax_CII.set_xlabel('x [kpc]', fontsize=18)
+    pos_CII = ax_CII.get_position()
+    cax_CII = fig_colden.add_axes([pos_CII.x0, pos_CII.y1, pos_CII.width, 0.03])  # [left, bottom, width, height]
+    fig_colden.colorbar(im_CII, cax=cax_CII, orientation='horizontal')
+    cax_CII.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
+                    top=True, right=True, bottom=False, labelbottom=False, labeltop=True)
+    cax_CII.text(0.5, 4, 'log C II Column [cm$^{-2}$]', fontsize=18, ha='center', va='center', transform=cax_CII.transAxes)
+
+    fig_colden.savefig(save_dir + snap + '_density_OVI_CII_projections_x-disk.png')
+
+    cmap = cmr.horizon_r
+    cmap.set_bad(cmap(0.))
+    fig = plt.figure(figsize=(14,8.5), dpi=250)
+    ax_den = fig.add_subplot(2,3,1)
+
+    std_projection = np.sum(local_std_rot*density_rot, axis=(0)) / np.sum(density_rot, axis=(0))
+    im = ax_den.imshow(rotate(std_projection, 90), origin='lower', aspect='equal', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap, norm=colors.Normalize(vmin=0.,vmax=200.))
+    ax_den.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True)
+    ax_den.set_xlabel('x [kpc]', fontsize=18)
+    ax_den.set_ylabel('y [kpc]', fontsize=18)
+    ax_den.text(-45,40, 'Gas\ndensity-weighted', fontsize=16, ha='left', va='center')
+    ax_den.text(45,40, r'Local $v_\mathrm{turb}$', fontsize=16, ha='right', va='center')
+    cax = fig.add_axes([0.9, 0.08, 0.02, 0.9])
+    cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
+                    top=True, right=True)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.text(3.5, 0.5, 'Velocity dispersion [km/s]', fontsize=18, rotation='vertical', ha='center', va='center', transform=cax.transAxes)
+
+    ax_OVI_local = fig.add_subplot(2,3,2)
+    norm_OVI = np.sum(OVI_density_rot, axis=(0))
+    proj_OVI_local = np.sum(local_std_rot*OVI_density_rot, axis=(0)) / np.sum(OVI_density_rot, axis=(0))
+    proj_OVI_local[norm_OVI==0.] = 0.
+    ax_OVI_local.imshow(rotate(proj_OVI_local, 90), origin='lower', aspect='equal', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap, norm=colors.Normalize(vmin=0.,vmax=200.))
+    ax_OVI_local.text(-45,40, 'OVI-weighted', fontsize=16, ha='left', va='center')
+    ax_OVI_local.text(45,40, r'Local $v_\mathrm{turb}$', fontsize=16, ha='right', va='center')
+    ax_OVI_local.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True, labelbottom=False, labelleft=False)
+    
+    ax_OVI_LOS = fig.add_subplot(2,3,3)
+    mean_v1_OVI = np.sum(v1 * OVI_density_rot, axis=(0)) / norm_OVI
+    delta_v1_OVI = v1 - mean_v1_OVI[None, :, :]
+    proj_OVI_LOS = np.sqrt(np.abs(np.sum(OVI_density_rot * delta_v1_OVI**2, axis=(0)) / norm_OVI))
+    #proj_OVI_LOS = mean_v3_OVI
+    proj_OVI_LOS[norm_OVI==0.] = 0.
+    ax_OVI_LOS.imshow(rotate(proj_OVI_LOS, 90), aspect='equal', origin='lower', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap, norm=colors.Normalize(vmin=0.,vmax=200.))
+    ax_OVI_LOS.text(-45,40, 'OVI-weighted', fontsize=16, ha='left', va='center')
+    ax_OVI_LOS.text(45,40, r'LOS $v_\mathrm{disp}$', fontsize=16, ha='right', va='center')
+    ax_OVI_LOS.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True, labelbottom=False, labelleft=False)
+    
+    ax_CII_local = fig.add_subplot(2,3,5)
+    norm_CII = np.sum(CII_density_rot, axis=(0))
+    proj_CII_local = np.sum(local_std_rot*CII_density_rot, axis=(0)) / norm_CII
+    proj_CII_local[norm_CII==0.] = 0.
+    ax_CII_local.imshow(rotate(proj_CII_local, 90), aspect='equal', origin='lower', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap, norm=colors.Normalize(vmin=0.,vmax=200.))
+    ax_CII_local.text(-45,40, 'CII-weighted', fontsize=16, ha='left', va='center')
+    ax_CII_local.text(45,40, r'Local $v_\mathrm{turb}$', fontsize=16, ha='right', va='center')
+    ax_CII_local.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True)
+    ax_CII_local.set_xlabel('x [kpc]', fontsize=18)
+    ax_CII_local.set_ylabel('y [kpc]', fontsize=18)
+
+    ax_CII_LOS = fig.add_subplot(2,3,6)
+    mean_v1_CII = np.sum(v1 * CII_density_rot, axis=(0)) / norm_CII
+    delta_v1_CII = v1 - mean_v1_CII[None, :, :]
+    proj_CII_LOS = np.sqrt(np.abs(np.sum(CII_density_rot * delta_v1_CII**2, axis=(0)) / norm_CII))
+    #proj_CII_LOS = mean_v3_CII
+    proj_CII_LOS[norm_CII==0.] = 0.
+    ax_CII_LOS.imshow(rotate(proj_CII_LOS, 90), aspect='equal', origin='lower', extent=[-width/2., width/2., -width/2., width/2.], cmap=cmap, norm=colors.Normalize(vmin=0.,vmax=200.))
+    ax_CII_LOS.text(-45,40, 'CII-weighted', fontsize=16, ha='left', va='center')
+    ax_CII_LOS.text(45,40, r'LOS $v_\mathrm{disp}$', fontsize=16, ha='right', va='center')
+    ax_CII_LOS.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True, labelleft=False)
+    ax_CII_LOS.set_xlabel('x [kpc]', fontsize=18)
+
+    fig.subplots_adjust(top=0.98,bottom=0.08,right=0.9,left=0.08,wspace=0.,hspace=0.)
+    fig.savefig(save_dir + snap + '_vdisp_OVI_CII_projections_x-disk.png')
+    
 
 if __name__ == "__main__":
 
@@ -2260,6 +3211,13 @@ if __name__ == "__main__":
         else:
             target = vdisp_slice
             target_dir = 'vdisp_slice'
+    elif (args.plot=='vdisp_projection'):
+        if (args.nproc==1):
+            for i in range(len(outs)):
+                vdisp_projection(outs[i])
+        else:
+            target = vdisp_projection
+            target_dir = 'vdisp_projection'
     elif (args.plot=='outflow_projection'):
         if (args.nproc==1):
             for i in range(len(outs)):
