@@ -44,6 +44,7 @@ import yt
 from yt.units import *
 from yt import YTArray
 from yt.data_objects.particle_filters import add_particle_filter
+from yt_astro_analysis.halo_analysis import *
 
 from foggie.utils.consistency import *
 from foggie.utils.get_refine_box import get_refine_box
@@ -53,25 +54,20 @@ from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
 from foggie.utils.analysis_utils import *
+from foggie.utils.halo_quantity_callbacks import * 
 
 import warnings
 warnings.filterwarnings("ignore")
 
 from datetime import datetime, timedelta
 
+###### IF YOU ADD A PLOT STEP 3B: If your new plot is in a new file, add it as an import here ######
 from feedback_plots import *
-from population_plots import *
+from time_evol_plots import *
 from star_formation_plots import *
 from visualization_plots import *
 from resolved_metallicity_plots import *
-from halo_info_table import *
+from central_info_table import *
 from phase_plots import *
-
-# global variables that should be accessible throughout
-# if you add a function to any of the following scripts, add the function name below
-sf_plots = ['gas_density_projection','young_stars_density_projection', 'KS_relation']
-fb_plots = ['outflow_rates', 'rad_vel_temp_colored']
-vis_plots = ['gas_density_projection', 'gas_metallicity_projection', 'edge_visualizations']
-metal_plots = ['gas_metallicity_resolved_MZR', 'gas_metallicity_histogram', 'gas_metallicity_radial_profile']
-pop_plots = ['plot_SFMS', 'plot_SMHM'] #, 'plot_MZR'] plot_MZR isn't ready yet
+from highz_halos_plots import get_halo_catalog, halos_density_projection, halos_SMHM, halos_SFMS, halos_MZR, halos_gasMHM, halos_h2_frac
 
