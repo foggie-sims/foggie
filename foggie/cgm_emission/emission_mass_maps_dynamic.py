@@ -17,7 +17,7 @@ Note: if you want to use disk and cgm filters then you need to run clump_finder.
 
 It saves:
 1. emission maps for edge-on and face-on projections for each ion in the list 'ions' 
-2. Saves the emission values in a hdf5 file 
+2. Saves the emission values in a hdf5 file  
 '''
 
 import numpy as np
@@ -222,7 +222,7 @@ def make_Cloudy_table(table_index,cloudy_path):
             table[i,:]=[float(l.split()[table_index]) for l in open(cloudy_path%(i+1)) if l[0] != "#"]
     return hden,T,table
 
-def make_Cloudy_table_thin(table_index,cloudy_path):
+def make_Cloudy_table_thin(table_index,cloudy_path_thin):
 
     #make sure these match the values in the Cloudy run
     hden_n_bins, hden_min, hden_max = 17, -5, 2
@@ -289,26 +289,26 @@ def Emission_CII_1335(field, data,scale_factor, unit_system='photons'):
         emission_line = emission_line / 4.25e10
         return emission_line * ytEmUALT
     
-def Emission_CIII_977(field, data,scale_factor, unit_system='photons'):
+# def Emission_CIII_977(field, data,scale_factor, unit_system='photons'):
     
-    H_N = np.log10(np.array(data["H_nuclei_density"]))
-    Temperature = np.log10(np.array(data["Temperature"]))
-    dia1 = bl_CIII_977(H_N, Temperature)
-    idx = np.isnan(dia1)
-    dia1[idx] = -200.
-    if scale_factor > 1:
-        emission_line = scale_factor * ((10.0**dia1) * ((10.0**H_N)**2.0))
-    else:
-        emission_line = ((10.0**dia1) * ((10.0**H_N)**2.0))
-    emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
+#     H_N = np.log10(np.array(data["H_nuclei_density"]))
+#     Temperature = np.log10(np.array(data["Temperature"]))
+#     dia1 = bl_CIII_977(H_N, Temperature)
+#     idx = np.isnan(dia1)
+#     dia1[idx] = -200.
+#     if scale_factor > 1:
+#         emission_line = scale_factor * ((10.0**dia1) * ((10.0**H_N)**2.0))
+#     else:
+#         emission_line = ((10.0**dia1) * ((10.0**H_N)**2.0))
+#     emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
     
-    if unit_system == 'photons':
-        emission_line = emission_line / (4. * np.pi * 2.03e-11) # the constant value 2.03e-11 is energy per photon for CIII 977
-        return emission_line * ytEmU
-    elif unit_system == 'erg':
-        emission_line = emission_line / (4. * np.pi)
-        emission_line = emission_line / 4.25e10
-        return emission_line * ytEmUALT
+#     if unit_system == 'photons':
+#         emission_line = emission_line / (4. * np.pi * 2.03e-11) # the constant value 2.03e-11 is energy per photon for CIII 977
+#         return emission_line * ytEmU
+#     elif unit_system == 'erg':
+#         emission_line = emission_line / (4. * np.pi)
+#         emission_line = emission_line / 4.25e10
+#         return emission_line * ytEmUALT
       
 def Emission_CIII_1910(field, data,scale_factor, unit_system='photons'):
     
@@ -335,7 +335,7 @@ def Emission_CIV_1548(field, data,scale_factor, unit_system='photons'):
     
     H_N = np.log10(np.array(data["H_nuclei_density"]))
     Temperature = np.log10(np.array(data["Temperature"]))
-    dia1 = bl_CIV_1(H_N, Temperature)
+    dia1 = bl_CIV_1548(H_N, Temperature)
     idx = np.isnan(dia1)
     dia1[idx] = -200.
     if scale_factor > 1:
@@ -398,11 +398,34 @@ def Emission_SiIII_1207(field, data,scale_factor, unit_system='photons'):
         emission_line = emission_line / 4.25e10
         return emission_line * ytEmUALT
 
-def Emission_SiII_1814(field, data,scale_factor, unit_system='photons'):
+# def Emission_SiII_1814(field, data,scale_factor, unit_system='photons'):
+    
+#     H_N = np.log10(np.array(data["H_nuclei_density"]))
+#     Temperature = np.log10(np.array(data["Temperature"]))
+#     dia1 = bl_SiII_1814(H_N, Temperature)
+#     idx = np.isnan(dia1)
+#     dia1[idx] = -200.
+#     if scale_factor > 1:
+#         emission_line = scale_factor * (10.0**dia1) * ((10.0**H_N)**2.0)
+#     else:
+#         emission_line = (10.0**dia1) * ((10.0**H_N)**2.0)
+    
+#     emission_line = scale_by_metallicity(emission_line, 0.0, np.log10(np.array(data['metallicity'])))
+    
+#     if unit_system == 'photons':
+#         emission_line = emission_line / (4.*np.pi*1.10e-11)
+#         return emission_line * ytEmU
+#     elif unit_system == 'erg':
+#         emission_line = emission_line / (4. * np.pi)
+#         emission_line = emission_line / 4.25e10
+#         return emission_line * ytEmUALT
+#     else:
+#         raise ValueError("Invalid unit_system specified. Use 'default' or 'ALT'.")
+def Emission_SiII_1260(field, data,scale_factor, unit_system='photons'):
     
     H_N = np.log10(np.array(data["H_nuclei_density"]))
     Temperature = np.log10(np.array(data["Temperature"]))
-    dia1 = bl_SiII_1814(H_N, Temperature)
+    dia1 = bl_SiII_1260(H_N, Temperature)
     idx = np.isnan(dia1)
     dia1[idx] = -200.
     if scale_factor > 1:
@@ -942,7 +965,10 @@ def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=
             
             proj_edge.set_cmap('Emission_' + ions_dict[ion], mymap)
             proj_edge.set_zlim('Emission_' + ions_dict[ion], zlim_dict[ion][0], zlim_dict[ion][1])
-            proj_edge.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + ' Emission [photons s$^{-1}$ cm$^{-2}$ sr$^{-2}$]')
+            if args.unit_system == 'photons':
+                proj_edge.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + ' Emission [photons s$^{-1}$ cm$^{-2}$ sr]')
+            elif args.unit_system == 'erg':
+                proj_edge.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + ' Emission [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]')
             proj_edge.set_font_size(20)
             #proj_edge.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
             proj_edge.save(prefix + 'Projections/' + ion + '_emission_map_edge_on' + '_' + snap + save_suffix + '.png')
@@ -952,7 +978,10 @@ def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=
             
             proj_face.set_cmap('Emission_' + ions_dict[ion], mymap)
             proj_face.set_zlim('Emission_' + ions_dict[ion], zlim_dict[ion][0], zlim_dict[ion][1])
-            proj_face.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + ' Emission [photons s$^{-1}$ cm$^{-2}$ sr$^{-2}$]')
+            if args.unit_system == 'photons':
+                proj_face.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + ' Emission [photons s$^{-1}$ cm$^{-2}$ sr]')
+            elif args.unit_system == 'erg':
+                proj_face.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + ' Emission [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]')
             proj_face.set_font_size(20)
             #proj_face.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
             proj_face.save(prefix + 'Projections/' + ion + '_emission_map_face_on'+ '_' + snap + save_suffix + '.png')
@@ -1100,33 +1129,38 @@ def make_column_density_FRB(ds, refine_box, snap, ions,scaling = True, scale_fac
                                           buff_size=[res, res], weight_field=None)#width=(ds.refine_width, 'kpc')
             frb_edge = proj_edge.frb[numdensity_field]  # Surface density in g/cm^2
             # Save mass FRB, total mass, and positions in HDF5
-            dset1 = grp.create_dataset(f"{ion}_numdensity_edge_{region}", data=frb_edge)
+            edge_name = f"{ion}_numdensity_edge_{region}"
+            if edge_name in grp:
+                print(f"Skipping {edge_name} (already exists)")
+            else:
+                dset1 = grp.create_dataset(edge_name, data=frb_edge)
+
             
-            # Calculate positions
-            # Calculate positions relative to the halo center
-            halo_center_x = ds.halo_center_kpc[0].in_units('kpc')
-            halo_center_y = ds.halo_center_kpc[1].in_units('kpc')
+            # # Calculate positions
+            # # Calculate positions relative to the halo center
+            # halo_center_x = ds.halo_center_kpc[0].in_units('kpc')
+            # halo_center_y = ds.halo_center_kpc[1].in_units('kpc')
 
-            # Edge-on projection
-            x_min = -width_value/2
-            x_max = width_value/2
-            y_min = -width_value/2
-            y_max = width_value/2
+            # # Edge-on projection
+            # x_min = -width_value/2
+            # x_max = width_value/2
+            # y_min = -width_value/2
+            # y_max = width_value/2
 
-            x_edges = np.linspace(x_min, x_max, res + 1)
-            y_edges = np.linspace(y_min, y_max, res + 1)
+            # x_edges = np.linspace(x_min, x_max, res + 1)
+            # y_edges = np.linspace(y_min, y_max, res + 1)
 
-            x_positions = 0.5 * (x_edges[:-1] + x_edges[1:]) 
-            y_positions = 0.5 * (y_edges[:-1] + y_edges[1:]) 
+            # x_positions = 0.5 * (x_edges[:-1] + x_edges[1:]) 
+            # y_positions = 0.5 * (y_edges[:-1] + y_edges[1:]) 
 
-            # Debugging
-            print(f"x_min: {x_min}, x_max: {x_max}, y_min: {y_min}, y_max: {y_max}")
-            print(f"x_positions (kpc): {x_positions}")
-            print(f"y_positions (kpc): {y_positions}")
+            # # Debugging
+            # print(f"x_min: {x_min}, x_max: {x_max}, y_min: {y_min}, y_max: {y_max}")
+            # print(f"x_positions (kpc): {x_positions}")
+            # print(f"y_positions (kpc): {y_positions}")
 
-            # Save positions
-            dset_x = grp.create_dataset(f"{ion}_x_edge_{region}", data=x_positions)
-            dset_y = grp.create_dataset(f"{ion}_y_edge_{region}", data=y_positions)
+            # # Save positions
+            # dset_x = grp.create_dataset(f"{ion}_x_edge_{region}", data=x_positions)
+            # dset_y = grp.create_dataset(f"{ion}_y_edge_{region}", data=y_positions)
 
             
             
@@ -1138,7 +1172,12 @@ def make_column_density_FRB(ds, refine_box, snap, ions,scaling = True, scale_fac
                                           buff_size=[res, res], weight_field=None)#(width=(ds.refine_width, 'kpc')
             frb_face = proj_face.frb[numdensity_field]  # Surface density in g/cm^2
         
-            dset2 = grp.create_dataset(f"{ion}_numdensity_face_{region}", data=frb_face)
+            face_name = f"{ion}_numdensity_face_{region}"
+            if face_name in grp:
+                print(f"Skipping {face_name} (already exists)")
+            else:
+                dset2 = grp.create_dataset(face_name, data=frb_face)
+
 
             # Save relative positions
             #dset_x = grp.create_dataset(f"{ion}_x_face_{region}", data=x_positions)
@@ -1286,6 +1325,186 @@ def make_emissivity_weighted_velocity_FRB(ds, refine_box, snap, ions, unit_syste
     f.close()
     print("Finished emissivity-weighted velocity FRBs.")
 
+def make_hi_emission_grid(ds, refine_box, snap, ions,unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
+    
+    region = 'all'
+    # Ion list (excluding HI)
+    emission_ions = ['OVI', 'CIV', 'SiIV', 'CIII', 'SiIII', 'MgII', 'SiII']
+    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
+
+    # Loop through ions and create projections for each region
+    for region, data_source in data_sources.items():
+
+        # Use global vmin and vmax for emission maps
+        global_vmin = 1e-2
+        global_vmax = 1e5
+
+        # Open the HDF5 file
+        h5_filename = prefix + f'FRBs/{halo_dict[str(args.halo)]}_emission_maps{save_suffix}.hdf5'
+        with h5py.File(h5_filename, 'r') as f:
+            group = f[f'z={ds.get_parameter("CosmologyCurrentRedshift"):.1f}']
+
+            for orientation in ['face', 'edge']:
+                fig, axes = plt.subplots(4, 2, figsize=(10, 18))
+                plt.subplots_adjust(wspace=0.01, hspace=0.01)
+
+                # Plot HI at (0, 0)
+                hi_data = group[f"HI_numdensity_{orientation}_{region}"][:]
+                ax_hi = axes[0, 0]
+                im_hi = ax_hi.imshow(hi_data, origin='lower', cmap=h1_color_map, norm=LogNorm(vmin=h1_proj_min, vmax=h1_proj_max))
+                ax_hi.text(0.05, 0.90, 'HI', transform=ax_hi.transAxes, fontsize=16, color='white', weight='bold', va='top', ha='left')
+                ax_hi.set_xticks([])
+                ax_hi.set_yticks([])
+
+                # Fill in the rest with emission ions
+                idx = 0
+                last_im = None
+                for i in range(4):
+                    for j in range(2):
+                        if i == 0 and j == 0:
+                            continue
+                        if idx >= len(emission_ions):
+                            continue
+
+                        ion = emission_ions[idx]
+                        data = group[f"{ion}_emission_{orientation}_{region}"][:]
+
+                        ax = axes[i, j]
+                        im = ax.imshow(data, origin='lower', cmap=cmr.flamingo, norm=LogNorm(vmin=global_vmin, vmax=global_vmax))
+                        ax.text(0.05, 0.90, ion, transform=ax.transAxes, fontsize=16, color='white', weight='bold', va='top', ha='left')
+                        ax.set_xticks([])
+                        ax.set_yticks([])
+
+                        last_im = im  # Save the last im for colorbar use
+                        idx += 1
+
+                # Add HI colorbar above [0, 0]
+                cbar_ax_hi = fig.add_axes([0.17, 0.89, 0.3, 0.015])
+                cbar_hi = fig.colorbar(im_hi, cax=cbar_ax_hi, orientation='horizontal',shrink=0.9)
+                cbar_hi.ax.tick_params(labelsize=12, direction='out')
+                cbar_hi.ax.xaxis.set_label_position('top')
+                cbar_hi.ax.xaxis.set_ticks_position('top')
+                cbar_hi.set_label('HI Column Density [cm$^{-2}$]', fontsize=12)
+
+                # Add global emission colorbar above [0, 1]
+                cbar_ax_em = fig.add_axes([0.56, 0.89, 0.3, 0.015])
+                cbar_em = fig.colorbar(last_im, cax=cbar_ax_em, orientation='horizontal',shrink=0.9)
+                cbar_em.ax.tick_params(labelsize=12, direction='out')
+                cbar_em.ax.xaxis.set_label_position('top')
+                cbar_em.ax.xaxis.set_ticks_position('top')
+                cbar_em.set_label('Emission [photons s$^{-1}$ cm$^{-2}$ sr$^{-1}$]', fontsize=12)
+
+                output_path = prefix + 'Projections/'
+                os.makedirs(output_path, exist_ok=True)
+                fig.savefig(os.path.join(output_path, f"{snap}_HI_plus_emission_grid_{orientation}_{region}{save_suffix}.png"), dpi=300, bbox_inches='tight')
+                plt.show()
+                plt.close()
+
+    print("Saved HI+Emission grid plots for both face-on and edge-on.")
+
+def cgm_make_hi_emission_grid(ds, refine_box, snap, ions,unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
+
+    
+    emission_ions = ['OVI', 'CIV', 'SiIV', 'CIII', 'SiIII', 'MgII', 'SiII']
+
+    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(
+        args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count,
+        shell_path, unit_system, prefix, save_suffix, ions
+    )
+
+    for region, data_source in data_sources.items():
+
+        global_vmin = 1e-2
+        global_vmax = 1e5
+
+        h5_filename = prefix + f'FRBs/{halo_dict[str(args.halo)]}_emission_maps{save_suffix}.hdf5'
+        with h5py.File(h5_filename, 'r') as f:
+            group = f[f'z={ds.get_parameter("CosmologyCurrentRedshift"):.1f}']
+
+            for orientation in ['face', 'edge']:
+                fig, axes = plt.subplots(4, 2, figsize=(10, 18))
+                plt.subplots_adjust(wspace=0.01, hspace=0.01)
+
+                hi_data = group[f"HI_numdensity_{orientation}_{region}"][:]
+                ax_hi = axes[0, 0]
+                im_hi = ax_hi.imshow(hi_data, origin='lower', cmap=h1_color_map,
+                                     norm=LogNorm(vmin=h1_proj_min, vmax=h1_proj_max))
+                ax_hi.text(0.05, 0.90, 'HI', transform=ax_hi.transAxes, fontsize=16, color='white', weight='bold', va='top', ha='left')
+                ax_hi.set_xticks([])
+                ax_hi.set_yticks([])
+
+                if region == 'cgm':
+                    try:
+                        disk_cut = load_clump(ds, disk_file, source_cut=refine_box)
+                        proj_disk = yt.ProjectionPlot(ds, ds.x_unit_disk if orientation == 'edge' else ds.z_unit_disk,
+                                                      ('gas', 'H_p0_number_density'),
+                                                      center=ds.halo_center_kpc, data_source=disk_cut,
+                                                      width=(100, 'kpc'),
+                                                      north_vector=ds.z_unit_disk if orientation == 'edge' else ds.x_unit_disk,
+                                                      buff_size=[res, res], weight_field=None)
+                        disk_frb = proj_disk.frb[('gas', 'H_p0_number_density')].v
+                        ax_hi.contour(disk_frb, levels=4, colors='white', linewidths=0.8)
+                    except Exception as e:
+                        print(f"Could not overlay disk contours on HI: {e}")
+
+                idx = 0
+                last_im = None
+                for i in range(4):
+                    for j in range(2):
+                        if i == 0 and j == 0:
+                            continue
+                        if idx >= len(emission_ions):
+                            continue
+
+                        ion = emission_ions[idx]
+                        data = group[f"{ion}_emission_{orientation}_{region}"][:]
+                        ax = axes[i, j]
+                        im = ax.imshow(data, origin='lower', cmap=cmr.flamingo,
+                                       norm=LogNorm(vmin=global_vmin, vmax=global_vmax))
+                        ax.text(0.05, 0.90, ion, transform=ax.transAxes, fontsize=16, color='white', weight='bold', va='top', ha='left')
+                        ax.set_xticks([])
+                        ax.set_yticks([])
+
+                        if region == 'cgm':
+                            try:
+                                proj_disk = yt.ProjectionPlot(ds, ds.x_unit_disk if orientation == 'edge' else ds.z_unit_disk,
+                                                              ('gas', 'H_p0_number_density'),
+                                                              center=ds.halo_center_kpc, data_source=disk_cut,
+                                                              width=(100, 'kpc'),
+                                                              north_vector=ds.z_unit_disk if orientation == 'edge' else ds.x_unit_disk,
+                                                              buff_size=[res, res], weight_field=None)
+                                disk_frb = proj_disk.frb[('gas', 'H_p0_number_density')].v
+                                ax.contour(disk_frb, levels=5, colors='white', linewidths=0.8)
+                            except Exception as e:
+                                print(f"Could not overlay disk contours on {ion}: {e}")
+
+                        last_im = im
+                        idx += 1
+
+                cbar_ax_hi = fig.add_axes([0.17, 0.89, 0.3, 0.015])
+                cbar_hi = fig.colorbar(im_hi, cax=cbar_ax_hi, orientation='horizontal', shrink=0.9)
+                cbar_hi.ax.tick_params(labelsize=12, direction='out')
+                cbar_hi.ax.xaxis.set_label_position('top')
+                cbar_hi.ax.xaxis.set_ticks_position('top')
+                cbar_hi.set_label('HI Column Density [cm$^{-2}$]', fontsize=12)
+
+                cbar_ax_em = fig.add_axes([0.56, 0.89, 0.3, 0.015])
+                cbar_em = fig.colorbar(last_im, cax=cbar_ax_em, orientation='horizontal', shrink=0.9)
+                cbar_em.ax.tick_params(labelsize=12, direction='out')
+                cbar_em.ax.xaxis.set_label_position('top')
+                cbar_em.ax.xaxis.set_ticks_position('top')
+                cbar_em.set_label('Emission [photons s$^{-1}$ cm$^{-2}$ sr$^{-1}$]', fontsize=12)
+
+                output_path = prefix + 'Projections/'
+                os.makedirs(output_path, exist_ok=True)
+                fig.savefig(os.path.join(output_path, f"{snap}_HI_plus_emission_grid_{orientation}_{region}{save_suffix}.png"), dpi=300, bbox_inches='tight')
+                plt.show()
+                plt.close()
+
+    print("Saved HI+Emission grid plots for both face-on and edge-on.")
+
+
+
 ######################################################################################################
 def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filter_type=None, filter_value=None, res_arcsec=None):
     start_time = time.time()
@@ -1321,13 +1540,16 @@ def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filt
         if ('vbins' not in args.plot):
             emission_map(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value,res_arcsec=res_arcsec)
             #combined_emission_map(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
+            
 
     if ('emission_FRB' in args.plot):
         make_FRB(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
         compute_mass_in_emission_pixels(ds, refine_box, snap, ions, unit_system=unit_system, filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
         #make_column_density_FRB(ds, refine_box, snap, ions, scale_factor=scale_factor, filter_type=filter_type, filter_value=filter_value)  
         make_emissivity_weighted_velocity_FRB(ds, refine_box, snap, ions, unit_system=unit_system,filter_type=filter_type, filter_value=filter_value, res_arcsec=res_arcsec)
-        
+        #make_hi_emission_grid(ds, refine_box, snap, ions,unit_system=unit_system, filter_type=filter_type, filter_value=filter_value,res_arcsec=res_arcsec)
+        #cgm_make_hi_emission_grid(ds, refine_box, snap, ions,unit_system=unit_system, filter_type=filter_type, filter_value=filter_value,res_arcsec=res_arcsec)
+
     end_time = time.time()
     elapsed = end_time - start_time
     print(f" Total script runtime: {elapsed//60:.0f} min {elapsed%60:.2f} sec")      
@@ -1371,7 +1593,10 @@ if __name__ == "__main__":
     else:
         prefix = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ 'box_' + box_name + '/' + 'with_disk' + '/' + resolution + '/'
         if args.filter_type is not None:
-            prefix = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ 'box_' + box_name + '/' + 'without_disk' + '/' + resolution + '/' + args.filter_type + '/'
+            if args.filter_type == 'disk_cgm':
+                prefix = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ 'box_' + box_name + '/' + 'without_disk' + '/' + resolution + '/' + args.filter_type + '/'
+            else:
+                prefix = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ 'box_' + box_name + '/' + args.filter_type + '/' + resolution + '/' 
 
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
     table_loc = prefix + 'Tables/'
@@ -1468,13 +1693,13 @@ if __name__ == "__main__":
 
     ############################
     # CIV 1548
-    hden_pts, T_pts, table_CIV_1 = make_Cloudy_table(3,cloudy_path)
-    sr_CIV_1 = table_CIV_1.T.ravel()
-    bl_CIV_1 = interpolate.LinearNDInterpolator(pts, sr_CIV_1)
+    hden_pts, T_pts, table_CIV_1548 = make_Cloudy_table(3,cloudy_path)
+    sr_CIV_1548  = table_CIV_1548.T.ravel()
+    bl_CIV_1548  = interpolate.LinearNDInterpolator(pts, sr_CIV_1548 )
     register_emission_field_with_unit('Emission_CIV_1548', Emission_CIV_1548, emission_units, unit_system,scale_factor)
     
     ############################
-    # O VI (1032 and 1037 combined)
+    # O VI (1032 and 1038 combined)
     hden_pts, T_pts, table_OVI_1 = make_Cloudy_table(5,cloudy_path)
     hden_pts, T_pts, table_OVI_2 = make_Cloudy_table(6,cloudy_path)
     sr_OVI_1 = table_OVI_1.T.ravel()
@@ -1483,45 +1708,45 @@ if __name__ == "__main__":
     bl_OVI_2 = interpolate.LinearNDInterpolator(pts, sr_OVI_2)
     register_emission_field_with_unit('Emission_OVI', Emission_OVI, emission_units, unit_system,scale_factor)
     ############################
-    # SiII 1814
+    # # SiII 1814
     
-    hden_pts, T_pts, table_SiII_1814 = make_Cloudy_table_thin(11,cloudy_path)
-    hden_pts, T_pts = np.meshgrid(hden_pts, T_pts)
-    pts = np.array((hden_pts.ravel(), T_pts.ravel())).T
-    sr_SiII_1814 = table_SiII_1814.T.ravel()
-    bl_SiII_1814 = interpolate.LinearNDInterpolator(pts, sr_SiII_1814)
-    register_emission_field_with_unit('Emission_SiII_1814', Emission_SiII_1814, emission_units, unit_system,scale_factor)
+    # hden_pts, T_pts, table_SiII_1814 = make_Cloudy_table(11,cloudy_path)
+    # sr_SiII_1814 = table_SiII_1814.T.ravel()
+    # bl_SiII_1814 = interpolate.LinearNDInterpolator(pts, sr_SiII_1814)
+    # register_emission_field_with_unit('Emission_SiII_1814', Emission_SiII_1814, emission_units, unit_system,scale_factor)
+    # ############################
+    ############################
+    # SiII 1260
+    
+    hden_pts, T_pts, table_SiII_1260 = make_Cloudy_table(12,cloudy_path)
+    sr_SiII_1260 = table_SiII_1260.T.ravel()
+    bl_SiII_1260 = interpolate.LinearNDInterpolator(pts, sr_SiII_1260)
+    register_emission_field_with_unit('Emission_SiII_1260', Emission_SiII_1260, emission_units, unit_system,scale_factor)
     ############################
     # SiIII 1207
     
-    hden_pts, T_pts, table_SiIII_1207 = make_Cloudy_table_thin(12,cloudy_path)
-    hden_pts, T_pts = np.meshgrid(hden_pts, T_pts)
-    pts = np.array((hden_pts.ravel(), T_pts.ravel())).T
+    hden_pts, T_pts, table_SiIII_1207 = make_Cloudy_table(13,cloudy_path)
     sr_SiIII_1207 = table_SiIII_1207.T.ravel()
     bl_SiIII_1207 = interpolate.LinearNDInterpolator(pts, sr_SiIII_1207)
     register_emission_field_with_unit('Emission_SiIII_1207', Emission_SiIII_1207, emission_units, unit_system,scale_factor)
     ############################
     # SiIV 1394
     
-    hden_pts, T_pts, table_SiIV_1394 = make_Cloudy_table_thin(14,cloudy_path)
-    hden_pts, T_pts = np.meshgrid(hden_pts, T_pts)
-    pts = np.array((hden_pts.ravel(), T_pts.ravel())).T
+    hden_pts, T_pts, table_SiIV_1394 = make_Cloudy_table(15,cloudy_path)
     sr_SiIV_1394 = table_SiIV_1394.T.ravel()
     bl_SiIV_1394 = interpolate.LinearNDInterpolator(pts, sr_SiIV_1394)
     register_emission_field_with_unit('Emission_SiIV_1394', Emission_SiIV_1394, emission_units, unit_system,scale_factor)
     ############################
     # MgII 2796
     
-    hden_pts, T_pts, table_MgII_2796 = make_Cloudy_table_thin(16,cloudy_path)
-    hden_pts, T_pts = np.meshgrid(hden_pts, T_pts)
-    pts = np.array((hden_pts.ravel(), T_pts.ravel())).T
+    hden_pts, T_pts, table_MgII_2796 = make_Cloudy_table(17,cloudy_path)
     sr_MgII_2796 = table_MgII_2796.T.ravel()
     bl_MgII_2796 = interpolate.LinearNDInterpolator(pts, sr_MgII_2796)
     register_emission_field_with_unit('Emission_MgII_2796', Emission_MgII_2796, emission_units, unit_system,scale_factor)
     ############################
 
     ions_dict = {'Lyalpha':'LyAlpha', 'HI':'HAlpha', 'CII': 'CII_1335','CIII':'CIII_1910', 
-                 'CIV':'CIV_1548','OVI':'OVI','SiII':'SiII_1814','SiIII':'SiIII_1207','SiIV':'SiIV_1394','MgII':'MgII_2796'}
+                 'CIV':'CIV_1548','OVI':'OVI','SiII':'SiII_1260','SiIII':'SiIII_1207','SiIV':'SiIV_1394','MgII':'MgII_2796'}
     
     label_dict = {'Lyalpha':r'Ly-$\alpha$', 'HI':r'H$\alpha$', 'CII':'C II','CIII':'C III',
                 'CIV':'C IV','OVI':'O VI','SiII':'Si II','SiIII':'Si III','SiIV':'Si IV','MgII':'Mg II'}
@@ -1579,6 +1804,12 @@ if __name__ == "__main__":
             flux_threshold_dict = {'CIII': 675,'CIV': 650,'OVI': 270, 'MgII':675} #photons/s/cm^2/sr
         elif args.unit_system == 'erg':
             flux_threshold_dict = {'OVI': 3e-19} #ergs/s/cm^2/arcsec^2
+
+    elif instrument_name == 'DISCO':
+        if args.unit_system == 'erg':
+            flux_threshold_dict = {'CII': 2e-19,'CIII': 2e-19,'CIV': 2e-19,'OVI': 2e-19, 'SiII':2e-19, 'SiIII':2e-19, 'SiIV':2e-19} #ergs/s/cm^2/arcsec^2
+        elif args.unit_system == 'photons':
+            flux_threshold_dict = {'CII': 300,'CIII': 300,'CIV': 300,'OVI': 300, 'SiII':300, 'SiIII':300, 'SiIV':300}
         
     elif instrument_name == 'MUSE':
         if args.unit_system == 'erg':
@@ -1713,7 +1944,7 @@ if __name__ == "__main__":
             outs = skipped_outs
 
     print(str(datetime.datetime.now()))
-    print("All snapshots finished!")
+    print(f"All snapshots finished and saved in {prefix}!")
 
 
 
