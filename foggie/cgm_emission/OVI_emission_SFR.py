@@ -1614,6 +1614,7 @@ def hists_den_temp_Z(ds, refine_box, snap):
         ax2.set_ylim(1e-3,10)
         ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True, labelleft=False)
+        ax2.text(8.8, 6, halo_dict[args.halo], fontsize=14, va='top', ha='right')
         
         ax3.hist(np.log10(metallicity), bins=50, range=(-2,1.5), density=True, histtype='stepfilled', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.3))
         ax3.hist(np.log10(metallicity), weights=emissivity, bins=50, range=(-2,1.5), density=True, histtype='stepfilled', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1))
@@ -1622,6 +1623,7 @@ def hists_den_temp_Z(ds, refine_box, snap):
         ax3.set_ylim(1e-3,10)
         ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True, labelleft=False)
+        ax3.text(-1.9, 6, '$z=%.2f$\n%.2f Gyr' % (ds.get_parameter('CosmologyCurrentRedshift'), ds.current_time.in_units('Gyr')), fontsize=14, va='top', ha='left')
         
         plt.tight_layout()
         plt.subplots_adjust(wspace=0.)
