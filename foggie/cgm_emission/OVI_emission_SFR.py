@@ -20,8 +20,10 @@ import datetime
 from scipy import interpolate
 import shutil
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 import cmasher as cmr
 import matplotlib.colors as mcolors
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import h5py
 
 # These imports are FOGGIE-specific files
@@ -31,7 +33,7 @@ from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
 from foggie.utils.analysis_utils import *
 
-# These imports for datashader plots
+# These imports for datashader plot
 import datashader as dshader
 from datashader.utils import export_image
 import datashader.transfer_functions as tf
@@ -84,10 +86,14 @@ def parse_args():
                         'phase_plot         -  Plots a density-temperature phase plot of O VI emissivity\n' + \
                         'sb_profile_time_avg - Plots the time- and halo-averaged surface brightness profile\n' + \
                         'sb_time_hist       -  Plots a histogram of surface brightness over time\n' + \
+                        'sb_time_radius     -  Plots surface brightness profiles over time and radius on 2D color plot\n' + \
                         'sb_vs_sfr          -  Plots a scatterplot of surface brightness vs. SFR\n' + \
                         'sb_vs_mh           -  Plots a scatterplot of surface brightness vs. halo mass\n' + \
                         'sb_vs_den          -  Plots a scatterplot of surface brightness vs. avg CGM density\n' + \
+                        'den_vs_time        -  Plots a scatterplot of avg CGM density vs. time and redshift\n' + \
                         'sb_vs_Z            -  Plots a scatterplot of surface brightness vs. avg CGM metallicity\n' + \
+                        'sb_vs_temp         -  Plots a scatterplot of surface brightness vs. avg CGM temperature\n' + \
+                        'histograms         -  Plots histograms of all gas and emission-weighted gas in density, temperature, and metallicity\n' + \
                         'emiss_area_vs_sfr  -  Plots a scatterplot of the fraction of the area with a surface brightness above the Aspera limit vs. SFR\n' + \
                         'emiss_area_vs_mh   -  Plots a scatterplot of the fraction of the area with a surface brightness above the Aspera limit vs. halo mass\n' + \
                         'emiss_area_vs_den  -  Plots a scatterplot of the fraction of the area with a surface brightness above the Aspera limit vs. average CGM density\n' + \
@@ -97,13 +103,17 @@ def parse_args():
                         'You can plot multiple things by separating keywords with a comma (no spaces!), and the default is "emission_map,sb_profile".')
     parser.set_defaults(plot='emission_map,sb_profile')
 
-    parser.add_argument('--limit', dest='Aspera_limit', action='store_true', \
+    parser.add_argument('--Aspera_limit', dest='Aspera_limit', action='store_true', \
                         help='Do you want to calculate and plot only above the Aspera limit? Default is no.')
     parser.set_defaults(Aspera_limit=False)
 
+    parser.add_argument('--DISCO_limit', dest='DISCO_limit', action='store_true', \
+                        help='Do you want to calculate and plot only above the DISCO limit? Default is no.')
+    parser.set_defaults(DISCO_limit=False)
+
     parser.add_argument('--constant_Z', dest='constant_Z', action='store_true', \
                         help='Do you want to calculate emissivity assuming solar metallicity? Default is no.')
-    parser.set_defaults(Aspera_limit=False)
+    parser.set_defaults(constant_Z=False)
     
     parser.add_argument('--save_suffix', metavar='save_suffix', type=str, action='store', \
                         help='Do you want to append a string onto the names of the saved files? Default is no.')
@@ -392,7 +402,7 @@ def surface_brightness_profile(ds, refine_box, snap):
 def phase_plot(ds, refine_box, snap):
     '''Makes 2D histograms of O VI emissivity in density-temperature space.'''
 
-    sph = ds.sphere(center=ds.halo_center_kpc, radius=(75., 'kpc'))
+    sph = ds.sphere(center=ds.halo_center_kpc, radius=(20., 'kpc'))
     emission = sph['gas','Emission_OVI'].in_units(emission_units_ALT).v
     print(np.min(emission[np.nonzero(emission)]), np.max(emission))
 
@@ -408,6 +418,19 @@ def phase_plot(ds, refine_box, snap):
     phaseplot.set_font_size(20)
     #phaseplot.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
     phaseplot.save(prefix + 'Phase_Plots/' + snap + '_OVI_emission_phase' + save_suffix + '.png')
+
+    phaseplot = yt.PhasePlot(sph, ('gas', 'number_density'), ('gas', 'metallicity'), [('gas', 'Emission_OVI')], weight_field=None)
+    phaseplot.set_unit(('gas', 'number_density'), '1/cm**3')
+    phaseplot.set_unit(('gas', 'metallicity'), 'Zsun')
+    phaseplot.set_unit(('gas', 'Emission_OVI'), emission_units_ALT)
+    #phaseplot.set_log(('gas','Emission_OVI'), False)
+    #phaseplot.set_unit(('gas', 'cell_mass'), 'Msun')
+    phaseplot.set_colorbar_label(('gas', 'Emission_OVI'), 'O VI Emissivity [erg s$^{-1}$ cm$^{-3}$ arcsec$^{-2}$]')
+    phaseplot.set_zlim(('gas','Emission_OVI'), 1e-47, 1e-37)
+    #phaseplot.set_colorbar_label(('gas', 'cell_mass'), 'Cell Mass [$M_\odot$]')
+    phaseplot.set_font_size(20)
+    #phaseplot.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
+    phaseplot.save(prefix + 'Phase_Plots/' + snap + '_OVI_emission_phase-Z' + save_suffix + '.png')
 
 def sb_profile_time_avg(halos, outs):
     '''Plots the median surface brightness profile with shading indicating IQR variation
@@ -425,7 +448,7 @@ def sb_profile_time_avg(halos, outs):
             snap = outs[h][i]
             sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
             for j in range(len(SB_tablenames)):
-                SB_profiles[j].append(list(sb_data[SB_tablenames[j] + '_med'][1:]))
+                SB_profiles[j].append(list(sb_data[SB_tablenames[j] + '_med'][2:]))
     for j in range(len(SB_profiles)):
         prof = np.array(SB_profiles[j])
         med = np.median(prof, axis=(0))
@@ -468,7 +491,38 @@ def sb_profile_time_avg(halos, outs):
                 top=True, right=True)
     ax2.legend(loc=1, fontsize=16, frameon=False)
     plt.subplots_adjust(left=0.07, bottom=0.12, top=0.96, right=0.98)
-    plt.savefig(prefix + '/OVI_surface_brightness_profile_edge-on_time-avg_Tempest' + save_suffix + '.png')
+    plt.savefig(prefix + '/OVI_surface_brightness_profile_edge-on_time-avg' + save_suffix + '.png')
+
+def sb_profile_nofdbk_compare(snap):
+    '''Plots the median surface brightness profiles for fiducial Tempest and the
+    feedback-10-track run of Tempest, and for the constant-metallicity versions
+    of these runs.'''
+
+    fig = plt.figure(figsize=(6,5),dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    rbins = np.linspace(0., 50., 26)
+    rbin_centers = rbins[:-1] + 0.5*np.diff(rbins)
+    runs = ['nref11c_nref9f', 'feedback-10-track']
+    colors = ['k','#8e9091']
+    colors_inflow = ['#984ea3', '#2b0acf']
+    labels = ['Fiducial', 'No feedback']
+    labels_inflow = ['Fiducial inflows', 'No feedback inflows']
+    for h in range(len(runs)):
+        sb_table_loc = output_dir + 'ions_halo_008508/' + runs[h] + '/Tables/'
+        if (runs[h]=='nref11c_nref9f'): snap_file = snap
+        if (runs[h]=='feedback-10-track'): snap_file = 'DD' + str(int(snap[2:]) + 93)
+        sb_data = Table.read(sb_table_loc + snap_file + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
+        ax.plot(rbin_centers, sb_data['all_med'][2:], color=colors[h], lw=2, ls='-', label=labels[h])
+        ax.plot(rbin_centers, sb_data['inflow_med'][2:], color=colors_inflow[h], lw=2, ls='--', label=labels_inflow[h])
+    ax.set_xlabel('Radius [kpc]', fontsize=16)
+    ax.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+                top=True, right=True)
+    ax.legend(loc=1, fontsize=16, frameon=False)
+    ax.axis([0,50,-24,-18])
+
+    fig.tight_layout()
+    plt.savefig(prefix + '/' + snap + '_OVI_surface_brightness_profile_edge-on_fid-nofdbk' + save_suffix + '.png')
 
 def surface_brightness_time_histogram(outs):
     '''Makes a plot of surface brightness histograms vs time for the outputs in 'outs'. Requires
@@ -479,82 +533,307 @@ def surface_brightness_time_histogram(outs):
     timelist = halo_c_v['col4']
     snaplist = halo_c_v['col3']
     zlist = halo_c_v['col2']
+    sfr_data = Table.read(sfr_name, format='ascii')
+    sfr_snap = sfr_data['col1']
+    sfr = sfr_data['col3']
+    sfr_time = []
+    for i in range(len(sfr_snap)):
+        sfr_time.append(float(timelist[snaplist==sfr_snap[i]])/1000.)
 
+    z_list = []
     sb_hists = []
-    time_hist = []
-    max_weights = []
+    time_list = []
     sb_hists_sections = []
-    max_weights_sections = []
     meds = []
     meds_sections = []
+    med_above_limit = []
+    med_above_limit_sections = []
     sections = ['inflow','outflow','major','minor']
     for j in range(len(sections)):
         sb_hists_sections.append([])
-        max_weights_sections.append([])
         meds_sections.append([])
+        med_above_limit_sections.append([])
     for i in range(len(outs)):
         snap = outs[i]
-        time_hist.append(float(timelist[snaplist==snap])/1000.)
+        time_list.append(float(timelist[snaplist==snap])/1000.)
+        z_list.append(float(zlist[snaplist==snap]))
         sb_data = Table.read(table_loc + snap + '_SB_pdf' + file_suffix + '.hdf5', path='all_data')
         sb_stats = Table.read(table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
-        radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==50.)
-        radial_range_stats = (sb_stats['inner_radius']==0.) & (sb_stats['outer_radius']==50.)
-        sb_hists.append(sb_data['all'][radial_range])
-        max_weights.append(np.max(sb_data['all'][radial_range]))
-        meds.append(sb_stats['all_med'][radial_range_stats])
+        #sb_limit = Table.read(table_loc + snap + '_SB_profiles_new-table_Aspera-limit.hdf5', path='all_data')
+        radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
+        #sb_hists.append(sb_data['all'][radial_range]/6.4e5)     # Normalize by number of pixels in FRB (800x800)
+        sb_hists.append(sb_data['all'][radial_range]/1.02e5)     # Normalize by number of pixels in FRB between -20 and 20 kpc in both directions (320x320)
+        sb_hists[-1][sb_hists[-1]==np.nan] = 1e-5
+        meds.append(sb_stats['all_med'][(sb_stats['inner_radius']==0.) & (sb_stats['outer_radius']==20.)])
+        #med_above_limit.append(sb_limit['all_med'][(sb_limit['inner_radius']==0.) & (sb_limit['outer_radius']==20.)])
         for j in range(len(sections)):
-            sb_hists_sections[j].append(sb_data[sections[j]][radial_range])
-            max_weights_sections[j].append(np.max(sb_data[sections[j]][radial_range]))
-            meds_sections[j].append(sb_stats[sections[j] + '_med'][radial_range_stats])
+            #sb_hists_sections[j].append(sb_data[sections[j]][radial_range]/6.4e5)
+            sb_hists_sections[j].append(sb_data[sections[j]][radial_range]/1.02e5)
+            sb_hists_sections[j][-1][sb_hists[-1]==np.nan] = 1e-5
+            meds_sections[j].append(sb_stats[sections[j] + '_med'][(sb_stats['inner_radius']==0.) & (sb_stats['outer_radius']==20.)])
+            #med_above_limit_sections[j].append(sb_limit[sections[j] + '_med'][(sb_limit['inner_radius']==0.) & (sb_limit['outer_radius']==20.)])
 
-    sb_hists = np.array(sb_hists)
-    sb_hists = np.transpose(sb_hists).flatten()
+    sb_hists = np.transpose(np.array(sb_hists))
     for j in range(len(sections)):
-        sb_hists_sections[j] = np.transpose(np.array(sb_hists_sections[j])).flatten()
-    sb_bins_l = sb_data['lower_SB'][radial_range]
-    sb_bins_u = sb_data['upper_SB'][radial_range]
-    bin_edges = np.array(sb_bins_l)
-    bin_edges = np.append(bin_edges, sb_bins_u[-1])
-    time_bins = np.array(time_hist)
-    time_bins = np.append(time_bins, time_hist[-1] + np.diff(time_hist)[-1])
-    xdata = np.tile(time_bins[:-1], (len(bin_edges)-1, 1)).flatten()
-    ydata = np.transpose(np.tile(bin_edges[:-1], (len(time_bins)-1, 1))).flatten()
+        sb_hists_sections[j] = np.transpose(np.array(sb_hists_sections[j]))
+    sb_bins = (sb_data['lower_SB'][radial_range] + sb_data['upper_SB'][radial_range])/2.
 
-    fig = plt.figure(figsize=(6,4), dpi=300)
-    ax = fig.add_subplot(1,1,1)
-    ax.hist2d(xdata, ydata, weights=sb_hists, bins=[time_bins[:-1],bin_edges], vmin=0., vmax=np.mean(max_weights), cmap=cmr.get_sub_cmap('cmr.flamingo', 0.2, 1.))
-    ax.plot(time_hist, meds, 'k-', lw=2)
-    ax.set_xlabel('Time [Gyr]', fontsize=16)
+    cmap = cmr.get_sub_cmap('cmr.flamingo', 0.2, 1.)
+    cmap.set_bad(cmap(0.))
+
+    fig = plt.figure(figsize=(9,8), dpi=300)
+    gs = GridSpec(nrows=2, ncols=1, height_ratios=[3, 1])
+    plt.subplots_adjust(left=0.1, bottom=0.07, top=0.92, right=0.87, hspace=0.)
+    ax = fig.add_subplot(gs[0])
+    im = ax.imshow(np.log10(sb_hists), origin='lower', aspect='auto', extent=[time_list[0], time_list[-1], sb_bins[0], sb_bins[-1]], cmap=cmap, vmin=-5, vmax=-0.5)
+    ax.plot(time_list, meds, 'k-', lw=2, label='Median')
+    #ax.plot(time_list, med_above_limit, color='#00F5FF', ls='--', lw=2, label='Median above $10^{-19}$')
+    ax.plot(time_list, np.zeros(len(time_list))-19, 'k-', lw=1)
+    ax.text(6.25, -16.25, halo_dict[args.halo], fontsize=16, ha='left', va='top', color='w')
+    ax.axis([time_list[0], time_list[-1], -23, sb_bins[-1]])
     ax.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
-    plt.subplots_adjust(left=0.15, bottom=0.12, top=0.96, right=0.98)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=False, right=True)
+    ax.set_xticklabels([])
+    ax.legend(loc=1, fontsize=14, ncols=2)
+
+    pos = ax.get_position()
+    cax = fig.add_axes([pos.x1, pos.y0, 0.03, pos.height])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cax)
+    cax.tick_params(axis='both', which='both', top=False, right=True, labelsize=12, direction='in', length=8, width=2, pad=5)
+    pos_cax = cax.get_position()
+    cax.text(pos_cax.x1 + 2.7, pos_cax.y0 + pos_cax.height/2. - 0.1, 'log Pixel Fraction', fontsize=16, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+    z_list.reverse()
+    time_list.reverse()
+    time_func = IUS(z_list, time_list)
+    time_list.reverse()
+
+    ax2 = ax.twiny()
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+      top=True)
+    x0, x1 = ax.get_xlim()
+    z_ticks = np.array([1,.7,.5,.3,.2,.1,0])
+    last_z = np.where(z_ticks >= z_list[0])[0][-1]
+    first_z = np.where(z_ticks <= z_list[-1])[0][0]
+    z_ticks = z_ticks[first_z:last_z+1]
+    tick_pos = [z for z in time_func(z_ticks)]
+    tick_labels = ['%.2f' % (z) for z in z_ticks]
+    ax2.set_xlim(x0,x1)
+    ax2.set_xticks(tick_pos)
+    ax2.set_xticklabels(tick_labels)
+    ax2.set_xlabel('Redshift', fontsize=16)
+
+    ax_sfr = fig.add_subplot(gs[1])
+    ax_sfr.plot(sfr_time, sfr, 'k-', lw=1)
+    ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 75])
+    ax_sfr.set_xlabel('Time [Gyr]', fontsize=16)
+    ax_sfr.set_ylabel(r'SFR [$M_\odot$/yr]', fontsize=16)
+    ax_sfr.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=True, right=True)
+    ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
+
     plt.savefig(prefix + 'OVI_SB_histogram_vs_time' + save_suffix + '.png')
     plt.close()
 
     section_labels = ['Inflow','Outflow','Major axis','Minor axis']
     for j in range(len(sections)):
-        fig = plt.figure(figsize=(6,4), dpi=300)
-        ax = fig.add_subplot(1,1,1)
-        ax.hist2d(xdata, ydata, weights=sb_hists_sections[j], bins=[time_bins[:-1],bin_edges], vmin=0., vmax=np.mean(max_weights_sections[j]), cmap=cmr.get_sub_cmap('cmr.flamingo', 0.2, 1.))
-        ax.plot(time_hist, meds_sections[j], 'k-', lw=2)
-        ax.set_xlabel('Time [Gyr]', fontsize=16)
+        fig = plt.figure(figsize=(9,8), dpi=300)
+        gs = GridSpec(nrows=2, ncols=1, height_ratios=[3, 1])
+        plt.subplots_adjust(left=0.1, bottom=0.07, top=0.92, right=0.87, hspace=0.)
+        ax = fig.add_subplot(gs[0])
+        im = ax.imshow(np.log10(sb_hists_sections[j]), origin='lower', aspect='auto', extent=[time_list[0], time_list[-1], sb_bins[0], sb_bins[-1]], cmap=cmap, vmin=-5, vmax=-0.5)
+        ax.plot(time_list, meds_sections[j], 'k-', lw=2, label='Median')
+        #ax.plot(time_list, med_above_limit_sections[j], color='#00F5FF', ls='--', lw=2, label='Median above $10^{-19}$')
+        ax.plot(time_list, np.zeros(len(time_list))-19, 'k-', lw=1)
+        ax.text(6.25, -16.25, halo_dict[args.halo]+'\n'+section_labels[j], fontsize=14, ha='left', va='top', color='w')
         ax.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
-        ax.set_title(section_labels[j], fontsize=16)
-        plt.subplots_adjust(left=0.15, bottom=0.12, top=0.93, right=0.98)
+        ax.axis([time_list[0], time_list[-1], sb_bins[0], sb_bins[-1]])
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=False, right=True)
+        ax.set_xticklabels([])
+        ax.legend(loc=1, fontsize=14, ncols=2)
+
+        pos = ax.get_position()
+        cax = fig.add_axes([pos.x1, pos.y0, 0.03, pos.height])  # [left, bottom, width, height]
+        fig.colorbar(im, cax=cax)
+        cax.tick_params(axis='both', which='both', top=False, right=True, labelsize=12, direction='in', length=8, width=2, pad=5)
+        pos_cax = cax.get_position()
+        cax.text(pos_cax.x1 + 2.7, pos_cax.y0 + pos_cax.height/2. - 0.1, 'log Pixel Fraction', fontsize=16, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+        ax2 = ax.twiny()
+        ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+        top=True)
+        x0, x1 = ax.get_xlim()
+        z_ticks = np.array([1,.7,.5,.3,.2,.1,0])
+        last_z = np.where(z_ticks >= z_list[0])[0][-1]
+        first_z = np.where(z_ticks <= z_list[-1])[0][0]
+        z_ticks = z_ticks[first_z:last_z+1]
+        tick_pos = [z for z in time_func(z_ticks)]
+        tick_labels = ['%.2f' % (z) for z in z_ticks]
+        ax2.set_xlim(x0,x1)
+        ax2.set_xticks(tick_pos)
+        ax2.set_xticklabels(tick_labels)
+        ax2.set_xlabel('Redshift', fontsize=16)
+
+        ax_sfr = fig.add_subplot(gs[1])
+        ax_sfr.plot(sfr_time, sfr, 'k-', lw=1)
+        ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 75])
+        ax_sfr.set_xlabel('Time [Gyr]', fontsize=16)
+        ax_sfr.set_ylabel(r'SFR [$M_\odot$/yr]', fontsize=16)
+        ax_sfr.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    top=True, right=True)
+        ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
+
         plt.savefig(prefix + 'OVI_SB_histogram_vs_time_' + sections[j] + save_suffix + '.png')
+        plt.close()
+
+def sb_time_radius(outs):
+    '''Makes a plot of surface brightness profiles vs time and radius for the outputs in 'outs'. Requires
+    surface brightness tables to have already been created for the outputs plotted using the
+    surface_brightness_profile function.'''
+
+    halo_c_v = Table.read(halo_c_v_name, format='ascii')
+    timelist = halo_c_v['col4']
+    snaplist = halo_c_v['col3']
+    zlist = halo_c_v['col2']
+    sfr_data = Table.read(sfr_name, format='ascii')
+    sfr_snap = sfr_data['col1']
+    sfr = sfr_data['col3']
+    sfr_time = []
+    for i in range(len(sfr_snap)):
+        sfr_time.append(float(timelist[snaplist==sfr_snap[i]])/1000.)
+
+    time_list = []
+    sb_profiles = []
+    sb_profiles_sections = []
+    z_list = []
+    sections = ['inflow','outflow','major','minor']
+    for j in range(len(sections)):
+        sb_profiles_sections.append([])
+    for i in range(len(outs)):
+        snap = outs[i]
+        time_list.append(float(timelist[snaplist==snap])/1000.)
+        z_list.append(float(zlist[snaplist==snap]))
+        sb_stats = Table.read(table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
+        sb_profiles.append(sb_stats['all_mean'][2:])
+        if (i==0): radius_list = (sb_stats['inner_radius'][2:] + sb_stats['outer_radius'][2:])/2.
+        for j in range(len(sections)):
+            sb_profiles_sections[j].append(sb_stats[sections[j] + '_mean'][2:])
+
+    sb_profiles = np.transpose(np.array(sb_profiles))
+    for j in range(len(sections)):
+        sb_profiles_sections[j] = np.transpose(np.array(sb_profiles_sections[j]))
+
+    cmap = cmr.get_sub_cmap('cmr.torch', 0., 0.9)
+    cmap.set_bad(cmap(0.))
+
+    fig = plt.figure(figsize=(9,8), dpi=300)
+    gs = GridSpec(nrows=2, ncols=1, height_ratios=[3, 1])
+    plt.subplots_adjust(left=0.08, bottom=0.07, top=0.92, right=0.85, hspace=0.)
+    ax = fig.add_subplot(gs[0])
+    im = ax.imshow(sb_profiles, origin='lower', aspect='auto', extent=[time_list[0], time_list[-1], radius_list[0], radius_list[-1]], cmap=cmap, vmin=-20, vmax=-16)
+    ax.text(6.25, 47, halo_dict[args.halo], fontsize=16, ha='left', va='top', color='w')
+    ax.set_ylabel('Galactocentric Radius [kpc]', fontsize=16)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=False, right=True)
+    ax.set_xticklabels([])
+
+    pos = ax.get_position()
+    cax = fig.add_axes([pos.x1, pos.y0, 0.03, pos.height])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cax)
+    cax.tick_params(axis='both', which='both', top=False, right=True, labelsize=12, direction='in', length=8, width=2, pad=5)
+    pos_cax = cax.get_position()
+    cax.text(pos_cax.x1 + 3.3, pos_cax.y0 + pos_cax.height/2. - 0.1, 'log O VI SB [ergs s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+    z_list.reverse()
+    time_list.reverse()
+    time_func = IUS(z_list, time_list)
+    time_list.reverse()
+
+    ax2 = ax.twiny()
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+      top=True)
+    x0, x1 = ax.get_xlim()
+    z_ticks = np.array([1,.7,.5,.3,.2,.1,0])
+    last_z = np.where(z_ticks >= z_list[0])[0][-1]
+    first_z = np.where(z_ticks <= z_list[-1])[0][0]
+    z_ticks = z_ticks[first_z:last_z+1]
+    tick_pos = [z for z in time_func(z_ticks)]
+    tick_labels = ['%.2f' % (z) for z in z_ticks]
+    ax2.set_xlim(x0,x1)
+    ax2.set_xticks(tick_pos)
+    ax2.set_xticklabels(tick_labels)
+    ax2.set_xlabel('Redshift', fontsize=16)
+
+    ax_sfr = fig.add_subplot(gs[1])
+    ax_sfr.plot(sfr_time, sfr, 'k-', lw=1)
+    ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 75])
+    ax_sfr.set_xlabel('Time [Gyr]', fontsize=16)
+    ax_sfr.set_ylabel(r'SFR [$M_\odot$/yr]', fontsize=16)
+    ax_sfr.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=True, right=True)
+    ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
+
+    plt.savefig(prefix + 'OVI_SB_profile_vs_time-radius' + save_suffix + '.png')
+    plt.close()
+
+    section_labels = ['Inflow','Outflow','Major axis','Minor axis']
+    for j in range(len(sections)):
+        fig = plt.figure(figsize=(9,8), dpi=300)
+        gs = GridSpec(nrows=2, ncols=1, height_ratios=[3, 1])
+        plt.subplots_adjust(left=0.08, bottom=0.07, top=0.92, right=0.85, hspace=0.)
+        ax = fig.add_subplot(gs[0])
+        im = ax.imshow(sb_profiles_sections[j], origin='lower', aspect='auto', extent=[time_list[0], time_list[-1], radius_list[0], radius_list[-1]], cmap=cmap, vmin=-20, vmax=-16)
+        ax.text(6.25, 47, halo_dict[args.halo]+'\n'+section_labels[j], fontsize=14, ha='left', va='top', color='w')
+        ax.set_ylabel('Galactocentric Radius [kpc]', fontsize=16)
+        ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=False, right=True)
+        ax.set_xticklabels([])
+
+        pos = ax.get_position()
+        cax = fig.add_axes([pos.x1, pos.y0, 0.03, pos.height])  # [left, bottom, width, height]
+        fig.colorbar(im, cax=cax)
+        cax.tick_params(axis='both', which='both', top=False, right=True, labelsize=12, direction='in', length=8, width=2, pad=5)
+        pos_cax = cax.get_position()
+        cax.text(pos_cax.x1 + 3.3, pos_cax.y0 + pos_cax.height/2. - 0.1, 'log O VI SB [ergs s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16, ha='center', va='center', rotation=90, transform=cax.transAxes)
+
+        ax2 = ax.twiny()
+        ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+        top=True)
+        x0, x1 = ax.get_xlim()
+        z_ticks = np.array([1,.7,.5,.3,.2,.1,0])
+        last_z = np.where(z_ticks >= z_list[0])[0][-1]
+        first_z = np.where(z_ticks <= z_list[-1])[0][0]
+        z_ticks = z_ticks[first_z:last_z+1]
+        tick_pos = [z for z in time_func(z_ticks)]
+        tick_labels = ['%.2f' % (z) for z in z_ticks]
+        ax2.set_xlim(x0,x1)
+        ax2.set_xticks(tick_pos)
+        ax2.set_xticklabels(tick_labels)
+        ax2.set_xlabel('Redshift', fontsize=16)
+
+        ax_sfr = fig.add_subplot(gs[1])
+        ax_sfr.plot(sfr_time, sfr, 'k-', lw=1)
+        ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 60])
+        ax_sfr.set_xlabel('Time [Gyr]', fontsize=16)
+        ax_sfr.set_ylabel(r'SFR [$M_\odot$/yr]', fontsize=16)
+        ax_sfr.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    top=True, right=True)
+        ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
+
+        plt.savefig(prefix + 'OVI_SB_profile_vs_time-radius_' + sections[j] + save_suffix + '.png')
         plt.close()
 
 def sb_vs_sfr(halos, outs):
     '''Plots the median surface brightness vs. SFR for all the halos and outputs listed in halos and outs.'''
 
-    fig = plt.figure(figsize=(10,6),dpi=250)
+    fig = plt.figure(figsize=(7,5),dpi=250)
     ax = fig.add_subplot(1,1,1)
-    fig2 = plt.figure(figsize=(10,6),dpi=250)
-    ax2 = fig2.add_subplot(1,1,1)
-    halo_colors = ['r','orange','b','g','c','m']
-    halo_names = ['Tempest', 'Tempest (no feedback)', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    #halo_names = ['Tempest', 'Tempest (no feedback)', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
     alphas = np.linspace(1., 0.1, 10)
-    #halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard']
-    #halo_colors = ['r','b','g','c']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
     for h in range(len(halo_names)):
         if (halo_names[h]=='Tempest (no feedback)'):
             sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
@@ -569,10 +848,7 @@ def sb_vs_sfr(halos, outs):
             snap = outs[h][i]
             sfr = sfr_table['col3'][sfr_table['col1']==snap][0]
             sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
-            #radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==50.)
-            radial_range = (sb_data['outer_radius']<=20.)
-            if (i==0): ax2.scatter([sfr], sb_data['all_med'][radial_range][0], marker='.', color=halo_colors[h], label=halo_names[h])
-            else: ax2.scatter([sfr]*len(sb_data['all_med'][radial_range]), sb_data['all_med'][radial_range], marker='.', color=halo_colors[h], alpha=alphas, label='_nolegend_')
+            radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
             SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
             SFR_list.append(sfr)
 
@@ -580,33 +856,23 @@ def sb_vs_sfr(halos, outs):
         SFR_list = np.array(SFR_list)
         ax.scatter(SFR_list, SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
         
-    ax.set_xlabel('Star formation rate [$M_\odot$/yr]', fontsize=16)
-    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
-    ax.legend(loc=4, frameon=False, fontsize=16)
+    ax.set_xlabel(r'Star formation rate [$M_\odot$/yr]', fontsize=14)
+    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
     if (args.Aspera_limit): ax.axis([-5,100,-19,-18])
     else: ax.axis([-5,100,-21.,-18])
-    fig.subplots_adjust(left=0.13, bottom=0.12, top=0.93, right=0.98)
+    ax.legend(loc=4, fontsize=14, ncols=2)
+    fig.subplots_adjust(left=0.14, bottom=0.13, top=0.95, right=0.97)
     fig.savefig(prefix + 'OVI_SB_vs_SFR' + save_suffix + '.png')
-
-    ax2.set_xlabel('Star formation rate [$M_\odot$/yr]', fontsize=16)
-    ax2.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
-    ax2.legend(loc=4, frameon=False, fontsize=16)
-    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
-                top=True, right=True)
-    if (args.Aspera_limit): ax2.axis([-5,100,-19,-18])
-    else: ax2.axis([-5,100,-21.5,-16.5])
-    fig2.subplots_adjust(left=0.13, bottom=0.12, top=0.93, right=0.98)
-    fig2.savefig(prefix + 'OVI_SB_vs_SFR_rad-bins' + save_suffix + '.png')
 
 def sb_vs_Mh(halos, outs):
     '''Plots the median surface brightness vs. halo mass for all the halos and outputs listed in halos and outs.'''
 
-    fig = plt.figure(figsize=(10,6),dpi=250)
+    fig = plt.figure(figsize=(7,5),dpi=250)
     ax = fig.add_subplot(1,1,1)
-    halo_colors = ['r','orange','b','g','c','m']
-    halo_names = ['Tempest', 'Tempest (no feedback)', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
     for h in range(len(halo_names)):
         if (halo_names[h]=='Tempest (no feedback)'):
             sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
@@ -620,8 +886,7 @@ def sb_vs_Mh(halos, outs):
             # Load the PDF of OVI emission
             snap = outs[h][i]
             sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
-            #radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==50.)
-            radial_range = (sb_data['outer_radius']<=20.)
+            radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
             SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
             mvir_list.append(mvir_table['total_mass'][mvir_table['snapshot']==snap][0])
 
@@ -629,23 +894,23 @@ def sb_vs_Mh(halos, outs):
         mvir_list = np.array(mvir_list)
         ax.scatter(np.log10(mvir_list), SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
         
-    ax.set_xlabel('log Halo mass [$M_\odot$]', fontsize=16)
-    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
-    ax.legend(loc=2, frameon=False, fontsize=16)
+    ax.set_xlabel(r'log Halo mass [$M_\odot$]', fontsize=14)
+    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
+    ax.legend(loc=2, ncols=2, fontsize=14)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
     if (args.Aspera_limit): ax.axis([11.5,12.25,-19,-18])
     else: ax.axis([11.5,12.25,-21.,-18])
-    plt.subplots_adjust(left=0.13, bottom=0.12, top=0.93, right=0.98)
+    fig.subplots_adjust(left=0.14, bottom=0.13, top=0.95, right=0.97)
     plt.savefig(prefix + 'OVI_SB_vs_Mh' + save_suffix + '.png')
 
 def sb_vs_den(halos, outs):
     '''Plots the median surface brightness vs. average CGM density for all the halos and outputs listed in halos and outs.'''
 
-    fig = plt.figure(figsize=(10,6),dpi=250)
+    fig = plt.figure(figsize=(7,5),dpi=250)
     ax = fig.add_subplot(1,1,1)
-    halo_colors = ['r','orange','b','g','c','m']
-    halo_names = ['Tempest', 'Tempest (no feedback)', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
     for h in range(len(halo_names)):
         if (halo_names[h]=='Tempest (no feedback)'):
             sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
@@ -660,8 +925,7 @@ def sb_vs_den(halos, outs):
             snap = outs[h][i]
             sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
             den_data = Table.read(den_table_loc + snap + '_density_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
-            #radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==50.)
-            radial_range = (sb_data['outer_radius']<=20.)
+            radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
             #radial_range_den = (den_data['col1']<=50.)
             radial_range_den = (den_data['col1']<=20.)
             SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
@@ -671,23 +935,106 @@ def sb_vs_den(halos, outs):
         den_list = np.array(den_list)
         ax.scatter(np.log10(den_list), SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
         
-    ax.set_xlabel('log Mean CGM Density [g cm$^{-3}$]', fontsize=16)
-    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
-    ax.legend(loc=2, frameon=False, fontsize=16)
+    ax.set_xlabel('log Mean CGM Density [g cm$^{-3}$]', fontsize=14)
+    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
+    ax.legend(loc=2, ncols=2, fontsize=14)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
     if (args.Aspera_limit): ax.axis([-28.2,-26,-19,-18])
     else: ax.axis([-28.2,-26,-21.,-18])
-    plt.subplots_adjust(left=0.13, bottom=0.12, top=0.93, right=0.98)
+    fig.subplots_adjust(left=0.14, bottom=0.13, top=0.95, right=0.97)
     plt.savefig(prefix + 'OVI_SB_vs_den' + save_suffix + '.png')
+
+def den_vs_time(halos, outs):
+    '''Plots the average CGM density vs. time and redshift for all the halos and outputs listed in halos and outs.'''
+
+    #fig = plt.figure(figsize=(9,8), dpi=300)
+    #gs = GridSpec(nrows=2, ncols=1, height_ratios=[3, 1])
+    #plt.subplots_adjust(left=0.13, bottom=0.07, top=0.92, right=0.96, hspace=0.)
+    #ax = fig.add_subplot(gs[0])
+    #ax_sfr = fig.add_subplot(gs[1])
+    fig = plt.figure(figsize=(7,5), dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
+    for h in range(len(halo_names)):
+        if (halo_names[h]=='Tempest (no feedback)'):
+            sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
+            den_table_loc = output_dir + 'profiles_halo_008508/feedback-10-track/Tables/'
+        else:
+            den_table_loc = output_dir + 'profiles_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+            halo_c_v_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/halo_c_v'
+            sfr_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr'
+            halo_c_v = Table.read(halo_c_v_name, format='ascii')
+            timelist = halo_c_v['col4']
+            snaplist = halo_c_v['col3']
+            zlist = halo_c_v['col2']
+            sfr_data = Table.read(sfr_name, format='ascii')
+            sfr_snap = sfr_data['col1']
+            sfr = sfr_data['col3']
+            sfr_time = []
+            for i in range(len(sfr_snap)):
+                sfr_time.append(float(timelist[snaplist==sfr_snap[i]][0])/1000.)
+        den_list = []
+        time_list = []
+        z_list = []
+        for i in range(len(outs[h])):
+            # Load the PDF of OVI emission
+            snap = outs[h][i]
+            den_data = Table.read(den_table_loc + snap + '_density_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
+            radial_range_den = (den_data['col1']<=20.)
+            den_list.append(np.mean(den_data['col3'][radial_range_den]))
+            time_list.append(float(timelist[snaplist==snap][0])/1000.)
+            z_list.append(float(zlist[snaplist==snap][0]))
+
+        ax.scatter(time_list, np.log10(den_list), marker='.', color=halo_colors[h], label=halo_names[h])
+        #ax_sfr.plot(sfr_time, sfr, ls='-', lw=1, color=halo_colors[h])
+
+    #ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 75])
+    #ax_sfr.set_xlabel('Time [Gyr]', fontsize=16)
+    #ax_sfr.set_ylabel(r'SFR [$M_\odot$/yr]', fontsize=16)
+    #ax_sfr.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                #top=True, right=True)
+    #ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
+        
+    ax.set_ylabel('log Mean CGM Density [g cm$^{-3}$]', fontsize=20)
+    ax.set_xlabel('Time [Gyr]', fontsize=20)
+    ax.legend(loc=1, ncols=2, fontsize=18, columnspacing=0.5, borderpad=0.3, handlelength=1.0, handletextpad=0.4)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+                top=False, right=True)
+    ax.axis([np.min(time_list), np.max(time_list), -28.2, -26])
+    ax.set_xticklabels([])
+
+    z_list.reverse()
+    time_list.reverse()
+    time_func = IUS(z_list, time_list)
+    time_list.reverse()
+
+    ax2 = ax.twiny()
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+    top=True)
+    x0, x1 = ax.get_xlim()
+    z_ticks = np.array([1,.7,.5,.3,.2,.1,0])
+    last_z = np.where(z_ticks >= z_list[0])[0][-1]
+    first_z = np.where(z_ticks <= z_list[-1])[0][0]
+    z_ticks = z_ticks[first_z:last_z+1]
+    tick_pos = [z for z in time_func(z_ticks)]
+    tick_labels = ['%.2f' % (z) for z in z_ticks]
+    ax2.set_xlim(x0,x1)
+    ax2.set_xticks(tick_pos)
+    ax2.set_xticklabels(tick_labels)
+    ax2.set_xlabel('Redshift', fontsize=20)
+
+    fig.tight_layout()
+    plt.savefig(prefix + 'den_vs_time' + save_suffix + '.png')
 
 def sb_vs_Z(halos, outs):
     '''Plots the median surface brightness vs. average CGM metallicity for all the halos and outputs listed in halos and outs.'''
 
-    fig = plt.figure(figsize=(10,6),dpi=250)
+    fig = plt.figure(figsize=(7,5),dpi=250)
     ax = fig.add_subplot(1,1,1)
-    halo_colors = ['r','orange','b','g','c','m']
-    halo_names = ['Tempest', 'Tempest (no feedback)', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
     for h in range(len(halo_names)):
         if (halo_names[h]=='Tempest (no feedback)'):
             sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
@@ -702,8 +1049,7 @@ def sb_vs_Z(halos, outs):
             snap = outs[h][i]
             sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
             Z_data = Table.read(Z_table_loc + snap + '_metallicity_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
-            #radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==50.)
-            radial_range = (sb_data['outer_radius']<=20.)
+            radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
             #radial_range_Z = (Z_data['col1']<=50.)
             radial_range_Z = (Z_data['col1']<=20.)
             SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
@@ -713,15 +1059,293 @@ def sb_vs_Z(halos, outs):
         Z_list = np.array(Z_list)
         ax.scatter(np.log10(Z_list), SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
         
-    ax.set_xlabel('log Mean CGM Metallicity [$Z_\odot$]', fontsize=16)
-    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
-    ax.legend(loc=2, frameon=False, fontsize=16)
+    ax.set_xlabel(r'log Mean CGM Metallicity [$Z_\odot$]', fontsize=14)
+    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
+    ax.legend(loc=2, ncols=2, fontsize=14)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
     if (args.Aspera_limit): ax.axis([-2.5,1,-19,-18])
     else: ax.axis([-2.5,1,-21.,-18])
-    plt.subplots_adjust(left=0.13, bottom=0.12, top=0.93, right=0.98)
+    fig.subplots_adjust(left=0.14, bottom=0.13, top=0.95, right=0.97)
     plt.savefig(prefix + 'OVI_SB_vs_Z' + save_suffix + '.png')
+
+def Z_vs_time(halos, outs):
+    '''Plots the average CGM metallicity vs. time and redshift for all the halos and outputs listed in halos and outs.'''
+
+    #fig = plt.figure(figsize=(9,8), dpi=300)
+    #gs = GridSpec(nrows=2, ncols=1, height_ratios=[3, 1])
+    #plt.subplots_adjust(left=0.13, bottom=0.07, top=0.92, right=0.96, hspace=0.)
+    #ax = fig.add_subplot(gs[0])
+    #ax_sfr = fig.add_subplot(gs[1])
+    fig = plt.figure(figsize=(7,5), dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
+    for h in range(len(halo_names)):
+        if (halo_names[h]=='Tempest (no feedback)'):
+            Z_table_loc = output_dir + 'profiles_halo_008508/feedback-10-track/Tables/'
+        else:
+            Z_table_loc = output_dir + 'profiles_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+            halo_c_v_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/halo_c_v'
+            sfr_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr'
+            halo_c_v = Table.read(halo_c_v_name, format='ascii')
+            timelist = halo_c_v['col4']
+            snaplist = halo_c_v['col3']
+            zlist = halo_c_v['col2']
+            sfr_data = Table.read(sfr_name, format='ascii')
+            sfr_snap = sfr_data['col1']
+            sfr = sfr_data['col3']
+            sfr_time = []
+            for i in range(len(sfr_snap)):
+                sfr_time.append(float(timelist[snaplist==sfr_snap[i]][0])/1000.)
+        Z_list = []
+        time_list = []
+        z_list = []
+        for i in range(len(outs[h])):
+            # Load the PDF of OVI emission
+            snap = outs[h][i]
+            Z_data = Table.read(Z_table_loc + snap + '_metallicity_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
+            radial_range_Z = (Z_data['col1']<=20.)
+            Z_list.append(np.mean(Z_data['col3'][radial_range_Z]))
+            time_list.append(float(timelist[snaplist==snap][0])/1000.)
+            z_list.append(float(zlist[snaplist==snap][0]))
+
+        ax.scatter(time_list, np.log10(Z_list), marker='.', color=halo_colors[h], label=halo_names[h])
+        #ax_sfr.plot(sfr_time, sfr, ls='-', lw=1, color=halo_colors[h])
+
+    #ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 75])
+    #ax_sfr.set_xlabel('Time [Gyr]', fontsize=16)
+    #ax_sfr.set_ylabel(r'SFR [$M_\odot$/yr]', fontsize=16)
+    #ax_sfr.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                #top=True, right=True)
+    #ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
+        
+    ax.set_ylabel(r'log Mean CGM Metallicity [$Z_\odot$]', fontsize=20)
+    ax.set_xlabel('Time [Gyr]', fontsize=20)
+    #ax.legend(loc=4, ncols=2, fontsize=16)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+                top=False, right=True)
+    ax.axis([np.min(time_list), np.max(time_list), -1.5, 1])
+    ax.set_xticklabels([])
+
+    z_list.reverse()
+    time_list.reverse()
+    time_func = IUS(z_list, time_list)
+    time_list.reverse()
+
+    ax2 = ax.twiny()
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+    top=True)
+    x0, x1 = ax.get_xlim()
+    z_ticks = np.array([1,.7,.5,.3,.2,.1,0])
+    last_z = np.where(z_ticks >= z_list[0])[0][-1]
+    first_z = np.where(z_ticks <= z_list[-1])[0][0]
+    z_ticks = z_ticks[first_z:last_z+1]
+    tick_pos = [z for z in time_func(z_ticks)]
+    tick_labels = ['%.2f' % (z) for z in z_ticks]
+    ax2.set_xlim(x0,x1)
+    ax2.set_xticks(tick_pos)
+    ax2.set_xticklabels(tick_labels)
+    ax2.set_xlabel('Redshift', fontsize=20)
+
+    fig.tight_layout()
+    plt.savefig(prefix + 'Z_vs_time' + save_suffix + '.png')
+
+def sb_vs_temp(halos, outs):
+    '''Plots the median surface brightness vs. average CGM temperature for all the halos and outputs listed in halos and outs.'''
+
+    fig = plt.figure(figsize=(7,5),dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
+    for h in range(len(halo_names)):
+        if (halo_names[h]=='Tempest (no feedback)'):
+            sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
+            Z_table_loc = output_dir + 'profiles_halo_008508/feedback-10-track/Tables/'
+        else:
+            sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+            Z_table_loc = output_dir + 'profiles_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+        Z_list = []
+        SB_med_list = []
+        for i in range(len(outs[h])):
+            # Load the PDF of OVI emission
+            snap = outs[h][i]
+            sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
+            Z_data = Table.read(Z_table_loc + snap + '_temperature_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
+            radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
+            #radial_range_Z = (Z_data['col1']<=50.)
+            radial_range_Z = (Z_data['col1']<=20.)
+            SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
+            Z_list.append(np.mean(Z_data['col3'][radial_range_Z]))
+
+        SB_med_list = np.array(SB_med_list)
+        Z_list = np.array(Z_list)
+        ax.scatter(np.log10(Z_list), SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        
+    ax.set_xlabel('log Mean CGM Temperature [K]', fontsize=14)
+    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
+    ax.legend(loc=2, ncols=2, fontsize=14)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=True, right=True)
+    if (args.Aspera_limit): ax.axis([5.5,7.25,-19,-18])
+    else: ax.axis([5.5,7.25,-21.,-18])
+    fig.subplots_adjust(left=0.14, bottom=0.13, top=0.95, right=0.97)
+    plt.savefig(prefix + 'OVI_SB_vs_temp' + save_suffix + '.png')
+
+def temp_vs_time(halos, outs):
+    '''Plots the average CGM temperature vs. time and redshift for all the halos and outputs listed in halos and outs.'''
+
+    #fig = plt.figure(figsize=(9,8), dpi=300)
+    #gs = GridSpec(nrows=2, ncols=1, height_ratios=[3, 1])
+    #plt.subplots_adjust(left=0.13, bottom=0.07, top=0.92, right=0.96, hspace=0.)
+    #ax = fig.add_subplot(gs[0])
+    #ax_sfr = fig.add_subplot(gs[1])
+    fig = plt.figure(figsize=(7,5), dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
+    for h in range(len(halo_names)):
+        if (halo_names[h]=='Tempest (no feedback)'):
+            temp_table_loc = output_dir + 'profiles_halo_008508/feedback-10-track/Tables/'
+        else:
+            temp_table_loc = output_dir + 'profiles_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+            halo_c_v_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/halo_c_v'
+            sfr_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr'
+            halo_c_v = Table.read(halo_c_v_name, format='ascii')
+            timelist = halo_c_v['col4']
+            snaplist = halo_c_v['col3']
+            zlist = halo_c_v['col2']
+            sfr_data = Table.read(sfr_name, format='ascii')
+            sfr_snap = sfr_data['col1']
+            sfr = sfr_data['col3']
+            sfr_time = []
+            for i in range(len(sfr_snap)):
+                sfr_time.append(float(timelist[snaplist==sfr_snap[i]][0])/1000.)
+        temp_list = []
+        time_list = []
+        z_list = []
+        for i in range(len(outs[h])):
+            # Load the PDF of OVI emission
+            snap = outs[h][i]
+            temp_data = Table.read(temp_table_loc + snap + '_temperature_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
+            radial_range_temp = (temp_data['col1']<=20.)
+            temp_list.append(np.mean(temp_data['col3'][radial_range_temp]))
+            time_list.append(float(timelist[snaplist==snap][0])/1000.)
+            z_list.append(float(zlist[snaplist==snap][0]))
+
+        ax.scatter(time_list, np.log10(temp_list), marker='.', color=halo_colors[h], label=halo_names[h])
+        #ax_sfr.plot(sfr_time, sfr, ls='-', lw=1, color=halo_colors[h])
+
+    #ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 75])
+    #ax_sfr.set_xlabel('Time [Gyr]', fontsize=16)
+    #ax_sfr.set_ylabel(r'SFR [$M_\odot$/yr]', fontsize=16)
+    #ax_sfr.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                #top=True, right=True)
+    #ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
+        
+    ax.set_ylabel('log Mean CGM Temperature [K]', fontsize=20)
+    ax.set_xlabel('Time [Gyr]', fontsize=20)
+    #ax.legend(loc=8, ncols=2, fontsize=16)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+                top=False, right=True)
+    ax.axis([np.min(time_list), np.max(time_list), 5.5, 7.5])
+    ax.set_xticklabels([])
+
+    z_list.reverse()
+    time_list.reverse()
+    time_func = IUS(z_list, time_list)
+    time_list.reverse()
+
+    ax2 = ax.twiny()
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+    top=True)
+    x0, x1 = ax.get_xlim()
+    z_ticks = np.array([1,.7,.5,.3,.2,.1,0])
+    last_z = np.where(z_ticks >= z_list[0])[0][-1]
+    first_z = np.where(z_ticks <= z_list[-1])[0][0]
+    z_ticks = z_ticks[first_z:last_z+1]
+    tick_pos = [z for z in time_func(z_ticks)]
+    tick_labels = ['%.2f' % (z) for z in z_ticks]
+    ax2.set_xlim(x0,x1)
+    ax2.set_xticks(tick_pos)
+    ax2.set_xticklabels(tick_labels)
+    ax2.set_xlabel('Redshift', fontsize=20)
+
+    fig.tight_layout()
+    plt.savefig(prefix + 'temp_vs_time' + save_suffix + '.png')
+
+def sb_vs_den_temp_Z(halos, outs):
+    '''Plots the median O VI surface brightness vs. the average CGM density, temperature, and metallicity.'''
+
+    fig = plt.figure(figsize=(15,5),dpi=250)
+    ax_den = fig.add_subplot(1,3,1)
+    ax_temp = fig.add_subplot(1,3,2)
+    ax_Z = fig.add_subplot(1,3,3)
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
+    for h in range(len(halo_names)):
+        if (halo_names[h]=='Tempest (no feedback)'):
+            sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
+            prop_table_loc = output_dir + 'profiles_halo_008508/feedback-10-track/Tables/'
+        else:
+            sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+            prop_table_loc = output_dir + 'profiles_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+        den_list = []
+        temp_list = []
+        Z_list = []
+        SB_med_list = []
+        for i in range(len(outs[h])):
+            # Load the PDF of OVI emission
+            snap = outs[h][i]
+            sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
+            den_data = Table.read(prop_table_loc + snap + '_density_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
+            temp_data = Table.read(prop_table_loc + snap + '_temperature_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
+            Z_data = Table.read(prop_table_loc + snap + '_metallicity_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
+            radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
+            radial_range_den = (den_data['col1']<=20.)
+            radial_range_temp = (temp_data['col1']<=20.)
+            radial_range_Z = (Z_data['col1']<=20.)
+            SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
+            den_list.append(np.mean(den_data['col3'][radial_range_den]))
+            temp_list.append(np.mean(temp_data['col3'][radial_range_temp]))
+            Z_list.append(np.mean(Z_data['col3'][radial_range_Z]))
+
+        SB_med_list = np.array(SB_med_list)
+        den_list = np.array(den_list)
+        temp_list = np.array(temp_list)
+        Z_list = np.array(Z_list)
+        ax_den.scatter(np.log10(den_list), SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        ax_temp.scatter(np.log10(temp_list), SB_med_list, marker='.', color=halo_colors[h])
+        ax_Z.scatter(np.log10(Z_list), SB_med_list, marker='.', color=halo_colors[h])
+        
+    ax_den.set_xlabel('log Mean CGM Density [g cm$^{-3}$]', fontsize=14)
+    ax_temp.set_xlabel('log Mean CGM Temperature [K]', fontsize=14)
+    ax_Z.set_xlabel(r'log Mean CGM Metallicity [$Z_\odot$]', fontsize=14)
+
+    ax_den.set_xticks([-28,-27.5,-27,-26.5])
+    ax_temp.set_xticks([5.5, 6, 6.25,6.5,6.75,7])
+    ax_Z.set_xticks([-1.5,-1,-0.5,0,0.5,1])
+
+    if (args.Aspera_limit):
+        ax_den.axis([-28.2,-26,-19,-18])
+        ax_temp.axis([5.5,7.25,-19,-18])
+        ax_Z.axis([-1.5,1,-19,-18])
+    else:
+        ax_den.axis([-28.2,-26,-21.,-18])
+        ax_temp.axis([5.5,7.25,-21.,-18])
+        ax_Z.axis([-1.5,1,-21.,-18])
+
+    ax_den.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=True, right=True)
+    ax_temp.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=True, right=True, labelleft=False)
+    ax_Z.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+            top=True, right=True, labelleft=False)
+
+    ax_den.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
+    ax_den.legend(loc=2, ncols=2, fontsize=14)
+    fig.subplots_adjust(left=0.07, bottom=0.13, top=0.95, right=0.97, wspace=0)
+    plt.savefig(prefix + 'OVI_SB_vs_den-temp-Z' + save_suffix + '.png')
 
 def emiss_area_vs_sfr(halos, outs):
     '''Plots the fractional area of pixels above the Aspera limit vs SFR.'''
@@ -733,15 +1357,11 @@ def emiss_area_vs_sfr(halos, outs):
     FRB_y = FRB_y*dx - 50.
     radius = np.sqrt(FRB_x**2. + FRB_y**2.)
 
-    fig = plt.figure(figsize=(10,6),dpi=250)
+    fig = plt.figure(figsize=(7,5),dpi=250)
     ax = fig.add_subplot(1,1,1)
-    fig2 = plt.figure(figsize=(10,6),dpi=250)
-    ax2 = fig2.add_subplot(1,1,1)
-    halo_colors = ['r','orange','b','g','c','m']
-    halo_names = ['Tempest', 'Tempest (no feedback)', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
     alphas = np.linspace(1., 0.1, 10)
-    #halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard']
-    #halo_colors = ['r','b','g','c']
     for h in range(len(halo_names)):
         if (halo_names[h]=='Tempest (no feedback)'):
             sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
@@ -756,8 +1376,8 @@ def emiss_area_vs_sfr(halos, outs):
             snap = outs[h][i]
             sfr = sfr_table['col3'][sfr_table['col1']==snap][0]
             sb_pdf = Table.read(sb_table_loc + snap + '_SB_pdf' + file_suffix + '.hdf5', path='all_data')
-            #radial_range = (sb_pdf['inner_radius']==0.) & (sb_pdf['outer_radius']==50.)
-            radial_range = (sb_pdf['outer_radius']<=20.)
+            radial_range = (sb_pdf['inner_radius']==0.) & (sb_pdf['outer_radius']==20.)
+            #radial_range = (sb_pdf['outer_radius']<=20.)
             npix = len(radius[radius<=20.])
             frac_area = np.sum(sb_pdf['all'][(radial_range) & (sb_pdf['lower_SB']>=-18.5)])/npix
             SB_frac_list.append(frac_area)
@@ -767,13 +1387,13 @@ def emiss_area_vs_sfr(halos, outs):
         SFR_list = np.array(SFR_list)
         ax.scatter(SFR_list, SB_frac_list, marker='.', color=halo_colors[h], label=halo_names[h])
         
-    ax.set_xlabel('Star formation rate [$M_\odot$/yr]', fontsize=16)
+    ax.set_xlabel(r'Star formation rate [$M_\odot$/yr]', fontsize=16)
     ax.set_ylabel('Fraction of area above O VI SB limit', fontsize=16)
-    ax.legend(loc=2, frameon=False, fontsize=16)
+    ax.legend(loc=2, fontsize=14, ncols=2)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
     ax.axis([-5,100,0.,0.5])
-    fig.subplots_adjust(left=0.1, bottom=0.12, top=0.93, right=0.98)
+    fig.tight_layout()
     fig.savefig(prefix + 'fractional-area-above-limit_vs_SFR' + save_suffix + '.png')
 
 def emiss_area_vs_Mh(halos, outs):
@@ -819,7 +1439,7 @@ def emiss_area_vs_Mh(halos, outs):
         mvir_list = np.array(mvir_list)
         ax.scatter(mvir_list, SB_frac_list, marker='.', color=halo_colors[h], label=halo_names[h])
         
-    ax.set_xlabel('log Halo mass [$M_\odot$]', fontsize=16)
+    ax.set_xlabel(r'log Halo mass [$M_\odot$]', fontsize=16)
     ax.set_ylabel('Fraction of area above O VI SB limit', fontsize=16)
     ax.legend(loc=2, frameon=False, fontsize=16)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
@@ -925,7 +1545,7 @@ def emiss_area_vs_Z(halos, outs):
         Z_list = np.array(Z_list)
         ax.scatter(np.log10(Z_list), SB_frac_list, marker='.', color=halo_colors[h], label=halo_names[h])
         
-    ax.set_xlabel('log Mean CGM Metallicity [$Z_\odot$]', fontsize=16)
+    ax.set_xlabel(r'log Mean CGM Metallicity [$Z_\odot$]', fontsize=16)
     ax.set_ylabel('Fraction of area above O VI SB limit', fontsize=16)
     ax.legend(loc=2, frameon=False, fontsize=16)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
@@ -933,6 +1553,80 @@ def emiss_area_vs_Z(halos, outs):
     ax.axis([-2.5,1,0.,0.2])
     fig.subplots_adjust(left=0.1, bottom=0.12, top=0.93, right=0.98)
     fig.savefig(prefix + 'fractional-area-above-limit_vs_Z' + save_suffix + '.png')
+
+def hists_den_temp_Z(ds, refine_box, snap):
+    '''Plots histograms of pixel densities, temperatures, and metallicities along with
+    emissivity-weighted histograms.'''
+
+    sph = ds.sphere(center=ds.halo_center_kpc, radius=(20., 'kpc'))
+    sph_inflow = sph.include_below(('gas','radial_velocity_corrected'), -100.)
+    sph_outflow = sph.include_above(('gas','radial_velocity_corrected'), 200.)
+
+    densities = sph['gas','density'].in_units('g/cm**3').v
+    densities_inflow = sph_inflow['gas','density'].in_units('g/cm**3').v
+    densities_outflow = sph_outflow['gas','density'].in_units('g/cm**3').v
+    temperatures = sph['gas','temperature'].in_units('K').v
+    temperatures_inflow = sph_inflow['gas','temperature'].in_units('K').v
+    temperatures_outflow = sph_outflow['gas','temperature'].in_units('K').v
+    metallicities = sph['gas','metallicity'].in_units('Z_sun').v
+    metallicities_inflow = sph_inflow['gas','metallicity'].in_units('Zsun').v
+    metallicities_outflow = sph_outflow['gas','metallicity'].in_units('Zsun').v
+    emissivities = sph['gas','Emission_OVI'].in_units(emission_units_ALT).v
+    emissivities_inflow = sph_inflow['gas','Emission_OVI'].in_units(emission_units_ALT).v
+    emissivities_outflow = sph_outflow['gas','Emission_OVI'].in_units(emission_units_ALT).v
+
+    for i in range(3):
+        if (i==0):
+            density = densities
+            temperature = temperatures
+            metallicity = metallicities
+            emissivity = emissivities
+        if (i==1):
+            density = densities_inflow
+            temperature = temperatures_inflow
+            metallicity = metallicities_inflow
+            emissivity = emissivities_inflow
+        if (i==2):
+            density = densities_outflow
+            temperature = temperatures_outflow
+            metallicity = metallicities_outflow
+            emissivity = emissivities_outflow
+
+        fig = plt.figure(figsize=(15,6), dpi=250)
+        ax1 = fig.add_subplot(1,3,1)
+        ax2 = fig.add_subplot(1,3,2)
+        ax3 = fig.add_subplot(1,3,3)
+
+        ax1.hist(np.log10(density), bins=50, range=(-31,-23), density=True, histtype='stepfilled', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.3), label='All gas')
+        ax1.hist(np.log10(density), weights=emissivity, bins=50, range=(-31,-23), density=True, histtype='stepfilled', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1), label='O VI emitting gas')
+        ax1.set_yscale('log')
+        ax1.set_ylim(1e-3,10)
+        ax1.legend(loc=2, frameon=False, fontsize=12)
+        ax1.set_xlabel('Density [g/cm$^3$]', fontsize=14)
+        ax1.set_ylabel('PDF', fontsize=14)
+        ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=True, right=True)
+        
+        ax2.hist(np.log10(temperature), bins=50, range=(3,9), density=True, histtype='stepfilled', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.3))
+        ax2.hist(np.log10(temperature), weights=emissivity, bins=50, range=(3,9), density=True, histtype='stepfilled', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1))
+        ax2.set_xlabel('Temperature [K]', fontsize=14)
+        ax2.set_yscale('log')
+        ax2.set_ylim(1e-3,10)
+        ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=True, right=True, labelleft=False)
+        
+        ax3.hist(np.log10(metallicity), bins=50, range=(-2,1.5), density=True, histtype='stepfilled', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.3))
+        ax3.hist(np.log10(metallicity), weights=emissivity, bins=50, range=(-2,1.5), density=True, histtype='stepfilled', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1))
+        ax3.set_xlabel(r'Metallicity [$Z_\odot$]', fontsize=14)
+        ax3.set_yscale('log')
+        ax3.set_ylim(1e-3,10)
+        ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=True, right=True, labelleft=False)
+        
+        plt.tight_layout()
+        plt.subplots_adjust(wspace=0.)
+        plt.savefig(prefix + snap + '_gas-hist_OVI' + save_suffix + '.png')
+
 
 def load_and_calculate(snap):
     '''Loads the simulation snapshot and makes the requested plots.'''
@@ -958,6 +1652,11 @@ def load_and_calculate(snap):
             cmap2 = cmr.take_cmap_colors('cmr.neutral_r', 6, cmap_range=(0.2, 0.6), return_fmt='rgba')
             cmap = np.hstack([cmap2, cmap1])
             mymap = mcolors.LinearSegmentedColormap.from_list('cmap', cmap)
+        elif (args.DISCO_limit):
+            cmap1 = cmr.take_cmap_colors('cmr.flamingo', 6, cmap_range=(0.4, 0.8), return_fmt='rgba')
+            cmap2 = cmr.take_cmap_colors('cmr.neutral_r', 4, cmap_range=(0.2, 0.6), return_fmt='rgba')
+            cmap = np.hstack([cmap2, cmap1])
+            mymap = mcolors.LinearSegmentedColormap.from_list('cmap', cmap)
         else:
             mymap = cmr.get_sub_cmap('cmr.flamingo', 0.2, 0.8)
         proj.set_cmap('Emission_OVI', mymap)
@@ -974,8 +1673,8 @@ def load_and_calculate(snap):
         ax.set_ylabel('y [kpc]', fontsize=18)
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                 top=True, right=True)
-        ax.text(-45, 45, halo_dict[args.halo], fontsize=18, ha='left', va='top', color='white')
-        ax.text(45, 45, '$z = %.2f$\n%.2f Gyr' % (zsnap, ds.current_time.in_units('Gyr')), fontsize=18, ha='right', va='top', color='white')
+        #ax.text(-45, 45, halo_dict[args.halo], fontsize=18, ha='left', va='top', color='white')
+        #ax.text(45, 45, '$z = %.2f$\n%.2f Gyr' % (zsnap, ds.current_time.in_units('Gyr')), fontsize=18, ha='right', va='top', color='white')
         cax = fig.add_axes([0.818, 0.1, 0.03, 0.87])
         cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
                         top=True, right=True)
@@ -992,6 +1691,9 @@ def load_and_calculate(snap):
 
     if ('phase_plot' in args.plot):
         phase_plot(ds, refine_box, snap)
+
+    if ('histograms' in args.plot):
+        hists_den_temp_Z(ds, refine_box, snap)
 
     # Delete output from temp directory if on pleiades
     if (args.system=='pleiades_cassi'):
@@ -1019,6 +1721,7 @@ if __name__ == "__main__":
     catalog_dir = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
     halo_c_v_name = catalog_dir + 'halo_c_v'
     smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
+    sfr_name = catalog_dir + 'sfr'
 
     cloudy_path = code_path + "cgm_emission/cloudy_extended_z0_selfshield/TEST_z0_HM12_sh_run%i.dat"
     # These are the typical units that Lauren uses
@@ -1088,29 +1791,42 @@ if __name__ == "__main__":
 
     if ('sb_time_hist' in args.plot):
         surface_brightness_time_histogram(outs)
-    if ('vs_sfr' in args.plot) or ('vs_mh' in args.plot) or ('vs_den' in args.plot) or ('vs_Z' in args.plot) or ('time_avg' in args.plot):
+    if ('sb_time_radius' in args.plot):
+        sb_time_radius(outs)
+    if ('sb_profile_fdbk' in args.plot):
+        for i in range(len(outs)):
+            snap = outs[i]
+            sb_profile_nofdbk_compare(snap)
+    if ('vs_sfr' in args.plot) or ('vs_mh' in args.plot) or ('vs_den' in args.plot) or ('vs_Z' in args.plot) or ('vs_temp' in args.plot) or ('time_avg' in args.plot) or ('vs_time' in args.plot):
         if ('time_avg' in args.plot):
             halos = ['8508', '5016', '5036', '4123', '2392']
             #halos = ['8508']
-        else: halos = ['8508', '8508-feedback', '5016', '5036', '4123', '2392']
+        else: 
+            #halos = ['8508', '8508-feedback', '5016', '5036', '4123', '2392']
+            halos = ['8508', '5016', '5036', '4123', '2392']
         outs = []
         for h in range(len(halos)):
             if (halos[h]=='8508') and ('feedback' not in args.run):
-                #outs.append(make_output_list('DD0967-DD2427', output_step=args.output_step))
-                outs.append(make_output_list('DD2427'))
+                outs.append(make_output_list('DD0967-DD2427', output_step=args.output_step))
+                #outs.append(make_output_list('DD2427'))
             else:
-                #outs.append(make_output_list('DD1060-DD2520', output_step=args.output_step))
-                outs.append(make_output_list('DD2520'))
+                outs.append(make_output_list('DD1060-DD2520', output_step=args.output_step))
+                #outs.append(make_output_list('DD2520'))
         if ('sb_vs_sfr' in args.plot): sb_vs_sfr(halos, outs)
         if ('sb_vs_mh' in args.plot): sb_vs_Mh(halos, outs)
         if ('sb_vs_den' in args.plot): sb_vs_den(halos, outs)
+        if ('den_vs_time' in args.plot): den_vs_time(halos, outs)
+        if ('temp_vs_time' in args.plot): temp_vs_time(halos, outs)
+        if ('Z_vs_time' in args.plot): Z_vs_time(halos, outs)
         if ('sb_vs_Z' in args.plot): sb_vs_Z(halos, outs)
+        if ('sb_vs_temp' in args.plot): sb_vs_temp(halos, outs)
+        if ('sb_vs_den_temp_Z' in args.plot): sb_vs_den_temp_Z(halos, outs)
         if ('emiss_area_vs_sfr' in args.plot): emiss_area_vs_sfr(halos, outs)
         if ('emiss_area_vs_mh' in args.plot): emiss_area_vs_Mh(halos, outs)
         if ('emiss_area_vs_den' in args.plot): emiss_area_vs_den(halos, outs)
         if ('emiss_area_vs_Z' in args.plot): emiss_area_vs_Z(halos, outs)
         if ('sb_profile_time_avg' in args.plot): sb_profile_time_avg(halos, outs)
-    if (('emission_map' in args.plot) or ('sb_profile' in args.plot) or ('emission_FRB' in args.plot) or ('phase_plot' in args.plot)) and ('time_avg' not in args.plot):
+    if (('emission_map' in args.plot) or ('sb_profile' in args.plot) or ('emission_FRB' in args.plot) or ('phase_plot' in args.plot) or ('histograms' in args.plot)) and ('time_avg' not in args.plot) and ('fdbk' not in args.plot):
         target_dir = 'ions'
         if (args.nproc==1):
             for snap in outs:
