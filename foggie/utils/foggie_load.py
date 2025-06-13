@@ -84,12 +84,15 @@ def get_center_from_smoothed_catalog(ds, halo_c_v_name, snap, center_style='smoo
     
     return ds
 
-def get_center_from_root_catalog():
+def get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_style = 'root_index'):
+
     """This function is a helper function to get the halo center from the root catalog file.
     It is used in foggie_load() to determine the halo center."""
     print('Using root catalog file: ', halo_c_v_name, ' for center style ', center_style)
     root_particles = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
     halo0 = root_particles['root_index']
+
+    ad = ds.all_data() 
         
     x_particles = ad['particle_position_x']
     y_particles = ad['particle_position_y']
@@ -173,14 +176,13 @@ def foggie_load(snap, trackfile, **kwargs):
                 get_center_from_calculated(ds, refine_box_center, proper_box_size)
         elif 'root' in halo_c_v_name:
             center_style = 'root_index'
-            get_center_from_root_catalog(ds, halo_c_v_name, snap, center_style=center_style)
+            get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_style=center_style)
         else:
             get_center_from_calculated(ds, refine_box_center, proper_box_size)
     else:
-        print('No halo_c_v file found, calculating halo center')
-        ds.halo_center_code = ds.arr([0.5, 0.5, 0.5], 'code_length')
-        ds.halo_center_kpc = ds.arr([0.5, 0.5, 0.5], 'kpc')
-        ds.halo_velocity_kms = ds.arr([0.0, 0.0, 0.0], 'km/s')
+        print('No halo_c_v file found, calculating halo center from track')
+        get_center_from_calculated(ds, refine_box_center, proper_box_size)
+
 
     ds.track = track
     ds.refine_box_center = refine_box_center
