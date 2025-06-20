@@ -115,7 +115,7 @@ def get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_styl
     ds.halo_center_kpc = halo_center_kpc
     ds.halo_velocity_kms = bulk_vel
 
-    return ds, halo_center_kpc, ds.halo_center_code, ds.halo_velocity_kms
+    return ds 
 
 def get_center_from_calculated(ds, refine_box_center, proper_box_size):
     """This function is a helper function to calculate the halo center.
@@ -129,7 +129,7 @@ def get_center_from_calculated(ds, refine_box_center, proper_box_size):
     ds.halo_center_kpc = halo_center_kpc
     ds.halo_velocity_kms = bulk_vel
 
-    return ds, halo_center_kpc, ds.halo_center_code, ds.halo_velocity_kms
+    return ds
 
 def foggie_load(snap, trackfile, **kwargs):
     """This function loads a specified snapshot named by 'snap', the halo track "trackfile'
