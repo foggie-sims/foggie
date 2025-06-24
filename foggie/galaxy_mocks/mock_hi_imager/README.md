@@ -21,11 +21,13 @@ Below are basic usage examples, a full list of IO arguments, and a list of files
 
     
 Basic Example usage:
-python make_hi_datacube.py --output outputs/Tempest_MhongooseHR_10Mpc_i40 --z .002 --halo 008508 --mock_suffix _NHI5e18_RD0042 --memory_chunks 1000 --survey MHONGOOSE_HR  --min_column_density 5e18   --high_pass_filter_type gaussian  --nthreads 15 --clean_gain 0.1 --set_res_auto 1 --fov_kpc 350 --inclination 40  
+
+    python make_hi_datacube.py --output outputs/Tempest_MhongooseHR_10Mpc_i40 --z .002 --halo 008508 --mock_suffix _NHI5e18_RD0042 --memory_chunks 1000 --survey MHONGOOSE_HR  --min_column_density 5e18   --high_pass_filter_type gaussian  --nthreads 15 --clean_gain 0.1 --set_res_auto 1 --fov_kpc 350 --inclination 40  
 
 
 The args are parsed as follows:    
 IO Arguments:
+
     --code_dir: Where is the foggie analysis directory?
     --data_dir: Where are the simulation outputs?
     --refinement_level: To which refinement_level should the uniform covering grid be made. Defaults to the maximum refinement level in the box.
@@ -70,6 +72,7 @@ Survey Arguments:
     --z: What is the observed redshift? Currently used to set distance...
 
 Spatial Filtering and CLEAN Arguments:
+
     --high_pass_filter_type: What type of spatial filter do you want to use? (Gaussian or Butterworth). Default is None, which corresponds to an ideal, sharp filter.
     --clean_gain: By what factor should your clean components be multiplied by when removing them. Default is 0.1. Must be less than 1.
     --max_clean_iterations: Do you want to set a maximum amount of cleaning iterations? 
@@ -79,6 +82,7 @@ Spatial Filtering and CLEAN Arguments:
     
 
 Alternate Use Cases:
+
     --make_simple_moment_maps: Optional module to just make simple projections instead of full datacubes.
     --skip_full_datacube: Force skipping the full datacube. Probably don't need to ever use this
     --skip_mock_datacube: Skip making the mock datacubes.
