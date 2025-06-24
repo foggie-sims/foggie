@@ -31,7 +31,7 @@ Last updated 06/17/2025
 
 
 
-def generate_spectra(ds,source_cut,args,ifu_shape,pixel_res_kpc):
+def generate_spectra(ds,source_cut,args,ifu_shape,pixel_res_kpc,observer_distance):
     '''
     This is the core function for creating the ideal datacube.
     For each cell it calculates the line profile following Draine's "Physics of the Interstellar and Intergalactic Medium"(Gaussian Core + Damping wings).
@@ -84,6 +84,7 @@ def generate_spectra(ds,source_cut,args,ifu_shape,pixel_res_kpc):
 
     pos_x_projected = source_cut['gas','pos_x_projected']
     pos_y_projected = source_cut['gas','pos_y_projected']
+    pos_z_projected = source_cut['gas','pos_z_projected']
     pos_dx = source_cut['gas','dx']
     emission_power = source_cut['gas','Emission_HI_21cm']
 
@@ -163,9 +164,11 @@ def generate_spectra(ds,source_cut,args,ifu_shape,pixel_res_kpc):
 
         #emission_power = source_cut['gas','Emission_HI_21cm'][mask]
         chunk_power = emission_power[start:end][mask]
-
+        distance_factor = np.power( np.divide(observer_distance.in_units('kpc') , pos_z_projected[start:end][mask].in_units('kpc')) , 2.) #account for slight differences in distance (Should be ~1)
+        print("Min distance factor=",np.min(distance_factor), "Max distance factor=",np.max(distance_factor))
         prefactor = m_e * c / np.pi / (e**2) / f_lu
         emission_term = np.multiply(chunk_power[:,np.newaxis] , sigma)
+        emission_term = np.multiply(emission_term, distance_factor[:,np.newaxis])
 
         for i in range(0,np.size(min_x_idx)):
             #Can paralllelize!
@@ -293,7 +296,7 @@ def get_ideal_hi_datacube(args,ds, source_cut,moment_map_filename=None):
     if args.make_disk_cut_mask: return generate_cut_mask(ds,source_cut,[nx,ny,nspec],pixel_res_kpc,args)    
 
 
-    if not args.skip_full_datacube: return generate_spectra(ds,source_cut,args,[nx,ny,nspec],pixel_res_kpc) #The main calculation
+    if not args.skip_full_datacube: return generate_spectra(ds,source_cut,args,[nx,ny,nspec],pixel_res_kpc,observer_distance) #The main calculation
     return None #This option really just exists if you want to just add all the projection fields
 
 
