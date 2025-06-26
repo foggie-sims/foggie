@@ -1754,23 +1754,23 @@ def vdisp_vs_radius(snap):
 
         pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
         lvl1_res = pix_res*2.**11.
-        level = 9
+        level = 10
         dx = lvl1_res/(2.**level)
-        smooth_scale = int(25./dx)/6.
-        refine_res = int(3.*Rvir/dx)
-        box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([1.5*Rvir,1.5*Rvir,1.5*Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
+        smooth_scale = int(10./dx)/6.
+        refine_res = int(2.*Rvir/dx)
+        box = ds.covering_grid(level=level, left_edge=ds.halo_center_kpc-ds.arr([Rvir,Rvir,Rvir],'kpc'), dims=[refine_res, refine_res, refine_res])
         density = box['density'].in_units('g/cm**3').v
         temperature = box['temperature'].v
         radius = box['radius_corrected'].in_units('kpc').v
         x = box[('gas','x')].in_units('cm').v - ds.halo_center_kpc[0].to('cm').v
         y = box[('gas','y')].in_units('cm').v - ds.halo_center_kpc[1].to('cm').v
         z = box[('gas','z')].in_units('cm').v - ds.halo_center_kpc[2].to('cm').v
-        #radius = radius[(density < cgm_density_max * density_cut_factor)]
+        radius = radius[(density < cgm_density_max * density_cut_factor)]
         if (args.weight=='mass'):
             weights = box['cell_mass'].in_units('Msun').v
         if (args.weight=='volume'):
             weights = box['cell_volume'].in_units('kpc**3').v
-        #weights = weights[(density < cgm_density_max * density_cut_factor)]
+        weights = weights[(density < cgm_density_max * density_cut_factor)]
         if (args.region_filter=='metallicity'):
             metallicity = box['metallicity'].in_units('Zsun').v
             #metallicity = metallicity[(density < cgm_density_max * density_cut_factor)]
@@ -1814,19 +1814,23 @@ def vdisp_vs_radius(snap):
         vx_masked[disk_mask] = vx_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         vy_masked[disk_mask] = vy_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
         vz_masked[disk_mask] = vz_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+
+        # Smooth velocity fields to find bulk flows
         smooth_vx = gaussian_filter(vx_masked, smooth_scale)
         smooth_vy = gaussian_filter(vy_masked, smooth_scale)
         smooth_vz = gaussian_filter(vz_masked, smooth_scale)
-        sig_x = (vx_masked - smooth_vx)**2.
-        sig_y = (vy_masked - smooth_vy)**2.
-        sig_z = (vz_masked - smooth_vz)**2.
-        vdisp = np.sqrt((sig_x + sig_y + sig_z)/3.)
-
-        #vdisp = vdisp[(density < cgm_density_max * density_cut_factor)]
-        #new_density = density[(density < cgm_density_max * density_cut_factor)]
-        #new_temp = temperature[(density < cgm_density_max * density_cut_factor)]
-        #density = new_density
-        #temperature = new_temp
+        # Subtract off bulk to get just turbulence
+        resid_x = vx_masked - smooth_vx
+        resid_y = vy_masked - smooth_vy
+        resid_z = vz_masked - smooth_vz
+        # Compute the local standard deviation of the velocity fields within Gaussian windows: residual^2 - mean^2
+        # Since the smoothing scales here are the same as was used to calculate the residual above, the subtraction is
+        # not totally necessary because the mean should be zero by definition, but I've left it in for completeness
+        variance_x = gaussian_filter(resid_x**2., smooth_scale) - gaussian_filter(resid_x, smooth_scale)**2.
+        variance_y = gaussian_filter(resid_y**2., smooth_scale) - gaussian_filter(resid_y, smooth_scale)**2.
+        variance_z = gaussian_filter(resid_z**2., smooth_scale) - gaussian_filter(resid_z, smooth_scale)**2.
+        vdisp = np.sqrt((np.abs(variance_x) + np.abs(variance_y) + np.abs(variance_z))/3.)
+        vdisp = vdisp[(density < cgm_density_max * density_cut_factor)]
 
         stats = ['vdisp']
         table = make_table(stats)
@@ -1850,19 +1854,6 @@ def vdisp_vs_radius(snap):
             vdisp_regions.append(vdisp[temperature > 10**6])
         elif (args.region_filter=='metallicity'):
             regions = ['_low-Z', '_mid-Z', '_high-Z']
-            '''bools = [(metallicity < 0.01), (metallicity > 0.01) & (metallicity < 1.), (metallicity > 1.)]
-            for r in range(len(regions)):
-                vx_r = vx[bools[r]]
-                vy_r = vy[bools[r]]
-                vz_r = vz[bools[r]]
-                smooth_vx_r = gaussian_filter(vx_r, smooth_scale)
-                smooth_vy_r = gaussian_filter(vy_r, smooth_scale)
-                smooth_vz_r = gaussian_filter(vz_r, smooth_scale)
-                sig_x_r = (vx_r - smooth_vx_r)**2.
-                sig_y_r = (vy_r - smooth_vy_r)**2.
-                sig_z_r = (vz_r - smooth_vz_r)**2.
-                vdisp_r = np.sqrt((sig_x_r + sig_y_r + sig_z_r)/3.)
-                vdisp_regions.append(vdisp_r)'''
             weights_regions.append(weights[metallicity < 0.01])
             weights_regions.append(weights[(metallicity > 0.01) & (metallicity < 1)])
             weights_regions.append(weights[metallicity > 1])
