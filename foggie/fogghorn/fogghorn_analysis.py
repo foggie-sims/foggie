@@ -55,6 +55,7 @@ def parse_args():
     
     # These arguments are plotting options
     ###### IF YOU ADD A PLOT STEP 6: if that plot has options, add an argument for it here ######
+    parser.add_argument('--proj_width', metavar='proj_width', type=float, action='store', default=20., help='If making projection plots, use this to specify the width of the plots.')
     parser.add_argument('--upto_kpc', metavar='upto_kpc', type=float, action='store', default=None, help='Limit analysis out to a certain physical kpc. By default it does the entire refine box.')
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x; but user can input multiple comma-separated values. Options are: x, y, z, x_disk, y_disk, z_disk')
     parser.add_argument('--use_cen_smoothed', dest='use_cen_smoothed', action='store_true', default=False, help='use Cassis new smoothed center file?, default is no')

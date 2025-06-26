@@ -45,8 +45,8 @@ def gas_density_projection(ds, region, args, output_filename, projection):
         if 'z' in projection:
             p_dir = ds.z_unit_disk
             north_vector = ds.x_unit_disk
-        p = yt.ProjectionPlot(ds, p_dir, 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code, north_vector=north_vector)
-    else: p = yt.ProjectionPlot(ds, projection, 'density', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
+        p = yt.ProjectionPlot(ds, p_dir, 'density', data_source=region, width=(args.proj_width, 'kpc'), center=ds.halo_center_code, north_vector=north_vector)
+    else: p = yt.ProjectionPlot(ds, projection, 'density', data_source=region, width=(args.proj_width, 'kpc'), center=ds.halo_center_code)
     p.set_unit('density','Msun/pc**2')
     p.set_cmap('density', density_color_map)
     p.set_zlim('density',0.01,300)
@@ -92,8 +92,8 @@ def gas_metallicity_projection(ds, region, args, output_filename, projection):
         if 'z' in projection:
             p_dir = ds.z_unit_disk
             north_vector = ds.x_unit_disk
-        p = yt.OffAxisProjectionPlot(ds, p_dir, 'metallicity', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code, north_vector=north_vector)
-    else: p = yt.ProjectionPlot(ds, projection, 'metallicity', data_source=region, width=(20, 'kpc'), center=ds.halo_center_code)
+        p = yt.OffAxisProjectionPlot(ds, p_dir, 'metallicity', data_source=region, width=(args.proj_width, 'kpc'), center=ds.halo_center_code, north_vector=north_vector)
+    else: p = yt.ProjectionPlot(ds, projection, 'metallicity', data_source=region, width=(args.proj_width, 'kpc'), center=ds.halo_center_code)
     p.set_unit('metallicity','Zsun*cm') # the length dimension is because this is a projected quantity
     p.set_cmap('metallicity', old_metal_color_map)
     #p.set_zlim('metallicity', 2e-2, 4e0)
