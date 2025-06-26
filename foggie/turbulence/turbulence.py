@@ -1729,13 +1729,14 @@ def vdisp_vs_radius(snap):
     if (not args.load_stats):
         if (args.system=='pleiades_cassi'):
             print('Copying directory to /tmp')
-            snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
             if (args.copy_to_tmp):
+                snap_dir = '/tmp/' + target_dir + '/' + args.halo + '/' + args.run + '/' + snap
                 shutil.copytree(foggie_dir + run_dir + snap, snap_dir)
                 snap_name = snap_dir + '/' + snap
             else:
                 # Make a dummy directory with the snap name so the script later knows the process running
                 # this snapshot failed if the directory is still there
+                snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/' + snap
                 os.makedirs(snap_dir)
                 snap_name = foggie_dir + run_dir + snap + '/' + snap
         else:
