@@ -1737,6 +1737,7 @@ def vdisp_vs_radius(snap):
                 # Make a dummy directory with the snap name so the script later knows the process running
                 # this snapshot failed if the directory is still there
                 os.makedirs(snap_dir)
+                snap_name = foggie_dir + run_dir + snap + '/' + snap
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
         ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
