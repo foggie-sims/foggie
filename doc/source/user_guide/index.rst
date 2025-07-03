@@ -19,6 +19,7 @@ analysis codes within the repo.
    halo_info_files.rst
    clump_finder.rst
    emission_maps.rst
+   analysis_scripts.rst
 
 
 User Guide - New Sims

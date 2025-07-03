@@ -1,0 +1,21 @@
+# This installs yt and some related things inside of a base container
+# that is set up to launch into a Jupyter notebook (which can be found
+# at https://jupyter-docker-stacks.readthedocs.io/ )
+FROM jupyter/scipy-notebook
+
+LABEL org.opencontainers.image.authors="bwoshea@gmail.com"
+
+# set the user to root so we can install stuff
+# (this is possibly inadvisable)
+USER root
+
+# Install a few packages, including vim (just in case)
+RUN apt-get update
+RUN apt-get install -y wget curl vim 
+
+# We already have Python, pip, and conda installed
+# so we can just install things via pip 
+RUN pip install yt yt-astro-analysis trident
+
+# Set it back to the non-root user
+USER $NB_USER 

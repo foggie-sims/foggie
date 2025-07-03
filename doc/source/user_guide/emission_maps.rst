@@ -35,14 +35,16 @@ The pipeline can generate full emission maps that include all gas within the fie
 **List of files:**
 
 | Folder/Module        | Description |
+
 * ``emission_maps_dynamic.py``: The main code to make emission maps and FRBs from CLOUDY tables for a specific halo and snapshot.
+
 
 **Author:**
 
 Vida Saeedzadeh
 
 Running the emission maps pipeline
-------------------------
+----------------------------------
 **Running from command line:**
 
 To run the emission maps pipeline directly from command line, run ``emission_maps_dynamic.py`` with by your needed arguments. For example the below command

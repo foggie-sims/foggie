@@ -1,9 +1,7 @@
-import numpy as np
-import yt
+import yt, numpy as np, os
 from yt.units import *
 from yt import YTArray
 from astropy.table import Table
-import os
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 
 from foggie.utils.consistency import *
@@ -48,11 +46,96 @@ def load_sim(args, **kwargs):
 
     return ds, region
 
+def get_center_from_catalog(ds, halo_c_v_name, snap, center_style='catalog'):
+    """This function is a helper function to get the halo center from the halo_c_v catalog file.
+    It is used in foggie_load() to determine the halo center."""
+    print('Using halo_c_v catalog file: ', halo_c_v_name, ' for center style ', center_style)
+    halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
+    print("Pulling halo center from catalog file") 
+    halo_ind = np.where(halo_c_v['name']==snap[-6:])[0][0]
+    halo_center_kpc = ds.arr([float(halo_c_v[halo_ind]['x_c']), \
+                              float(halo_c_v[halo_ind]['y_c']), \
+                              float(halo_c_v[halo_ind]['z_c'])], 'kpc')
+    halo_velocity_kms = ds.arr([float(halo_c_v[halo_ind]['v_x']), \
+                                float(halo_c_v[halo_ind]['v_y']), \
+                                float(halo_c_v[halo_ind]['v_z'])], 'km/s')
+    ds.halo_center_kpc = halo_center_kpc
+    ds.halo_center_code = halo_center_kpc.in_units('code_length')
+    ds.halo_velocity_kms = halo_velocity_kms
+    print('halo center in kpc: ', ds.halo_center_kpc)
+    print('halo velocity in km/s: ', ds.halo_velocity_kms)
+    return ds
+
+def get_center_from_smoothed_catalog(ds, halo_c_v_name, snap, center_style='smoothed'):
+    """This function is a helper function to get the halo center from the smoothed halo_c_v catalog file.
+    It is used in foggie_load() to determine the halo center."""
+    print('Using smoothed halo_c_v catalog file: ', halo_c_v_name, ' for center style ', center_style)
+    halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
+    if (snap[-6:] in halo_c_v['snap']):
+        halo_ind = np.where(halo_c_v['snap']==snap[-6:])[0][0]
+        halo_center_kpc = ds.arr([float(halo_c_v[halo_ind]['xc']), \
+                                  float(halo_c_v[halo_ind]['yc']), \
+                                  float(halo_c_v[halo_ind]['zc'])], 'kpc')
+        ds.halo_center_kpc = halo_center_kpc
+        ds.halo_center_code = halo_center_kpc.in_units('code_length')
+        sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
+        bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+        ds.halo_velocity_kms = bulk_vel
+    
+    return ds
+
+def get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_style = 'root_index'):
+
+    """This function is a helper function to get the halo center from the root catalog file.
+    It is used in foggie_load() to determine the halo center."""
+    print('Using root catalog file: ', halo_c_v_name, ' for center style ', center_style)
+    root_particles = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
+    halo0 = root_particles['root_index']
+
+    ad = ds.all_data() 
+        
+    x_particles = ad['particle_position_x']
+    y_particles = ad['particle_position_y']
+    z_particles = ad['particle_position_z']
+        
+    root_indices = halo0
+    now_indices = ad['particle_index']
+    indices = np.where(np.isin(now_indices, root_indices))[0]
+        
+    center_x  = float(np.mean(x_particles[indices].in_units('code_length'))) 
+    center_y  = float(np.mean(y_particles[indices].in_units('code_length'))) 
+    center_z  = float(np.mean(z_particles[indices].in_units('code_length'))) 
+        
+    halo_center = [center_x, center_y, center_z]
+        
+    halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
+    sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
+    bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+    ds.halo_center_code = ds.arr(np.array(halo_center), 'code_length')
+    ds.halo_center_kpc = halo_center_kpc
+    ds.halo_velocity_kms = bulk_vel
+
+    return ds 
+
+def get_center_from_calculated(ds, refine_box_center, proper_box_size):
+    """This function is a helper function to calculate the halo center.
+    It is used in foggie_load() to determine the halo center."""
+    halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
+    # Define the halo center in kpc and the halo velocity in km/s
+    halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
+    sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
+    bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+    ds.halo_center_code = ds.arr(np.array(halo_center), 'code_length')
+    ds.halo_center_kpc = halo_center_kpc
+    ds.halo_velocity_kms = bulk_vel
+
+    return ds
+
 def foggie_load(snap, trackfile, **kwargs):
     """This function loads a specified snapshot named by 'snap', the halo track "trackfile'
     Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT."""
     find_halo_center = kwargs.get('find_halo_center', True)
-    halo_c_v_name = kwargs.get('halo_c_v_name', 'halo_c_v')
+    halo_c_v_name = kwargs.get('halo_c_v_name', 'none')
     disk_relative = kwargs.get('disk_relative', False)
     particle_type_for_angmom = kwargs.get('particle_type_for_angmom', 'young_stars')
     do_filter_particles = kwargs.get('do_filter_particles', True)
@@ -63,71 +146,43 @@ def foggie_load(snap, trackfile, **kwargs):
 
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
+    ad = ds.all_data()
 
-    track = Table.read(trackfile, format='ascii')
+    track = Table.read(trackfile, format='ascii') # read the track file, which is a mandatory argument
     track.sort('col1')
 
-    # Get the refined box in physical units
-    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift') # Get the refined box in physical units from the track file 
     proper_box_size = get_proper_box_size(ds)
     refine_box, refine_box_center, refine_width_code = grb.get_refine_box(ds, zsnap, track)
     refine_width = refine_width_code * proper_box_size
-    refine_width_kpc = YTArray([refine_width], 'kpc')
 
-    # Get halo center
-    if (find_halo_center):
-        if (os.path.exists(halo_c_v_name)):
-            halo_c_v = Table.read(halo_c_v_name, format='ascii')
-            if ('smoothed' in halo_c_v_name):
-                if (snap[-6:] in halo_c_v['col2']):
-                    print('Pulling halo center from smoothed path catalog file')
-                    halo_ind = np.where(halo_c_v['col2']==snap[-6:])[0][0]
-                    halo_center_kpc = ds.arr([float(halo_c_v['col5'][halo_ind]), \
-                                              float(halo_c_v['col6'][halo_ind]), \
-                                              float(halo_c_v['col7'][halo_ind])], 'kpc')
-                    ds.halo_center_kpc = halo_center_kpc
-                    ds.halo_center_code = halo_center_kpc.in_units('code_length')
-                    sp = ds.sphere(ds.halo_center_kpc, (3., 'kpc'))
-                    bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
-                    ds.halo_velocity_kms = bulk_vel
-                    calc_hc = False
-                else:
-                    print('This snapshot is not in the halo_cen_smoothed file, calculating halo center (which will NOT be smoothed)...')
-                    calc_hc = True
+    # Determine center style and get halo center
+    center_style = "calculate"
+    if os.path.exists(halo_c_v_name):
+        print('Found halo_c_v file:', halo_c_v_name)
+        halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
+        snap_id = snap[-6:]
+        if 'smooth' in halo_c_v_name:
+            center_style = 'smoothed'
+            if snap_id in halo_c_v['snap']:
+                get_center_from_smoothed_catalog(ds, halo_c_v_name, snap, center_style=center_style)
             else:
-                if (snap[-6:] in halo_c_v['col3']):
-                    print("Pulling halo center from catalog file")
-                    halo_ind = np.where(halo_c_v['col3']==snap[-6:])[0][0]
-                    halo_center_kpc = ds.arr([float(halo_c_v['col5'][halo_ind]), \
-                                              float(halo_c_v['col6'][halo_ind]), \
-                                              float(halo_c_v['col7'][halo_ind])], 'kpc')
-                    halo_velocity_kms = ds.arr([float(halo_c_v['col8'][halo_ind]), \
-                                                float(halo_c_v['col9'][halo_ind]), \
-                                                float(halo_c_v['col10'][halo_ind])], 'km/s')
-                    ds.halo_center_kpc = halo_center_kpc
-                    ds.halo_center_code = halo_center_kpc.in_units('code_length')
-                    ds.halo_velocity_kms = halo_velocity_kms
-                    calc_hc = False
-                else:
-                    print('This snapshot is not in the halo_c_v file, calculating halo center...')
-                    calc_hc = True
+                get_center_from_calculated(ds, refine_box_center, proper_box_size)
+        elif 'halo_c_v' in halo_c_v_name:
+            center_style = 'catalog'
+            if snap_id in halo_c_v['name']:
+                get_center_from_catalog(ds, halo_c_v_name, snap, center_style=center_style)
+            else:
+                get_center_from_calculated(ds, refine_box_center, proper_box_size)
+        elif 'root' in halo_c_v_name:
+            center_style = 'root_index'
+            get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_style=center_style)
         else:
-            print("This halo_c_v file doesn't exist, calculating halo center...")
-            calc_hc = True
-        if (calc_hc):
-            halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
-            # Define the halo center in kpc and the halo velocity in km/s
-            halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
-            sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
-            bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
-            ds.halo_center_code = halo_center
-            ds.halo_center_kpc = halo_center_kpc
-            ds.halo_velocity_kms = bulk_vel
+            get_center_from_calculated(ds, refine_box_center, proper_box_size)
     else:
-        print("Not finding halo center")
-        ds.halo_center_kpc = ds.arr([np.nan, np.nan, np.nan], 'kpc')
-        ds.halo_center_code = ds.arr([np.nan, np.nan, np.nan], 'code_length')
-        ds.halo_velocity_kms = ds.arr([np.nan, np.nan, np.nan], 'km/s')
+        print('No halo_c_v file found, calculating halo center from track')
+        get_center_from_calculated(ds, refine_box_center, proper_box_size)
+
 
     ds.track = track
     ds.refine_box_center = refine_box_center
@@ -212,52 +267,6 @@ def foggie_load(snap, trackfile, **kwargs):
             ds.add_field((ptype, "particle_relative_angular_momentum_z"),sampling_type="particle",
                         function= get_particle_relative_angular_momentum_z(ptype), units=am_un)
 
-            '''
-            ds.add_field((ptype, "particle_relative_specific_angular_momentum"),
-              sampling_type="particle",
-              function=_particle_relative_specific_angular_momentum,
-              units=ds.unit_system["specific_angular_momentum"]
-              )
-
-
-            for axi, ax in enumerate("xyz"):
-                f, v = _get_spec_ang_mom_comp(axi, ax, ptype)
-
-            ds.add_field(
-                (ptype, f"particle_relative_angular_momentum_{ax}"),
-                sampling_type="particle",
-                function=v,
-                units=ds.unit_system["angular_momentum"]
-            )
-            '''
-
-
-            '''
-
-            def _particle_relative_specific_angular_momentum(field, data):
-                """Calculate the angular of a particle velocity.
-
-                Returns a vector for each particle.
-                """
-                pos = data.ds.arr([data[ptype, f"relative_particle_position_%s" % ax] for ax in "xyz"]).T
-                vel = data.ds.arr([data[ptype, f"relative_particle_velocity_%s" % ax] for ax in "xyz"]).T
-                return ucross(pos, vel, registry=data.ds.unit_registry)
-
-            def _get_spec_ang_mom_comp(axi, ax, _ptype):
-                def _particle_specific_angular_momentum_component(field, data):
-                    return data[_ptype, "particle_relative_specific_angular_momentum"][:, axi]
-
-                def _particle_angular_momentum_component(field, data):
-                    return (
-                        data[_ptype, "particle_mass"]
-                        * data[ptype, f"particle_relative_specific_angular_momentum_{ax}"]
-                    )
-
-                return (
-                    _particle_specific_angular_momentum_component,
-                    _particle_angular_momentum_component,
-                )
-            '''
 
 
     # Option to define velocities and coordinates relative to the angular momentum vector of the disk

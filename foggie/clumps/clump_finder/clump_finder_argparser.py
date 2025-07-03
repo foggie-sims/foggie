@@ -107,7 +107,7 @@ def parse_args():
 
     parser.add_argument('--closing_iterations', metavar='closing_iterations', type=int, action='store', \
                         help='How many closing iterations for filling. Default is 1.')
-    parser.set_defaults(closing_iterations=5)
+    parser.set_defaults(closing_iterations=1)
     
     parser.add_argument('--run_mc_parallel', metavar='run_mc_parallel', type=bool, action='store', \
                         help='Do you want to run the marching cubes algorithm in parallel? Incurs additional computational overhead, but may be faster with a large (>30) number of cores or for large datacubes. Default is False.')
@@ -145,11 +145,14 @@ def parse_args():
                         help='If n_dilation_iterations>0, each iteration will dilate the clump by this many cells. Default is 1.')
     parser.set_defaults(n_cells_per_dilation=1)
 
+    parser.add_argument('--disk_criteria', metavar='disk_criteria', type=str, action='store', \
+                        help='How do you identify which disk is the clump. Options are n_cells, mass, or distance. Default is mass.')
+    parser.set_defaults(disk_criteria="mass")
+
 
     parser.add_argument('--use_cylindrical_connectivity_matrix', metavar='use_cylindrical_connectivity_matrix', type=bool, action='store', \
                         help='Use a cylindrical connectivy matrix (instead of spherical/square) for hole filling. Default is False.')
     parser.set_defaults(use_cylindrical_connectivity_matrix=False)
-
 
         
     parser.add_argument('--save_clumps_individually', metavar='save_clumps_individually', type=bool, action='store', \
@@ -192,7 +195,7 @@ def get_default_args():
         cgm_density_factor=None,
         max_void_size=0,
         max_disk_void_size=2000,
-        max_disk_hole_size=2000,
+        max_disk_hole_size=25,
         run_mc_parallel=False,
         run_mapping_linearly=False,
         system=None,
@@ -205,4 +208,5 @@ def get_default_args():
         closing_iterations=1,
         use_cylindrical_connectivity_matrix=False,
         save_clumps_individually=False,
+        disk_criteria="mass",
     )

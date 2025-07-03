@@ -85,8 +85,8 @@ def parse_args():
     parser.add_argument('--output', metavar='output', type=str, action='store', \
                         help='Which output(s)? Options: Specify a single output (this is default' \
                         + ' and the default output is RD0042) or specify a range of outputs ' + \
-                        '(e.g. "RD0020,RD0025" or "DD1340-DD2029").')
-    parser.set_defaults(output='RD0042')
+                        '(e.g. "20,25" or "20-25").')
+    parser.set_defaults(output='42')
 
     parser.add_argument('--output_step', metavar='output_step', type=int, action='store', \
                         help='If you want to do every Nth output, this specifies N. Default: 1 (every output in specified range)')
@@ -141,6 +141,10 @@ def parse_args():
     parser.add_argument('--res_arcsec', metavar='res_arcsec', type=str, action='store', \
                         help='What is the instrument resolution in arcsec? Default is 10 arcsec')
     parser.set_defaults(res_arcsec=None)
+
+    parser.add_argument('--res_kpc', metavar='res_kpc', type=str, action='store', \
+                    help='What spatial reolution you want to make the emission maps for? Default is None. If it is None then simulation resolution will be used.')
+    parser.set_defaults(res_kpc=None)
 
     parser.add_argument('--target_z', metavar='target_z', type=str, action='store', \
                         help='What is the target redshift for your instrument? Default is 0.1')
@@ -454,7 +458,7 @@ def Emission_MgII_2796(field, data,scale_factor, unit_system='photons'):
         emission_line = emission_line / 4.25e10
         return emission_line * ytEmUALT
 
-
+#####################################################################################################  
 
 def filter_ds(box,segmentation_filter='radial_velocity'):
     '''This function filters the yt data object passed in as 'box' into inflow and outflow regions,
@@ -473,122 +477,154 @@ def filter_ds(box,segmentation_filter='radial_velocity'):
 
     return box_inflow, box_outflow, box_neither
 #####################################################################################################  
+# Prepare data for generating emission maps
+# This section was previously repeated in every emission map function. Now, it is modularized into a series of 
+# functions that handle key preprocessing steps. These functions collectively determine the halo name, resolution, 
+# pixel size, field of view, filtering criteria, unit label, and HDF5 file structure. 
+
+def get_halo_name_and_resolution(halo_dict, args, refine_box):
+    """Retrieve halo name and pixel resolution from refine_box."""
+    halo_name = halo_dict[str(args.halo)]
+    pix_res = np.min(refine_box['dx'].in_units('kpc'))
+    return halo_name, pix_res
+
+def get_arcmin_kpc_scale(args):
+    """Compute the arcmin to kpc conversion scale based on redshift."""
+    if args.target_z is not None:
+        target_redshift = args.target_z
+        arcmin_kpc_scale = cosmology.kpc_proper_per_arcmin(target_redshift)
+        return YTQuantity(arcmin_kpc_scale, 'kpc/arcmin') 
+    return 1  # Default if no instrument resolution
+
+def determine_pixel_size(args, arcmin_kpc_scale, pix_res):
+    """Determine the pixel size for the FRB in kpc."""
+    if args.res_arcsec is not None:
+        res_arcsec = YTQuantity(float(args.res_arcsec), 'arcsec')
+        bin_size_kpc = (res_arcsec.in_units('arcmin')) * arcmin_kpc_scale
+        bin_size_kpc = bin_size_kpc.in_units('kpc')
+    elif args.res_kpc is not None:
+        bin_size_kpc = YTQuantity(float(args.res_kpc), 'kpc')
+    else:
+        bin_size_kpc = pix_res  # Default to simulation resolution
+    round_bin_size_kpc = round(bin_size_kpc.to_value(), 2)
+    bin_size_cm = bin_size_kpc.in_units('cm')
+    return round_bin_size_kpc,bin_size_cm
+
+def determine_fov(args, arcmin_kpc_scale, ds):
+    """Determine the field of view (FOV) in kpc."""
+    if args.fov_kpc is not None:
+        return YTQuantity(float(args.fov_kpc), 'kpc')
+    elif args.fov_arcmin is not None:
+        fov_kpc = float(args.fov_arcmin) * arcmin_kpc_scale
+        return YTQuantity(fov_kpc, 'kpc')
+    else:
+        return YTQuantity(ds.refine_width, 'kpc') if not hasattr(ds.refine_width, 'in_units') else ds.refine_width.in_units('kpc')
+
+def filter_data(refine_box, filter_type, filter_value, ds, disk_file, shell_count, shell_path):
+    """Apply various data filtering methods."""
+    if filter_type == 'inflow_outflow':
+        box_inflow, box_outflow, box_neither = filter_ds(refine_box, segmentation_filter='radial_velocity')
+        return {'inflow': box_inflow, 'outflow': box_outflow, 'neither': box_neither}
+
+    elif filter_type == 'disk_cgm':
+        disk_cut_region = load_clump(ds, disk_file, source_cut=refine_box)
+        box_cgm = refine_box - disk_cut_region
+
+        if shell_count == 0:
+            return {'cgm': box_cgm}
+        else:
+            for i in range(shell_count):
+                shell_clump_file = shell_path + f'test_DiskDilationShell_n{i}.h5'
+                shell_cut_region = load_clump(ds, shell_clump_file)
+                box_cgm = box_cgm - shell_cut_region
+            return {'cgm': box_cgm}
+
+    elif filter_type == 'temperature' and filter_value is not None:
+        return {'all': refine_box.cut_region([f"(obj['gas', 'temperature'] < {filter_value})"])}
+    
+    elif filter_type == 'density' and filter_value is not None:
+        return {'all': refine_box.cut_region([f"(obj['gas', 'density'] > {filter_value})"])}
+
+    return {'all': refine_box}  # Default case with no filter
+
+def determine_unit_label(unit_system):
+    """Determine the unit label for output."""
+    if unit_system == 'photons':
+        return '[photons s$^{-1}$ cm$^{-2}$ sr$^{-1}$]'
+    elif unit_system == 'erg':
+        return '[erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]'
+    else:
+        raise ValueError("Invalid unit_system specified. Use 'photons' or 'erg'.")
+
+def create_or_open_hdf5_group(prefix,snap, halo_name, save_suffix, ds, width, unit_label, round_bin_size_kpc, ions, args):
+    """Create or open an HDF5 group for saving emission maps."""
+    save_path = prefix + 'FRBs/'
+    os.makedirs(save_path, exist_ok=True)
+
+    # Open HDF5 file in append mode
+    f = h5py.File(save_path + snap + halo_name + '_emission_maps' + save_suffix + '.hdf5', 'a')
+
+    # Define the redshift group name
+    z_group_name = 'z=%.1f' % ds.get_parameter('CosmologyCurrentRedshift', 1)
+
+    # Check if the group already exists
+    if z_group_name in f:
+        grp = f[z_group_name]
+    else:
+        grp = f.create_group(z_group_name)
+        grp.attrs.create("image_extent_kpc", width)
+        grp.attrs.create("redshift", ds.get_parameter('CosmologyCurrentRedshift'))
+        grp.attrs.create("halo_name", halo_name)
+        grp.attrs.create("emission_units", unit_label)
+        grp.attrs.create("FRB_pixel_size_kpc", round_bin_size_kpc)
+        grp.attrs.create("ion_list", ions)
+
+    if args.instrument is not None:
+        grp.attrs["instrument_name"] = args.instrument
+        grp.attrs["instrument_special_res"] = round_bin_size_kpc
+
+    return f, grp  # Return file and group handle
+
+def process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions):
+    """Main function that integrates all steps for computing emission maps."""
+    halo_name, pix_res = get_halo_name_and_resolution(halo_dict, args, refine_box)
+    arcmin_kpc_scale = get_arcmin_kpc_scale(args)
+    round_bin_size_kpc,bin_size_cm = determine_pixel_size(args, arcmin_kpc_scale, pix_res)
+    width = determine_fov(args, arcmin_kpc_scale, ds)
+
+    width_value = width.v  # Extract width value
+    res = int(width_value / round_bin_size_kpc)  # Calculate FRB resolution
+    
+
+    print(f"z={ds.get_parameter('CosmologyCurrentRedshift', 1):.1f}")
+    print(f"Simulation resolution (pix_res): {pix_res:.2f} kpc")
+    print(f"Field of view (FOV): {width_value:.3f} kpc")
+    print(f"FRB pixel size (bin_size_kpc): {round_bin_size_kpc:.2f} kpc")
+    print(f"FRB number of bins (res): {res}")
+
+    # Filter data
+    data_sources = filter_data(refine_box, filter_type, filter_value, ds, disk_file, shell_count, shell_path)
+
+    # Determine unit label
+    unit_label = determine_unit_label(unit_system)
+
+    # Create or open HDF5 file and group
+    f, grp = create_or_open_hdf5_group(prefix,snap, halo_name, save_suffix, ds, width, unit_label, round_bin_size_kpc, ions, args)
+
+    return f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label 
+
+#####################################################################################################  
 
 def make_FRB(ds, refine_box, snap, ions, unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
     '''This function takes the dataset 'ds' and the refine box region 'refine_box' and
     makes a fixed resolution buffer of surface brightness from edge-on and face-on orientation 
     projections of all ions in the list 'ions'.'''
 
-    # get the halo name to add to the output name
-    halo_name = halo_dict[str(args.halo)]
-    pix_res = float(np.min(refine_box['dx'].in_units('kpc')))
-
-    #redshift where the instrument target is
-    if args.target_z is not None:
-        target_redshift = args.target_z
-        arcmin_kpc_scale = cosmology.kpc_proper_per_arcmin(target_redshift) #kpc/arcmin # converting arcmin to kpc using plank 18 cosmology from astropy
-        arcmin_kpc_scale = YTQuantity(arcmin_kpc_scale, 'kpc/arcmin') 
-    else:
-        arcmin_kpc_scale = 1 # if there is no spacial resolution from an instrument then there is no need for conversion 
     
-    # Determine pixel size for the FRB
-    if args.res_arcsec is not None:
-        res_arcsec = float(args.res_arcsec)
-        res_arcsec = YTQuantity(res_arcsec, 'arcsec')  # Ensure YTQuantity type for consistency
-        bin_size_kpc = (res_arcsec.in_units('arcmin')) * arcmin_kpc_scale #convert to kpc
-        bin_size_kpc = bin_size_kpc.in_units('kpc')
-        round_bin_size_kpc = round(bin_size_kpc.to_value(),2)
-    else:
-        #simulation resolution
-        bin_size_kpc = pix_res
-
-    #Set width of projection to the field of view that is desired
-    if args.fov_kpc is not None:
-        width = YTQuantity(float(args.fov_kpc), 'kpc')  # Ensure YTQuantity type for consistency
-    elif args.fov_arcmin is not None:
-        fov_kpc = float(args.fov_arcmin) * arcmin_kpc_scale
-        width = YTQuantity(fov_kpc, 'kpc')  
-    else:
-          #first make sure that the fov_refine_box is in kpc
-          fov_refine_box = YTQuantity(ds.refine_width, 'kpc') if not hasattr(ds.refine_width, 'in_units') else ds.refine_width.in_units('kpc')
-          width = fov_refine_box  
-
-    
-    width_value = width.v  # Extract width value
-    res = int(width_value / bin_size_kpc) # Calculate the number of frb bins based on the width and bin size
-
-    # Print to check everything is set to the values they should be
-    print('z=%.1f' % ds.get_parameter('CosmologyCurrentRedshift', 1))
-    print(f"Simulation resolution (pix_res): {pix_res:.2f} kpc")
-    print(f"Field of view (FOV): {width_value:.3f} kpc")
-    print(f"FRB pixel size (bin_size_kpc): {bin_size_kpc:.2f} kpc")
-    print(f"FRB number of bins (res): {res}")
-    
-
-    # Cut regions for making the FRB, it now includes inflow and outflow cut regions, CGM, and simple filtering based on temperature or density, 
-    # If you do not specify filter_type when running the code then it will make a frb and map for the whole refine_box
-    
-    #Filter: inflow, outflow, neither
-    if filter_type == 'inflow_outflow':
-        box_inflow, box_outflow, box_neither = filter_ds(refine_box, segmentation_filter='radial_velocity')
-        data_sources = {'inflow': box_inflow, 'outflow': box_outflow, 'neither': box_neither}
-
-    #Filter: disk, cgm
-    elif filter_type == 'disk_cgm':
-        disk_cut_region = load_clump(ds, disk_file,source_cut=refine_box)
-        box_cgm = refine_box - disk_cut_region
-
-        if shell_count == 0:
-            data_sources = {'cgm': box_cgm}
-        else: 
-            for i in range(0,shell_count):
-                print('shell number',i)
-                shell_clump_file = shell_path + f'test_DiskDilationShell_n{i}.h5' 
-                shell_cut_region = load_clump(ds, shell_clump_file)
-                box_cgm = box_cgm - shell_cut_region
-            
-            data_sources = {'cgm': box_cgm}
-    
-    #Filter: temperature, density
-    elif filter_type == 'temperature' and filter_value is not None:
-            data_sources['all'] = data_sources['all'].cut_region([f"(obj['gas', 'temperature'] < {filter_value})"])
-    elif filter_type == 'density' and filter_value is not None:
-            data_sources['all'] = data_sources['all'].cut_region([f"(obj['gas', 'density'] > {filter_value})"])
-    #No filter      
-    else:
-        data_sources = {'all': refine_box}
-    # YOUR FILTER AND CUT REGIONS GO HERE
-    #elif filter_type == 'your_filter':
-    #    data_sources = {'your_region': your_cut_region}
-
-
-    # Define the unit string based on unit_system
-    if unit_system == 'photons':
-        unit_label = '[photons s$^{-1}$ cm$^{-2}$ sr$^{-1}$]'
-    elif unit_system == 'erg':
-        unit_label = '[erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]'
-    else:
-        raise ValueError("Invalid unit_system specified. Use 'defphotonsault' or 'erg'.")
-    
-
-    # Create HDF5 file for saving emission maps
-    #Define the path to save the emission maps
     save_path = prefix + f'FRBs/' 
-    os.makedirs(save_path, exist_ok=True)  # Ensure the directory exists
-    f = h5py.File(save_path + halo_name + '_emission_maps' + save_suffix + '.hdf5', 'a')
-    # Creat headers to save the data under redshift group
-    grp = f.create_group('z=%.1f' % ds.get_parameter('CosmologyCurrentRedshift', 1))
-    grp.attrs.create("image_extent_kpc", width)
-    grp.attrs.create("redshift", ds.get_parameter('CosmologyCurrentRedshift'))
-    grp.attrs.create("halo_name", halo_name)
-    grp.attrs.create("emission_units", unit_label)
-    grp.attrs.create("FRB_pixel_size_kpc", round_bin_size_kpc)
-    grp.attrs.create("ion_list", ions)
-    if args.instrument is not None:
-        grp.attrs.create("instrument_name", args.instrument)
-        grp.attrs.create("instrument_special_res", round_bin_size_kpc)
-        
+    os.makedirs(save_path, exist_ok=True)  
 
+    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
 
     # Loop through ions and create projections for each region
     for region, data_source in data_sources.items():
@@ -665,95 +701,8 @@ def emission_map_vbins(ds,refine_box, snap, ions,unit_system='photons', filter_t
 
     vbins = np.arange(-500., 550., 50.)  # Velocity bins
 
-    # get the halo name to add to the output name
-    halo_name = halo_dict[str(args.halo)]
-    pix_res = float(np.min(refine_box['dx'].in_units('kpc')))
+    f, grp, data_sources,width_value, res = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
 
-    #redshift where the instrument target is
-    if args.target_z is not None:
-        target_redshift = args.target_z
-        arcmin_kpc_scale = cosmology.kpc_proper_per_arcmin(target_redshift) #kpc/arcmin # converting arcmin to kpc
-        arcmin_kpc_scale = YTQuantity(arcmin_kpc_scale, 'kpc/arcmin')  
-    else:
-        arcmin_kpc_scale = 1 # if there is no spacial resolution from an instrument then there is no need for conversion 
-    
-    # Determine pixel size for the FRB
-    if args.res_arcsec is not None:
-        res_arcsec = float(args.res_arcsec)
-        res_arcsec = YTQuantity(res_arcsec, 'arcsec')  # Ensure YTQuantity type for consistency
-        bin_size_kpc = (res_arcsec.in_units('arcmin')) * arcmin_kpc_scale #convert to kpc
-        bin_size_kpc = bin_size_kpc.in_units('kpc')
-        round_bin_size_kpc = round(bin_size_kpc.to_value(),2)
-    else:
-        #simulation resolution
-        bin_size_kpc = pix_res
-
-    #Set width of projection to the field of view that is desired
-    if args.fov_kpc is not None:
-        width = YTQuantity(float(args.fov_kpc), 'kpc')  # Ensure YTQuantity type for consistency
-    elif args.fov_arcmin is not None:
-        fov_kpc = float(args.fov_arcmin) * arcmin_kpc_scale
-        width = YTQuantity(fov_kpc, 'kpc')  
-    else:
-          #first make sure that the fov_refine_box is in kpc
-          fov_refine_box = YTQuantity(ds.refine_width, 'kpc') if not hasattr(ds.refine_width, 'in_units') else ds.refine_width.in_units('kpc')
-          width = fov_refine_box  
-
-
-    
-    width_value = width.v  # Extract width value
-    res = int(width_value / bin_size_kpc) # Calculate the number of frb bins based on the width and bin size
-
-    # Print to check everything is set to the values they should be
-    print('z=%.1f' % ds.get_parameter('CosmologyCurrentRedshift', 1))
-    print(f"Simulation resolution (pix_res): {pix_res:.2f} kpc")
-    print(f"Field of view (FOV): {width_value:.3f} kpc")
-    print(f"FEB pixel size (bin_size_kpc): {bin_size_kpc:.2f} kpc")
-    print(f"FRB number of bins (res): {res}")
-    
-
-    # Cut regions for making the FRB, it now includes inflow and outflow cut regions, CGM, and simple filtering based on temperature or density, 
-    # If you do not specify filter_type when running the code then it will make a frb and map for the whole refine_box
-    
-    #Filter: inflow, outflow, neither
-    if filter_type == 'inflow_outflow':
-        box_inflow, box_outflow, box_neither = filter_ds(refine_box, segmentation_filter='radial_velocity')
-        data_sources = {'inflow': box_inflow, 'outflow': box_outflow, 'neither': box_neither}
-
-    #Filter: disk, cgm
-    elif filter_type == 'disk_cgm':
-        disk_cut_region = load_clump(ds, disk_file,source_cut=refine_box)
-        box_cgm = refine_box - disk_cut_region
-
-        if shell_count == 0:
-            data_sources = {'cgm': box_cgm}
-        else: 
-            for i in range(0,shell_count):
-                print('shell number',i)
-                shell_clump_file = shell_path + f'test_DiskDilationShell_n{i}.h5' 
-                shell_cut_region = load_clump(ds, shell_clump_file)
-                box_cgm = box_cgm - shell_cut_region
-            
-            data_sources = {'cgm': box_cgm}
-    
-    #Filter: temperature, density
-    elif filter_type == 'temperature' and filter_value is not None:
-            data_sources['all'] = data_sources['all'].cut_region([f"(obj['gas', 'temperature'] < {filter_value})"])
-    elif filter_type == 'density' and filter_value is not None:
-            data_sources['all'] = data_sources['all'].cut_region([f"(obj['gas', 'density'] > {filter_value})"])
-
-    #No filter      
-    else:
-        data_sources = {'all': refine_box}
-
-    # Define the unit string based on unit_system
-    if unit_system == 'photons':
-        unit_label = '[photons s$^{-1}$ cm$^{-2}$ sr$^{-1}$]'
-    elif unit_system == 'erg':
-        unit_label = '[erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]'
-    else:
-        raise ValueError("Invalid unit_system specified. Use 'defphotonsault' or 'erg'.")
-    
 
     # Loop through ions and create projections for each region
     for region, data_source in data_sources.items():
@@ -820,95 +769,8 @@ def emission_map_vbins(ds,refine_box, snap, ions,unit_system='photons', filter_t
 def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=None, filter_value=None,res_arcsec=None):
     '''Makes emission maps for each ion in 'ions', oriented both edge-on and face-on.'''
 
-    # get the halo name to add to the output name
-    halo_name = halo_dict[str(args.halo)]
-    pix_res = float(np.min(refine_box['dx'].in_units('kpc')))
+    f, grp, data_sources, width_value, res, round_bin_size_kpc, bin_size_cm, unit_label = process_emission_maps(args, ds, refine_box, halo_dict, filter_type, filter_value, disk_file, shell_count, shell_path, unit_system, prefix, save_suffix, ions)
 
-    #redshift where the instrument target is
-    if args.target_z is not None:
-        target_redshift = args.target_z
-        arcmin_kpc_scale = cosmology.kpc_proper_per_arcmin(target_redshift) #kpc/arcmin # converting arcmin to kpc
-        arcmin_kpc_scale = YTQuantity(arcmin_kpc_scale, 'kpc/arcmin')  
-    else:
-        arcmin_kpc_scale = 1 # if there is no spacial resolution from an instrument then there is no need for conversion 
-    
-    # Determine pixel size for the FRB
-    if args.res_arcsec is not None:
-        res_arcsec = float(args.res_arcsec)
-        res_arcsec = YTQuantity(res_arcsec, 'arcsec')  # Ensure YTQuantity type for consistency
-        bin_size_kpc = (res_arcsec.in_units('arcmin')) * arcmin_kpc_scale #convert to kpc
-        bin_size_kpc = bin_size_kpc.in_units('kpc')
-        round_bin_size_kpc = round(bin_size_kpc.to_value(),2)
-    else:
-        #simulation resolution
-        bin_size_kpc = pix_res
-
-    #Set width of projection to the field of view that is desired
-    if args.fov_kpc is not None:
-        width = YTQuantity(float(args.fov_kpc), 'kpc')  # Ensure YTQuantity type for consistency
-    elif args.fov_arcmin is not None:
-        fov_kpc = float(args.fov_arcmin) * arcmin_kpc_scale
-        width = YTQuantity(fov_kpc, 'kpc')  
-    else:
-          #first make sure that the fov_refine_box is in kpc
-          fov_refine_box = YTQuantity(ds.refine_width, 'kpc') if not hasattr(ds.refine_width, 'in_units') else ds.refine_width.in_units('kpc')
-          width = fov_refine_box  
- 
-
-    
-    width_value = width.v  # Extract width value
-    res = int(width_value / bin_size_kpc) # Calculate the number of frb bins based on the width and bin size
-
-    # Print to check everything is set to the values they should be
-    print('z=%.1f' % ds.get_parameter('CosmologyCurrentRedshift', 1))
-    print(f"Simulation resolution (pix_res): {pix_res:.2f} kpc")
-    print(f"Field of view (FOV): {width_value:.3f} kpc")
-    print(f"FEB pixel size (bin_size_kpc): {bin_size_kpc:.2f} kpc")
-    print(f"FRB number of bins (res): {res}")
-    
-
-    # Cut regions for making the FRB, it now includes inflow and outflow cut regions, CGM, and simple filtering based on temperature or density, 
-    # If you do not specify filter_type when running the code then it will make a frb and map for the whole refine_box
-    
-    #Filter: inflow, outflow, neither
-    if filter_type == 'inflow_outflow':
-        box_inflow, box_outflow, box_neither = filter_ds(refine_box, segmentation_filter='radial_velocity')
-        data_sources = {'inflow': box_inflow, 'outflow': box_outflow, 'neither': box_neither}
-
-    #Filter: disk, cgm
-    elif filter_type == 'disk_cgm':
-        disk_cut_region = load_clump(ds, disk_file,source_cut=refine_box)
-        box_cgm = refine_box - disk_cut_region
-
-        if shell_count == 0:
-            data_sources = {'cgm': box_cgm}
-        else: 
-            for i in range(0,shell_count):
-                print('shell number',i)
-                shell_clump_file = shell_path + f'test_DiskDilationShell_n{i}.h5' 
-                shell_cut_region = load_clump(ds, shell_clump_file)
-                box_cgm = box_cgm - shell_cut_region
-            
-            data_sources = {'cgm': box_cgm}
-    
-    #Filter: temperature, density
-    elif filter_type == 'temperature' and filter_value is not None:
-            data_sources['all'] = data_sources['all'].cut_region([f"(obj['gas', 'temperature'] < {filter_value})"])
-    elif filter_type == 'density' and filter_value is not None:
-            data_sources['all'] = data_sources['all'].cut_region([f"(obj['gas', 'density'] > {filter_value})"])
-
-    #No filter      
-    else:
-        data_sources = {'all': refine_box}
-
-    # Define the unit string based on unit_system
-    if unit_system == 'photons':
-        unit_label = '[photons s$^{-1}$ cm$^{-2}$ sr$^{-1}$]'
-    elif unit_system == 'erg':
-        unit_label = '[erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]'
-    else:
-        raise ValueError("Invalid unit_system specified. Use 'defphotonsault' or 'erg'.")
-    
 
     # Loop through ions and create projections for each region
     for region, data_source in data_sources.items():
@@ -938,7 +800,9 @@ def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=
                 mymap = mcolors.LinearSegmentedColormap.from_list('cmap', cmap)
             else:
                 # Default colormap
+                #mymap = cmr.get_sub_cmap('magma', 0.0, 1.0)
                 mymap = cmr.get_sub_cmap('cmr.flamingo', 0.2, 1.0)
+
 
             mymap.set_bad(mymap(0))
                 
@@ -950,7 +814,7 @@ def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=
             proj_edge.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + ' Emission [photons s$^{-1}$ cm$^{-2}$ sr$^{-2}$]')
             proj_edge.set_font_size(20)
             proj_edge.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
-            proj_edge.save(prefix + 'Projections/' + snap + '_' + ion + '_emission_map_edge-on' + save_suffix + '.png')
+            proj_edge.save(prefix + 'Projections/' + ion + '_emission_map_edge_on' + '_' + snap + save_suffix + '.png')
 
             proj_face = yt.ProjectionPlot(ds, ds.z_unit_disk, ('gas','Emission_' + ions_dict[ion]), center=ds.halo_center_kpc, data_source=data_source, width=(float(width_value), 'kpc'),
                                           buff_size=[res, res], method = 'integrate', weight_field=None, north_vector=ds.x_unit_disk)
@@ -959,7 +823,7 @@ def emission_map(ds, refine_box, snap, ions, unit_system='photons', filter_type=
             proj_face.set_colorbar_label('Emission_' + ions_dict[ion], label_dict[ion] + ' Emission [photons s$^{-1}$ cm$^{-2}$ sr$^{-2}$]')
             proj_face.set_font_size(20)
             proj_face.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
-            proj_face.save(prefix + 'Projections/' + snap + '_' + ion + '_emission_map_face-on' + save_suffix + '.png')
+            proj_face.save(prefix + 'Projections/' + ion + '_emission_map_face_on'+ '_' + snap + save_suffix + '.png')
 
 ######################################################################################################
 def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filter_type=None, filter_value=None, res_arcsec=None):
@@ -969,7 +833,8 @@ def load_and_calculate(snap, ions,scale_factor=None, unit_system='photons', filt
     # Load simulation output
     snap_name = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/' + snap + '/' + snap
     ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, disk_relative=True, correct_bulk_velocity=True)#, smooth_AM_name=smooth_AM_name)
-    
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
     add_ion_fields(ds,ions)
     
     # Generate emission maps based on the plot type
@@ -1008,7 +873,7 @@ if __name__ == "__main__":
     if args.instrument is not None:
         prefix = output_dir + '/' + args.instrument + '/' + 'box_' + box_name + '/'
     else:
-        prefix = output_dir + '/FOGGIE' + '/' + 'box_' + box_name + '/'
+        prefix = output_dir + '/FOGGIE' + '/'+ 'RD00' + args.output + '/'+ 'box_' + box_name + '/'
 
     if not (os.path.exists(prefix)): os.system('mkdir -p ' + prefix)
     table_loc = prefix + 'Tables/'
@@ -1171,7 +1036,7 @@ if __name__ == "__main__":
                 zlim_dict = {'Lyalpha':[1e-1,1e7], 'HI':[1e-1,1e6], 'CII':[1e-7,1e4], 'CIII':[1e-1,1e5],
                         'CIV':[1e-2,1e4], 'OVI':[1e-2,1e4],'SiII':[1e-6,1e5],'SiIII':[1e-6,1e5],'SiIV':[1e-6,1e5],'MgII':[1e-6,1e5]}
             else:
-                zlim_dict = {'Lyalpha':[1e-1,1e7], 'HI':[1e-1,1e6], 'CII':[1e-3,1e4], 'CIII':[1e-1,1e4],
+                zlim_dict = {'Lyalpha':[1e-1,1e7], 'HI':[1e-1,1e6], 'CII':[1e-3,1e3], 'CIII':[1e-1,1e4],
                         'CIV':[1e-1,1e5], 'OVI':[1e0,1e4],'SiII':[1e-1,1e5],'SiIII':[1e-2,1e5],'SiIV':[1e-2,1e5],'MgII':[1e-1,1e5]}
         elif unit_system == 'erg':
             zlim_dict = {'Lyalpha':[1e-22,1e-16], 'HI':[1e-22,1e-16], 'CII':[1e-23,1e-16], 'CIII':[1e-23,1e-16],
@@ -1259,7 +1124,7 @@ if __name__ == "__main__":
 
 
     # Build outputs list
-    outs = make_output_list(args.output, output_step=args.output_step)
+    outs = make_output_list('RD00'+args.output, output_step=args.output_step)
 
     # Code for running in parallel
     target_dir = 'ions'
