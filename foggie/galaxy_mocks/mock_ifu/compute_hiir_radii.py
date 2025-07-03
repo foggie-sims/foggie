@@ -29,9 +29,9 @@ def merge_HIIregions(df, args):
 
     g = int(np.ceil(args.galrad * 2 / args.mergeHII))
 
-    xind = ((df['pos_x'] - args.halo_center[0] + args.galrad) / args.mergeHII).astype(np.int) # (df['x(kpc)'][j] - args.halo_center[0]) used to range from (-galrad, galrad) kpc, which is changed here to (0, galrad*2) kpc
-    yind = ((df['pos_y'] - args.halo_center[1] + args.galrad) / args.mergeHII).astype(np.int)
-    zind = ((df['pos_z'] - args.halo_center[2] + args.galrad) / args.mergeHII).astype(np.int)
+    xind = ((df['pos_x'] - args.halo_center[0] + args.galrad) / args.mergeHII).astype(int) # (df['x(kpc)'][j] - args.halo_center[0]) used to range from (-galrad, galrad) kpc, which is changed here to (0, galrad*2) kpc
+    yind = ((df['pos_y'] - args.halo_center[1] + args.galrad) / args.mergeHII).astype(int)
+    zind = ((df['pos_z'] - args.halo_center[2] + args.galrad) / args.mergeHII).astype(int)
     df[groupbycol] = xind + yind * g + zind * g * g
 
     if 'Sl.' in df.columns: df.drop(['Sl.'], axis=1, inplace=True)
