@@ -44,6 +44,7 @@ def parse_args():
     parser.add_argument('--directory', metavar='directory', type=str, action='store', default='', help='What is the directory of the enzo outputs you want to make plots of?')
     parser.add_argument('--save_directory', metavar='save_directory', type=str, action='store', default=None, help='Where do you want to store the plots? Default is to put them in a plots/ directory inside the outputs directory.')
     parser.add_argument('--output', metavar='output', type=str, action='store', default=None, help='If you want to make the plots for specific output/s then specify those here separated by comma (e.g., DD0030,DD0040). Otherwise (default) it will make plots for ALL outputs in that directory')
+    parser.add_argument('--output_step', metavar='output_step', type=int, action='store', default=1, help='If you are making plots for specific outputs, use this to specify every Nth output in the range given by --output.')
     parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, help='What is the directory of the track file for this halo?\n' + 'This is needed to find the center of the galaxy of interest.')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the working directory?, Default is no')
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', default=1, help='How many processes do you want? Default is 1 (no parallelization), if multiple processors are specified, code will run one output per processor')
@@ -55,6 +56,7 @@ def parse_args():
     
     # These arguments are plotting options
     ###### IF YOU ADD A PLOT STEP 6: if that plot has options, add an argument for it here ######
+    parser.add_argument('--proj_width', metavar='proj_width', type=float, action='store', default=20., help='If making projection plots, use this to specify the width of the plots.')
     parser.add_argument('--upto_kpc', metavar='upto_kpc', type=float, action='store', default=None, help='Limit analysis out to a certain physical kpc. By default it does the entire refine box.')
     parser.add_argument('--projection', metavar='projection', type=str, action='store', default='x', help='Which projection do you want to plot, i.e., which axis is your line of sight? Default is x; but user can input multiple comma-separated values. Options are: x, y, z, x_disk, y_disk, z_disk')
     parser.add_argument('--use_cen_smoothed', dest='use_cen_smoothed', action='store_true', default=False, help='use Cassis new smoothed center file?, default is no')
@@ -341,7 +343,7 @@ if __name__ == "__main__":
     if args.trackfile is None: _, _, _, args.code_path, args.trackfile, _, _, _ = get_run_loc_etc(args) # for FOGGIE production runs it knows which trackfile to grab
 
     if args.output is not None: # Running on specific output/s
-        outputs = make_output_list(args.output)
+        outputs = make_output_list(args.output, output_step=args.output_step)
     else: # Running on all snapshots in the directory
         outputs = []
         for fname in os.listdir(args.directory):

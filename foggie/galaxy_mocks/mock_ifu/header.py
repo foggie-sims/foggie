@@ -118,13 +118,16 @@ try:
 except:
     pass
 
-mappings_lab_dir = HOME + '/Mappings/lab/'  # if you are producing the MAPPINGS grid,
+#mappings_lab_dir = HOME + '/Mappings/lab/'  # if you are producing the MAPPINGS grid,
+mappings_lab_dir = 'MAPPINGS/'  # if you are producing the MAPPINGS grid,
 # this is where your MAPPINGS executable .map51 is installed,
 # otherwise, this is where your MAPPINGS grid and your emission line list is
-mappings_input_dir = HOME + '/Mappings/HIIGrid306/Q/inputs/'  # if you are producing the MAPPINGS grid,
+#mappings_input_dir = HOME + '/Mappings/HIIGrid306/Q/inputs/'  # if you are producing the MAPPINGS grid,
+mappings_input_dir = 'MAPPINGS/'  # if you are producing the MAPPINGS grid,
 # this is where your MAPPINGS input/ directory is
 # otherwise, ignore this variable
-sb99_dir = HOME + '/SB99-v8-02/output/'  # this is where your Starburst99 model outputs reside
+#sb99_dir = HOME + '/SB99-v8-02/output/'  # this is where your Starburst99 model outputs reside
+sb99_dir = 'starburst11/'  # this is where your Starburst99 model outputs reside
 # this path is used only when you are using compute_hiir_radii.py or lookup_flux.py
 sb99_model = 'starburst11'  # for fixed stellar mass input spectra = 1e6 Msun, run up to 10 Myr
 sb99_mass = 1e6  # Msun, mass of star cluster in given SB99 model

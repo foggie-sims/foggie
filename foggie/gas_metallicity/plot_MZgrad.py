@@ -123,6 +123,22 @@ def load_df(args):
     return df
 
 # -----------------------------------
+def overplot_passage(ax, color='salmon'):
+    '''
+    Function to overplot the observed MZGR from PASSAGE (Acharyya+25) and return the axis handle
+    '''
+    print('Overplotting PASSAGE data..')
+
+    input_filename = HOME + '/models/passage/passage_acharyya_2025.txt'
+    df = pd.read_table(input_filename, delim_whitespace=True, comment='#') # grad is in dex/re, mass_bin is in log
+    df['Zgrad'] /= df['re_kpc'] # converting from dex/re to dex/kpc
+    df['Zgrad_u'] /= df['re_kpc'] # converting from dex/re to dex/kpc
+    ax.scatter(df['redshift'], df['Zgrad'], c=color, marker='*', s=500, zorder=200, lw=1, ec='k')
+    ax.errorbar(df['redshift'], df['Zgrad'], yerr=df['Zgrad_u'], c='grey', lw=1, fmt='none')
+
+    return ax
+
+# -----------------------------------
 def overplot_mingozzi(ax, paper='M20', color='salmon', diag='PP04'):
     '''
     Function to overplot the observed MZGR from Mingozzi+20 OR Belfiore+17 and return the axis handle
@@ -186,7 +202,7 @@ def plot_filled_region(df, xcol, ycol, ax, color=None, noscatter=False, zorder=N
     If there is only 1 y-value for each x-value then this will lead to a simple line plot
     This is only efficient/useful when only a few unique x-values exist in the data
     :return: axis handle
-    '''
+    '''    
     xarr = pd.unique(df[xcol])
     if len(xarr) == len(df): # all values of x are unique; then just to do a thick line plot
         ax.plot(df[xcol], df[ycol], lw=2, color=color, zorder=zorder, alpha=alpha)
@@ -507,7 +523,7 @@ def plot_MZGR(args):
     things_that_reduce_with_time = ['redshift', 're'] # whenever this quantities are used as colorcol, the cmap is inverted, so that the darkest color is towards later times
 
     # -------------get plot limits-----------------
-    lim_dict = {'Zgrad': (-0.5, 0.1) if args.Zgrad_den == 'kpc' else (-3, 1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (-0.69 + logOH_sol, 0.31 + logOH_sol), 'log_sfr': (-1, 3)}
+    lim_dict = {'redshift':(0, 4), 'Zgrad': (-0.5, 0.4) if args.Zgrad_den == 'kpc' else (-3, 1), 're': (0, 30), 'log_mass': (8.5, 11.5), 'redshift': (0, 6), 'time': (0, 14), 'sfr': (0, 60), 'log_ssfr': (-11, -8), 'Ztotal': (-0.69 + logOH_sol, 0.31 + logOH_sol), 'log_sfr': (-1, 3)}
     label_dict = MyDefaultDict(Zgrad=r'$\nabla(\log{\mathrm{Z}}$) (dex/r$_{\mathrm{e}}$)' if args.Zgrad_den == 're' else 'Metallicity gradient (dex/kpc)' if args.fortalk else r'$\nabla Z$ (dex/kpc)', \
         re='Scale length (kpc)', log_mass=r'$\log{(\mathrm{M}_*/\mathrm{M}_\odot)}$', redshift='Redshift', time='Time (Gyr)', sfr=r'SFR (M$_{\odot}$/yr)', \
         log_ssfr=r'$\log{\, \mathrm{sSFR} (\mathrm{yr}^{-1})}$', Ztotal=r'$\log{(\mathrm{Z/Z_\bigodot})}$' if logOH_sol == 0 else r'$\log{(\mathrm{O/H})}$ + 12', log_sfr=r'$\log{(\mathrm{SFR} (\mathrm{M}_{\odot}/yr))}$')
@@ -570,16 +586,13 @@ def plot_MZGR(args):
         fig.text(0.85, 0.94, 'GLASS', ha='left', va='top', color='gold', fontsize=args.fontsize)
 
     if args.overplot_observations and args.xcol == 'redshift' and args.ycol == 'Zgrad':
-        args.ymax = 0.4
-        args.xmax = 4
         ax, df_lit = overplot_observations(ax, args)
+        ax = overplot_passage(ax, color='goldenrod')
         obs_text += '_compobs'
     else:
         df_lit = None
 
     if args.overplot_theory and args.xcol == 'redshift' and args.ycol == 'Zgrad':
-        args.ymax = 0.4
-        args.xmax = 4
         ax, df_lit = overplot_theory(ax, args)
         obs_text += '_comptheory'
     else:
@@ -629,7 +642,7 @@ def plot_MZGR(args):
         thistextcolor = col_arr[thisindex] if args.nocolorcoding else mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
-                line, = ax.plot(df[args.xcol], df[args.ycol], c='salmon' if args.overplot_theory else thistextcolor, lw=0.5 if args.overplot_binned or args.overplot_theory else 1 if args.overplot_observations or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) or args.overplot_binned else 1)
+                line, = ax.plot(df[args.xcol], df[args.ycol], c='salmon' if args.overplot_theory else thistextcolor, lw=0.5 if args.overplot_binned else 0.1 if args.overplot_theory else 1 if args.overplot_observations or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) or args.overplot_binned else 1)
                 if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
                     # ----------------------------------
                     def update(i, x, y, line, args):
@@ -646,7 +659,7 @@ def plot_MZGR(args):
 
                     anim = animation.FuncAnimation(fig, update, len(df), fargs=[df[args.xcol].values, df[args.ycol].values, line, args], interval=25, blit=True)
             else:
-                line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_observations else 2)
+                line = get_multicolored_line(df[args.xcol], df[args.ycol], df[args.colorcol], this_cmap, args.cmin, args.cmax, lw=1 if args.overplot_observations else 0.5 if args.overplot_theory else 2)
                 plot = ax.add_collection(line)
             if args.overplot_points: ax.scatter(df[args.xcol], df[args.ycol], c=thistextcolor, lw=0.5, s=10)
 

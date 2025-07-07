@@ -45,11 +45,11 @@ def young_stars_density_projection(ds, region, args, output_filename, projection
         if 'z' in projection:
             p_dir = ds.z_unit_disk
             north_vector = ds.x_unit_disk
-        p = yt.ProjectionPlot(ds, p_dir, ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code, north_vector=north_vector)
-    else: p = yt.ProjectionPlot(ds, projection, ('deposit', 'young_stars3_cic'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code)
-    p.set_unit(('deposit','young_stars3_cic'),'Msun/kpc**2')
-    p.set_zlim(('deposit','young_stars3_cic'),1000,1000000)
-    p.set_cmap(('deposit','young_stars3_cic'), density_color_map)
+        p = yt.ProjectionPlot(ds, p_dir, ('deposit', 'young_stars_cic'), width=(args.proj_width, 'kpc'), center=ds.halo_center_code, north_vector=north_vector)
+    else: p = yt.ProjectionPlot(ds, projection, ('deposit', 'young_stars_cic'), width=(args.proj_width, 'kpc'), center=ds.halo_center_code)
+    p.set_unit(('deposit','young_stars_cic'),'Msun/kpc**2')
+    p.set_zlim(('deposit','young_stars_cic'),1000,1000000)
+    p.set_cmap(('deposit','young_stars_cic'), density_color_map)
     p.save(output_filename)
     print('Saved figure ' + output_filename)
 
@@ -89,13 +89,13 @@ def KS_relation(ds, region, args, output_filename, projection):
         if 'z' in projection:
             p_dir = ds.z_unit_disk
             north_vector = ds.x_unit_disk
-        p = yt.ProjectionPlot(ds, p_dir, ('gas', 'density'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code, north_vector=north_vector, buff_size=[500,500])
-    else: p = yt.ProjectionPlot(ds, projection, ('gas', 'density'), width=(20, 'kpc'), data_source=region, center=ds.halo_center_code, buff_size=[500,500])
+        p = yt.ProjectionPlot(ds, p_dir, ('gas', 'density'), width=(args.proj_width, 'kpc'), center=ds.halo_center_code, north_vector=north_vector, buff_size=[500,500])
+    else: p = yt.ProjectionPlot(ds, projection, ('gas', 'density'), width=(args.proj_width, 'kpc'), center=ds.halo_center_code, buff_size=[500,500])
     proj_frb = p.frb
     # Pull out the gas surface density and the star formation rate of the young stars
     projected_density = proj_frb['density'].in_units('Msun/pc**2')
     ks_nh1 = proj_frb['H_p0_number_density'].in_units('pc**-2') * yt.YTArray(1.67e-24/1.989e33, 'Msun')
-    young_stars = proj_frb[('deposit', 'young_stars3_cic')].in_units('Msun/kpc**2')
+    young_stars = proj_frb[('deposit', 'young_stars_cic')].in_units('Msun/kpc**2')
     ks_sfr = young_stars / yt.YTArray(3e6, 'yr') + yt.YTArray(1e-6, 'Msun/kpc**2/yr')
 
     # These values are pulled from KMT09 Figure 2, the log cZ' = 0.2 curve
