@@ -101,7 +101,7 @@ def halo_sfr8(halo):
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 
-    return sphere.quantities.total_quantity(('young_stars8', 'particle_mass')) / yt.YTArray(1e7, 'yr')  
+    return sphere.quantities.total_quantity(('young_stars8', 'particle_mass')) / yt.YTArray(1e8, 'yr')  
 
 def halo_average_fH2(halo):
     sphere = halo.data_object    
