@@ -608,28 +608,64 @@ def weighted_radial_profiles(ds, refine_box, snap):
 
         profile_row = [inn_r, out_r]
         for p in range(len(props)):
-            all_mean, all_std = weighted_avg_and_std(props[p][rad_bin], weight[rad_bin])
-            all_med = weighted_quantile(props[p][rad_bin], weight[rad_bin], [0.5])
-            all_mean_in, all_std_in = weighted_avg_and_std(props_in[p][rad_bin_in], weight_inflow[rad_bin_in])
-            all_med_in = weighted_quantile(props_in[p][rad_bin_in], weight_inflow[rad_bin_in], [0.5])
-            all_mean_out, all_std_out = weighted_avg_and_std(props_out[p][rad_bin_out], weight_outflow[rad_bin_out])
-            all_med_out = weighted_quantile(props_out[p][rad_bin_out], weight_outflow[rad_bin_out], [0.5])
+            if (len(weight[rad_bin])>0):
+                all_mean, all_std = weighted_avg_and_std(props[p][rad_bin], weight[rad_bin])
+                all_med = weighted_quantile(props[p][rad_bin], weight[rad_bin], [0.5])
+            else:
+                all_mean = np.nan
+                all_med = np.nan
+            if (len(weight_inflow[rad_bin_in])>0):
+                all_mean_in, all_std_in = weighted_avg_and_std(props_in[p][rad_bin_in], weight_inflow[rad_bin_in])
+                all_med_in = weighted_quantile(props_in[p][rad_bin_in], weight_inflow[rad_bin_in], [0.5])
+            else:
+                all_mean_in = np.nan
+                all_med_in = np.nan
+            if (len(weight_outflow[rad_bin_out])>0):
+                all_mean_out, all_std_out = weighted_avg_and_std(props_out[p][rad_bin_out], weight_outflow[rad_bin_out])
+                all_med_out = weighted_quantile(props_out[p][rad_bin_out], weight_outflow[rad_bin_out], [0.5])
+            else:
+                all_mean_out = np.nan
+                all_med_out = np.nan
             profile_row += [all_mean, all_med, all_mean_in, all_med_in, all_mean_out, all_med_out]
 
-            cgm_mean, cgm_std = weighted_avg_and_std(props[p][(rad_bin) & (cgm)], weight[(rad_bin) & (cgm)])
-            cgm_med = weighted_quantile(props[p][(rad_bin) & (cgm)], weight[(rad_bin) & (cgm)], [0.5])
-            cgm_mean_in, cgm_std_in = weighted_avg_and_std(props_in[p][(rad_bin_in) & (cgm_in)], weight_inflow[(rad_bin_in) & (cgm_in)])
-            cgm_med_in = weighted_quantile(props_in[p][(rad_bin_in) & (cgm_in)], weight_inflow[(rad_bin_in) & (cgm_in)], [0.5])
-            cgm_mean_out, cgm_std_out = weighted_avg_and_std(props_out[p][(rad_bin_out) & (cgm_out)], weight_outflow[(rad_bin_out) & (cgm_out)])
-            cgm_med_out = weighted_quantile(props_out[p][(rad_bin_out) & (cgm_out)], weight_outflow[(rad_bin_out) & (cgm_out)], [0.5])
+            if (len(weight[(rad_bin) & (cgm)])>0):
+                cgm_mean, cgm_std = weighted_avg_and_std(props[p][(rad_bin) & (cgm)], weight[(rad_bin) & (cgm)])
+                cgm_med = weighted_quantile(props[p][(rad_bin) & (cgm)], weight[(rad_bin) & (cgm)], [0.5])
+            else:
+                cgm_mean = np.nan
+                cgm_med = np.nan
+            if (len(weight_inflow[(rad_bin_in) & (cgm_in)])>0):
+                cgm_mean_in, cgm_std_in = weighted_avg_and_std(props_in[p][(rad_bin_in) & (cgm_in)], weight_inflow[(rad_bin_in) & (cgm_in)])
+                cgm_med_in = weighted_quantile(props_in[p][(rad_bin_in) & (cgm_in)], weight_inflow[(rad_bin_in) & (cgm_in)], [0.5])
+            else:
+                cgm_mean_in = np.nan
+                cgm_med_in = np.nan
+            if (len(weight_outflow[(rad_bin_out) & (cgm_out)])>0):
+                cgm_mean_out, cgm_std_out = weighted_avg_and_std(props_out[p][(rad_bin_out) & (cgm_out)], weight_outflow[(rad_bin_out) & (cgm_out)])
+                cgm_med_out = weighted_quantile(props_out[p][(rad_bin_out) & (cgm_out)], weight_outflow[(rad_bin_out) & (cgm_out)], [0.5])
+            else:
+                cgm_mean_out = np.nan
+                cgm_med_out = np.nan
             profile_row += [cgm_mean, cgm_med, cgm_mean_in, cgm_med_in, cgm_mean_out, cgm_med_out]
 
-            OVI_mean, OVI_std = weighted_avg_and_std(props[p][rad_bin], emissivity[rad_bin])
-            OVI_med = weighted_quantile(props[p][rad_bin], emissivity[rad_bin], [0.5])
-            OVI_mean_in, OVI_std_in = weighted_avg_and_std(props_in[p][rad_bin_in], emissivity_inflow[rad_bin_in])
-            OVI_med_in = weighted_quantile(props_in[p][rad_bin_in], emissivity_inflow[rad_bin_in], [0.5])
-            OVI_mean_out, OVI_std_out = weighted_avg_and_std(props_out[p][rad_bin_out], emissivity_outflow[rad_bin_out])
-            OVI_med_out = weighted_quantile(props_out[p][rad_bin_out], emissivity_outflow[rad_bin_out], [0.5])
+            if (len(emissivity[rad_bin])>0):
+                OVI_mean, OVI_std = weighted_avg_and_std(props[p][rad_bin], emissivity[rad_bin])
+                OVI_med = weighted_quantile(props[p][rad_bin], emissivity[rad_bin], [0.5])
+            else:
+                OVI_mean = np.nan
+                OVI_med = np.nan
+            if (len(emissivity_inflow[rad_bin_in])>0):
+                OVI_mean_in, OVI_std_in = weighted_avg_and_std(props_in[p][rad_bin_in], emissivity_inflow[rad_bin_in])
+                OVI_med_in = weighted_quantile(props_in[p][rad_bin_in], emissivity_inflow[rad_bin_in], [0.5])
+            else:
+                OVI_mean_in = np.nan
+                OVI_med_in = np.nan
+            if (len(emissivity_outflow[rad_bin_out])>0):
+                OVI_mean_out, OVI_std_out = weighted_avg_and_std(props_out[p][rad_bin_out], emissivity_outflow[rad_bin_out])
+                OVI_med_out = weighted_quantile(props_out[p][rad_bin_out], emissivity_outflow[rad_bin_out], [0.5])
+            else:
+                OVI_mean_out = np.nan
+                OVI_med_out = np.nan
             profile_row += [OVI_mean, OVI_med, OVI_mean_in, OVI_med_in, OVI_mean_out, OVI_med_out]
 
             all_hist = np.histogram(props_hist[p][rad_bin], weights=weight[rad_bin], bins=50, range=ranges[p], density=True)
