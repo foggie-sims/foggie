@@ -1,0 +1,432 @@
+\# FOGGIE "NEW ICS" L3 baryons 
+
+ProblemType                = 30      // cosmology simulation
+TopGridRank                = 3
+TopGridDimensions          = 256 256 256
+TopGridGravityBoundary     = 0       // Periodic BC for gravity
+LeftFaceBoundaryCondition  = 3 3 3   // same for fluid
+RightFaceBoundaryCondition = 3 3 3
+SelfGravity                = 1       // gravity on
+PotentialIterations        = 4
+
+#
+#  problem parameters
+#
+CosmologySimulationOmegaBaryonNow        = 0.04576
+CosmologySimulationOmegaCDMNow           = 0.24524
+CosmologySimulationDensityName           = GridDensity
+CosmologySimulationVelocity1Name         = GridVelocities_x
+CosmologySimulationVelocity2Name         = GridVelocities_y
+CosmologySimulationVelocity3Name         = GridVelocities_z
+CosmologySimulationParticleVelocity1Name = ParticleVelocities_x
+CosmologySimulationParticleVelocity2Name = ParticleVelocities_y
+CosmologySimulationParticleVelocity3Name = ParticleVelocities_z
+CosmologySimulationParticleDisplacement1Name = ParticleDisplacements_x
+CosmologySimulationParticleDisplacement2Name = ParticleDisplacements_y
+CosmologySimulationParticleDisplacement3Name = ParticleDisplacements_z
+CosmologySimulationParticleTypeName     = RefinementMask
+CosmologySimulationCalculatePositions    = 1
+CosmologySimulationNumberOfInitialGrids  = 3
+#CosmologySimulationGridDimension[1]      =               36               40               36
+#CosmologySimulationGridLeftEdge[1]       =       0.46484375       0.45703125          0.46875
+#CosmologySimulationGridRightEdge[1]      =       0.53515625       0.53515625        0.5390625
+#CosmologySimulationGridLevel[1]          = 1
+#CosmologySimulationGridDimension[2]      =               52               62               54
+#CosmologySimulationGridLeftEdge[2]       =      0.474609375      0.466796875        0.4765625
+#CosmologySimulationGridRightEdge[2]      =      0.525390625       0.52734375      0.529296875
+#CosmologySimulationGridLevel[2]          = 2
+#CosmologySimulationGridDimension[3]      =               86              104               90
+#CosmologySimulationGridLeftEdge[3]       =      0.478515625     0.4716796875       0.48046875
+#CosmologySimulationGridRightEdge[3]      =     0.5205078125     0.5224609375     0.5244140625
+#CosmologySimulationGridLevel[3]          = 3
+#
+#  define cosmology parameters
+#
+ComovingCoordinates        = 1       // Expansion ON
+CosmologyOmegaMatterNow    = 0.291
+CosmologyOmegaDarkMatterNow = 0.24524
+CosmologyOmegaLambdaNow    = 0.709
+CosmologyHubbleConstantNow = 0.700
+CosmologyComovingBoxSize   = 25.0    // in Mpc/h 
+CosmologyMaxExpansionRate  = 0.015   // maximum allowed delta(a)/a
+CosmologyInitialRedshift   = 99.0
+CosmologyFinalRedshift 	   = 15
+GravitationalConstant      = 1       // this must be true for cosmology
+
+CosmologySimulationUseMetallicityField = 1 
+
+#
+#  set I/O and stop/start parameters
+#
+DataDumpDir      = DD
+DataDumpName     = DD
+RedshiftDumpName = RD
+RedshiftDumpDir  = RD
+
+dtDataDump 	 = 1
+
+OutputCoolingTime                        = 1
+OutputTemperature                        = 1
+
+NumberOfOutputsBeforeExit = 0
+
+StopCycle        = 100000
+StopCPUTime      = 3600000
+
+#
+#  set hydro parameters
+#
+HydroMethod                     = 0       // PPM
+RiemannSolver                   = 4       // HLLC
+Gamma                           = 1.6667
+PPMDiffusionParameter           = 0       // diffusion off
+DualEnergyFormalism             = 1       // use total & internal energy
+InterpolationMethod             = 1       // SecondOrderA
+ReconstructionMethod            = 1 // PPM
+RiemannSolverFallback           = 1 // HLL if there's a dnu<=0
+FluxCorrection                  = 1
+ConservativeInterpolation       = 0
+CourantSafetyNumber             = 0.4
+ParticleCourantSafetyNumber     = 0.5
+
+
+#
+#  set grid refinement parameters
+#
+StaticHierarchy                = 0    // dynamic hierarchy
+MaximumRefinementLevel         = 7 
+MaximumGravityRefinementLevel  = 7 
+MaximumParticleRefinementLevel = 7 
+RefineBy                       = 2    // refinement factor
+CellFlaggingMethod             = 2 4 8 
+MinimumEfficiency              = 0.4  // fraction efficiency
+MinimumOverDensityForRefinement = 0.125 0.125  1. 1. 1. 1. 1 
+
+MinimumMassForRefinementLevelExponent = 0.0 0.0
+MustRefineParticlesCreateParticles = 3
+MustRefineParticlesRefineToLevel   = 2
+NumberOfBufferZones                      = 2
+
+RebuildHierarchyCycleSkip[0] = 2
+RebuildHierarchyCycleSkip[1] = 2
+RebuildHierarchyCycleSkip[2] = 2
+RebuildHierarchyCycleSkip[3] = 2
+RebuildHierarchyCycleSkip[4] = 2
+RebuildHierarchyCycleSkip[5] = 2
+RebuildHierarchyCycleSkip[6] = 2
+
+CosmologyOutputRedshift[0]               = 99.0
+CosmologyOutputRedshift[1]               = 50.0
+CosmologyOutputRedshift[2]               = 40.0
+CosmologyOutputRedshift[3]               = 30.0
+CosmologyOutputRedshift[4]               = 25.0
+CosmologyOutputRedshift[5]               = 20.0
+CosmologyOutputRedshift[6]               = 15.0 
+CosmologyOutputRedshift[7]               = 12.5
+CosmologyOutputRedshift[8]               = 10.0
+CosmologyOutputRedshift[9]               = 9.0
+CosmologyOutputRedshift[10]               = 8.0
+CosmologyOutputRedshift[11] = 7.000
+CosmologyOutputRedshift[12] = 6.900
+CosmologyOutputRedshift[13] = 6.802
+CosmologyOutputRedshift[14] = 6.706
+CosmologyOutputRedshift[15] = 6.612
+CosmologyOutputRedshift[16] = 6.520
+CosmologyOutputRedshift[17] = 6.429
+CosmologyOutputRedshift[18] = 6.340
+CosmologyOutputRedshift[19] = 6.252
+CosmologyOutputRedshift[20] = 6.166
+CosmologyOutputRedshift[21] = 6.082
+CosmologyOutputRedshift[22] = 5.999
+CosmologyOutputRedshift[23] = 5.917
+CosmologyOutputRedshift[24] = 5.837
+CosmologyOutputRedshift[25] = 5.758
+CosmologyOutputRedshift[26] = 5.681
+CosmologyOutputRedshift[27] = 5.605
+CosmologyOutputRedshift[28] = 5.530
+CosmologyOutputRedshift[29] = 5.457
+CosmologyOutputRedshift[30] = 5.385
+CosmologyOutputRedshift[31] = 5.314
+CosmologyOutputRedshift[32] = 5.244
+CosmologyOutputRedshift[33] = 5.175
+CosmologyOutputRedshift[34] = 5.107
+CosmologyOutputRedshift[35] = 5.040
+CosmologyOutputRedshift[36] = 4.975
+CosmologyOutputRedshift[37] = 4.911
+CosmologyOutputRedshift[38] = 4.848
+CosmologyOutputRedshift[39] = 4.786
+CosmologyOutputRedshift[40] = 4.725
+CosmologyOutputRedshift[41] = 4.665
+CosmologyOutputRedshift[42] = 4.606
+CosmologyOutputRedshift[43] = 4.547
+CosmologyOutputRedshift[44] = 4.489
+CosmologyOutputRedshift[45] = 4.432
+CosmologyOutputRedshift[46] = 4.376
+CosmologyOutputRedshift[47] = 4.321
+CosmologyOutputRedshift[48] = 4.267
+CosmologyOutputRedshift[49] = 4.214
+CosmologyOutputRedshift[50] = 4.161
+CosmologyOutputRedshift[51] = 4.109
+CosmologyOutputRedshift[52] = 4.058
+CosmologyOutputRedshift[53] = 4.008
+CosmologyOutputRedshift[54] = 3.958
+CosmologyOutputRedshift[55] = 3.909
+CosmologyOutputRedshift[56] = 3.861
+CosmologyOutputRedshift[57] = 3.814
+CosmologyOutputRedshift[58] = 3.767
+CosmologyOutputRedshift[59] = 3.721
+CosmologyOutputRedshift[60] = 3.676
+CosmologyOutputRedshift[61] = 3.631
+CosmologyOutputRedshift[62] = 3.587
+CosmologyOutputRedshift[63] = 3.544
+CosmologyOutputRedshift[64] = 3.501
+CosmologyOutputRedshift[65] = 3.459
+CosmologyOutputRedshift[66] = 3.417
+CosmologyOutputRedshift[67] = 3.376
+CosmologyOutputRedshift[68] = 3.335
+CosmologyOutputRedshift[69] = 3.295
+CosmologyOutputRedshift[70] = 3.256
+CosmologyOutputRedshift[71] = 3.217
+CosmologyOutputRedshift[72] = 3.179
+CosmologyOutputRedshift[73] = 3.141
+CosmologyOutputRedshift[74] = 3.104
+CosmologyOutputRedshift[75] = 3.067
+CosmologyOutputRedshift[76] = 3.031
+CosmologyOutputRedshift[77] = 2.995
+CosmologyOutputRedshift[78] = 2.959
+CosmologyOutputRedshift[79] = 2.924
+CosmologyOutputRedshift[80] = 2.889
+CosmologyOutputRedshift[81] = 2.855
+CosmologyOutputRedshift[82] = 2.821
+CosmologyOutputRedshift[83] = 2.788
+CosmologyOutputRedshift[84] = 2.755
+CosmologyOutputRedshift[85] = 2.723
+CosmologyOutputRedshift[86] = 2.691
+CosmologyOutputRedshift[87] = 2.659
+CosmologyOutputRedshift[88] = 2.628
+CosmologyOutputRedshift[89] = 2.597
+CosmologyOutputRedshift[90] = 2.567
+CosmologyOutputRedshift[91] = 2.537
+CosmologyOutputRedshift[92] = 2.507
+CosmologyOutputRedshift[93] = 2.478
+CosmologyOutputRedshift[94] = 2.449
+CosmologyOutputRedshift[95] = 2.420
+CosmologyOutputRedshift[96] = 2.392
+CosmologyOutputRedshift[97] = 2.364
+CosmologyOutputRedshift[98] = 2.336
+CosmologyOutputRedshift[99] = 2.309
+CosmologyOutputRedshift[100] = 2.282
+CosmologyOutputRedshift[101] = 2.255
+CosmologyOutputRedshift[102] = 2.229
+CosmologyOutputRedshift[103] = 2.203
+CosmologyOutputRedshift[104] = 2.177
+CosmologyOutputRedshift[105] = 2.151
+CosmologyOutputRedshift[106] = 2.126
+CosmologyOutputRedshift[107] = 2.101
+CosmologyOutputRedshift[108] = 2.076
+CosmologyOutputRedshift[109] = 2.052
+CosmologyOutputRedshift[110] = 2.028
+CosmologyOutputRedshift[111] = 2.004
+CosmologyOutputRedshift[112] = 1.980
+CosmologyOutputRedshift[113] = 1.957
+CosmologyOutputRedshift[114] = 1.934
+CosmologyOutputRedshift[115] = 1.911
+CosmologyOutputRedshift[116] = 1.888
+CosmologyOutputRedshift[117] = 1.866
+CosmologyOutputRedshift[118] = 1.844
+CosmologyOutputRedshift[119] = 1.822
+CosmologyOutputRedshift[120] = 1.800
+CosmologyOutputRedshift[121] = 1.779
+CosmologyOutputRedshift[122] = 1.758
+CosmologyOutputRedshift[123] = 1.737
+CosmologyOutputRedshift[124] = 1.716
+CosmologyOutputRedshift[125] = 1.695
+CosmologyOutputRedshift[126] = 1.675
+CosmologyOutputRedshift[127] = 1.655
+CosmologyOutputRedshift[128] = 1.635
+CosmologyOutputRedshift[129] = 1.615
+CosmologyOutputRedshift[130] = 1.595
+CosmologyOutputRedshift[131] = 1.576
+CosmologyOutputRedshift[132] = 1.557
+CosmologyOutputRedshift[133] = 1.538
+CosmologyOutputRedshift[134] = 1.519
+CosmologyOutputRedshift[135] = 1.500
+CosmologyOutputRedshift[136] = 1.482
+CosmologyOutputRedshift[137] = 1.464
+CosmologyOutputRedshift[138] = 1.446
+CosmologyOutputRedshift[139] = 1.428
+CosmologyOutputRedshift[140] = 1.410
+CosmologyOutputRedshift[141] = 1.392
+CosmologyOutputRedshift[142] = 1.375
+CosmologyOutputRedshift[143] = 1.358
+CosmologyOutputRedshift[144] = 1.341
+CosmologyOutputRedshift[145] = 1.324
+CosmologyOutputRedshift[146] = 1.307
+CosmologyOutputRedshift[147] = 1.290
+CosmologyOutputRedshift[148] = 1.274
+CosmologyOutputRedshift[149] = 1.258
+CosmologyOutputRedshift[150] = 1.242
+CosmologyOutputRedshift[151] = 1.226
+CosmologyOutputRedshift[152] = 1.210
+CosmologyOutputRedshift[153] = 1.194
+CosmologyOutputRedshift[154] = 1.178
+CosmologyOutputRedshift[155] = 1.163
+CosmologyOutputRedshift[156] = 1.148
+CosmologyOutputRedshift[157] = 1.133
+CosmologyOutputRedshift[158] = 1.118
+CosmologyOutputRedshift[159] = 1.103
+CosmologyOutputRedshift[160] = 1.088
+CosmologyOutputRedshift[161] = 1.073
+CosmologyOutputRedshift[162] = 1.059
+CosmologyOutputRedshift[163] = 1.045
+CosmologyOutputRedshift[164] = 1.031
+CosmologyOutputRedshift[165] = 1.017
+CosmologyOutputRedshift[166] = 1.003
+CosmologyOutputRedshift[167] = 0.989
+CosmologyOutputRedshift[168] = 0.975
+CosmologyOutputRedshift[169] = 0.961
+CosmologyOutputRedshift[170] = 0.947
+CosmologyOutputRedshift[171] = 0.934
+CosmologyOutputRedshift[172] = 0.921
+CosmologyOutputRedshift[173] = 0.908
+CosmologyOutputRedshift[174] = 0.895
+CosmologyOutputRedshift[175] = 0.882
+CosmologyOutputRedshift[176] = 0.869
+CosmologyOutputRedshift[177] = 0.856
+CosmologyOutputRedshift[178] = 0.843
+CosmologyOutputRedshift[179] = 0.830
+CosmologyOutputRedshift[180] = 0.817
+CosmologyOutputRedshift[181] = 0.805
+CosmologyOutputRedshift[182] = 0.793
+CosmologyOutputRedshift[183] = 0.781
+CosmologyOutputRedshift[184] = 0.769
+CosmologyOutputRedshift[185] = 0.757
+CosmologyOutputRedshift[186] = 0.745
+CosmologyOutputRedshift[187] = 0.733
+CosmologyOutputRedshift[188] = 0.721
+CosmologyOutputRedshift[189] = 0.709
+CosmologyOutputRedshift[190] = 0.697
+CosmologyOutputRedshift[191] = 0.685
+CosmologyOutputRedshift[192] = 0.674
+CosmologyOutputRedshift[193] = 0.663
+CosmologyOutputRedshift[194] = 0.652
+CosmologyOutputRedshift[195] = 0.641
+CosmologyOutputRedshift[196] = 0.630
+CosmologyOutputRedshift[197] = 0.619
+CosmologyOutputRedshift[198] = 0.608
+CosmologyOutputRedshift[199] = 0.597
+CosmologyOutputRedshift[200] = 0.586
+CosmologyOutputRedshift[201] = 0.575
+CosmologyOutputRedshift[202] = 0.564
+CosmologyOutputRedshift[203] = 0.553
+CosmologyOutputRedshift[204] = 0.542
+CosmologyOutputRedshift[205] = 0.531
+CosmologyOutputRedshift[206] = 0.521
+CosmologyOutputRedshift[207] = 0.511
+CosmologyOutputRedshift[208] = 0.501
+CosmologyOutputRedshift[209] = 0.491
+CosmologyOutputRedshift[210] = 0.481
+CosmologyOutputRedshift[211] = 0.471
+CosmologyOutputRedshift[212] = 0.461
+CosmologyOutputRedshift[213] = 0.451
+CosmologyOutputRedshift[214] = 0.441
+CosmologyOutputRedshift[215] = 0.431
+CosmologyOutputRedshift[216] = 0.421
+CosmologyOutputRedshift[217] = 0.411
+CosmologyOutputRedshift[218] = 0.401
+CosmologyOutputRedshift[219] = 0.391
+CosmologyOutputRedshift[220] = 0.381
+CosmologyOutputRedshift[221] = 0.371
+CosmologyOutputRedshift[222] = 0.361
+CosmologyOutputRedshift[223] = 0.352
+CosmologyOutputRedshift[224] = 0.343
+CosmologyOutputRedshift[225] = 0.334
+CosmologyOutputRedshift[226] = 0.325
+CosmologyOutputRedshift[227] = 0.316
+CosmologyOutputRedshift[228] = 0.307
+CosmologyOutputRedshift[229] = 0.298
+CosmologyOutputRedshift[230] = 0.289
+CosmologyOutputRedshift[231] = 0.280
+CosmologyOutputRedshift[232] = 0.271
+CosmologyOutputRedshift[233] = 0.262
+CosmologyOutputRedshift[234] = 0.253
+CosmologyOutputRedshift[235] = 0.244
+CosmologyOutputRedshift[236] = 0.235
+CosmologyOutputRedshift[237] = 0.226
+CosmologyOutputRedshift[238] = 0.217
+CosmologyOutputRedshift[239] = 0.208
+CosmologyOutputRedshift[240] = 0.199
+CosmologyOutputRedshift[241] = 0.190
+CosmologyOutputRedshift[242] = 0.181
+CosmologyOutputRedshift[243] = 0.172
+CosmologyOutputRedshift[244] = 0.163
+CosmologyOutputRedshift[245] = 0.155
+CosmologyOutputRedshift[246] = 0.147
+CosmologyOutputRedshift[247] = 0.139
+CosmologyOutputRedshift[248] = 0.131
+CosmologyOutputRedshift[249] = 0.123
+CosmologyOutputRedshift[250] = 0.115
+CosmologyOutputRedshift[251] = 0.107
+CosmologyOutputRedshift[252] = 0.099
+CosmologyOutputRedshift[253] = 0.091
+CosmologyOutputRedshift[254] = 0.083
+CosmologyOutputRedshift[255] = 0.075
+CosmologyOutputRedshift[256] = 0.067
+CosmologyOutputRedshift[257] = 0.059
+CosmologyOutputRedshift[258] = 0.051
+CosmologyOutputRedshift[259] = 0.043
+CosmologyOutputRedshift[260] = 0.035
+CosmologyOutputRedshift[261] = 0.027
+CosmologyOutputRedshift[262] = 0.019
+CosmologyOutputRedshift[263] = 0.011
+CosmologyOutputRedshift[264] = 0.003
+CosmologyOutputRedshift[265] = 0.000
+
+
+#
+#  chemistry, cooling, radiation background
+#
+RadiativeCooling                         = 1
+use_grackle                              = 1
+MultiSpecies                             = 2
+MultiMetals                              = 1 
+MetalCooling                             = 1
+UVbackground                             = 1
+grackle_data_file                        = /u/jtumlins/grackle/grackle-3.3.1-dev/grackle_data_files/input/CloudyData_UVB=HM2012.h5
+CMBTemperatureFloor                      = 1
+
+#
+# star formation and feedback parameters
+#
+StarParticleCreation                     = 2048
+StarParticleFeedback                     = 1
+StarMakerOverDensityThreshold            = 1.0e+4
+StarMakerMinimumMass                     = 10000. 
+StarMakerMinimumDynamicalTime            = 1e6
+StarMakerMassEfficiency                  = 0.2
+StarMassEjectionFraction                 = 0.25
+StarMetalYield                           = 0.025
+StarEnergyToThermalFeedback              = 1e-5
+StarFeedbackDistRadius                   = 1
+StarFeedbackDistCellStep                 = 3
+
+#
+# parallelism stuff
+#
+
+SubgridSizeAutoAdjust       = 1
+OptimalSubgridsPerProcessor = 16
+
+#
+#
+GreensFunctionMaxNumber = 30 
+ParallelRootGridIO                       = 1
+ParallelParticleIO                       = 1
+PartitionNestedGrids                     = 1
+UnigridTranspose     = 2
+
+LoadBalancing          = 1
+ResetLoadBalancing     = 0
+LoadBalancingCycleSkip = 2
+LoadBalancingMinLevel  = 0
+LoadBalancingMaxLevel  = 50
