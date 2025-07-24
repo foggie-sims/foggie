@@ -608,28 +608,64 @@ def weighted_radial_profiles(ds, refine_box, snap):
 
         profile_row = [inn_r, out_r]
         for p in range(len(props)):
-            all_mean, all_std = weighted_avg_and_std(props[p][rad_bin], weight[rad_bin])
-            all_med = weighted_quantile(props[p][rad_bin], weight[rad_bin], [0.5])
-            all_mean_in, all_std_in = weighted_avg_and_std(props_in[p][rad_bin_in], weight_inflow[rad_bin_in])
-            all_med_in = weighted_quantile(props_in[p][rad_bin_in], weight_inflow[rad_bin_in], [0.5])
-            all_mean_out, all_std_out = weighted_avg_and_std(props_out[p][rad_bin_out], weight_outflow[rad_bin_out])
-            all_med_out = weighted_quantile(props_out[p][rad_bin_out], weight_outflow[rad_bin_out], [0.5])
+            if (len(weight[rad_bin])>0):
+                all_mean, all_std = weighted_avg_and_std(props[p][rad_bin], weight[rad_bin])
+                all_med = weighted_quantile(props[p][rad_bin], weight[rad_bin], [0.5])
+            else:
+                all_mean = np.nan
+                all_med = np.nan
+            if (len(weight_inflow[rad_bin_in])>0):
+                all_mean_in, all_std_in = weighted_avg_and_std(props_in[p][rad_bin_in], weight_inflow[rad_bin_in])
+                all_med_in = weighted_quantile(props_in[p][rad_bin_in], weight_inflow[rad_bin_in], [0.5])
+            else:
+                all_mean_in = np.nan
+                all_med_in = np.nan
+            if (len(weight_outflow[rad_bin_out])>0):
+                all_mean_out, all_std_out = weighted_avg_and_std(props_out[p][rad_bin_out], weight_outflow[rad_bin_out])
+                all_med_out = weighted_quantile(props_out[p][rad_bin_out], weight_outflow[rad_bin_out], [0.5])
+            else:
+                all_mean_out = np.nan
+                all_med_out = np.nan
             profile_row += [all_mean, all_med, all_mean_in, all_med_in, all_mean_out, all_med_out]
 
-            cgm_mean, cgm_std = weighted_avg_and_std(props[p][(rad_bin) & (cgm)], weight[(rad_bin) & (cgm)])
-            cgm_med = weighted_quantile(props[p][(rad_bin) & (cgm)], weight[(rad_bin) & (cgm)], [0.5])
-            cgm_mean_in, cgm_std_in = weighted_avg_and_std(props_in[p][(rad_bin_in) & (cgm_in)], weight_inflow[(rad_bin_in) & (cgm_in)])
-            cgm_med_in = weighted_quantile(props_in[p][(rad_bin_in) & (cgm_in)], weight_inflow[(rad_bin_in) & (cgm_in)], [0.5])
-            cgm_mean_out, cgm_std_out = weighted_avg_and_std(props_out[p][(rad_bin_out) & (cgm_out)], weight_outflow[(rad_bin_out) & (cgm_out)])
-            cgm_med_out = weighted_quantile(props_out[p][(rad_bin_out) & (cgm_out)], weight_outflow[(rad_bin_out) & (cgm_out)], [0.5])
+            if (len(weight[(rad_bin) & (cgm)])>0):
+                cgm_mean, cgm_std = weighted_avg_and_std(props[p][(rad_bin) & (cgm)], weight[(rad_bin) & (cgm)])
+                cgm_med = weighted_quantile(props[p][(rad_bin) & (cgm)], weight[(rad_bin) & (cgm)], [0.5])
+            else:
+                cgm_mean = np.nan
+                cgm_med = np.nan
+            if (len(weight_inflow[(rad_bin_in) & (cgm_in)])>0):
+                cgm_mean_in, cgm_std_in = weighted_avg_and_std(props_in[p][(rad_bin_in) & (cgm_in)], weight_inflow[(rad_bin_in) & (cgm_in)])
+                cgm_med_in = weighted_quantile(props_in[p][(rad_bin_in) & (cgm_in)], weight_inflow[(rad_bin_in) & (cgm_in)], [0.5])
+            else:
+                cgm_mean_in = np.nan
+                cgm_med_in = np.nan
+            if (len(weight_outflow[(rad_bin_out) & (cgm_out)])>0):
+                cgm_mean_out, cgm_std_out = weighted_avg_and_std(props_out[p][(rad_bin_out) & (cgm_out)], weight_outflow[(rad_bin_out) & (cgm_out)])
+                cgm_med_out = weighted_quantile(props_out[p][(rad_bin_out) & (cgm_out)], weight_outflow[(rad_bin_out) & (cgm_out)], [0.5])
+            else:
+                cgm_mean_out = np.nan
+                cgm_med_out = np.nan
             profile_row += [cgm_mean, cgm_med, cgm_mean_in, cgm_med_in, cgm_mean_out, cgm_med_out]
 
-            OVI_mean, OVI_std = weighted_avg_and_std(props[p][rad_bin], emissivity[rad_bin])
-            OVI_med = weighted_quantile(props[p][rad_bin], emissivity[rad_bin], [0.5])
-            OVI_mean_in, OVI_std_in = weighted_avg_and_std(props_in[p][rad_bin_in], emissivity_inflow[rad_bin_in])
-            OVI_med_in = weighted_quantile(props_in[p][rad_bin_in], emissivity_inflow[rad_bin_in], [0.5])
-            OVI_mean_out, OVI_std_out = weighted_avg_and_std(props_out[p][rad_bin_out], emissivity_outflow[rad_bin_out])
-            OVI_med_out = weighted_quantile(props_out[p][rad_bin_out], emissivity_outflow[rad_bin_out], [0.5])
+            if (len(emissivity[rad_bin])>0):
+                OVI_mean, OVI_std = weighted_avg_and_std(props[p][rad_bin], emissivity[rad_bin])
+                OVI_med = weighted_quantile(props[p][rad_bin], emissivity[rad_bin], [0.5])
+            else:
+                OVI_mean = np.nan
+                OVI_med = np.nan
+            if (len(emissivity_inflow[rad_bin_in])>0):
+                OVI_mean_in, OVI_std_in = weighted_avg_and_std(props_in[p][rad_bin_in], emissivity_inflow[rad_bin_in])
+                OVI_med_in = weighted_quantile(props_in[p][rad_bin_in], emissivity_inflow[rad_bin_in], [0.5])
+            else:
+                OVI_mean_in = np.nan
+                OVI_med_in = np.nan
+            if (len(emissivity_outflow[rad_bin_out])>0):
+                OVI_mean_out, OVI_std_out = weighted_avg_and_std(props_out[p][rad_bin_out], emissivity_outflow[rad_bin_out])
+                OVI_med_out = weighted_quantile(props_out[p][rad_bin_out], emissivity_outflow[rad_bin_out], [0.5])
+            else:
+                OVI_mean_out = np.nan
+                OVI_med_out = np.nan
             profile_row += [OVI_mean, OVI_med, OVI_mean_in, OVI_med_in, OVI_mean_out, OVI_med_out]
 
             all_hist = np.histogram(props_hist[p][rad_bin], weights=weight[rad_bin], bins=50, range=ranges[p], density=True)
@@ -766,8 +802,8 @@ def sb_profile_time_avg(halos, outs):
     '''Plots the median surface brightness profile with shading indicating IQR variation
     for all the halos and outputs given in 'halos' and 'outs'.'''
 
-    SB_tablenames = ['all', 'inflow', 'outflow', 'major', 'minor']
-    SB_profiles = [[],[],[],[],[]]
+    SB_tablenames = ['all', 'inflow', 'outflow', 'neither', 'major', 'minor', 'hot', 'cold']
+    SB_profiles = [[],[],[],[],[],[],[],[]]
     SB_meds = []
     SB_lows = []
     SB_upps = []
@@ -788,18 +824,19 @@ def sb_profile_time_avg(halos, outs):
         SB_lows.append(low)
         SB_upps.append(upp)
 
-    fig = plt.figure(figsize=(12,5),dpi=250)
-    ax1 = fig.add_subplot(1,2,1)
-    ax2 = fig.add_subplot(1,2,2)
+    fig = plt.figure(figsize=(16,5),dpi=250)
+    ax1 = fig.add_subplot(1,3,1)
+    ax2 = fig.add_subplot(1,3,2)
+    ax3 = fig.add_subplot(1,3,3)
     rbins = np.linspace(0., 50., 26)
     rbin_centers = rbins[:-1] + 0.5*np.diff(rbins)
 
-    ax1.plot(rbin_centers, SB_meds[0], 'k-', lw=2, label='All gas')
-    ax1.fill_between(rbin_centers, y1=SB_lows[0], y2=SB_upps[0], color='k', alpha=0.4)
-    ax1.plot(rbin_centers, SB_meds[3], 'b--', lw=2, label='Major axis')
-    ax1.fill_between(rbin_centers, y1=SB_lows[3], y2=SB_upps[3], color='b', alpha=0.4)
-    ax1.plot(rbin_centers, SB_meds[4], 'r:', lw=2, label='Minor axis')
-    ax1.fill_between(rbin_centers, y1=SB_lows[4], y2=SB_upps[4], color='r', alpha=0.4)
+    ax1.plot(rbin_centers, SB_meds[0], 'k-', lw=2, alpha=0.5, label='All gas')
+    ax1.fill_between(rbin_centers, y1=SB_lows[0], y2=SB_upps[0], color='k', alpha=0.2)
+    ax1.plot(rbin_centers, SB_meds[4], color='#79d41e', ls='--', lw=2, label='Major axis')
+    ax1.fill_between(rbin_centers, y1=SB_lows[4], y2=SB_upps[4], color='#79d41e', alpha=0.4)
+    ax1.plot(rbin_centers, SB_meds[5], color='#c4379f', ls=':', lw=2, label='Minor axis')
+    ax1.fill_between(rbin_centers, y1=SB_lows[5], y2=SB_upps[5], color='#c4379f', alpha=0.4)
     #ax1.plot([0, 50], [np.log10(3.7e-19), np.log10(3.7e-19)], 'k:', lw=1)
     ax1.axis([0,50,-24,-18])
     ax1.set_xlabel('Radius [kpc]', fontsize=16)
@@ -807,12 +844,14 @@ def sb_profile_time_avg(halos, outs):
     ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
                 top=True, right=True)
     ax1.legend(loc=1, fontsize=16, frameon=False)
-    ax2.plot(rbin_centers, SB_meds[0], 'k-', lw=2, label='All gas')
-    ax2.fill_between(rbin_centers, y1=SB_lows[0], y2=SB_upps[0], color='k', alpha=0.4)
-    ax2.plot(rbin_centers, SB_meds[1], color="#984ea3", ls='--', lw=2, label='Inflowing gas')
-    ax2.fill_between(rbin_centers, y1=SB_lows[1], y2=SB_upps[1], color="#984ea3", alpha=0.4)
-    ax2.plot(rbin_centers, SB_meds[2], color='darkorange', ls=':', lw=2, label='Outflowing gas')
-    ax2.fill_between(rbin_centers, y1=SB_lows[2], y2=SB_upps[2], color='darkorange', alpha=0.4)
+    ax2.plot(rbin_centers, SB_meds[0], 'k-', lw=2, alpha=0.5, label='All gas')
+    ax2.fill_between(rbin_centers, y1=SB_lows[0], y2=SB_upps[0], color='k', alpha=0.2)
+    ax2.plot(rbin_centers, SB_meds[1], color="b", ls='--', lw=2, label='Inflowing gas')
+    ax2.fill_between(rbin_centers, y1=SB_lows[1], y2=SB_upps[1], color="b", alpha=0.4)
+    ax2.plot(rbin_centers, SB_meds[2], color='r', ls=':', lw=2, label='Outflowing gas')
+    ax2.fill_between(rbin_centers, y1=SB_lows[2], y2=SB_upps[2], color='r', alpha=0.4)
+    ax2.plot(rbin_centers, SB_meds[3], color='#027020', ls='-.', lw=2, label='Slow-flow gas')
+    ax2.fill_between(rbin_centers, y1=SB_lows[3], y2=SB_upps[3], color='#027020', alpha=0.4)
     #ax2.plot([0, 50], [np.log10(3.7e-19), np.log10(3.7e-19)], 'k:', lw=1)
     ax2.axis([0,50,-24,-18])
     ax2.set_xlabel('Radius [kpc]', fontsize=16)
@@ -820,6 +859,18 @@ def sb_profile_time_avg(halos, outs):
     ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
                 top=True, right=True)
     ax2.legend(loc=1, fontsize=16, frameon=False)
+    ax3.plot(rbin_centers, SB_meds[0], 'k-', lw=2, alpha=0.5, label='All gas')
+    ax3.fill_between(rbin_centers, y1=SB_lows[0], y2=SB_upps[0], color='k', alpha=0.2)
+    ax3.plot(rbin_centers, SB_meds[7], color="#984ea3", ls='--', lw=2, label='Cold gas')
+    ax3.fill_between(rbin_centers, y1=SB_lows[7], y2=SB_upps[7], color="#984ea3", alpha=0.4)
+    ax3.plot(rbin_centers, SB_meds[6], color='darkorange', ls=':', lw=2, label='Hot gas')
+    ax3.fill_between(rbin_centers, y1=SB_lows[6], y2=SB_upps[6], color='darkorange', alpha=0.4)
+    ax3.legend(loc=1, fontsize=16, frameon=False)
+    ax3.axis([0,50,-24,-18])
+    ax3.set_xlabel('Radius [kpc]', fontsize=16)
+    ax3.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
+    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+                top=True, right=True)
     plt.subplots_adjust(left=0.07, bottom=0.12, top=0.96, right=0.98)
     plt.savefig(prefix + '/OVI_surface_brightness_profile_edge-on_time-avg' + save_suffix + '.png')
 
@@ -2118,7 +2169,7 @@ if __name__ == "__main__":
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
 
     if ('feedback' in args.run) and ('track' in args.run):
-        foggie_dir = '/nobackup/jtumlins/halo_008508/feedback-track/'
+        foggie_dir = '/nobackupnfs1/jtumlins/halo_008508/feedback-track/'
         run_dir = args.run + '/'
     
     # Set directory for output location, making it if necessary
@@ -2216,10 +2267,14 @@ if __name__ == "__main__":
         outs = []
         for h in range(len(halos)):
             if (halos[h]=='8508') and ('feedback' not in args.run):
-                outs.append(make_output_list('DD0967-DD2427', output_step=args.output_step))
+                #outs.append(make_output_list('DD0967-DD2427', output_step=args.output_step))
+                outs.append(make_output_list('DD0967-DD1212', output_step=args.output_step)) # z = 1 to 0.726 (~1335 Myr)
+                #outs.append(make_output_list('DD2182-DD2427', output_step=args.output_step)) # z = 0.1 to 0 (~1326 Myr)
                 #outs.append(make_output_list('DD2427'))
             else:
-                outs.append(make_output_list('DD1060-DD2520', output_step=args.output_step))
+                #outs.append(make_output_list('DD1060-DD2520', output_step=args.output_step))
+                outs.append(make_output_list('DD1060-DD1305', output_step=args.output_step))  # z = 1 to 0.726 (~1335 Myr)
+                #outs.append(make_output_list('DD2275-DD2520', output_step=args.output_step)) # z = 0.1 to 0 (~1326 Myr)
                 #outs.append(make_output_list('DD2520'))
         if ('sb_vs_sfr' in args.plot): sb_vs_sfr(halos, outs)
         if ('sb_vs_mh' in args.plot): sb_vs_Mh(halos, outs)
