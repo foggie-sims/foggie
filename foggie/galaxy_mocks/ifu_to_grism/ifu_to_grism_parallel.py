@@ -18,7 +18,8 @@ from load_instrument import load_instrument
 
 from load_sky_backgrounds import load_sky_backgrounds
 
-'''
+
+''' 
     Convert from an idealized ifu to an idealized grism image.
     If the bandwidth defined by lambda_max and lambda_min is greater than
     the bandwidth in the IFU fits file, a background continuum will be added to
@@ -113,6 +114,7 @@ def PlotMomentMaps(moment0,delta_lambda,args,figsize=(fig_x,fig_y)):
     fig.savefig(args.output+output_suffix+filetype, dpi = 300)
 
 
+
 def pad_spectra_with_continuum(ifu_cube, ifu_wavelength, args, flat_continuum=None):
     '''
     Function to pad the bandwith of the idealized ifu_cube with some continuum background.
@@ -195,7 +197,7 @@ def iterate_ifu_pixel(thread_id,Nthreads,beams,ifu_wavelength,datacube,grism_sha
             
             trace = beam.inv_disp_lambda(i_px,j_px,ifu_wavelength) #Gives beam trace parameter for each wavelength
             disp_x = beam.disp_x(i_px,j_px,trace) #Gives x dispersion for each wavelength
-            disp_y = beam.disp_y(i_px,j_px,disp_x) #Gives y dispersion for each wavelength
+            disp_y = beam.disp_y(i_px,j_px,disp_x,trace) #Gives y dispersion for each wavelength
                 
                 
             #sensitivity = beam.sensitivity_response
@@ -208,9 +210,10 @@ def iterate_ifu_pixel(thread_id,Nthreads,beams,ifu_wavelength,datacube,grism_sha
             #measured_flux = counts
             measured_flux = np.multiply(spec_flux, sensitivity_interpolate) * args.effective_exposure/instrument.gain #Counts
 
-            start_x = beam.xoffset+i+ifu_offset_x
-            start_y = beam.yoffset+j+ifu_offset_y
-                                
+            #start_x = beam.xoffset+i+ifu_offset_x
+            #start_y = beam.yoffset+j+ifu_offset_y
+            start_x = i+ifu_offset_x
+            start_y = j+ifu_offset_y
             if (start_y <=0) | (start_y>=grism_ny-1): continue
                 
             #spec_flux = ifu_cube[lambda_mask,i,j] #TODO: CHECK IF DIMMING ACCOUNTED FOR PROPERLY IN AYAN'S CODE / dimming_factor
@@ -302,18 +305,34 @@ def iterate_ifu_pixel_2(thread_id,Nthreads,beams,ifu_wavelength,datacube,grism_s
             n_dx = int(max_dx - min_dx + 1)
             n_dx = int(n_dx*n_dx)
             dx_bin = np.linspace(min_dx,max_dx,n_dx)
+            if beam_itr==3: #-1 order
+                dx_bin = np.linspace(-max_dx,min_dx,n_dx) #-1st order beam
             
             dy_bin = beam.disp_y(i_px,j_px,dx_bin) #Gives y dispersion for each trace bin
             trace_bin = np.sqrt(np.multiply(dx_bin,dx_bin) + np.multiply(dy_bin,dy_bin)) #Gives beam trace parameter for each bin
 
+
             interp_dx = interpolate.interp1d(trace_bin, dx_bin, bounds_error = False, fill_value = 0.)
 
+      
+
             trace = beam.inv_disp_lambda(i_px,j_px,ifu_wavelength) #Gives beam trace parameter for each wavelength
+
+
 
             disp_x = interp_dx(trace) #Gives x dispersion for each wavelength
             disp_y = beam.disp_y(i_px,j_px,disp_x) #Gives y dispersion for each wavelength
                 
-                
+            if beam_itr==3:
+                print("FOR BEAM",beam_itr," dx_bin=",dx_bin)
+                print("FOR BEAM",beam_itr," dy_bin=",dy_bin)
+                print("FOR BEAM",beam_itr," trace_bin=",trace_bin)
+                print("FOR BEAM",beam_itr,"trace=",trace)
+                print("FOR BEAM",beam_itr,"disp_x=",disp_x)
+                print("FOR BEAM",beam_itr,"disp_y=",disp_y)
+
+
+
             #sensitivity = beam.sensitivity_response
             #sensitivity_wavelength = beam.sensitivity_wavelength
             #
@@ -407,7 +426,7 @@ def map_ifu_to_grism(args,instrument):
     ifu_lambda_max = np.max(ifu_wavelength)
     
     if (ifu_lambda_min>lambda_min) | (ifu_lambda_max<lambda_max):
-        ifu_cube, ifu_wavelength = pad_spectra_with_continuum(ifu_cube,ifu_wavelength,args)
+        ifu_cube, ifu_wavelength = pad_spectra_with_continuum(ifu_cube,ifu_wavelength,args,flat_continuum=0)
         ifu_lambda_min = np.min(ifu_wavelength)
         ifu_lambda_max = np.max(ifu_wavelength)
         lambda_mask = (ifu_wavelength >= lambda_min) & (ifu_wavelength <= lambda_max)
@@ -430,6 +449,7 @@ def map_ifu_to_grism(args,instrument):
     m0[ifu_offset_x:np.shape(ifu_cube)[1]+ifu_offset_x , ifu_offset_y:np.shape(ifu_cube)[2]+ifu_offset_y] = np.sum(ifu_cube,axis=0)
     print("m0=",np.max(m0))
     PlotMomentMaps(m0,header['CDELT1'],args)
+
 
     
     
@@ -475,8 +495,8 @@ def map_ifu_to_grism(args,instrument):
     #    absolute_noise=0*ifu_cube
     ####
     #ifu_cube = np.add(ifu_cube,random_noise)
-    _iterate_ifu_pixel_spec_flux = partial(iterate_ifu_pixel,datacube=ifu_cube[lambda_mask,:,:],Nthreads=num_cores,beams=beams[0:args.nBeams],ifu_wavelength=ifu_wavelength,grism_shape=[grism_nx,grism_ny],pbar_title="Making Grism Image")
-    _iterate_ifu_pixel_spec_flux = partial(iterate_ifu_pixel_2,datacube=ifu_cube[lambda_mask,:,:],Nthreads=num_cores,beams=beams[0:args.nBeams],ifu_wavelength=ifu_wavelength,grism_shape=[grism_nx,grism_ny],pbar_title="Making Grism Image")
+    _iterate_ifu_pixel_spec_flux = partial(iterate_ifu_pixel,datacube=ifu_cube[lambda_mask,:,:],Nthreads=num_cores,beams=[beams[ii] for ii in args.beams],ifu_wavelength=ifu_wavelength,grism_shape=[grism_nx,grism_ny],pbar_title="Making Grism Image")
+    #_iterate_ifu_pixel_spec_flux = partial(iterate_ifu_pixel_2,datacube=ifu_cube[lambda_mask,:,:],Nthreads=num_cores,beams=beams[0:args.nBeams],ifu_wavelength=ifu_wavelength,grism_shape=[grism_nx,grism_ny],pbar_title="Making Grism Image")
 
 
     if True:
@@ -709,6 +729,7 @@ print("Mapping IFU to grism data...")
 grism, m0, ifu_wavelength, instrument_background = map_ifu_to_grism(args,instrument)
 MakeGrismPlot(np.rot90(grism),args,"_ideal",figsize=(fig_x*xaspect_ratio,fig_y),title="Ideal Grism")
 WriteFitsFile(grism,grism*0,args,"_ideal")
+WriteFitsFile(m0,grism*0,args,"_direct_image")
 
 
 print("Applying spatial smoothing to grism...")

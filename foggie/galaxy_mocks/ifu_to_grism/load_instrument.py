@@ -14,13 +14,18 @@ class beam:
 
         self.dydx = []
         
-        self.dldp = []
+        self.dldp = [None]*14
      
         self.dpdl = []
         
         self.dydx_order = None
         self.disp_order = None
-        
+
+
+        #For G280 v3.0 conf file
+        self.disp_x_coeff = [None]*14 #Max size in file
+        self.disp_y_coeff = [None]*14 
+
         
     def load_filter_sensitivity(self,filename):
         print("Loading filter sensitivity for",filename)
@@ -40,8 +45,21 @@ class beam:
             self.sensitivity_err[i] = sensitivity_data[i][2]
             
     def disp_x(self,i,j,dp):
+
+        if self.disp_x_coeff[0] is not None:
+            print("SELF.DISP_X_COEFF=",self.disp_x_coeff)
+            if np.max(np.abs(self.disp_x_coeff[0]))>0:
+                #print("Using G280 v3.0 dispersion coefficients")
+                dx = 0.0
+                for n in range(len(self.disp_x_coeff)):
+                    if self.disp_x_coeff[n] is None: continue
+                    b_n0,b_n1,b_n2,b_n3,b_n4,b_n5 = self.disp_x_coeff[n]
+                    b_n_ij = b_n0 + b_n1*i + b_n2*j + b_n3*i*i + b_n4*i*j + b_n5*j*j
+                    dx = dx + b_n_ij * np.power(dp,n)
+
+                return dx
         #print("disp_x set to ",dp)
-        #return dp
+        return dp
         
         #if self.dydx_1 is None: return dp #Zeroth moment
         b_10,b_11,b_12,b_13,b_14,b_15 = self.dydx[1]
@@ -51,7 +69,20 @@ class beam:
         return dx
         
     
-    def disp_y(self,i,j,dx):
+    def disp_y(self,i,j,dx,dp=None):
+        if self.disp_x_coeff[0] is not None:
+            if np.max(np.abs(self.disp_y_coeff[0]))>0:
+            #print("Using G280 v3.0 dispersion coefficients")
+                dy = 0.0
+                for n in range(len(self.disp_y_coeff)):
+                    if self.disp_x_coeff[n] is None: continue
+                    b_n0,b_n1,b_n2,b_n3,b_n4,b_n5 = self.disp_y_coeff[n]
+                    b_n_ij = b_n0 + b_n1*i + b_n2*j + b_n3*i*i + b_n4*i*j + b_n5*j*j
+                    dy = dy + b_n_ij * np.power(dp,n)
+
+                return dy
+
+
         if len(self.dydx)==2:
             b_00,b_01,b_02,b_03,b_04,b_05 = self.dydx[0]
             if self.dydx[1] is not None:
@@ -68,9 +99,10 @@ class beam:
         else:
             dy = 0
             for n in range(len(self.dydx)): #Calculate the nth order polynomial
-                b_n0,b_n1,b_n2,b_n3,b_n4,b_n5 = self.dydx[n]
-                b_n_ij = b_n0 + b_n1*i + b_n2*j + b_n3*i*i + b_n4*i*j + b_n5*j*j
-                dy = dy + b_n_ij * np.power(dx,n)
+                if self.dydx[n] is not None:
+                    b_n0,b_n1,b_n2,b_n3,b_n4,b_n5 = self.dydx[n]
+                    b_n_ij = b_n0 + b_n1*i + b_n2*j + b_n3*i*i + b_n4*i*j + b_n5*j*j
+                    dy = dy + b_n_ij * np.power(dx,n)
 
            # print("disp_y set to",dy)
             return dy
@@ -100,6 +132,7 @@ class beam:
         else:
             beta_n_ij = np.zeros((len(self.dldp)))
             for n in range(len(beta_n_ij)):
+                if self.dldp[n] is None: continue
                 beta_n0,beta_n1,beta_n2,beta_n3,beta_n4,beta_n5 = self.dldp[n] #Will be 0 if not defined in conf file
                 beta_n_ij[n] = beta_n0 + beta_n1*i + beta_n2*j + beta_n3*i*i + beta_n4*i*j + beta_n5*j*j
 
@@ -111,13 +144,14 @@ class beam:
                 tmp[0] = tmp[0] - wavelength[ll]  # Adjust the zeroth coefficient to account for the wavelength
                 #
                 roots = np.roots(tmp[::-1])  # Reverse the coefficients for np.roots
-                #print("roots=",roots)
                 # Return the real roots only
                 real_roots = roots[np.isreal(roots)].real
                 # Return the smallest positive root
                 positive_roots = real_roots[real_roots > 0]
                 if len(positive_roots) > 0:
-                    dp[ll] = np.min(positive_roots)
+                 #   dp[ll] = np.min(positive_roots)
+                    dp[ll] = np.min(real_roots)
+
                     #min_idx = np.argmin(np.abs(real_roots))
                     #dp[ll] = np.abs(real_roots[min_idx])
 
@@ -218,6 +252,8 @@ class _instrument:
             else:
                 nChip = 1 #or 2? Not really sure what the difference is or if it matters
                 filedir = root_directory+"/conf/"+instrument+".UVIS."+filter+".CHIP"+str(nChip)+".V2.5.conf"
+                #filedir = root_directory+"/conf/"+instrument+".UVIS."+filter+".CHIP"+str(nChip)+".V3.0.conf"
+
         if filedir is None:
             print("Warning: could not find configuration file for:",instrument,filter,dfilter)
         
@@ -315,9 +351,72 @@ class _instrument:
                     
                 if param=="XRANGE": self.xrange = np.array([values[1],values[2]]).astype(float)
                 if param=="YRANGE": self.yrange = np.array([values[1],values[2]]).astype(float)
-                    
-                    
 
+
+
+                ####Specific for the weird conf file for G280 v3.0
+                #A = +1
+                #B = +0
+                #C = +2
+                #E = -1
+                if param[:-2]=="DISPX_+1":
+                    i = int(param[-1:])
+                    self.beam_a.disp_x_coeff[i] = np.zeros((6))
+                    self.beam_a.disp_x_coeff[i][0:len(values[1:])]=np.array(values[1:]).astype(float)
+                    self.beam_b.disp_x_coeff[i] = np.zeros((6)) #Not present in these files...
+
+                    self.xrange = [-183.,1099.] #Not in these files...Not sure how important they are
+                    self.yrange = [-1.,1015.]
+                    self.beam_a.xoffset = -150. * 0 #Not in these files...Not sure how important they are
+                    self.beam_a.yoffset = 0.
+
+                if param[:-2]=="DISPY_+1":
+                    i = int(param[-1:])
+                    self.beam_a.disp_y_coeff[i] = np.zeros((6))
+                    self.beam_a.disp_y_coeff[i][0:len(values[1:])]=np.array(values[1:]).astype(float)
+                    self.beam_b.disp_y_coeff[i] = np.zeros((6)) #Not present in these files...
+                if param[:-2]=="DISPL_+1":
+                    i = int(param[-1:])
+                    self.beam_a.dldp[i] = np.zeros((6))
+                    self.beam_a.dldp[i][0:len(values[1:])]=np.array(values[1:]).astype(float)
+                    self.beam_b.dldp[i] = np.zeros((6)) #Not present in these files...
+                if param=="SENSITIVITY_+1":
+                    self.beam_a.load_filter_sensitivity(values[1])
+                    self.beam_b.load_filter_sensitivity(values[1]) #Not present in these files...
+
+                if param[:-2]=="DISPX_+2":
+                    i = int(param[-1:])
+                    self.beam_c.disp_x_coeff[i] = np.zeros((6))
+                    self.beam_c.disp_x_coeff[i][0:len(values[1:])]=np.array(values[1:]).astype(float)
+                    self.beam_c.xoffset = 0. #Not in these files...Not sure how important they are
+                    self.beam_c.yoffset = 231.90739 * 0
+                if param[:-2]=="DISPY_+2":
+                    i = int(param[-1:])
+                    self.beam_c.disp_y_coeff[i] = np.zeros((6))
+                    self.beam_c.disp_y_coeff[i][0:len(values[1:])]=np.array(values[1:]).astype(float)
+                if param[:-2]=="DISPL_+2":
+                    i = int(param[-1:])
+                    self.beam_c.dldp[i] = np.zeros((6))
+                    self.beam_c.dldp[i][0:len(values[1:])]=np.array(values[1:]).astype(float)
+                if param=="SENSITIVITY_+2":
+                    self.beam_c.load_filter_sensitivity(values[1])
+
+                if param[:-2]=="DISPX_-1":
+                    i = int(param[-1:])
+                    self.beam_e.disp_x_coeff[i] = np.zeros((6))
+                    self.beam_e.disp_x_coeff[i][0:len(values[1:])]=np.array(values[1:]).astype(float)
+                    self.beam_e.xoffset = 300. * 0 #Not in these files...Not sure how important they are
+                    self.beam_e.yoffset = 0
+                if param[:-2]=="DISPY_-1":
+                    i = int(param[-1:])
+                    self.beam_e.disp_y_coeff[i] = np.zeros((6))
+                    self.beam_e.disp_y_coeff[i][0:len(values[1:])]=np.array(values[1:]).astype(float)
+                if param[:-2]=="DISPL_-1":
+                    i = int(param[-1:])
+                    self.beam_e.dldp[i] = np.zeros((6))
+                    self.beam_e.dldp[i][0:len(values[1:])]=np.array(values[1:]).astype(float)
+                if param=="SENSITIVITY_-1":
+                    self.beam_e.load_filter_sensitivity(values[1])
 def load_instrument(args):
     if args.lambda_min < 0 or args.lambda_max < 0:
         print("Setting bandwidth to default for",args.instrument,"with filter",args.filter)
