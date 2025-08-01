@@ -16,6 +16,7 @@ To make a clean Enzo build using the enzo-foggie fork:
         > git clone https://github.com/grackle-project/grackle
         > cd grackle
         > git submodule update --init
+        > cd grackle
         > cmake -DCMAKE_INSTALL_PREFIX=/nobackup/<USERNAME>/grackle/build -DBUILD_SHARED_LIBS=ON 
         -B /nobackup/<USERNAME>/grackle/build
         > cmake --build /nobackup/<USERNAME>/grackle/build
