@@ -45,9 +45,9 @@ To make a clean Enzo build using the enzo-foggie fork:
 
     ``LOCAL_GRACKLE_INSTALL = /nobackup/<USERNAME>/grackle/build``
 
-    Change the line that says ``LOCAL_GRACKLE_LIBS`` to:
+    Change the line that says ``LOCAL_LIBS_GRACKLE`` to:
 
-    ``LOCAL_GRACKLE_LIBS = -L$(LOCAL_GRACKLE_INSTALL)/lib64 -lgrackle``
+    ``LOCAL_LIBS_GRACKLE = -L$(LOCAL_GRACKLE_INSTALL)/lib64 -lgrackle``
 
     Note that this ``Make.mach.pleiades-mpich`` file links to JT's mpich libraries. There should be no need to change this.
 
