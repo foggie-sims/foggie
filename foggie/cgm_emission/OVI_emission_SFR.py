@@ -94,7 +94,8 @@ def parse_args():
                         'den_vs_time        -  Plots a scatterplot of avg CGM density vs. time and redshift\n' + \
                         'sb_vs_Z            -  Plots a scatterplot of surface brightness vs. avg CGM metallicity\n' + \
                         'sb_vs_temp         -  Plots a scatterplot of surface brightness vs. avg CGM temperature\n' + \
-                        'histograms         -  Plots histograms of all gas and emission-weighted gas in density, temperature, and metallicity\n' + \
+                        'histograms         -  Plots histograms of all gas and emission-weighted gas in density, temperature, metallicity, radial velocity, and cooling time\n' + \
+                        'histograms_radbins -  Plots histograms of all gas and emission-weighted gas in density, temperature, metallicity, radial velocity, and cooling time in radial bins\n' + \
                         'emiss_area_vs_sfr  -  Plots a scatterplot of the fraction of the area with a surface brightness above the Aspera limit vs. SFR\n' + \
                         'emiss_area_vs_mh   -  Plots a scatterplot of the fraction of the area with a surface brightness above the Aspera limit vs. halo mass\n' + \
                         'emiss_area_vs_den  -  Plots a scatterplot of the fraction of the area with a surface brightness above the Aspera limit vs. average CGM density\n' + \
@@ -125,7 +126,7 @@ def parse_args():
     parser.set_defaults(file_suffix="")
 
     parser.add_argument('--weight', metavar='weight', type=str, action='store', \
-                        help='If calculating or plotting radial profiles, do you want to weight by mass or volume? Default is mass.')
+                        help='If calculating or plotting radial profiles or histograms, do you want to weight by mass or volume? Default is mass.')
     parser.set_defaults(weight="mass")
 
     args = parser.parse_args()
@@ -230,7 +231,7 @@ def make_rad_pdf_table():
     names_list = ['inner_radius', 'outer_radius', 'bin']
     types_list = ['f8', 'f8', 'f8']
 
-    for p in ['den', 'temp', 'met', 'rv']:
+    for p in ['den', 'temp', 'met', 'rv', 'tcool']:
         for i in ['all_', 'cgm_', 'OVI_']:
             for j in ['', '_inflow', '_outflow']:
                 names_list.append(i + p + j)
@@ -258,7 +259,7 @@ def make_rad_profile_table():
     names_list = ['inner_radius', 'outer_radius']
     types_list = ['f8', 'f8']
 
-    for p in ['den', 'temp', 'met', 'rv']:
+    for p in ['den', 'temp', 'met', 'rv', 'tcool']:
         for i in ['all_', 'cgm_', 'OVI_']:
             for j in ['', '_inflow', '_outflow']:
                 names_list.append(i + p + '_mean' + j)
@@ -529,7 +530,7 @@ def surface_brightness_profile(ds, refine_box, snap):
         plt.savefig(prefix + 'Profiles/' + snap + '_OVI_surface_brightness_profile_edge-on' + save_suffix + '.png')
 
 def weighted_radial_profiles(ds, refine_box, snap):
-    '''Makes radial profiles of density, temperature, metallicity, and radial velocity weighted by either volume (for all gas) or O VI emissivity.'''
+    '''Makes radial profiles of density, temperature, metallicity, radial velocity, and cooling time weighted by either volume (for all gas) or O VI emissivity.'''
 
     profile_table = make_rad_profile_table()
     pdf_table = make_rad_pdf_table()
@@ -553,6 +554,9 @@ def weighted_radial_profiles(ds, refine_box, snap):
     rv = sph['gas','radial_velocity_corrected'].in_units('km/s').v
     rv_in = sph_inflow['gas','radial_velocity_corrected'].in_units('km/s').v
     rv_out = sph_outflow['gas','radial_velocity_corrected'].in_units('km/s').v
+    tcool = sph['gas','cooling_time'].in_units('Myr').v
+    tcool_in = sph_inflow['gas','cooling_time'].in_units('Myr').v
+    tcool_out = sph_outflow['gas','cooling_time'].in_units('Myr').v
     emissivity = np.log10(sph['gas','Emission_OVI'].in_units(emission_units_ALT).v)
     emissivity_inflow = np.log10(sph_inflow['gas','Emission_OVI'].in_units(emission_units_ALT).v)
     emissivity_outflow = np.log10(sph_outflow['gas','Emission_OVI'].in_units(emission_units_ALT).v)
@@ -581,14 +585,14 @@ def weighted_radial_profiles(ds, refine_box, snap):
     cgm_in = (density_in < density_cut_factor * cgm_density_max)
     cgm_out = (density_out < density_cut_factor * cgm_density_max)
 
-    props = [np.log10(density), np.log10(temperature), np.log10(metallicity), rv]
-    props_in = [np.log10(density_in), np.log10(temperature_in), np.log10(metallicity_in), rv_in]
-    props_out = [np.log10(density_out), np.log10(temperature_out), np.log10(metallicity_out), rv_out]
-    props_hist = [np.log10(density), np.log10(temperature), np.log10(metallicity), rv/100.]
-    props_hist_in = [np.log10(density_in), np.log10(temperature_in), np.log10(metallicity_in), rv_in/100.]
-    props_hist_out = [np.log10(density_out), np.log10(temperature_out), np.log10(metallicity_out), rv_out/100.]
+    props = [np.log10(density), np.log10(temperature), np.log10(metallicity), rv, np.log10(tcool)]
+    props_in = [np.log10(density_in), np.log10(temperature_in), np.log10(metallicity_in), rv_in, np.log10(tcool_in)]
+    props_out = [np.log10(density_out), np.log10(temperature_out), np.log10(metallicity_out), rv_out, np.log10(tcool_out)]
+    props_hist = [np.log10(density), np.log10(temperature), np.log10(metallicity), rv/100., np.log10(tcool)]
+    props_hist_in = [np.log10(density_in), np.log10(temperature_in), np.log10(metallicity_in), rv_in/100., np.log10(tcool_in)]
+    props_hist_out = [np.log10(density_out), np.log10(temperature_out), np.log10(metallicity_out), rv_out/100., np.log10(tcool_out)]
 
-    ranges = [(-31,-23), (3,9), (-2.5,1.5), (-5,10)]
+    ranges = [(-31,-23), (3,9), (-2.5,1.5), (-5,10), (-2,7)]
 
     rbins = np.linspace(0., 50., 26)
     for r in range(len(rbins) + 1):
@@ -703,14 +707,15 @@ def weighted_radial_profiles(ds, refine_box, snap):
     pdf_table.write(prefix + 'Tables/' + snap + '_radial_pdf' + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
     rbin_centers = np.linspace(1., 49., 25)
-    ranges = [(-31,-23), (3,9), (-2.5,1.5), (-5,10)]
+    ranges = [(-31,-23), (3,9), (-2.5,1.5), (-5,10), (-2,7)]
     profiles = Table.read(prefix + 'Tables/' + snap + '_radial_profiles' + save_suffix + '.hdf5', path='all_data')
     for i in ['', '_inflow', '_outflow']:
-        fig = plt.figure(figsize=(20,5), dpi=250)
-        ax1 = fig.add_subplot(1,4,1)
-        ax2 = fig.add_subplot(1,4,2)
-        ax3 = fig.add_subplot(1,4,3)
-        ax4 = fig.add_subplot(1,4,4)
+        fig = plt.figure(figsize=(15,8), dpi=250)
+        ax1 = fig.add_subplot(2,3,1)
+        ax2 = fig.add_subplot(2,3,2)
+        ax3 = fig.add_subplot(2,3,3)
+        ax4 = fig.add_subplot(2,3,4)
+        ax5 = fig.add_subplot(2,3,5)
 
         ax1.plot(rbin_centers, profiles['cgm_den_med' + i][2:], 'k-', lw=2, label='CGM gas median')
         ax1.plot(rbin_centers, profiles['OVI_den_med' + i][2:], color='#db1d8f', ls='-', lw=2, label='O VI gas median')
@@ -719,10 +724,11 @@ def weighted_radial_profiles(ds, refine_box, snap):
         ax1.plot(rbin_centers, profiles['OVI_den_mean' + i][2:], color='#db1d8f', ls=':', lw=2, label='O VI gas mean')
         ax1.plot(rbin_centers, profiles['all_den_mean' + i][2:], 'k:', lw=2, alpha=0.5, label='All gas mean')
         ax1.axis([0,50,-31,-23])
-        ax1.set_xlabel('Radius [kpc]', fontsize=14)
         ax1.set_ylabel('log Gas Density [g/cm$^3$]', fontsize=14)
         ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
-                    top=True, right=True)
+                    top=True, right=True, labelbottom=False)
+        yticks = ax1.get_yticks()
+        ax1.set_yticks(yticks[1:])
         ax1.legend(loc=4, fontsize=12, frameon=False, ncol=2, columnspacing=1.2, handlelength=1.5)
 
         ax2.plot(rbin_centers, profiles['cgm_temp_med' + i][2:], 'k-', lw=2, label='CGM gas median')
@@ -732,10 +738,12 @@ def weighted_radial_profiles(ds, refine_box, snap):
         ax2.plot(rbin_centers, profiles['OVI_temp_mean' + i][2:], color='#db1d8f', ls=':', lw=2, label='O VI gas mean')
         ax2.plot(rbin_centers, profiles['all_temp_mean' + i][2:], 'k:', lw=2, alpha=0.5, label='All gas mean')
         ax2.axis([0,50,3,9])
-        ax2.set_xlabel('Radius [kpc]', fontsize=14)
         ax2.set_ylabel('log Gas Temperature [K]', fontsize=14)
         ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
-                    top=True, right=True)
+                    top=True, right=True, labelbottom=False)
+        yticks = ax2.get_yticks()
+        ax2.set_yticks(yticks[1:])
+        ax2.text(45, 8.5, halo_dict[args.halo], fontsize=14, va='top', ha='right')
         
         ax3.plot(rbin_centers, profiles['cgm_met_med' + i][2:], 'k-', lw=2, label='CGM gas median')
         ax3.plot(rbin_centers, profiles['OVI_met_med' + i][2:], color='#db1d8f', ls='-', lw=2, label='O VI gas median')
@@ -760,8 +768,21 @@ def weighted_radial_profiles(ds, refine_box, snap):
         ax4.set_ylabel(r'Gas Radial Velocity [km/s]', fontsize=14)
         ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                     top=True, right=True)
+        ax4.text(45, 900, '$z=%.2f$\n%.2f Gyr' % (ds.get_parameter('CosmologyCurrentRedshift'), ds.current_time.in_units('Gyr')), fontsize=14, va='top', ha='right')
         
-        plt.subplots_adjust(left=0.04, right=0.99, bottom=0.1, top=0.97, wspace=0.22)
+        ax5.plot(rbin_centers, profiles['cgm_tcool_med' + i][2:], 'k-', lw=2, label='CGM gas median')
+        ax5.plot(rbin_centers, profiles['OVI_tcool_med' + i][2:], color='#db1d8f', ls='-', lw=2, label='O VI gas median')
+        ax5.plot(rbin_centers, profiles['all_tcool_med' + i][2:], 'k-', alpha=0.5, lw=2, label='All gas median')
+        ax5.plot(rbin_centers, profiles['cgm_tcool_mean' + i][2:], 'k:', lw=2, label='CGM gas mean')
+        ax5.plot(rbin_centers, profiles['OVI_tcool_mean' + i][2:], color='#db1d8f', ls=':', lw=2, label='O VI gas mean')
+        ax5.plot(rbin_centers, profiles['all_tcool_mean' + i][2:], 'k:', lw=2, alpha=0.5, label='All gas mean')
+        ax5.axis([0,50,-2,7])
+        ax5.set_xlabel('Radius [kpc]', fontsize=14)
+        ax5.set_ylabel(r'Cooling Time [Myr]', fontsize=14)
+        ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    top=True, right=True)
+        
+        plt.subplots_adjust(left=0.06, right=0.99, bottom=0.08, top=0.97, wspace=0.22, hspace=0.)
         plt.savefig(prefix + 'Profiles/' + snap + '_OVI_weighted_radial_profile' + i + save_suffix + '.png')
         plt.close()
 
@@ -926,13 +947,16 @@ def surface_brightness_time_histogram(outs):
     time_list = []
     sb_hists_sections = []
     meds = []
+    means = []
     meds_sections = []
+    means_sections = []
     med_above_limit = []
     med_above_limit_sections = []
     sections = ['inflow','outflow','major','minor']
     for j in range(len(sections)):
         sb_hists_sections.append([])
         meds_sections.append([])
+        means_sections.append([])
         med_above_limit_sections.append([])
     for i in range(len(outs)):
         snap = outs[i]
@@ -940,18 +964,20 @@ def surface_brightness_time_histogram(outs):
         z_list.append(float(zlist[snaplist==snap]))
         sb_data = Table.read(table_loc + snap + '_SB_pdf' + file_suffix + '.hdf5', path='all_data')
         sb_stats = Table.read(table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
-        #sb_limit = Table.read(table_loc + snap + '_SB_profiles_new-table_Aspera-limit.hdf5', path='all_data')
+        sb_limit = Table.read(table_loc + snap + '_SB_profiles_new-table_Aspera-limit.hdf5', path='all_data')
         radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
         #sb_hists.append(sb_data['all'][radial_range]/6.4e5)     # Normalize by number of pixels in FRB (800x800)
         sb_hists.append(sb_data['all'][radial_range]/1.02e5)     # Normalize by number of pixels in FRB between -20 and 20 kpc in both directions (320x320)
         sb_hists[-1][sb_hists[-1]==np.nan] = 1e-5
         meds.append(sb_stats['all_med'][(sb_stats['inner_radius']==0.) & (sb_stats['outer_radius']==20.)])
-        #med_above_limit.append(sb_limit['all_med'][(sb_limit['inner_radius']==0.) & (sb_limit['outer_radius']==20.)])
+        means.append(sb_stats['all_mean'][(sb_stats['inner_radius']==0.) & (sb_stats['outer_radius']==20.)])
+        med_above_limit.append(sb_limit['all_med'][(sb_limit['inner_radius']==0.) & (sb_limit['outer_radius']==20.)])
         for j in range(len(sections)):
             #sb_hists_sections[j].append(sb_data[sections[j]][radial_range]/6.4e5)
             sb_hists_sections[j].append(sb_data[sections[j]][radial_range]/1.02e5)
             sb_hists_sections[j][-1][sb_hists[-1]==np.nan] = 1e-5
             meds_sections[j].append(sb_stats[sections[j] + '_med'][(sb_stats['inner_radius']==0.) & (sb_stats['outer_radius']==20.)])
+            means_sections[j].append(sb_stats[sections[j] + '_mean'][(sb_stats['inner_radius']==0.) & (sb_stats['outer_radius']==20.)])
             #med_above_limit_sections[j].append(sb_limit[sections[j] + '_med'][(sb_limit['inner_radius']==0.) & (sb_limit['outer_radius']==20.)])
 
     sb_hists = np.transpose(np.array(sb_hists))
@@ -968,7 +994,8 @@ def surface_brightness_time_histogram(outs):
     ax = fig.add_subplot(gs[0])
     im = ax.imshow(np.log10(sb_hists), origin='lower', aspect='auto', extent=[time_list[0], time_list[-1], sb_bins[0], sb_bins[-1]], cmap=cmap, vmin=-5, vmax=-0.5)
     ax.plot(time_list, meds, 'k-', lw=2, label='Median')
-    #ax.plot(time_list, med_above_limit, color='#00F5FF', ls='--', lw=2, label='Median above $10^{-19}$')
+    ax.plot(time_list, means, 'k:', lw=2, label='Mean')
+    ax.plot(time_list, med_above_limit, color='#00F5FF', ls='--', lw=2, label='Median above $10^{-19}$')
     ax.plot(time_list, np.zeros(len(time_list))-19, 'k-', lw=1)
     ax.text(6.25, -16.25, halo_dict[args.halo], fontsize=16, ha='left', va='top', color='w')
     ax.axis([time_list[0], time_list[-1], -23, sb_bins[-1]])
@@ -976,6 +1003,7 @@ def surface_brightness_time_histogram(outs):
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=False, right=True)
     ax.set_xticklabels([])
+    ax.set_yticks([-22,-21,-20,-19,-18,-17])
     ax.legend(loc=1, fontsize=14, ncols=2)
 
     pos = ax.get_position()
@@ -1007,12 +1035,13 @@ def surface_brightness_time_histogram(outs):
 
     ax_sfr = fig.add_subplot(gs[1])
     ax_sfr.plot(sfr_time, sfr, 'k-', lw=1)
-    ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 75])
+    ax_sfr.axis([np.min(time_list), np.max(time_list), 0.1, 100])
+    ax_sfr.set_yscale('log')
     ax_sfr.set_xlabel('Time [Gyr]', fontsize=16)
     ax_sfr.set_ylabel(r'SFR [$M_\odot$/yr]', fontsize=16)
     ax_sfr.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
-    ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
+    #ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
 
     plt.savefig(prefix + 'OVI_SB_histogram_vs_time' + save_suffix + '.png')
     plt.close()
@@ -1025,6 +1054,7 @@ def surface_brightness_time_histogram(outs):
         ax = fig.add_subplot(gs[0])
         im = ax.imshow(np.log10(sb_hists_sections[j]), origin='lower', aspect='auto', extent=[time_list[0], time_list[-1], sb_bins[0], sb_bins[-1]], cmap=cmap, vmin=-5, vmax=-0.5)
         ax.plot(time_list, meds_sections[j], 'k-', lw=2, label='Median')
+        ax.plot(time_list, means_sections[j], 'k:', lw=2, label='Mean')
         #ax.plot(time_list, med_above_limit_sections[j], color='#00F5FF', ls='--', lw=2, label='Median above $10^{-19}$')
         ax.plot(time_list, np.zeros(len(time_list))-19, 'k-', lw=1)
         ax.text(6.25, -16.25, halo_dict[args.halo]+'\n'+section_labels[j], fontsize=14, ha='left', va='top', color='w')
@@ -1033,6 +1063,7 @@ def surface_brightness_time_histogram(outs):
         ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=False, right=True)
         ax.set_xticklabels([])
+        ax.set_yticks([-22,-21,-20,-19,-18,-17])
         ax.legend(loc=1, fontsize=14, ncols=2)
 
         pos = ax.get_position()
@@ -1059,12 +1090,13 @@ def surface_brightness_time_histogram(outs):
 
         ax_sfr = fig.add_subplot(gs[1])
         ax_sfr.plot(sfr_time, sfr, 'k-', lw=1)
-        ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 75])
+        ax_sfr.axis([np.min(time_list), np.max(time_list), 0.1, 100])
+        ax_sfr.set_yscale('log')
         ax_sfr.set_xlabel('Time [Gyr]', fontsize=16)
         ax_sfr.set_ylabel(r'SFR [$M_\odot$/yr]', fontsize=16)
         ax_sfr.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                     top=True, right=True)
-        ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
+        #ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
 
         plt.savefig(prefix + 'OVI_SB_histogram_vs_time_' + sections[j] + save_suffix + '.png')
         plt.close()
@@ -1212,7 +1244,6 @@ def sb_vs_sfr(halos, outs):
     fig = plt.figure(figsize=(7,5),dpi=250)
     ax = fig.add_subplot(1,1,1)
     #halo_names = ['Tempest', 'Tempest (no feedback)', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
-    alphas = np.linspace(1., 0.1, 10)
     halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
     halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
     for h in range(len(halo_names)):
@@ -1235,15 +1266,23 @@ def sb_vs_sfr(halos, outs):
 
         SB_med_list = np.array(SB_med_list)
         SFR_list = np.array(SFR_list)
-        ax.scatter(SFR_list, SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        color_list = [halo_colors[h]] * len(SFR_list)
+        alphas = np.linspace(0.1, 1.0, len(SFR_list))
+        color_alpha_list = [mcolors.to_rgba(c, alpha=a) for c, a in zip(color_list, alphas)]
+        ax.scatter(SFR_list, SB_med_list, marker='.', s=60, fc=color_alpha_list, ec='none')
         
     ax.set_xlabel(r'Star formation rate [$M_\odot$/yr]', fontsize=14)
     ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
+    ax.set_xscale('log')
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
     if (args.Aspera_limit): ax.axis([-5,100,-19,-18])
-    else: ax.axis([-5,100,-21.,-18])
-    ax.legend(loc=4, fontsize=14, ncols=2)
+    else: ax.axis([0.1,100,-21.,-18.5])
+    ax.text(0.05, 0.95, halo_names[0], fontsize=14, weight='semibold', c=halo_colors[0], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.89, halo_names[1], fontsize=14, weight='semibold', c=halo_colors[1], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.83, halo_names[2], fontsize=14, weight='semibold', c=halo_colors[2], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.95, halo_names[3], fontsize=14, weight='semibold', c=halo_colors[3], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.89, halo_names[4], fontsize=14, weight='semibold', c=halo_colors[4], ha='left', va='top', transform=ax.transAxes)
     fig.subplots_adjust(left=0.14, bottom=0.13, top=0.95, right=0.97)
     fig.savefig(prefix + 'OVI_SB_vs_SFR' + save_suffix + '.png')
 
@@ -1273,15 +1312,22 @@ def sb_vs_Mh(halos, outs):
 
         SB_med_list = np.array(SB_med_list)
         mvir_list = np.array(mvir_list)
-        ax.scatter(np.log10(mvir_list), SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        color_list = [halo_colors[h]] * len(mvir_list)
+        alphas = np.linspace(0.1, 1.0, len(mvir_list))
+        color_alpha_list = [mcolors.to_rgba(c, alpha=a) for c, a in zip(color_list, alphas)]
+        ax.scatter(np.log10(mvir_list), SB_med_list, marker='.', s=60, fc=color_alpha_list, ec='none')
         
     ax.set_xlabel(r'log Halo mass [$M_\odot$]', fontsize=14)
     ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
-    ax.legend(loc=2, ncols=2, fontsize=14)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
     if (args.Aspera_limit): ax.axis([11.5,12.25,-19,-18])
-    else: ax.axis([11.5,12.25,-21.,-18])
+    else: ax.axis([11.5,12.25,-21.,-18.5])
+    ax.text(0.05, 0.95, halo_names[0], fontsize=14, weight='semibold', c=halo_colors[0], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.89, halo_names[1], fontsize=14, weight='semibold', c=halo_colors[1], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.83, halo_names[2], fontsize=14, weight='semibold', c=halo_colors[2], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.95, halo_names[3], fontsize=14, weight='semibold', c=halo_colors[3], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.89, halo_names[4], fontsize=14, weight='semibold', c=halo_colors[4], ha='left', va='top', transform=ax.transAxes)
     fig.subplots_adjust(left=0.14, bottom=0.13, top=0.95, right=0.97)
     plt.savefig(prefix + 'OVI_SB_vs_Mh' + save_suffix + '.png')
 
@@ -1314,15 +1360,22 @@ def sb_vs_den(halos, outs):
 
         SB_med_list = np.array(SB_med_list)
         den_list = np.array(den_list)
-        ax.scatter(np.log10(den_list), SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        color_list = [halo_colors[h]] * len(den_list)
+        alphas = np.linspace(0.1, 1.0, len(den_list))
+        color_alpha_list = [mcolors.to_rgba(c, alpha=a) for c, a in zip(color_list, alphas)]
+        ax.scatter(np.log10(den_list), SB_med_list, marker='.', s=60, fc=color_alpha_list, ec='none')
         
     ax.set_xlabel('log Mean CGM Density [g cm$^{-3}$]', fontsize=14)
     ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
-    ax.legend(loc=2, ncols=2, fontsize=14)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
     if (args.Aspera_limit): ax.axis([-28.2,-26,-19,-18])
-    else: ax.axis([-28.2,-26,-21.,-18])
+    else: ax.axis([-28.2,-26,-21.,-18.5])
+    ax.text(0.05, 0.95, halo_names[0], fontsize=14, weight='semibold', c=halo_colors[0], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.89, halo_names[1], fontsize=14, weight='semibold', c=halo_colors[1], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.83, halo_names[2], fontsize=14, weight='semibold', c=halo_colors[2], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.95, halo_names[3], fontsize=14, weight='semibold', c=halo_colors[3], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.89, halo_names[4], fontsize=14, weight='semibold', c=halo_colors[4], ha='left', va='top', transform=ax.transAxes)
     fig.subplots_adjust(left=0.14, bottom=0.13, top=0.95, right=0.97)
     plt.savefig(prefix + 'OVI_SB_vs_den' + save_suffix + '.png')
 
@@ -1438,15 +1491,22 @@ def sb_vs_Z(halos, outs):
 
         SB_med_list = np.array(SB_med_list)
         Z_list = np.array(Z_list)
-        ax.scatter(np.log10(Z_list), SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        color_list = [halo_colors[h]] * len(Z_list)
+        alphas = np.linspace(0.1, 1.0, len(Z_list))
+        color_alpha_list = [mcolors.to_rgba(c, alpha=a) for c, a in zip(color_list, alphas)]
+        ax.scatter(np.log10(Z_list), SB_med_list, marker='.', s=60, fc=color_alpha_list, ec='none')
         
     ax.set_xlabel(r'log Mean CGM Metallicity [$Z_\odot$]', fontsize=14)
     ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
-    ax.legend(loc=2, ncols=2, fontsize=14)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
     if (args.Aspera_limit): ax.axis([-2.5,1,-19,-18])
-    else: ax.axis([-2.5,1,-21.,-18])
+    else: ax.axis([-1.5,1,-21.,-18.5])
+    ax.text(0.05, 0.95, halo_names[0], fontsize=14, weight='semibold', c=halo_colors[0], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.89, halo_names[1], fontsize=14, weight='semibold', c=halo_colors[1], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.83, halo_names[2], fontsize=14, weight='semibold', c=halo_colors[2], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.95, halo_names[3], fontsize=14, weight='semibold', c=halo_colors[3], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.89, halo_names[4], fontsize=14, weight='semibold', c=halo_colors[4], ha='left', va='top', transform=ax.transAxes)
     fig.subplots_adjust(left=0.14, bottom=0.13, top=0.95, right=0.97)
     plt.savefig(prefix + 'OVI_SB_vs_Z' + save_suffix + '.png')
 
@@ -1561,15 +1621,22 @@ def sb_vs_temp(halos, outs):
 
         SB_med_list = np.array(SB_med_list)
         Z_list = np.array(Z_list)
-        ax.scatter(np.log10(Z_list), SB_med_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        color_list = [halo_colors[h]] * len(Z_list)
+        alphas = np.linspace(0.1, 1.0, len(Z_list))
+        color_alpha_list = [mcolors.to_rgba(c, alpha=a) for c, a in zip(color_list, alphas)]
+        ax.scatter(np.log10(Z_list), SB_med_list, marker='.', s=60, fc=color_alpha_list, ec='none')
         
     ax.set_xlabel('log Mean CGM Temperature [K]', fontsize=14)
     ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
-    ax.legend(loc=2, ncols=2, fontsize=14)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
     if (args.Aspera_limit): ax.axis([5.5,7.25,-19,-18])
-    else: ax.axis([5.5,7.25,-21.,-18])
+    else: ax.axis([5.5,7.25,-21.,-18.5])
+    ax.text(0.05, 0.95, halo_names[0], fontsize=14, weight='semibold', c=halo_colors[0], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.89, halo_names[1], fontsize=14, weight='semibold', c=halo_colors[1], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.83, halo_names[2], fontsize=14, weight='semibold', c=halo_colors[2], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.95, halo_names[3], fontsize=14, weight='semibold', c=halo_colors[3], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.89, halo_names[4], fontsize=14, weight='semibold', c=halo_colors[4], ha='left', va='top', transform=ax.transAxes)
     fig.subplots_adjust(left=0.14, bottom=0.13, top=0.95, right=0.97)
     plt.savefig(prefix + 'OVI_SB_vs_temp' + save_suffix + '.png')
 
@@ -1935,13 +2002,13 @@ def emiss_area_vs_Z(halos, outs):
     fig.subplots_adjust(left=0.1, bottom=0.12, top=0.93, right=0.98)
     fig.savefig(prefix + 'fractional-area-above-limit_vs_Z' + save_suffix + '.png')
 
-def hists_den_temp_Z_rv(ds, refine_box, snap):
-    '''Plots histograms of pixel densities, temperatures, metallicities, and radial velocities along with
+def hists_den_temp_Z_rv_tcool(ds, refine_box, snap):
+    '''Plots histograms of pixel densities, temperatures, metallicities, radial velocities, and cooling times along with
     emissivity-weighted histograms.'''
 
     sph = ds.sphere(center=ds.halo_center_kpc, radius=(20., 'kpc'))
     sph_inflow = sph.include_below(('gas','radial_velocity_corrected'), -100.)
-    sph_outflow = sph.include_above(('gas','radial_velocity_corrected'), 200.)
+    sph_outflow = sph.include_above(('gas','radial_velocity_corrected'), 100.)
 
     densities = sph['gas','density'].in_units('g/cm**3').v
     densities_inflow = sph_inflow['gas','density'].in_units('g/cm**3').v
@@ -1955,12 +2022,20 @@ def hists_den_temp_Z_rv(ds, refine_box, snap):
     rvs = sph['gas','radial_velocity_corrected'].in_units('km/s').v
     rvs_inflow = sph_inflow['gas','radial_velocity_corrected'].in_units('km/s').v
     rvs_outflow = sph_outflow['gas','radial_velocity_corrected'].in_units('km/s').v
+    tcools = sph['gas','cooling_time'].in_units('Myr').v
+    tcools_inflow = sph_inflow['gas','cooling_time'].in_units('Myr').v
+    tcools_outflow = sph_outflow['gas','cooling_time'].in_units('Myr').v
     emissivities = sph['gas','Emission_OVI'].in_units(emission_units_ALT).v
     emissivities_inflow = sph_inflow['gas','Emission_OVI'].in_units(emission_units_ALT).v
     emissivities_outflow = sph_outflow['gas','Emission_OVI'].in_units(emission_units_ALT).v
-    volumes = sph['gas','cell_volume'].in_units('kpc**3').v
-    volumes_inflow = sph_inflow['gas','cell_volume'].in_units('kpc**3').v
-    volumes_outflow = sph_outflow['gas','cell_volume'].in_units('kpc**3').v
+    if (args.weight=='volume'):
+        weights = np.log10(sph['gas','cell_volume'].in_units('kpc**3').v)
+        weights_inflow = np.log10(sph_inflow['gas','cell_volume'].in_units('kpc**3').v)
+        weights_outflow = np.log10(sph_outflow['gas','cell_volume'].in_units('kpc**3').v)
+    else:
+        weights = np.log10(sph['gas','cell_mass'].in_units('Msun').v)
+        weights_inflow = np.log10(sph_inflow['gas','cell_mass'].in_units('Msun').v)
+        weights_outflow = np.log10(sph_outflow['gas','cell_mass'].in_units('Msun').v)
 
     for i in range(4):
         if (i==0):
@@ -1968,8 +2043,9 @@ def hists_den_temp_Z_rv(ds, refine_box, snap):
             temperature = temperatures
             metallicity = metallicities
             rv = rvs
+            tcool = tcools
             emissivity = emissivities
-            volume = volumes
+            weight = weights
             flow_file = ''
             gas_label = 'All gas'
             OVI_label = 'O VI emitting gas'
@@ -1978,8 +2054,9 @@ def hists_den_temp_Z_rv(ds, refine_box, snap):
             temperature = temperatures_inflow
             metallicity = metallicities_inflow
             rv = rvs_inflow
+            tcool = tcools_inflow
             emissivity = emissivities_inflow
-            volume = volumes_inflow
+            weight = weights_inflow
             flow_file = '_inflow'
             gas_label = 'Inflowing gas'
             OVI_label = 'Inflowing O VI'
@@ -1988,46 +2065,48 @@ def hists_den_temp_Z_rv(ds, refine_box, snap):
             temperature = temperatures_outflow
             metallicity = metallicities_outflow
             rv = rvs_outflow
+            tcool = tcools_outflow
             emissivity = emissivities_outflow
-            volume = volumes_outflow
+            weight = weights_outflow
             flow_file = '_outflow'
             gas_label = 'Outflowing gas'
             OVI_label = 'Outflowing O VI'
         if (i==3):
             flow_file = '_inflow-outflow'
 
-        fig = plt.figure(figsize=(20,6), dpi=250)
-        ax1 = fig.add_subplot(1,4,1)
-        ax2 = fig.add_subplot(1,4,2)
-        ax3 = fig.add_subplot(1,4,3)
-        ax4 = fig.add_subplot(1,4,4)
+        fig = plt.figure(figsize=(15,10), dpi=250)
+        ax1 = fig.add_subplot(2,3,1)
+        ax2 = fig.add_subplot(2,3,2)
+        ax3 = fig.add_subplot(2,3,3)
+        ax4 = fig.add_subplot(2,3,4)
+        ax5 = fig.add_subplot(2,3,5)
 
         if (i<3):
-            ax1.hist(np.log10(density), weights=volume, bins=50, range=(-31,-23), density=True, histtype='stepfilled', lw=2, ls='-', ec=(0,0,0,1), fc=(0,0,0,0.2), label=gas_label)
+            ax1.hist(np.log10(density), weights=weight, bins=50, range=(-31,-23), density=True, histtype='stepfilled', lw=2, ls='-', ec=(0,0,0,1), fc=(0,0,0,0.2), label=gas_label)
             ax1.hist(np.log10(density), weights=emissivity, bins=50, range=(-31,-23), density=True, histtype='stepfilled', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.2), ec=(219/250., 29/250., 143/250., 1), label=OVI_label)
             ax1.legend(loc=2, frameon=False, fontsize=12)
         else:
-            ax1.hist(np.log10(densities_inflow), weights=volumes_inflow, bins=50, range=(-31,-23), density=True, histtype='step', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
-            ax1.hist(np.log10(densities_outflow), weights=volumes_outflow, bins=50, range=(-31,-23), density=True, histtype='step', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
+            ax1.hist(np.log10(densities_inflow), weights=weights_inflow, bins=50, range=(-31,-23), density=True, histtype='step', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
+            ax1.hist(np.log10(densities_outflow), weights=weights_outflow, bins=50, range=(-31,-23), density=True, histtype='step', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
             ax1.hist(np.log10(densities_inflow), weights=emissivities_inflow, bins=50, range=(-31,-23), density=True, histtype='stepfilled', lw=2, ls='--', fc=(162/250., 29/250., 219/250., 0.2), ec=(162/250., 29/250., 219/250., 1), label='Inflowing O VI')
             ax1.hist(np.log10(densities_outflow), weights=emissivities_outflow, bins=50, range=(-31,-23), density=True, histtype='stepfilled', lw=2, ls=':', fc=(247/250.,211/250.,111/250., 0.2), ec=(247/250.,211/250.,111/250.,1), label='Outflowing O VI')
             ax1.legend(loc=2, fontsize=12, ncol=2)
         ax1.set_yscale('log')
         ax1.set_ylim(1e-3,10)
-        ax1.set_xlabel('Density [g/cm$^3$]', fontsize=14)
+        ax1.set_xlabel('log Density [g/cm$^3$]', fontsize=14)
         ax1.set_ylabel('PDF', fontsize=14)
         ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
         
         if (i<3):
-            ax2.hist(np.log10(temperature), weights=volume, bins=50, range=(3,9), density=True, histtype='stepfilled', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.3))
+            ax2.hist(np.log10(temperature), weights=weight, bins=50, range=(3,9), density=True, histtype='stepfilled', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.3))
             ax2.hist(np.log10(temperature), weights=emissivity, bins=50, range=(3,9), density=True, histtype='stepfilled', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1))
         else:
-            ax2.hist(np.log10(temperatures_inflow), weights=volumes_inflow, bins=50, range=(3,9), density=True, histtype='step', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
-            ax2.hist(np.log10(temperatures_outflow), weights=volumes_outflow, bins=50, range=(3,9), density=True, histtype='step', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
+            ax2.hist(np.log10(temperatures_inflow), weights=weights_inflow, bins=50, range=(3,9), density=True, histtype='step', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
+            ax2.hist(np.log10(temperatures_outflow), weights=weights_outflow, bins=50, range=(3,9), density=True, histtype='step', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
             ax2.hist(np.log10(temperatures_inflow), weights=emissivities_inflow, bins=50, range=(3,9), density=True, histtype='stepfilled', lw=2, ls='--', fc=(162/250., 29/250., 219/250., 0.2), ec=(162/250., 29/250., 219/250., 1), label='Inflowing O VI')
             ax2.hist(np.log10(temperatures_outflow), weights=emissivities_outflow, bins=50, range=(3,9), density=True, histtype='stepfilled', lw=2, ls=':', fc=(247/250.,211/250.,111/250., 0.2), ec=(247/250.,211/250.,111/250.,1), label='Outflowing O VI')
-        ax2.set_xlabel('Temperature [K]', fontsize=14)
+        ax2.set_xlabel('log Temperature [K]', fontsize=14)
         ax2.set_yscale('log')
         ax2.set_ylim(1e-3,10)
         ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
@@ -2035,14 +2114,14 @@ def hists_den_temp_Z_rv(ds, refine_box, snap):
         ax2.text(8.8, 6, halo_dict[args.halo], fontsize=14, va='top', ha='right')
         
         if (i<3):
-            ax3.hist(np.log10(metallicity), weights=volume, bins=50, range=(-2.5,1.5), density=True, histtype='stepfilled', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.3))
+            ax3.hist(np.log10(metallicity), weights=weight, bins=50, range=(-2.5,1.5), density=True, histtype='stepfilled', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.3))
             ax3.hist(np.log10(metallicity), weights=emissivity, bins=50, range=(-2.5,1.5), density=True, histtype='stepfilled', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1))
         else:
-            ax3.hist(np.log10(metallicities_inflow), weights=volumes_inflow, bins=50, range=(-2.5,1.5), density=True, histtype='step', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
-            ax3.hist(np.log10(metallicities_outflow), weights=volumes_outflow, bins=50, range=(-2.5,1.5), density=True, histtype='step', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
+            ax3.hist(np.log10(metallicities_inflow), weights=weights_inflow, bins=50, range=(-2.5,1.5), density=True, histtype='step', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
+            ax3.hist(np.log10(metallicities_outflow), weights=weights_outflow, bins=50, range=(-2.5,1.5), density=True, histtype='step', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
             ax3.hist(np.log10(metallicities_inflow), weights=emissivities_inflow, bins=50, range=(-2.5,1.5), density=True, histtype='stepfilled', lw=2, ls='--', fc=(162/250., 29/250., 219/250., 0.2), ec=(162/250., 29/250., 219/250., 1), label='Inflowing O VI')
             ax3.hist(np.log10(metallicities_outflow), weights=emissivities_outflow, bins=50, range=(-2.5,1.5), density=True, histtype='stepfilled', lw=2, ls=':', fc=(247/250.,211/250.,111/250., 0.2), ec=(247/250.,211/250.,111/250.,1), label='Outflowing O VI')
-        ax3.set_xlabel(r'Metallicity [$Z_\odot$]', fontsize=14)
+        ax3.set_xlabel(r'log Metallicity [$Z_\odot$]', fontsize=14)
         ax3.set_yscale('log')
         ax3.set_ylim(1e-3,10)
         ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
@@ -2050,11 +2129,11 @@ def hists_den_temp_Z_rv(ds, refine_box, snap):
         ax3.text(-2.4, 6, '$z=%.2f$\n%.2f Gyr' % (ds.get_parameter('CosmologyCurrentRedshift'), ds.current_time.in_units('Gyr')), fontsize=14, va='top', ha='left')
 
         if (i<3):
-            ax4.hist(rv/100., bins=50, weights=volume, range=(-5,10), density=True, histtype='stepfilled', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.3))
+            ax4.hist(rv/100., bins=50, weights=weight, range=(-5,10), density=True, histtype='stepfilled', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.3))
             ax4.hist(rv/100., weights=emissivity, bins=50, range=(-5,10), density=True, histtype='stepfilled', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1))
         else:
-            ax4.hist(rvs_inflow/100., bins=50, weights=volumes_inflow, range=(-5,10), density=True, histtype='step', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
-            ax4.hist(rvs_outflow/100., bins=50, weights=volumes_outflow, range=(-5,10), density=True, histtype='step', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
+            ax4.hist(rvs_inflow/100., bins=50, weights=weights_inflow, range=(-5,10), density=True, histtype='step', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
+            ax4.hist(rvs_outflow/100., bins=50, weights=weights_outflow, range=(-5,10), density=True, histtype='step', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
             ax4.hist(rvs_inflow/100., weights=emissivities_inflow, bins=50, range=(-5,10), density=True, histtype='stepfilled', lw=2, ls='--', fc=(162/250., 29/250., 219/250., 0.2), ec=(162/250., 29/250., 219/250., 1), label='Inflowing O VI')
             ax4.hist(rvs_outflow/100., weights=emissivities_outflow, bins=50, range=(-5,10), density=True, histtype='stepfilled', lw=2, ls=':', fc=(247/250.,211/250.,111/250., 0.2), ec=(247/250.,211/250.,111/250.,1), label='Outflowing O VI')
         ax4.set_xlabel(r'Radial velocity [km/s]', fontsize=14)
@@ -2062,12 +2141,322 @@ def hists_den_temp_Z_rv(ds, refine_box, snap):
         ax4.set_ylim(1e-3,10)
         ax4.set_xticks([-4, -2, 0, 2, 4, 6, 8, 10])
         ax4.set_xticklabels(['$-400$', '$-200$', '$0$', '$200$', '$400$', '$600$', '$800$', '$1000$'])
+        ax4.set_ylabel('PDF', fontsize=14)
         ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                top=True, right=True)
+        
+        if (i<3):
+            ax5.hist(np.log10(tcool), bins=50, weights=weight, range=(-2,7), density=True, histtype='stepfilled', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.3))
+            ax5.hist(np.log10(tcool), weights=emissivity, bins=50, range=(-2,7), density=True, histtype='stepfilled', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1))
+        else:
+            ax5.hist(np.log10(tcools_inflow), bins=50, weights=weights_inflow, range=(-2,7), density=True, histtype='step', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
+            ax5.hist(np.log10(tcools_outflow), bins=50, weights=weights_outflow, range=(-2,7), density=True, histtype='step', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
+            ax5.hist(np.log10(tcools_inflow), weights=emissivities_inflow, bins=50, range=(-2,7), density=True, histtype='stepfilled', lw=2, ls='--', fc=(162/250., 29/250., 219/250., 0.2), ec=(162/250., 29/250., 219/250., 1), label='Inflowing O VI')
+            ax5.hist(np.log10(tcools_outflow), weights=emissivities_outflow, bins=50, range=(-2,7), density=True, histtype='stepfilled', lw=2, ls=':', fc=(247/250.,211/250.,111/250., 0.2), ec=(247/250.,211/250.,111/250.,1), label='Outflowing O VI')
+        ax5.set_xlabel(r'log Cooling time [Myr]', fontsize=14)
+        ax5.set_yscale('log')
+        ax5.set_ylim(1e-3,10)
+        ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True, labelleft=False)
         
         plt.tight_layout()
         plt.subplots_adjust(wspace=0.)
-        plt.savefig(prefix + snap + '_gas-hist_OVI' + flow_file + save_suffix + '.png')
+        plt.savefig(prefix + 'Histograms/' + snap + '_gas-hist_OVI' + flow_file + save_suffix + '.png')
+
+def hists_rad_bins(ds, refine_box, snap):
+    '''Plots histograms of pixel densities, temperatures, metallicities, radial velocities, and cooling times along with
+    emissivity-weighted histograms, in a few radial bins to see the radial profile.'''
+
+    sph = ds.sphere(center=ds.halo_center_kpc, radius=(50., 'kpc'))
+    sph_inflow = sph.include_below(('gas','radial_velocity_corrected'), -100.)
+    sph_outflow = sph.include_above(('gas','radial_velocity_corrected'), 100.)
+    
+
+    radii = sph['gas','radius_corrected'].in_units('kpc').v
+    radii_inflow = sph_inflow['gas','radius_corrected'].in_units('kpc').v
+    radii_outflow = sph_outflow['gas','radius_corrected'].in_units('kpc').v
+
+    densities = sph['gas','density'].in_units('g/cm**3').v
+    densities_inflow = sph_inflow['gas','density'].in_units('g/cm**3').v
+    densities_outflow = sph_outflow['gas','density'].in_units('g/cm**3').v
+    temperatures = sph['gas','temperature'].in_units('K').v
+    temperatures_inflow = sph_inflow['gas','temperature'].in_units('K').v
+    temperatures_outflow = sph_outflow['gas','temperature'].in_units('K').v
+    metallicities = sph['gas','metallicity'].in_units('Z_sun').v
+    metallicities_inflow = sph_inflow['gas','metallicity'].in_units('Zsun').v
+    metallicities_outflow = sph_outflow['gas','metallicity'].in_units('Zsun').v
+    rvs = sph['gas','radial_velocity_corrected'].in_units('km/s').v
+    rvs_inflow = sph_inflow['gas','radial_velocity_corrected'].in_units('km/s').v
+    rvs_outflow = sph_outflow['gas','radial_velocity_corrected'].in_units('km/s').v
+    tcools = sph['gas','cooling_time'].in_units('Myr').v
+    tcools_inflow = sph_inflow['gas','cooling_time'].in_units('Myr').v
+    tcools_outflow = sph_outflow['gas','cooling_time'].in_units('Myr').v
+    emissivities = sph['gas','Emission_OVI'].in_units(emission_units_ALT).v
+    emissivities_inflow = sph_inflow['gas','Emission_OVI'].in_units(emission_units_ALT).v
+    emissivities_outflow = sph_outflow['gas','Emission_OVI'].in_units(emission_units_ALT).v
+    if (args.weight=='volume'):
+        weights = np.log10(sph['gas','cell_volume'].in_units('kpc**3').v)
+        weights_inflow = np.log10(sph_inflow['gas','cell_volume'].in_units('kpc**3').v)
+        weights_outflow = np.log10(sph_outflow['gas','cell_volume'].in_units('kpc**3').v)
+    else:
+        weights = np.log10(sph['gas','cell_mass'].in_units('Msun').v)
+        weights_inflow = np.log10(sph_inflow['gas','cell_mass'].in_units('Msun').v)
+        weights_outflow = np.log10(sph_outflow['gas','cell_mass'].in_units('Msun').v)
+
+    #print(np.min(emissivities), np.max(emissivities))
+    #emissivities[emissivities < 1e-300] = np.nan
+    #print(np.nanmin(emissivities), np.nanmax(emissivities), np.nanmedian(emissivities), np.nanmean(emissivities))
+    #plt.hist(np.log10(emissivities), bins=300)
+    #plt.show()
+
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=7091.48):
+        density_cut_factor = 20. - 19.*current_time/7091.48
+    elif (current_time<=8656.88):
+        density_cut_factor = 1.
+    elif (current_time<=10787.12):
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
+    #cgm = (densities < density_cut_factor * cgm_density_max)
+    #cgm_in = (densities_inflow < density_cut_factor * cgm_density_max)
+    #cgm_out = (densities_outflow < density_cut_factor * cgm_density_max)
+    cgm = (densities > 0.)
+    cgm_in = (densities_inflow > 0.)
+    cgm_out = (densities_outflow > 0.)
+
+    for i in range(4):
+        if (i==0):
+            radius = radii[cgm]
+            density = densities[cgm]
+            temperature = temperatures[cgm]
+            metallicity = metallicities[cgm]
+            rv = rvs[cgm]
+            tcool = tcools[cgm]
+            emissivity = emissivities[cgm]
+            weight = weights[cgm]
+            flow_file = ''
+            gas_label = 'All gas'
+            OVI_label = 'O VI emitting gas'
+        if (i==1):
+            radius = radii_inflow[cgm_in]
+            density = densities_inflow[cgm_in]
+            temperature = temperatures_inflow[cgm_in]
+            metallicity = metallicities_inflow[cgm_in]
+            rv = rvs_inflow[cgm_in]
+            tcool = tcools_inflow[cgm_in]
+            emissivity = emissivities_inflow[cgm_in]
+            weight = weights_inflow[cgm_in]
+            flow_file = '_inflow'
+            gas_label = 'Inflowing gas'
+            OVI_label = 'Inflowing O VI'
+        if (i==2):
+            radius = radii_outflow[cgm_out]
+            density = densities_outflow[cgm_out]
+            temperature = temperatures_outflow[cgm_out]
+            metallicity = metallicities_outflow[cgm_out]
+            rv = rvs_outflow[cgm_out]
+            tcool = tcools_outflow[cgm_out]
+            emissivity = emissivities_outflow[cgm_out]
+            weight = weights_outflow[cgm_out]
+            flow_file = '_outflow'
+            gas_label = 'Outflowing gas'
+            OVI_label = 'Outflowing O VI'
+        if (i==3):
+            flow_file = '_inflow-outflow'
+
+        fig = plt.figure(figsize=(18,8), dpi=250)
+        outer = mpl.gridspec.GridSpec(2, 3, hspace=0.2, wspace=0.18, left=0.05, right=0.99, top=0.98, bottom=0.07)
+        ax_den = outer[0, 0]
+        ax_temp = outer[0, 1]
+        ax_met = outer[0, 2]
+        ax_rv = outer[1, 0]
+        ax_tcool = outer[1, 1]
+        inner_den = mpl.gridspec.GridSpecFromSubplotSpec(1, 5, subplot_spec=ax_den, wspace=0.)
+        inner_temp = mpl.gridspec.GridSpecFromSubplotSpec(1, 5, subplot_spec=ax_temp, wspace=0.)
+        inner_met = mpl.gridspec.GridSpecFromSubplotSpec(1, 5, subplot_spec=ax_met, wspace=0.)
+        inner_rv = mpl.gridspec.GridSpecFromSubplotSpec(1, 5, subplot_spec=ax_rv, wspace=0.)
+        inner_tcool = mpl.gridspec.GridSpecFromSubplotSpec(1, 5, subplot_spec=ax_tcool, wspace=0.)
+        
+        rad_bins = np.array([0.,10.,20.,30.,40.,50.])
+
+        for r in range(len(rad_bins)-1):
+            inn_r = rad_bins[r]
+            out_r = rad_bins[r+1]
+
+            density_bin = density[(radius >= inn_r) & (radius < out_r)]
+            temperature_bin = temperature[(radius >= inn_r) & (radius < out_r)]
+            metallicity_bin = metallicity[(radius >= inn_r) & (radius < out_r)]
+            rv_bin = rv[(radius >= inn_r) & (radius < out_r)]
+            tcool_bin = tcool[(radius >= inn_r) & (radius < out_r)]
+            emissivity_bin = emissivity[(radius >= inn_r) & (radius < out_r)]
+            weight_bin = weight[(radius >= inn_r) & (radius < out_r)]
+
+            density_inflow_bin = densities_inflow[(radii_inflow >= inn_r) & (radii_inflow < out_r) & cgm_in]
+            temperature_inflow_bin = temperatures_inflow[(radii_inflow >= inn_r) & (radii_inflow < out_r) & cgm_in]
+            metallicity_inflow_bin = metallicities_inflow[(radii_inflow >= inn_r) & (radii_inflow < out_r) & cgm_in]
+            rv_inflow_bin = rvs_inflow[(radii_inflow >= inn_r) & (radii_inflow < out_r) & cgm_in]
+            tcool_inflow_bin = tcools_inflow[(radii_inflow >= inn_r) & (radii_inflow < out_r) & cgm_in]
+            emissivity_inflow_bin = emissivities_inflow[(radii_inflow >= inn_r) & (radii_inflow < out_r) & cgm_in]
+            weight_inflow_bin = weights_inflow[(radii_inflow >= inn_r) & (radii_inflow < out_r) & cgm_in]
+
+            density_outflow_bin = densities_outflow[(radii_outflow >= inn_r) & (radii_outflow < out_r) & cgm_out]
+            temperature_outflow_bin = temperatures_outflow[(radii_outflow >= inn_r) & (radii_outflow < out_r) & cgm_out]
+            metallicity_outflow_bin = metallicities_outflow[(radii_outflow >= inn_r) & (radii_outflow < out_r) & cgm_out]
+            rv_outflow_bin = rvs_outflow[(radii_outflow >= inn_r) & (radii_outflow < out_r) & cgm_out]
+            tcool_outflow_bin = tcools_outflow[(radii_outflow >= inn_r) & (radii_outflow < out_r) & cgm_out]
+            emissivity_outflow_bin = emissivities_outflow[(radii_outflow >= inn_r) & (radii_outflow < out_r) & cgm_out]
+            weight_outflow_bin = weights_outflow[(radii_outflow >= inn_r) & (radii_outflow < out_r) & cgm_out]
+
+            ax1 = fig.add_subplot(inner_den[0, r])
+            if (i<3):
+                ax1.hist(np.log10(density_bin), weights=weight_bin, bins=50, range=(-31,-23), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.2), label=gas_label)
+                ax1.hist(np.log10(density_bin), weights=emissivity_bin, bins=50, range=(-31,-23), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.2), ec=(219/250., 29/250., 143/250., 1), label=OVI_label)
+                #ax1.legend(loc=2, frameon=False, fontsize=12)
+            else:
+                ax1.hist(np.log10(density_inflow_bin), weights=weight_inflow_bin, bins=50, range=(-31,-23), density=True, histtype='step', orientation='horizontal', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
+                ax1.hist(np.log10(density_outflow_bin), weights=weight_outflow_bin, bins=50, range=(-31,-23), density=True, histtype='step', orientation='horizontal', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
+                ax1.hist(np.log10(density_inflow_bin), weights=emissivity_inflow_bin, bins=50, range=(-31,-23), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='--', fc=(162/250., 29/250., 219/250., 0.2), ec=(162/250., 29/250., 219/250., 1), label='Inflowing O VI')
+                ax1.hist(np.log10(density_outflow_bin), weights=emissivity_outflow_bin, bins=50, range=(-31,-23), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls=':', fc=(247/250.,211/250.,111/250., 0.2), ec=(247/250.,211/250.,111/250.,1), label='Outflowing O VI')
+                #ax1.legend(loc=2, fontsize=12, ncol=2)
+            ax1.set_xscale('log')
+            ax1.axis([1e-3,10,-31,-23])
+            if (r==0): 
+                ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    top=True, right=False, labelleft=True)
+                ax1.set_ylabel('log Density [g/cm$^3$]', fontsize=14)
+                ax1.set_xticks([1e-3,10])
+                ax1.set_xticklabels([0,10])
+            else:
+                if (r==len(rad_bins)-2):
+                    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                        top=True, right=True, left=False, labelleft=False)
+                else:
+                    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                        top=True, left=False, right=False, labelleft=False)
+                ax1.set_xticks([10])
+                ax1.set_xticklabels([int(out_r)])
+            if (r==2): ax1.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
+
+            ax2 = fig.add_subplot(inner_temp[0, r])
+            if (i<3):
+                ax2.hist(np.log10(temperature_bin), weights=weight_bin, bins=50, range=(3,9), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.2))
+                ax2.hist(np.log10(temperature_bin), weights=emissivity_bin, bins=50, range=(3,9), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1))
+            else:
+                ax2.hist(np.log10(temperature_inflow_bin), weights=weight_inflow_bin, bins=50, range=(3,9), density=True, histtype='step', orientation='horizontal', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
+                ax2.hist(np.log10(temperature_outflow_bin), weights=weight_outflow_bin, bins=50, range=(3,9), density=True, histtype='step', orientation='horizontal', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
+                ax2.hist(np.log10(temperature_inflow_bin), weights=emissivity_inflow_bin, bins=50, range=(3,9), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='--', fc=(162/250., 29/250., 219/250., 0.2), ec=(162/250., 29/250., 219/250., 1), label='Inflowing O VI')
+                ax2.hist(np.log10(temperature_outflow_bin), weights=emissivity_outflow_bin, bins=50, range=(3,9), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls=':', fc=(247/250.,211/250.,111/250., 0.2), ec=(247/250.,211/250.,111/250.,1), label='Outflowing O VI')
+            ax2.set_xscale('log')
+            ax2.axis([1e-3,10,3,9])
+            if (r==0):
+                ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    top=True, right=False, labelleft=True)
+                ax2.set_ylabel('log Temperature [K]', fontsize=14)
+                ax2.set_xticks([1e-3,10])
+                ax2.set_xticklabels([0,10])
+            else:
+                if (r==len(rad_bins)-2):
+                    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                        top=True, right=True, left=False, labelleft=False)
+                else:
+                    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                        top=True, left=False, right=False, labelleft=False)
+                ax2.set_xticks([10])
+                ax2.set_xticklabels([int(out_r)])
+            if (r==2): ax2.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
+            
+            ax3 = fig.add_subplot(inner_met[0, r])
+            if (i<3):
+                ax3.hist(np.log10(metallicity_bin), weights=weight_bin, bins=50, range=(-2.5,1.5), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.2))
+                ax3.hist(np.log10(metallicity_bin), weights=emissivity_bin, bins=50, range=(-2.5,1.5), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1))
+            else:
+                ax3.hist(np.log10(metallicity_inflow_bin), weights=weight_inflow_bin, bins=50, range=(-2.5,1.5), density=True, histtype='step', orientation='horizontal', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
+                ax3.hist(np.log10(metallicity_outflow_bin), weights=weight_outflow_bin, bins=50, range=(-2.5,1.5), density=True, histtype='step', orientation='horizontal', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
+                ax3.hist(np.log10(metallicity_inflow_bin), weights=emissivity_inflow_bin, bins=50, range=(-2.5,1.5), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='--', fc=(162/250., 29/250., 219/250., 0.2), ec=(162/250., 29/250., 219/250., 1), label='Inflowing O VI')
+                ax3.hist(np.log10(metallicity_outflow_bin), weights=emissivity_outflow_bin, bins=50, range=(-2.5,1.5), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls=':', fc=(247/250.,211/250.,111/250., 0.2), ec=(247/250.,211/250.,111/250.,1), label='Outflowing O VI')
+            ax3.set_xscale('log')
+            ax3.axis([1e-3,10,-2.5,1.5])
+            if (r==0):
+                ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    top=True, right=False, labelleft=True)
+                ax3.set_ylabel(r'log Metallicity [$Z_\odot$]', fontsize=14)
+                ax3.set_xticks([1e-3,10])
+                ax3.set_xticklabels([0,10])
+            else:
+                if (r==len(rad_bins)-2):
+                    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                        top=True, right=True, left=False, labelleft=False)
+                else:
+                    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                        top=True, left=False, right=False, labelleft=False)
+                ax3.set_xticks([10])
+                ax3.set_xticklabels([int(out_r)])
+            if (r==2): ax3.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
+            
+            ax4 = fig.add_subplot(inner_rv[0, r])
+            if (i<3):
+                ax4.hist(rv_bin/100., bins=50, weights=weight_bin, range=(-5,10), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.2))
+                ax4.hist(rv_bin/100., weights=emissivity_bin, bins=50, range=(-5,10), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1))
+            else:
+                ax4.hist(rv_inflow_bin/100., bins=50, weights=weight_inflow_bin, range=(-5,10), density=True, histtype='step', orientation='horizontal', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
+                ax4.hist(rv_outflow_bin/100., bins=50, weights=weight_outflow_bin, range=(-5,10), density=True, histtype='step', orientation='horizontal', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
+                ax4.hist(rv_inflow_bin/100., weights=emissivity_inflow_bin, bins=50, range=(-5,10), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='--', fc=(162/250., 29/250., 219/250., 0.2), ec=(162/250., 29/250., 219/250., 1), label='Inflowing O VI')
+                ax4.hist(rv_outflow_bin/100., weights=emissivity_outflow_bin, bins=50, range=(-5,10), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls=':', fc=(247/250.,211/250.,111/250., 0.2), ec=(247/250.,211/250.,111/250.,1), label='Outflowing O VI')
+            ax4.set_xscale('log')
+            ax4.axis([1e-3,10,-5,10])
+            if (r==0):
+                ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    top=True, right=False, labelleft=True)
+                ax4.set_ylabel('Radial Velocity [km/s]', fontsize=14)
+                ax4.set_xticks([1e-3,10])
+                ax4.set_xticklabels([0,10])
+                ax4.set_yticks([-4,-2,0,2,4,6,8,10])
+                ax4.set_yticklabels(['$-400$','$-200$','$0$','$200$','$400$','$600$','$800$','$1000$'])
+            else:
+                if (r==len(rad_bins)-2):
+                    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                        top=True, right=True, left=False, labelleft=False)
+                else:
+                    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                        top=True, left=False, right=False, labelleft=False)
+                ax4.set_xticks([10])
+                ax4.set_xticklabels([int(out_r)])
+            if (r==2): ax4.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
+                
+            ax5 = fig.add_subplot(inner_tcool[0, r])
+            if (i<3):
+                ax5.hist(np.log10(tcool_bin), bins=50, weights=weight_bin, range=(-2,7), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='--', ec=(0,0,0,1), fc=(0,0,0,0.2))
+                ax5.hist(np.log10(tcool_bin), weights=emissivity_bin, bins=50, range=(-2,7), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='-', fc=(219/250., 29/250., 143/250., 0.3), ec=(219/250., 29/250., 143/250., 1))
+            else:
+                ax5.hist(np.log10(tcool_inflow_bin), bins=50, weights=weight_inflow_bin, range=(-2,7), density=True, histtype='step', orientation='horizontal', lw=2, ls='--', color=(84/250.,104/250.,184/250.,1), label='Inflowing gas')
+                ax5.hist(np.log10(tcool_outflow_bin), bins=50, weights=weight_outflow_bin, range=(-2,7), density=True, histtype='step', orientation='horizontal', lw=2, ls=':', color=(219/250., 92/250., 29/250.,1), label='Outflowing gas')
+                ax5.hist(np.log10(tcool_inflow_bin), weights=emissivity_inflow_bin, bins=50, range=(-2,7), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls='--', fc=(162/250., 29/250., 219/250., 0.2), ec=(162/250., 29/250., 219/250., 1), label='Inflowing O VI')
+                ax5.hist(np.log10(tcool_outflow_bin), weights=emissivity_outflow_bin, bins=50, range=(-2,7), density=True, histtype='stepfilled', orientation='horizontal', lw=2, ls=':', fc=(247/250.,211/250.,111/250., 0.2), ec=(247/250.,211/250.,111/250.,1), label='Outflowing O VI')
+            ax5.set_xscale('log')
+            ax5.axis([1e-3,10,-2,7])
+            if (r==0): 
+                ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    top=True, right=False, labelleft=True)
+                ax5.set_ylabel('Cooling Time [Myr]', fontsize=14)
+                ax5.set_xticks([1e-3,10])
+                ax5.set_xticklabels([0,10])
+            else:
+                if (r==len(rad_bins)-2):
+                    ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                        top=True, right=True, left=False, labelleft=False)
+                    ax5.text(1.3, 0.8, '$z=%.2f$\n%.2f Gyr' % (ds.get_parameter('CosmologyCurrentRedshift'), ds.current_time.in_units('Gyr')), fontsize=14, va='top', ha='left', transform=ax5.transAxes)
+                    ax5.text(1.3, 0.9, halo_dict[args.halo], fontsize=14, va='top', ha='left', transform=ax5.transAxes)
+                else:
+                    ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                        top=True, left=False, right=False, labelleft=False)
+                ax5.set_xticks([10])
+                ax5.set_xticklabels([int(out_r)])
+            if (r==2): ax5.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
+
+        plt.savefig(prefix + 'Histograms/' + snap + '_gas-hist_OVI_radbins' + flow_file + save_suffix + '.png')
 
 
 def load_and_calculate(snap):
@@ -2150,7 +2539,10 @@ def load_and_calculate(snap):
         phase_plot(ds, refine_box, snap)
 
     if ('histograms' in args.plot):
-        hists_den_temp_Z_rv(ds, refine_box, snap)
+        if ('radbins' in args.plot):
+            hists_rad_bins(ds, refine_box, snap)
+        else:
+            hists_den_temp_Z_rv_tcool(ds, refine_box, snap)
 
     if ('radial_profiles' in args.plot):
         weighted_radial_profiles(ds, refine_box, snap)
@@ -2267,13 +2659,13 @@ if __name__ == "__main__":
         outs = []
         for h in range(len(halos)):
             if (halos[h]=='8508') and ('feedback' not in args.run):
-                #outs.append(make_output_list('DD0967-DD2427', output_step=args.output_step))
-                outs.append(make_output_list('DD0967-DD1212', output_step=args.output_step)) # z = 1 to 0.726 (~1335 Myr)
+                outs.append(make_output_list('DD0967-DD2427', output_step=args.output_step))
+                #outs.append(make_output_list('DD0967-DD1212', output_step=args.output_step)) # z = 1 to 0.726 (~1335 Myr)
                 #outs.append(make_output_list('DD2182-DD2427', output_step=args.output_step)) # z = 0.1 to 0 (~1326 Myr)
                 #outs.append(make_output_list('DD2427'))
             else:
-                #outs.append(make_output_list('DD1060-DD2520', output_step=args.output_step))
-                outs.append(make_output_list('DD1060-DD1305', output_step=args.output_step))  # z = 1 to 0.726 (~1335 Myr)
+                outs.append(make_output_list('DD1060-DD2520', output_step=args.output_step))
+                #outs.append(make_output_list('DD1060-DD1305', output_step=args.output_step))  # z = 1 to 0.726 (~1335 Myr)
                 #outs.append(make_output_list('DD2275-DD2520', output_step=args.output_step)) # z = 0.1 to 0 (~1326 Myr)
                 #outs.append(make_output_list('DD2520'))
         if ('sb_vs_sfr' in args.plot): sb_vs_sfr(halos, outs)
