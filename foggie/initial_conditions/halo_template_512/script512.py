@@ -24,7 +24,7 @@ def set_0to1_conf(x0, y0, z0, rvir, halo_id):
     if (run): os.system(command)
 
 def run_0to1_music(halo_id):
-    command = "python ../../enzo-mrp-music/enzo-mrp-music.py halo"+str(halo_id)+"_DM_0to1.conf 1 "
+    command = "python "+os.getenv("FOGGIE_REPO")+"initial_conditions/enzo-mrp-music/enzo-mrp-music.py halo"+str(halo_id)+"_DM_0to1.conf 1 "
     print(command)
     if (run): os.system(command)
 
@@ -153,7 +153,7 @@ def set_2to3_conf(x0, y0, z0, halo_id):
     os.system(command)
 
 def run_music(level, halo_id):
-    command = "python ../../enzo-mrp-music/enzo-mrp-music.py halo"+str(halo_id)+"_DM_"+str(int(level)-1)+"to"+level+".conf "+level
+    command = "python "+os.getenv("FOGGIE_REPO")+"/initial_conditions/enzo-mrp-music/enzo-mrp-music.py halo"+str(halo_id)+"_DM_"+str(int(level)-1)+"to"+level+".conf "+level
     print(command)
     if (run): os.system(command)
 
