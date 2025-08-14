@@ -1,4 +1,5 @@
-\# FOGGIE "NEW ICS" L3 baryons 
+# FOGGIE "NEW ICS" L1 baryons 
+
 
 ProblemType                = 30      // cosmology simulation
 TopGridRank                = 3
@@ -8,6 +9,8 @@ LeftFaceBoundaryCondition  = 3 3 3   // same for fluid
 RightFaceBoundaryCondition = 3 3 3
 SelfGravity                = 1       // gravity on
 PotentialIterations        = 4
+ComputePotential           = 1 
+WritePotential             = 1 
 
 #
 #  problem parameters
@@ -53,6 +56,8 @@ CosmologyInitialRedshift   = 99.0
 CosmologyFinalRedshift 	   = 15
 GravitationalConstant      = 1       // this must be true for cosmology
 
+CosmologySimulationUseMetallicityField = 1 
+
 #
 #  set I/O and stop/start parameters
 #
@@ -61,7 +66,7 @@ DataDumpName     = DD
 RedshiftDumpName = RD
 RedshiftDumpDir  = RD
 
-dtDataDump 	 = 1.0
+dtDataDump 	 = 1
 
 OutputCoolingTime                        = 1
 OutputTemperature                        = 1
@@ -88,6 +93,8 @@ CourantSafetyNumber             = 0.4
 ParticleCourantSafetyNumber     = 0.5
 
 
+
+
 #
 #  set grid refinement parameters
 #
@@ -98,7 +105,7 @@ MaximumParticleRefinementLevel = 7
 RefineBy                       = 2    // refinement factor
 CellFlaggingMethod             = 2 4 8 
 MinimumEfficiency              = 0.4  // fraction efficiency
-MinimumOverDensityForRefinement = 1.0 1.0 1. 1. 1. 1. 1 
+MinimumOverDensityForRefinement = 1. 1. 1. 1. 1. 1. 1. 1. 1 
 
 MinimumMassForRefinementLevelExponent = 0.0 0.0
 MustRefineParticlesCreateParticles = 3
@@ -387,9 +394,10 @@ CosmologyOutputRedshift[265] = 0.000
 RadiativeCooling                         = 1
 use_grackle                              = 1
 MultiSpecies                             = 2
+MultiMetals                              = 1 
 MetalCooling                             = 1
 UVbackground                             = 1
-grackle_data_file                        = /u/jtumlins/grackle/grackle_data_files/input/CloudyData_UVB=HM2012.h5
+grackle_data_file                        = /u/jtumlins/grackle/grackle-3.3.1-dev/grackle_data_files/input/CloudyData_UVB=HM2012.h5
 CMBTemperatureFloor                      = 1
 
 #
@@ -407,7 +415,31 @@ StarEnergyToThermalFeedback              = 1e-5
 StarFeedbackDistRadius                   = 1
 StarFeedbackDistCellStep                 = 3
 
-MultiMetals                              = 1 
+H2StarMakerH2FractionMethod        = 1 
+H2StarMakerEfficiency              = 0.002
+H2StarMakerMinimumMass             = 10
+H2StarMakerMinimumH2FractionForStarFormation = 0 
+H2StarMakerStochastic              = 0 
+H2StarMakerUseSobolevColumn        = 1 
+H2StarMakerAssumeColdWarmPressureBalance = 1 
+H2StarMakerUseLocalDensityMax      = 1 
+H2StarMakerWriteStarLogFiles       = 1 
+StarMakerStoreInitialMass             = 1
+
+H2FormationOnDust              = 1
+StarFormationOncePerRootGridTimeStep = 1
+
+StarFeedbackSNePerTimestepLimit      = 1e-3 
+WriteFeedbackLogFiles          = 1 
+WriteStarlogFiles              = 1 
+
+StarFeedbackDistRadius                = 0
+StarFeedbackDistCellStep              = 0
+StarFeedbackUseTabularYields          = 1
+StarFeedbackTabularFilename           = /u/jtumlins/nobackup/sygma_feedback_table_1000.h5
+
+RestrictVelocity                      = 1
+RestrictTemperature                   = 1
 
 #
 # parallelism stuff

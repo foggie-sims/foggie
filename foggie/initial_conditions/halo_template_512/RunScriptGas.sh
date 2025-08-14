@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #PBS -N haloXXXX-LX-gas
-#PBS -W group_list=s2358 
-#PBS -l select=3:ncpus=28:mpiprocs=28:model=bro 
+#PBS -W group_list=s3128 
+#PBS -l select=4:ncpus=16:mpiprocs=16:model=has 
 #PBS -l walltime=120:00:00
 #PBS -j oe
 #PBS -m abe

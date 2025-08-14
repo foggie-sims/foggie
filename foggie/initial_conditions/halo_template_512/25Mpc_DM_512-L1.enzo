@@ -1,5 +1,4 @@
-# AMR PROBLEM DEFINITION FILE: Cosmology Simulation (amr version)
-# For "CGM_bigbox IC regeneration but based on Britton Smith's file for halo 8508, the FOGGIE original! 
+# Cosmology Simulation adapted to FOGGIE 
 #
 #  define problem
 #

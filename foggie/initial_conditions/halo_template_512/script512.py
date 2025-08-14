@@ -4,39 +4,25 @@ from astropy.table import Table
 import argparse
 from astropy.io import ascii
 
+run = True 
 
-run = True
-# select halo of interest
-ID = XXXX 
-halos = ascii.read('/nobackupnfs1/jtumlins/25Mpc_new_cosmology/halo_catalogs_512/512/z0/out_0.list', header_start=0, data_start=2)
-#index = [halos['ID'] == ID]
-thishalo = halos[halos['ID'] == ID]
-print(thishalo) 
-x0 = thishalo['X'].value[0]/25.
-y0 = thishalo['Y'].value[0]/25.
-z0 = thishalo['Z'].value[0]/25.
-rvir = np.max([thishalo['Rvir'].value[0], 200.])
-print("Analyzing halo "+str(ID)+" at:")
-print('The specified halo center is: ', x0, y0, z0)
-print('With Rvir = ', rvir)
+def set_0to1_conf(x0, y0, z0, rvir, halo_id):
 
-def set_0to1_conf():
-
-    command = "awk '/halo_center /{$3="+str(x0)+";$4=\",\";$5="+str(y0)+";$6=\",\";$7="+str(z0)+"}1' ../halo_template_512/halo_DM_NtoN.conf > halo"+str(ID)+"_DM_0to1.temp"
+    command = "awk '/halo_center /{$3="+str(x0)+";$4=\",\";$5="+str(y0)+";$6=\",\";$7="+str(z0)+"}1' /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/halo_DM_NtoN.conf > halo"+str(halo_id)+"_DM_0to1.temp"
     print(command)
     if (run): os.system(command)
 
-    command = "awk '/halo_radius /{$3="+str(rvir)+"}1' ./halo"+str(ID)+"_DM_0to1.temp > halo"+str(ID)+"_DM_0to1.conf"
+    command = "awk '/halo_radius /{$3="+str(rvir)+"}1' ./halo"+str(halo_id)+"_DM_0to1.temp > halo"+str(halo_id)+"_DM_0to1.conf"
     print(command)
     if (run): os.system(command)
 
-def run_0to1_music():
-    command = "python ../../enzo-mrp-music/enzo-mrp-music.py halo"+str(ID)+"_DM_0to1.conf 1 "
+def run_0to1_music(halo_id):
+    command = "python ../../enzo-mrp-music/enzo-mrp-music.py halo"+str(halo_id)+"_DM_0to1.conf 1 "
     print(command)
     if (run): os.system(command)
 
-def copy_template_files(level):
-    command = "awk '{sub(/XXXX/,"+str(ID)+"); print}' /nobackupnfs1/jtumlins/25Mpc_new_cosmology/halo_template_512/RunScript.sh > ./RunScript.temp"
+def copy_template_files(level, halo_id):
+    command = "awk '{sub(/XXXX/,"+str(halo_id)+"); print}' /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/RunScript.sh > ./RunScript.temp"
     print(command)
     if (run): os.system(command)
 
@@ -44,11 +30,11 @@ def copy_template_files(level):
     print(command)
     if (run): os.system(command)
 
-    command = "cp -rp /nobackupnfs1/jtumlins/25Mpc_new_cosmology/halo_template_512/25Mpc_DM_512-L"+level+".enzo ."
+    command = "cp -rp /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/25Mpc_DM_512-L"+level+".enzo ."
     print(command)
     if (run): os.system(command)
 
-    command = "cp -rp /nobackupnfs1/jtumlins/25Mpc_new_cosmology/halo_template_512/simrun.pl ." 
+    command = "cp -rp /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/simrun.pl ." 
     print(command)
     if (run): os.system(command)
 
@@ -61,8 +47,8 @@ def get_0to1_shifts():
     os.system("grep shift_z ../25Mpc_DM_512-L1.conf_log.txt | awk '{print $7}' > shift_z" )
     os.system("paste shift_x shift_y shift_z > l0_to_l1_shifts")
 
-def copy_gas_template_files(level):
-    command = "awk '{sub(/XXXX/,"+str(ID)+"); print}' /nobackupnfs1/jtumlins/25Mpc_new_cosmology/halo_template_512/RunScriptGas.sh > ./RunScript.temp"
+def copy_gas_template_files(level, halo_id):
+    command = "awk '{sub(/XXXX/,"+str(halo_id)+"); print}' /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/RunScriptGas.sh > ./RunScript.temp"
     print(command)
     if (run): os.system(command)
 
@@ -70,9 +56,14 @@ def copy_gas_template_files(level):
     print(command)
     if (run): os.system(command)
 
-    command = "cp -rp /nobackupnfs1/jtumlins/25Mpc_new_cosmology/halo_template_512/25Mpc_DM_512-L"+level+"-gas.enzo ."
+    command = "cp -rp /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/25Mpc_DM_512-L"+level+"-gas.enzo ."
     print(command)
     if (run): os.system(command)
+
+    command = "cp -rp /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/simrun.pl ." 
+    print(command)
+    if (run): os.system(command)
+
 
 def mod_param_file(level):
     command = "grep CosmologySimulationGrid parameter_file.txt > grid_parameters.txt"
@@ -100,9 +91,9 @@ def mod_gas_param_file(level):
     print(command)
     if (run): os.system(command)
 
-def set_1to2_conf():
+def set_1to2_conf(x0, y0, z0, halo_id):
 
-    os.system("cp -rp halo"+str(ID)+"_DM_0to1.conf halo"+str(ID)+"_DM_1to2.conf")
+    os.system("cp -rp halo"+str(halo_id)+"_DM_0to1.conf halo"+str(halo_id)+"_DM_1to2.conf")
 
     os.system("grep shift_x 25Mpc_DM_512-L1.conf_log.txt | awk '{print $7}' > shift_x")
     os.system("grep shift_y 25Mpc_DM_512-L1.conf_log.txt | awk '{print $7}' > shift_y")
@@ -119,17 +110,17 @@ def set_1to2_conf():
 
     print("shifts to be aplied are ", xshift, yshift, zshift)
 
-    command = "awk '/halo_center /{$3 = "+str(x0+xshift/511.)+";$5 = "+str(y0+yshift/511.)+";$7= "+str(z0+zshift/511.)+"}1' halo"+str(ID)+"_DM_0to1.conf > asdf"
+    command = "awk '/halo_center /{$3 = "+str(x0+xshift/511.)+";$5 = "+str(y0+yshift/511.)+";$7= "+str(z0+zshift/511.)+"}1' halo"+str(halo_id)+"_DM_0to1.conf > asdf"
     print(command)
     os.system(command)
 
-    command = "awk '/simulation_run_directory/{$3 = \""+os.getcwd()+"\"}1' asdf > halo"+str(ID)+"_DM_1to2.conf"
+    command = "awk '/simulation_run_directory/{$3 = \""+os.getcwd()+"\"}1' asdf > halo"+str(halo_id)+"_DM_1to2.conf"
     print(command)
     os.system(command)
 
-def set_2to3_conf():
+def set_2to3_conf(x0, y0, z0, halo_id):
 
-    os.system("cp -rp halo"+str(ID)+"_DM_1to2.conf halo"+str(ID)+"_DM_2to3.conf")
+    os.system("cp -rp halo"+str(halo_id)+"_DM_1to2.conf halo"+str(halo_id)+"_DM_2to3.conf")
 
     os.system("grep shift_x 25Mpc_DM_512-L2.conf_log.txt | awk '{print $7}' > shift_x")
     os.system("grep shift_y 25Mpc_DM_512-L2.conf_log.txt | awk '{print $7}' > shift_y")
@@ -146,16 +137,16 @@ def set_2to3_conf():
 
     print("shifts to be aplied are ", xshift, yshift, zshift)
 
-    command = "awk '/halo_center /{$3 = "+str(x0+xshift/511.)+";$5 = "+str(y0+yshift/511.)+";$7= "+str(z0+zshift/511.)+"}1' halo"+str(ID)+"_DM_1to2.conf > asdf"
+    command = "awk '/halo_center /{$3 = "+str(x0+xshift/511.)+";$5 = "+str(y0+yshift/511.)+";$7= "+str(z0+zshift/511.)+"}1' halo"+str(halo_id)+"_DM_1to2.conf > asdf"
     print(command)
     os.system(command)
 
-    command = "awk '/simulation_run_directory/{$3 = \""+os.getcwd()+"\"}1' asdf > halo"+str(ID)+"_DM_2to3.conf"
+    command = "awk '/simulation_run_directory/{$3 = \""+os.getcwd()+"\"}1' asdf > halo"+str(halo_id)+"_DM_2to3.conf"
     print(command)
     os.system(command)
 
-def run_music(level):
-    command = "python ../../enzo-mrp-music/enzo-mrp-music.py halo"+str(ID)+"_DM_"+str(int(level)-1)+"to"+level+".conf "+level
+def run_music(level, halo_id):
+    command = "python ../../enzo-mrp-music/enzo-mrp-music.py halo"+str(halo_id)+"_DM_"+str(int(level)-1)+"to"+level+".conf "+level
     print(command)
     if (run): os.system(command)
 
@@ -166,31 +157,43 @@ def convert_to_gas(level):
     if (run): os.system(command)
 
 
-
-
-#main
 parser = argparse.ArgumentParser()
 parser.add_argument('--level', type=str, required=True)
 parser.add_argument('--gas', type=str, required=True)
+parser.add_argument('--halo_id', type=int, required=True)
+parser.add_argument('--run', type=bool, default=True, required=False)
 args = parser.parse_args()
+print('The requested halo ID = ', args.halo_id)
 print('Hello your level is:', args.level)
 print('Are you including gas?', args.gas)
 
 
+halos = ascii.read('/nobackupnfs1/jtumlins/25Mpc_new_cosmology/halo_catalogs_512/512/z0/out_0.list', header_start=0, data_start=2)
+thishalo = halos[halos['ID'] == args.halo_id]
+print(thishalo) 
+x0 = thishalo['X'].value[0]/25.
+y0 = thishalo['Y'].value[0]/25.
+z0 = thishalo['Z'].value[0]/25.
+rvir = np.max([thishalo['Rvir'].value[0], 200.])
+print("Analyzing halo "+str(args.halo_id)+" at:")
+print('The specified halo center is: ', x0, y0, z0)
+print('With Rvir = ', rvir)
+
+
 if (args.gas == 'no'):
     if ('1' in args.level):
-        set_0to1_conf()
+        set_0to1_conf(x0, y0, z0, rvir, args.halo_id)
 
     if ('2' in args.level):
-        set_1to2_conf()
+        set_1to2_conf(x0, y0, z0, args.halo_id)
 
     if ('3' in args.level):
-        set_2to3_conf()
+        set_2to3_conf(x0, y0, z0, args.halo_id)
 
-    run_music(args.level)
+    run_music(args.level, args.halo_id)
     os.system('rm *temp')
     os.chdir('25Mpc_DM_512-L'+args.level)
-    copy_template_files(args.level)
+    copy_template_files(args.level, args.halo_id)
     mod_param_file(args.level)
     get_0to1_shifts() 
     os.system('rm *temp')
@@ -200,9 +203,11 @@ else:
     convert_to_gas(args.level)
     os.system("/u/jtumlins/installs/music/MUSIC 25Mpc_DM_512-L"+args.level+"-gas.conf")
     os.chdir('25Mpc_DM_512-L'+args.level+'-gas')
-    copy_gas_template_files(args.level)
+    copy_gas_template_files(args.level, args.halo_id)
     mod_gas_param_file(args.level)
     os.system('rm *temp')
     os.system('qsub -koed RunScript.sh')
+
+
 
 
