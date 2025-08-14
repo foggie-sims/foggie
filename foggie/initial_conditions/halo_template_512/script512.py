@@ -8,11 +8,18 @@ run = True
 
 def set_0to1_conf(x0, y0, z0, rvir, halo_id):
 
-    command = "awk '/halo_center /{$3="+str(x0)+";$4=\",\";$5="+str(y0)+";$6=\",\";$7="+str(z0)+"}1' /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/halo_DM_NtoN.conf > halo"+str(halo_id)+"_DM_0to1.temp"
-    print(command)
+    FOGGIE_ICS_DIR = os.getenv('FOGGIE_ICS_DIR') 
+    print("FOGGIE_ICS_DIR = ", FOGGIE_ICS_DIR) 
+
+    command = "awk '/halo_center /{$3="+str(x0)+";$4=\",\";$5="+str(y0)+";$6=\",\";$7="+str(z0)+"}1' "+os.getenv("FOGGIE_REPO")+"/initial_conditions/halo_template_512/halo_DM_NtoN.conf > halo"+str(halo_id)+"_DM_0to1.temp"
+    print("A ", command)
     if (run): os.system(command)
 
     command = "awk '/halo_radius /{$3="+str(rvir)+"}1' ./halo"+str(halo_id)+"_DM_0to1.temp > halo"+str(halo_id)+"_DM_0to1.conf"
+    print(command)
+    if (run): os.system(command)
+
+    command = 'sed -i "s~FOGGIE_ICS_DIR~${FOGGIE_ICS_DIR}~g" halo' + str(halo_id)+'_DM_0to1.conf'
     print(command)
     if (run): os.system(command)
 
@@ -22,7 +29,7 @@ def run_0to1_music(halo_id):
     if (run): os.system(command)
 
 def copy_template_files(level, halo_id):
-    command = "awk '{sub(/XXXX/,"+str(halo_id)+"); print}' /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/RunScript.sh > ./RunScript.temp"
+    command = "awk '{sub(/XXXX/,"+str(halo_id)+"); print}' "+os.getenv("FOGGIE_REPO")+"/initial_conditions/halo_template_512/RunScript.sh > ./RunScript.temp"
     print(command)
     if (run): os.system(command)
 
@@ -30,11 +37,11 @@ def copy_template_files(level, halo_id):
     print(command)
     if (run): os.system(command)
 
-    command = "cp -rp /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/25Mpc_DM_512-L"+level+".enzo ."
+    command = "cp -rp "+os.getenv("FOGGIE_REPO")+"/initial_conditions/halo_template_512/25Mpc_DM_512-L"+level+".enzo ."
     print(command)
     if (run): os.system(command)
 
-    command = "cp -rp /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/simrun.pl ." 
+    command = "cp -rp "+os.getenv("FOGGIE_REPO")+"/initial_conditions/halo_template_512/simrun.pl ." 
     print(command)
     if (run): os.system(command)
 
@@ -48,7 +55,7 @@ def get_0to1_shifts():
     os.system("paste shift_x shift_y shift_z > l0_to_l1_shifts")
 
 def copy_gas_template_files(level, halo_id):
-    command = "awk '{sub(/XXXX/,"+str(halo_id)+"); print}' /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/RunScriptGas.sh > ./RunScript.temp"
+    command = "awk '{sub(/XXXX/,"+str(halo_id)+"); print}' "+os.getenv("FOGGIE_REPO")+"/initial_conditions/halo_template_512/RunScriptGas.sh > ./RunScript.temp"
     print(command)
     if (run): os.system(command)
 
@@ -56,11 +63,11 @@ def copy_gas_template_files(level, halo_id):
     print(command)
     if (run): os.system(command)
 
-    command = "cp -rp /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/25Mpc_DM_512-L"+level+"-gas.enzo ."
+    command = "cp -rp "+os.getenv("FOGGIE_REPO")+"/initial_conditions/halo_template_512/25Mpc_DM_512-L"+level+"-gas.enzo ."
     print(command)
     if (run): os.system(command)
 
-    command = "cp -rp /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/halo_template_512/simrun.pl ." 
+    command = "cp -rp "+os.getenv("FOGGIE_REPO")+"/initial_conditions/halo_template_512/simrun.pl ." 
     print(command)
     if (run): os.system(command)
 
@@ -168,7 +175,7 @@ print('Hello your level is:', args.level)
 print('Are you including gas?', args.gas)
 
 
-halos = ascii.read('/nobackupnfs1/jtumlins/25Mpc_new_cosmology/halo_catalogs_512/512/z0/out_0.list', header_start=0, data_start=2)
+halos = ascii.read(os.getenv("FOGGIE_REPO") + '/initial_conditions/halo_catalogs_512/512/z0/out_0.list', header_start=0, data_start=2)
 thishalo = halos[halos['ID'] == args.halo_id]
 print(thishalo) 
 x0 = thishalo['X'].value[0]/25.
