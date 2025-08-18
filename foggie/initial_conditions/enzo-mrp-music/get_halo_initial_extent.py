@@ -70,7 +70,7 @@ def get_halo_sphere_particles(my_halo, par_file, radius_factor=5):
             (my_halo_data['id'], my_halo_data['center'][0], my_halo_data['center'][1],
              my_halo_data['center'][2], hmass, r_200))
 
-    my_sphere = pf.h.sphere(my_halo_data['center'], radius_factor * r_200)
+    my_sphere = pf.sphere(my_halo_data['center'], radius_factor * r_200)
     return (my_halo_data['center'],
             my_sphere['particle_index'], 
             my_sphere['particle_mass'].in_units('Msun'),

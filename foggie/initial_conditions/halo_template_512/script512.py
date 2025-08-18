@@ -23,6 +23,10 @@ def set_0to1_conf(x0, y0, z0, rvir, halo_id):
     print(command)
     if (run): os.system(command)
 
+    command = 'sed -i "s~FOGGIE_REPO~${FOGGIE_REPO}~g" halo' + str(halo_id)+'_DM_0to1.conf'
+    print(command)
+    if (run): os.system(command)
+
 def run_0to1_music(halo_id):
     command = "python "+os.getenv("FOGGIE_REPO")+"initial_conditions/enzo-mrp-music/enzo-mrp-music.py halo"+str(halo_id)+"_DM_0to1.conf 1 "
     print(command)
@@ -181,7 +185,7 @@ print(thishalo)
 x0 = thishalo['X'].value[0]/25.
 y0 = thishalo['Y'].value[0]/25.
 z0 = thishalo['Z'].value[0]/25.
-rvir = np.max([thishalo['Rvir'].value[0], 200.])
+rvir = thishalo['Rvir'].value[0]
 print("Analyzing halo "+str(args.halo_id)+" at:")
 print('The specified halo center is: ', x0, y0, z0)
 print('With Rvir = ', rvir)
@@ -208,7 +212,7 @@ if (args.gas == 'no'):
 else:
     print("calculating with gas")
     convert_to_gas(args.level)
-    os.system("/u/jtumlins/installs/music/MUSIC 25Mpc_DM_512-L"+args.level+"-gas.conf")
+    os.system("/u/jtumlins/nobackup/foggie/foggie/initial_conditions/music/MUSIC 25Mpc_DM_512-L"+args.level+"-gas.conf")
     os.chdir('25Mpc_DM_512-L'+args.level+'-gas')
     copy_gas_template_files(args.level, args.halo_id)
     mod_gas_param_file(args.level)
