@@ -46,7 +46,7 @@ import trident
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm
-import healpy
+#import healpy
 import cmasher as cmr
 from matplotlib.patches import Ellipse
 import copy
@@ -253,6 +253,9 @@ def parse_args():
 
     args = parser.parse_args()
     return args
+
+def flux_den(field, data):
+    return -data[('gas','density')]*data[('gas','radial_velocity_corrected')]*data[('gas','radius_corrected')]**2.
 
 def make_Cloudy_table(table_index):
         # this is the the range and number of bins for which Cloudy was run
@@ -505,6 +508,8 @@ def set_props_table_units(table):
             table[key].unit = 'km**2/s'
         elif ('momentum' in key):
             table[key].unit = 'Msun km/s'
+        elif ('flux' in key):
+            table[key].unit = 'Msun/yr/sr'
         else:
             table[key].unit = 'none'
     return table
@@ -835,11 +840,11 @@ def calculate_flux(ds, grid, shape, snap, snap_props, global_vars):
         # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
         # with it being 1 at higher redshifts and 0.1 at lower redshifts
         current_time = ds.current_time.in_units('Myr').v
-        if (current_time<=7091.48):
+        if (current_time<=7091.48): # z = 0.75
             density_cut_factor = 20. - 19.*current_time/7091.48
-        elif (current_time<=8656.88):
+        elif (current_time<=8656.88): # z = 0.5
             density_cut_factor = 1.
-        elif (current_time<=10787.12):
+        elif (current_time<=10787.12): # z = 0.25
             density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
         else:
             density_cut_factor = 0.1
@@ -1840,6 +1845,7 @@ def load_and_calculate(snap, surface, global_vars):
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     ds.add_field(('gas','Emission_HAlpha'),units=emission_units_ALT,function=_Emission_HAlpha_ALTunits,take_log=True,force_override=True,sampling_type='cell')
+    ds.add_field(('gas','flux_density'), function=flux_den, units='Msun/yr', take_log=True, sampling_type='cell')
 
     # Load the mass enclosed profile
     if (zsnap > 2.):
@@ -1865,7 +1871,8 @@ def load_and_calculate(snap, surface, global_vars):
         if ('accretion_compare' in args.calculate):
             compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars)
         if ('filament_stats' in args.calculate):
-            number_and_size_of_filaments(ds, grid, shape, snap, snap_props, global_vars)
+            #number_and_size_of_filaments(ds, grid, shape, snap, snap_props, global_vars)
+            accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars)
         if ('filaments_3D' in args.calculate):
             filaments_3D(ds, grid, snap, snap_props, global_vars)
         if ('accretion_viz' in args.plot):
@@ -1974,7 +1981,7 @@ def accretion_flux_vs_time(snaplist, global_vars):
     #ax.axis([np.min(timelist), np.max(timelist), -30, 30])
     ax.set_ylabel(r'Accretion Rate [$M_\odot$/yr]', fontsize=18)
     ax.set_yscale('log')
-    ax.axis([np.min(timelist), np.max(timelist), 0.01, 50])
+    ax.axis([np.min(timelist), np.max(timelist), 0.1, 200])
 
     zlist.reverse()
     timelist.reverse()
@@ -2612,6 +2619,7 @@ def momentum_compare_vs_radius(snap, global_vars):
             ax.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
             ax.set_ylabel(ylabels[i][j], fontsize=14)
             if (ylogs[i][j]): ax.set_yscale('log')
+            if ('momentum' in props[i][j]): ax.set_yscale('symlog', linthresh=0.1)
             ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12)
             if ((len(props[i])==3) or (len(props[i])==4)) and (j==0):
                 ax.legend(frameon=False, loc=4, fontsize=12)
@@ -3249,6 +3257,195 @@ def number_and_size_of_filaments(ds, grid, shape, snap, snap_props, global_vars)
     fig5.savefig(plot_prefix + 'Plots/' + snap + '_fil-area_vs_radius' + save_suffix + '.png')
     plt.close(fig5)
 
+def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars):
+    '''Identifies the number of non-connected fragments of accretion at each radius and 
+    fits ellipses to their shapes to determine their major and minor axis lengths, as well
+    as their area and median gas properties.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
+
+    prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/'
+    plot_prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
+    tablename = prefix + 'Tables/' + snap + '_acc-fragment-props'
+    Menc_profile, Mvir, Rvir = snap_props
+    tsnap = ds.current_time.in_units('Gyr').v
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    names_list = ['radius', 'fragment_num', 'flux_sr', 'density_med', 'temperature_med', 'pressure_med', 'metallicity_med', 'radial_velocity_med', 'sound_speed_med', 'tcool_med', 'covering_frac', 'major_extent', 'minor_extent']
+    types_list = ['f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8']
+    table = Table(names=names_list, dtype=types_list)
+
+    # Load grid properties
+    x = grid['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
+    y = grid['gas', 'y'].in_units('kpc').v - ds.halo_center_kpc[1].v
+    z = grid['gas', 'z'].in_units('kpc').v - ds.halo_center_kpc[2].v
+    xbins = x[:,0,0][:-1] - 0.5*np.diff(x[:,0,0])
+    ybins = y[0,:,0][:-1] - 0.5*np.diff(y[0,:,0])
+    zbins = z[0,0,:][:-1] - 0.5*np.diff(z[0,0,:])
+    vx = grid['gas','vx_corrected'].in_units('kpc/yr').v
+    vy = grid['gas','vy_corrected'].in_units('kpc/yr').v
+    vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
+    radius = grid['gas','radius_corrected'].in_units('kpc').v
+    theta = grid['gas','theta_pos_disk'].v
+    phi = grid['gas','phi_pos_disk'].v
+    mass = grid['gas','cell_mass'].in_units('Msun').v
+    radial_velocity = grid['gas','radial_velocity_corrected'].in_units('kpc/yr').v
+    rv_kms = grid['gas','radial_velocity_corrected'].in_units('km/s').v
+    density = grid['gas','density'].in_units('Msun/kpc**3.').v
+    density_gcm = grid['gas','density'].in_units('g/cm**3.').v
+    flux_sr = -density*radial_velocity*radius**2.
+    temperature = grid['gas','temperature'].in_units('K').v
+    tcool = grid['gas','cooling_time'].in_units('Myr').v
+    pressure = grid['gas','pressure'].in_units('erg/cm**3').v
+    sound_speed = grid['gas','sound_speed'].in_units('km/s').v
+    metallicity = grid['gas','metallicity'].in_units('Zsun').v
+
+    properties = [flux_sr, density_gcm, temperature, pressure, metallicity, rv_kms, sound_speed, tcool]
+
+    if (args.cgm_only):
+        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+        # with it being 1 at higher redshifts and 0.1 at lower redshifts
+        current_time = ds.current_time.in_units('Myr').v
+        if (current_time<=7091.48):
+            density_cut_factor = 20. - 19.*current_time/7091.48
+        elif (current_time<=8656.88):
+            density_cut_factor = 1.
+        elif (current_time<=10787.12):
+            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+        else:
+            density_cut_factor = 0.1
+        cgm_bool = (grid['gas','density'].in_units('g/cm**3').v < density_cut_factor * cgm_density_max)
+    else:
+        cgm_bool = (grid['gas','density'].in_units('g/cm**3').v > 0.)
+
+    # Calculate new positions of gas cells
+    new_x = vx*(5.*dt) + x
+    new_y = vy*(5.*dt) + y
+    new_z = vz*(5.*dt) + z
+    inds_x = np.digitize(new_x, xbins)-1      # indices of new x positions
+    inds_y = np.digitize(new_y, ybins)-1      # indices of new y positions
+    inds_z = np.digitize(new_z, zbins)-1      # indices of new z positions
+    new_inds = np.array([inds_x, inds_y, inds_z])
+    print('Arrays loaded and displacements found')
+
+    # If stepping through radius, set up radii list
+    if (surface[0]=='sphere') and (args.radial_stepping>0):
+        if (args.Rvir):
+            max_R = surface[1]*Rvir
+        else:
+            max_R = surface[1]
+        min_R = 0.1*Rvir
+        radii = np.linspace(min_R, max_R, args.radial_stepping+1)[1:]
+    else:
+        if (args.Rvir):
+            radii = [surface[1]*Rvir]
+        else:
+            radii = [surface[1]]
+
+    theta_bins = np.linspace(-np.pi, np.pi, 100)
+    phi_bins = np.linspace(0., np.pi, 50)
+
+    # Step through radii, identify accretion fragments, and calculate their properties
+    flux_ratio_array = np.zeros(np.shape(density)) + 0.01    # array same size as grid initialized with small valules everywhere
+    for r in range(len(radii)):
+        shape = (radius < radii[r])                 # boolean array same size as grid with True everywhere radius < radii[r] and density low enough to be CGM (if args.cgm_only)
+        # Define which cells are entering shape
+        new_in_shape = shape[tuple(new_inds)]       # boolean array same size as grid with True everywhere the new radius < radii[r]
+        to_shape = ~shape & new_in_shape & cgm_bool      # boolean array same size as grid with True everywhere a cell started outside radii[r] and moved inside radii[r] and low enough density to be CGM
+        avg_flux_to = np.mean(flux_sr[to_shape])       # average of the flux density of everything moving into radii[r]
+        flux_ratio_array[to_shape] = flux_sr[to_shape]/avg_flux_to          # set cells that are moving into shape to the ratio with the average flux density value of all cells moving into radii[r]
+        
+        filament_cores = (flux_ratio_array > 0.75)
+
+        frags_labeled, n_frags = ndimage.label(filament_cores)
+        # Ignore fragments that are too small
+        unique, counts = np.unique(frags_labeled, return_counts=True)
+        for f in range(1,len(unique)):
+            if (counts[f]<300):
+                frags_labeled[frags_labeled==unique[f]] = 0
+        frags_labeled, n_frags = ndimage.label(frags_labeled)
+
+        # Loop over fragments and calculate their properties
+        for f in range(n_frags):
+            row = [radii[r], f+1]
+            this_frag = (frags_labeled==f+1)
+
+            # Calculate median gas properties of this fragment
+            for p in range(len(properties)):
+                prop_frag = properties[p][this_frag]
+                weight_frag = mass[this_frag]
+                med_prop = weighted_quantile(prop_frag, weight_frag, np.array([0.5]))
+                row.append(med_prop)
+
+            # Calculate area and major and minor axis extent of this fragment
+            # First flatten the fragment into a 2D array in theta, phi
+            theta_frag = theta[this_frag]
+            phi_frag = phi[this_frag]
+            sph_grid, _, _ = np.histogram2d(theta_frag, phi_frag, bins=[theta_bins, phi_bins])
+            theta_width = np.diff(theta_bins)
+            phi_width = np.diff(phi_bins)
+            theta_centers = theta_bins[:-1] + theta_width
+            theta_centers_2 = np.concatenate([theta_centers, theta_centers])
+            phi_centers = phi_bins[:-1] + phi_width
+            theta_grid, phi_grid = np.meshgrid(theta_centers, phi_centers, indexing='ij')
+            theta_grid_wide, phi_grid_wide = np.meshgrid(theta_centers_2, phi_centers, indexing='ij')
+            sph_grid[sph_grid > 0] = 1
+            #plt.imshow(sph_grid, origin='lower')
+            #plt.show()
+
+            # We need to determine if this fragment is a full wrap-around ring or not, so tile it in theta
+            sph_grid_tiled = np.vstack([sph_grid, sph_grid])
+            tiled_labeled, num = ndimage.label(sph_grid_tiled)
+            unique, counts = np.unique(tiled_labeled, return_counts=True)
+            unique_nonzero = unique[1:]
+            counts_nonzero = counts[1:]
+            new_tiled = unique_nonzero[counts_nonzero==np.max(counts_nonzero)][0]
+            # Test if this structure is a complete wrap-around ring
+            first_col = tiled_labeled[0, :]
+            last_col = tiled_labeled[-1, :]
+            if (new_tiled in first_col) and (new_tiled in last_col):  # This is a ring
+                ring = True
+            else:  # This is not a ring
+                ring = False
+
+            if (ring): # Go back to pre-tiled image to calculate
+                regions = regionprops(sph_grid)
+                theta_center, phi_center = regions[0].centroid
+                theta_center = -1
+                phi_center = phi_center*phi_width[0]
+                major_extent_arc = -1
+                minor_extent_arc = radii[r] * regions[0].axis_minor_length*phi_width[0]
+                covering_area = np.sum(np.sin(phi_grid[sph_grid==1])*theta_width[0]*phi_width[0])
+            else: # Not a ring, so find properties of the largest (not wrapping around edges) labeled structure in the tiled image
+                tiled_labeled[tiled_labeled!=new_tiled] = 0
+                regions = regionprops(tiled_labeled)
+                theta_center, phi_center = regions[0].centroid
+                theta_center = theta_center*theta_width[0]-np.pi
+                if (theta_center > np.pi): theta_center -= np.pi
+                phi_center = phi_center*phi_width[0]
+                major_extent_arc = radii[r] * regions[0].axis_major_length*theta_width[0]
+                minor_extent_arc = radii[r] * regions[0].axis_minor_length*theta_width[0]
+                covering_area = np.sum(np.sin(phi_grid_wide[tiled_labeled==new_tiled])*theta_width[0]*phi_width[0])
+            total_area = np.sum(np.sin(phi_grid)*theta_width[0]*phi_width[0])
+            covering_fraction = covering_area/total_area
+
+            row.append(covering_fraction)
+            row.append(major_extent_arc)
+            row.append(minor_extent_arc)
+
+            table.add_row(row)
+
+    for key in table.keys():
+        if ('filament' in key):
+            table[key].unit = 'none'
+        elif ('area' in key):
+            table[key].unit = 'sr'
+        else:
+            table[key].unit = 'kpc'
+    table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
 def filaments_3D(ds, grid, snap, snap_props, global_vars):
     '''This function identifies filament structures in 3D by tagging all cells in the grid by their
     inward mass flux and considering the cells with the highest mass fluxes as filaments.
@@ -3345,7 +3542,7 @@ def filaments_3D(ds, grid, snap, snap_props, global_vars):
         max_R = surface[1]*Rvir
     else:
         max_R = surface[1]
-    min_R = 10.
+    min_R = 20.
     radii = np.arange(min_R, max_R, 1.)[1:]
 
     # Step through radii and identify strongest streams at each radius
@@ -3855,10 +4052,12 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
     density_gcm3 = grid['gas','density'].in_units('g/cm**3').v
     radial_velocity = grid['gas','radial_velocity_corrected'].in_units('kpc/yr').v
     flux_sr = -density*radial_velocity*radius**2.
-    temperature = grid['gas','temperature'].in_units('K').v
-    Ha = grid['gas','Emission_HAlpha'].v
-    dist_cells = 4.
-    shear = stress_mag(density_gcm3, vx*(1000.*cmtopc)/(stoyr), vy*(1000.*cmtopc)/(stoyr), vz*(1000.*cmtopc)/(stoyr), dist_cells)
+    flux_density = grid['gas','flux_density'].in_units('Msun/yr').v
+    #temperature = grid['gas','temperature'].in_units('K').v
+    #Ha = grid['gas','Emission_HAlpha'].v
+    #dist_cells = 4.
+    #shear = stress_mag(density_gcm3, vx*(1000.*cmtopc)/(stoyr), vy*(1000.*cmtopc)/(stoyr), vz*(1000.*cmtopc)/(stoyr), dist_cells)
+
 
     dx = np.diff(x[:,0,0])[0]*1000.*cmtopc
 
@@ -3892,7 +4091,7 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
         max_R = surface[1]*Rvir
     else:
         max_R = surface[1]
-    min_R = 10.
+    min_R = 5.
     radii = np.arange(min_R, max_R, 1.)[1:]
 
     # Step through radii and identify strongest streams at each radius
@@ -3915,7 +4114,23 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
         flux_ratio_array[to_shape & cgm_bool] = flux_sr[to_shape & cgm_bool]/avg_flux_to          # set cells that are moving into shape to the ratio with the average flux density value of all cells moving into radii[r]
     to_shape = to_shape & cgm_bool
     shape_non = shape_non & cgm_bool
-    filament_cores = (flux_ratio_array > 0.75)
+    flux_ratio_array_smoothed = gaussian_filter(flux_ratio_array, 2.)
+    filament_cores = (flux_ratio_array_smoothed > 1.25)
+    fils_labeled, n_fils = ndimage.label(filament_cores)
+    # Ignore filaments that are too small
+    unique, counts = np.unique(fils_labeled, return_counts=True)
+    for f in range(1,len(unique)):
+        if (counts[f]<300):
+            fils_labeled[fils_labeled==unique[f]] = 0
+    fils_labeled, n_fils = ndimage.label(fils_labeled)
+    # Ignore filaments that don't come from maximum radius
+    unique = np.unique(fils_labeled)
+    for f in range(1,len(unique)):
+        if (np.max(radius[fils_labeled==unique[f]]) < 0.9*max_R):
+            fils_labeled[fils_labeled==unique[f]] = 0
+    fils_labeled, n_fils = ndimage.label(fils_labeled)
+    filament_cores = fils_labeled > 0
+    #filament_cores = (flux_ratio_array > 1.5)
     filament_sheaths = (flux_ratio_array > 0.25) & (flux_ratio_array < 0.75)
     non_filament_acc = (flux_ratio_array > 0.) & (flux_ratio_array < 0.25)
     all_acc = to_shape
@@ -3924,7 +4139,7 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
     acc_regions = [everything, all_acc, filament_cores, filament_sheaths, non_filament_acc, non_acc]
     region_titles = ['All gas', 'All accretion', 'Stream cores', 'Stream sheaths', 'Non-stream accretion', 'Non-accreting gas']
 
-    # Set all values outside of the shapes of interest to zero
+    '''# Set all values outside of the shapes of interest to zero
     den_all_acc = np.copy(density_gcm3)
     den_all_acc[~all_acc] = 0.
     den_cores = np.copy(density_gcm3)
@@ -3935,6 +4150,16 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
     den_non_fil[~non_filament_acc] = 0.
     den_non_acc = np.copy(density_gcm3)
     den_non_acc[~non_acc] = 0.
+    fd_all_acc = np.copy(flux_density)
+    fd_all_acc[~all_acc] = 0.
+    fd_cores = np.copy(flux_density)
+    fd_cores[~filament_cores] = 0.
+    fd_sheaths = np.copy(flux_density)
+    fd_sheaths[~filament_sheaths] = 0.
+    fd_non_fil = np.copy(flux_density)
+    fd_non_fil[~non_filament_acc] = 0.
+    fd_non_acc = np.copy(flux_density)
+    fd_non_acc[~non_acc] = 0.
     shear_all_acc = np.copy(shear)
     shear_all_acc[~all_acc] = 0.
     shear_cores = np.copy(shear)
@@ -3945,7 +4170,7 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
     shear_non_fil[~non_filament_acc] = 0.
     shear_non_acc = np.copy(shear)
     shear_non_acc[~non_acc] = 0.
-    '''temp_all_acc = np.copy(temperature)
+    temp_all_acc = np.copy(temperature)
     temp_all_acc[~all_acc] = 0.
     temp_cores = np.copy(temperature)
     temp_cores[~filament_cores] = 0.
@@ -3966,16 +4191,19 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
     Ha_non_acc = np.copy(Ha)
     Ha_non_acc[~non_acc] = 0.'''
 
-    # Load these back into yt so we can make projections
-    '''data = dict(density = (density_gcm3, "g/cm**3"), den_all_acc = (den_all_acc, 'g/cm**3'), \
+    '''# Load these back into yt so we can make projections
+    data = dict(density = (density_gcm3, "g/cm**3"), den_all_acc = (den_all_acc, 'g/cm**3'), \
                 den_cores = (den_cores, 'g/cm**3'), den_sheaths = (den_sheaths, 'g/cm**3'), \
                 den_non_fil = (den_non_fil, 'g/cm**3'), den_non_acc = (den_non_acc, 'g/cm**3'), \
-                temperature = (temperature, 'K'), temp_all_acc = (temp_all_acc, 'K'), \
-                temp_cores = (temp_cores, 'K'), temp_sheaths = (temp_sheaths, 'K'), \
-                temp_non_fil = (temp_non_fil, 'K'), temp_non_acc = (temp_non_acc, 'K'), \
-                Ha = (Ha, "g/cm**3"), Ha_all_acc = (Ha_all_acc, 'g/cm**3'), \
-                Ha_cores = (Ha_cores, 'g/cm**3'), Ha_sheaths = (Ha_sheaths, 'g/cm**3'), \
-                Ha_non_fil = (Ha_non_fil, 'g/cm**3'), Ha_non_acc = (Ha_non_acc, 'g/cm**3'))
+                flux_density = (flux_density, "Msun/yr"), fd_all_acc = (fd_all_acc, "Msun/yr"), \
+                fd_cores = (fd_cores, "Msun/yr"), fd_sheaths = (fd_sheaths, "Msun/yr"), \
+                fd_non_fil = (fd_non_fil, "Msun/yr"), fd_non_acc = (fd_non_acc, "Msun/yr"))
+                #temperature = (temperature, 'K'), temp_all_acc = (temp_all_acc, 'K'), \
+                #temp_cores = (temp_cores, 'K'), temp_sheaths = (temp_sheaths, 'K'), \
+                #temp_non_fil = (temp_non_fil, 'K'), temp_non_acc = (temp_non_acc, 'K'), \
+                #Ha = (Ha, "g/cm**3"), Ha_all_acc = (Ha_all_acc, 'g/cm**3'), \
+                #Ha_cores = (Ha_cores, 'g/cm**3'), Ha_sheaths = (Ha_sheaths, 'g/cm**3'), \
+                #Ha_non_fil = (Ha_non_fil, 'g/cm**3'), Ha_non_acc = (Ha_non_acc, 'g/cm**3'))
     bbox = np.array([[np.min(x), np.max(x)], [np.min(y), np.max(y)], [np.min(z), np.max(z)]])
     ds_viz = yt.load_uniform_grid(data, density.shape, length_unit="kpc", bbox=bbox)
     ad = ds_viz.all_data()
@@ -3985,6 +4213,11 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
     den_sheaths_cut = ad.cut_region("obj['den_sheaths'] > 0")
     den_non_fil_cut = ad.cut_region("obj['den_non_fil'] > 0")
     den_non_acc_cut = ad.cut_region("obj['den_non_acc'] > 0")
+    fd_all_acc_cut = ad.cut_region("obj['den_all_acc'] > 0")
+    fd_cores_cut = ad.cut_region("obj['den_cores'] > 0")
+    fd_sheaths_cut = ad.cut_region("obj['den_sheaths'] > 0")
+    fd_non_fil_cut = ad.cut_region("obj['den_non_fil'] > 0")
+    fd_non_acc_cut = ad.cut_region("obj['den_non_acc'] > 0")
     temp_all_acc_cut = ad.cut_region("obj['temp_all_acc'] > 0")
     temp_cores_cut = ad.cut_region("obj['temp_cores'] > 0")
     temp_sheaths_cut = ad.cut_region("obj['temp_sheaths'] > 0")
@@ -3996,12 +4229,13 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
     Ha_non_fil_cut = ad.cut_region("obj['Ha_non_fil'] > 0")
     Ha_non_acc_cut = ad.cut_region("obj['Ha_non_acc'] > 0")'''
 
-    import napari
+    '''import napari
     from vispy.color import Colormap
-    temp_cmap = Colormap(['salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'])
+    #temp_cmap = Colormap(['salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'])
     viewer = napari.view_image(np.log10(density_gcm3), name='density', colormap='viridis', contrast_limits=[-30,-20])
-    den_all_acc_layer = viewer.add_image(np.log10(den_all_acc), name='all accretion', colormap='viridis', contrast_limits=[-30,-20])
+    #den_all_acc_layer = viewer.add_image(np.log10(den_all_acc), name='all accretion', colormap='viridis', contrast_limits=[-30,-20])
     den_cores_layer = viewer.add_image(np.log10(den_cores), name='cores', colormap='viridis', contrast_limits=[-30,-20])
+    flux_den_layer = viewer.add_image(np.log10(flux_density), name='flux density', colormap='plasma', contrast_limits=[-0.2,1.5])
     den_sheaths_layer = viewer.add_image(np.log10(den_sheaths), name='sheaths', colormap='viridis', contrast_limits=[-30,-20])
     den_non_fil_layer = viewer.add_image(np.log10(den_non_fil), name='other accretion', colormap='viridis', contrast_limits=[-30,-20])
     den_non_acc_layer = viewer.add_image(np.log10(den_non_acc), name='non-accreting', colormap='viridis', contrast_limits=[-30,-20])
@@ -4010,7 +4244,7 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
     shear_sheaths_layer = viewer.add_image(np.log10(shear_sheaths), name='sheaths shear', colormap='magma', contrast_limits=[-18,-12])
     shear_non_fil_layer = viewer.add_image(np.log10(shear_non_fil), name='other accretion shear', colormap='magma', contrast_limits=[-18,-12])
     shear_non_acc_layer = viewer.add_image(np.log10(shear_non_acc), name='non-accreting shear', colormap='magma', contrast_limits=[-18,-12])
-    '''viewer = napari.view_image(np.log10(temperature), name='temperature', colormap=temp_cmap, contrast_limits=[4,7], rendering='minip')
+    viewer = napari.view_image(np.log10(temperature), name='temperature', colormap=temp_cmap, contrast_limits=[4,7], rendering='minip')
     temp_all_acc_layer = viewer.add_image(np.log10(temp_all_acc), name='all accretion', colormap=temp_cmap, contrast_limits=[4,7], rendering='minip')
     temp_cores_layer = viewer.add_image(np.log10(temp_cores), name='cores', colormap=temp_cmap, contrast_limits=[4,7], rendering='minip')
     temp_sheaths_layer = viewer.add_image(np.log10(temp_sheaths), name='sheaths', colormap=temp_cmap, contrast_limits=[4,7], rendering='minip')
@@ -4021,16 +4255,18 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
     Ha_cores_layer = viewer.add_image(np.log10(Ha_cores), name='H-alpha cores', colormap='hot', contrast_limits=[-22,-16])
     Ha_sheaths_layer = viewer.add_image(np.log10(Ha_sheaths), name='H-alpha sheaths', colormap='hot', contrast_limits=[-22,-16])
     Ha_non_fil_layer = viewer.add_image(np.log10(Ha_non_fil), name='H-alpha other accretion', colormap='hot', contrast_limits=[-22,-16])
-    Ha_non_acc_layer = viewer.add_image(np.log10(Ha_non_acc), name='H-alpha non-accreting', colormap='hot', contrast_limits=[-22,-16])'''
-    napari.run()
+    Ha_non_acc_layer = viewer.add_image(np.log10(Ha_non_acc), name='H-alpha non-accreting', colormap='hot', contrast_limits=[-22,-16])
+    napari.run()'''
 
-    '''dirs = ['x', 'y', 'z']
+    dirs = ['x', 'y', 'z']
     axis_labels = [['y', 'z'], ['x', 'z'], ['x', 'y']]
     temp_cmap = sns.blend_palette(('salmon', "#984ea3", "#4daf4a", "#ffe34d", 'darkorange'), as_cmap=True)
     temp_cmap.set_bad('white')
     #temp_cmap.set_under('salmon')
     den_cmap = copy.copy(matplotlib.cm.get_cmap('viridis'))
     den_cmap.set_bad('white')
+    fd_cmap = copy.copy(matplotlib.cm.get_cmap('plasma'))
+    fd_cmap.set_bad('white')
     #den_cmap.set_under(den_cmap.colors[0])
     cmap1 = cmr.take_cmap_colors('cmr.flamingo', 9, cmap_range=(0.4, 0.8), return_fmt='rgba')
     cmap2 = cmr.take_cmap_colors('cmr.neutral_r', 3, cmap_range=(0.2, 0.6), return_fmt='rgba')
@@ -4039,19 +4275,23 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
     Ha_cmap.set_bad('white')
     for d in range(len(dirs)):
         fig_den = plt.figure(figsize=(16,10), dpi=250)
-        fig_temp = plt.figure(figsize=(16,10), dpi=250)
-        fig_Ha = plt.figure(figsize=(16,10), dpi=250)
+        fig_fd = plt.figure(figsize=(16,10), dpi=250)
+        #fig_temp = plt.figure(figsize=(16,10), dpi=250)
+        #fig_Ha = plt.figure(figsize=(16,10), dpi=250)
         for i in range(len(acc_regions)):
             ax_den = fig_den.add_subplot(2,3,i+1)
-            ax_temp = fig_temp.add_subplot(2,3,i+1)
-            ax_Ha = fig_Ha.add_subplot(2,3,i+1)
+            ax_fd = fig_fd.add_subplot(2,3,i+1)
+            #ax_temp = fig_temp.add_subplot(2,3,i+1)
+            #ax_Ha = fig_Ha.add_subplot(2,3,i+1)
 
             den_proj = np.copy(density_gcm3)
             den_proj[~acc_regions[i]] = 0.
-            temp_proj = np.copy(temperature)
-            temp_proj[~acc_regions[i]] = 0.
-            Ha_proj = np.copy(Ha)
-            Ha_proj[~acc_regions[i]] = 0.
+            fd_proj = np.copy(flux_density)
+            fd_proj[~acc_regions[i]] = 0.
+            #temp_proj = np.copy(temperature)
+            #temp_proj[~acc_regions[i]] = 0.
+            #Ha_proj = np.copy(Ha)
+            #Ha_proj[~acc_regions[i]] = 0.
             den_norm = np.sum(den_proj*dx, axis=(d))
             den_norm[den_norm==0.] = 1.
 
@@ -4074,7 +4314,26 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
             fig_den.subplots_adjust(left=0.06, bottom=0.07, top=0.96, right=0.91, wspace=0.25, hspace=0.2)
             fig_den.savefig(prefix + 'Plots/' + snap + '_density_projection_' + dirs[d] + save_suffix + '.png')
 
-            temp_plot = np.sum(temp_proj*den_proj*dx, axis=(d))/den_norm
+            fd_plot = np.sum(fd_proj*den_proj*dx, axis=(d))/den_norm
+            fd_plot[fd_plot==0.] = np.nan
+            im_fd = ax_fd.imshow(fd_plot, cmap=fd_cmap, norm=colors.LogNorm(vmin=1e-1, vmax=1e2), \
+                origin='lower', extent=[-Rvir,Rvir,-Rvir,Rvir])
+            ax_fd.axis([-Rvir,Rvir,-Rvir,Rvir])
+            ax_fd.set_xlabel(axis_labels[d][0] + ' [kpc]', fontsize=16)
+            ax_fd.set_ylabel(axis_labels[d][1] + ' [kpc]', fontsize=16)
+            ax_fd.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+                top=True, right=True)
+            ax_fd.set_title(region_titles[i], fontsize=16)
+            if (i==len(acc_regions)-1):
+                cax_fd = fig_fd.add_axes([0.91, 0.08, 0.02, 0.87])
+                cax_fd.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+                    top=True, right=True)
+                fig_fd.colorbar(im_fd, cax=cax_fd, orientation='vertical')
+                cax_fd.text(3.5, 0.5, 'Mass Flux Density [$M_\odot$/yr/rad$^2$]', fontsize=16, rotation='vertical', ha='center', va='center', transform=cax_fd.transAxes)
+            fig_fd.subplots_adjust(left=0.06, bottom=0.07, top=0.96, right=0.91, wspace=0.25, hspace=0.2)
+            fig_fd.savefig(prefix + 'Plots/' + snap + '_flux-density_projection_' + dirs[d] + save_suffix + '.png')
+
+            '''temp_plot = np.sum(temp_proj*den_proj*dx, axis=(d))/den_norm
             temp_plot[temp_plot==0.] = np.nan
             im_temp = ax_temp.imshow(temp_plot, cmap=temp_cmap, norm=colors.LogNorm(vmin=1e4, vmax=1e6), \
                 origin='lower', extent=[-Rvir,Rvir,-Rvir,Rvir])
