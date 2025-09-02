@@ -3392,6 +3392,7 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
             theta_grid, phi_grid = np.meshgrid(theta_centers, phi_centers, indexing='ij')
             theta_grid_wide, phi_grid_wide = np.meshgrid(theta_centers_2, phi_centers, indexing='ij')
             sph_grid[sph_grid > 0] = 1
+            sph_grid[sph_grid == 0.] = int(0)
             #plt.imshow(sph_grid, origin='lower')
             #plt.show()
 
