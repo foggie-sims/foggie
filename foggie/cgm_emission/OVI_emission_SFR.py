@@ -906,7 +906,7 @@ def sb_profile_nofdbk_compare(snap):
     rbin_centers = rbins[:-1] + 0.5*np.diff(rbins)
     runs = ['nref11c_nref9f', 'feedback-10-track']
     colors = ['k','#8e9091']
-    colors_inflow = ['#984ea3', '#2b0acf']
+    colors_inflow = ['b', "#04C8CF"]
     labels = ['Fiducial', 'No feedback']
     labels_inflow = ['Fiducial inflows', 'No feedback inflows']
     for h in range(len(runs)):
@@ -922,6 +922,7 @@ def sb_profile_nofdbk_compare(snap):
                 top=True, right=True)
     ax.legend(loc=1, fontsize=16, frameon=False)
     ax.axis([0,50,-24,-18])
+    ax.set_title('Simulated Metallicity', fontsize=16)
 
     fig.tight_layout()
     plt.savefig(prefix + '/' + snap + '_OVI_surface_brightness_profile_edge-on_fid-nofdbk' + save_suffix + '.png')
@@ -1261,7 +1262,7 @@ def sb_vs_sfr(halos, outs):
             sfr = sfr_table['col3'][sfr_table['col1']==snap][0]
             sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
             radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
-            SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
+            SB_med_list.append(sb_data['all_med'][radial_range][0])
             SFR_list.append(sfr)
 
         SB_med_list = np.array(SB_med_list)
@@ -1276,7 +1277,7 @@ def sb_vs_sfr(halos, outs):
     ax.set_xscale('log')
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
-    if (args.Aspera_limit): ax.axis([-5,100,-19,-18])
+    if (args.Aspera_limit): ax.axis([0.1,100,-18.85,-18])
     else: ax.axis([0.1,100,-21.,-18.5])
     ax.text(0.05, 0.95, halo_names[0], fontsize=14, weight='semibold', c=halo_colors[0], ha='left', va='top', transform=ax.transAxes)
     ax.text(0.05, 0.89, halo_names[1], fontsize=14, weight='semibold', c=halo_colors[1], ha='left', va='top', transform=ax.transAxes)
@@ -1307,7 +1308,7 @@ def sb_vs_Mh(halos, outs):
             snap = outs[h][i]
             sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
             radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
-            SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
+            SB_med_list.append(sb_data['all_med'][radial_range][0])
             mvir_list.append(mvir_table['total_mass'][mvir_table['snapshot']==snap][0])
 
         SB_med_list = np.array(SB_med_list)
@@ -1341,36 +1342,34 @@ def sb_vs_den(halos, outs):
     for h in range(len(halo_names)):
         if (halo_names[h]=='Tempest (no feedback)'):
             sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
-            den_table_loc = output_dir + 'profiles_halo_008508/feedback-10-track/Tables/'
         else:
             sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
-            den_table_loc = output_dir + 'profiles_halo_00' + halos[h] + '/' + args.run + '/Tables/'
         den_list = []
         SB_med_list = []
         for i in range(len(outs[h])):
             # Load the PDF of OVI emission
             snap = outs[h][i]
             sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
-            den_data = Table.read(den_table_loc + snap + '_density_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
+            den_data = Table.read(sb_table_loc + snap + '_radial_profiles_vol-weighted.hdf5', path='all_data')
             radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
             #radial_range_den = (den_data['col1']<=50.)
-            radial_range_den = (den_data['col1']<=20.)
-            SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
-            den_list.append(np.mean(den_data['col3'][radial_range_den]))
+            radial_range_den = (den_data['inner_radius']==0.) & (den_data['outer_radius']==20.)
+            SB_med_list.append(sb_data['all_mean'][radial_range][0])
+            den_list.append(den_data['cgm_den_mean'][radial_range_den][0])
 
         SB_med_list = np.array(SB_med_list)
         den_list = np.array(den_list)
         color_list = [halo_colors[h]] * len(den_list)
         alphas = np.linspace(0.1, 1.0, len(den_list))
         color_alpha_list = [mcolors.to_rgba(c, alpha=a) for c, a in zip(color_list, alphas)]
-        ax.scatter(np.log10(den_list), SB_med_list, marker='.', s=60, fc=color_alpha_list, ec='none')
+        ax.scatter(den_list, SB_med_list, marker='.', s=60, fc=color_alpha_list, ec='none')
         
     ax.set_xlabel('log Mean CGM Density [g cm$^{-3}$]', fontsize=14)
-    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
+    ax.set_ylabel('log Mean O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
-    if (args.Aspera_limit): ax.axis([-28.2,-26,-19,-18])
-    else: ax.axis([-28.2,-26,-21.,-18.5])
+    if (args.Aspera_limit): ax.axis([-28.5,-26.75,-19,-18])
+    else: ax.axis([-28.5,-26.75,-21.,-18.5])
     ax.text(0.05, 0.95, halo_names[0], fontsize=14, weight='semibold', c=halo_colors[0], ha='left', va='top', transform=ax.transAxes)
     ax.text(0.05, 0.89, halo_names[1], fontsize=14, weight='semibold', c=halo_colors[1], ha='left', va='top', transform=ax.transAxes)
     ax.text(0.05, 0.83, halo_names[2], fontsize=14, weight='semibold', c=halo_colors[2], ha='left', va='top', transform=ax.transAxes)
@@ -1394,9 +1393,8 @@ def den_vs_time(halos, outs):
     for h in range(len(halo_names)):
         if (halo_names[h]=='Tempest (no feedback)'):
             sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
-            den_table_loc = output_dir + 'profiles_halo_008508/feedback-10-track/Tables/'
         else:
-            den_table_loc = output_dir + 'profiles_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+            sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
             halo_c_v_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/halo_c_v'
             sfr_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr'
             halo_c_v = Table.read(halo_c_v_name, format='ascii')
@@ -1415,13 +1413,13 @@ def den_vs_time(halos, outs):
         for i in range(len(outs[h])):
             # Load the PDF of OVI emission
             snap = outs[h][i]
-            den_data = Table.read(den_table_loc + snap + '_density_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
-            radial_range_den = (den_data['col1']<=20.)
-            den_list.append(np.mean(den_data['col3'][radial_range_den]))
+            den_data = Table.read(sb_table_loc + snap + '_radial_profiles_vol-weighted.hdf5', path='all_data')
+            radial_range_den = (den_data['inner_radius']==0.) & (den_data['outer_radius']==20.)
+            den_list.append(den_data['cgm_den_med'][radial_range_den][0])
             time_list.append(float(timelist[snaplist==snap][0])/1000.)
             z_list.append(float(zlist[snaplist==snap][0]))
 
-        ax.scatter(time_list, np.log10(den_list), marker='.', color=halo_colors[h], label=halo_names[h])
+        ax.scatter(time_list, den_list, marker='.', s=60, ec='none', fc=halo_colors[h])
         #ax_sfr.plot(sfr_time, sfr, ls='-', lw=1, color=halo_colors[h])
 
     #ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 75])
@@ -1431,13 +1429,16 @@ def den_vs_time(halos, outs):
                 #top=True, right=True)
     #ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
         
-    ax.set_ylabel('log Mean CGM Density [g cm$^{-3}$]', fontsize=20)
-    ax.set_xlabel('Time [Gyr]', fontsize=20)
-    ax.legend(loc=1, ncols=2, fontsize=18, columnspacing=0.5, borderpad=0.3, handlelength=1.0, handletextpad=0.4)
-    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+    ax.set_ylabel('log Median CGM Density [g cm$^{-3}$]', fontsize=14)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=False, right=True)
-    ax.axis([np.min(time_list), np.max(time_list), -28.2, -26])
+    ax.axis([np.min(time_list), np.max(time_list), -28.5, -26.75])
     ax.set_xticklabels([])
+    ax.text(0.72, 0.95, halo_names[0], fontsize=14, weight='semibold', c=halo_colors[0], ha='right', va='top', transform=ax.transAxes)
+    ax.text(0.72, 0.89, halo_names[1], fontsize=14, weight='semibold', c=halo_colors[1], ha='right', va='top', transform=ax.transAxes)
+    ax.text(0.72, 0.83, halo_names[2], fontsize=14, weight='semibold', c=halo_colors[2], ha='right', va='top', transform=ax.transAxes)
+    ax.text(0.95, 0.95, halo_names[3], fontsize=14, weight='semibold', c=halo_colors[3], ha='right', va='top', transform=ax.transAxes)
+    ax.text(0.95, 0.89, halo_names[4], fontsize=14, weight='semibold', c=halo_colors[4], ha='right', va='top', transform=ax.transAxes)
 
     z_list.reverse()
     time_list.reverse()
@@ -1445,7 +1446,7 @@ def den_vs_time(halos, outs):
     time_list.reverse()
 
     ax2 = ax.twiny()
-    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
     top=True)
     x0, x1 = ax.get_xlim()
     z_ticks = np.array([1,.7,.5,.3,.2,.1,0])
@@ -1457,9 +1458,9 @@ def den_vs_time(halos, outs):
     ax2.set_xlim(x0,x1)
     ax2.set_xticks(tick_pos)
     ax2.set_xticklabels(tick_labels)
-    ax2.set_xlabel('Redshift', fontsize=20)
+    ax2.set_xlabel('Redshift', fontsize=14)
 
-    fig.tight_layout()
+    fig.subplots_adjust(left=0.13,bottom=0.1,top=0.9,right=0.97)
     plt.savefig(prefix + 'den_vs_time' + save_suffix + '.png')
 
 def sb_vs_Z(halos, outs):
@@ -1472,36 +1473,34 @@ def sb_vs_Z(halos, outs):
     for h in range(len(halo_names)):
         if (halo_names[h]=='Tempest (no feedback)'):
             sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
-            Z_table_loc = output_dir + 'profiles_halo_008508/feedback-10-track/Tables/'
         else:
             sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
-            Z_table_loc = output_dir + 'profiles_halo_00' + halos[h] + '/' + args.run + '/Tables/'
         Z_list = []
         SB_med_list = []
         for i in range(len(outs[h])):
             # Load the PDF of OVI emission
             snap = outs[h][i]
             sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
-            Z_data = Table.read(Z_table_loc + snap + '_metallicity_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
+            Z_data = Table.read(sb_table_loc + snap + '_radial_profiles_vol-weighted.hdf5', path='all_data')
             radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
             #radial_range_Z = (Z_data['col1']<=50.)
-            radial_range_Z = (Z_data['col1']<=20.)
-            SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
-            Z_list.append(np.mean(Z_data['col3'][radial_range_Z]))
+            radial_range_Z = (Z_data['inner_radius']==0.) & (Z_data['outer_radius']==20.)
+            SB_med_list.append(sb_data['all_med'][radial_range][0])
+            Z_list.append(Z_data['cgm_met_med'][radial_range_Z][0])
 
         SB_med_list = np.array(SB_med_list)
         Z_list = np.array(Z_list)
         color_list = [halo_colors[h]] * len(Z_list)
         alphas = np.linspace(0.1, 1.0, len(Z_list))
         color_alpha_list = [mcolors.to_rgba(c, alpha=a) for c, a in zip(color_list, alphas)]
-        ax.scatter(np.log10(Z_list), SB_med_list, marker='.', s=60, fc=color_alpha_list, ec='none')
+        ax.scatter(Z_list, SB_med_list, marker='.', s=60, fc=color_alpha_list, ec='none')
         
-    ax.set_xlabel(r'log Mean CGM Metallicity [$Z_\odot$]', fontsize=14)
+    ax.set_xlabel(r'log Median CGM Metallicity [$Z_\odot$]', fontsize=14)
     ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
-    if (args.Aspera_limit): ax.axis([-2.5,1,-19,-18])
-    else: ax.axis([-1.5,1,-21.,-18.5])
+    if (args.Aspera_limit): ax.axis([-1.5,0.5,-19,-18])
+    else: ax.axis([-1.5,0.5,-21.,-18.5])
     ax.text(0.05, 0.95, halo_names[0], fontsize=14, weight='semibold', c=halo_colors[0], ha='left', va='top', transform=ax.transAxes)
     ax.text(0.05, 0.89, halo_names[1], fontsize=14, weight='semibold', c=halo_colors[1], ha='left', va='top', transform=ax.transAxes)
     ax.text(0.05, 0.83, halo_names[2], fontsize=14, weight='semibold', c=halo_colors[2], ha='left', va='top', transform=ax.transAxes)
@@ -1524,9 +1523,9 @@ def Z_vs_time(halos, outs):
     halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
     for h in range(len(halo_names)):
         if (halo_names[h]=='Tempest (no feedback)'):
-            Z_table_loc = output_dir + 'profiles_halo_008508/feedback-10-track/Tables/'
+            Z_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
         else:
-            Z_table_loc = output_dir + 'profiles_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+            Z_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
             halo_c_v_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/halo_c_v'
             sfr_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr'
             halo_c_v = Table.read(halo_c_v_name, format='ascii')
@@ -1545,13 +1544,13 @@ def Z_vs_time(halos, outs):
         for i in range(len(outs[h])):
             # Load the PDF of OVI emission
             snap = outs[h][i]
-            Z_data = Table.read(Z_table_loc + snap + '_metallicity_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
-            radial_range_Z = (Z_data['col1']<=20.)
-            Z_list.append(np.mean(Z_data['col3'][radial_range_Z]))
+            Z_data = Table.read(Z_table_loc + snap + '_radial_profiles_vol-weighted.hdf5', path='all_data')
+            radial_range_Z = (Z_data['inner_radius']==0.) & (Z_data['outer_radius']==20.)
+            Z_list.append(Z_data['cgm_met_med'][radial_range_Z][0])
             time_list.append(float(timelist[snaplist==snap][0])/1000.)
             z_list.append(float(zlist[snaplist==snap][0]))
 
-        ax.scatter(time_list, np.log10(Z_list), marker='.', color=halo_colors[h], label=halo_names[h])
+        ax.scatter(time_list, Z_list, marker='.', s=60, ec='none', fc=halo_colors[h])
         #ax_sfr.plot(sfr_time, sfr, ls='-', lw=1, color=halo_colors[h])
 
     #ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 75])
@@ -1561,12 +1560,12 @@ def Z_vs_time(halos, outs):
                 #top=True, right=True)
     #ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
         
-    ax.set_ylabel(r'log Mean CGM Metallicity [$Z_\odot$]', fontsize=20)
-    ax.set_xlabel('Time [Gyr]', fontsize=20)
+    ax.set_ylabel(r'log Median CGM Metallicity [$Z_\odot$]', fontsize=14)
+    #ax.set_xlabel('Time [Gyr]', fontsize=20)
     #ax.legend(loc=4, ncols=2, fontsize=16)
-    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=False, right=True)
-    ax.axis([np.min(time_list), np.max(time_list), -1.5, 1])
+    ax.axis([np.min(time_list), np.max(time_list), -1.5, 0.5])
     ax.set_xticklabels([])
 
     z_list.reverse()
@@ -1575,8 +1574,8 @@ def Z_vs_time(halos, outs):
     time_list.reverse()
 
     ax2 = ax.twiny()
-    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
-    top=True)
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+    top=True, labeltop=False)
     x0, x1 = ax.get_xlim()
     z_ticks = np.array([1,.7,.5,.3,.2,.1,0])
     last_z = np.where(z_ticks >= z_list[0])[0][-1]
@@ -1586,10 +1585,10 @@ def Z_vs_time(halos, outs):
     tick_labels = ['%.2f' % (z) for z in z_ticks]
     ax2.set_xlim(x0,x1)
     ax2.set_xticks(tick_pos)
-    ax2.set_xticklabels(tick_labels)
-    ax2.set_xlabel('Redshift', fontsize=20)
+    ax2.set_xticklabels([])
+    #ax2.set_xlabel('Redshift', fontsize=20)
 
-    fig.tight_layout()
+    fig.subplots_adjust(left=0.13,bottom=0.1,top=0.9,right=0.97)
     plt.savefig(prefix + 'Z_vs_time' + save_suffix + '.png')
 
 def sb_vs_temp(halos, outs):
@@ -1602,36 +1601,34 @@ def sb_vs_temp(halos, outs):
     for h in range(len(halo_names)):
         if (halo_names[h]=='Tempest (no feedback)'):
             sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
-            Z_table_loc = output_dir + 'profiles_halo_008508/feedback-10-track/Tables/'
         else:
             sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
-            Z_table_loc = output_dir + 'profiles_halo_00' + halos[h] + '/' + args.run + '/Tables/'
-        Z_list = []
+        temp_list = []
         SB_med_list = []
         for i in range(len(outs[h])):
             # Load the PDF of OVI emission
             snap = outs[h][i]
             sb_data = Table.read(sb_table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
-            Z_data = Table.read(Z_table_loc + snap + '_temperature_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
+            temp_data = Table.read(sb_table_loc + snap + '_radial_profiles_vol-weighted.hdf5', path='all_data')
             radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
-            #radial_range_Z = (Z_data['col1']<=50.)
-            radial_range_Z = (Z_data['col1']<=20.)
-            SB_med_list.append(np.mean(sb_data['all_med'][radial_range]))
-            Z_list.append(np.mean(Z_data['col3'][radial_range_Z]))
+            #radial_range_temp = (temp_data['col1']<=50.)
+            radial_range_temp = (temp_data['inner_radius']==0.) & (temp_data['outer_radius']==20.)
+            SB_med_list.append(sb_data['all_mean'][radial_range][0])
+            temp_list.append(temp_data['cgm_temp_mean'][radial_range_temp][0])
 
         SB_med_list = np.array(SB_med_list)
-        Z_list = np.array(Z_list)
-        color_list = [halo_colors[h]] * len(Z_list)
-        alphas = np.linspace(0.1, 1.0, len(Z_list))
+        temp_list = np.array(temp_list)
+        color_list = [halo_colors[h]] * len(temp_list)
+        alphas = np.linspace(0.1, 1.0, len(temp_list))
         color_alpha_list = [mcolors.to_rgba(c, alpha=a) for c, a in zip(color_list, alphas)]
-        ax.scatter(np.log10(Z_list), SB_med_list, marker='.', s=60, fc=color_alpha_list, ec='none')
+        ax.scatter(temp_list, SB_med_list, marker='.', s=60, fc=color_alpha_list, ec='none')
         
     ax.set_xlabel('log Mean CGM Temperature [K]', fontsize=14)
-    ax.set_ylabel('log Median O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
+    ax.set_ylabel('log Mean O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=14)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
-    if (args.Aspera_limit): ax.axis([5.5,7.25,-19,-18])
-    else: ax.axis([5.5,7.25,-21.,-18.5])
+    if (args.Aspera_limit): ax.axis([4,6.75,-19,-18])
+    else: ax.axis([4,6.75,-21.,-18.5])
     ax.text(0.05, 0.95, halo_names[0], fontsize=14, weight='semibold', c=halo_colors[0], ha='left', va='top', transform=ax.transAxes)
     ax.text(0.05, 0.89, halo_names[1], fontsize=14, weight='semibold', c=halo_colors[1], ha='left', va='top', transform=ax.transAxes)
     ax.text(0.05, 0.83, halo_names[2], fontsize=14, weight='semibold', c=halo_colors[2], ha='left', va='top', transform=ax.transAxes)
@@ -1654,9 +1651,9 @@ def temp_vs_time(halos, outs):
     halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
     for h in range(len(halo_names)):
         if (halo_names[h]=='Tempest (no feedback)'):
-            temp_table_loc = output_dir + 'profiles_halo_008508/feedback-10-track/Tables/'
+            temp_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
         else:
-            temp_table_loc = output_dir + 'profiles_halo_00' + halos[h] + '/' + args.run + '/Tables/'
+            temp_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
             halo_c_v_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/halo_c_v'
             sfr_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr'
             halo_c_v = Table.read(halo_c_v_name, format='ascii')
@@ -1675,13 +1672,13 @@ def temp_vs_time(halos, outs):
         for i in range(len(outs[h])):
             # Load the PDF of OVI emission
             snap = outs[h][i]
-            temp_data = Table.read(temp_table_loc + snap + '_temperature_vs_radius_volume-weighted_profiles_cgm-only.txt', format='ascii')
-            radial_range_temp = (temp_data['col1']<=20.)
-            temp_list.append(np.mean(temp_data['col3'][radial_range_temp]))
+            temp_data = Table.read(temp_table_loc + snap + '_radial_profiles_vol-weighted.hdf5', path='all_data')
+            radial_range_temp = (temp_data['inner_radius']==0.) & (temp_data['outer_radius']==20.)
+            temp_list.append(temp_data['cgm_temp_med'][radial_range_temp][0])
             time_list.append(float(timelist[snaplist==snap][0])/1000.)
             z_list.append(float(zlist[snaplist==snap][0]))
 
-        ax.scatter(time_list, np.log10(temp_list), marker='.', color=halo_colors[h], label=halo_names[h])
+        ax.scatter(time_list, temp_list, marker='.', s=60, ec='none', fc=halo_colors[h])
         #ax_sfr.plot(sfr_time, sfr, ls='-', lw=1, color=halo_colors[h])
 
     #ax_sfr.axis([np.min(time_list), np.max(time_list), 0, 75])
@@ -1691,13 +1688,12 @@ def temp_vs_time(halos, outs):
                 #top=True, right=True)
     #ax_sfr.set_yticklabels(ax_sfr.get_yticklabels()[:-1])
         
-    ax.set_ylabel('log Mean CGM Temperature [K]', fontsize=20)
-    ax.set_xlabel('Time [Gyr]', fontsize=20)
+    ax.set_ylabel('log Median CGM Temperature [K]', fontsize=14)
+    ax.set_xlabel('Time [Gyr]', fontsize=14)
     #ax.legend(loc=8, ncols=2, fontsize=16)
-    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=False, right=True)
-    ax.axis([np.min(time_list), np.max(time_list), 5.5, 7.5])
-    ax.set_xticklabels([])
+    ax.axis([np.min(time_list), np.max(time_list), 5.25, 6.75])
 
     z_list.reverse()
     time_list.reverse()
@@ -1705,7 +1701,7 @@ def temp_vs_time(halos, outs):
     time_list.reverse()
 
     ax2 = ax.twiny()
-    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+    ax2.tick_params(axis='x', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
     top=True)
     x0, x1 = ax.get_xlim()
     z_ticks = np.array([1,.7,.5,.3,.2,.1,0])
@@ -1716,10 +1712,10 @@ def temp_vs_time(halos, outs):
     tick_labels = ['%.2f' % (z) for z in z_ticks]
     ax2.set_xlim(x0,x1)
     ax2.set_xticks(tick_pos)
-    ax2.set_xticklabels(tick_labels)
-    ax2.set_xlabel('Redshift', fontsize=20)
+    ax2.set_xticklabels([])
+    #ax2.set_xlabel('Redshift', fontsize=20)
 
-    fig.tight_layout()
+    fig.subplots_adjust(left=0.13,bottom=0.1,top=0.9,right=0.97)
     plt.savefig(prefix + 'temp_vs_time' + save_suffix + '.png')
 
 def sb_vs_den_temp_Z(halos, outs):
@@ -1827,20 +1823,28 @@ def emiss_area_vs_sfr(halos, outs):
             radial_range = (sb_pdf['inner_radius']==0.) & (sb_pdf['outer_radius']==20.)
             #radial_range = (sb_pdf['outer_radius']<=20.)
             npix = len(radius[radius<=20.])
-            frac_area = np.sum(sb_pdf['all'][(radial_range) & (sb_pdf['lower_SB']>=-18.5)])/npix
+            frac_area = np.sum(sb_pdf['all'][radial_range])/npix # Use the Aspera-limit pdf file, then the number of pixels above the limit is just the number of pixels in the radial bin, which is the sum across the histogram
             SB_frac_list.append(frac_area)
             SFR_list.append(sfr)
 
         SB_frac_list = np.array(SB_frac_list)
         SFR_list = np.array(SFR_list)
-        ax.scatter(SFR_list, SB_frac_list, marker='.', color=halo_colors[h], label=halo_names[h])
+        color_list = [halo_colors[h]] * len(SFR_list)
+        alphas = np.linspace(0.1, 1.0, len(SFR_list))
+        color_alpha_list = [mcolors.to_rgba(c, alpha=a) for c, a in zip(color_list, alphas)]
+        ax.scatter(SFR_list, SB_frac_list, marker='.', s=60, fc=color_alpha_list, ec='none')
         
     ax.set_xlabel(r'Star formation rate [$M_\odot$/yr]', fontsize=16)
     ax.set_ylabel('Fraction of area above O VI SB limit', fontsize=16)
-    ax.legend(loc=2, fontsize=14, ncols=2)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=True, right=True)
-    ax.axis([-5,100,0.,0.5])
+    ax.axis([0.1,100,0.,0.6])
+    ax.set_xscale('log')
+    ax.text(0.05, 0.95, halo_names[0], fontsize=14, weight='semibold', c=halo_colors[0], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.89, halo_names[1], fontsize=14, weight='semibold', c=halo_colors[1], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.05, 0.83, halo_names[2], fontsize=14, weight='semibold', c=halo_colors[2], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.95, halo_names[3], fontsize=14, weight='semibold', c=halo_colors[3], ha='left', va='top', transform=ax.transAxes)
+    ax.text(0.28, 0.89, halo_names[4], fontsize=14, weight='semibold', c=halo_colors[4], ha='left', va='top', transform=ax.transAxes)
     fig.tight_layout()
     fig.savefig(prefix + 'fractional-area-above-limit_vs_SFR' + save_suffix + '.png')
 
@@ -2480,9 +2484,13 @@ def load_and_calculate(snap):
         proj = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas','Emission_OVI'), center=ds.halo_center_kpc, data_source=refine_box, width=(100., 'kpc'), depth=(100.,'kpc'), north_vector=ds.z_unit_disk, buff_size=(1024,1024))
         proj_den = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas','density'), center=ds.halo_center_kpc, data_source=refine_box, width=(100., 'kpc'), depth=(100.,'kpc'), north_vector=ds.z_unit_disk, buff_size=(1024,1024))
         if (args.Aspera_limit):
-            cmap1 = cmr.take_cmap_colors('cmr.flamingo', 4, cmap_range=(0.4, 0.8), return_fmt='rgba')
-            cmap2 = cmr.take_cmap_colors('cmr.neutral_r', 6, cmap_range=(0.2, 0.6), return_fmt='rgba')
+            cmap1 = cmr.take_cmap_colors('cmr.flamingo', 7, cmap_range=(0.2, 0.8), return_fmt='rgba')
+            #cmap2 = cmr.take_cmap_colors('cmr.neutral_r', 6, cmap_range=(0.2, 0.6), return_fmt='rgba')
+            cmap2 = ['#000000']
             cmap = np.hstack([cmap2, cmap1])
+            cmap[1] = cmap[0]
+            cmap[2] = cmap[0]
+            cmap[3] = cmap[0]
             mymap = mcolors.LinearSegmentedColormap.from_list('cmap', cmap)
         elif (args.DISCO_limit):
             cmap1 = cmr.take_cmap_colors('cmr.flamingo', 6, cmap_range=(0.4, 0.8), return_fmt='rgba')
@@ -2512,7 +2520,8 @@ def load_and_calculate(snap):
                 top=True, right=True)
         ax_OVI.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                 top=True, right=True, labelleft=False)
-        ax_den.text(-45, 45, halo_dict[args.halo], fontsize=18, ha='left', va='top', color='white')
+        if (args.Aspera_limit): ax_OVI.text(-45, 45, halo_dict[args.halo], fontsize=18, ha='left', va='top', color='white')
+        else: ax_den.text(-45, 45, halo_dict[args.halo], fontsize=18, ha='left', va='top', color='white')
         ax_OVI.text(45, 45, '$z = %.2f$\n%.2f Gyr' % (zsnap, ds.current_time.in_units('Gyr')), fontsize=18, ha='right', va='top', color='white')
         pos_den = ax_den.get_position()
         cax_den = fig.add_axes([pos_den.x0, pos_den.y1, pos_den.width, 0.03])  # [left, bottom, width, height]

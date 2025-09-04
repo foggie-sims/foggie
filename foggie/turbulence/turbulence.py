@@ -417,10 +417,12 @@ def measure_Ek_3D(vx, vy, vz, resolution):
     return k, E_spectrum
 
 def generate_turbulent_box(resolution, v_sigma, k_peak):
-    '''Generates a 3D box of velocities that follow a Kolmogorov power spectrum with
-    amplitude A, peak location wavenumber k_peak, and power law slope of turnover m.
-    The box has physical size given by the length-3 list box_size [x_size, y_size, z_size]
-    and resolution given by the length-3 list dimensions [dim_x, dim_y, dim_z].
+    '''Generates a 3D box of velocities that follow a Kolmogorov power spectrum.
+    'resolution' is the number of cells along one side of the box, 'v_sigma'
+    is the velocity dispersion in km/s, and 'k_peak' is the wavenumber of 
+    the desired driving scale of the turbulence, in units of box size. If you want an accurate 
+    peak location in a velocity structure function calculated from this box,
+    then make sure k_peak >= 2 (no more than half the box size).
     
     This function mostly written by ChatGPT.'''
 
