@@ -3392,7 +3392,7 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
             theta_grid, phi_grid = np.meshgrid(theta_centers, phi_centers, indexing='ij')
             theta_grid_wide, phi_grid_wide = np.meshgrid(theta_centers_2, phi_centers, indexing='ij')
             sph_grid[sph_grid > 0] = 1
-            sph_grid[sph_grid == 0.] = int(0)
+            sph_grid = sph_grid.astype(int)
             #plt.imshow(sph_grid, origin='lower')
             #plt.show()
 
@@ -4330,7 +4330,7 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
                 cax_fd.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
                     top=True, right=True)
                 fig_fd.colorbar(im_fd, cax=cax_fd, orientation='vertical')
-                cax_fd.text(3.5, 0.5, 'Mass Flux Density [$M_\odot$/yr/rad$^2$]', fontsize=16, rotation='vertical', ha='center', va='center', transform=cax_fd.transAxes)
+                cax_fd.text(3.5, 0.5, r'Mass Flux Density [$M_\odot$/yr/rad$^2$]', fontsize=16, rotation='vertical', ha='center', va='center', transform=cax_fd.transAxes)
             fig_fd.subplots_adjust(left=0.06, bottom=0.07, top=0.96, right=0.91, wspace=0.25, hspace=0.2)
             fig_fd.savefig(prefix + 'Plots/' + snap + '_flux-density_projection_' + dirs[d] + save_suffix + '.png')
 
@@ -4389,7 +4389,7 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    #foggie_dir = '/Volumes/Data/Simulation_Data/'
+    foggie_dir = '/Volumes/Data/Simulation_Data/'
 
     if ('feedback' in args.run) and ('track' in args.run):
         foggie_dir = '/nobackup/jtumlins/halo_008508/feedback-track/'
