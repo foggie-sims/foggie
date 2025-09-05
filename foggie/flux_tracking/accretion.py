@@ -4389,7 +4389,7 @@ if __name__ == "__main__":
     print(args.run)
     print(args.system)
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
-    foggie_dir = '/Volumes/Data/Simulation_Data/'
+    #foggie_dir = '/Volumes/Data/Simulation_Data/'
 
     if ('feedback' in args.run) and ('track' in args.run):
         foggie_dir = '/nobackup/jtumlins/halo_008508/feedback-track/'
