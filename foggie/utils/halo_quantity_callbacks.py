@@ -1,5 +1,6 @@
 
 import yt 
+from foggie.utils.consistency import * 
 
 def halo_average_temperature(halo):
     sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
@@ -54,6 +55,28 @@ def halo_total_gas_mass(halo):
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
+
+def halo_ism_gas_mass(halo): 
+    sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "Msun")
+
+    sphere = sphere.cut_region([ism_field_filter]) #ism field filter is defined in consistency.py
+
+    return sphere.quantities.total_quantity(("gas", "cell_mass"))
+
+
+def halo_cgm_gas_mass(halo): 
+    sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "Msun")
+
+    sphere = sphere.cut_region([cgm_field_filter]) #cgm field filter is defined in consistency.py
+
+    return sphere.quantities.total_quantity(("gas", "cell_mass"))
+
 
 def halo_total_star_mass(halo): 
     sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback

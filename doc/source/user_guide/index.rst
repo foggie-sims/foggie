@@ -32,6 +32,7 @@ or for restarting an existing FOGGIE simulation from a certain snapshot.
 .. toctree::
    :maxdepth: 1
   
+   IC-creation.rst
    enzo-foggie.rst
    clean_from_ICs.rst
    restart.rst
