@@ -223,7 +223,7 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
         snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/masses/' + snap
         os.makedirs(snap_dir)
         snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, track, halo_c_v_name=halo_c_v_name)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=track, halo_c_v_name=halo_c_v_name)
     refine_width_kpc = ds.quan(ds.refine_width, 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     if (ions):

@@ -1839,9 +1839,9 @@ def load_and_calculate(snap, surface, global_vars):
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     if ((surface[0]=='cylinder') and (surface[3]=='minor')) or (args.direction) or ('disk' in surface[0]):
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=catalog_dir, disk_relative=True, correct_bulk_velocity=True, smooth_AM_name=smooth_AM_name)
+        ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=catalog_dir, disk_relative=True, correct_bulk_velocity=True, smooth_AM_name=smooth_AM_name)
     else:
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=catalog_dir, correct_bulk_velocity=True)
+        ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=catalog_dir, correct_bulk_velocity=True)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     ds.add_field(('gas','Emission_HAlpha'),units=emission_units_ALT,function=_Emission_HAlpha_ALTunits,take_log=True,force_override=True,sampling_type='cell')
@@ -2738,7 +2738,7 @@ def streamlines_over_time(snaplist, global_vars):
     # Load first snapshot
     snap = snaplist[0]
     snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=catalog_dir, correct_bulk_velocity=True)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=catalog_dir, correct_bulk_velocity=True)
     # Set up covering grid
     pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))
     lvl1_res = pix_res*2.**11.
@@ -2870,7 +2870,7 @@ def streamlines_over_time(snaplist, global_vars):
         if (s<len(snaplist)-1):
             snap = snaplist[s+1]
             snap_name = foggie_dir + run_dir + snap + '/' + snap
-            ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=False, masses_dir=catalog_dir, correct_bulk_velocity=True)
+            ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=False, masses_dir=catalog_dir, correct_bulk_velocity=True)
             # Set up covering grid
             pix_res = float(np.min(refine_box[('gas','dx')].in_units('kpc')))
             lvl1_res = pix_res*2.**11.
@@ -2943,7 +2943,7 @@ def plot_streamlines(snap, global_vars):
             snap_name = foggie_dir + run_dir + snap + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=False, masses_dir=catalog_dir, correct_bulk_velocity=True)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=False, masses_dir=catalog_dir, correct_bulk_velocity=True)
     sph = ds.sphere(center=ds.halo_center_kpc, radius=(150., 'kpc'))
 
     Nstreams = 400

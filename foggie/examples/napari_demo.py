@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     # Load the snapshot
     snap_name = foggie_dir + run_dir + args.output + '/' + args.output
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
 
     # Define a 3D FRB to be used with napari. The first few lines here are just to define refine_res to
     # be the same as FOGGIE's level 9 forced refinement. You could just put in whatever number you want

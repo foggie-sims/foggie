@@ -274,9 +274,9 @@ def make_everysnap_plots(snap, args):
         if args.trackfile == None:
             halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
             halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
-            ds, region = foggie_load(filename, args.trackfile, do_filter_particles=True, disk_relative=need_disk, halo_c_v_name=halos_df_name)
+            ds, region = foggie_load(filename, do_filter_particles=True, disk_relative=need_disk, halo_c_v_name=halos_df_name)
         else:
-            ds, region = foggie_load(filename, args.trackfile, do_filter_particles=True, disk_relative=need_disk)
+            ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk)
 
         #  Make the plots
         for thisplot in plots_to_make:

@@ -2477,7 +2477,7 @@ def load_and_calculate(snap):
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
     
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, disk_relative=True, correct_bulk_velocity=True, smooth_AM_name=smooth_AM_name)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=True, halo_c_v_name=halo_c_v_name, disk_relative=True, correct_bulk_velocity=True, smooth_AM_name=smooth_AM_name)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     if ('emission_map' in args.plot):
