@@ -131,9 +131,10 @@ def get_center_from_calculated(ds, refine_box_center, proper_box_size):
 
     return ds
 
-def foggie_load(snap, trackfile, **kwargs):
-    """This function loads a specified snapshot named by 'snap', the halo track "trackfile'
-    Based off of a helper function to flux_tracking written by Cassi, adapted for utils by JT."""
+def foggie_load(snap, **kwargs):
+    """Loads a foggie simulation snapshot and adds useful fields."""
+
+    trackfile_name = kwargs.get('trackfile_name', '')
     find_halo_center = kwargs.get('find_halo_center', True)
     halo_c_v_name = kwargs.get('halo_c_v_name', 'none')
     disk_relative = kwargs.get('disk_relative', False)
@@ -144,92 +145,117 @@ def foggie_load(snap, trackfile, **kwargs):
     masses_dir = kwargs.get('masses_dir', '')
     smooth_AM_name = kwargs.get('smooth_AM_name', False)
 
+    halo_center = kwargs.get('halo_center', [0., 0., 0.]) #use this if the center is given as a code_units tuple 
+
     print ('Opening snapshot ' + snap)
     ds = yt.load(snap)
     ad = ds.all_data()
 
-    track = Table.read(trackfile, format='ascii') # read the track file, which is a mandatory argument
-    track.sort('col1')
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift') 
+    proper_box_size = get_proper_box_size(ds) # get the proper size of the computational domain (NOT the refine region) 
+    ds.omega_baryon = ds.parameters['CosmologyOmegaMatterNow']-ds.parameters['CosmologyOmegaDarkMatterNow']
+    ds.halo_center_code = [np.nan, np.nan, np.nan] # this is the default halo_center_code until its overwritten by center-finding 
+    ds.halo_velocity_kms = [np.nan, np.nan, np.nan] # this is the default halo_center_code until its overwritten by center-finding 
+    refine_box = ds.r[0:1, 0:1, 0:1] # this is the default refine_box 
 
-    zsnap = ds.get_parameter('CosmologyCurrentRedshift') # Get the refined box in physical units from the track file 
-    proper_box_size = get_proper_box_size(ds)
-    refine_box, refine_box_center, refine_width_code = grb.get_refine_box(ds, zsnap, track)
-    refine_width = refine_width_code * proper_box_size
+    if ('trackfile_name' in kwargs) and (kwargs['trackfile_name'] != ''):
+        track = Table.read(trackfile_name, format='ascii') # read the track file
+        track.sort('col1')
 
-    # Determine center style and get halo center
-    center_style = "calculate"
-    if os.path.exists(halo_c_v_name):
-        print('Found halo_c_v file:', halo_c_v_name)
-        halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
-        snap_id = snap[-6:]
-        if 'smooth' in halo_c_v_name:
-            center_style = 'smoothed'
-            if snap_id in halo_c_v['snap']:
-                get_center_from_smoothed_catalog(ds, halo_c_v_name, snap, center_style=center_style)
+        refine_box, refine_box_center, refine_width_code = grb.get_refine_box(ds, zsnap, track)
+        refine_width = refine_width_code * proper_box_size
+
+        # Determine center style and get halo center
+        center_style = "calculate"
+        print('Will look for halo_c_v_file: ', halo_c_v_name)
+        if os.path.exists(halo_c_v_name):
+            print('Found halo_c_v file:', halo_c_v_name)
+            halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
+            snap_id = snap[-6:]
+            if 'smooth' in halo_c_v_name:
+                center_style = 'smoothed'
+                if snap_id in halo_c_v['snap']:
+                    get_center_from_smoothed_catalog(ds, halo_c_v_name, snap, center_style=center_style)
+                else:
+                    get_center_from_calculated(ds, refine_box_center, proper_box_size)
+            elif 'halo_c_v' in halo_c_v_name:
+                center_style = 'catalog'
+                if snap_id in halo_c_v['name']:
+                    get_center_from_catalog(ds, halo_c_v_name, snap, center_style=center_style)
+                else:
+                    get_center_from_calculated(ds, refine_box_center, proper_box_size)
+            elif 'root' in halo_c_v_name:
+                center_style = 'root_index'
+                get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_style=center_style)
             else:
                 get_center_from_calculated(ds, refine_box_center, proper_box_size)
-        elif 'halo_c_v' in halo_c_v_name:
-            center_style = 'catalog'
-            if snap_id in halo_c_v['name']:
-                get_center_from_catalog(ds, halo_c_v_name, snap, center_style=center_style)
-            else:
-                get_center_from_calculated(ds, refine_box_center, proper_box_size)
-        elif 'root' in halo_c_v_name:
-            center_style = 'root_index'
-            get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_style=center_style)
         else:
+            if ('halo_center' in kwargs):
+                print("we will calculate the center using the input guess")
+                get_center_from_calculated(ds, refine_box_center, proper_box_size)
+
+            print('No halo_c_v file found, calculating halo center from track')
             get_center_from_calculated(ds, refine_box_center, proper_box_size)
-    else:
-        print('No halo_c_v file found, calculating halo center from track')
-        get_center_from_calculated(ds, refine_box_center, proper_box_size)
 
-
-    ds.track = track
-    ds.refine_box_center = refine_box_center
-    ds.refine_width = refine_width
-    ds.omega_baryon = 0.0461
+        ds.track = track
+        ds.refine_box_center = refine_box_center
+        ds.refine_width = refine_width
+    else: 
+        if ('halo_center' in kwargs):
+            print("we will calculate the center using the input guess")
+            get_center_from_calculated(ds, halo_center, proper_box_size)
+            refine_box = ad
+    
+    
     # Note that if you want to use the ('gas', 'baryon_overdensity') field, you must include this line after you've defined some data object from ds:
     # > obj.set_field_parameter('omega_baryon', ds.omega_baryon)
     # foggie_load returns a 'region' data object given by the 'region' keyword, and the 'omega_baryon' parameter is already set for that.
 
-    ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
-                 sampling_type='cell')
-    ds.add_field(('gas', 'vy_corrected'), function=vy_corrected, units='km/s', take_log=False, \
-                 sampling_type='cell')
-    ds.add_field(('gas', 'vz_corrected'), function=vz_corrected, units='km/s', take_log=False, \
-                 sampling_type='cell')
-    ds.add_field(('gas', 'vel_mag_corrected'), function=vel_mag_corrected, units='km/s', take_log=False, \
-                 sampling_type='cell')
-    ds.add_field(('gas', 'radius_corrected'), function=radius_corrected, units='kpc', \
-                 take_log=False, force_override=True, sampling_type='cell')
-    ds.add_field(('gas', 'theta_pos'), function=theta_pos, units=None, take_log=False, \
-                 sampling_type='cell')
-    ds.add_field(('gas', 'phi_pos'), function=phi_pos, units=None, take_log=False, \
-                 sampling_type='cell')
-    ds.add_field(('gas', 'radial_velocity_corrected'), function=radial_velocity_corrected, \
-                 units='km/s', take_log=False, force_override=True, sampling_type='cell', display_name='Radial Velocity')
-    ds.add_field(('gas', 'theta_velocity_corrected'), function=theta_velocity_corrected, \
-                 units='km/s', take_log=False, force_override=True, sampling_type='cell')
-    ds.add_field(('gas', 'phi_velocity_corrected'), function=phi_velocity_corrected, \
-                 units='km/s', take_log=False, force_override=True, sampling_type='cell')
-    ds.add_field(('gas', 'tangential_velocity_corrected'), function=tangential_velocity_corrected, \
-                 units='km/s', take_log=False, force_override=True, sampling_type='cell', display_name='Tangential Velocity')
-    ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
-                 units='erg', take_log=True, force_override=True, sampling_type='cell')
-    ds.add_field(('gas', 'radial_kinetic_energy'), function=radial_kinetic_energy, \
-                 units='erg', take_log=True, force_override=True, sampling_type='cell')
-    ds.add_field(('gas', 'tangential_kinetic_energy'), function=tangential_kinetic_energy, \
-                 units='erg', take_log=True, force_override=True, sampling_type='cell')
-    ds.add_field(('gas', 'cell_mass_msun'), function=cell_mass_msun, units='Msun', take_log=True, \
-                 force_override=True, sampling_type='cell')
+    ds.add_field(('index', 'cell_id'), function=get_cell_ids, sampling_type='cell')
 
-    # filter particles into star and dm
+    print('made it to here!')
+
+    if (np.isnan(ds.halo_velocity_kms).any() == False):  # we will only add these velocity and energy fields if there is a meaningful halo bulk velocity 
+        print('ds.halo_velocity_kms = ', ds.halo_velocity_kms, ' so we can add the centered velocity and energy fields') 
+        ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
+                     sampling_type='cell')
+        ds.add_field(('gas', 'vy_corrected'), function=vy_corrected, units='km/s', take_log=False, \
+                    sampling_type='cell')
+        ds.add_field(('gas', 'vz_corrected'), function=vz_corrected, units='km/s', take_log=False, \
+                    sampling_type='cell')
+        ds.add_field(('gas', 'vel_mag_corrected'), function=vel_mag_corrected, units='km/s', take_log=False, \
+                    sampling_type='cell')
+        ds.add_field(('gas', 'radius_corrected'), function=radius_corrected, units='kpc', \
+                    take_log=False, force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'theta_pos'), function=theta_pos, units=None, take_log=False, \
+                    sampling_type='cell')
+        ds.add_field(('gas', 'phi_pos'), function=phi_pos, units=None, take_log=False, \
+                    sampling_type='cell')
+        ds.add_field(('gas', 'radial_velocity_corrected'), function=radial_velocity_corrected, \
+                    units='km/s', take_log=False, force_override=True, sampling_type='cell', display_name='Radial Velocity')
+        ds.add_field(('gas', 'theta_velocity_corrected'), function=theta_velocity_corrected, \
+                    units='km/s', take_log=False, force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'phi_velocity_corrected'), function=phi_velocity_corrected, \
+                    units='km/s', take_log=False, force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'tangential_velocity_corrected'), function=tangential_velocity_corrected, \
+                    units='km/s', take_log=False, force_override=True, sampling_type='cell', display_name='Tangential Velocity')
+        ds.add_field(('gas', 'kinetic_energy_corrected'), function=kinetic_energy_corrected, \
+                    units='erg', take_log=True, force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'radial_kinetic_energy'), function=radial_kinetic_energy, \
+                    units='erg', take_log=True, force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'tangential_kinetic_energy'), function=tangential_kinetic_energy, \
+                    units='erg', take_log=True, force_override=True, sampling_type='cell')
+        ds.add_field(('gas', 'cell_mass_msun'), function=cell_mass_msun, units='Msun', take_log=True, \
+                    force_override=True, sampling_type='cell')
+
+    # add cell IDs 
     ds.add_field(('index', 'cell_id'), function=get_cell_ids, sampling_type='cell')
     
     # filter particles into star and dm
-    # JT moved this to before "disk_relative" so that the if statement can use the filtered particle fields
-    if (do_filter_particles):
-        filter_particles(refine_box, filter_particle_types = ['young_stars', 'young_stars3', 'young_stars8', 'old_stars', 'stars', 'dm'])
+    filter_particles(refine_box, filter_particle_types = ['young_stars', 'young_stars3', 'young_stars8', 'old_stars', 'stars', 'dm'])
+
+    # create radius and angular momentum fields for the filtered particles 
+    if (do_filter_particles & (np.isnan(ds.halo_velocity_kms).any() == False)): # filter particles into star and dm
 
         ds.add_field(('stars', 'radius_corrected'), function=radius_corrected_stars, units='kpc', \
                      take_log=False, force_override=True, sampling_type='particle')
@@ -245,7 +271,6 @@ def foggie_load(snap, trackfile, **kwargs):
                      take_log=False, force_override=True, sampling_type='particle')
         ds.add_field(('dm', 'radial_velocity_corrected'), function=radial_velocity_corrected_dm, units='km/s', \
                      take_log=False, force_override=True, sampling_type='particle')
-
 
         sam_un = ds.unit_system["specific_angular_momentum"]
         am_un  = ds.unit_system["angular_momentum"]
@@ -266,7 +291,6 @@ def foggie_load(snap, trackfile, **kwargs):
                         function= get_particle_relative_angular_momentum_y(ptype), units=am_un)
             ds.add_field((ptype, "particle_relative_angular_momentum_z"),sampling_type="particle",
                         function= get_particle_relative_angular_momentum_z(ptype), units=am_un)
-
 
 
     # Option to define velocities and coordinates relative to the angular momentum vector of the disk
