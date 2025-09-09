@@ -108,7 +108,11 @@ pieces, but otherwise everything is still within the framework of yt.
 Use ``foggie_load`` by putting the following in your python script:
 ::
 
-    ds, refine_box = foggie_load(snap_name, track_name, halo_c_v_name=halo_c_v_name)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=track_name, halo_c_v_name=halo_c_v_name)
+
+Note that the optional argument ``trackfile_name`` points towards the file that provides the location of the halo track box. You should 
+always use this when analyzing a run that had a track box, which is all of the production runs. This used to be a mandatory argument but 
+was changed 9/5/25, so if you're using old code that has this as mandatory you will probably need to fix it.
 
 There are several necessary variables and fields that foggie_load sets up for you:
 

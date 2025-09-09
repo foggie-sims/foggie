@@ -76,9 +76,9 @@ Use foggie_load as:
 ds, region = foggie_load(snap, trackfile, optional_arguments)
 
 "snap" is the full file path to the location of the output you want.
-"trackfile" is the full file path to the location of the halo track file.
 
 The optional arguments are:
+trackfile_name - the full file path to the location of the halo track file.
 halo_c_v_name - The full path to the halo_c_v file, defaults to 'halo_c_v'.
 disk_relative - True or False, defaults to False. Decides if you want to calculate the disk angular
                 momentum and add a bunch of derived fields for disk-coordinate positions and velocities.

@@ -1277,9 +1277,9 @@ def load_and_calculate(system, foggie_dir, run_dir, track, halo_c_v_name, snap, 
         if (((surface_args[i][0]=='frustum') or (surface_args[i][0]=='cylinder')) and (surface_args[i][4]=='disk minor axis')):
             disk = True
     if (disk):
-        ds, refine_box = foggie_load(snap_name, track, disk_relative=True, halo_c_v_name=halo_c_v_name)
+        ds, refine_box = foggie_load(snap_name, trackfile_name=track, disk_relative=True, halo_c_v_name=halo_c_v_name)
     else:
-        ds, refine_box = foggie_load(snap_name, track, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
+        ds, refine_box = foggie_load(snap_name, trackfile_name=track, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
     refine_width_kpc = ds.quan(ds.refine_width, 'kpc')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     dt = 5.38e6
