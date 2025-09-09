@@ -237,6 +237,8 @@ def generate_plot_filename(quantity, args, snap):
                             'halos_MZR': snap + '_halos_MZR.png', \
                             'halos_h2_frac': snap + '_halos_h2_fraction.png', \
                             'halos_gasMHM': snap + '_halos_gas-mass_halo-mass.png', \
+                            'halos_ismMHM': snap + '_halos_ism-mass_halo-mass.png', \
+                            'halos_cgmMHM': snap + '_halos_cgm-mass_halo-mass.png', \
                             'plot_SFMS': 'SFMS.png', \
                             'plot_SMHM': 'SMHM.png', \
                             'plot_MZR': 'MZR.png'}
@@ -329,7 +331,7 @@ if __name__ == "__main__":
     # yt's HOP halo finder to be run (each will check if the halo catalog already exists).
     # It is not recommended to run these on snapshots lower than z = 2 because the halo finder
     # doesn't work well at low redshifts:
-    args.highz_halos_plots = ['halos_density_projection','halos_SMHM','halos_SFMS','halos_MZR','halos_gasMHM','halos_h2_frac']
+    args.highz_halos_plots = ['halos_density_projection','halos_SMHM','halos_SFMS','halos_MZR','halos_gasMHM', 'halos_ismMHM', 'halos_cgmMHM', 'halos_h2_frac']
 
     # These plots add a line to the central_galaxy_info.txt table for each snapshot, then make
     # ONE plot at the end containing data from every snapshot:
