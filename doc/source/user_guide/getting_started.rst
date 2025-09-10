@@ -17,6 +17,7 @@ Python Packages Needed
 * astropy
 * matplotlib
 * yt
+* yt_astro_analysis
 * datashader
 * seaborn
 

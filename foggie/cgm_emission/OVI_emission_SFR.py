@@ -32,6 +32,7 @@ from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_load import *
 from foggie.utils.analysis_utils import *
+from foggie.cgm_emission.make_rates_table import combine_rates
 
 # These imports for datashader plot
 import datashader as dshader
@@ -82,6 +83,7 @@ def parse_args():
                        help='What do you want to plot? Options are:\n' + \
                         'emission_map       -  Plots an image of projected O VI emission edge-on\n' + \
                         'emission_FRB       -  Saves to file FRBs of O VI surface brightness\n' + \
+                        'ionization_equilibrium -  Plots an image of projected O VI emission edge-on along with projected O VI ionization equilibrium timescale\n' + \
                         'sb_profile         -  Plots the surface brightness profile\n' + \
                         'radial_profiles    -  Calculates and plots radial profiles of gas properties weighted by emissivity\n' + \
                         'phase_plot         -  Plots a density-temperature phase plot of O VI emissivity\n' + \
@@ -188,6 +190,36 @@ def _Emission_OVI_ALTunits(field,data):
             emission_line = scale_by_metallicity(emission_line,0.0,np.log10(np.array(data['metallicity'])))
         emission_line[emission_line==0.0] = 5e-324
         return emission_line*ytEmUALT
+
+def _ionization_OVI(field, data):
+    H_N=np.log10(np.array(data["H_nuclei_density"]))
+    Temperature=np.log10(np.array(data["Temperature"]))
+    ion_rate = ionization_interp(H_N,Temperature)
+    idx = np.isnan(ion_rate)
+    ion_rate[idx] = 0.
+    return ion_rate * unyt.second**-1
+
+def _recombination_OVI(field, data):
+    H_N=np.log10(np.array(data["H_nuclei_density"]))
+    Temperature=np.log10(np.array(data["Temperature"]))
+    rec_rate = recombination_interp(H_N,Temperature)
+    idx = np.isnan(rec_rate)
+    rec_rate[idx] = 0.
+    return rec_rate * unyt.second**-1
+
+def _equilibration_time_OVI(field, data):
+    sum_rates = data["Recombination_Rate_OVI"] + data["Ionization_Rate_OVI"]
+    sum_rates[sum_rates==0.] = 1e20
+    eq_time = 1./(sum_rates)
+    return eq_time
+
+def _masked_density(field, data):
+    masked_den = data["density"]
+    masked_den[data["Equilibration_Time_OVI"]==1e-20] = 1e-50
+    return masked_den
+
+def _teq_over_tcool_OVI(field, data):
+    return data["Equilibration_Time_OVI"]/data[("gas","cooling_time")]
 
 def weighted_quantile(values, weights, quantiles):
     """ Very close to numpy.percentile, but supports weights.
@@ -2462,6 +2494,71 @@ def hists_rad_bins(ds, refine_box, snap):
 
         plt.savefig(prefix + 'Histograms/' + snap + '_gas-hist_OVI_radbins' + flow_file + save_suffix + '.png')
 
+def ionization_equilibrium(ds, refine_box, snap):
+    '''Make projections of O VI emission side-by-side with projections of the ratio 
+    between O VI ionization equilibration time and cooling time.'''
+
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    print('Making plots')
+    proj = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas','Emission_OVI'), center=ds.halo_center_kpc, data_source=refine_box, width=(100., 'kpc'), depth=(100.,'kpc'), north_vector=ds.z_unit_disk, buff_size=(1024,1024))
+    proj_ion = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas','Equilibration_Time_OVI'), weight_field=('gas','masked_density'), center=ds.halo_center_kpc, data_source=refine_box, width=(100., 'kpc'), depth=(100.,'kpc'), north_vector=ds.z_unit_disk, buff_size=(1024,1024))
+    proj_times = yt.ProjectionPlot(ds, ds.x_unit_disk, ('gas','teq_tcool_OVI'), weight_field=('gas','masked_density'), center=ds.halo_center_kpc, data_source=refine_box, width=(100., 'kpc'), depth=(100.,'kpc'), north_vector=ds.z_unit_disk, buff_size=(1024,1024))
+    mymap1 = ['#000000']
+    mymap2 = cmr.take_cmap_colors('cmr.flamingo', 7, cmap_range=(0.2, 0.8), return_fmt='rgba')
+    cmap = np.hstack([mymap1, mymap2])
+    mymap = mcolors.LinearSegmentedColormap.from_list('cmap', cmap)
+    cmap_ion = cmr.eclipse
+    cmap_times = cmr.emerald
+    #cmap_ion.set_bad('k')
+    #cmap_ion.set_under('k')
+    proj.render()
+    proj_ion.render()
+    proj_times.render()
+    frb = proj.frb[('gas','Emission_OVI')]
+    frb_ion = proj_ion.frb[('gas','Equilibration_Time_OVI')]
+    frb_times = proj_times.frb[('gas','teq_tcool_OVI')]
+    fig = plt.figure(figsize=(19,7.5), dpi=250)
+    fig.subplots_adjust(left=0.07, bottom=0.01, top=0.94, right=0.97, wspace=0., hspace=0.)
+    ax_OVI = fig.add_subplot(1,3,1)
+    ax_ion = fig.add_subplot(1,3,2)
+    ax_times = fig.add_subplot(1,3,3)
+    im_ion = ax_ion.imshow(frb_ion, extent=[-50,50,-50,50], cmap=cmap_ion, origin='lower', norm=mcolors.LogNorm(vmin=1e-3,vmax=5e1))
+    im_OVI = ax_OVI.imshow(frb, extent=[-50,50,-50,50], cmap=mymap, norm=mcolors.LogNorm(vmin=1e-22, vmax=1e-16), origin='lower')
+    im_times = ax_times.imshow(frb_times, extent=[-50,50,-50,50], cmap=cmap_times, norm=mcolors.LogNorm(vmin=5e-2,vmax=3), origin='lower')
+    ax_ion.set_xlabel('x [kpc]', fontsize=18)
+    ax_times.set_xlabel('x [kpc]', fontsize=18)
+    ax_OVI.set_xlabel('x [kpc]', fontsize=18)
+    ax_OVI.set_ylabel('y [kpc]', fontsize=18)
+    ax_ion.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True, labelleft=False)
+    ax_times.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True, labelleft=False)
+    ax_OVI.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True)
+    ax_OVI.text(-45, 45, halo_dict[args.halo], fontsize=18, ha='left', va='top', color='white')
+    ax_ion.text(45, 45, '$z = %.2f$\n%.2f Gyr' % (zsnap, ds.current_time.in_units('Gyr')), fontsize=18, ha='right', va='top', color='white')
+    pos_ion = ax_ion.get_position()
+    cax_ion = fig.add_axes([pos_ion.x0, pos_ion.y1, pos_ion.width, 0.03])  # [left, bottom, width, height]
+    fig.colorbar(im_ion, cax=cax_ion, orientation='horizontal')
+    cax_ion.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
+                    top=True, right=True, labelbottom=False, labeltop=True, bottom=False)
+    cax_ion.text(0.5, 3.5, 'Projected O VI Equilibration Time [Myr]', fontsize=18, ha='center', va='center', transform=cax_ion.transAxes)
+    cax_ion.set_xticks([1e-2,1e-1,1e0,1e1])
+    pos_times = ax_times.get_position()
+    cax_times = fig.add_axes([pos_times.x0, pos_times.y1, pos_times.width, 0.03])  # [left, bottom, width, height]
+    fig.colorbar(im_times, cax=cax_times, orientation='horizontal')
+    cax_times.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
+                    top=True, right=True, labelbottom=False, labeltop=True, bottom=False)
+    cax_times.text(0.5, 3.5, r'Projected $t_\mathrm{eq}/t_\mathrm{cool}$', fontsize=18, ha='center', va='center', transform=cax_times.transAxes)
+    #cax_times.set_xticks([1e-2,1e-1,1e0,1e1])
+    pos_OVI = ax_OVI.get_position()
+    cax_OVI = fig.add_axes([pos_OVI.x0, pos_OVI.y1, pos_OVI.width, 0.03])  # [left, bottom, width, height]
+    fig.colorbar(im_OVI, cax=cax_OVI, orientation='horizontal')
+    cax_OVI.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
+                    top=True, right=True, labelbottom=False, labeltop=True, bottom=False)
+    cax_OVI.text(0.5, 3.5, 'O VI Emission [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=18, ha='center', va='center', transform=cax_OVI.transAxes)
+    fig.savefig(prefix + 'Projections/' + snap + '_OVI_emission_teq_tcool_map_edge-on' + save_suffix + '.png')
+
 
 def load_and_calculate(snap):
     '''Loads the simulation snapshot and makes the requested plots.'''
@@ -2556,6 +2653,9 @@ def load_and_calculate(snap):
     if ('radial_profiles' in args.plot):
         weighted_radial_profiles(ds, refine_box, snap)
 
+    if ('ionization_equilibrium' in args.plot):
+        ionization_equilibrium(ds, refine_box, snap)
+
     # Delete output from temp directory if on pleiades
     if (args.system=='pleiades_cassi'):
         print('Deleting directory from /tmp')
@@ -2614,11 +2714,11 @@ if __name__ == "__main__":
     ## OVI (2 lines combined) ##
     ############################
     # 1. Read cloudy file
-    hden_pts,T_pts,table_HA = make_Cloudy_table(2)
+    hden_list,T_list,table_HA = make_Cloudy_table(2)
     # 2. Create grids
-    hden_pts,T_pts = np.meshgrid(hden_pts,T_pts)
+    hden_pts,T_pts = np.meshgrid(hden_list,T_list)
     pts = np.array((hden_pts.ravel(),T_pts.ravel())).T
-    # 3. Set up interpolation fundtion
+    # 3. Set up interpolation function
     hden1, T1, table_OVI_1 = make_Cloudy_table(5)
     hden1, T1, table_OVI_2 = make_Cloudy_table(6)
     sr_OVI_1 = table_OVI_1.T.ravel()
@@ -2630,6 +2730,18 @@ if __name__ == "__main__":
         yt.add_field(("gas","Emission_OVI"),units=emission_units,function=_Emission_OVI,take_log=True,force_override=True,sampling_type='cell')
     else:
         yt.add_field(("gas","Emission_OVI"),units=emission_units_ALT,function=_Emission_OVI_ALTunits,take_log=True,force_override=True,sampling_type='cell')
+
+    # Set up interpolation functions for ionization and recombination rates for O VI
+    ion_rates, rec_rates = combine_rates(hden_list, T_list, 6, code_path)
+    ionization_interp = interpolate.LinearNDInterpolator(pts, ion_rates.T.flatten())
+    recombination_interp = interpolate.LinearNDInterpolator(pts, rec_rates.T.flatten())
+    # Add ionization and recombination rates as fields, and add 
+    # equilibration time t_eq = 1 / (ion_rate + rec_rate) as field
+    yt.add_field(("gas","Ionization_Rate_OVI"), units='1/s',function=_ionization_OVI,take_log=True,force_override=True,sampling_type='cell')
+    yt.add_field(("gas","Recombination_Rate_OVI"), units='1/s',function=_recombination_OVI,take_log=True,force_override=True,sampling_type='cell')
+    yt.add_field(("gas","Equilibration_Time_OVI"), units='Myr',function=_equilibration_time_OVI,take_log=True,force_override=True,sampling_type='cell')
+    yt.add_field(("gas","teq_tcool_OVI"), units=None,function=_teq_over_tcool_OVI,take_log=True,force_override=True,sampling_type='cell')
+    yt.add_field(("gas","masked_density"), units='g*cm**-3',function=_masked_density,take_log=True,force_override=True,sampling_type='cell')
 
     if (args.save_suffix!=''):
         save_suffix = '_' + args.save_suffix
@@ -2691,7 +2803,7 @@ if __name__ == "__main__":
         if ('emiss_area_vs_den' in args.plot): emiss_area_vs_den(halos, outs)
         if ('emiss_area_vs_Z' in args.plot): emiss_area_vs_Z(halos, outs)
         if ('sb_profile_time_avg' in args.plot): sb_profile_time_avg(halos, outs)
-    if (('emission_map' in args.plot) or ('sb_profile' in args.plot) or ('emission_FRB' in args.plot) or ('phase_plot' in args.plot) or ('histograms' in args.plot) or ('radial_profiles' in args.plot)) and ('time_avg' not in args.plot) and ('fdbk' not in args.plot):
+    if (('emission_map' in args.plot) or ('sb_profile' in args.plot) or ('emission_FRB' in args.plot) or ('phase_plot' in args.plot) or ('histograms' in args.plot) or ('radial_profiles' in args.plot) or ('ionization_equilibrium' in args.plot)) and ('time_avg' not in args.plot) and ('fdbk' not in args.plot):
         target_dir = 'ions'
         if (args.nproc==1):
             for snap in outs:
