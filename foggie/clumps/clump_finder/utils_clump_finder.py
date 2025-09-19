@@ -281,6 +281,52 @@ def add_cell_id_field(ds):
     #return ds
 
 
+
+def pseudo_get_leaf_ids(field, data, leaf_clump_ids,leaf_cell_id_list,leaf_list_ids):
+    '''Function to assign a unique cell_id to each cell based on it's index on its parent grid'''
+    '''For use as a yt field, must define a partial function resembling get_cell_grid_ids'''
+
+    cell_ids = data['index','cell_id_2']
+    clump_ids = np.zeros_like(cell_ids) - 1.
+
+    for leaf_id in leaf_clump_ids:
+        leaf_list_id = leaf_list_ids[leaf_id].astype(int)
+        clump_ids[np.isin(cell_ids, leaf_cell_id_list[leaf_list_id])] = leaf_id
+
+
+    return clump_ids  
+
+def add_leaf_id_field(ds,hierarchy_file,add_cell_ids=False):
+    
+    if add_cell_ids:
+        add_cell_id_field(ds)
+
+    hf = h5py.File(hierarchy_file,'r')
+    leaf_clump_ids = hf['leaf_clump_ids'][...]
+
+    leaf_cell_id_list = []
+    leaf_list_ids = np.zeros(np.max(leaf_clump_ids)+1) - 1
+    itr=0
+    for leaf_id in leaf_clump_ids:
+        leaf_cell_id_list.append(hf[str(leaf_id)]['cell_ids'][...])
+        leaf_list_ids[leaf_id] = itr
+        itr+=1
+
+
+    hf.close()
+        
+    F_get_leaf_ids = partial(pseudo_get_leaf_ids, leaf_clump_ids=leaf_clump_ids,leaf_cell_id_list=leaf_cell_id_list,leaf_list_ids=leaf_list_ids)
+
+    ds.add_field(
+        ('gas', 'leaf_id'),
+          function=F_get_leaf_ids,
+          sampling_type='cell',
+          force_override=True
+    )
+
+
+
+
 def flatten_multi_clump_list(clump_cell_id_list):
     '''
     If you have a list of clumps, will flatten to a single list of cell ids.

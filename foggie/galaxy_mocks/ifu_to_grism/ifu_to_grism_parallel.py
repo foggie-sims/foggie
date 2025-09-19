@@ -18,7 +18,8 @@ from load_instrument import load_instrument
 
 from load_sky_backgrounds import load_sky_backgrounds
 
-'''
+
+''' 
     Convert from an idealized ifu to an idealized grism image.
     If the bandwidth defined by lambda_max and lambda_min is greater than
     the bandwidth in the IFU fits file, a background continuum will be added to
@@ -105,11 +106,13 @@ def PlotMomentMaps(moment0,delta_lambda,args,figsize=(fig_x,fig_y)):
     fig = plt.figure()
     cm = plt.cm.inferno
     cm.set_bad('k')
+    print("to_plot=",np.max(to_plot))
     
     plt.imshow(np.rot90(to_plot),cmap=cm,norm=LogNorm())
     plt.colorbar()
     
     fig.savefig(args.output+output_suffix+filetype, dpi = 300)
+
 
 
 def pad_spectra_with_continuum(ifu_cube, ifu_wavelength, args, flat_continuum=None):
@@ -176,23 +179,25 @@ def iterate_ifu_pixel(thread_id,Nthreads,beams,ifu_wavelength,datacube,grism_sha
     beam_itr = -1
     for beam in beams:
         beam_itr+=1
+        print("Beam wavelength range:",beam.sensitivity_wavelength[0],"-",beam.sensitivity_wavelength[-1])
         interp = interpolate.interp1d(beam.sensitivity_wavelength, beam.sensitivity_response, bounds_error = False, fill_value = 0.)
         sensitivity_interpolate = interp(ifu_wavelength)
         for ij in range(start_pixel, end_pixel):
             if pbar_title is not None and thread_id==0:
-                if (ij-start_pixel)%10==0: pbar.update(ij-start_pixel+beam_itr*(end_pixel-start_pixel+1))
+                if (ij-start_pixel)%1==0: pbar.update(ij-start_pixel+beam_itr*(end_pixel-start_pixel+1))
         #else:
         #    if (ij-start_pixel)%100==0: print("Thread",thread_id,":",ij-start_pixel,"/",end_pixel-start_pixel)
             i = ij % ifu_nx
             j = int(np.floor(ij / ifu_ny))
             spec_flux = datacube[:,i,j] # erg/cm^2/s/Angstrom
+            if np.max(np.abs(spec_flux))==0: continue
         #for beam in beams:
             i_px = i+instrument.xrange[0]
             j_px = j+instrument.yrange[0]
             
             trace = beam.inv_disp_lambda(i_px,j_px,ifu_wavelength) #Gives beam trace parameter for each wavelength
             disp_x = beam.disp_x(i_px,j_px,trace) #Gives x dispersion for each wavelength
-            disp_y = beam.disp_y(i_px,j_px,disp_x) #Gives y dispersion for each wavelength
+            disp_y = beam.disp_y(i_px,j_px,disp_x,trace) #Gives y dispersion for each wavelength
                 
                 
             #sensitivity = beam.sensitivity_response
@@ -205,6 +210,138 @@ def iterate_ifu_pixel(thread_id,Nthreads,beams,ifu_wavelength,datacube,grism_sha
             #measured_flux = counts
             measured_flux = np.multiply(spec_flux, sensitivity_interpolate) * args.effective_exposure/instrument.gain #Counts
 
+            #start_x = beam.xoffset+i+ifu_offset_x
+            #start_y = beam.yoffset+j+ifu_offset_y
+            start_x = i+ifu_offset_x
+            start_y = j+ifu_offset_y
+            if (start_y <=0) | (start_y>=grism_ny-1): continue
+                
+            #spec_flux = ifu_cube[lambda_mask,i,j] #TODO: CHECK IF DIMMING ACCOUNTED FOR PROPERLY IN AYAN'S CODE / dimming_factor
+                                
+            xpixel = start_x + disp_x
+            ypixel = start_y + disp_y
+                
+                
+            min_x = int(np.min(xpixel))
+            max_x = int(np.max(xpixel))
+            
+            min_y = int(np.min(ypixel))
+            max_y = int(np.max(ypixel))
+
+
+            if (max_x>=0 and min_x<=grism_nx) and (max_y>0 and min_y<=grism_ny):
+                #Rebin spectral data with above dispersions
+                if min_x<0: min_x=0
+                if min_y<0: min_y=0
+                
+                if max_x>=grism_nx: max_x=grism_nx-1
+                if max_y>=grism_ny: max_y=grism_ny-1
+                
+                bin_nx = int(max_x - min_x + 1)
+                bin_ny = int(max_y - min_y + 1)
+
+                binned_trace,xedge,yedge,binnum = stats.binned_statistic_2d(xpixel,ypixel,measured_flux,statistic='sum', bins=(bin_nx,bin_ny),range=((min_x,max_x),(min_y,max_y)))
+                if (np.max(binned_trace)>0): print("binned_trace=",np.max(binned_trace))
+
+                output[min_x:max_x+1,min_y:max_y+1] += binned_trace
+                
+
+
+    if pbar_title is not None and thread_id==0:
+        pbar.update((end_pixel-start_pixel+1)*len(beams))
+        pbar.finish()
+    return output
+
+
+def iterate_ifu_pixel_2(thread_id,Nthreads,beams,ifu_wavelength,datacube,grism_shape,pbar_title=None):
+    '''
+    Each thread calculates the dispersion track for all wavelengths in their assigned pixels for each beam.
+    Returns the summed contribution to the final grism image for those pixels
+    '''
+
+    grism_nx,grism_ny = grism_shape
+    ifu_nspec,ifu_nx,ifu_ny = np.shape(datacube)
+
+
+    Npixels = ifu_nx*ifu_ny
+    Npixels_per_thread = np.ceil(Npixels / Nthreads)
+    
+    start_pixel = int(thread_id*Npixels_per_thread)
+    end_pixel = int((thread_id+1)*Npixels_per_thread)
+    if end_pixel>Npixels: end_pixel = int(Npixels)
+    
+    output = np.zeros((grism_nx,grism_ny))
+    
+    #print("Thread",thread_id,": starting at",start_pixel,"and ending at",end_pixel)
+    
+    if pbar_title is not None and thread_id==0:
+        pbar = TqdmProgressBar("Thread "+str(thread_id)+": "+pbar_title,(end_pixel-start_pixel+1)*len(beams),position=thread_id)
+     
+    beam_itr = -1
+    for beam in beams:
+        beam_itr+=1
+        #print("Beam wavelength range:",beam.sensitivity_wavelength[0],"-",beam.sensitivity_wavelength[-1])
+        interp = interpolate.interp1d(beam.sensitivity_wavelength, beam.sensitivity_response, bounds_error = False, fill_value = 0.)
+        sensitivity_interpolate = interp(ifu_wavelength)
+        for ij in range(start_pixel, end_pixel):
+            if pbar_title is not None and thread_id==0:
+                if (ij-start_pixel)%1==0: pbar.update(ij-start_pixel+beam_itr*(end_pixel-start_pixel+1))
+        #else:
+        #    if (ij-start_pixel)%100==0: print("Thread",thread_id,":",ij-start_pixel,"/",end_pixel-start_pixel)
+            i = ij % ifu_nx
+            j = int(np.floor(ij / ifu_ny))
+            spec_flux = datacube[:,i,j] # erg/cm^2/s/Angstrom
+            if np.max(np.abs(spec_flux))==0: continue
+            #spec_flux = np.multiply(spec_flux,sensitivity_interpolate)*args.effective_exposure/instrument.gain #Counts
+            print("Looking at pixel",i,j,"with flux",np.sum(spec_flux))
+        #for beam in beams:
+            i_px = i+instrument.xrange[0]
+            j_px = j+instrument.yrange[0]
+
+
+            #trace ranges from 500-
+            min_dx = int(0)
+            max_dx = int(instrument.xrange[1] - instrument.xrange[0])
+            n_dx = int(max_dx - min_dx + 1)
+            n_dx = int(n_dx*n_dx)
+            dx_bin = np.linspace(min_dx,max_dx,n_dx)
+            if beam_itr==3: #-1 order
+                dx_bin = np.linspace(-max_dx,min_dx,n_dx) #-1st order beam
+            
+            dy_bin = beam.disp_y(i_px,j_px,dx_bin) #Gives y dispersion for each trace bin
+            trace_bin = np.sqrt(np.multiply(dx_bin,dx_bin) + np.multiply(dy_bin,dy_bin)) #Gives beam trace parameter for each bin
+
+
+            interp_dx = interpolate.interp1d(trace_bin, dx_bin, bounds_error = False, fill_value = 0.)
+
+      
+
+            trace = beam.inv_disp_lambda(i_px,j_px,ifu_wavelength) #Gives beam trace parameter for each wavelength
+
+
+
+            disp_x = interp_dx(trace) #Gives x dispersion for each wavelength
+            disp_y = beam.disp_y(i_px,j_px,disp_x) #Gives y dispersion for each wavelength
+                
+            if beam_itr==3:
+                print("FOR BEAM",beam_itr," dx_bin=",dx_bin)
+                print("FOR BEAM",beam_itr," dy_bin=",dy_bin)
+                print("FOR BEAM",beam_itr," trace_bin=",trace_bin)
+                print("FOR BEAM",beam_itr,"trace=",trace)
+                print("FOR BEAM",beam_itr,"disp_x=",disp_x)
+                print("FOR BEAM",beam_itr,"disp_y=",disp_y)
+
+
+
+            #sensitivity = beam.sensitivity_response
+            #sensitivity_wavelength = beam.sensitivity_wavelength
+            #
+            #interp = interpolate.interp1d(beam.sensitivity_wavelength, beam.sensitivity_response, bounds_error = False, fill_value = 0.)
+            #sensitivity_interpolate = interp(ifu_wavelength)
+
+#            measured_flux = np.divide(counts,sensitivity_interpolate)  * instrument.gain / args.effective_exposure #convert back to erg/cm^2/s/Angstrom, No dependence on exposure time?
+            #measured_flux = counts
+            measured_flux = np.multiply(spec_flux, sensitivity_interpolate) * args.effective_exposure/instrument.gain #Counts
 
             start_x = beam.xoffset+i+ifu_offset_x
             start_y = beam.yoffset+j+ifu_offset_y
@@ -222,7 +359,8 @@ def iterate_ifu_pixel(thread_id,Nthreads,beams,ifu_wavelength,datacube,grism_sha
             
             min_y = int(np.min(ypixel))
             max_y = int(np.max(ypixel))
-            
+
+
             if (max_x>=0 and min_x<=grism_nx) and (max_y>0 and min_y<=grism_ny):
                 #Rebin spectral data with above dispersions
                 if min_x<0: min_x=0
@@ -235,7 +373,7 @@ def iterate_ifu_pixel(thread_id,Nthreads,beams,ifu_wavelength,datacube,grism_sha
                 bin_ny = int(max_y - min_y + 1)
 
                 binned_trace,xedge,yedge,binnum = stats.binned_statistic_2d(xpixel,ypixel,measured_flux,statistic='sum', bins=(bin_nx,bin_ny),range=((min_x,max_x),(min_y,max_y)))
-
+                if (np.max(binned_trace)>0): print("binned_trace=",np.max(binned_trace))
 
                 output[min_x:max_x+1,min_y:max_y+1] += binned_trace
                 
@@ -245,6 +383,9 @@ def iterate_ifu_pixel(thread_id,Nthreads,beams,ifu_wavelength,datacube,grism_sha
         pbar.update((end_pixel-start_pixel+1)*len(beams))
         pbar.finish()
     return output
+
+
+
 
 def map_ifu_to_grism(args,instrument):
     '''
@@ -285,7 +426,7 @@ def map_ifu_to_grism(args,instrument):
     ifu_lambda_max = np.max(ifu_wavelength)
     
     if (ifu_lambda_min>lambda_min) | (ifu_lambda_max<lambda_max):
-        ifu_cube, ifu_wavelength = pad_spectra_with_continuum(ifu_cube,ifu_wavelength,args)
+        ifu_cube, ifu_wavelength = pad_spectra_with_continuum(ifu_cube,ifu_wavelength,args,flat_continuum=0)
         ifu_lambda_min = np.min(ifu_wavelength)
         ifu_lambda_max = np.max(ifu_wavelength)
         lambda_mask = (ifu_wavelength >= lambda_min) & (ifu_wavelength <= lambda_max)
@@ -306,7 +447,9 @@ def map_ifu_to_grism(args,instrument):
         
     m0 = np.zeros((grism_nx, grism_ny))
     m0[ifu_offset_x:np.shape(ifu_cube)[1]+ifu_offset_x , ifu_offset_y:np.shape(ifu_cube)[2]+ifu_offset_y] = np.sum(ifu_cube,axis=0)
+    print("m0=",np.max(m0))
     PlotMomentMaps(m0,header['CDELT1'],args)
+
 
     
     
@@ -352,7 +495,10 @@ def map_ifu_to_grism(args,instrument):
     #    absolute_noise=0*ifu_cube
     ####
     #ifu_cube = np.add(ifu_cube,random_noise)
-    _iterate_ifu_pixel_spec_flux = partial(iterate_ifu_pixel,datacube=ifu_cube[lambda_mask,:,:],Nthreads=num_cores,beams=beams[0:args.nBeams],ifu_wavelength=ifu_wavelength,grism_shape=[grism_nx,grism_ny],pbar_title="Making Grism Image")
+    _iterate_ifu_pixel_spec_flux = partial(iterate_ifu_pixel,datacube=ifu_cube[lambda_mask,:,:],Nthreads=num_cores,beams=[beams[ii] for ii in args.beams],ifu_wavelength=ifu_wavelength,grism_shape=[grism_nx,grism_ny],pbar_title="Making Grism Image")
+    #_iterate_ifu_pixel_spec_flux = partial(iterate_ifu_pixel_2,datacube=ifu_cube[lambda_mask,:,:],Nthreads=num_cores,beams=beams[0:args.nBeams],ifu_wavelength=ifu_wavelength,grism_shape=[grism_nx,grism_ny],pbar_title="Making Grism Image")
+
+
     if True:
         x= Parallel(n_jobs=num_cores)(delayed(_iterate_ifu_pixel_spec_flux)(i) for i in range(0,num_cores))
         grism += np.sum(x,0) #with poisson noise
@@ -493,7 +639,9 @@ def MakeGrismPlot(grism,args,output_suffix="",filetype=".png",figsize=(8.,5.5),p
     print(np.max(grism))
     
     vmax=np.max(grism)
-    vmin=0.1
+    vmin=np.min(grism[grism>0])/10.
+    if vmin==0: vmin=1e-6
+
     plt.title(title+" [Counts]")
     if plot_log:
         plt.imshow(grism,cmap=cm,norm=LogNorm(vmin=vmin,vmax=vmax))
@@ -581,6 +729,7 @@ print("Mapping IFU to grism data...")
 grism, m0, ifu_wavelength, instrument_background = map_ifu_to_grism(args,instrument)
 MakeGrismPlot(np.rot90(grism),args,"_ideal",figsize=(fig_x*xaspect_ratio,fig_y),title="Ideal Grism")
 WriteFitsFile(grism,grism*0,args,"_ideal")
+WriteFitsFile(m0,grism*0,args,"_direct_image")
 
 
 print("Applying spatial smoothing to grism...")
