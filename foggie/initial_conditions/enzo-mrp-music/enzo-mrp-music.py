@@ -157,7 +157,7 @@ def get_previous_run_params(params):
     sim_par_file = os.path.join(params["prev_sim_dir"], "%s-L%d.enzo" %
                                 (params["simulation_name"], params["level"]-1))
     print("Opening Enzp param file: ", sim_par_file)
-    es = yt.simulation(sim_par_file, "Enzo", find_outputs=True)
+    es = yt.load_simulation(sim_par_file, "Enzo", find_outputs=True)
 
     params["enzo_initial_fn"] = es.all_outputs[0]["filename"]
     if "redshift" in params["halo_info"]:
@@ -225,7 +225,7 @@ def run_music(params):
     os.environ["LD_LIBRARY_PATH"] = "/nasa/hdf5/1.8.18_serial/lib:/u/jtumlins/installs/gsl-2.4/lib"
     os.environ["DYLD_LIBRARY_PATH"] = "/nasa/hdf5/1.8.18_serial/lib:/u/jtumlins/installs/gsl-2.4/lib"
     command = """ echo $LD_LIBRARY_PATH ;
-                  /u/jtumlins/installs/music/MUSIC """ + new_config_file
+                  /nobackupnfs1/jtumlins/foggie/foggie/initial_conditions/music/MUSIC """ + new_config_file
     print('about to run ', command)
     os.system(command)
     print('control has returned from MUSIC to the enzo_mrp script')

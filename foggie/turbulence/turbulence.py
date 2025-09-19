@@ -417,10 +417,12 @@ def measure_Ek_3D(vx, vy, vz, resolution):
     return k, E_spectrum
 
 def generate_turbulent_box(resolution, v_sigma, k_peak):
-    '''Generates a 3D box of velocities that follow a Kolmogorov power spectrum with
-    amplitude A, peak location wavenumber k_peak, and power law slope of turnover m.
-    The box has physical size given by the length-3 list box_size [x_size, y_size, z_size]
-    and resolution given by the length-3 list dimensions [dim_x, dim_y, dim_z].
+    '''Generates a 3D box of velocities that follow a Kolmogorov power spectrum.
+    'resolution' is the number of cells along one side of the box, 'v_sigma'
+    is the velocity dispersion in km/s, and 'k_peak' is the wavenumber of 
+    the desired driving scale of the turbulence, in units of box size. If you want an accurate 
+    peak location in a velocity structure function calculated from this box,
+    then make sure k_peak >= 2 (no more than half the box size).
     
     This function mostly written by ChatGPT.'''
 
@@ -1016,7 +1018,7 @@ def velocity_slice(snap):
         snap_name = snap_dir + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
 
     vtypes = ['x', 'y', 'z']
     vlabels = ['$x$', '$y$', '$z$']
@@ -1087,7 +1089,7 @@ def vorticity_slice(snap):
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
     left_edge = ds.halo_center_kpc - ds.arr([15., 150., 150.], 'kpc')
     right_edge = ds.halo_center_kpc + ds.arr([15., 150., 150.], 'kpc')
     box = ds.box(left_edge, right_edge)
@@ -1115,7 +1117,7 @@ def vorticity_direction(snap):
         snap_name = snap_dir + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
 
     sphere = ds.sphere(ds.halo_center_kpc, (100., 'kpc'))
     mass = sphere['cell_mass'].in_units('Msun').v
@@ -1168,7 +1170,7 @@ def Pk_turbulence(snap):
         snap_name = snap_dir + '/' + snap
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     Rvir = rvir_masses['radius'][rvir_masses['snapshot']==snap][0]
 
@@ -1256,7 +1258,7 @@ def vsf_cubeshift(snap):
             snap_name = snap_dir + '/' + snap
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+        ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
 
         vtypes = ['x', 'y', 'z']
         vlabels = ['$x$', '$y$', '$z$']
@@ -1350,7 +1352,7 @@ def vsf_randompoints(snap):
                 snap_name = foggie_dir + run_dir + snap + '/' + snap
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+        ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
 
         if (args.cgm_only):
             # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
@@ -1577,7 +1579,7 @@ def emission_2d_vsf(snap):
                 snap_name = foggie_dir + run_dir + snap + '/' + snap
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+        ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
         pix_res = float(np.min(refine_box['dx'].in_units('kpc')))  # at level 11
         lvl1_res = pix_res*2.**11.
         level = 9
@@ -1741,7 +1743,7 @@ def vdisp_vs_radius(snap):
                 snap_name = foggie_dir + run_dir + snap + '/' + snap
         else:
             snap_name = foggie_dir + run_dir + snap + '/' + snap
-        ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+        ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
         zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
         # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
@@ -2021,7 +2023,7 @@ def vdisp_vs_mass_res(snap):
             os.makedirs(snap_dir)
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
@@ -2152,7 +2154,7 @@ def vdisp_vs_spatial_res(snap):
             os.makedirs(snap_dir)
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
@@ -2426,7 +2428,7 @@ def vdisp_slice(snap):
             os.makedirs(snap_dir)
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     masses_ind = np.where(masses['snapshot']==snap)[0]
@@ -2561,7 +2563,7 @@ def outflow_projection(snap):
             os.makedirs(snap_dir)
     else:
         snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, gravity=True, masses_dir=masses_dir)
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     current_time = ds.current_time.in_units('Myr').v
@@ -2935,7 +2937,7 @@ def vdisp_projection(snap):
     '''Plot an OVI-weighted and a CII-weighted projection of line-of-sight velocity dispersion and 3D kernel velocity dispersion.'''
 
     snap_name = foggie_dir + run_dir + snap + '/' + snap
-    ds, refine_box = foggie_load(snap_name, trackname, disk_relative=True, halo_c_v_name=halo_c_v_name, particle_type_for_angmom='gas')
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, disk_relative=True, halo_c_v_name=halo_c_v_name, particle_type_for_angmom='gas')
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     trident.add_ion_fields(ds, ions=['O VI', 'C II'], ftype='gas')

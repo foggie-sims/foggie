@@ -202,6 +202,11 @@ cgm_outer_radius = 200.
 cgm_field_filter = ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max)
 ism_field_filter = ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max)
 
+def cgm_field_filter_z(z): 
+	return ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max * (1.+z)**3. )
+def ism_field_filter_z(z): 
+	return ("(obj['temperature'] < {} ) | (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max * (1.+z)**3. )
+
 cool_cgm_filter = cgm_field_filter + " & (obj['temperature'] < 1e5)"
 warm_cgm_filter = cgm_field_filter + " & (obj['temperature'] > 1e5)"
 

@@ -5,9 +5,9 @@ Date created: 1-15-25
 Date last modified: 3-14-25
 
 This file contains everything that is needed to make emission maps and FRBs from CLOUDY tables.
-All CLOUDY and emission code copy-pasted from Lauren's foggie/cgm_emission/emission_functions.py and Cassi's foggie/cgm_emission/emission_maps.py 
 
-This code is modified Cassi's foggie/cgm_emission/emission_maps.py to dynamically get:
+
+This code dynamically gets:
 1. yt cut regions: tempreture, density, inflow, outflow, disk, cgm 
 Note: if you want to use disk and cgm filters then you need to run clump_finder.py first and then use the output file in the code
 2. pixel size for frb maps

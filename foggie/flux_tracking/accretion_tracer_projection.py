@@ -202,7 +202,7 @@ def load_and_calculate(snap):
     else:
         snap_name = run_dir + snap + '/' + snap
     
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=True, disk_relative=disk_needed)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=True, disk_relative=disk_needed)
     ds.add_field(('gas','tracer_density01'), function=tracer_density1, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
     ds.add_field(('gas','tracer_density02'), function=tracer_density2, units='g/cm**3', take_log=True, \

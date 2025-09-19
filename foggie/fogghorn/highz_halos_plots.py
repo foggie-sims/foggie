@@ -35,6 +35,8 @@ def get_halo_catalog(ds, args, snap):
         add_quantity("average_metallicity", halo_average_metallicity)
         add_quantity("max_metallicity", halo_max_metallicity)
         add_quantity("total_gas_mass", halo_total_gas_mass)
+        add_quantity("total_ism_gas_mass", halo_ism_gas_mass)
+        add_quantity("total_cgm_gas_mass", halo_cgm_gas_mass)
         add_quantity("total_star_mass", halo_total_star_mass)
         add_quantity("total_metal_mass", halo_total_metal_mass)
         add_quantity("total_young_stars7_mass", halo_total_young_stars7_mass)
@@ -46,6 +48,8 @@ def get_halo_catalog(ds, args, snap):
         hc.add_quantity("average_temperature")
         hc.add_quantity("average_metallicity")
         hc.add_quantity("total_gas_mass")
+        hc.add_quantity("total_ism_gas_mass", ds.current_redshift)
+        hc.add_quantity("total_cgm_gas_mass", ds.current_redshift)
         hc.add_quantity("total_star_mass")
         hc.add_quantity("total_metal_mass")
         hc.add_quantity("total_young_stars7_mass")
@@ -116,7 +120,7 @@ def halos_SMHM(ds, region, args, output_filename):
     plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=16)
     plt.ylabel(r'log Stellar Mass [$M_\odot$]', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([7.5,10.5,2,10])
+    plt.axis([7.5,12.0,2,10])
     plt.legend(loc=2, frameon=False, fontsize=14)
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
@@ -203,7 +207,7 @@ def halos_MZR(ds, region, args, output_filename):
     plt.xlabel(r'log Stellar Mass [$M_\odot$]', fontsize=16)
     plt.ylabel(r'Average Gas Metallicity [$Z_\odot$]', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([2.,10.5,1e-8,1e1])
+    plt.axis([2.,12.0,1e-8,1e1])
     plt.yscale('log')
     plt.legend(loc=4, frameon=False, fontsize=14)
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
@@ -229,7 +233,55 @@ def halos_gasMHM(ds, region, args, output_filename):
     plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=16)
     plt.ylabel(r'log Gas Mass [$M_\odot$]', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([7.5,10.5,5,11])
+    plt.axis([7.5,12.0,5,11])
+    plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
+    plt.tight_layout()
+    plt.savefig(output_filename, dpi=300)
+    plt.close()
+
+def halos_ismMHM(ds, region, args, output_filename):
+    '''Plots total gas mass vs. halo mass for all halos in the halo catalog.'''
+
+    hc = get_halo_catalog(ds, args, args.snap)
+    all_data = hc.all_data()
+
+    total_ism_gas_mass = all_data[('halos','total_ism_gas_mass')].in_units('Msun')
+    total_halo_mass = all_data[('halos','particle_mass')].in_units('Msun')
+
+    colormap = plt.cm.rainbow_r
+    normalize = matplotlib.colors.LogNorm(vmin=0.9, vmax=5.)
+
+    # Plot the halos in this snap
+    plt.scatter(np.log10(total_halo_mass), np.log10(total_ism_gas_mass), color=colormap(normalize(float(ds.current_time.in_units('Gyr')))))
+
+    plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=16)
+    plt.ylabel(r'log ISM Gas Mass [$M_\odot$]', fontsize=16)
+    plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
+    plt.axis([7.5,12.0,5,11])
+    plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
+    plt.tight_layout()
+    plt.savefig(output_filename, dpi=300)
+    plt.close()
+
+def halos_cgmMHM(ds, region, args, output_filename):
+    '''Plots total gas mass vs. halo mass for all halos in the halo catalog.'''
+
+    hc = get_halo_catalog(ds, args, args.snap)
+    all_data = hc.all_data()
+
+    total_cgm_gas_mass = all_data[('halos','total_cgm_gas_mass')].in_units('Msun')
+    total_halo_mass = all_data[('halos','particle_mass')].in_units('Msun')
+
+    colormap = plt.cm.rainbow_r
+    normalize = matplotlib.colors.LogNorm(vmin=0.9, vmax=5.)
+
+    # Plot the halos in this snap
+    plt.scatter(np.log10(total_halo_mass), np.log10(total_cgm_gas_mass), color=colormap(normalize(float(ds.current_time.in_units('Gyr')))))
+
+    plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=16)
+    plt.ylabel(r'log CGM Gas Mass [$M_\odot$]', fontsize=16)
+    plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
+    plt.axis([7.5,12.0,5,11])
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
     plt.savefig(output_filename, dpi=300)
@@ -253,7 +305,7 @@ def halos_h2_frac(ds, region, args, output_filename):
     plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=16)
     plt.ylabel(r'log $f_{\mathrm{H}_2}$', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([7.5,10.5,-16,0])
+    plt.axis([7.5,12.0,-16,0])
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
     plt.savefig(output_filename, dpi=300)
@@ -334,7 +386,7 @@ def all_halos_SMHM(snap, args):
     plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=14)
     plt.ylabel(r'log Stellar Mass [$M_\odot$]', fontsize=14)
     plt.title('$z = %.2f$' % hc.current_redshift, fontsize=14)
-    plt.axis([7.5,10.5,2,10])
+    plt.axis([7.5,12.0,2,10])
     plt.legend(loc=2, ncols=2, frameon=False, fontsize=12)
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, top=True, right=True)
     plt.tight_layout()
@@ -430,7 +482,7 @@ def all_halos_MZR(snap, args):
     plt.xlabel(r'log Stellar Mass [$M_\odot$]', fontsize=14)
     plt.ylabel(r'Average Gas Metallicity [$Z_\odot$]', fontsize=14)
     plt.title('$z = %.2f$' % hc.current_redshift, fontsize=14)
-    plt.axis([2.,10.5,1e-8,1e1])
+    plt.axis([2.,12.0,1e-8,1e1])
     plt.yscale('log')
     plt.legend(loc=4, frameon=False, fontsize=12)
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, top=True, right=True)
@@ -458,7 +510,7 @@ def all_halos_gasMHM(snap, args):
     plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=14)
     plt.ylabel(r'log Gas Mass [$M_\odot$]', fontsize=14)
     plt.title('$z = %.2f$' % hc.current_redshift, fontsize=14)
-    plt.axis([7.5,10.5,5,11])
+    plt.axis([7.5,12.0,5,11])
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, top=True, right=True)
     plt.legend(loc=4, frameon=False, fontsize=12)
     plt.tight_layout()
@@ -485,7 +537,7 @@ def all_halos_h2_frac(snap, args):
     plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=14)
     plt.ylabel(r'log $f_{\mathrm{H}_2}$', fontsize=14)
     plt.title('$z = %.2f$' % hc.current_redshift, fontsize=14)
-    plt.axis([7.5,10.5,-16,0])
+    plt.axis([7.5,12.0,-16,0])
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, top=True, right=True)
     plt.legend(loc=4, frameon=False, fontsize=12)
     plt.tight_layout()

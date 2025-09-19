@@ -71,7 +71,7 @@ def parse_args():
     return args
 
 def find_bulk_velocity(snap_name, t):
-    ds, refine_box = foggie_load(snap_name, trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, correct_bulk_velocity=True)
+    ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, halo_c_v_name=halo_c_v_name, correct_bulk_velocity=True)
     print('foggie_load found ds.halo_velocity_kms to be', ds.halo_velocity_kms)
     row = [snap_name[-6:], ds.get_parameter('CosmologyCurrentRedshift'), ds.current_time.in_units('Myr').v, ds.halo_velocity_kms[0], ds.halo_velocity_kms[1], ds.halo_velocity_kms[2]]
     t.put(row)
