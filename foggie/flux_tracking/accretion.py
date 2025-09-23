@@ -3350,6 +3350,7 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
     # Step through radii, identify accretion fragments, and calculate their properties
     flux_ratio_array = np.zeros(np.shape(density)) + 0.01    # array same size as grid initialized with small valules everywhere
     for r in range(len(radii)):
+        if (r%10.==0): print('Finding fragments for radius %d/%d' % (r, len(radii)))
         shape = (radius < radii[r])                 # boolean array same size as grid with True everywhere radius < radii[r] and density low enough to be CGM (if args.cgm_only)
         # Define which cells are entering shape
         new_in_shape = shape[tuple(new_inds)]       # boolean array same size as grid with True everywhere the new radius < radii[r]
