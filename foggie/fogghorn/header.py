@@ -69,5 +69,5 @@ from visualization_plots import *
 from resolved_metallicity_plots import *
 from central_info_table import *
 from phase_plots import *
-from highz_halos_plots import get_halo_catalog, halos_density_projection, halos_SMHM, halos_SFMS, halos_MZR, halos_gasMHM, halos_ismMHM, halos_cgmMHM, halos_h2_frac
+from highz_halos_plots import get_halo_catalog, halos_density_projection, halos_SMHM, halos_SFMS, halos_MZR, halos_gasMHM, halos_ismMHM, halos_cgmMHM, baryon_budget, halos_h2_frac
 

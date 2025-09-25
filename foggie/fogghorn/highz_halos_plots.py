@@ -33,10 +33,13 @@ def get_halo_catalog(ds, args, snap):
 
         add_quantity("average_temperature", halo_average_temperature)
         add_quantity("average_metallicity", halo_average_metallicity)
-        add_quantity("max_metallicity", halo_max_metallicity)
+        add_quantity("total_mass", halo_total_mass)
         add_quantity("total_gas_mass", halo_total_gas_mass)
         add_quantity("total_ism_gas_mass", halo_ism_gas_mass)
         add_quantity("total_cgm_gas_mass", halo_cgm_gas_mass)
+        add_quantity("total_cool_cgm_gas_mass", halo_cool_cgm_gas_mass)
+        add_quantity("total_warm_cgm_gas_mass", halo_warm_cgm_gas_mass)
+        add_quantity("total_hot_cgm_gas_mass", halo_hot_cgm_gas_mass)
         add_quantity("total_star_mass", halo_total_star_mass)
         add_quantity("total_metal_mass", halo_total_metal_mass)
         add_quantity("total_young_stars7_mass", halo_total_young_stars7_mass)
@@ -44,12 +47,17 @@ def get_halo_catalog(ds, args, snap):
         add_quantity("total_young_stars8_mass", halo_total_young_stars8_mass)
         add_quantity("sfr8", halo_sfr8)
         add_quantity("average_fH2", halo_average_fH2)
+        add_quantity("max_metallicity", halo_max_metallicity)
+
 
         hc.add_quantity("average_temperature")
         hc.add_quantity("average_metallicity")
         hc.add_quantity("total_gas_mass")
         hc.add_quantity("total_ism_gas_mass", ds.current_redshift)
         hc.add_quantity("total_cgm_gas_mass", ds.current_redshift)
+        hc.add_quantity("total_cool_cgm_gas_mass", ds.current_redshift) 
+        hc.add_quantity("total_warm_cgm_gas_mass", ds.current_redshift) 
+        hc.add_quantity("total_hot_cgm_gas_mass", ds.current_redshift)      
         hc.add_quantity("total_star_mass")
         hc.add_quantity("total_metal_mass")
         hc.add_quantity("total_young_stars7_mass")
@@ -58,6 +66,10 @@ def get_halo_catalog(ds, args, snap):
         hc.add_quantity("sfr8")
         hc.add_quantity("average_fH2")
 
+        if (ds.parameters['MultiSpecies'] == 2): 
+            add_quantity("average_fH2", halo_average_fH2)
+            hc.add_quantity("average_fH2")
+        
         hc.create()
 
         hc = yt.load(args.save_directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5')
@@ -284,6 +296,55 @@ def halos_cgmMHM(ds, region, args, output_filename):
     plt.axis([7.5,12.0,5,11])
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
+    plt.savefig(output_filename, dpi=300)
+    plt.close()
+
+def baryon_budget(ds, region, args, output_filename):
+
+    hc = get_halo_catalog(ds, args, args.snap)
+    all_data = hc.all_data()
+
+    dm_mass = all_data[('halos', 'particle_mass')].in_units('Msun')  
+    star_mass = all_data[('halos', 'total_star_mass')].in_units('Msun') 
+    ism_gas_mass = all_data[('halos', 'total_ism_gas_mass')].in_units('Msun') 
+    cgm_gas_mass = all_data[('halos', 'total_cool_cgm_gas_mass')].in_units('Msun') 
+    cool_cgm_gas_mass = all_data[('halos', 'total_cool_cgm_gas_mass')].in_units('Msun') 
+    warm_cgm_gas_mass = all_data[('halos', 'total_warm_cgm_gas_mass')].in_units('Msun') 
+    hot_cgm_gas_mass = all_data[('halos', 'total_hot_cgm_gas_mass')].in_units('Msun') 
+
+    total_halo_mass = dm_mass + star_mass + ism_gas_mass + cgm_gas_mass
+    omega_b = ds.parameters['CosmologyOmegaMatterNow'] - ds.parameters['CosmologyOmegaDarkMatterNow']
+    expected_mass = total_halo_mass * omega_b / ds.parameters['CosmologyOmegaMatterNow'] 
+    ism_fraction = ism_gas_mass / expected_mass
+    cool_cgm_fraction = cool_cgm_gas_mass / expected_mass
+    warm_cgm_fraction = warm_cgm_gas_mass / expected_mass
+    hot_cgm_fraction = hot_cgm_gas_mass / expected_mass
+    star_fraction = star_mass / expected_mass
+
+    sns.set_style("whitegrid")
+
+    plt.scatter([0], [0]) 
+    plt.xlim(9, 12.5) 
+    plt.ylim(0, 1.5)    
+    plt.xlabel('Total Halo Mass [Msun]') 
+    plt.ylabel('Baryon Fraction') 
+    plt.title('FOGGIE z = '+str(np.round(ds.current_redshift))+' Baryon Budgets') 
+    i = 0 # do it once to get the legends right 
+    plt.bar(np.log10(total_halo_mass[i]), star_fraction[i], width=0.2, bottom = 0., color='#9e302c', label='Stars') 
+    plt.bar(np.log10(total_halo_mass[i]), ism_fraction[i], width=0.2, bottom = star_fraction[i], color='#4a6091', label='ISM') 
+    plt.bar(np.log10(total_halo_mass[i]), cool_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i], color='#6f427b', label='Cool CGM')    
+    plt.bar(np.log10(total_halo_mass[i]), warm_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cool_cgm_fraction[i], color='#659B4d', label='Warm CGM')
+    plt.bar(np.log10(total_halo_mass[i]), hot_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cool_cgm_fraction[i]+warm_cgm_fraction[i], color='#f2dc61', label='Hot CGM')
+
+    for i in np.arange(4)+1: # now do the rest without legends): 
+        plt.bar(np.log10(total_halo_mass[i]), star_fraction[i], width=0.1, bottom = 0., color='#9e302c')  
+        plt.bar(np.log10(total_halo_mass[i]), ism_fraction[i], width=0.1, bottom = star_fraction[i], color='#4a6091')  
+        plt.bar(np.log10(total_halo_mass[i]), cool_cgm_fraction[i], width=0.1, bottom = star_fraction[i]+ism_fraction[i], color='#6f427b') 
+        plt.bar(np.log10(total_halo_mass[i]), warm_cgm_fraction[i], width=0.1, bottom = star_fraction[i]+ism_fraction[i]+cool_cgm_fraction[i], color='#659B4d') 
+        plt.bar(np.log10(total_halo_mass[i]), hot_cgm_fraction[i], width=0.1, bottom = star_fraction[i]+ism_fraction[i]+cool_cgm_fraction[i]+warm_cgm_fraction[i], color='#f2dc61')
+
+    plt.legend(frameon=0, loc='upper right', ncols=3)
+    
     plt.savefig(output_filename, dpi=300)
     plt.close()
 
