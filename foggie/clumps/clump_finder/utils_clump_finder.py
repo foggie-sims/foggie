@@ -888,6 +888,26 @@ def save_as_YTClumpContainer(ds,cut_region,master_clump,clumping_field,args):
     return YTMasterClump
             
 
+def GetClumpsInDisk(clump_ids, hierarchy_file, disk_file):
+    '''
+    Given a list of clump_ids, will filter out any that are not disk clumps (i.e. have no parents)
+    Arguments are:
+        clump_ids-List of clump ids you want to filter
+        hierarchy_file-File saved by save_clump_hierarchy() to search within
+    '''
+    disk_clump_ids = []
+    hf_disk = h5py.File(disk_file,'r')
+    disk_cell_ids = hf_disk['cell_ids'][...]
+
+    hf = h5py.File(hierarchy_file,'r')
+
+    for clump_id in clump_ids:
+        clump_cell_ids = hf[str(clump_id)]['cell_ids'][...]
+        if np.isin(clump_cell_ids,disk_cell_ids).any():
+            disk_clump_ids.append(clump_id)
+
+    return disk_clump_ids
+
 def FindOverlappingClumps(cell_ids, hierarchy_file, return_only_leaves=False, ds=None, return_cut_regions=False):
     '''
     Given a list of cell_ids, will find overlapping clumps (with at least 1 cell id in common) in a hierarchy file.
