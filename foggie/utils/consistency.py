@@ -206,7 +206,7 @@ def cgm_field_filter_z(z, tmin=cgm_temperature_min, tmax=1e8):
 	return ("((obj['temperature'] > {}) & (obj['temperature'] < {})) & (obj['density'] < {})").format(tmin, tmax, cgm_density_max * (1.+z)**3. )
 
 def ism_field_filter_z(z): 
-	return ("(obj['temperature'] < {} ) | (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max * (1.+z)**3. )
+	return ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max * (1.+z)**3. )
 
 cool_cgm_filter = cgm_field_filter + " & (obj['temperature'] < 1e5)"
 warm_cgm_filter = cgm_field_filter + " & (obj['temperature'] > 1e5)"

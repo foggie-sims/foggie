@@ -1,13 +1,14 @@
 """
 Callbacks for Calculating Halo Quantities in FOGGIE
 
-This module provides a set of callback functions for computing various physical 
+This module provides callback functions for computing various physical 
 quantities associated with halos in FOGGIE simulations. Each function takes a 
 halo object (with an attached yt data object) and returns a derived quantity, 
 such as mass, metallicity, temperature, or star formation rate. These callbacks 
 are designed to be used with yt's halo catalog analysis framework.
 
 Functions include:
+    - halo_total_mass: Total mass (gas + stars + dark matter).
     - halo_average_temperature: Mass-weighted average gas temperature.
     - halo_average_metallicity: Mass-weighted average gas metallicity.
     - halo_max_metallicity: Maximum gas metallicity (normalized to solar).
@@ -16,6 +17,9 @@ Functions include:
     - halo_total_gas_mass: Total gas mass.
     - halo_ism_gas_mass: Total ISM gas mass (using ISM filter).
     - halo_cgm_gas_mass: Total CGM gas mass (using CGM filter).
+    - halo_cool_cgm_gas_mass: Total cool CGM gas mass (T=1.5e4–1e5 K).
+    - halo_warm_cgm_gas_mass: Total warm CGM gas mass (T=1e5–1e6 K).
+    - halo_hot_cgm_gas_mass: Total hot CGM gas mass (T=1e6–1e8 K).
     - halo_total_star_mass: Total stellar mass.
     - halo_total_metal_mass: Total metal mass in gas.
     - halo_total_young_stars7_mass: Total mass in young stars (<10^7 yr).
