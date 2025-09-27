@@ -38,6 +38,8 @@ Dependencies:
 
 import yt 
 from foggie.utils.consistency import * 
+from foggie.utils import foggie_utils as futils
+import astropy.units as u
 
 
 def halo_total_mass(halo): 
@@ -47,10 +49,26 @@ def halo_total_mass(halo):
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 
     total_gas_mass = sphere.quantities.total_quantity(("gas", "cell_mass"))
-    total_star_mass = sphere.quantities.total_quantity(("stars", "particle_mass"))
-    total_dm_mass = sphere.quantities.total_quantity(("dm", "particle_mass"))
+    total_particle_mass = sphere.quantities.total_quantity(("nbody", "particle_mass"))
 
-    return total_gas_mass + total_star_mass + total_dm_mass
+    # NOTE: in Enzo, the dark matter particles are in the "nbody" family, not "enzo"
+    # and, star particles are already included in "nbody" fields so we don't double count them
+    return total_gas_mass + total_particle_mass
+
+def halo_overdensity(halo):
+    sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "dimensionless")
+
+    cosmic_matter_density = futils.cosmic_matter_density(halo.halo_catalog.data_ds.current_redshift,
+                                                  h=halo.halo_catalog.data_ds.hubble_constant,
+                                                  omega_m=halo.halo_catalog.data_ds.omega_matter)
+    
+    total_halo_mass = halo_total_mass(halo).to('Msun')    
+    halo_mean_density = (total_halo_mass / (4. / 3. * 3.141592653589793 * sphere.radius**3)).to('Msun/Mpc**3')
+
+    return (halo_mean_density.value / cosmic_matter_density)
 
 def halo_average_temperature(halo):
     sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
@@ -104,58 +122,57 @@ def halo_total_gas_mass(halo):
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 
-
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
-def halo_ism_gas_mass(halo, redshift_right_now): 
+def halo_ism_gas_mass(halo, redshift): 
     sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 
-    sphere = sphere.cut_region([ism_field_filter_z(redshift_right_now)]) #ism field filter is defined in consistency.py
+    sphere = sphere.cut_region([ism_field_filter_z(redshift)]) #ism field filter is defined in consistency.py
 
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
-def halo_cgm_gas_mass(halo, redshift_right_now): 
+def halo_cgm_gas_mass(halo, redshift): 
     sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 
-    cgm_cut_region = cgm_field_filter_z(redshift_right_now, tmin=cgm_temperature_min, tmax=1e8)
+    cgm_cut_region = cgm_field_filter_z(redshift, tmin=cgm_temperature_min, tmax=1e8)
 
     sphere = sphere.cut_region([cgm_cut_region]) #cgm field filter is defined in consistency.py
 
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
-def halo_cool_cgm_gas_mass(halo, redshift_right_now): 
+def halo_cool_cgm_gas_mass(halo, redshift): 
     sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 	
-    sphere = sphere.cut_region([cgm_field_filter_z(redshift_right_now, tmin=1.5e4, tmax=1e5)]) #cgm field filter is defined in consistency.py
+    sphere = sphere.cut_region([cgm_field_filter_z(redshift, tmin=1.5e4, tmax=1e5)]) #cgm field filter is defined in consistency.py
 
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
-def halo_warm_cgm_gas_mass(halo, redshift_right_now): 
+def halo_warm_cgm_gas_mass(halo, redshift): 
     sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
     
-    sphere = sphere.cut_region([cgm_field_filter_z(redshift_right_now, tmin=1e5, tmax=1e6)]) #cgm field filter is defined in consistency.py
+    sphere = sphere.cut_region([cgm_field_filter_z(redshift, tmin=1e5, tmax=1e6)]) #cgm field filter is defined in consistency.py
 
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
-def halo_hot_cgm_gas_mass(halo, redshift_right_now): 
+def halo_hot_cgm_gas_mass(halo, redshift): 
     sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 	
-    sphere = sphere.cut_region([cgm_field_filter_z(redshift_right_now, tmin=1e6, tmax=1e8)]) #cgm field filter is defined in consistency.py
+    sphere = sphere.cut_region([cgm_field_filter_z(redshift, tmin=1e6, tmax=1e8)]) #cgm field filter is defined in consistency.py
 
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
@@ -216,3 +233,15 @@ def halo_average_fH2(halo):
     fH2 = sphere.quantities.weighted_average_quantity(("gas", "H2_fraction"), ("gas", "cell_mass"))
 
     return fH2
+    
+
+def halo_actual_baryon_fraction(halo):
+    sphere = halo.data_object    
+
+    if sphere is Naone:
+        return halo.halo_catalog.data_ds.quan(0, "Msun")
+
+    baryon_fraction = (halo_total_gas_mass(halo) + halo_total_star_mass(halo)) / halo_total_mass(halo)
+
+    return baryon_fraction
+    

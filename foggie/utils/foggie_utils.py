@@ -12,6 +12,7 @@ JT 081318
 import pandas as pd
 import numpy as np
 import glob, os
+import astropy.units as u
 import argparse
 from foggie.utils.consistency import phase_color_labels, metal_labels, \
     categorize_by_temp, categorize_by_metals
@@ -293,3 +294,34 @@ def ds_to_df(ds, ray_start, ray_end):
                                                                label])
 
     return df
+
+
+def cosmic_matter_density(z, h=0.678, omega_m=0.315):
+
+    """
+    Calculate the cosmic matter density at a given redshift z in M_sun/Mpc^3.
+    
+    Parameters:
+    z (float): Redshift
+    h (float): Hubble constant H_0 in units of 100 km/s/Mpc (default: 0.678, Planck 2018)
+    omega_m (float): Matter density parameter at z=0 (default: 0.315, Planck 2018)
+    
+    Returns:
+    float: Matter density in M_sun/Mpc^3
+    """
+    # Constants
+    G = (6.674e-11 * u.m**3 / u.kg / u.s**2) # Gravitational constant in m^3 kg^-1 s^-2
+    M_sun = 1.989e33 * u.g # Solar mass in kg
+    # Hubble constant in SI units (s^-1)
+    H_0 = (h * 100. * u.km / u.s / u.Mpc).to('1/s') #<----correct units! 
+    
+    # Critical density at z=0 in kg/m^3
+    rho_crit_0 = (3 * H_0**2 / (8 * 3.1415926535 * G)).to('Msun/Mpc**3') 
+    
+    # Matter density at z=0
+    rho_m_0 = omega_m * rho_crit_0
+    
+    # Matter density at redshift z
+    rho_m_z = rho_m_0 * (1 + z)**3
+    
+    return rho_m_z.value
