@@ -39,6 +39,7 @@ def get_halo_catalog(ds, args, snap):
         add_quantity("total_gas_mass", halo_total_gas_mass)
         add_quantity("total_ism_gas_mass", halo_ism_gas_mass)
         add_quantity("total_cgm_gas_mass", halo_cgm_gas_mass)
+        add_quantity("total_cold_cgm_gas_mass", halo_cold_cgm_gas_mass)
         add_quantity("total_cool_cgm_gas_mass", halo_cool_cgm_gas_mass)
         add_quantity("total_warm_cgm_gas_mass", halo_warm_cgm_gas_mass)
         add_quantity("total_hot_cgm_gas_mass", halo_hot_cgm_gas_mass)
@@ -54,9 +55,11 @@ def get_halo_catalog(ds, args, snap):
 
         hc.add_quantity("average_temperature")
         hc.add_quantity("average_metallicity")
+        hc.add_quantity("total_mass")
         hc.add_quantity("total_gas_mass")
         hc.add_quantity("total_ism_gas_mass", ds.current_redshift)
         hc.add_quantity("total_cgm_gas_mass", ds.current_redshift)
+        hc.add_quantity("total_cold_cgm_gas_mass", ds.current_redshift) 
         hc.add_quantity("total_cool_cgm_gas_mass", ds.current_redshift) 
         hc.add_quantity("total_warm_cgm_gas_mass", ds.current_redshift) 
         hc.add_quantity("total_hot_cgm_gas_mass", ds.current_redshift)      
@@ -306,7 +309,9 @@ def baryon_budget(ds, region, args, output_filename):
     current_datetime = datetime.now()
 
     hc = get_halo_catalog(ds, args, args.snap)
+    all_data = hc.all_data()
 
+    total_halo_mass = all_data["halos", "total_mass"].in_units('Msun')
     total_gas_mass = all_data["halos", "total_gas_mass"].in_units('Msun')
     total_star_mass = all_data["halos", "total_star_mass"].in_units('Msun')
     total_ism_gas_mass = all_data["halos", "total_ism_gas_mass"].in_units('Msun')
@@ -331,9 +336,8 @@ def baryon_budget(ds, region, args, output_filename):
     plt.ylim(0, 0.3) 
     plt.xlabel('Total Halo Mass [Msun]') 
     plt.ylabel('Baryon Fraction') 
-    plt.title('FOGGIE v2.0     z = '+str(np.round(new_ds.current_redshift))+' Baryon Budgets   ' + str(current_datetime)[0:10]  )
+    plt.title('FOGGIE v2.0 Baryon Budgets   ' + str(current_datetime)[0:10]  )
     i = 0 # do it once to get the legends right 
-    plt.bar(np.log10(total_halo_mass[i]), actual_baryon_fraction[i], width=0.2, bottom = 0., color='#aaaaaa', label='Fraction') 
     plt.bar(np.log10(total_halo_mass[i]), star_fraction[i], width=0.2, bottom = 0., color='#9e302c', label='Stars') 
     plt.bar(np.log10(total_halo_mass[i]), ism_fraction[i], width=0.2, bottom = star_fraction[i], color='#4a6091', label='ISM') 
     plt.bar(np.log10(total_halo_mass[i]), cold_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i], color="#C66D64", label='Cold CGM')
