@@ -140,9 +140,19 @@ def halo_cgm_gas_mass(halo, redshift):
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 
-    cgm_cut_region = cgm_field_filter_z(redshift, tmin=cgm_temperature_min, tmax=1e8)
+    cgm_cut_region = cgm_field_filter_z(redshift, tmin=200., tmax=1e8)
 
     sphere = sphere.cut_region([cgm_cut_region]) #cgm field filter is defined in consistency.py
+
+    return sphere.quantities.total_quantity(("gas", "cell_mass"))
+
+def halo_cold_cgm_gas_mass(halo, redshift): 
+    sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "Msun")
+
+    sphere = sphere.cut_region([cgm_field_filter_z(redshift, tmin=100, tmax=1.5e4)]) #cgm field filter is defined in consistency.py
 
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
@@ -233,12 +243,11 @@ def halo_average_fH2(halo):
     fH2 = sphere.quantities.weighted_average_quantity(("gas", "H2_fraction"), ("gas", "cell_mass"))
 
     return fH2
-    
 
 def halo_actual_baryon_fraction(halo):
     sphere = halo.data_object    
 
-    if sphere is Naone:
+    if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 
     baryon_fraction = (halo_total_gas_mass(halo) + halo_total_star_mass(halo)) / halo_total_mass(halo)

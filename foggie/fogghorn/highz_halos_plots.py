@@ -10,6 +10,8 @@
 
 from foggie.fogghorn.header import *
 from foggie.fogghorn.util import *
+from datetime import datetime
+import seaborn as sns
 
 def get_halo_catalog(ds, args, snap):
     '''This function either checks if the halo catalog already exists for this snapshot 'snap'
@@ -301,49 +303,54 @@ def halos_cgmMHM(ds, region, args, output_filename):
 
 def baryon_budget(ds, region, args, output_filename):
 
+    current_datetime = datetime.now()
+
     hc = get_halo_catalog(ds, args, args.snap)
-    all_data = hc.all_data()
 
-    dm_mass = all_data[('halos', 'particle_mass')].in_units('Msun')  
-    star_mass = all_data[('halos', 'total_star_mass')].in_units('Msun') 
-    ism_gas_mass = all_data[('halos', 'total_ism_gas_mass')].in_units('Msun') 
-    cgm_gas_mass = all_data[('halos', 'total_cool_cgm_gas_mass')].in_units('Msun') 
-    cool_cgm_gas_mass = all_data[('halos', 'total_cool_cgm_gas_mass')].in_units('Msun') 
-    warm_cgm_gas_mass = all_data[('halos', 'total_warm_cgm_gas_mass')].in_units('Msun') 
-    hot_cgm_gas_mass = all_data[('halos', 'total_hot_cgm_gas_mass')].in_units('Msun') 
+    total_gas_mass = all_data["halos", "total_gas_mass"].in_units('Msun')
+    total_star_mass = all_data["halos", "total_star_mass"].in_units('Msun')
+    total_ism_gas_mass = all_data["halos", "total_ism_gas_mass"].in_units('Msun')
+    total_cgm_gas_mass = all_data["halos", "total_cgm_gas_mass"].in_units('Msun')
+    total_cold_cgm_gas_mass = all_data["halos", "total_cold_cgm_gas_mass"].in_units('Msun')
+    total_cool_cgm_gas_mass = all_data["halos", "total_cool_cgm_gas_mass"].in_units('Msun')
+    total_warm_cgm_gas_mass = all_data["halos", "total_warm_cgm_gas_mass"].in_units('Msun')
+    total_hot_cgm_gas_mass = all_data["halos", "total_hot_cgm_gas_mass"].in_units('Msun')
+    total_star_mass = all_data["halos", "total_star_mass"].in_units('Msun')
 
-    total_halo_mass = dm_mass + star_mass + ism_gas_mass + cgm_gas_mass
-    omega_b = ds.parameters['CosmologyOmegaMatterNow'] - ds.parameters['CosmologyOmegaDarkMatterNow']
-    expected_mass = total_halo_mass * omega_b / ds.parameters['CosmologyOmegaMatterNow'] 
-    ism_fraction = ism_gas_mass / expected_mass
-    cool_cgm_fraction = cool_cgm_gas_mass / expected_mass
-    warm_cgm_fraction = warm_cgm_gas_mass / expected_mass
-    hot_cgm_fraction = hot_cgm_gas_mass / expected_mass
-    star_fraction = star_mass / expected_mass
+    ism_fraction = total_ism_gas_mass / total_halo_mass
+    cold_cgm_fraction = total_cold_cgm_gas_mass / total_halo_mass
+    cool_cgm_fraction = total_cool_cgm_gas_mass / total_halo_mass
+    warm_cgm_fraction = total_warm_cgm_gas_mass / total_halo_mass
+    hot_cgm_fraction = total_hot_cgm_gas_mass / total_halo_mass
+    star_fraction = total_star_mass / total_halo_mass
 
     sns.set_style("whitegrid")
 
     plt.scatter([0], [0]) 
     plt.xlim(9, 12.5) 
-    plt.ylim(0, 1.5)    
+    plt.ylim(0, 0.3) 
     plt.xlabel('Total Halo Mass [Msun]') 
     plt.ylabel('Baryon Fraction') 
-    plt.title('FOGGIE z = '+str(np.round(ds.current_redshift))+' Baryon Budgets') 
+    plt.title('FOGGIE v2.0     z = '+str(np.round(new_ds.current_redshift))+' Baryon Budgets   ' + str(current_datetime)[0:10]  )
     i = 0 # do it once to get the legends right 
+    plt.bar(np.log10(total_halo_mass[i]), actual_baryon_fraction[i], width=0.2, bottom = 0., color='#aaaaaa', label='Fraction') 
     plt.bar(np.log10(total_halo_mass[i]), star_fraction[i], width=0.2, bottom = 0., color='#9e302c', label='Stars') 
     plt.bar(np.log10(total_halo_mass[i]), ism_fraction[i], width=0.2, bottom = star_fraction[i], color='#4a6091', label='ISM') 
-    plt.bar(np.log10(total_halo_mass[i]), cool_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i], color='#6f427b', label='Cool CGM')    
-    plt.bar(np.log10(total_halo_mass[i]), warm_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cool_cgm_fraction[i], color='#659B4d', label='Warm CGM')
-    plt.bar(np.log10(total_halo_mass[i]), hot_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cool_cgm_fraction[i]+warm_cgm_fraction[i], color='#f2dc61', label='Hot CGM')
+    plt.bar(np.log10(total_halo_mass[i]), cold_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i], color="#C66D64", label='Cold CGM')
+    plt.bar(np.log10(total_halo_mass[i]), cool_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cold_cgm_fraction[i], color='#6f427b', label='Cool CGM')
+    plt.bar(np.log10(total_halo_mass[i]), warm_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cold_cgm_fraction[i]+cool_cgm_fraction[i], color='#659B4d', label='Warm CGM')
+    plt.bar(np.log10(total_halo_mass[i]), hot_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cold_cgm_fraction[i]+cool_cgm_fraction[i]+warm_cgm_fraction[i], color='#f2dc61', label='Hot CGM')
 
-    for i in np.arange(4)+1: # now do the rest without legends): 
-        plt.bar(np.log10(total_halo_mass[i]), star_fraction[i], width=0.1, bottom = 0., color='#9e302c')  
-        plt.bar(np.log10(total_halo_mass[i]), ism_fraction[i], width=0.1, bottom = star_fraction[i], color='#4a6091')  
-        plt.bar(np.log10(total_halo_mass[i]), cool_cgm_fraction[i], width=0.1, bottom = star_fraction[i]+ism_fraction[i], color='#6f427b') 
-        plt.bar(np.log10(total_halo_mass[i]), warm_cgm_fraction[i], width=0.1, bottom = star_fraction[i]+ism_fraction[i]+cool_cgm_fraction[i], color='#659B4d') 
-        plt.bar(np.log10(total_halo_mass[i]), hot_cgm_fraction[i], width=0.1, bottom = star_fraction[i]+ism_fraction[i]+cool_cgm_fraction[i]+warm_cgm_fraction[i], color='#f2dc61')
+    for i in np.arange(7): 
+        plt.bar(np.log10(total_halo_mass[i]), star_fraction[i], width=0.2, bottom = 0., color='#9e302c')  
+        plt.bar(np.log10(total_halo_mass[i]), ism_fraction[i], width=0.2, bottom = star_fraction[i], color='#4a6091')  
+        plt.bar(np.log10(total_halo_mass[i]), cold_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i], color="#C66D64") 
+        plt.bar(np.log10(total_halo_mass[i]), cool_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cold_cgm_fraction[i], color='#6f427b') 
+        plt.bar(np.log10(total_halo_mass[i]), warm_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cold_cgm_fraction[i]+cool_cgm_fraction[i], color='#659B4d') 
+        plt.bar(np.log10(total_halo_mass[i]), hot_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cold_cgm_fraction[i]+cool_cgm_fraction[i]+warm_cgm_fraction[i], color='#f2dc61') 
 
     plt.legend(frameon=0, loc='upper right', ncols=3)
+    plt.plot([9, 12.5], [0.0461 / 0.285, 0.0461 / 0.285], linestyle='dashed', color='blue')
     
     plt.savefig(output_filename, dpi=300)
     plt.close()
