@@ -359,125 +359,6 @@ class Clump:
                         self.SaveFilledHoles(np.unique(id_region[filled_mask & ~mask]), args)
 
                         mask = filled_mask
-                    
-
-                        '''
-                        else:
-                          nx = int(np.round((np.max(self.x_disk_ucg[slice_obj]) - np.min(self.x_disk_ucg[slice_obj])) / self.ucg_dx))
-                          ny = int(np.round((np.max(self.y_disk_ucg[slice_obj]) - np.min(self.y_disk_ucg[slice_obj])) / self.ucg_dx))
-                          nz = int(np.round((np.max(self.z_disk_ucg[slice_obj]) - np.min(self.z_disk_ucg[slice_obj])) / self.ucg_dx))
-
-                         # nslices_x_itr = int( np.ceil( np.sqrt(nx**2 + nz**2) ) )
-                         # nslices_y_itr = int( np.ceil( np.sqrt(ny**2 + nz**2) ) ) #Conservative estimate. Some slices will be skipped
-                         # nslices = int( np.ceil( np.sqrt(nx**2 + ny**2 + nz**2) ) ) #Conservative estimate. Some slices will be skipped
-                          nslices = []
-                          run_slice_filling_parallel = True
-                          if args.nthreads <= 1: run_slice_filling_parallel = False
-
-                          n_azimuthal_iterations = args.azimuthal_slice_iterations
-                          n_polar_iterations = args.polar_slice_iterations
-
-                          iteration_axes = []
-                          print("Calculating slice orientations...")
-                          for azimuthal_itr in range(0,n_azimuthal_iterations):
-                              angle = 2*np.pi * float(azimuthal_itr) / float(n_azimuthal_iterations)
-                              rotation = R.from_rotvec(angle * self.ds.z_unit_disk)
-                              x_iteration_axis = rotation.apply(self.ds.x_unit_disk)
-
-                              phi = ((4*float(azimuthal_itr) / float(n_azimuthal_iterations)) % 1) * np.pi * 0.5
-                              nxy = nx*np.cos(phi) + ny*np.sin(phi)
-                              for polar_itr in range(0,n_polar_iterations):
-                                  n_interp = float(polar_itr) / float(n_polar_iterations)
-                                  iteration_axes.append( (1-n_interp) * self.ds.z_unit_disk + n_interp * x_iteration_axis )
-                                  theta = 0.5*np.pi * n_interp
-                                  nslices.append( int( np.ceil( nxy*np.sin(theta) + nz*np.cos(theta) ) ) )
-                          _iterate_slice_filling = partial(iterate_slice_filling, iteration_axes = iteration_axes,mask=mask,args=args,nslices=nslices)
-
-                          if args.nthreads > len(iteration_axes):
-                                n_jobs = len(iteration_axes)
-                          else:
-                                n_jobs = args.nthreads
-                          print("Filling slices...")
-                          filled_masks = Parallel(n_jobs=n_jobs)(delayed(_iterate_slice_filling)(i) for i in range(0,len(iteration_axes)))
-
-                          print("Combining masks...")
-                          for filled_mask_i in filled_masks:
-                                mask = mask | filled_mask_i
-
-
-                          #counter = 0
-                          #for azimuthal_itr in range(0,n_azimuthal_iterations):
-                          #    angle = 2*np.pi * float(azimuthal_itr) / float(n_azimuthal_iterations)
-                          #    rotation = R.from_rotvec(angle * self.ds.z_unit_disk)
-                          #    x_iteration_axis = rotation.apply(self.ds.x_unit_disk)
-                          #    for polar_itr in range(0,n_polar_iterations):
-                          #        counter+=1
-                          #        n0 = np.size(np.where(mask))
-                          #        n_interp = float(polar_itr) / float(n_polar_iterations)
-                          #       current_iteration_axis = (1-n_interp) * self.ds.z_unit_disk + n_interp * x_iteration_axis
-
-                          #        if polar_itr==0 and azimuthal_itr>0: continue #don't repeat filling the z-axis
-
-                          #        if run_slice_filling_parallel:
-                          #            mask = fill_holes_parallel(current_iteration_axis, mask, args.max_disk_hole_size, nslices, n_jobs=args.nthreads)
-                          #        else:
-                          #            mask = fill_holes(current_iteration_axis, mask, args.max_disk_hole_size, nslices)
-                          #        n1 = np.size(np.where(mask))
-                          #       print( "Hole filling filled for",n1-n0,"cells in 2d holes. (",counter,"/",n_azimuthal_iterations*n_polar_iterations,")")
-
-
-
-
-                        else:
-                          if args.make_disk_mask_figures:
-                            plt.figure()
-                            plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
-                            plt.xticks([])
-                            plt.yticks([])
-                            plt.savefig(args.output + "_disk_mask_faceon_1.png")
-
-                          nx = int(np.round((np.max(self.x_disk_ucg[slice_obj]) - np.min(self.x_disk_ucg[slice_obj])) / self.ucg_dx))
-                          mask = fill_holes(self.ds.x_unit_disk, mask, args.max_disk_hole_size, nx, structure=None)
-                          n2 = np.size(np.where(mask))
-                          print("Hole filling along x-hat filled",n2-n1,"cells in 2d holes.")
-
-                          if args.make_disk_mask_figures:
-                            plt.figure()
-                            plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
-                            plt.xticks([])
-                            plt.yticks([])
-                            plt.savefig(args.output + "_disk_mask_faceon_2.png")
-
-                          ny = int(np.round((np.max(self.y_disk_ucg[slice_obj]) - np.min(self.y_disk_ucg[slice_obj])) / self.ucg_dx))
-                          mask = fill_holes(self.ds.y_unit_disk, mask, args.max_disk_hole_size, ny, structure=None)
-                          n3 = np.size(np.where(mask))
-                          print("Hole filling along y-hat filled",n3-n2,"cells in 2d holes.")
-
-                          if args.make_disk_mask_figures:
-                            plt.figure()
-                            plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
-                            plt.xticks([])
-                            plt.yticks([])
-                            plt.savefig(args.output + "_disk_mask_faceon_3.png")
-
-                          nz = int(np.round((np.max(self.z_disk_ucg[slice_obj]) - np.min(self.z_disk_ucg[slice_obj])) / self.ucg_dx))
-                          mask = fill_holes(self.ds.z_unit_disk, mask, args.max_disk_hole_size, nz, structure=None)
-                          n4 = np.size(np.where(mask))
-                          print("Hole filling along z-hat filled",n4-n3,"cells in 2d holes.")
-
-                          if args.make_disk_mask_figures:
-                            plt.figure()
-                            plt.imshow(np.sum(mask,axis=2).astype(bool).astype(int))
-                            plt.xticks([])
-                            plt.yticks([])
-                            plt.savefig(args.output + "_disk_mask_faceon_4.png")
-
-                          if args.max_disk_void_size>0:
-                            n0 = np.size(np.where(mask))
-                            mask = fill_voids(mask,args.max_disk_void_size,structure=None)
-                            n1 = np.size(np.where(mask))
-                            print("Void filling after slicing filled",n1-n0,"cells in 3d cavities.")
-                        '''
 
                     if args.n_dilation_iterations>0:
                         shell_masks = get_dilated_shells(mask,args.n_dilation_iterations, args.n_cells_per_dilation)
@@ -722,7 +603,7 @@ class Clump:
             fields = [args.clumping_field,cell_id_field,('gas','z_disk'),('gas','y_disk'),('gas','x_disk')]
             split_methods = ["copy","copy","copy","copy","copy"]
             merge_methods = ["max" ,"max","mean","mean","mean"]
-            self.ucg, self.cell_id_ucg, self.z_disk_ucg, self.x_disk_ucg, self.y_disk_ucg = create_simple_ucg(self.ds, self.cut_region, fields, args.refinement_level,split_methods,merge_methods) #parallelize? Double check overlaps and which edges are being set to nans
+            self.ucg, self.cell_id_ucg, self.z_disk_ucg, self.y_disk_ucg, self.x_disk_ucg = create_simple_ucg(self.ds, self.cut_region, fields, args.refinement_level,split_methods,merge_methods) #parallelize? Double check overlaps and which edges are being set to nans
             self.ucg_shape = np.shape(self.ucg)
         else:
             print("Defining ucgs...")
@@ -1021,7 +902,7 @@ def identify_clump_hierarchy(ds,cut_region,args):
             elif args.cgm_density_cut_type=="comoving_density": args.cgm_density_factor=0.2
             else: args.cgm_density_factor = 1.
 
-        cgm_density_cut = get_cgm_density_cut(ds, args.cgm_density_cut_type,additional_factor=args.cgm_density_factor,code_dir=args.code_dir,halo=args.halo,snapshot=args.snapshot,run=args.run, cut_field = args.clumping_field)
+        cgm_density_cut = get_cgm_density_cut(ds, args.cgm_density_cut_type,additional_factor=args.cgm_density_factor,code_dir=args.code_dir,halo=args.halo,snapshot=args.snapshot,run=args.run, cut_field = args.clumping_field,disk_stdv_factor = args.disk_stdv_factor)
 
 
 
@@ -1051,15 +932,29 @@ def identify_clump_hierarchy(ds,cut_region,args):
         #    i+=1
         
 
-        args.step=tmp_step
-        args.clump_max = None
-        args.clump_min = tmp_clump_min
+
 
         if args.mask_disk: disk_ids = disk.clump_tree[0][disk_index].cell_ids
         if args.identify_disk:
             disk_output = args.output + "_Disk.h5"
             disk.SaveClump(disk.clump_tree[0][disk_index],args,leaf=False,output=disk_output)
+
+            if args.identify_satellites:
+                disk_ids = disk.clump_tree[0][disk_index].cell_ids
+                for i in range(0,args.max_number_of_satellites):
+                    sat_output = args.output + "_Satellite"+str(i)+".h5"
+
+                    satellite = Clump(ds,cut_region,args,tree_level=0,is_disk=True)
+                    sat_index = satellite.FindClumps(args.clump_min,args,ids_to_ignore=disk_ids) #Ignore the disk cells
+
+                    satellite.SaveClump(satellite.clump_tree[0][sat_index],args,leaf=False,output=sat_output)
+                    disk_ids=np.append(disk_ids,satellite.clump_tree[0][sat_index].cell_ids) # Append the current satellite cells to the ignore list
+
             return disk
+        
+        args.step=tmp_step
+        args.clump_max = None
+        args.clump_min = tmp_clump_min
 
     print("Clump_min is set to",args.clump_min)
    

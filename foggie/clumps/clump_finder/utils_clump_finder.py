@@ -40,7 +40,7 @@ def read_virial_mass_file(halo_id,snapshot,refinement_scheme,codedir,key="radius
     
     
 
-def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run="nref11c_nref9f",code_dir=None,halo=None,snapshot=None, cut_field=('gas','density')):
+def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run="nref11c_nref9f",code_dir=None,halo=None,snapshot=None, cut_field=('gas','density'), disk_stdv_factor = 100.):
     '''
     Get a density cutoff to separate the galaxy from the CGM
     '''
@@ -99,7 +99,7 @@ def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run=
             
 
             print("cgm_density_cut was:",cgm_density_cut,"stdv=",stdv_density)
-            cgm_density_cut += 100. * stdv_density * (1+z)**3
+            cgm_density_cut += disk_stdv_factor * stdv_density * (1+z)**3
 
 
 
