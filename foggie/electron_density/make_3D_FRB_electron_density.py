@@ -20,7 +20,7 @@ plt.rcParams['axes.linewidth'] = 1
 from foggie.gas_metallicity.plot_MZgrad import load_df
 from foggie.gas_metallicity.compute_MZgrad import get_disk_stellar_mass
 
-start_time = datetime.now()
+start_time = datetime.datetime.now()
 
 # -----------------------------------------------------------------------------
 def get_sfr_df(args):
@@ -66,12 +66,12 @@ def get_AM_vector(ds):
     Based on foggie_load()
     Returns the unit vector as a list
     '''
-    start_time = datetime.now()
+    start_time = datetime.datetime.now()
 
     print('Staring to derive angular momentum vector. This can take a while..')
     sphere = ds.sphere(ds.halo_center_kpc, (15., 'kpc'))
     L = sphere.quantities.angular_momentum_vector(use_gas=False, use_particles=True, particle_type='young_stars')
-    print('Completed deriving angular momentum vector, in %s'% timedelta(seconds=(datetime.now() - start_time).seconds))
+    print('Completed deriving angular momentum vector, in %s'% timedelta(seconds=(datetime.datetime.now() - start_time).seconds))
     norm_L = L / np.sqrt((L ** 2).sum())
     norm_L = np.array(norm_L.value)
 
@@ -234,7 +234,7 @@ if __name__ == '__main__':
     comm = MPI.COMM_WORLD
     ncores = comm.size
     rank = comm.rank
-    print_master('Total number of MPI ranks = ' + str(ncores) + '. Starting at: {:%Y-%m-%d %H:%M:%S}'.format(datetime.now()), args)
+    print_master('Total number of MPI ranks = ' + str(ncores) + '. Starting at: {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()), args)
     comm.Barrier() # wait till all cores reached here and then resume
 
     split_at_cpu = total_snaps - ncores * int(total_snaps/ncores)
@@ -251,7 +251,7 @@ if __name__ == '__main__':
     print_mpi('Operating on snapshots ' + str(core_start + 1) + ' to ' + str(core_end + 1) + ', i.e., ' + str(core_end - core_start + 1) + ' out of ' + str(total_snaps) + ' snapshots', args)
 
     for index in range(core_start + args.start_index, core_end + 1):
-        start_time_this_snapshot = datetime.now()
+        start_time_this_snapshot = datetime.datetime.now()
         this_sim = list_of_sims[index]
         print_mpi('Doing snapshot ' + this_sim[1] + ' of halo ' + this_sim[0] + ' which is ' + str(index + 1 - core_start) + ' out of the total ' + str(core_end - core_start + 1) + ' snapshots...', args)
 
@@ -364,7 +364,7 @@ if __name__ == '__main__':
                 myprint('Saved plot as ' + figname, args)
 
             plt.show(block=False)
-            print_mpi('This snapshots completed in %s' % timedelta(seconds=(datetime.now() - start_time_this_snapshot).seconds), args)
+            print_mpi('This snapshots completed in %s' % timedelta(seconds=(datetime.datetime.now() - start_time_this_snapshot).seconds), args)
             '''
             except Exception as e:
                 print_mpi('Skipping ' + this_sim[1] + ' because ' + str(e), args)
@@ -375,5 +375,5 @@ if __name__ == '__main__':
             continue
 
     # -----------------------------------------------------------------------------------
-    if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)
-    else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s' % timedelta(seconds=(datetime.now() - start_time).seconds), args)
+    if ncores > 1: print_master('Parallely: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' cores was %s' % timedelta(seconds=(datetime.datetime.now() - start_time).seconds), args)
+    else: print_master('Serially: time taken for ' + str(total_snaps) + ' snapshots with ' + str(ncores) + ' core was %s' % timedelta(seconds=(datetime.datetime.now() - start_time).seconds), args)

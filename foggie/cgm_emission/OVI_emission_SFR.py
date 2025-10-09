@@ -821,35 +821,64 @@ def weighted_radial_profiles(ds, refine_box, snap):
 def phase_plot(ds, refine_box, snap):
     '''Makes 2D histograms of O VI emissivity in density-temperature space.'''
 
-    sph = ds.sphere(center=ds.halo_center_kpc, radius=(20., 'kpc'))
-    emission = sph['gas','Emission_OVI'].in_units(emission_units_ALT).v
-    print(np.min(emission[np.nonzero(emission)]), np.max(emission))
+    sph = ds.sphere(center=ds.halo_center_kpc, radius=(50., 'kpc'))
 
-    phaseplot = yt.PhasePlot(sph, ('gas', 'number_density'), ('gas', 'temperature'), [('gas', 'Emission_OVI')], weight_field=None)
-    phaseplot.set_unit(('gas', 'number_density'), '1/cm**3')
-    phaseplot.set_unit(('gas', 'temperature'), 'K')
-    phaseplot.set_unit(('gas', 'Emission_OVI'), emission_units_ALT)
+    phaseplot = yt.PhasePlot(sph, ('gas', 'number_density'), ('gas', 'temperature'), [('gas', 'Emission_OVI')], weight_field=('gas','cell_mass'))
+    phaseplot.set_xlim(1e-6,2e1)
+    phaseplot.set_ylim(5,2e8)
+    phase = phaseplot.profile[('gas','Emission_OVI')].v
+    phase[phase==0.0] = np.nan
+
+    cmap = plt.get_cmap('cmr.lilac')
+    cmap.set_under('k')
+    cmap.set_bad('w')
+
+    fig = plt.figure(figsize=(8,7), dpi=250)
+    fig.subplots_adjust(left=0.08, bottom=0.1, top=0.97, right=0.85)
+    ax = fig.add_subplot(1,1,1)
+    im = ax.imshow(phase.T, cmap=cmap, origin='lower', extent=[np.log10(1e-6), np.log10(2e1), np.log10(5), np.log10(2e8)], norm=mcolors.LogNorm(vmin=1e-49, vmax=1e-39))
+    ax.set_xlabel('Number density [cm$^{-3}$]', fontsize=18)
+    ax.set_ylabel('Temperature [K]', fontsize=18)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True)
+    xticks = [-6, -5, -4, -3, -2, -1, 0, 1]
+    ax.set_xticks(xticks)
+    ax.set_xticklabels([r"$10^{{{}}}$".format(k) for k in xticks])
+    yticks = [1, 2, 3, 4, 5, 6, 7, 8]
+    ax.set_yticks(yticks)
+    ax.set_yticklabels([r"$10^{{{}}}$".format(k) for k in yticks])
+    pos = ax.get_position()
+    cax = fig.add_axes([pos.x1, pos.y0, 0.03, pos.height])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
+                    top=True, right=True)
+    cax.text(5., 0.5, 'O VI Emissivity [erg s$^{-1}$ cm$^{-3}$ arcsec$^{-2}$]', fontsize=18, ha='center', va='center', rotation='vertical', transform=cax.transAxes)
+    fig.savefig(prefix + 'Phase_Plots/' + snap + '_OVI_emission_phase' + save_suffix + '.png')
+
+    #phaseplot.set_unit(('gas', 'number_density'), '1/cm**3')
+    #phaseplot.set_unit(('gas', 'temperature'), 'K')
+    #phaseplot.set_unit(('gas', 'Emission_OVI'), emission_units_ALT)
     #phaseplot.set_log(('gas','Emission_OVI'), False)
     #phaseplot.set_unit(('gas', 'cell_mass'), 'Msun')
-    phaseplot.set_colorbar_label(('gas', 'Emission_OVI'), 'O VI Emissivity [erg s$^{-1}$ cm$^{-3}$ arcsec$^{-2}$]')
-    phaseplot.set_zlim(('gas','Emission_OVI'), 1e-47, 1e-37)
+    #phaseplot.set_colorbar_label(('gas', 'Emission_OVI'), 'O VI Emissivity [erg s$^{-1}$ cm$^{-3}$ arcsec$^{-2}$]')
+    #phaseplot.set_zlim(('gas','Emission_OVI'), 1e-47, 1e-37)
     #phaseplot.set_colorbar_label(('gas', 'cell_mass'), 'Cell Mass [$M_\odot$]')
-    phaseplot.set_font_size(20)
+    #phaseplot.set_font_size(20)
     #phaseplot.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
-    phaseplot.save(prefix + 'Phase_Plots/' + snap + '_OVI_emission_phase' + save_suffix + '.png')
+    #phaseplot.save(prefix + 'Phase_Plots/' + snap + '_OVI_emission_phase' + save_suffix + '.png')
 
-    phaseplot = yt.PhasePlot(sph, ('gas', 'number_density'), ('gas', 'metallicity'), [('gas', 'Emission_OVI')], weight_field=None)
-    phaseplot.set_unit(('gas', 'number_density'), '1/cm**3')
-    phaseplot.set_unit(('gas', 'metallicity'), 'Zsun')
-    phaseplot.set_unit(('gas', 'Emission_OVI'), emission_units_ALT)
+    #phaseplot = yt.PhasePlot(sph, ('gas', 'number_density'), ('gas', 'metallicity'), [('gas', 'Emission_OVI')], weight_field=None)
+    #phaseplot.set_unit(('gas', 'number_density'), '1/cm**3')
+    #phaseplot.set_unit(('gas', 'metallicity'), 'Zsun')
+    #phaseplot.set_unit(('gas', 'Emission_OVI'), emission_units_ALT)
     #phaseplot.set_log(('gas','Emission_OVI'), False)
     #phaseplot.set_unit(('gas', 'cell_mass'), 'Msun')
-    phaseplot.set_colorbar_label(('gas', 'Emission_OVI'), 'O VI Emissivity [erg s$^{-1}$ cm$^{-3}$ arcsec$^{-2}$]')
-    phaseplot.set_zlim(('gas','Emission_OVI'), 1e-47, 1e-37)
+    #phaseplot.set_colorbar_label(('gas', 'Emission_OVI'), 'O VI Emissivity [erg s$^{-1}$ cm$^{-3}$ arcsec$^{-2}$]')
+    #phaseplot.set_zlim(('gas','Emission_OVI'), 1e-47, 1e-37)
     #phaseplot.set_colorbar_label(('gas', 'cell_mass'), 'Cell Mass [$M_\odot$]')
-    phaseplot.set_font_size(20)
+    #phaseplot.set_font_size(20)
     #phaseplot.annotate_timestamp(corner='upper_left', redshift=True, time=True, draw_inset_box=True)
-    phaseplot.save(prefix + 'Phase_Plots/' + snap + '_OVI_emission_phase-Z' + save_suffix + '.png')
+    #phaseplot.save(prefix + 'Phase_Plots/' + snap + '_OVI_emission_phase-Z' + save_suffix + '.png')
 
 def sb_profile_time_avg(halos, outs):
     '''Plots the median surface brightness profile with shading indicating IQR variation
@@ -959,6 +988,65 @@ def sb_profile_nofdbk_compare(snap):
     fig.tight_layout()
     plt.savefig(prefix + '/' + snap + '_OVI_surface_brightness_profile_edge-on_fid-nofdbk' + save_suffix + '.png')
 
+def sb_profile_nofdbk_compare_time_avg(outs):
+    '''Plots the median surface brightness profiles for fiducial Tempest and the
+    feedback-10-track run of Tempest, averaged over the snapshots in outs, and
+    also for the constant-metallicity versions of these runs.'''
+
+    fig = plt.figure(figsize=(6,5),dpi=250)
+    ax = fig.add_subplot(1,1,1)
+    rbins = np.linspace(0., 50., 26)
+    rbin_centers = rbins[:-1] + 0.5*np.diff(rbins)
+    runs = ['nref11c_nref9f', 'feedback-10-track']
+    colors = ['k','#8e9091']
+    colors_inflow = ['b', "#04C8CF"]
+    labels = ['Fiducial', 'No feedback']
+    labels_inflow = ['Fiducial inflows', 'No feedback inflows']
+
+
+    for h in range(len(runs)):
+        SB_meds = []
+        SB_lows = []
+        SB_upps = []
+        sb_table_loc = output_dir + 'ions_halo_008508/' + runs[h] + '/Tables/'
+        SB_tablenames = ['all', 'inflow']
+        SB_profiles = [[],[]]
+        for i in range(len(outs)):
+            # Load the PDF of OVI emission
+            snap = outs[i]
+            if (runs[h]=='nref11c_nref9f'): snap_file = snap
+            if (runs[h]=='feedback-10-track'): snap_file = 'DD' + str(int(snap[2:]) + 93)
+            sb_data = Table.read(sb_table_loc + snap_file + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
+            for j in range(len(SB_tablenames)):
+                SB_profiles[j].append(list(sb_data[SB_tablenames[j] + '_med'][2:]))
+        for j in range(len(SB_profiles)):
+            prof = np.array(SB_profiles[j])
+            med = np.median(prof, axis=(0))
+            SB_meds.append(med)
+            low = np.percentile(prof, 25, axis=(0))
+            upp = np.percentile(prof, 75, axis=(0))
+            SB_lows.append(low)
+            SB_upps.append(upp)
+
+        ax.plot(rbin_centers, SB_meds[0], color=colors[h], ls='-', lw=2, label=labels[h])
+        ax.fill_between(rbin_centers, y1=SB_lows[0], y2=SB_upps[0], color=colors[h], alpha=0.25)
+        ax.plot(rbin_centers, SB_meds[1], color=colors_inflow[h], ls='--', lw=2, label=labels_inflow[h])
+        ax.fill_between(rbin_centers, y1=SB_lows[1], y2=SB_upps[1], color=colors_inflow[h], alpha=0.25)
+
+    ax.set_xlabel('Radius [kpc]', fontsize=16)
+    ax.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
+    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+                top=True, right=True)
+    ax.axis([0,50,-24,-18])
+    if (args.constant_Z):
+        ax.set_title('Constant Metallicity', fontsize=16)
+    else:
+        ax.set_title('Simulated Metallicity', fontsize=16)
+        ax.legend(loc=1, fontsize=16, frameon=False)
+
+    fig.tight_layout()
+    plt.savefig(prefix + '/OVI_surface_brightness_profile_edge-on_fid-nofdbk_time-avg' + save_suffix + '.png')
+
 def surface_brightness_time_histogram(outs):
     '''Makes a plot of surface brightness histograms vs time for the outputs in 'outs'. Requires
     surface brightness tables to have already been created for the outputs plotted using the
@@ -975,6 +1063,9 @@ def surface_brightness_time_histogram(outs):
     for i in range(len(sfr_snap)):
         sfr_time.append(float(timelist[snaplist==sfr_snap[i]])/1000.)
 
+    if (args.run=='feedback-10-track'):
+        outs_Temp = make_output_list('DD0967-DD2427', output_step=args.output_step)
+
     z_list = []
     sb_hists = []
     time_list = []
@@ -984,6 +1075,7 @@ def surface_brightness_time_histogram(outs):
     meds_sections = []
     means_sections = []
     med_above_limit = []
+    med_fdbk = []
     med_above_limit_sections = []
     sections = ['inflow','outflow','major','minor']
     for j in range(len(sections)):
@@ -997,7 +1089,10 @@ def surface_brightness_time_histogram(outs):
         z_list.append(float(zlist[snaplist==snap]))
         sb_data = Table.read(table_loc + snap + '_SB_pdf' + file_suffix + '.hdf5', path='all_data')
         sb_stats = Table.read(table_loc + snap + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
-        sb_limit = Table.read(table_loc + snap + '_SB_profiles_new-table_Aspera-limit.hdf5', path='all_data')
+        if (args.run=='feedback-10-track'):
+            snap_temp = outs_Temp[i]
+            sb_stats_Temp = Table.read(output_dir + '/ions_halo_008508/nref11c_nref9f/Tables/' + snap_temp + '_SB_profiles' + file_suffix + '.hdf5', path='all_data')
+        sb_limit = Table.read(table_loc + snap + '_SB_profiles_sym-vel_and_temp_Aspera-limit.hdf5', path='all_data')
         radial_range = (sb_data['inner_radius']==0.) & (sb_data['outer_radius']==20.)
         #sb_hists.append(sb_data['all'][radial_range]/6.4e5)     # Normalize by number of pixels in FRB (800x800)
         sb_hists.append(sb_data['all'][radial_range]/1.02e5)     # Normalize by number of pixels in FRB between -20 and 20 kpc in both directions (320x320)
@@ -1005,13 +1100,14 @@ def surface_brightness_time_histogram(outs):
         meds.append(sb_stats['all_med'][(sb_stats['inner_radius']==0.) & (sb_stats['outer_radius']==20.)])
         means.append(sb_stats['all_mean'][(sb_stats['inner_radius']==0.) & (sb_stats['outer_radius']==20.)])
         med_above_limit.append(sb_limit['all_med'][(sb_limit['inner_radius']==0.) & (sb_limit['outer_radius']==20.)])
+        if (args.run=='feedback-10-track'): med_fdbk.append(sb_stats_Temp['all_med'][(sb_stats_Temp['inner_radius']==0.) & (sb_stats_Temp['outer_radius']==20.)])
         for j in range(len(sections)):
             #sb_hists_sections[j].append(sb_data[sections[j]][radial_range]/6.4e5)
             sb_hists_sections[j].append(sb_data[sections[j]][radial_range]/1.02e5)
             sb_hists_sections[j][-1][sb_hists[-1]==np.nan] = 1e-5
             meds_sections[j].append(sb_stats[sections[j] + '_med'][(sb_stats['inner_radius']==0.) & (sb_stats['outer_radius']==20.)])
             means_sections[j].append(sb_stats[sections[j] + '_mean'][(sb_stats['inner_radius']==0.) & (sb_stats['outer_radius']==20.)])
-            #med_above_limit_sections[j].append(sb_limit[sections[j] + '_med'][(sb_limit['inner_radius']==0.) & (sb_limit['outer_radius']==20.)])
+            med_above_limit_sections[j].append(sb_limit[sections[j] + '_med'][(sb_limit['inner_radius']==0.) & (sb_limit['outer_radius']==20.)])
 
     sb_hists = np.transpose(np.array(sb_hists))
     for j in range(len(sections)):
@@ -1029,7 +1125,10 @@ def surface_brightness_time_histogram(outs):
     ax.plot(time_list, meds, 'k-', lw=2, label='Median')
     ax.plot(time_list, means, 'k:', lw=2, label='Mean')
     ax.plot(time_list, med_above_limit, color='#00F5FF', ls='--', lw=2, label='Median above $10^{-19}$')
+    if (args.run=='feedback-10-track'): ax.plot(time_list, med_fdbk, color='b', ls='--', lw=2, label='Median with feedback')
     ax.plot(time_list, np.zeros(len(time_list))-19, 'k-', lw=1)
+    if (args.run=='feedback-10-track'):
+        ax.text(6.25, -16.6, 'No feedback', fontsize=16, ha='left', va='top', color='w')
     ax.text(6.25, -16.25, halo_dict[args.halo], fontsize=16, ha='left', va='top', color='w')
     ax.axis([time_list[0], time_list[-1], -23, sb_bins[-1]])
     ax.set_ylabel('log O VI SB [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=16)
@@ -1420,25 +1519,27 @@ def den_vs_time(halos, outs):
     #ax_sfr = fig.add_subplot(gs[1])
     fig = plt.figure(figsize=(7,5), dpi=250)
     ax = fig.add_subplot(1,1,1)
-    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
-    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane', 'Tempest\n(no feedback)']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021', 'gray']
     for h in range(len(halo_names)):
-        if (halo_names[h]=='Tempest (no feedback)'):
+        if (halo_names[h]=='Tempest\n(no feedback)'):
             sb_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
+            halo_c_v_name = code_path + 'halo_infos/008508/feedback-10-track/halo_c_v'
+            sfr_name = code_path + 'halo_infos/008508/feedback-10-track/sfr'
         else:
             sb_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
             halo_c_v_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/halo_c_v'
             sfr_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr'
-            halo_c_v = Table.read(halo_c_v_name, format='ascii')
-            timelist = halo_c_v['col4']
-            snaplist = halo_c_v['col3']
-            zlist = halo_c_v['col2']
-            sfr_data = Table.read(sfr_name, format='ascii')
-            sfr_snap = sfr_data['col1']
-            sfr = sfr_data['col3']
-            sfr_time = []
-            for i in range(len(sfr_snap)):
-                sfr_time.append(float(timelist[snaplist==sfr_snap[i]][0])/1000.)
+        halo_c_v = Table.read(halo_c_v_name, format='ascii')
+        timelist = halo_c_v['col4']
+        snaplist = halo_c_v['col3']
+        zlist = halo_c_v['col2']
+        sfr_data = Table.read(sfr_name, format='ascii')
+        sfr_snap = sfr_data['col1']
+        sfr = sfr_data['col3']
+        sfr_time = []
+        for i in range(len(sfr_snap)):
+            sfr_time.append(float(timelist[snaplist==sfr_snap[i]][0])/1000.)
         den_list = []
         time_list = []
         z_list = []
@@ -1471,6 +1572,7 @@ def den_vs_time(halos, outs):
     ax.text(0.72, 0.83, halo_names[2], fontsize=14, weight='semibold', c=halo_colors[2], ha='right', va='top', transform=ax.transAxes)
     ax.text(0.95, 0.95, halo_names[3], fontsize=14, weight='semibold', c=halo_colors[3], ha='right', va='top', transform=ax.transAxes)
     ax.text(0.95, 0.89, halo_names[4], fontsize=14, weight='semibold', c=halo_colors[4], ha='right', va='top', transform=ax.transAxes)
+    ax.text(0.95, 0.83, halo_names[5], fontsize=14, weight='semibold', c=halo_colors[5], ha='right', va='top', transform=ax.transAxes)
 
     z_list.reverse()
     time_list.reverse()
@@ -1551,25 +1653,27 @@ def Z_vs_time(halos, outs):
     #ax_sfr = fig.add_subplot(gs[1])
     fig = plt.figure(figsize=(7,5), dpi=250)
     ax = fig.add_subplot(1,1,1)
-    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
-    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane', 'Tempest\n(no feedback)']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021', 'grey']
     for h in range(len(halo_names)):
-        if (halo_names[h]=='Tempest (no feedback)'):
+        if (halo_names[h]=='Tempest\n(no feedback)'):
             Z_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
+            halo_c_v_name = code_path + 'halo_infos/008508/feedback-10-track/halo_c_v'
+            sfr_name = code_path + 'halo_infos/008508/feedback-10-track/sfr'
         else:
             Z_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
             halo_c_v_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/halo_c_v'
             sfr_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr'
-            halo_c_v = Table.read(halo_c_v_name, format='ascii')
-            timelist = halo_c_v['col4']
-            snaplist = halo_c_v['col3']
-            zlist = halo_c_v['col2']
-            sfr_data = Table.read(sfr_name, format='ascii')
-            sfr_snap = sfr_data['col1']
-            sfr = sfr_data['col3']
-            sfr_time = []
-            for i in range(len(sfr_snap)):
-                sfr_time.append(float(timelist[snaplist==sfr_snap[i]][0])/1000.)
+        halo_c_v = Table.read(halo_c_v_name, format='ascii')
+        timelist = halo_c_v['col4']
+        snaplist = halo_c_v['col3']
+        zlist = halo_c_v['col2']
+        sfr_data = Table.read(sfr_name, format='ascii')
+        sfr_snap = sfr_data['col1']
+        sfr = sfr_data['col3']
+        sfr_time = []
+        for i in range(len(sfr_snap)):
+            sfr_time.append(float(timelist[snaplist==sfr_snap[i]][0])/1000.)
         Z_list = []
         time_list = []
         z_list = []
@@ -1597,7 +1701,7 @@ def Z_vs_time(halos, outs):
     #ax.legend(loc=4, ncols=2, fontsize=16)
     ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
                 top=False, right=True)
-    ax.axis([np.min(time_list), np.max(time_list), -1.5, 0.5])
+    ax.axis([np.min(time_list), np.max(time_list), -3, 0.5])
     ax.set_xticklabels([])
 
     z_list.reverse()
@@ -1679,25 +1783,27 @@ def temp_vs_time(halos, outs):
     #ax_sfr = fig.add_subplot(gs[1])
     fig = plt.figure(figsize=(7,5), dpi=250)
     ax = fig.add_subplot(1,1,1)
-    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane']
-    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021']
+    halo_names = ['Tempest', 'Squall', 'Maelstrom', 'Blizzard', 'Hurricane', 'Tempest\n(no feedback)']
+    halo_colors = ['#8FDC97','#6A0136','#188FA7','#CC3F0C', '#D5A021', 'grey']
     for h in range(len(halo_names)):
-        if (halo_names[h]=='Tempest (no feedback)'):
+        if (halo_names[h]=='Tempest\n(no feedback)'):
             temp_table_loc = output_dir + 'ions_halo_008508/feedback-10-track/Tables/'
+            halo_c_v_name = code_path + 'halo_infos/008508/feedback-10-track/halo_c_v'
+            sfr_name = code_path + 'halo_infos/008508/feedback-10-track/sfr'
         else:
             temp_table_loc = output_dir + 'ions_halo_00' + halos[h] + '/' + args.run + '/Tables/'
             halo_c_v_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/halo_c_v'
             sfr_name = code_path + 'halo_infos/00' + halos[h] + '/' + args.run + '/sfr'
-            halo_c_v = Table.read(halo_c_v_name, format='ascii')
-            timelist = halo_c_v['col4']
-            snaplist = halo_c_v['col3']
-            zlist = halo_c_v['col2']
-            sfr_data = Table.read(sfr_name, format='ascii')
-            sfr_snap = sfr_data['col1']
-            sfr = sfr_data['col3']
-            sfr_time = []
-            for i in range(len(sfr_snap)):
-                sfr_time.append(float(timelist[snaplist==sfr_snap[i]][0])/1000.)
+        halo_c_v = Table.read(halo_c_v_name, format='ascii')
+        timelist = halo_c_v['col4']
+        snaplist = halo_c_v['col3']
+        zlist = halo_c_v['col2']
+        sfr_data = Table.read(sfr_name, format='ascii')
+        sfr_snap = sfr_data['col1']
+        sfr = sfr_data['col3']
+        sfr_time = []
+        for i in range(len(sfr_snap)):
+            sfr_time.append(float(timelist[snaplist==sfr_snap[i]][0])/1000.)
         temp_list = []
         time_list = []
         z_list = []
@@ -2304,7 +2410,7 @@ def hists_rad_bins(ds, refine_box, snap):
             flow_file = '_inflow-outflow'
 
         fig = plt.figure(figsize=(18,8), dpi=250)
-        outer = mpl.gridspec.GridSpec(2, 3, hspace=0.2, wspace=0.18, left=0.05, right=0.99, top=0.98, bottom=0.07)
+        outer = mpl.gridspec.GridSpec(2, 3, hspace=0.24, wspace=0.2, left=0.06, right=0.99, top=0.98, bottom=0.08)
         ax_den = outer[0, 0]
         ax_temp = outer[0, 1]
         ax_met = outer[0, 2]
@@ -2360,21 +2466,21 @@ def hists_rad_bins(ds, refine_box, snap):
             ax1.set_xscale('log')
             ax1.axis([1e-3,10,-31,-23])
             if (r==0): 
-                ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                     top=True, right=False, labelleft=True)
-                ax1.set_ylabel('log Density [g/cm$^3$]', fontsize=14)
+                ax1.set_ylabel('log Density [g/cm$^3$]', fontsize=18)
                 ax1.set_xticks([1e-3,10])
                 ax1.set_xticklabels([0,10])
             else:
                 if (r==len(rad_bins)-2):
-                    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                         top=True, right=True, left=False, labelleft=False)
                 else:
-                    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                         top=True, left=False, right=False, labelleft=False)
                 ax1.set_xticks([10])
                 ax1.set_xticklabels([int(out_r)])
-            if (r==2): ax1.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
+            if (r==2): ax1.set_xlabel('Galactocentric Radius [kpc]', fontsize=18)
 
             ax2 = fig.add_subplot(inner_temp[0, r])
             if (i<3):
@@ -2388,21 +2494,21 @@ def hists_rad_bins(ds, refine_box, snap):
             ax2.set_xscale('log')
             ax2.axis([1e-3,10,3,9])
             if (r==0):
-                ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                     top=True, right=False, labelleft=True)
-                ax2.set_ylabel('log Temperature [K]', fontsize=14)
+                ax2.set_ylabel('log Temperature [K]', fontsize=18)
                 ax2.set_xticks([1e-3,10])
                 ax2.set_xticklabels([0,10])
             else:
                 if (r==len(rad_bins)-2):
-                    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                         top=True, right=True, left=False, labelleft=False)
                 else:
-                    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                         top=True, left=False, right=False, labelleft=False)
                 ax2.set_xticks([10])
                 ax2.set_xticklabels([int(out_r)])
-            if (r==2): ax2.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
+            if (r==2): ax2.set_xlabel('Galactocentric Radius [kpc]', fontsize=18)
             
             ax3 = fig.add_subplot(inner_met[0, r])
             if (i<3):
@@ -2416,21 +2522,21 @@ def hists_rad_bins(ds, refine_box, snap):
             ax3.set_xscale('log')
             ax3.axis([1e-3,10,-2.5,1.5])
             if (r==0):
-                ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                     top=True, right=False, labelleft=True)
-                ax3.set_ylabel(r'log Metallicity [$Z_\odot$]', fontsize=14)
+                ax3.set_ylabel(r'log Metallicity [$Z_\odot$]', fontsize=18)
                 ax3.set_xticks([1e-3,10])
                 ax3.set_xticklabels([0,10])
             else:
                 if (r==len(rad_bins)-2):
-                    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                         top=True, right=True, left=False, labelleft=False)
                 else:
-                    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                         top=True, left=False, right=False, labelleft=False)
                 ax3.set_xticks([10])
                 ax3.set_xticklabels([int(out_r)])
-            if (r==2): ax3.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
+            if (r==2): ax3.set_xlabel('Galactocentric Radius [kpc]', fontsize=18)
             
             ax4 = fig.add_subplot(inner_rv[0, r])
             if (i<3):
@@ -2444,23 +2550,23 @@ def hists_rad_bins(ds, refine_box, snap):
             ax4.set_xscale('log')
             ax4.axis([1e-3,10,-5,10])
             if (r==0):
-                ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                     top=True, right=False, labelleft=True)
-                ax4.set_ylabel('Radial Velocity [km/s]', fontsize=14)
+                ax4.set_ylabel('Radial Velocity [km/s]', fontsize=18)
                 ax4.set_xticks([1e-3,10])
                 ax4.set_xticklabels([0,10])
                 ax4.set_yticks([-4,-2,0,2,4,6,8,10])
                 ax4.set_yticklabels(['$-400$','$-200$','$0$','$200$','$400$','$600$','$800$','$1000$'])
             else:
                 if (r==len(rad_bins)-2):
-                    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                         top=True, right=True, left=False, labelleft=False)
                 else:
-                    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                         top=True, left=False, right=False, labelleft=False)
                 ax4.set_xticks([10])
                 ax4.set_xticklabels([int(out_r)])
-            if (r==2): ax4.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
+            if (r==2): ax4.set_xlabel('Galactocentric Radius [kpc]', fontsize=18)
                 
             ax5 = fig.add_subplot(inner_tcool[0, r])
             if (i<3):
@@ -2474,23 +2580,23 @@ def hists_rad_bins(ds, refine_box, snap):
             ax5.set_xscale('log')
             ax5.axis([1e-3,10,-2,7])
             if (r==0): 
-                ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                     top=True, right=False, labelleft=True)
-                ax5.set_ylabel('Cooling Time [Myr]', fontsize=14)
+                ax5.set_ylabel('Cooling Time [Myr]', fontsize=18)
                 ax5.set_xticks([1e-3,10])
                 ax5.set_xticklabels([0,10])
             else:
                 if (r==len(rad_bins)-2):
-                    ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                         top=True, right=True, left=False, labelleft=False)
-                    ax5.text(1.3, 0.8, '$z=%.2f$\n%.2f Gyr' % (ds.get_parameter('CosmologyCurrentRedshift'), ds.current_time.in_units('Gyr')), fontsize=14, va='top', ha='left', transform=ax5.transAxes)
-                    ax5.text(1.3, 0.9, halo_dict[args.halo], fontsize=14, va='top', ha='left', transform=ax5.transAxes)
+                    ax5.text(1.3, 0.8, '$z=%.2f$\n%.2f Gyr' % (ds.get_parameter('CosmologyCurrentRedshift'), ds.current_time.in_units('Gyr')), fontsize=18, va='top', ha='left', transform=ax5.transAxes)
+                    ax5.text(1.3, 0.9, halo_dict[args.halo], fontsize=18, va='top', ha='left', transform=ax5.transAxes)
                 else:
-                    ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12, \
+                    ax5.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
                         top=True, left=False, right=False, labelleft=False)
                 ax5.set_xticks([10])
                 ax5.set_xticklabels([int(out_r)])
-            if (r==2): ax5.set_xlabel('Galactocentric Radius [kpc]', fontsize=14)
+            if (r==2): ax5.set_xlabel('Galactocentric Radius [kpc]', fontsize=18)
 
         plt.savefig(prefix + 'Histograms/' + snap + '_gas-hist_OVI_radbins' + flow_file + save_suffix + '.png')
 
@@ -2549,7 +2655,7 @@ def ionization_equilibrium(ds, refine_box, snap):
     fig.colorbar(im_times, cax=cax_times, orientation='horizontal')
     cax_times.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
                     top=True, right=True, labelbottom=False, labeltop=True, bottom=False)
-    cax_times.text(0.5, 3.5, r'Projected $t_\mathrm{eq}/t_\mathrm{cool}$', fontsize=18, ha='center', va='center', transform=cax_times.transAxes)
+    cax_times.text(0.5, 3.5, r'Projected $t_\mathrm{ion,eq}/t_\mathrm{cool}$', fontsize=18, ha='center', va='center', transform=cax_times.transAxes)
     #cax_times.set_xticks([1e-2,1e-1,1e0,1e1])
     pos_OVI = ax_OVI.get_position()
     cax_OVI = fig.add_axes([pos_OVI.x0, pos_OVI.y1, pos_OVI.width, 0.03])  # [left, bottom, width, height]
@@ -2558,6 +2664,54 @@ def ionization_equilibrium(ds, refine_box, snap):
                     top=True, right=True, labelbottom=False, labeltop=True, bottom=False)
     cax_OVI.text(0.5, 3.5, 'O VI Emission [erg s$^{-1}$ cm$^{-2}$ arcsec$^{-2}$]', fontsize=18, ha='center', va='center', transform=cax_OVI.transAxes)
     fig.savefig(prefix + 'Projections/' + snap + '_OVI_emission_teq_tcool_map_edge-on' + save_suffix + '.png')
+
+    sph = ds.sphere(center=ds.halo_center_kpc, radius=(50., 'kpc'))
+    phaseplot = yt.PhasePlot(sph, ('gas', 'number_density'), ('gas', 'temperature'), [('gas', 'teq_tcool_OVI')], weight_field=('gas','cell_mass'))
+    phaseplot.set_xlim(1e-6,2e1)
+    phaseplot.set_ylim(5,2e8)
+    phase = phaseplot.profile[('gas','teq_tcool_OVI')].v
+    phase[phase==0.0] = np.nan
+
+    cmap_times.set_under('k')
+    cmap_times.set_bad('w')
+
+    fig = plt.figure(figsize=(13,7.5), dpi=250)
+    ax_proj = fig.add_subplot(1,2,1)
+    ax_phase = fig.add_subplot(1,2,2)
+    fig.subplots_adjust(left=0.07, bottom=0.08, top=0.88, right=0.98, wspace=0.19, hspace=0.)
+    im_proj = ax_proj.imshow(frb_times, extent=[-50,50,-50,50], cmap=cmap_times, norm=mcolors.LogNorm(vmin=5e-2,vmax=3), origin='lower')
+    ax_proj.set_xlabel('x [kpc]', fontsize=18)
+    ax_proj.set_ylabel('y [kpc]', fontsize=18)
+    ax_proj.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True)
+    ax_proj.text(-45, 45, halo_dict[args.halo], fontsize=18, ha='left', va='top', color='white')
+    ax_proj.text(45, 45, '$z = %.2f$' % (zsnap), fontsize=18, ha='right', va='top', color='white')
+    pos_proj = ax_proj.get_position()
+    cax_proj = fig.add_axes([pos_proj.x0, pos_proj.y1, pos_proj.width, 0.03])  # [left, bottom, width, height]
+    fig.colorbar(im_proj, cax=cax_proj, orientation='horizontal')
+    cax_proj.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
+                    top=True, right=True, labelbottom=False, labeltop=True, bottom=False)
+    cax_proj.text(0.5, 3.5, r'Projected $t_\mathrm{ion,eq}/t_\mathrm{cool}$', fontsize=18, ha='center', va='center', transform=cax_proj.transAxes)
+
+    im_phase = ax_phase.imshow(phase.T, cmap=cmap_times, origin='lower', extent=[np.log10(1e-6), np.log10(2e1), np.log10(5), np.log10(2e8)], norm=mcolors.LogNorm(vmin=5e-2,vmax=1e1))
+    ax_phase.set_xlabel('Number density [cm$^{-3}$]', fontsize=18)
+    ax_phase.set_ylabel('Temperature [K]', fontsize=18)
+    ax_phase.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=16, \
+            top=True, right=True)
+    xticks = [-6, -5, -4, -3, -2, -1, 0, 1]
+    ax_phase.set_xticks(xticks)
+    ax_phase.set_xticklabels([r"$10^{{{}}}$".format(k) for k in xticks])
+    yticks = [1, 2, 3, 4, 5, 6, 7, 8]
+    ax_phase.set_yticks(yticks)
+    ax_phase.set_yticklabels([r"$10^{{{}}}$".format(k) for k in yticks])
+    pos_phase = ax_phase.get_position()
+    cax_phase = fig.add_axes([pos_phase.x0, pos_phase.y1, pos_phase.width, 0.03])  # [left, bottom, width, height]
+    fig.colorbar(im_phase, cax=cax_phase, orientation='horizontal')
+    cax_phase.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=16, \
+                    top=True, right=True, labelbottom=False, labeltop=True, bottom=False)
+    cax_phase.text(0.5, 3.5, r'$t_\mathrm{ion,eq}/t_\mathrm{cool}$', fontsize=18, ha='center', va='center', transform=cax_phase.transAxes)
+    
+    fig.savefig(prefix + 'Projections/' + snap + '_OVI_emission_teq_tcool_map_edge-on_phase' + save_suffix + '.png')
 
 
 def load_and_calculate(snap):
@@ -2669,9 +2823,9 @@ if __name__ == "__main__":
     foggie_dir, output_dir, run_dir, code_path, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
     halo_c_v_name = code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/halo_c_v'
 
-    if ('feedback' in args.run) and ('track' in args.run):
-        foggie_dir = '/nobackupnfs1/jtumlins/halo_008508/feedback-track/'
-        run_dir = args.run + '/'
+    #if ('feedback' in args.run) and ('track' in args.run):
+        #foggie_dir = '/nobackupnfs1/jtumlins/halo_008508/feedback-track/'
+        #run_dir = args.run + '/'
     
     # Set directory for output location, making it if necessary
     prefix = output_dir + 'ions_halo_00' + args.halo + '/' + args.run + '/'
@@ -2766,7 +2920,7 @@ if __name__ == "__main__":
         surface_brightness_time_histogram(outs)
     if ('sb_time_radius' in args.plot):
         sb_time_radius(outs)
-    if ('sb_profile_fdbk' in args.plot):
+    if ('sb_profile_fdbk' in args.plot) and (not 'time_avg' in args.plot):
         for i in range(len(outs)):
             snap = outs[i]
             sb_profile_nofdbk_compare(snap)
@@ -2775,8 +2929,8 @@ if __name__ == "__main__":
             halos = ['8508', '5016', '5036', '4123', '2392']
             #halos = ['8508']
         else: 
-            #halos = ['8508', '8508-feedback', '5016', '5036', '4123', '2392']
-            halos = ['8508', '5016', '5036', '4123', '2392']
+            halos = ['8508', '5016', '5036', '4123', '2392', '8508-feedback']
+            #halos = ['8508', '5016', '5036', '4123', '2392']
         outs = []
         for h in range(len(halos)):
             if (halos[h]=='8508') and ('feedback' not in args.run):
@@ -2803,6 +2957,9 @@ if __name__ == "__main__":
         if ('emiss_area_vs_den' in args.plot): emiss_area_vs_den(halos, outs)
         if ('emiss_area_vs_Z' in args.plot): emiss_area_vs_Z(halos, outs)
         if ('sb_profile_time_avg' in args.plot): sb_profile_time_avg(halos, outs)
+        if ('sb_profile_fdbk_time_avg' in args.plot):
+            outs = make_output_list('DD2182-DD2427', output_step=args.output_step) # z = 0.1 to 0 (~1326 Myr)
+            sb_profile_nofdbk_compare_time_avg(outs)
     if (('emission_map' in args.plot) or ('sb_profile' in args.plot) or ('emission_FRB' in args.plot) or ('phase_plot' in args.plot) or ('histograms' in args.plot) or ('radial_profiles' in args.plot) or ('ionization_equilibrium' in args.plot)) and ('time_avg' not in args.plot) and ('fdbk' not in args.plot):
         target_dir = 'ions'
         if (args.nproc==1):
