@@ -27,7 +27,7 @@ import random
 import collections, itertools
 
 from matplotlib import pyplot as plt
-#plt.style.use('seaborn-whitegrid')
+plt.style.use('seaborn-whitegrid')
 plt.rcParams['axes.edgecolor'] = 'black'
 plt.rcParams['axes.linewidth'] = 2
 from matplotlib import colors as mplcolors
@@ -112,16 +112,21 @@ m_H = 1.67e-27  # kg; mass of proton
 
 # ------------declaring overall paths (can be modified on a machine/user basis)-----------
 HOME = os.getenv('HOME')
-
-
-mappings_lab_dir = HOME + '/Documents/GitHub/foggie/foggie/galaxy_mocks/mock_ifu/Mappings/'  # if you are producing the MAPPINGS grid,
+try:
+    if not os.path.exists(HOME+'/Work/astro/ayan_codes'): # if the code directory does not exist in current home, then it must exist in /pleiades home
+        HOME = '/pleiades/u/' + os.getenv('USER')
+except:
+    pass
+mappings_lab_dir = HOME + '/Mappings/lab/'  # if you are producing the MAPPINGS grid,
+#mappings_lab_dir = HOME + '/Documents/GitHub/foggie/foggie/galaxy_mocks/mock_ifu/Mappings/'  # if you are producing the MAPPINGS grid,
 # this is where your MAPPINGS executable .map51 is installed,
 # otherwise, this is where your MAPPINGS grid and your emission line list is
-mappings_input_dir = HOME + '/Documents/GitHub/foggie/foggie/galaxy_mocks/mock_ifu/Mappings/HIIGrid306/Q/inputs/'  # if you are producing the MAPPINGS grid,
+mappings_input_dir = HOME + '/Mappings/HIIGrid306/Q/inputs/'  # if you are producing the MAPPINGS grid,
+#mappings_input_dir = HOME + '/Documents/GitHub/foggie/foggie/galaxy_mocks/mock_ifu/Mappings/HIIGrid306/Q/inputs/'  # if you are producing the MAPPINGS grid,
 # this is where your MAPPINGS input/ directory is
 # otherwise, ignore this variable
 sb99_dir = HOME + '/SB99-v8-02/output/'  # this is where your Starburst99 model outputs reside
-sb99_dir = HOME + '/Documents/GitHub/foggie/foggie/galaxy_mocks/mock_ifu/'
+#sb99_dir = HOME + '/Documents/GitHub/foggie/foggie/galaxy_mocks/mock_ifu/'
 # this path is used only when you are using compute_hiir_radii.py or lookup_flux.py
 sb99_model = 'starburst11'  # for fixed stellar mass input spectra = 1e6 Msun, run up to 10 Myr
 sb99_mass = 1e6  # Msun, mass of star cluster in given SB99 model
