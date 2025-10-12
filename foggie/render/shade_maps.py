@@ -34,7 +34,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
         region, and applies an input Boolean filter to the dataset."""
 
     print("Running prep_dataset for region:", region)
-    dataset, refine_box = fload.foggie_load(fname, trackfile)
+    dataset, refine_box = fload.foggie_load(fname, trackfile_name = trackfile)
 
     trident.add_ion_fields(dataset, ions=ion_list)
     for ion, func in zip(['H_p0','C_p3','O_p5'], [yt_fields._nh1, yt_fields._c4, yt_fields._no6]):
