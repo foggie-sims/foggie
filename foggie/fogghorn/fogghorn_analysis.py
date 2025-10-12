@@ -245,7 +245,6 @@ def generate_plot_filename(quantity, args, snap):
                             'plot_SFMS': 'SFMS.png', \
                             'plot_SMHM': 'SMHM.png', \
                             'plot_MZR': 'MZR.png', \
-                            'blank_plot': snap + '_blank.png', \
                             'phase_shade': snap + '_shade'}
 
     output_filename = args.save_directory + '/' + output_filename_dict[quantity]
@@ -343,7 +342,7 @@ if __name__ == "__main__":
     args.time_evol_plots = ['plot_SFMS', 'plot_SMHM'] #, 'plot_MZR'] plot_MZR isn't ready yet
 
     # These plots are datashader-style maps of physical quantities from earlier papers 
-    args.shade_maps = ['blank_plot', 'phase_shade'] 
+    args.shade_maps = ['phase_shade'] 
 
 
     # ------------------ Figure out directory and outputs -------------------------------------
