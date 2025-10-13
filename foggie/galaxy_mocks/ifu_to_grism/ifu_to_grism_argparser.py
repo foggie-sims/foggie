@@ -29,6 +29,9 @@ def parse_args():
                         help='How many beams do you want to model [1-4]. 1 only models 1st order, 2 adds 0th order, 3 adds 2nd order, 4 adds -1st order.')
     parser.set_defaults(nBeams=3)  
     
+    parser.add_argument('--beams', metavar='beams', nargs='+', type=int, action='store', \
+                        help='Which beams do you want? 0=1st Order, 1=0th Order, 2=2nd Order, 3=-1st Order. Default is 0 3.')
+    parser.set_defaults(beams=[0,3])  
     
 
     parser.add_argument('--exposure', metavar='exposure', type=float, action='store', \

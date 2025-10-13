@@ -40,7 +40,7 @@ def read_virial_mass_file(halo_id,snapshot,refinement_scheme,codedir,key="radius
     
     
 
-def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run="nref11c_nref9f",code_dir=None,halo=None,snapshot=None, cut_field=('gas','density')):
+def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run="nref11c_nref9f",code_dir=None,halo=None,snapshot=None, cut_field=('gas','density'), disk_stdv_factor = 100.):
     '''
     Get a density cutoff to separate the galaxy from the CGM
     '''
@@ -99,7 +99,7 @@ def get_cgm_density_cut(ds,cut_type="comoving_density",additional_factor=2.,run=
             
 
             print("cgm_density_cut was:",cgm_density_cut,"stdv=",stdv_density)
-            cgm_density_cut += 100. * stdv_density * (1+z)**3
+            cgm_density_cut += disk_stdv_factor * stdv_density * (1+z)**3
 
 
 
@@ -279,6 +279,52 @@ def add_cell_id_field(ds):
     )
 
     #return ds
+
+
+
+def pseudo_get_leaf_ids(field, data, leaf_clump_ids,leaf_cell_id_list,leaf_list_ids):
+    '''Function to assign a unique cell_id to each cell based on it's index on its parent grid'''
+    '''For use as a yt field, must define a partial function resembling get_cell_grid_ids'''
+
+    cell_ids = data['index','cell_id_2']
+    clump_ids = np.zeros_like(cell_ids) - 1.
+
+    for leaf_id in leaf_clump_ids:
+        leaf_list_id = leaf_list_ids[leaf_id].astype(int)
+        clump_ids[np.isin(cell_ids, leaf_cell_id_list[leaf_list_id])] = leaf_id
+
+
+    return clump_ids  
+
+def add_leaf_id_field(ds,hierarchy_file,add_cell_ids=False):
+    
+    if add_cell_ids:
+        add_cell_id_field(ds)
+
+    hf = h5py.File(hierarchy_file,'r')
+    leaf_clump_ids = hf['leaf_clump_ids'][...]
+
+    leaf_cell_id_list = []
+    leaf_list_ids = np.zeros(np.max(leaf_clump_ids)+1) - 1
+    itr=0
+    for leaf_id in leaf_clump_ids:
+        leaf_cell_id_list.append(hf[str(leaf_id)]['cell_ids'][...])
+        leaf_list_ids[leaf_id] = itr
+        itr+=1
+
+
+    hf.close()
+        
+    F_get_leaf_ids = partial(pseudo_get_leaf_ids, leaf_clump_ids=leaf_clump_ids,leaf_cell_id_list=leaf_cell_id_list,leaf_list_ids=leaf_list_ids)
+
+    ds.add_field(
+        ('gas', 'leaf_id'),
+          function=F_get_leaf_ids,
+          sampling_type='cell',
+          force_override=True
+    )
+
+
 
 
 def flatten_multi_clump_list(clump_cell_id_list):
@@ -841,6 +887,26 @@ def save_as_YTClumpContainer(ds,cut_region,master_clump,clumping_field,args):
     fn = YTMasterClump.save_as_dataset(filename=args.output+"YTClumpDataset",fields=[clumping_field])
     return YTMasterClump
             
+
+def GetClumpsInDisk(clump_ids, hierarchy_file, disk_file):
+    '''
+    Given a list of clump_ids, will filter out any that are not disk clumps (i.e. have no parents)
+    Arguments are:
+        clump_ids-List of clump ids you want to filter
+        hierarchy_file-File saved by save_clump_hierarchy() to search within
+    '''
+    disk_clump_ids = []
+    hf_disk = h5py.File(disk_file,'r')
+    disk_cell_ids = hf_disk['cell_ids'][...]
+
+    hf = h5py.File(hierarchy_file,'r')
+
+    for clump_id in clump_ids:
+        clump_cell_ids = hf[str(clump_id)]['cell_ids'][...]
+        if np.isin(clump_cell_ids,disk_cell_ids).any():
+            disk_clump_ids.append(clump_id)
+
+    return disk_clump_ids
 
 def FindOverlappingClumps(cell_ids, hierarchy_file, return_only_leaves=False, ds=None, return_cut_regions=False):
     '''
