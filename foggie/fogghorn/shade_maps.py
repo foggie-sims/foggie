@@ -15,23 +15,21 @@
 
 from foggie.fogghorn.header import *
 from foggie.fogghorn.util import *
-from datetime import datetime
 import foggie.render.shade_maps as sm
-import seaborn as sns
 
 def phase_shade(ds, region, args, output_filename):
     
     TRACKFILE = args.trackfile
 
     # These are the same plots that were in the original shade_maps.py file in foggie/render
+    sm.simple_plot(ds.filename,TRACKFILE,('gas','x'),('gas','y'), 'phase', ( (-100,100), (-100,100) ), output_filename+'_x_y_phase_cgm', region='cgm') 
     sm.simple_plot(ds.filename,TRACKFILE,('gas', 'density'),('gas','temperature'),  'phase', ((-32,-22), (1,8)), output_filename, region='cgm') 
-    sm.simple_plot(ds.filename,TRACKFILE,('gas','x'),('gas','y'), 'phase', ( (-100,100), (-100,100) ), output_filename+'_x_y_phase_cgm_fOVI', region='cgm') 
-    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas','temperature'),  'phase', ((0,250), (1,8)), output_filename+'_radius_temperature_phase_cgm_fOVI', region='cgm') 
-    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas','metallicity'),  'phase', ((0,250), (-6,2)), output_filename+'_radius_metallicity_phase_cgm_fOVI', region='cgm') 
-    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas','cooling_time'), 'phase', ((0,250), (4,12)), output_filename+'_radius_cooling_time_phase_cgm_fOVI', region='cgm') 
-    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas','density'),      'phase', ((0,250), (-32,-22)), output_filename+'_radius_density_phase_cgm_fOVI', region='cgm') 
-    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas','O_p5_column_density'), 'phase', ((0,250), (8,14)), output_filename+'_radius_NOVI_phase_cgm_fOVI', region='cgm') 
-    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas', 'H_p0_column_density'), 'phase', ((0,250), (8,14)), output_filename+'_radius_NHI_phase_cgm_fOVI', region='cgm') 
+    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas','temperature'),  'phase', ((0,250), (1,8)), output_filename+'_radius_temperature_phase_cgm', region='cgm') 
+    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas','metallicity'),  'phase', ((0,250), (-6,2)), output_filename+'_radius_metallicity_phase_cgm', region='cgm') 
+    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas','cooling_time'), 'phase', ((0,250), (4,12)), output_filename+'_radius_cooling_time_phase_cgm', region='cgm') 
+    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas','density'),      'phase', ((0,250), (-32,-22)), output_filename+'_radius_density_phase_cgm', region='cgm') 
+    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas','O_p5_column_density'), 'phase', ((0,250), (8,14)), output_filename+'_radius_NOVI_phase_cgm', region='cgm') 
+    sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radius_corrected'),('gas', 'H_p0_column_density'), 'phase', ((0,250), (8,14)), output_filename+'_radius_NHI_phase_cgm', region='cgm') 
 
     # Additional plots of velocity vs radius, tangential velocity, radial velocity
     sm.simple_plot(ds.filename,TRACKFILE,('gas', 'radial_velocity_corrected'),('gas', 'tangential_velocity_corrected'), 'phase', ((-500,500),(-50,500)), output_filename+'_rv_tv', region='cgm') 

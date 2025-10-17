@@ -1,7 +1,6 @@
 """
 Obtains center position for a halo, and the x,y,z velocity components.
 """
-from __future__ import print_function
 import numpy as np
 
 def get_halo_center(ds, center_guess, **kwargs):

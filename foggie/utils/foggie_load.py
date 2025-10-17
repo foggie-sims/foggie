@@ -119,13 +119,30 @@ def get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_styl
 
 def get_center_from_calculated(ds, refine_box_center, proper_box_size):
     """This function is a helper function to calculate the halo center.
-    It is used in foggie_load() to determine the halo center."""
+    It uses get_halo_center to set the center as the density peak of the dark matter
+    in a 50 kpc sphere. The track-defined refine_box_center is used as the initial guess"""
     halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
     # Define the halo center in kpc and the halo velocity in km/s
     halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
     sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
     bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
     ds.halo_center_code = ds.arr(np.array(halo_center), 'code_length')
+    ds.halo_center_kpc = halo_center_kpc
+    ds.halo_velocity_kms = bulk_vel
+
+    return ds
+
+def get_center_from_track(ds, refine_box_center, proper_box_size):
+    """This function is a helper function to obtain the halo center.
+    It adopts the center from the without checking or modifying it.  
+    The refine box center is by definition the center given in the track file. 
+    The halo velocity is calculated as the bulk velocity within 3 kpc of that center."""
+    
+    # Define the halo center in kpc and the halo velocity in km/s
+    halo_center_kpc = ds.arr(np.array(refine_box_center)*proper_box_size, 'kpc')
+    sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
+    bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+    ds.halo_center_code = ds.arr(np.array(halo_center_kpc/proper_box_size), 'code_length')
     ds.halo_center_kpc = halo_center_kpc
     ds.halo_velocity_kms = bulk_vel
 
@@ -155,24 +172,26 @@ def foggie_load(snap, **kwargs):
     proper_box_size = get_proper_box_size(ds) # get the proper size of the computational domain (NOT the refine region) 
     ds.omega_baryon = ds.parameters['CosmologyOmegaMatterNow']-ds.parameters['CosmologyOmegaDarkMatterNow']
     ds.halo_center_code = [np.nan, np.nan, np.nan] # this is the default halo_center_code until its overwritten by center-finding 
-    ds.halo_velocity_kms = [np.nan, np.nan, np.nan] # this is the default halo_center_code until its overwritten by center-finding 
+    ds.halo_velocity_kms = [np.nan, np.nan, np.nan] # this is the default halo_velocity_kms until its overwritten by center-finding 
     refine_box = ds.r[0:1, 0:1, 0:1] # this is the default refine_box 
 
     if ('trackfile_name' in kwargs) and (kwargs['trackfile_name'] != ''):
         track = Table.read(trackfile_name, format='ascii') # read the track file
         track.sort('col1')
+        print('FOGGIE_LOAD: Read track file:', trackfile_name)
 
         refine_box, refine_box_center, refine_width_code = grb.get_refine_box(ds, zsnap, track)
         refine_width = refine_width_code * proper_box_size
 
         # Determine center style and get halo center
         center_style = "calculate"
-        print('Will look for halo_c_v_file: ', halo_c_v_name)
-        if os.path.exists(halo_c_v_name):
-            print('Found halo_c_v file:', halo_c_v_name)
+        print('FOGGIE_LOAD: Will look for halo_c_v_file: ', halo_c_v_name)
+        if os.path.exists(halo_c_v_name):  # If we have been given a halo_c_v file and it exists, do one of FOUR things
+            
+            print('FOGGIE_LOAD: Found halo_c_v file:', halo_c_v_name)
             halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
             snap_id = snap[-6:]
-            if 'smooth' in halo_c_v_name:
+            if 'smooth' in halo_c_v_name: 
                 center_style = 'smoothed'
                 if snap_id in halo_c_v['snap']:
                     get_center_from_smoothed_catalog(ds, halo_c_v_name, snap, center_style=center_style)
@@ -194,15 +213,15 @@ def foggie_load(snap, **kwargs):
                 print("we will calculate the center using the input guess")
                 get_center_from_calculated(ds, refine_box_center, proper_box_size)
 
-            print('No halo_c_v file found, calculating halo center from track')
-            get_center_from_calculated(ds, refine_box_center, proper_box_size)
+            print('FOGGIE_LOAD: No halo_c_v file found, calculating halo center from given track')
+            get_center_from_track(ds, refine_box_center, proper_box_size)
 
         ds.track = track
         ds.refine_box_center = refine_box_center
         ds.refine_width = refine_width
     else: 
         if ('halo_center' in kwargs):
-            print("we will calculate the center using the input guess")
+            print("FOGGIE_LOAD: we will calculate the center using the input guess")
             get_center_from_calculated(ds, halo_center, proper_box_size)
             refine_box = ad
     
@@ -213,10 +232,10 @@ def foggie_load(snap, **kwargs):
 
     ds.add_field(('index', 'cell_id'), function=get_cell_ids, sampling_type='cell')
 
-    print('made it to here!')
+    print('FOGGIE_LOAD: made it to here!')
 
-    if (np.isnan(ds.halo_velocity_kms).any() == False):  # we will only add these velocity and energy fields if there is a meaningful halo bulk velocity 
-        print('ds.halo_velocity_kms = ', ds.halo_velocity_kms, ' so we can add the centered velocity and energy fields') 
+    if (np.isnan(ds.halo_velocity_kms).any() == False):  # we will only add these velocity and energy fields if there is a meaningful halo bulk velocity
+        print('FOGGIE_LOAD: ds.halo_velocity_kms = ', ds.halo_velocity_kms, ' so we can add the centered velocity and energy fields')
         ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
                      sampling_type='cell')
         ds.add_field(('gas', 'vy_corrected'), function=vy_corrected, units='km/s', take_log=False, \
