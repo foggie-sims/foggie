@@ -127,9 +127,9 @@ def render_image(frame, field1, field2, colorcode, x_range, y_range, filename, p
     cvs = dshader.Canvas(plot_width=1000, plot_height=1000, x_range=x_range, y_range=y_range)
     print("render_image: will spread shaded image by ", pixspread, " pixels.")
 
-    print(field1)
-    print(field2)
-    print(colorcode)
+    print("Render Image Field1 = : ", field1)
+    print("Render Image Field2 = : ", field2)
+    print("Render Image Colorcode = ", colorcode)
     if ('ion_frac' in colorcode):
         if ('p0' in colorcode):
             cmap = "Greys"
@@ -149,6 +149,10 @@ def render_image(frame, field1, field2, colorcode, x_range, y_range, filename, p
         print("calling mean aggregator on colorcode = ", colorcode)
         agg = cvs.points(frame, field1, field2, dshader.mean(colorcode))
         img = tf.spread(tf.shade(agg, cmap=mpl.cm.get_cmap(cmap), how='eq_hist',min_alpha=40), shape='square', px=pixspread)
+    elif ('cell_mass' in colorcode):
+        print("calling sum aggregator on colorcode = ", colorcode)
+        agg = cvs.points(frame, field1, field2, dshader.mean(colorcode))
+        img = tf.spread(tf.shade(agg, cmap=mpl.cm.get_cmap('icefire'), how='eq_hist',min_alpha=40), shape='square', px=pixspread)
     else:
         agg = cvs.points(frame, field1, field2, dshader.count_cat(colorcode))
         img = tf.spread(tf.shade(agg, color_key=colormap_dict[colorcode], how='eq_hist',min_alpha=40), shape='square', px=pixspread)

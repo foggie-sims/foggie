@@ -550,8 +550,7 @@ def categorize_by_log_metals(metal):
     this is basically identical to categorize_by_metals() except: he first line where metal_vals is declared in log space instead of linear space AND
     added by Ayan on 16th July, 2021
     """
-    metal_vals = np.linspace(start=np.log10(metal_min),
-                                            stop=np.log10(metal_max), num=21)
+    metal_vals = np.linspace(start=np.log10(metal_min), stop=np.log10(metal_max), num=21)
     # make the highest value really high
     metal_vals[20] = 50. * metal_vals[20]
     phase = np.chararray(np.size(metal), 6)
@@ -1075,7 +1074,7 @@ def categorize_by_o7(no7):
 #############################################################
 
 
-##################################### more dictionaries that depend on other stuf
+##################################### more dictionaries that depend on other stuff
 colormap_dict = {'phase': new_phase_color_key,
                  'metal': new_metals_color_key,
                  'h1': hi_color_key,
