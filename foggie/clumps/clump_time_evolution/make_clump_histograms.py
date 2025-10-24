@@ -151,6 +151,9 @@ leaf_masses = []
 leaf_vx = []
 leaf_vy = []
 leaf_vz = []
+leaf_vx_disk = []
+leaf_vy_disk = []
+leaf_vz_disk = []
 leaf_hi_num_dense = []
 leaf_mgii_num_dense = []
 leaf_ovi_num_dense = []
@@ -158,6 +161,9 @@ leaf_volumes = []
 leaf_x = []
 leaf_y = []
 leaf_z = []
+leaf_x_disk = []
+leaf_y_disk = []
+leaf_z_disk = []
 
 hiearchy_file = args.clump_dir + GalName+"_"+args.snapshot+"_"+args.run+"_ClumpTree.h5"
 hf = h5py.File(hiearchy_file,'r')
@@ -172,17 +178,23 @@ import trident
 trident.add_ion_fields(ds, ions=['O VI','Mg II'])
 
 gas_masses = refine_box['gas','mass'].in_units('Msun')
-vx = refine_box['gas','vx_disk'].in_units('km/s')
-vy = refine_box['gas','vy_disk'].in_units('km/s')
-vz = refine_box['gas','vz_disk'].in_units('km/s')
+vx_disk = refine_box['gas','vx_disk'].in_units('km/s')
+vy_disk = refine_box['gas','vy_disk'].in_units('km/s')
+vz_disk = refine_box['gas','vz_disk'].in_units('km/s')
+vx = refine_box['gas','vx'].in_units('km/s')
+vy = refine_box['gas','vy'].in_units('km/s')
+vz = refine_box['gas','vz'].in_units('km/s')
 hi_num_dense = refine_box['gas','H_p0_number_density'].in_units('cm**-3')
 mgii_num_dense = refine_box['gas','Mg_p1_number_density'].in_units('cm**-3')
 ovi_num_dense = refine_box['gas','O_p5_number_density'].in_units('cm**-3')
 volumes = refine_box['gas','cell_volume'].in_units('kpc**3')
-x = refine_box['gas','x_disk'].in_units('kpc')
-y = refine_box['gas','y_disk'].in_units('kpc')
-z = refine_box['gas','z_disk'].in_units('kpc')
+x_disk = refine_box['gas','x_disk'].in_units('kpc')
+y_disk = refine_box['gas','y_disk'].in_units('kpc')
+z_disk = refine_box['gas','z_disk'].in_units('kpc')
 
+x = refine_box['gas','x'].in_units('kpc')
+y = refine_box['gas','y'].in_units('kpc')
+z = refine_box['gas','z'].in_units('kpc')
 
 cell_ids = refine_box['index','cell_id_2']
 
@@ -199,9 +211,18 @@ for leaf_id in leaf_clump_ids:
     leaf_masses.append(norm.in_units('Msun').v)
 
     #mass weighted
+    leaf_vx_disk.append( (np.sum( np.multiply(vx_disk[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
+    leaf_vy_disk.append( (np.sum( np.multiply(vy_disk[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
+    leaf_vz_disk.append( (np.sum( np.multiply(vz_disk[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
+
     leaf_vx.append( (np.sum( np.multiply(vx[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
     leaf_vy.append( (np.sum( np.multiply(vy[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
     leaf_vz.append( (np.sum( np.multiply(vz[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
+
+    leaf_x_disk.append(  (np.sum( np.multiply(x_disk[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
+    leaf_y_disk.append(  (np.sum( np.multiply(y_disk[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
+    leaf_z_disk.append(  (np.sum( np.multiply(z_disk[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
+
     leaf_x.append(  (np.sum( np.multiply(x[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
     leaf_y.append(  (np.sum( np.multiply(y[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
     leaf_z.append(  (np.sum( np.multiply(z[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
@@ -238,13 +259,19 @@ for i in range(len(binedges)-1):
     #dM[i] = binedges[i+1]-binedges[i] #
     dM[i] = 10**binedges[i+1] - 10**binedges[i]
 
-hf = h5py.File(args.output_dir + GalName+"_"+args.snapshot+"_"+args.run+"_clump_mass_histogram.h5",'w')
-hf.create_dataset('leaf_vx_disk', data=np.array(leaf_vx))
-hf.create_dataset('leaf_vy_disk', data=np.array(leaf_vy))
-hf.create_dataset('leaf_vz_disk', data=np.array(leaf_vz))
-hf.create_dataset('leaf_x_disk', data=np.array(leaf_x))
-hf.create_dataset('leaf_y_disk', data=np.array(leaf_y))
-hf.create_dataset('leaf_z_disk', data=np.array(leaf_z))
+hf = h5py.File(args.output_dir + GalName+"_"+args.snapshot+"_"+args.run+"_clump_stats.h5",'w')
+hf.create_dataset('leaf_vx_disk', data=np.array(leaf_vx_disk))
+hf.create_dataset('leaf_vy_disk', data=np.array(leaf_vy_disk))
+hf.create_dataset('leaf_vz_disk', data=np.array(leaf_vz_disk))
+hf.create_dataset('leaf_vx', data=np.array(leaf_vx))
+hf.create_dataset('leaf_vy', data=np.array(leaf_vy))
+hf.create_dataset('leaf_vz', data=np.array(leaf_vz))
+hf.create_dataset('leaf_x_disk', data=np.array(leaf_x_disk))
+hf.create_dataset('leaf_y_disk', data=np.array(leaf_y_disk))
+hf.create_dataset('leaf_z_disk', data=np.array(leaf_z_disk))
+hf.create_dataset('leaf_x', data=np.array(leaf_x))
+hf.create_dataset('leaf_y', data=np.array(leaf_y))
+hf.create_dataset('leaf_z', data=np.array(leaf_z))
 hf.create_dataset('leaf_hi_num_dense', data=np.array(leaf_hi_num_dense))
 hf.create_dataset('leaf_mgii_num_dense', data=np.array(leaf_mgii_num_dense))
 hf.create_dataset('leaf_ovi_num_dense', data=np.array(leaf_ovi_num_dense))
