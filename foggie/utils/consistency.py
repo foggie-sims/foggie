@@ -211,10 +211,6 @@ def ism_field_filter_z(z):
 cool_cgm_filter = cgm_field_filter + " & (obj['temperature'] < 1e5)"
 warm_cgm_filter = cgm_field_filter + " & (obj['temperature'] > 1e5)"
 
-
-
-
-
 cgm_outflow_filter = "obj[('gas', 'radial_velocity_corrected')] > 150."
 cool_outflow_filter = "(obj[('gas', 'radial_velocity_corrected')] > 150.) & (obj['temperature'] < 1e5)"
 warm_outflow_filter = "(obj[('gas', 'radial_velocity_corrected')] > 150.) & (obj['temperature'] > 1e5)"
@@ -222,7 +218,6 @@ warm_outflow_filter = "(obj[('gas', 'radial_velocity_corrected')] > 150.) & (obj
 cgm_inflow_filter = "obj[('gas', 'radial_velocity_corrected')] < -150."
 cool_inflow_filter = "(obj[('gas', 'radial_velocity_corrected')] < -150.) & (obj['temperature'] < 1e5)"
 warm_inflow_filter = "(obj[('gas', 'radial_velocity_corrected')] < -150.) & (obj['temperature'] > 1e5)"
-
 
 ################################## colormaps and min/max limits
 
@@ -252,8 +247,8 @@ metal_color_map = sns.blend_palette(
 old_metal_color_map = sns.blend_palette(
     ("black", "#984ea3", "#4575b4", "#4daf4a",
      "#ffe34d", "darkorange"), as_cmap=True)
-metal_min = 5.e-3
-metal_max = 3.
+metal_min = 1.e-6
+metal_max = 2.
 metal_density_min = 1.e-5
 metal_density_max = 250.
 
@@ -403,12 +398,7 @@ def categorize_by_fraction(f_ion):
     frac[f_ion > 0.1]  = b'high'  # red
     return frac
 
-# I'm commenting this out because it produces a figure for no reason and doesn't appear to be
-# used by any other files currently in the foggie repo. -Cassi
-#ion_frac_color_key = sns.palplot(sns.blend_palette(("grey","#ff6600"), n_colors=10),size=1.5)
-# Just in case this is needed, this might work instead without producing a figure:
 ion_frac_color_key = sns.blend_palette(("grey","#ff6600"), n_colors=10)
-
 
 ############# temperature
 temp_colors = sns.blend_palette(
@@ -515,35 +505,36 @@ for i in np.arange(np.size(metal_color_labels)):
 metal_labels = new_metals_color_key.keys()
 
 def categorize_by_metals(metal):
-    """ define the temp category strings"""
+    """ define the metal category strings"""
     metal_vals = np.power(10.0, np.linspace(start=np.log10(metal_min),
                                             stop=np.log10(metal_max), num=21))
+    
     # make the highest value really high
     metal_vals[20] = 50. * metal_vals[20]
-    phase = np.chararray(np.size(metal), 6)
+    label = np.chararray(np.size(metal), 6)
     # need to do this by iterating over keys insteard of hard coding indices
-    phase[metal < metal_vals[20]] = b'high4'
-    phase[metal < metal_vals[19]] = b'high3'
-    phase[metal < metal_vals[18]] = b'high2'
-    phase[metal < metal_vals[17]] = b'high1'
-    phase[metal < metal_vals[16]] = b'high'
-    phase[metal < metal_vals[15]] = b'solar3'
-    phase[metal < metal_vals[14]] = b'solar2'
-    phase[metal < metal_vals[13]] = b'solar1'
-    phase[metal < metal_vals[12]] = b'solar'
-    phase[metal < metal_vals[11]] = b'low3'
-    phase[metal < metal_vals[10]] = b'low2'
-    phase[metal < metal_vals[9]] = b'low1'
-    phase[metal < metal_vals[8]] = b'low'
-    phase[metal < metal_vals[7]] = b'poor3'
-    phase[metal < metal_vals[6]] = b'poor2'
-    phase[metal < metal_vals[5]] = b'poor1'
-    phase[metal < metal_vals[4]] = b'poor'
-    phase[metal < metal_vals[3]] = b'free3'
-    phase[metal < metal_vals[2]] = b'free2'
-    phase[metal < metal_vals[1]] = b'free1'
-    phase[metal < metal_vals[0]] = b'free'
-    return phase
+    label[metal < metal_vals[20]] = b'high4'
+    label[metal < metal_vals[19]] = b'high3'
+    label[metal < metal_vals[18]] = b'high2'
+    label[metal < metal_vals[17]] = b'high1'
+    label[metal < metal_vals[16]] = b'high'
+    label[metal < metal_vals[15]] = b'solar3'
+    label[metal < metal_vals[14]] = b'solar2'
+    label[metal < metal_vals[13]] = b'solar1'
+    label[metal < metal_vals[12]] = b'solar'
+    label[metal < metal_vals[11]] = b'low3'
+    label[metal < metal_vals[10]] = b'low2'
+    label[metal < metal_vals[9]] = b'low1'
+    label[metal < metal_vals[8]] = b'low'
+    label[metal < metal_vals[7]] = b'poor3'
+    label[metal < metal_vals[6]] = b'poor2'
+    label[metal < metal_vals[5]] = b'poor1'
+    label[metal < metal_vals[4]] = b'poor'
+    label[metal < metal_vals[3]] = b'free3'
+    label[metal < metal_vals[2]] = b'free2'
+    label[metal < metal_vals[1]] = b'free1'
+    label[metal < metal_vals[0]] = b'free'
+    return label
 
 def categorize_by_log_metals(metal):
     """ define the metallicity category strings in log space;

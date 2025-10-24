@@ -70,10 +70,10 @@ def prep_dataframe(cut_region, field_list, categories):
         coding, etc. 
         """
 
-    if (('gas','temperature') not in field_list): field_list.append(('gas','temperature')) 
-
     print("you have requested fields ", field_list)
 
+    if (('gas','temperature') not in field_list): field_list.append(('gas','temperature')) 
+    
     data_frame = cut_region.to_dataframe(field_list) #most of the work is done here. 
 
     if ( ("gas", "x") in field_list):
@@ -109,8 +109,9 @@ def prep_dataframe(cut_region, field_list, categories):
 
     if ('metal' in categories):
         if ('metallicity' not in data_frame.columns):
-            data_frame['metallicity'] = cut_region['metallicity'] / 0.02
+            data_frame['metallicity'] = cut_region['metallicity']
 
+        print('df in prep_df', data_frame)
         data_frame['metal'] = categorize_by_metals(cut_region['metallicity'])
         data_frame.metal = data_frame.metal.astype('category')
         print('Added metal category to the dataframe')
@@ -118,10 +119,6 @@ def prep_dataframe(cut_region, field_list, categories):
     return data_frame
 
     """
-    if ('cell_size' in field_list):
-        data_frame['cell_size'] = (all_data['cell_volume'].in_units('pc**3') )**(1./3.)
-
-
     if ('ion_fraction' in category):
         if (category not in data_frame.columns):
             data_frame[category] = all_data[category]

@@ -1,5 +1,5 @@
 
-""" a module for datashader renders of phase diagrams"""
+""" a module for datashader renders of Enzo/FOGGIE fields"""
 import datashader as dshader
 from datashader.utils import export_image
 import datashader.transfer_functions as tf
@@ -20,10 +20,8 @@ import numpy as np
 
 import os
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
-import foggie.utils as futils
 import foggie.render.cmap_utils as cmaps
 from foggie.utils.get_halo_center import get_halo_center
-import foggie.utils.get_refine_box as grb
 from foggie.utils.consistency import *
 import foggie.utils.foggie_load as fload
 
@@ -92,7 +90,7 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
 
     ax2 = fig.add_axes([0.7, 0.93, 0.25, 0.06])
 
-    phase_cmap, metal_cmap = cmaps.create_foggie_cmap()
+    phase_cmap, metal_cmap, cell_mass_cmap = cmaps.create_foggie_cmap()
 
     if 'phase' in colorcode:
         ax2.imshow(phase_cmap.to_pil()) 
@@ -104,6 +102,11 @@ def wrap_axes(dataset, img, filename, field1, field2, colorcode, ranges, region,
         ax2.set_xticks([36, 161, 287, 412, 537, 663])
         ax2.set_xticklabels(['-4', '-3', '-2', '-1', '0', '1'],fontsize=11)
         ax2.text(230, 120, 'log Z',fontsize=13)
+    elif 'cell_mass' in colorcode:
+        ax2.imshow(cell_mass_cmap.to_pil()) 
+        ax2.set_xticks([36, 36+90, 36+2.*90, 36+3.*90, 36+4.*90, 36+5.*90, 36+6.*90, 36+7.*90])
+        ax2.set_xticklabels(['-2', '-1', '0', '1', '2', '3', '4', '5'],fontsize=11)
+        ax2.text(70, 120, 'log Cell Mass [Msun]',fontsize=13)
 
     ax2.spines["top"].set_color('white')
     ax2.spines["bottom"].set_color('white')
