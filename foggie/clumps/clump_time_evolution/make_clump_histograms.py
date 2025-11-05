@@ -244,20 +244,20 @@ for leaf_id in leaf_clump_ids:
     skip_adding_cell_ids = True
 
 
-plt.figure()
-min_mass = 1e2
-max_mass = 1e10
-min_mass = 2
-max_mass = 10
-nbins = 200
-labelsize=18
-ticksize=18
-N, binedges, binnum = stats.binned_statistic(np.log10(np.array(leaf_masses)), np.ones_like(np.array(leaf_masses)), statistic='sum', bins=nbins, range=[min_mass,max_mass])
+#plt.figure()
+#min_mass = 1e2
+#max_mass = 1e10
+#min_mass = 2
+#max_mass = 10
+#nbins = 200
+#labelsize=18
+#ticksize=18
+#N, binedges, binnum = stats.binned_statistic(np.log10(np.array(leaf_masses)), np.ones_like(np.array(leaf_masses)), statistic='sum', bins=nbins, range=[min_mass,max_mass])
 
-dM= np.copy(N)*0
-for i in range(len(binedges)-1):
+#dM= np.copy(N)*0
+#for i in range(len(binedges)-1):
     #dM[i] = binedges[i+1]-binedges[i] #
-    dM[i] = 10**binedges[i+1] - 10**binedges[i]
+#    dM[i] = 10**binedges[i+1] - 10**binedges[i]
 
 hf = h5py.File(args.output_dir + GalName+"_"+args.snapshot+"_"+args.run+"_clump_stats.h5",'w')
 hf.create_dataset('leaf_vx_disk', data=np.array(leaf_vx_disk))
