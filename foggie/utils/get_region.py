@@ -48,7 +48,7 @@ def get_region(data_set, region, filter='None', sphere_size=25., left_corner=[0,
         print("get_region: This will be the trackbox with a cut region applied from cgm_field_filter_z in consistency") 
         print("get_region: the filter will be: ", filter)
         if (filter == 'None'): 
-            all_data = refine_box.cut_region(cgm_field_filter_z(data_set.current_redshift))   #<---- cgm_field_filter is from consistency.py 
+            all_data = refine_box.cut_region(cgm_field_filter_z(data_set.current_redshift))   #<---- cgm_field_filter_z is from consistency.py 
         else: 
             all_data = refine_box.cut_region(cgm_field_filter_z(data_set.current_redshift)) 
     elif region == 'ism': 
