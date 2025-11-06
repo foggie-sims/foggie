@@ -12,6 +12,7 @@ from foggie.utils.yt_fields import *
 from foggie.utils.foggie_utils import filter_particles
 import foggie.utils as futils
 import foggie.utils.get_refine_box as grb
+from datetime import datetime
 
 def load_sim(args, **kwargs):
     '''Loads the specified simulation dataset, where the required arguments are:
@@ -226,6 +227,8 @@ def foggie_load(snap, **kwargs):
             refine_box = ad
     
     
+    ds.current_datetime = datetime.now() # add to the dataset the time that we opened it
+    ds.snapname = snap[-6:]
     # Note that if you want to use the ('gas', 'baryon_overdensity') field, you must include this line after you've defined some data object from ds:
     # > obj.set_field_parameter('omega_baryon', ds.omega_baryon)
     # foggie_load returns a 'region' data object given by the 'region' keyword, and the 'omega_baryon' parameter is already set for that.

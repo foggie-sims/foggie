@@ -88,7 +88,9 @@ def parse_args():
 
     # ------- wrap up and processing args ------------------------------
     ###### IF YOU ADD A PLOT STEP 5: Add the function name as a string to this plots_needing_projection list ######
-    plots_needing_projection = ['gas_density_projection', 'young_stars_density_projection', 'KS_relation', 'gas_metallicity_projection', 'edge_projection', 'edge_slice']
+    plots_needing_projection = ['gas_density_projection', 'gas_temperature_projection', 'gas_h1_projection', 'gas_h2_projection', 'gas_mg2_projection', 
+                                'gas_o6_projection', 'young_stars_density_projection', 'KS_relation', 'gas_metallicity_projection', 
+                                'edge_projection', 'edge_slice']
     args = parser.parse_args()
     args.projection_arr = [item for item in args.projection.split(',')]
     if (args.make_plots!=''):
@@ -215,6 +217,21 @@ def generate_plot_filename(quantity, args, snap):
                             'gas_density_projection_x': snap + '_Projection_density_x.png', \
                             'gas_density_projection_y': snap + '_Projection_density_y.png', \
                             'gas_density_projection_z': snap + '_Projection_density_z.png', \
+                            'gas_temperature_projection_x': snap + '_Projection_temperature_x.png', \
+                            'gas_temperature_projection_y': snap + '_Projection_temperature_y.png', \
+                            'gas_temperature_projection_z': snap + '_Projection_temperature_z.png', \
+                            'gas_h1_projection_x': snap + '_Projection_HI_x.png', \
+                            'gas_h1_projection_y': snap + '_Projection_HI_y.png', \
+                            'gas_h1_projection_z': snap + '_Projection_HI_z.png', \
+                            'gas_mg2_projection_x': snap + '_Projection_Mg2_x.png', \
+                            'gas_mg2_projection_y': snap + '_Projection_Mg2_y.png', \
+                            'gas_mg2_projection_z': snap + '_Projection_Mg2_z.png', \
+                            'gas_o6_projection_x': snap + '_Projection_O6_x.png', \
+                            'gas_o6_projection_y': snap + '_Projection_O6_y.png', \
+                            'gas_o6_projection_z': snap + '_Projection_O6_z.png', \
+                            'gas_H2_projection_x': snap + '_Projection_H2_x.png', \
+                            'gas_H2_projection_y': snap + '_Projection_H2_y.png', \
+                            'gas_H2_projection_z': snap + '_Projection_H2_z.png', \
                             'gas_density_projection_x_disk': snap + '_Projection_density_x-disk.png', \
                             'gas_density_projection_y_disk': snap + '_Projection_density_y-disk.png', \
                             'gas_density_projection_z_disk': snap + '_Projection_density_z-disk.png', \
@@ -323,8 +340,7 @@ if __name__ == "__main__":
         args.sf_plots.append('gas_density_projection_' + p)
         args.sf_plots.append('young_stars_density_projection_' + p)
         args.sf_plots.append('KS_relation_' + p)
-        args.vis_plots.append('gas_density_projection_' + p)
-        args.vis_plots.append('gas_metallicity_projection_' + p)
+        args.vis_plots.append(['gas_density_projection_' + p, 'gas_temperature_projection_' + p, 'gas_h1_projection_' + p, 'gas_mg2_projection_' + p, 'gas_o6_projection_' + p, 'gas_H2_projection_' + p, 'gas_metallicity_projection_' + p])
         if ('disk' in p):
             args.disk_rel = True
     args.edge_plots = ['edge_projection_x_disk', 'edge_slice_x_disk', 'edge_projection_y_disk', 'edge_slice_y_disk']
