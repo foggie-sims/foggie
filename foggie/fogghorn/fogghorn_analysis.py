@@ -78,6 +78,7 @@ def parse_args():
     parser.add_argument('--all_time_evol_plots', dest='all_time_evol_plots', action='store_true', default=False, help='Make all time-evolving central galaxy properties plots? Default is no.')
     parser.add_argument('--all_highz_halos_plots', dest='all_highz_halos_plots', action='store_true', default=False, help='Make all plots with all high-z halos on each plot (no central)? Default is no.')
     parser.add_argument('--all_shade_maps', dest='all_shade_maps', action='store_true', default=False, help='Make all shade maps plots? Default is no.')
+    parser.add_argument('--all_diagnosis_plots', dest='all_diagnosis_plots', action='store_true', default=False, help='Make all diagnosis plots? Default is no.')
     # This argument is for specifying which individual plots you want to make
     parser.add_argument('--make_plots', metavar='make_plots', type=str, action='store', default='', help='Which plots to make? Comma-separated names of the plotting routines to call. Default is none.')
 
@@ -187,6 +188,7 @@ def which_plots_asked_for(args):
         if args.all_highz_halos_plots: plots_asked_for += args.highz_halos_plots
         if args.all_time_evol_plots: plots_asked_for += args.time_evol_plots
         if args.all_shade_maps: plots_asked_for += args.shade_maps
+        if args.all_diagnosis_plots: plots_asked_for += args.diagnosis_plots
 
     plots_asked_for = np.unique(plots_asked_for)
     print(plots_asked_for)
@@ -262,7 +264,8 @@ def generate_plot_filename(quantity, args, snap):
                             'plot_SFMS': 'SFMS.png', \
                             'plot_SMHM': 'SMHM.png', \
                             'plot_MZR': 'MZR.png', \
-                            'phase_shade': snap + '_shade'}
+                            'phase_shade': snap + '_shade', \
+                            'diagnosis_plots': snap + '_diagnosis_plots.png'}
 
     output_filename = args.save_directory + '/' + output_filename_dict[quantity]
     return output_filename
@@ -360,6 +363,8 @@ if __name__ == "__main__":
     # These plots are datashader-style maps of physical quantities from earlier papers 
     args.shade_maps = ['phase_shade'] 
 
+    # These plots show various quantities for a zoom/halo snapshot such as star particle mass vs. time, from Diagnosis scripts
+    args.diagnosis_plots = ['diagnosis_plots'] 
 
     # ------------------ Figure out directory and outputs -------------------------------------
     if args.save_directory is None:
