@@ -126,7 +126,7 @@ catalog_dir = code_dir + '/halo_infos/' + halo_id + '/'+run+'/'
 #smooth_AM_name = catalog_dir + 'AM_direction_smoothed'
 smooth_AM_name = None
 
-ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name, do_filter_particles=True,disk_relative=True,particle_type_for_angmom=particle_type_for_angmom,smooth_AM_name = smooth_AM_name)
+ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, halo_c_v_name=halo_c_v_name, do_filter_particles=True,disk_relative=True,particle_type_for_angmom=particle_type_for_angmom,smooth_AM_name = smooth_AM_name)
 
 cf_args = get_default_args()
 clump_file = args.clump_dir + gal_name
