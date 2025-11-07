@@ -206,33 +206,34 @@ itr=0
 for leaf_id in leaf_clump_ids:
     leaf_cell_ids = hf[str(leaf_id)]['cell_ids'][...]
 
-    leaf_gas_mass = gas_masses[np.isin(cell_ids, leaf_cell_ids)].in_units('Msun')
+    mask = np.isin(cell_ids, leaf_cell_ids)
+    leaf_gas_mass = gas_masses[mask].in_units('Msun')
     norm = np.sum(leaf_gas_mass)
     leaf_masses.append(norm.in_units('Msun').v)
 
     #mass weighted
-    leaf_vx_disk.append( (np.sum( np.multiply(vx_disk[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
-    leaf_vy_disk.append( (np.sum( np.multiply(vy_disk[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
-    leaf_vz_disk.append( (np.sum( np.multiply(vz_disk[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
+    leaf_vx_disk.append( (np.sum( np.multiply(vx_disk[mask],leaf_gas_mass)) / norm ).in_units('km/s').v)
+    leaf_vy_disk.append( (np.sum( np.multiply(vy_disk[mask],leaf_gas_mass)) / norm ).in_units('km/s').v)
+    leaf_vz_disk.append( (np.sum( np.multiply(vz_disk[mask],leaf_gas_mass)) / norm ).in_units('km/s').v)
 
-    leaf_vx.append( (np.sum( np.multiply(vx[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
-    leaf_vy.append( (np.sum( np.multiply(vy[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
-    leaf_vz.append( (np.sum( np.multiply(vz[np.isin(cell_ids, leaf_cell_ids)],leaf_gas_mass)) / norm ).in_units('km/s').v)
+    leaf_vx.append( (np.sum( np.multiply(vx[mask],leaf_gas_mass)) / norm ).in_units('km/s').v)
+    leaf_vy.append( (np.sum( np.multiply(vy[mask],leaf_gas_mass)) / norm ).in_units('km/s').v)
+    leaf_vz.append( (np.sum( np.multiply(vz[mask],leaf_gas_mass)) / norm ).in_units('km/s').v)
 
-    leaf_x_disk.append(  (np.sum( np.multiply(x_disk[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
-    leaf_y_disk.append(  (np.sum( np.multiply(y_disk[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
-    leaf_z_disk.append(  (np.sum( np.multiply(z_disk[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
+    leaf_x_disk.append(  (np.sum( np.multiply(x_disk[mask], leaf_gas_mass)) / norm ).in_units('kpc').v)
+    leaf_y_disk.append(  (np.sum( np.multiply(y_disk[mask], leaf_gas_mass)) / norm ).in_units('kpc').v)
+    leaf_z_disk.append(  (np.sum( np.multiply(z_disk[mask], leaf_gas_mass)) / norm ).in_units('kpc').v)
 
-    leaf_x.append(  (np.sum( np.multiply(x[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
-    leaf_y.append(  (np.sum( np.multiply(y[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
-    leaf_z.append(  (np.sum( np.multiply(z[np.isin(cell_ids, leaf_cell_ids)], leaf_gas_mass)) / norm ).in_units('kpc').v)
+    leaf_x.append(  (np.sum( np.multiply(x[mask], leaf_gas_mass)) / norm ).in_units('kpc').v)
+    leaf_y.append(  (np.sum( np.multiply(y[mask], leaf_gas_mass)) / norm ).in_units('kpc').v)
+    leaf_z.append(  (np.sum( np.multiply(z[mask], leaf_gas_mass)) / norm ).in_units('kpc').v)
 
-    leaf_hi_num_dense.append(np.mean(hi_num_dense[np.isin(cell_ids, leaf_cell_ids)]).in_units('cm**-3').v)
-    leaf_mgii_num_dense.append(np.mean(mgii_num_dense[np.isin(cell_ids, leaf_cell_ids)]).in_units('cm**-3').v)
-    leaf_ovi_num_dense.append(np.mean(ovi_num_dense[np.isin(cell_ids, leaf_cell_ids)]).in_units('cm**-3').v)
+    leaf_hi_num_dense.append(np.mean(hi_num_dense[mask]).in_units('cm**-3').v)
+    leaf_mgii_num_dense.append(np.mean(mgii_num_dense[mask]).in_units('cm**-3').v)
+    leaf_ovi_num_dense.append(np.mean(ovi_num_dense[mask]).in_units('cm**-3').v)
 
 
-    leaf_volumes.append(np.sum(volumes[np.isin(cell_ids, leaf_cell_ids)]).in_units('kpc**3').v)
+    leaf_volumes.append(np.sum(volumes[mask]).in_units('kpc**3').v)
  
 
     #leaf = load_clump(ds,clump_cell_ids=leaf_cell_ids, skip_adding_cell_ids=skip_adding_cell_ids)
