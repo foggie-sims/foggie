@@ -13,18 +13,15 @@ mpl.use('agg')
 mpl.rcParams['font.family'] = 'stixgeneral'
 mpl.rcParams.update({'font.size': 14})
 
-import yt
 from yt.units import dimensions
 import trident
 import numpy as np
-
 import os
 os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
 import foggie.render.cmap_utils as cmaps
 from foggie.utils.get_halo_center import get_halo_center
 from foggie.utils.consistency import *
 import foggie.utils.foggie_load as fload
-
 
 def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] < 1e9", region='trackbox'):
     """prepares the dataset for rendering by extracting box or sphere this
@@ -34,7 +31,7 @@ def prep_dataset(fname, trackfile, ion_list=['H I'], filter="obj['temperature'] 
     print("Running prep_dataset for region:", region)
     dataset, refine_box = fload.foggie_load(fname, trackfile_name = trackfile)
 
-    trident.add_ion_fields(dataset, ions=ion_list)
+    trident.add_ion_fields(dataset, ions=['H I','C II','C III','C IV','Si II','Si III','Si IV', 'O VI']) 
     for ion, func in zip(['H_p0','C_p3','O_p5'], [yt_fields._nh1, yt_fields._c4, yt_fields._no6]):
         dataset.add_field(("gas", ion+"_column_density"), function=func, sampling_type='cell', units='cm**(-2)', dimensions=dimensions.length**(-2))
 
@@ -203,6 +200,49 @@ def simple_plot(fname, trackfile, field1, field2, colorcode, ranges, outfile, re
     wrap_axes(dataset, image, outfile, field1[1], field2[1], colorcode, ranges, region, filter)
 
     return data_frame, image, dataset
+
+def shade_plot(ds, field1, field2, colorcode, ranges, outfile, region='trackbox', ion_list=['H I'], 
+                filter="obj['temperature'] < 1e9", screenfield='none', screenrange=[-99,99], **kwargs):
+    """This function makes a simple plot with two dataset fields plotted against
+        one another. The color coding is given by variable 'colorcode'
+        which can be phase, metal, or an ionization fraction"""
+
+    trident.add_ion_fields(ds, ions=['H I','C II','C III','C IV','Si II','Si III','Si IV', 'O VI']) 
+    for ion, func in zip(['H_p0','C_p3','O_p5'], [yt_fields._nh1, yt_fields._c4, yt_fields._no6]):
+        ds.add_field(("gas", ion+"_column_density"), function=func, sampling_type='cell', units='cm**(-2)', dimensions=dimensions.length**(-2))
+        
+    pixspread = 0
+    if ('pixspread' in kwargs.keys()):
+        pixspread = kwargs['pixspread']
+
+    if region == 'trackbox':
+        print("prep_dataset: your region is the refine box")
+        all_data = refine_box
+    else:
+        all_data = gr.get_region(ds, region)
+
+    if ('none' not in screenfield):
+        field_list = [field1, field2, screenfield]
+    else:
+        field_list = [field1, field2]
+
+    data_frame = prep_dataframe.prep_dataframe(all_data, field_list, colorcode)
+
+    #these [1] are required because the inputs are tuples 
+    image = render_image(data_frame, field1[1], field2[1], colorcode, *ranges, outfile, pixspread=pixspread)
+
+    # if there is to be screening of the df, it should happen here.
+    print('Within shade_plot, the screen is: ', screenfield)
+    if ('none' not in screenfield):
+        mask = (data_frame[screenfield] > screenrange[0]) & (data_frame[screenfield] < screenrange[1])
+        print(mask)
+        image = render_image(data_frame[mask], field1, field2, colorcode, *ranges, outfile, pixspread=pixspread)
+
+    wrap_axes(ds, image, outfile, field1[1], field2[1], colorcode, ranges, region, filter)
+
+    return data_frame, image, ds
+
+
 
 def sightline_plot(wildcards, field1, field2, colorcode, ranges, outfile):
     """ an attempt at a general facility for datashading the physical

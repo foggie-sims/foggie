@@ -343,7 +343,7 @@ if __name__ == "__main__":
         args.sf_plots.append('gas_density_projection_' + p)
         args.sf_plots.append('young_stars_density_projection_' + p)
         args.sf_plots.append('KS_relation_' + p)
-        args.vis_plots.append(['gas_density_projection_' + p, 'gas_temperature_projection_' + p, 'gas_h1_projection_' + p, 'gas_mg2_projection_' + p, 'gas_o6_projection_' + p, 'gas_H2_projection_' + p, 'gas_metallicity_projection_' + p])
+        args.vis_plots.extend(['gas_density_projection_' + p, 'gas_temperature_projection_' + p, 'gas_h1_projection_' + p, 'gas_mg2_projection_' + p, 'gas_o6_projection_' + p, 'gas_H2_projection_' + p, 'gas_metallicity_projection_' + p])
         if ('disk' in p):
             args.disk_rel = True
     args.edge_plots = ['edge_projection_x_disk', 'edge_slice_x_disk', 'edge_projection_y_disk', 'edge_slice_y_disk']

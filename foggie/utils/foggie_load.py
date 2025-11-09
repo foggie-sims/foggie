@@ -235,6 +235,11 @@ def foggie_load(snap, **kwargs):
 
     ds.add_field(('index', 'cell_id'), function=get_cell_ids, sampling_type='cell')
 
+    #create fields for gas cell coordinates in kpc
+    ds.add_field(('gas', 'x_kpc'), function=x_kpc, sampling_type='cell', units='kpc')
+    ds.add_field(('gas', 'y_kpc'), function=y_kpc, sampling_type='cell', units='kpc')
+    ds.add_field(('gas', 'z_kpc'), function=z_kpc, sampling_type='cell', units='kpc')
+
     if (np.isnan(ds.halo_velocity_kms).any() == False):  # we will only add these velocity and energy fields if there is a meaningful halo bulk velocity
         print('FOGGIE_LOAD: ds.halo_velocity_kms = ', ds.halo_velocity_kms, ' so we can add the centered velocity and energy fields')
         ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
