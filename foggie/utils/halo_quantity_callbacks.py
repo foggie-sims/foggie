@@ -253,4 +253,3 @@ def halo_actual_baryon_fraction(halo):
     baryon_fraction = (halo_total_gas_mass(halo) + halo_total_star_mass(halo)) / halo_total_mass(halo)
 
     return baryon_fraction
-    
