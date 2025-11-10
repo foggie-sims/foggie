@@ -252,7 +252,6 @@ def generate_plot_filename(quantity, args, snap):
                             'gas_metallicity_radial_profile': snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png', \
                             'den_temp_phase': snap + '_density_temperature_phase_plot' + args.upto_text +'.png', \
                             'rad_vel_temp_colored': snap + '_radial-velocity_temperature.png', \
-                            'halos_density_projection': snap + '_halos_density_projection.png', \
                             'halos_SFMS': snap + '_halos_SFMS.png', \
                             'halos_SMHM': snap + '_halos_SMHM.png', \
                             'halos_MZR': snap + '_halos_MZR.png', \
@@ -354,7 +353,7 @@ if __name__ == "__main__":
     # yt's HOP halo finder to be run (each will check if the halo catalog already exists).
     # It is not recommended to run these on snapshots lower than z = 2 because the halo finder
     # doesn't work well at low redshifts:
-    args.highz_halos_plots = ['halos_density_projection','halos_SMHM','halos_SFMS','halos_MZR','halos_gasMHM', 'halos_ismMHM', 'halos_cgmMHM', 'baryon_budget', 'halos_h2_frac']
+    args.highz_halos_plots = ['halos_SMHM','halos_SFMS','halos_MZR','halos_gasMHM', 'halos_ismMHM', 'halos_cgmMHM', 'baryon_budget', 'halos_h2_frac']
 
     # These plots add a line to the central_galaxy_info.txt table for each snapshot, then make
     # ONE plot at the end containing data from every snapshot:

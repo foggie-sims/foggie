@@ -197,6 +197,7 @@ linelist_short = ['H I 1216', 'Si II 1260', 'O VI 1032']
 ################################## min/max values to be used in other code
 
 cgm_temperature_min = 1.5e4  #<---- in some FOGGIE codes this will be used to set a min
+cgm_temperature_max = 1.e8  #<---- in some FOGGIE codes this will be used to set a min
 cgm_density_max = 2e-26
 cgm_inner_radius = 10.
 cgm_outer_radius = 200.
@@ -205,22 +206,25 @@ cgm_outer_radius = 200.
 cgm_field_filter = ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max)
 ism_field_filter = ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max)
 
-def cgm_field_filter_z(z, tmin=cgm_temperature_min, tmax=1e8): 
-	return ("((obj['temperature'] > {}) & (obj['temperature'] < {})) | (obj['density'] < {})").format(tmin, tmax, cgm_density_max * (1.+z)**3. )
+def cgm_field_filter_z(z, tmin=cgm_temperature_min, tmax=cgm_temperature_max): 
+	return ("((obj['temperature'] > {}) & (obj['temperature'] < {})) & (obj['density'] < {})").format(tmin, tmax, cgm_density_max * (1.+z)**3. )
 
 def ism_field_filter_z(z): 
 	return ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max * (1.+z)**3. )
 
-cool_cgm_filter = cgm_field_filter + " & (obj['temperature'] < 1e5)"
-warm_cgm_filter = cgm_field_filter + " & (obj['temperature'] > 1e5)"
 
-cgm_outflow_filter = "obj[('gas', 'radial_velocity_corrected')] > 150."
-cool_outflow_filter = "(obj[('gas', 'radial_velocity_corrected')] > 150.) & (obj['temperature'] < 1e5)"
-warm_outflow_filter = "(obj[('gas', 'radial_velocity_corrected')] > 150.) & (obj['temperature'] > 1e5)"
+# filters below have been deprecated in favor of the functions above - if you need them ask JT 
 
-cgm_inflow_filter = "obj[('gas', 'radial_velocity_corrected')] < -150."
-cool_inflow_filter = "(obj[('gas', 'radial_velocity_corrected')] < -150.) & (obj['temperature'] < 1e5)"
-warm_inflow_filter = "(obj[('gas', 'radial_velocity_corrected')] < -150.) & (obj['temperature'] > 1e5)"
+#cool_cgm_filter = cgm_field_filter + " & (obj['temperature'] < 1e5)"
+#warm_cgm_filter = cgm_field_filter + " & (obj['temperature'] > 1e5)"
+
+#cgm_outflow_filter = "obj[('gas', 'radial_velocity_corrected')] > 150."
+#cool_outflow_filter = "(obj[('gas', 'radial_velocity_corrected')] > 150.) & (obj['temperature'] < 1e5)"
+#warm_outflow_filter = "(obj[('gas', 'radial_velocity_corrected')] > 150.) & (obj['temperature'] > 1e5)"
+
+#cgm_inflow_filter = "obj[('gas', 'radial_velocity_corrected')] < -150."
+#cool_inflow_filter = "(obj[('gas', 'radial_velocity_corrected')] < -150.) & (obj['temperature'] < 1e5)"
+#warm_inflow_filter = "(obj[('gas', 'radial_velocity_corrected')] < -150.) & (obj['temperature'] > 1e5)"
 
 ################################## colormaps and min/max limits
 

@@ -71,6 +71,7 @@ def halo_overdensity(halo, correct=True):
     
     total_halo_mass = halo_total_mass(halo, correct=correct).to('Msun')    
     halo_mean_density = (total_halo_mass / (4. / 3. * 3.141592653589793 * sphere.radius**3)).to('Msun/Mpc**3')
+    print('added checkpoint: overdensity ')
 
     return (halo_mean_density.value / cosmic_matter_density)
 
@@ -193,7 +194,6 @@ def halo_cold_cgm_gas_mass(halo, correct=True):
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 
     sphere = sphere.cut_region([cgm_field_filter_z(halo.halo_catalog.data_ds.current_redshift, tmin=100, tmax=1.5e4)]) #cgm field filter is defined in consistency.py
-
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
 def halo_cool_cgm_gas_mass(halo, correct=True): 
@@ -207,7 +207,6 @@ def halo_cool_cgm_gas_mass(halo, correct=True):
         return halo.halo_catalog.data_ds.quan(0, "Msun")
 	
     sphere = sphere.cut_region([cgm_field_filter_z(halo.halo_catalog.data_ds.current_redshift, tmin=1.5e4, tmax=1e5)]) #cgm field filter is defined in consistency.py
-
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
 def halo_warm_cgm_gas_mass(halo, correct=True): 
@@ -221,7 +220,6 @@ def halo_warm_cgm_gas_mass(halo, correct=True):
         return halo.halo_catalog.data_ds.quan(0, "Msun")
     
     sphere = sphere.cut_region([cgm_field_filter_z(halo.halo_catalog.data_ds.current_redshift, tmin=1e5, tmax=1e6)]) #cgm field filter is defined in consistency.py
-
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
 def halo_hot_cgm_gas_mass(halo, correct=True): 
@@ -247,7 +245,6 @@ def halo_total_star_mass(halo, correct=True):
 
     if sphere is None:
         return halo.halo_catalog.data_ds.quan(0, "Msun")
-
     return sphere.quantities.total_quantity(('stars', 'particle_mass'))
 
 def halo_total_metal_mass(halo, correct=True): 
