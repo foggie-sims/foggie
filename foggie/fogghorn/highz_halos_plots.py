@@ -73,8 +73,8 @@ def get_halo_catalog(ds, args, snap, correct=True):
         hc.add_quantity("average_fH2", correct=True)
 
         if (ds.parameters['MultiSpecies'] == 2): 
-            add_quantity("average_fH2", halo_average_fH2, correct=True)
-            hc.add_quantity("average_fH2")
+            add_quantity("average_fH2", halo_average_fH2)
+            hc.add_quantity("average_fH2", correct=True)
         
         hc.create()
 
