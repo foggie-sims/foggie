@@ -17,21 +17,28 @@ def get_halo_catalog(ds, args, snap, correct=True):
     '''This function either checks if the halo catalog already exists for this snapshot 'snap'
     and returns it if so, or runs the halo finder and both saves it to file and returns it.'''
 
+    halo_catalog_path = args.save_directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5'
+    print('Checking for halo catalog at: ' + halo_catalog_path)
     if os.path.exists(args.save_directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5'):
+        print('Halo catalog found for snapshot ' + snap)
         hc = yt.load(args.save_directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5')
         return hc
-
     else:
-        box_length = ds.quan(500., 'kpc')
-        box = ds.r[ds.halo_center_kpc[0]-box_length:ds.halo_center_kpc[0]+box_length, 
-            ds.halo_center_kpc[1]-box_length:ds.halo_center_kpc[1]+box_length, 
-            ds.halo_center_kpc[2]-box_length:ds.halo_center_kpc[2]+box_length]
-        hc = HaloCatalog(data_ds=ds, finder_method='hop', finder_kwargs={"subvolume": box, "threshold":400}, output_dir=args.save_directory + "/halo_catalogs")
+        print('No halo catalog found, creating halo catalog for snapshot ' + snap)
+        box = ds.r[ds.halo_center_code.value[0]-0.02:ds.halo_center_code.value[0]+0.02, 
+                   ds.halo_center_code.value[1]-0.02:ds.halo_center_code.value[1]+0.02, 
+                   ds.halo_center_code.value[2]-0.02:ds.halo_center_code.value[2]+0.02]  
+        hc = HaloCatalog(data_ds=ds, finder_method='hop', 
+                 finder_kwargs={"subvolume": box, "threshold":400, "ptype":"nbody", "save_particles":True}, 
+                 output_dir=args.save_directory+'/halo_catalogs')
         hc.create()
 
         hds = yt.load(args.save_directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5')
         hc = HaloCatalog(data_ds=ds, halos_ds=hds, output_dir=args.save_directory + "/halo_catalogs")
         hc.add_callback("sphere")
+
+        hc.add_filter("quantity_value", "virial_radius", ">", 10, "kpc")
+        hc.add_filter("quantity_value", "particle_mass", ">", 2e10, "Msun") #<--- this supresses a lot of bogus halos and some real ones
 
         add_quantity("corrected_rvir", halo_corrected_rvir)
         add_quantity("average_temperature", halo_average_temperature)
@@ -90,7 +97,7 @@ def halos_density_projection(ds, region, args, output_filename):
             ds.halo_center_kpc[1]-box_length:ds.halo_center_kpc[1]+box_length, 
             ds.halo_center_kpc[2]-box_length:ds.halo_center_kpc[2]+box_length]
     hc = get_halo_catalog(ds, args, args.snap)
-    p = yt.ProjectionPlot(ds, 'z', ('gas','density'), weight_field=('gas','density'), data_source=box, center=ds.halo_center_code, width=(200, 'kpc'))
+    p = yt.ProjectionPlot(ds, 'z', ('gas','density'), weight_field=('gas','density'), data_source=box, center=ds.halo_center_code, width=(500, 'kpc'))
     p.set_cmap('density', density_color_map)
     p.annotate_title(args.snap)
     p.annotate_timestamp(redshift=True)
@@ -138,7 +145,7 @@ def halos_SMHM(ds, region, args, output_filename):
     plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=16)
     plt.ylabel(r'log Stellar Mass [$M_\odot$]', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([7.5,12.0,2,10])
+    plt.axis([7.5,12.5,2,11.5])
     plt.legend(loc=2, frameon=False, fontsize=14)
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
@@ -181,7 +188,7 @@ def halos_SFMS(ds, region, args, output_filename):
     plt.xlabel(r'log Stellar Mass [$M_\odot$]', fontsize=16)
     plt.ylabel(r'$\log$ SFR [$M_\odot$/yr]', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([2.,12.5,-5,4])
+    plt.axis([2.,12.,-5,4])
     plt.legend(loc=2, frameon=False, fontsize=14)
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
@@ -251,7 +258,7 @@ def halos_gasMHM(ds, region, args, output_filename):
     plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=16)
     plt.ylabel(r'log Gas Mass [$M_\odot$]', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([7.5,12.0,5,11])
+    plt.axis([7.5,12.5,5,11.5])
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
     plt.savefig(output_filename, dpi=300)
@@ -275,7 +282,7 @@ def halos_ismMHM(ds, region, args, output_filename):
     plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=16)
     plt.ylabel(r'log ISM Gas Mass [$M_\odot$]', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([7.5,12.0,5,11])
+    plt.axis([7.5,12.5,5,11.5])
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
     plt.savefig(output_filename, dpi=300)
@@ -299,7 +306,7 @@ def halos_cgmMHM(ds, region, args, output_filename):
     plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=16)
     plt.ylabel(r'log CGM Gas Mass [$M_\odot$]', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([7.5,12.0,5,11])
+    plt.axis([7.5,12.5,5,11.5])
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
     plt.savefig(output_filename, dpi=300)
@@ -321,12 +328,22 @@ def baryon_budget(ds, region, args, output_filename):
     total_hot_cgm_gas_mass = all_data["halos", "total_hot_cgm_gas_mass"].in_units('Msun')
     total_star_mass = all_data["halos", "total_star_mass"].in_units('Msun')
 
+    print("Total Halo Masses: ", total_halo_mass)
+    print("Total Star Masses: ", total_star_mass)
+
+
     ism_fraction = total_ism_gas_mass / total_halo_mass
     cold_cgm_fraction = total_cold_cgm_gas_mass / total_halo_mass
     cool_cgm_fraction = total_cool_cgm_gas_mass / total_halo_mass
     warm_cgm_fraction = total_warm_cgm_gas_mass / total_halo_mass
     hot_cgm_fraction = total_hot_cgm_gas_mass / total_halo_mass
     star_fraction = total_star_mass / total_halo_mass
+
+    ism_fraction = total_ism_gas_mass / total_halo_mass
+
+    total_baryon_fraction = (total_ism_gas_mass + total_cold_cgm_gas_mass + total_cool_cgm_gas_mass + total_warm_cgm_gas_mass + total_hot_cgm_gas_mass + total_star_mass) / total_halo_mass
+
+    print("Total Baryon Fraction: ", total_baryon_fraction)
 
     sns.set_style("whitegrid")
 
@@ -376,7 +393,7 @@ def halos_h2_frac(ds, region, args, output_filename):
     plt.xlabel(r'log Halo Mass [$M_\odot$]', fontsize=16)
     plt.ylabel(r'log $f_{\mathrm{H}_2}$', fontsize=16)
     plt.title('$z = %.2f$' % ds.get_parameter('CosmologyCurrentRedshift'))
-    plt.axis([7.5,12.0,-16,0])
+    plt.axis([7.5,12.5,-10,0])
     plt.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, top=True, right=True)
     plt.tight_layout()
     plt.savefig(output_filename, dpi=300)
