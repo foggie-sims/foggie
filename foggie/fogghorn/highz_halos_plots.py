@@ -13,7 +13,7 @@ from foggie.fogghorn.util import *
 from datetime import datetime
 import seaborn as sns
 
-def get_halo_catalog(ds, args, snap):
+def get_halo_catalog(ds, args, snap, correct=True):
     '''This function either checks if the halo catalog already exists for this snapshot 'snap'
     and returns it if so, or runs the halo finder and both saves it to file and returns it.'''
 
@@ -26,13 +26,14 @@ def get_halo_catalog(ds, args, snap):
         box = ds.r[ds.halo_center_kpc[0]-box_length:ds.halo_center_kpc[0]+box_length, 
             ds.halo_center_kpc[1]-box_length:ds.halo_center_kpc[1]+box_length, 
             ds.halo_center_kpc[2]-box_length:ds.halo_center_kpc[2]+box_length]
-        hc = HaloCatalog(data_ds=ds, finder_method='hop', finder_kwargs={"subvolume": box}, output_dir=args.save_directory + "/halo_catalogs")
+        hc = HaloCatalog(data_ds=ds, finder_method='hop', finder_kwargs={"subvolume": box, "threshold":400}, output_dir=args.save_directory + "/halo_catalogs")
         hc.create()
 
         hds = yt.load(args.save_directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5')
         hc = HaloCatalog(data_ds=ds, halos_ds=hds, output_dir=args.save_directory + "/halo_catalogs")
         hc.add_callback("sphere")
 
+        add_quantity("corrected_rvir", halo_corrected_rvir)
         add_quantity("average_temperature", halo_average_temperature)
         add_quantity("average_metallicity", halo_average_metallicity)
         add_quantity("total_mass", halo_total_mass)
@@ -52,27 +53,27 @@ def get_halo_catalog(ds, args, snap):
         add_quantity("average_fH2", halo_average_fH2)
         add_quantity("max_metallicity", halo_max_metallicity)
 
-
-        hc.add_quantity("average_temperature")
-        hc.add_quantity("average_metallicity")
-        hc.add_quantity("total_mass")
-        hc.add_quantity("total_gas_mass")
-        hc.add_quantity("total_ism_gas_mass", ds.current_redshift)
-        hc.add_quantity("total_cgm_gas_mass", ds.current_redshift)
-        hc.add_quantity("total_cold_cgm_gas_mass", ds.current_redshift) 
-        hc.add_quantity("total_cool_cgm_gas_mass", ds.current_redshift) 
-        hc.add_quantity("total_warm_cgm_gas_mass", ds.current_redshift) 
-        hc.add_quantity("total_hot_cgm_gas_mass", ds.current_redshift)      
-        hc.add_quantity("total_star_mass")
-        hc.add_quantity("total_metal_mass")
-        hc.add_quantity("total_young_stars7_mass")
-        hc.add_quantity("sfr7")
-        hc.add_quantity("total_young_stars8_mass")
-        hc.add_quantity("sfr8")
-        hc.add_quantity("average_fH2")
+        hc.add_quantity("corrected_rvir")
+        hc.add_quantity("average_temperature", correct=True)
+        hc.add_quantity("average_metallicity", correct=True)
+        hc.add_quantity("total_mass", correct=True)
+        hc.add_quantity("total_gas_mass", correct=True)
+        hc.add_quantity("total_ism_gas_mass", correct=True) 
+        hc.add_quantity("total_cgm_gas_mass", correct=True) 
+        hc.add_quantity("total_cold_cgm_gas_mass", correct=True) 
+        hc.add_quantity("total_cool_cgm_gas_mass", correct=True) 
+        hc.add_quantity("total_warm_cgm_gas_mass", correct=True) 
+        hc.add_quantity("total_hot_cgm_gas_mass", correct=True)    
+        hc.add_quantity("total_star_mass", correct=True)
+        hc.add_quantity("total_metal_mass", correct=True)
+        hc.add_quantity("total_young_stars7_mass", correct=True)
+        hc.add_quantity("sfr7", correct=True)
+        hc.add_quantity("total_young_stars8_mass", correct=True)
+        hc.add_quantity("sfr8", correct=True)
+        hc.add_quantity("average_fH2", correct=True)
 
         if (ds.parameters['MultiSpecies'] == 2): 
-            add_quantity("average_fH2", halo_average_fH2)
+            add_quantity("average_fH2", halo_average_fH2, correct=True)
             hc.add_quantity("average_fH2")
         
         hc.create()
@@ -312,10 +313,8 @@ def baryon_budget(ds, region, args, output_filename):
     all_data = hc.all_data()
 
     total_halo_mass = all_data["halos", "total_mass"].in_units('Msun')
-    total_gas_mass = all_data["halos", "total_gas_mass"].in_units('Msun')
     total_star_mass = all_data["halos", "total_star_mass"].in_units('Msun')
     total_ism_gas_mass = all_data["halos", "total_ism_gas_mass"].in_units('Msun')
-    total_cgm_gas_mass = all_data["halos", "total_cgm_gas_mass"].in_units('Msun')
     total_cold_cgm_gas_mass = all_data["halos", "total_cold_cgm_gas_mass"].in_units('Msun')
     total_cool_cgm_gas_mass = all_data["halos", "total_cool_cgm_gas_mass"].in_units('Msun')
     total_warm_cgm_gas_mass = all_data["halos", "total_warm_cgm_gas_mass"].in_units('Msun')
