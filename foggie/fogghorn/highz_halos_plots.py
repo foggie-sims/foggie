@@ -57,7 +57,6 @@ def get_halo_catalog(ds, args, snap, correct=True):
         add_quantity("sfr7", halo_sfr7)
         add_quantity("total_young_stars8_mass", halo_total_young_stars8_mass)
         add_quantity("sfr8", halo_sfr8)
-        add_quantity("average_fH2", halo_average_fH2)
         add_quantity("max_metallicity", halo_max_metallicity)
 
         hc.add_quantity("corrected_rvir")
