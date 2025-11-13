@@ -60,8 +60,7 @@ def halo_total_mass(halo, correct=True):
 
 def halo_overdensity(halo, correct=True):
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -69,16 +68,15 @@ def halo_overdensity(halo, correct=True):
                                                   h=halo.halo_catalog.data_ds.hubble_constant,
                                                   omega_m=halo.halo_catalog.data_ds.omega_matter)
     
+    print('here I am in overdensity function: ', halo.quantities["corrected_rvir"])
     total_halo_mass = halo_total_mass(halo, correct=correct).to('Msun')    
     halo_mean_density = (total_halo_mass / (4. / 3. * 3.141592653589793 * sphere.radius**3)).to('Msun/Mpc**3')
-    print('added checkpoint: overdensity ')
 
     return (halo_mean_density.value / cosmic_matter_density)
 
 def halo_average_temperature(halo, correct=True):
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -91,8 +89,7 @@ def halo_average_temperature(halo, correct=True):
 
 def halo_average_metallicity(halo, correct=True):
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
@@ -104,8 +101,7 @@ def halo_average_metallicity(halo, correct=True):
 
 def halo_max_metallicity(halo, correct=True):
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
@@ -117,8 +113,7 @@ def halo_max_metallicity(halo, correct=True):
 
 def halo_max_gas_density(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
@@ -130,8 +125,7 @@ def halo_max_gas_density(halo, correct=True):
     
 def halo_max_dm_density(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
@@ -143,8 +137,7 @@ def halo_max_dm_density(halo, correct=True):
 
 def halo_total_gas_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -155,8 +148,7 @@ def halo_total_gas_mass(halo, correct=True):
 
 def halo_ism_gas_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -169,8 +161,7 @@ def halo_ism_gas_mass(halo, correct=True):
 
 def halo_cgm_gas_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -185,8 +176,7 @@ def halo_cgm_gas_mass(halo, correct=True):
 
 def halo_cold_cgm_gas_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -198,8 +188,7 @@ def halo_cold_cgm_gas_mass(halo, correct=True):
 
 def halo_cool_cgm_gas_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -211,8 +200,7 @@ def halo_cool_cgm_gas_mass(halo, correct=True):
 
 def halo_warm_cgm_gas_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -224,8 +212,7 @@ def halo_warm_cgm_gas_mass(halo, correct=True):
 
 def halo_hot_cgm_gas_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -238,8 +225,7 @@ def halo_hot_cgm_gas_mass(halo, correct=True):
 
 def halo_total_star_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -249,8 +235,7 @@ def halo_total_star_mass(halo, correct=True):
 
 def halo_total_metal_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -261,8 +246,7 @@ def halo_total_metal_mass(halo, correct=True):
 
 def halo_total_young_stars7_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -273,8 +257,7 @@ def halo_total_young_stars7_mass(halo, correct=True):
 
 def halo_sfr7(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -285,8 +268,7 @@ def halo_sfr7(halo, correct=True):
 
 def halo_total_young_stars8_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -297,8 +279,7 @@ def halo_total_young_stars8_mass(halo, correct=True):
 
 def halo_sfr8(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
@@ -309,8 +290,7 @@ def halo_sfr8(halo, correct=True):
 
 def halo_average_fH2(halo, correct=True):
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object    
 
@@ -323,8 +303,7 @@ def halo_average_fH2(halo, correct=True):
 
 def halo_actual_baryon_fraction(halo, correct=True):
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback 
 
@@ -354,5 +333,7 @@ def halo_corrected_rvir(halo):
         total_halo_mass = new_sphere.quantities.total_quantity(("gas", "cell_mass")) + new_sphere.quantities.total_quantity(("nbody", "particle_mass"))   
         halo_mean_density = (total_halo_mass / (4. / 3. * 3.141592653589793 * new_radius**3)).to('Msun/Mpc**3')
         overdensity = (halo_mean_density.value / cosmic_matter_density)
+ 
+    print('overdensity: ', new_radius, overdensity)
         
     return new_radius
