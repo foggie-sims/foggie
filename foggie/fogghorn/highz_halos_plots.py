@@ -40,47 +40,81 @@ def get_halo_catalog(ds, args, snap, correct=True):
         hc.add_filter("quantity_value", "virial_radius", ">", 10, "kpc")
         hc.add_filter("quantity_value", "particle_mass", ">", 2e10, "Msun") #<--- this supresses a lot of bogus halos and some real ones
 
-        add_quantity("corrected_rvir", halo_corrected_rvir)
-        add_quantity("average_temperature", halo_average_temperature)
-        add_quantity("average_metallicity", halo_average_metallicity)
-        add_quantity("total_mass", halo_total_mass)
-        add_quantity("total_gas_mass", halo_total_gas_mass)
-        add_quantity("total_ism_gas_mass", halo_ism_gas_mass)
-        add_quantity("total_cgm_gas_mass", halo_cgm_gas_mass)
-        add_quantity("total_cold_cgm_gas_mass", halo_cold_cgm_gas_mass)
-        add_quantity("total_cool_cgm_gas_mass", halo_cool_cgm_gas_mass)
-        add_quantity("total_warm_cgm_gas_mass", halo_warm_cgm_gas_mass)
-        add_quantity("total_hot_cgm_gas_mass", halo_hot_cgm_gas_mass)
-        add_quantity("total_star_mass", halo_total_star_mass)
-        add_quantity("total_metal_mass", halo_total_metal_mass)
-        add_quantity("total_young_stars7_mass", halo_total_young_stars7_mass)
-        add_quantity("sfr7", halo_sfr7)
-        add_quantity("total_young_stars8_mass", halo_total_young_stars8_mass)
-        add_quantity("sfr8", halo_sfr8)
-        add_quantity("max_metallicity", halo_max_metallicity)
+        correct = True
 
+        add_quantity("corrected_rvir", halo_corrected_rvir)
         hc.add_quantity("corrected_rvir")
-        hc.add_quantity("average_temperature", correct=True)
-        hc.add_quantity("average_metallicity", correct=True)
-        hc.add_quantity("total_mass", correct=True)
-        hc.add_quantity("total_gas_mass", correct=True)
-        hc.add_quantity("total_ism_gas_mass", correct=True) 
-        hc.add_quantity("total_cgm_gas_mass", correct=True) 
-        hc.add_quantity("total_cold_cgm_gas_mass", correct=True) 
-        hc.add_quantity("total_cool_cgm_gas_mass", correct=True) 
-        hc.add_quantity("total_warm_cgm_gas_mass", correct=True) 
-        hc.add_quantity("total_hot_cgm_gas_mass", correct=True)    
-        hc.add_quantity("total_star_mass", correct=True)
-        hc.add_quantity("total_metal_mass", correct=True)
-        hc.add_quantity("total_young_stars7_mass", correct=True)
-        hc.add_quantity("sfr7", correct=True)
-        hc.add_quantity("total_young_stars8_mass", correct=True)
-        hc.add_quantity("sfr8", correct=True)
-        hc.add_quantity("average_fH2", correct=True)
+        
+        add_quantity("overdensity", halo_overdensity)
+        hc.add_quantity("overdensity", correct=correct) 
+
+        add_quantity("average_temperature", halo_average_temperature)
+        hc.add_quantity("average_temperature", correct=correct)
+
+        add_quantity("average_metallicity", halo_average_metallicity)
+        hc.add_quantity("average_metallicity", correct=correct)
+
+        add_quantity("total_mass", halo_total_mass)
+        hc.add_quantity("total_mass", correct=correct) 
+
+        add_quantity("total_gas_mass", halo_total_gas_mass)
+        hc.add_quantity("total_gas_mass", correct=correct) 
+
+        add_quantity("total_ism_gas_mass", halo_ism_gas_mass)
+        hc.add_quantity("total_ism_gas_mass", correct=correct)
+
+        add_quantity("total_cgm_gas_mass", halo_cgm_gas_mass)
+        hc.add_quantity("total_cgm_gas_mass", correct=correct) 
+
+        add_quantity("total_cold_cgm_gas_mass", halo_cold_cgm_gas_mass)
+        hc.add_quantity("total_cold_cgm_gas_mass", correct=correct)
+
+        add_quantity("total_cool_cgm_gas_mass", halo_cool_cgm_gas_mass)
+        hc.add_quantity("total_cool_cgm_gas_mass", correct=correct)
+
+        add_quantity("total_warm_cgm_gas_mass", halo_warm_cgm_gas_mass)
+        hc.add_quantity("total_warm_cgm_gas_mass", correct=correct)
+
+        add_quantity("total_hot_cgm_gas_mass", halo_hot_cgm_gas_mass)
+        hc.add_quantity("total_hot_cgm_gas_mass", correct=correct)
+
+        add_quantity("total_star_mass", halo_total_star_mass)
+        hc.add_quantity("total_star_mass", correct=correct)
+
+        add_quantity("total_metal_mass", halo_total_metal_mass)
+        hc.add_quantity("total_metal_mass", correct=correct) 
+        
+        add_quantity("total_young_stars7_mass", halo_total_young_stars7_mass)
+        hc.add_quantity("total_young_stars7_mass", correct=correct)
+
+        add_quantity("actual_baryon_fraction", halo_actual_baryon_fraction)
+        hc.add_quantity("actual_baryon_fraction", correct=correct) 
+        
+        add_quantity("sfr7", halo_sfr7)
+        hc.add_quantity("sfr7", correct=correct)
+
+        add_quantity("total_young_stars8_mass", halo_total_young_stars8_mass)
+        hc.add_quantity("total_young_stars8_mass", correct=correct)
+
+        add_quantity("sfr8", halo_sfr8)
+        hc.add_quantity("sfr8", correct=correct)
+
+        add_quantity("max_metallicity", halo_max_metallicity)
+        hc.add_quantity("max_metallicity", correct=correct) 
+
+        add_quantity("max_gas_density", halo_max_gas_density) 
+        hc.add_quantity("max_gas_density", correct=correct) 
+
+        add_quantity("max_dm_density", halo_max_dm_density) 
+        hc.add_quantity("max_dm_density", correct=correct) 
+
+        add_quantity("max_gas_density", halo_max_gas_density) 
+        hc.add_quantity("max_gas_density", correct=correct) 
 
         if (ds.parameters['MultiSpecies'] == 2): 
-            add_quantity("average_fH2", halo_average_fH2)
-            hc.add_quantity("average_fH2", correct=True)
+            add_quantity("average_fH2", halo_average_fH2) 
+            hc.add_quantity("average_fH2", correct=correct)
+
         
         hc.create()
 
