@@ -204,4 +204,5 @@ ax.grid(True)
 
 print("Cloud count=",count)
 
+plt.savefig("clump_trajectories_3d.png",dpi=300)
 plt.show()
