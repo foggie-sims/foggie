@@ -88,6 +88,10 @@ def parse_args():
                         help='Where to save the histograms. Default is ./')
     parser.set_defaults(output_dir='./')
 
+    parser.add_argument('--data_dir', metavar='data_dir', type=str, action='store', \
+                        help='Override data directory location in get_run_loc_etc. Default is None.')
+    parser.set_defaults(data_dir=None)
+
     parser.add_argument('--do_tracer_fluids', metavar='do_tracer_fluids', type=bool, action='store', \
                         help='Calculate tracer fluid stats? Default is False.')
     parser.set_defaults(do_tracer_fluids=False)
@@ -109,10 +113,14 @@ if args.snapshot_array_index is not None:
 
 data_dir, output_path, run_loc, code_dir,trackname,halo_name,spectra_dir,infofile = get_run_loc_etc(args)
 
-if args.system=='cameron_local':
-    args.clump_dir = '/Users/ctrapp/Documents/foggie_analysis/clump_project/clump_catalog/'
-elif args.system=='cameron_pleiades':
-    args.clump_dir = '/nobackup/cwtrapp/clump_catalogs/halo_'+args.halo+'/'
+if args.data_dir is not None:
+    data_dir = args.data_dir
+
+if args.clump_dir is None:
+    if args.system=='cameron_local':
+        args.clump_dir = '/Users/ctrapp/Documents/foggie_analysis/clump_project/clump_catalog/'
+    elif args.system=='cameron_pleiades':
+        args.clump_dir = '/nobackup/cwtrapp/clump_catalogs/halo_'+args.halo+'/'
 
 halo_id = args.halo #008508
 snapshot = args.snapshot #RD0042
@@ -125,7 +133,7 @@ snap_name = data_dir + "halo_"+halo_id+"/"+run+"/"+snapshot+"/"+snapshot
 
 trackname = code_dir+"/halo_tracks/"+halo_id+"/nref11n_selfshield_15/halo_track_200kpc_nref9"
 
-halo_c_v_name = code_dir+"/halo_infos/"+halo_id+"/"+run+"/halo_c_v"
+halo_c_v_name = code_dir+"/halo_infos/"+halo_id+"/nref11c_nref9f/halo_c_v"
 
 #particle_type_for_angmom = 'young_stars' ##Currently the default
 particle_type_for_angmom = 'gas' #Should be defined by gas with Temps below 1e4 K
@@ -213,14 +221,14 @@ cell_ids = refine_box['index','cell_id_2']
 
 if args.do_tracer_fluids:
     #try:
-        tf1 = refine_box['gas','TracerFluid01']
-        tf2 = refine_box['gas','TracerFluid02']
-        tf3 = refine_box['gas','TracerFluid03']
-        tf4 = refine_box['gas','TracerFluid04']
-        tf5 = refine_box['gas','TracerFluid05']
-        tf6 = refine_box['gas','TracerFluid06']
-        tf7 = refine_box['gas','TracerFluid07']
-        tf8 = refine_box['gas','TracerFluid08']
+        tf1 = refine_box['enzo','TracerFluid01']
+        tf2 = refine_box['enzo','TracerFluid02']
+        tf3 = refine_box['enzo','TracerFluid03']
+        tf4 = refine_box['enzo','TracerFluid04']
+        tf5 = refine_box['enzo','TracerFluid05']
+        tf6 = refine_box['enzo','TracerFluid06']
+        tf7 = refine_box['enzo','TracerFluid07']
+        tf8 = refine_box['enzo','TracerFluid08']
     #except:
     #    args.do_tracer_fluids=False
 
@@ -264,14 +272,14 @@ for leaf_id in leaf_clump_ids:
     leaf_volumes.append(np.sum(volumes[mask]).in_units('kpc**3').v)
 
     if args.do_tracer_fluids:
-        leaf_tf1_mass.append( np.sum( np.multiply*(tf1[mask] , volumes[mask] )) ) #Give tracer fluid mass in leaf clump
-        leaf_tf2_mass.append( np.sum( np.multiply*(tf2[mask] , volumes[mask] )) )
-        leaf_tf3_mass.append( np.sum( np.multiply*(tf3[mask] , volumes[mask] )) )
-        leaf_tf4_mass.append( np.sum( np.multiply*(tf4[mask] , volumes[mask] )) )
-        leaf_tf5_mass.append( np.sum( np.multiply*(tf5[mask] , volumes[mask] )) )
-        leaf_tf6_mass.append( np.sum( np.multiply*(tf6[mask] , volumes[mask] )) )
-        leaf_tf7_mass.append( np.sum( np.multiply*(tf7[mask] , volumes[mask] )) )
-        leaf_tf8_mass.append( np.sum( np.multiply*(tf8[mask] , volumes[mask] )) )
+        leaf_tf1_mass.append( np.sum( np.multiply(tf1[mask] , volumes[mask] )) ) #Give tracer fluid mass in leaf clump
+        leaf_tf2_mass.append( np.sum( np.multiply(tf2[mask] , volumes[mask] )) )
+        leaf_tf3_mass.append( np.sum( np.multiply(tf3[mask] , volumes[mask] )) )
+        leaf_tf4_mass.append( np.sum( np.multiply(tf4[mask] , volumes[mask] )) )
+        leaf_tf5_mass.append( np.sum( np.multiply(tf5[mask] , volumes[mask] )) )
+        leaf_tf6_mass.append( np.sum( np.multiply(tf6[mask] , volumes[mask] )) )
+        leaf_tf7_mass.append( np.sum( np.multiply(tf7[mask] , volumes[mask] )) )
+        leaf_tf8_mass.append( np.sum( np.multiply(tf8[mask] , volumes[mask] )) )
 
     #leaf = load_clump(ds,clump_cell_ids=leaf_cell_ids, skip_adding_cell_ids=skip_adding_cell_ids)
 
