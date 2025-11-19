@@ -44,8 +44,7 @@ import astropy.units as u
 
 def halo_total_mass(halo, correct=True): 
     if (correct): 
-        rvir_corrected = halo_corrected_rvir(halo)
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_corrected)
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -68,7 +67,6 @@ def halo_overdensity(halo, correct=True):
                                                   h=halo.halo_catalog.data_ds.hubble_constant,
                                                   omega_m=halo.halo_catalog.data_ds.omega_matter)
     
-    print('here I am in overdensity function: ', halo.quantities["corrected_rvir"])
     total_halo_mass = halo_total_mass(halo, correct=correct).to('Msun')    
     halo_mean_density = (total_halo_mass / (4. / 3. * 3.141592653589793 * sphere.radius**3)).to('Msun/Mpc**3')
 
@@ -333,7 +331,5 @@ def halo_corrected_rvir(halo):
         total_halo_mass = new_sphere.quantities.total_quantity(("gas", "cell_mass")) + new_sphere.quantities.total_quantity(("nbody", "particle_mass"))   
         halo_mean_density = (total_halo_mass / (4. / 3. * 3.141592653589793 * new_radius**3)).to('Msun/Mpc**3')
         overdensity = (halo_mean_density.value / cosmic_matter_density)
- 
-    print('overdensity: ', new_radius, overdensity)
-        
+         
     return new_radius
