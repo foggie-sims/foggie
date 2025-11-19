@@ -5,6 +5,7 @@ import yt, argparse
 from yt_astro_analysis.halo_analysis import HaloCatalog, add_quantity
 from foggie.utils.foggie_load import foggie_load
 from foggie.utils.halo_quantity_callbacks import * 
+from astropy.table import QTable
 
 def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile, boxwidth=0.04): 
     """Prepare a small dataset subregion around a halo center for finding.
@@ -139,8 +140,17 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
 
     return hc 
 
+def export_to_astropy(simulation_dir, snapname): 
+    new_ds = yt.load(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5')
+    all_data = new_ds.all_data()
+    halo_table = QTable() 
 
+    for field in new_ds.field_list: 
+        if (field[0] == 'halos'):
+            halo_table[field[1]] = all_data[field].to_astropy() 
 
+    halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.fits', format='fits') 
+    halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.txt', format='ascii') 
 
 if __name__ == "__main__":
 
@@ -172,6 +182,7 @@ if __name__ == "__main__":
     ds, box = prep_dataset_for_halo_finding('./', args.output, args.trackfile, boxwidth=args.boxwidth) 
     hc = halo_finding_step(ds, box, simulation_dir='./', threshold=args.threshold) 
     hc = repair_halo_catalog(ds, './', args.output, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
+    export_to_astropy('./', args.output)
 
 
 
