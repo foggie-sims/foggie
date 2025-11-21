@@ -177,6 +177,10 @@ leaf_z = []
 #leaf_x_disk = []
 #leaf_y_disk = []
 #leaf_z_disk = []
+leaf_metallicity = []
+leaf_pressure = []
+leaf_temperature = []
+
 leaf_tf1_mass = []
 leaf_tf2_mass = []
 leaf_tf3_mass = []
@@ -217,6 +221,10 @@ x = refine_box['gas','x'].in_units('kpc')
 y = refine_box['gas','y'].in_units('kpc')
 z = refine_box['gas','z'].in_units('kpc')
 
+metallicity = refine_box['gas','metallicity']
+pressure = refine_box['gas','pressure']
+temperature = refine_box['gas','temperature']
+
 cell_ids = refine_box['index','cell_id_2']
 
 if args.do_tracer_fluids:
@@ -246,6 +254,10 @@ for leaf_id in leaf_clump_ids:
     leaf_gas_mass = gas_masses[mask].in_units('Msun')
     norm = np.sum(leaf_gas_mass)
     leaf_masses.append(norm.in_units('Msun').v)
+    
+    leaf_gas_volume = volumes[mask].in_units('kpc**3')
+    vol_norm = np.sum(leaf_gas_volume)
+    leaf_volumes.append(vol_norm.in_units('kpc**3').v)
 
     #mass weighted
     #leaf_vx_disk.append( (np.sum( np.multiply(vx_disk[mask],leaf_gas_mass)) / norm ).in_units('km/s').v)
@@ -264,12 +276,20 @@ for leaf_id in leaf_clump_ids:
     leaf_y.append(  (np.sum( np.multiply(y[mask], leaf_gas_mass)) / norm ).in_units('kpc').v)
     leaf_z.append(  (np.sum( np.multiply(z[mask], leaf_gas_mass)) / norm ).in_units('kpc').v)
 
-    leaf_hi_num_dense.append(np.mean(hi_num_dense[mask]).in_units('cm**-3').v)
-    leaf_mgii_num_dense.append(np.mean(mgii_num_dense[mask]).in_units('cm**-3').v)
-    leaf_ovi_num_dense.append(np.mean(ovi_num_dense[mask]).in_units('cm**-3').v)
+
+    leaf_hi_num_dense.append(  (np.sum( np.multiply(hi_num_dense[mask], leaf_gas_volume)) / vol_norm ).in_units('kpc').v)
+    leaf_mgii_num_dense.append(  (np.sum( np.multiply(mgii_num_dense[mask], leaf_gas_volume)) / vol_norm ).in_units('kpc').v)
+    leaf_ovi_num_dense.append(  (np.sum( np.multiply(ovi_num_dense[mask], leaf_gas_volume)) / vol_norm ).in_units('kpc').v)
+
+    #leaf_hi_num_dense.append(np.sum(hi_num_dense[mask]).in_units('cm**-3').v)
+    #leaf_mgii_num_dense.append(np.mean(mgii_num_dense[mask]).in_units('cm**-3').v)
+    #leaf_ovi_num_dense.append(np.mean(ovi_num_dense[mask]).in_units('cm**-3').v)
+
+    leaf_metallicity.append(  (np.sum( np.multiply(metallicity[mask], leaf_gas_mass)) / norm ))
+    leaf_pressure.append(  (np.sum( np.multiply(pressure[mask], leaf_gas_mass)) / norm ).in_units('Ba').v)
+    leaf_temperature.append(  (np.sum( np.multiply(temperature[mask], leaf_gas_mass)) / norm ).in_units('K').v)
 
 
-    leaf_volumes.append(np.sum(volumes[mask]).in_units('kpc**3').v)
 
     if args.do_tracer_fluids:
         leaf_tf1_mass.append( np.sum( np.multiply(tf1[mask] , volumes[mask] )) ) #Give tracer fluid mass in leaf clump
