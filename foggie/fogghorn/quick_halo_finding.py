@@ -171,6 +171,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--output', metavar='output', type=str, action='store', default=None, required=True, help='Output to run a halo catalog for') 
+    parser.add_argument('--directory', metavar='directory', type=str, action='store', default='./', required=False, help='Pathname to simulation directory') 
     parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, required=True, help='Track file for this halo (center of box subregion)')
     parser.add_argument('--boxwidth', metavar='boxwidth', type=float, action='store', default=0.04, required=False, help='Width of subregion box in code units')
     parser.add_argument('--threshold', metavar='threshold', type=float, action='store', default=400., required=False, help='Overdensity thresold for HOP algorithm (default = 400)')
@@ -183,6 +184,3 @@ if __name__ == "__main__":
     hc = halo_finding_step(ds, box, simulation_dir='./', threshold=args.threshold) 
     hc = repair_halo_catalog(ds, './', args.output, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
     export_to_astropy('./', args.output)
-
-
-
