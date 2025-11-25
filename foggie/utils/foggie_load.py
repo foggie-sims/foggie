@@ -153,7 +153,7 @@ def foggie_load(snap, **kwargs):
     """Loads a foggie simulation snapshot and adds useful fields."""
 
     trackfile_name = kwargs.get('trackfile_name', '')
-    find_halo_center = kwargs.get('find_halo_center', True)
+    find_halo_center = kwargs.get('find_halo_center', True) # if this is False and a track file is specified, just use track box center
     halo_c_v_name = kwargs.get('halo_c_v_name', 'none')
     disk_relative = kwargs.get('disk_relative', False)
     particle_type_for_angmom = kwargs.get('particle_type_for_angmom', 'young_stars')
@@ -185,41 +185,49 @@ def foggie_load(snap, **kwargs):
         refine_width = refine_width_code * proper_box_size
 
         # Determine center style and get halo center
-        center_style = "calculate"
-        print('FOGGIE_LOAD: Will look for halo_c_v_file: ', halo_c_v_name)
-        if os.path.exists(halo_c_v_name):  # If we have been given a halo_c_v file and it exists, do one of FOUR things
-            
-            print('FOGGIE_LOAD: Found halo_c_v file:', halo_c_v_name)
-            halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
-            snap_id = snap[-6:]
-            if 'smooth' in halo_c_v_name: 
-                center_style = 'smoothed'
-                if snap_id in halo_c_v['snap']:
-                    get_center_from_smoothed_catalog(ds, halo_c_v_name, snap, center_style=center_style)
+        if (find_halo_center):
+            center_style = "calculate"
+            print('Will look for halo_c_v_file: ', halo_c_v_name)
+            if os.path.exists(halo_c_v_name):
+                print('Found halo_c_v file:', halo_c_v_name)
+                halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
+                snap_id = snap[-6:]
+                if 'smooth' in halo_c_v_name:
+                    center_style = 'smoothed'
+                    if snap_id in halo_c_v['snap']:
+                        get_center_from_smoothed_catalog(ds, halo_c_v_name, snap, center_style=center_style)
+                    else:
+                        get_center_from_calculated(ds, refine_box_center, proper_box_size)
+                elif 'halo_c_v' in halo_c_v_name:
+                    center_style = 'catalog'
+                    if snap_id in halo_c_v['name']:
+                        get_center_from_catalog(ds, halo_c_v_name, snap, center_style=center_style)
+                    else:
+                        get_center_from_calculated(ds, refine_box_center, proper_box_size)
+                elif 'root' in halo_c_v_name:
+                    center_style = 'root_index'
+                    get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_style=center_style)
                 else:
                     get_center_from_calculated(ds, refine_box_center, proper_box_size)
-            elif 'halo_c_v' in halo_c_v_name:
-                center_style = 'catalog'
-                if snap_id in halo_c_v['name']:
-                    get_center_from_catalog(ds, halo_c_v_name, snap, center_style=center_style)
-                else:
-                    get_center_from_calculated(ds, refine_box_center, proper_box_size)
-            elif 'root' in halo_c_v_name:
-                center_style = 'root_index'
-                get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_style=center_style)
             else:
-                get_center_from_calculated(ds, refine_box_center, proper_box_size)
-        else:
-            if ('halo_center' in kwargs):
-                print("we will calculate the center using the input guess")
+                if ('halo_center' in kwargs):
+                    print("we will calculate the center using the input guess")
+                    get_center_from_calculated(ds, refine_box_center, proper_box_size)
+
+                print('No halo_c_v file found, calculating halo center from track')
                 get_center_from_calculated(ds, refine_box_center, proper_box_size)
 
-            print('FOGGIE_LOAD: No halo_c_v file found, calculating halo center from given track')
-            get_center_from_track(ds, refine_box_center, proper_box_size)
-
-        ds.track = track
-        ds.refine_box_center = refine_box_center
-        ds.refine_width = refine_width
+            ds.track = track
+            ds.refine_box_center = refine_box_center
+            ds.refine_width = refine_width
+        else: # Don't want halo center, just assign track box center
+            print('Not finding halo center, just using track box center')
+            halo_center_kpc = ds.arr(np.array(refine_box_center)*proper_box_size, 'kpc')
+            ds.halo_center_code = ds.arr(np.array(refine_box_center), 'code_length')
+            ds.halo_center_kpc = halo_center_kpc
+            ds.track = track
+            ds.refine_box_center = refine_box_center
+            ds.refine_width = refine_width
     else: 
         if ('halo_center' in kwargs):
             print("FOGGIE_LOAD: we will calculate the center using the input guess")
@@ -233,15 +241,13 @@ def foggie_load(snap, **kwargs):
     # > obj.set_field_parameter('omega_baryon', ds.omega_baryon)
     # foggie_load returns a 'region' data object given by the 'region' keyword, and the 'omega_baryon' parameter is already set for that.
 
-    ds.add_field(('index', 'cell_id'), function=get_cell_ids, sampling_type='cell')
-
     #create fields for gas cell coordinates in kpc
     ds.add_field(('gas', 'x_kpc'), function=x_kpc, sampling_type='cell', units='kpc')
     ds.add_field(('gas', 'y_kpc'), function=y_kpc, sampling_type='cell', units='kpc')
     ds.add_field(('gas', 'z_kpc'), function=z_kpc, sampling_type='cell', units='kpc')
 
     if (np.isnan(ds.halo_velocity_kms).any() == False):  # we will only add these velocity and energy fields if there is a meaningful halo bulk velocity
-        print('FOGGIE_LOAD: ds.halo_velocity_kms = ', ds.halo_velocity_kms, ' so we can add the centered velocity and energy fields')
+        print('ds.halo_velocity_kms = ', ds.halo_velocity_kms, ' so we can add the centered velocity and energy fields')
         ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
                      sampling_type='cell')
         ds.add_field(('gas', 'vy_corrected'), function=vy_corrected, units='km/s', take_log=False, \

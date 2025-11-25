@@ -159,6 +159,17 @@ def parse_args():
                         help='If True will save each clump as an individual hdf5 file. Default is False.')
     parser.set_defaults(save_clumps_individually=False)
 
+    parser.add_argument('--disk_stdv_factor', metavar='disk_stdv_factor', type=float, action='store', \
+                        help='What factor to multiply the standard deviation of the density in the disk to set the minimum density for the disk clump. Default is 100.')
+    parser.set_defaults(disk_stdv_factor=100.)
+
+    parser.add_argument('--identify_satellites', metavar='identify_satellites', type=bool, action='store', \
+                        help='If finding the disk, will also save satellite clumps. May save non satellites if the number of satellites is less than args.max_number_of_satellites. Default is False.')
+    parser.set_defaults(identify_satellites=False)
+
+    parser.add_argument('--max_number_of_satellites', metavar='max_number_of_satellites', type=int, action='store', \
+                        help='What is the maximum number of satellite clumps to save? Default is 10.')
+    parser.set_defaults(max_number_of_satellites=10)
 
     args = parser.parse_args()
 
@@ -209,4 +220,7 @@ def get_default_args():
         use_cylindrical_connectivity_matrix=False,
         save_clumps_individually=False,
         disk_criteria="mass",
+        disk_stdv_factor=100.,
+        identify_satellites=False,
+        max_number_of_satellites=10,
     )
