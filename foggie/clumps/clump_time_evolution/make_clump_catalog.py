@@ -91,6 +91,11 @@ def parse_args():
                         help='Are you analyzing RD snapshots instead of DD? Default is False.')
     parser.set_defaults(is_rd=False)
 
+    parser.add_argument('--data_dir', metavar='data_dir', type=str, action='store', \
+                        help='Overwrite data directory from get_run_loc_etc. Default is None.')
+    parser.set_defaults(data_dir=None)
+
+
 
     args = parser.parse_args()
     return args
@@ -105,6 +110,9 @@ if args.snapshot_array_index is not None:
         args.snapshot = "DD"+args.snapshot_array_index.zfill(4)
 
 data_dir, output_path, run_loc, code_dir,trackname,halo_name,spectra_dir,infofile = get_run_loc_etc(args)
+
+if args.data_dir is not None:
+    data_dir = args.data_dir #overwrite
 
 halo_id = args.halo #008508
 snapshot = args.snapshot #RD0042
