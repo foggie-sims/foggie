@@ -120,6 +120,7 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
     quantities = {"overdensity":halo_overdensity, "average_temperature":halo_average_temperature, 
               "average_metallicity":halo_average_metallicity, "total_mass":halo_total_mass, 
               "total_gas_mass":halo_total_gas_mass, "total_ism_gas_mass":halo_ism_gas_mass, 
+              "total_ism_HI_mass":halo_ism_HI_mass, "total_ism_HII_mass":halo_ism_HII_mass, 
               "total_cgm_gas_mass":halo_cgm_gas_mass, "total_cold_cgm_gas_mass": halo_cold_cgm_gas_mass,
               "total_cool_cgm_gas_mass":halo_cool_cgm_gas_mass, "total_warm_cgm_gas_mass":halo_warm_cgm_gas_mass,
               "total_hot_cgm_gas_mass":halo_hot_cgm_gas_mass, "total_star_mass":halo_total_star_mass, 
@@ -128,6 +129,8 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
               "total_young_stars8_mass": halo_total_young_stars8_mass, "max_metallicity": halo_max_metallicity, 
               "max_gas_density": halo_max_gas_density, "max_dm_density": halo_max_dm_density} 
 
+
+    print('made it this far in repair_halo_catalog 1')
     for q in quantities.keys(): 
         add_quantity(q, quantities[q])
         hc.add_quantity(q, correct=True) 
@@ -135,6 +138,11 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
     if (ds.parameters['MultiSpecies'] == 2): # this is necessary because older runs do not have this field 
         add_quantity("average_fH2", halo_average_fH2) 
         hc.add_quantity("average_fH2", correct=True)
+
+        add_quantity("total_ism_H2_mass", halo_ism_H2_mass)
+        hc.add_quantity("total_ism_H2_mass", correct=True)
+
+    print('made it this far in repair_halo_catalog 2')
 
     hc.create()
 
@@ -149,8 +157,8 @@ def export_to_astropy(simulation_dir, snapname):
         if (field[0] == 'halos'):
             halo_table[field[1]] = all_data[field].to_astropy() 
 
-    halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.fits', format='fits') 
-    halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.txt', format='ascii') 
+    halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.fits', format='fits', overwrite=True) 
+    halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.txt', format='ascii', overwrite=True) 
 
 if __name__ == "__main__":
 

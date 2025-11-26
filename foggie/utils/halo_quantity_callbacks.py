@@ -40,6 +40,7 @@ import yt
 from foggie.utils.consistency import * 
 from foggie.utils import foggie_utils as futils
 import astropy.units as u
+import numpy as np 
 
 
 def halo_total_mass(halo, correct=True): 
@@ -156,6 +157,53 @@ def halo_ism_gas_mass(halo, correct=True):
     sphere = sphere.cut_region([ism_field_filter_z(halo.halo_catalog.data_ds.current_redshift)]) #ism field filter is defined in consistency.py
 
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
+
+def halo_ism_HI_mass(halo, correct=True): 
+    if (correct): 
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+    else:
+        sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "Msun")
+
+    sphere = sphere.cut_region([ism_field_filter_z(halo.halo_catalog.data_ds.current_redshift)]) #ism field filter is defined in consistency.py
+
+    h1_cell_mass = np.sum(sphere[('enzo', 'HI_Density')] * sphere['cell_volume']**3) 
+
+    return h1_cell_mass 
+
+def halo_ism_HII_mass(halo, correct=True): 
+    if (correct): 
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+    else:
+        sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "Msun")
+
+    sphere = sphere.cut_region([ism_field_filter_z(halo.halo_catalog.data_ds.current_redshift)]) #ism field filter is defined in consistency.py
+
+    hii_cell_mass = np.sum(sphere[('enzo', 'HII_Density')] * sphere['cell_volume']**3) 
+
+    return hii_cell_mass 
+
+def halo_ism_H2_mass(halo, correct=True): 
+    if (correct): 
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+    else:
+        sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "Msun")
+
+    sphere = sphere.cut_region([ism_field_filter_z(halo.halo_catalog.data_ds.current_redshift)]) #ism field filter is defined in consistency.py
+
+    h2_cell_mass = np.sum(sphere[('enzo', 'H2I_Density')] * sphere['cell_volume']**3) 
+
+    return h2_cell_mass 
+
+
 
 def halo_cgm_gas_mass(halo, correct=True): 
     if (correct): 
