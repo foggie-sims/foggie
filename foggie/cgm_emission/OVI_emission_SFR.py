@@ -3437,10 +3437,11 @@ if __name__ == "__main__":
                 #outs.append(make_output_list('DD2182-DD2427', output_step=args.output_step)) # z = 0.1 to 0 (~1326 Myr)
                 #outs.append(make_output_list('DD2427'))
             elif (halos[h]=='2878'):
-                outs.append(make_output_list('DD1060-DD2460', output_step=args.output_step))
+                outs.append(make_output_list('DD1060-DD2515', output_step=args.output_step))
                 #outs.append(make_output_list('DD1060-DD1305', output_step=args.output_step))  # z = 1 to 0.726 (~1335 Myr)
-                #outs.append(make_output_list('DD2275-DD2460', output_step=args.output_step)) # z = 0.1 to 0.02 (~996 Myr) This is as far as Cyclone has gone at time of writing
-                #outs.append(make_output_list('DD2460'))
+                #outs.append(make_output_list('DD2275-DD2515', output_step=args.output_step)) # z = 0.1 to 0.02 (~996 Myr) This is as far as Cyclone has gone at time of writing
+                #outs.append(make_output_list('RD0042'))
+                outs[h].append('RD0042')
             else:
                 outs.append(make_output_list('DD1060-DD2520', output_step=args.output_step))
                 #outs.append(make_output_list('DD1060-DD1305', output_step=args.output_step))  # z = 1 to 0.726 (~1335 Myr)
