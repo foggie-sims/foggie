@@ -27,7 +27,8 @@ During these sucessive iterations, the hierarchy of the clumps is calculated and
 
 As an alternative mode of use, setting the --identifty_disk flag will run the clump finder as a disk finder instead. The disk is identified
 as the largest clump above a certain density threshold. Depending on the values assigned to --max_disk_void_size and --max_disk_hole_size, 
-3-D topologically enclosed voids are filled in this disk mask, as well as 2-D topologically enclosed holes along the disk axis.
+3-D topologically enclosed voids are filled in this disk mask, as well as 2-D topologically enclosed holes along the disk axis. There is
+option to use the default options used in FOGGIE XII/XIII by toggling --auto_disk_finder.
 
 By default, the clumps are saved in a single hdf5 file, where each group corresponds to a single clump object with a list of cell ids, parent clump ids, child clump ids, and tree level. There are various functions in utils_clumpfinder.py to help loading and navigating clumps within these files. Disks clumps and shells are saved as individual clump objects.
     
@@ -35,7 +36,7 @@ Basic Example usage:
 For full clump finding:
 python clump_finder.py --refinement_level 11 --clump_min 1.3e-30 --system cameron_local
 For disk finding:
-python clump_finder.py --refinement_level 11 --identify_disk 1 --system cameron_local
+python clump_finder.py --auto_disk_finder --system cameron_local
 
 
 The args are parsed as follows:    
@@ -87,7 +88,7 @@ Parallelization Arguments:
 
     
 Disk Identification Arguments:
-
+    --auto_disk_finder: Run the clump finder as a disk finder with default options used in FOGGIE XII/XIII (Trapp+2025a,b)
     --identify_disk: Run the clump finder as a disk finder instead.
     --cgm_density_cut_type: When identifying the disk how do you want to define the CGM density cut? Options are comoving_density, relative_density, or cassis_cut. Default is "relative_density".
     --cgm_density_factor: When identifying the disk, what factor should the cgm_density_cut use. Default is 200 for relative density, 0.2 for comoving density, and 1 for cassis_cut.

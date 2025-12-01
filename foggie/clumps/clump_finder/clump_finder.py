@@ -1,5 +1,6 @@
 import numpy as np
 from foggie.clumps.clump_finder.clump_finder_argparser import parse_args
+from foggie.clumps.clump_finder.clump_finder_argparser import set_default_disk_finder_arguments
 from foggie.clumps.clump_finder.clump_load import create_simple_ucg
 
 from foggie.utils.foggie_load import foggie_load
@@ -60,13 +61,14 @@ from scipy.ndimage import binary_closing
 
     As an alternative mode of use, setting the --identifty_disk flag will run the clump finder as a disk finder instead. The disk is identified
     as the largest clump above a certain density threshold. Depending on the values assigned to --max_disk_void_size and --max_disk_hole_size, 
-    3-D topologically enclosed voids are filled in this disk mask, as well as 2-D topologically enclosed holes along the disk axis.
+    3-D topologically enclosed voids are filled in this disk mask, as well as 2-D topologically enclosed holes along the disk axis. There is
+    option to use the default options used in FOGGIE XII/XIII by toggling --auto_disk_finder.
     
     Basic Example usage:
     For full clump finding:
     python clump_finder.py --refinement_level 11 --clump_min 1.3e-30 --system cameron_local
     For disk finding:
-    python clump_finder.py --refinement_level 11 --identify_disk 1 --system cameron_local
+    python clump_finder.py --auto_disk_finder --system cameron_local
 
     This can also be used modularly by importing the clump_finder(args, ds, cut_region) function.
 
@@ -114,6 +116,7 @@ from scipy.ndimage import binary_closing
 
     
     Disk Identification Arguments:
+    --auto_disk_finder: Run the clump finder as a disk finder with default options used in FOGGIE XII/XIII (Trapp+2025a,b)
     --identify_disk: Run the clump finder as a disk finder instead.
     --cgm_density_cut_type: When identifying the disk how do you want to define the CGM density cut? Options are ["comoving_density,"relative_density","cassis_cut"]. Default is "relative_density".')
     --cgm_density_factor: When identifying the disk, what factor should the cgm_density_cut use. Default is 200 for relative density, 0.2 for comoving density, and 1 for cassis_cut.
@@ -1001,7 +1004,9 @@ def clump_finder(args,ds,cut_region):
     if args.nthreads is None or args.nthreads>num_cores:
         args.nthreads = num_cores
 
-
+    if args.auto_disk_finder:
+        #Set default arguments for disk finder
+        args = set_default_disk_finder_arguments(args)
 
     trident_dict = { 'HI':'H I', 'CII':'C II','CIII':'C III',
                 'CIV':'C IV','OVI':'O VI','SiII':'Si II','SiIII':'Si III','SiIV':'Si IV','MgII':'Mg II'}
@@ -1054,10 +1059,96 @@ def clump_finder(args,ds,cut_region):
 
     return master_clump
 
+def disk_finder(ds,cut_region,output=None,return_output_filename=False, args=None):
+    '''
+    Modular implementation for running the clump finder.
+
+    See ModularUseExample.ipynb for usage examples.
+
+    Arguments are:
+        args: Generate the defaults using get_default_args() in clump_finder_argparser.py
+              and modify accordingly
+        ds: The yt dataset
+        cut_region: the cut region you want to run the clump finder on.
+    '''
+    t0 = time.time()
+
+    if args is None:
+        args= set_default_disk_finder_arguments()
+    if output is not None:
+        args.output = output
+
+
+    num_cores = multiprocessing.cpu_count()-1
+    if args.nthreads is None or args.nthreads>num_cores:
+        args.nthreads = num_cores
+
+    if args.auto_disk_finder:
+        #Set default arguments for disk finder
+        args = set_default_disk_finder_arguments(args)
+
+    trident_dict = { 'HI':'H I', 'CII':'C II','CIII':'C III',
+                'CIV':'C IV','OVI':'O VI','SiII':'Si II','SiIII':'Si III','SiIV':'Si IV','MgII':'Mg II'}
+
+    ions_number_density_dict = {'Lyalpha':'LyAlpha', 'HI':'H_p0_number_density', 'CII':'C_p1_number_density', 'CIII':'C_p2_number_density',
+                              'CIV':'C_p3_number_density','OVI':'O_p5_number_density','SiII':'Si_p1_number_density','SiIII':'Si_p2_number_density',
+                                 'SiIV':'Si_p3_number_density','MgII':'Mg_p1_number_density'}
+    
+    field_dict = {v: k for k, v in ions_number_density_dict.items()}
+
+    if args.clumping_field in trident_dict:
+        import trident
+        trident.add_ion_fields(ds, ions=[trident_dict[args.clumping_field]])
+        args.clumping_field =ions_number_density_dict[args.clumping_field]
+    elif args.clumping_field in field_dict:
+        import trident
+        trident.add_ion_fields(ds, ions=[trident_dict[field_dict[args.clumping_field]]])
+
+    if args.clumping_field_type is not None:
+        args.clumping_field = (args.clumping_field_type , args.clumping_field)
+
+
+    if args.refinement_level is None:
+        args.refinement_level = np.max(cut_region['index','grid_level'])
+
+    if args.system is not None:
+        from foggie.utils.get_run_loc_etc import get_run_loc_etc
+        args.data_dir, output_dir_default, run_loc, args.code_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+
+    else:
+        if args.code_dir is None:
+            args.code_dir = '/Users/ctrapp/Documents/GitHub/foggie/foggie/'
+
+    
+        if args.data_dir is None:
+            args.data_dir = '/Volumes/FoggieCam/foggie_halos/'
+
+    add_cell_id_field(ds)
+    global cell_id_field
+    cell_id_field = ('index','cell_id_2')
+
+
+
+
+    master_clump = identify_clump_hierarchy(ds,cut_region,args)
+
+    ''' Report on some timing info '''
+    print("For",args.nthreads,"threads total time=",time.time()-t0)
+
+    if return_output_filename:
+        disk_output = output + "_Disk.h5"
+        return master_clump, disk_output
+    return master_clump
+
+
 
 ### Implementation if ran directly ####
 if __name__ == "__main__":
     args = parse_args()
+
+    if args.auto_disk_finder:
+        #Set default arguments for disk finder
+        args = set_default_disk_finder_arguments(args)
 
     t0 = time.time()
 
@@ -1087,8 +1178,8 @@ if __name__ == "__main__":
     nref = args.run #nref11c_nref9f
 
     snap_name = args.data_dir + "halo_"+halo_id+"/"+nref+"/"+snapshot+"/"+snapshot
-    trackname = args.code_dir+"halo_tracks/"+halo_id+"/nref11n_selfshield_15/halo_track_200kpc_nref9"
-    halo_c_v_name = args.code_dir+"halo_infos/"+halo_id+"/"+nref+"/halo_c_v"
+    trackname = args.code_dir + "halo_tracks/"+halo_id+"/nref11n_selfshield_15/halo_track_200kpc_nref9"
+    halo_c_v_name = args.code_dir + "halo_infos/"+halo_id+"/"+nref+"/halo_c_v"
 
     #particle_type_for_angmom = 'young_stars' ##Currently the default
     particle_type_for_angmom = 'gas' #Should be defined by gas with Temps below 1e4 K
@@ -1118,10 +1209,10 @@ if __name__ == "__main__":
         args.refinement_level = np.max(cut_region['index','grid_level'])
 
     master_clump = identify_clump_hierarchy(ds,cut_region,args)
-#if master_clump is None:
-    #print("Done!")
-#else:
-   # master_clump.SaveClumps(args)
+    #if master_clump is None:
+        #print("Done!")
+    #else:
+        #master_clump.SaveClumps(args)
 
     print("Done!")
 

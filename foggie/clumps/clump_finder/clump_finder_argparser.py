@@ -40,7 +40,7 @@ def parse_args():
                         help='By what factor should clump_min be incremented? Default is 2.')
     parser.set_defaults(step=2)
     
-    parser.add_argument('--mask_disk', metavar='mask_disk', type=bool, action='store', \
+    parser.add_argument('--mask_disk', metavar='mask_disk', type=bool, action=argparse.BooleanOptionalAction, \
                         help='Should the disk be masked out? Default is False')
     parser.set_defaults(mask_disk=False)
     
@@ -65,7 +65,7 @@ def parse_args():
                         help='What data type (gas, dm, stars) do you want to read for clumping_field? Default is gas.')
     parser.set_defaults(clumping_field_type="gas")      
     
-    parser.add_argument('--only_save_leaves', metavar='only_save_leaves', type=bool, action='store', \
+    parser.add_argument('--only_save_leaves', metavar='only_save_leaves', type=bool, action=argparse.BooleanOptionalAction, \
                         help='Set to True to only save leaf clumps. Default saves full parent hierarchy.')
     parser.set_defaults(only_save_leaves=False)  
     
@@ -77,13 +77,17 @@ def parse_args():
                         help='Where are the simulation outputs?')
     parser.set_defaults(data_dir=None)  
 
-    parser.add_argument('--include_diagonal_neighbors', metavar='include_diagonal_neighbors', type=bool, action='store', \
+    parser.add_argument('--include_diagonal_neighbors', metavar='include_diagonal_neighbors', type=bool, action=argparse.BooleanOptionalAction, \
                         help='Include neighbors on the diagonal as well. Default is False.')
     parser.set_defaults(include_diagonal_neighbors=False) 
     
-    parser.add_argument('--identify_disk', metavar='identify_disk', type=bool, action='store', \
+    parser.add_argument('--identify_disk', metavar='identify_disk', type=bool, action=argparse.BooleanOptionalAction, \
                         help='Save a clump defining the disk with holes filled. Default is False.')
     parser.set_defaults(identify_disk=False) 
+
+    parser.add_argument('--auto_disk_finder', metavar='auto_disk_finder', type=bool, action=argparse.BooleanOptionalAction, \
+                        help='Run as a disk finder with default variables (clumping on HI). Will overwrite other variables. Default is False.')
+    parser.set_defaults(auto_disk_finder=False) 
     
     parser.add_argument('--cgm_density_cut_type', metavar='cgm_density_cut_type', type=str, action='store', \
                         help='How do you want to define the CGM density cut? Options are ["comoving_density,"relative_density","cassis_cut"]. Default is "relative_density".')
@@ -109,11 +113,11 @@ def parse_args():
                         help='How many closing iterations for filling. Default is 1.')
     parser.set_defaults(closing_iterations=1)
     
-    parser.add_argument('--run_mc_parallel', metavar='run_mc_parallel', type=bool, action='store', \
+    parser.add_argument('--run_mc_parallel', metavar='run_mc_parallel', type=bool, action=argparse.BooleanOptionalAction, \
                         help='Do you want to run the marching cubes algorithm in parallel? Incurs additional computational overhead, but may be faster with a large (>30) number of cores or for large datacubes. Default is False.')
     parser.set_defaults(run_mc_parallel=False) 
 
-    parser.add_argument('--run_mapping_linearly', metavar='run_mapping_linearly', type=bool, action='store', \
+    parser.add_argument('--run_mapping_linearly', metavar='run_mapping_linearly', type=bool, action=argparse.BooleanOptionalAction, \
                         help='Do you want to run the clump to cell id mapping without parallelization? Should generally be slower, but can be done while filling voids and holes. Default is False.')
     parser.set_defaults(run_mapping_linearly=False) 
 
@@ -121,11 +125,11 @@ def parse_args():
                         help='Set the system to get data paths in get_run_loc_etc. Overrides --code_dir and --data_dir. Default is None.')
     parser.set_defaults(system=None) 
 
-    parser.add_argument('--pwd', metavar='pwd', type=bool, action='store', \
+    parser.add_argument('--pwd', metavar='pwd', type=bool, action=argparse.BooleanOptionalAction, \
                         help='Use pwd arguments in get_run_loc_etc. Default is False.')
     parser.set_defaults(pwd=False) 
 
-    parser.add_argument('--forcepath', metavar='forcepath', type=bool, action='store', \
+    parser.add_argument('--forcepath', metavar='forcepath', type=bool, action=argparse.BooleanOptionalAction, \
                         help='Use forcepath in get_run_loc_etc. Default is False.')
     parser.set_defaults(forcepath=False) 
 
@@ -133,7 +137,7 @@ def parse_args():
                         help='Define a spherical cut region of this radius instead of using the full refine box. Default is None.')
     parser.set_defaults(cut_radius=None) 
 
-    parser.add_argument('--skip_saving_clumps', metavar='skip_saving_clumps', type=bool, action='store', \
+    parser.add_argument('--skip_saving_clumps', metavar='skip_saving_clumps', type=bool, action=argparse.BooleanOptionalAction, \
                         help='Set to True to not save the clumps to hdf5 files. Default is False.')
     parser.set_defaults(skip_saving_clumps=False) 
 
@@ -150,12 +154,12 @@ def parse_args():
     parser.set_defaults(disk_criteria="mass")
 
 
-    parser.add_argument('--use_cylindrical_connectivity_matrix', metavar='use_cylindrical_connectivity_matrix', type=bool, action='store', \
+    parser.add_argument('--use_cylindrical_connectivity_matrix', metavar='use_cylindrical_connectivity_matrix', type=bool, action=argparse.BooleanOptionalAction, \
                         help='Use a cylindrical connectivy matrix (instead of spherical/square) for hole filling. Default is False.')
     parser.set_defaults(use_cylindrical_connectivity_matrix=False)
 
         
-    parser.add_argument('--save_clumps_individually', metavar='save_clumps_individually', type=bool, action='store', \
+    parser.add_argument('--save_clumps_individually', metavar='save_clumps_individually', type=bool, action=argparse.BooleanOptionalAction, \
                         help='If True will save each clump as an individual hdf5 file. Default is False.')
     parser.set_defaults(save_clumps_individually=False)
 
@@ -163,7 +167,7 @@ def parse_args():
                         help='What factor to multiply the standard deviation of the density in the disk to set the minimum density for the disk clump. Default is 100.')
     parser.set_defaults(disk_stdv_factor=100.)
 
-    parser.add_argument('--identify_satellites', metavar='identify_satellites', type=bool, action='store', \
+    parser.add_argument('--identify_satellites', metavar='identify_satellites', type=bool, action=argparse.BooleanOptionalAction, \
                         help='If finding the disk, will also save satellite clumps. May save non satellites if the number of satellites is less than args.max_number_of_satellites. Default is False.')
     parser.set_defaults(identify_satellites=False)
 
@@ -202,6 +206,7 @@ def get_default_args():
         data_dir=None,
         include_diagonal_neighbors=False,
         identify_disk=False,
+        auto_disk_finder=False,
         cgm_density_cut_type="relative_density",
         cgm_density_factor=None,
         max_void_size=0,
@@ -224,3 +229,16 @@ def get_default_args():
         identify_satellites=False,
         max_number_of_satellites=10,
     )
+
+def set_default_disk_finder_arguments(args=None):
+    if args is None:
+        args = get_default_args()
+    ### Set default arguments for disk finding ###
+    import numpy as np
+    args.identify_disk = True
+    args.max_disk_void_size = np.round( (5. / 0.274)**3. ).astype(int)
+    args.max_disk_hole_size = int(np.round(7./0.274)) #~36
+    args.closing_iterations = 1
+    args.clumping_field = "H_p0_number_density"
+
+    return args

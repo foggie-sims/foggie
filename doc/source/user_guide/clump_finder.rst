@@ -69,6 +69,7 @@ or as:
 ::
 
     from foggie.clumps.clump_finder.clump_finder import clump_finder
+    from foggie.clumps.clump_finder.clump_finder import disk_finder
     from foggie.clumps.clump_finder.clump_finder_argparser import get_default_args
 
 In order to run the clump finder, you must first load in the default argument structure using get_default_args()
@@ -91,9 +92,23 @@ The clump finder can then be run on any cut region defined in YT. An example for
 
 **Special Uses:**
 
-This algorithm can also be used to identify the main galaxy in a system. To use this functionality, you must set the 
-``--identify_disk`` input argument to True (default is False). The disk is identified as the largest clump above a single density
-threshold. This density threshold can be calculated in a few different ways and is controlled by the following arguments:
+This algorithm can also be used to identify the main galaxy in a system. The easiest way to use this functionality is by setting the
+ ``--auto_disk_finder`` argument. This will run the disk finder with the default arguments used in FOGGIE XII/XIII (Trapp+25a,b).
+This can be run from the command line as:
+::
+    python clump_finder.py --auto_disk_finder --system cameron-local --output ./output/disk_test
+
+or as an importable module as:
+::
+    ds, refine_box = foggie_load(snap_name, trackname, halo_c_v_name=halo_c_v_name,
+                                 do_filter_particles=True, disk_relative=True)
+    disk_finder(ds, refine_box, output)
+
+
+
+
+To modify this default functionality, you can instead set the ``--identify_disk`` input argument. The disk is identified as the largest
+clump above a single density threshold. This density threshold can be calculated in a few different ways and is controlled by the following arguments:
 
 * ``--cgm_density_cut_type``: There are a three different options, "relative_density", "comoving_density", and "cassis_cut".
     * "relative_density" (default) ties the cutoff to the mean density + the standard deviation of the smooth component of the CGM multiplied by ``--cgm_density_factor``.
@@ -120,7 +135,7 @@ shell is.
 An example for running the disk finder with void filling, hole filling, and saving out dilation shells from the command line:
 ::
 
-    python clump_finder.py --refinement_level 11 --identify_disk 1 --max_disk_void_size 2000
+    python clump_finder.py --refinement_level 11 --identify_disk --max_disk_void_size 2000
                            --max_disk_hole_size 26 --n_dilation_iterations 10 --system cameron-local
 
 or as an importable module:
@@ -187,6 +202,7 @@ Parallelization Arguments:
     
 Disk Identification Arguments:
 
+* ``--auto_disk_finder``: Do you want to run the automatic disk finder with default parameters in FOGGIE XII/XIII (Trapp+25a,b)? Will override other disk finding parameters. Default is False.
 * ``--identify_disk``: Run the clump finder as a disk finder instead.
 * ``--cgm_density_cut_type``: When identifying the disk how do you want to define the CGM density cut? Options are comoving_density, relative_density, or cassis_cut. Default is "relative_density".
 * ``--cgm_density_factor``: When identifying the disk, what factor should the cgm_density_cut use. Default is 200 for relative density, 0.2 for comoving density, and 1 for cassis_cut.
