@@ -137,7 +137,7 @@ for snap in range(args.minsnap,args.maxsnap,args.snapstep):
         snapshots.append( "DD"+str(snap).zfill(4) )
 
 data_dir, output_path, run_loc, code_dir,trackname,halo_name,spectra_dir,infofile = get_run_loc_etc(args)
-halo_c_v_name = code_dir+"/halo_infos/"+halo_id+"/"+run+"/halo_c_v"
+halo_c_v_name = code_dir+"/halo_infos/"+halo_id+"/nref11c_nref9f/halo_c_v"
 
 redshifts,times,xc,yc,zc,vxc,vyc,vzc = LoadRedshiftsAndTimes(halo_c_v_name,snapshots)
 clump_mapping = {}

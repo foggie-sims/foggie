@@ -277,9 +277,9 @@ for leaf_id in leaf_clump_ids:
     leaf_z.append(  (np.sum( np.multiply(z[mask], leaf_gas_mass)) / norm ).in_units('kpc').v)
 
 
-    leaf_hi_num_dense.append(  (np.sum( np.multiply(hi_num_dense[mask], leaf_gas_volume)) / vol_norm ).in_units('kpc').v)
-    leaf_mgii_num_dense.append(  (np.sum( np.multiply(mgii_num_dense[mask], leaf_gas_volume)) / vol_norm ).in_units('kpc').v)
-    leaf_ovi_num_dense.append(  (np.sum( np.multiply(ovi_num_dense[mask], leaf_gas_volume)) / vol_norm ).in_units('kpc').v)
+    leaf_hi_num_dense.append(  (np.sum( np.multiply(hi_num_dense[mask], leaf_gas_volume)) / vol_norm ).in_units('cm**-3').v)
+    leaf_mgii_num_dense.append(  (np.sum( np.multiply(mgii_num_dense[mask], leaf_gas_volume)) / vol_norm ).in_units('cm**-3').v)
+    leaf_ovi_num_dense.append(  (np.sum( np.multiply(ovi_num_dense[mask], leaf_gas_volume)) / vol_norm ).in_units('cm**-3').v)
 
     #leaf_hi_num_dense.append(np.sum(hi_num_dense[mask]).in_units('cm**-3').v)
     #leaf_mgii_num_dense.append(np.mean(mgii_num_dense[mask]).in_units('cm**-3').v)
@@ -342,6 +342,9 @@ hf.create_dataset('leaf_hi_num_dense', data=np.array(leaf_hi_num_dense))
 hf.create_dataset('leaf_mgii_num_dense', data=np.array(leaf_mgii_num_dense))
 hf.create_dataset('leaf_ovi_num_dense', data=np.array(leaf_ovi_num_dense))
 hf.create_dataset('leaf_volumes', data=np.array(leaf_volumes))
+hf.create_dataset('leaf_metallicity', data=np.array(leaf_metallicity))
+hf.create_dataset('leaf_pressure', data=np.array(leaf_pressure))
+hf.create_dataset('leaf_temperature', data=np.array(leaf_temperature))
 hf.create_dataset('leaf_masses', data=np.array(leaf_masses))
 hf.create_dataset('leaf_clump_ids', data=np.array(leaf_clump_ids))
 if args.do_tracer_fluids:

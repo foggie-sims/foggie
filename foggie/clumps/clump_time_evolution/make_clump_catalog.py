@@ -96,7 +96,6 @@ def parse_args():
     parser.set_defaults(data_dir=None)
 
 
-
     args = parser.parse_args()
     return args
 
@@ -138,6 +137,7 @@ ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, halo_c_v_name=
 
 cf_args = get_default_args()
 clump_file = args.clump_dir + gal_name
+
 cf_args.output = clump_file
 #cf_args.clump_min = 1.3e-30
 
@@ -146,9 +146,10 @@ if args.clump_min is not None:
 else:
     #cf_args.clump_min = np.min(refine_box['gas','density']).v
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-    cf_args.clump_min = (1.3e-30) * np.power(1+zsnap,3) / 8. #in g/cm^3, comoving
+    if args.clumping_field=="density" or args.clumping_field is None: cf_args.clump_min = (1.3e-30) * np.power(1+zsnap,3) / 8. #in g/cm^3, comoving
 
 print("Clump min set to:",cf_args.clump_min)
 if args.clumping_field is not None:
     cf_args.clumping_field = args.clumping_field
+    cf_args.output = cf_args.output + args.clumping_field
 master_clump = clump_finder(cf_args,ds,refine_box)
