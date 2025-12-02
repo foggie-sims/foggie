@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import yt, argparse 
+import yt
+import argparse
 from yt_astro_analysis.halo_analysis import HaloCatalog, add_quantity
 from foggie.utils.foggie_load import foggie_load
 from foggie.utils.halo_quantity_callbacks import * 
 from astropy.table import QTable
+from foggie.utils.analysis_utils import *
 
 def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile, boxwidth=0.04): 
     """Prepare a small dataset subregion around a halo center for finding.
@@ -152,6 +154,28 @@ def export_to_astropy(simulation_dir, snapname):
     halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.fits', format='fits') 
     halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.txt', format='ascii') 
 
+def parallel_loop_over_halos(snap, args):
+    """Call halo finding steps on the snapshot 'snap'. This function is used for
+    running in parallel, with one output per process.
+    
+    Parameters
+    ----------
+    args: parser.parse_args list
+        command-line arguments for this script
+    snap: str
+        the name of the snapshot
+    
+    Returns
+    -------
+    nothing
+    """
+
+    ds, box = prep_dataset_for_halo_finding(args.directory, snap, args.trackfile, boxwidth=args.boxwidth) 
+    hc = halo_finding_step(ds, box, simulation_dir=args.directory, threshold=args.threshold) 
+    hc = repair_halo_catalog(ds, args.directory, snap, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
+    export_to_astropy(args.directory, snap)
+
+
 if __name__ == "__main__":
 
     """Command-line entrypoint for quick halo finding.
@@ -170,17 +194,41 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--output', metavar='output', type=str, action='store', default=None, required=True, help='Output to run a halo catalog for') 
+    parser.add_argument('--output', metavar='output', type=str, action='store', default=None, required=True, help='Output to run a halo catalog for. Single output or comma-separated list or range like DD0400-DD0500.') 
     parser.add_argument('--directory', metavar='directory', type=str, action='store', default='./', required=False, help='Pathname to simulation directory') 
     parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, required=True, help='Track file for this halo (center of box subregion)')
     parser.add_argument('--boxwidth', metavar='boxwidth', type=float, action='store', default=0.04, required=False, help='Width of subregion box in code units')
     parser.add_argument('--threshold', metavar='threshold', type=float, action='store', default=400., required=False, help='Overdensity thresold for HOP algorithm (default = 400)')
     parser.add_argument('--min_rvir', metavar='min_rvir', type=float, action='store', default=10, required=False, help='Filter halo catalogs to this min Rvir [kpc]')
     parser.add_argument('--min_mass', metavar='min_mass', type=float, action='store', default=1e10, required=False, help='Filter halo catalogs to this min mass [Msun]')
+    parser.add_argument('--nproc', metavar='nproc', type=int, action='store', default=1, required=False, help='Use this many processors to run in parallel (one snapshot per process, default 1')
 
     args = parser.parse_args()
 
-    ds, box = prep_dataset_for_halo_finding('./', args.output, args.trackfile, boxwidth=args.boxwidth) 
-    hc = halo_finding_step(ds, box, simulation_dir='./', threshold=args.threshold) 
-    hc = repair_halo_catalog(ds, './', args.output, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
-    export_to_astropy('./', args.output)
+    if (args.nproc==1):
+        ds, box = prep_dataset_for_halo_finding(args.directory, args.output, args.trackfile, boxwidth=args.boxwidth) 
+        hc = halo_finding_step(ds, box, simulation_dir=args.directory, threshold=args.threshold) 
+        hc = repair_halo_catalog(ds, args.directory, args.output, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
+        export_to_astropy(args.directory, args.output)
+
+    else:
+        import multiprocessing as multi
+        outs = make_output_list(args.output)
+        for i in range(len(outs)//args.nproc):
+            threads = []
+            for j in range(args.nproc):
+                snap = outs[args.nproc*i+j]
+                threads.append(multi.Process(target=parallel_loop_over_halos, args=[snap, args]))
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+        # For any leftover snapshots, run one per processor
+        threads = []
+        for j in range(len(outs)%args.nproc):
+            snap = outs[-(j+1)]
+            threads.append(multi.Process(target=parallel_loop_over_halos, args=[snap, args]))
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
