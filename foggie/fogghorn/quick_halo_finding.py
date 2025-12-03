@@ -157,15 +157,18 @@ def export_to_astropy(simulation_dir, snapname):
 
 def find_root_particles(simulation_dir, ds, hc):
     '''Find and save to file the indices of DM particles within 1Rvir of the
-    most massive halo in the halo catalog hc.'''
+    halo in the catalog hc that is closest to the center of the old track box.
+    Recommend to use the z = 4 snapshot for identifying root particles.'''
 
     halos = hc.all_data()
     halo_mass = halos[('halos','total_mass')].in_units('Msun')
     halo_radius = halos[('halos','corrected_rvir')].in_units('kpc')
     halo_position = halos[('halos','particle_position')].in_units('kpc')
 
-    center = halo_position[halo_mass==np.max(halo_mass)]
-    radius = halo_radius[halo_mass==np.max(halo_mass)].in_units('kpc').v
+    dist_from_old_track = np.sqrt((halo_position[:,0]-ds.halo_center_kpc[0])**2. + (halo_position[:,1]-ds.halo_center_kpc[1])**2. + (halo_position[:,2]-ds.halo_center_kpc[2])**2.)
+
+    center = halo_position[dist_from_old_track==np.min(dist_from_old_track)]
+    radius = halo_radius[dist_from_old_track==np.min(dist_from_old_track)].in_units('kpc').v
 
     sph = ds.sphere(center=center[0], radius=(radius[0], 'kpc'))
     DM_in_sph = sph[('dm','particle_index')].v
