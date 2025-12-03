@@ -7,6 +7,7 @@ from yt_astro_analysis.halo_analysis import HaloCatalog, add_quantity
 from foggie.utils.foggie_load import foggie_load
 from foggie.utils.halo_quantity_callbacks import * 
 from astropy.table import QTable
+from astropy.table import Table
 from foggie.utils.analysis_utils import *
 
 def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile, boxwidth=0.04): 
@@ -154,6 +155,26 @@ def export_to_astropy(simulation_dir, snapname):
     halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.fits', format='fits') 
     halo_table.write(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.txt', format='ascii') 
 
+def find_root_particles(simulation_dir, ds, hc):
+    '''Find and save to file the indices of DM particles within 1Rvir of the
+    most massive halo in the halo catalog hc.'''
+
+    halos = hc.all_data()
+    halo_mass = halos[('halos','total_mass')].in_units('Msun')
+    halo_radius = halos[('halos','corrected_rvir')].in_units('kpc')
+    halo_position = halos[('halos','particle_position')].in_units('kpc')
+
+    center = halo_position[halo_mass==np.max(halo_mass)]
+    radius = halo_radius[halo_mass==np.max(halo_mass)].in_units('kpc').v
+
+    sph = ds.sphere(center=center[0], radius=(radius[0], 'kpc'))
+    DM_in_sph = sph[('dm','particle_index')].v
+
+    a = Table() 
+    a['root_index'] = DM_in_sph
+    a.write(simulation_dir + '/halo_catalogs/root_index.txt', format='ascii', overwrite=True)
+
+
 def parallel_loop_over_halos(snap, args):
     """Call halo finding steps on the snapshot 'snap'. This function is used for
     running in parallel, with one output per process.
@@ -202,6 +223,7 @@ if __name__ == "__main__":
     parser.add_argument('--min_rvir', metavar='min_rvir', type=float, action='store', default=10, required=False, help='Filter halo catalogs to this min Rvir [kpc]')
     parser.add_argument('--min_mass', metavar='min_mass', type=float, action='store', default=1e10, required=False, help='Filter halo catalogs to this min mass [Msun]')
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', default=1, required=False, help='Use this many processors to run in parallel (one snapshot per process, default 1')
+    parser.add_argument('--save_root', dest='save_root', action='store_true', default=False, required=False, help='After finding halos, save to file the particle indices in most massive halo? Default False')
 
     args = parser.parse_args()
 
@@ -210,6 +232,9 @@ if __name__ == "__main__":
         hc = halo_finding_step(ds, box, simulation_dir=args.directory, threshold=args.threshold) 
         hc = repair_halo_catalog(ds, args.directory, args.output, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
         export_to_astropy(args.directory, args.output)
+        if (args.save_root):
+            hc = yt.load(args.directory+'/halo_catalogs/'+args.output+'/'+args.output+'.0.h5')
+            find_root_particles(args.directory, ds, hc)
 
     else:
         import multiprocessing as multi
