@@ -77,6 +77,8 @@ def parse_args():
     #parser.add_argument('--all_metal_plots', dest='all_metal_plots', action='store_true', default=False, help='Make all resolved metallicity plots? Default is no.') # Not ready yet
     parser.add_argument('--all_time_evol_plots', dest='all_time_evol_plots', action='store_true', default=False, help='Make all time-evolving central galaxy properties plots? Default is no.')
     parser.add_argument('--all_highz_halos_plots', dest='all_highz_halos_plots', action='store_true', default=False, help='Make all plots with all high-z halos on each plot (no central)? Default is no.')
+    parser.add_argument('--all_shade_maps', dest='all_shade_maps', action='store_true', default=False, help='Make all shade maps plots? Default is no.')
+    parser.add_argument('--all_diagnosis_plots', dest='all_diagnosis_plots', action='store_true', default=False, help='Make all diagnosis plots? Default is no.')
     # This argument is for specifying which individual plots you want to make
     parser.add_argument('--make_plots', metavar='make_plots', type=str, action='store', default='', help='Which plots to make? Comma-separated names of the plotting routines to call. Default is none.')
 
@@ -87,7 +89,9 @@ def parse_args():
 
     # ------- wrap up and processing args ------------------------------
     ###### IF YOU ADD A PLOT STEP 5: Add the function name as a string to this plots_needing_projection list ######
-    plots_needing_projection = ['gas_density_projection', 'young_stars_density_projection', 'KS_relation', 'gas_metallicity_projection', 'edge_projection', 'edge_slice']
+    plots_needing_projection = ['gas_density_projection', 'gas_temperature_projection', 'gas_h1_projection', 'gas_h2_projection', 'gas_mg2_projection', 
+                                'gas_o6_projection', 'young_stars_density_projection', 'KS_relation', 'gas_metallicity_projection', 
+                                'edge_projection', 'edge_slice']
     args = parser.parse_args()
     args.projection_arr = [item for item in args.projection.split(',')]
     if (args.make_plots!=''):
@@ -183,6 +187,8 @@ def which_plots_asked_for(args):
         #if args.all_metal_plots: plots_asked_for += args.metal_plots
         if args.all_highz_halos_plots: plots_asked_for += args.highz_halos_plots
         if args.all_time_evol_plots: plots_asked_for += args.time_evol_plots
+        if args.all_shade_maps: plots_asked_for += args.shade_maps
+        if args.all_diagnosis_plots: plots_asked_for += args.diagnosis_plots
 
     plots_asked_for = np.unique(plots_asked_for)
     print(plots_asked_for)
@@ -213,6 +219,21 @@ def generate_plot_filename(quantity, args, snap):
                             'gas_density_projection_x': snap + '_Projection_density_x.png', \
                             'gas_density_projection_y': snap + '_Projection_density_y.png', \
                             'gas_density_projection_z': snap + '_Projection_density_z.png', \
+                            'gas_temperature_projection_x': snap + '_Projection_temperature_x.png', \
+                            'gas_temperature_projection_y': snap + '_Projection_temperature_y.png', \
+                            'gas_temperature_projection_z': snap + '_Projection_temperature_z.png', \
+                            'gas_h1_projection_x': snap + '_Projection_HI_x.png', \
+                            'gas_h1_projection_y': snap + '_Projection_HI_y.png', \
+                            'gas_h1_projection_z': snap + '_Projection_HI_z.png', \
+                            'gas_mg2_projection_x': snap + '_Projection_Mg2_x.png', \
+                            'gas_mg2_projection_y': snap + '_Projection_Mg2_y.png', \
+                            'gas_mg2_projection_z': snap + '_Projection_Mg2_z.png', \
+                            'gas_o6_projection_x': snap + '_Projection_O6_x.png', \
+                            'gas_o6_projection_y': snap + '_Projection_O6_y.png', \
+                            'gas_o6_projection_z': snap + '_Projection_O6_z.png', \
+                            'gas_H2_projection_x': snap + '_Projection_H2_x.png', \
+                            'gas_H2_projection_y': snap + '_Projection_H2_y.png', \
+                            'gas_H2_projection_z': snap + '_Projection_H2_z.png', \
                             'gas_density_projection_x_disk': snap + '_Projection_density_x-disk.png', \
                             'gas_density_projection_y_disk': snap + '_Projection_density_y-disk.png', \
                             'gas_density_projection_z_disk': snap + '_Projection_density_z-disk.png', \
@@ -231,7 +252,6 @@ def generate_plot_filename(quantity, args, snap):
                             'gas_metallicity_radial_profile': snap + '_gas_metallicity_radial_profile' + args.upto_text + args.density_cut_text + '.png', \
                             'den_temp_phase': snap + '_density_temperature_phase_plot' + args.upto_text +'.png', \
                             'rad_vel_temp_colored': snap + '_radial-velocity_temperature.png', \
-                            'halos_density_projection': snap + '_halos_density_projection.png', \
                             'halos_SFMS': snap + '_halos_SFMS.png', \
                             'halos_SMHM': snap + '_halos_SMHM.png', \
                             'halos_MZR': snap + '_halos_MZR.png', \
@@ -242,7 +262,9 @@ def generate_plot_filename(quantity, args, snap):
                             'baryon_budget': snap + '_baryon_budget.png', \
                             'plot_SFMS': 'SFMS.png', \
                             'plot_SMHM': 'SMHM.png', \
-                            'plot_MZR': 'MZR.png'}
+                            'plot_MZR': 'MZR.png', \
+                            'phase_shade': snap + '_shade', \
+                            'diagnosis_plots': snap + '_diagnosis_plots.png'}
 
     output_filename = args.save_directory + '/' + output_filename_dict[quantity]
     return output_filename
@@ -320,8 +342,7 @@ if __name__ == "__main__":
         args.sf_plots.append('gas_density_projection_' + p)
         args.sf_plots.append('young_stars_density_projection_' + p)
         args.sf_plots.append('KS_relation_' + p)
-        args.vis_plots.append('gas_density_projection_' + p)
-        args.vis_plots.append('gas_metallicity_projection_' + p)
+        args.vis_plots.extend(['gas_density_projection_' + p, 'gas_temperature_projection_' + p, 'gas_h1_projection_' + p, 'gas_mg2_projection_' + p, 'gas_o6_projection_' + p, 'gas_H2_projection_' + p, 'gas_metallicity_projection_' + p])
         if ('disk' in p):
             args.disk_rel = True
     args.edge_plots = ['edge_projection_x_disk', 'edge_slice_x_disk', 'edge_projection_y_disk', 'edge_slice_y_disk']
@@ -332,11 +353,17 @@ if __name__ == "__main__":
     # yt's HOP halo finder to be run (each will check if the halo catalog already exists).
     # It is not recommended to run these on snapshots lower than z = 2 because the halo finder
     # doesn't work well at low redshifts:
-    args.highz_halos_plots = ['halos_density_projection','halos_SMHM','halos_SFMS','halos_MZR','halos_gasMHM', 'halos_ismMHM', 'halos_cgmMHM', 'baryon_budget', 'halos_h2_frac']
+    args.highz_halos_plots = ['halos_SMHM','halos_SFMS','halos_MZR','halos_gasMHM', 'halos_ismMHM', 'halos_cgmMHM', 'baryon_budget', 'halos_h2_frac']
 
     # These plots add a line to the central_galaxy_info.txt table for each snapshot, then make
     # ONE plot at the end containing data from every snapshot:
     args.time_evol_plots = ['plot_SFMS', 'plot_SMHM'] #, 'plot_MZR'] plot_MZR isn't ready yet
+
+    # These plots are datashader-style maps of physical quantities from earlier papers 
+    args.shade_maps = ['phase_shade'] 
+
+    # These plots show various quantities for a zoom/halo snapshot such as star particle mass vs. time, from Diagnosis scripts
+    args.diagnosis_plots = ['diagnosis_plots'] 
 
     # ------------------ Figure out directory and outputs -------------------------------------
     if args.save_directory is None:

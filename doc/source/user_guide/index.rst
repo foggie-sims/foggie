@@ -20,6 +20,8 @@ analysis codes within the repo.
    clump_finder.rst
    emission_maps.rst
    analysis_scripts.rst
+   quick_halo_finding.rst
+
 
 
 User Guide - New Sims

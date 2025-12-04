@@ -9,6 +9,7 @@ are designed to be used with yt's halo catalog analysis framework.
 
 Functions include:
     - halo_total_mass: Total mass (gas + stars + dark matter).
+    - halo_overdensity: Overdensity of the halo relative to cosmic mean density.
     - halo_average_temperature: Mass-weighted average gas temperature.
     - halo_average_metallicity: Mass-weighted average gas metallicity.
     - halo_max_metallicity: Maximum gas metallicity (normalized to solar).
@@ -16,7 +17,11 @@ Functions include:
     - halo_max_dm_density: Maximum dark matter density.
     - halo_total_gas_mass: Total gas mass.
     - halo_ism_gas_mass: Total ISM gas mass (using ISM filter).
+    - halo_ism_HI_mass: Total HI (atomic hydrogen) mass in ISM.
+    - halo_ism_HII_mass: Total HII (ionized hydrogen) mass in ISM.
+    - halo_ism_H2_mass: Total H2 (molecular hydrogen) mass in ISM.
     - halo_cgm_gas_mass: Total CGM gas mass (using CGM filter).
+    - halo_cold_cgm_gas_mass: Total cold CGM gas mass (T=100–1.5e4 K).
     - halo_cool_cgm_gas_mass: Total cool CGM gas mass (T=1.5e4–1e5 K).
     - halo_warm_cgm_gas_mass: Total warm CGM gas mass (T=1e5–1e6 K).
     - halo_hot_cgm_gas_mass: Total hot CGM gas mass (T=1e6–1e8 K).
@@ -27,6 +32,8 @@ Functions include:
     - halo_total_young_stars8_mass: Total mass in young stars (<10^8 yr).
     - halo_sfr8: Star formation rate from young stars (<10^8 yr).
     - halo_average_fH2: Mass-weighted average molecular hydrogen fraction.
+    - halo_actual_baryon_fraction: Actual baryon fraction (gas + stars) relative to total mass.
+    - halo_corrected_rvir: Corrected virial radius calculated to a fixed overdensity (200).
 
 If the halo's data object is None (e.g., for very small halos), each function 
 returns a zero-valued yt quantity with appropriate units.
@@ -40,6 +47,7 @@ import yt
 from foggie.utils.consistency import * 
 from foggie.utils import foggie_utils as futils
 import astropy.units as u
+import numpy as np 
 
 
 def halo_total_mass(halo, correct=True): 
@@ -156,6 +164,51 @@ def halo_ism_gas_mass(halo, correct=True):
     sphere = sphere.cut_region([ism_field_filter_z(halo.halo_catalog.data_ds.current_redshift)]) #ism field filter is defined in consistency.py
 
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
+
+def halo_ism_HI_mass(halo, correct=True): 
+    if (correct): 
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+    else:
+        sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "Msun")
+
+    sphere = sphere.cut_region([ism_field_filter_z(halo.halo_catalog.data_ds.current_redshift)]) #ism field filter is defined in consistency.py
+
+    h1_cell_mass = np.sum(sphere[('enzo', 'HI_Density')] * sphere['cell_volume']) 
+
+    return h1_cell_mass 
+
+def halo_ism_HII_mass(halo, correct=True): 
+    if (correct): 
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+    else:
+        sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "Msun")
+
+    sphere = sphere.cut_region([ism_field_filter_z(halo.halo_catalog.data_ds.current_redshift)]) #ism field filter is defined in consistency.py
+
+    hii_cell_mass = np.sum(sphere[('enzo', 'HII_Density')] * sphere['cell_volume']) 
+
+    return hii_cell_mass 
+
+def halo_ism_H2_mass(halo, correct=True): 
+    if (correct): 
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+    else:
+        sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
+
+    if sphere is None:
+        return halo.halo_catalog.data_ds.quan(0, "Msun")
+
+    sphere = sphere.cut_region([ism_field_filter_z(halo.halo_catalog.data_ds.current_redshift)]) #ism field filter is defined in consistency.py
+
+    h2_cell_mass = np.sum(sphere[('enzo', 'H2I_Density')] * sphere['cell_volume']) 
+
+    return h2_cell_mass 
 
 def halo_cgm_gas_mass(halo, correct=True): 
     if (correct): 

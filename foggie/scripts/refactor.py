@@ -306,14 +306,6 @@ def shades(ds_name):
     sm.simple_plot(ds_name,TRACKFILE,('gas', 'radius_corrected'),('gas', 'H_p0_column_density'), 'phase', ((0,250), (8,14)), 'outputs/radius/NHI/'+ds_name[-6:]+'_radius_NHI_phase_cgm_fOVI', \
 					region='cgm') 
 
-#def lum(ds_name, axis, width, prefix):
-    # removed - see original frame.py to bring it back 
-
-# def disk(ds_name, axis, width, prefix, region): 
-   # removed - see original frame.py to bring it back 
-
-# def zfilter(ds_name, axis, width, prefix, region): 
-   # removed - see original frame.py to bring it back 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--snap_number', type=int, required=True)

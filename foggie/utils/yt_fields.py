@@ -380,6 +380,18 @@ def tangential_kinetic_energy(field, data):
     units of km/s, to be defined. -Cassi"""
     return 0.5 * data['gas','cell_mass'] * data['gas','tangential_velocity_corrected']**2.
 
+def x_kpc(field, data):
+    """Returns the x positions of gas cells kpc. -JT"""
+    return data[('gas','x')].in_units('kpc') - data.ds.halo_center_kpc[0]
+
+def y_kpc(field, data):
+    """Returns the y positions of gas cells kpc. -JT"""
+    return data[('gas','y')].in_units('kpc') - data.ds.halo_center_kpc[1]
+
+def z_kpc(field, data):
+    """Returns the z positions of gas cells kpc. -JT"""
+    return data[('gas','z')].in_units('kpc') - data.ds.halo_center_kpc[2]
+
 def get_cell_ids(field, data): 
     """Assigns each cell a unique integer ID for indexing and tracking. -JT"""
     return np.arange(np.size(data[('gas', 'density')]), dtype=np.int_)

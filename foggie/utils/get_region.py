@@ -1,5 +1,5 @@
 
-from foggie.utils.consistency import cgm_inner_radius, cgm_outer_radius, cgm_field_filter, ism_field_filter
+from foggie.utils.consistency import cgm_inner_radius, cgm_outer_radius, cgm_field_filter, ism_field_filter, cgm_field_filter_z
 import numpy as np 
 from unyt import unyt_array
 
@@ -43,6 +43,14 @@ def get_region(data_set, region, filter='None', sphere_size=25., left_corner=[0,
             all_data = cgm.cut_region(cgm_field_filter)   #<---- cgm_field_filter is from consistency.py 
         else: 
             all_data = cgm.cut_region(filter) 
+    elif region == 'cgm_z': 
+        print("get_region: your region is the z-dependent CGM as determined by consistency, center = ", data_set.halo_center_code)
+        print("get_region: This will be the trackbox with a cut region applied from cgm_field_filter_z in consistency") 
+        print("get_region: the filter will be: ", filter)
+        if (filter == 'None'): 
+            all_data = refine_box.cut_region(cgm_field_filter_z(data_set.current_redshift))   #<---- cgm_field_filter_z is from consistency.py 
+        else: 
+            all_data = refine_box.cut_region(cgm_field_filter_z(data_set.current_redshift)) 
     elif region == 'ism': 
         print("get_region: your region is the ISM as determined by consistency, center = ", data_set.halo_center_code)
         print("get_region: the filter will be: ", filter)

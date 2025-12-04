@@ -12,6 +12,7 @@ from foggie.utils.yt_fields import *
 from foggie.utils.foggie_utils import filter_particles
 import foggie.utils as futils
 import foggie.utils.get_refine_box as grb
+from datetime import datetime
 
 def load_sim(args, **kwargs):
     '''Loads the specified simulation dataset, where the required arguments are:
@@ -119,13 +120,30 @@ def get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_styl
 
 def get_center_from_calculated(ds, refine_box_center, proper_box_size):
     """This function is a helper function to calculate the halo center.
-    It is used in foggie_load() to determine the halo center."""
+    It uses get_halo_center to set the center as the density peak of the dark matter
+    in a 50 kpc sphere. The track-defined refine_box_center is used as the initial guess"""
     halo_center, halo_velocity = get_halo_center(ds, refine_box_center)
     # Define the halo center in kpc and the halo velocity in km/s
     halo_center_kpc = ds.arr(np.array(halo_center)*proper_box_size, 'kpc')
     sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
     bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
     ds.halo_center_code = ds.arr(np.array(halo_center), 'code_length')
+    ds.halo_center_kpc = halo_center_kpc
+    ds.halo_velocity_kms = bulk_vel
+
+    return ds
+
+def get_center_from_track(ds, refine_box_center, proper_box_size):
+    """This function is a helper function to obtain the halo center.
+    It adopts the center from the without checking or modifying it.  
+    The refine box center is by definition the center given in the track file. 
+    The halo velocity is calculated as the bulk velocity within 3 kpc of that center."""
+    
+    # Define the halo center in kpc and the halo velocity in km/s
+    halo_center_kpc = ds.arr(np.array(refine_box_center)*proper_box_size, 'kpc')
+    sp = ds.sphere(halo_center_kpc, (3., 'kpc'))
+    bulk_vel = sp.quantities.bulk_velocity(use_gas=False,use_particles=True,particle_type='all').to('km/s')
+    ds.halo_center_code = ds.arr(np.array(halo_center_kpc/proper_box_size), 'code_length')
     ds.halo_center_kpc = halo_center_kpc
     ds.halo_velocity_kms = bulk_vel
 
@@ -155,12 +173,13 @@ def foggie_load(snap, **kwargs):
     proper_box_size = get_proper_box_size(ds) # get the proper size of the computational domain (NOT the refine region) 
     ds.omega_baryon = ds.parameters['CosmologyOmegaMatterNow']-ds.parameters['CosmologyOmegaDarkMatterNow']
     ds.halo_center_code = [np.nan, np.nan, np.nan] # this is the default halo_center_code until its overwritten by center-finding 
-    ds.halo_velocity_kms = [np.nan, np.nan, np.nan] # this is the default halo_center_code until its overwritten by center-finding 
+    ds.halo_velocity_kms = [np.nan, np.nan, np.nan] # this is the default halo_velocity_kms until its overwritten by center-finding 
     refine_box = ds.r[0:1, 0:1, 0:1] # this is the default refine_box 
 
     if ('trackfile_name' in kwargs) and (kwargs['trackfile_name'] != ''):
         track = Table.read(trackfile_name, format='ascii') # read the track file
         track.sort('col1')
+        print('FOGGIE_LOAD: Read track file:', trackfile_name)
 
         refine_box, refine_box_center, refine_width_code = grb.get_refine_box(ds, zsnap, track)
         refine_width = refine_width_code * proper_box_size
@@ -211,17 +230,24 @@ def foggie_load(snap, **kwargs):
             ds.refine_width = refine_width
     else: 
         if ('halo_center' in kwargs):
-            print("we will calculate the center using the input guess")
+            print("FOGGIE_LOAD: we will calculate the center using the input guess")
             get_center_from_calculated(ds, halo_center, proper_box_size)
             refine_box = ad
     
     
+    ds.current_datetime = datetime.now() # add to the dataset the time that we opened it
+    ds.snapname = snap[-6:]
     # Note that if you want to use the ('gas', 'baryon_overdensity') field, you must include this line after you've defined some data object from ds:
     # > obj.set_field_parameter('omega_baryon', ds.omega_baryon)
     # foggie_load returns a 'region' data object given by the 'region' keyword, and the 'omega_baryon' parameter is already set for that.
 
-    if (np.isnan(ds.halo_velocity_kms).any() == False):  # we will only add these velocity and energy fields if there is a meaningful halo bulk velocity 
-        print('ds.halo_velocity_kms = ', ds.halo_velocity_kms, ' so we can add the centered velocity and energy fields') 
+    #create fields for gas cell coordinates in kpc
+    ds.add_field(('gas', 'x_kpc'), function=x_kpc, sampling_type='cell', units='kpc')
+    ds.add_field(('gas', 'y_kpc'), function=y_kpc, sampling_type='cell', units='kpc')
+    ds.add_field(('gas', 'z_kpc'), function=z_kpc, sampling_type='cell', units='kpc')
+
+    if (np.isnan(ds.halo_velocity_kms).any() == False):  # we will only add these velocity and energy fields if there is a meaningful halo bulk velocity
+        print('ds.halo_velocity_kms = ', ds.halo_velocity_kms, ' so we can add the centered velocity and energy fields')
         ds.add_field(('gas','vx_corrected'), function=vx_corrected, units='km/s', take_log=False, \
                      sampling_type='cell')
         ds.add_field(('gas', 'vy_corrected'), function=vy_corrected, units='km/s', take_log=False, \

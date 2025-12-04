@@ -5,7 +5,8 @@ import astropy.units as u
 from datashader.mpl_ext import dsshow, alpha_colormap
 import datashader as ds
 
-starlogfiles = glob.glob('starlog*txt') 
+starlogfiles = glob.glob('starlog*0.txt') 
+print(starlogfiles) 
 
 def prep_file(file): 
     os.system('grep SMInput ' + file + ' > ' + file[0:17] + 'input') 
@@ -59,8 +60,9 @@ def prep_file(file):
 
 a = QTable()
 for file in starlogfiles: 
-    print('file ', file) 
+    print('file: ', file) 
     input, math, out, t = prep_file(file) 
+    print('stacked file: ', file) 
     a = vstack([a, t]) 
 
 a.write('starlog.ascii', format='ascii') 
