@@ -23,9 +23,12 @@ axes_label_dict = {'density': 'log Density [g / cm$^3$]',
                     'temperature': 'log Temperature [K]',
                     'cell_mass': r'log Cell Mass [M$_{\odot}$]',
                     'cell_size': 'Cell Size [physical pc]',
-                    'x': '$x$ coordinate [physical kpc]',
-                    'y': '$y$ coordinate [physical kpc]',
-                    'z': '$z$ coordinate [physical kpc]',
+                    'x': 'x coordinate [physical kpc]',
+                    'y': 'y coordinate [physical kpc]',
+                    'z': 'z coordinate [physical kpc]',
+                    'x_kpc': 'x coordinate [physical kpc]',
+                    'y_kpc': 'y coordinate [physical kpc]',
+                    'z_kpc': 'z coordinate [physical kpc]',
                     'col_dens': 'Column Density [cm$^{-2}$]',
                     'position_x': '$x$ coordinate [physical kpc]',
                     'position_y': '$y$ coordinate [physical kpc]',
@@ -194,6 +197,7 @@ linelist_short = ['H I 1216', 'Si II 1260', 'O VI 1032']
 ################################## min/max values to be used in other code
 
 cgm_temperature_min = 1.5e4  #<---- in some FOGGIE codes this will be used to set a min
+cgm_temperature_max = 1.e8  #<---- in some FOGGIE codes this will be used to set a min
 cgm_density_max = 2e-26
 cgm_inner_radius = 10.
 cgm_outer_radius = 200.
@@ -202,27 +206,25 @@ cgm_outer_radius = 200.
 cgm_field_filter = ("(obj['temperature'] > {} ) | (obj['density'] < {})").format(cgm_temperature_min, cgm_density_max)
 ism_field_filter = ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max)
 
-def cgm_field_filter_z(z, tmin=cgm_temperature_min, tmax=1e8): 
+def cgm_field_filter_z(z, tmin=cgm_temperature_min, tmax=cgm_temperature_max): 
 	return ("((obj['temperature'] > {}) & (obj['temperature'] < {})) & (obj['density'] < {})").format(tmin, tmax, cgm_density_max * (1.+z)**3. )
 
 def ism_field_filter_z(z): 
 	return ("(obj['temperature'] < {} ) & (obj['density'] > {})").format(cgm_temperature_min, cgm_density_max * (1.+z)**3. )
 
-cool_cgm_filter = cgm_field_filter + " & (obj['temperature'] < 1e5)"
-warm_cgm_filter = cgm_field_filter + " & (obj['temperature'] > 1e5)"
 
+# filters below have been deprecated in favor of the functions above - if you need them ask JT 
 
+#cool_cgm_filter = cgm_field_filter + " & (obj['temperature'] < 1e5)"
+#warm_cgm_filter = cgm_field_filter + " & (obj['temperature'] > 1e5)"
 
+#cgm_outflow_filter = "obj[('gas', 'radial_velocity_corrected')] > 150."
+#cool_outflow_filter = "(obj[('gas', 'radial_velocity_corrected')] > 150.) & (obj['temperature'] < 1e5)"
+#warm_outflow_filter = "(obj[('gas', 'radial_velocity_corrected')] > 150.) & (obj['temperature'] > 1e5)"
 
-
-cgm_outflow_filter = "obj[('gas', 'radial_velocity_corrected')] > 150."
-cool_outflow_filter = "(obj[('gas', 'radial_velocity_corrected')] > 150.) & (obj['temperature'] < 1e5)"
-warm_outflow_filter = "(obj[('gas', 'radial_velocity_corrected')] > 150.) & (obj['temperature'] > 1e5)"
-
-cgm_inflow_filter = "obj[('gas', 'radial_velocity_corrected')] < -150."
-cool_inflow_filter = "(obj[('gas', 'radial_velocity_corrected')] < -150.) & (obj['temperature'] < 1e5)"
-warm_inflow_filter = "(obj[('gas', 'radial_velocity_corrected')] < -150.) & (obj['temperature'] > 1e5)"
-
+#cgm_inflow_filter = "obj[('gas', 'radial_velocity_corrected')] < -150."
+#cool_inflow_filter = "(obj[('gas', 'radial_velocity_corrected')] < -150.) & (obj['temperature'] < 1e5)"
+#warm_inflow_filter = "(obj[('gas', 'radial_velocity_corrected')] < -150.) & (obj['temperature'] > 1e5)"
 
 ################################## colormaps and min/max limits
 
@@ -252,8 +254,8 @@ metal_color_map = sns.blend_palette(
 old_metal_color_map = sns.blend_palette(
     ("black", "#984ea3", "#4575b4", "#4daf4a",
      "#ffe34d", "darkorange"), as_cmap=True)
-metal_min = 5.e-3
-metal_max = 3.
+metal_min = 1.e-6
+metal_max = 2.
 metal_density_min = 1.e-5
 metal_density_max = 250.
 
@@ -403,12 +405,7 @@ def categorize_by_fraction(f_ion):
     frac[f_ion > 0.1]  = b'high'  # red
     return frac
 
-# I'm commenting this out because it produces a figure for no reason and doesn't appear to be
-# used by any other files currently in the foggie repo. -Cassi
-#ion_frac_color_key = sns.palplot(sns.blend_palette(("grey","#ff6600"), n_colors=10),size=1.5)
-# Just in case this is needed, this might work instead without producing a figure:
 ion_frac_color_key = sns.blend_palette(("grey","#ff6600"), n_colors=10)
-
 
 ############# temperature
 temp_colors = sns.blend_palette(
@@ -515,43 +512,43 @@ for i in np.arange(np.size(metal_color_labels)):
 metal_labels = new_metals_color_key.keys()
 
 def categorize_by_metals(metal):
-    """ define the temp category strings"""
+    """ define the metal category strings"""
     metal_vals = np.power(10.0, np.linspace(start=np.log10(metal_min),
                                             stop=np.log10(metal_max), num=21))
+    
     # make the highest value really high
     metal_vals[20] = 50. * metal_vals[20]
-    phase = np.chararray(np.size(metal), 6)
+    label = np.chararray(np.size(metal), 6)
     # need to do this by iterating over keys insteard of hard coding indices
-    phase[metal < metal_vals[20]] = b'high4'
-    phase[metal < metal_vals[19]] = b'high3'
-    phase[metal < metal_vals[18]] = b'high2'
-    phase[metal < metal_vals[17]] = b'high1'
-    phase[metal < metal_vals[16]] = b'high'
-    phase[metal < metal_vals[15]] = b'solar3'
-    phase[metal < metal_vals[14]] = b'solar2'
-    phase[metal < metal_vals[13]] = b'solar1'
-    phase[metal < metal_vals[12]] = b'solar'
-    phase[metal < metal_vals[11]] = b'low3'
-    phase[metal < metal_vals[10]] = b'low2'
-    phase[metal < metal_vals[9]] = b'low1'
-    phase[metal < metal_vals[8]] = b'low'
-    phase[metal < metal_vals[7]] = b'poor3'
-    phase[metal < metal_vals[6]] = b'poor2'
-    phase[metal < metal_vals[5]] = b'poor1'
-    phase[metal < metal_vals[4]] = b'poor'
-    phase[metal < metal_vals[3]] = b'free3'
-    phase[metal < metal_vals[2]] = b'free2'
-    phase[metal < metal_vals[1]] = b'free1'
-    phase[metal < metal_vals[0]] = b'free'
-    return phase
+    label[metal < metal_vals[20]] = b'high4'
+    label[metal < metal_vals[19]] = b'high3'
+    label[metal < metal_vals[18]] = b'high2'
+    label[metal < metal_vals[17]] = b'high1'
+    label[metal < metal_vals[16]] = b'high'
+    label[metal < metal_vals[15]] = b'solar3'
+    label[metal < metal_vals[14]] = b'solar2'
+    label[metal < metal_vals[13]] = b'solar1'
+    label[metal < metal_vals[12]] = b'solar'
+    label[metal < metal_vals[11]] = b'low3'
+    label[metal < metal_vals[10]] = b'low2'
+    label[metal < metal_vals[9]] = b'low1'
+    label[metal < metal_vals[8]] = b'low'
+    label[metal < metal_vals[7]] = b'poor3'
+    label[metal < metal_vals[6]] = b'poor2'
+    label[metal < metal_vals[5]] = b'poor1'
+    label[metal < metal_vals[4]] = b'poor'
+    label[metal < metal_vals[3]] = b'free3'
+    label[metal < metal_vals[2]] = b'free2'
+    label[metal < metal_vals[1]] = b'free1'
+    label[metal < metal_vals[0]] = b'free'
+    return label
 
 def categorize_by_log_metals(metal):
     """ define the metallicity category strings in log space;
     this is basically identical to categorize_by_metals() except: he first line where metal_vals is declared in log space instead of linear space AND
     added by Ayan on 16th July, 2021
     """
-    metal_vals = np.linspace(start=np.log10(metal_min),
-                                            stop=np.log10(metal_max), num=21)
+    metal_vals = np.linspace(start=np.log10(metal_min), stop=np.log10(metal_max), num=21)
     # make the highest value really high
     metal_vals[20] = 50. * metal_vals[20]
     phase = np.chararray(np.size(metal), 6)
@@ -1075,7 +1072,7 @@ def categorize_by_o7(no7):
 #############################################################
 
 
-##################################### more dictionaries that depend on other stuf
+##################################### more dictionaries that depend on other stuff
 colormap_dict = {'phase': new_phase_color_key,
                  'metal': new_metals_color_key,
                  'h1': hi_color_key,

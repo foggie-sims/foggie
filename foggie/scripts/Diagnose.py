@@ -29,80 +29,19 @@ def diagnosis_plots(snapname, halo_id, track_type, width):
     print('We have selected track: ') 
     print(TRACKNAME) 
 
-
     root_filename = '/nobackupnfs1/jtumlins/foggie/foggie/halo_tracks/'+halo_id+'/root_tracks/halo_'+halo_id+'_root_index.txt' 
     ds, region = foggie_load(snapname, TRACKNAME, halo_c_v_name=root_filename) 
     ad = ds.all_data()
 
     trident.add_ion_fields(ds, ions=['H I','C II', 'C III', 'C IV', 'O I', 'O II', 'O III', 'O IV', 'O V', 'O VI', 'O VII', 'O VIII', 'Mg II'])
 
-
-    halo_center_code = ds.halo_center_code 
-    print('halo_center_code = ', halo_center_code) 
-    region = ds.r[ (halo_center_code.value[0]-0.02):(halo_center_code.value[0]+0.02), 
-                       (halo_center_code.value[1]-0.02):(halo_center_code.value[1]+0.02), 
-                       (halo_center_code.value[2]-0.02):(halo_center_code.value[2]+0.02)]
+    region = ds.r[ (ds.halo_center_code.value[0]-0.02):(ds.halo_center_code.value[0]+0.02), 
+                       (ds.halo_center_code.value[1]-0.02):(ds.halo_center_code.value[1]+0.02), 
+                       (ds.halo_center_code.value[2]-0.02):(ds.halo_center_code.value[2]+0.02)]
 
     run_name = (os.getcwd()).split("/")[-1]
 
-    for axis in ['x', 'y', 'z']: 
-        p = yt.ProjectionPlot(ds, axis, 'density', center=halo_center_code, data_source=region, width=(width, 'kpc'), weight_field='density') 
-        p.set_cmap('density', density_color_map)
-        p.annotate_timestamp(redshift=True)
-        p.set_zlim('density', 1e-31, 1e-21) 
-        p.annotate_title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
-        p.save() 
-
-        p = yt.ProjectionPlot(ds, axis, ('gas', 'vel_mag_corrected'), weight_field='density', data_source=region, center=halo_center_code, width=(width, 'kpc'))
-        p.annotate_timestamp(redshift=True)
-        p.set_zlim(('gas', 'vel_mag_corrected'), 0,500)
-        p.save()
-
-        p = yt.ProjectionPlot(ds, axis, ('gas', 'vel_mag_corrected'), method='max', data_source=region, center=halo_center_code, width=(width, 'kpc'))
-        p.annotate_timestamp(redshift=True)
-        p.set_zlim(('gas', 'vel_mag_corrected'), 0, 3000)
-        p.save()
-
-        p = yt.ProjectionPlot(ds, axis, 'metallicity', center=halo_center_code, data_source=region, width=(width, 'kpc'), weight_field='density') 
-        p.set_cmap('metallicity',metal_color_map)
-        p.set_zlim('metallicity', 1e-8, 0.01) 
-        p.annotate_timestamp(redshift=True)
-        p.annotate_title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
-        p.save() 
-
-        p = yt.ProjectionPlot(ds, axis, 'temperature', center=halo_center_code, data_source=region, width=(width, 'kpc'), weight_field='density') 
-        p.set_cmap('temperature',temperature_color_map)
-        p.set_zlim('temperature', 100, 1e6) 
-        p.annotate_timestamp(redshift=True)
-        p.annotate_title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
-        p.save() 
-    
-        if (ds.parameters['MultiSpecies'] == 2):
-            p = yt.ProjectionPlot(ds, axis, ('gas', 'H2_density'), center=halo_center_code, data_source=region, width=(width, 'kpc')) 
-            p.annotate_timestamp(redshift=True)
-            p.annotate_title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
-            p.save() 
-    
-        p = yt.ProjectionPlot(ds, axis, ('gas', 'H_p0_number_density'), center=halo_center_code, data_source=region, width=(width, 'kpc')) 
-        p.annotate_timestamp(redshift=True)
-        p.set_zlim(('gas', 'H_p0_number_density'), 1e14,1e21) 
-        p.annotate_title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
-        p.save() 
-
-        p = yt.ProjectionPlot(ds, axis, 'O_p5_number_density', center = halo_center_code, width=(width, 'kpc'))
-        p.set_cmap('O_p5_number_density', o6_color_map)
-        p.set_zlim('O_p5_number_density', o6_min, o6_max)
-        p.save()
-
-        p = yt.ProjectionPlot(ds, axis, 'Mg_p1_number_density', center = ds.halo_center_code, width=(width, 'kpc'))
-        p.set_cmap('Mg_p1_number_density', mg2_color_map)
-        p.set_zlim('Mg_p1_number_density', mg2_min, mg2_max)
-        p.set_background_color('Mg_p1_number_density', '#0A0780') 
-        p.save()
-
-
     metallicity = region[('gas', 'metallicity')]
-    density = region[('gas', 'density')]
     Metal_Density = region['Metal_Density'].in_units('g/cm**3') 
     Total_Density = region['Density'].in_units('g/cm**3') 
     cell_mass = region['cell_volume'].in_units('pc**3') * region['density'].in_units('Msun/pc**3') 
@@ -114,28 +53,7 @@ def diagnosis_plots(snapname, halo_id, track_type, width):
     temperature = region[('gas', 'temperature')] 
     cooling_time = region[('gas', 'cooling_time')].in_units('yr') 
     
-    print(snapname) 
     prefix = 'DD'+snapname.split('DD')[1]
-    print(prefix) 
-
-    plt.figure() 
-    plt.scatter(np.log10(density), np.log10(metallicity), s = 0.1 )
-    plt.ylim(-4,1.5) 
-    plt.xlim(-30,-20) 
-    plt.xlabel('log Density') 
-    plt.ylabel('log Metallicity') 
-    plt.title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
-    plt.savefig(prefix+'_metallicity_density.png') 
-    
-    if (ds.parameters['MultiSpecies'] == 2):
-        plt.figure() 
-        plt.scatter(np.log10(cell_mass), np.log10(H2_fraction), s=0.1) 
-        plt.xlabel('log Cell Mass') 
-        plt.ylabel('f_H2') 
-        plt.xlim(0, 9) 
-        plt.ylim(-6, 0.2) 
-        plt.title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
-        plt.savefig(prefix +     '_fH2_cellmass.png') 
 
     plt.figure() 
     plt.scatter(np.log10(number_density), np.log10(H2_fraction), s=0.1, label='all cells', color='blue') 
@@ -160,17 +78,6 @@ def diagnosis_plots(snapname, halo_id, track_type, width):
     plt.savefig(prefix +     '_temp_number_density_metalcode.png') 
 
     plt.figure() 
-    plt.scatter(np.log10(number_density), np.log10(temperature), s=0.1, label='all cells', color='blue') 
-    plt.scatter(np.log10(number_density[H2_fraction > 0.01]), np.log10(temperature[H2_fraction > 0.01]), s=0.1, label='cells with fH2 > 0.01', color='green') 
-    plt.xlabel('log Number Density') 
-    plt.ylabel('log Temperarture') 
-    plt.xlim(0, 5) 
-    plt.ylim(1, 6) 
-    plt.title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
-    plt.legend() 
-    plt.savefig(prefix +     '_temp_number_density_H2code.png') 
-
-    plt.figure() 
     plt.scatter(np.log10(number_density), np.log10(cooling_time), s=0.1, label='all cells', color='blue') 
     plt.scatter(np.log10(number_density[metallicity > 1e-6]), np.log10(cooling_time[metallicity > 1e-6]), s=0.1, label='cells with metals', color='green') 
     plt.xlabel('log Number Density') 
@@ -180,15 +87,6 @@ def diagnosis_plots(snapname, halo_id, track_type, width):
     plt.title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
     plt.legend() 
     plt.savefig(prefix +     '_tcool_number_density_metalcode.png') 
-
-    plt.figure() 
-    plt.scatter(np.log10(cell_mass), np.log10(HI_density), s=0.1) 
-    plt.xlabel('log Cell Mass') 
-    plt.ylabel('log HI density') 
-    plt.xlim(0, 9) 
-    plt.ylim(-30,-20) 
-    plt.title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
-    plt.savefig(prefix +     '_HIdensity_cellmass.png') 
     
     plt.figure() 
     plt.scatter(np.log10(HI_density), np.log10(H2_density), s=0.1) 
@@ -217,19 +115,6 @@ def diagnosis_plots(snapname, halo_id, track_type, width):
     plt.ylim(-35,-15) 
     plt.title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
     plt.savefig(prefix +     '_Metal_Density_Density.png') 
-
-    
-    star_particle_mass = region[('stars', 'particle_mass')].in_units('Msun') 
-    cell_size_in_pc = ((region['cell_volume']).in_units('pc**3'))**(1./3.) 
-    
-    plt.figure() 
-    plt.scatter(cell_size_in_pc, np.log10(metallicity)) 
-    plt.xlim(0, 300) 
-    plt.ylim(-4, 1.5) 
-    plt.xlabel('Cell size [pc]') 
-    plt.ylabel('log Metallicity') 
-    plt.title(run_name + '  ' + snapname + ',   z = ' + str(ds.current_redshift) ) 
-    plt.savefig(prefix +     '_metallicity_cell_size.png') 
     
     star_particle_mass = region[('stars', 'particle_mass')].in_units('Msun') 
     star_particle_time = region[('stars', 'creation_time')].in_units('yr')
