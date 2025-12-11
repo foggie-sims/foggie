@@ -130,8 +130,8 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
               "total_metal_mass":halo_total_metal_mass, "total_young_stars7_mass":halo_total_young_stars7_mass, 
               "actual_baryon_fraction": halo_actual_baryon_fraction, "sfr7":halo_sfr7, "sfr8":halo_sfr8,
               "total_young_stars8_mass": halo_total_young_stars8_mass, "max_metallicity": halo_max_metallicity, 
-              "max_gas_density": halo_max_gas_density, "max_dm_density": halo_max_dm_density} 
-
+              "max_gas_density": halo_max_gas_density, "max_dm_density": halo_max_dm_density, 
+              "outflow_mass_300":halo_outflow_300, "outflow_mass_500":halo_outflow_500} 
 
     print('made it this far in repair_halo_catalog 1')
     for q in quantities.keys(): 
