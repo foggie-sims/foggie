@@ -1,6 +1,8 @@
 import numpy as np
 from foggie.clumps.clump_finder.clump_finder_argparser import parse_args
 from foggie.clumps.clump_finder.clump_finder_argparser import set_default_disk_finder_arguments
+from foggie.clumps.clump_finder.clump_finder_argparser import get_default_args
+
 from foggie.clumps.clump_finder.clump_load import create_simple_ucg
 
 from foggie.utils.foggie_load import foggie_load
@@ -186,8 +188,11 @@ class Clump:
         self.child_ids = []
         self.child_indices = []
 
+        self.center_disk_coords = None
+
 
         self.cell_ids=None #1d list of unique cell ids for each clump. Should not be defined on the master clump object, only children
+        self.dm_halo_center = np.array([0,0,0])
         
 
 
@@ -300,6 +305,21 @@ class Clump:
                             disk_label = clump_label
                             print("For clump",disk_label,"current_min set to",current_min)
 
+                    elif args.disk_criteria == "dm_clump_distance":
+                        slice_mass = np.sum(self.ucg[slice_obj][mask])
+                        xoffset = self.x_disk_ucg[slice_obj][mask] - self.dm_halo_center[0]
+                        yoffset = self.y_disk_ucg[slice_obj][mask] - self.dm_halo_center[1]
+                        zoffset = self.z_disk_ucg[slice_obj][mask] - self.dm_halo_center[2]
+                        slice_distance = np.linalg.norm( [np.sum(np.multiply(self.ucg[slice_obj][mask], xoffset))/slice_mass, np.sum(np.multiply(self.ucg[slice_obj][mask], yoffset))/slice_mass, np.sum(np.multiply(self.ucg[slice_obj][mask], zoffset))/slice_mass ] )
+                        if current_min is None:
+                            current_min = slice_distance
+                            disk_label = clump_label
+                            print("For clump",disk_label,"current_min set to",current_min)
+                        elif slice_distance < current_min:
+                            current_min = slice_distance
+                            disk_label = clump_label
+                            print("For clump",disk_label,"current_min set to",current_min)
+
                     elif args.disk_criteria == "n_cells":
                         if np.size(np.where(mask))>current_max:
                             current_max = np.size(self.clump_ids[slice_obj])
@@ -389,13 +409,13 @@ class Clump:
 
                 clump_index = len(self.clump_tree[self.tree_level])-1
                 self.clump_tree[self.tree_level][-1].cell_ids = clump_cell_ids
-                self.clump_tree[self.tree_level][-1].self_id = clump_id
+                self.clump_tree[self.tree_level][-1].self_id = clump_label
                 self.clump_tree[self.tree_level][-1].self_index = clump_index
 
                 if self.tree_level>0:
                     parent_clump = self.FindParent(clump_cell_ids)
                     parent_clump.nChildren+=1
-                    parent_clump.child_ids.append(clump_id)
+                    parent_clump.child_ids.append(clump_label)
                     self.clump_tree[self.tree_level][-1].parent_id = parent_clump.self_id
                     
                     parent_clump.child_indices.append(clump_index)
@@ -405,6 +425,10 @@ class Clump:
                     if disk_label==clump_label:
                         disk_clump_index = clump_index
 
+                try:
+                    self.clump_tree[self.tree_level][-1].center_disk_coords = np.array( [ np.sum(np.multiply(self.ucg[slice_obj][mask], self.x_disk_ucg[slice_obj][mask]))/np.sum(self.ucg[slice_obj][mask]), np.sum(np.multiply(self.ucg[slice_obj][mask], self.y_disk_ucg[slice_obj][mask]))/np.sum(self.ucg[slice_obj][mask]), np.sum(np.multiply(self.ucg[slice_obj][mask], self.z_disk_ucg[slice_obj][mask]))/np.sum(self.ucg[slice_obj][mask]) ] )
+                except:
+                    print("Not defining clump center")
 
         if not self.is_disk:
             pbar.update(np.size(unique_clumps))
@@ -471,7 +495,6 @@ class Clump:
                     
                     parent_clump.child_indices.append(clump_index)
                     self.clump_tree[self.tree_level][-1].parent_index = parent_clump.self_index
-
 
 
         pbar.update(np.size(unique_clumps))
@@ -593,7 +616,7 @@ class Clump:
         Each iteration identifies contiguous region above the current_threshold and defines a separate clump object. The root clump
         stores the hierarchy information.
         '''
-        if self.is_disk:
+        if self.is_disk or args.clumping_field[0]=='dm':
             print("Defining disk ucgs...")
 
             ##if args.disk_criteria == "mass" or args.disk_criteria == "distance":
@@ -605,9 +628,35 @@ class Clump:
             ##else:
             fields = [args.clumping_field,cell_id_field,('gas','z_disk'),('gas','y_disk'),('gas','x_disk')]
             split_methods = ["copy","copy","copy","copy","copy"]
-            merge_methods = ["max" ,"max","mean","mean","mean"]
+            merge_methods = ["mean" ,"max","mean","mean","mean"]
             self.ucg, self.cell_id_ucg, self.z_disk_ucg, self.y_disk_ucg, self.x_disk_ucg = create_simple_ucg(self.ds, self.cut_region, fields, args.refinement_level,split_methods,merge_methods) #parallelize? Double check overlaps and which edges are being set to nans
             self.ucg_shape = np.shape(self.ucg)
+
+            if args.clumping_field[0]=='dm' or args.clumping_field[0]=='stars':
+                clump_threshold = np.min(self.ucg)
+                if clump_threshold <=0:
+                    clump_threshold = 50 * 5*np.max(self.ucg) / 10**5 #Roughly 50*100*xrho_crit
+                    clump_threshold = 5*np.max(self.ucg) / 10**5
+                args.clump_min = clump_threshold
+                args.clump_max = np.max(self.ucg)
+                print("Clump min set to",args.clump_min)
+                print("Clump max set to",args.clump_max)
+                args.step = args.clump_max / args.clump_min
+                args.step = 2
+                self.n_levels = np.ceil( np.log(args.clump_max / args.clump_min) / np.log(args.step) ).astype(int)
+                print("n_levels updated to",self.n_levels)
+                self.clump_tree=[]
+                for i in range(0,self.n_levels):
+                    self.clump_tree.append([])
+        
+        
+                self.Set_Nsubarrays(args)
+                self.clump_criteria = ClumpCriteria(args)
+                #self.ds = ds
+                #self.cut_region = cut_region
+                self.clump_min = args.clump_min
+                self.clump_max = args.clump_max
+                self.step = args.step
         else:
             print("Defining ucgs...")
             fields = [args.clumping_field,cell_id_field]
@@ -615,6 +664,9 @@ class Clump:
             merge_methods = ["max" ,"max" ]
             self.ucg, self.cell_id_ucg= create_simple_ucg(self.ds, self.cut_region, fields, args.refinement_level,split_methods,merge_methods) #parallelize? Double check overlaps and which edges are being set to nans
             self.ucg_shape = np.shape(self.ucg)
+
+
+
 
 
         if ids_to_ignore is not None:
@@ -704,11 +756,14 @@ class Clump:
             if args.max_void_size>0: parallelize_mapping = False
             if args.nthreads<=1: parallelize_mapping = False
             if args.n_dilation_iterations>0: parallelize_mapping = False
+            if args.clumping_field[0]=='dm': parallelize_mapping = False
+
 
             if parallelize_mapping:#np.max(self.clump_ids) > 300 or current_threshold > 1e-29:
                 nClumpsAdded = self.UpdateClumpCatalog_parallel(args)
             else:
                 if self.is_disk:
+                    from matplotlib.colors import LogNorm
                     disk_clump_index = self.UpdateClumpCatalog_linear(args)
                     return disk_clump_index
                 else:
@@ -942,16 +997,60 @@ def identify_clump_hierarchy(ds,cut_region,args):
             disk_output = args.output + "_Disk.h5"
             disk.SaveClump(disk.clump_tree[0][disk_index],args,leaf=False,output=disk_output)
 
+            
+
             if args.identify_satellites:
                 disk_ids = disk.clump_tree[0][disk_index].cell_ids
-                for i in range(0,args.max_number_of_satellites):
+                dm_leaf_ids = []
+                dm_leaf_centers = []
+                if args.dm_clump_dir is not None:
+                    hf_dm = h5py.File(args.dm_clump_dir,"r")
+                    dm_leaf_clump_ids = hf_dm['leaf_clump_ids'][...]
+                    args.max_number_of_satellites = len(dm_leaf_clump_ids)
+                    print(args.max_number_of_satellites,"DM leaf clumps found in",args.dm_clump_dir)
+                    for leaf_clump_id in dm_leaf_clump_ids:
+                        dm_leaf_cell_ids = hf_dm[str(leaf_clump_id)]['cell_ids'][...]
+                        if not np.isin(dm_leaf_cell_ids, disk_ids).any():
+                            dm_leaf_ids.append(dm_leaf_cell_ids)
+                            dm_leaf_centers.append(hf_dm[str(leaf_clump_id)]['center_disk_coords'][...])
+                    hf_dm.close()
+
+                for i in range(0,args.max_number_of_satellites-1): #-1 excludes the disk
+
                     sat_output = args.output + "_Satellite"+str(i)+".h5"
 
                     satellite = Clump(ds,cut_region,args,tree_level=0,is_disk=True)
+                    args.disk_criteria = "dm_clump_distance"
+                    satellite.dm_halo_center = dm_leaf_centers[i]
+
+                    print("Leaf center is:",dm_leaf_centers[i])
+
+
                     sat_index = satellite.FindClumps(args.clump_min,args,ids_to_ignore=disk_ids) #Ignore the disk cells
 
-                    satellite.SaveClump(satellite.clump_tree[0][sat_index],args,leaf=False,output=sat_output)
-                    disk_ids=np.append(disk_ids,satellite.clump_tree[0][sat_index].cell_ids) # Append the current satellite cells to the ignore list
+                    sat_ids = satellite.clump_tree[0][sat_index].cell_ids
+                    if args.dm_clump_dir is not None:
+                        satellite_saved = False
+                        print("There are ",len(dm_leaf_ids),"DM leaf clumps to compare to...")
+                        for leaf_idx in range(len(dm_leaf_ids)):
+                            if np.isin(sat_ids, dm_leaf_ids[leaf_idx]).any():
+                                #Real Subhalo
+                                satellite.SaveClump(satellite.clump_tree[0][sat_index],args,leaf=False,output=sat_output)
+                                disk_ids=np.append(disk_ids,sat_ids) #Append the current satellite cells to the ignore list
+                                disk_ids=np.append(disk_ids,dm_leaf_ids[leaf_idx]) #Append the subhalo so nearby clumps aren't counted
+                                satellite_saved = True
+
+                                dm_leaf_ids[leaf_idx] = []
+
+                                #if len(dm_leaf_ids)==0:
+                               #     break
+
+                                continue
+                        #if not satellite_saved:
+                        #    break #No more satellites found
+                    else:
+                            satellite.SaveClump(satellite.clump_tree[0][sat_index],args,leaf=False,output=sat_output)
+                            disk_ids=np.append(disk_ids,sat_ids) # Append the current satellite cells to the ignore list
 
             return disk
         
@@ -964,10 +1063,19 @@ def identify_clump_hierarchy(ds,cut_region,args):
     
     if args.clump_min is None:
         args.clump_min = args.step * cut_region[args.clumping_field][cut_region[args.clumping_field]>0].min()
+        if args.clumping_field[0] == 'dm' or args.clumping_field[0] == 'stars':
+            ucg_cell_volume = np.power(ds.all_data()['index','dx'].max().in_units('kpc') / float(2**args.refinement_level),3)
+            args.clump_min = args.clump_min / ucg_cell_volume / args.step
+
         print("Clump min set to",args.clump_min)
     if args.clump_max is None:
         args.clump_max = cut_region[args.clumping_field].max()
+        if args.clumping_field[0] == 'dm' or args.clumping_field[0] == 'stars':
+            ucg_cell_volume = np.power(ds.all_data()['index','dx'].max().in_units('kpc') / float(2**args.refinement_level),3)
+            args.clump_max = args.clump_max / ucg_cell_volume
         print("Clump max set to",args.clump_max)
+
+
 
 
 
@@ -1128,6 +1236,105 @@ def disk_finder(ds,cut_region,output=None,return_output_filename=False, args=Non
     cell_id_field = ('index','cell_id_2')
 
 
+
+
+    master_clump = identify_clump_hierarchy(ds,cut_region,args)
+
+    ''' Report on some timing info '''
+    print("For",args.nthreads,"threads total time=",time.time()-t0)
+
+
+    if return_output_filename:
+        disk_output = output + "_Disk.h5"
+        return master_clump, disk_output
+    return master_clump
+
+
+def satellite_finder(ds,cut_region,output=None,return_output_filename=False, args=None):
+    '''
+    Modular implementation for running the clump finder as a satellite finder.
+
+    See ModularUseExample.ipynb for usage examples.
+
+    Arguments are:
+        args: Generate the defaults using get_default_args() in clump_finder_argparser.py
+              and modify accordingly
+        ds: The yt dataset
+        cut_region: the cut region you want to run the clump finder on.
+    '''
+    t0 = time.time()
+
+    #Start by identifying dark matter clumps
+    print("Identifying dark matter clumps")
+    dm_args = get_default_args()
+
+    dm_args.clumping_field_type = "dm"
+    dm_args.clumping_field = "particle_mass"
+    dm_args.min_cells = 5000
+
+    if output is not None:
+        dm_args.output = output
+    dm_args.output += "_DM"
+    dm_clump_file = dm_args.output+"_ClumpTree.h5"
+    clump_finder(dm_args,ds,cut_region)
+
+    #Then identify the halos/subhalos
+    print("Identifying satellite clumps")
+    if args is None:
+        args= set_default_disk_finder_arguments()
+        args.identify_satellites = True
+    if output is not None:
+        args.output = output
+    args.dm_clump_dir = dm_clump_file
+
+
+    num_cores = multiprocessing.cpu_count()-1
+    if args.nthreads is None or args.nthreads>num_cores:
+        args.nthreads = num_cores
+
+    if args.auto_disk_finder:
+        #Set default arguments for disk finder
+        args = set_default_disk_finder_arguments(args)
+
+    trident_dict = { 'HI':'H I', 'CII':'C II','CIII':'C III',
+                'CIV':'C IV','OVI':'O VI','SiII':'Si II','SiIII':'Si III','SiIV':'Si IV','MgII':'Mg II'}
+
+    ions_number_density_dict = {'Lyalpha':'LyAlpha', 'HI':'H_p0_number_density', 'CII':'C_p1_number_density', 'CIII':'C_p2_number_density',
+                              'CIV':'C_p3_number_density','OVI':'O_p5_number_density','SiII':'Si_p1_number_density','SiIII':'Si_p2_number_density',
+                                 'SiIV':'Si_p3_number_density','MgII':'Mg_p1_number_density'}
+    
+    field_dict = {v: k for k, v in ions_number_density_dict.items()}
+
+    if args.clumping_field in trident_dict:
+        import trident
+        trident.add_ion_fields(ds, ions=[trident_dict[args.clumping_field]])
+        args.clumping_field =ions_number_density_dict[args.clumping_field]
+    elif args.clumping_field in field_dict:
+        import trident
+        trident.add_ion_fields(ds, ions=[trident_dict[field_dict[args.clumping_field]]])
+
+    if args.clumping_field_type is not None:
+        args.clumping_field = (args.clumping_field_type , args.clumping_field)
+
+
+    if args.refinement_level is None:
+        args.refinement_level = np.max(cut_region['index','grid_level'])
+
+    if args.system is not None:
+        from foggie.utils.get_run_loc_etc import get_run_loc_etc
+        args.data_dir, output_dir_default, run_loc, args.code_dir, trackname, haloname, spectra_dir, infofile = get_run_loc_etc(args)
+
+    else:
+        if args.code_dir is None:
+            args.code_dir = '/Users/ctrapp/Documents/GitHub/foggie/foggie/'
+
+    
+        if args.data_dir is None:
+            args.data_dir = '/Volumes/FoggieCam/foggie_halos/'
+
+    add_cell_id_field(ds)
+    global cell_id_field
+    cell_id_field = ('index','cell_id_2')
 
 
     master_clump = identify_clump_hierarchy(ds,cut_region,args)

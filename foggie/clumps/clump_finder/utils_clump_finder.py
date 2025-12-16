@@ -474,7 +474,6 @@ def save_clump_hierarchy(args,root_clump):
 
         for clump in clumps:
             clump_id = clump.self_id * (n_levels+1) + l #unique clump_id across all tree levels
-            print("Creating group for",str(clump_id))
 
             parent_id = clump.parent_id
             child_ids = []
@@ -490,6 +489,7 @@ def save_clump_hierarchy(args,root_clump):
             grp.create_dataset('parent_id',data=parent_id )
             grp.create_dataset('child_ids',data=child_ids)
             grp.create_dataset('tree_level',data=clump.tree_level)
+            if clump.center_disk_coords is not None: grp.create_dataset('center_disk_coords',data=clump.center_disk_coords)
 
 
             if clump.nChildren <= 0:
