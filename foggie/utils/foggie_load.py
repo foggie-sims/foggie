@@ -241,10 +241,10 @@ def foggie_load(snap, **kwargs):
     # > obj.set_field_parameter('omega_baryon', ds.omega_baryon)
     # foggie_load returns a 'region' data object given by the 'region' keyword, and the 'omega_baryon' parameter is already set for that.
 
-    #create fields for gas cell coordinates in kpc
-    ds.add_field(('gas', 'x_kpc'), function=x_kpc, sampling_type='cell', units='kpc')
-    ds.add_field(('gas', 'y_kpc'), function=y_kpc, sampling_type='cell', units='kpc')
-    ds.add_field(('gas', 'z_kpc'), function=z_kpc, sampling_type='cell', units='kpc')
+    if (np.isnan(ds.halo_center_code).any() == False):  # we will only add these gas cell coordinates in kpc if there is a meaningful halo center
+        ds.add_field(('gas', 'x_kpc'), function=x_kpc, sampling_type='cell', units='kpc')
+        ds.add_field(('gas', 'y_kpc'), function=y_kpc, sampling_type='cell', units='kpc')
+        ds.add_field(('gas', 'z_kpc'), function=z_kpc, sampling_type='cell', units='kpc')
 
     if (np.isnan(ds.halo_velocity_kms).any() == False):  # we will only add these velocity and energy fields if there is a meaningful halo bulk velocity
         print('ds.halo_velocity_kms = ', ds.halo_velocity_kms, ' so we can add the centered velocity and energy fields')
