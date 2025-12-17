@@ -1159,8 +1159,8 @@ def inner_cgm_energy(ds, grid, shape, snap, snap_props, global_vars):
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
     # Set up table of everything we want
-    properties = ['time', 'radius', 'thermal_energy_sum', 'gravitational_heating_sum', 'kinetic_energy_sum', 'turbulent_energy_sum', 'radial_energy_sum', 'rotational_energy_sum', 'feedback_energy_50Myr', 'cooling_energy_50Myr']
-    table = Table(names=properties, dtype=['f8','f8','f8','f8','f8','f8','f8','f8','f8','f8'])
+    properties = ['time', 'radius_kpc', 'radius_Rvir', 'thermal_energy_sum', 'gravitational_heating_sum', 'kinetic_energy_sum', 'turbulent_energy_sum', 'radial_energy_sum', 'rotational_energy_sum', 'feedback_energy_50Myr', 'cooling_energy']
+    table = Table(names=properties, dtype=['f8','f8','f8','f8','f8','f8','f8','f8','f8','f8','f8'])
 
     # Load needed fields
     x = grid['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
@@ -1175,7 +1175,7 @@ def inner_cgm_energy(ds, grid, shape, snap, snap_props, global_vars):
     thermal_energy = (grid['gas','cell_mass']*grid['gas','specific_thermal_energy']).in_units('erg').v
     mass = grid['gas','cell_mass'].in_units('g').v
     cell_volume = grid['gas','cell_volume'].in_units('cm**3').v
-    cooling_time = grid['gas','cooling_time'].in_units('Myr').v
+    cooling_time = grid['gas','cooling_time'].in_units('s').v
     sph = ds.sphere(ds.halo_center_kpc, radius=(Rvir, 'kpc'))
     star_age = sph['young_stars8','age'].in_units('Myr').v
     star_mass = sph['young_stars8', 'particle_mass'].in_units('Msun').v
@@ -1253,22 +1253,27 @@ def inner_cgm_energy(ds, grid, shape, snap, snap_props, global_vars):
         turbulent_energy_sum = np.sum(turbulent_energy[inner_cgm])
         radial_energy_sum = np.sum(radial_energy[inner_cgm])
         rotational_energy_sum = np.sum(rotational_energy[inner_cgm])
-        # Feedback energy is total mass of stars within this radius with ages < 50 Myr, multiplied by the simulation's StarEnergyToThermalFeedback parameter, converted to energy via E = mc^2
-        feedback_energy = np.sum(star_mass[(star_age < 50.) & (star_radius < radii[r]*Rvir)])*gtoMsun * 1e-5 * light_c**2.
+        # Feedback energy is total mass of stars within this radius with ages < 50 Myr, multiplied by the simulation's StarEnergyToThermalFeedback parameter, converted to energy via E = mc^2,
+        # and then converted to an energy deposition rate by dividing by 50 Myr (this is the same way SFR is calculated, just using a larger age)
+        feedback_energy = np.sum(star_mass[(star_age < 50.) & (star_radius < radii[r]*Rvir)])*gtoMsun * 1e-5 * light_c**2. / (50.*1e5*stoyr)
         # Expected thermal energy from graviational heating comes from expected temperature from virialization, then Etherm = 3/2 N kB T
-        T_grav = mu*mp/(3.*kB) * G*Menc_profile(radii[r]*Rvir)/(radii[r]*Rvir)
+        T_grav = mu*mp/(3.*kB) * G*Menc_profile(radii[r]*Rvir)*gtoMsun/(radii[r]*Rvir*1000.*cmtopc)
         gravitational_heating = np.sum(3./2.*kB*T_grav*density[inner_cgm]/(mu*mp)*cell_volume[inner_cgm])
-        # Energy lost to cooling, assuming a similar cooling rate for the past 50 Myr
-        cooling_energy = np.sum(thermal_energy[inner_cgm]/cooling_time[inner_cgm])*50.
+        # Energy rate lost to cooling
+        cooling_energy = np.sum(thermal_energy[inner_cgm]/cooling_time[inner_cgm])
 
-        row = [tsnap, radii[r], thermal_energy_sum, gravitational_heating, kinetic_energy_sum, turbulent_energy_sum, radial_energy_sum, rotational_energy_sum, feedback_energy, cooling_energy]
+        row = [tsnap, radii[r], radii[r]*Rvir, thermal_energy_sum, gravitational_heating, kinetic_energy_sum, turbulent_energy_sum, radial_energy_sum, rotational_energy_sum, feedback_energy, cooling_energy]
         table.add_row(row)
 
     for key in table.keys():
         if ('time' in key):
             table[key].unit = 'Gyr'
-        elif ('radius' in key):
+        elif ('radius_kpc' in key):
+            table[key].unit = 'kpc'
+        elif ('radius_Rvir' in key):
             table[key].unit = 'Rvir'
+        elif ('feedback' in key) or ('cooling' in key):
+            table[key].unit = 'erg/s'
         else:
             table[key].unit = 'erg'
 
@@ -1295,10 +1300,8 @@ def calculate_outflow(ds, grid, shape, snap, snap_props, global_vars):
     fluxes.append('kinetic_energy_flux')
     fluxes.append('turbulent_energy_flux')
     fluxes.append('density')
-    fluxes.append('pressure')
     fluxes.append('temperature')
     fluxes.append('radial_velocity')
-    fluxes.append('tangential_velocity')
     table = make_outflow_table(fluxes, args)
 
     if (args.cgm_only):
@@ -1329,17 +1332,15 @@ def calculate_outflow(ds, grid, shape, snap, snap_props, global_vars):
     vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
     radius = grid['gas','radius_corrected'].in_units('kpc').v
     rv = grid['gas','radial_velocity_corrected'].in_units('km/s').v
-    tanv = grid['gas','tangential_velocity_corrected'].in_units('km/s').v
     mass = grid['gas', 'cell_mass'].in_units('Msun').v
     metals = grid['gas', 'metal_mass'].in_units('Msun').v
     temperature = grid['gas','temperature'].in_units('K').v
     density = grid['gas','density'].in_units('g/cm**3').v
-    pressure = grid['gas','pressure'].in_units('erg/cm**3').v
     kinetic_energy = grid['gas','kinetic_energy_corrected'].in_units('erg').v
-    thermal_energy = (grid['gas','cell_mass']*grid['gas','thermal_energy']).in_units('erg').v
+    thermal_energy = (grid['gas','cell_mass']*grid['gas','specific_thermal_energy']).in_units('erg').v
     
     flux_props = [mass, metals, thermal_energy, kinetic_energy]
-    properties = [density, pressure, temperature, rv, tanv]
+    properties = [density, temperature, rv]
 
 
     # Calculate new positions of gas cells for a long elapsed time (necessary because digitizing onto grid can "reset" positions of slow-moving gas)
@@ -1357,7 +1358,7 @@ def calculate_outflow(ds, grid, shape, snap, snap_props, global_vars):
             max_R = surface[1]*Rvir
         else:
             max_R = surface[1]
-        min_R = 0.1*Rvir
+        min_R = 0.05*Rvir
         radii = np.linspace(min_R, max_R, args.radial_stepping+1)[1:]
     else:
         radii = [0]
@@ -1372,9 +1373,6 @@ def calculate_outflow(ds, grid, shape, snap, snap_props, global_vars):
         # If stepping through radii, define the shape for this radius value
         if (surface[0]=='sphere') and (args.radial_stepping>0):
             shape = (radius < radii[r])
-            save_r = '_r%d' % (r)
-        else:
-            save_r = ''
         results = [radii[r]]
         # Define which cells are leaving shape
         new_in_shape = shape[tuple(new_inds)]
@@ -1404,21 +1402,21 @@ def calculate_outflow(ds, grid, shape, snap, snap_props, global_vars):
 
         # Calculate turbulent energy flux (not in flux_props list)
         # turb_energy = 0.5 * mass * vturb^2 where vturb = std(vtan)
-        _, std = weighted_avg_and_std(tanv[from_shape], weights_from)
-        flux_out = (std*1e5)**2.*(np.sum(mass[from_shape])*gtoMsun)*0.5/(5.*dt)
-        _, std_fast = weighted_avg_and_std(tanv[from_shape_fast], weights_from_fast)
-        flux_out_fast = (std_fast*1e5)**2.*(np.sum(mass[from_shape_fast])*gtoMsun)*0.5/(5.*dt)
-        results.append(flux_out)
-        results.append(flux_out_fast)
-        for j in range(len(regions)-1):
-            weights_from_region = weights_from[(region_from > regions[j]) & (region_from < regions[j+1])]
-            weights_from_region_fast = weights_from[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
-            _, std = weighted_avg_and_std(tanv[from_shape][(region_from > regions[j]) & (region_from < regions[j+1])], weights_from_region)
-            flux_out = (std*1e5)**2.*(np.sum(mass[from_shape][(region_from > regions[j]) & (region_from < regions[j+1])])*gtoMsun)*0.5/(5.*dt)
-            _, std_fast = weighted_avg_and_std(tanv[from_shape_fast][(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])], weights_from_region_fast)
-            flux_out_fast = (std_fast*1e5)**2.*(np.sum(mass[from_shape_fast][(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])])*gtoMsun)*0.5/(5.*dt)
-            results.append(flux_out)
-            results.append(flux_out_fast)
+        #_, std = weighted_avg_and_std(tanv[from_shape], weights_from)
+        #flux_out = (std*1e5)**2.*(np.sum(mass[from_shape])*gtoMsun)*0.5/(5.*dt)
+        #_, std_fast = weighted_avg_and_std(tanv[from_shape_fast], weights_from_fast)
+        #flux_out_fast = (std_fast*1e5)**2.*(np.sum(mass[from_shape_fast])*gtoMsun)*0.5/(5.*dt)
+        #results.append(flux_out)
+        #results.append(flux_out_fast)
+        #for j in range(len(regions)-1):
+            #weights_from_region = weights_from[(region_from > regions[j]) & (region_from < regions[j+1])]
+            #weights_from_region_fast = weights_from[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
+            #_, std = weighted_avg_and_std(tanv[from_shape][(region_from > regions[j]) & (region_from < regions[j+1])], weights_from_region)
+            #flux_out = (std*1e5)**2.*(np.sum(mass[from_shape][(region_from > regions[j]) & (region_from < regions[j+1])])*gtoMsun)*0.5/(5.*dt)
+            #_, std_fast = weighted_avg_and_std(tanv[from_shape_fast][(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])], weights_from_region_fast)
+            #flux_out_fast = (std_fast*1e5)**2.*(np.sum(mass[from_shape_fast][(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])])*gtoMsun)*0.5/(5.*dt)
+            #results.append(flux_out)
+            #results.append(flux_out_fast)
 
         # Done with fluxes, calculate med, iqr, mean, and std of other properties
         for i in range(len(properties)):
