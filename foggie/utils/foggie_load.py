@@ -10,7 +10,6 @@ from foggie.utils.get_proper_box_size import get_proper_box_size
 from foggie.utils.get_run_loc_etc import get_run_loc_etc
 from foggie.utils.yt_fields import *
 from foggie.utils.foggie_utils import filter_particles
-import foggie.utils as futils
 import foggie.utils.get_refine_box as grb
 from datetime import datetime
 
@@ -66,6 +65,28 @@ def get_center_from_catalog(ds, halo_c_v_name, snap, center_style='catalog'):
     print('halo center in kpc: ', ds.halo_center_kpc)
     print('halo velocity in km/s: ', ds.halo_velocity_kms)
     return ds
+
+def get_center_from_DM_region(ds):
+    """This function is a helper function to get the halo center when there is no track.
+    The use case is for non-central halos without a track file (new ICs, etc.)"""
+
+    ad = ds.all_data()
+    ptype = ad['particle_type'] 
+    x_dm = ad['all', 'particle_position_x'][ptype == 4]
+    y_dm = ad['all', 'particle_position_y'][ptype == 4]
+    z_dm = ad['all', 'particle_position_z'][ptype == 4]
+
+    center_x = 0.5 * (x_dm.max() + x_dm.min())
+    center_y = 0.5 * (y_dm.max() + y_dm.min())
+    center_z = 0.5 * (z_dm.max() + z_dm.min())
+    halo_center_kpc = [center_x.in_units('kpc'), center_y.in_units('kpc'), center_z.in_units('kpc')]
+
+    ds.halo_center_kpc = halo_center_kpc
+    ds.halo_center_code = ds.arr([center_x, center_y, center_z]) 
+    ds.halo_velocity_kms = [np.nan, np.nan, np.nan] 
+    
+    subregion = ds.r[x_dm.min():x_dm.max(), y_dm.min():y_dm.max(), z_dm.min():z_dm.max()]
+    return ds, subregion 
 
 def get_center_from_smoothed_catalog(ds, halo_c_v_name, snap, center_style='smoothed'):
     """This function is a helper function to get the halo center from the smoothed halo_c_v catalog file.
@@ -152,7 +173,9 @@ def get_center_from_track(ds, refine_box_center, proper_box_size):
 def foggie_load(snap, **kwargs):
     """Loads a foggie simulation snapshot and adds useful fields."""
 
-    trackfile_name = kwargs.get('trackfile_name', '')
+    #get all the keywords and process them 
+    central_halo = kwargs.get('central_halo') # if this is set, we assume we are working with the central halo 
+    trackfile_name = kwargs.get('trackfile_name', None)
     find_halo_center = kwargs.get('find_halo_center', True) # if this is False and a track file is specified, just use track box center
     halo_c_v_name = kwargs.get('halo_c_v_name', 'none')
     disk_relative = kwargs.get('disk_relative', False)
@@ -162,81 +185,41 @@ def foggie_load(snap, **kwargs):
     gravity = kwargs.get('gravity', False)
     masses_dir = kwargs.get('masses_dir', '')
     smooth_AM_name = kwargs.get('smooth_AM_name', False)
+    halo_center = kwargs.get('halo_center', [0., 0., 0.]) # use this if the center is given as a code_units tuple 
 
-    halo_center = kwargs.get('halo_center', [0., 0., 0.]) #use this if the center is given as a code_units tuple 
-
-    print ('Opening snapshot ' + snap)
+    #open the snapshot and get the all_data object
     ds = yt.load(snap)
     ad = ds.all_data()
 
+    #set up some dataset properties that will be useful elsewhere, and nonsense defaults for others.
     zsnap = ds.get_parameter('CosmologyCurrentRedshift') 
     proper_box_size = get_proper_box_size(ds) # get the proper size of the computational domain (NOT the refine region) 
-    ds.omega_baryon = ds.parameters['CosmologyOmegaMatterNow']-ds.parameters['CosmologyOmegaDarkMatterNow']
+    ds.omega_baryon = ds.parameters['CosmologyOmegaMatterNow'] - ds.parameters['CosmologyOmegaDarkMatterNow']
     ds.halo_center_code = [np.nan, np.nan, np.nan] # this is the default halo_center_code until its overwritten by center-finding 
     ds.halo_velocity_kms = [np.nan, np.nan, np.nan] # this is the default halo_velocity_kms until its overwritten by center-finding 
     refine_box = ds.r[0:1, 0:1, 0:1] # this is the default refine_box 
 
-    if ('trackfile_name' in kwargs) and (kwargs['trackfile_name'] != ''):
-        track = Table.read(trackfile_name, format='ascii') # read the track file
-        track.sort('col1')
-        print('FOGGIE_LOAD: Read track file:', trackfile_name)
+    # now we start the logic for what to do about the halo center and refine box
+    if (central_halo == True): # branch 1 of the flowchart 
+        print('FOGGIE_LOAD: Central halo desired' )
 
-        refine_box, refine_box_center, refine_width_code = grb.get_refine_box(ds, zsnap, track)
-        refine_width = refine_width_code * proper_box_size
-
-        # Determine center style and get halo center
-        if (find_halo_center):
-            center_style = "calculate"
-            print('Will look for halo_c_v_file: ', halo_c_v_name)
-            if os.path.exists(halo_c_v_name):
-                print('Found halo_c_v file:', halo_c_v_name)
-                halo_c_v = Table.read(halo_c_v_name, format='ascii', header_start=0, delimiter='|')
-                snap_id = snap[-6:]
-                if 'smooth' in halo_c_v_name:
-                    center_style = 'smoothed'
-                    if snap_id in halo_c_v['snap']:
-                        get_center_from_smoothed_catalog(ds, halo_c_v_name, snap, center_style=center_style)
-                    else:
-                        get_center_from_calculated(ds, refine_box_center, proper_box_size)
-                elif 'halo_c_v' in halo_c_v_name:
-                    center_style = 'catalog'
-                    if snap_id in halo_c_v['name']:
-                        get_center_from_catalog(ds, halo_c_v_name, snap, center_style=center_style)
-                    else:
-                        get_center_from_calculated(ds, refine_box_center, proper_box_size)
-                elif 'root' in halo_c_v_name:
-                    center_style = 'root_index'
-                    get_center_from_root_catalog(ds, halo_c_v_name, proper_box_size, center_style=center_style)
-                else:
-                    get_center_from_calculated(ds, refine_box_center, proper_box_size)
-            else:
-                if ('halo_center' in kwargs):
-                    print("we will calculate the center using the input guess")
-                    get_center_from_calculated(ds, refine_box_center, proper_box_size)
-
-                print('No halo_c_v file found, calculating halo center from track')
-                get_center_from_calculated(ds, refine_box_center, proper_box_size)
-
-            ds.track = track
-            ds.refine_box_center = refine_box_center
-            ds.refine_width = refine_width
-        else: # Don't want halo center, just assign track box center
-            print('Not finding halo center, just using track box center')
-            halo_center_kpc = ds.arr(np.array(refine_box_center)*proper_box_size, 'kpc')
-            ds.halo_center_code = ds.arr(np.array(refine_box_center), 'code_length')
-            ds.halo_center_kpc = halo_center_kpc
-            ds.track = track
-            ds.refine_box_center = refine_box_center
-            ds.refine_width = refine_width
+    elif (central_halo == False): # branch 2 of the flowchart 
+        print('FOGGIE_LOAD: No central halo desired')
+        if (trackfile_name != None): # branch 5 of the flowchart
+            print("FOGGIE_LOAD: Not a central halo, trackfile = ", trackfile_name)
+            print("FOGGIE_LOAD: We will define the region and center from the track file")
+        elif (trackfile_name == None): #branch 6 of the flowchart
+            print("FOGGIE_LOAD: Not a central halo, no trackfile")
+            print("FOGGIE_LOAD: We will define the region as the smallest DM box and center as the center of that box")
+            ds, region = get_center_from_DM_region(ds)
     else: 
-        if ('halo_center' in kwargs):
-            print("FOGGIE_LOAD: we will calculate the center using the input guess")
-            get_center_from_calculated(ds, halo_center, proper_box_size)
-            refine_box = ad
-    
-    
+        print("FOGGIE_LOAD: central_halo keyword = ", central_halo)
+        print("FOGGIE_LOAD: You don't want to be here... something is wrong with your central_halo keyword")
+
     ds.current_datetime = datetime.now() # add to the dataset the time that we opened it
     ds.snapname = snap[-6:]
+
+
     # Note that if you want to use the ('gas', 'baryon_overdensity') field, you must include this line after you've defined some data object from ds:
     # > obj.set_field_parameter('omega_baryon', ds.omega_baryon)
     # foggie_load returns a 'region' data object given by the 'region' keyword, and the 'omega_baryon' parameter is already set for that.
