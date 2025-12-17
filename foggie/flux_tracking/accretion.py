@@ -1298,7 +1298,6 @@ def calculate_outflow(ds, grid, shape, snap, snap_props, global_vars):
     fluxes.append('metal_flux')
     fluxes.append('thermal_energy_flux')
     fluxes.append('kinetic_energy_flux')
-    fluxes.append('turbulent_energy_flux')
     fluxes.append('density')
     fluxes.append('temperature')
     fluxes.append('radial_velocity')
@@ -1395,7 +1394,7 @@ def calculate_outflow(ds, grid, shape, snap, snap_props, global_vars):
             for j in range(len(regions)-1):
                 prop_from_region = prop_from[(region_from > regions[j]) & (region_from < regions[j+1])]
                 flux_out = np.sum(prop_from_region)/(5.*dt)
-                prop_from_region_fast = prop_from[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
+                prop_from_region_fast = prop_from_fast[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
                 flux_out_fast = np.sum(prop_from_region_fast)/(5.*dt)
                 results.append(flux_out)
                 results.append(flux_out_fast)
@@ -1448,9 +1447,9 @@ def calculate_outflow(ds, grid, shape, snap, snap_props, global_vars):
                 results.append(np.nan)
             for j in range(len(regions)-1):
                 prop_from_region = prop_from[(region_from > regions[j]) & (region_from < regions[j+1])]
-                prop_from_region_fast = prop_from[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
+                prop_from_region_fast = prop_from_fast[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
                 weights_from_region = weights_from[(region_from > regions[j]) & (region_from < regions[j+1])]
-                weights_from_region_fast = weights_from[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
+                weights_from_region_fast = weights_from_fast[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
                 if (len(prop_from_region)>0):
                     quantiles = weighted_quantile(prop_from_region, weights_from_region, np.array([0.25,0.5,0.75]))
                     results.append(quantiles[1])
@@ -1463,7 +1462,7 @@ def calculate_outflow(ds, grid, shape, snap, snap_props, global_vars):
                     results.append(np.nan)
                     results.append(np.nan)
                     results.append(np.nan)
-                if (len(prop_from_fast)>0):
+                if (len(prop_from_region_fast)>0):
                     quantiles = weighted_quantile(prop_from_region_fast, weights_from_region_fast, np.array([0.25,0.5,0.75]))
                     results.append(quantiles[1])
                     results.append(quantiles[2]-quantiles[0])
@@ -2291,6 +2290,8 @@ def load_and_calculate(snap, surface, global_vars):
             accretion_projections(ds, grid, snap, snap_props, global_vars)
         if ('inner_cgm_energies' in args.calculate):
             inner_cgm_energy(ds, grid, shape, snap, snap_props, global_vars)
+        if ('outflows' in args.calculate):
+            calculate_outflow(ds, grid, shape, snap, snap_props, global_vars)
 
     print('Snapshot', snap, 'complete!')
 
