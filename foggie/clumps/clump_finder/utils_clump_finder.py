@@ -181,7 +181,11 @@ def get_cell_grid_ids(field, data):
 def pseudo_get_cell_grid_ids(field, data, max_gid, gx_min, gx_max, gy_min, gy_max, gz_min):
     '''Function to assign a unique cell_id to each cell based on it's index on its parent grid'''
     '''For use as a yt field, must define a partial function resembling get_cell_grid_ids'''
-    gids = (data['index','grid_indices'] + 1).astype(np.uint64) #These are different in yt and enzo...
+    gids_raw = data['index','grid_indices']
+    if type(gids_raw) is np.ndarray:
+        gids = (gids_raw + 1).astype(np.uint64) #These are different in yt and enzo...
+    else:
+        gids = (gids_raw.v + 1).astype(np.uint64)
     u_id = np.copy(gids)
     
     idx_dx = data['index','dx']
