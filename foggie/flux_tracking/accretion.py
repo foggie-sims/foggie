@@ -38,7 +38,8 @@ from scipy.ndimage import uniform_filter1d
 from scipy.ndimage import uniform_filter
 from scipy import interpolate
 from skimage.measure import regionprops
-import datetime
+from datetime import timedelta
+import time
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 from scipy.interpolate import NearestNDInterpolator
 import shutil
@@ -47,7 +48,7 @@ import trident
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm
-#import healpy
+import healpy
 import cmasher as cmr
 from matplotlib.patches import Ellipse
 import copy
@@ -1279,7 +1280,6 @@ def inner_cgm_energy(ds, grid, shape, snap, snap_props, global_vars):
 
     table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
-
 def calculate_outflow(ds, grid, shape, snap, snap_props, global_vars):
     '''Calculates the properties of outflowing gas from the shape 'shape' in the snapshot 'snap' and saves to file.'''
 
@@ -1486,8 +1486,8 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars):
     boundary layer that are not accreting.'''
 
     args = global_vars['args']
-    output_dir = global_vars['args']
-    save_suffix = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
 
     prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/'
     plot_prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
@@ -1511,7 +1511,6 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars):
         props.append('pressure')
         props.append('radial_velocity')
         props.append('tangential_velocity')
-        props.append('turbulent_velocity')
         props.append('sound_speed')
         props.append('flux_sr')
         props.append('metal_flux_sr')
@@ -1629,7 +1628,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars):
 
     # Define shape edge
     struct = ndimage.generate_binary_structure(3,3)
-    shape_expanded = ndimage.binary_dilation(shape, structure=struct, iterations=2)
+    shape_expanded = ndimage.binary_dilation(shape, structure=struct, iterations=3)
     shape_edge = shape_expanded & ~shape
 
     # Set up filtering
@@ -3795,20 +3794,28 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
     fils_labeled, n_fils = ndimage.label(fils_labeled)
 
     import napari
-    viewer = napari.view_image(np.log10(density_gcm), name='density', colormap='viridis', contrast_limits=[-30,-20])
-    fils_layer = viewer.add_image(fils_labeled, name='cores', colormap='viridis')
-    napari.run()
 
     # Loop over filaments
     for f in range(n_fils):
         this_fil = (fils_labeled==f+1)
         min_r = np.min(radius[this_fil])
         max_r = np.max(radius[this_fil])
-        fil_radii = np.arange(min_r, max_r+radius_step, radius_step)
+        fil_radii = np.arange(min_r, max_r, radius_step)
         # Loop over radii within this filament and identify separate fragments (if filament is falling apart)
         for r in range(len(fil_radii)-1):
-            this_shell = this_fil & (radius >= fil_radii[r]) & (radius < fil_radii[r])
+            this_shell = this_fil & (radius >= fil_radii[r]) & (radius < fil_radii[r+1])
             frags_labeled, n_frags = ndimage.label(this_shell)
+            # Ignore fragments that are too small
+            unique, counts = np.unique(frags_labeled, return_counts=True)
+            for fr in range(1,len(unique)):
+                if (counts[fr]<5):
+                    frags_labeled[frags_labeled==unique[fr]] = 0
+            frags_labeled, n_frags = ndimage.label(frags_labeled)
+            print(f, fil_radii[r], n_frags)
+            viewer = napari.view_image(np.log10(density_gcm), name='density', colormap='viridis', contrast_limits=[-30,-20])
+            fils_layer = viewer.add_image(this_fil, name='cores', colormap='viridis', opacity=0.5)
+            frags_layer = viewer.add_image(frags_labeled, name='fragments', colormap='viridis')
+            napari.run()
             # Loop over filament fragments (will only be 1 if filament isn't falling apart)
             for frag in range(n_frags):
                 row = [f+1, fil_radii[r], frag+1]
@@ -3901,7 +3908,7 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
                 row.append(major_extent_arc)
                 row.append(minor_extent_arc)
                 row.append(orientation)
-
+                
                 table.add_row(row)
 
     table['fil_id'].unit = 'none'
@@ -3937,8 +3944,6 @@ def link_and_plot_fragments(snap, global_vars):
     tablename = prefix + 'Tables/' + snap + '_acc-fragment-props_radial_1p5Rvir_cgm-only.hdf5'
 
     table = Table.read(tablename, path='all_data')
-
-
 
 def filaments_3D(ds, grid, snap, snap_props, global_vars):
     '''This function identifies filament structures in 3D by tagging all cells in the grid by their
@@ -4868,6 +4873,8 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
 
 if __name__ == "__main__":
 
+    start = time.perf_counter()
+
     gtoMsun = 1.989e33
     cmtopc = 3.086e18
     stoyr = 3.155e7
@@ -5035,5 +5042,8 @@ if __name__ == "__main__":
                             shutil.rmtree(snap_dir + snaps[s])
                 outs = skipped_outs
 
-    print(str(datetime.datetime.now()))
+    end = time.perf_counter()
+    elapsed = end - start
+    duration = timedelta(seconds=elapsed)
     print("All snapshots finished!")
+    print(f"Elapsed time: {duration}")
