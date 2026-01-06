@@ -3687,8 +3687,8 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
     tsnap = ds.current_time.in_units('Gyr').v
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
-    names_list = ['fil_id', 'radius', 'frag_id', 'flux_sr_med', 'density_med', 'temperature_med', 'pressure_med', 'metallicity_med', 'radial_velocity_med', 'theta_velocity_med', 'theta_velocity_std', 'phi_velocity_med', 'phi_velocity_std', 'sound_speed_med', 'tcool_med', 'covering_frac', 'theta_center', 'phi_center', 'major_extent', 'minor_extent', 'orientation']
-    types_list = ['i8', 'f8', 'i8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8']
+    names_list = ['fil_id', 'radius', 'frag_id', 'num_cells', 'flux_sr_med', 'density_med', 'temperature_med', 'pressure_med', 'metallicity_med', 'radial_velocity_med', 'theta_velocity_med', 'theta_velocity_std', 'phi_velocity_med', 'phi_velocity_std', 'sound_speed_med', 'tcool_med', 'covering_frac', 'theta_center', 'phi_center', 'major_extent', 'minor_extent', 'orientation']
+    types_list = ['i8', 'f8', 'i8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8']
     table = Table(names=names_list, dtype=types_list)
 
     # Load grid properties
@@ -3793,7 +3793,7 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
             fils_labeled[fils_labeled==unique[f]] = 0
     fils_labeled, n_fils = ndimage.label(fils_labeled)
 
-    import napari
+    #import napari
 
     # Loop over filaments
     for f in range(n_fils):
@@ -3808,18 +3808,20 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
             # Ignore fragments that are too small
             unique, counts = np.unique(frags_labeled, return_counts=True)
             for fr in range(1,len(unique)):
-                if (counts[fr]<5):
+                if (counts[fr]<10):
                     frags_labeled[frags_labeled==unique[fr]] = 0
             frags_labeled, n_frags = ndimage.label(frags_labeled)
             print(f, fil_radii[r], n_frags)
-            viewer = napari.view_image(np.log10(density_gcm), name='density', colormap='viridis', contrast_limits=[-30,-20])
-            fils_layer = viewer.add_image(this_fil, name='cores', colormap='viridis', opacity=0.5)
-            frags_layer = viewer.add_image(frags_labeled, name='fragments', colormap='viridis')
-            napari.run()
+            #viewer = napari.view_image(np.log10(density_gcm), name='density', colormap='viridis', contrast_limits=[-30,-20])
+            #fils_layer = viewer.add_image(this_fil, name='cores', colormap='viridis', opacity=0.5)
+            #frags_layer = viewer.add_image(frags_labeled, name='fragments', colormap='viridis')
+            #napari.run()
             # Loop over filament fragments (will only be 1 if filament isn't falling apart)
             for frag in range(n_frags):
                 row = [f+1, fil_radii[r], frag+1]
                 this_frag = (frags_labeled==frag+1)
+                ncells = np.count_nonzero(this_frag)
+                row.append(ncells)
                 # Calculate median gas properties of this fragment
                 for p in range(len(properties)):
                     prop_frag = properties[p][this_frag]
@@ -3914,6 +3916,7 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
     table['fil_id'].unit = 'none'
     table['radius'].unit = 'kpc'
     table['frag_id'].unit = 'none'
+    table['num_cells'].unit = 'none'
     table['flux_sr_med'].unit = 'Msun/yr/sr'
     table['density_med'].unit = 'g/cm**3'
     table['temperature_med'].unit = 'K'
