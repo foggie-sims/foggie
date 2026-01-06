@@ -14,7 +14,8 @@ import os
 from astropy.table import Table
 from astropy.io import ascii
 import multiprocessing as multi
-import datetime
+import time
+from datetime import timedelta
 from scipy import interpolate
 import shutil
 import matplotlib.pyplot as plt
@@ -94,22 +95,22 @@ def parse_args():
     return args
 
 def tracer_density1(field, data):
-    return data[('enzo','TracerFluid01')]*data[('gas','density')]
+    return data.ds.arr(data['enzo','TracerFluid01'], 'code_density')
 
 def tracer_density2(field, data):
-    return data[('enzo','TracerFluid02')]*data[('gas','density')]
+    return data.ds.arr(data['enzo','TracerFluid02'], 'code_density')
 
 def tracer_density3(field, data):
-    return data[('enzo','TracerFluid03')]*data[('gas','density')]
+    return data.ds.arr(data['enzo','TracerFluid03'], 'code_density')
 
 def tracer_density4(field, data):
-    return data[('enzo','TracerFluid04')]*data[('gas','density')]
+    return data.ds.arr(data['enzo','TracerFluid04'], 'code_density')
 
 def tracer_density5(field, data):
-    return data[('enzo','TracerFluid05')]*data[('gas','density')]
+    return data.ds.arr(data['enzo','TracerFluid05'], 'code_density')
 
 def tracer_density6(field, data):
-    return data[('enzo','TracerFluid06')]*data[('gas','density')]
+    return data.ds.arr(data['enzo','TracerFluid06'], 'code_density')
 
 def project_tracer(ds, snap, tracer_number, proj_direction):
     '''Makes the projected images in proj_direction of the tracer field given by tracer_number for the snapshot snap.'''
@@ -126,38 +127,38 @@ def project_tracer(ds, snap, tracer_number, proj_direction):
     ylabel_dict = {'x':'z', 'y':'z', 'z':'y', 'x-disk':'z', 'y-disk':'z', 'z-disk':'y'}
 
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
-    fig = plt.figure(figsize=(20,5.5), dpi=250)
-    ax1 = fig.add_subplot(1,3,1)
-    ax2 = fig.add_subplot(1,3,2)
-    ax3 = fig.add_subplot(1,3,3)
-    fig.subplots_adjust(left=0.05, bottom=0.06, top=0.98, right=0.93, wspace=0.47)
+    fig = plt.figure(figsize=(14,5.5), dpi=250)
+    ax1 = fig.add_subplot(1,2,1)
+    ax2 = fig.add_subplot(1,2,2)
+    #ax3 = fig.add_subplot(1,3,3)
+    fig.subplots_adjust(left=0.07, bottom=0.1, top=0.98, right=0.92, wspace=0.43)
 
     # Plot gas density
     if ('disk' in proj_direction):
-        den_proj = yt.ProjectionPlot(ds, proj_dict[proj_direction], ('gas','density'), center=ds.halo_center_kpc, width=(300, 'kpc'), north_vector=north_dict[proj_direction])
+        den_proj = yt.ProjectionPlot(ds, proj_dict[proj_direction], ('gas','density'), weight_field=('gas','density'), center=ds.halo_center_kpc, width=(400, 'kpc'), north_vector=north_dict[proj_direction])
     else:
-        den_proj = yt.ProjectionPlot(ds, proj_dict[proj_direction], ('gas','density'), center=ds.halo_center_kpc, width=(300, 'kpc'))
+        den_proj = yt.ProjectionPlot(ds, proj_dict[proj_direction], ('gas','density'), weight_field=('gas','density'), center=ds.halo_center_kpc, width=(400, 'kpc'))
     den_frb = den_proj.frb[('gas','density')]
-    den_im = ax1.imshow(den_frb, extent=[-150,150,-150,150], cmap='viridis', norm=mcolors.LogNorm(vmin=1e-5, vmax=1e-1), origin='lower')
+    den_im = ax1.imshow(den_frb, extent=[-200,200,-200,200], cmap='viridis', norm=mcolors.LogNorm(vmin=1e-30, vmax=1e-24), origin='lower')
     ax1.set_xlabel(xlabel_dict[proj_direction] + ' [kpc]', fontsize=16)
     ax1.set_ylabel(ylabel_dict[proj_direction] + ' [kpc]', fontsize=16)
     ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
             top=True, right=True)
-    ax1.text(140, 140, '$z = %.2f$\n%.2f Gyr' % (zsnap, ds.current_time.in_units('Gyr')), fontsize=16, ha='right', va='top', color='white')
+    ax1.text(190, 190, '$z = %.2f$\n%.2f Gyr' % (zsnap, ds.current_time.in_units('Gyr')), fontsize=16, ha='right', va='top', color='white')
     pos = ax1.get_position()
     den_cax = fig.add_axes([pos.x1, pos.y0, 0.015, pos.height])  # [left, bottom, width, height]
     fig.colorbar(den_im, cax=den_cax, orientation='vertical')
-    den_cax.tick_params(axis='both', which='both', top=False, right=True, labelsize=12, direction='in', length=8, width=2, pad=5)
+    den_cax.tick_params(axis='both', which='both', top=False, right=True, labelsize=14, direction='in', length=8, width=2, pad=5)
     pos_cax = den_cax.get_position()
-    den_cax.text(pos_cax.x1 + 3, pos_cax.y0 + pos_cax.height/2.-0.02, 'Projected Density [g/cm$^2$]', fontsize=16, ha='center', va='center', rotation=90, transform=den_cax.transAxes)
+    den_cax.text(pos_cax.x1 + 4.5, pos_cax.y0 + pos_cax.height/2.-0.02, 'Projected Density [g/cm$^3$]', fontsize=16, ha='center', va='center', rotation=90, transform=den_cax.transAxes)
 
     # Plot tracer field
     if ('disk' in proj_direction):
-        tracer_proj = yt.ProjectionPlot(ds, proj_dict[proj_direction], ('enzo',tracer_name), method='integrate', center=ds.halo_center_kpc, width=(300, 'kpc'), north_vector=north_dict[proj_direction])
+        tracer_proj = yt.ProjectionPlot(ds, proj_dict[proj_direction], ('gas', tracden_name), weight_field=('gas', tracden_name), center=ds.halo_center_kpc, width=(400, 'kpc'), north_vector=north_dict[proj_direction])
     else:
-        tracer_proj = yt.ProjectionPlot(ds, proj_dict[proj_direction], ('enzo',tracer_name), method='integrate', center=ds.halo_center_kpc, width=(300, 'kpc'))
-    tracer_frb = tracer_proj.frb[('enzo',tracer_name)]
-    tracer_im = ax2.imshow(tracer_frb, extent=[-150,150,-150,150], cmap='magma', norm=mcolors.LogNorm(vmin=1e21, vmax=1e24), origin='lower')
+        tracer_proj = yt.ProjectionPlot(ds, proj_dict[proj_direction], ('gas', tracden_name), weight_field=('gas', tracden_name), center=ds.halo_center_kpc, width=(400, 'kpc'))
+    tracer_frb = tracer_proj.frb[('gas', tracden_name)]
+    tracer_im = ax2.imshow(tracer_frb, extent=[-200,200,-200,200], cmap='magma', norm=mcolors.LogNorm(vmin=1e-30, vmax=1e-24), origin='lower')
     ax2.set_xlabel(xlabel_dict[proj_direction] + ' [kpc]', fontsize=16)
     ax2.set_ylabel(ylabel_dict[proj_direction] + ' [kpc]', fontsize=16)
     ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
@@ -165,28 +166,44 @@ def project_tracer(ds, snap, tracer_number, proj_direction):
     pos = ax2.get_position()
     tracer_cax = fig.add_axes([pos.x1, pos.y0, 0.015, pos.height])  # [left, bottom, width, height]
     fig.colorbar(tracer_im, cax=tracer_cax, orientation='vertical')
-    tracer_cax.tick_params(axis='both', which='both', top=False, right=True, labelsize=12, direction='in', length=8, width=2, pad=5)
+    tracer_cax.tick_params(axis='both', which='both', top=False, right=True, labelsize=14, direction='in', length=8, width=2, pad=5)
     pos_cax = tracer_cax.get_position()
-    tracer_cax.text(pos_cax.x1 + 2.5, pos_cax.y0 + pos_cax.height/2.-0.02, 'Projected Tracer', fontsize=16, ha='center', va='center', rotation=90, transform=tracer_cax.transAxes)
+    tracer_cax.text(pos_cax.x1 + 4, pos_cax.y0 + pos_cax.height/2.-0.02, 'Projected Tracer [g/cm$^3$]', fontsize=16, ha='center', va='center', rotation=90, transform=tracer_cax.transAxes)
 
-    # Plot tracer field multiplied by gas density
-    if ('disk' in proj_direction):
-        tracden_proj = yt.ProjectionPlot(ds, proj_dict[proj_direction], ('gas',tracden_name), center=ds.halo_center_kpc, width=(300, 'kpc'), north_vector=north_dict[proj_direction])
-    else:
-        tracden_proj = yt.ProjectionPlot(ds, proj_dict[proj_direction], ('gas',tracden_name), center=ds.halo_center_kpc, width=(300, 'kpc'))
-    tracden_frb = tracden_proj.frb[('gas',tracden_name)]
-    tracden_im = ax3.imshow(tracden_frb, extent=[-150,150,-150,150], cmap='plasma', norm=mcolors.LogNorm(vmin=1e-7, vmax=1), origin='lower')
-    ax3.set_xlabel(xlabel_dict[proj_direction] + ' [kpc]', fontsize=16)
-    ax3.set_ylabel(ylabel_dict[proj_direction] + ' [kpc]', fontsize=16)
-    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
-            top=True, right=True)
-    pos = ax3.get_position()
-    tracden_cax = fig.add_axes([pos.x1, pos.y0, 0.015, pos.height])  # [left, bottom, width, height]
-    fig.colorbar(tracden_im, cax=tracden_cax, orientation='vertical')
-    tracden_cax.tick_params(axis='both', which='both', top=False, right=True, labelsize=12, direction='in', length=8, width=2, pad=5)
-    pos_cax = tracden_cax.get_position()
-    tracden_cax.text(pos_cax.x1 + 2.5, pos_cax.y0 + pos_cax.height/2.-0.02, 'Projected Tracer Density [g/cm$^2$]', fontsize=16, ha='center', va='center', rotation=90, transform=tracden_cax.transAxes)
     plt.savefig(output_dir + '/' + snap + '_tracer0' + str(tracer_number) + '_projection_' + proj_direction + save_suffix + '.png')
+    plt.close()
+
+    # Plot tracer field overlaid on gas density
+    fig2 = plt.figure(figsize=(8.5,6), dpi=250)
+    ax3 = fig2.add_subplot(1,1,1)
+    fig2.subplots_adjust(left=0.08, bottom=0.02, top=0.98, right=0.92)
+
+    den_im = ax3.imshow(den_frb, extent=[-200,200,-200,200], cmap='viridis', norm=mcolors.LogNorm(vmin=1e-30, vmax=1e-24), origin='lower')
+    alpha_tracer = np.log10(tracer_frb)
+    alpha_tracer[alpha_tracer<-30.] = -30.
+    alpha_tracer[alpha_tracer>-27.] = -27.
+    alpha_tracer = (alpha_tracer+30.)/3.        # log'd and then adding 30 makes values go from 0 to 3, dividing by 3 makes it 0 to 1, then multiplying by 0.8 makes it 0 to 0.8
+    tracer_im = ax3.imshow(tracer_frb, extent=[-200,200,-200,200], cmap='magma', norm=mcolors.LogNorm(vmin=1e-30, vmax=1e-27), origin='lower', alpha=alpha_tracer)
+    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+            top=True, right=True, labelleft=False, labelbottom=False)
+    pos = ax3.get_position()
+    den_cax = fig2.add_axes([pos.x1, pos.y0, 0.03, pos.height])  # [left, bottom, width, height]
+    fig2.colorbar(den_im, cax=den_cax, orientation='vertical')
+    den_cax.tick_params(axis='both', which='both', top=False, right=True, labelsize=14, direction='in', length=8, width=2, pad=5)
+    pos_cax = den_cax.get_position()
+    den_cax.text(pos_cax.x1 + 3.5, pos_cax.y0 + pos_cax.height/2.-0.02, 'Projected Density [g/cm$^3$]', fontsize=16, ha='center', va='center', rotation=90, transform=den_cax.transAxes)
+    tracer_cax = fig2.add_axes([pos.x0-0.03, pos.y0, 0.03, pos.height])  # [left, bottom, width, height]
+    fig2.colorbar(tracer_im, cax=tracer_cax, orientation='vertical')
+    tracer_cax.tick_params(axis='both', which='both', top=False, right=False, left=True, labelleft=True, labelright=False, labelsize=14, direction='in', length=8, width=2, pad=5)
+    pos_cax = tracer_cax.get_position()
+    tracer_cax.text(pos_cax.x1 - 3.5, pos_cax.y0 + pos_cax.height/2.-0.02, 'Projected Tracer [g/cm$^3$]', fontsize=16, ha='center', va='center', rotation=90, transform=tracer_cax.transAxes)
+    ax3.text(190, 190, '$z = %.2f$\n%.2f Gyr' % (zsnap, ds.current_time.in_units('Gyr')), fontsize=16, ha='right', va='top', color='white')
+    ax3.plot([-150,-100],[-180,-180], color='white', ls='-', lw=2)
+    ax3.text(-125, -177, '50 kpc', fontsize=16, ha='center', va='bottom', color='white')
+
+    plt.savefig(output_dir + '/' + snap + '_tracer0' + str(tracer_number) + '-overlay_projection_' + proj_direction + save_suffix + '.png')
+    plt.close()
+
 
 def load_and_calculate(snap):
     '''Loads the simulation snapshot and makes the requested plots.'''
@@ -213,11 +230,11 @@ def load_and_calculate(snap):
                  sampling_type='cell')
     ds.add_field(('gas','tracer_density05'), function=tracer_density5, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
-    ds.add_field(('gas','tracer_density06'), function=tracer_density6, units='g/cm**3', take_log=True, \
-                 sampling_type='cell')
+    #ds.add_field(('gas','tracer_density06'), function=tracer_density6, units='g/cm**3', take_log=True, \
+                 #sampling_type='cell')
     
     for p in range(len(projections)):
-        for i in range(6):
+        for i in range(5):
             project_tracer(ds, snap, i+1, projections[p])
 
     # Delete output from temp directory if on pleiades
@@ -226,6 +243,9 @@ def load_and_calculate(snap):
         shutil.rmtree(snap_dir)
 
 if __name__ == "__main__":
+
+    start = time.perf_counter()
+
     args = parse_args()
     print(args.halo)
     print(args.run)
@@ -307,5 +327,8 @@ if __name__ == "__main__":
                         shutil.rmtree(snap_dir + snaps[s])
             outs = skipped_outs
 
-    print(str(datetime.datetime.now()))
+    end = time.perf_counter()
+    elapsed = end - start
+    duration = timedelta(seconds=elapsed)
     print("All snapshots finished!")
+    print(f"Elapsed time: {duration}")
