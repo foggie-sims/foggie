@@ -91,6 +91,10 @@ def parse_args():
                         help='Do you want to append a string onto the names of the saved files? Default is no.')
     parser.set_defaults(save_suffix="")
 
+    parser.add_argument('--num_tracers', metavar='num_tracers', type=int, action='store', \
+                        help='How many tracer fields are there?')
+    parser.set_defaults(num_tracers=0)
+
     args = parser.parse_args()
     return args
 
@@ -111,6 +115,12 @@ def tracer_density5(field, data):
 
 def tracer_density6(field, data):
     return data.ds.arr(data['enzo','TracerFluid06'], 'code_density')
+
+def tracer_density7(field, data):
+    return data.ds.arr(data['enzo','TracerFluid07'], 'code_density')
+
+def tracer_density8(field, data):
+    return data.ds.arr(data['enzo','TracerFluid08'], 'code_density')
 
 def project_tracer(ds, snap, tracer_number, proj_direction):
     '''Makes the projected images in proj_direction of the tracer field given by tracer_number for the snapshot snap.'''
@@ -220,21 +230,33 @@ def load_and_calculate(snap):
         snap_name = run_dir + snap + '/' + snap
     
     ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=True, disk_relative=disk_needed)
-    ds.add_field(('gas','tracer_density01'), function=tracer_density1, units='g/cm**3', take_log=True, \
+    if (args.num_tracers >= 1):
+        ds.add_field(('gas','tracer_density01'), function=tracer_density1, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
-    ds.add_field(('gas','tracer_density02'), function=tracer_density2, units='g/cm**3', take_log=True, \
+    if (args.num_tracers >= 2):
+        ds.add_field(('gas','tracer_density02'), function=tracer_density2, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
-    ds.add_field(('gas','tracer_density03'), function=tracer_density3, units='g/cm**3', take_log=True, \
+    if (args.num_tracers >= 3):
+        ds.add_field(('gas','tracer_density03'), function=tracer_density3, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
-    ds.add_field(('gas','tracer_density04'), function=tracer_density4, units='g/cm**3', take_log=True, \
+    if (args.num_tracers >= 4):
+        ds.add_field(('gas','tracer_density04'), function=tracer_density4, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
-    ds.add_field(('gas','tracer_density05'), function=tracer_density5, units='g/cm**3', take_log=True, \
+    if (args.num_tracers >= 5):
+        ds.add_field(('gas','tracer_density05'), function=tracer_density5, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
-    #ds.add_field(('gas','tracer_density06'), function=tracer_density6, units='g/cm**3', take_log=True, \
-                 #sampling_type='cell')
+    if (args.num_tracers >= 6):
+        ds.add_field(('gas','tracer_density06'), function=tracer_density6, units='g/cm**3', take_log=True, \
+                 sampling_type='cell')
+    if (args.num_tracers >= 7):
+        ds.add_field(('gas','tracer_density07'), function=tracer_density7, units='g/cm**3', take_log=True, \
+                 sampling_type='cell')
+    if (args.num_tracers == 8):
+        ds.add_field(('gas','tracer_density08'), function=tracer_density8, units='g/cm**3', take_log=True, \
+                 sampling_type='cell')
     
     for p in range(len(projections)):
-        for i in range(5):
+        for i in range(args.num_tracers):
             project_tracer(ds, snap, i+1, projections[p])
 
     # Delete output from temp directory if on pleiades
