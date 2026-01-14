@@ -26,8 +26,12 @@ def get_halo_catalog(ds, args, snap):
         return hc
     else:
         print('No halo catalog found, creating halo catalog for snapshot ' + snap)
-
-        return None
+        from foggie.fogghorn.quick_halo_finding import prep_dataset_for_halo_finding, halo_finding_step, repair_halo_catalog, export_to_astropy
+        ds, box = prep_dataset_for_halo_finding(args.directory, snap, trackfile=args.trackfile) 
+        hc = halo_finding_step(ds, box, simulation_dir=args.directory) 
+        hc = repair_halo_catalog(ds, args.directory, snap, min_halo_mass=1e9)
+        hc = yt.load(args.directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5')
+        return hc
     
 def halos_density_projection(ds, region, args, output_filename):
     '''Plots a density projection with all the halos in the halo catalog
@@ -302,7 +306,7 @@ def baryon_budget(ds, region, args, output_filename):
     plt.bar(np.log10(total_halo_mass[i]), warm_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cold_cgm_fraction[i]+cool_cgm_fraction[i], color='#659B4d', label='Warm CGM')
     plt.bar(np.log10(total_halo_mass[i]), hot_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i]+cold_cgm_fraction[i]+cool_cgm_fraction[i]+warm_cgm_fraction[i], color='#f2dc61', label='Hot CGM')
 
-    for i in np.arange(7): 
+    for i in np.arange(len(total_halo_mass)): 
         plt.bar(np.log10(total_halo_mass[i]), star_fraction[i], width=0.2, bottom = 0., color='#9e302c')  
         plt.bar(np.log10(total_halo_mass[i]), ism_fraction[i], width=0.2, bottom = star_fraction[i], color='#4a6091')  
         plt.bar(np.log10(total_halo_mass[i]), cold_cgm_fraction[i], width=0.2, bottom = star_fraction[i]+ism_fraction[i], color="#C66D64") 

@@ -74,7 +74,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def get_halo_root_track(code_path, halo_id, snap_number, box_size, ref_level, t):
+def get_halo_root_track(run_path, halo_id, snap_number, box_size, ref_level, t):
     '''This function calculates the center of mass of the particles listed
     in halo_[halo_id]_root_index.txt in the snapshot given by [snap_number] and
     adds a row to the track file with the corners of the box given by [box_size]
@@ -82,8 +82,9 @@ def get_halo_root_track(code_path, halo_id, snap_number, box_size, ref_level, t)
 
     print(snap_number)
         
-    path = code_path + '/halo_tracks/' + halo_id + '/root_tracks/'
-    root_particles = Table.read(path + 'halo_' + halo_id + '_root_index.txt', format='ascii')
+    #path = code_path + '/halo_tracks/' + halo_id + '/root_tracks/'
+    #root_particles = Table.read(path + 'halo_' + halo_id + '_root_index.txt', format='ascii')
+    root_particles = Table.read(run_path + '/halo_catalogs/root_index.txt', format='ascii')
     halo0 = root_particles['root_index']
         
     ds = yt.load(snap_number) 
@@ -119,6 +120,7 @@ if __name__ == "__main__":
         exit('You must specify the path to the foggie repo.')
 
     halo_id = '00' + args.halo
+    run_dir = args.run_dir
     code_path = args.code_path
     box_size = args.box_size
     ref_level = args.ref_level
@@ -154,7 +156,7 @@ if __name__ == "__main__":
         for j in range(args.nproc):
             snap = args.run_dir + '/' + outs[args.nproc*i+j] + '/' + outs[args.nproc*i+j]
             thr = multi.Process(target=get_halo_root_track, \
-               args=(code_path, halo_id, snap, box_size, ref_level, queue))
+               args=(run_dir, halo_id, snap, box_size, ref_level, queue))
             threads.append(thr)
             thr.start()
         for thr in threads:
@@ -168,7 +170,7 @@ if __name__ == "__main__":
     for j in range(len(outs)%args.nproc):
         snap = args.run_dir + '/' + outs[-(j+1)] + '/' + outs[-(j+1)]
         thr = multi.Process(target=get_halo_root_track, \
-               args=(code_path, halo_id, snap, box_size, ref_level, queue))
+               args=(run_dir, halo_id, snap, box_size, ref_level, queue))
         threads.append(thr)
         thr.start()
     for thr in threads:

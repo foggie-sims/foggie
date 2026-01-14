@@ -265,6 +265,7 @@ def parallel_loop_over_halos(snap, args):
     hc = halo_finding_step(ds, box, simulation_dir=args.directory, threshold=args.threshold) 
     hc = repair_halo_catalog(ds, args.directory, snap, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
     export_to_astropy(args.directory, snap)
+    if (args.make_plots): make_halo_plots(ds, args.directory, args.output)
 
 
 if __name__ == "__main__":

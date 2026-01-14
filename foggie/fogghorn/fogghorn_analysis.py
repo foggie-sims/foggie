@@ -50,6 +50,9 @@ def parse_args():
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', default=1, help='How many processes do you want? Default is 1 (no parallelization), if multiple processors are specified, code will run one output per processor')
     parser.add_argument('--rockstar_directory', metavar='rockstar_directory', type=str, action='store', default=None, help='What is the directory where your rockstar outputs are located?')
 
+    # These arguments are options for halo center finding
+    parser.add_argument('--use_track_center', dest='use_track_center', action='store_true', default=False, help='Just use trackbox center instead of finding halo center? Default is no.')
+
     # These arguments are options for how this code is run
     parser.add_argument('--clobber', dest='clobber', action='store_true', default=False, help='Over-write existing plots? Default is no.')
     parser.add_argument('--silent', dest='silent', action='store_true', default=False, help='Suppress some generic pritn statements? Default is no.')
@@ -299,7 +302,10 @@ def make_everysnap_plots(snap, args):
             halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
             ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk, halo_c_v_name=halos_df_name)
         else:
-            ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk)
+            if (args.use_track_center):
+                ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, find_halo_center=False)
+            else:
+                ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk)
 
         #  Make the plots
         for thisplot in plots_to_make:
