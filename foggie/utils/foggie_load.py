@@ -462,8 +462,6 @@ def foggie_load(snap, **kwargs):
             ds.add_field(('dm', 'vff'), function=v_ff_dm, units='km/s', \
                      take_log=False, force_override=True, sampling_type='particle')
 
-
-
     region.set_field_parameter('omega_baryon', ds.omega_baryon)
 
-    return ds
+    return ds, region 
