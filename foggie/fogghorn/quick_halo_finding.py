@@ -66,7 +66,6 @@ def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile=None, boxw
 
     return ds, box 
 
-
 def halo_finding_step(ds, box, simulation_dir='./', threshold=400.): 
     """Run the HOP halo finder on a dataset subvolume and create a catalog.
 

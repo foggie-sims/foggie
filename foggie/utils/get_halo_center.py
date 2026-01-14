@@ -15,7 +15,6 @@ def get_halo_center(ds, center_guess, **kwargs):
     length = 'code_length'
     vel = 'code_velocity'
 
-    print('get_halo_center:', length, vel)
     sphere_region = ds.sphere(center_guess, (radius, 'kpc'))
     print("get_halo_center: obtained the spherical region")
 
