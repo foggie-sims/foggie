@@ -35,7 +35,7 @@ def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile=None, boxw
         (default: 0.04).
 
     Returns
-    -------s
+    -------
     ds : yt.Dataset
         The loaded dataset object for the requested snapshot.
     box : yt.Region
@@ -46,25 +46,11 @@ def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile=None, boxw
     dataset_name = simulation_dir+'/'+snapname+'/'+snapname
 
     if (trackfile == None): # if no trackfile, use min and max positions of the smallest DM particles to define a subregion
-        ds, _ = foggie_load(dataset_name) 
-        ad = ds.all_data() 
-        x = ad[('dm', 'particle_position_x')] 
-        y = ad[('dm', 'particle_position_y')] 
-        z = ad[('dm', 'particle_position_z')] 
-
-        print('QUICK_HALO_FINDING subregion x: ', np.min(x), np.max(x))
-        print('                   subregion y: ', np.min(y), np.max(y))
-        print('.                  subregion z: ', np.min(z), np.max(z))
-
-        box = ds.r[np.min(x):np.max(x), np.min(y):np.max(y), np.min(z):np.max(z)]
+        ds, region = foggie_load(dataset_name, central_halo = False) 
     else: 
-        ds, _ = foggie_load(dataset_name, trackfile_name = trackfile)
+        ds, region = foggie_load(dataset_name, central_halo = False, trackfile_name = trackfile)
 
-        box = ds.r[ds.halo_center_code.value[0]-boxwidth/2:ds.halo_center_code.value[0]+boxwidth/2, 
-               ds.halo_center_code.value[1]-boxwidth/2:ds.halo_center_code.value[1]+boxwidth/2, 
-               ds.halo_center_code.value[2]-boxwidth/2:ds.halo_center_code.value[2]+boxwidth/2] 
-
-    return ds, box 
+    return ds, region 
 
 def halo_finding_step(ds, box, simulation_dir='./', threshold=400.): 
     """Run the HOP halo finder on a dataset subvolume and create a catalog.

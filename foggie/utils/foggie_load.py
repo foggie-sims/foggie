@@ -186,25 +186,34 @@ def get_center_from_track(ds, trackfile_name, proper_box_size):
     return ds 
 
 def foggie_load(snap, **kwargs):
-    """Loads a foggie simulation snapshot and adds useful fields.
-    
-    There are three basic items here: 
-        - how will the center be defined, if there is one? 
-        - how will the subregion of the domain be defined?
-        - what fields do we want to add to the dataset?
+        
+    """Load a foggie snapshot and attach useful derived fields.
 
-    foggie_load is complicated in how it derives halos centers and 
-    a subregion of the domain for further processing, because there
-    are four basic use cases:
+    Parameters
+    - snap (str): Path to the snapshot file to load (passed to `yt.load`).
+    - kwargs: Optional keyword arguments (defaults shown below):
+        - central_halo (bool, default False): Treat this halo as the central/main halo.
+        - trackfile_name (str or None, default None): Path to a track file used to set/compute the refine-box center.
+        - halo_c_v_name (str or None, default None): Path to a halo catalog (halo_c_v). If the filename contains
+             'smoothed' a smoothed center is used.
+        - do_filter_particles (bool, default True): Whether to run particle filtering and add particle fields.
+        - disk_relative (bool, default False): If True, compute disk-aligned coordinates/velocities from angular momentum.
+        - smooth_AM_name (str or False, default False): Path to a table with a precomputed smoothed angular-momentum vector
+            (used when `disk_relative` is True).
+        - particle_type_for_angmom (str, default 'young_stars'): Particle type used when computing angular momentum.
+        - gravity (bool, default False): If True, load precomputed enclosed-mass profiles and add gravity-related fields
+            (`tff`, `vff`, `vesc`, etc.). Requires `masses_dir`.
+        - masses_dir (str, default ''): Directory containing `masses_*.hdf5` tables used when `gravity` is True.
 
-   (1)  When there is a 'central halo' of interest that should be the center: 
-        (3) center defined by the halo_c_v catalog file (or a smoothed halo_info file)
-        (4) center defined by a given track, and refined by the center of mass near this track. 
-    - if there is a track file, the center is defined as the density peak of the dark matter in a 50 kpc sphere around the refine box center.
-        - central halo, with a track file
-        - central halo, without a track file
-        - non-central halo, with a track file
-        - non-central halo, without a track file"""
+    Returns
+        - ds: A `yt` Dataset with added attributes and fields (e.g., `halo_center_kpc`, `halo_velocity_kms`, disk fields).
+        - region: A `yt` data object defining the selected region (refine box or a sub-region determined by track/catalog/DM).
+    Notes
+        - The function sets `ds.halo_center_code`, `ds.halo_center_kpc`, and `ds.halo_velocity_kms` when a meaningful
+            center/velocity is found. Derived fields (corrected positions/velocities, particle angular-momentum fields,
+            disk-aligned fields, gravity fields) are only added when the required inputs are present.
+        - Other internal keyword arguments (e.g., `region`) are honored where used in the function.
+    """
 
     #get all the keywords and process them 
     central_halo = kwargs.get('central_halo', False) # if this is set, we assume we are working with the central halo 
