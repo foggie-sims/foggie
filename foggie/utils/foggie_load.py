@@ -271,7 +271,7 @@ def foggie_load(snap, **kwargs):
                 print("FOGGIE_LOAD: We will define the center from the track file and refine it")
                 ds, region = get_center_from_calculated(ds, trackfile_name)
             elif (trackfile_name == None): 
-                raise ValueError("FOGGIE_LOAD: You have specified a central halo but provided no track, which can't work. Exiting.")
+                raise ValueError("FOGGIE_LOAD: You have specified a central halo but provided no track or halo_c_v file, which can't work. Exiting.")
     elif (central_halo == False): # branch 2 of the flowchart
         if (trackfile_name != None): # branch 5 of the flowchart
             print("FOGGIE_LOAD: No central halo, using center of track file")
