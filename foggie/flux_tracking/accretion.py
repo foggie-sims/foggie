@@ -38,15 +38,17 @@ from scipy.ndimage import uniform_filter1d
 from scipy.ndimage import uniform_filter
 from scipy import interpolate
 from skimage.measure import regionprops
-import datetime
+from datetime import timedelta
+import time
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS
+from scipy.interpolate import NearestNDInterpolator
 import shutil
 import ast
 import trident
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm
-#import healpy
+import healpy
 import cmasher as cmr
 from matplotlib.patches import Ellipse
 import copy
@@ -218,7 +220,9 @@ def parse_args():
                         'accretion_compare   -  will calculate statistics (mean, median, etc) of gas properties\n' + \
                         '                       comparing accreting cells to non-accreting cells in edge around shape\n' + \
                         'filament_stats      -  will calculate the number of large filaments and their widths\n' + \
-                        'filaments_3D        -  will identify separate filament structures in 3D')
+                        'filaments_3D        -  will identify separate filament structures in 3D\n' + \
+                        'outflows            -  will calculate outflowing mass and energy fluxes in temperature bins' + \
+                        'inner_cgm_energies  -  will calculate thermal and kinetic energies and cooling within different radii')
     parser.set_defaults(calculate='none')
 
     parser.add_argument('--weight', metavar='weight', type=str, action='store', \
@@ -367,6 +371,73 @@ def make_flux_table(flux_types, args):
 
     table = Table(names=names_list, dtype=types_list)
 
+    return table
+
+def make_outflow_table(flux_types, args):
+    '''Makes the giant table that will be saved to file.'''
+
+    if (args.radial_stepping > 0):
+        names_list = ['radius']
+        types_list = ['f8']
+    elif ('disk' in surface[0]):
+        names_list = ['disk_radius']
+        types_list = ['f8']
+    else:
+        names_list = []
+        types_list = []
+
+    temp_names = ['', 'cold_', 'cool_', 'warm_', 'hot_']
+    stat_names = ['_med', '_iqr', '_avg', '_std']
+    vel_names = ['', '_fast']
+
+    for i in range(len(flux_types)):
+        if ('flux' in flux_types[i]):
+            for j in range(len(temp_names)):
+                for k in range(len(vel_names)):
+                    name = ''
+                    name += temp_names[j]
+                    name += flux_types[i]
+                    name += vel_names[k]
+                    names_list += [name]
+                    types_list += ['f8']
+        else:
+            for j in range(len(temp_names)):
+                for l in range(len(vel_names)):
+                    for k in range(len(stat_names)):
+                        name = ''
+                        name += temp_names[j]
+                        name += flux_types[i]
+                        name += stat_names[k]
+                        name += vel_names[l]
+                        names_list += [name]
+                        types_list += ['f8']
+
+    table = Table(names=names_list, dtype=types_list)
+
+    return table
+
+def set_outflow_table_units(table):
+    '''Sets the units for the table. Note this needs to be updated whenever something is added to
+    the table. Returns the table.'''
+
+    for key in table.keys():
+        if ('flux' in key):
+            if (('mass' in key) or ('metal' in key)):
+                table[key].unit = 'Msun/yr'
+            elif ('energy' in key):
+                table[key].unit = 'erg/yr'
+        elif ('radius' in key):
+            table[key].unit = 'kpc'
+        elif ('temperature' in key):
+            table[key].unit = 'K'
+        elif ('density' in key):
+            table[key].unit = 'g/cm**3'
+        elif ('presssure' in key):
+            table[key].unit = 'erg/cm**3'
+        elif ('velocity' in key):
+            table[key].unit = 'km/s'
+        else:
+            table[key].unit = 'none'
     return table
 
 def set_flux_table_units(table):
@@ -1075,13 +1146,348 @@ def calculate_flux(ds, grid, shape, snap, snap_props, global_vars):
     table = set_flux_table_units(table)
     table.write(tablename + flux_filename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
 
+def inner_cgm_energy(ds, grid, shape, snap, snap_props, global_vars):
+    '''Calculates the build-up of various forms of energy in inner 0.25Rvir of CGM, as well as
+    energy input from stellar feedback and energy lost from cooling, and saves to file.'''
+
+    args = global_vars['args']
+    prefix = global_vars['prefix']
+    save_suffix = global_vars['save_suffix']
+
+    tablename = prefix + 'Tables/' + snap + '_inner-cgm_energies'
+    Menc_profile, Mvir, Rvir = snap_props
+    tsnap = ds.current_time.in_units('Gyr').v
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    # Set up table of everything we want
+    properties = ['time', 'radius_kpc', 'radius_Rvir', 'thermal_energy_sum', 'gravitational_heating_sum', 'kinetic_energy_sum', 'turbulent_energy_sum', 'radial_energy_sum', 'rotational_energy_sum', 'feedback_energy_50Myr', 'cooling_energy']
+    table = Table(names=properties, dtype=['f8','f8','f8','f8','f8','f8','f8','f8','f8','f8','f8'])
+
+    # Load needed fields
+    x = grid['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
+    y = grid['gas', 'y'].in_units('kpc').v - ds.halo_center_kpc[1].v
+    z = grid['gas', 'z'].in_units('kpc').v - ds.halo_center_kpc[2].v
+    radius = grid['gas','radius_corrected'].in_units('kpc').v
+    rv = grid['gas','radial_velocity_corrected'].in_units('cm/s').v
+    vphi = grid['gas','phi_velocity_corrected'].in_units('cm/s').v
+    vtheta = grid['gas','theta_velocity_corrected'].in_units('cm/s').v
+    density = grid['gas','density'].in_units('g/cm**3').v
+    kinetic_energy = grid['gas','kinetic_energy_corrected'].in_units('erg').v
+    thermal_energy = (grid['gas','cell_mass']*grid['gas','specific_thermal_energy']).in_units('erg').v
+    mass = grid['gas','cell_mass'].in_units('g').v
+    cell_volume = grid['gas','cell_volume'].in_units('cm**3').v
+    cooling_time = grid['gas','cooling_time'].in_units('s').v
+    sph = ds.sphere(ds.halo_center_kpc, radius=(Rvir, 'kpc'))
+    star_age = sph['young_stars8','age'].in_units('Myr').v
+    star_mass = sph['young_stars8', 'particle_mass'].in_units('Msun').v
+    star_radius = sph['young_stars8','radius_corrected'].in_units('kpc').v
+
+    # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+    # with it being 1 at higher redshifts and 0.1 at lower redshifts
+    current_time = ds.current_time.in_units('Myr').v
+    if (current_time<=7091.48): # z = 0.75
+        density_cut_factor = 20. - 19.*current_time/7091.48
+    elif (current_time<=8656.88): # z = 0.5
+        density_cut_factor = 1.
+    elif (current_time<=10787.12): # z = 0.25
+        density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+    else:
+        density_cut_factor = 0.1
+    cgm_bool = (density < density_cut_factor * cgm_density_max)
+
+    # This next block needed for removing any ISM regions and then interpolating over the holes left behind
+    # Define ISM regions to remove
+    disk_mask = (density > cgm_density_max * density_cut_factor)
+    # disk_mask_expanded is a binary mask of both ISM regions AND their surrounding pixels
+    struct = ndimage.generate_binary_structure(3,3)
+    disk_mask_expanded = ndimage.binary_dilation(disk_mask, structure=struct, iterations=3)
+    disk_mask_expanded = ndimage.binary_closing(disk_mask_expanded, structure=struct, iterations=3)
+    disk_mask_expanded = disk_mask_expanded | disk_mask
+    # disk_edges is a binary mask of ONLY pixels surrounding ISM regions -- nothing inside ISM regions
+    disk_edges = disk_mask_expanded & ~disk_mask
+    x_edges = x[disk_edges].flatten()
+    y_edges = y[disk_edges].flatten()
+    z_edges = z[disk_edges].flatten()
+
+    # Cut to only those values closest to removed ISM regions
+    den_edges = density[disk_edges]
+    rv_edges = rv[disk_edges]
+    vtheta_edges = vtheta[disk_edges]
+    vphi_edges = vphi[disk_edges]
+
+    # Interpolate across removed ISM regions
+    den_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), den_edges)
+    rv_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), rv_edges)
+    vtheta_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vtheta_edges)
+    vphi_interp_func = NearestNDInterpolator(list(zip(x_edges,y_edges,z_edges)), vphi_edges)
+    
+    # Replace removed ISM regions with interpolated values
+    den_masked = np.copy(density)
+    den_masked[disk_mask] = den_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    rv_masked = np.copy(rv)
+    vtheta_masked = np.copy(vtheta)
+    vphi_masked = np.copy(vphi)
+    rv_masked[disk_mask] = rv_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    vtheta_masked[disk_mask] = vtheta_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+    vphi_masked[disk_mask] = vphi_interp_func(x[disk_mask], y[disk_mask], z[disk_mask])
+
+    # Smooth velocities to get turbulent velocity fields
+    dx = x[1,0,0] - x[0,0,0]
+    print('dx:', dx)
+    smooth_scale = 10./dx/4.        # Want full size of smoothing kernel (~4 sigma) to be however many cells get up to 10 kpc
+    smooth_rv = gaussian_filter(rv_masked, smooth_scale)
+    smooth_vtheta = gaussian_filter(vtheta_masked, smooth_scale)
+    smooth_vphi = gaussian_filter(vphi_masked, smooth_scale)
+    turb_rv = rv - smooth_rv
+    turb_vtheta = vtheta - smooth_vtheta
+    turb_vphi = vphi - smooth_vphi
+    turbulent_energy = 0.5*mass*(turb_rv**2. + turb_vtheta**2. + turb_vphi**2.)
+    radial_energy = 0.5*mass*(smooth_rv**2.)
+    rotational_energy = 0.5*mass*(smooth_vtheta**2. + smooth_vphi**2.)
+
+    # Calculate properties of inner CGM for table
+    radii = np.arange(0.05, 1.05, 0.05)
+    for r in range(len(radii)):
+        inner_cgm = (cgm_bool) & (radius < radii[r]*Rvir)
+        thermal_energy_sum = np.sum(thermal_energy[inner_cgm])
+        kinetic_energy_sum = np.sum(kinetic_energy[inner_cgm])
+        turbulent_energy_sum = np.sum(turbulent_energy[inner_cgm])
+        radial_energy_sum = np.sum(radial_energy[inner_cgm])
+        rotational_energy_sum = np.sum(rotational_energy[inner_cgm])
+        # Feedback energy is total mass of stars within this radius with ages < 50 Myr, multiplied by the simulation's StarEnergyToThermalFeedback parameter, converted to energy via E = mc^2,
+        # and then converted to an energy deposition rate by dividing by 50 Myr (this is the same way SFR is calculated, just using a larger age)
+        feedback_energy = np.sum(star_mass[(star_age < 50.) & (star_radius < radii[r]*Rvir)])*gtoMsun * 1e-5 * light_c**2. / (50.*1e5*stoyr)
+        # Expected thermal energy from graviational heating comes from expected temperature from virialization, then Etherm = 3/2 N kB T
+        T_grav = mu*mp/(3.*kB) * G*Menc_profile(radii[r]*Rvir)*gtoMsun/(radii[r]*Rvir*1000.*cmtopc)
+        gravitational_heating = np.sum(3./2.*kB*T_grav*density[inner_cgm]/(mu*mp)*cell_volume[inner_cgm])
+        # Energy rate lost to cooling
+        cooling_energy = np.sum(thermal_energy[inner_cgm]/cooling_time[inner_cgm])
+
+        row = [tsnap, radii[r], radii[r]*Rvir, thermal_energy_sum, gravitational_heating, kinetic_energy_sum, turbulent_energy_sum, radial_energy_sum, rotational_energy_sum, feedback_energy, cooling_energy]
+        table.add_row(row)
+
+    for key in table.keys():
+        if ('time' in key):
+            table[key].unit = 'Gyr'
+        elif ('radius_kpc' in key):
+            table[key].unit = 'kpc'
+        elif ('radius_Rvir' in key):
+            table[key].unit = 'Rvir'
+        elif ('feedback' in key) or ('cooling' in key):
+            table[key].unit = 'erg/s'
+        else:
+            table[key].unit = 'erg'
+
+    table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
+def calculate_outflow(ds, grid, shape, snap, snap_props, global_vars):
+    '''Calculates the properties of outflowing gas from the shape 'shape' in the snapshot 'snap' and saves to file.'''
+
+    args = global_vars['args']
+    prefix = global_vars['prefix']
+    save_suffix = global_vars['save_suffix']
+
+    tablename = prefix + 'Tables/' + snap + '_outflows'
+    Menc_profile, Mvir, Rvir = snap_props
+    tsnap = ds.current_time.in_units('Gyr').v
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+
+    # Set up table of everything we want
+    fluxes = []
+    fluxes.append('mass_flux')
+    fluxes.append('metal_flux')
+    fluxes.append('thermal_energy_flux')
+    fluxes.append('kinetic_energy_flux')
+    fluxes.append('density')
+    fluxes.append('temperature')
+    fluxes.append('radial_velocity')
+    table = make_outflow_table(fluxes, args)
+
+    if (args.cgm_only):
+        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+        # with it being 1 at higher redshifts and 0.1 at lower redshifts
+        current_time = ds.current_time.in_units('Myr').v
+        if (current_time<=7091.48): # z = 0.75
+            density_cut_factor = 20. - 19.*current_time/7091.48
+        elif (current_time<=8656.88): # z = 0.5
+            density_cut_factor = 1.
+        elif (current_time<=10787.12): # z = 0.25
+            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+        else:
+            density_cut_factor = 0.1
+        cgm_bool = (grid['gas','density'].in_units('g/cm**3').v < density_cut_factor * cgm_density_max)
+    else:
+        cgm_bool = (grid['gas','density'].in_units('g/cm**3').v > 0.)
+
+    # Load grid properties
+    x = grid['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
+    y = grid['gas', 'y'].in_units('kpc').v - ds.halo_center_kpc[1].v
+    z = grid['gas', 'z'].in_units('kpc').v - ds.halo_center_kpc[2].v
+    xbins = x[:,0,0][:-1] - 0.5*np.diff(x[:,0,0])
+    ybins = y[0,:,0][:-1] - 0.5*np.diff(y[0,:,0])
+    zbins = z[0,0,:][:-1] - 0.5*np.diff(z[0,0,:])
+    vx = grid['gas','vx_corrected'].in_units('kpc/yr').v
+    vy = grid['gas','vy_corrected'].in_units('kpc/yr').v
+    vz = grid['gas','vz_corrected'].in_units('kpc/yr').v
+    radius = grid['gas','radius_corrected'].in_units('kpc').v
+    rv = grid['gas','radial_velocity_corrected'].in_units('km/s').v
+    mass = grid['gas', 'cell_mass'].in_units('Msun').v
+    metals = grid['gas', 'metal_mass'].in_units('Msun').v
+    temperature = grid['gas','temperature'].in_units('K').v
+    density = grid['gas','density'].in_units('g/cm**3').v
+    kinetic_energy = grid['gas','kinetic_energy_corrected'].in_units('erg').v
+    thermal_energy = (grid['gas','cell_mass']*grid['gas','specific_thermal_energy']).in_units('erg').v
+    
+    flux_props = [mass, metals, thermal_energy, kinetic_energy]
+    properties = [density, temperature, rv]
+
+
+    # Calculate new positions of gas cells for a long elapsed time (necessary because digitizing onto grid can "reset" positions of slow-moving gas)
+    new_x = vx*(5.*dt) + x
+    new_y = vy*(5.*dt) + y
+    new_z = vz*(5.*dt) + z
+    inds_x = np.digitize(new_x, xbins)-1      # indices of new x positions
+    inds_y = np.digitize(new_y, ybins)-1      # indices of new y positions
+    inds_z = np.digitize(new_z, zbins)-1      # indices of new z positions
+    new_inds = np.array([inds_x, inds_y, inds_z])
+
+    # If stepping through radius, set up radii list
+    if (surface[0]=='sphere') and (args.radial_stepping>0):
+        if (args.Rvir):
+            max_R = surface[1]*Rvir
+        else:
+            max_R = surface[1]
+        min_R = 0.05*Rvir
+        radii = np.linspace(min_R, max_R, args.radial_stepping+1)[1:]
+    else:
+        radii = [0]
+
+    # Set up filtering
+    regions = [0., 10**4., 10**5., 10**6., np.inf]
+    filter = grid['gas','temperature'].in_units('K').v
+
+    # Step through radii (if chosen) and calculate fluxes and plot things for each radius
+
+    for r in range(len(radii)):
+        # If stepping through radii, define the shape for this radius value
+        if (surface[0]=='sphere') and (args.radial_stepping>0):
+            shape = (radius < radii[r])
+        results = [radii[r]]
+        # Define which cells are leaving shape
+        new_in_shape = shape[tuple(new_inds)]
+        from_shape = shape & ~new_in_shape & cgm_bool
+        from_shape_fast = from_shape & (rv > 50.)
+
+        region_from = filter[from_shape]
+        region_from_fast = filter[from_shape_fast]
+        weights_from = mass[from_shape]
+        weights_from_fast = mass[from_shape_fast]
+
+        # Calculate mass and energy fluxes
+        for i in range(len(flux_props)):
+            prop_from = flux_props[i][from_shape]
+            flux_out = np.sum(prop_from)/(5.*dt)
+            prop_from_fast = flux_props[i][from_shape_fast]
+            flux_out_fast = np.sum(prop_from_fast)/(5.*dt)
+            results.append(flux_out)
+            results.append(flux_out_fast)
+            for j in range(len(regions)-1):
+                prop_from_region = prop_from[(region_from > regions[j]) & (region_from < regions[j+1])]
+                flux_out = np.sum(prop_from_region)/(5.*dt)
+                prop_from_region_fast = prop_from_fast[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
+                flux_out_fast = np.sum(prop_from_region_fast)/(5.*dt)
+                results.append(flux_out)
+                results.append(flux_out_fast)
+
+        # Calculate turbulent energy flux (not in flux_props list)
+        # turb_energy = 0.5 * mass * vturb^2 where vturb = std(vtan)
+        #_, std = weighted_avg_and_std(tanv[from_shape], weights_from)
+        #flux_out = (std*1e5)**2.*(np.sum(mass[from_shape])*gtoMsun)*0.5/(5.*dt)
+        #_, std_fast = weighted_avg_and_std(tanv[from_shape_fast], weights_from_fast)
+        #flux_out_fast = (std_fast*1e5)**2.*(np.sum(mass[from_shape_fast])*gtoMsun)*0.5/(5.*dt)
+        #results.append(flux_out)
+        #results.append(flux_out_fast)
+        #for j in range(len(regions)-1):
+            #weights_from_region = weights_from[(region_from > regions[j]) & (region_from < regions[j+1])]
+            #weights_from_region_fast = weights_from[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
+            #_, std = weighted_avg_and_std(tanv[from_shape][(region_from > regions[j]) & (region_from < regions[j+1])], weights_from_region)
+            #flux_out = (std*1e5)**2.*(np.sum(mass[from_shape][(region_from > regions[j]) & (region_from < regions[j+1])])*gtoMsun)*0.5/(5.*dt)
+            #_, std_fast = weighted_avg_and_std(tanv[from_shape_fast][(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])], weights_from_region_fast)
+            #flux_out_fast = (std_fast*1e5)**2.*(np.sum(mass[from_shape_fast][(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])])*gtoMsun)*0.5/(5.*dt)
+            #results.append(flux_out)
+            #results.append(flux_out_fast)
+
+        # Done with fluxes, calculate med, iqr, mean, and std of other properties
+        for i in range(len(properties)):
+            prop_from = properties[i][from_shape]
+            prop_from_fast = properties[i][from_shape_fast]
+            if (len(prop_from)>0):
+                quantiles = weighted_quantile(prop_from, weights_from, np.array([0.25,0.5,0.75]))
+                results.append(quantiles[1])
+                results.append(quantiles[2]-quantiles[0])
+                avg, std = weighted_avg_and_std(prop_from, weights_from)
+                results.append(avg)
+                results.append(std)
+            else:
+                results.append(np.nan)
+                results.append(np.nan)
+                results.append(np.nan)
+                results.append(np.nan)
+            if (len(prop_from_fast)>0):
+                quantiles = weighted_quantile(prop_from_fast, weights_from_fast, np.array([0.25,0.5,0.75]))
+                results.append(quantiles[1])
+                results.append(quantiles[2]-quantiles[0])
+                avg, std = weighted_avg_and_std(prop_from_fast, weights_from_fast)
+                results.append(avg)
+                results.append(std)
+            else:
+                results.append(np.nan)
+                results.append(np.nan)
+                results.append(np.nan)
+                results.append(np.nan)
+            for j in range(len(regions)-1):
+                prop_from_region = prop_from[(region_from > regions[j]) & (region_from < regions[j+1])]
+                prop_from_region_fast = prop_from_fast[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
+                weights_from_region = weights_from[(region_from > regions[j]) & (region_from < regions[j+1])]
+                weights_from_region_fast = weights_from_fast[(region_from_fast > regions[j]) & (region_from_fast < regions[j+1])]
+                if (len(prop_from_region)>0):
+                    quantiles = weighted_quantile(prop_from_region, weights_from_region, np.array([0.25,0.5,0.75]))
+                    results.append(quantiles[1])
+                    results.append(quantiles[2]-quantiles[0])
+                    avg, std = weighted_avg_and_std(prop_from_region, weights_from_region)
+                    results.append(avg)
+                    results.append(std)
+                else:
+                    results.append(np.nan)
+                    results.append(np.nan)
+                    results.append(np.nan)
+                    results.append(np.nan)
+                if (len(prop_from_region_fast)>0):
+                    quantiles = weighted_quantile(prop_from_region_fast, weights_from_region_fast, np.array([0.25,0.5,0.75]))
+                    results.append(quantiles[1])
+                    results.append(quantiles[2]-quantiles[0])
+                    avg, std = weighted_avg_and_std(prop_from_region_fast, weights_from_region_fast)
+                    results.append(avg)
+                    results.append(std)
+                else:
+                    results.append(np.nan)
+                    results.append(np.nan)
+                    results.append(np.nan)
+                    results.append(np.nan)
+
+        table.add_row(results)
+
+        
+    table = set_outflow_table_units(table)
+    table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
 def compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars):
     '''Calculates properties of cells that are identified as accreting compared to cells in a thin
     boundary layer that are not accreting.'''
 
     args = global_vars['args']
-    output_dir = global_vars['args']
-    save_suffix = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
 
     prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/'
     plot_prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
@@ -1180,8 +1586,12 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars):
         velocity_divergence = grid['gas','velocity_divergence'].in_units('1/s').v
         dist_cells = 8.
         shear_stress = stress_mag(density, vx*(1000.*cmtopc)/(stoyr), vy*(1000.*cmtopc)/(stoyr), vz*(1000.*cmtopc)/(stoyr), dist_cells)
-    if (args.weight=='mass'): weights = np.copy(mass)
-    if (args.weight=='volume'): weights = grid['gas','cell_volume'].in_units('kpc**3').v
+    if (args.weight=='mass'):
+        weights = np.copy(mass)
+        weights_nonacc = grid['gas','cell_volume'].in_units('kpc**3').v
+    if (args.weight=='volume'):
+        weights = grid['gas','cell_volume'].in_units('kpc**3').v
+        weights_nonacc = grid['gas','cell_volume'].in_units('kpc**3').v
     if ('default' in args.properties): properties_1 = ['covering_fraction', mass, metals, density, temperature, metallicity, tcool, tcool_tff, entropy, pressure, rv, vtan, sound_speed, flux_sr, metal_flux_sr]
     else: properties_1 = []
     if ('momenta' in args.properties): properties_2 = [rad_momentum, theta_momentum, phi_momentum, j_mag, j_mag, j_mag, L_mag, L_mag, L_mag, phi_L, theta_L, velocity_divergence, shear_stress]
@@ -1218,7 +1628,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars):
 
     # Define shape edge
     struct = ndimage.generate_binary_structure(3,3)
-    shape_expanded = ndimage.binary_dilation(shape, structure=struct, iterations=2)
+    shape_expanded = ndimage.binary_dilation(shape, structure=struct, iterations=3)
     shape_edge = shape_expanded & ~shape
 
     # Set up filtering
@@ -1329,7 +1739,7 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars):
             for dv in range(len(disp_vff_bins)):
                 weights_to_dv.append(weights[to_shape_dv[dv]][angle_bin_to_dv[dv]])
             weights_edge = weights[shape_edge][angle_bin_edge]
-            weights_non = weights[shape_non][angle_bin_non]
+            weights_non = weights_nonacc[shape_non][angle_bin_non]
             if (args.region_filter!='none'):
                 region_to = filter[to_shape][angle_bin_to]
                 region_to_dv = []
@@ -1877,6 +2287,10 @@ def load_and_calculate(snap, surface, global_vars):
             filaments_3D(ds, grid, snap, snap_props, global_vars)
         if ('accretion_viz' in args.plot):
             accretion_projections(ds, grid, snap, snap_props, global_vars)
+        if ('inner_cgm_energies' in args.calculate):
+            inner_cgm_energy(ds, grid, shape, snap, snap_props, global_vars)
+        if ('outflows' in args.calculate):
+            calculate_outflow(ds, grid, shape, snap, snap_props, global_vars)
 
     print('Snapshot', snap, 'complete!')
 
@@ -3273,8 +3687,8 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
     tsnap = ds.current_time.in_units('Gyr').v
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
 
-    names_list = ['radius', 'fragment_num', 'flux_sr', 'density_med', 'temperature_med', 'pressure_med', 'metallicity_med', 'radial_velocity_med', 'sound_speed_med', 'tcool_med', 'covering_frac', 'major_extent', 'minor_extent']
-    types_list = ['f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8']
+    names_list = ['fil_id', 'radius', 'frag_id', 'num_cells', 'flux_sr_med', 'density_med', 'temperature_med', 'pressure_med', 'metallicity_med', 'radial_velocity_med', 'theta_velocity_med', 'theta_velocity_std', 'phi_velocity_med', 'phi_velocity_std', 'sound_speed_med', 'tcool_med', 'covering_frac', 'theta_center', 'phi_center', 'major_extent', 'minor_extent', 'orientation']
+    types_list = ['i8', 'f8', 'i8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8']
     table = Table(names=names_list, dtype=types_list)
 
     # Load grid properties
@@ -3293,6 +3707,8 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
     mass = grid['gas','cell_mass'].in_units('Msun').v
     radial_velocity = grid['gas','radial_velocity_corrected'].in_units('kpc/yr').v
     rv_kms = grid['gas','radial_velocity_corrected'].in_units('km/s').v
+    thetav_kms = grid['gas','vtheta_disk'].in_units('km/s').v
+    phiv_kms = grid['gas','vphi_disk'].in_units('km/s').v
     density = grid['gas','density'].in_units('Msun/kpc**3.').v
     density_gcm = grid['gas','density'].in_units('g/cm**3.').v
     flux_sr = -density*radial_velocity*radius**2.
@@ -3302,7 +3718,7 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
     sound_speed = grid['gas','sound_speed'].in_units('km/s').v
     metallicity = grid['gas','metallicity'].in_units('Zsun').v
 
-    properties = [flux_sr, density_gcm, temperature, pressure, metallicity, rv_kms, sound_speed, tcool]
+    properties = [flux_sr, density_gcm, temperature, pressure, metallicity, rv_kms, thetav_kms, phiv_kms, sound_speed, tcool]
 
     if (args.cgm_only):
         # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
@@ -3336,8 +3752,10 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
             max_R = surface[1]*Rvir
         else:
             max_R = surface[1]
-        min_R = 0.1*Rvir
+        #min_R = 0.1*Rvir
+        min_R = 0.
         radii = np.linspace(min_R, max_R, args.radial_stepping+1)[1:]
+        radius_step = np.diff(radii)[0]
     else:
         if (args.Rvir):
             radii = [surface[1]*Rvir]
@@ -3347,8 +3765,9 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
     theta_bins = np.linspace(-np.pi, np.pi, 100)
     phi_bins = np.linspace(0., np.pi, 50)
 
-    # Step through radii, identify accretion fragments, and calculate their properties
+    # Step through radii and identify connected accretion streams
     flux_ratio_array = np.zeros(np.shape(density)) + 0.01    # array same size as grid initialized with small valules everywhere
+    last_frag = 0
     for r in range(len(radii)):
         if (r%10.==0): print('Finding fragments for radius %d/%d' % (r, len(radii)))
         shape = (radius < radii[r])                 # boolean array same size as grid with True everywhere radius < radii[r] and density low enough to be CGM (if args.cgm_only)
@@ -3357,96 +3776,177 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
         to_shape = ~shape & new_in_shape & cgm_bool      # boolean array same size as grid with True everywhere a cell started outside radii[r] and moved inside radii[r] and low enough density to be CGM
         avg_flux_to = np.mean(flux_sr[to_shape])       # average of the flux density of everything moving into radii[r]
         flux_ratio_array[to_shape] = flux_sr[to_shape]/avg_flux_to          # set cells that are moving into shape to the ratio with the average flux density value of all cells moving into radii[r]
-        
-        filament_cores = (flux_ratio_array > 0.75)
+    flux_ratio_array_smoothed = gaussian_filter(flux_ratio_array, 2.)
+    filament_cores = (flux_ratio_array_smoothed > 0.9)
 
-        frags_labeled, n_frags = ndimage.label(filament_cores)
-        # Ignore fragments that are too small
-        unique, counts = np.unique(frags_labeled, return_counts=True)
-        for f in range(1,len(unique)):
-            if (counts[f]<300):
-                frags_labeled[frags_labeled==unique[f]] = 0
-        frags_labeled, n_frags = ndimage.label(frags_labeled)
+    fils_labeled, n_fils = ndimage.label(filament_cores)
+    # Ignore filaments that are too small
+    unique, counts = np.unique(fils_labeled, return_counts=True)
+    for f in range(1,len(unique)):
+        if (counts[f]<300):
+            fils_labeled[fils_labeled==unique[f]] = 0
+    fils_labeled, n_fils = ndimage.label(fils_labeled)
+    # Ignore filaments that don't come from maximum radius
+    unique = np.unique(fils_labeled)
+    for f in range(1,len(unique)):
+        if (np.max(radius[fils_labeled==unique[f]]) < 0.9*max_R):
+            fils_labeled[fils_labeled==unique[f]] = 0
+    fils_labeled, n_fils = ndimage.label(fils_labeled)
 
-        # Loop over fragments and calculate their properties
-        for f in range(n_frags):
-            row = [radii[r], f+1]
-            this_frag = (frags_labeled==f+1)
+    #import napari
 
-            # Calculate median gas properties of this fragment
-            for p in range(len(properties)):
-                prop_frag = properties[p][this_frag]
-                weight_frag = mass[this_frag]
-                med_prop = weighted_quantile(prop_frag, weight_frag, np.array([0.5]))
-                row.append(med_prop)
+    # Loop over filaments
+    for f in range(n_fils):
+        this_fil = (fils_labeled==f+1)
+        min_r = np.min(radius[this_fil])
+        max_r = np.max(radius[this_fil])
+        fil_radii = np.arange(min_r, max_r, radius_step)
+        # Loop over radii within this filament and identify separate fragments (if filament is falling apart)
+        for r in range(len(fil_radii)-1):
+            this_shell = this_fil & (radius >= fil_radii[r]) & (radius < fil_radii[r+1])
+            frags_labeled, n_frags = ndimage.label(this_shell)
+            # Ignore fragments that are too small
+            unique, counts = np.unique(frags_labeled, return_counts=True)
+            for fr in range(1,len(unique)):
+                if (counts[fr]<10):
+                    frags_labeled[frags_labeled==unique[fr]] = 0
+            frags_labeled, n_frags = ndimage.label(frags_labeled)
+            print(f, fil_radii[r], n_frags)
+            #viewer = napari.view_image(np.log10(density_gcm), name='density', colormap='viridis', contrast_limits=[-30,-20])
+            #fils_layer = viewer.add_image(this_fil, name='cores', colormap='viridis', opacity=0.5)
+            #frags_layer = viewer.add_image(frags_labeled, name='fragments', colormap='viridis')
+            #napari.run()
+            # Loop over filament fragments (will only be 1 if filament isn't falling apart)
+            for frag in range(n_frags):
+                row = [f+1, fil_radii[r], frag+1]
+                this_frag = (frags_labeled==frag+1)
+                ncells = np.count_nonzero(this_frag)
+                row.append(ncells)
+                # Calculate median gas properties of this fragment
+                for p in range(len(properties)):
+                    prop_frag = properties[p][this_frag]
+                    weight_frag = mass[this_frag]
+                    med_prop = weighted_quantile(prop_frag, weight_frag, np.array([0.5]))
+                    row.append(med_prop)
+                    # For theta and phi velocities, also calculate standard deviation (measure of turbulence in non-radial direction)
+                    if (p==6) or (p==7):
+                        _, std_prop = weighted_avg_and_std(prop_frag, weight_frag)
+                        row.append(std_prop)
 
-            # Calculate area and major and minor axis extent of this fragment
-            # First flatten the fragment into a 2D array in theta, phi
-            theta_frag = theta[this_frag]
-            phi_frag = phi[this_frag]
-            sph_grid, _, _ = np.histogram2d(theta_frag, phi_frag, bins=[theta_bins, phi_bins])
-            theta_width = np.diff(theta_bins)
-            phi_width = np.diff(phi_bins)
-            theta_centers = theta_bins[:-1] + theta_width
-            theta_centers_2 = np.concatenate([theta_centers, theta_centers])
-            phi_centers = phi_bins[:-1] + phi_width
-            theta_grid, phi_grid = np.meshgrid(theta_centers, phi_centers, indexing='ij')
-            theta_grid_wide, phi_grid_wide = np.meshgrid(theta_centers_2, phi_centers, indexing='ij')
-            sph_grid[sph_grid > 0] = 1
-            sph_grid = sph_grid.astype(int)
-            #plt.imshow(sph_grid, origin='lower')
-            #plt.show()
+                # Calculate area and major and minor axis extent of this fragment
+                # First flatten the fragment into a 2D array in theta, phi
+                theta_frag = theta[this_frag]
+                phi_frag = phi[this_frag]
+                sph_grid, _, _ = np.histogram2d(theta_frag, phi_frag, bins=[theta_bins, phi_bins])
+                theta_width = np.diff(theta_bins)
+                phi_width = np.diff(phi_bins)
+                theta_centers = theta_bins[:-1] + theta_width
+                theta_centers_2 = np.concatenate([theta_centers, theta_centers])
+                phi_centers = phi_bins[:-1] + phi_width
+                theta_grid, phi_grid = np.meshgrid(theta_centers, phi_centers, indexing='ij')
+                theta_grid_wide, phi_grid_wide = np.meshgrid(theta_centers_2, phi_centers, indexing='ij')
+                sph_grid[sph_grid > 0] = 1
+                sph_grid = sph_grid.astype(int)
+                #plt.imshow(sph_grid, origin='lower')
+                #plt.show()
 
-            # We need to determine if this fragment is a full wrap-around ring or not, so tile it in theta
-            sph_grid_tiled = np.vstack([sph_grid, sph_grid])
-            tiled_labeled, num = ndimage.label(sph_grid_tiled)
-            unique, counts = np.unique(tiled_labeled, return_counts=True)
-            unique_nonzero = unique[1:]
-            counts_nonzero = counts[1:]
-            new_tiled = unique_nonzero[counts_nonzero==np.max(counts_nonzero)][0]
-            # Test if this structure is a complete wrap-around ring
-            first_col = tiled_labeled[0, :]
-            last_col = tiled_labeled[-1, :]
-            if (new_tiled in first_col) and (new_tiled in last_col):  # This is a ring
-                ring = True
-            else:  # This is not a ring
-                ring = False
+                # We need to determine if this fragment is a full wrap-around ring or not, so tile it in theta
+                sph_grid_tiled = np.vstack([sph_grid, sph_grid])
+                tiled_labeled, num = ndimage.label(sph_grid_tiled)
+                unique, counts = np.unique(tiled_labeled, return_counts=True)
+                unique_nonzero = unique[1:]
+                counts_nonzero = counts[1:]
+                new_tiled = unique_nonzero[counts_nonzero==np.max(counts_nonzero)][0]
+                # Test if this structure is a complete wrap-around ring
+                first_col = tiled_labeled[0, :]
+                last_col = tiled_labeled[-1, :]
+                if (new_tiled in first_col) and (new_tiled in last_col):  # This is a ring
+                    ring = True
+                else:  # This is not a ring
+                    ring = False
 
-            if (ring): # Go back to pre-tiled image to calculate
-                regions = regionprops(sph_grid)
-                theta_center, phi_center = regions[0].centroid
-                theta_center = -1
-                phi_center = phi_center*phi_width[0]
-                major_extent_arc = -1
-                minor_extent_arc = radii[r] * regions[0].axis_minor_length*phi_width[0]
-                covering_area = np.sum(np.sin(phi_grid[sph_grid==1])*theta_width[0]*phi_width[0])
-            else: # Not a ring, so find properties of the largest (not wrapping around edges) labeled structure in the tiled image
-                tiled_labeled[tiled_labeled!=new_tiled] = 0
-                regions = regionprops(tiled_labeled)
-                theta_center, phi_center = regions[0].centroid
-                theta_center = theta_center*theta_width[0]-np.pi
-                if (theta_center > np.pi): theta_center -= np.pi
-                phi_center = phi_center*phi_width[0]
-                major_extent_arc = radii[r] * regions[0].axis_major_length*theta_width[0]
-                minor_extent_arc = radii[r] * regions[0].axis_minor_length*theta_width[0]
-                covering_area = np.sum(np.sin(phi_grid_wide[tiled_labeled==new_tiled])*theta_width[0]*phi_width[0])
-            total_area = np.sum(np.sin(phi_grid)*theta_width[0]*phi_width[0])
-            covering_fraction = covering_area/total_area
+                if (ring): # Go back to pre-tiled image to calculate
+                    regions = regionprops(sph_grid)
+                    theta_center, phi_center = regions[0].centroid
+                    theta_center = 0.
+                    phi_center = phi_center*phi_width[0]
+                    major_extent_arc = 2.*np.pi*radii[r]
+                    minor_extent_arc = radii[r] * regions[0].axis_minor_length*phi_width[0]
+                    covering_area = np.sum(np.sin(phi_grid[sph_grid==1])*theta_width[0]*phi_width[0])
+                    orientation = regions[0].orientation+np.pi/2.
+                    #plt.imshow(tiled_labeled, origin='lower')
+                    #t = np.linspace(0, 2*np.pi, 400)
+                    #x = regions[0].axis_major_length/2. * np.cos(t)
+                    #y = regions[0].axis_minor_length/2. * np.sin(t)
+                    #x_rot = regions[0].centroid[1] + x*np.cos(orientation) - y*np.sin(orientation)
+                    #y_rot = regions[0].centroid[0] + x*np.sin(orientation) + y*np.cos(orientation)
+                    #plt.plot(x_rot, y_rot, 'r', linewidth=2)
+                    #plt.show()
+                else: # Not a ring, so find properties of the largest (not wrapping around edges) labeled structure in the tiled image
+                    tiled_labeled[tiled_labeled!=new_tiled] = 0
+                    regions = regionprops(tiled_labeled)
+                    theta_center, phi_center = regions[0].centroid
+                    theta_center = theta_center*theta_width[0]-np.pi
+                    if (theta_center > np.pi): theta_center -= np.pi
+                    phi_center = phi_center*phi_width[0]
+                    major_extent_arc = radii[r] * regions[0].axis_major_length*theta_width[0]
+                    minor_extent_arc = radii[r] * regions[0].axis_minor_length*theta_width[0]
+                    orientation = regions[0].orientation+np.pi/2.
+                    covering_area = np.sum(np.sin(phi_grid_wide[tiled_labeled==new_tiled])*theta_width[0]*phi_width[0])
+                    #plt.imshow(tiled_labeled, origin='lower')
+                    #t = np.linspace(0, 2*np.pi, 400)
+                    #x = regions[0].axis_major_length/2. * np.cos(t)
+                    #y = regions[0].axis_minor_length/2. * np.sin(t)
+                    #x_rot = regions[0].centroid[1] + x*np.cos(orientation) - y*np.sin(orientation)
+                    #y_rot = regions[0].centroid[0] + x*np.sin(orientation) + y*np.cos(orientation)
+                    #plt.plot(x_rot, y_rot, 'r', linewidth=2)
+                    #plt.show()
+                total_area = np.sum(np.sin(phi_grid)*theta_width[0]*phi_width[0])
+                covering_fraction = covering_area/total_area
 
-            row.append(covering_fraction)
-            row.append(major_extent_arc)
-            row.append(minor_extent_arc)
+                row.append(covering_fraction)
+                row.append(theta_center)
+                row.append(phi_center)
+                row.append(major_extent_arc)
+                row.append(minor_extent_arc)
+                row.append(orientation)
+                
+                table.add_row(row)
 
-            table.add_row(row)
-
+    table['fil_id'].unit = 'none'
+    table['radius'].unit = 'kpc'
+    table['frag_id'].unit = 'none'
+    table['num_cells'].unit = 'none'
+    table['flux_sr_med'].unit = 'Msun/yr/sr'
+    table['density_med'].unit = 'g/cm**3'
+    table['temperature_med'].unit = 'K'
+    table['pressure_med'].unit = 'erg/cm**3'
+    table['metallicity_med'].unit = 'Zsun'
+    table['tcool_med'].unit = 'Myr'
+    table['covering_frac'].unit = 'none'
+    table['orientation'].unit = 'radians'
     for key in table.keys():
-        if ('filament' in key):
+        if ('velocity' in key) or ('speed' in key):
+            table[key].unit = 'km/s'
+        if ('center' in key):
             table[key].unit = 'none'
-        elif ('area' in key):
-            table[key].unit = 'sr'
-        else:
+        if ('extent' in key):
             table[key].unit = 'kpc'
     table.write(tablename + save_suffix + '.hdf5', path='all_data', serialize_meta=True, overwrite=True)
+
+def link_and_plot_fragments(snap, global_vars):
+    '''Links up accretion fragments across radius and plots properties of streams and their fragments vs. radius.
+    Requires 'acc-fragment-props' tables to have already been calculated.'''
+
+    args = global_vars['args']
+    output_dir = global_vars['output_dir']
+    save_suffix = global_vars['save_suffix']
+
+    prefix = output_dir + 'stats_halo_00' + args.halo + '/' + args.run + '/'
+    plot_prefix = output_dir + 'fluxes_halo_00' + args.halo + '/' + args.run + '/'
+    tablename = prefix + 'Tables/' + snap + '_acc-fragment-props_radial_1p5Rvir_cgm-only.hdf5'
+
+    table = Table.read(tablename, path='all_data')
 
 def filaments_3D(ds, grid, snap, snap_props, global_vars):
     '''This function identifies filament structures in 3D by tagging all cells in the grid by their
@@ -4376,9 +4876,12 @@ def accretion_projections(ds, grid, snap, snap_props, global_vars):
 
 if __name__ == "__main__":
 
+    start = time.perf_counter()
+
     gtoMsun = 1.989e33
     cmtopc = 3.086e18
     stoyr = 3.155e7
+    light_c = 2.998e10
     G = 6.673e-8
     kB = 1.38e-16
     mu = 0.6
@@ -4542,5 +5045,8 @@ if __name__ == "__main__":
                             shutil.rmtree(snap_dir + snaps[s])
                 outs = skipped_outs
 
-    print(str(datetime.datetime.now()))
+    end = time.perf_counter()
+    elapsed = end - start
+    duration = timedelta(seconds=elapsed)
     print("All snapshots finished!")
+    print(f"Elapsed time: {duration}")

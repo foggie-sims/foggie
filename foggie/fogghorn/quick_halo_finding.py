@@ -2,15 +2,16 @@
 # coding: utf-8
 
 import yt
-import argparse
+import argparse, os
 from yt_astro_analysis.halo_analysis import HaloCatalog, add_quantity
 from foggie.utils.foggie_load import foggie_load
 from foggie.utils.halo_quantity_callbacks import * 
+from datetime import datetime
 from astropy.table import QTable
 from astropy.table import Table
 from foggie.utils.analysis_utils import *
 
-def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile, boxwidth=0.04): 
+def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile=None, boxwidth=0.04): 
     """Prepare a small dataset subregion around a halo center for finding.
 
     This helper loads the dataset for the given `snapname` (located under
@@ -44,14 +45,12 @@ def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile, boxwidth=
 
     dataset_name = simulation_dir+'/'+snapname+'/'+snapname
 
-    ds, _ = foggie_load(dataset_name, trackfile_name = trackfile)
+    if (trackfile == None): # if no trackfile, use min and max positions of the smallest DM particles to define a subregion
+        ds, region = foggie_load(dataset_name, central_halo = False) 
+    else: 
+        ds, region = foggie_load(dataset_name, central_halo = False, trackfile_name = trackfile)
 
-    box = ds.r[ds.halo_center_code.value[0]-boxwidth/2:ds.halo_center_code.value[0]+boxwidth/2, 
-               ds.halo_center_code.value[1]-boxwidth/2:ds.halo_center_code.value[1]+boxwidth/2, 
-               ds.halo_center_code.value[2]-boxwidth/2:ds.halo_center_code.value[2]+boxwidth/2] 
-
-    return ds, box 
-
+    return ds, region 
 
 def halo_finding_step(ds, box, simulation_dir='./', threshold=400.): 
     """Run the HOP halo finder on a dataset subvolume and create a catalog.
@@ -80,7 +79,6 @@ def halo_finding_step(ds, box, simulation_dir='./', threshold=400.):
     hc.create()
 
     return hc
-
 
 def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mass=1e10): 
     """Load, repair, and enrich a halo catalog for a snapshot.
@@ -133,7 +131,6 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
               "max_gas_density": halo_max_gas_density, "max_dm_density": halo_max_dm_density, 
               "outflow_mass_300":halo_outflow_300, "outflow_mass_500":halo_outflow_500} 
 
-    print('made it this far in repair_halo_catalog 1')
     for q in quantities.keys(): 
         add_quantity(q, quantities[q])
         hc.add_quantity(q, correct=True) 
@@ -144,8 +141,6 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
 
         add_quantity("total_ism_H2_mass", halo_ism_H2_mass)
         hc.add_quantity("total_ism_H2_mass", correct=True)
-
-    print('made it this far in repair_halo_catalog 2')
 
     hc.create()
 
@@ -185,6 +180,55 @@ def find_root_particles(simulation_dir, ds, hc):
     a['root_index'] = DM_in_sph
     a.write(simulation_dir + '/halo_catalogs/root_index.txt', format='ascii', overwrite=True)
 
+def make_halo_plots(ds, simulation_dir, snapname): 
+
+    print("Looking for halo catalog at, to plot them: ", simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5') 
+    new_ds = yt.load(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5')
+    all_data = new_ds.all_data()
+
+    x = all_data["halos", "particle_position_x"]
+    y = all_data["halos", "particle_position_y"]
+    z = all_data["halos", "particle_position_z"]
+    corrected_rvir = all_data["halos", "corrected_rvir"].in_units('kpc') 
+    total_halo_mass = all_data["halos", "total_mass"].in_units('Msun')
+    sfr7 = all_data["halos", "sfr7"].in_units('Msun/yr') 
+    actual_baryon_fraction = all_data["halos", "actual_baryon_fraction"]
+    overdensity = all_data["halos", "overdensity"]
+
+    for index in np.arange(len(x)):
+        center0 = [float(x.in_units('code_length')[index]), float(y.in_units('code_length')[index]), float(z.in_units('code_length')[index])] 
+        halo0 = ds.sphere(center0, radius = corrected_rvir[index] ) 
+
+        p = yt.ProjectionPlot(ds, 'z', 'density', weight_field='density', data_source=halo0, center=center0, width=2.5 * corrected_rvir[index])
+        p.set_cmap('density', density_color_map)
+        current_datetime = datetime.now()
+        p.annotate_title(os.getcwd().split('/')[-1] + '  ' + simulation_dir + '/' + ds._input_filename[-6:] + '    ' + str(current_datetime.date()) )
+        p.annotate_timestamp(redshift=True)
+        p.set_zlim('density', 1e-28, 1e-21)
+        p.annotate_sphere(halo0.center, halo0.radius, circle_args={"color": "green", "linewidth": 2, "linestyle": "dashed"}) 
+        p.annotate_text([0.05, 0.95], 'Virial Radius = ' + str(corrected_rvir[index])[0:5], coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.40, 0.95], 'Virial Mass = ' + str(total_halo_mass[index]/1e10)[0:5]+'e10', coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.05, 0.92], 'Baryon Fraction = ' + str(actual_baryon_fraction[index])[0:5], coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.40, 0.92], 'Overdensity = ' + str(overdensity[index])[0:7], coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.75, 0.92], 'SFR7 = ' + str(sfr7[index])[0:7], coord_system='axis', text_args={"color": "black"}) 
+        p.set_origin('native') 
+        p.save(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'_index'+str(index))
+
+        p = yt.ProjectionPlot(ds, 'z', ('enzo', 'Dark_Matter_Density'), data_source=halo0, center=center0, width=2.5 * corrected_rvir[index])
+        p.set_cmap(('enzo', 'Dark_Matter_Density'), density_color_map)
+        p.annotate_title(os.getcwd().split('/')[-1] + '  ' + simulation_dir + '/' + ds._input_filename[-6:] + '    ' + str(current_datetime.date()) )
+        p.annotate_timestamp(redshift=True)
+        p.set_unit(('enzo', 'Dark_Matter_Density'), 'Msun/pc**2') 
+        p.set_zlim(('enzo', 'Dark_Matter_Density'), 1e-27, 1e-23) 
+        p.annotate_sphere(halo0.center, halo0.radius, circle_args={"color": "green", "linewidth": 2, "linestyle": "dashed"}) 
+        p.annotate_text([0.05, 0.95], 'Virial Radius = ' + str(corrected_rvir[index])[0:5], coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.40, 0.95], 'Virial Mass = ' + str(total_halo_mass[index]/1e10)[0:5]+'e10', coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.05, 0.92], 'Baryon Fraction = ' + str(actual_baryon_fraction[index])[0:5], coord_system='axis', text_args={"color": "black"}) 
+        p.annotate_text([0.40, 0.92], 'Overdensity = ' + str(overdensity[index])[0:7], coord_system='axis', text_args={"color": "black"}) 
+        p.set_origin('native') 
+        p.save(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'_index'+str(index))
+
+    return True 
 
 def parallel_loop_over_halos(snap, args):
     """Call halo finding steps on the snapshot 'snap'. This function is used for
@@ -206,6 +250,7 @@ def parallel_loop_over_halos(snap, args):
     hc = halo_finding_step(ds, box, simulation_dir=args.directory, threshold=args.threshold) 
     hc = repair_halo_catalog(ds, args.directory, snap, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
     export_to_astropy(args.directory, snap)
+    if (args.make_plots): make_halo_plots(ds, args.directory, args.output)
 
 
 if __name__ == "__main__":
@@ -228,21 +273,24 @@ if __name__ == "__main__":
 
     parser.add_argument('--output', metavar='output', type=str, action='store', default=None, required=True, help='Output to run a halo catalog for. Single output or comma-separated list or range like DD0400-DD0500.') 
     parser.add_argument('--directory', metavar='directory', type=str, action='store', default='./', required=False, help='Pathname to simulation directory') 
-    parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, required=True, help='Track file for this halo (center of box subregion)')
+    parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, required=False, help='Track file for this halo (center of box subregion)')
     parser.add_argument('--boxwidth', metavar='boxwidth', type=float, action='store', default=0.04, required=False, help='Width of subregion box in code units')
     parser.add_argument('--threshold', metavar='threshold', type=float, action='store', default=400., required=False, help='Overdensity thresold for HOP algorithm (default = 400)')
     parser.add_argument('--min_rvir', metavar='min_rvir', type=float, action='store', default=10, required=False, help='Filter halo catalogs to this min Rvir [kpc]')
     parser.add_argument('--min_mass', metavar='min_mass', type=float, action='store', default=1e10, required=False, help='Filter halo catalogs to this min mass [Msun]')
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', default=1, required=False, help='Use this many processors to run in parallel (one snapshot per process, default 1')
     parser.add_argument('--save_root', dest='save_root', action='store_true', default=False, required=False, help='After finding halos, save to file the particle indices in most massive halo? Default False')
+    parser.add_argument('--make_plots', dest='make_plots', action='store_true', default=True, required=False, help='After finding halos, make plots of each one for verification and reference')
 
     args = parser.parse_args()
 
+    print('ARGS args = ', args)
     if (args.nproc==1):
-        ds, box = prep_dataset_for_halo_finding(args.directory, args.output, args.trackfile, boxwidth=args.boxwidth) 
+        ds, box = prep_dataset_for_halo_finding(args.directory, args.output, trackfile=args.trackfile, boxwidth=args.boxwidth) 
         hc = halo_finding_step(ds, box, simulation_dir=args.directory, threshold=args.threshold) 
         hc = repair_halo_catalog(ds, args.directory, args.output, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
         export_to_astropy(args.directory, args.output)
+        if (args.make_plots): make_halo_plots(ds, args.directory, args.output) 
         if (args.save_root):
             hc = yt.load(args.directory+'/halo_catalogs/'+args.output+'/'+args.output+'.0.h5')
             find_root_particles(args.directory, ds, hc)

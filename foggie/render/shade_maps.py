@@ -17,7 +17,8 @@ from yt.units import dimensions
 import trident
 import numpy as np
 import os
-os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
+try: os.sys.path.insert(0, os.environ['FOGGIE_REPO'])
+except: pass
 import foggie.render.cmap_utils as cmaps
 from foggie.utils.get_halo_center import get_halo_center
 from foggie.utils.consistency import *

@@ -41,7 +41,7 @@ def parse_args():
     # Optional arguments:
 
     # These arguments are for file organization
-    parser.add_argument('--directory', metavar='directory', type=str, action='store', default='', help='What is the directory of the enzo outputs you want to make plots of?')
+    parser.add_argument('--directory', metavar='directory', type=str, action='store', default='./', help='What is the directory of the enzo outputs you want to make plots of?')
     parser.add_argument('--save_directory', metavar='save_directory', type=str, action='store', default=None, help='Where do you want to store the plots? Default is to put them in a plots/ directory inside the outputs directory.')
     parser.add_argument('--output', metavar='output', type=str, action='store', default=None, help='If you want to make the plots for specific output/s then specify those here separated by comma (e.g., DD0030,DD0040). Otherwise (default) it will make plots for ALL outputs in that directory')
     parser.add_argument('--output_step', metavar='output_step', type=int, action='store', default=1, help='If you are making plots for specific outputs, use this to specify every Nth output in the range given by --output.')
@@ -49,6 +49,9 @@ def parse_args():
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the working directory?, Default is no')
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', default=1, help='How many processes do you want? Default is 1 (no parallelization), if multiple processors are specified, code will run one output per processor')
     parser.add_argument('--rockstar_directory', metavar='rockstar_directory', type=str, action='store', default=None, help='What is the directory where your rockstar outputs are located?')
+
+    # These arguments are options for halo center finding
+    parser.add_argument('--use_track_center', dest='use_track_center', action='store_true', default=False, help='Just use trackbox center instead of finding halo center? Default is no.')
 
     # These arguments are options for how this code is run
     parser.add_argument('--clobber', dest='clobber', action='store_true', default=False, help='Over-write existing plots? Default is no.')
@@ -299,7 +302,10 @@ def make_everysnap_plots(snap, args):
             halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
             ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk, halo_c_v_name=halos_df_name)
         else:
-            ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk)
+            if (args.use_track_center):
+                ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, find_halo_center=False)
+            else:
+                ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk)
 
         #  Make the plots
         for thisplot in plots_to_make:
@@ -331,6 +337,7 @@ def make_manysnaps_plots(args):
 if __name__ == "__main__":
     args = parse_args()
 
+    print('FOGGHORN_ANALYSIS: your trackfile is ', args.trackfile)
     ###### IF YOU ADD A PLOT STEP 3 ######
     # Add the function name to the appropriate grouping list, or make a new list
     # These plots make one plot per snapshot:
@@ -370,7 +377,9 @@ if __name__ == "__main__":
         args.save_directory = args.directory + '/plots'
         Path(args.save_directory).mkdir(parents=True, exist_ok=True)
 
-    if args.trackfile is None: _, _, _, args.code_path, args.trackfile, _, _, _ = get_run_loc_etc(args) # for FOGGIE production runs it knows which trackfile to grab
+    #This line is commented out so that the user has to explicitly provide a trackfile if needed, and we can work on runs without tracks 
+    #if args.trackfile is None: _, _, _, args.code_path, args.trackfile, _, _, _ = get_run_loc_etc(args) # for FOGGIE production runs it knows which trackfile to grab
+    #print('Using trackfile: ', args.trackfile, ' derived from get_run_loc_etc')
 
     if args.output is not None: # Running on specific output/s
         outputs = make_output_list(args.output, output_step=args.output_step)

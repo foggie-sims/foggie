@@ -100,7 +100,7 @@ def halo_average_metallicity(halo, correct=True):
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
     if sphere is None:
-        return halo.halo_catalog.data_ds.quan(0, "dimensionless")
+        return halo.halo_catalog.data_ds.quan(0, "Zsun")
 
     return sphere.quantities.weighted_average_quantity(
         ("gas", "metallicity"), ("gas", "cell_mass"))
@@ -112,7 +112,7 @@ def halo_max_metallicity(halo, correct=True):
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
     if sphere is None:
-        return halo.halo_catalog.data_ds.quan(0, "dimensionless")
+        return halo.halo_catalog.data_ds.quan(0, "Zsun")
 
     zmax = sphere.quantities.extrema(("gas", "metallicity")) / 0.02 
     return zmax[1]
@@ -124,7 +124,7 @@ def halo_max_gas_density(halo, correct=True):
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
     if sphere is None:
-        return halo.halo_catalog.data_ds.quan(0, "dimensionless")
+        return halo.halo_catalog.data_ds.quan(0, "g/cm**3")
 
     dmax = sphere.quantities.extrema(("gas", "density")) 
     return dmax[1]
@@ -136,7 +136,7 @@ def halo_max_dm_density(halo, correct=True):
         sphere = halo.data_object    # this sphere will have been made for us by the "sphere" callback
 
     if sphere is None:
-        return halo.halo_catalog.data_ds.quan(0, "dimensionless")
+        return halo.halo_catalog.data_ds.quan(0, "g/cm**3")
 
     dm_max = sphere.quantities.extrema(("enzo", "Dark_Matter_Density")) 
     return dm_max[1]
@@ -376,7 +376,13 @@ def halo_outflow_300(halo, correct=True):
 
     #obtain the proxy for the outflow rate 
     cell_mass = sphere['cell_mass'].in_units('Msun') 
-    rvel = sphere[('gas', 'radial_velocity_corrected')].in_units('km/s')
+
+    vel_x = (sphere[('enzo', 'x-velocity')] - halo.quantities["particle_velocity_x"]).in_units('km/s')
+    vel_y = (sphere[('enzo', 'y-velocity')] - halo.quantities["particle_velocity_y"]).in_units('km/s')
+    vel_z = (sphere[('enzo', 'z-velocity')] - halo.quantities["particle_velocity_z"]).in_units('km/s')
+    
+    rvel = (vel_x**2 + vel_y**2 + vel_z**2)**0.5
+    
     outflow_mass_300 = np.sum(cell_mass[rvel > 300.])
 
     return outflow_mass_300
@@ -392,10 +398,15 @@ def halo_outflow_500(halo, correct=True):
 
     #obtain the proxy for the outflow rate 
     cell_mass = sphere['cell_mass'].in_units('Msun') 
-    rvel = sphere[('gas', 'radial_velocity_corrected')].in_units('km/s')
-    outflow_mass_300 = np.sum(cell_mass[rvel > 500.])
+   
+    vel_x = (sphere[('enzo', 'x-velocity')] - halo.quantities["particle_velocity_x"]).in_units('km/s')
+    vel_y = (sphere[('enzo', 'y-velocity')] - halo.quantities["particle_velocity_y"]).in_units('km/s')
+    vel_z = (sphere[('enzo', 'z-velocity')] - halo.quantities["particle_velocity_z"]).in_units('km/s')
+    
+    rvel = (vel_x**2 + vel_y**2 + vel_z**2)**0.5
+    outflow_mass_500 = np.sum(cell_mass[rvel > 500.])
 
-    return outflow_mass_300
+    return outflow_mass_500
 
 def halo_corrected_rvir(halo):
     sphere = halo.data_object    
