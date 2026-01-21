@@ -42,10 +42,11 @@ def parse_args():
 
     # These arguments are for file organization
     parser.add_argument('--directory', metavar='directory', type=str, action='store', default='./', help='What is the directory of the enzo outputs you want to make plots of?')
+    parser.add_argument('--central_halo', metavar='central_halo', type=bool, action='store', default=True, help='Are you analyzing the central halo of the simulation? Default is True. Goes to foggie_load')
     parser.add_argument('--save_directory', metavar='save_directory', type=str, action='store', default=None, help='Where do you want to store the plots? Default is to put them in a plots/ directory inside the outputs directory.')
     parser.add_argument('--output', metavar='output', type=str, action='store', default=None, help='If you want to make the plots for specific output/s then specify those here separated by comma (e.g., DD0030,DD0040). Otherwise (default) it will make plots for ALL outputs in that directory')
     parser.add_argument('--output_step', metavar='output_step', type=int, action='store', default=1, help='If you are making plots for specific outputs, use this to specify every Nth output in the range given by --output.')
-    parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, help='What is the directory of the track file for this halo?\n' + 'This is needed to find the center of the galaxy of interest.')
+    parser.add_argument('--trackfile_name', metavar='trackfile_name ', type=str, action='store', default=None, help='What is the directory of the track file for this halo?\n' + 'This is needed to find the center of the galaxy of interest.')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the working directory?, Default is no')
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', default=1, help='How many processes do you want? Default is 1 (no parallelization), if multiple processors are specified, code will run one output per processor')
     parser.add_argument('--rockstar_directory', metavar='rockstar_directory', type=str, action='store', default=None, help='What is the directory where your rockstar outputs are located?')
@@ -298,12 +299,10 @@ def make_everysnap_plots(snap, args):
         filename = args.directory + '/' + snap + '/' + snap
         args.snap = snap
         if args.trackfile == None:
-            halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-            halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
-            ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk, halo_c_v_name=halos_df_name)
+            ds, region = foggie_load(filename, do_filter_particles=True, disk_relative=need_disk, central_halo=False) 
         else:
             if (args.use_track_center):
-                ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, find_halo_center=False)
+                ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, central_halo=False)
             else:
                 ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk)
 
