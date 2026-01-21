@@ -336,7 +336,7 @@ def make_manysnaps_plots(args):
 if __name__ == "__main__":
     args = parse_args()
 
-    print('FOGGHORN_ANALYSIS: your trackfile is ', args.trackfile)
+    #print('FOGGHORN_ANALYSIS: your trackfile is ', args.trackfile)
     ###### IF YOU ADD A PLOT STEP 3 ######
     # Add the function name to the appropriate grouping list, or make a new list
     # These plots make one plot per snapshot:
