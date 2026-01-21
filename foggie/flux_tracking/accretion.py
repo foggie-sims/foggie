@@ -1655,9 +1655,10 @@ def compare_accreting_cells(ds, grid, shape, snap, snap_props, global_vars):
     if (surface[0]=='sphere') and (args.radial_stepping>0):
         if (args.Rvir):
             max_R = surface[1]*Rvir
+            min_R = 0.1*Rvir
         else:
             max_R = surface[1]
-        min_R = 10.
+            min_R = 10.
         radii = np.linspace(min_R, max_R, args.radial_stepping+1)[1:]
     else:
         radii = [0]
