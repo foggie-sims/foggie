@@ -33,6 +33,16 @@ from foggie.fogghorn.util import *
 
 start_time = datetime.now()
 
+def str_to_bool(v):
+    if isinstance(v, bool):
+        return v
+    if str(v).lower() in ('yes', 'true', 't', 'y', '1', 'on'):
+        return True
+    elif str(v).lower() in ('no', 'false', 'f', 'n', '0', 'off'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 # --------------------------------------------------------------------------------------------------------------------
 def parse_args():
     '''Parse command line arguments. Returns args object.'''
@@ -51,16 +61,16 @@ def parse_args():
     parser.add_argument('--rockstar_directory', metavar='rockstar_directory', type=str, action='store', default=None, help='What is the directory where your rockstar outputs are located?')
 
     # These arguments are defined as in foggie_load for consistency - these will all be flowed down the the foggie_load call make in fogghorn_analysis
-    parser.add_argument('--central_halo', metavar='central_halo', type=bool, action='store', default=True, help='Are you analyzing the central halo of the simulation? Default is True. Goes to foggie_load')
+    parser.add_argument('--central_halo', metavar='central_halo',nargs='?', const=True, type=str_to_bool, default=True, help='Are you analyzing the central halo of the simulation? Default is True. Goes to foggie_load') 
     parser.add_argument('--trackfile_name', metavar='trackfile_name ', type=str, action='store', default=None, help='What is the directory of the track file for this halo?\n' + 'This is needed to find the center of the galaxy of interest.')
     parser.add_argument('--halo_c_v_name', metavar='halo_c_v_name', type=str, action='store', default=None, help='What is the name of the halo catalog file to use for finding halo centers? Default is None')
     parser.add_argument('--root_catalog_name', metavar='root_catalog_name', type=str, action='store', default=None, help='What is the root name of the halo catalog files to use for finding halo centers? Default is None')
     parser.add_argument('--do_filter_particles', dest='do_filter_particles', action='store_true', default=True, help='Filter star particles to only those in high-res region? Default is yes. Goes to foggie_load')
-    parser.add_argument('--disk_relative', dest='disk_relative', action='store_true', default=False, help='Load the dataset in a disk-relative frame? Default is no. Goes to foggie_load')
-    parser.add_argument('--smooth_AM_name', metavar='smooth_AM_name', type=bool, action='store', default=False, help='If using a smoothed center file, what is the name of that file? Default is None.')
     parser.add_argument('--particle_type_for_angmom', metavar='particle_type_for_angmom', type=str, action='store', default='young_stars', help='Which particle type to use for calculating angular momentum for disk-relative loading? Default is stars. Options are stars or dark_matter.')
-    parser.add_argument('--gravity', metavar='gravity', type=bool, action='store', default=False, help='Include gravity when loading the dataset? Default is True. Goes to foggie_load')
-    parser.add_argument('--masses_dir', metavar='masses_dir', type=str, action='store', default='', help='Directory where particle masses files are located, if needed. Default is None. Goes to foggie_load')
+    parser.add_argument('--smooth_AM_name', metavar='smooth_AM_name', type=bool, action='store', default=False, help='If using a smoothed center file, what is the name of that file? Default is None.')
+    parser.add_argument('--disk_relative', dest='disk_relative', action='store_true', default=False, help='Load the dataset in a disk-relative frame? Default is no. Goes to foggie_load')
+    parser.add_argument('--gravity', metavar='gravity', type=bool, action='store', default=False, help='Include gravity when loading the dataset? Default is False. Goes to foggie_load')
+    parser.add_argument('--masses_dir', metavar='masses_dir', type=str, action='store', default=None, help='Directory where particle masses files are located, if needed. Default is None. Goes to foggie_load')
 
     # These arguments are options for halo center finding
     parser.add_argument('--use_track_center', dest='use_track_center', action='store_true', default=False, help='Just use trackbox center instead of finding halo center? Default is no.')
@@ -108,6 +118,8 @@ def parse_args():
                                 'gas_o6_projection', 'young_stars_density_projection', 'KS_relation', 'gas_metallicity_projection', 
                                 'edge_projection', 'edge_slice']
     args = parser.parse_args()
+    print('central_halo = ', args.central_halo) 
+    print('trackfile_name = ', args.trackfile_name) 
     args.projection_arr = [item for item in args.projection.split(',')]
     if (args.make_plots!=''):
         args.plots_asked_for = [item for item in args.make_plots.split(',')]
