@@ -298,13 +298,13 @@ def make_everysnap_plots(snap, args):
         # Read the snapshot
         filename = args.directory + '/' + snap + '/' + snap
         args.snap = snap
-        if args.trackfile == None:
+        if args.trackfile_name == None:
             ds, region = foggie_load(filename, do_filter_particles=True, disk_relative=need_disk, central_halo=False) 
         else:
             if (args.use_track_center):
-                ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, central_halo=False)
+                ds, region = foggie_load(filename, trackfile_name=args.trackfile_name, do_filter_particles=True, central_halo=False)
             else:
-                ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk)
+                ds, region = foggie_load(filename, trackfile_name=args.trackfile_name, do_filter_particles=True, disk_relative=need_disk)
 
         #  Make the plots
         for thisplot in plots_to_make:
@@ -336,7 +336,7 @@ def make_manysnaps_plots(args):
 if __name__ == "__main__":
     args = parse_args()
 
-    #print('FOGGHORN_ANALYSIS: your trackfile is ', args.trackfile)
+    print('FOGGHORN_ANALYSIS: your trackfile is ', args.trackfile_name)
     ###### IF YOU ADD A PLOT STEP 3 ######
     # Add the function name to the appropriate grouping list, or make a new list
     # These plots make one plot per snapshot:
