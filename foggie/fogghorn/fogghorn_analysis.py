@@ -43,7 +43,6 @@ def parse_args():
 
     # These arguments are for file organization
     parser.add_argument('--directory', metavar='directory', type=str, action='store', default='./', help='What is the directory of the enzo outputs you want to make plots of?')
-    parser.add_argument('--central_halo', metavar='central_halo', type=bool, action='store', default=True, help='Are you analyzing the central halo of the simulation? Default is True. Goes to foggie_load')
     parser.add_argument('--save_directory', metavar='save_directory', type=str, action='store', default=None, help='Where do you want to store the plots? Default is to put them in a plots/ directory inside the outputs directory.')
     parser.add_argument('--output', metavar='output', type=str, action='store', default=None, help='If you want to make the plots for specific output/s then specify those here separated by comma (e.g., DD0030,DD0040). Otherwise (default) it will make plots for ALL outputs in that directory')
     parser.add_argument('--output_step', metavar='output_step', type=int, action='store', default=1, help='If you are making plots for specific outputs, use this to specify every Nth output in the range given by --output.')
