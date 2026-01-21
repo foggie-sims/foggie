@@ -311,7 +311,7 @@ def make_everysnap_plots(snap, args):
         args.snap = snap
 
         #all of foggie_load's arguments are passed down from args so we include them all here
-        ds, region = foggie_load(filename, trackfile_name=args.trackfile_name, halo_c_v_name=args.halo_c_v_name, 
+        ds, region = foggie_load(filename, central_halo = args.central_halo, trackfile_name=args.trackfile_name, halo_c_v_name=args.halo_c_v_name, 
                                  root_catalog_name=args.root_catalog_name, do_filter_particles=True, disk_relative=need_disk, 
                                  central_halo=args.central_halo, smooth_AM_name=args.smooth_AM_name, 
                                  particle_type_for_angmom=args.particle_type_for_angmom, gravity=args.gravity, 
