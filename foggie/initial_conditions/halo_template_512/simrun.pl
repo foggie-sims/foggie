@@ -17,7 +17,7 @@ $job_name = join "/", (split "/", $cdir)[-2 .. -1];
 $email_address = 'tumlinson@stsci.edu'; # put email in singe quotes
 $job_file = "run_enzo.qsub";
 $parameter_file = (glob("*.enzo"))[0];
-$enzo_executable = "/nobackupnfs1/jtumlins/enzo-foggie-opthigh/src/enzo/enzo.exe"; 
+$enzo_executable = "/nobackupnfs1/jtumlins/enzo-foggie-aitken-mpich/src/enzo/enzo.exe"; 
 $walltime = 360000;
 
 while ($arg = shift @ARGV) {

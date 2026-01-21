@@ -394,7 +394,7 @@ CMBTemperatureFloor                      = 1
 StarParticleCreation                     = 2048
 StarParticleFeedback                     = 64
 StarMakerOverDensityThreshold            = 1.0e+4
-StarMakerMinimumMass                     = 10000. 
+StarMakerMinimumMass                     = 10
 StarMakerMinimumDynamicalTime            = 1e6
 StarMakerMassEfficiency                  = 0.2
 StarMassEjectionFraction                 = 0.25
@@ -405,7 +405,6 @@ StarFeedbackDistCellStep                 = 3
 
 H2StarMakerH2FractionMethod        = 1 
 H2StarMakerEfficiency              = 0.002
-H2StarMakerMinimumMass             = 10
 H2StarMakerMinimumH2FractionForStarFormation = 0 
 H2StarMakerStochastic              = 0 
 H2StarMakerUseSobolevColumn        = 1 

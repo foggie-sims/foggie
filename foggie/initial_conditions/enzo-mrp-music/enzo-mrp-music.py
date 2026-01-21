@@ -26,6 +26,7 @@ def parse_config(config_fn):
         template_config = "template.conf",
         original_config = None,
         simulation_run_directory = ".",
+        new_ics_directory = ".", 
         num_cores = None,
         final_type = "halo",
         final_redshift = 0.0,
@@ -113,9 +114,12 @@ def startup():
 
 def get_previous_run_params(params):
     # Set simulation directories
+    # This is where we will look for snapshots at the N-1 level refinement, e.g. 
+    # Level 0 when we are now making Level 1 
     params["prev_sim_dir"] = os.path.join(params["simulation_run_directory"], "%s-L%d" %
                                           (params["simulation_name"], params["level"]-1))
-    params["sim_dir"] = os.path.join(params["simulation_run_directory"],
+    # This is where we will deposit ICs for the current run, the Level N outputs 
+    params["sim_dir"] = os.path.join(params["new_ics_directory"], 
                                      "%s-L%d" % (params["simulation_name"], params["level"]))
     #
     # Obtain the maxlevel of the original run
@@ -199,7 +203,7 @@ def run_music(params):
             music_cf1.remove_option("setup", option)
 
     music_cf1.set("setup", "levelmax", "%d" % (params["initial_min_level"] + params["level"]))
-    music_cf1.set("output", "filename", os.path.join(params["simulation_run_directory"],"%s-L%d" % (params["simulation_name"], params["level"])))
+    music_cf1.set("output", "filename", os.path.join(params["new_ics_directory"], "%s-L%d" % (params["simulation_name"], params["level"])))
     music_cf1.set("setup", "region",
                   "convex_hull" if params["shape_type"] == "exact" else params["shape_type"])
     if params["shape_type"] == "box":
@@ -216,7 +220,8 @@ def run_music(params):
                                       params["region_shift"][2]))
         music_cf1.set("setup", "region_point_levelmin", "%d" % (params["initial_min_level"]))
 
-    new_config_file = os.path.join(params["simulation_run_directory"],"%s-L%d.conf" % (params["simulation_name"], params["level"]))
+    new_config_file = os.path.join(params["new_ics_directory"], "%s-L%d.conf" % (params["simulation_name"], params["level"]))
+    print('new_config_file: ', new_config_file) 
     with open(new_config_file, "w") as fp:
         music_cf1.write(fp)
 
