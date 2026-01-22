@@ -61,11 +61,7 @@ def parse_args():
     parser.add_argument('--rockstar_directory', metavar='rockstar_directory', type=str, action='store', default=None, help='What is the directory where your rockstar outputs are located?')
 
     # These arguments are defined as in foggie_load for consistency - these will all be flowed down the the foggie_load call make in fogghorn_analysis
-<<<<<<< HEAD
     parser.add_argument('--central_halo', metavar='central_halo',nargs='?', const=True, type=str_to_bool, default=True, help='Are you analyzing the central halo of the simulation? Default is True. Goes to foggie_load') 
-=======
-    parser.add_argument('--central_halo', metavar='central_halo', action='store', default=True, help='Are you analyzing the central halo of the simulation? Default is True. Goes to foggie_load')
->>>>>>> 450cccd135e0791b6574242dd009800b501f74a9
     parser.add_argument('--trackfile_name', metavar='trackfile_name ', type=str, action='store', default=None, help='What is the directory of the track file for this halo?\n' + 'This is needed to find the center of the galaxy of interest.')
     parser.add_argument('--halo_c_v_name', metavar='halo_c_v_name', type=str, action='store', default=None, help='What is the name of the halo catalog file to use for finding halo centers? Default is None')
     parser.add_argument('--root_catalog_name', metavar='root_catalog_name', type=str, action='store', default=None, help='What is the root name of the halo catalog files to use for finding halo centers? Default is None')
