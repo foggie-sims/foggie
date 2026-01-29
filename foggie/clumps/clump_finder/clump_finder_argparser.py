@@ -175,6 +175,10 @@ def parse_args():
                         help='What is the maximum number of satellite clumps to save? Default is 10.')
     parser.set_defaults(max_number_of_satellites=10)
 
+    parser.add_argument('--save_YTClumpContainer', metavar='save_YTClumpContainer', type=bool, action=argparse.BooleanOptionalAction, \
+                        help='Do you want to additionally save the clump hierarchy as a YTClumpContainer object? Default is False.')
+    parser.set_defaults(save_YTClumpContainer=False)
+
     args = parser.parse_args()
 
     return args
@@ -228,6 +232,7 @@ def get_default_args():
         disk_stdv_factor=100.,
         identify_satellites=False,
         max_number_of_satellites=10,
+        save_YTClumpContainer=False,
     )
 
 def set_default_disk_finder_arguments(args=None):
