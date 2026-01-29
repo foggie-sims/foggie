@@ -300,7 +300,7 @@ def pseudo_get_leaf_ids(field, data, leaf_clump_ids,leaf_cell_id_list,leaf_list_
 
     return clump_ids  
 
-def add_leaf_id_field(ds,hierarchy_file,add_cell_ids=False):
+def add_leaf_id_field(ds,hierarchy_file,add_cell_ids=False,leaf_id_field_name='leaf_id'):
     
     if add_cell_ids:
         add_cell_id_field(ds)
@@ -322,7 +322,7 @@ def add_leaf_id_field(ds,hierarchy_file,add_cell_ids=False):
     F_get_leaf_ids = partial(pseudo_get_leaf_ids, leaf_clump_ids=leaf_clump_ids,leaf_cell_id_list=leaf_cell_id_list,leaf_list_ids=leaf_list_ids)
 
     ds.add_field(
-        ('gas', 'leaf_id'),
+        ('gas', leaf_id_field_name),
           function=F_get_leaf_ids,
           sampling_type='cell',
           force_override=True
@@ -493,6 +493,8 @@ def save_clump_hierarchy(args,root_clump):
             grp.create_dataset('parent_id',data=parent_id )
             grp.create_dataset('child_ids',data=child_ids)
             grp.create_dataset('tree_level',data=clump.tree_level)
+            if clump.shell_cell_ids is not None:
+                grp.create_dataset('shell_cell_ids',data=clump.shell_cell_ids) #list of cell ids corresponding to the shells around each clump defined by n_dilation_iterations and n_cells_per_dilation
             if clump.center_disk_coords is not None: grp.create_dataset('center_disk_coords',data=clump.center_disk_coords)
 
 
@@ -723,11 +725,26 @@ def load_root(ds,hierarchy_file,clump_id):
         if hf[current_id]['tree_level']==0:
             return load_clump(ds,clump_cell_ids=hf[str(current_id)]['cell_ids'][...], skip_adding_cell_ids=False)
 
+def load_clump_shell(ds, hierarchy_file,clump_id,shell_number=None):
+    '''
+    Function to load the shells of a specific clump. Will either load all shells, or a specific shell
+    Arguments are:
+        ds - The yt dataset.
+        hierarchy_file - The file saved with save_clump_hierarchy()
+        clump_id - The id of the clump in the hierarchy file you want to load the root of
+        shell_number - The index of the shell you want to load (0 is the innermost shell). If None, will load all shells combined
+    '''
+    hf = h5py.File(hierarchy_file,'r')
+
+    shell_cell_ids = hf[str(clump_id)]['shell_cell_ids'][...]
+
+    if shell_number is not None: shell_cell_ids = shell_cell_ids[shell_number]
+    else: shell_cell_ids = flatten_multi_clump_list(shell_cell_ids) #combine all shells into single list
+
+    return load_clump(ds,clump_cell_ids = shell_cell_ids, skip_adding_cell_ids=False)
 
 
-
-
-def load_clump_hiearchy(args,ds,cut_region,hierarchy_file,is_disk=False):
+def load_clump_hierarchy(args,ds,cut_region,hierarchy_file,is_disk=False):
     '''
     Load a given clump hierarchy file into the clump class defined in clump_finder.py
     Arguments are:
@@ -894,7 +911,7 @@ def save_as_YTClumpContainer(ds,cut_region,master_clump,clumping_field,args):
 
 def GetClumpsInDisk(clump_ids, hierarchy_file, disk_file):
     '''
-    Given a list of clump_ids, will filter out any that are not disk clumps (i.e. have no parents)
+    Given a list of clump_ids, will identify those within the disk
     Arguments are:
         clump_ids-List of clump ids you want to filter
         hierarchy_file-File saved by save_clump_hierarchy() to search within
@@ -911,6 +928,93 @@ def GetClumpsInDisk(clump_ids, hierarchy_file, disk_file):
             disk_clump_ids.append(clump_id)
 
     return disk_clump_ids
+
+def GetClumpDistanceFromDisk(ds, source_cut, clump_ids, hierarchy_file, disk_file):
+    '''
+    Given a list of clump_ids, will identify the distance from the disk (0 if within disk)
+    Arguments are:
+        clump_ids-List of clump ids you want to filter
+        hierarchy_file-File saved by save_clump_hierarchy() to search within
+    '''
+    hf_disk = h5py.File(disk_file,'r')
+    disk_cell_ids = hf_disk['cell_ids'][...]
+    hf_disk.close()
+
+    hf = h5py.File(hierarchy_file,'r')
+    distance_dict = {}
+
+    leaf_ids = source_cut['gas','leaf_id']
+    gas_mass = source_cut['gas','mass'].in_units('Msun')
+    disk_x = source_cut['gas','x_disk']
+    disk_y = source_cut['gas','y_disk']
+    disk_z = source_cut['gas','z_disk']
+    cell_ids = source_cut['index','cell_id_2']
+
+    disk_mask = np.isin(cell_ids,disk_cell_ids)
+
+    for clump_id in clump_ids:
+        clump_cell_ids = hf[str(clump_id)]['cell_ids'][...]
+        if np.isin(clump_cell_ids,disk_cell_ids).any():
+            distance_dict[clump_id] = 0.0
+        else:
+            mask = (leaf_ids==clump_id)
+            x = np.sum(np.multiply(gas_mass[mask],disk_x[mask])) / np.sum(gas_mass[mask])
+            y = np.sum(np.multiply(gas_mass[mask],disk_y[mask])) / np.sum(gas_mass[mask])
+            z = np.sum(np.multiply(gas_mass[mask],disk_z[mask])) / np.sum(gas_mass[mask])
+
+            
+
+            min_distance = np.min( np.sqrt( (disk_x[disk_mask]-x)**2 + (disk_y[disk_mask]-y)**2 + (disk_z[disk_mask]-z)**2 ) )
+
+            distance_dict[clump_id] = min_distance
+    hf.close()
+    return distance_dict
+
+
+def GetClumpDistanceFromClumpIds(ds, source_cut, clump_ids, hierarchy_file, clump_id_list, secondary_hierarchy_file):
+    '''
+    Given a list of clump_ids, will identify the distance from the disk (0 if within disk)
+    Arguments are:
+        clump_ids-List of clump ids you want to filter
+        hierarchy_file-File saved by save_clump_hierarchy() to search within
+    '''
+    distance_dict = {}
+
+    cell_id_list = np.array([])
+    hf2 = h5py.File(secondary_hierarchy_file,'r')
+    for clump_id in clump_id_list:
+        cell_id_list = np.append(cell_id_list, hf2[str(clump_id)]['cell_ids'][...])
+    hf2.close()
+
+    hf = h5py.File(hierarchy_file,'r')
+    leaf_ids = source_cut['gas','leaf_id']
+    gas_mass = source_cut['gas','mass'].in_units('Msun')
+    disk_x = source_cut['gas','x_disk']
+    disk_y = source_cut['gas','y_disk']
+    disk_z = source_cut['gas','z_disk']
+    cell_ids = source_cut['index','cell_id_2']
+
+    clump_mask = np.isin(cell_ids,cell_id_list)
+
+    for clump_id in clump_ids:
+        clump_cell_ids = hf[str(clump_id)]['cell_ids'][...]
+        if np.isin(clump_cell_ids,cell_id_list).any():
+            distance_dict[clump_id] = 0.0
+        else:
+            mask = (leaf_ids==clump_id)
+            x = np.sum(np.multiply(gas_mass[mask],disk_x[mask])) / np.sum(gas_mass[mask])
+            y = np.sum(np.multiply(gas_mass[mask],disk_y[mask])) / np.sum(gas_mass[mask])
+            z = np.sum(np.multiply(gas_mass[mask],disk_z[mask])) / np.sum(gas_mass[mask])
+
+            
+
+            min_distance = np.min( np.sqrt( (disk_x[clump_mask]-x)**2 + (disk_y[clump_mask]-y)**2 + (disk_z[clump_mask]-z)**2 ) )
+
+            distance_dict[clump_id] = min_distance
+
+    hf.close()
+    return distance_dict
+
 
 def FindOverlappingClumps(cell_ids, hierarchy_file, return_only_leaves=False, ds=None, return_cut_regions=False):
     '''
