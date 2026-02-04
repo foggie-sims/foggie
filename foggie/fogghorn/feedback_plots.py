@@ -125,7 +125,7 @@ def rad_vel_temp_colored(ds, region, args, output_filename):
     field_label = 'log T [K]'
     color_log = True
     x_range=[0,100]
-    y_range=[-500,2000]
+    y_range=[-500,3000]
 
     data_frame = pd.DataFrame({})
     data_frame['radius'] = radius
