@@ -20,16 +20,24 @@ def outflow_rates(ds, region, args, output_filename):
 
     # Load needed fields into arrays
     radius = region['gas','radius_corrected'].in_units('kpc')
-    x = region['gas', 'x_disk'].in_units('kpc').v
-    y = region['gas', 'y_disk'].in_units('kpc').v
-    z = region['gas', 'z_disk'].in_units('kpc').v
-    vx = region['gas','vx_disk'].in_units('kpc/yr').v
-    vy = region['gas','vy_disk'].in_units('kpc/yr').v
-    vz = region['gas','vz_disk'].in_units('kpc/yr').v
+    if (args.disk_rel):
+        x = region['gas', 'x_disk'].in_units('kpc').v
+        y = region['gas', 'y_disk'].in_units('kpc').v
+        z = region['gas', 'z_disk'].in_units('kpc').v
+        vx = region['gas','vx_disk'].in_units('kpc/yr').v
+        vy = region['gas','vy_disk'].in_units('kpc/yr').v
+        vz = region['gas','vz_disk'].in_units('kpc/yr').v
+        hv = region['gas','vz_disk'].in_units('km/s').v
+    else:
+        x = region['gas', 'x'].in_units('kpc').v - ds.halo_center_kpc[0].v
+        y = region['gas', 'y'].in_units('kpc').v - ds.halo_center_kpc[1].v
+        z = region['gas', 'z'].in_units('kpc').v - ds.halo_center_kpc[2].v
+        vx = region['gas','vx_corrected'].in_units('kpc/yr').v
+        vy = region['gas','vy_corrected'].in_units('kpc/yr').v
+        vz = region['gas','vz_corrected'].in_units('kpc/yr').v
     mass = region['gas', 'cell_mass'].in_units('Msun').v
     metals = region['gas','metal_mass'].in_units('Msun').v
     rv = region['gas','radial_velocity_corrected'].in_units('km/s').v
-    hv = region['gas','vz_disk'].in_units('km/s').v
     kinetic_energy = region['gas','kinetic_energy_corrected'].in_units('erg').v
     thermal_energy = (region['gas','specific_thermal_energy']*region['gas','cell_mass']).in_units('erg').v
 
@@ -60,20 +68,26 @@ def outflow_rates(ds, region, args, output_filename):
         # Divide energies by mass *after* summing to get specific energy flow rates
         therm_sph.append(np.sum(thermal_energy[(radius < r) & (new_radius > r) & (rv > 50.)])/dt/mass_sph[-1])
         kin_sph.append(np.sum(kinetic_energy[(radius < r) & (new_radius > r) & (rv > 50.)])/dt/mass_sph[-1])
-    for i in range(len(heights)):
-        h = heights[i]
-        mass_horiz.append(np.sum(mass[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt)
-        metal_horiz.append(np.sum(metals[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt)
-        # Divide energies by mass *after* summing to get specific energy flow rates
-        therm_horiz.append(np.sum(thermal_energy[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt/mass_horiz[-1])
-        kin_horiz.append(np.sum(kinetic_energy[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt/mass_horiz[-1])
+    if (args.disk_rel):
+        for i in range(len(heights)):
+            h = heights[i]
+            mass_horiz.append(np.sum(mass[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt)
+            metal_horiz.append(np.sum(metals[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt)
+            # Divide energies by mass *after* summing to get specific energy flow rates
+            therm_horiz.append(np.sum(thermal_energy[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt/mass_horiz[-1])
+            kin_horiz.append(np.sum(kinetic_energy[(np.abs(z) < h) & (np.abs(new_z) > h) & (np.abs(hv) > 50.)])/dt/mass_horiz[-1])
 
     # Plot the outflow rates
-    fig = plt.figure(1, figsize=(10,8))
-    ax1 = fig.add_subplot(2,2,1)
-    ax2 = fig.add_subplot(2,2,2)
-    ax3 = fig.add_subplot(2,2,3)
-    ax4 = fig.add_subplot(2,2,4)
+    if (args.disk_rel):
+        fig = plt.figure(1, figsize=(10,8))
+        ax1 = fig.add_subplot(2,2,1)
+        ax2 = fig.add_subplot(2,2,2)
+        ax3 = fig.add_subplot(2,2,3)
+        ax4 = fig.add_subplot(2,2,4)
+    else:
+        fig = plt.figure(1, figsize=(10,5))
+        ax1 = fig.add_subplot(1,2,1)
+        ax2 = fig.add_subplot(1,2,2)
     ax1.plot(radii, mass_sph, 'k-', lw=2, label='Mass')
     ax1.plot(radii, metal_sph, 'k--', lw=2, label='Metals')
     ax1.set_ylabel(r'Mass outflow rate [$M_\odot$/yr]', fontsize=14)
@@ -81,25 +95,27 @@ def outflow_rates(ds, region, args, output_filename):
     ax1.set_yscale('log')
     ax1.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12)
     ax1.legend(loc=1, frameon=False, fontsize=14)
-    ax2.plot(heights, mass_horiz, 'k-', lw=2, label='Mass')
-    ax2.plot(heights, metal_horiz, 'k--', lw=2, label='Metals')
-    ax2.set_ylabel(r'Mass outflow rate [$M_\odot$/yr]', fontsize=14)
-    ax2.set_xlabel('Height from disk midplane [kpc]', fontsize=14)
+    ax2.plot(radii, therm_sph, 'k-', lw=2, label='Thermal')
+    ax2.plot(radii, kin_sph, 'k--', lw=2, label='Kinetic')
+    ax2.set_ylabel(r'Specific energy outflow rate [erg/g/yr]', fontsize=14)
+    ax2.set_xlabel('Radius [kpc]', fontsize=14)
     ax2.set_yscale('log')
     ax2.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12)
-    ax3.plot(radii, therm_sph, 'k-', lw=2, label='Thermal')
-    ax3.plot(radii, kin_sph, 'k--', lw=2, label='Kinetic')
-    ax3.set_ylabel(r'Specific energy outflow rate [erg/g/yr]', fontsize=14)
-    ax3.set_xlabel('Radius [kpc]', fontsize=14)
-    ax3.set_yscale('log')
-    ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12)
-    ax3.legend(loc=4, frameon=False, fontsize=14)
-    ax4.plot(heights, therm_horiz, 'k-', lw=2, label='Thermal')
-    ax4.plot(heights, kin_horiz, 'k--', lw=2, label='Kinetic')
-    ax4.set_ylabel(r'Specific energy outflow rate [erg/g/yr]', fontsize=14)
-    ax4.set_xlabel('Height from disk midplane [kpc]', fontsize=14)
-    ax4.set_yscale('log')
-    ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12)
+    ax2.legend(loc=4, frameon=False, fontsize=14)
+    if (args.disk_rel):
+        ax3.plot(heights, mass_horiz, 'k-', lw=2, label='Mass')
+        ax3.plot(heights, metal_horiz, 'k--', lw=2, label='Metals')
+        ax3.set_ylabel(r'Mass outflow rate [$M_\odot$/yr]', fontsize=14)
+        ax3.set_xlabel('Height from disk midplane [kpc]', fontsize=14)
+        ax3.set_yscale('log')
+        ax3.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12)
+        ax4.plot(heights, therm_horiz, 'k-', lw=2, label='Thermal')
+        ax4.plot(heights, kin_horiz, 'k--', lw=2, label='Kinetic')
+        ax4.set_ylabel(r'Specific energy outflow rate [erg/g/yr]', fontsize=14)
+        ax4.set_xlabel('Height from disk midplane [kpc]', fontsize=14)
+        ax4.set_yscale('log')
+        ax4.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=12)
+    
     plt.tight_layout()
     plt.savefig(output_filename, dpi=300)
     print('Saved figure ' + output_filename)
