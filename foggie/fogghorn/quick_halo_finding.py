@@ -130,10 +130,19 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
               "total_young_stars8_mass": halo_total_young_stars8_mass, "max_metallicity": halo_max_metallicity, 
               "max_gas_density": halo_max_gas_density, "max_dm_density": halo_max_dm_density, 
               "outflow_mass_300":halo_outflow_300, "outflow_mass_500":halo_outflow_500} 
+    
+    #These quantities will also be calculated with 2Rvir to capture, e.g. outflows that have passed beyond Rvir but are still associated with the halo.
+    quantities_2rvir = {"total_gas_mass_2rvir":halo_total_gas_mass, "total_cgm_gas_mass_2rvir":halo_cgm_gas_mass, 
+                        "total_cold_cgm_gas_mass_2rvir": halo_cold_cgm_gas_mass, "total_cool_cgm_gas_mass_2rvir":halo_cool_cgm_gas_mass, 
+                        "total_warm_cgm_gas_mass_2rvir":halo_warm_cgm_gas_mass, "total_hot_cgm_gas_mass_2rvir":halo_hot_cgm_gas_mass}
 
     for q in quantities.keys(): 
         add_quantity(q, quantities[q])
         hc.add_quantity(q, correct=True) 
+
+    for q in quantities_2rvir(): 
+        add_quantity(q, quantities[q])
+        hc.add_quantity(q, correct=True, rvir_factor=2.) 
 
     if (ds.parameters['MultiSpecies'] == 2): # this is necessary because older runs do not have this field 
         add_quantity("average_fH2", halo_average_fH2) 
