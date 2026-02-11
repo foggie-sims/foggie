@@ -141,9 +141,9 @@ def halo_max_dm_density(halo, correct=True):
     dm_max = sphere.quantities.extrema(("enzo", "Dark_Matter_Density")) 
     return dm_max[1]
 
-def halo_total_gas_mass(halo, correct=True): 
+def halo_total_gas_mass(halo, correct=True, rvir_factor=2.): 
     if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor*halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -210,9 +210,9 @@ def halo_ism_H2_mass(halo, correct=True):
 
     return h2_cell_mass 
 
-def halo_cgm_gas_mass(halo, correct=True): 
+def halo_cgm_gas_mass(halo, correct=True, rvir_factor=1): 
     if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor*halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -237,9 +237,9 @@ def halo_cold_cgm_gas_mass(halo, correct=True):
     sphere = sphere.cut_region([cgm_field_filter_z(halo.halo_catalog.data_ds.current_redshift, tmin=100, tmax=1.5e4)]) #cgm field filter is defined in consistency.py
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
-def halo_cool_cgm_gas_mass(halo, correct=True): 
+def halo_cool_cgm_gas_mass(halo, correct=True, rvir_factor=1.): 
     if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor*halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -249,9 +249,9 @@ def halo_cool_cgm_gas_mass(halo, correct=True):
     sphere = sphere.cut_region([cgm_field_filter_z(halo.halo_catalog.data_ds.current_redshift, tmin=1.5e4, tmax=1e5)]) #cgm field filter is defined in consistency.py
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
-def halo_warm_cgm_gas_mass(halo, correct=True): 
+def halo_warm_cgm_gas_mass(halo, correct=True, rvir_factor=1.): 
     if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor*halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
@@ -261,9 +261,9 @@ def halo_warm_cgm_gas_mass(halo, correct=True):
     sphere = sphere.cut_region([cgm_field_filter_z(halo.halo_catalog.data_ds.current_redshift, tmin=1e5, tmax=1e6)]) #cgm field filter is defined in consistency.py
     return sphere.quantities.total_quantity(("gas", "cell_mass"))
 
-def halo_hot_cgm_gas_mass(halo, correct=True): 
+def halo_hot_cgm_gas_mass(halo, correct=True, rvir_factor=1.): 
     if (correct): 
-        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=halo.quantities["corrected_rvir"])
+        sphere = halo.halo_catalog.data_ds.sphere(halo.data_object.center, radius=rvir_factor*halo.quantities["corrected_rvir"])
     else:
         sphere = halo.data_object  # this sphere will have been made for us by the "sphere" callback
 
