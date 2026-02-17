@@ -86,6 +86,12 @@ def parse_args():
                             'Options are: x, y, z, x-disk, y-disk, z-disk. Default is x.\n' + \
                             'Specify multiple with commas (no space) between them, like: x,y,z')
     parser.set_defaults(proj='x')
+
+    parser.add_argument('--plot', metavar='plot', type=str, action='store', \
+                        help='What do you want to plot?\n' + \
+                            'Options are: projection, datashader. Default is projection.\n' + \
+                            'Specify multiple with commas (no space) between them, like: projection,datashader')
+    parser.set_defaults(plot='projection')
     
     parser.add_argument('--save_suffix', metavar='save_suffix', type=str, action='store', \
                         help='Do you want to append a string onto the names of the saved files? Default is no.')
@@ -121,6 +127,115 @@ def tracer_density7(field, data):
 
 def tracer_density8(field, data):
     return data.ds.arr(data['enzo','TracerFluid08'], 'code_density')
+
+
+def datashader_tracer(outputs):
+    '''Makes datashader plots of properties of the tracer field given by 'tracer_number' vs. radius 
+    with all snapshots in 'outputs' on the same plot, color-coded by time since the first output.'''
+
+    for i in range(len(outputs)):
+        snap = outputs[i]
+        snap_name = run_dir + snap + '/' + snap
+        ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, disk_relative=False)
+        sph = ds.sphere(ds.halo_center_kpc, radius=(200., 'kpc'))
+
+        if (args.num_tracers >= 1):
+            ds.add_field(('gas','tracer_density01'), function=tracer_density1, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 2):
+            ds.add_field(('gas','tracer_density02'), function=tracer_density2, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 3):
+            ds.add_field(('gas','tracer_density03'), function=tracer_density3, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 4):
+            ds.add_field(('gas','tracer_density04'), function=tracer_density4, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 5):
+            ds.add_field(('gas','tracer_density05'), function=tracer_density5, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 6):
+            ds.add_field(('gas','tracer_density06'), function=tracer_density6, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 7):
+            ds.add_field(('gas','tracer_density07'), function=tracer_density7, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers == 8):
+            ds.add_field(('gas','tracer_density08'), function=tracer_density8, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+
+        # Load needed fields into arrays
+        radius = sph['gas','radius_corrected'].in_units('kpc').v
+        rv = sph['gas','radial_velocity_corrected'].in_units('km/s').v
+        temperature = np.log10(sph['gas','temperature'].in_units('K').v)
+        density = np.log10(sph['gas','density'].in_units('g/cm**3').v)
+        tcool = np.log10(sph['gas','cooling_time'].in_units('Myr').v)
+
+        for j in range(args.num_tracers):
+            tracer_den = np.log10(sph['gas','tracer_density0'+str(j+1)].in_units('g/cm**3').v)
+
+            rad_trac = radius[(tracer_den > -29.)]
+            rv_trac = rv[(tracer_den > -29.)]
+            temp_trac = temperature[(tracer_den > -29.)]
+            den_trac = density[(tracer_den > -29.)]
+            tcool_trac = tcool[(tracer_den > -29.)]
+
+            if (i==0):
+                rads = rad_trac
+                rvs = rv_trac
+                temps = temp_trac
+                dens = den_trac
+                tcools = tcool_trac
+                times = np.zeros(len(rad_trac))
+                tinj = ds.current_time.in_units('Myr').v
+            else:
+                rads = np.hstack([rads, rad_trac])
+                rvs = np.hstack([rvs, rv_trac])
+                temps = np.hstack([temps, temp_trac])
+                dens = np.hstack([dens, den_trac])
+                tcools = np.hstack([tcools, tcool_trac])
+                time = np.zeros(len(rad_trac)) + ds.current_time.in_units('Myr').v - tinj
+                times = np.hstack([times, time])
+            
+            print('Snap', snap, 'tracer number', j+1, 'num_cells', len(rads))
+
+            props = [dens, temps, rvs, tcools]
+            x_range = [0, 200]
+            y_ranges = [[-30,-24],[3,8],[-500,200],[-2,5]]
+            ylabels = ['log Density [g/cm$^3$]', 'log Temperature [K]', 'Radial velocity [km/s]', 'log Cooling time [Myr]']
+            cmap = cmr.cosmic
+
+            fig = plt.figure(figsize=(10,9),dpi=300)
+            #fig = plt.figure()
+            for p in range(len(props)):
+                ax = fig.add_subplot(2,2,p+1)
+                data_frame = pd.DataFrame({})
+                data_frame['radius'] = rads
+                data_frame['y'] = props[p]
+                data_frame['times'] = times
+                cvs = dshader.Canvas(plot_width=1000, plot_height=800, x_range=x_range, y_range=y_ranges[p])
+                agg = cvs.points(data_frame, 'radius', 'y', dshader.mean('times'))
+                arr = agg.values
+                #img = tf.spread(tf.shade(agg, cmap=cmap, span=(0., 5.38*len(outputs)), how='eq_hist',min_alpha=40), shape='square', px=0)
+                #export_image(img, 'test')
+                #image = plt.imread('test')
+                #ax.imshow(image, extent=[x_range[0],x_range[1],y_ranges[p][0],y_ranges[p][1]])
+                im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_ranges[p][0], y_ranges[p][1]], cmap=cmap, vmin=0., vmax=5.38*len(outputs))
+                ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_ranges[p][1]-y_ranges[p][0])))
+                ax.set_xlabel('Radius [kpc]', fontsize=16)
+                ax.set_ylabel(ylabels[p], fontsize=16)
+                ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+                top=True, right=True)
+                if (p==1):
+                    cax = fig.add_axes([0.6, 0.95, 0.3, 0.03])  # [left, bottom, width, height]
+                    fig.colorbar(im, cax=cax, orientation='horizontal')
+                    cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
+                    cax.text(0.5, -1.7, 'Time since injection [Myr]', fontsize=16, ha='center', va='center', transform=cax.transAxes)
+                    ax.text(-0.8, 1.1, 'z = %.2f' % (ds.get_parameter('CosmologyCurrentRedshift')), fontsize=16, ha='left', va='center', transform=ax.transAxes)
+            
+            plt.subplots_adjust(left=0.1, bottom=0.08, right=0.95, top=0.88, hspace=0.2, wspace=0.2)
+            plt.savefig(output_dir + '/' + snap + '_tracer_den-temp-rv-tcool_vs_radius_tracer0' + str(j+1) + '.png')
+            print('Saved figure for tracer0' + str(j+1) + ' and snapshot', snap)
 
 def project_tracer(ds, snap, tracer_number, proj_direction):
     '''Makes the projected images in proj_direction of the tracer field given by tracer_number for the snapshot snap.'''
@@ -255,9 +370,10 @@ def load_and_calculate(snap):
         ds.add_field(('gas','tracer_density08'), function=tracer_density8, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
     
-    for p in range(len(projections)):
-        for i in range(args.num_tracers):
-            project_tracer(ds, snap, i+1, projections[p])
+    if ('projection' in args.plot):
+        for p in range(len(projections)):
+            for i in range(args.num_tracers):
+                project_tracer(ds, snap, i+1, projections[p])
 
     # Delete output from temp directory if on pleiades
     if (args.system=='pleiades_cassi'):
@@ -277,9 +393,6 @@ if __name__ == "__main__":
     foggie_dir = args.sim_dir
     run_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/'
 
-    # Set directory for output location, making it if necessary
-    output_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Projections'
-    if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
 
     print('foggie_dir: ', foggie_dir)
 
@@ -299,21 +412,51 @@ if __name__ == "__main__":
 
     # Build outputs list
     outs = make_output_list(args.output, output_step=args.output_step)
-    target_dir = 'projs'
-    if (args.nproc==1):
-        for snap in outs:
-            load_and_calculate(snap)
-    else:
-        skipped_outs = outs
-        while (len(skipped_outs)>0):
-            skipped_outs = []
-            # Split into a number of groupings equal to the number of processors
-            # and run one process per processor
-            for i in range(len(outs)//args.nproc):
+
+    if ('datashader' in args.plot):
+        # Set directory for output location, making it if necessary
+        output_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Datashaders'
+        if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
+        datashader_tracer(outs)
+
+    if ('projection' in args.plot):
+        # Set directory for output location, making it if necessary
+        output_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Projections'
+        if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
+        target_dir = 'projs'
+        if (args.nproc==1):
+            for snap in outs:
+                load_and_calculate(snap)
+        else:
+            skipped_outs = outs
+            while (len(skipped_outs)>0):
+                skipped_outs = []
+                # Split into a number of groupings equal to the number of processors
+                # and run one process per processor
+                for i in range(len(outs)//args.nproc):
+                    threads = []
+                    snaps = []
+                    for j in range(args.nproc):
+                        snap = outs[args.nproc*i+j]
+                        snaps.append(snap)
+                        threads.append(multi.Process(target=load_and_calculate, args=[snap]))
+                    for t in threads:
+                        t.start()
+                    for t in threads:
+                        t.join()
+                    # Delete leftover outputs from failed processes from tmp directory if on pleiades
+                    if (args.system=='pleiades_cassi'):
+                        snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
+                        for s in range(len(snaps)):
+                            if (os.path.exists(snap_dir + snaps[s])):
+                                print('Deleting failed %s from /tmp' % (snaps[s]))
+                                skipped_outs.append(snaps[s])
+                                shutil.rmtree(snap_dir + snaps[s])
+                # For any leftover snapshots, run one per processor
                 threads = []
                 snaps = []
-                for j in range(args.nproc):
-                    snap = outs[args.nproc*i+j]
+                for j in range(len(outs)%args.nproc):
+                    snap = outs[-(j+1)]
                     snaps.append(snap)
                     threads.append(multi.Process(target=load_and_calculate, args=[snap]))
                 for t in threads:
@@ -328,26 +471,7 @@ if __name__ == "__main__":
                             print('Deleting failed %s from /tmp' % (snaps[s]))
                             skipped_outs.append(snaps[s])
                             shutil.rmtree(snap_dir + snaps[s])
-            # For any leftover snapshots, run one per processor
-            threads = []
-            snaps = []
-            for j in range(len(outs)%args.nproc):
-                snap = outs[-(j+1)]
-                snaps.append(snap)
-                threads.append(multi.Process(target=load_and_calculate, args=[snap]))
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
-            # Delete leftover outputs from failed processes from tmp directory if on pleiades
-            if (args.system=='pleiades_cassi'):
-                snap_dir = '/nobackup/clochhaa/tmp/' + args.halo + '/' + args.run + '/' + target_dir + '/'
-                for s in range(len(snaps)):
-                    if (os.path.exists(snap_dir + snaps[s])):
-                        print('Deleting failed %s from /tmp' % (snaps[s]))
-                        skipped_outs.append(snaps[s])
-                        shutil.rmtree(snap_dir + snaps[s])
-            outs = skipped_outs
+                outs = skipped_outs
 
     end = time.perf_counter()
     elapsed = end - start
