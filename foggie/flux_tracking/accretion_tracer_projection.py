@@ -133,6 +133,13 @@ def datashader_tracer(outputs):
     '''Makes datashader plots of properties of the tracer field given by 'tracer_number' vs. radius 
     with all snapshots in 'outputs' on the same plot, color-coded by time since the first output.'''
 
+    rads = []
+    rvs = []
+    temps = []
+    dens = []
+    tcools = []
+    times = []
+
     for i in range(len(outputs)):
         snap = outputs[i]
         snap_name = run_dir + snap + '/' + snap
@@ -181,25 +188,25 @@ def datashader_tracer(outputs):
             tcool_trac = tcool[(tracer_den > -29.)]
 
             if (i==0):
-                rads = rad_trac
-                rvs = rv_trac
-                temps = temp_trac
-                dens = den_trac
-                tcools = tcool_trac
-                times = np.zeros(len(rad_trac))
+                rads.append(rad_trac)
+                rvs.append(rv_trac)
+                temps.append(temp_trac)
+                dens.append(den_trac)
+                tcools.append(tcool_trac)
+                times.append(np.zeros(len(rad_trac)))
                 tinj = ds.current_time.in_units('Myr').v
             else:
-                rads = np.hstack([rads, rad_trac])
-                rvs = np.hstack([rvs, rv_trac])
-                temps = np.hstack([temps, temp_trac])
-                dens = np.hstack([dens, den_trac])
-                tcools = np.hstack([tcools, tcool_trac])
+                rads[j] = np.hstack([rads[j], rad_trac])
+                rvs[j] = np.hstack([rvs[j], rv_trac])
+                temps[j] = np.hstack([temps[j], temp_trac])
+                dens[j] = np.hstack([dens[j], den_trac])
+                tcools[j] = np.hstack([tcools[j], tcool_trac])
                 time = np.zeros(len(rad_trac)) + ds.current_time.in_units('Myr').v - tinj
-                times = np.hstack([times, time])
+                times[j] = np.hstack([times[j], time])
             
-            print('Snap', snap, 'tracer number', j+1, 'num_cells', len(rads))
+            print('Snap', snap, 'tracer number', j+1, 'num_cells', len(rads[j]))
 
-            props = [dens, temps, rvs, tcools]
+            props = [dens[j], temps[j], rvs[j], tcools[j]]
             x_range = [0, 200]
             y_ranges = [[-30,-24],[3,8],[-500,200],[-2,5]]
             ylabels = ['log Density [g/cm$^3$]', 'log Temperature [K]', 'Radial velocity [km/s]', 'log Cooling time [Myr]']
@@ -210,9 +217,9 @@ def datashader_tracer(outputs):
             for p in range(len(props)):
                 ax = fig.add_subplot(2,2,p+1)
                 data_frame = pd.DataFrame({})
-                data_frame['radius'] = rads
+                data_frame['radius'] = rads[j]
                 data_frame['y'] = props[p]
-                data_frame['times'] = times
+                data_frame['times'] = times[j]
                 cvs = dshader.Canvas(plot_width=1000, plot_height=800, x_range=x_range, y_range=y_ranges[p])
                 agg = cvs.points(data_frame, 'radius', 'y', dshader.mean('times'))
                 arr = agg.values
