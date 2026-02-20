@@ -95,6 +95,19 @@ def parse_args():
                         help='Overwrite data directory from get_run_loc_etc. Default is None.')
     parser.set_defaults(data_dir=None)
 
+    parser.add_argument('--clumping_range_file', metavar='clumping_range_file', type=str, action='store', \
+                        help='Point to a file containing a comoving clump min/max.')
+    parser.set_defaults(clumping_range_file=None)
+
+    parser.add_argument('--n_dilation_iterations', metavar='n_dilation_iterations', type=int, action='store', \
+                        help='Number of dilation iterations to perform on the clumps after they are found. Default is 0.')
+    parser.set_defaults(n_dilation_iterations=0)
+
+    parser.add_argument('--n_cells_per_dilation', metavar='n_cells_per_dilation', type=int, action='store', \
+                        help='How many cells per dilation iteration? Default is 1.')
+    parser.set_defaults(n_cells_per_dilation=1)
+
+    
 
     args = parser.parse_args()
     return args
@@ -135,6 +148,12 @@ smooth_AM_name = None
 
 ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, halo_c_v_name=halo_c_v_name, do_filter_particles=True,disk_relative=True,particle_type_for_angmom=particle_type_for_angmom,smooth_AM_name = smooth_AM_name)
 
+def _inverse_temperature(field, data):
+    return 1.0 / data['gas', 'temperature']
+
+if args.clumping_field=="inverse_temperature":
+    ds.add_field( ('gas','inverse_temperature'), function=_inverse_temperature, units="1/K", sampling_type="cell" )
+
 cf_args = get_default_args()
 clump_file = args.clump_dir + gal_name
 
@@ -148,8 +167,21 @@ else:
     zsnap = ds.get_parameter('CosmologyCurrentRedshift')
     if args.clumping_field=="density" or args.clumping_field is None: cf_args.clump_min = (1.3e-30) * np.power(1+zsnap,3) / 8. #in g/cm^3, comoving
 
+if args.clumping_range_file is not None:
+    hf_cr = h5py.File(args.clumping_range_file,'r')
+    zsnap = ds.get_parameter('CosmologyCurrentRedshift')
+    cf_args.clump_min = hf_cr['clumping_min'][...] * np.power(1+zsnap,3)
+    cf_args.clump_max = hf_cr['clumping_max'][...] * np.power(1+zsnap,3)
+    print("Clump min and max set to:",cf_args.clump_min, cf_args.clump_max,"from file:",args.clumping_range_file)
+
+
 print("Clump min set to:",cf_args.clump_min)
 if args.clumping_field is not None:
     cf_args.clumping_field = args.clumping_field
     cf_args.output = cf_args.output + args.clumping_field
+
+if args.n_dilation_iterations > 0:
+    cf_args.n_dilation_iterations = args.n_dilation_iterations
+    cf_args.n_cells_per_dilation = args.n_cells_per_dilation
+    
 master_clump = clump_finder(cf_args,ds,refine_box)
