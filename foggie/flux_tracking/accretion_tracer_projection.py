@@ -271,7 +271,7 @@ def datashader_tracer_mass(outputs):
                 cvs = dshader.Canvas(plot_width=250, plot_height=200, x_range=x_range, y_range=y_ranges[p])
                 agg = cvs.points(data_frame, 'radius', 'y', dshader.sum('mass'))
                 arr = agg.values
-                im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_ranges[p][0], y_ranges[p][1]], cmap=cmap, norm=mcolors.LogNorm(vmin=1e2, vmax=1e8))
+                im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_ranges[p][0], y_ranges[p][1]], cmap=cmap, norm=mcolors.LogNorm(vmin=1e4, vmax=1e10))
                 ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_ranges[p][1]-y_ranges[p][0])))
                 ax.set_xlabel('Radius [kpc]', fontsize=16)
                 ax.set_ylabel(ylabels[p], fontsize=16)
@@ -298,7 +298,7 @@ def datashader_tracer_mass(outputs):
                 cvs = dshader.Canvas(plot_width=250, plot_height=200, x_range=x_range, y_range=y_ranges[p])
                 agg = cvs.points(data_frame, 'radius', 'y', dshader.sum('tracer_mass'))
                 arr = agg.values
-                im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_ranges[p][0], y_ranges[p][1]], cmap=cmap, norm=mcolors.LogNorm(vmin=1e-1, vmax=1e5))
+                im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_ranges[p][0], y_ranges[p][1]], cmap=cmap, norm=mcolors.LogNorm(vmin=1e2, vmax=1e8))
                 ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_ranges[p][1]-y_ranges[p][0])))
                 ax.set_xlabel('Radius [kpc]', fontsize=16)
                 ax.set_ylabel(ylabels[p], fontsize=16)
