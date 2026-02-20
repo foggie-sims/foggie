@@ -140,7 +140,7 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
         add_quantity(q, quantities[q])
         hc.add_quantity(q, correct=True) 
 
-    for q in quantities_2rvir(): 
+    for q in quantities_2rvir.keys():
         add_quantity(q, quantities[q])
         hc.add_quantity(q, correct=True, rvir_factor=2.) 
 
