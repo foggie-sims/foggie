@@ -231,7 +231,7 @@ def pseudo_get_cell_grid_ids(field, data, max_gid, gx_min, gx_max, gy_min, gy_ma
     return u_id  
 
 
-def add_cell_id_field(ds):
+def add_cell_id_field(ds,ftype='index'):
     '''
         Adds the unique cell id defined by get_cell_grid_ids above to a dataset.
         Will be consistent between reloads of the same snapshot, but not between
@@ -276,7 +276,7 @@ def add_cell_id_field(ds):
     #)
 
     ds.add_field(
-        ('index', 'cell_id_2'),
+        (ftype, 'cell_id_2'),
           function=F_get_cell_grid_ids,
           sampling_type='cell',
           force_override=True
