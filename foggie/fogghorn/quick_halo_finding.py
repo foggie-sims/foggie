@@ -246,7 +246,7 @@ def parallel_loop_over_halos(snap, args):
     nothing
     """
 
-    ds, box = prep_dataset_for_halo_finding(args.directory, snap, args.trackfile, boxwidth=args.boxwidth) 
+    ds, box = prep_dataset_for_halo_finding(args.directory, snap, args.trackfile_name, boxwidth=args.boxwidth) 
     hc = halo_finding_step(ds, box, simulation_dir=args.directory, threshold=args.threshold) 
     hc = repair_halo_catalog(ds, args.directory, snap, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
     export_to_astropy(args.directory, snap)
@@ -286,7 +286,7 @@ if __name__ == "__main__":
 
     print('ARGS args = ', args)
     if (args.nproc==1):
-        ds, box = prep_dataset_for_halo_finding(args.directory, args.output, trackfile=args.trackfile, boxwidth=args.boxwidth) 
+        ds, box = prep_dataset_for_halo_finding(args.directory, args.output, trackfile=args.trackfile_name, boxwidth=args.boxwidth) 
         hc = halo_finding_step(ds, box, simulation_dir=args.directory, threshold=args.threshold) 
         hc = repair_halo_catalog(ds, args.directory, args.output, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
         export_to_astropy(args.directory, args.output)

@@ -27,7 +27,7 @@ def get_halo_catalog(ds, args, snap):
     else:
         print('No halo catalog found, creating halo catalog for snapshot ' + snap)
         from foggie.fogghorn.quick_halo_finding import prep_dataset_for_halo_finding, halo_finding_step, repair_halo_catalog, export_to_astropy
-        ds, box = prep_dataset_for_halo_finding(args.directory, snap, trackfile=args.trackfile) 
+        ds, box = prep_dataset_for_halo_finding(args.directory, snap, trackfile=args.trackfile_name) 
         hc = halo_finding_step(ds, box, simulation_dir=args.directory) 
         hc = repair_halo_catalog(ds, args.directory, snap, min_halo_mass=1e9)
         hc = yt.load(args.directory + '/halo_catalogs/' + snap + '/' + snap + '.0.h5')
