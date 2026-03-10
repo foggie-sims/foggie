@@ -75,6 +75,11 @@ def parse_args():
                         help='Just use the working directory?, Default is no')
     parser.set_defaults(pwd=False)
 
+    parser.add_argument('--cgm_only', dest='cgm_only', action='store_true',
+                        help='Do you want to remove gas above a certain density threshold?\n' + \
+                        'Default is not to do this.')
+    parser.set_defaults(cgm_only=False)
+
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', \
                         help='How many processes do you want? Default is 1 ' + \
                         '(no parallelization), if multiple outputs and multiple processors are' + \
@@ -160,11 +165,26 @@ def datashader_tracer_mass(outputs):
 
     rads = []
     rvs = []
+    vthetas = []
+    vphis = []
     temps = []
     dens = []
     tcools = []
     masses = []
     tmasses = []
+
+    vbins = np.array([-np.inf, -50., 50., np.inf])
+    vfile = ['_all', '_inflow', '_static', '_outflow']
+    for j in range(4):  # split by velocity into [all, inflow, static, outflow]
+        rads.append([])
+        rvs.append([])
+        vthetas.append([])
+        vphis.append([])
+        temps.append([])
+        dens.append([])
+        tcools.append([])
+        masses.append([])
+        tmasses.append([])
 
     for i in range(len(outputs)):
         snap = outputs[i]
@@ -216,104 +236,134 @@ def datashader_tracer_mass(outputs):
         # Load needed fields into arrays
         radius = sph['gas','radius_corrected'].in_units('kpc').v
         rv = sph['gas','radial_velocity_corrected'].in_units('km/s').v
+        vtheta = sph['gas','theta_velocity_corrected'].in_units('km/s').v
+        vphi = sph['gas','phi_velocity_corrected'].in_units('km/s').v
         temperature = np.log10(sph['gas','temperature'].in_units('K').v)
         density = np.log10(sph['gas','density'].in_units('g/cm**3').v)
         tcool = np.log10(sph['gas','cooling_time'].in_units('Myr').v)
         mass = sph['gas','cell_mass'].in_units('Msun').v
 
+        if (args.cgm_only):
+            # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+            # with it being 1 at higher redshifts and 0.1 at lower redshifts
+            current_time = ds.current_time.in_units('Myr').v
+            if (current_time<=7091.48):
+                density_cut_factor = 20. - 19.*current_time/7091.48
+            elif (current_time<=8656.88):
+                density_cut_factor = 1.
+            elif (current_time<=10787.12):
+                density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+            else:
+                density_cut_factor = 0.1
+            cgm_bool = (density < np.log10(density_cut_factor * cgm_density_max))
+        else:
+            cgm_bool = (10**(density) > 0.)
+
         for j in range(args.num_tracers):
             tracer_den = np.log10(sph['gas','tracer_density0'+str(j+1)].in_units('g/cm**3').v)
             tracer_mass = sph['gas','tracer_mass0'+str(j+1)].in_units('Msun').v
 
-            rad_trac = radius[(tracer_den > -29.)]
-            rv_trac = rv[(tracer_den > -29.)]
-            temp_trac = temperature[(tracer_den > -29.)]
-            den_trac = density[(tracer_den > -29.)]
-            tcool_trac = tcool[(tracer_den > -29.)]
-            mass_trac = mass[(tracer_den > -29.)]
-            tmass_trac = tracer_mass[(tracer_den>-29.)]
+            for v in range(4):
+                if (v==0):
+                    vlow = -np.inf
+                    vhigh = np.inf
+                else:
+                    vlow = vbins[v-1]
+                    vhigh = vbins[v]
 
-            if (i==0):
-                rads.append(rad_trac)
-                rvs.append(rv_trac)
-                temps.append(temp_trac)
-                dens.append(den_trac)
-                tcools.append(tcool_trac)
-                masses.append(mass_trac)
-                tmasses.append(tmass_trac)
-                tinj = ds.current_time.in_units('Myr').v
-                time = 0
-            else:
-                rads[j] = np.hstack([rads[j], rad_trac])
-                rvs[j] = np.hstack([rvs[j], rv_trac])
-                temps[j] = np.hstack([temps[j], temp_trac])
-                dens[j] = np.hstack([dens[j], den_trac])
-                tcools[j] = np.hstack([tcools[j], tcool_trac])
-                masses[j] = np.hstack([masses[j], mass_trac])
-                tmasses[j] = np.hstack([tmasses[j], tmass_trac])
-                time = ds.current_time.in_units('Myr').v - tinj
-            
-            print('Snap', snap, 'tracer number', j+1, 'num_cells', len(rads[j]))
+                rad_trac = radius[(tracer_den > -29.) & (cgm_bool) & (rv >= vlow) & (rv < vhigh)]
+                rv_trac = rv[(tracer_den > -29.) & (cgm_bool) & (rv >= vlow) & (rv < vhigh)]
+                vtheta_trac = vtheta[(tracer_den > -29.) & (cgm_bool) & (rv >= vlow) & (rv < vhigh)]
+                vphi_trac = vphi[(tracer_den > -29.) & (cgm_bool) & (rv >= vlow) & (rv < vhigh)]
+                temp_trac = temperature[(tracer_den > -29.) & (cgm_bool) & (rv >= vlow) & (rv < vhigh)]
+                den_trac = density[(tracer_den > -29.) & (cgm_bool) & (rv >= vlow) & (rv < vhigh)]
+                tcool_trac = tcool[(tracer_den > -29.) & (cgm_bool) & (rv >= vlow) & (rv < vhigh)]
+                mass_trac = mass[(tracer_den > -29.) & (cgm_bool) & (rv >= vlow) & (rv < vhigh)]
+                tmass_trac = tracer_mass[(tracer_den>-29.) & (cgm_bool) & (rv >= vlow) & (rv < vhigh)]
 
-            props = [dens[j], temps[j], rvs[j], tcools[j]]
-            x_range = [0, 200]
-            y_ranges = [[-30,-24],[3,8],[-500,200],[-2,5]]
-            ylabels = ['log Density [g/cm$^3$]', 'log Temperature [K]', 'Radial velocity [km/s]', 'log Cooling time [Myr]']
-            cmap = cmr.get_sub_cmap('cmr.voltage_r', 0.05, 0.75)
+                if (i==0):
+                    rads[v].append(rad_trac)
+                    rvs[v].append(rv_trac)
+                    vthetas[v].append(vtheta_trac)
+                    vphis[v].append(vphi_trac)
+                    temps[v].append(temp_trac)
+                    dens[v].append(den_trac)
+                    tcools[v].append(tcool_trac)
+                    masses[v].append(mass_trac)
+                    tmasses[v].append(tmass_trac)
+                    tinj = ds.current_time.in_units('Myr').v
+                    time = 0
+                else:
+                    rads[v][j] = np.hstack([rads[v][j], rad_trac])
+                    rvs[v][j] = np.hstack([rvs[v][j], rv_trac])
+                    vthetas[v][j] = np.hstack([vthetas[v][j], vtheta_trac])
+                    vphis[v][j] = np.hstack([vphis[v][j], vphi_trac])
+                    temps[v][j] = np.hstack([temps[v][j], temp_trac])
+                    dens[v][j] = np.hstack([dens[v][j], den_trac])
+                    tcools[v][j] = np.hstack([tcools[v][j], tcool_trac])
+                    masses[v][j] = np.hstack([masses[v][j], mass_trac])
+                    tmasses[v][j] = np.hstack([tmasses[v][j], tmass_trac])
+                    time = ds.current_time.in_units('Myr').v - tinj
 
-            fig = plt.figure(figsize=(10,9),dpi=300)
-            for p in range(len(props)):
-                ax = fig.add_subplot(2,2,p+1)
-                data_frame = pd.DataFrame({})
-                data_frame['radius'] = rads[j]
-                data_frame['y'] = props[p]
-                data_frame['mass'] = masses[j]
-                cvs = dshader.Canvas(plot_width=250, plot_height=200, x_range=x_range, y_range=y_ranges[p])
-                agg = cvs.points(data_frame, 'radius', 'y', dshader.sum('mass'))
-                arr = agg.values
-                im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_ranges[p][0], y_ranges[p][1]], cmap=cmap, norm=mcolors.LogNorm(vmin=1e4, vmax=1e10))
-                ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_ranges[p][1]-y_ranges[p][0])))
-                ax.set_xlabel('Radius [kpc]', fontsize=16)
-                ax.set_ylabel(ylabels[p], fontsize=16)
-                ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
-                top=True, right=True)
-                if (p==1):
-                    cax = fig.add_axes([0.6, 0.95, 0.3, 0.03])  # [left, bottom, width, height]
-                    fig.colorbar(im, cax=cax, orientation='horizontal')
-                    cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
-                    cax.text(0.5, -1.7, r'Cell Mass [$M_\odot$]', fontsize=16, ha='center', va='center', transform=cax.transAxes)
-                    ax.text(-1, 1.1, r'$\Delta t_\mathrm{inj}$' + ' = %d Myr' % (time), fontsize=16, ha='left', va='center', transform=ax.transAxes)
-            
-            plt.subplots_adjust(left=0.1, bottom=0.08, right=0.95, top=0.88, hspace=0.2, wspace=0.2)
-            plt.savefig(output_dir + '/' + snap + '_tracer_den-temp-rv-tcool_vs_radius_tracer0' + str(j+1) + '_mass.png')
-            plt.close()
+                props = [dens[v][j], temps[v][j], tcools[v][j], rvs[v][j], vthetas[v][j], vphis[v][j]]
+                x_range = [0, 200]
+                y_ranges = [[-30,-24],[3,8],[-2,5],[-500,200],[-200,200],[-200,200]]
+                ylabels = ['log Density [g/cm$^3$]', 'log Temperature [K]', 'log Cooling time [Myr]', 'Radial velocity [km/s]', r'$\theta$ velocity [km/s]', r'$\phi$ velocity [km/s]']
+                cmap = cmr.get_sub_cmap('cmr.voltage_r', 0.05, 0.75)
 
-            fig = plt.figure(figsize=(10,9),dpi=300)
-            for p in range(len(props)):
-                ax = fig.add_subplot(2,2,p+1)
-                data_frame = pd.DataFrame({})
-                data_frame['radius'] = rads[j]
-                data_frame['y'] = props[p]
-                data_frame['tracer_mass'] = tmasses[j]
-                cvs = dshader.Canvas(plot_width=250, plot_height=200, x_range=x_range, y_range=y_ranges[p])
-                agg = cvs.points(data_frame, 'radius', 'y', dshader.sum('tracer_mass'))
-                arr = agg.values
-                im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_ranges[p][0], y_ranges[p][1]], cmap=cmap, norm=mcolors.LogNorm(vmin=1e2, vmax=1e8))
-                ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_ranges[p][1]-y_ranges[p][0])))
-                ax.set_xlabel('Radius [kpc]', fontsize=16)
-                ax.set_ylabel(ylabels[p], fontsize=16)
-                ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
-                top=True, right=True)
-                if (p==1):
-                    cax = fig.add_axes([0.6, 0.95, 0.3, 0.03])  # [left, bottom, width, height]
-                    fig.colorbar(im, cax=cax, orientation='horizontal')
-                    cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
-                    cax.text(0.5, -1.7, r'Tracer Mass [$M_\odot$]', fontsize=16, ha='center', va='center', transform=cax.transAxes)
-                    ax.text(-1, 1.1, r'$\Delta t_\mathrm{inj}$' + ' = %d Myr' % (time), fontsize=16, ha='left', va='center', transform=ax.transAxes)
-            
-            plt.subplots_adjust(left=0.1, bottom=0.08, right=0.95, top=0.88, hspace=0.2, wspace=0.2)
-            plt.savefig(output_dir + '/' + snap + '_tracer_den-temp-rv-tcool_vs_radius_tracer0' + str(j+1) + '_tracer-mass.png')
-            plt.close()
+                fig = plt.figure(figsize=(15,9),dpi=300)
+                for p in range(len(props)):
+                    ax = fig.add_subplot(2,3,p+1)
+                    data_frame = pd.DataFrame({})
+                    data_frame['radius'] = rads[v][j]
+                    data_frame['y'] = props[p]
+                    data_frame['mass'] = masses[v][j]
+                    cvs = dshader.Canvas(plot_width=250, plot_height=200, x_range=x_range, y_range=y_ranges[p])
+                    agg = cvs.points(data_frame, 'radius', 'y', dshader.sum('mass'))
+                    arr = agg.values
+                    im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_ranges[p][0], y_ranges[p][1]], cmap=cmap, norm=mcolors.LogNorm(vmin=1e4, vmax=1e10))
+                    ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_ranges[p][1]-y_ranges[p][0])))
+                    ax.set_xlabel('Radius [kpc]', fontsize=16)
+                    ax.set_ylabel(ylabels[p], fontsize=16)
+                    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+                    top=True, right=True)
+                    if (p==2):
+                        cax = fig.add_axes([0.6, 0.95, 0.3, 0.03])  # [left, bottom, width, height]
+                        fig.colorbar(im, cax=cax, orientation='horizontal')
+                        cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
+                        cax.text(0.5, -1.7, r'Cell Mass [$M_\odot$]', fontsize=16, ha='center', va='center', transform=cax.transAxes)
+                        ax.text(-1, 1.1, r'$\Delta t_\mathrm{inj}$' + ' = %d Myr' % (time), fontsize=16, ha='left', va='center', transform=ax.transAxes)
+                
+                plt.subplots_adjust(left=0.06, bottom=0.06, right=0.98, top=0.88, hspace=0.2, wspace=0.25)
+                plt.savefig(output_dir + '/' + snap + '_tracer_den-temp-rv-tcool_vs_radius_tracer0' + str(j+1) + '_mass' + vfile[v] + save_suffix + '.png')
+                plt.close()
+
+                fig = plt.figure(figsize=(15,9),dpi=300)
+                for p in range(len(props)):
+                    ax = fig.add_subplot(2,3,p+1)
+                    data_frame = pd.DataFrame({})
+                    data_frame['radius'] = rads[v][j]
+                    data_frame['y'] = props[p]
+                    data_frame['tracer_mass'] = tmasses[v][j]
+                    cvs = dshader.Canvas(plot_width=250, plot_height=200, x_range=x_range, y_range=y_ranges[p])
+                    agg = cvs.points(data_frame, 'radius', 'y', dshader.sum('tracer_mass'))
+                    arr = agg.values
+                    im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_ranges[p][0], y_ranges[p][1]], cmap=cmap, norm=mcolors.LogNorm(vmin=1e2, vmax=1e8))
+                    ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_ranges[p][1]-y_ranges[p][0])))
+                    ax.set_xlabel('Radius [kpc]', fontsize=16)
+                    ax.set_ylabel(ylabels[p], fontsize=16)
+                    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+                    top=True, right=True)
+                    if (p==2):
+                        cax = fig.add_axes([0.6, 0.95, 0.3, 0.03])  # [left, bottom, width, height]
+                        fig.colorbar(im, cax=cax, orientation='horizontal')
+                        cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
+                        cax.text(0.5, -1.7, r'Tracer Mass [$M_\odot$]', fontsize=16, ha='center', va='center', transform=cax.transAxes)
+                        ax.text(-1, 1.1, r'$\Delta t_\mathrm{inj}$' + ' = %d Myr' % (time), fontsize=16, ha='left', va='center', transform=ax.transAxes)
+                
+                plt.subplots_adjust(left=0.06, bottom=0.06, right=0.98, top=0.88, hspace=0.2, wspace=0.25)
+                plt.savefig(output_dir + '/' + snap + '_tracer_den-temp-rv-tcool_vs_radius_tracer0' + str(j+1) + '_tracer-mass' + vfile[v] + save_suffix + '.png')
+                plt.close()
 
 
             print('Saved figure for tracer0' + str(j+1) + ' and snapshot', snap)
