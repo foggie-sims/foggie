@@ -108,7 +108,9 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
     HaloCatalog
         The repaired and augmented `HaloCatalog` instance.
     """
-    hds = yt.load(simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5')
+    filename = simulation_dir+'/halo_catalogs/'+snapname+'/'+snapname+'.0.h5' 
+    hds = yt.load(filename) 
+    print("Started Halo Catalog Repair for ", filename) 
     hc = HaloCatalog(data_ds=ds, halos_ds=hds, output_dir=simulation_dir+'/halo_catalogs')
     hc.add_callback("sphere")
 
@@ -141,7 +143,7 @@ def repair_halo_catalog(ds, simulation_dir, snapname, min_rvir=10., min_halo_mas
         hc.add_quantity(q, correct=True) 
 
     for q in quantities_2rvir.keys():
-        add_quantity(q, quantities[q])
+        add_quantity(q, quantities_2rvir[q])
         hc.add_quantity(q, correct=True, rvir_factor=2.) 
 
     if (ds.parameters['MultiSpecies'] == 2): # this is necessary because older runs do not have this field 
