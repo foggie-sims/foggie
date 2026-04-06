@@ -1,8 +1,8 @@
 import os
 import sys
+import h5py as h5
 import yt
 import glob
-import h5py as h5
 import numpy as np
 
 try:
@@ -41,7 +41,7 @@ def read_from_catalog(my_halo, halo_catalog, fields=None):
 
 def get_halo_sphere_particles(my_halo, par_file, radius_factor=5):
     pf = yt.load(par_file)
-    halo_catalog = os.path.join(pf.fullpath, 'MergerHalos.out')
+    halo_catalog = os.path.join(pf.directory, 'MergerHalos.out')
     if 'center' in my_halo:
         my_halo_data = my_halo
         my_halo_data["center"] = pf.arr(my_halo['center'][0], my_halo['center'][1])
@@ -84,7 +84,7 @@ def get_halo_particles(my_halo, par_file):
     if yt.is_root():
         print ("Reading in particles for halo %d." % my_halo['id'])
 
-    halo_files = glob.glob(os.path.join(pf.fullpath, 'MergerHalos_*.h5'))
+    halo_files = glob.glob(os.path.join(pf.directory, 'MergerHalos_*.h5'))
 
     particle_indices = np.array([])
     particle_masses = np.array([])
@@ -108,7 +108,39 @@ def get_halo_particles(my_halo, par_file):
         return None
     return (particle_indices, particle_masses, particle_positions)
 
-def get_halo_indices(my_halo, dataset, method='sphere', radius_factor=5.0):
+def make_plot(halo_com, particle_indices, particle_positions, par_file):
+
+    def DarkMatter(pfilter, data):
+        filter = np.logical_or(data[("all", "particle_type")] == 4, data[("all", "particle_type")] == 1) # DM = 1, Stars = 2
+        return filter
+
+    yt.data_objects.particle_filters.add_particle_filter("dark_matter", function=DarkMatter, filtered_type='all', \
+                    requires=["particle_type"])
+    
+    def Relparts(pfilter, data):
+        filter = np.isin(data[("all", "particle_index")],particle_indices) 
+        return filter
+
+    yt.data_objects.particle_filters.add_particle_filter("relparts", function=Relparts, filtered_type='all', \
+                    requires=["particle_index"])
+    
+    pf = yt.load(par_file)
+    ads = pf.all_data()
+    pf.add_particle_filter('dark_matter')
+    pf.add_particle_filter('relparts')
+
+    # Yes I'm currently ignoring periodic boundary conditions
+    max_ext = np.max(np.linalg.norm(particle_positions.T-halo_com.value,axis=1)) 
+    sp = pf.sphere(center=halo_com,radius=1.2*max_ext)
+
+    for ax in axes[0:2]:
+        p = yt.ProjectionPlot(pf,ax,('deposit','dark_matter_density'),center=halo_com,width=2.1*max_ext,data_source=sp)
+        p.annotate_particles(width=2.1*max_ext,ptype='relparts',col='red',p_size=2.0,data_source=sp)
+        p.save('HaloParticles_'+ax+'.png')
+
+    return
+
+def get_halo_indices(my_halo, dataset, method='sphere', radius_factor=5.0, plot=True):
     shifted = np.zeros(3, dtype=bool)
 
     if method == 'halo':
@@ -131,6 +163,10 @@ def get_halo_indices(my_halo, dataset, method='sphere', radius_factor=5.0):
             shifted[i] = True
     if method == 'halo':
         halo_com = (particle_positions * particle_masses).sum(axis=1) / particle_masses.sum()
+
+    if plot:
+        make_plot(halo_com, halo_indices, particle_positions, dataset)
+        
     return (halo_indices, halo_com, shifted)
 
 def get_center_and_extent(my_halo, 

@@ -1,5 +1,6 @@
 import sys
 import glob
+import h5py as h5
 import yt
 import configparser as cp
 import multiprocessing as mp
@@ -137,12 +138,10 @@ def get_previous_run_params(params):
                                               (params["simulation_name"], params["level"]-1)
     with open(prev_config_logfile) as fp:
         for l in fp.readlines():
-            if l.find("setup/shift_x") >= 0:
-                params["region_shift"][0] = int(l.split("=")[1])
-            if l.find("setup/shift_y") >= 0:
-                params["region_shift"][1] = int(l.split("=")[1])
-            if l.find("setup/shift_z") >= 0:
-                params["region_shift"][2] = int(l.split("=")[1])
+            if l.find("Domain") >= 0:
+                params["region_shift"][0] = int(l.split('(')[1].split(',')[0])
+                params["region_shift"][1] = int(l.split('(')[1].split(',')[1])
+                params["region_shift"][2] = int(l.split('(')[1].split(',')[2].replace(')',''))
             if l.find("setup/levelmin") >= 0:
                 params["region_point_levelmin"] = int(l.split("=")[1])
 
@@ -163,7 +162,7 @@ def get_previous_run_params(params):
     if "redshift" in params["halo_info"]:
         es.get_time_series(redshifts=[params["halo_info"]["redshift"]])
         ds = es[0]
-        params["enzo_final_fn"] = os.path.join(ds.fullpath, ds.basename)
+        params["enzo_final_fn"] = os.path.join(ds.directory, ds.basename)
     else:
         params["enzo_final_fn"] = es.all_outputs[-1]["filename"]
 
@@ -200,7 +199,7 @@ def run_music(params):
             music_cf1.remove_option("setup", option)
 
     music_cf1.set("setup", "levelmax", "%d" % (params["initial_min_level"] + params["level"]))
-    music_cf1.set("output", "filename", "%s-L%d" % (params["simulation_name"], params["level"]))
+    music_cf1.set("output", "filename", os.path.join(params["simulation_run_directory"],"%s-L%d" % (params["simulation_name"], params["level"])))
     music_cf1.set("setup", "region",
                   "convex_hull" if params["shape_type"] == "exact" else params["shape_type"])
     if params["shape_type"] == "box":
@@ -217,7 +216,7 @@ def run_music(params):
                                       params["region_shift"][2]))
         music_cf1.set("setup", "region_point_levelmin", "%d" % (params["initial_min_level"]))
 
-    new_config_file = "%s-L%d.conf" % (params["simulation_name"], params["level"])
+    new_config_file = os.path.join(params["simulation_run_directory"],"%s-L%d.conf" % (params["simulation_name"], params["level"]))
     with open(new_config_file, "w") as fp:
         music_cf1.write(fp)
 

@@ -9,7 +9,9 @@ def get_refine_box(ds, zsnap, track, **kwargs):
         this_loc = track[np.where(diff == np.min(diff[np.where(diff > 1.e-6)]))]
     else:
         this_loc = track[np.where(diff == np.min(diff))]
-    print("get_refine_box: using this location:", this_loc)
+    print("get_refine_box: using this location:")
+    print(this_loc)
+
     x_left = this_loc['col2'][0]
     y_left = this_loc['col3'][0]
     z_left = this_loc['col4'][0]
