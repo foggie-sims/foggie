@@ -368,8 +368,293 @@ def datashader_tracer_mass(outputs):
 
             print('Saved figure for tracer0' + str(j+1) + ' and snapshot', snap)
 
+def datashader_tracer_mass_deltat(outputs, deltat):
+    '''Makes datashader plots of properties of the tracer field given by 'tracer_number' vs. radius
+    with a moving window of snapshots on the same plot, color-coded by both total mass of any cell with
+    tracers in it and just tracer mass. For output i, includes only outputs in the window
+    [i - deltat, i] (inclusive), where deltat is the number of prior outputs to include.'''
+
+    vbins = np.array([-np.inf, -50., 50., np.inf])
+    vfile = ['_all', '_inflow', '_static', '_outflow']
+
+    # Store per-snapshot data: snap_rads[v][j][i], etc.
+    snap_rads = [[[] for _ in range(args.num_tracers)] for _ in range(4)]
+    snap_rvs = [[[] for _ in range(args.num_tracers)] for _ in range(4)]
+    snap_vthetas = [[[] for _ in range(args.num_tracers)] for _ in range(4)]
+    snap_vphis = [[[] for _ in range(args.num_tracers)] for _ in range(4)]
+    snap_temps = [[[] for _ in range(args.num_tracers)] for _ in range(4)]
+    snap_dens = [[[] for _ in range(args.num_tracers)] for _ in range(4)]
+    snap_tcools = [[[] for _ in range(args.num_tracers)] for _ in range(4)]
+    snap_masses = [[[] for _ in range(args.num_tracers)] for _ in range(4)]
+    snap_tmasses = [[[] for _ in range(args.num_tracers)] for _ in range(4)]
+    snap_times = []
+
+    for i in range(len(outputs)):
+        snap = outputs[i]
+        snap_name = run_dir + snap + '/' + snap
+        ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, disk_relative=False)
+        sph = ds.sphere(ds.halo_center_kpc, radius=(200., 'kpc'))
+
+        if (args.num_tracers >= 1):
+            ds.add_field(('gas','tracer_density01'), function=tracer_density1, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+            ds.add_field(('gas','tracer_mass01'), function=tracer_mass1, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 2):
+            ds.add_field(('gas','tracer_density02'), function=tracer_density2, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+            ds.add_field(('gas','tracer_mass02'), function=tracer_mass2, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 3):
+            ds.add_field(('gas','tracer_density03'), function=tracer_density3, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+            ds.add_field(('gas','tracer_mass03'), function=tracer_mass3, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 4):
+            ds.add_field(('gas','tracer_density04'), function=tracer_density4, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+            ds.add_field(('gas','tracer_mass04'), function=tracer_mass4, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 5):
+            ds.add_field(('gas','tracer_density05'), function=tracer_density5, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+            ds.add_field(('gas','tracer_mass05'), function=tracer_mass5, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 6):
+            ds.add_field(('gas','tracer_density06'), function=tracer_density6, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+            ds.add_field(('gas','tracer_mass06'), function=tracer_mass6, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 7):
+            ds.add_field(('gas','tracer_density07'), function=tracer_density7, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+            ds.add_field(('gas','tracer_mass07'), function=tracer_mass7, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers == 8):
+            ds.add_field(('gas','tracer_density08'), function=tracer_density8, units='g/cm**3', take_log=True, \
+                    sampling_type='cell')
+            ds.add_field(('gas','tracer_mass08'), function=tracer_mass8, units='Msun', take_log=True, \
+                    sampling_type='cell')
+
+        # Load needed fields into arrays
+        radius = sph['gas','radius_corrected'].in_units('kpc').v
+        rv = sph['gas','radial_velocity_corrected'].in_units('km/s').v
+        vtheta = sph['gas','theta_velocity_corrected'].in_units('km/s').v
+        vphi = sph['gas','phi_velocity_corrected'].in_units('km/s').v
+        temperature = np.log10(sph['gas','temperature'].in_units('K').v)
+        density = np.log10(sph['gas','density'].in_units('g/cm**3').v)
+        tcool = np.log10(sph['gas','cooling_time'].in_units('Myr').v)
+        mass = sph['gas','cell_mass'].in_units('Msun').v
+        snap_times.append(ds.current_time.in_units('Myr').v)
+
+        if (args.cgm_only):
+            current_time = ds.current_time.in_units('Myr').v
+            if (current_time<=7091.48):
+                density_cut_factor = 20. - 19.*current_time/7091.48
+            elif (current_time<=8656.88):
+                density_cut_factor = 1.
+            elif (current_time<=10787.12):
+                density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+            else:
+                density_cut_factor = 0.1
+            cgm_bool = (density < np.log10(density_cut_factor * cgm_density_max))
+        else:
+            cgm_bool = (10**(density) > 0.)
+
+        for j in range(args.num_tracers):
+            tracer_den = np.log10(sph['gas','tracer_density0'+str(j+1)].in_units('g/cm**3').v)
+            tracer_mass = sph['gas','tracer_mass0'+str(j+1)].in_units('Msun').v
+
+            for v in range(4):
+                if (v==0):
+                    vlow = -np.inf
+                    vhigh = np.inf
+                else:
+                    vlow = vbins[v-1]
+                    vhigh = vbins[v]
+
+                sel = (tracer_den > -29.) & (cgm_bool) & (rv >= vlow) & (rv < vhigh)
+                snap_rads[v][j].append(radius[sel])
+                snap_rvs[v][j].append(rv[sel])
+                snap_vthetas[v][j].append(vtheta[sel])
+                snap_vphis[v][j].append(vphi[sel])
+                snap_temps[v][j].append(temperature[sel])
+                snap_dens[v][j].append(density[sel])
+                snap_tcools[v][j].append(tcool[sel])
+                snap_masses[v][j].append(mass[sel])
+                snap_tmasses[v][j].append(tracer_mass[sel])
+
+        # Build window arrays for plotting: outputs[max(0, i-deltat) : i+1]
+        win_start = max(0, i - deltat)
+        time = snap_times[i] - snap_times[0]
+
+        for j in range(args.num_tracers):
+            for v in range(4):
+                rads_win = np.hstack(snap_rads[v][j][win_start:i+1])
+                rvs_win = np.hstack(snap_rvs[v][j][win_start:i+1])
+                vthetas_win = np.hstack(snap_vthetas[v][j][win_start:i+1])
+                vphis_win = np.hstack(snap_vphis[v][j][win_start:i+1])
+                temps_win = np.hstack(snap_temps[v][j][win_start:i+1])
+                dens_win = np.hstack(snap_dens[v][j][win_start:i+1])
+                tcools_win = np.hstack(snap_tcools[v][j][win_start:i+1])
+                masses_win = np.hstack(snap_masses[v][j][win_start:i+1])
+                tmasses_win = np.hstack(snap_tmasses[v][j][win_start:i+1])
+
+                props = [dens_win, temps_win, tcools_win, rvs_win, vthetas_win, vphis_win]
+                x_range = [0, 200]
+                y_ranges = [[-30,-24],[3,8],[-2,5],[-500,200],[-200,200],[-200,200]]
+                ylabels = ['log Density [g/cm$^3$]', 'log Temperature [K]', 'log Cooling time [Myr]', 'Radial velocity [km/s]', r'$\theta$ velocity [km/s]', r'$\phi$ velocity [km/s]']
+                cmap = cmr.get_sub_cmap('cmr.voltage_r', 0.05, 0.75)
+
+                fig = plt.figure(figsize=(15,9),dpi=300)
+                for p in range(len(props)):
+                    ax = fig.add_subplot(2,3,p+1)
+                    data_frame = pd.DataFrame({})
+                    data_frame['radius'] = rads_win
+                    data_frame['y'] = props[p]
+                    data_frame['mass'] = masses_win
+                    cvs = dshader.Canvas(plot_width=250, plot_height=200, x_range=x_range, y_range=y_ranges[p])
+                    agg = cvs.points(data_frame, 'radius', 'y', dshader.sum('mass'))
+                    arr = agg.values
+                    im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_ranges[p][0], y_ranges[p][1]], cmap=cmap, norm=mcolors.LogNorm(vmin=1e4, vmax=1e10))
+                    ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_ranges[p][1]-y_ranges[p][0])))
+                    ax.set_xlabel('Radius [kpc]', fontsize=16)
+                    ax.set_ylabel(ylabels[p], fontsize=16)
+                    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+                    top=True, right=True)
+                    if (p==2):
+                        cax = fig.add_axes([0.6, 0.95, 0.3, 0.03])  # [left, bottom, width, height]
+                        fig.colorbar(im, cax=cax, orientation='horizontal')
+                        cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
+                        cax.text(0.5, -1.7, r'Cell Mass [$M_\odot$]', fontsize=16, ha='center', va='center', transform=cax.transAxes)
+                        ax.text(-1, 1.1, r'$\Delta t_\mathrm{inj}$' + ' = %d Myr' % (time), fontsize=16, ha='left', va='center', transform=ax.transAxes)
+
+                plt.subplots_adjust(left=0.06, bottom=0.06, right=0.98, top=0.88, hspace=0.2, wspace=0.25)
+                plt.savefig(output_dir + '/' + snap + '_tracer_den-temp-rv-tcool_vs_radius_tracer0' + str(j+1) + '_mass' + vfile[v] + save_suffix + '.png')
+                plt.close()
+
+                fig = plt.figure(figsize=(15,9),dpi=300)
+                for p in range(len(props)):
+                    ax = fig.add_subplot(2,3,p+1)
+                    data_frame = pd.DataFrame({})
+                    data_frame['radius'] = rads_win
+                    data_frame['y'] = props[p]
+                    data_frame['tracer_mass'] = tmasses_win
+                    cvs = dshader.Canvas(plot_width=250, plot_height=200, x_range=x_range, y_range=y_ranges[p])
+                    agg = cvs.points(data_frame, 'radius', 'y', dshader.sum('tracer_mass'))
+                    arr = agg.values
+                    im = ax.imshow(arr, origin='lower', extent=[x_range[0], x_range[1], y_ranges[p][0], y_ranges[p][1]], cmap=cmap, norm=mcolors.LogNorm(vmin=1e2, vmax=1e8))
+                    ax.set_aspect(8*abs(x_range[1]-x_range[0])/(10*abs(y_ranges[p][1]-y_ranges[p][0])))
+                    ax.set_xlabel('Radius [kpc]', fontsize=16)
+                    ax.set_ylabel(ylabels[p], fontsize=16)
+                    ax.tick_params(axis='both', which='both', direction='in', length=8, width=2, pad=5, labelsize=14, \
+                    top=True, right=True)
+                    if (p==2):
+                        cax = fig.add_axes([0.6, 0.95, 0.3, 0.03])  # [left, bottom, width, height]
+                        fig.colorbar(im, cax=cax, orientation='horizontal')
+                        cax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
+                        cax.text(0.5, -1.7, r'Tracer Mass [$M_\odot$]', fontsize=16, ha='center', va='center', transform=cax.transAxes)
+                        ax.text(-1, 1.1, r'$\Delta t_\mathrm{inj}$' + ' = %d Myr' % (time), fontsize=16, ha='left', va='center', transform=ax.transAxes)
+
+                plt.subplots_adjust(left=0.06, bottom=0.06, right=0.98, top=0.88, hspace=0.2, wspace=0.25)
+                plt.savefig(output_dir + '/' + snap + '_tracer_den-temp-rv-tcool_vs_radius_tracer0' + str(j+1) + '_tracer-mass' + vfile[v] + '_t-window' + save_suffix + '.png')
+                plt.close()
+
+            print('Saved figure for tracer0' + str(j+1) + ' and snapshot', snap)
+
+def tracer_mass_time(outputs):
+    '''Makes an ASCII table of total tracer mass and tracer mass in radial bins of 10 kpc width
+    (0-200 kpc), with each radial bin also split by temperature (> 10^4.5 K and < 10^4.5 K).
+    Each output gets one row; columns are snapshot name, total tracer mass, 20 radial bin totals,
+    20 radial bins for T > 10^4.5 K, and 20 radial bins for T < 10^4.5 K.'''
+
+    rad_edges = np.arange(0, 210, 10)   # 0, 10, 20, ..., 200 kpc -> 20 bins
+    nbins = len(rad_edges) - 1          # 20
+    temp_split = 4.5                    # log10(K)
+
+    # Build header
+    header_cols = ['snapshot', 'time_since_injection_Myr', 'total_tracer_mass']
+    for k in range(nbins):
+        header_cols.append('rad_%d_%d_kpc' % (rad_edges[k], rad_edges[k+1]))
+    for k in range(nbins):
+        header_cols.append('rad_%d_%d_kpc_Tgt4p5' % (rad_edges[k], rad_edges[k+1]))
+    for k in range(nbins):
+        header_cols.append('rad_%d_%d_kpc_Tlt4p5' % (rad_edges[k], rad_edges[k+1]))
+
+    rows = [[] for _ in range(args.num_tracers)]
+
+    for i in range(len(outputs)):
+        snap = outputs[i]
+        snap_name = run_dir + snap + '/' + snap
+        ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, disk_relative=False)
+        sph = ds.sphere(ds.halo_center_kpc, radius=(200., 'kpc'))
+
+        if (args.num_tracers >= 1):
+            ds.add_field(('gas','tracer_mass01'), function=tracer_mass1, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 2):
+            ds.add_field(('gas','tracer_mass02'), function=tracer_mass2, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 3):
+            ds.add_field(('gas','tracer_mass03'), function=tracer_mass3, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 4):
+            ds.add_field(('gas','tracer_mass04'), function=tracer_mass4, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 5):
+            ds.add_field(('gas','tracer_mass05'), function=tracer_mass5, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 6):
+            ds.add_field(('gas','tracer_mass06'), function=tracer_mass6, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers >= 7):
+            ds.add_field(('gas','tracer_mass07'), function=tracer_mass7, units='Msun', take_log=True, \
+                    sampling_type='cell')
+        if (args.num_tracers == 8):
+            ds.add_field(('gas','tracer_mass08'), function=tracer_mass8, units='Msun', take_log=True, \
+                    sampling_type='cell')
+
+        radius = sph['gas','radius_corrected'].in_units('kpc').v
+        temperature = np.log10(sph['gas','temperature'].in_units('K').v)
+        current_time = ds.current_time.in_units('Myr').v
+        if (i == 0):
+            tinj = current_time
+        time_since_inj = current_time - tinj
+
+        for j in range(args.num_tracers):
+            tm = sph['gas','tracer_mass0'+str(j+1)].in_units('Msun').v
+
+            total = np.sum(tm)
+            rad_bins = np.zeros(nbins)
+            rad_bins_hot = np.zeros(nbins)
+            rad_bins_cold = np.zeros(nbins)
+            for k in range(nbins):
+                in_bin = (radius >= rad_edges[k]) & (radius < rad_edges[k+1])
+                rad_bins[k] = np.sum(tm[in_bin])
+                rad_bins_hot[k] = np.sum(tm[in_bin & (temperature >= temp_split)])
+                rad_bins_cold[k] = np.sum(tm[in_bin & (temperature < temp_split)])
+
+            row = [snap, '%.2f' % time_since_inj, '%.4e' % total]
+            for k in range(nbins):
+                row.append('%.4e' % rad_bins[k])
+            for k in range(nbins):
+                row.append('%.4e' % rad_bins_hot[k])
+            for k in range(nbins):
+                row.append('%.4e' % rad_bins_cold[k])
+            rows[j].append(row)
+
+        print('Computed tracer masses for snapshot', snap)
+
+    for j in range(args.num_tracers):
+        outfile = output_dir + '/tracer_mass_vs_time_tracer0' + str(j+1) + save_suffix + '.txt'
+        with open(outfile, 'w') as f:
+            f.write('\t'.join(header_cols) + '\n')
+            for row in rows[j]:
+                f.write('\t'.join(row) + '\n')
+        print('Saved tracer mass table for tracer0' + str(j+1) + ' to', outfile)
+
 def datashader_tracer_time(outputs):
-    '''Makes datashader plots of properties of the tracer field given by 'tracer_number' vs. radius 
+    '''Makes datashader plots of properties of the tracer field given by 'tracer_number' vs. radius
     with all snapshots in 'outputs' on the same plot, color-coded by time since the first output.'''
 
     rads = []
