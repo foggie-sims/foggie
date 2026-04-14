@@ -94,7 +94,7 @@ def parse_args():
 
     parser.add_argument('--plot', metavar='plot', type=str, action='store', \
                         help='What do you want to plot?\n' + \
-                            'Options are: projection, datashader_time, datashader_mass. Default is projection.\n' + \
+                            'Options are: projection, datashader_time, datashader_mass, datashader_mass_deltat, tracer_mass. Default is projection.\n' + \
                             'Specify multiple with commas (no space) between them, like: projection,datashader_time')
     parser.set_defaults(plot='projection')
     
@@ -562,17 +562,55 @@ def datashader_tracer_mass_deltat(outputs, deltat):
 
             print('Saved figure for tracer0' + str(j+1) + ' and snapshot', snap)
 
-def tracer_mass_time(outputs):
-    '''Makes an ASCII table of total tracer mass and tracer mass in radial bins of 10 kpc width
-    (0-200 kpc), with each radial bin also split by temperature (> 10^4.5 K and < 10^4.5 K).
-    Each output gets one row; columns are snapshot name, total tracer mass, 20 radial bin totals,
-    20 radial bins for T > 10^4.5 K, and 20 radial bins for T < 10^4.5 K.'''
+def tracer_mass_time_snap(ds, sph, snap):
+    '''Computes tracer masses in radial and temperature bins for a single snapshot using an
+    already-loaded dataset and sphere, and writes one temporary per-snapshot file per tracer.
+    Safe to call in parallel because each process writes to its own uniquely named file.
+    Requires tinj to be set as a global before calling.'''
 
     rad_edges = np.arange(0, 210, 10)   # 0, 10, 20, ..., 200 kpc -> 20 bins
     nbins = len(rad_edges) - 1          # 20
     temp_split = 4.5                    # log10(K)
 
-    # Build header
+    radius = sph['gas','radius_corrected'].in_units('kpc').v
+    temperature = np.log10(sph['gas','temperature'].in_units('K').v)
+    time_since_inj = ds.current_time.in_units('Myr').v - tinj
+
+    for j in range(args.num_tracers):
+        tm = sph['gas','tracer_mass0'+str(j+1)].in_units('Msun').v
+
+        total = np.sum(tm)
+        rad_bins = np.zeros(nbins)
+        rad_bins_hot = np.zeros(nbins)
+        rad_bins_cold = np.zeros(nbins)
+        for k in range(nbins):
+            in_bin = (radius >= rad_edges[k]) & (radius < rad_edges[k+1])
+            rad_bins[k] = np.sum(tm[in_bin])
+            rad_bins_hot[k] = np.sum(tm[in_bin & (temperature >= temp_split)])
+            rad_bins_cold[k] = np.sum(tm[in_bin & (temperature < temp_split)])
+
+        row = [snap, '%.2f' % time_since_inj, '%.4e' % total]
+        for k in range(nbins):
+            row.append('%.4e' % rad_bins[k])
+        for k in range(nbins):
+            row.append('%.4e' % rad_bins_hot[k])
+        for k in range(nbins):
+            row.append('%.4e' % rad_bins_cold[k])
+
+        tmpfile = table_dir + '/' + snap + '_tracer_mass_tracer0' + str(j+1) + save_suffix + '.dat'
+        with open(tmpfile, 'w') as f:
+            f.write('\t'.join(row) + '\n')
+
+    print('Computed tracer masses for snapshot', snap)
+
+
+def tracer_mass_time_merge(outputs):
+    '''Reads the per-snapshot files written by tracer_mass_time_snap (one per tracer), concatenates
+    them in output order into a final table per tracer, then removes the temporary files.'''
+
+    rad_edges = np.arange(0, 210, 10)
+    nbins = len(rad_edges) - 1
+
     header_cols = ['snapshot', 'time_since_injection_Myr', 'total_tracer_mass']
     for k in range(nbins):
         header_cols.append('rad_%d_%d_kpc' % (rad_edges[k], rad_edges[k+1]))
@@ -581,76 +619,15 @@ def tracer_mass_time(outputs):
     for k in range(nbins):
         header_cols.append('rad_%d_%d_kpc_Tlt4p5' % (rad_edges[k], rad_edges[k+1]))
 
-    rows = [[] for _ in range(args.num_tracers)]
-
-    for i in range(len(outputs)):
-        snap = outputs[i]
-        snap_name = run_dir + snap + '/' + snap
-        ds, refine_box = foggie_load(snap_name, trackfile_name=trackname, do_filter_particles=False, disk_relative=False)
-        sph = ds.sphere(ds.halo_center_kpc, radius=(200., 'kpc'))
-
-        if (args.num_tracers >= 1):
-            ds.add_field(('gas','tracer_mass01'), function=tracer_mass1, units='Msun', take_log=True, \
-                    sampling_type='cell')
-        if (args.num_tracers >= 2):
-            ds.add_field(('gas','tracer_mass02'), function=tracer_mass2, units='Msun', take_log=True, \
-                    sampling_type='cell')
-        if (args.num_tracers >= 3):
-            ds.add_field(('gas','tracer_mass03'), function=tracer_mass3, units='Msun', take_log=True, \
-                    sampling_type='cell')
-        if (args.num_tracers >= 4):
-            ds.add_field(('gas','tracer_mass04'), function=tracer_mass4, units='Msun', take_log=True, \
-                    sampling_type='cell')
-        if (args.num_tracers >= 5):
-            ds.add_field(('gas','tracer_mass05'), function=tracer_mass5, units='Msun', take_log=True, \
-                    sampling_type='cell')
-        if (args.num_tracers >= 6):
-            ds.add_field(('gas','tracer_mass06'), function=tracer_mass6, units='Msun', take_log=True, \
-                    sampling_type='cell')
-        if (args.num_tracers >= 7):
-            ds.add_field(('gas','tracer_mass07'), function=tracer_mass7, units='Msun', take_log=True, \
-                    sampling_type='cell')
-        if (args.num_tracers == 8):
-            ds.add_field(('gas','tracer_mass08'), function=tracer_mass8, units='Msun', take_log=True, \
-                    sampling_type='cell')
-
-        radius = sph['gas','radius_corrected'].in_units('kpc').v
-        temperature = np.log10(sph['gas','temperature'].in_units('K').v)
-        current_time = ds.current_time.in_units('Myr').v
-        if (i == 0):
-            tinj = current_time
-        time_since_inj = current_time - tinj
-
-        for j in range(args.num_tracers):
-            tm = sph['gas','tracer_mass0'+str(j+1)].in_units('Msun').v
-
-            total = np.sum(tm)
-            rad_bins = np.zeros(nbins)
-            rad_bins_hot = np.zeros(nbins)
-            rad_bins_cold = np.zeros(nbins)
-            for k in range(nbins):
-                in_bin = (radius >= rad_edges[k]) & (radius < rad_edges[k+1])
-                rad_bins[k] = np.sum(tm[in_bin])
-                rad_bins_hot[k] = np.sum(tm[in_bin & (temperature >= temp_split)])
-                rad_bins_cold[k] = np.sum(tm[in_bin & (temperature < temp_split)])
-
-            row = [snap, '%.2f' % time_since_inj, '%.4e' % total]
-            for k in range(nbins):
-                row.append('%.4e' % rad_bins[k])
-            for k in range(nbins):
-                row.append('%.4e' % rad_bins_hot[k])
-            for k in range(nbins):
-                row.append('%.4e' % rad_bins_cold[k])
-            rows[j].append(row)
-
-        print('Computed tracer masses for snapshot', snap)
-
     for j in range(args.num_tracers):
-        outfile = output_dir + '/tracer_mass_vs_time_tracer0' + str(j+1) + save_suffix + '.txt'
-        with open(outfile, 'w') as f:
-            f.write('\t'.join(header_cols) + '\n')
-            for row in rows[j]:
-                f.write('\t'.join(row) + '\n')
+        outfile = table_dir + '/tracer_mass_vs_time_tracer0' + str(j+1) + save_suffix + '.dat'
+        with open(outfile, 'w') as fout:
+            fout.write('\t'.join(header_cols) + '\n')
+            for snap in outputs:
+                tmpfile = table_dir + '/' + snap + '_tracer_mass_tracer0' + str(j+1) + save_suffix + '.dat'
+                with open(tmpfile, 'r') as fin:
+                    fout.write(fin.read())
+                os.remove(tmpfile)
         print('Saved tracer mass table for tracer0' + str(j+1) + ' to', outfile)
 
 def datashader_tracer_time(outputs):
@@ -879,32 +856,52 @@ def load_and_calculate(snap):
     if (args.num_tracers >= 1):
         ds.add_field(('gas','tracer_density01'), function=tracer_density1, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
+        ds.add_field(('gas','tracer_mass01'), function=tracer_mass1, units='Msun', take_log=True, \
+                 sampling_type='cell')
     if (args.num_tracers >= 2):
         ds.add_field(('gas','tracer_density02'), function=tracer_density2, units='g/cm**3', take_log=True, \
+                 sampling_type='cell')
+        ds.add_field(('gas','tracer_mass02'), function=tracer_mass2, units='Msun', take_log=True, \
                  sampling_type='cell')
     if (args.num_tracers >= 3):
         ds.add_field(('gas','tracer_density03'), function=tracer_density3, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
+        ds.add_field(('gas','tracer_mass03'), function=tracer_mass3, units='Msun', take_log=True, \
+                 sampling_type='cell')
     if (args.num_tracers >= 4):
         ds.add_field(('gas','tracer_density04'), function=tracer_density4, units='g/cm**3', take_log=True, \
+                 sampling_type='cell')
+        ds.add_field(('gas','tracer_mass04'), function=tracer_mass4, units='Msun', take_log=True, \
                  sampling_type='cell')
     if (args.num_tracers >= 5):
         ds.add_field(('gas','tracer_density05'), function=tracer_density5, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
+        ds.add_field(('gas','tracer_mass05'), function=tracer_mass5, units='Msun', take_log=True, \
+                 sampling_type='cell')
     if (args.num_tracers >= 6):
         ds.add_field(('gas','tracer_density06'), function=tracer_density6, units='g/cm**3', take_log=True, \
+                 sampling_type='cell')
+        ds.add_field(('gas','tracer_mass06'), function=tracer_mass6, units='Msun', take_log=True, \
                  sampling_type='cell')
     if (args.num_tracers >= 7):
         ds.add_field(('gas','tracer_density07'), function=tracer_density7, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
+        ds.add_field(('gas','tracer_mass07'), function=tracer_mass7, units='Msun', take_log=True, \
+                 sampling_type='cell')
     if (args.num_tracers == 8):
         ds.add_field(('gas','tracer_density08'), function=tracer_density8, units='g/cm**3', take_log=True, \
                  sampling_type='cell')
-    
+        ds.add_field(('gas','tracer_mass08'), function=tracer_mass8, units='Msun', take_log=True, \
+                 sampling_type='cell')
+
     if ('projection' in args.plot):
         for p in range(len(projections)):
             for i in range(args.num_tracers):
                 project_tracer(ds, snap, i+1, projections[p])
+
+    if ('tracer_mass' in args.plot):
+        sph = ds.sphere(ds.halo_center_kpc, radius=(200., 'kpc'))
+        tracer_mass_time_snap(ds, sph, snap)
 
     # Delete output from temp directory if on pleiades
     if (args.system=='pleiades_cassi'):
@@ -949,12 +946,23 @@ if __name__ == "__main__":
         output_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Datashaders'
         if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
         if ('time' in args.plot): datashader_tracer_time(outs)
-        if ('mass' in args.plot): datashader_tracer_mass(outs)
+        if ('mass_deltat' in args.plot): datashader_tracer_mass_deltat(outs, 37)
+        elif ('mass' in args.plot): datashader_tracer_mass(outs)
 
-    if ('projection' in args.plot):
+    if ('projection' in args.plot) or ('tracer_mass' in args.plot):
         # Set directory for output location, making it if necessary
-        output_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Projections'
-        if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
+        if ('projection' in args.plot):
+            output_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Projections'
+            if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
+        if ('tracer_mass' in args.plot):
+            table_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Tables'
+            if not (os.path.exists(table_dir)): os.system('mkdir -p ' + table_dir)
+            if ('projection' not in args.plot): output_dir = table_dir
+            # Load only the first snapshot to get tinj before launching parallel jobs
+            first_snap_name = run_dir + outs[0] + '/' + outs[0]
+            ds_first, _ = foggie_load(first_snap_name, trackfile_name=trackname, do_filter_particles=False, disk_relative=False)
+            tinj = ds_first.current_time.in_units('Myr').v
+            del ds_first
         target_dir = 'projs'
         if (args.nproc==1):
             for snap in outs:
@@ -1004,6 +1012,9 @@ if __name__ == "__main__":
                             skipped_outs.append(snaps[s])
                             shutil.rmtree(snap_dir + snaps[s])
                 outs = skipped_outs
+        if ('tracer_mass' in args.plot):
+            output_dir = table_dir
+            tracer_mass_time_merge(outs)
 
     end = time.perf_counter()
     elapsed = end - start
