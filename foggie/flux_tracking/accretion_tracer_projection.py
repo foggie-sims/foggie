@@ -94,7 +94,7 @@ def parse_args():
 
     parser.add_argument('--plot', metavar='plot', type=str, action='store', \
                         help='What do you want to plot?\n' + \
-                            'Options are: projection, datashader_time, datashader_mass, datashader_mass_deltat, tracer_mass. Default is projection.\n' + \
+                            'Options are: projection, datashader_time, datashader_mass, datashader_mass_deltat, tracer_mass_table, plot_tracer_mass. Default is projection.\n' + \
                             'Specify multiple with commas (no space) between them, like: projection,datashader_time')
     parser.set_defaults(plot='projection')
     
@@ -574,22 +574,42 @@ def tracer_mass_time_snap(ds, sph, snap):
 
     radius = sph['gas','radius_corrected'].in_units('kpc').v
     temperature = np.log10(sph['gas','temperature'].in_units('K').v)
+    density = np.log10(sph['gas','density'].in_units('g/cm**3').v)
     time_since_inj = ds.current_time.in_units('Myr').v - tinj
+
+    if (args.cgm_only):
+        # Define the density cut between disk and CGM to vary smoothly between 1 and 0.1 between z = 0.5 and z = 0.25,
+        # with it being 1 at higher redshifts and 0.1 at lower redshifts
+        current_time = ds.current_time.in_units('Myr').v
+        if (current_time<=7091.48):
+            density_cut_factor = 20. - 19.*current_time/7091.48
+        elif (current_time<=8656.88):
+            density_cut_factor = 1.
+        elif (current_time<=10787.12):
+            density_cut_factor = 1. - 0.9*(current_time-8656.88)/2130.24
+        else:
+            density_cut_factor = 0.1
+        cgm_bool = (density < np.log10(density_cut_factor * cgm_density_max))
+    else:
+        cgm_bool = (10**(density) > 0.)
 
     for j in range(args.num_tracers):
         tm = sph['gas','tracer_mass0'+str(j+1)].in_units('Msun').v
+        tm_den = sph['gas','tracer_density0'+str(j+1)].in_units('g/cm**3').v
+        den_cut = (tm_den >= 1e-30)
 
-        total = np.sum(tm)
+        total = np.sum(tm[cgm_bool])
+        total_dencut = np.sum(tm[(cgm_bool) & (den_cut)])
         rad_bins = np.zeros(nbins)
         rad_bins_hot = np.zeros(nbins)
         rad_bins_cold = np.zeros(nbins)
         for k in range(nbins):
-            in_bin = (radius >= rad_edges[k]) & (radius < rad_edges[k+1])
+            in_bin = (radius >= rad_edges[k]) & (radius < rad_edges[k+1]) & (cgm_bool) & (den_cut)
             rad_bins[k] = np.sum(tm[in_bin])
             rad_bins_hot[k] = np.sum(tm[in_bin & (temperature >= temp_split)])
             rad_bins_cold[k] = np.sum(tm[in_bin & (temperature < temp_split)])
 
-        row = [snap, '%.2f' % time_since_inj, '%.4e' % total]
+        row = [snap, '%.2f' % time_since_inj, '%.4e' % total, '%.4e' % total_dencut]
         for k in range(nbins):
             row.append('%.4e' % rad_bins[k])
         for k in range(nbins):
@@ -611,7 +631,7 @@ def tracer_mass_time_merge(outputs):
     rad_edges = np.arange(0, 210, 10)
     nbins = len(rad_edges) - 1
 
-    header_cols = ['snapshot', 'time_since_injection_Myr', 'total_tracer_mass']
+    header_cols = ['snapshot', 'time_since_injection_Myr', 'total_tracer_mass', 'tracer_mass_above_dencut']
     for k in range(nbins):
         header_cols.append('rad_%d_%d_kpc' % (rad_edges[k], rad_edges[k+1]))
     for k in range(nbins):
@@ -629,6 +649,93 @@ def tracer_mass_time_merge(outputs):
                     fout.write(fin.read())
                 os.remove(tmpfile)
         print('Saved tracer mass table for tracer0' + str(j+1) + ' to', outfile)
+
+def plot_tracer_mass_time():
+    '''Reads the tracer mass tables written by tracer_mass_time_merge and makes a 3-panel plot
+    per tracer showing (1) total tracer mass vs time, (2) tracer mass in each 10 kpc radial bin
+    vs time color-coded by radius, and (3) the hot (T > 10^4.5 K, solid) and cold (T < 10^4.5 K,
+    dashed) tracer mass in each radial bin vs time with the same color coding.'''
+
+    rad_edges = np.arange(0, 210, 10)
+    nbins = len(rad_edges) - 1   # 20
+    cmap = cmr.get_sub_cmap('cmr.lavender', 0.1, 1.)
+    colors = [cmap(k / (nbins - 1)) for k in range(nbins)]
+
+    for j in range(args.num_tracers):
+        infile = table_dir + '/tracer_mass_vs_time_tracer0' + str(j+1) + save_suffix + '.dat'
+        t = ascii.read(infile, format='tab')
+
+        time = t['time_since_injection_Myr'].data.astype(float)
+        total = t['total_tracer_mass'].data.astype(float)
+        total_dencut = t['tracer_mass_above_dencut'].data.astype(float)
+
+        rad_cols     = ['rad_%d_%d_kpc'         % (rad_edges[k], rad_edges[k+1]) for k in range(nbins)]
+        rad_hot_cols = ['rad_%d_%d_kpc_Tgt4p5'  % (rad_edges[k], rad_edges[k+1]) for k in range(nbins)]
+        rad_cold_cols= ['rad_%d_%d_kpc_Tlt4p5'  % (rad_edges[k], rad_edges[k+1]) for k in range(nbins)]
+
+        fig = plt.figure(figsize=(12, 10), dpi=200)
+        gs = GridSpec(2, 2, figure=fig, left=0.06, right=0.98, bottom=0.12, top=0.92,
+                      wspace=0.3)
+
+        # Panel 1: total tracer mass vs time
+        ax1 = fig.add_subplot(gs[0])
+        ax1.plot(time, total, color='k', lw=2, label='Total tracer')
+        ax1.plot(time, total_dencut, 'k--', lw=2, label='Tracer $>10^{-30}$ g/cm$^3$')
+        ax1.set_yscale('log')
+        ax1.set_xlabel(r'$\Delta t_\mathrm{inj}$ [Myr]', fontsize=16)
+        ax1.set_ylabel(r'Tracer Mass [$M_\odot$]', fontsize=16)
+        ax1.axis([0,1750,1e6,1e9])
+        ax1.legend(fontsize=16, frameon=False, loc='best')
+        ax1.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14, top=True, right=True)
+
+        # Panel 2: tracer mass per radial bin vs time
+        ax2 = fig.add_subplot(gs[1])
+        for k in range(nbins):
+            ax2.plot(time, t[rad_cols[k]].data.astype(float), color=colors[k], lw=1.5)
+        ax2.set_xlabel(r'$\Delta t_\mathrm{inj}$ [Myr]', fontsize=16)
+        ax2.set_ylabel(r'Tracer Mass [$M_\odot$]', fontsize=16)
+        ax2.set_yscale('log')
+        ax2.axis([0,1750,1e0,5e7])
+        ax2.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14, top=True, right=True)
+        sm = plt.cm.ScalarMappable(cmap=cmap,
+                                   norm=mcolors.Normalize(vmin=rad_edges[0], vmax=rad_edges[-1]))
+        sm.set_array([])
+        cbar2 = fig.colorbar(sm, ax=ax2, orientation='vertical', pad=0.0)
+        cbar2.set_label('Radius [kpc]', fontsize=16)
+        cbar2.ax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
+
+        # Panel 3: hot tracer mass per radial bin vs time
+        ax3 = fig.add_subplot(gs[2])
+        for k in range(nbins):
+            ax3.plot(time, t[rad_hot_cols[k]].data.astype(float),
+                     color=colors[k], lw=2, ls='-')
+        ax3.set_xlabel(r'$\Delta t_\mathrm{inj}$ [Myr]', fontsize=16)
+        ax3.set_ylabel(r'Hot Tracer Mass [$M_\odot$]', fontsize=16)
+        ax3.set_yscale('log')
+        ax3.axis([0,1750,1e0,5e7])
+        ax3.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14, top=True, right=True)
+        cbar3 = fig.colorbar(sm, ax=ax3, orientation='vertical', pad=0.0)
+        cbar3.set_label('Radius [kpc]', fontsize=16)
+        cbar3.ax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
+
+        # Panel 4: cold tracer mass per radial bin vs time
+        ax4 = fig.add_subplot(gs[3])
+        for k in range(nbins):
+            ax4.plot(time, t[rad_cold_cols[k]].data.astype(float),
+                     color=colors[k], lw=2, ls='-')
+        ax4.set_xlabel(r'$\Delta t_\mathrm{inj}$ [Myr]', fontsize=16)
+        ax4.set_ylabel(r'Cold Tracer Mass [$M_\odot$]', fontsize=16)
+        ax4.set_yscale('log')
+        ax4.axis([0,1750,1e0,5e7])
+        ax4.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14, top=True, right=True)
+        cbar4 = fig.colorbar(sm, ax=ax4, orientation='vertical', pad=0.0)
+        cbar4.set_label('Radius [kpc]', fontsize=16)
+        cbar4.ax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
+
+        outfile = table_dir + '/tracer_mass_vs_time_tracer0' + str(j+1) + save_suffix + '.png'
+        plt.savefig(outfile)
+        plt.close()
+        print('Saved plot for tracer0' + str(j+1) + ' to', outfile)
 
 def datashader_tracer_time(outputs):
     '''Makes datashader plots of properties of the tracer field given by 'tracer_number' vs. radius
@@ -899,7 +1006,7 @@ def load_and_calculate(snap):
             for i in range(args.num_tracers):
                 project_tracer(ds, snap, i+1, projections[p])
 
-    if ('tracer_mass' in args.plot):
+    if ('tracer_mass_table' in args.plot):
         sph = ds.sphere(ds.halo_center_kpc, radius=(200., 'kpc'))
         tracer_mass_time_snap(ds, sph, snap)
 
@@ -949,12 +1056,12 @@ if __name__ == "__main__":
         if ('mass_deltat' in args.plot): datashader_tracer_mass_deltat(outs, 37)
         elif ('mass' in args.plot): datashader_tracer_mass(outs)
 
-    if ('projection' in args.plot) or ('tracer_mass' in args.plot):
+    if ('projection' in args.plot) or ('tracer_mass_table' in args.plot):
         # Set directory for output location, making it if necessary
         if ('projection' in args.plot):
             output_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Projections'
             if not (os.path.exists(output_dir)): os.system('mkdir -p ' + output_dir)
-        if ('tracer_mass' in args.plot):
+        if ('tracer_mass_table' in args.plot):
             table_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Tables'
             if not (os.path.exists(table_dir)): os.system('mkdir -p ' + table_dir)
             if ('projection' not in args.plot): output_dir = table_dir
@@ -964,6 +1071,7 @@ if __name__ == "__main__":
             tinj = ds_first.current_time.in_units('Myr').v
             del ds_first
         target_dir = 'projs'
+        all_outs = outs
         if (args.nproc==1):
             for snap in outs:
                 load_and_calculate(snap)
@@ -1012,9 +1120,13 @@ if __name__ == "__main__":
                             skipped_outs.append(snaps[s])
                             shutil.rmtree(snap_dir + snaps[s])
                 outs = skipped_outs
-        if ('tracer_mass' in args.plot):
+        if ('tracer_mass_table' in args.plot):
             output_dir = table_dir
-            tracer_mass_time_merge(outs)
+            tracer_mass_time_merge(all_outs)
+
+    if ('plot_tracer_mass' in args.plot):
+        table_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Tables'
+        plot_tracer_mass_time()
 
     end = time.perf_counter()
     elapsed = end - start
