@@ -94,7 +94,8 @@ def parse_args():
 
     parser.add_argument('--plot', metavar='plot', type=str, action='store', \
                         help='What do you want to plot?\n' + \
-                            'Options are: projection, datashader_time, datashader_mass, datashader_mass_deltat, tracer_mass_table, plot_tracer_mass. Default is projection.\n' + \
+                            'Options are: projection, datashader_time, datashader_mass, datashader_mass_deltat, tracer_mass_table,\n' + \
+                            'plot_tracer_mass, plot_tracer_disk. Default is projection.\n' + \
                             'Specify multiple with commas (no space) between them, like: projection,datashader_time')
     parser.set_defaults(plot='projection')
     
@@ -530,7 +531,7 @@ def datashader_tracer_mass_deltat(outputs, deltat):
                         ax.text(-1, 1.1, r'$\Delta t_\mathrm{inj}$' + ' = %d Myr' % (time), fontsize=16, ha='left', va='center', transform=ax.transAxes)
 
                 plt.subplots_adjust(left=0.06, bottom=0.06, right=0.98, top=0.88, hspace=0.2, wspace=0.25)
-                plt.savefig(output_dir + '/' + snap + '_tracer_den-temp-rv-tcool_vs_radius_tracer0' + str(j+1) + '_mass' + vfile[v] + save_suffix + '.png')
+                plt.savefig(output_dir + '/' + snap + '_tracer_den-temp-rv-tcool_vs_radius_tracer0' + str(j+1) + '_mass' + vfile[v] + '_t-window' + save_suffix + '.png')
                 plt.close()
 
                 fig = plt.figure(figsize=(15,9),dpi=300)
@@ -658,7 +659,7 @@ def plot_tracer_mass_time():
 
     rad_edges = np.arange(0, 210, 10)
     nbins = len(rad_edges) - 1   # 20
-    cmap = cmr.get_sub_cmap('cmr.lavender', 0.1, 1.)
+    cmap = cmr.neon
     colors = [cmap(k / (nbins - 1)) for k in range(nbins)]
 
     for j in range(args.num_tracers):
@@ -674,28 +675,28 @@ def plot_tracer_mass_time():
         rad_cold_cols= ['rad_%d_%d_kpc_Tlt4p5'  % (rad_edges[k], rad_edges[k+1]) for k in range(nbins)]
 
         fig = plt.figure(figsize=(12, 10), dpi=200)
-        gs = GridSpec(2, 2, figure=fig, left=0.06, right=0.98, bottom=0.12, top=0.92,
-                      wspace=0.3)
+        ax1 = fig.add_subplot(2,2,1)
+        ax2 = fig.add_subplot(2,2,2)
+        ax3 = fig.add_subplot(2,2,3)
+        ax4 = fig.add_subplot(2,2,4)
 
         # Panel 1: total tracer mass vs time
-        ax1 = fig.add_subplot(gs[0])
         ax1.plot(time, total, color='k', lw=2, label='Total tracer')
         ax1.plot(time, total_dencut, 'k--', lw=2, label='Tracer $>10^{-30}$ g/cm$^3$')
-        ax1.set_yscale('log')
+        #ax1.set_yscale('log')
         ax1.set_xlabel(r'$\Delta t_\mathrm{inj}$ [Myr]', fontsize=16)
         ax1.set_ylabel(r'Tracer Mass [$M_\odot$]', fontsize=16)
-        ax1.axis([0,1750,1e6,1e9])
+        #ax1.axis([0,1750,1e6,1e9])
         ax1.legend(fontsize=16, frameon=False, loc='best')
         ax1.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14, top=True, right=True)
 
         # Panel 2: tracer mass per radial bin vs time
-        ax2 = fig.add_subplot(gs[1])
         for k in range(nbins):
             ax2.plot(time, t[rad_cols[k]].data.astype(float), color=colors[k], lw=1.5)
         ax2.set_xlabel(r'$\Delta t_\mathrm{inj}$ [Myr]', fontsize=16)
         ax2.set_ylabel(r'Tracer Mass [$M_\odot$]', fontsize=16)
-        ax2.set_yscale('log')
-        ax2.axis([0,1750,1e0,5e7])
+        #ax2.set_yscale('log')
+        #ax2.axis([0,1750,1e0,5e7])
         ax2.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14, top=True, right=True)
         sm = plt.cm.ScalarMappable(cmap=cmap,
                                    norm=mcolors.Normalize(vmin=rad_edges[0], vmax=rad_edges[-1]))
@@ -705,34 +706,77 @@ def plot_tracer_mass_time():
         cbar2.ax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
 
         # Panel 3: hot tracer mass per radial bin vs time
-        ax3 = fig.add_subplot(gs[2])
         for k in range(nbins):
             ax3.plot(time, t[rad_hot_cols[k]].data.astype(float),
-                     color=colors[k], lw=2, ls='-')
+                     color=colors[k], lw=1.5, ls='-')
         ax3.set_xlabel(r'$\Delta t_\mathrm{inj}$ [Myr]', fontsize=16)
         ax3.set_ylabel(r'Hot Tracer Mass [$M_\odot$]', fontsize=16)
-        ax3.set_yscale('log')
-        ax3.axis([0,1750,1e0,5e7])
+        #ax3.set_yscale('log')
+        #ax3.axis([0,1750,1e0,5e7])
         ax3.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14, top=True, right=True)
         cbar3 = fig.colorbar(sm, ax=ax3, orientation='vertical', pad=0.0)
         cbar3.set_label('Radius [kpc]', fontsize=16)
         cbar3.ax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
 
         # Panel 4: cold tracer mass per radial bin vs time
-        ax4 = fig.add_subplot(gs[3])
         for k in range(nbins):
             ax4.plot(time, t[rad_cold_cols[k]].data.astype(float),
-                     color=colors[k], lw=2, ls='-')
+                     color=colors[k], lw=1.5, ls='-')
         ax4.set_xlabel(r'$\Delta t_\mathrm{inj}$ [Myr]', fontsize=16)
         ax4.set_ylabel(r'Cold Tracer Mass [$M_\odot$]', fontsize=16)
-        ax4.set_yscale('log')
-        ax4.axis([0,1750,1e0,5e7])
+        #ax4.set_yscale('log')
+        #ax4.axis([0,1750,1e0,5e7])
         ax4.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14, top=True, right=True)
         cbar4 = fig.colorbar(sm, ax=ax4, orientation='vertical', pad=0.0)
         cbar4.set_label('Radius [kpc]', fontsize=16)
         cbar4.ax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
 
+        fig.tight_layout()
         outfile = table_dir + '/tracer_mass_vs_time_tracer0' + str(j+1) + save_suffix + '.png'
+        plt.savefig(outfile)
+        plt.close()
+        print('Saved plot for tracer0' + str(j+1) + ' to', outfile)
+
+def plot_tracer_mass_in_disk():
+    '''Plots the mass of tracer fluids that end up in the disk as a function of time.
+    Defines the disk using a density cut, so that mass in disk = total mass - mass in cgm-only.
+    Requires tables of tracer mass in radial bins for BOTH all tracer mass AND cgm-only to
+    have already been made.'''
+
+    rad_edges = np.arange(0, 210, 10)
+    nbins = len(rad_edges) - 1   # 20
+    cmap = cmr.neon
+    colors = [cmap(k / (nbins - 1)) for k in range(nbins)]
+
+    for j in range(args.num_tracers):
+        infile = table_dir + '/tracer_mass_vs_time_tracer0' + str(j+1) + '.dat'
+        t = ascii.read(infile, format='tab')
+        time = t['time_since_injection_Myr'].data.astype(float)
+        rad_cols = ['rad_%d_%d_kpc'         % (rad_edges[k], rad_edges[k+1]) for k in range(nbins)]
+
+        infile = table_dir + '/tracer_mass_vs_time_tracer0' + str(j+1) + '_cgm-only.dat'
+        t_cgm = ascii.read(infile, format='tab')
+        rad_cols_cgm = ['rad_%d_%d_kpc'         % (rad_edges[k], rad_edges[k+1]) for k in range(nbins)]
+
+        fig = plt.figure(figsize=(6,5), dpi=200)
+        ax = fig.add_subplot(1,1,1)
+
+        for k in range(nbins):
+            ax.plot(time, t[rad_cols[k]].data.astype(float) - t_cgm[rad_cols_cgm[k]].data.astype(float), color=colors[k], lw=1.5)
+        ax.set_xlabel(r'$\Delta t_\mathrm{inj}$ [Myr]', fontsize=16)
+        ax.set_ylabel(r'Tracer Mass in Disk [$M_\odot$]', fontsize=16)
+        #ax.set_yscale('log')
+        #ax.axis([0,1750,1e0,5e7])
+        ax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14, top=True, right=True)
+        sm = plt.cm.ScalarMappable(cmap=cmap,
+                                   norm=mcolors.Normalize(vmin=rad_edges[0], vmax=rad_edges[-1]))
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax, orientation='vertical', pad=0.0)
+        cbar.set_label('Radius [kpc]', fontsize=16)
+        cbar.ax.tick_params(axis='both', which='both', direction='in', length=6, width=2, pad=5, labelsize=14)
+
+        fig.tight_layout()
+        outfile = table_dir + '/tracer_disk_mass_vs_time_tracer0' + str(j+1) + '.png'
         plt.savefig(outfile)
         plt.close()
         print('Saved plot for tracer0' + str(j+1) + ' to', outfile)
@@ -1048,6 +1092,14 @@ if __name__ == "__main__":
     # Build outputs list
     outs = make_output_list(args.output, output_step=args.output_step)
 
+    if ('plot_tracer_mass' in args.plot):
+        table_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Tables'
+        plot_tracer_mass_time()
+
+    if ('plot_tracer_disk' in args.plot):
+        table_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Tables'
+        plot_tracer_mass_in_disk()
+
     if ('datashader' in args.plot):
         # Set directory for output location, making it if necessary
         output_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Datashaders'
@@ -1123,10 +1175,6 @@ if __name__ == "__main__":
         if ('tracer_mass_table' in args.plot):
             output_dir = table_dir
             tracer_mass_time_merge(all_outs)
-
-    if ('plot_tracer_mass' in args.plot):
-        table_dir = foggie_dir + 'halo_00' + args.halo + '/' + args.run + '/Tables'
-        plot_tracer_mass_time()
 
     end = time.perf_counter()
     elapsed = end - start
