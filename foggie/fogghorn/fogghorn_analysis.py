@@ -27,10 +27,21 @@
 
 """
 
+from html import parser
 from foggie.fogghorn.header import *
 from foggie.fogghorn.util import *
 
 start_time = datetime.now()
+
+def str_to_bool(v):
+    if isinstance(v, bool):
+        return v
+    if str(v).lower() in ('yes', 'true', 't', 'y', '1', 'on'):
+        return True
+    elif str(v).lower() in ('no', 'false', 'f', 'n', '0', 'off'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 # --------------------------------------------------------------------------------------------------------------------
 def parse_args():
@@ -45,10 +56,21 @@ def parse_args():
     parser.add_argument('--save_directory', metavar='save_directory', type=str, action='store', default=None, help='Where do you want to store the plots? Default is to put them in a plots/ directory inside the outputs directory.')
     parser.add_argument('--output', metavar='output', type=str, action='store', default=None, help='If you want to make the plots for specific output/s then specify those here separated by comma (e.g., DD0030,DD0040). Otherwise (default) it will make plots for ALL outputs in that directory')
     parser.add_argument('--output_step', metavar='output_step', type=int, action='store', default=1, help='If you are making plots for specific outputs, use this to specify every Nth output in the range given by --output.')
-    parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, help='What is the directory of the track file for this halo?\n' + 'This is needed to find the center of the galaxy of interest.')
     parser.add_argument('--pwd', dest='pwd', action='store_true', default=False, help='Just use the working directory?, Default is no')
     parser.add_argument('--nproc', metavar='nproc', type=int, action='store', default=1, help='How many processes do you want? Default is 1 (no parallelization), if multiple processors are specified, code will run one output per processor')
     parser.add_argument('--rockstar_directory', metavar='rockstar_directory', type=str, action='store', default=None, help='What is the directory where your rockstar outputs are located?')
+
+    # These arguments are defined as in foggie_load for consistency - these will all be flowed down the the foggie_load call make in fogghorn_analysis
+    parser.add_argument('--central_halo', metavar='central_halo',nargs='?', const=True, type=str_to_bool, default=True, help='Are you analyzing the central halo of the simulation? Default is True. Goes to foggie_load') 
+    parser.add_argument('--trackfile_name', metavar='trackfile_name ', type=str, action='store', default=None, help='What is the directory of the track file for this halo?\n' + 'This is needed to find the center of the galaxy of interest.')
+    parser.add_argument('--halo_c_v_name', metavar='halo_c_v_name', type=str, action='store', default=None, help='What is the name of the halo catalog file to use for finding halo centers? Default is None')
+    parser.add_argument('--root_catalog_name', metavar='root_catalog_name', type=str, action='store', default=None, help='What is the root name of the halo catalog files to use for finding halo centers? Default is None')
+    parser.add_argument('--do_filter_particles', dest='do_filter_particles', action='store_true', default=True, help='Filter star particles to only those in high-res region? Default is yes. Goes to foggie_load')
+    parser.add_argument('--particle_type_for_angmom', metavar='particle_type_for_angmom', type=str, action='store', default='young_stars', help='Which particle type to use for calculating angular momentum for disk-relative loading? Default is stars. Options are stars or dark_matter.')
+    parser.add_argument('--smooth_AM_name', metavar='smooth_AM_name', type=bool, action='store', default=False, help='If using a smoothed center file, what is the name of that file? Default is None.')
+    parser.add_argument('--disk_relative', dest='disk_relative', action='store_true', default=False, help='Load the dataset in a disk-relative frame? Default is no. Goes to foggie_load')
+    parser.add_argument('--gravity', metavar='gravity', type=bool, action='store', default=False, help='Include gravity when loading the dataset? Default is False. Goes to foggie_load')
+    parser.add_argument('--masses_dir', metavar='masses_dir', type=str, action='store', default=None, help='Directory where particle masses files are located, if needed. Default is None. Goes to foggie_load')
 
     # These arguments are options for halo center finding
     parser.add_argument('--use_track_center', dest='use_track_center', action='store_true', default=False, help='Just use trackbox center instead of finding halo center? Default is no.')
@@ -96,6 +118,8 @@ def parse_args():
                                 'gas_o6_projection', 'young_stars_density_projection', 'KS_relation', 'gas_metallicity_projection', 
                                 'edge_projection', 'edge_slice']
     args = parser.parse_args()
+    print('central_halo = ', args.central_halo) 
+    print('trackfile_name = ', args.trackfile_name) 
     args.projection_arr = [item for item in args.projection.split(',')]
     if (args.make_plots!=''):
         args.plots_asked_for = [item for item in args.make_plots.split(',')]
@@ -297,15 +321,22 @@ def make_everysnap_plots(snap, args):
         # Read the snapshot
         filename = args.directory + '/' + snap + '/' + snap
         args.snap = snap
-        if args.trackfile == None:
-            halos_df_name = args.code_path + 'halo_infos/00' + args.halo + '/' + args.run + '/'
-            halos_df_name += 'halo_cen_smoothed' if args.use_cen_smoothed else 'halo_c_v'
-            ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk, halo_c_v_name=halos_df_name)
-        else:
-            if (args.use_track_center):
-                ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, find_halo_center=False)
-            else:
-                ds, region = foggie_load(filename, trackfile_name=args.trackfile, do_filter_particles=True, disk_relative=need_disk)
+
+        #all of foggie_load's arguments are passed down from args so we include them all here
+        print('Args =  ', args.central_halo, args.trackfile_name, args.halo_c_v_name, args.root_catalog_name, args.smooth_AM_name, args.particle_type_for_angmom, args.gravity, args.masses_dir)
+        ds, region = foggie_load(filename, trackfile_name=args.trackfile_name, halo_c_v_name=args.halo_c_v_name, 
+                                 root_catalog_name=args.root_catalog_name, do_filter_particles=True, disk_relative=need_disk, 
+                                 central_halo=args.central_halo, smooth_AM_name=args.smooth_AM_name, 
+                                 particle_type_for_angmom=args.particle_type_for_angmom, gravity=args.gravity, 
+                                 masses_dir=args.masses_dir) 
+
+        #if args.trackfile_name == None:
+        #    ds, region = foggie_load(filename, do_filter_particles=True, disk_relative=need_disk, central_halo=False) 
+        #else:
+        #    if (args.use_track_center):
+        #        ds, region = foggie_load(filename, trackfile_name=args.trackfile_name, do_filter_particles=True, central_halo=False)
+        #    else:
+        #        ds, region = foggie_load(filename, trackfile_name=args.trackfile_name, do_filter_particles=True, disk_relative=need_disk)
 
         #  Make the plots
         for thisplot in plots_to_make:
@@ -337,7 +368,7 @@ def make_manysnaps_plots(args):
 if __name__ == "__main__":
     args = parse_args()
 
-    print('FOGGHORN_ANALYSIS: your trackfile is ', args.trackfile)
+    print('FOGGHORN_ANALYSIS: your trackfile is ', args.trackfile_name)
     ###### IF YOU ADD A PLOT STEP 3 ######
     # Add the function name to the appropriate grouping list, or make a new list
     # These plots make one plot per snapshot:

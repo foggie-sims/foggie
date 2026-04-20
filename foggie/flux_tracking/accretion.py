@@ -3871,8 +3871,8 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
                     theta_center, phi_center = regions[0].centroid
                     theta_center = 0.
                     phi_center = phi_center*phi_width[0]
-                    major_extent_arc = 2.*np.pi*radii[r]
-                    minor_extent_arc = radii[r] * regions[0].axis_minor_length*phi_width[0]
+                    major_extent_arc = 2.*np.pi*fil_radii[r]
+                    minor_extent_arc = fil_radii[r] * regions[0].axis_minor_length*phi_width[0]
                     covering_area = np.sum(np.sin(phi_grid[sph_grid==1])*theta_width[0]*phi_width[0])
                     orientation = regions[0].orientation+np.pi/2.
                     #plt.imshow(tiled_labeled, origin='lower')
@@ -3890,8 +3890,8 @@ def accretion_fragment_properties(ds, grid, shape, snap, snap_props, global_vars
                     theta_center = theta_center*theta_width[0]-np.pi
                     if (theta_center > np.pi): theta_center -= np.pi
                     phi_center = phi_center*phi_width[0]
-                    major_extent_arc = radii[r] * regions[0].axis_major_length*theta_width[0]
-                    minor_extent_arc = radii[r] * regions[0].axis_minor_length*theta_width[0]
+                    major_extent_arc = fil_radii[r] * regions[0].axis_major_length*theta_width[0]
+                    minor_extent_arc = fil_radii[r] * regions[0].axis_minor_length*theta_width[0]
                     orientation = regions[0].orientation+np.pi/2.
                     covering_area = np.sum(np.sin(phi_grid_wide[tiled_labeled==new_tiled])*theta_width[0]*phi_width[0])
                     #plt.imshow(tiled_labeled, origin='lower')

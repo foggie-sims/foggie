@@ -24,7 +24,7 @@ def phase_shade(ds, region, args, output_filename):
     region = 'cgm_z'  # force to trackbox for CGM plots
 
     for colorcode in ['phase', 'metal', 'cell_mass']:
-        print("shade_plot is going to use trackfile = ", args.trackfile)
+        print("shade_plot is going to use trackfile = ", args.trackfile_name)
         sm.shade_plot(ds,('gas','x_kpc'),('gas','y_kpc'), colorcode, ( (-100,100), (-100,100) ), output_filename+'_x_y_'+colorcode+'_'+region, region=region) 
         sm.shade_plot(ds,('gas','x_kpc'),('gas','z_kpc'), colorcode, ( (-100,100), (-100,100) ), output_filename+'_x_z_'+colorcode+'_'+region, region=region) 
         sm.shade_plot(ds,('gas','y_kpc'),('gas','z_kpc'), colorcode, ( (-100,100), (-100,100) ), output_filename+'_y_z_'+colorcode+'_'+region, region=region) 

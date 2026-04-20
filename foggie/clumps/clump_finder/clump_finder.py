@@ -164,6 +164,7 @@ class ClumpCriteria:
     '''
     def __init__(self,args):
         self.min_cells = args.min_cells
+        print("min_cells set to:",self.min_cells)
 
 ####Define clump class
 class Clump:
@@ -193,6 +194,7 @@ class Clump:
 
         self.cell_ids=None #1d list of unique cell ids for each clump. Should not be defined on the master clump object, only children
         self.dm_halo_center = np.array([0,0,0])
+        self.shell_cell_ids=None #2d list of unique shells for each clump. Each entry in the list corresponds to a dilation iteration.
         
 
 
@@ -345,7 +347,7 @@ class Clump:
             id_region = self.cell_id_ucg[slice_obj]
             mask = (clump_id == clump_label)
 
-
+            shell_cell_ids = None
             if self.is_disk:
                 if clump_label==disk_label:
                     print("Disk label is",clump_label)
@@ -387,23 +389,26 @@ class Clump:
                         shell_masks = get_dilated_shells(mask,args.n_dilation_iterations, args.n_cells_per_dilation)
                         for i in range(0,len(shell_masks)):
                             self.SaveDilatedShell(np.unique(id_region[shell_masks[i]]), i, args)
-
-            elif args.max_void_size>0:
-                mask = fill_voids(mask,args.max_void_size,structure=None)
+            else:
+                if args.max_void_size>0:
+                    mask = fill_voids(mask,args.max_void_size,structure=None)
                 if args.n_dilation_iterations>0:
-                    mask = binary_dilation(mask,args.n_dilation_iterations, args.n_cells_per_dilation)
+                    shell_cell_ids = []
+                    shell_masks = get_dilated_shells(mask,args.n_dilation_iterations, args.n_cells_per_dilation)
+                    for i in range(0,len(shell_masks)):
+                        shell_cell_ids.append(np.unique(id_region[shell_masks[i]]))
+
 
             clump_cell_ids = id_region[mask]
 
             itr+=1
             if itr%1==0 and not self.is_disk: pbar.update(itr)
    
+            clump_cell_ids = np.unique(clump_cell_ids) #Do this before to make it 20 actual cells in the simulation
             if self.CheckClumpCriteria(clump_cell_ids):
                 nClumpsAdded+=1
-                clump_cell_ids = np.unique(clump_cell_ids)
-
-
-                nClumpsAdded+=1   
+                #clump_cell_ids = np.unique(clump_cell_ids)
+                if np.size(clump_cell_ids)<=20: print("Clump with",np.size(clump_cell_ids),"cells added at tree level",self.tree_level)
 
                 self.clump_tree[self.tree_level].append(Clump(self.ds,None,args,self.tree_level+1))
 
@@ -411,6 +416,8 @@ class Clump:
                 self.clump_tree[self.tree_level][-1].cell_ids = clump_cell_ids
                 self.clump_tree[self.tree_level][-1].self_id = clump_label
                 self.clump_tree[self.tree_level][-1].self_index = clump_index
+                if shell_cell_ids is not None:
+                    self.clump_tree[self.tree_level][-1].shell_cell_ids = shell_cell_ids
 
                 if self.tree_level>0:
                     parent_clump = self.FindParent(clump_cell_ids)
@@ -428,8 +435,7 @@ class Clump:
                 try:
                     self.clump_tree[self.tree_level][-1].center_disk_coords = np.array( [ np.sum(np.multiply(self.ucg[slice_obj][mask], self.x_disk_ucg[slice_obj][mask]))/np.sum(self.ucg[slice_obj][mask]), np.sum(np.multiply(self.ucg[slice_obj][mask], self.y_disk_ucg[slice_obj][mask]))/np.sum(self.ucg[slice_obj][mask]), np.sum(np.multiply(self.ucg[slice_obj][mask], self.z_disk_ucg[slice_obj][mask]))/np.sum(self.ucg[slice_obj][mask]) ] )
                 except:
-                    print("Not defining clump center")
-
+                    self.clump_tree[self.tree_level][-1].center_disk_coords = -1
         if not self.is_disk:
             pbar.update(np.size(unique_clumps))
             pbar.finish()
@@ -1085,8 +1091,9 @@ def identify_clump_hierarchy(ds,cut_region,args):
 
     if args.save_clumps_individually: master_clump.SaveClumps(args) #Save each clump as its own file
     save_clump_hierarchy(args,master_clump)
-    YTClumpTest = save_as_YTClumpContainer(ds,cut_region,master_clump,args.clumping_field,args)
-    print("YTClumpTest is:",YTClumpTest)
+
+
+    if args.save_YTClumpContainer: YTClumpTest = save_as_YTClumpContainer(ds,cut_region,master_clump,args.clumping_field,args)
 
 
     return master_clump
@@ -1117,11 +1124,17 @@ def clump_finder(args,ds,cut_region):
         args = set_default_disk_finder_arguments(args)
 
     trident_dict = { 'HI':'H I', 'CII':'C II','CIII':'C III',
-                'CIV':'C IV','OVI':'O VI','SiII':'Si II','SiIII':'Si III','SiIV':'Si IV','MgII':'Mg II'}
+                'CIV':'C IV','OI':'O I','OII':'O II','OIII':'O III','OIV':'O IV','OV':'O V','OVI':'O VI',
+                'SiII':'Si II','SiIII':'Si III','SiIV':'Si IV','MgII':'Mg II'}
 
     ions_number_density_dict = {'Lyalpha':'LyAlpha', 'HI':'H_p0_number_density', 'CII':'C_p1_number_density', 'CIII':'C_p2_number_density',
-                              'CIV':'C_p3_number_density','OVI':'O_p5_number_density','SiII':'Si_p1_number_density','SiIII':'Si_p2_number_density',
-                                 'SiIV':'Si_p3_number_density','MgII':'Mg_p1_number_density'}
+                                'CIV':'C_p3_number_density','OI':'O_p0_number_density','OII':'O_p1_number_density','OIII':'O_p2_number_density','OIV':'O_p3_number_density','OV':'O_p4_number_density',
+                                    'OVI':'O_p5_number_density','SiII':'Si_p1_number_density','SiIII':'Si_p2_number_density',
+                                    'SiIV':'Si_p3_number_density','MgII':'Mg_p1_number_density',
+                                    'HI':'H_p0_density', 'CII':'C_p1_density', 'CIII':'C_p2_density',
+                                    'CIV':'C_p3_density','OI':'O_p0_density','OII':'O_p1_density','OIII':'O_p2_density','OIV':'O_p3_density','OV':'O_p4_density',
+                                    'OVI':'O_p5_density','SiII':'Si_p1density','SiIII':'Si_p2_density',
+                                    'SiIV':'Si_p3_density','MgII':'Mg_p1_density'}
     
     field_dict = {v: k for k, v in ions_number_density_dict.items()}
 
@@ -1131,6 +1144,7 @@ def clump_finder(args,ds,cut_region):
         args.clumping_field =ions_number_density_dict[args.clumping_field]
     elif args.clumping_field in field_dict:
         import trident
+        print("Adding ions:",[trident_dict[field_dict[args.clumping_field]]])
         trident.add_ion_fields(ds, ions=[trident_dict[field_dict[args.clumping_field]]])
 
     if args.clumping_field_type is not None:
