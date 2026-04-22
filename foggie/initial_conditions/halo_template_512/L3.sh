@@ -1,16 +1,15 @@
 #!/bin/bash
 
-#PBS -N L3-512
+#PBS -N L3_512
 #PBS -W group_list=s3128
-#PBS -l select=1:ncpus=1:mpiprocs=1:model=has
+#PBS -l select=1:ncpus=1:mpiprocs=1:model=mil_ait
 #PBS -l walltime=2:00:00
-#PBS -q devel 
 #PBS -j oe
 #PBS -m abe
 #PBS -V
 #set output and error directories
-#PBS -e pbs_error.txt
-#PBS -o pbs_output.txt
+#PBS -e L3-DM-error.txt
+#PBS -o L3-DM-output.txt
 
 module load comp-intel/2020.4.304
 module load mpi-hpe/mpt.2.23
@@ -22,7 +21,8 @@ export LD_LIBRARY_PATH="/u/jtumlins/installs/mpich-4.0.3/usr/local/lib":"/u/jtum
 export PATH="/nobackupnfs1/jtumlins/anaconda3/bin:/u/scicon/tools/bin/:/u/jtumlins/installs/mpich-4.0.3/usr/local/bin:$PATH"
 
 cd $PBS_O_WORKDIR
-python script512.py --level=3 --gas='no' 
+python /u/jtumlins/nobackup/foggie/foggie/initial_conditions/halo_template_512/script512.py --level=3 --gas=$GAS --halo_id=$HALO_ID 
 
-
+# To run this, use:
+# qsub -koed -v HALO_ID=39642,GAS=no L3.sh
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#PBS -N L2-DM-512
+#PBS -N L2_512
 #PBS -W group_list=s3128
 #PBS -l select=1:ncpus=1:mpiprocs=1:model=has
 #PBS -l walltime=2:00:00
@@ -22,7 +22,7 @@ export LD_LIBRARY_PATH="/u/jtumlins/installs/mpich-4.0.3/usr/local/lib":"/u/jtum
 export PATH="/nobackupnfs1/jtumlins/anaconda3/bin:/u/scicon/tools/bin/:/u/jtumlins/installs/mpich-4.0.3/usr/local/bin:$PATH"
 
 cd $PBS_O_WORKDIR
-python /u/jtumlins/nobackup/foggie/foggie/initial_conditions/halo_template_512/script512.py --level=2 --gas='no' --halo_id=$HALO_ID 
+python /u/jtumlins/nobackup/foggie/foggie/initial_conditions/halo_template_512/script512.py --level=2 --gas=$GAS --halo_id=$HALO_ID 
 
 
 

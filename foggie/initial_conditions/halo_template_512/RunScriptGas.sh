@@ -2,7 +2,7 @@
 
 #PBS -N haloXXXX-LX-gas
 #PBS -W group_list=s3128 
-#PBS -l select=4:ncpus=16:mpiprocs=16:model=has 
+#PBS -l select=1:ncpus=64:mpiprocs=64:model=mil_ait
 #PBS -l walltime=120:00:00
 #PBS -j oe
 #PBS -m abe

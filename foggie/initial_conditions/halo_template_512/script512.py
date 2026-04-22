@@ -27,6 +27,11 @@ def set_0to1_conf(x0, y0, z0, rvir, halo_id):
     print(command)
     if (run): os.system(command)
 
+    halo_dir = os.getcwd().split('/')[-1] 
+    command = 'sed -i "s/HALO_DIR/'+halo_dir+'/g" halo' + str(halo_id)+'_DM_0to1.conf'
+    print(command)
+    if (run): os.system(command)
+
 def run_0to1_music(halo_id):
     command = "python "+os.getenv("FOGGIE_REPO")+"initial_conditions/enzo-mrp-music/enzo-mrp-music.py halo"+str(halo_id)+"_DM_0to1.conf 1 "
     print(command)
@@ -173,10 +178,12 @@ parser.add_argument('--level', type=str, required=True)
 parser.add_argument('--gas', type=str, required=True)
 parser.add_argument('--halo_id', type=int, required=True)
 parser.add_argument('--run', type=bool, default=True, required=False)
+parser.add_argument('--rvir_min', type=int, default=1, required=False)
 args = parser.parse_args()
 print('The requested halo ID = ', args.halo_id)
 print('Hello your level is:', args.level)
 print('Are you including gas?', args.gas)
+print('Rvir_min             =', args.rvir_min)
 
 
 halos = ascii.read(os.getenv("FOGGIE_REPO") + '/initial_conditions/halo_catalogs_512/512/z0/out_0.list', header_start=0, data_start=2)
@@ -185,7 +192,7 @@ print(thishalo)
 x0 = thishalo['X'].value[0]/25.
 y0 = thishalo['Y'].value[0]/25.
 z0 = thishalo['Z'].value[0]/25.
-rvir = thishalo['Rvir'].value[0]
+rvir = np.max([thishalo['Rvir'].value[0], args.rvir_min]) 
 print("Analyzing halo "+str(args.halo_id)+" at:")
 print('The specified halo center is: ', x0, y0, z0)
 print('With Rvir = ', rvir)
