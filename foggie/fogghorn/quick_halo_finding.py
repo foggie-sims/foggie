@@ -11,7 +11,7 @@ from astropy.table import QTable
 from astropy.table import Table
 from foggie.utils.analysis_utils import *
 
-def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile=None, boxwidth=0.04): 
+def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile_name=None, boxwidth=0.04): 
     """Prepare a small dataset subregion around a halo center for finding.
 
     This helper loads the dataset for the given `snapname` (located under
@@ -27,7 +27,7 @@ def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile=None, boxw
         `snapname`.
     snapname : str
         Snapshot name (used to construct the dataset path).
-    trackfile : str
+    trackfile_name : str
         Path to the track file used by `foggie_load` to determine the
         halo center (passed through as ``trackfile_name``).
     boxwidth : float, optional
@@ -45,10 +45,10 @@ def prep_dataset_for_halo_finding(simulation_dir, snapname, trackfile=None, boxw
 
     dataset_name = simulation_dir+'/'+snapname+'/'+snapname
 
-    if (trackfile == None): # if no trackfile, use min and max positions of the smallest DM particles to define a subregion
+    if (trackfile_name == None): # if no trackfile, use min and max positions of the smallest DM particles to define a subregion
         ds, region = foggie_load(dataset_name, central_halo = False) 
     else: 
-        ds, region = foggie_load(dataset_name, central_halo = False, trackfile_name = trackfile)
+        ds, region = foggie_load(dataset_name, central_halo = False, trackfile_name = trackfile_name)
 
     return ds, region 
 
@@ -257,7 +257,7 @@ def parallel_loop_over_halos(snap, args):
     nothing
     """
 
-    ds, box = prep_dataset_for_halo_finding(args.directory, snap, args.trackfile_name, boxwidth=args.boxwidth) 
+    ds, box = prep_dataset_for_halo_finding(args.directory, snap, trackfile_name = args.trackfile_name, boxwidth=args.boxwidth) 
     hc = halo_finding_step(ds, box, simulation_dir=args.directory, threshold=args.threshold) 
     hc = repair_halo_catalog(ds, args.directory, snap, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
     export_to_astropy(args.directory, snap)
@@ -269,7 +269,7 @@ if __name__ == "__main__":
     """Command-line entrypoint for quick halo finding.
 
     Usage:
-      python quick_halo_finding.py --output SNAPNAME --trackfile TRACKFILE [--boxwidth 0.04] [--threshold 400] [--min_rvir 10] [--min_mass 1e10]
+      python quick_halo_finding.py --output SNAPNAME --trackfile_name TRACKFILE [--boxwidth 0.04] [--threshold 400] [--min_rvir 10] [--min_mass 1e10]
 
     This script prepares a small dataset subregion around a halo center,
     runs a HOP-based halo finder to produce a halo catalog, then repairs
@@ -284,7 +284,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--output', metavar='output', type=str, action='store', default=None, required=True, help='Output to run a halo catalog for. Single output or comma-separated list or range like DD0400-DD0500.') 
     parser.add_argument('--directory', metavar='directory', type=str, action='store', default='./', required=False, help='Pathname to simulation directory') 
-    parser.add_argument('--trackfile', metavar='trackfile', type=str, action='store', default=None, required=False, help='Track file for this halo (center of box subregion)')
+    parser.add_argument('--trackfile_name', metavar='trackfile_name', type=str, action='store', default=None, required=False, help='Track file for this halo (center of box subregion)')
     parser.add_argument('--boxwidth', metavar='boxwidth', type=float, action='store', default=0.04, required=False, help='Width of subregion box in code units')
     parser.add_argument('--threshold', metavar='threshold', type=float, action='store', default=400., required=False, help='Overdensity thresold for HOP algorithm (default = 400)')
     parser.add_argument('--min_rvir', metavar='min_rvir', type=float, action='store', default=10, required=False, help='Filter halo catalogs to this min Rvir [kpc]')
@@ -297,7 +297,7 @@ if __name__ == "__main__":
 
     print('ARGS args = ', args)
     if (args.nproc==1):
-        ds, box = prep_dataset_for_halo_finding(args.directory, args.output, trackfile=args.trackfile_name, boxwidth=args.boxwidth) 
+        ds, box = prep_dataset_for_halo_finding(args.directory, args.output, trackfile_name=args.trackfile_name, boxwidth=args.boxwidth) 
         hc = halo_finding_step(ds, box, simulation_dir=args.directory, threshold=args.threshold) 
         hc = repair_halo_catalog(ds, args.directory, args.output, min_rvir = args.min_rvir, min_halo_mass=args.min_mass) 
         export_to_astropy(args.directory, args.output)
