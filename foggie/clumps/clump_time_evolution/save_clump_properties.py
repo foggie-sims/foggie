@@ -5,7 +5,6 @@ from matplotlib.colors import LogNorm
 import numpy as np 
 
 from astropy.table import Table
-import astropy.units as u
 from scipy import stats
 
 
@@ -40,6 +39,13 @@ from foggie.clumps.clump_finder.clump_finder import TqdmProgressBar
 
 
 import time
+
+def append_to_hierarchy_file(hf, key, value,delete_previous=True):
+    if key in hf.keys():
+        if delete_previous: del hf[key]
+        else: return
+    hf.create_dataset(key, data=value)
+
 
 # --- START VIDA'S ADDITION : imports needed for emission field registration ---
 import unyt                        
@@ -577,6 +583,8 @@ shell_ovi_num_dense = []
 shell_metallicity = []
 shell_pressure = []
 shell_temperature = []
+shell_cooling_time = []
+t_shear = []
 
 
 
@@ -596,43 +604,61 @@ add_cell_id_field(ds)
 import trident
 trident.add_ion_fields(ds, ions=['O II','O III','O IV','O V','O VI','Mg II'])
 
-gas_masses = refine_box['gas','mass'].in_units('Msun')
-vx = refine_box['gas','velocity_x'].in_units('km/s')
-vy = refine_box['gas','velocity_y'].in_units('km/s')
-vz = refine_box['gas','velocity_z'].in_units('km/s')
-hi_num_dense = refine_box['gas','H_p0_number_density'].in_units('cm**-3')
-mgii_num_dense = refine_box['gas','Mg_p1_number_density'].in_units('cm**-3')
-oii_num_dense = refine_box['gas','O_p1_number_density'].in_units('cm**-3')
-oiii_num_dense = refine_box['gas','O_p2_number_density'].in_units('cm**-3')
-oiv_num_dense = refine_box['gas','O_p3_number_density'].in_units('cm**-3')
-ov_num_dense = refine_box['gas','O_p4_number_density'].in_units('cm**-3')
-ovi_num_dense = refine_box['gas','O_p5_number_density'].in_units('cm**-3')
-volumes = refine_box['gas','cell_volume'].in_units('kpc**3')
 
 
-x = refine_box['gas','x'].in_units('kpc')
-y = refine_box['gas','y'].in_units('kpc')
-z = refine_box['gas','z'].in_units('kpc')
-
-metallicity = refine_box['gas','metallicity']
-pressure = refine_box['gas','pressure']
-temperature = refine_box['gas','temperature']
+all_leaf_cell_ids = np.array([])
+shell_ids_appended_to_all = True
+for leaf_id in leaf_clump_ids:
+    all_leaf_cell_ids = np.append(all_leaf_cell_ids,hf[str(leaf_id)]['cell_ids'][...])
+    try:
+        all_leaf_cell_ids = np.append(all_leaf_cell_ids,hf[str(leaf_id)]['shell_cell_ids'][...])
+    except:
+        shell_ids_appended_to_all=False
 
 cell_ids = refine_box['index','cell_id_2']
 
 
-code_density = ds.units.code_mass / ds.units.code_length**3
+
+initial_mask = np.isin(cell_ids,all_leaf_cell_ids)
+
+#flatten a list of arrays
+gas_masses = refine_box['gas','mass'].in_units('Msun')[initial_mask]
+vx = refine_box['gas','velocity_x'].in_units('km/s')[initial_mask]
+vy = refine_box['gas','velocity_y'].in_units('km/s')[initial_mask]
+vz = refine_box['gas','velocity_z'].in_units('km/s')[initial_mask]
+hi_num_dense = refine_box['gas','H_p0_number_density'].in_units('cm**-3')[initial_mask]
+mgii_num_dense = refine_box['gas','Mg_p1_number_density'].in_units('cm**-3')[initial_mask]
+oii_num_dense = refine_box['gas','O_p1_number_density'].in_units('cm**-3')[initial_mask]
+oiii_num_dense = refine_box['gas','O_p2_number_density'].in_units('cm**-3')[initial_mask]
+oiv_num_dense = refine_box['gas','O_p3_number_density'].in_units('cm**-3')[initial_mask]
+ov_num_dense = refine_box['gas','O_p4_number_density'].in_units('cm**-3')[initial_mask]
+ovi_num_dense = refine_box['gas','O_p5_number_density'].in_units('cm**-3')[initial_mask]
+volumes = refine_box['gas','cell_volume'].in_units('kpc**3')[initial_mask]
+
+
+x = refine_box['gas','x'].in_units('kpc')[initial_mask]
+y = refine_box['gas','y'].in_units('kpc')[initial_mask]
+z = refine_box['gas','z'].in_units('kpc')[initial_mask]
+
+metallicity = refine_box['gas','metallicity'][initial_mask]
+pressure = refine_box['gas','pressure'][initial_mask]
+temperature = refine_box['gas','temperature'][initial_mask]
+
+cooling_time = refine_box['gas','cooling_time'][initial_mask]
+
+cell_ids = cell_ids[initial_mask]
+
 code_density = ds.units.code_density
 if args.do_tracer_fluids:
     #try:
-        tf1 = refine_box['enzo','TracerFluid01'] * code_density
-        tf2 = refine_box['enzo','TracerFluid02'] * code_density
-        tf3 = refine_box['enzo','TracerFluid03'] * code_density
-        tf4 = refine_box['enzo','TracerFluid04'] * code_density
-        tf5 = refine_box['enzo','TracerFluid05'] * code_density
-        tf6 = refine_box['enzo','TracerFluid06'] * code_density
-        tf7 = refine_box['enzo','TracerFluid07'] * code_density
-        tf8 = refine_box['enzo','TracerFluid08'] * code_density
+        tf1 = refine_box['enzo','TracerFluid01'][initial_mask] * code_density
+        tf2 = refine_box['enzo','TracerFluid02'][initial_mask] * code_density
+        tf3 = refine_box['enzo','TracerFluid03'][initial_mask] * code_density
+        tf4 = refine_box['enzo','TracerFluid04'][initial_mask] * code_density
+        tf5 = refine_box['enzo','TracerFluid05'][initial_mask] * code_density
+        tf6 = refine_box['enzo','TracerFluid06'][initial_mask] * code_density
+        tf7 = refine_box['enzo','TracerFluid07'][initial_mask] * code_density
+        tf8 = refine_box['enzo','TracerFluid08'][initial_mask] * code_density
     #except:
     #    args.do_tracer_fluids=False
 
@@ -794,6 +820,13 @@ for leaf_id in leaf_clump_ids:
             shell_mgii_emissivity.append(    np.sum(emission_data['mgii'][shell_mask].v)    )  # MgII 2796 
         # --- END VIDA'S ADDITION ---
 
+        shell_cooling_time.append( np.min(cooling_time[shell_mask]).in_units('s').v ) #units of seconds 
+
+        dvx2 = np.power( (leaf_vx[-1] - shell_vx[-1]) , 2.) #Already in km/s
+        dvy2 = np.power( (leaf_vy[-1] - shell_vy[-1]) , 2.)
+        dvz2 = np.power( (leaf_vz[-1] - shell_vz[-1]) , 2.)
+
+        t_shear.append( np.power(vol_norm.in_units('km**3').v, 1./3.) / np.sqrt(dvx2 + dvy2 + dvz2) ) #units of seconds
 
     pbar.update(itr)
     itr+=1
@@ -802,117 +835,116 @@ for leaf_id in leaf_clump_ids:
 
 
     if args.modify_existing_clump_hierarchy:
-        hf[str(leaf_id)].create_dataset('leaf_vx', data=np.array(leaf_vx[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_vy', data=np.array(leaf_vy[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_vz', data=np.array(leaf_vz[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_x', data=np.array(leaf_x[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_y', data=np.array(leaf_y[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_z', data=np.array(leaf_z[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_hi_num_dense', data=np.array(leaf_hi_num_dense[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_mgii_num_dense', data=np.array(leaf_mgii_num_dense[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_oii_num_dense', data=np.array(leaf_oii_num_dense[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_oiii_num_dense', data=np.array(leaf_oiii_num_dense[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_oiv_num_dense', data=np.array(leaf_oiv_num_dense[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_ov_num_dense', data=np.array(leaf_ov_num_dense[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_ovi_num_dense', data=np.array(leaf_ovi_num_dense[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_volume', data=np.array(leaf_volumes[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_metallicity', data=np.array(leaf_metallicity[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_pressure', data=np.array(leaf_pressure[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_temperature', data=np.array(leaf_temperature[-1]))
-        hf[str(leaf_id)].create_dataset('leaf_mass', data=np.array(leaf_masses[-1]))
+        delete_previous = True
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leav_vx', np.array(leaf_vx[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_vy', np.array(leaf_vy[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_vz', np.array(leaf_vz[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_x', np.array(leaf_x[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_y', np.array(leaf_y[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_z', np.array(leaf_z[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_hi_num_dense', np.array(leaf_hi_num_dense[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_mgii_num_dense', np.array(leaf_mgii_num_dense[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_oii_num_dense', np.array(leaf_oii_num_dense[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_oiii_num_dense', np.array(leaf_oiii_num_dense[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_oiv_num_dense', np.array(leaf_oiv_num_dense[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_ov_num_dense', np.array(leaf_ov_num_dense[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_ovi_num_dense', np.array(leaf_ovi_num_dense[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_volume', np.array(leaf_volumes[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_metallicity', np.array(leaf_metallicity[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_pressure', np.array(leaf_pressure[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_temperature', np.array(leaf_temperature[-1]),delete_previous)
+        append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_mass', np.array(leaf_masses[-1]),delete_previous)
         if args.do_tracer_fluids:
-            hf[str(leaf_id)].create_dataset('leaf_tf1_mass', data=np.array(leaf_tf1_mass[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_tf2_mass', data=np.array(leaf_tf2_mass[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_tf3_mass', data=np.array(leaf_tf3_mass[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_tf4_mass', data=np.array(leaf_tf4_mass[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_tf5_mass', data=np.array(leaf_tf5_mass[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_tf6_mass', data=np.array(leaf_tf6_mass[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_tf7_mass', data=np.array(leaf_tf7_mass[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_tf8_mass', data=np.array(leaf_tf8_mass[-1]))
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_tf1_mass', np.array(leaf_tf1_mass[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_tf2_mass', np.array(leaf_tf2_mass[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_tf3_mass', np.array(leaf_tf3_mass[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_tf4_mass', np.array(leaf_tf4_mass[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_tf5_mass', np.array(leaf_tf5_mass[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_tf6_mass', np.array(leaf_tf6_mass[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_tf7_mass', np.array(leaf_tf7_mass[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_tf8_mass', np.array(leaf_tf8_mass[-1]),delete_previous)
         if shell_cell_ids is not None:
-            hf[str(leaf_id)].create_dataset('shell_mass', data=np.array(shell_masses[-1]))
-            hf[str(leaf_id)].create_dataset('shell_volume', data=np.array(shell_volumes[-1]))
-            hf[str(leaf_id)].create_dataset('shell_vx', data=np.array(shell_vx[-1]))
-            hf[str(leaf_id)].create_dataset('shell_vy', data=np.array(shell_vy[-1]))
-            hf[str(leaf_id)].create_dataset('shell_vz', data=np.array(shell_vz[-1]))
-            hf[str(leaf_id)].create_dataset('shell_hi_num_dense', data=np.array(shell_hi_num_dense[-1]))
-            hf[str(leaf_id)].create_dataset('shell_mgii_num_dense', data=np.array(shell_mgii_num_dense[-1]))
-            hf[str(leaf_id)].create_dataset('shell_oii_num_dense', data=np.array(shell_oii_num_dense[-1]))
-            hf[str(leaf_id)].create_dataset('shell_oiii_num_dense', data=np.array(shell_oiii_num_dense[-1]))
-            hf[str(leaf_id)].create_dataset('shell_oiv_num_dense', data=np.array(shell_oiv_num_dense[-1]))
-            hf[str(leaf_id)].create_dataset('shell_ov_num_dense', data=np.array(shell_ov_num_dense[-1]))
-            hf[str(leaf_id)].create_dataset('shell_ovi_num_dense', data=np.array(shell_ovi_num_dense[-1]))
-            hf[str(leaf_id)].create_dataset('shell_metallicity', data=np.array(shell_metallicity[-1]))
-            hf[str(leaf_id)].create_dataset('shell_pressure', data=np.array(shell_pressure[-1]))
-            hf[str(leaf_id)].create_dataset('shell_temperature', data=np.array(shell_temperature[-1]))
-            # --- VIDA'S ADDITION: save shell emissivity into clump hierarchy HDF5 ---
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_mass', np.array(shell_masses[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_volume', np.array(shell_volumes[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_vx', np.array(shell_vx[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_vy', np.array(shell_vy[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_vz', np.array(shell_vz[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_hi_num_dense', np.array(shell_hi_num_dense[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_mgii_num_dense', np.array(shell_mgii_num_dense[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_oii_num_dense', np.array(shell_oii_num_dense[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_oiii_num_dense', np.array(shell_oiii_num_dense[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_oiv_num_dense', np.array(shell_oiv_num_dense[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_ov_num_dense', np.array(shell_ov_num_dense[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_ovi_num_dense', np.array(shell_ovi_num_dense[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_metallicity', np.array(shell_metallicity[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_pressure', np.array(shell_pressure[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_temperature', np.array(shell_temperature[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'shell_cooling_time', np.array(shell_cooling_time[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 't_shear', np.array(t_shear[-1]),delete_previous)
             if args.add_emission:
-                hf[str(leaf_id)].create_dataset('shell_halpha_emissivity',  data=np.array(shell_halpha_emissivity[-1]))   # H-Alpha 6563 
-                hf[str(leaf_id)].create_dataset('shell_lyalpha_emissivity', data=np.array(shell_lyalpha_emissivity[-1]))  # Ly-Alpha 1216 
-                hf[str(leaf_id)].create_dataset('shell_cii_emissivity',     data=np.array(shell_cii_emissivity[-1]))      # CII 1335 
-                hf[str(leaf_id)].create_dataset('shell_ciii_emissivity',    data=np.array(shell_ciii_emissivity[-1]))     # CIII 1910 
-                hf[str(leaf_id)].create_dataset('shell_civ_emissivity',     data=np.array(shell_civ_emissivity[-1]))      # CIV 1548 
-                hf[str(leaf_id)].create_dataset('shell_ovi_emissivity',     data=np.array(shell_ovi_emissivity[-1]))      # OVI 1032+1038 
-                hf[str(leaf_id)].create_dataset('shell_siii_emissivity',    data=np.array(shell_siii_emissivity[-1]))     # SiII 1260 
-                hf[str(leaf_id)].create_dataset('shell_siiii_emissivity',   data=np.array(shell_siiii_emissivity[-1]))    # SiIII 1207 
-                hf[str(leaf_id)].create_dataset('shell_siiv_emissivity',    data=np.array(shell_siiv_emissivity[-1]))     # SiIV 1394 
-                hf[str(leaf_id)].create_dataset('shell_mgii_emissivity',    data=np.array(shell_mgii_emissivity[-1]))     # MgII 2796 
-            # --- END VIDA'S ADDITION ---
-        # --- VIDA'S ADDITION: save emissivity into clump hierarchy HDF5 ---
+                append_to_hierarchy_file(hf[str(leaf_id)], 'shell_halpha_emissivity', np.array(shell_halpha_emissivity[-1]),delete_previous)
+                append_to_hierarchy_file(hf[str(leaf_id)], 'shell_lyalpha_emissivity', np.array(shell_lyalpha_emissivity[-1]),delete_previous)
+                append_to_hierarchy_file(hf[str(leaf_id)], 'shell_cii_emissivity', np.array(shell_cii_emissivity[-1]),delete_previous)
+                append_to_hierarchy_file(hf[str(leaf_id)], 'shell_ciii_emissivity', np.array(shell_ciii_emissivity[-1]),delete_previous)
+                append_to_hierarchy_file(hf[str(leaf_id)], 'shell_civ_emissivity', np.array(shell_civ_emissivity[-1]),delete_previous)
+                append_to_hierarchy_file(hf[str(leaf_id)], 'shell_ovi_emissivity', np.array(shell_ovi_emissivity[-1]),delete_previous)
+                append_to_hierarchy_file(hf[str(leaf_id)], 'shell_siii_emissivity', np.array(shell_siii_emissivity[-1]),delete_previous)
+                append_to_hierarchy_file(hf[str(leaf_id)], 'shell_siiii_emissivity', np.array(shell_siiii_emissivity[-1]),delete_previous)
+                append_to_hierarchy_file(hf[str(leaf_id)], 'shell_siiv_emissivity', np.array(shell_siiv_emissivity[-1]),delete_previous)
+                append_to_hierarchy_file(hf[str(leaf_id)], 'shell_mgii_emissivity', np.array(shell_mgii_emissivity[-1]),delete_previous)
         if args.add_emission:
-            hf[str(leaf_id)].create_dataset('leaf_halpha_emissivity',  data=np.array(leaf_halpha_emissivity[-1]))   
-            hf[str(leaf_id)].create_dataset('leaf_lyalpha_emissivity', data=np.array(leaf_lyalpha_emissivity[-1]))  
-            hf[str(leaf_id)].create_dataset('leaf_cii_emissivity',     data=np.array(leaf_cii_emissivity[-1]))      
-            hf[str(leaf_id)].create_dataset('leaf_ciii_emissivity',    data=np.array(leaf_ciii_emissivity[-1]))    
-            hf[str(leaf_id)].create_dataset('leaf_civ_emissivity',     data=np.array(leaf_civ_emissivity[-1]))      
-            hf[str(leaf_id)].create_dataset('leaf_ovi_emissivity',     data=np.array(leaf_ovi_emissivity[-1]))      
-            hf[str(leaf_id)].create_dataset('leaf_siii_emissivity',    data=np.array(leaf_siii_emissivity[-1]))     
-            hf[str(leaf_id)].create_dataset('leaf_siiii_emissivity',   data=np.array(leaf_siiii_emissivity[-1]))    
-            hf[str(leaf_id)].create_dataset('leaf_siiv_emissivity',    data=np.array(leaf_siiv_emissivity[-1]))    
-            hf[str(leaf_id)].create_dataset('leaf_mgii_emissivity',    data=np.array(leaf_mgii_emissivity[-1]))  
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_halpha_emissivity', np.array(leaf_halpha_emissivity[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_lyalpha_emissivity', np.array(leaf_lyalpha_emissivity[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_cii_emissivity', np.array(leaf_cii_emissivity[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_ciii_emissivity', np.array(leaf_ciii_emissivity[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_civ_emissivity', np.array(leaf_civ_emissivity[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_ovi_emissivity', np.array(leaf_ovi_emissivity[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siii_emissivity', np.array(leaf_siii_emissivity[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siiii_emissivity', np.array(leaf_siiii_emissivity[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siiv_emissivity', np.array(leaf_siiv_emissivity[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_mgii_emissivity', np.array(leaf_mgii_emissivity[-1]),delete_previous)
 
-            
-            hf[str(leaf_id)].create_dataset('leaf_halpha_sb_xlos',  data=np.array(leaf_halpha_sb_xlos[-1]))   
-            hf[str(leaf_id)].create_dataset('leaf_halpha_sb_ylos',  data=np.array(leaf_halpha_sb_ylos[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_halpha_sb_zlos',  data=np.array(leaf_halpha_sb_zlos[-1]))
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_halpha_sb_xlos', np.array(leaf_halpha_sb_xlos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_halpha_sb_ylos', np.array(leaf_halpha_sb_ylos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_halpha_sb_zlos', np.array(leaf_halpha_sb_zlos[-1]),delete_previous)
 
-            hf[str(leaf_id)].create_dataset('leaf_lyalpha_sb_xlos', data=np.array(leaf_lyalpha_sb_xlos[-1]))  
-            hf[str(leaf_id)].create_dataset('leaf_lyalpha_sb_ylos', data=np.array(leaf_lyalpha_sb_ylos[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_lyalpha_sb_zlos', data=np.array(leaf_lyalpha_sb_zlos[-1]))
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_lyalpha_sb_xlos', np.array(leaf_lyalpha_sb_xlos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_lyalpha_sb_ylos', np.array(leaf_lyalpha_sb_ylos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_lyalpha_sb_zlos', np.array(leaf_lyalpha_sb_zlos[-1]),delete_previous)
 
-            hf[str(leaf_id)].create_dataset('leaf_cii_sb_xlos',     data=np.array(leaf_cii_sb_xlos[-1]))      
-            hf[str(leaf_id)].create_dataset('leaf_cii_sb_ylos',     data=np.array(leaf_cii_sb_ylos[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_cii_sb_zlos',     data=np.array(leaf_cii_sb_zlos[-1]))
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_cii_sb_xlos', np.array(leaf_cii_sb_xlos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_cii_sb_ylos', np.array(leaf_cii_sb_ylos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_cii_sb_zlos', np.array(leaf_cii_sb_zlos[-1]),delete_previous)
 
-            hf[str(leaf_id)].create_dataset('leaf_ciii_sb_xlos',    data=np.array(leaf_ciii_sb_xlos[-1]))     
-            hf[str(leaf_id)].create_dataset('leaf_ciii_sb_ylos',    data=np.array(leaf_ciii_sb_ylos[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_ciii_sb_zlos',    data=np.array(leaf_ciii_sb_zlos[-1]))
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_ciii_sb_xlos', np.array(leaf_ciii_sb_xlos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_ciii_sb_ylos', np.array(leaf_ciii_sb_ylos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_ciii_sb_zlos', np.array(leaf_ciii_sb_zlos[-1]),delete_previous)
 
-            hf[str(leaf_id)].create_dataset('leaf_civ_sb_xlos',     data=np.array(leaf_civ_sb_xlos[-1]))      
-            hf[str(leaf_id)].create_dataset('leaf_civ_sb_ylos',     data=np.array(leaf_civ_sb_ylos[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_civ_sb_zlos',     data=np.array(leaf_civ_sb_zlos[-1]))
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_civ_sb_xlos', np.array(leaf_civ_sb_xlos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_civ_sb_ylos', np.array(leaf_civ_sb_ylos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_civ_sb_zlos', np.array(leaf_civ_sb_zlos[-1]),delete_previous)
 
-            hf[str(leaf_id)].create_dataset('leaf_ovi_sb_xlos',     data=np.array(leaf_ovi_sb_xlos[-1]))      
-            hf[str(leaf_id)].create_dataset('leaf_ovi_sb_ylos',     data=np.array(leaf_ovi_sb_ylos[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_ovi_sb_zlos',     data=np.array(leaf_ovi_sb_zlos[-1]))
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_ovi_sb_xlos', np.array(leaf_ovi_sb_xlos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_ovi_sb_ylos', np.array(leaf_ovi_sb_ylos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_ovi_sb_zlos', np.array(leaf_ovi_sb_zlos[-1]),delete_previous)
 
-            hf[str(leaf_id)].create_dataset('leaf_siii_sb_xlos',    data=np.array(leaf_siii_sb_xlos[-1]))     
-            hf[str(leaf_id)].create_dataset('leaf_siii_sb_ylos',    data=np.array(leaf_siii_sb_ylos[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_siii_sb_zlos',    data=np.array(leaf_siii_sb_zlos[-1]))
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siii_sb_xlos', np.array(leaf_siii_sb_xlos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siii_sb_ylos', np.array(leaf_siii_sb_ylos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siii_sb_zlos', np.array(leaf_siii_sb_zlos[-1]),delete_previous)
 
-            hf[str(leaf_id)].create_dataset('leaf_siiii_sb_xlos',   data=np.array(leaf_siiii_sb_xlos[-1]))   
-            hf[str(leaf_id)].create_dataset('leaf_siiii_sb_ylos',   data=np.array(leaf_siiii_sb_ylos[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_siiii_sb_zlos',   data=np.array(leaf_siiii_sb_zlos[-1]))
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siiii_sb_xlos', np.array(leaf_siiii_sb_xlos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siiii_sb_ylos', np.array(leaf_siiii_sb_ylos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siiii_sb_zlos', np.array(leaf_siiii_sb_zlos[-1]),delete_previous)
 
-            hf[str(leaf_id)].create_dataset('leaf_siiv_sb_xlos',    data=np.array(leaf_siiv_sb_xlos[-1]))    
-            hf[str(leaf_id)].create_dataset('leaf_siiv_sb_ylos',    data=np.array(leaf_siiv_sb_ylos[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_siiv_sb_zlos',    data=np.array(leaf_siiv_sb_zlos[-1]))
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siiv_sb_xlos', np.array(leaf_siiv_sb_xlos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siiv_sb_ylos', np.array(leaf_siiv_sb_ylos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_siiv_sb_zlos', np.array(leaf_siiv_sb_zlos[-1]),delete_previous)
 
-            hf[str(leaf_id)].create_dataset('leaf_mgii_sb_xlos',    data=np.array(leaf_mgii_sb_xlos[-1]))     
-            hf[str(leaf_id)].create_dataset('leaf_mgii_sb_ylos',    data=np.array(leaf_mgii_sb_ylos[-1]))
-            hf[str(leaf_id)].create_dataset('leaf_mgii_sb_zlos',    data=np.array(leaf_mgii_sb_zlos[-1]))
-          
-        # --- END VIDA'S ADDITION ---
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_mgii_sb_xlos', np.array(leaf_mgii_sb_xlos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_mgii_sb_ylos', np.array(leaf_mgii_sb_ylos[-1]),delete_previous)
+            append_to_hierarchy_file(hf[str(leaf_id)], 'leaf_mgii_sb_zlos', np.array(leaf_mgii_sb_zlos[-1]),delete_previous)
+
+ 
 
 hf.close()
 
@@ -969,6 +1001,8 @@ if args.write_separate_stats_file or not args.modify_existing_clump_hierarchy:
         hf.create_dataset('shell_metallicity', data=np.array(shell_metallicity))
         hf.create_dataset('shell_pressure', data=np.array(shell_pressure))
         hf.create_dataset('shell_temperature', data=np.array(shell_temperature))
+        hf.create_dataset('shell_cooling_time', data=np.array(shell_cooling_time[-1]))
+        hf.create_dataset('t_shear', data=np.array(t_shear[-1]))
         # --- VIDA'S ADDITION: save shell emissivity into separate stats file ---
         if args.add_emission:
             hf.create_dataset('shell_halpha_emissivity',  data=np.array(shell_halpha_emissivity))   
@@ -1036,4 +1070,5 @@ if args.write_separate_stats_file or not args.modify_existing_clump_hierarchy:
         hf.create_dataset('leaf_mgii_sb_ylos',    data=np.array(leaf_mgii_sb_ylos))
         hf.create_dataset('leaf_mgii_sb_zlos',    data=np.array(leaf_mgii_sb_zlos))
     # --- END VIDA'S ADDITION ---
-hf.close()
+
+    hf.close()
