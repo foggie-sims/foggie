@@ -901,9 +901,6 @@ def calculate_flux(ds, grid, shape, snap, snap_props, global_vars):
     if ('energy' in flux_types):
         fluxes.append('thermal_energy_flux')
         fluxes.append('kinetic_energy_flux')
-        fluxes.append('potential_energy_flux')
-        fluxes.append('bernoulli_energy_flux')
-        fluxes.append('cooling_energy_flux')
         flux_filename += '_energy'
     table = make_flux_table(fluxes, args)
 
@@ -956,15 +953,9 @@ def calculate_flux(ds, grid, shape, snap, snap_props, global_vars):
         properties.append(metals)
     if ('energy' in flux_types):
         kinetic_energy = grid['gas','kinetic_energy_corrected'].in_units('erg').v
-        thermal_energy = (grid['gas','cell_mass']*grid['gas','thermal_energy']).in_units('erg').v
-        potential_energy = -G * Menc_profile(radius)*gtoMsun / (radius*1000.*cmtopc)*grid['gas','cell_mass'].in_units('g').v
-        bernoulli_energy = kinetic_energy + 5./3.*thermal_energy + potential_energy
-        cooling_energy = thermal_energy/grid['gas','cooling_time'].in_units('yr').v
+        thermal_energy = (grid['gas','cell_mass']*(grid['gas','specific_thermal_energy'] + grid['gas','pressure']/grid['gas','density'])).in_units('erg').v # Second term is P*dV work done by thermal pressure as it moves through surface
         properties.append(thermal_energy)
         properties.append(kinetic_energy)
-        properties.append(potential_energy)
-        properties.append(bernoulli_energy)
-        properties.append(cooling_energy)
 
     # Calculate new positions of gas cells for a long elapsed time (necessary because digitizing onto grid can "reset" positions of slow-moving gas)
     new_x = vx*(5.*dt) + x
