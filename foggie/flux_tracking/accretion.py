@@ -1229,9 +1229,9 @@ def inner_cgm_energy(ds, grid, shape, snap, snap_props, global_vars):
     smooth_rv = gaussian_filter(rv_masked, smooth_scale)
     smooth_vtheta = gaussian_filter(vtheta_masked, smooth_scale)
     smooth_vphi = gaussian_filter(vphi_masked, smooth_scale)
-    turb_rv = rv - smooth_rv
-    turb_vtheta = vtheta - smooth_vtheta
-    turb_vphi = vphi - smooth_vphi
+    turb_rv = rv_masked - smooth_rv
+    turb_vtheta = vtheta_masked - smooth_vtheta
+    turb_vphi = vphi_masked - smooth_vphi
     turbulent_energy = 0.5*mass*(turb_rv**2. + turb_vtheta**2. + turb_vphi**2.)
     radial_energy = 0.5*mass*(smooth_rv**2.)
     rotational_energy = 0.5*mass*(smooth_vtheta**2. + smooth_vphi**2.)
@@ -1247,7 +1247,7 @@ def inner_cgm_energy(ds, grid, shape, snap, snap_props, global_vars):
         rotational_energy_sum = np.sum(rotational_energy[inner_cgm])
         # Feedback energy is total mass of stars within this radius with ages < 50 Myr, multiplied by the simulation's StarEnergyToThermalFeedback parameter, converted to energy via E = mc^2,
         # and then converted to an energy deposition rate by dividing by 50 Myr (this is the same way SFR is calculated, just using a larger age)
-        feedback_energy = np.sum(star_mass[(star_age < 50.) & (star_radius < radii[r]*Rvir)])*gtoMsun * 1e-5 * light_c**2. / (50.*1e5*stoyr)
+        feedback_energy = np.sum(star_mass[(star_age < 50.) & (star_radius < radii[r]*Rvir)])*gtoMsun * 1e-5 * light_c**2. / (50.*1e6*stoyr)
         # Expected thermal energy from graviational heating comes from expected temperature from virialization, then Etherm = 3/2 N kB T
         T_grav = mu*mp/(3.*kB) * G*Menc_profile(radii[r]*Rvir)*gtoMsun/(radii[r]*Rvir*1000.*cmtopc)
         gravitational_heating = np.sum(3./2.*kB*T_grav*density[inner_cgm]/(mu*mp)*cell_volume[inner_cgm])
