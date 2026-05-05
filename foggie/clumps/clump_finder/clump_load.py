@@ -108,6 +108,10 @@ def create_simple_ucg(ds, data_source, fields, target_nref, split_method=["copy"
                 iy_max = np.ceil(y_indices).astype(int)
                 iz_max = np.ceil(z_indices).astype(int)
 
+                ix_max[ix_max==ix_min] += 1
+                iy_max[iy_max==iy_min] += 1
+                iz_max[iz_max==iz_min] += 1
+                
                 cic_kernel=np.ones((2,2,2))
                 kernel_volume = g_dx*g_dx*g_dx*np.size(cic_kernel)
                 for j in range(0,np.size(g[field_position_x])):
@@ -125,29 +129,31 @@ def create_simple_ucg(ds, data_source, fields, target_nref, split_method=["copy"
                     cx_max = 2;cy_max=2;cz_max=2
 
                     if ix_min[j]<0:
+                        cx_min = -ix_min[j]
                         ix_min[j]=0
-                        cx_min = 1
                     if ix_max[j]>=nx:
+                        cx_max = 2 - (ix_max[j] - (nx-1))
                         ix_max[j]=nx-1
-                        cx_max = 1
                     if iy_min[j]<0:
+                        cy_min = -iy_min[j]
                         iy_min[j]=0
-                        cy_min = 1
                     if iy_max[j]>=ny:
+                        cy_max = 2 - (iy_max[j] - (ny-1))
                         iy_max[j]=ny-1
-                        cy_max = 1
                     if iz_min[j]<0:
+                        cz_min = -iz_min[j]
                         iz_min[j]=0
-                        cz_min = 1
                     if iz_max[j]>=nz:
+                        cz_max = 2 - (iz_max[j] - (nz-1))
                         iz_max[j]=nz-1
-                        cz_max = 1
 
                     cic_kernel = cic_kernel[cx_min:cx_max,cy_min:cy_max,cz_min:cz_max]
                     cic_kernel = cic_kernel / np.sum(cic_kernel) #Normalize kernel
                     kernel_volume = g_dx*g_dx*g_dx*np.size(cic_kernel)
                     to_add = g[field][j] * cic_kernel / kernel_volume 
                     to_add[np.isnan(to_add)] = 0.0
+                    print("ix_min=",ix_min[j],"ix_max=",ix_max[j],"iy_min=",iy_min[j],"iy_max=",iy_max[j],"iz_min=",iz_min[j],"iz_max=",iz_max[j])
+                    print("cx_min=",cx_min,"cx_max=",cx_max,"cy_min=",cy_min,"cy_max=",cy_max,"cz_min=",cz_min,"cz_max=",cz_max)
                     temp_grid[ix_min[j]:ix_max[j]+1, iy_min[j]:iy_max[j]+1, iz_min[j]:iz_max[j]+1] += to_add  #Divide by cell volume to get density-like quantity
                     #temp_grid[x_indices[j],y_indices[j],z_indices[j]] = g[field][j] / g_dx / g_dx / g_dx #Divide by cell volume to get density-like quantity
                 if np.isnan(temp_grid).any(): print("Warning, NaN in temp grid?")
