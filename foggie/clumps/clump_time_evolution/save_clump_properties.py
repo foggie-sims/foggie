@@ -663,7 +663,17 @@ if args.do_tracer_fluids:
     #    args.do_tracer_fluids=False
 
 
-
+if args.add_emission:
+    emission_data['halpha']=emission_data['halpha'][initial_mask]
+    emission_data['lyalpha']=emission_data['lyalpha'][initial_mask]
+    emission_data['cii']=emission_data['cii'][initial_mask]
+    emission_data['ciii']=emission_data['ciii'][initial_mask]
+    emission_data['civ']=emission_data['civ'][initial_mask]
+    emission_data['ovi']=emission_data['ovi'][initial_mask]
+    emission_data['siii']=emission_data['siii'][initial_mask]
+    emission_data['siiii']=emission_data['siiii'][initial_mask]
+    emission_data['siiv']=emission_data['siiv'][initial_mask]
+    emission_data['mgii']=emission_data['mgii'][initial_mask]
 
 pbar = TqdmProgressBar("Calculating Leaf stats...",len(leaf_clump_ids),position=0)
 itr=0
