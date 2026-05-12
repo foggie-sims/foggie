@@ -24,6 +24,7 @@
                  run plot_MZgrad.py --system ayan_local --halo 8508 --Zgrad_den kpc --upto_kpc 10 --weight mass --ycol Zgrad --xcol time --zhighlight --plot_timefraction --Zgrad_allowance 0.03 --upto_z 1 --overplot_cadence 500 --keep --snaphighlight DD0452,DD0466 --forpaper
                  run plot_MZgrad.py --system ayan_hd --halo 8508 --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol age --plot_stellar --forpaper
                  run plot_MZgrad.py --system ayan_hd --Zgrad_den kpc --upto_kpc 10 --ycol Zgrad --xcol age --plot_stellar --forpaper --halo 8508,5036,5016,4123,2878,2392
+                 run plot_MZgrad.py --system ayan_local --halo 8508,5016,4123 --Zgrad_den kpc --upto_kpc 10 --docomoving --weight mass --ycol Zgrad --xcol time --use_density_cut --zhighlight --formolly --hiderawdata --overplot_smoothed 50 [FOR MOLLY on 12 May 2026]
 """
 from header import *
 from util import *
@@ -471,7 +472,7 @@ def plot_zhighlight(df, ax, cmap, args, ycol=None):
     if ycol is None: ycol = args.ycol
     df['redshift_int'] = np.floor(df['redshift'])
     df_zbin = df.drop_duplicates(subset='redshift_int', keep='last', ignore_index=True)
-    if is_color_like(cmap): dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=cmap, lw=4, edgecolor='gold' if args.fortalk else 'k', s=200, alpha=1 if args.fortalk or args.formolly or args.forpaper else 0.7, zorder=20)
+    if is_color_like(cmap): dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=cmap, lw=2, edgecolor='gold' if args.fortalk else 'k', s=200, alpha=1 if args.fortalk or args.formolly or args.forpaper else 0.7, zorder=20)
     else: dummy = ax.scatter(df_zbin[args.xcol], df_zbin[ycol], c=df_zbin[args.colorcol], cmap=cmap, vmin=args.cmin, vmax=args.cmax, lw=1, edgecolor='k', s=100, alpha=0.7 if (args.overplot_smoothed and 'smoothed' not in ycol) or (args.overplot_cadence and 'interp' not in ycol) else 1, zorder=20)
     print('For halo', args.halo, 'highlighted z =', [float('%.1F' % item) for item in df_zbin['redshift'].values], 'with circles')
     return ax
@@ -642,7 +643,7 @@ def plot_MZGR(args):
         thistextcolor = col_arr[thisindex] if args.nocolorcoding else mpl_cm.get_cmap(this_cmap)(0.2 if args.colorcol == 'redshift' else 0.2 if args.colorcol == 're' else 0.8)
         if not args.hiderawdata: # to hide the squiggly lines (and may be only have the overplotted or z-highlighted version)
             if args.nocolorcoding:
-                line, = ax.plot(df[args.xcol], df[args.ycol], c='salmon' if args.overplot_theory else thistextcolor, lw=0.5 if args.overplot_binned else 0.1 if args.overplot_theory else 1 if args.overplot_observations or args.formolly or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) or args.overplot_binned else 1)
+                line, = ax.plot(df[args.xcol], df[args.ycol], c='salmon' if args.overplot_theory else thistextcolor, lw=0.5 if args.overplot_binned else 0.1 if args.overplot_theory else 1 if args.overplot_observations or (args.forproposal and args.overplot_smoothed) else 2, zorder=27 if args.fortalk and not args.plot_timefraction else 2, alpha=0.5 if (args.forproposal and args.overplot_smoothed) or args.overplot_binned else 1)
                 if args.makeanimation and len(args.halo_arr) == 1: # make animation of a single halo evolution track
                     # ----------------------------------
                     def update(i, x, y, line, args):
@@ -664,7 +665,7 @@ def plot_MZGR(args):
             if args.overplot_points: ax.scatter(df[args.xcol], df[args.ycol], c=thistextcolor, lw=0.5, s=10)
 
         # ------- overplotting redshift-binned scatter plot------------
-        if args.zhighlight and not args.formolly:
+        if args.zhighlight:
             ax = plot_zhighlight(df, ax, thistextcolor if args.nocolorcoding else this_cmap, args)
 
         # ------- overplotting a boxcar smoothed version of the MZGR------------
@@ -673,6 +674,7 @@ def plot_MZGR(args):
             npoints = int(np.round(args.overplot_smoothed/mean_dt))
             if npoints % 2 == 0: npoints += 1
             box = np.ones(npoints) / npoints
+            df = df[~np.isnan(df[args.ycol])]
             df[args.ycol + '_smoothed'] = np.convolve(df[args.ycol], box, mode='same')
             print('Boxcar-smoothed plot for halo', args.halo, 'with', npoints, 'points, =', npoints * mean_dt, 'Myr')
 
@@ -778,7 +780,8 @@ def plot_MZGR(args):
             ax.text(args.xmin * 1.1 + 0.1, (args.ymin if args.forproposal else args.ymax) * 0.88 - thisindex * 0.05, '%0d%% time of z>=%d is spent outside shaded region' % (timefraction_outside, args.upto_z), ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
             print('Halo', args.halo, 'spends %.2F%%' %timefraction_outside, 'of the time outside +/-', args.Zgrad_allowance, 'dex/kpc deviation upto redshift %.1F' % args.upto_z)
 
-        if not (args.plot_timefraction or args.forproposal) and not args.overplot_theory: fig.text(0.85 if args.glasspaper or args.formolly else 0.15, 0.43 - thisindex * 0.05 if args.formolly else 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize / 1.2)
+        # if not (args.plot_timefraction or args.forproposal) and not args.overplot_theory: fig.text(0.85 if args.glasspaper or args.formolly else 0.15, 0.43 - thisindex * 0.05 if args.formolly else 0.88 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize / 1.2)
+        if not (args.plot_timefraction or args.forproposal) and not args.overplot_theory: fig.text(0.85, 0.43 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize / 1.2)
         if args.plot_deviation: fig2.text(0.15, 0.9 - thisindex * 0.05, halo_dict[args.halo], ha='left', va='top', color=thistextcolor, fontsize=args.fontsize)
         df['halo'] = args.halo
         df_master = pd.concat([df_master, df])
@@ -1001,7 +1004,7 @@ if __name__ == '__main__':
     else:
         fig, fig2, df_binned, df_manga, tfrac, df_lit = plot_MZGR(args)
 
-    print('Completed in %s' % (datetime.timedelta(minutes=(time.time() - start_time) / 60)))
+    print('Completed in %s' % (timedelta(minutes=(time.time() - start_time) / 60)))
 
 
 
